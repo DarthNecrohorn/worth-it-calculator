@@ -27,7 +27,6 @@
 }
 
 *{box-sizing:border-box;margin:0;padding:0}
-
 html{scroll-behavior:smooth}
 
 body{
@@ -756,9 +755,9 @@ footer{
 
 <body>
 
-<!-- NAVIGATION -->
 <nav class="nav">
     <div class="container nav-inner">
+
         <a href="#" class="logo" onclick="showHome();return false;">
             <span class="logo-mark">✓</span>
             <span>Worth It</span>
@@ -767,13 +766,14 @@ footer{
         <div class="nav-links" id="navLinks">
             <button onclick="showHome()">Home</button>
             <button onclick="openCalculator('cars')">Cars</button>
-            <button onclick="openCalculator('money')">Money</button>
-            <button onclick="openCalculator('technology')">Technology</button>
-            <button onclick="openCalculator('home')">Home Costs</button>
+            <button onclick="showCategory('money')">Money</button>
+            <button onclick="showCategory('technology')">Technology</button>
+            <button onclick="showCategory('home')">Home Costs</button>
             <button onclick="scrollToFAQ()">FAQ</button>
         </div>
 
         <button class="menu-btn" onclick="toggleMenu()">☰</button>
+
     </div>
 </nav>
 
@@ -784,6 +784,7 @@ footer{
 
     <section class="hero">
         <div class="container">
+
             <div class="badge">✦ Smart decisions made simple</div>
 
             <h1>
@@ -797,19 +798,26 @@ footer{
             </p>
 
             <div class="hero-actions">
+
                 <button class="btn btn-primary" onclick="openCalculator('cars')">
                     Start calculating →
                 </button>
 
-                <button class="btn btn-secondary" onclick="document.getElementById('calculators').scrollIntoView()">
+                <button class="btn btn-secondary"
+                        onclick="document.getElementById('calculators').scrollIntoView({behavior:'smooth'})">
                     Explore calculators
                 </button>
+
             </div>
+
         </div>
     </section>
 
+
     <div class="container">
+
         <div class="stats">
+
             <div class="stat">
                 <strong>10+</strong>
                 <span>Decision calculators</span>
@@ -824,468 +832,890 @@ footer{
                 <strong>100%</strong>
                 <span>Free to use</span>
             </div>
+
         </div>
+
     </div>
 
+
     <section class="section" id="calculators">
+
         <div class="container">
 
             <div class="section-header">
                 <h2>Choose a calculator</h2>
-                <p>Find the right tool for your decision.</p>
+                <p id="categoryDescription">
+                    Find the right tool for your decision.
+                </p>
             </div>
 
-            <div class="calculator-grid">
 
-                <div class="calc-card" style="--glow:#7c5cff">
+            <div class="calculator-grid" id="calculatorGrid">
+
+                <!-- CARS -->
+                <div class="calc-card"
+                     data-category="cars"
+                     style="--glow:#7c5cff">
+
                     <div class="calc-icon">🚗</div>
+
                     <h3>EV vs Gas</h3>
+
                     <p>
                         Compare electric and gasoline vehicles over up to
                         10 years.
                     </p>
-                    <button class="open-calc" onclick="openCalculator('cars')">
+
+                    <button class="open-calc"
+                            onclick="openCalculator('cars')">
                         Open calculator →
                     </button>
+
                 </div>
 
-                <div class="calc-card" style="--glow:#34d399">
+
+                <!-- MONEY -->
+                <div class="calc-card"
+                     data-category="money"
+                     style="--glow:#34d399">
+
                     <div class="calc-icon">💰</div>
+
                     <h3>Savings</h3>
+
                     <p>
                         See how quickly your savings can grow with regular
                         deposits.
                     </p>
-                    <button class="open-calc" onclick="openCalculator('savings')">
+
+                    <button class="open-calc"
+                            onclick="openCalculator('savings')">
                         Open calculator →
                     </button>
+
                 </div>
 
-                <div class="calc-card" style="--glow:#38bdf8">
+
+                <div class="calc-card"
+                     data-category="money"
+                     style="--glow:#38bdf8">
+
                     <div class="calc-icon">📈</div>
+
                     <h3>Investment</h3>
+
                     <p>
                         Estimate future investment value using growth and
                         regular contributions.
                     </p>
-                    <button class="open-calc" onclick="openCalculator('investment')">
+
+                    <button class="open-calc"
+                            onclick="openCalculator('investment')">
                         Open calculator →
                     </button>
+
                 </div>
 
-                <div class="calc-card" style="--glow:#fbbf24">
+
+                <div class="calc-card"
+                     data-category="money"
+                     style="--glow:#fbbf24">
+
                     <div class="calc-icon">🏦</div>
+
                     <h3>Loan</h3>
+
                     <p>
                         Calculate monthly payments, total interest and total
                         repayment.
                     </p>
-                    <button class="open-calc" onclick="openCalculator('loan')">
+
+                    <button class="open-calc"
+                            onclick="openCalculator('loan')">
                         Open calculator →
                     </button>
+
                 </div>
 
-                <div class="calc-card" style="--glow:#fb7185">
-                    <div class="calc-icon">💻</div>
-                    <h3>PC Upgrade</h3>
-                    <p>
-                        Compare upgrading your current PC against buying a
-                        new one.
-                    </p>
-                    <button class="open-calc" onclick="openCalculator('pc')">
-                        Open calculator →
-                    </button>
-                </div>
 
-                <div class="calc-card" style="--glow:#a78bfa">
-                    <div class="calc-icon">📱</div>
-                    <h3>Phone Upgrade</h3>
-                    <p>
-                        Find out whether upgrading your phone makes financial
-                        sense.
-                    </p>
-                    <button class="open-calc" onclick="openCalculator('phone')">
-                        Open calculator →
-                    </button>
-                </div>
+                <div class="calc-card"
+                     data-category="money"
+                     style="--glow:#84cc16">
 
-                <div class="calc-card" style="--glow:#22d3ee">
-                    <div class="calc-icon">🏠</div>
-                    <h3>Rent vs Buy</h3>
-                    <p>
-                        Compare long-term renting costs against buying a home.
-                    </p>
-                    <button class="open-calc" onclick="openCalculator('rent')">
-                        Open calculator →
-                    </button>
-                </div>
-
-                <div class="calc-card" style="--glow:#f97316">
-                    <div class="calc-icon">⚡</div>
-                    <h3>Energy Cost</h3>
-                    <p>
-                        Estimate electricity costs for appliances and everyday
-                        devices.
-                    </p>
-                    <button class="open-calc" onclick="openCalculator('energy')">
-                        Open calculator →
-                    </button>
-                </div>
-
-                <div class="calc-card" style="--glow:#84cc16">
                     <div class="calc-icon">🛒</div>
+
                     <h3>Purchase Worth It</h3>
+
                     <p>
                         Compare the price of a purchase against how often you
                         will use it.
                     </p>
-                    <button class="open-calc" onclick="openCalculator('purchase')">
+
+                    <button class="open-calc"
+                            onclick="openCalculator('purchase')">
                         Open calculator →
                     </button>
+
                 </div>
 
-                <div class="calc-card" style="--glow:#ec4899">
+
+                <div class="calc-card"
+                     data-category="money"
+                     style="--glow:#ec4899">
+
                     <div class="calc-icon">💼</div>
+
                     <h3>Salary</h3>
+
                     <p>
                         Estimate yearly, monthly, weekly and hourly income.
                     </p>
-                    <button class="open-calc" onclick="openCalculator('salary')">
+
+                    <button class="open-calc"
+                            onclick="openCalculator('salary')">
                         Open calculator →
                     </button>
+
                 </div>
 
-                <div class="calc-card" style="--glow:#14b8a6">
+
+                <!-- TECHNOLOGY -->
+                <div class="calc-card"
+                     data-category="technology"
+                     style="--glow:#fb7185">
+
+                    <div class="calc-icon">💻</div>
+
+                    <h3>PC Upgrade</h3>
+
+                    <p>
+                        Compare upgrading your current PC against buying a
+                        new one.
+                    </p>
+
+                    <button class="open-calc"
+                            onclick="openCalculator('pc')">
+                        Open calculator →
+                    </button>
+
+                </div>
+
+
+                <div class="calc-card"
+                     data-category="technology"
+                     style="--glow:#a78bfa">
+
+                    <div class="calc-icon">📱</div>
+
+                    <h3>Phone Upgrade</h3>
+
+                    <p>
+                        Find out whether upgrading your phone makes financial
+                        sense.
+                    </p>
+
+                    <button class="open-calc"
+                            onclick="openCalculator('phone')">
+                        Open calculator →
+                    </button>
+
+                </div>
+
+
+                <!-- HOME -->
+                <div class="calc-card"
+                     data-category="home"
+                     style="--glow:#22d3ee">
+
+                    <div class="calc-icon">🏠</div>
+
+                    <h3>Rent vs Buy</h3>
+
+                    <p>
+                        Compare long-term renting costs against buying a home.
+                    </p>
+
+                    <button class="open-calc"
+                            onclick="openCalculator('rent')">
+                        Open calculator →
+                    </button>
+
+                </div>
+
+
+                <div class="calc-card"
+                     data-category="home"
+                     style="--glow:#f97316">
+
+                    <div class="calc-icon">⚡</div>
+
+                    <h3>Energy Cost</h3>
+
+                    <p>
+                        Estimate electricity costs for appliances and everyday
+                        devices.
+                    </p>
+
+                    <button class="open-calc"
+                            onclick="openCalculator('energy')">
+                        Open calculator →
+                    </button>
+
+                </div>
+
+
+                <div class="calc-card"
+                     data-category="home"
+                     style="--glow:#14b8a6">
+
                     <div class="calc-icon">☀️</div>
+
                     <h3>Solar</h3>
+
                     <p>
                         Estimate solar generation, savings and approximate
                         payback period.
                     </p>
-                    <button class="open-calc" onclick="openCalculator('solar')">
+
+                    <button class="open-calc"
+                            onclick="openCalculator('solar')">
                         Open calculator →
                     </button>
+
                 </div>
 
-                <div class="calc-card" style="--glow:#ef4444">
+
+                <div class="calc-card"
+                     data-category="home"
+                     style="--glow:#ef4444">
+
                     <div class="calc-icon">🔥</div>
+
                     <h3>Heating</h3>
+
                     <p>
                         Estimate seasonal heating costs from energy use and
                         prices.
                     </p>
-                    <button class="open-calc" onclick="openCalculator('heating')">
+
+                    <button class="open-calc"
+                            onclick="openCalculator('heating')">
                         Open calculator →
                     </button>
+
                 </div>
 
             </div>
+
         </div>
+
     </section>
 
-    <!-- ABOUT -->
+
     <section class="section">
+
         <div class="container">
+
             <div class="panel">
+
                 <div class="section-header">
+
                     <h2>Make decisions with numbers</h2>
+
                     <p>
                         Worth It turns complicated purchase and money decisions
                         into simple comparisons.
                     </p>
+
                 </div>
 
+
                 <div class="result-grid">
+
                     <div class="metric">
+
                         <span>Compare</span>
+
                         <strong>⚖️</strong>
+
                         <p style="color:var(--muted);font-size:13px">
                             Put two options side by side.
                         </p>
+
                     </div>
 
+
                     <div class="metric">
+
                         <span>Calculate</span>
+
                         <strong>🧮</strong>
+
                         <p style="color:var(--muted);font-size:13px">
                             See the real numbers behind the decision.
                         </p>
+
                     </div>
 
+
                     <div class="metric">
+
                         <span>Decide</span>
+
                         <strong>🎯</strong>
+
                         <p style="color:var(--muted);font-size:13px">
                             Understand which option makes more sense.
                         </p>
+
                     </div>
+
                 </div>
+
             </div>
+
         </div>
+
     </section>
 
-    <!-- FAQ -->
+
     <section class="section" id="faq">
+
         <div class="container">
 
             <div class="section-header">
+
                 <h2>Frequently asked questions</h2>
+
                 <p>Some things worth knowing.</p>
+
             </div>
+
 
             <div class="faq">
 
                 <div class="faq-item">
-                    <button class="faq-question" onclick="toggleFAQ(this)">
+
+                    <button class="faq-question"
+                            onclick="toggleFAQ(this)">
                         Are the calculators free?
                     </button>
+
                     <div class="faq-answer">
                         Yes. All calculators on Worth It are designed to be
                         free to use.
                     </div>
+
                 </div>
 
+
                 <div class="faq-item">
-                    <button class="faq-question" onclick="toggleFAQ(this)">
+
+                    <button class="faq-question"
+                            onclick="toggleFAQ(this)">
                         Are the results financial advice?
                     </button>
+
                     <div class="faq-answer">
                         No. Results are estimates based on the values you
                         provide. Real-world costs can vary.
                     </div>
+
                 </div>
 
+
                 <div class="faq-item">
-                    <button class="faq-question" onclick="toggleFAQ(this)">
+
+                    <button class="faq-question"
+                            onclick="toggleFAQ(this)">
                         Can I use the calculators on my phone?
                     </button>
+
                     <div class="faq-answer">
                         Yes. The interface is responsive and designed to work
                         on desktop and mobile devices.
                     </div>
+
                 </div>
 
+
                 <div class="faq-item">
-                    <button class="faq-question" onclick="toggleFAQ(this)">
+
+                    <button class="faq-question"
+                            onclick="toggleFAQ(this)">
                         Does the website save my calculations?
                     </button>
+
                     <div class="faq-answer">
                         Calculations happen directly in your browser. This
                         version does not require an account or server.
                     </div>
+
                 </div>
 
             </div>
+
         </div>
+
     </section>
 
 </section>
 
 
-<!-- ========================= -->
 <!-- EV CALCULATOR -->
-<!-- ========================= -->
 
 <section class="app" id="carsApp">
+
 <div class="container">
 
     <div class="app-header">
+
         <div class="app-title">
+
             <div class="app-title-icon">🚗</div>
+
             <div>
+
                 <h2>EV vs Gasoline</h2>
-                <p>Compare the estimated ownership cost of two vehicles.</p>
+
+                <p>
+                    Compare the estimated ownership cost of two vehicles.
+                </p>
+
             </div>
+
         </div>
 
-        <button class="close-btn" onclick="showHome()">← Back</button>
+
+        <button class="close-btn"
+                onclick="showHome()">
+            ← Back
+        </button>
+
     </div>
+
 
     <div class="panel">
 
         <div class="form-grid">
 
             <div>
-                <h3 style="margin-bottom:15px">⚡ Electric car</h3>
+
+                <h3 style="margin-bottom:15px">
+                    ⚡ Electric car
+                </h3>
+
 
                 <div class="form-group">
+
                     <label>Purchase price (€)</label>
-                    <input id="evPrice" type="number" value="15000">
+
+                    <input id="evPrice"
+                           type="number"
+                           value="15000">
+
                 </div>
 
-                <div class="form-group" style="margin-top:14px">
+
+                <div class="form-group"
+                     style="margin-top:14px">
+
                     <label>Consumption (kWh / 100 km)</label>
-                    <input id="evConsumption" type="number" value="16" step="0.1">
+
+                    <input id="evConsumption"
+                           type="number"
+                           value="16"
+                           step="0.1">
+
                 </div>
 
-                <div class="form-group" style="margin-top:14px">
+
+                <div class="form-group"
+                     style="margin-top:14px">
+
                     <label>Home charging share (%)</label>
-                    <input id="homeCharge" type="number" value="80">
+
+                    <input id="homeCharge"
+                           type="number"
+                           value="80">
+
                 </div>
 
-                <div class="form-group" style="margin-top:14px">
+
+                <div class="form-group"
+                     style="margin-top:14px">
+
                     <label>Home electricity price (€ / kWh)</label>
-                    <input id="homeElectricity" type="number" value="0.15" step="0.01">
+
+                    <input id="homeElectricity"
+                           type="number"
+                           value="0.15"
+                           step="0.01">
+
                 </div>
 
-                <div class="form-group" style="margin-top:14px">
+
+                <div class="form-group"
+                     style="margin-top:14px">
+
                     <label>Public charging price (€ / kWh)</label>
-                    <input id="publicElectricity" type="number" value="0.40" step="0.01">
+
+                    <input id="publicElectricity"
+                           type="number"
+                           value="0.40"
+                           step="0.01">
+
                 </div>
 
-                <div class="form-group" style="margin-top:14px">
+
+                <div class="form-group"
+                     style="margin-top:14px">
+
                     <label>Yearly maintenance (€)</label>
-                    <input id="evMaintenance" type="number" value="350">
+
+                    <input id="evMaintenance"
+                           type="number"
+                           value="350">
+
                 </div>
 
-                <div class="form-group" style="margin-top:14px">
+
+                <div class="form-group"
+                     style="margin-top:14px">
+
                     <label>Yearly insurance (€)</label>
-                    <input id="evInsurance" type="number" value="400">
+
+                    <input id="evInsurance"
+                           type="number"
+                           value="400">
+
                 </div>
 
-                <div class="form-group" style="margin-top:14px">
+
+                <div class="form-group"
+                     style="margin-top:14px">
+
                     <label>Yearly registration (€)</label>
-                    <input id="evRegistration" type="number" value="150">
+
+                    <input id="evRegistration"
+                           type="number"
+                           value="150">
+
                 </div>
+
             </div>
 
 
             <div>
-                <h3 style="margin-bottom:15px">⛽ Gasoline car</h3>
+
+                <h3 style="margin-bottom:15px">
+                    ⛽ Gasoline car
+                </h3>
+
 
                 <div class="form-group">
+
                     <label>Purchase price (€)</label>
-                    <input id="gasPrice" type="number" value="10000">
+
+                    <input id="gasPrice"
+                           type="number"
+                           value="10000">
+
                 </div>
 
-                <div class="form-group" style="margin-top:14px">
+
+                <div class="form-group"
+                     style="margin-top:14px">
+
                     <label>Consumption (L / 100 km)</label>
-                    <input id="gasConsumption" type="number" value="7" step="0.1">
+
+                    <input id="gasConsumption"
+                           type="number"
+                           value="7"
+                           step="0.1">
+
                 </div>
 
-                <div class="form-group" style="margin-top:14px">
+
+                <div class="form-group"
+                     style="margin-top:14px">
+
                     <label>Fuel price (€ / L)</label>
-                    <input id="fuelPrice" type="number" value="1.60" step="0.01">
+
+                    <input id="fuelPrice"
+                           type="number"
+                           value="1.60"
+                           step="0.01">
+
                 </div>
 
-                <div class="form-group" style="margin-top:14px">
+
+                <div class="form-group"
+                     style="margin-top:14px">
+
                     <label>Yearly maintenance (€)</label>
-                    <input id="gasMaintenance" type="number" value="650">
+
+                    <input id="gasMaintenance"
+                           type="number"
+                           value="650">
+
                 </div>
 
-                <div class="form-group" style="margin-top:14px">
+
+                <div class="form-group"
+                     style="margin-top:14px">
+
                     <label>Yearly insurance (€)</label>
-                    <input id="gasInsurance" type="number" value="400">
+
+                    <input id="gasInsurance"
+                           type="number"
+                           value="400">
+
                 </div>
 
-                <div class="form-group" style="margin-top:14px">
+
+                <div class="form-group"
+                     style="margin-top:14px">
+
                     <label>Yearly registration (€)</label>
-                    <input id="gasRegistration" type="number" value="250">
+
+                    <input id="gasRegistration"
+                           type="number"
+                           value="250">
+
                 </div>
 
-                <div class="form-group" style="margin-top:14px">
+
+                <div class="form-group"
+                     style="margin-top:14px">
+
                     <label>Other yearly cost (€)</label>
-                    <input id="gasOther" type="number" value="100">
+
+                    <input id="gasOther"
+                           type="number"
+                           value="100">
+
                 </div>
+
             </div>
+
 
             <div class="form-group full">
+
                 <label>Yearly distance (km)</label>
-                <input id="yearlyDistance" type="number" value="15000">
+
+                <input id="yearlyDistance"
+                       type="number"
+                       value="15000">
+
             </div>
 
-            <div class="form-group">
-                <label>Fuel / electricity price growth per year (%)</label>
-                <input id="priceGrowth" type="number" value="3" step="0.1">
-            </div>
 
             <div class="form-group">
+
+                <label>
+                    Fuel / electricity price growth per year (%)
+                </label>
+
+                <input id="priceGrowth"
+                       type="number"
+                       value="3"
+                       step="0.1">
+
+            </div>
+
+
+            <div class="form-group">
+
                 <label>Comparison period (years)</label>
+
                 <select id="carYears">
-                    <option value="5">5 years</option>
-                    <option value="10" selected>10 years</option>
+
+                    <option value="5">
+                        5 years
+                    </option>
+
+                    <option value="10"
+                            selected>
+                        10 years
+                    </option>
+
                 </select>
+
             </div>
 
         </div>
+
 
         <div class="form-actions">
-            <button class="btn btn-primary" onclick="calculateCars()">Calculate comparison</button>
-            <button class="btn btn-secondary" onclick="resetCars()">Reset</button>
-            <button class="btn btn-secondary" onclick="shareCurrentResult()">Share result</button>
+
+            <button class="btn btn-primary"
+                    onclick="calculateCars()">
+                Calculate comparison
+            </button>
+
+            <button class="btn btn-secondary"
+                    onclick="resetCars()">
+                Reset
+            </button>
+
+            <button class="btn btn-secondary"
+                    onclick="shareCurrentResult()">
+                Share result
+            </button>
+
         </div>
+
     </div>
 
-    <div class="results" id="carResults">
+
+    <div class="results"
+         id="carResults">
 
         <div class="result-top">
 
             <div class="result-hero">
-                <div class="result-label">Recommended option</div>
+
+                <div class="result-label">
+                    Recommended option
+                </div>
+
                 <h3 id="carWinner">—</h3>
+
                 <p id="carWinnerText">—</p>
+
             </div>
 
+
             <div class="score-card">
-                <span class="result-label">Worth it score</span>
-                <div class="score" id="carScore">—</div>
-                <small id="carScoreText" style="color:var(--muted);margin-top:8px">
+
+                <span class="result-label">
+                    Worth it score
+                </span>
+
+                <div class="score"
+                     id="carScore">
+                    —
+                </div>
+
+                <small id="carScoreText"
+                       style="color:var(--muted);margin-top:8px">
                     Calculate first
                 </small>
+
             </div>
 
         </div>
+
 
         <div class="result-grid">
 
             <div class="metric">
+
                 <span>EV total cost</span>
-                <strong id="evTotalResult">€0</strong>
+
+                <strong id="evTotalResult">
+                    €0
+                </strong>
+
             </div>
 
+
             <div class="metric">
+
                 <span>Gas total cost</span>
-                <strong id="gasTotalResult">€0</strong>
+
+                <strong id="gasTotalResult">
+                    €0
+                </strong>
+
             </div>
 
+
             <div class="metric">
+
                 <span>Estimated savings</span>
-                <strong id="carSavings">€0</strong>
+
+                <strong id="carSavings">
+                    €0
+                </strong>
+
             </div>
 
+
             <div class="metric">
+
                 <span>EV yearly energy</span>
-                <strong id="evEnergyResult">€0</strong>
+
+                <strong id="evEnergyResult">
+                    €0
+                </strong>
+
             </div>
 
+
             <div class="metric">
+
                 <span>Gas yearly fuel</span>
-                <strong id="gasFuelResult">€0</strong>
+
+                <strong id="gasFuelResult">
+                    €0
+                </strong>
+
             </div>
 
+
             <div class="metric">
+
                 <span>Break-even</span>
-                <strong id="breakEven">—</strong>
+
+                <strong id="breakEven">
+                    —
+                </strong>
+
             </div>
 
         </div>
 
+
         <div class="chart-card">
-            <h3>10-year cost projection</h3>
-            <div class="chart" id="carChart"></div>
+
+            <h3>
+                10-year cost projection
+            </h3>
+
+            <div class="chart"
+                 id="carChart"></div>
 
             <div class="legend">
-                <span><i class="dot"></i> Electric</span>
-                <span><i class="dot alt"></i> Gasoline</span>
+
+                <span>
+                    <i class="dot"></i>
+                    Electric
+                </span>
+
+                <span>
+                    <i class="dot alt"></i>
+                    Gasoline
+                </span>
+
             </div>
+
         </div>
 
+
         <div class="chart-card">
-            <h3>Year-by-year comparison</h3>
+
+            <h3>
+                Year-by-year comparison
+            </h3>
 
             <div class="table-wrap">
+
                 <table>
+
                     <thead>
+
                         <tr>
                             <th>Year</th>
                             <th>EV cost</th>
@@ -1293,56 +1723,98 @@ footer{
                             <th>Difference</th>
                             <th>Winner</th>
                         </tr>
+
                     </thead>
+
                     <tbody id="carTable"></tbody>
+
                 </table>
+
             </div>
+
         </div>
 
     </div>
+
 </div>
+
 </section>
 
 
-<!-- ========================= -->
-<!-- GENERIC APPS -->
-<!-- ========================= -->
+<!-- GENERIC CALCULATORS -->
 
-<section class="app" id="genericApp">
+<section class="app"
+         id="genericApp">
+
 <div class="container">
 
     <div class="app-header">
+
         <div class="app-title">
-            <div class="app-title-icon" id="genericIcon">🧮</div>
-            <div>
-                <h2 id="genericTitle">Calculator</h2>
-                <p id="genericDescription">Calculate your result.</p>
+
+            <div class="app-title-icon"
+                 id="genericIcon">
+                🧮
             </div>
+
+            <div>
+
+                <h2 id="genericTitle">
+                    Calculator
+                </h2>
+
+                <p id="genericDescription">
+                    Calculate your result.
+                </p>
+
+            </div>
+
         </div>
 
-        <button class="close-btn" onclick="showHome()">← Back</button>
+
+        <button class="close-btn"
+                onclick="showHome()">
+            ← Back
+        </button>
+
     </div>
 
-    <div class="panel" id="genericForm"></div>
 
-    <div class="generic-result" id="genericResult"></div>
+    <div class="panel"
+         id="genericForm"></div>
+
+
+    <div class="generic-result"
+         id="genericResult"></div>
 
 </div>
+
 </section>
 
 </main>
 
 
 <footer>
+
     <div class="container">
-        <strong>Worth It</strong> — Make smarter decisions with numbers.
+
+        <strong>Worth It</strong>
+        — Make smarter decisions with numbers.
+
         <br><br>
+
         Results are estimates for informational purposes and should not be
         considered professional financial advice.
+
     </div>
+
 </footer>
 
-<div class="toast" id="toast">Copied!</div>
+
+<div class="toast"
+     id="toast">
+    Copied!
+</div>
 
 
 <script>
@@ -1357,8 +1829,11 @@ function num(id){
     return Number($(id)?.value || 0);
 }
 
-function money(value, currency="€"){
-    if(!Number.isFinite(value)) value = 0;
+function money(value,currency="€"){
+
+    if(!Number.isFinite(value)){
+        value=0;
+    }
 
     return currency + value.toLocaleString("en-US",{
         minimumFractionDigits:0,
@@ -1367,7 +1842,10 @@ function money(value, currency="€"){
 }
 
 function decimal(value){
-    if(!Number.isFinite(value)) value=0;
+
+    if(!Number.isFinite(value)){
+        value=0;
+    }
 
     return value.toLocaleString("en-US",{
         minimumFractionDigits:2,
@@ -1376,12 +1854,15 @@ function decimal(value){
 }
 
 function percent(value){
-    return decimal(value) + "%";
+    return decimal(value)+"%";
 }
 
 function showToast(text){
+
     const toast=$("toast");
+
     toast.textContent=text;
+
     toast.classList.add("show");
 
     setTimeout(()=>{
@@ -1393,10 +1874,34 @@ function toggleMenu(){
     $("navLinks").classList.toggle("open");
 }
 
+
+/* =========================================================
+   HOME / NAVIGATION
+========================================================= */
+
 function showHome(){
-    document.querySelectorAll(".app").forEach(x=>x.classList.remove("active"));
+
+    document.querySelectorAll(".app")
+        .forEach(x=>x.classList.remove("active"));
+
     $("homePage").style.display="block";
-    window.scrollTo({top:0,behavior:"smooth"});
+
+    /* FIX:
+       Home always restores every calculator card.
+    */
+    document.querySelectorAll(".calc-card")
+        .forEach(card=>{
+            card.style.display="";
+        });
+
+    $("categoryDescription").textContent =
+        "Find the right tool for your decision.";
+
+    window.scrollTo({
+        top:0,
+        behavior:"smooth"
+    });
+
     $("navLinks").classList.remove("open");
 }
 
@@ -1404,28 +1909,99 @@ function hideHome(){
     $("homePage").style.display="none";
 }
 
+
+/* =========================================================
+   CATEGORY NAVIGATION
+========================================================= */
+
+function showCategory(category){
+
+    hideHome();
+
+    document.querySelectorAll(".app")
+        .forEach(x=>x.classList.remove("active"));
+
+    $("homePage").style.display="block";
+
+    const cards=document.querySelectorAll(".calc-card");
+
+    cards.forEach(card=>{
+
+        card.style.display =
+            card.dataset.category===category
+            ? ""
+            : "none";
+
+    });
+
+    const descriptions={
+
+        money:
+            "Financial calculators for saving, investing, loans, purchases and income.",
+
+        technology:
+            "Calculators for deciding whether your next technology upgrade is worth it.",
+
+        home:
+            "Calculators for housing, energy, solar power and heating."
+
+    };
+
+    $("categoryDescription").textContent =
+        descriptions[category] ||
+        "Find the right tool for your decision.";
+
+    $("calculators").scrollIntoView({
+        behavior:"smooth",
+        block:"start"
+    });
+
+    $("navLinks").classList.remove("open");
+}
+
+
+/* =========================================================
+   OPEN CALCULATOR
+========================================================= */
+
 function openCalculator(type){
 
     hideHome();
 
-    document.querySelectorAll(".app").forEach(x=>x.classList.remove("active"));
+    document.querySelectorAll(".app")
+        .forEach(x=>x.classList.remove("active"));
 
     if(type==="cars"){
+
         $("carsApp").classList.add("active");
+
     }else{
+
         $("genericApp").classList.add("active");
+
         setupGeneric(type);
+
     }
 
-    window.scrollTo({top:0,behavior:"smooth"});
+    window.scrollTo({
+        top:0,
+        behavior:"smooth"
+    });
+
     $("navLinks").classList.remove("open");
 }
 
+
 function scrollToFAQ(){
+
     showHome();
 
     setTimeout(()=>{
-        $("faq").scrollIntoView({behavior:"smooth"});
+
+        $("faq").scrollIntoView({
+            behavior:"smooth"
+        });
+
     },100);
 }
 
@@ -1436,34 +2012,73 @@ function scrollToFAQ(){
 
 function calculateCars(){
 
-    /* FIX:
-       After Reset, results are hidden.
-       This makes them visible again when Calculate is clicked.
+    /*
+        FIX:
+        Reset hides the result.
+        This makes the result visible again
+        whenever Calculate is pressed.
     */
+
     $("carResults").style.display="block";
 
+
     const evPrice=num("evPrice");
+
     const evConsumption=num("evConsumption");
-    const homeCharge=Math.min(100,Math.max(0,num("homeCharge")))/100;
-    const homeElectricity=num("homeElectricity");
-    const publicElectricity=num("publicElectricity");
 
-    const evMaintenance=num("evMaintenance");
-    const evInsurance=num("evInsurance");
-    const evRegistration=num("evRegistration");
+    const homeCharge=
+        Math.min(
+            100,
+            Math.max(0,num("homeCharge"))
+        )/100;
 
-    const gasPrice=num("gasPrice");
-    const gasConsumption=num("gasConsumption");
-    const fuelPrice=num("fuelPrice");
+    const homeElectricity=
+        num("homeElectricity");
 
-    const gasMaintenance=num("gasMaintenance");
-    const gasInsurance=num("gasInsurance");
-    const gasRegistration=num("gasRegistration");
-    const gasOther=num("gasOther");
+    const publicElectricity=
+        num("publicElectricity");
 
-    const distance=num("yearlyDistance");
-    const growth=num("priceGrowth")/100;
-    const years=Number($("carYears").value);
+    const evMaintenance=
+        num("evMaintenance");
+
+    const evInsurance=
+        num("evInsurance");
+
+    const evRegistration=
+        num("evRegistration");
+
+
+    const gasPrice=
+        num("gasPrice");
+
+    const gasConsumption=
+        num("gasConsumption");
+
+    const fuelPrice=
+        num("fuelPrice");
+
+    const gasMaintenance=
+        num("gasMaintenance");
+
+    const gasInsurance=
+        num("gasInsurance");
+
+    const gasRegistration=
+        num("gasRegistration");
+
+    const gasOther=
+        num("gasOther");
+
+
+    const distance=
+        num("yearlyDistance");
+
+    const growth=
+        num("priceGrowth")/100;
+
+    const years=
+        Number($("carYears").value);
+
 
     if(
         evPrice<0 ||
@@ -1476,9 +2091,12 @@ function calculateCars(){
         distance<=0 ||
         years<=0
     ){
+
         alert("Please enter valid values.");
+
         return;
     }
+
 
     const evEnergyBase =
         (distance/100) *
@@ -1488,33 +2106,45 @@ function calculateCars(){
             (1-homeCharge)*publicElectricity
         );
 
+
     const gasFuelBase =
         (distance/100) *
         gasConsumption *
         fuelPrice;
 
-    let evTotal=evPrice;
-    let gasTotal=gasPrice;
 
     let evCumulative=evPrice;
+
     let gasCumulative=gasPrice;
 
     const rows=[];
 
     let breakEvenYear=null;
 
-    for(let year=1;year<=years;year++){
 
-        const multiplier=Math.pow(1+growth,year-1);
+    for(
+        let year=1;
+        year<=years;
+        year++
+    ){
 
-        const evEnergy=evEnergyBase*multiplier;
-        const gasFuel=gasFuelBase*multiplier;
+        const multiplier=
+            Math.pow(1+growth,year-1);
+
+
+        const evEnergy=
+            evEnergyBase*multiplier;
+
+        const gasFuel=
+            gasFuelBase*multiplier;
+
 
         const evYearCost =
             evEnergy +
             evMaintenance +
             evInsurance +
             evRegistration;
+
 
         const gasYearCost =
             gasFuel +
@@ -1523,92 +2153,204 @@ function calculateCars(){
             gasRegistration +
             gasOther;
 
+
         evCumulative += evYearCost;
+
         gasCumulative += gasYearCost;
 
-        if(breakEvenYear===null && evCumulative<gasCumulative){
+
+        if(
+            breakEvenYear===null &&
+            evCumulative<gasCumulative
+        ){
+
             breakEvenYear=year;
+
         }
 
+
         rows.push({
+
             year,
+
             ev:evCumulative,
+
             gas:gasCumulative,
-            diff:Math.abs(evCumulative-gasCumulative),
-            winner:evCumulative<gasCumulative ? "⚡ Electric" : "⛽ Gasoline"
+
+            diff:
+                Math.abs(
+                    evCumulative-gasCumulative
+                ),
+
+            winner:
+                evCumulative<gasCumulative
+                ? "⚡ Electric"
+                : "⛽ Gasoline"
+
         });
+
     }
 
-    evTotal=evCumulative;
-    gasTotal=gasCumulative;
 
-    const savings=Math.abs(evTotal-gasTotal);
+    const evTotal=
+        evCumulative;
 
-    const winner =
-        evTotal<gasTotal ?
-        "⚡ Electric car" :
-        gasTotal<evTotal ?
-        "⛽ Gasoline car" :
+    const gasTotal=
+        gasCumulative;
+
+
+    const savings=
+        Math.abs(evTotal-gasTotal);
+
+
+    const winner=
+
+        evTotal<gasTotal
+        ? "⚡ Electric car"
+
+        :
+
+        gasTotal<evTotal
+        ? "⛽ Gasoline car"
+
+        :
+
         "🤝 Almost equal";
 
-    const winnerText =
-        evTotal<gasTotal ?
-        `Estimated to save ${money(savings)} over ${years} years.` :
-        gasTotal<evTotal ?
-        `Estimated to save ${money(savings)} over ${years} years.` :
+
+    const winnerText=
+
+        evTotal<gasTotal
+
+        ?
+
+        `Estimated to save ${money(savings)} over ${years} years.`
+
+        :
+
+        gasTotal<evTotal
+
+        ?
+
+        `Estimated to save ${money(savings)} over ${years} years.`
+
+        :
+
         "Both options have approximately the same estimated cost.";
 
-    $("carWinner").textContent=winner;
-    $("carWinnerText").textContent=winnerText;
 
-    $("evTotalResult").textContent=money(evTotal);
-    $("gasTotalResult").textContent=money(gasTotal);
-    $("carSavings").textContent=money(savings);
+    $("carWinner").textContent=
+        winner;
 
-    $("evEnergyResult").textContent=money(evEnergyBase);
-    $("gasFuelResult").textContent=money(gasFuelBase);
+    $("carWinnerText").textContent=
+        winnerText;
 
-    $("breakEven").textContent =
-        breakEvenYear ?
-        `${breakEvenYear} year${breakEvenYear===1?"":"s"}` :
+
+    $("evTotalResult").textContent=
+        money(evTotal);
+
+    $("gasTotalResult").textContent=
+        money(gasTotal);
+
+    $("carSavings").textContent=
+        money(savings);
+
+    $("evEnergyResult").textContent=
+        money(evEnergyBase);
+
+    $("gasFuelResult").textContent=
+        money(gasFuelBase);
+
+
+    $("breakEven").textContent=
+
+        breakEvenYear
+
+        ?
+
+        `${breakEvenYear} year${breakEvenYear===1?"":"s"}`
+
+        :
+
         "Not reached";
+
 
     let score;
 
-    if(evTotal===gasTotal){
-        score=50;
-    }else{
-        const cheaper=Math.min(evTotal,gasTotal);
-        const expensive=Math.max(evTotal,gasTotal);
-        const ratio=cheaper/expensive;
 
-        score=Math.round(
-            Math.min(98,Math.max(52,50+(1-ratio)*150))
-        );
+    if(evTotal===gasTotal){
+
+        score=50;
+
+    }else{
+
+        const cheaper=
+            Math.min(evTotal,gasTotal);
+
+        const expensive=
+            Math.max(evTotal,gasTotal);
+
+        const ratio=
+            cheaper/expensive;
+
+        score=
+            Math.round(
+                Math.min(
+                    98,
+                    Math.max(
+                        52,
+                        50+(1-ratio)*150
+                    )
+                )
+            );
+
     }
 
-    $("carScore").textContent=score;
 
-    $("carScoreText").textContent =
-        score>=85 ? "Excellent value" :
-        score>=70 ? "Strong value" :
-        score>=55 ? "Worth considering" :
+    $("carScore").textContent=
+        score;
+
+
+    $("carScoreText").textContent=
+
+        score>=85
+        ? "Excellent value"
+
+        :
+
+        score>=70
+        ? "Strong value"
+
+        :
+
+        score>=55
+        ? "Worth considering"
+
+        :
+
         "Needs more consideration";
 
+
     renderCarChart(rows);
+
     renderCarTable(rows);
+
 
     $("carResults").scrollIntoView({
         behavior:"smooth",
         block:"start"
     });
 
-    localStorage.setItem("lastCarResult",JSON.stringify({
-        evTotal,
-        gasTotal,
-        savings,
-        years
-    }));
+
+    localStorage.setItem(
+        "lastCarResult",
+        JSON.stringify({
+            evTotal,
+            gasTotal,
+            savings,
+            years
+        })
+    );
 }
 
 
@@ -1618,62 +2360,120 @@ function renderCarChart(rows){
 
     chart.innerHTML="";
 
+
+    if(!rows.length){
+        return;
+    }
+
+
     const max=Math.max(
-        ...rows.map(x=>Math.max(x.ev,x.gas))
+        ...rows.map(
+            x=>Math.max(
+                x.ev,
+                x.gas
+            )
+        )
     );
+
 
     rows.forEach(row=>{
 
-        const group=document.createElement("div");
-        group.className="bar-group";
+        const group=
+            document.createElement("div");
 
-        const bars=document.createElement("div");
-        bars.className="bars";
+        group.className=
+            "bar-group";
 
-        const evBar=document.createElement("div");
-        evBar.className="bar";
-        evBar.style.height=(row.ev/max*100)+"%";
-        evBar.title=`EV: ${money(row.ev)}`;
 
-        const gasBar=document.createElement("div");
-        gasBar.className="bar alt";
-        gasBar.style.height=(row.gas/max*100)+"%";
-        gasBar.title=`Gas: ${money(row.gas)}`;
+        const bars=
+            document.createElement("div");
+
+        bars.className=
+            "bars";
+
+
+        const evBar=
+            document.createElement("div");
+
+        evBar.className=
+            "bar";
+
+        evBar.style.height=
+            (row.ev/max*100)+"%";
+
+        evBar.title=
+            `EV: ${money(row.ev)}`;
+
+
+        const gasBar=
+            document.createElement("div");
+
+        gasBar.className=
+            "bar alt";
+
+        gasBar.style.height=
+            (row.gas/max*100)+"%";
+
+        gasBar.title=
+            `Gas: ${money(row.gas)}`;
+
 
         bars.appendChild(evBar);
+
         bars.appendChild(gasBar);
 
-        const label=document.createElement("div");
-        label.className="bar-label";
-        label.textContent="Y"+row.year;
+
+        const label=
+            document.createElement("div");
+
+        label.className=
+            "bar-label";
+
+        label.textContent=
+            "Y"+row.year;
+
 
         group.appendChild(bars);
+
         group.appendChild(label);
 
         chart.appendChild(group);
+
     });
 }
 
 
 function renderCarTable(rows){
 
-    const table=$("carTable");
+    const table=
+        $("carTable");
 
     table.innerHTML="";
 
+
     rows.forEach(row=>{
 
-        const tr=document.createElement("tr");
+        const tr=
+            document.createElement("tr");
+
 
         tr.innerHTML=`
+
             <td>${row.year}</td>
+
             <td>${money(row.ev)}</td>
+
             <td>${money(row.gas)}</td>
+
             <td>${money(row.diff)}</td>
+
             <td>${row.winner}</td>
+
         `;
 
+
         table.appendChild(tr);
+
     });
 }
 
@@ -1681,31 +2481,53 @@ function renderCarTable(rows){
 function resetCars(){
 
     $("evPrice").value=15000;
+
     $("evConsumption").value=16;
+
     $("homeCharge").value=80;
+
     $("homeElectricity").value=.15;
+
     $("publicElectricity").value=.40;
 
+
     $("evMaintenance").value=350;
+
     $("evInsurance").value=400;
+
     $("evRegistration").value=150;
 
+
     $("gasPrice").value=10000;
+
     $("gasConsumption").value=7;
+
     $("fuelPrice").value=1.60;
 
+
     $("gasMaintenance").value=650;
+
     $("gasInsurance").value=400;
+
     $("gasRegistration").value=250;
+
     $("gasOther").value=100;
 
+
     $("yearlyDistance").value=15000;
+
     $("priceGrowth").value=3;
+
     $("carYears").value=10;
 
-    $("carResults").style.display="none";
 
-    showToast("Reset complete");
+    $("carResults").style.display=
+        "none";
+
+
+    showToast(
+        "Reset complete"
+    );
 }
 
 
@@ -1720,453 +2542,1106 @@ function setupGeneric(type){
 
     currentGenericType=type;
 
+
     const configs={
 
         savings:{
+
             icon:"💰",
+
             title:"Savings Calculator",
-            description:"Estimate how your savings can grow over time.",
+
+            description:
+                "Estimate how your savings can grow over time.",
+
             html:`
+
                 <div class="form-grid">
-                    <div class="form-group">
-                        <label>Starting savings (€)</label>
-                        <input id="gStart" type="number" value="1000">
-                    </div>
 
                     <div class="form-group">
-                        <label>Monthly deposit (€)</label>
-                        <input id="gMonthly" type="number" value="300">
+
+                        <label>
+                            Starting savings (€)
+                        </label>
+
+                        <input id="gStart"
+                               type="number"
+                               value="1000">
+
                     </div>
 
-                    <div class="form-group">
-                        <label>Annual interest (%)</label>
-                        <input id="gRate" type="number" value="2.5" step="0.1">
-                    </div>
 
                     <div class="form-group">
+
+                        <label>
+                            Monthly deposit (€)
+                        </label>
+
+                        <input id="gMonthly"
+                               type="number"
+                               value="300">
+
+                    </div>
+
+
+                    <div class="form-group">
+
+                        <label>
+                            Annual interest (%)
+                        </label>
+
+                        <input id="gRate"
+                               type="number"
+                               value="2.5"
+                               step="0.1">
+
+                    </div>
+
+
+                    <div class="form-group">
+
                         <label>Years</label>
-                        <input id="gYears" type="number" value="5">
+
+                        <input id="gYears"
+                               type="number"
+                               value="5">
+
                     </div>
+
                 </div>
+
 
                 <div class="form-actions">
-                    <button class="btn btn-primary" onclick="calculateGeneric()">Calculate</button>
-                    <button class="btn btn-secondary" onclick="resetGeneric()">Reset</button>
+
+                    <button class="btn btn-primary"
+                            onclick="calculateGeneric()">
+                        Calculate
+                    </button>
+
+                    <button class="btn btn-secondary"
+                            onclick="resetGeneric()">
+                        Reset
+                    </button>
+
                 </div>
+
             `
         },
+
 
         investment:{
+
             icon:"📈",
+
             title:"Investment Calculator",
-            description:"Estimate future value using compound growth.",
+
+            description:
+                "Estimate future value using compound growth.",
+
             html:`
+
                 <div class="form-grid">
-                    <div class="form-group">
-                        <label>Initial investment (€)</label>
-                        <input id="gInitial" type="number" value="2000">
-                    </div>
 
                     <div class="form-group">
-                        <label>Monthly contribution (€)</label>
-                        <input id="gMonthly" type="number" value="200">
+
+                        <label>
+                            Initial investment (€)
+                        </label>
+
+                        <input id="gInitial"
+                               type="number"
+                               value="2000">
+
                     </div>
 
-                    <div class="form-group">
-                        <label>Expected annual return (%)</label>
-                        <input id="gRate" type="number" value="7" step="0.1">
-                    </div>
 
                     <div class="form-group">
+
+                        <label>
+                            Monthly contribution (€)
+                        </label>
+
+                        <input id="gMonthly"
+                               type="number"
+                               value="200">
+
+                    </div>
+
+
+                    <div class="form-group">
+
+                        <label>
+                            Expected annual return (%)
+                        </label>
+
+                        <input id="gRate"
+                               type="number"
+                               value="7"
+                               step="0.1">
+
+                    </div>
+
+
+                    <div class="form-group">
+
                         <label>Years</label>
-                        <input id="gYears" type="number" value="10">
+
+                        <input id="gYears"
+                               type="number"
+                               value="10">
+
                     </div>
+
                 </div>
+
 
                 <div class="form-actions">
-                    <button class="btn btn-primary" onclick="calculateGeneric()">Calculate</button>
-                    <button class="btn btn-secondary" onclick="resetGeneric()">Reset</button>
+
+                    <button class="btn btn-primary"
+                            onclick="calculateGeneric()">
+                        Calculate
+                    </button>
+
+                    <button class="btn btn-secondary"
+                            onclick="resetGeneric()">
+                        Reset
+                    </button>
+
                 </div>
+
             `
         },
+
 
         loan:{
+
             icon:"🏦",
+
             title:"Loan Calculator",
-            description:"Calculate monthly payment and total loan cost.",
+
+            description:
+                "Calculate monthly payment and total loan cost.",
+
             html:`
+
                 <div class="form-grid">
-                    <div class="form-group">
-                        <label>Loan amount (€)</label>
-                        <input id="gLoan" type="number" value="10000">
-                    </div>
 
                     <div class="form-group">
-                        <label>Annual interest (%)</label>
-                        <input id="gRate" type="number" value="6" step="0.1">
+
+                        <label>
+                            Loan amount (€)
+                        </label>
+
+                        <input id="gLoan"
+                               type="number"
+                               value="10000">
+
                     </div>
 
-                    <div class="form-group">
-                        <label>Loan term (years)</label>
-                        <input id="gYears" type="number" value="5">
-                    </div>
 
                     <div class="form-group">
-                        <label>Upfront payment (€)</label>
-                        <input id="gDown" type="number" value="0">
+
+                        <label>
+                            Annual interest (%)
+                        </label>
+
+                        <input id="gRate"
+                               type="number"
+                               value="6"
+                               step="0.1">
+
                     </div>
+
+
+                    <div class="form-group">
+
+                        <label>
+                            Loan term (years)
+                        </label>
+
+                        <input id="gYears"
+                               type="number"
+                               value="5">
+
+                    </div>
+
+
+                    <div class="form-group">
+
+                        <label>
+                            Upfront payment (€)
+                        </label>
+
+                        <input id="gDown"
+                               type="number"
+                               value="0">
+
+                    </div>
+
                 </div>
+
 
                 <div class="form-actions">
-                    <button class="btn btn-primary" onclick="calculateGeneric()">Calculate</button>
-                    <button class="btn btn-secondary" onclick="resetGeneric()">Reset</button>
+
+                    <button class="btn btn-primary"
+                            onclick="calculateGeneric()">
+                        Calculate
+                    </button>
+
+                    <button class="btn btn-secondary"
+                            onclick="resetGeneric()">
+                        Reset
+                    </button>
+
                 </div>
+
             `
         },
+
 
         pc:{
+
             icon:"💻",
+
             title:"PC Upgrade Calculator",
-            description:"Compare upgrading your PC with buying a new system.",
+
+            description:
+                "Compare upgrading your PC with buying a new system.",
+
             html:`
+
                 <div class="form-grid">
-                    <div class="form-group">
-                        <label>Upgrade cost (€)</label>
-                        <input id="gUpgrade" type="number" value="500">
-                    </div>
 
                     <div class="form-group">
-                        <label>New PC cost (€)</label>
-                        <input id="gNew" type="number" value="1500">
+
+                        <label>
+                            Upgrade cost (€)
+                        </label>
+
+                        <input id="gUpgrade"
+                               type="number"
+                               value="500">
+
                     </div>
 
-                    <div class="form-group">
-                        <label>Expected upgrade lifespan (years)</label>
-                        <input id="gYears" type="number" value="3">
-                    </div>
 
                     <div class="form-group">
-                        <label>Expected new PC lifespan (years)</label>
-                        <input id="gNewYears" type="number" value="6">
+
+                        <label>
+                            New PC cost (€)
+                        </label>
+
+                        <input id="gNew"
+                               type="number"
+                               value="1500">
+
                     </div>
+
+
+                    <div class="form-group">
+
+                        <label>
+                            Expected upgrade lifespan (years)
+                        </label>
+
+                        <input id="gYears"
+                               type="number"
+                               value="3">
+
+                    </div>
+
+
+                    <div class="form-group">
+
+                        <label>
+                            Expected new PC lifespan (years)
+                        </label>
+
+                        <input id="gNewYears"
+                               type="number"
+                               value="6">
+
+                    </div>
+
                 </div>
+
 
                 <div class="form-actions">
-                    <button class="btn btn-primary" onclick="calculateGeneric()">Calculate</button>
-                    <button class="btn btn-secondary" onclick="resetGeneric()">Reset</button>
+
+                    <button class="btn btn-primary"
+                            onclick="calculateGeneric()">
+                        Calculate
+                    </button>
+
+                    <button class="btn btn-secondary"
+                            onclick="resetGeneric()">
+                        Reset
+                    </button>
+
                 </div>
+
             `
         },
+
 
         phone:{
+
             icon:"📱",
+
             title:"Phone Upgrade Calculator",
-            description:"Compare keeping your current phone against upgrading.",
+
+            description:
+                "Compare keeping your current phone against upgrading.",
+
             html:`
+
                 <div class="form-grid">
-                    <div class="form-group">
-                        <label>New phone price (€)</label>
-                        <input id="gNew" type="number" value="700">
-                    </div>
 
                     <div class="form-group">
-                        <label>Trade-in / resale value (€)</label>
-                        <input id="gTrade" type="number" value="200">
+
+                        <label>
+                            New phone price (€)
+                        </label>
+
+                        <input id="gNew"
+                               type="number"
+                               value="700">
+
                     </div>
 
-                    <div class="form-group">
-                        <label>Current phone age (years)</label>
-                        <input id="gAge" type="number" value="3">
-                    </div>
 
                     <div class="form-group">
-                        <label>Expected years with new phone</label>
-                        <input id="gYears" type="number" value="4">
+
+                        <label>
+                            Trade-in / resale value (€)
+                        </label>
+
+                        <input id="gTrade"
+                               type="number"
+                               value="200">
+
                     </div>
+
+
+                    <div class="form-group">
+
+                        <label>
+                            Current phone age (years)
+                        </label>
+
+                        <input id="gAge"
+                               type="number"
+                               value="3">
+
+                    </div>
+
+
+                    <div class="form-group">
+
+                        <label>
+                            Expected years with new phone
+                        </label>
+
+                        <input id="gYears"
+                               type="number"
+                               value="4">
+
+                    </div>
+
                 </div>
+
 
                 <div class="form-actions">
-                    <button class="btn btn-primary" onclick="calculateGeneric()">Calculate</button>
-                    <button class="btn btn-secondary" onclick="resetGeneric()">Reset</button>
+
+                    <button class="btn btn-primary"
+                            onclick="calculateGeneric()">
+                        Calculate
+                    </button>
+
+                    <button class="btn btn-secondary"
+                            onclick="resetGeneric()">
+                        Reset
+                    </button>
+
                 </div>
+
             `
         },
+
 
         rent:{
+
             icon:"🏠",
+
             title:"Rent vs Buy Calculator",
-            description:"Compare simplified long-term housing costs.",
+
+            description:
+                "Compare simplified long-term housing costs.",
+
             html:`
+
                 <div class="form-grid">
-                    <div class="form-group">
-                        <label>Monthly rent (€)</label>
-                        <input id="gRent" type="number" value="600">
-                    </div>
 
                     <div class="form-group">
-                        <label>Home purchase price (€)</label>
-                        <input id="gHome" type="number" value="100000">
+
+                        <label>
+                            Monthly rent (€)
+                        </label>
+
+                        <input id="gRent"
+                               type="number"
+                               value="600">
+
                     </div>
 
-                    <div class="form-group">
-                        <label>Monthly ownership costs (€)</label>
-                        <input id="gOwner" type="number" value="180">
-                    </div>
 
                     <div class="form-group">
-                        <label>Comparison period (years)</label>
-                        <input id="gYears" type="number" value="10">
+
+                        <label>
+                            Home purchase price (€)
+                        </label>
+
+                        <input id="gHome"
+                               type="number"
+                               value="100000">
+
                     </div>
 
-                    <div class="form-group">
-                        <label>Estimated home value after period (€)</label>
-                        <input id="gFutureHome" type="number" value="115000">
-                    </div>
 
                     <div class="form-group">
-                        <label>Annual rent increase (%)</label>
-                        <input id="gRentGrowth" type="number" value="3" step=".1">
+
+                        <label>
+                            Monthly ownership costs (€)
+                        </label>
+
+                        <input id="gOwner"
+                               type="number"
+                               value="180">
+
                     </div>
+
+
+                    <div class="form-group">
+
+                        <label>
+                            Comparison period (years)
+                        </label>
+
+                        <input id="gYears"
+                               type="number"
+                               value="10">
+
+                    </div>
+
+
+                    <div class="form-group">
+
+                        <label>
+                            Estimated home value after period (€)
+                        </label>
+
+                        <input id="gFutureHome"
+                               type="number"
+                               value="115000">
+
+                    </div>
+
+
+                    <div class="form-group">
+
+                        <label>
+                            Annual rent increase (%)
+                        </label>
+
+                        <input id="gRentGrowth"
+                               type="number"
+                               value="3"
+                               step=".1">
+
+                    </div>
+
                 </div>
+
 
                 <div class="form-actions">
-                    <button class="btn btn-primary" onclick="calculateGeneric()">Calculate</button>
-                    <button class="btn btn-secondary" onclick="resetGeneric()">Reset</button>
+
+                    <button class="btn btn-primary"
+                            onclick="calculateGeneric()">
+                        Calculate
+                    </button>
+
+                    <button class="btn btn-secondary"
+                            onclick="resetGeneric()">
+                        Reset
+                    </button>
+
                 </div>
+
             `
         },
+
 
         energy:{
+
             icon:"⚡",
+
             title:"Energy Cost Calculator",
-            description:"Calculate the cost of running an appliance or device.",
+
+            description:
+                "Calculate the cost of running an appliance or device.",
+
             html:`
+
                 <div class="form-grid">
-                    <div class="form-group">
-                        <label>Device power (watts)</label>
-                        <input id="gWatts" type="number" value="1000">
-                    </div>
 
                     <div class="form-group">
-                        <label>Hours used per day</label>
-                        <input id="gHours" type="number" value="4" step=".1">
+
+                        <label>
+                            Device power (watts)
+                        </label>
+
+                        <input id="gWatts"
+                               type="number"
+                               value="1000">
+
                     </div>
 
-                    <div class="form-group">
-                        <label>Electricity price (€ / kWh)</label>
-                        <input id="gRate" type="number" value=".15" step=".01">
-                    </div>
 
                     <div class="form-group">
-                        <label>Days per year</label>
-                        <input id="gDays" type="number" value="365">
+
+                        <label>
+                            Hours used per day
+                        </label>
+
+                        <input id="gHours"
+                               type="number"
+                               value="4"
+                               step=".1">
+
                     </div>
+
+
+                    <div class="form-group">
+
+                        <label>
+                            Electricity price (€ / kWh)
+                        </label>
+
+                        <input id="gRate"
+                               type="number"
+                               value=".15"
+                               step=".01">
+
+                    </div>
+
+
+                    <div class="form-group">
+
+                        <label>
+                            Days per year
+                        </label>
+
+                        <input id="gDays"
+                               type="number"
+                               value="365">
+
+                    </div>
+
                 </div>
+
 
                 <div class="form-actions">
-                    <button class="btn btn-primary" onclick="calculateGeneric()">Calculate</button>
-                    <button class="btn btn-secondary" onclick="resetGeneric()">Reset</button>
+
+                    <button class="btn btn-primary"
+                            onclick="calculateGeneric()">
+                        Calculate
+                    </button>
+
+                    <button class="btn btn-secondary"
+                            onclick="resetGeneric()">
+                        Reset
+                    </button>
+
                 </div>
+
             `
         },
+
 
         purchase:{
+
             icon:"🛒",
+
             title:"Purchase Worth It",
-            description:"Estimate the cost per use of something you want to buy.",
+
+            description:
+                "Estimate the cost per use of something you want to buy.",
+
             html:`
+
                 <div class="form-grid">
-                    <div class="form-group">
-                        <label>Purchase price (€)</label>
-                        <input id="gPrice" type="number" value="200">
-                    </div>
 
                     <div class="form-group">
-                        <label>Expected years of use</label>
-                        <input id="gYears" type="number" value="3">
+
+                        <label>
+                            Purchase price (€)
+                        </label>
+
+                        <input id="gPrice"
+                               type="number"
+                               value="200">
+
                     </div>
 
-                    <div class="form-group">
-                        <label>Uses per week</label>
-                        <input id="gUses" type="number" value="3">
-                    </div>
 
                     <div class="form-group">
-                        <label>Estimated resale value (€)</label>
-                        <input id="gResale" type="number" value="50">
+
+                        <label>
+                            Expected years of use
+                        </label>
+
+                        <input id="gYears"
+                               type="number"
+                               value="3">
+
                     </div>
+
+
+                    <div class="form-group">
+
+                        <label>
+                            Uses per week
+                        </label>
+
+                        <input id="gUses"
+                               type="number"
+                               value="3">
+
+                    </div>
+
+
+                    <div class="form-group">
+
+                        <label>
+                            Estimated resale value (€)
+                        </label>
+
+                        <input id="gResale"
+                               type="number"
+                               value="50">
+
+                    </div>
+
                 </div>
+
 
                 <div class="form-actions">
-                    <button class="btn btn-primary" onclick="calculateGeneric()">Calculate</button>
-                    <button class="btn btn-secondary" onclick="resetGeneric()">Reset</button>
+
+                    <button class="btn btn-primary"
+                            onclick="calculateGeneric()">
+                        Calculate
+                    </button>
+
+                    <button class="btn btn-secondary"
+                            onclick="resetGeneric()">
+                        Reset
+                    </button>
+
                 </div>
+
             `
         },
+
 
         salary:{
+
             icon:"💼",
+
             title:"Salary Calculator",
-            description:"Break down annual income into different time periods.",
+
+            description:
+                "Break down annual income into different time periods.",
+
             html:`
+
                 <div class="form-grid">
-                    <div class="form-group">
-                        <label>Monthly salary (€)</label>
-                        <input id="gSalary" type="number" value="1500">
-                    </div>
 
                     <div class="form-group">
-                        <label>Paid weeks per year</label>
-                        <input id="gWeeks" type="number" value="52">
+
+                        <label>
+                            Monthly salary (€)
+                        </label>
+
+                        <input id="gSalary"
+                               type="number"
+                               value="1500">
+
                     </div>
 
-                    <div class="form-group">
-                        <label>Working hours per week</label>
-                        <input id="gHours" type="number" value="40">
-                    </div>
 
                     <div class="form-group">
-                        <label>Work days per week</label>
-                        <input id="gDays" type="number" value="5">
+
+                        <label>
+                            Paid weeks per year
+                        </label>
+
+                        <input id="gWeeks"
+                               type="number"
+                               value="52">
+
                     </div>
+
+
+                    <div class="form-group">
+
+                        <label>
+                            Working hours per week
+                        </label>
+
+                        <input id="gHours"
+                               type="number"
+                               value="40">
+
+                    </div>
+
+
+                    <div class="form-group">
+
+                        <label>
+                            Work days per week
+                        </label>
+
+                        <input id="gDays"
+                               type="number"
+                               value="5">
+
+                    </div>
+
                 </div>
+
 
                 <div class="form-actions">
-                    <button class="btn btn-primary" onclick="calculateGeneric()">Calculate</button>
-                    <button class="btn btn-secondary" onclick="resetGeneric()">Reset</button>
+
+                    <button class="btn btn-primary"
+                            onclick="calculateGeneric()">
+                        Calculate
+                    </button>
+
+                    <button class="btn btn-secondary"
+                            onclick="resetGeneric()">
+                        Reset
+                    </button>
+
                 </div>
+
             `
         },
+
 
         solar:{
+
             icon:"☀️",
+
             title:"Solar Panel Calculator",
-            description:"Estimate yearly solar generation and simple payback.",
+
+            description:
+                "Estimate yearly solar generation and simple payback.",
+
             html:`
+
                 <div class="form-grid">
-                    <div class="form-group">
-                        <label>System size (kW)</label>
-                        <input id="gKW" type="number" value="5">
-                    </div>
 
                     <div class="form-group">
-                        <label>Sun hours equivalent per day</label>
-                        <input id="gSun" type="number" value="3.5" step=".1">
+
+                        <label>
+                            System size (kW)
+                        </label>
+
+                        <input id="gKW"
+                               type="number"
+                               value="5">
+
                     </div>
 
-                    <div class="form-group">
-                        <label>Electricity price (€ / kWh)</label>
-                        <input id="gRate" type="number" value=".15" step=".01">
-                    </div>
 
                     <div class="form-group">
-                        <label>System price (€)</label>
-                        <input id="gPrice" type="number" value="6000">
+
+                        <label>
+                            Sun hours equivalent per day
+                        </label>
+
+                        <input id="gSun"
+                               type="number"
+                               value="3.5"
+                               step=".1">
+
                     </div>
 
+
                     <div class="form-group">
-                        <label>Estimated efficiency (%)</label>
-                        <input id="gEfficiency" type="number" value="85">
+
+                        <label>
+                            Electricity price (€ / kWh)
+                        </label>
+
+                        <input id="gRate"
+                               type="number"
+                               value=".15"
+                               step=".01">
+
                     </div>
+
+
+                    <div class="form-group">
+
+                        <label>
+                            System price (€)
+                        </label>
+
+                        <input id="gPrice"
+                               type="number"
+                               value="6000">
+
+                    </div>
+
+
+                    <div class="form-group">
+
+                        <label>
+                            Estimated efficiency (%)
+                        </label>
+
+                        <input id="gEfficiency"
+                               type="number"
+                               value="85">
+
+                    </div>
+
                 </div>
+
 
                 <div class="form-actions">
-                    <button class="btn btn-primary" onclick="calculateGeneric()">Calculate</button>
-                    <button class="btn btn-secondary" onclick="resetGeneric()">Reset</button>
+
+                    <button class="btn btn-primary"
+                            onclick="calculateGeneric()">
+                        Calculate
+                    </button>
+
+                    <button class="btn btn-secondary"
+                            onclick="resetGeneric()">
+                        Reset
+                    </button>
+
                 </div>
+
             `
         },
 
+
         heating:{
+
             icon:"🔥",
+
             title:"Heating Cost Calculator",
-            description:"Estimate yearly heating energy costs.",
+
+            description:
+                "Estimate yearly heating energy costs.",
+
             html:`
+
                 <div class="form-grid">
-                    <div class="form-group">
-                        <label>Energy consumption (kWh / day)</label>
-                        <input id="gKwh" type="number" value="35">
-                    </div>
 
                     <div class="form-group">
-                        <label>Heating days per year</label>
-                        <input id="gDays" type="number" value="180">
+
+                        <label>
+                            Energy consumption (kWh / day)
+                        </label>
+
+                        <input id="gKwh"
+                               type="number"
+                               value="35">
+
                     </div>
 
-                    <div class="form-group">
-                        <label>Energy price (€ / kWh)</label>
-                        <input id="gRate" type="number" value=".15" step=".01">
-                    </div>
 
                     <div class="form-group">
-                        <label>Expected yearly price increase (%)</label>
-                        <input id="gGrowth" type="number" value="3" step=".1">
+
+                        <label>
+                            Heating days per year
+                        </label>
+
+                        <input id="gDays"
+                               type="number"
+                               value="180">
+
                     </div>
 
+
                     <div class="form-group">
+
+                        <label>
+                            Energy price (€ / kWh)
+                        </label>
+
+                        <input id="gRate"
+                               type="number"
+                               value=".15"
+                               step=".01">
+
+                    </div>
+
+
+                    <div class="form-group">
+
+                        <label>
+                            Expected yearly price increase (%)
+                        </label>
+
+                        <input id="gGrowth"
+                               type="number"
+                               value="3"
+                               step=".1">
+
+                    </div>
+
+
+                    <div class="form-group">
+
                         <label>Years</label>
-                        <input id="gYears" type="number" value="5">
+
+                        <input id="gYears"
+                               type="number"
+                               value="5">
+
                     </div>
+
                 </div>
+
 
                 <div class="form-actions">
-                    <button class="btn btn-primary" onclick="calculateGeneric()">Calculate</button>
-                    <button class="btn btn-secondary" onclick="resetGeneric()">Reset</button>
+
+                    <button class="btn btn-primary"
+                            onclick="calculateGeneric()">
+                        Calculate
+                    </button>
+
+                    <button class="btn btn-secondary"
+                            onclick="resetGeneric()">
+                        Reset
+                    </button>
+
                 </div>
+
             `
         }
 
     };
 
-    const config=configs[type];
 
-    if(!config) return;
+    const config=
+        configs[type];
 
-    $("genericIcon").textContent=config.icon;
-    $("genericTitle").textContent=config.title;
-    $("genericDescription").textContent=config.description;
-    $("genericForm").innerHTML=config.html;
+
+    if(!config){
+        return;
+    }
+
+
+    $("genericIcon").textContent=
+        config.icon;
+
+    $("genericTitle").textContent=
+        config.title;
+
+    $("genericDescription").textContent=
+        config.description;
+
+    $("genericForm").innerHTML=
+        config.html;
+
     $("genericResult").classList.remove("active");
+
     $("genericResult").innerHTML="";
 }
 
 
+/* =========================================================
+   GENERIC CALCULATORS
+========================================================= */
+
 function calculateGeneric(){
 
-    const type=currentGenericType;
-    const result=$("genericResult");
+    const type=
+        currentGenericType;
+
+    const result=
+        $("genericResult");
 
     let title="";
     let text="";
     let metrics=[];
 
+
     /* SAVINGS */
 
     if(type==="savings"){
 
-        const start=num("gStart");
-        const monthly=num("gMonthly");
-        const rate=num("gRate")/100/12;
-        const years=num("gYears");
+        const start=
+            num("gStart");
 
-        let balance=start;
+        const monthly=
+            num("gMonthly");
 
-        for(let i=0;i<years*12;i++){
-            balance=balance*(1+rate)+monthly;
+        const rate=
+            num("gRate")/100/12;
+
+        const years=
+            num("gYears");
+
+
+        let balance=
+            start;
+
+
+        for(
+            let i=0;
+            i<years*12;
+            i++
+        ){
+
+            balance=
+                balance*(1+rate)+monthly;
+
         }
 
-        const contributed=start+monthly*years*12;
-        const interest=balance-contributed;
 
-        title="Your estimated savings";
-        text="Regular saving can add up significantly over time.";
+        const contributed=
+            start+
+            monthly*years*12;
+
+        const interest=
+            balance-contributed;
+
+
+        title=
+            "Your estimated savings";
+
+        text=
+            "Regular saving can add up significantly over time.";
+
 
         metrics=[
+
             ["Final balance",money(balance)],
+
             ["Your contributions",money(contributed)],
+
             ["Estimated interest",money(interest)],
+
             ["Monthly deposit",money(monthly)]
+
         ];
+
     }
 
 
@@ -2174,31 +3649,66 @@ function calculateGeneric(){
 
     else if(type==="investment"){
 
-        const initial=num("gInitial");
-        const monthly=num("gMonthly");
-        const annual=num("gRate")/100;
-        const years=num("gYears");
+        const initial=
+            num("gInitial");
 
-        const monthlyRate=annual/12;
+        const monthly=
+            num("gMonthly");
 
-        let balance=initial;
+        const annual=
+            num("gRate")/100;
 
-        for(let i=0;i<years*12;i++){
-            balance=balance*(1+monthlyRate)+monthly;
+        const years=
+            num("gYears");
+
+
+        const monthlyRate=
+            annual/12;
+
+
+        let balance=
+            initial;
+
+
+        for(
+            let i=0;
+            i<years*12;
+            i++
+        ){
+
+            balance=
+                balance*(1+monthlyRate)+monthly;
+
         }
 
-        const contributed=initial+monthly*years*12;
-        const growth=balance-contributed;
 
-        title="Estimated future value";
-        text="This is a mathematical estimate using compound growth.";
+        const contributed=
+            initial+
+            monthly*years*12;
+
+        const growth=
+            balance-contributed;
+
+
+        title=
+            "Estimated future value";
+
+        text=
+            "This is a mathematical estimate using compound growth.";
+
 
         metrics=[
+
             ["Future value",money(balance)],
+
             ["Total contributed",money(contributed)],
+
             ["Estimated growth",money(growth)],
+
             ["Time invested",years+" years"]
+
         ];
+
     }
 
 
@@ -2206,37 +3716,75 @@ function calculateGeneric(){
 
     else if(type==="loan"){
 
-        const loan=Math.max(0,num("gLoan")-num("gDown"));
-        const annual=num("gRate")/100;
-        const years=num("gYears");
+        const loan=
+            Math.max(
+                0,
+                num("gLoan")-
+                num("gDown")
+            );
 
-        const n=years*12;
-        const r=annual/12;
+        const annual=
+            num("gRate")/100;
+
+        const years=
+            num("gYears");
+
+
+        const n=
+            years*12;
+
+        const r=
+            annual/12;
+
 
         let payment;
 
+
         if(r===0){
-            payment=loan/n;
-        }else{
+
             payment=
+                loan/n;
+
+        }else{
+
+            payment=
+
                 loan *
                 r *
                 Math.pow(1+r,n) /
-                (Math.pow(1+r,n)-1);
+                (
+                    Math.pow(1+r,n)-1
+                );
+
         }
 
-        const total=payment*n;
-        const interest=total-loan;
 
-        title="Loan estimate";
-        text="Your estimated monthly repayment and total cost.";
+        const total=
+            payment*n;
+
+        const interest=
+            total-loan;
+
+
+        title=
+            "Loan estimate";
+
+        text=
+            "Your estimated monthly repayment and total cost.";
+
 
         metrics=[
+
             ["Monthly payment",money(payment)],
+
             ["Amount financed",money(loan)],
+
             ["Total repayment",money(total)],
+
             ["Total interest",money(interest)]
+
         ];
+
     }
 
 
@@ -2244,27 +3792,56 @@ function calculateGeneric(){
 
     else if(type==="pc"){
 
-        const upgrade=num("gUpgrade");
-        const fresh=num("gNew");
-        const upgradeYears=num("gYears");
-        const newYears=num("gNewYears");
+        const upgrade=
+            num("gUpgrade");
 
-        const upgradePerYear=upgrade/upgradeYears;
-        const newPerYear=fresh/newYears;
+        const fresh=
+            num("gNew");
 
-        const better=upgradePerYear<newPerYear ?
-            "Upgrade appears cheaper per year." :
+        const upgradeYears=
+            num("gYears");
+
+        const newYears=
+            num("gNewYears");
+
+
+        const upgradePerYear=
+            upgrade/upgradeYears;
+
+        const newPerYear=
+            fresh/newYears;
+
+
+        const better=
+            upgradePerYear<newPerYear
+            ?
+
+            "Upgrade appears cheaper per year."
+
+            :
+
             "Buying new appears cheaper per year.";
 
-        title=better;
-        text="This comparison uses simple cost per expected year.";
+
+        title=
+            better;
+
+        text=
+            "This comparison uses simple cost per expected year.";
+
 
         metrics=[
+
             ["Upgrade cost",money(upgrade)],
+
             ["New PC cost",money(fresh)],
+
             ["Upgrade / year",money(upgradePerYear)],
+
             ["New PC / year",money(newPerYear)]
+
         ];
+
     }
 
 
@@ -2272,28 +3849,56 @@ function calculateGeneric(){
 
     else if(type==="phone"){
 
-        const price=num("gNew");
-        const trade=num("gTrade");
-        const age=num("gAge");
-        const years=num("gYears");
+        const price=
+            num("gNew");
 
-        const net=price-trade;
-        const annual=net/years;
+        const trade=
+            num("gTrade");
+
+        const age=
+            num("gAge");
+
+        const years=
+            num("gYears");
+
+
+        const net=
+            price-trade;
+
+        const annual=
+            net/years;
+
 
         title=
-            annual<250 ?
-            "Upgrade looks relatively affordable." :
+            annual<250
+
+            ?
+
+            "Upgrade looks relatively affordable."
+
+            :
+
             "Consider keeping your current phone.";
 
-        text="The estimate is based on net purchase cost and expected years of use.";
+
+        text=
+            "The estimate is based on net purchase cost and expected years of use.";
+
 
         metrics=[
+
             ["New phone",money(price)],
+
             ["Trade-in value",money(trade)],
+
             ["Net cost",money(net)],
+
             ["Cost / year",money(annual)],
+
             ["Current age",age+" years"]
+
         ];
+
     }
 
 
@@ -2301,40 +3906,91 @@ function calculateGeneric(){
 
     else if(type==="rent"){
 
-        const rent=num("gRent");
-        const home=num("gHome");
-        const owner=num("gOwner");
-        const years=num("gYears");
-        const future=num("gFutureHome");
-        const growth=num("gRentGrowth")/100;
+        const rent=
+            num("gRent");
 
-        let totalRent=0;
-        let currentRent=rent;
+        const home=
+            num("gHome");
 
-        for(let y=0;y<years;y++){
-            totalRent += currentRent*12;
-            currentRent *= 1+growth;
+        const owner=
+            num("gOwner");
+
+        const years=
+            num("gYears");
+
+        const future=
+            num("gFutureHome");
+
+        const growth=
+            num("gRentGrowth")/100;
+
+
+        let totalRent=
+            0;
+
+        let currentRent=
+            rent;
+
+
+        for(
+            let y=0;
+            y<years;
+            y++
+        ){
+
+            totalRent +=
+                currentRent*12;
+
+            currentRent *=
+                1+growth;
+
         }
 
-        const ownershipCost=home+owner*12*years;
-        const netOwnership=ownershipCost-future;
 
-        const difference=Math.abs(totalRent-netOwnership);
+        const ownershipCost=
+            home+
+            owner*12*years;
+
+        const netOwnership=
+            ownershipCost-future;
+
+
+        const difference=
+            Math.abs(
+                totalRent-netOwnership
+            );
+
 
         title=
-            netOwnership<totalRent ?
-            "Buying is cheaper in this simplified model." :
+            netOwnership<totalRent
+
+            ?
+
+            "Buying is cheaper in this simplified model."
+
+            :
+
             "Renting is cheaper in this simplified model.";
 
-        text="This is a simplified comparison and does not include taxes, financing, maintenance surprises or investment opportunity costs.";
+
+        text=
+            "This is a simplified comparison and does not include taxes, financing, maintenance surprises or investment opportunity costs.";
+
 
         metrics=[
+
             ["Total rent",money(totalRent)],
+
             ["Ownership costs",money(ownershipCost)],
+
             ["Estimated home value",money(future)],
+
             ["Net ownership cost",money(netOwnership)],
+
             ["Difference",money(difference)]
+
         ];
+
     }
 
 
@@ -2342,25 +3998,51 @@ function calculateGeneric(){
 
     else if(type==="energy"){
 
-        const watts=num("gWatts");
-        const hours=num("gHours");
-        const rate=num("gRate");
-        const days=num("gDays");
+        const watts=
+            num("gWatts");
 
-        const dailyKwh=watts/1000*hours;
-        const yearlyKwh=dailyKwh*days;
-        const yearlyCost=yearlyKwh*rate;
-        const monthly=yearlyCost/12;
+        const hours=
+            num("gHours");
 
-        title="Estimated energy cost";
-        text="Based on the power rating, usage time and electricity price.";
+        const rate=
+            num("gRate");
+
+        const days=
+            num("gDays");
+
+
+        const dailyKwh=
+            watts/1000*hours;
+
+        const yearlyKwh=
+            dailyKwh*days;
+
+        const yearlyCost=
+            yearlyKwh*rate;
+
+        const monthly=
+            yearlyCost/12;
+
+
+        title=
+            "Estimated energy cost";
+
+        text=
+            "Based on the power rating, usage time and electricity price.";
+
 
         metrics=[
+
             ["Daily energy",decimal(dailyKwh)+" kWh"],
+
             ["Yearly energy",decimal(yearlyKwh)+" kWh"],
+
             ["Monthly cost",money(monthly)],
+
             ["Yearly cost",money(yearlyCost)]
+
         ];
+
     }
 
 
@@ -2368,30 +4050,76 @@ function calculateGeneric(){
 
     else if(type==="purchase"){
 
-        const price=num("gPrice");
-        const years=num("gYears");
-        const uses=num("gUses");
-        const resale=num("gResale");
+        const price=
+            num("gPrice");
 
-        const net=Math.max(0,price-resale);
-        const totalUses=years*52*uses;
-        const perUse=totalUses>0 ? net/totalUses : 0;
+        const years=
+            num("gYears");
+
+        const uses=
+            num("gUses");
+
+        const resale=
+            num("gResale");
+
+
+        const net=
+            Math.max(
+                0,
+                price-resale
+            );
+
+        const totalUses=
+            years*52*uses;
+
+        const perUse=
+            totalUses>0
+            ?
+            net/totalUses
+            :
+            0;
+
 
         title=
-            perUse<1 ?
-            "Very low estimated cost per use." :
-            perUse<5 ?
-            "Potentially reasonable if you use it often." :
+
+            perUse<1
+
+            ?
+
+            "Very low estimated cost per use."
+
+            :
+
+            perUse<5
+
+            ?
+
+            "Potentially reasonable if you use it often."
+
+            :
+
             "Consider how frequently you will actually use it.";
 
-        text="The more frequently you use a purchase, the lower its estimated cost per use.";
+
+        text=
+            "The more frequently you use a purchase, the lower its estimated cost per use.";
+
 
         metrics=[
+
             ["Net purchase cost",money(net)],
-            ["Estimated uses",Math.round(totalUses).toLocaleString()],
+
+            [
+                "Estimated uses",
+                Math.round(totalUses).toLocaleString()
+            ],
+
             ["Cost per use",money(perUse)],
+
             ["Years of use",years]
+
         ];
+
     }
 
 
@@ -2399,26 +4127,61 @@ function calculateGeneric(){
 
     else if(type==="salary"){
 
-        const monthly=num("gSalary");
-        const weeks=num("gWeeks");
-        const hours=num("gHours");
-        const days=num("gDays");
+        const monthly=
+            num("gSalary");
 
-        const annual=monthly*12;
-        const weekly=annual/weeks;
-        const hourly=hours>0 ? weekly/hours : 0;
-        const daily=days>0 ? weekly/days : 0;
+        const weeks=
+            num("gWeeks");
 
-        title="Your salary breakdown";
-        text="A simple conversion of your monthly salary.";
+        const hours=
+            num("gHours");
+
+        const days=
+            num("gDays");
+
+
+        const annual=
+            monthly*12;
+
+        const weekly=
+            annual/weeks;
+
+        const hourly=
+            hours>0
+            ?
+            weekly/hours
+            :
+            0;
+
+        const daily=
+            days>0
+            ?
+            weekly/days
+            :
+            0;
+
+
+        title=
+            "Your salary breakdown";
+
+        text=
+            "A simple conversion of your monthly salary.";
+
 
         metrics=[
+
             ["Monthly",money(monthly)],
+
             ["Yearly",money(annual)],
+
             ["Weekly",money(weekly)],
+
             ["Daily",money(daily)],
+
             ["Hourly",money(hourly)]
+
         ];
+
     }
 
 
@@ -2426,29 +4189,84 @@ function calculateGeneric(){
 
     else if(type==="solar"){
 
-        const kw=num("gKW");
-        const sun=num("gSun");
-        const rate=num("gRate");
-        const price=num("gPrice");
-        const efficiency=num("gEfficiency")/100;
+        const kw=
+            num("gKW");
 
-        const yearlyKwh=kw*sun*365*efficiency;
-        const yearlySavings=yearlyKwh*rate;
-        const payback=yearlySavings>0 ? price/yearlySavings : Infinity;
+        const sun=
+            num("gSun");
+
+        const rate=
+            num("gRate");
+
+        const price=
+            num("gPrice");
+
+        const efficiency=
+            num("gEfficiency")/100;
+
+
+        const yearlyKwh=
+            kw*
+            sun*
+            365*
+            efficiency;
+
+        const yearlySavings=
+            yearlyKwh*
+            rate;
+
+        const payback=
+            yearlySavings>0
+            ?
+            price/yearlySavings
+            :
+            Infinity;
+
 
         title=
-            payback<10 ?
-            "Solar may have an attractive simple payback." :
+            payback<10
+
+            ?
+
+            "Solar may have an attractive simple payback."
+
+            :
+
             "The simple payback period is relatively long.";
 
-        text="Actual solar output depends heavily on location, orientation, weather and system losses.";
+
+        text=
+            "Actual solar output depends heavily on location, orientation, weather and system losses.";
+
 
         metrics=[
-            ["Estimated yearly generation",decimal(yearlyKwh)+" kWh"],
-            ["Estimated yearly savings",money(yearlySavings)],
-            ["System price",money(price)],
-            ["Simple payback",Number.isFinite(payback)?decimal(payback)+" years":"—"]
+
+            [
+                "Estimated yearly generation",
+                decimal(yearlyKwh)+" kWh"
+            ],
+
+            [
+                "Estimated yearly savings",
+                money(yearlySavings)
+            ],
+
+            [
+                "System price",
+                money(price)
+            ],
+
+            [
+                "Simple payback",
+                Number.isFinite(payback)
+                ?
+                decimal(payback)+" years"
+                :
+                "—"
+            ]
+
         ];
+
     }
 
 
@@ -2456,64 +4274,139 @@ function calculateGeneric(){
 
     else if(type==="heating"){
 
-        const kwh=num("gKwh");
-        const days=num("gDays");
-        const rate=num("gRate");
-        const growth=num("gGrowth")/100;
-        const years=num("gYears");
+        const kwh=
+            num("gKwh");
 
-        let total=0;
-        let yearlyBase=kwh*days*rate;
+        const days=
+            num("gDays");
 
-        for(let y=0;y<years;y++){
-            total += yearlyBase*Math.pow(1+growth,y);
+        const rate=
+            num("gRate");
+
+        const growth=
+            num("gGrowth")/100;
+
+        const years=
+            num("gYears");
+
+
+        let total=
+            0;
+
+        const yearlyBase=
+            kwh*
+            days*
+            rate;
+
+
+        for(
+            let y=0;
+            y<years;
+            y++
+        ){
+
+            total +=
+                yearlyBase*
+                Math.pow(
+                    1+growth,
+                    y
+                );
+
         }
 
-        const firstYear=yearlyBase;
 
-        title="Estimated heating cost";
-        text="Estimated energy cost over the selected period.";
+        const firstYear=
+            yearlyBase;
+
+
+        title=
+            "Estimated heating cost";
+
+        text=
+            "Estimated energy cost over the selected period.";
+
 
         metrics=[
+
             ["First year",money(firstYear)],
+
             ["Total period",money(total)],
+
             ["Average / year",money(total/years)],
+
             ["Period",years+" years"]
+
         ];
+
     }
 
 
     result.innerHTML=`
+
         <div class="big-result">
-            <div class="result-label">${title}</div>
-            <div class="number">${metrics[0]?.[1] || ""}</div>
-            <p style="color:var(--muted);margin-top:8px">${text}</p>
+
+            <div class="result-label">
+                ${title}
+            </div>
+
+            <div class="number">
+                ${metrics[0]?.[1] || ""}
+            </div>
+
+            <p style="color:var(--muted);margin-top:8px">
+                ${text}
+            </p>
+
         </div>
 
-        <div class="result-grid" style="margin-top:15px">
+
+        <div class="result-grid"
+             style="margin-top:15px">
+
             ${metrics.map(m=>`
+
                 <div class="metric">
-                    <span>${m[0]}</span>
-                    <strong>${m[1]}</strong>
+
+                    <span>
+                        ${m[0]}
+                    </span>
+
+                    <strong>
+                        ${m[1]}
+                    </strong>
+
                 </div>
+
             `).join("")}
+
         </div>
+
     `;
+
 
     result.classList.add("active");
 
+
     result.scrollIntoView({
+
         behavior:"smooth",
+
         block:"start"
+
     });
+
 }
 
 
 function resetGeneric(){
 
-    setupGeneric(currentGenericType);
+    setupGeneric(
+        currentGenericType
+    );
 
-    showToast("Reset complete");
+    showToast(
+        "Reset complete"
+    );
 }
 
 
@@ -2523,11 +4416,19 @@ function resetGeneric(){
 
 function toggleFAQ(button){
 
-    const item=button.parentElement;
+    const item=
+        button.parentElement;
 
-    document.querySelectorAll(".faq-item").forEach(x=>{
-        if(x!==item) x.classList.remove("open");
-    });
+
+    document.querySelectorAll(".faq-item")
+        .forEach(x=>{
+
+            if(x!==item){
+                x.classList.remove("open");
+            }
+
+        });
+
 
     item.classList.toggle("open");
 }
@@ -2539,30 +4440,57 @@ function toggleFAQ(button){
 
 async function shareCurrentResult(){
 
-    const winner=$("carWinner")?.textContent || "Worth It result";
-    const savings=$("carSavings")?.textContent || "";
+    const winner=
+        $("carWinner")?.textContent ||
+        "Worth It result";
+
+    const savings=
+        $("carSavings")?.textContent ||
+        "";
+
 
     const text=
         `Worth It Calculator\n${winner}\nEstimated difference: ${savings}`;
 
+
     if(navigator.share){
 
         try{
+
             await navigator.share({
-                title:"Worth It Calculator",
+
+                title:
+                    "Worth It Calculator",
+
                 text
+
             });
 
             return;
+
         }catch(e){}
+
     }
 
+
     try{
-        await navigator.clipboard.writeText(text);
-        showToast("Result copied to clipboard");
+
+        await navigator.clipboard.writeText(
+            text
+        );
+
+        showToast(
+            "Result copied to clipboard"
+        );
+
     }catch(e){
-        showToast("Could not copy result");
+
+        showToast(
+            "Could not copy result"
+        );
+
     }
+
 }
 
 
@@ -2570,7 +4498,14 @@ async function shareCurrentResult(){
    INITIAL STATE
 ========================================================= */
 
-$("homePage").style.display="block";
+$("homePage").style.display=
+    "block";
+
+
+document.querySelectorAll(".calc-card")
+    .forEach(card=>{
+        card.style.display="";
+    });
 
 </script>
 
