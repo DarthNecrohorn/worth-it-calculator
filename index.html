@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Worth It? - Smart Decision Calculator</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: Arial, Helvetica, sans-serif;
+            background: #f5f7fa;
+            color: #172033;
+            line-height: 1.6;
+        }
+
+        header {
+            background: #172033;
+            color: white;
+            padding: 22px 7%;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            font-size: 24px;
+            font-weight: 800;
+        }
+
+        .logo span {
+            color: #4ade80;
+        }
+
+        nav a {
+            color: white;
+            text-decoration: none;
+            margin-left: 25px;
+            font-size: 15px;
+        }
+
+        .hero {
+            text-align: center;
+            padding: 70px 20px 45px;
+            background: white;
+        }
+
+        .hero h1 {
+            font-size: 46px;
+            margin-bottom: 15px;
+        }
+
+        .hero h1 span {
+            color: #16a34a;
+        }
+
+        .hero p {
+            max-width: 650px;
+            margin: auto;
+            color: #667085;
+            font-size: 18px;
+        }
+
+        .container {
+            width: 90%;
+            max-width: 1000px;
+            margin: 40px auto;
+        }
+
+        .calculator {
+            background: white;
+            border-radius: 18px;
+            padding: 35px;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.08);
+        }
+
+        .calculator h2 {
+            margin-bottom: 8px;
+            font-size: 28px;
+        }
+
+        .calculator > p {
+            color: #667085;
+            margin-bottom: 30px;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 22px;
+        }
+
+        .field label {
+            display: block;
+            font-weight: 700;
+            margin-bottom: 7px;
+        }
+
+        .field input {
+            width: 100%;
+            padding: 13px;
+            border: 1px solid #d0d5dd;
+            border-radius: 9px;
+            font-size: 16px;
+        }
+
+        .field input:focus {
+            outline: 2px solid #4ade80;
+            border-color: transparent;
+        }
+
+        button {
+            width: 100%;
+            margin-top: 30px;
+            padding: 15px;
+            border: none;
+            border-radius: 10px;
+            background: #16a34a;
+            color: white;
+            font-size: 17px;
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background: #15803d;
+        }
+
+        .result {
+            display: none;
+            margin-top: 30px;
+            padding: 25px;
+            border-radius: 14px;
+            background: #ecfdf3;
+            border: 1px solid #bbf7d0;
+        }
+
+        .result h3 {
+            font-size: 24px;
+            margin-bottom: 15px;
+        }
+
+        .result-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .result-card {
+            background: white;
+            padding: 18px;
+            border-radius: 10px;
+            text-align: center;
+        }
+
+        .result-card strong {
+            display: block;
+            font-size: 22px;
+            margin-top: 5px;
+        }
+
+        .info-section {
+            margin-top: 50px;
+            text-align: center;
+        }
+
+        .info-section h2 {
+            font-size: 30px;
+            margin-bottom: 10px;
+        }
+
+        .info-section p {
+            color: #667085;
+            max-width: 700px;
+            margin: auto;
+        }
+
+        footer {
+            margin-top: 70px;
+            background: #172033;
+            color: #cbd5e1;
+            text-align: center;
+            padding: 30px;
+            font-size: 14px;
+        }
+
+        @media (max-width: 700px) {
+            .hero h1 {
+                font-size: 34px;
+            }
+
+            .grid,
+            .result-grid {
+                grid-template-columns: 1fr;
+            }
+
+            header {
+                flex-direction: column;
+                gap: 12px;
+            }
+
+            nav a {
+                margin: 0 8px;
+            }
+
+            .calculator {
+                padding: 22px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+<header>
+    <div class="logo">Worth<span>It?</span></div>
+
+    <nav>
+        <a href="#">Home</a>
+        <a href="#calculator">Calculator</a>
+    </nav>
+</header>
+
+<section class="hero">
+    <h1>Is It <span>Worth It?</span></h1>
+    <p>
+        Make smarter decisions with simple calculators that show
+        the real cost of your choices.
+    </p>
+</section>
+
+<div class="container">
+
+    <section class="calculator" id="calculator">
+
+        <h2>Electric Car vs. Gas Car</h2>
+
+        <p>
+            Compare the estimated running costs of an electric vehicle
+            and a gasoline car.
+        </p>
+
+        <div class="grid">
+
+            <div class="field">
+                <label>Electric car price (€)</label>
+                <input type="number" id="evPrice" value="17000">
+            </div>
+
+            <div class="field">
+                <label>Gas car price (€)</label>
+                <input type="number" id="gasPrice" value="12000">
+            </div>
+
+            <div class="field">
+                <label>Yearly distance (km)</label>
+                <input type="number" id="km" value="15000">
+            </div>
+
+            <div class="field">
+                <label>Years of ownership</label>
+                <input type="number" id="years" value="5">
+            </div>
+
+            <div class="field">
+                <label>EV consumption (kWh / 100 km)</label>
+                <input type="number" id="evConsumption" value="17">
+            </div>
+
+            <div class="field">
+                <label>Gas consumption (L / 100 km)</label>
+                <input type="number" id="gasConsumption" value="7">
+            </div>
+
+            <div class="field">
+                <label>Electricity price (€ / kWh)</label>
+                <input type="number" id="electricity" value="0.15" step="0.01">
+            </div>
+
+            <div class="field">
+                <label>Gasoline price (€ / L)</label>
+                <input type="number" id="gasPriceLiter" value="1.60" step="0.01">
+            </div>
+
+        </div>
+
+        <button onclick="calculate()">
+            Calculate
+        </button>
+
+        <div class="result" id="result">
+
+            <h3 id="resultTitle"></h3>
+
+            <p id="resultText"></p>
+
+            <div class="result-grid">
+
+                <div class="result-card">
+                    EV running cost
+                    <strong id="evCost"></strong>
+                </div>
+
+                <div class="result-card">
+                    Gas running cost
+                    <strong id="gasCost"></strong>
+                </div>
+
+                <div class="result-card">
+                    Difference
+                    <strong id="difference"></strong>
+                </div>
+
+            </div>
+
+        </div>
+
+    </section>
+
+    <section class="info-section">
+
+        <h2>Make Better Decisions</h2>
+
+        <p>
+            Worth It? helps you compare real-world costs before
+            spending your money. More calculators are coming soon,
+            including savings, solar panels, 3D printing and more.
+        </p>
+
+    </section>
+
+</div>
+
+<footer>
+    © 2026 Worth It? — Smart decisions made simple.
+</footer>
+
+
+<script>
+
+function calculate() {
+
+    const evPrice = Number(document.getElementById("evPrice").value);
+    const gasPrice = Number(document.getElementById("gasPrice").value);
+
+    const km = Number(document.getElementById("km").value);
+    const years = Number(document.getElementById("years").value);
+
+    const evConsumption =
+        Number(document.getElementById("evConsumption").value);
+
+    const gasConsumption =
+        Number(document.getElementById("gasConsumption").value);
+
+    const electricity =
+        Number(document.getElementById("electricity").value);
+
+    const gasLiter =
+        Number(document.getElementById("gasPriceLiter").value);
+
+
+    const totalKm = km * years;
+
+    const evEnergy =
+        (totalKm / 100) * evConsumption;
+
+    const gasLiters =
+        (totalKm / 100) * gasConsumption;
+
+
+    const evRunningCost =
+        evEnergy * electricity;
+
+    const gasRunningCost =
+        gasLiters * gasLiter;
+
+
+    const evTotal =
+        evPrice + evRunningCost;
+
+    const gasTotal =
+        gasPrice + gasRunningCost;
+
+
+    const difference =
+        Math.abs(evTotal - gasTotal);
+
+
+    document.getElementById("evCost").textContent =
+        "€" + evTotal.toFixed(0);
+
+    document.getElementById("gasCost").textContent =
+        "€" + gasTotal.toFixed(0);
+
+    document.getElementById("difference").textContent =
+        "€" + difference.toFixed(0);
+
+
+    if (evTotal < gasTotal) {
+
+        document.getElementById("resultTitle").textContent =
+            "The electric car is cheaper.";
+
+        document.getElementById("resultText").textContent =
+            "Based on the numbers you entered, the electric car would save approximately €"
+            + difference.toFixed(0)
+            + " over "
+            + years
+            + " years.";
+
+    } else {
+
+        document.getElementById("resultTitle").textContent =
+            "The gas car is cheaper.";
+
+        document.getElementById("resultText").textContent =
+            "Based on the numbers you entered, the gas car would save approximately €"
+            + difference.toFixed(0)
+            + " over "
+            + years
+            + " years.";
+
+    }
+
+
+    document.getElementById("result").style.display = "block";
+}
+
+</script>
+
+</body>
+</html>
