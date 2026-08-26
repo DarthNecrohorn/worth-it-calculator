@@ -42,11 +42,8 @@ body{
 }
 
 button,input,select{font:inherit}
-
 button{cursor:pointer}
-
 a{text-decoration:none;color:inherit}
-
 .hidden{display:none!important}
 
 .container{
@@ -1438,6 +1435,12 @@ function scrollToFAQ(){
 ========================================================= */
 
 function calculateCars(){
+
+    /* FIX:
+       After Reset, results are hidden.
+       This makes them visible again when Calculate is clicked.
+    */
+    $("carResults").style.display="block";
 
     const evPrice=num("evPrice");
     const evConsumption=num("evConsumption");
