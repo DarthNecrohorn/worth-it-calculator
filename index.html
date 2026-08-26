@@ -4114,7 +4114,7 @@ function calculateGeneric(){
                 Math.round(totalUses).toLocaleString()
             ],
 
-            ["Cost per use",money(perUse)],
+            ["Cost per use",perUse.toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2}) + " €"],
 
             ["Years of use",years]
 
