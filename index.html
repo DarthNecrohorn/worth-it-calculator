@@ -1697,6 +1697,20 @@ async function detectLanguageByIP(){
 
     }
 }
+
+$("languageSelect").addEventListener("change", function(){
+
+    const language =
+        this.value;
+
+    localStorage.setItem(
+        "worthItLanguage",
+        language
+    );
+
+    translatePage(language);
+
+});
     
 /* =========================================================
    HOME / NAVIGATION
