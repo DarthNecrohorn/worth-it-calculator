@@ -1687,6 +1687,8 @@ async function detectLanguageByIP(){
         $("languageSelect").value =
             language;
 
+        translatePage(language);
+        
         localStorage.setItem(
             "worthItLanguage",
             language
