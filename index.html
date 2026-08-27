@@ -3938,6 +3938,1157 @@ async function shareCurrentResult(){
 
 }
 
+    /* =========================================================
+   EXTRA 18 CALCULATORS
+   Added without changing existing calculators
+========================================================= */
+
+const originalCalculateGeneric = calculateGeneric;
+
+
+/* =========================================================
+   EXTRA CALCULATOR CONFIGS
+========================================================= */
+
+Object.assign(configs, {
+
+    fuelcost:{
+        icon:"⛽",
+        title:"Fuel Cost Calculator",
+        description:"Estimate how much you spend on fuel over time.",
+        html:`
+            <div class="form-grid">
+                ${genericInput("gFuelKm","Distance per year (km)",15000)}
+                ${genericInput("gFuelConsumption","Fuel consumption (L / 100 km)",7,"0.1")}
+                ${genericInput("gFuelPrice","Fuel price (€ / L)",1.60)}
+                ${genericInput("gFuelYears","Years",5,"0.1")}
+                ${genericInput("gFuelGrowth","Fuel price increase (%)",3,"0.1")}
+            </div>
+            <div class="form-actions">
+                <button class="btn btn-primary" onclick="calculateGeneric()">Calculate</button>
+                <button class="btn btn-secondary" onclick="resetGeneric()">Reset</button>
+            </div>
+        `
+    },
+
+    depreciation:{
+        icon:"📉",
+        title:"Car Depreciation Calculator",
+        description:"Estimate how much value a car loses over time.",
+        html:`
+            <div class="form-grid">
+                ${genericInput("gDepPurchase","Purchase price (€)",20000)}
+                ${genericInput("gDepResale","Estimated resale value (€)",10000)}
+                ${genericInput("gDepYears","Years of ownership",5,"0.1")}
+            </div>
+            <div class="form-actions">
+                <button class="btn btn-primary" onclick="calculateGeneric()">Calculate</button>
+                <button class="btn btn-secondary" onclick="resetGeneric()">Reset</button>
+            </div>
+        `
+    },
+
+    carloan:{
+        icon:"🚗",
+        title:"Car Loan Calculator",
+        description:"Estimate monthly payments and total interest on a car loan.",
+        html:`
+            <div class="form-grid">
+                ${genericInput("gCarPrice","Car price (€)",20000)}
+                ${genericInput("gCarDown","Down payment (€)",5000)}
+                ${genericInput("gCarRate","Annual interest (%)",6)}
+                ${genericInput("gCarYears","Loan term (years)",5,"0.1")}
+            </div>
+            <div class="form-actions">
+                <button class="btn btn-primary" onclick="calculateGeneric()">Calculate</button>
+                <button class="btn btn-secondary" onclick="resetGeneric()">Reset</button>
+            </div>
+        `
+    },
+
+    evcharging:{
+        icon:"🔌",
+        title:"EV Charging Cost",
+        description:"Estimate the cost of charging an electric vehicle.",
+        html:`
+            <div class="form-grid">
+                ${genericInput("gEVBattery","Battery capacity (kWh)",60,"0.1")}
+                ${genericInput("gEVCharge","Average charge added (%)",60,"0.1")}
+                ${genericInput("gEVEff","Charging efficiency (%)",90,"0.1")}
+                ${genericInput("gEVRate","Electricity price (€ / kWh)",0.15)}
+                ${genericInput("gEVCharges","Charges per week",3,"0.1")}
+            </div>
+            <div class="form-actions">
+                <button class="btn btn-primary" onclick="calculateGeneric()">Calculate</button>
+                <button class="btn btn-secondary" onclick="resetGeneric()">Reset</button>
+            </div>
+        `
+    },
+
+    parkingcost:{
+        icon:"🅿️",
+        title:"Parking Cost Calculator",
+        description:"Estimate how much you spend on parking each year.",
+        html:`
+            <div class="form-grid">
+                ${genericInput("gParkMonthly","Garage / monthly parking (€)",50)}
+                ${genericInput("gParkDaily","Daily parking cost (€)",2)}
+                ${genericInput("gParkDays","Parking days per week",5,"0.1")}
+                ${genericInput("gParkYears","Years",5,"0.1")}
+            </div>
+            <div class="form-actions">
+                <button class="btn btn-primary" onclick="calculateGeneric()">Calculate</button>
+                <button class="btn btn-secondary" onclick="resetGeneric()">Reset</button>
+            </div>
+        `
+    },
+
+    inflation:{
+        icon:"📊",
+        title:"Inflation Calculator",
+        description:"See how inflation can change the future cost of money.",
+        html:`
+            <div class="form-grid">
+                ${genericInput("gInflationAmount","Current amount (€)",1000)}
+                ${genericInput("gInflationRate","Annual inflation (%)",3,"0.1")}
+                ${genericInput("gInflationYears","Years",10,"0.1")}
+            </div>
+            <div class="form-actions">
+                <button class="btn btn-primary" onclick="calculateGeneric()">Calculate</button>
+                <button class="btn btn-secondary" onclick="resetGeneric()">Reset</button>
+            </div>
+        `
+    },
+
+    budget:{
+        icon:"🧾",
+        title:"Monthly Budget Calculator",
+        description:"See where your monthly income goes and how much remains.",
+        html:`
+            <div class="form-grid">
+                ${genericInput("gBudgetIncome","Monthly income (€)",1500)}
+                ${genericInput("gBudgetHome","Housing (€)",500)}
+                ${genericInput("gBudgetUtilities","Utilities (€)",150)}
+                ${genericInput("gBudgetFood","Food (€)",250)}
+                ${genericInput("gBudgetTransport","Transport (€)",120)}
+                ${genericInput("gBudgetDebt","Debt payments (€)",100)}
+                ${genericInput("gBudgetOther","Other expenses (€)",100)}
+            </div>
+            <div class="form-actions">
+                <button class="btn btn-primary" onclick="calculateGeneric()">Calculate</button>
+                <button class="btn btn-secondary" onclick="resetGeneric()">Reset</button>
+            </div>
+        `
+    },
+
+    networth:{
+        icon:"💎",
+        title:"Net Worth Calculator",
+        description:"Estimate your total assets minus your debts.",
+        html:`
+            <div class="form-grid">
+                ${genericInput("gNWCash","Cash (€)",3000)}
+                ${genericInput("gNWInvest","Investments (€)",5000)}
+                ${genericInput("gNWHome","Home value (€)",100000)}
+                ${genericInput("gNWOther","Other assets (€)",2000)}
+                ${genericInput("gNWMortgage","Mortgage (€)",70000)}
+                ${genericInput("gNWDebt","Other debts (€)",5000)}
+            </div>
+            <div class="form-actions">
+                <button class="btn btn-primary" onclick="calculateGeneric()">Calculate</button>
+                <button class="btn btn-secondary" onclick="resetGeneric()">Reset</button>
+            </div>
+        `
+    },
+
+    discount:{
+        icon:"🏷️",
+        title:"Discount Calculator",
+        description:"Calculate the final price after a discount, tax and shipping.",
+        html:`
+            <div class="form-grid">
+                ${genericInput("gDiscPrice","Original price (€)",100)}
+                ${genericInput("gDiscPercent","Discount (%)",20,"0.1")}
+                ${genericInput("gDiscTax","Tax (%)",0,"0.1")}
+                ${genericInput("gDiscShipping","Shipping (€)",0)}
+            </div>
+            <div class="form-actions">
+                <button class="btn btn-primary" onclick="calculateGeneric()">Calculate</button>
+                <button class="btn btn-secondary" onclick="resetGeneric()">Reset</button>
+            </div>
+        `
+    },
+
+    opportunity:{
+        icon:"💡",
+        title:"Opportunity Cost Calculator",
+        description:"Estimate what your money could become if invested instead.",
+        html:`
+            <div class="form-grid">
+                ${genericInput("gOppAmount","Money spent (€)",5000)}
+                ${genericInput("gOppRate","Expected annual return (%)",7,"0.1")}
+                ${genericInput("gOppYears","Years",10,"0.1")}
+            </div>
+            <div class="form-actions">
+                <button class="btn btn-primary" onclick="calculateGeneric()">Calculate</button>
+                <button class="btn btn-secondary" onclick="resetGeneric()">Reset</button>
+            </div>
+        `
+    },
+
+    laptopdesktop:{
+        icon:"💻",
+        title:"Laptop vs Desktop",
+        description:"Compare the estimated yearly cost of a laptop and desktop.",
+        html:`
+            <div class="form-grid">
+                ${genericInput("gLDLaptop","Laptop price (€)",1000)}
+                ${genericInput("gLDDesktop","Desktop price (€)",1200)}
+                ${genericInput("gLDLaptopYears","Laptop lifespan (years)",4,"0.1")}
+                ${genericInput("gLDDesktopYears","Desktop lifespan (years)",6,"0.1")}
+            </div>
+            <div class="form-actions">
+                <button class="btn btn-primary" onclick="calculateGeneric()">Calculate</button>
+                <button class="btn btn-secondary" onclick="resetGeneric()">Reset</button>
+            </div>
+        `
+    },
+
+    phonerepair:{
+        icon:"📱",
+        title:"Phone Repair vs Replace",
+        description:"Compare repairing your phone with buying a replacement.",
+        html:`
+            <div class="form-grid">
+                ${genericInput("gPRRepair","Repair cost (€)",150)}
+                ${genericInput("gPRRepairYears","Years after repair",2,"0.1")}
+                ${genericInput("gPRNew","Replacement phone (€)",700)}
+                ${genericInput("gPRNewYears","Years with replacement",4,"0.1")}
+            </div>
+            <div class="form-actions">
+                <button class="btn btn-primary" onclick="calculateGeneric()">Calculate</button>
+                <button class="btn btn-secondary" onclick="resetGeneric()">Reset</button>
+            </div>
+        `
+    },
+
+    cloudstorage:{
+        icon:"☁️",
+        title:"Cloud Storage vs Local",
+        description:"Compare recurring cloud storage costs with buying local storage.",
+        html:`
+            <div class="form-grid">
+                ${genericInput("gCloudMonthly","Cloud storage per month (€)",5)}
+                ${genericInput("gCloudHardware","Local storage hardware (€)",180)}
+                ${genericInput("gCloudYears","Comparison period (years)",5,"0.1")}
+                ${genericInput("gCloudResale","Estimated resale value (€)",30)}
+            </div>
+            <div class="form-actions">
+                <button class="btn btn-primary" onclick="calculateGeneric()">Calculate</button>
+                <button class="btn btn-secondary" onclick="resetGeneric()">Reset</button>
+            </div>
+        `
+    },
+
+    internetplan:{
+        icon:"🌐",
+        title:"Internet Plan Cost",
+        description:"Compare two internet plans over time.",
+        html:`
+            <div class="form-grid">
+                ${genericInput("gInternetCurrent","Current monthly cost (€)",30)}
+                ${genericInput("gInternetNew","New monthly cost (€)",25)}
+                ${genericInput("gInternetFee","Activation / setup fee (€)",50)}
+                ${genericInput("gInternetYears","Comparison period (years)",2,"0.1")}
+            </div>
+            <div class="form-actions">
+                <button class="btn btn-primary" onclick="calculateGeneric()">Calculate</button>
+                <button class="btn btn-secondary" onclick="resetGeneric()">Reset</button>
+            </div>
+        `
+    },
+
+    appliance:{
+        icon:"🧺",
+        title:"Appliance Replacement",
+        description:"Compare keeping an old appliance with replacing it.",
+        html:`
+            <div class="form-grid">
+                ${genericInput("gAppOld","Old appliance yearly energy cost (€)",180)}
+                ${genericInput("gAppNew","New appliance yearly energy cost (€)",80)}
+                ${genericInput("gAppPrice","New appliance price (€)",700)}
+                ${genericInput("gAppYears","Comparison period (years)",5,"0.1")}
+            </div>
+            <div class="form-actions">
+                <button class="btn btn-primary" onclick="calculateGeneric()">Calculate</button>
+                <button class="btn btn-secondary" onclick="resetGeneric()">Reset</button>
+            </div>
+        `
+    },
+
+    watercost:{
+        icon:"💧",
+        title:"Water Cost Calculator",
+        description:"Estimate household water costs over time.",
+        html:`
+            <div class="form-grid">
+                ${genericInput("gWaterDaily","Water use per day (L)",300)}
+                ${genericInput("gWaterPrice","Water price (€ / m³)",1.5,"0.01")}
+                ${genericInput("gWaterDays","Days per year",365,"0.1")}
+                ${genericInput("gWaterYears","Years",5,"0.1")}
+            </div>
+            <div class="form-actions">
+                <button class="btn btn-primary" onclick="calculateGeneric()">Calculate</button>
+                <button class="btn btn-secondary" onclick="resetGeneric()">Reset</button>
+            </div>
+        `
+    },
+
+    heatingcompare:{
+        icon:"🔥",
+        title:"Heating System Comparison",
+        description:"Compare the long-term cost of two heating systems.",
+        html:`
+            <div class="form-grid">
+                ${genericInput("gHCAPrice","System A purchase price (€)",3000)}
+                ${genericInput("gHCAEnergy","System A yearly energy cost (€)",1200)}
+                ${genericInput("gHCAMaint","System A yearly maintenance (€)",150)}
+                ${genericInput("gHCBPrice","System B purchase price (€)",6000)}
+                ${genericInput("gHCBEnergy","System B yearly energy cost (€)",700)}
+                ${genericInput("gHCBMaint","System B yearly maintenance (€)",200)}
+                ${genericInput("gHCYears","Comparison period (years)",5,"0.1")}
+            </div>
+            <div class="form-actions">
+                <button class="btn btn-primary" onclick="calculateGeneric()">Calculate</button>
+                <button class="btn btn-secondary" onclick="resetGeneric()">Reset</button>
+            </div>
+        `
+    },
+
+    rentafford:{
+        icon:"🏠",
+        title:"Rent Affordability Calculator",
+        description:"Estimate how much of your income would go toward housing.",
+        html:`
+            <div class="form-grid">
+                ${genericInput("gRAIncome","Monthly income (€)",1500)}
+                ${genericInput("gRARent","Monthly rent (€)",500)}
+                ${genericInput("gRAUtilities","Utilities (€)",150)}
+                ${genericInput("gRAOther","Other monthly expenses (€)",400)}
+            </div>
+            <div class="form-actions">
+                <button class="btn btn-primary" onclick="calculateGeneric()">Calculate</button>
+                <button class="btn btn-secondary" onclick="resetGeneric()">Reset</button>
+            </div>
+        `
+    }
+
+});
+
+
+/* =========================================================
+   ADD 18 CARDS
+========================================================= */
+
+const extraCards = [
+
+    ["cars","⛽","Fuel Cost","Estimate fuel spending over multiple years.","fuelcost","#60a5fa"],
+    ["cars","📉","Car Depreciation","Estimate how much value your car loses over time.","depreciation","#a78bfa"],
+    ["cars","🚗","Car Loan","Calculate monthly car-loan payments and interest.","carloan","#fbbf24"],
+    ["cars","🔌","EV Charging Cost","Estimate how much charging your EV costs.","evcharging","#22d3ee"],
+    ["cars","🅿️","Parking Cost","Estimate yearly and long-term parking expenses.","parkingcost","#f97316"],
+
+    ["money","📊","Inflation","See how inflation changes the future value of money.","inflation","#f59e0b"],
+    ["money","🧾","Monthly Budget","Calculate expenses, leftover money and savings rate.","budget","#34d399"],
+    ["money","💎","Net Worth","Calculate your assets minus your debts.","networth","#c084fc"],
+    ["money","🏷️","Discount Calculator","Calculate the final price after discounts and tax.","discount","#fb7185"],
+    ["money","💡","Opportunity Cost","Estimate what money could become if invested instead.","opportunity","#facc15"],
+
+    ["technology","💻","Laptop vs Desktop","Compare the yearly cost of owning a laptop or desktop.","laptopdesktop","#60a5fa"],
+    ["technology","📱","Phone Repair vs Replace","Compare repairing your phone with replacing it.","phonerepair","#f472b6"],
+    ["technology","☁️","Cloud vs Local Storage","Compare cloud subscriptions with local storage.","cloudstorage","#38bdf8"],
+    ["technology","🌐","Internet Plan Cost","Compare internet plans over time.","internetplan","#818cf8"],
+
+    ["home","🧺","Appliance Replacement","Compare the running cost of an old appliance with a new one.","appliance","#14b8a6"],
+    ["home","💧","Water Cost","Estimate your household water costs.","watercost","#22d3ee"],
+    ["home","🔥","Heating System Comparison","Compare two heating systems over several years.","heatingcompare","#ef4444"],
+    ["home","🏠","Rent Affordability","See how much of your income housing would consume.","rentafford","#84cc16"]
+
+];
+
+extraCards.forEach(cardData => {
+
+    const [category,icon,title,description,type,glow] = cardData;
+
+    const card = document.createElement("div");
+
+    card.className = "calc-card";
+    card.dataset.category = category;
+    card.style.setProperty("--glow",glow);
+
+    card.innerHTML = `
+        <div class="calc-icon">${icon}</div>
+        <h3>${title}</h3>
+        <p>${description}</p>
+        <button class="open-calc" onclick="openCalculator('${type}')">
+            Open calculator →
+        </button>
+    `;
+
+    $("calculatorGrid").appendChild(card);
+
+});
+
+
+/* =========================================================
+   EXTRA CALCULATIONS
+========================================================= */
+
+calculateGeneric = function(){
+
+    const type=currentGenericType;
+
+    const result=$("genericResult");
+
+    let title="";
+    let text="";
+    let metrics=[];
+
+
+    if(type==="fuelcost"){
+
+        const km=num("gFuelKm");
+        const consumption=num("gFuelConsumption");
+        const price=num("gFuelPrice");
+        const years=num("gFuelYears");
+        const growth=num("gFuelGrowth")/100;
+
+        const firstYear=
+            km/100*
+            consumption*
+            price;
+
+        let total=0;
+
+        for(let y=0;y<Math.max(0,Math.round(years));y++){
+            total+=
+                firstYear*
+                Math.pow(1+growth,y);
+        }
+
+        title="Estimated fuel cost";
+
+        text=
+            `Estimated total fuel spending over ${decimal(years)} years.`;
+
+        metrics=[
+            ["First year",money(firstYear)],
+            ["Total fuel cost",money(total)],
+            ["Average / year",money(years>0?total/years:0)],
+            ["Distance / year",decimal(km)+" km"]
+        ];
+
+    }
+
+    else if(type==="depreciation"){
+
+        const purchase=num("gDepPurchase");
+        const resale=num("gDepResale");
+        const years=num("gDepYears");
+
+        const loss=
+            Math.max(
+                0,
+                purchase-resale
+            );
+
+        const annual=
+            years>0
+            ? loss/years
+            : 0;
+
+        title="Estimated depreciation";
+
+        text=
+            "This is a simple straight-line depreciation estimate.";
+
+        metrics=[
+            ["Value lost",money(loss)],
+            ["Average / year",money(annual)],
+            ["Purchase price",money(purchase)],
+            ["Resale value",money(resale)]
+        ];
+
+    }
+
+    else if(type==="carloan"){
+
+        const price=num("gCarPrice");
+        const down=num("gCarDown");
+        const annual=num("gCarRate")/100;
+        const years=num("gCarYears");
+
+        const principal=
+            Math.max(
+                0,
+                price-down
+            );
+
+        const n=
+            Math.max(
+                1,
+                Math.round(years*12)
+            );
+
+        const r=
+            annual/12;
+
+        let payment=0;
+
+        if(r===0){
+            payment=principal/n;
+        }else{
+            payment=
+                principal*
+                r*
+                Math.pow(1+r,n)/
+                (Math.pow(1+r,n)-1);
+        }
+
+        const total=
+            payment*n;
+
+        const interest=
+            total-principal;
+
+        title="Car loan estimate";
+
+        text=
+            "Estimated monthly repayment and total loan interest.";
+
+        metrics=[
+            ["Monthly payment",money(payment)],
+            ["Amount financed",money(principal)],
+            ["Total repayment",money(total)],
+            ["Total interest",money(interest)]
+        ];
+
+    }
+
+    else if(type==="evcharging"){
+
+        const battery=num("gEVBattery");
+        const charge=num("gEVCharge")/100;
+        const efficiency=Math.max(1,num("gEVEff"))/100;
+        const rate=num("gEVRate");
+        const charges=num("gEVCharges");
+
+        const energy=
+            battery*
+            charge/
+            efficiency;
+
+        const perCharge=
+            energy*
+            rate;
+
+        const yearly=
+            perCharge*
+            charges*
+            52;
+
+        title="EV charging cost";
+
+        text=
+            "Estimated charging cost based on battery size and charging frequency.";
+
+        metrics=[
+            ["Energy per charge",decimal(energy)+" kWh"],
+            ["Cost per charge",money(perCharge)],
+            ["Weekly cost",money(perCharge*charges)],
+            ["Yearly cost",money(yearly)]
+        ];
+
+    }
+
+    else if(type==="parkingcost"){
+
+        const monthly=num("gParkMonthly");
+        const daily=num("gParkDaily");
+        const days=num("gParkDays");
+        const years=num("gParkYears");
+
+        const yearly=
+            monthly*12+
+            daily*days*52;
+
+        const total=
+            yearly*years;
+
+        title="Estimated parking cost";
+
+        text=
+            `Estimated parking spending over ${decimal(years)} years.`;
+
+        metrics=[
+            ["Yearly cost",money(yearly)],
+            ["Monthly garage cost",money(monthly)],
+            ["Daily parking cost",money(daily)],
+            ["Total period",money(total)]
+        ];
+
+    }
+
+    else if(type==="inflation"){
+
+        const amount=num("gInflationAmount");
+        const rate=num("gInflationRate")/100;
+        const years=num("gInflationYears");
+
+        const future=
+            amount*
+            Math.pow(
+                1+rate,
+                years
+            );
+
+        const increase=
+            future-amount;
+
+        title="Inflation estimate";
+
+        text=
+            "Estimated future price assuming constant inflation.";
+
+        metrics=[
+            ["Current amount",money(amount)],
+            ["Future equivalent",money(future)],
+            ["Increase",money(increase)],
+            ["Years",decimal(years)]
+        ];
+
+    }
+
+    else if(type==="budget"){
+
+        const income=num("gBudgetIncome");
+
+        const expenses=
+            num("gBudgetHome")+
+            num("gBudgetUtilities")+
+            num("gBudgetFood")+
+            num("gBudgetTransport")+
+            num("gBudgetDebt")+
+            num("gBudgetOther");
+
+        const leftover=
+            income-expenses;
+
+        const savingsRate=
+            income>0
+            ? leftover/income*100
+            : 0;
+
+        title=
+            leftover>=0
+            ? "Budget is positive"
+            : "You are spending more than your income";
+
+        text=
+            leftover>=0
+            ? "This is the amount remaining after listed monthly expenses."
+            : "Consider reducing expenses or increasing income.";
+
+        metrics=[
+            ["Monthly income",money(income)],
+            ["Monthly expenses",money(expenses)],
+            ["Money left",money(leftover)],
+            ["Savings rate",percent(savingsRate)]
+        ];
+
+    }
+
+    else if(type==="networth"){
+
+        const assets=
+            num("gNWCash")+
+            num("gNWInvest")+
+            num("gNWHome")+
+            num("gNWOther");
+
+        const debts=
+            num("gNWMortgage")+
+            num("gNWDebt");
+
+        const net=
+            assets-debts;
+
+        title="Estimated net worth";
+
+        text=
+            "Net worth is total assets minus total debts.";
+
+        metrics=[
+            ["Total assets",money(assets)],
+            ["Total debts",money(debts)],
+            ["Net worth",money(net)]
+        ];
+
+    }
+
+    else if(type==="discount"){
+
+        const original=num("gDiscPrice");
+        const discount=num("gDiscPercent")/100;
+        const tax=num("gDiscTax")/100;
+        const shipping=num("gDiscShipping");
+
+        const afterDiscount=
+            original*
+            (1-discount);
+
+        const taxAmount=
+            afterDiscount*
+            tax;
+
+        const final=
+            afterDiscount+
+            taxAmount+
+            shipping;
+
+        const saved=
+            original-afterDiscount;
+
+        title="Final purchase price";
+
+        text=
+            "Calculated after discount, tax and shipping.";
+
+        metrics=[
+            ["Original price",money(original)],
+            ["Discount saved",money(saved)],
+            ["Final price",money(final)]
+        ];
+
+    }
+
+    else if(type==="opportunity"){
+
+        const amount=num("gOppAmount");
+        const rate=num("gOppRate")/100;
+        const years=num("gOppYears");
+
+        const future=
+            amount*
+            Math.pow(
+                1+rate,
+                years
+            );
+
+        const opportunityCost=
+            future-amount;
+
+        title="Estimated opportunity cost";
+
+        text=
+            "This estimates the potential investment growth you gave up.";
+
+        metrics=[
+            ["Money spent",money(amount)],
+            ["Potential future value",money(future)],
+            ["Potential growth missed",money(opportunityCost)],
+            ["Years",decimal(years)]
+        ];
+
+    }
+
+    else if(type==="laptopdesktop"){
+
+        const laptop=num("gLDLaptop");
+        const desktop=num("gLDDesktop");
+        const laptopYears=num("gLDLaptopYears");
+        const desktopYears=num("gLDDesktopYears");
+
+        const laptopYear=
+            laptopYears>0
+            ? laptop/laptopYears
+            : 0;
+
+        const desktopYear=
+            desktopYears>0
+            ? desktop/desktopYears
+            : 0;
+
+        title=
+            laptopYear<desktopYear
+            ? "💻 Laptop is cheaper per year"
+            :
+            desktopYear<laptopYear
+            ? "🖥️ Desktop is cheaper per year"
+            :
+            "🤝 Similar yearly cost";
+
+        text=
+            "Simple comparison based on purchase price and expected lifespan.";
+
+        metrics=[
+            ["Laptop / year",money(laptopYear)],
+            ["Desktop / year",money(desktopYear)],
+            ["Laptop price",money(laptop)],
+            ["Desktop price",money(desktop)]
+        ];
+
+    }
+
+    else if(type==="phonerepair"){
+
+        const repair=num("gPRRepair");
+        const repairYears=num("gPRRepairYears");
+        const replacement=num("gPRNew");
+        const replacementYears=num("gPRNewYears");
+
+        const repairYear=
+            repairYears>0
+            ? repair/repairYears
+            : 0;
+
+        const replacementYear=
+            replacementYears>0
+            ? replacement/replacementYears
+            : 0;
+
+        const diff=
+            Math.abs(
+                repairYear-
+                replacementYear
+            );
+
+        title=
+            repairYear<replacementYear
+            ? "📱 Repair"
+            :
+            replacementYear<repairYear
+            ? "🆕 Replace"
+            :
+            "🤝 Similar cost";
+
+        text=
+            `Estimated yearly difference: ${money(diff)}.`;
+
+        metrics=[
+            ["Repair / year",money(repairYear)],
+            ["Replacement / year",money(replacementYear)],
+            ["Difference / year",money(diff)]
+        ];
+
+    }
+
+    else if(type==="cloudstorage"){
+
+        const monthly=num("gCloudMonthly");
+        const hardware=num("gCloudHardware");
+        const years=num("gCloudYears");
+        const resale=num("gCloudResale");
+
+        const cloud=
+            monthly*
+            12*
+            years;
+
+        const local=
+            Math.max(
+                0,
+                hardware-resale
+            );
+
+        const diff=
+            Math.abs(
+                cloud-local
+            );
+
+        title=
+            local<cloud
+            ? "💾 Local storage is cheaper"
+            :
+            cloud<local
+            ? "☁️ Cloud storage is cheaper"
+            :
+            "🤝 Similar cost";
+
+        text=
+            `Estimated difference over ${decimal(years)} years: ${money(diff)}.`;
+
+        metrics=[
+            ["Cloud cost",money(cloud)],
+            ["Local storage cost",money(local)],
+            ["Difference",money(diff)]
+        ];
+
+    }
+
+    else if(type==="internetplan"){
+
+        const current=num("gInternetCurrent");
+        const next=num("gInternetNew");
+        const fee=num("gInternetFee");
+        const years=num("gInternetYears");
+
+        const currentTotal=
+            current*
+            12*
+            years;
+
+        const newTotal=
+            next*
+            12*
+            years+
+            fee;
+
+        const diff=
+            Math.abs(
+                currentTotal-
+                newTotal
+            );
+
+        title=
+            newTotal<currentTotal
+            ? "🌐 New plan is cheaper"
+            :
+            currentTotal<newTotal
+            ? "🌐 Current plan is cheaper"
+            :
+            "🤝 Similar cost";
+
+        text=
+            `Estimated difference over ${decimal(years)} years: ${money(diff)}.`;
+
+        metrics=[
+            ["Current plan",money(currentTotal)],
+            ["New plan",money(newTotal)],
+            ["Difference",money(diff)]
+        ];
+
+    }
+
+    else if(type==="appliance"){
+
+        const oldCost=num("gAppOld");
+        const newCost=num("gAppNew");
+        const price=num("gAppPrice");
+        const years=num("gAppYears");
+
+        const oldTotal=
+            oldCost*
+            years;
+
+        const newTotal=
+            price+
+            newCost*
+            years;
+
+        const diff=
+            Math.abs(
+                oldTotal-
+                newTotal
+            );
+
+        title=
+            newTotal<oldTotal
+            ? "🧺 Replacing may be cheaper"
+            :
+            oldTotal<newTotal
+            ? "🧺 Keeping the old appliance may be cheaper"
+            :
+            "🤝 Similar cost";
+
+        text=
+            `Estimated difference over ${decimal(years)} years: ${money(diff)}.`;
+
+        metrics=[
+            ["Old appliance",money(oldTotal)],
+            ["New appliance",money(newTotal)],
+            ["Difference",money(diff)]
+        ];
+
+    }
+
+    else if(type==="watercost"){
+
+        const liters=num("gWaterDaily");
+        const price=num("gWaterPrice");
+        const days=num("gWaterDays");
+        const years=num("gWaterYears");
+
+        const yearlyM3=
+            liters*
+            days/
+            1000;
+
+        const yearlyCost=
+            yearlyM3*
+            price;
+
+        const total=
+            yearlyCost*
+            years;
+
+        title="Estimated water cost";
+
+        text=
+            `Estimated household water spending over ${decimal(years)} years.`;
+
+        metrics=[
+            ["Yearly water use",decimal(yearlyM3)+" m³"],
+            ["Yearly cost",money(yearlyCost)],
+            ["Total cost",money(total)]
+        ];
+
+    }
+
+    else if(type==="heatingcompare"){
+
+        const a=
+            num("gHCAPrice")+
+            (
+                num("gHCAEnergy")+
+                num("gHCAMaint")
+            )*
+            num("gHCYears");
+
+        const b=
+            num("gHCBPrice")+
+            (
+                num("gHCBEnergy")+
+                num("gHCBMaint")
+            )*
+            num("gHCYears");
+
+        const diff=
+            Math.abs(a-b);
+
+        title=
+            a<b
+            ? "🔥 System A is cheaper"
+            :
+            b<a
+            ? "🔥 System B is cheaper"
+            :
+            "🤝 Similar cost";
+
+        text=
+            `Estimated difference over ${decimal(num("gHCYears"))} years: ${money(diff)}.`;
+
+        metrics=[
+            ["System A total",money(a)],
+            ["System B total",money(b)],
+            ["Difference",money(diff)]
+        ];
+
+    }
+
+    else if(type==="rentafford"){
+
+        const income=num("gRAIncome");
+        const rent=num("gRARent");
+        const utilities=num("gRAUtilities");
+        const other=num("gRAOther");
+
+        const housing=
+            rent+
+            utilities;
+
+        const remaining=
+            income-
+            housing-
+            other;
+
+        const housingRate=
+            income>0
+            ? housing/income*100
+            : 0;
+
+        title=
+            housingRate<=30
+            ? "🏠 Housing looks affordable"
+            :
+            housingRate<=40
+            ? "🏠 Housing may be manageable"
+            :
+            "⚠️ Housing takes a large share of income";
+
+        text=
+            "This uses a simple housing-to-income comparison.";
+
+        metrics=[
+            ["Housing cost",money(housing)],
+            ["Housing share",percent(housingRate)],
+            ["Money remaining",money(remaining)],
+            ["Other expenses",money(other)]
+        ];
+
+    }
+
+    else{
+
+        originalCalculateGeneric();
+
+        return;
+
+    }
+
+
+    result.innerHTML=`
+
+        <div class="big-result">
+
+            <div class="result-label">
+                ${title}
+            </div>
+
+            <div class="number">
+                ${metrics[0]?.[1] || ""}
+            </div>
+
+            <p style="color:var(--muted);margin-top:8px">
+                ${text}
+            </p>
+
+        </div>
+
+        <div class="result-grid"
+             style="margin-top:15px">
+
+            ${metrics.map(m=>`
+
+                <div class="metric">
+
+                    <span>
+                        ${m[0]}
+                    </span>
+
+                    <strong>
+                        ${m[1]}
+                    </strong>
+
+                </div>
+
+            `).join("")}
+
+        </div>
+
+    `;
+
+    result.classList.add("active");
+
+    result.scrollIntoView({
+        behavior:"smooth",
+        block:"start"
+    });
+
+};
+
+
+/* END EXTRA CALCULATORS */
 
 /* =========================================================
    INITIAL STATE
