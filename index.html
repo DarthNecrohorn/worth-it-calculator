@@ -1628,9 +1628,16 @@ function toggleSettings(){
 
 async function detectLanguageByIP(){
 
-    if(localStorage.getItem("worthItLanguage")){
+    const savedLanguage =
+        localStorage.getItem("worthItLanguage");
+
+    if(savedLanguage){
+
         $("languageSelect").value =
-            localStorage.getItem("worthItLanguage");
+            savedLanguage;
+
+        translatePage(savedLanguage);
+
         return;
     }
 
