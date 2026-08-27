@@ -1626,6 +1626,78 @@ function toggleSettings(){
     $("settingsPanel").classList.toggle("open");
 }
 
+async function detectLanguageByIP(){
+
+    if(localStorage.getItem("worthItLanguage")){
+        $("languageSelect").value =
+            localStorage.getItem("worthItLanguage");
+        return;
+    }
+
+    try{
+
+        const response =
+            await fetch("https://ipwho.is/");
+
+        const data =
+            await response.json();
+
+        const country =
+            data.country_code;
+
+        const languageMap = {
+
+            EN:"en",
+            DE:"de",
+            FR:"fr",
+            ES:"es",
+            IT:"it",
+            RS:"sr",
+            PT:"pt",
+            NL:"nl",
+            PL:"pl",
+            CZ:"cs",
+            SK:"sk",
+            HU:"hu",
+            RO:"ro",
+            BG:"bg",
+            GR:"el",
+            TR:"tr",
+            RU:"ru",
+            UA:"uk",
+            CN:"zh",
+            JP:"ja",
+            KR:"ko",
+            SA:"ar",
+            AE:"ar",
+            IN:"hi"
+
+        };
+
+        const language =
+            languageMap[country] || "en";
+
+        $("languageSelect").value =
+            language;
+
+        localStorage.setItem(
+            "worthItLanguage",
+            language
+        );
+
+    }catch(error){
+
+        $("languageSelect").value =
+            "en";
+
+        localStorage.setItem(
+            "worthItLanguage",
+            "en"
+        );
+
+    }
+}
+    
 /* =========================================================
    HOME / NAVIGATION
 ========================================================= */
