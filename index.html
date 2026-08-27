@@ -1711,7 +1711,203 @@ $("languageSelect").addEventListener("change", function(){
     translatePage(language);
 
 });
-    
+
+function translatePage(language){
+
+    const translations = {
+
+        en:{
+            badge:"✦ Smart decisions made simple",
+            heroTitle:"Is it really",
+            heroHighlight:"worth it?",
+            heroText:"Compare costs, calculate savings and make better decisions before spending your money.",
+            start:"Start calculating →",
+            explore:"Explore calculators",
+            calculators:"Choose a calculator",
+            calculatorDescription:"Find the right tool for your decision.",
+            compare:"Compare",
+            compareText:"Put two options side by side.",
+            calculate:"Calculate",
+            calculateText:"See the real numbers behind the decision.",
+            decide:"Decide",
+            decideText:"Understand which option makes more sense.",
+            faq:"Frequently asked questions"
+        },
+
+        sr:{
+            badge:"✦ Pametne odluke postaju jednostavne",
+            heroTitle:"Da li se zaista",
+            heroHighlight:"isplati?",
+            heroText:"Uporedite troškove, izračunajte uštedu i donesite bolje odluke pre nego što potrošite novac.",
+            start:"Počni računanje →",
+            explore:"Istraži kalkulatore",
+            calculators:"Izaberi kalkulator",
+            calculatorDescription:"Pronađi pravi alat za svoju odluku.",
+            compare:"Uporedi",
+            compareText:"Stavi dve opcije jednu pored druge.",
+            calculate:"Izračunaj",
+            calculateText:"Vidi stvarne brojeve iza odluke.",
+            decide:"Odluči",
+            decideText:"Saznaj koja opcija ima više smisla.",
+            faq:"Često postavljana pitanja"
+        },
+
+        de:{
+            badge:"✦ Intelligente Entscheidungen einfach gemacht",
+            heroTitle:"Lohnt es sich",
+            heroHighlight:"wirklich?",
+            heroText:"Vergleiche Kosten, berechne Einsparungen und treffe bessere Entscheidungen, bevor du dein Geld ausgibst.",
+            start:"Berechnung starten →",
+            explore:"Rechner entdecken",
+            calculators:"Wähle einen Rechner",
+            calculatorDescription:"Finde das richtige Tool für deine Entscheidung.",
+            compare:"Vergleichen",
+            compareText:"Stelle zwei Optionen gegenüber.",
+            calculate:"Berechnen",
+            calculateText:"Sieh dir die Zahlen hinter der Entscheidung an.",
+            decide:"Entscheiden",
+            decideText:"Verstehe, welche Option sinnvoller ist.",
+            faq:"Häufig gestellte Fragen"
+        },
+
+        fr:{
+            badge:"✦ Des décisions intelligentes en toute simplicité",
+            heroTitle:"Est-ce que ça en vaut",
+            heroHighlight:"vraiment la peine ?",
+            heroText:"Comparez les coûts, calculez les économies et prenez de meilleures décisions avant de dépenser votre argent.",
+            start:"Commencer le calcul →",
+            explore:"Explorer les calculateurs",
+            calculators:"Choisissez un calculateur",
+            calculatorDescription:"Trouvez l’outil adapté à votre décision.",
+            compare:"Comparer",
+            compareText:"Mettez deux options côte à côte.",
+            calculate:"Calculer",
+            calculateText:"Voyez les chiffres réels derrière la décision.",
+            decide:"Décider",
+            decideText:"Comprenez quelle option est la plus intéressante.",
+            faq:"Questions fréquentes"
+        },
+
+        es:{
+            badge:"✦ Decisiones inteligentes, de forma sencilla",
+            heroTitle:"¿Realmente",
+            heroHighlight:"vale la pena?",
+            heroText:"Compara costes, calcula ahorros y toma mejores decisiones antes de gastar tu dinero.",
+            start:"Empezar a calcular →",
+            explore:"Explorar calculadoras",
+            calculators:"Elige una calculadora",
+            calculatorDescription:"Encuentra la herramienta adecuada para tu decisión.",
+            compare:"Comparar",
+            compareText:"Pon dos opciones una al lado de la otra.",
+            calculate:"Calcular",
+            calculateText:"Mira los números reales detrás de la decisión.",
+            decide:"Decidir",
+            decideText:"Entiende qué opción tiene más sentido.",
+            faq:"Preguntas frecuentes"
+        }
+
+    };
+
+    const t =
+        translations[language] ||
+        translations.en;
+
+    const badge =
+        document.querySelector(".badge");
+
+    const heroTitle =
+        document.querySelector(".hero h1");
+
+    const heroText =
+        document.querySelector(".hero p");
+
+    const buttons =
+        document.querySelectorAll(".hero-actions .btn");
+
+    const calculatorTitle =
+        document.querySelector("#calculators h2");
+
+    const calculatorDescription =
+        document.querySelector("#categoryDescription");
+
+    const metrics =
+        document.querySelectorAll(".result-grid .metric");
+
+    const faqTitle =
+        document.querySelector("#faq h2");
+
+
+    if(badge){
+        badge.textContent =
+            t.badge;
+    }
+
+    if(heroTitle){
+
+        heroTitle.innerHTML =
+            `${t.heroTitle}
+            <span class="gradient-text">
+                ${t.heroHighlight}
+            </span>`;
+
+    }
+
+    if(heroText){
+        heroText.textContent =
+            t.heroText;
+    }
+
+    if(buttons[0]){
+        buttons[0].textContent =
+            t.start;
+    }
+
+    if(buttons[1]){
+        buttons[1].textContent =
+            t.explore;
+    }
+
+    if(calculatorTitle){
+        calculatorTitle.textContent =
+            t.calculators;
+    }
+
+    if(calculatorDescription){
+        calculatorDescription.textContent =
+            t.calculatorDescription;
+    }
+
+    if(metrics[0]){
+        metrics[0].querySelector("span").textContent =
+            t.compare;
+
+        metrics[0].querySelector("p").textContent =
+            t.compareText;
+    }
+
+    if(metrics[1]){
+        metrics[1].querySelector("span").textContent =
+            t.calculate;
+
+        metrics[1].querySelector("p").textContent =
+            t.calculateText;
+    }
+
+    if(metrics[2]){
+        metrics[2].querySelector("span").textContent =
+            t.decide;
+
+        metrics[2].querySelector("p").textContent =
+            t.decideText;
+    }
+
+    if(faqTitle){
+        faqTitle.textContent =
+            t.faq;
+    }
+
+}
+
 /* =========================================================
    HOME / NAVIGATION
 ========================================================= */
