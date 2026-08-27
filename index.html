@@ -2580,10 +2580,29 @@ function translatePage(language){
             t.decideText;
     }
 
-    if(faqTitle){
+      if(faqTitle){
         faqTitle.textContent =
             t.faq;
     }
+
+    /* =====================================================
+       CALCULATOR CARDS
+    ===================================================== */
+
+    const calculatorCards =
+        document.querySelectorAll(".calc-card");
+
+    calculatorCards.forEach(card => {
+
+        const button =
+            card.querySelector(".open-calc");
+
+        if(button){
+            button.textContent =
+                t.openCalculator || "Open calculator →";
+        }
+
+    });
 
 }
 
