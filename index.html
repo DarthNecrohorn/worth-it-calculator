@@ -850,7 +850,230 @@ footer{
             </div>
 
 
-            <div class="calculator-grid" id="calculatorGrid">
+          <div class="calculator-grid" id="calculatorGrid">
+
+    <!-- 1. EXISTING -->
+    <div class="calc-card" data-category="cars" style="--glow:#7c5cff">
+        <div class="calc-icon">🚗</div>
+        <h3>EV vs Gas</h3>
+        <p>Compare electric and gasoline vehicles over up to 10 years.</p>
+        <button class="open-calc" onclick="openCalculator('cars')">
+            Open calculator →
+        </button>
+    </div>
+
+    <!-- 2. EXISTING -->
+    <div class="calc-card" data-category="money" style="--glow:#34d399">
+        <div class="calc-icon">💰</div>
+        <h3>Savings</h3>
+        <p>See how quickly your savings can grow with regular deposits.</p>
+        <button class="open-calc" onclick="openCalculator('savings')">
+            Open calculator →
+        </button>
+    </div>
+
+    <!-- 3. EXISTING -->
+    <div class="calc-card" data-category="money" style="--glow:#38bdf8">
+        <div class="calc-icon">📈</div>
+        <h3>Investment</h3>
+        <p>Estimate future investment value using growth and regular contributions.</p>
+        <button class="open-calc" onclick="openCalculator('investment')">
+            Open calculator →
+        </button>
+    </div>
+
+    <!-- 4. EXISTING -->
+    <div class="calc-card" data-category="money" style="--glow:#fbbf24">
+        <div class="calc-icon">🏦</div>
+        <h3>Loan</h3>
+        <p>Calculate monthly payments, total interest and total repayment.</p>
+        <button class="open-calc" onclick="openCalculator('loan')">
+            Open calculator →
+        </button>
+    </div>
+
+    <!-- 5. EXISTING -->
+    <div class="calc-card" data-category="money" style="--glow:#84cc16">
+        <div class="calc-icon">🛒</div>
+        <h3>Purchase Worth It</h3>
+        <p>Compare the price of a purchase against how often you will use it.</p>
+        <button class="open-calc" onclick="openCalculator('purchase')">
+            Open calculator →
+        </button>
+    </div>
+
+    <!-- 6. EXISTING -->
+    <div class="calc-card" data-category="money" style="--glow:#ec4899">
+        <div class="calc-icon">💼</div>
+        <h3>Salary</h3>
+        <p>Estimate yearly, monthly, weekly and hourly income.</p>
+        <button class="open-calc" onclick="openCalculator('salary')">
+            Open calculator →
+        </button>
+    </div>
+
+    <!-- 7. EXISTING -->
+    <div class="calc-card" data-category="technology" style="--glow:#fb7185">
+        <div class="calc-icon">💻</div>
+        <h3>PC Upgrade</h3>
+        <p>Compare upgrading your current PC against buying a new one.</p>
+        <button class="open-calc" onclick="openCalculator('pc')">
+            Open calculator →
+        </button>
+    </div>
+
+    <!-- 8. EXISTING -->
+    <div class="calc-card" data-category="technology" style="--glow:#a78bfa">
+        <div class="calc-icon">📱</div>
+        <h3>Phone Upgrade</h3>
+        <p>Find out whether upgrading your phone makes financial sense.</p>
+        <button class="open-calc" onclick="openCalculator('phone')">
+            Open calculator →
+        </button>
+    </div>
+
+    <!-- 9. EXISTING -->
+    <div class="calc-card" data-category="home" style="--glow:#22d3ee">
+        <div class="calc-icon">🏠</div>
+        <h3>Rent vs Buy</h3>
+        <p>Compare long-term renting costs against buying a home.</p>
+        <button class="open-calc" onclick="openCalculator('rent')">
+            Open calculator →
+        </button>
+    </div>
+
+    <!-- 10. EXISTING -->
+    <div class="calc-card" data-category="home" style="--glow:#f97316">
+        <div class="calc-icon">⚡</div>
+        <h3>Energy Cost</h3>
+        <p>Estimate electricity costs for appliances and everyday devices.</p>
+        <button class="open-calc" onclick="openCalculator('energy')">
+            Open calculator →
+        </button>
+    </div>
+
+    <!-- 11. EXISTING -->
+    <div class="calc-card" data-category="home" style="--glow:#14b8a6">
+        <div class="calc-icon">☀️</div>
+        <h3>Solar</h3>
+        <p>Estimate solar generation, savings and approximate payback period.</p>
+        <button class="open-calc" onclick="openCalculator('solar')">
+            Open calculator →
+        </button>
+    </div>
+
+    <!-- 12. EXISTING -->
+    <div class="calc-card" data-category="home" style="--glow:#ef4444">
+        <div class="calc-icon">🔥</div>
+        <h3>Heating</h3>
+        <p>Estimate seasonal heating costs from energy use and prices.</p>
+        <button class="open-calc" onclick="openCalculator('heating')">
+            Open calculator →
+        </button>
+    </div>
+
+
+    <!-- 13. NEW -->
+    <div class="calc-card" data-category="cars" style="--glow:#60a5fa">
+        <div class="calc-icon">🚘</div>
+        <h3>Car Ownership Cost</h3>
+        <p>Estimate the true yearly and long-term cost of owning a car.</p>
+        <button class="open-calc" onclick="openCalculator('ownership')">
+            Open calculator →
+        </button>
+    </div>
+
+    <!-- 14. NEW -->
+    <div class="calc-card" data-category="cars" style="--glow:#22c55e">
+        <div class="calc-icon">🚙</div>
+        <h3>Used vs New Car</h3>
+        <p>Compare the estimated long-term cost of buying used or new.</p>
+        <button class="open-calc" onclick="openCalculator('usednew')">
+            Open calculator →
+        </button>
+    </div>
+
+    <!-- 15. NEW -->
+    <div class="calc-card" data-category="cars" style="--glow:#f97316">
+        <div class="calc-icon">🛠️</div>
+        <h3>Car Repair vs Replace</h3>
+        <p>Compare repairing your current car with replacing it.</p>
+        <button class="open-calc" onclick="openCalculator('carrepair')">
+            Open calculator →
+        </button>
+    </div>
+
+    <!-- 16. NEW -->
+    <div class="calc-card" data-category="cars" style="--glow:#e879f9">
+        <div class="calc-icon">🚕</div>
+        <h3>Car vs Taxi</h3>
+        <p>Compare the yearly cost of owning a car with using taxis.</p>
+        <button class="open-calc" onclick="openCalculator('taxi')">
+            Open calculator →
+        </button>
+    </div>
+
+    <!-- 17. NEW -->
+    <div class="calc-card" data-category="cars" style="--glow:#38bdf8">
+        <div class="calc-icon">🚌</div>
+        <h3>Car vs Public Transport</h3>
+        <p>Compare driving your car with public transport.</p>
+        <button class="open-calc" onclick="openCalculator('publictransport')">
+            Open calculator →
+        </button>
+    </div>
+
+    <!-- 18. NEW -->
+    <div class="calc-card" data-category="money" style="--glow:#ef4444">
+        <div class="calc-icon">💳</div>
+        <h3>Credit Card Cost</h3>
+        <p>Estimate how much interest you pay on a credit card balance.</p>
+        <button class="open-calc" onclick="openCalculator('creditcard')">
+            Open calculator →
+        </button>
+    </div>
+
+    <!-- 19. NEW -->
+    <div class="calc-card" data-category="money" style="--glow:#f59e0b">
+        <div class="calc-icon">💸</div>
+        <h3>Debt Payoff</h3>
+        <p>See how long it takes to pay off debt and how much interest you save.</p>
+        <button class="open-calc" onclick="openCalculator('debtpayoff')">
+            Open calculator →
+        </button>
+    </div>
+
+    <!-- 20. NEW -->
+    <div class="calc-card" data-category="money" style="--glow:#34d399">
+        <div class="calc-icon">🛟</div>
+        <h3>Emergency Fund</h3>
+        <p>Calculate your emergency savings target and how long it takes to reach it.</p>
+        <button class="open-calc" onclick="openCalculator('emergency')">
+            Open calculator →
+        </button>
+    </div>
+
+    <!-- 21. NEW -->
+    <div class="calc-card" data-category="money" style="--glow:#a78bfa">
+        <div class="calc-icon">🔄</div>
+        <h3>Buy vs Subscribe</h3>
+        <p>Compare buying something once with paying a recurring subscription.</p>
+        <button class="open-calc" onclick="openCalculator('buysubscribe')">
+            Open calculator →
+        </button>
+    </div>
+
+    <!-- 22. NEW -->
+    <div class="calc-card" data-category="money" style="--glow:#fb7185">
+        <div class="calc-icon">🔧</div>
+        <h3>Repair vs Replace</h3>
+        <p>Compare repairing an item with replacing it.</p>
+        <button class="open-calc" onclick="openCalculator('repairreplace')">
+            Open calculator →
+        </button>
+    </div>
+
+</div>
 
                 <!-- CARS -->
                 <div class="calc-card"
