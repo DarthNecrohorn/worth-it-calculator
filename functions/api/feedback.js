@@ -7,10 +7,56 @@ function responseJson(data, status) {
             "Content-Type": "application/json; charset=utf-8",
             "Cache-Control": "no-store",
             "Access-Control-Allow-Origin": SITE_ORIGIN,
-            "Access-Control-Allow-Headers": "Content-Type",
+            "Access-Control-Allow-Headers": "Content-Type, Authorization",
             "Access-Control-Allow-Methods": "POST, OPTIONS"
         }
     });
+}
+
+function getToken(request) {
+    const authorization = request.headers.get("Authorization") || "";
+
+    if (!authorization.startsWith("Bearer ")) {
+        return "";
+    }
+
+    return authorization.slice(7).trim();
+}
+
+async function verifySupabaseUser(env, token) {
+    const supabaseUrl =
+        String(env.SUPABASE_URL || "").trim();
+
+    const supabaseKey =
+        String(env.SUPABASE_PUBLISHABLE_KEY || "").trim();
+
+    if (!supabaseUrl || !supabaseKey) {
+        throw new Error("Supabase environment variables are missing.");
+    }
+
+    const response = await fetch(
+        supabaseUrl + "/auth/v1/user",
+        {
+            method: "GET",
+            headers: {
+                "apikey": supabaseKey,
+                "Authorization": "Bearer " + token,
+                "Accept": "application/json"
+            }
+        }
+    );
+
+    if (!response.ok) {
+        return null;
+    }
+
+    const user = await response.json();
+
+    if (!user || !user.id) {
+        return null;
+    }
+
+    return user;
 }
 
 export async function onRequestOptions() {
@@ -18,7 +64,7 @@ export async function onRequestOptions() {
         status: 204,
         headers: {
             "Access-Control-Allow-Origin": SITE_ORIGIN,
-            "Access-Control-Allow-Headers": "Content-Type",
+            "Access-Control-Allow-Headers": "Content-Type, Authorization",
             "Access-Control-Allow-Methods": "POST, OPTIONS"
         }
     });
@@ -35,6 +81,27 @@ export async function onRequestPost(context) {
             return responseJson(
                 { error: "Forbidden origin." },
                 403
+            );
+        }
+
+        const token = getToken(request);
+
+        if (!token) {
+            return responseJson(
+                { error: "Please sign in to send feedback." },
+                401
+            );
+        }
+
+        const user = await verifySupabaseUser(env, token);
+
+        if (!user) {
+            return responseJson(
+                {
+                    error:
+                        "Your login session is invalid or expired. Please sign in again."
+                },
+                401
             );
         }
 
@@ -110,14 +177,15 @@ export async function onRequestPost(context) {
                 method: "POST",
                 headers: {
                     "apikey": supabaseKey,
-                    "Authorization": "Bearer " + supabaseKey,
+                    "Authorization": "Bearer " + token,
                     "Content-Type": "application/json",
                     "Prefer": "return=minimal"
                 },
                 body: JSON.stringify({
                     type: type,
                     message: message,
-                    page: page || null
+                    page: page || null,
+                    user_id: user.id
                 })
             }
         );
@@ -133,6 +201,21 @@ export async function onRequestPost(context) {
                 supabaseResponse.status,
                 errorText
             );
+
+            if (
+                errorText.includes("FEEDBACK_COOLDOWN") ||
+                errorText.includes("feedback_cooldown")
+            ) {
+                return responseJson(
+                    {
+                        error:
+                            "COOLDOWN",
+                        message:
+                            "Please wait 30 minutes before sending another feedback report."
+                    },
+                    429
+                );
+            }
 
             return responseJson(
                 { error: "Could not save feedback." },
