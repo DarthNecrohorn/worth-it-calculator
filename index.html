@@ -2140,6 +2140,26 @@ html[data-theme="light"] .ai-chat-nav-btn{color:#0f172a;background:rgba(15,23,42
 
 <div class="toast" id="toast">Copied!</div>
 
+<div class="admin-feedback-overlay" id="adminFeedbackOverlay" role="dialog" aria-modal="true" aria-labelledby="adminFeedbackTitle">
+    <div class="admin-feedback-card">
+        <div class="admin-feedback-head">
+            <div>
+                <h3 id="adminFeedbackTitle">Bugs &amp; Suggestions</h3>
+                <p>Admin feedback panel</p>
+            </div>
+            <button type="button" onclick="closeAdminFeedback()">✕</button>
+        </div>
+
+        <div class="admin-feedback-toolbar">
+            <button type="button" class="btn btn-secondary" onclick="loadAdminFeedback()">↻ Refresh</button>
+        </div>
+
+        <div id="adminFeedbackStatus" class="feedback-status"></div>
+
+        <div id="adminFeedbackList" class="admin-feedback-list"></div>
+    </div>
+</div>
+
 <script>
 try{
     localStorage.removeItem("worthItLanguage");
