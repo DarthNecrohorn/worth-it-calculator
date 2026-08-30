@@ -249,6 +249,20 @@ a{text-decoration:none;color:inherit}
 .account-action:hover{background:var(--surface-soft);border-color:var(--border)}
 .account-divider{height:1px;background:var(--border);margin:8px 0}
 .account-action.danger{color:var(--danger)}
+.account-section-title{font-size:11px;color:var(--muted2);font-weight:800;text-transform:uppercase;letter-spacing:.7px;margin:12px 4px 6px}
+.account-page-overlay{position:fixed;inset:0;z-index:1100;display:none;align-items:center;justify-content:center;padding:20px;background:rgba(2,6,23,.68);backdrop-filter:blur(10px)}
+.account-page-overlay.open{display:flex}
+.account-page-card{width:min(620px,100%);max-height:min(760px,calc(100vh - 40px));overflow:auto;background:var(--card-solid,var(--card));border:1px solid var(--border);border-radius:24px;box-shadow:0 30px 90px rgba(0,0,0,.36);padding:24px}
+.account-page-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:20px}
+.account-page-title-wrap{display:flex;align-items:center;gap:14px;min-width:0}
+.account-page-avatar{width:58px;height:58px;border-radius:50%;object-fit:cover;border:1px solid var(--border);flex:0 0 auto}
+.account-page-avatar-fallback{width:58px;height:58px;border-radius:50%;display:grid;place-items:center;background:linear-gradient(135deg,var(--primary),var(--primary2));color:white;font-size:20px;font-weight:900;flex:0 0 auto}
+.account-page-title{font-size:24px;font-weight:900}.account-page-email{font-size:13px;color:var(--muted);margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.account-page-close{width:36px;height:36px;border-radius:10px;border:1px solid var(--border);background:var(--surface-soft);color:var(--text);font-size:18px;flex:0 0 auto}
+.account-page-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:18px}
+.account-page-stat{padding:14px;border:1px solid var(--border);border-radius:14px;background:var(--surface-soft);text-align:center}.account-page-stat strong{display:block;font-size:20px}.account-page-stat span{font-size:11px;color:var(--muted)}
+.account-page-empty{padding:28px 18px;border:1px dashed var(--border);border-radius:14px;text-align:center;color:var(--muted);line-height:1.6;background:var(--surface-soft)}
+@media(max-width:520px){.account-page-card{padding:20px}.account-page-stats{grid-template-columns:1fr}.account-page-title{font-size:20px}}
 .social-preview{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin:10px 0 2px}
 .social-preview-item{padding:8px 5px;border:1px solid var(--border);border-radius:10px;text-align:center;background:var(--surface-soft)}
 .social-preview-item strong{display:block;font-size:16px}.social-preview-item span{display:block;font-size:10px;color:var(--muted);margin-top:2px}
@@ -1038,7 +1052,9 @@ html[data-theme="light"] .translate-modal-card{background:#fff}
                     <div class="social-preview-item"><strong>0</strong><span>Followers</span></div>
                     <div class="social-preview-item"><strong>0</strong><span>Following</span></div>
                 </div>
-                <button type="button" class="account-action" onclick="openAccountInfo()">👤 <span>View profile</span></button>
+                <div class="account-section-title">Account</div>
+                <button type="button" class="account-action" onclick="openAccountInfo('profile')">👤 <span>View profile</span></button>
+                <div class="account-section-title">Social</div>
                 <button type="button" class="account-action" onclick="openAccountInfo('friends')">🤝 <span>Friends</span></button>
                 <button type="button" class="account-action" onclick="openAccountInfo('followers')">👥 <span>Followers</span></button>
                 <button type="button" class="account-action" onclick="openAccountInfo('following')">➕ <span>Following</span></button>
@@ -1839,6 +1855,27 @@ html[data-theme="light"] .translate-modal-card{background:#fff}
     </div>
 </div>
 
+<div class="account-page-overlay" id="accountPageOverlay" role="dialog" aria-modal="true" aria-labelledby="accountPageTitle">
+    <div class="account-page-card">
+        <div class="account-page-head">
+            <div class="account-page-title-wrap">
+                <div id="accountPageAvatar"></div>
+                <div style="min-width:0">
+                    <div class="account-page-title" id="accountPageTitle">Profile</div>
+                    <div class="account-page-email" id="accountPageEmail"></div>
+                </div>
+            </div>
+            <button type="button" class="account-page-close" onclick="closeAccountPage()" aria-label="Close">✕</button>
+        </div>
+        <div class="account-page-stats">
+            <div class="account-page-stat"><strong id="accountPageFriends">0</strong><span>Friends</span></div>
+            <div class="account-page-stat"><strong id="accountPageFollowers">0</strong><span>Followers</span></div>
+            <div class="account-page-stat"><strong id="accountPageFollowing">0</strong><span>Following</span></div>
+        </div>
+        <div id="accountPageContent" class="account-page-empty"></div>
+    </div>
+</div>
+
 <div class="toast" id="toast">Copied!</div>
 
 <script>
@@ -1992,16 +2029,63 @@ async function signOutUser(){
     showToast("Signed out.");
 }
 
+function closeAccountPage(){
+    $("accountPageOverlay")?.classList.remove("open");
+}
+
+function renderAccountPageAvatar(user){
+    if(!user) return;
+    const holder = $("accountPageAvatar");
+    if(!holder) return;
+    const avatar = getUserAvatar(user);
+    if(avatar){
+        holder.innerHTML = `<img class="account-page-avatar" src="${avatar.replaceAll('"','&quot;')}" alt="" referrerpolicy="no-referrer">`;
+    }else{
+        holder.innerHTML = `<div class="account-page-avatar-fallback">${getUserDisplayName(user).charAt(0).toUpperCase()}</div>`;
+    }
+}
+
 function openAccountInfo(section="profile"){
     closeAccountPanel();
-    const labels = {
-        profile: "Your profile page will be connected next.",
-        friends: "Friends will be connected when the social system is added.",
-        followers: "Followers will be connected when the social system is added.",
-        following: "Following will be connected when the social system is added."
-    };
-    showToast(labels[section] || labels.profile);
+    if(!currentAuthUser){
+        showToast("Please sign in first.");
+        return;
+    }
+
+    const overlay = $("accountPageOverlay");
+    const title = $("accountPageTitle");
+    const email = $("accountPageEmail");
+    const content = $("accountPageContent");
+    if(!overlay || !title || !email || !content) return;
+
+    renderAccountPageAvatar(currentAuthUser);
+    email.textContent = currentAuthUser.email || "";
+    $("accountPageFriends").textContent = "0";
+    $("accountPageFollowers").textContent = "0";
+    $("accountPageFollowing").textContent = "0";
+
+    const name = getUserDisplayName(currentAuthUser);
+    if(section === "profile"){
+        title.textContent = name;
+        content.innerHTML = `<strong>👤 Your profile</strong><br><span>Welcome to your Worth It profile. Your account is connected and ready for the social features.</span>`;
+    }else if(section === "friends"){
+        title.textContent = "Friends";
+        content.innerHTML = `<strong>🤝 No friends yet</strong><br><span>Your friends list is empty. Friends will appear here once you add people.</span>`;
+    }else if(section === "followers"){
+        title.textContent = "Followers";
+        content.innerHTML = `<strong>👥 No followers yet</strong><br><span>People who follow your profile will appear here.</span>`;
+    }else if(section === "following"){
+        title.textContent = "Following";
+        content.innerHTML = `<strong>➕ Not following anyone yet</strong><br><span>Profiles you follow will appear here.</span>`;
+    }else{
+        title.textContent = name;
+        content.innerHTML = `<strong>👤 Your profile</strong><br><span>Your profile is ready.</span>`;
+    }
+
+    overlay.classList.add("open");
 }
+
+window.closeAccountPage = closeAccountPage;
 
 window.handleAuthButton = handleAuthButton;
 window.signOutUser = signOutUser;
@@ -2023,6 +2107,14 @@ supabaseClient.auth.onAuthStateChange((event, session)=>{
 document.addEventListener("click", (event)=>{
     const wrap = $("authWrap");
     if(wrap && !wrap.contains(event.target)) closeAccountPanel();
+});
+
+$("accountPageOverlay")?.addEventListener("click", (event)=>{
+    if(event.target === event.currentTarget) closeAccountPage();
+});
+
+document.addEventListener("keydown", (event)=>{
+    if(event.key === "Escape") closeAccountPage();
 });
 
 </script>
