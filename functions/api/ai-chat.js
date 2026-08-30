@@ -1,10 +1,3 @@
-
-unutar JavaScript funkcija. To **nije validan JavaScript** i može da napravi upravo ovakvo ponašanje.
-
-Pošto želiš server-side proveru Supabase korisnika + Gemini + Grok fallback, zameni **ceo `functions/api/ai-chat.js`** ovim čistim kodom:
-
-:::writing{variant="document" id="58321"}
-```javascript
 const SITE_ORIGIN = "https://worth-it-calculator.pages.dev";
 const ALLOWED_ORIGIN = SITE_ORIGIN;
 
