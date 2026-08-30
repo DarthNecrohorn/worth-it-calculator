@@ -1,5 +1,4 @@
 const SITE_ORIGIN = "https://worth-it-calculator.pages.dev";
-
 const GEMINI_MODEL = "gemini-3.7-flash";
 const GROQ_MODEL = "openai/gpt-oss-120b";
 
@@ -15,14 +14,11 @@ const SYSTEM_PROMPT =
 "Do not act as a general-purpose chatbot. Politely refuse unrelated topics. " +
 "Do not invent numerical values. " +
 "If a calculation requires information from the user, clearly state which inputs are needed. " +
-"Keep responses concise and useful. " +
-"You are not a replacement for professional financial advice.";
+"Keep responses concise and useful.";
 
-function responseJson(data, status) {
-return new Response(
-JSON.stringify(data),
-{
-status: status || 200,
+function responseJson(data, status = 200) {
+return new Response(JSON.stringify(data), {
+status: status,
 headers: {
 "Content-Type": "application/json; charset=utf-8",
 "Cache-Control": "no-store",
@@ -30,18 +26,14 @@ headers: {
 "Access-Control-Allow-Headers": "Content-Type, Authorization",
 "Access-Control-Allow-Methods": "POST, OPTIONS"
 }
-}
-);
+});
 }
 
 function getToken(request) {
-const authorization = request.headers.get("Authorization");
+const authorization = request.headers.get("Authorization") || "";
 
 ```
-if (
-    typeof authorization !== "string" ||
-    !authorization.startsWith("Bearer ")
-) {
+if (!authorization.startsWith("Bearer ")) {
     return "";
 }
 
@@ -58,40 +50,34 @@ return [];
 ```
 return history
     .slice(-MAX_HISTORY_ITEMS)
-    .filter(
-        item =>
+    .filter(function (item) {
+        return (
             item &&
-            (item.role === "user" ||
-                item.role === "assistant") &&
+            (item.role === "user" || item.role === "assistant") &&
             typeof item.content === "string"
-    )
-    .map(item => ({
-        role: item.role,
-        content: item.content.slice(
-            0,
-            MAX_MESSAGE_CHARS
-        )
-    }));
+        );
+    })
+    .map(function (item) {
+        return {
+            role: item.role,
+            content: item.content.slice(0, MAX_MESSAGE_CHARS)
+        };
+    });
 ```
 
 }
 
 async function verifySupabaseUser(env, token) {
-const supabaseUrl =
-String(env.SUPABASE_URL || "").trim();
+const supabaseUrl = String(env.SUPABASE_URL || "").trim();
+const supabaseKey = String(env.SUPABASE_PUBLISHABLE_KEY || "").trim();
 
 ```
-const supabaseKey =
-    String(env.SUPABASE_PUBLISHABLE_KEY || "").trim();
-
 if (!supabaseUrl) {
     throw new Error("SUPABASE_URL is missing.");
 }
 
 if (!supabaseKey) {
-    throw new Error(
-        "SUPABASE_PUBLISHABLE_KEY is missing."
-    );
+    throw new Error("SUPABASE_PUBLISHABLE_KEY is missing.");
 }
 
 const response = await fetch(
@@ -99,9 +85,9 @@ const response = await fetch(
     {
         method: "GET",
         headers: {
-            apikey: supabaseKey,
-            Authorization: "Bearer " + token,
-            Accept: "application/json"
+            "apikey": supabaseKey,
+            "Authorization": "Bearer " + token,
+            "Accept": "application/json"
         }
     }
 );
@@ -136,20 +122,6 @@ encodeURIComponent(GEMINI_MODEL) +
 ":generateContent";
 
 ```
-const requestBody = {
-    system_instruction: {
-        parts: [
-            {
-                text: SYSTEM_PROMPT
-            }
-        ]
-    },
-    contents: contents,
-    generationConfig: {
-        maxOutputTokens: MAX_OUTPUT_TOKENS
-    }
-};
-
 const response = await fetch(
     url,
     {
@@ -158,11 +130,25 @@ const response = await fetch(
             "Content-Type": "application/json",
             "x-goog-api-key": apiKey
         },
-        body: JSON.stringify(requestBody)
+        body: JSON.stringify({
+            system_instruction: {
+                parts: [
+                    {
+                        text: SYSTEM_PROMPT
+                    }
+                ]
+            },
+            contents: contents,
+            generationConfig: {
+                maxOutputTokens: MAX_OUTPUT_TOKENS
+            }
+        })
     }
 );
 
-const data = await response.json().catch(() => ({}));
+const data = await response.json().catch(function () {
+    return {};
+});
 
 if (!response.ok) {
     const error = new Error(
@@ -174,8 +160,6 @@ if (!response.ok) {
     );
 
     error.status = response.status;
-    error.provider = "gemini";
-
     throw error;
 }
 
@@ -189,23 +173,20 @@ const parts =
         : [];
 
 const answer = parts
-    .map(part =>
-        part && typeof part.text === "string"
+    .map(function (part) {
+        return part && typeof part.text === "string"
             ? part.text
-            : ""
-    )
+            : "";
+    })
     .join("\n")
     .trim();
 
 if (!answer) {
-    const error =
-        new Error(
-            "Gemini returned an empty response."
-        );
+    const error = new Error(
+        "Gemini returned an empty response."
+    );
 
     error.status = 502;
-    error.provider = "gemini";
-
     throw error;
 }
 
@@ -221,7 +202,7 @@ const response = await fetch(
 method: "POST",
 headers: {
 "Content-Type": "application/json",
-Authorization: "Bearer " + apiKey
+"Authorization": "Bearer " + apiKey
 },
 body: JSON.stringify({
 model: GROQ_MODEL,
@@ -232,7 +213,9 @@ max_tokens: MAX_OUTPUT_TOKENS
 );
 
 ```
-const data = await response.json().catch(() => ({}));
+const data = await response.json().catch(function () {
+    return {};
+});
 
 if (!response.ok) {
     const error = new Error(
@@ -244,8 +227,6 @@ if (!response.ok) {
     );
 
     error.status = response.status;
-    error.provider = "groq";
-
     throw error;
 }
 
@@ -259,14 +240,11 @@ const answer =
         : "";
 
 if (!answer) {
-    const error =
-        new Error(
-            "Groq returned an empty response."
-        );
+    const error = new Error(
+        "Groq returned an empty response."
+    );
 
     error.status = 502;
-    error.provider = "groq";
-
     throw error;
 }
 
@@ -276,8 +254,7 @@ return answer;
 }
 
 function shouldUseGroq(error) {
-const status =
-Number(
+const status = Number(
 error && error.status
 ? error.status
 : 0
@@ -297,9 +274,7 @@ return (
 }
 
 export async function onRequestOptions() {
-return new Response(
-null,
-{
+return new Response(null, {
 status: 204,
 headers: {
 "Access-Control-Allow-Origin": SITE_ORIGIN,
@@ -308,43 +283,42 @@ headers: {
 "Access-Control-Allow-Methods":
 "POST, OPTIONS"
 }
-}
-);
+});
 }
 
 export async function onRequestPost(context) {
-try {
 const request = context.request;
 const env = context.env;
 
 ```
-    const origin =
-        request.headers.get("Origin") || "";
+const origin =
+    request.headers.get("Origin") || "";
 
-    if (
-        origin &&
-        origin !== SITE_ORIGIN
-    ) {
-        return responseJson(
-            {
-                error: "Forbidden origin."
-            },
-            403
-        );
-    }
+if (
+    origin &&
+    origin !== SITE_ORIGIN
+) {
+    return responseJson(
+        {
+            error: "Forbidden origin."
+        },
+        403
+    );
+}
 
-    const token = getToken(request);
+const token = getToken(request);
 
-    if (!token) {
-        return responseJson(
-            {
-                error:
-                    "Please sign in to use Worth It AI."
-            },
-            401
-        );
-    }
+if (!token) {
+    return responseJson(
+        {
+            error:
+                "Please sign in to use Worth It AI."
+        },
+        401
+    );
+}
 
+try {
     const user =
         await verifySupabaseUser(
             env,
@@ -360,56 +334,72 @@ const env = context.env;
             401
         );
     }
+} catch (error) {
+    console.error(
+        "Supabase verification error:",
+        error
+    );
 
-    let body;
+    return responseJson(
+        {
+            error:
+                "Supabase authentication is not configured correctly."
+        },
+        503
+    );
+}
 
-    try {
-        body = await request.json();
-    } catch {
-        return responseJson(
-            {
-                error:
-                    "Invalid JSON request."
-            },
-            400
-        );
-    }
+let body;
 
-    const message =
-        typeof body.message === "string"
-            ? body.message.trim()
-            : "";
+try {
+    body =
+        await request.json();
+} catch (error) {
+    return responseJson(
+        {
+            error:
+                "Invalid JSON request."
+        },
+        400
+    );
+}
 
-    if (!message) {
-        return responseJson(
-            {
-                error:
-                    "Please enter a message."
-            },
-            400
-        );
-    }
+const message =
+    typeof body.message === "string"
+        ? body.message.trim()
+        : "";
 
-    if (
-        message.length >
-        MAX_MESSAGE_CHARS
-    ) {
-        return responseJson(
-            {
-                error:
-                    "Message is too long."
-            },
-            400
-        );
-    }
+if (!message) {
+    return responseJson(
+        {
+            error:
+                "Please enter a message."
+        },
+        400
+    );
+}
 
-    const history =
-        normalizeHistory(
-            body.history
-        );
+if (
+    message.length >
+    MAX_MESSAGE_CHARS
+) {
+    return responseJson(
+        {
+            error:
+                "Message is too long."
+        },
+        400
+    );
+}
 
-    const geminiContents = [
-        ...history.map(item => ({
+const history =
+    normalizeHistory(
+        body.history
+    );
+
+const geminiContents =
+    history.map(function (item) {
+        return {
             role:
                 item.role === "assistant"
                     ? "model"
@@ -419,115 +409,106 @@ const env = context.env;
                     text: item.content
                 }
             ]
-        })),
+        };
+    });
+
+geminiContents.push({
+    role: "user",
+    parts: [
         {
-            role: "user",
-            parts: [
-                {
-                    text: message
-                }
-            ]
+            text: message
         }
-    ];
+    ]
+});
 
-    const groqMessages = [
-        {
-            role: "system",
-            content: SYSTEM_PROMPT
-        },
-        ...history.map(item => ({
-            role: item.role,
-            content: item.content
-        })),
-        {
-            role: "user",
-            content: message
-        }
-    ];
-
-    if (env.GEMINI_API_KEY) {
-        try {
-            const answer =
-                await callGemini(
-                    env.GEMINI_API_KEY,
-                    geminiContents
-                );
-
-            return responseJson(
-                {
-                    provider: "gemini",
-                    answer: answer
-                },
-                200
-            );
-        } catch (error) {
-            console.error(
-                "Gemini request failed:",
-                error
-            );
-
-            if (!shouldUseGroq(error)) {
-                return responseJson(
-                    {
-                        error:
-                            "Gemini is temporarily unavailable. Please try again later."
-                    },
-                    503
-                );
-            }
-        }
+const groqMessages = [
+    {
+        role: "system",
+        content: SYSTEM_PROMPT
     }
+];
 
-    if (!env.GROQ_API_KEY) {
-        return responseJson(
-            {
-                error:
-                    "Gemini is unavailable and Groq backup is not configured."
-            },
-            503
-        );
-    }
+history.forEach(function (item) {
+    groqMessages.push({
+        role: item.role,
+        content: item.content
+    });
+});
 
+groqMessages.push({
+    role: "user",
+    content: message
+});
+
+if (env.GEMINI_API_KEY) {
     try {
         const answer =
-            await callGroq(
-                env.GROQ_API_KEY,
-                groqMessages
+            await callGemini(
+                env.GEMINI_API_KEY,
+                geminiContents
             );
 
         return responseJson(
             {
-                provider: "groq",
+                provider: "gemini",
                 answer: answer
             },
             200
         );
     } catch (error) {
         console.error(
-            "Groq request failed:",
+            "Gemini request failed:",
             error
         );
 
-        return responseJson(
-            {
-                error:
-                    "Both AI providers are temporarily unavailable. Please try again later."
-            },
-            503
-        );
+        if (!shouldUseGroq(error)) {
+            return responseJson(
+                {
+                    error:
+                        "Gemini is temporarily unavailable. Please try again later."
+                },
+                503
+            );
+        }
     }
+}
+
+if (!env.GROQ_API_KEY) {
+    return responseJson(
+        {
+            error:
+                "Gemini is unavailable and Groq backup is not configured."
+        },
+        503
+    );
+}
+
+try {
+    const answer =
+        await callGroq(
+            env.GROQ_API_KEY,
+            groqMessages
+        );
+
+    return responseJson(
+        {
+            provider: "groq",
+            answer: answer
+        },
+        200
+    );
 } catch (error) {
     console.error(
-        "Unhandled ai-chat error:",
+        "Groq request failed:",
         error
     );
 
     return responseJson(
         {
             error:
-                "AI request failed. Please try again."
+                "Both AI providers are temporarily unavailable. Please try again later."
         },
-        500
+        503
     );
 }
 ```
