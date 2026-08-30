@@ -257,9 +257,7 @@ async function callGrok(apiKey, messages) {
 
     const body = {
         model: GROK_MODEL,
-
         messages,
-
         max_tokens: MAX_OUTPUT_TOKENS
     };
 
