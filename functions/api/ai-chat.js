@@ -72,10 +72,8 @@ headers: {
 "Content-Type": "application/json; charset=utf-8",
 "Cache-Control": "no-store",
 "Access-Control-Allow-Origin": ALLOWED_ORIGIN,
-"Access-Control-Allow-Headers":
-"Content-Type, Authorization",
-"Access-Control-Allow-Methods":
-"POST, OPTIONS",
+"Access-Control-Allow-Headers": "Content-Type, Authorization",
+"Access-Control-Allow-Methods": "POST, OPTIONS",
 ...extra
 }
 });
@@ -89,10 +87,11 @@ return [];
 ```
 return history
     .slice(-MAX_HISTORY_ITEMS)
-    .filter(item =>
-        item &&
-        (item.role === "user" || item.role === "assistant") &&
-        typeof item.content === "string"
+    .filter(
+        item =>
+            item &&
+            (item.role === "user" || item.role === "assistant") &&
+            typeof item.content === "string"
     )
     .map(item => ({
         role: item.role,
@@ -106,9 +105,7 @@ function looksOnTopic(text) {
 const normalized = text.toLowerCase();
 
 ```
-return TOPIC_TERMS.some(term =>
-    normalized.includes(term)
-);
+return TOPIC_TERMS.some(term => normalized.includes(term));
 ```
 
 }
@@ -187,8 +184,7 @@ You are not a replacement for professional financial advice.
 `;
 
 function extractGeminiText(data) {
-const parts =
-data?.candidates?.[0]?.content?.parts || [];
+const parts = data?.candidates?.[0]?.content?.parts || [];
 
 ```
 return parts
@@ -201,7 +197,9 @@ return parts
 
 async function callGemini(apiKey, contents) {
 const url =
-`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(GEMINI_MODEL)}:generateContent`;
+"https://generativelanguage.googleapis.com/v1beta/models/" +
+encodeURIComponent(GEMINI_MODEL) +
+":generateContent";
 
 ```
 const body = {
@@ -212,9 +210,7 @@ const body = {
             }
         ]
     },
-
     contents,
-
     generationConfig: {
         maxOutputTokens: MAX_OUTPUT_TOKENS
     }
@@ -222,23 +218,21 @@ const body = {
 
 const response = await fetch(url, {
     method: "POST",
-
     headers: {
         "Content-Type": "application/json",
         "x-goog-api-key": apiKey
     },
-
     body: JSON.stringify(body)
 });
 
-const data =
-    await response.json().catch(() => ({}));
+const data = await response.json().catch(() => ({}));
 
 if (!response.ok) {
-    const error = new Error(
+    const message =
         data?.error?.message ||
-        `Gemini HTTP ${response.status}`
-    );
+        "Gemini request failed with HTTP status " + response.status;
+
+    const error = new Error(message);
 
     error.status = response.status;
     error.provider = "gemini";
@@ -249,9 +243,7 @@ if (!response.ok) {
 const text = extractGeminiText(data);
 
 if (!text) {
-    const error = new Error(
-        "Gemini returned an empty response."
-    );
+    const error = new Error("Gemini returned an empty response.");
 
     error.status = 502;
     error.provider = "gemini";
@@ -265,35 +257,31 @@ return text;
 }
 
 async function callGrok(apiKey, messages) {
-const url =
-"https://api.x.ai/v1/chat/completions";
+const response = await fetch(
+"https://api.x.ai/v1/chat/completions",
+{
+method: "POST",
+headers: {
+"Content-Type": "application/json",
+"Authorization": "Bearer " + apiKey
+},
+body: JSON.stringify({
+model: GROK_MODEL,
+messages,
+max_tokens: MAX_OUTPUT_TOKENS
+})
+}
+);
 
 ```
-const body = {
-    model: GROK_MODEL,
-    messages,
-    max_tokens: MAX_OUTPUT_TOKENS
-};
-
-const response = await fetch(url, {
-    method: "POST",
-
-    headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${apiKey}`
-    },
-
-    body: JSON.stringify(body)
-});
-
-const data =
-    await response.json().catch(() => ({}));
+const data = await response.json().catch(() => ({}));
 
 if (!response.ok) {
-    const error = new Error(
+    const message =
         data?.error?.message ||
-        `Grok HTTP ${response.status}`
-    );
+        "Grok request failed with HTTP status " + response.status;
+
+    const error = new Error(message);
 
     error.status = response.status;
     error.provider = "grok";
@@ -307,9 +295,7 @@ const text =
     ).trim();
 
 if (!text) {
-    const error = new Error(
-        "Grok returned an empty response."
-    );
+    const error = new Error("Grok returned an empty response.");
 
     error.status = 502;
     error.provider = "grok";
@@ -323,8 +309,7 @@ return text;
 }
 
 function shouldFallback(error) {
-const status =
-Number(error?.status || 0);
+const status = Number(error?.status || 0);
 
 ```
 return (
@@ -355,142 +340,83 @@ return authorization
 
 }
 
-/*
-
-* Server-side Supabase authentication.
-*
-* The browser sends:
-*
-* Authorization: Bearer <Supabase access token>
-*
-* We send that token to Supabase Auth and ask
-* Supabase to return the authenticated user.
-  */
-  async function verifySupabaseUser(env, accessToken) {
-  if (!env.SUPABASE_URL) {
-  const error = new Error(
-  "SUPABASE_URL is missing."
-  );
-
-  ```
-   error.code = "SUPABASE_URL_MISSING";
-   throw error;
-  ```
-
-  }
-
-  if (!env.SUPABASE_PUBLISHABLE_KEY) {
-  const error = new Error(
-  "SUPABASE_PUBLISHABLE_KEY is missing."
-  );
-
-  ```
-   error.code = "SUPABASE_KEY_MISSING";
-   throw error;
-  ```
-
-  }
-
-  const supabaseUrl =
-  String(env.SUPABASE_URL)
-  .trim()
-  .replace(//+$/, "");
-
-  const response = await fetch(
-  `${supabaseUrl}/auth/v1/user`,
-  {
-  method: "GET",
-
-  ```
-       headers: {
-           "apikey":
-               env.SUPABASE_PUBLISHABLE_KEY,
-
-           "Authorization":
-               `Bearer ${accessToken}`,
-
-           "Accept":
-               "application/json"
-       }
-   }
-  ```
-
-  );
-
-  const responseText =
-  await response.text();
-
-  let data = null;
-
-  try {
-  data = responseText
-  ? JSON.parse(responseText)
-  : null;
-  } catch {
-  data = null;
-  }
-
-  if (!response.ok) {
-  console.error(
-  "Supabase user verification failed:",
-  JSON.stringify({
-  status: response.status,
-  statusText: response.statusText,
-  body: data || responseText || ""
-  })
-  );
-
-  ```
-   return null;
-  ```
-
-  }
-
-  if (!data?.id) {
-  console.error(
-  "Supabase returned a response without a user id."
-  );
-
-  ```
-   return null;
-  ```
-
-  }
-
-  return data;
-  }
-
-export async function onRequestOptions() {
-return new Response(null, {
-status: 204,
+async function verifySupabaseUser(env, accessToken) {
+if (!env.SUPABASE_URL) {
+throw new Error("SUPABASE_URL is missing.");
+}
 
 ```
-    headers: {
-        "Access-Control-Allow-Origin":
-            ALLOWED_ORIGIN,
+if (!env.SUPABASE_PUBLISHABLE_KEY) {
+    throw new Error("SUPABASE_PUBLISHABLE_KEY is missing.");
+}
 
-        "Access-Control-Allow-Headers":
-            "Content-Type, Authorization",
+const supabaseUrl =
+    String(env.SUPABASE_URL)
+        .trim()
+        .replace(/\/+$/, "");
 
-        "Access-Control-Allow-Methods":
-            "POST, OPTIONS"
+const response = await fetch(
+    supabaseUrl + "/auth/v1/user",
+    {
+        method: "GET",
+        headers: {
+            "apikey": env.SUPABASE_PUBLISHABLE_KEY,
+            "Authorization": "Bearer " + accessToken,
+            "Accept": "application/json"
+        }
     }
-});
+);
+
+const responseText =
+    await response.text();
+
+let data = null;
+
+try {
+    data = responseText
+        ? JSON.parse(responseText)
+        : null;
+} catch {
+    data = null;
+}
+
+if (!response.ok) {
+    console.error(
+        "Supabase user verification failed:",
+        response.status
+    );
+
+    return null;
+}
+
+if (!data?.id) {
+    console.error(
+        "Supabase returned a response without a user id."
+    );
+
+    return null;
+}
+
+return data;
 ```
 
 }
 
+export async function onRequestOptions() {
+return new Response(null, {
+status: 204,
+headers: {
+"Access-Control-Allow-Origin": ALLOWED_ORIGIN,
+"Access-Control-Allow-Headers": "Content-Type, Authorization",
+"Access-Control-Allow-Methods": "POST, OPTIONS"
+}
+});
+}
+
 export async function onRequestPost(context) {
-const {
-request,
-env
-} = context;
+const { request, env } = context;
 
 ```
-/*
- * Only allow requests from the Worth It website.
- */
-
 const origin =
     request.headers.get("Origin") || "";
 
@@ -506,10 +432,6 @@ if (
     );
 }
 
-/*
- * Require a Supabase access token.
- */
-
 const accessToken =
     getBearerToken(request);
 
@@ -522,10 +444,6 @@ if (!accessToken) {
         401
     );
 }
-
-/*
- * Verify the access token server-side.
- */
 
 let user;
 
@@ -560,10 +478,6 @@ if (!user) {
     );
 }
 
-/*
- * Read request body.
- */
-
 let body;
 
 try {
@@ -571,8 +485,7 @@ try {
 } catch {
     return json(
         {
-            error:
-                "Invalid JSON request."
+            error: "Invalid JSON request."
         },
         400
     );
@@ -586,8 +499,7 @@ const message =
 if (!message) {
     return json(
         {
-            error:
-                "Please enter a message."
+            error: "Please enter a message."
         },
         400
     );
@@ -600,20 +512,17 @@ if (
     return json(
         {
             error:
-                `Message is limited to ${MAX_MESSAGE_CHARS} characters.`
+                "Message is limited to " +
+                MAX_MESSAGE_CHARS +
+                " characters."
         },
         400
     );
 }
 
-/*
- * Cheap local topic filter.
- */
-
 if (!looksOnTopic(message)) {
     return json({
         provider: "guard",
-
         answer:
             "I'm Worth It AI, so I can only help with Worth It, its calculators, calculations, comparisons, costs, savings, and website features."
     });
@@ -624,27 +533,20 @@ const history =
         body?.history
     );
 
-/*
- * Build Gemini conversation.
- */
-
 const geminiContents = [
     ...history.map(item => ({
         role:
             item.role === "assistant"
                 ? "model"
                 : "user",
-
         parts: [
             {
                 text: item.content
             }
         ]
     })),
-
     {
         role: "user",
-
         parts: [
             {
                 text: message
@@ -653,33 +555,20 @@ const geminiContents = [
     }
 ];
 
-/*
- * Build Grok conversation.
- */
-
 const grokMessages = [
     {
         role: "system",
-
-        content:
-            SYSTEM_PROMPT
+        content: SYSTEM_PROMPT
     },
-
     ...history.map(item => ({
         role: item.role,
         content: item.content
     })),
-
     {
         role: "user",
-
         content: message
     }
 ];
-
-/*
- * Gemini is the primary provider.
- */
 
 if (!env.GEMINI_API_KEY) {
     return json(
@@ -702,18 +591,13 @@ try {
         provider: "gemini",
         answer
     });
-
 } catch (geminiError) {
     console.error(
         "Gemini request failed:",
         geminiError
     );
 
-    if (
-        !shouldFallback(
-            geminiError
-        )
-    ) {
+    if (!shouldFallback(geminiError)) {
         return json(
             {
                 error:
@@ -723,10 +607,6 @@ try {
         );
     }
 }
-
-/*
- * Grok is the backup provider.
- */
 
 if (!env.XAI_API_KEY) {
     return json(
@@ -749,7 +629,6 @@ try {
         provider: "grok",
         answer
     });
-
 } catch (grokError) {
     console.error(
         "Grok fallback request failed:",
@@ -767,3 +646,6 @@ try {
 ```
 
 }
+
+```
+```
