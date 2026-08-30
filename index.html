@@ -6920,36 +6920,91 @@ calculateGeneric=function(){
         $("feedbackSuggestionBtn")?.classList.toggle("active", feedbackType === "suggestion");
     };
     window.submitFeedback = async function(){
-        const msg = $("feedbackMessage")?.value.trim() || "";
-        const honey = $("feedbackHoneypot")?.value || "";
-        const status = $("feedbackStatus");
-        const btn = $("feedbackSubmitBtn");
-        if(honey) return;
-        if(!msg){
+    const msg = $("feedbackMessage")?.value.trim() || "";
+    const honey = $("feedbackHoneypot")?.value || "";
+    const status = $("feedbackStatus");
+    const btn = $("feedbackSubmitBtn");
+
+    if(honey) return;
+
+    if(!msg){
+        status.className = "feedback-status error";
+        status.textContent = "Please enter a message.";
+        return;
+    }
+
+    btn.disabled = true;
+    status.className = "feedback-status";
+    status.textContent = "Sending...";
+
+    try{
+        const { data: sessionData } =
+            await supabaseClient.auth.getSession();
+
+        const session = sessionData?.session;
+
+        if(!session?.access_token){
             status.className = "feedback-status error";
-            status.textContent = "Please enter a message.";
+            status.textContent = "Please sign in before sending feedback.";
             return;
         }
-        btn.disabled = true;
-        status.className = "feedback-status";
-        status.textContent = "Sending...";
-        try{
-            const r = await fetch("/api/feedback", {
-                method:"POST",
-                headers:{"Content-Type":"application/json"},
-                body:JSON.stringify({type:feedbackType,message:msg,page:location.pathname})
-            });
-            if(!r.ok) throw new Error("Feedback request failed");
-            $("feedbackMessage").value = "";
-            status.className = "feedback-status success";
-            status.textContent = "Thanks! Your feedback was sent privately.";
-        }catch(error){
+
+        const r = await fetch("/api/feedback", {
+            method:"POST",
+            headers:{
+                "Content-Type":"application/json",
+                "Authorization":"Bearer " + session.access_token
+            },
+            body:JSON.stringify({
+                type:feedbackType,
+                message:msg,
+                page:location.pathname
+            })
+        });
+
+        const result = await r.json().catch(function(){
+            return {};
+        });
+
+        if(r.status === 429){
             status.className = "feedback-status error";
-            status.textContent = "Could not send feedback. Please try again.";
-        }finally{
-            btn.disabled = false;
+            status.textContent =
+                "Please wait 30 minutes before sending another feedback report.";
+            return;
         }
-    };
+
+        if(r.status === 401){
+            status.className = "feedback-status error";
+            status.textContent =
+                "Please sign in before sending feedback.";
+            return;
+        }
+
+        if(!r.ok){
+            throw new Error(
+                result.message ||
+                result.error ||
+                "Feedback request failed"
+            );
+        }
+
+        $("feedbackMessage").value = "";
+
+        status.className = "feedback-status success";
+
+        status.textContent =
+            feedbackType === "bug"
+                ? "Thanks! Your bug was reported privately."
+                : "Thanks! Your suggestion was sent privately.";
+
+    }catch(error){
+        status.className = "feedback-status error";
+        status.textContent =
+            "Could not send feedback. Please try again.";
+    }finally{
+        btn.disabled = false;
+    }
+};
 
     $("calculatorSearch")?.addEventListener("input", applyFilters);
     $("categoryFilter")?.addEventListener("change", applyFilters);
