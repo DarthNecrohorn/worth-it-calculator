@@ -139,6 +139,25 @@ a{text-decoration:none;color:inherit}
     .feedback-nav-btn span{display:none}
     .feedback-nav-btn{font-size:17px;padding:8px 10px}
 }
+.signout-nav-btn{
+    border:1px solid var(--border);
+    color:white;
+    background:rgba(255,255,255,.05);
+    border-radius:10px;
+    padding:8px 11px;
+    font-size:13px;
+    font-weight:700;
+    transition:.2s;
+    display:none;
+    align-items:center;
+    gap:6px;
+}
+.signout-nav-btn:hover{
+    background:rgba(251,113,133,.10);
+    border-color:rgba(251,113,133,.35);
+    color:#fecdd3;
+    transform:translateY(-2px);
+}
 
 .settings-btn{
     border:1px solid var(--border);
@@ -155,6 +174,97 @@ a{text-decoration:none;color:inherit}
     border-color:rgba(124,92,255,.4);
     transform:translateY(-2px);
 }
+
+/* AUTH / ACCOUNT */
+.auth-wrap{position:relative;display:flex;align-items:center;gap:8px}
+.auth-btn{
+    border:1px solid var(--border);
+    color:white;
+    background:rgba(255,255,255,.05);
+    border-radius:10px;
+    padding:8px 12px;
+    font-size:13px;
+    font-weight:700;
+    transition:.2s;
+    display:inline-flex;
+    align-items:center;
+    gap:7px;
+}
+.auth-btn:hover{
+    background:rgba(255,255,255,.09);
+    border-color:rgba(124,92,255,.4);
+    transform:translateY(-2px);
+}
+
+.profile-nav-btn{
+    width:42px;
+    height:42px;
+    padding:5px;
+    border:1px solid var(--border);
+    border-radius:50%;
+    color:white;
+    background:rgba(255,255,255,.05);
+    display:none;
+    align-items:center;
+    justify-content:center;
+    transition:.2s;
+    overflow:hidden;
+}
+.profile-nav-btn:hover{
+    background:rgba(255,255,255,.09);
+    border-color:rgba(124,92,255,.45);
+    transform:translateY(-2px);
+}
+.profile-nav-btn .auth-avatar,
+.profile-nav-btn .auth-avatar-fallback{
+    width:32px;
+    height:32px;
+    margin:0;
+}
+.profile-nav-btn .auth-avatar-fallback{
+    font-size:14px;
+}
+.auth-avatar{
+    width:26px;
+    height:26px;
+    border-radius:50%;
+    object-fit:cover;
+    border:1px solid var(--border);
+}
+.auth-avatar-fallback{
+    width:26px;height:26px;border-radius:50%;display:grid;place-items:center;
+    background:linear-gradient(135deg,var(--primary),var(--primary2));color:white;font-size:13px;font-weight:900;
+}
+.account-panel{
+    position:absolute;right:0;top:calc(100% + 10px);z-index:400;width:290px;padding:14px;
+    background:rgba(11,17,31,.98);border:1px solid var(--border);border-radius:16px;box-shadow:var(--shadow);
+    backdrop-filter:blur(18px);display:none;
+}
+.account-panel.open{display:block}
+.account-head{display:flex;align-items:center;gap:12px;padding:8px 8px 12px;border-bottom:1px solid var(--border);margin-bottom:10px}
+.account-head-avatar{width:42px;height:42px;border-radius:50%;object-fit:cover;border:1px solid var(--border)}
+.account-head-fallback{width:42px;height:42px;border-radius:50%;display:grid;place-items:center;background:linear-gradient(135deg,var(--primary),var(--primary2));color:white;font-weight:900}
+.account-name{font-weight:800}.account-email{font-size:12px;color:var(--muted);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.account-action{width:100%;display:flex;align-items:center;gap:10px;border:1px solid transparent;background:transparent;color:var(--text);border-radius:10px;padding:10px 11px;text-align:left;font-weight:700}
+.account-action:hover{background:var(--surface-soft);border-color:var(--border)}
+.account-divider{height:1px;background:var(--border);margin:8px 0}
+.account-action.danger{color:var(--danger)}
+.social-preview{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin:10px 0 2px}
+.social-preview-item{padding:8px 5px;border:1px solid var(--border);border-radius:10px;text-align:center;background:var(--surface-soft)}
+.social-preview-item strong{display:block;font-size:16px}.social-preview-item span{display:block;font-size:10px;color:var(--muted);margin-top:2px}
+@media(max-width:700px){
+    .auth-btn span.auth-label{display:none}
+    .auth-btn{font-size:17px;padding:8px 10px}
+    .profile-nav-btn{width:40px;height:40px;padding:4px}
+    .signout-nav-btn span{display:none}
+    .signout-nav-btn{font-size:17px;padding:8px 10px}
+    .account-panel{right:-8px;width:275px}
+}
+html[data-theme="light"] .auth-btn{color:#0f172a;background:rgba(15,23,42,.045)}
+html[data-theme="light"] .profile-nav-btn{color:#0f172a;background:rgba(15,23,42,.045)}
+html[data-theme="light"] .signout-nav-btn{color:#0f172a;background:rgba(15,23,42,.045)}
+html[data-theme="light"] .signout-nav-btn:hover{color:#be123c;background:rgba(244,63,94,.08);border-color:rgba(244,63,94,.25)}
+html[data-theme="light"] .account-panel{background:rgba(255,255,255,.98)}
 
 .settings-panel{
     position:fixed;
@@ -907,8 +1017,40 @@ html[data-theme="light"] .translate-modal-card{background:#fff}
 
         <button class="menu-btn" onclick="toggleMenu()">☰</button>
 
+        <div class="auth-wrap" id="authWrap">
+            <button class="auth-btn" id="authBtn" onclick="handleAuthButton()" title="Sign in with Google">
+                <span id="authIcon">🔐</span>
+                <span class="auth-label" id="authLabel">Sign in</span>
+            </button>
+            <button class="profile-nav-btn" id="profileNavBtn" onclick="toggleAccountPanel()" title="Open profile" aria-label="Open profile">
+                <span id="profileNavIcon" class="auth-avatar-fallback">👤</span>
+            </button>
+            <div class="account-panel" id="accountPanel" aria-hidden="true">
+                <div class="account-head">
+                    <div id="accountHeadAvatar"></div>
+                    <div style="min-width:0">
+                        <div class="account-name" id="accountName">Account</div>
+                        <div class="account-email" id="accountEmail"></div>
+                    </div>
+                </div>
+                <div class="social-preview">
+                    <div class="social-preview-item"><strong>0</strong><span>Friends</span></div>
+                    <div class="social-preview-item"><strong>0</strong><span>Followers</span></div>
+                    <div class="social-preview-item"><strong>0</strong><span>Following</span></div>
+                </div>
+                <button type="button" class="account-action" onclick="openAccountInfo()">👤 <span>View profile</span></button>
+                <button type="button" class="account-action" onclick="openAccountInfo('friends')">🤝 <span>Friends</span></button>
+                <button type="button" class="account-action" onclick="openAccountInfo('followers')">👥 <span>Followers</span></button>
+                <button type="button" class="account-action" onclick="openAccountInfo('following')">➕ <span>Following</span></button>
+            </div>
+        </div>
+
         <button class="feedback-nav-btn" onclick="openFeedback()" title="Bugs & Suggestions">
             🐞 <span>Bugs &amp; Suggestions</span>
+        </button>
+
+        <button class="signout-nav-btn" id="signOutNavBtn" onclick="signOutUser()" title="Sign out">
+            ↪ <span>Sign out</span>
         </button>
 
         <button class="settings-btn" onclick="toggleSettings()" title="Settings">
@@ -1711,13 +1853,185 @@ try{
 } catch(e) {}
 </script>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<script>
+
+/* DOM helper is declared before Supabase auth initialization. */
+window.$ = window.$ || (id => document.getElementById(id));
+
+/* =========================================================
+   SUPABASE AUTH
+========================================================= */
+window.$ = window.$ || (id => document.getElementById(id));
+const SUPABASE_URL = "https://diutcnylnubljvpezhmq.supabase.co";
+const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_W9769alA1ckSllKvue4U2Q_TdXpWnjp";
+
+const $ = id => document.getElementById(id);
+
+const supabaseClient = window.supabase.createClient(
+    SUPABASE_URL,
+    SUPABASE_PUBLISHABLE_KEY,
+    {
+        auth: {
+            persistSession: true,
+            autoRefreshToken: true,
+            detectSessionInUrl: true
+        }
+    }
+);
+
+let currentAuthUser = null;
+
+function getUserDisplayName(user){
+    return user?.user_metadata?.full_name || user?.user_metadata?.name || user?.email?.split("@")[0] || "User";
+}
+
+function getUserAvatar(user){
+    return user?.user_metadata?.avatar_url || user?.user_metadata?.picture || "";
+}
+
+function makeAvatarMarkup(user, className="auth-avatar"){
+    const avatar = getUserAvatar(user);
+    if(avatar){
+        return `<img class="${className}" src="${avatar.replaceAll('"','&quot;')}" alt="" referrerpolicy="no-referrer">`;
+    }
+    const initial = getUserDisplayName(user).charAt(0).toUpperCase();
+    const fallbackClass = className.includes("account-head") ? "account-head-fallback" : "auth-avatar-fallback";
+    return `<div class="${fallbackClass}">${initial}</div>`;
+}
+
+function closeAccountPanel(){
+    const panel = $("accountPanel");
+    if(!panel) return;
+    panel.classList.remove("open");
+    panel.setAttribute("aria-hidden","true");
+}
+
+function toggleAccountPanel(){
+    if(!currentAuthUser) return;
+    const panel = $("accountPanel");
+    if(!panel) return;
+    const open = panel.classList.toggle("open");
+    panel.setAttribute("aria-hidden", String(!open));
+}
+
+function updateAuthUI(user){
+    currentAuthUser = user || null;
+
+    const btn = $("authBtn");
+    const icon = $("authIcon");
+    const label = $("authLabel");
+    const profileBtn = $("profileNavBtn");
+    const profileIcon = $("profileNavIcon");
+    const panel = $("accountPanel");
+    const signOutBtn = $("signOutNavBtn");
+
+    if(!btn || !icon || !label || !profileBtn || !profileIcon || !signOutBtn) return;
+
+    if(user){
+        btn.style.display = "none";
+        profileBtn.style.display = "inline-flex";
+        profileBtn.title = `Open profile for ${getUserDisplayName(user)}`;
+        profileBtn.setAttribute("aria-label", `Open profile for ${getUserDisplayName(user)}`);
+        profileIcon.innerHTML = makeAvatarMarkup(user,"auth-avatar");
+
+        if($("accountHeadAvatar")) $("accountHeadAvatar").innerHTML = makeAvatarMarkup(user,"account-head-avatar");
+        if($("accountName")) $("accountName").textContent = getUserDisplayName(user);
+        if($("accountEmail")) $("accountEmail").textContent = user.email || "";
+        if(panel){
+            panel.style.display = "";
+            closeAccountPanel();
+        }
+        signOutBtn.style.display = "inline-flex";
+    }else{
+        btn.style.display = "inline-flex";
+        btn.onclick = handleAuthButton;
+        btn.title = "Sign in with Google";
+        icon.textContent = "🔐";
+        label.textContent = "Sign in";
+
+        profileBtn.style.display = "none";
+        profileIcon.innerHTML = "👤";
+
+        closeAccountPanel();
+        signOutBtn.style.display = "none";
+        if($("accountHeadAvatar")) $("accountHeadAvatar").innerHTML = "";
+        if($("accountName")) $("accountName").textContent = "Account";
+        if($("accountEmail")) $("accountEmail").textContent = "";
+    }
+}
+
+async function handleAuthButton(){
+    if(currentAuthUser){
+        toggleAccountPanel();
+        return;
+    }
+
+    const { error } = await supabaseClient.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+            redirectTo: `${window.location.origin}/`
+        }
+    });
+
+    if(error){
+        console.error("Supabase Google sign-in error:", error);
+        showToast("Could not start Google sign-in.");
+    }
+}
+
+async function signOutUser(){
+    const { error } = await supabaseClient.auth.signOut();
+    if(error){
+        console.error("Supabase sign-out error:", error);
+        showToast("Could not sign out.");
+        return;
+    }
+    closeAccountPanel();
+    showToast("Signed out.");
+}
+
+function openAccountInfo(section="profile"){
+    closeAccountPanel();
+    const labels = {
+        profile: "Your profile page will be connected next.",
+        friends: "Friends will be connected when the social system is added.",
+        followers: "Followers will be connected when the social system is added.",
+        following: "Following will be connected when the social system is added."
+    };
+    showToast(labels[section] || labels.profile);
+}
+
+window.handleAuthButton = handleAuthButton;
+window.signOutUser = signOutUser;
+window.openAccountInfo = openAccountInfo;
+
+supabaseClient.auth.onAuthStateChange((event, session)=>{
+    updateAuthUI(session?.user || null);
+});
+
+(async function initializeSupabaseAuth(){
+    const { data, error } = await supabaseClient.auth.getSession();
+    if(error){
+        console.error("Supabase session error:", error);
+        return;
+    }
+    updateAuthUI(data.session?.user || null);
+})();
+
+document.addEventListener("click", (event)=>{
+    const wrap = $("authWrap");
+    if(wrap && !wrap.contains(event.target)) closeAccountPanel();
+});
+
+</script>
+
 <script>
 
 /* =========================================================
    BASIC HELPERS
 ========================================================= */
-
-const $ = id => document.getElementById(id);
 
 function num(id){
     return Number($(id)?.value || 0);
