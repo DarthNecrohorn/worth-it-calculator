@@ -7123,6 +7123,137 @@ calculateGeneric=function(){
     }
 };
 
+window.openAdminFeedback = async function(){
+    const overlay = $("adminFeedbackOverlay");
+    const status = $("adminFeedbackStatus");
+    const list = $("adminFeedbackList");
+
+    if(!overlay || !status || !list) return;
+
+    overlay.classList.add("open");
+    status.className = "feedback-status";
+    status.textContent = "Loading feedback...";
+    list.innerHTML = "";
+
+    try{
+        const { data: sessionData } =
+            await supabaseClient.auth.getSession();
+
+        const session = sessionData?.session;
+
+        if(!session?.access_token){
+            status.className = "feedback-status error";
+            status.textContent = "Please sign in.";
+            return;
+        }
+
+        const r = await fetch("/api/admin-feedback", {
+            method: "GET",
+            headers: {
+                "Authorization": "Bearer " + session.access_token
+            }
+        });
+
+        const result = await r.json().catch(function(){
+            return {};
+        });
+
+        if(r.status === 401){
+            status.className = "feedback-status error";
+            status.textContent = "Please sign in again.";
+            return;
+        }
+
+        if(r.status === 403){
+            status.className = "feedback-status error";
+            status.textContent = "Access denied.";
+            return;
+        }
+
+        if(!r.ok){
+            throw new Error(
+                result.error || "Could not load feedback."
+            );
+        }
+
+        const feedback = Array.isArray(result.feedback)
+            ? result.feedback
+            : [];
+
+        if(!feedback.length){
+            status.className = "feedback-status";
+            status.textContent = "No feedback yet.";
+            list.innerHTML = "";
+            return;
+        }
+
+        status.className = "feedback-status";
+        status.textContent = feedback.length + " feedback item" +
+            (feedback.length === 1 ? "" : "s");
+
+        list.innerHTML = feedback.map(function(item){
+            const type =
+                item.type === "bug"
+                    ? "🐞 Bug"
+                    : "💡 Suggestion";
+
+            const date = item.created_at
+                ? new Date(item.created_at).toLocaleString()
+                : "Unknown date";
+
+            const message =
+                String(item.message || "")
+                    .replace(/&/g, "&amp;")
+                    .replace(/</g, "&lt;")
+                    .replace(/>/g, "&gt;")
+                    .replace(/"/g, "&quot;")
+                    .replace(/'/g, "&#039;");
+
+            const page =
+                String(item.page || "")
+                    .replace(/&/g, "&amp;")
+                    .replace(/</g, "&lt;")
+                    .replace(/>/g, "&gt;")
+                    .replace(/"/g, "&quot;")
+                    .replace(/'/g, "&#039;");
+
+            return `
+                <div class="admin-feedback-item">
+                    <div class="admin-feedback-item-head">
+                        <div class="admin-feedback-type">${type}</div>
+                        <div class="admin-feedback-date">${date}</div>
+                    </div>
+                    <div class="admin-feedback-message">${message}</div>
+                    <div class="admin-feedback-page">
+                        Page: ${page || "Unknown"}
+                    </div>
+                </div>
+            `;
+        }).join("");
+
+    }catch(error){
+        console.error("Admin feedback load failed:", error);
+
+        status.className = "feedback-status error";
+        status.textContent =
+            "Could not load feedback.";
+    }
+};
+
+window.loadAdminFeedback = async function(){
+    await window.openAdminFeedback();
+};
+
+window.closeAdminFeedback = function(){
+    $("adminFeedbackOverlay")?.classList.remove("open");
+};
+
+$("adminFeedbackOverlay")?.addEventListener("click", function(event){
+    if(event.target === $("adminFeedbackOverlay")){
+        closeAdminFeedback();
+    }
+});
+
     $("calculatorSearch")?.addEventListener("input", applyFilters);
     $("categoryFilter")?.addEventListener("change", applyFilters);
     $("clearCalculatorFilters")?.addEventListener("click", ()=>{
