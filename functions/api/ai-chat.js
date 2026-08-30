@@ -562,7 +562,7 @@ export async function onRequestPost(context) {
         );
     }
 
-    try {
+        try {
         const answer =
             await callGrok(
                 env.XAI_API_KEY,
@@ -570,4 +570,22 @@ export async function onRequestPost(context) {
             );
 
         return json({
-            provider
+            provider: "grok",
+            answer
+        });
+
+    } catch (grokError) {
+        console.error(
+            "Grok fallback request failed:",
+            grokError
+        );
+
+        return json(
+            {
+                error:
+                    "Both Worth It AI providers are temporarily unavailable. Please try again later."
+            },
+            503
+        );
+    }
+}
