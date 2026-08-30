@@ -5,7 +5,7 @@ const GROQ_MODEL = "openai/gpt-oss-120b";
 
 const MAX_MESSAGE_CHARS = 1200;
 const MAX_HISTORY_ITEMS = 8;
-const MAX_OUTPUT_TOKENS = 500;
+const MAX_OUTPUT_TOKENS = 1000;
 
 const SYSTEM_PROMPT =
     "You are Worth It AI, the official assistant for the Worth It decision-calculator website. " +
