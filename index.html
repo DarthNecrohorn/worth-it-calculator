@@ -7256,6 +7256,33 @@ window.closeAdminFeedback = function(){
     $("adminFeedbackOverlay")?.classList.remove("open");
 };
 
+async function updateAdminFeedbackButton(){
+    const btn = $("adminFeedbackNavBtn");
+
+    if(!btn) return;
+
+    try{
+        const { data } =
+            await supabaseClient.auth.getSession();
+
+        const user = data?.session?.user;
+
+        btn.style.display =
+            user?.id === "c3560d70-8b68-49f0-b3f1-9e248673553c"
+                ? ""
+                : "none";
+
+    }catch(error){
+        btn.style.display = "none";
+    }
+}
+
+supabaseClient.auth.onAuthStateChange(function(){
+    updateAdminFeedbackButton();
+});
+
+updateAdminFeedbackButton();
+
 $("adminFeedbackOverlay")?.addEventListener("click", function(event){
     if(event.target === $("adminFeedbackOverlay")){
         closeAdminFeedback();
