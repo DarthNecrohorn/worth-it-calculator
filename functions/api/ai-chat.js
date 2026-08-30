@@ -373,8 +373,7 @@ async function verifySupabaseUser(env, accessToken) {
     if (!response.ok) {
         console.error(
             "Supabase user verification failed:",
-            response.status,
-            responseText
+            response.status
         );
 
         return null;
@@ -560,41 +559,33 @@ export async function onRequestPost(context) {
         }
     ];
 
-    if (!env.GEMINI_API_KEY) {
-        return json(
-            {
-                error:
-                    "Gemini API key is not configured."
-            },
-            503
-        );
-    }
+    if (env.GEMINI_API_KEY) {
+        try {
+            const answer =
+                await callGemini(
+                    env.GEMINI_API_KEY,
+                    geminiContents
+                );
 
-    try {
-        const answer =
-            await callGemini(
-                env.GEMINI_API_KEY,
-                geminiContents
+            return json({
+                provider: "gemini",
+                answer
+            });
+        } catch (geminiError) {
+            console.error(
+                "Gemini request failed:",
+                geminiError
             );
 
-        return json({
-            provider: "gemini",
-            answer
-        });
-    } catch (geminiError) {
-        console.error(
-            "Gemini request failed:",
-            geminiError
-        );
-
-        if (!shouldFallback(geminiError)) {
-            return json(
-                {
-                    error:
-                        "Gemini is temporarily unavailable. Please try again later."
-                },
-                503
-            );
+            if (!shouldFallback(geminiError)) {
+                return json(
+                    {
+                        error:
+                            "Gemini is temporarily unavailable. Please try again later."
+                    },
+                    503
+                );
+            }
         }
     }
 
@@ -602,7 +593,7 @@ export async function onRequestPost(context) {
         return json(
             {
                 error:
-                    "Gemini is temporarily unavailable and Groq backup is not configured."
+                    "Gemini is unavailable and Groq backup is not configured."
             },
             503
         );
