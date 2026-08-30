@@ -1,3 +1,4 @@
+```javascript
 const SITE_ORIGIN = "https://worth-it-calculator.pages.dev";
 const ALLOWED_ORIGIN = SITE_ORIGIN;
 
@@ -192,12 +193,6 @@ async function callGemini(apiKey, contents) {
     const url =
         `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(GEMINI_MODEL)}:generateContent`;
 
-    /*
-     * Gemini 3.7 Flash:
-     * Keep generation config minimal.
-     * Do not send deprecated sampling parameters such as temperature.
-     */
-
     const body = {
         system_instruction: {
             parts: [
@@ -317,11 +312,6 @@ function shouldFallback(error) {
     const status =
         Number(error?.status || 0);
 
-    /*
-     * Gemini -> Grok fallback only for
-     * temporary/provider capacity problems.
-     */
-
     return (
         status === 408 ||
         status === 429 ||
@@ -374,6 +364,11 @@ async function verifySupabaseUser(
     );
 
     if (!response.ok) {
+        console.error(
+            "Supabase user verification failed:",
+            response.status
+        );
+
         return null;
     }
 
@@ -405,11 +400,6 @@ export async function onRequestPost(context) {
         env
     } = context;
 
-    /*
-     * Security:
-     * only allow requests from the Worth It website.
-     */
-
     const origin =
         request.headers.get("Origin") || "";
 
@@ -425,10 +415,6 @@ export async function onRequestPost(context) {
         );
     }
 
-    /*
-     * Require a Supabase login.
-     */
-
     const accessToken =
         getBearerToken(request);
 
@@ -441,11 +427,6 @@ export async function onRequestPost(context) {
             401
         );
     }
-
-    /*
-     * Verify that the Supabase session
-     * really belongs to a logged-in user.
-     */
 
     const user =
         await verifySupabaseUser(
@@ -462,10 +443,6 @@ export async function onRequestPost(context) {
             401
         );
     }
-
-    /*
-     * Read request body.
-     */
 
     let body;
 
@@ -508,13 +485,6 @@ export async function onRequestPost(context) {
         );
     }
 
-    /*
-     * Cheap local filter.
-     *
-     * This prevents obviously unrelated questions
-     * from spending an AI request.
-     */
-
     if (!looksOnTopic(message)) {
         return json({
             provider: "guard",
@@ -528,10 +498,6 @@ export async function onRequestPost(context) {
         normalizeHistory(
             body?.history
         );
-
-    /*
-     * Build Gemini conversation.
-     */
 
     const geminiContents = [
         ...history.map(item => ({
@@ -558,10 +524,6 @@ export async function onRequestPost(context) {
         }
     ];
 
-    /*
-     * Build Grok conversation.
-     */
-
     const grokMessages = [
         {
             role: "system",
@@ -582,10 +544,6 @@ export async function onRequestPost(context) {
         }
     ];
 
-    /*
-     * Make sure provider secrets exist.
-     */
-
     if (!env.GEMINI_API_KEY) {
         return json(
             {
@@ -595,12 +553,6 @@ export async function onRequestPost(context) {
             503
         );
     }
-
-    /*
-     * =====================================================
-     * PRIMARY: GEMINI
-     * =====================================================
-     */
 
     try {
         const answer =
@@ -621,14 +573,6 @@ export async function onRequestPost(context) {
             geminiError
         );
 
-        /*
-         * Do not automatically spend a Grok request
-         * for ordinary Gemini errors.
-         *
-         * Grok is reserved as a backup for
-         * rate limits and temporary provider failures.
-         */
-
         if (
             !shouldFallback(
                 geminiError
@@ -643,12 +587,6 @@ export async function onRequestPost(context) {
             );
         }
     }
-
-    /*
-     * =====================================================
-     * BACKUP: GROK
-     * =====================================================
-     */
 
     if (!env.XAI_API_KEY) {
         return json(
@@ -688,3 +626,4 @@ export async function onRequestPost(context) {
         );
     }
 }
+```
