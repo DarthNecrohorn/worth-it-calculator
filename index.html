@@ -1228,6 +1228,103 @@ html[data-theme="light"] .ai-chat-nav-btn{color:#0f172a;background:rgba(15,23,42
     .auth-btn{padding:7px 9px}
 }
 
+.admin-feedback-overlay{
+    position:fixed;
+    inset:0;
+    display:none;
+    align-items:center;
+    justify-content:center;
+    padding:20px;
+    background:rgba(0,0,0,.75);
+    z-index:9999;
+}
+
+.admin-feedback-overlay.open{
+    display:flex;
+}
+
+.admin-feedback-card{
+    width:min(100%,900px);
+    max-height:90vh;
+    overflow:auto;
+    background:var(--card-bg,#111);
+    border:1px solid rgba(255,255,255,.12);
+    border-radius:18px;
+    padding:22px;
+    box-shadow:0 20px 60px rgba(0,0,0,.5);
+}
+
+.admin-feedback-head{
+    display:flex;
+    align-items:flex-start;
+    justify-content:space-between;
+    gap:16px;
+    margin-bottom:18px;
+}
+
+.admin-feedback-head h3{
+    margin:0 0 6px;
+}
+
+.admin-feedback-head p{
+    margin:0;
+    opacity:.7;
+}
+
+.admin-feedback-head > button{
+    border:0;
+    background:transparent;
+    color:inherit;
+    font-size:20px;
+    cursor:pointer;
+}
+
+.admin-feedback-toolbar{
+    display:flex;
+    justify-content:flex-end;
+    margin-bottom:12px;
+}
+
+.admin-feedback-list{
+    display:grid;
+    gap:12px;
+}
+
+.admin-feedback-item{
+    padding:16px;
+    border:1px solid rgba(255,255,255,.1);
+    border-radius:12px;
+    background:rgba(255,255,255,.03);
+}
+
+.admin-feedback-item-head{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    gap:12px;
+    margin-bottom:10px;
+}
+
+.admin-feedback-type{
+    font-weight:700;
+}
+
+.admin-feedback-date{
+    font-size:12px;
+    opacity:.6;
+}
+
+.admin-feedback-message{
+    white-space:pre-wrap;
+    line-height:1.5;
+    margin-bottom:10px;
+}
+
+.admin-feedback-page{
+    font-size:12px;
+    opacity:.65;
+}
+
 </style>
 </head>
 
