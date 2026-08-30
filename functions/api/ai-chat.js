@@ -1,8 +1,9 @@
+```javascript
 const SITE_ORIGIN = "https://worth-it-calculator.pages.dev";
 const ALLOWED_ORIGIN = SITE_ORIGIN;
 
 const GEMINI_MODEL = "gemini-3.7-flash";
-const GROK_MODEL = "grok-4.6";
+const GROQ_MODEL = "openai/gpt-oss-120b";
 
 const MAX_MESSAGE_CHARS = 1200;
 const MAX_HISTORY_ITEMS = 8;
@@ -250,9 +251,9 @@ async function callGemini(apiKey, contents) {
     return text;
 }
 
-async function callGrok(apiKey, messages) {
+async function callGroq(apiKey, messages) {
     const response = await fetch(
-        "https://api.x.ai/v1/chat/completions",
+        "https://api.groq.com/openai/v1/chat/completions",
         {
             method: "POST",
             headers: {
@@ -260,7 +261,7 @@ async function callGrok(apiKey, messages) {
                 "Authorization": "Bearer " + apiKey
             },
             body: JSON.stringify({
-                model: GROK_MODEL,
+                model: GROQ_MODEL,
                 messages,
                 max_tokens: MAX_OUTPUT_TOKENS
             })
@@ -273,13 +274,13 @@ async function callGrok(apiKey, messages) {
     if (!response.ok) {
         const message =
             data?.error?.message ||
-            "Grok request failed with HTTP status " +
+            "Groq request failed with HTTP status " +
                 response.status;
 
         const error = new Error(message);
 
         error.status = response.status;
-        error.provider = "grok";
+        error.provider = "groq";
 
         throw error;
     }
@@ -291,10 +292,10 @@ async function callGrok(apiKey, messages) {
 
     if (!text) {
         const error =
-            new Error("Grok returned an empty response.");
+            new Error("Groq returned an empty response.");
 
         error.status = 502;
-        error.provider = "grok";
+        error.provider = "groq";
 
         throw error;
     }
@@ -544,7 +545,7 @@ export async function onRequestPost(context) {
         }
     ];
 
-    const grokMessages = [
+    const groqMessages = [
         {
             role: "system",
             content: SYSTEM_PROMPT
@@ -597,11 +598,11 @@ export async function onRequestPost(context) {
         }
     }
 
-    if (!env.XAI_API_KEY) {
+    if (!env.GROQ_API_KEY) {
         return json(
             {
                 error:
-                    "Gemini is temporarily unavailable and Grok backup is not configured."
+                    "Gemini is temporarily unavailable and Groq backup is not configured."
             },
             503
         );
@@ -609,19 +610,19 @@ export async function onRequestPost(context) {
 
     try {
         const answer =
-            await callGrok(
-                env.XAI_API_KEY,
-                grokMessages
+            await callGroq(
+                env.GROQ_API_KEY,
+                groqMessages
             );
 
         return json({
-            provider: "grok",
+            provider: "groq",
             answer
         });
-    } catch (grokError) {
+    } catch (groqError) {
         console.error(
-            "Grok fallback request failed:",
-            grokError
+            "Groq fallback request failed:",
+            groqError
         );
 
         return json(
@@ -633,3 +634,4 @@ export async function onRequestPost(context) {
         );
     }
 }
+```
