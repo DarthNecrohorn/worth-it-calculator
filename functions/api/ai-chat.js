@@ -105,7 +105,9 @@ function looksOnTopic(text) {
 const normalized = text.toLowerCase();
 
 ```
-return TOPIC_TERMS.some(term => normalized.includes(term));
+return TOPIC_TERMS.some(term =>
+    normalized.includes(term)
+);
 ```
 
 }
@@ -184,7 +186,8 @@ You are not a replacement for professional financial advice.
 `;
 
 function extractGeminiText(data) {
-const parts = data?.candidates?.[0]?.content?.parts || [];
+const parts =
+data?.candidates?.[0]?.content?.parts || [];
 
 ```
 return parts
@@ -225,12 +228,14 @@ const response = await fetch(url, {
     body: JSON.stringify(body)
 });
 
-const data = await response.json().catch(() => ({}));
+const data =
+    await response.json().catch(() => ({}));
 
 if (!response.ok) {
     const message =
         data?.error?.message ||
-        "Gemini request failed with HTTP status " + response.status;
+        "Gemini request failed with HTTP status " +
+            response.status;
 
     const error = new Error(message);
 
@@ -243,7 +248,8 @@ if (!response.ok) {
 const text = extractGeminiText(data);
 
 if (!text) {
-    const error = new Error("Gemini returned an empty response.");
+    const error =
+        new Error("Gemini returned an empty response.");
 
     error.status = 502;
     error.provider = "gemini";
@@ -274,12 +280,14 @@ max_tokens: MAX_OUTPUT_TOKENS
 );
 
 ```
-const data = await response.json().catch(() => ({}));
+const data =
+    await response.json().catch(() => ({}));
 
 if (!response.ok) {
     const message =
         data?.error?.message ||
-        "Grok request failed with HTTP status " + response.status;
+        "Grok request failed with HTTP status " +
+            response.status;
 
     const error = new Error(message);
 
@@ -295,7 +303,8 @@ const text =
     ).trim();
 
 if (!text) {
-    const error = new Error("Grok returned an empty response.");
+    const error =
+        new Error("Grok returned an empty response.");
 
     error.status = 502;
     error.provider = "grok";
@@ -347,7 +356,9 @@ throw new Error("SUPABASE_URL is missing.");
 
 ```
 if (!env.SUPABASE_PUBLISHABLE_KEY) {
-    throw new Error("SUPABASE_PUBLISHABLE_KEY is missing.");
+    throw new Error(
+        "SUPABASE_PUBLISHABLE_KEY is missing."
+    );
 }
 
 const supabaseUrl =
@@ -407,8 +418,10 @@ return new Response(null, {
 status: 204,
 headers: {
 "Access-Control-Allow-Origin": ALLOWED_ORIGIN,
-"Access-Control-Allow-Headers": "Content-Type, Authorization",
-"Access-Control-Allow-Methods": "POST, OPTIONS"
+"Access-Control-Allow-Headers":
+"Content-Type, Authorization",
+"Access-Control-Allow-Methods":
+"POST, OPTIONS"
 }
 });
 }
@@ -646,6 +659,3 @@ try {
 ```
 
 }
-
-```
-```
