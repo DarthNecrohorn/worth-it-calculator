@@ -86,7 +86,9 @@ const supabaseKey =
         .trim();
 
 if (!supabaseUrl) {
-    throw new Error("SUPABASE_URL is missing.");
+    throw new Error(
+        "SUPABASE_URL is missing."
+    );
 }
 
 if (!supabaseKey) {
@@ -108,7 +110,8 @@ const response = await fetch(
 );
 
 if (!response.ok) {
-    const text = await response.text();
+    const text =
+        await response.text();
 
     console.error(
         "Supabase verification failed:",
@@ -120,7 +123,9 @@ if (!response.ok) {
 }
 
 const user =
-    await response.json().catch(() => null);
+    await response
+        .json()
+        .catch(() => null);
 
 if (!user || !user.id) {
     return null;
@@ -152,31 +157,38 @@ const requestBody = {
     }
 };
 
-const response = await fetch(
-    url,
-    {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json",
-            "x-goog-api-key": apiKey
-        },
-        body: JSON.stringify(requestBody)
-    }
-);
-
-const data =
-    await response.json().catch(() => ({}));
-
-if (!response.ok) {
-    const error = new Error(
-        data &&
-        data.error &&
-        data.error.message
-            ? data.error.message
-            : "Gemini request failed."
+const response =
+    await fetch(
+        url,
+        {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "x-goog-api-key": apiKey
+            },
+            body: JSON.stringify(
+                requestBody
+            )
+        }
     );
 
-    error.status = response.status;
+const data =
+    await response
+        .json()
+        .catch(() => ({}));
+
+if (!response.ok) {
+    const error =
+        new Error(
+            data &&
+            data.error &&
+            data.error.message
+                ? data.error.message
+                : "Gemini request failed."
+        );
+
+    error.status =
+        response.status;
 
     throw error;
 }
@@ -190,14 +202,17 @@ const parts =
         ? data.candidates[0].content.parts
         : [];
 
-const answer = parts
-    .map(part =>
-        part && typeof part.text === "string"
-            ? part.text
-            : ""
-    )
-    .join("\n")
-    .trim();
+const answer =
+    parts
+        .map(
+            part =>
+                part &&
+                typeof part.text === "string"
+                    ? part.text
+                    : ""
+        )
+        .join("\n")
+        .trim();
 
 if (!answer) {
     const error =
@@ -216,36 +231,43 @@ return answer;
 }
 
 async function callGroq(apiKey, messages) {
-const response = await fetch(
+const response =
+await fetch(
 "https://api.groq.com/openai/v1/chat/completions",
 {
 method: "POST",
 headers: {
 "Content-Type": "application/json",
-Authorization: "Bearer " + apiKey
+Authorization:
+"Bearer " + apiKey
 },
 body: JSON.stringify({
 model: GROQ_MODEL,
 messages: messages,
-max_tokens: MAX_OUTPUT_TOKENS
+max_tokens:
+MAX_OUTPUT_TOKENS
 })
 }
 );
 
 ```
 const data =
-    await response.json().catch(() => ({}));
+    await response
+        .json()
+        .catch(() => ({}));
 
 if (!response.ok) {
-    const error = new Error(
-        data &&
-        data.error &&
-        data.error.message
-            ? data.error.message
-            : "Groq request failed."
-    );
+    const error =
+        new Error(
+            data &&
+            data.error &&
+            data.error.message
+                ? data.error.message
+                : "Groq request failed."
+        );
 
-    error.status = response.status;
+    error.status =
+        response.status;
 
     throw error;
 }
@@ -278,9 +300,11 @@ return answer;
 
 function shouldUseGroq(error) {
 const status =
-Number(error && error.status
+Number(
+error && error.status
 ? error.status
-: 0);
+: 0
+);
 
 ```
 return (
@@ -296,24 +320,31 @@ return (
 }
 
 export async function onRequestOptions() {
-return new Response(null, {
+return new Response(
+null,
+{
 status: 204,
 headers: {
-"Access-Control-Allow-Origin": SITE_ORIGIN,
+"Access-Control-Allow-Origin":
+SITE_ORIGIN,
 "Access-Control-Allow-Headers":
 "Content-Type, Authorization",
 "Access-Control-Allow-Methods":
 "POST, OPTIONS"
 }
-});
+}
+);
 }
 
 export async function onRequestPost(context) {
 try {
-const request = context.request;
-const env = context.env;
+const request =
+context.request;
 
 ```
+    const env =
+        context.env;
+
     const origin =
         request.headers.get("Origin") || "";
 
@@ -323,7 +354,8 @@ const env = context.env;
     ) {
         return responseJson(
             {
-                error: "Forbidden origin."
+                error:
+                    "Forbidden origin."
             },
             403
         );
@@ -374,7 +406,8 @@ const env = context.env;
     }
 
     const message =
-        typeof body.message === "string"
+        typeof body.message ===
+            "string"
             ? body.message.trim()
             : "";
 
@@ -407,17 +440,21 @@ const env = context.env;
         );
 
     const geminiContents = [
-        ...history.map(item => ({
-            role:
-                item.role === "assistant"
-                    ? "model"
-                    : "user",
-            parts: [
-                {
-                    text: item.content
-                }
-            ]
-        })),
+        ...history.map(
+            item => ({
+                role:
+                    item.role ===
+                        "assistant"
+                        ? "model"
+                        : "user",
+                parts: [
+                    {
+                        text:
+                            item.content
+                    }
+                ]
+            })
+        ),
         {
             role: "user",
             parts: [
@@ -431,12 +468,17 @@ const env = context.env;
     const groqMessages = [
         {
             role: "system",
-            content: SYSTEM_PROMPT
+            content:
+                SYSTEM_PROMPT
         },
-        ...history.map(item => ({
-            role: item.role,
-            content: item.content
-        })),
+        ...history.map(
+            item => ({
+                role:
+                    item.role,
+                content:
+                    item.content
+            })
+        ),
         {
             role: "user",
             content: message
@@ -452,8 +494,10 @@ const env = context.env;
                 );
 
             return responseJson({
-                provider: "gemini",
-                answer: answer
+                provider:
+                    "gemini",
+                answer:
+                    answer
             });
         } catch (error) {
             console.error(
@@ -461,7 +505,11 @@ const env = context.env;
                 error
             );
 
-            if (!shouldUseGroq(error)) {
+            if (
+                !shouldUseGroq(
+                    error
+                )
+            ) {
                 return responseJson(
                     {
                         error:
@@ -491,8 +539,10 @@ const env = context.env;
             );
 
         return responseJson({
-            provider: "groq",
-            answer: answer
+            provider:
+                "groq",
+            answer:
+                answer
         });
     } catch (error) {
         console.error(
