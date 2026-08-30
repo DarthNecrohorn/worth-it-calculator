@@ -1,4 +1,3 @@
-```javascript
 const SITE_ORIGIN = "https://worth-it-calculator.pages.dev";
 const ALLOWED_ORIGIN = SITE_ORIGIN;
 
@@ -73,10 +72,8 @@ function json(data, status = 200, extra = {}) {
             "Content-Type": "application/json; charset=utf-8",
             "Cache-Control": "no-store",
             "Access-Control-Allow-Origin": ALLOWED_ORIGIN,
-            "Access-Control-Allow-Headers":
-                "Content-Type, Authorization",
-            "Access-Control-Allow-Methods":
-                "POST, OPTIONS",
+            "Access-Control-Allow-Headers": "Content-Type, Authorization",
+            "Access-Control-Allow-Methods": "POST, OPTIONS",
             ...extra
         }
     });
@@ -89,10 +86,11 @@ function normalizeHistory(history) {
 
     return history
         .slice(-MAX_HISTORY_ITEMS)
-        .filter(item =>
-            item &&
-            (item.role === "user" || item.role === "assistant") &&
-            typeof item.content === "string"
+        .filter(
+            item =>
+                item &&
+                (item.role === "user" || item.role === "assistant") &&
+                typeof item.content === "string"
         )
         .map(item => ({
             role: item.role,
@@ -112,6 +110,7 @@ const SYSTEM_PROMPT = `
 You are Worth It AI, the official assistant for the Worth It decision-calculator website.
 
 Your job is strictly limited to helping users with:
+
 - the Worth It website
 - Worth It calculators
 - calculator inputs
@@ -149,6 +148,7 @@ Your job is strictly limited to helping users with:
 Do NOT act as a general-purpose chatbot.
 
 Do NOT answer unrelated questions about:
+
 - politics
 - news
 - entertainment
@@ -201,9 +201,7 @@ async function callGemini(apiKey, contents) {
                 }
             ]
         },
-
         contents,
-
         generationConfig: {
             maxOutputTokens: MAX_OUTPUT_TOKENS
         }
@@ -211,12 +209,10 @@ async function callGemini(apiKey, contents) {
 
     const response = await fetch(url, {
         method: "POST",
-
         headers: {
             "Content-Type": "application/json",
             "x-goog-api-key": apiKey
         },
-
         body: JSON.stringify(body)
     });
 
@@ -263,12 +259,10 @@ async function callGrok(apiKey, messages) {
 
     const response = await fetch(url, {
         method: "POST",
-
         headers: {
             "Content-Type": "application/json",
             "Authorization": `Bearer ${apiKey}`
         },
-
         body: JSON.stringify(body)
     });
 
@@ -333,10 +327,7 @@ function getBearerToken(request) {
         .trim();
 }
 
-async function verifySupabaseUser(
-    env,
-    accessToken
-) {
+async function verifySupabaseUser(env, accessToken) {
     if (
         !env.SUPABASE_URL ||
         !env.SUPABASE_PUBLISHABLE_KEY
@@ -350,13 +341,9 @@ async function verifySupabaseUser(
         `${env.SUPABASE_URL}/auth/v1/user`,
         {
             method: "GET",
-
             headers: {
-                "apikey":
-                    env.SUPABASE_PUBLISHABLE_KEY,
-
-                "Authorization":
-                    `Bearer ${accessToken}`
+                "apikey": env.SUPABASE_PUBLISHABLE_KEY,
+                "Authorization": `Bearer ${accessToken}`
             }
         }
     );
@@ -378,16 +365,10 @@ async function verifySupabaseUser(
 export async function onRequestOptions() {
     return new Response(null, {
         status: 204,
-
         headers: {
-            "Access-Control-Allow-Origin":
-                ALLOWED_ORIGIN,
-
-            "Access-Control-Allow-Headers":
-                "Content-Type, Authorization",
-
-            "Access-Control-Allow-Methods":
-                "POST, OPTIONS"
+            "Access-Control-Allow-Origin": ALLOWED_ORIGIN,
+            "Access-Control-Allow-Headers": "Content-Type, Authorization",
+            "Access-Control-Allow-Methods": "POST, OPTIONS"
         }
     });
 }
@@ -463,8 +444,7 @@ export async function onRequestPost(context) {
     if (!message) {
         return json(
             {
-                error:
-                    "Please enter a message."
+                error: "Please enter a message."
             },
             400
         );
@@ -486,7 +466,6 @@ export async function onRequestPost(context) {
     if (!looksOnTopic(message)) {
         return json({
             provider: "guard",
-
             answer:
                 "I'm Worth It AI, so I can only help with Worth It, its calculators, calculations, comparisons, costs, savings, and website features."
         });
@@ -503,17 +482,14 @@ export async function onRequestPost(context) {
                 item.role === "assistant"
                     ? "model"
                     : "user",
-
             parts: [
                 {
                     text: item.content
                 }
             ]
         })),
-
         {
             role: "user",
-
             parts: [
                 {
                     text: message
@@ -525,19 +501,14 @@ export async function onRequestPost(context) {
     const grokMessages = [
         {
             role: "system",
-
-            content:
-                SYSTEM_PROMPT
+            content: SYSTEM_PROMPT
         },
-
         ...history.map(item => ({
             role: item.role,
             content: item.content
         })),
-
         {
             role: "user",
-
             content: message
         }
     ];
@@ -565,17 +536,12 @@ export async function onRequestPost(context) {
         });
 
     } catch (geminiError) {
-
         console.error(
             "Gemini request failed:",
             geminiError
         );
 
-        if (
-            !shouldFallback(
-                geminiError
-            )
-        ) {
+        if (!shouldFallback(geminiError)) {
             return json(
                 {
                     error:
@@ -604,24 +570,4 @@ export async function onRequestPost(context) {
             );
 
         return json({
-            provider: "grok",
-            answer
-        });
-
-    } catch (grokError) {
-
-        console.error(
-            "Grok fallback request failed:",
-            grokError
-        );
-
-        return json(
-            {
-                error:
-                    "Both Worth It AI providers are temporarily unavailable. Please try again later."
-            },
-            503
-        );
-    }
-}
-```
+            provider
