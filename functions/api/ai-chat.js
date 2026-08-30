@@ -31,8 +31,8 @@ const TOPIC_TERMS = [
     "insurance",
     "repair",
     "replace",
-    "subscribe",
     "subscription",
+    "subscribe",
     "rent",
     "buy",
     "buying",
@@ -54,10 +54,10 @@ const TOPIC_TERMS = [
     "emergency fund",
     "compound",
     "price increase",
+    "profile",
     "friends",
     "followers",
     "following",
-    "profile",
     "settings",
     "bug",
     "suggestion",
@@ -72,7 +72,10 @@ function json(data, status = 200, extra = {}) {
             "Content-Type": "application/json; charset=utf-8",
             "Cache-Control": "no-store",
             "Access-Control-Allow-Origin": ALLOWED_ORIGIN,
-            "Access-Control-Allow-Headers": "Content-Type, Authorization",
+            "Access-Control-Allow-Headers":
+                "Content-Type, Authorization",
+            "Access-Control-Allow-Methods":
+                "POST, OPTIONS",
             ...extra
         }
     });
@@ -85,11 +88,10 @@ function normalizeHistory(history) {
 
     return history
         .slice(-MAX_HISTORY_ITEMS)
-        .filter(
-            item =>
-                item &&
-                (item.role === "user" || item.role === "assistant") &&
-                typeof item.content === "string"
+        .filter(item =>
+            item &&
+            (item.role === "user" || item.role === "assistant") &&
+            typeof item.content === "string"
         )
         .map(item => ({
             role: item.role,
@@ -110,54 +112,68 @@ You are Worth It AI, the official assistant for the Worth It decision-calculator
 
 Your job is strictly limited to helping users with:
 - the Worth It website
-- its calculators
-- calculations
+- Worth It calculators
 - calculator inputs
+- mathematical calculations related to the calculators
 - formulas used by the calculators
 - cost comparisons
 - savings comparisons
 - purchase decisions
 - cars
+- electric vehicles
+- gasoline vehicles
 - money calculations
+- saving
+- investing
+- loans
+- income and salary calculations
 - technology purchase calculations
+- PC upgrades
+- phone upgrades
 - home-cost calculations
+- rent versus buying
+- mortgage calculations
+- electricity
+- energy
+- solar panels
+- heating
 - account features
 - profile features
-- friends/followers/following features
+- friends
+- followers
+- following
 - website settings
 - bugs and suggestions related to Worth It
 
 Do NOT act as a general-purpose chatbot.
 
-Do NOT answer:
-- general politics
+Do NOT answer unrelated questions about:
+- politics
 - news
 - entertainment
-- unrelated coding questions
+- medicine
+- law
 - unrelated programming
-- medical questions
-- legal questions
+- unrelated coding
+- gaming unrelated to Worth It
+- general trivia
 - unrelated personal advice
-- unrelated trivia
-- requests unrelated to Worth It
+- unrelated products or services
+- topics unrelated to Worth It
 
-For an off-topic question, politely explain that you only help with Worth It and its calculators.
-
-Do not claim access to:
-- private databases
-- Supabase tables
-- Cloudflare settings
-- GitHub repositories
-- private user data
-- hidden website infrastructure
-
-unless the user explicitly provides that information in the conversation.
+If the user asks an unrelated question, politely explain that you only help with Worth It and its calculators.
 
 Do not invent numerical values.
 
-When a calculation requires user inputs, explain which inputs are needed.
+If a calculation requires information from the user, clearly state which inputs are needed.
 
-Keep answers concise, useful and practical.
+When discussing a Worth It calculator, explain calculations in a simple and understandable way.
+
+You may explain formulas and show arithmetic when that directly relates to Worth It.
+
+Do not claim access to private databases, private user information, Supabase tables, Cloudflare configuration, GitHub repositories, or hidden infrastructure unless that information is explicitly provided by the user.
+
+Keep responses concise and useful.
 
 You are not a replacement for professional financial advice.
 `;
@@ -176,6 +192,12 @@ async function callGemini(apiKey, contents) {
     const url =
         `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(GEMINI_MODEL)}:generateContent`;
 
+    /*
+     * Gemini 3.7 Flash:
+     * Keep generation config minimal.
+     * Do not send deprecated sampling parameters such as temperature.
+     */
+
     const body = {
         system_instruction: {
             parts: [
@@ -188,8 +210,7 @@ async function callGemini(apiKey, contents) {
         contents,
 
         generationConfig: {
-            maxOutputTokens: MAX_OUTPUT_TOKENS,
-            temperature: 0.2
+            maxOutputTokens: MAX_OUTPUT_TOKENS
         }
     };
 
@@ -214,6 +235,7 @@ async function callGemini(apiKey, contents) {
         );
 
         error.status = response.status;
+        error.provider = "gemini";
 
         throw error;
     }
@@ -221,9 +243,14 @@ async function callGemini(apiKey, contents) {
     const text = extractGeminiText(data);
 
     if (!text) {
-        throw new Error(
+        const error = new Error(
             "Gemini returned an empty response."
         );
+
+        error.status = 502;
+        error.provider = "gemini";
+
+        throw error;
     }
 
     return text;
@@ -237,8 +264,6 @@ async function callGrok(apiKey, messages) {
         model: GROK_MODEL,
 
         messages,
-
-        temperature: 0.2,
 
         max_tokens: MAX_OUTPUT_TOKENS
     };
@@ -264,6 +289,7 @@ async function callGrok(apiKey, messages) {
         );
 
         error.status = response.status;
+        error.provider = "grok";
 
         throw error;
     }
@@ -274,9 +300,14 @@ async function callGrok(apiKey, messages) {
         ).trim();
 
     if (!text) {
-        throw new Error(
+        const error = new Error(
             "Grok returned an empty response."
         );
+
+        error.status = 502;
+        error.provider = "grok";
+
+        throw error;
     }
 
     return text;
@@ -286,21 +317,82 @@ function shouldFallback(error) {
     const status =
         Number(error?.status || 0);
 
+    /*
+     * Gemini -> Grok fallback only for
+     * temporary/provider capacity problems.
+     */
+
     return (
         status === 408 ||
         status === 429 ||
-        status >= 500
+        status === 500 ||
+        status === 502 ||
+        status === 503 ||
+        status === 504
     );
 }
 
-export async function onRequestOptions(context) {
+function getBearerToken(request) {
+    const authorization =
+        request.headers.get("Authorization") || "";
+
+    if (!authorization.startsWith("Bearer ")) {
+        return "";
+    }
+
+    return authorization
+        .slice("Bearer ".length)
+        .trim();
+}
+
+async function verifySupabaseUser(
+    env,
+    accessToken
+) {
+    if (
+        !env.SUPABASE_URL ||
+        !env.SUPABASE_PUBLISHABLE_KEY
+    ) {
+        throw new Error(
+            "Supabase environment variables are missing."
+        );
+    }
+
+    const response = await fetch(
+        `${env.SUPABASE_URL}/auth/v1/user`,
+        {
+            method: "GET",
+
+            headers: {
+                "apikey":
+                    env.SUPABASE_PUBLISHABLE_KEY,
+
+                "Authorization":
+                    `Bearer ${accessToken}`
+            }
+        }
+    );
+
+    if (!response.ok) {
+        return null;
+    }
+
+    return response
+        .json()
+        .catch(() => null);
+}
+
+export async function onRequestOptions() {
     return new Response(null, {
         status: 204,
 
         headers: {
-            "Access-Control-Allow-Origin": ALLOWED_ORIGIN,
+            "Access-Control-Allow-Origin":
+                ALLOWED_ORIGIN,
+
             "Access-Control-Allow-Headers":
                 "Content-Type, Authorization",
+
             "Access-Control-Allow-Methods":
                 "POST, OPTIONS"
         }
@@ -312,6 +404,11 @@ export async function onRequestPost(context) {
         request,
         env
     } = context;
+
+    /*
+     * Security:
+     * only allow requests from the Worth It website.
+     */
 
     const origin =
         request.headers.get("Origin") || "";
@@ -328,25 +425,12 @@ export async function onRequestPost(context) {
         );
     }
 
-    const authorization =
-        request.headers.get("Authorization") || "";
-
-    if (
-        !authorization.startsWith("Bearer ")
-    ) {
-        return json(
-            {
-                error:
-                    "Please sign in to use Worth It AI."
-            },
-            401
-        );
-    }
+    /*
+     * Require a Supabase login.
+     */
 
     const accessToken =
-        authorization
-            .slice("Bearer ".length)
-            .trim();
+        getBearerToken(request);
 
     if (!accessToken) {
         return json(
@@ -359,65 +443,45 @@ export async function onRequestPost(context) {
     }
 
     /*
-     * Verify the Supabase access token
-     * using Supabase's /auth/v1/user endpoint.
+     * Verify that the Supabase session
+     * really belongs to a logged-in user.
      */
 
-    const supabaseUrl =
-        env.SUPABASE_URL;
-
-    const supabaseKey =
-        env.SUPABASE_PUBLISHABLE_KEY;
-
-    if (
-        !supabaseUrl ||
-        !supabaseKey
-    ) {
-        return json(
-            {
-                error:
-                    "AI authentication is not configured."
-            },
-            500
+    const user =
+        await verifySupabaseUser(
+            env,
+            accessToken
         );
-    }
 
-    const userResponse = await fetch(
-        `${supabaseUrl}/auth/v1/user`,
-        {
-            headers: {
-                apikey: supabaseKey,
-                Authorization:
-                    `Bearer ${accessToken}`
-            }
-        }
-    );
-
-    if (!userResponse.ok) {
+    if (!user) {
         return json(
             {
                 error:
-                    "Your sign-in session is not valid. Please sign in again."
+                    "Your login session is invalid or expired. Please sign in again."
             },
             401
         );
     }
 
-    let body = {};
+    /*
+     * Read request body.
+     */
+
+    let body;
 
     try {
         body = await request.json();
     } catch {
         return json(
             {
-                error: "Invalid request."
+                error: "Invalid JSON request."
             },
             400
         );
     }
 
     const message =
-        typeof body.message === "string"
+        typeof body?.message === "string"
             ? body.message.trim()
             : "";
 
@@ -445,8 +509,10 @@ export async function onRequestPost(context) {
     }
 
     /*
-     * Cheap local filter before spending
-     * an AI request on clearly unrelated questions.
+     * Cheap local filter.
+     *
+     * This prevents obviously unrelated questions
+     * from spending an AI request.
      */
 
     if (!looksOnTopic(message)) {
@@ -454,19 +520,17 @@ export async function onRequestPost(context) {
             provider: "guard",
 
             answer:
-                "I'm Worth It AI, so I can only help with Worth It, its calculators, calculations, comparisons, costs, savings, and website features. Ask me something related to the site."
+                "I'm Worth It AI, so I can only help with Worth It, its calculators, calculations, comparisons, costs, savings, and website features."
         });
     }
 
     const history =
         normalizeHistory(
-            body.history
+            body?.history
         );
 
     /*
-     * Gemini uses:
-     * user -> user
-     * assistant -> model
+     * Build Gemini conversation.
      */
 
     const geminiContents = [
@@ -495,7 +559,7 @@ export async function onRequestPost(context) {
     ];
 
     /*
-     * Grok uses standard chat-completion roles.
+     * Build Grok conversation.
      */
 
     const grokMessages = [
@@ -508,35 +572,34 @@ export async function onRequestPost(context) {
 
         ...history.map(item => ({
             role: item.role,
-
-            content:
-                item.content
+            content: item.content
         })),
 
         {
             role: "user",
 
-            content:
-                message
+            content: message
         }
     ];
 
-    if (
-        !env.GEMINI_API_KEY ||
-        !env.XAI_API_KEY
-    ) {
+    /*
+     * Make sure provider secrets exist.
+     */
+
+    if (!env.GEMINI_API_KEY) {
         return json(
             {
                 error:
-                    "AI provider secrets are not configured yet."
+                    "Gemini API key is not configured."
             },
             503
         );
     }
 
     /*
-     * Primary provider:
-     * Gemini
+     * =====================================================
+     * PRIMARY: GEMINI
+     * =====================================================
      */
 
     try {
@@ -552,14 +615,18 @@ export async function onRequestPost(context) {
         });
 
     } catch (geminiError) {
+
         console.error(
-            "Gemini primary request failed:",
+            "Gemini request failed:",
             geminiError
         );
 
         /*
-         * Only use Grok when Gemini is temporarily
-         * unavailable or rate limited.
+         * Do not automatically spend a Grok request
+         * for ordinary Gemini errors.
+         *
+         * Grok is reserved as a backup for
+         * rate limits and temporary provider failures.
          */
 
         if (
@@ -578,9 +645,20 @@ export async function onRequestPost(context) {
     }
 
     /*
-     * Backup provider:
-     * Grok
+     * =====================================================
+     * BACKUP: GROK
+     * =====================================================
      */
+
+    if (!env.XAI_API_KEY) {
+        return json(
+            {
+                error:
+                    "Gemini is temporarily unavailable and Grok backup is not configured."
+            },
+            503
+        );
+    }
 
     try {
         const answer =
@@ -595,6 +673,7 @@ export async function onRequestPost(context) {
         });
 
     } catch (grokError) {
+
         console.error(
             "Grok fallback request failed:",
             grokError
