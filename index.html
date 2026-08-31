@@ -2766,15 +2766,21 @@ function openCalculator(type){
 
     if(type==="cars"){
 
-        $("carsApp").classList.add("active");
+    $("carsApp").classList.add("active");
 
-    }else{
+}else if(type==="calculator"){
 
-        $("genericApp").classList.add("active");
+    $("calculatorApp").classList.add("active");
 
-        setupGeneric(type);
+    setCalculatorMode("basic");
 
-    }
+}else{
+
+    $("genericApp").classList.add("active");
+
+    setupGeneric(type);
+
+}
 
     window.scrollTo({
         top:0,
