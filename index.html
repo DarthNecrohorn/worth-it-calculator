@@ -1374,14 +1374,22 @@ html[data-theme="light"] .ai-chat-nav-btn{color:#0f172a;background:rgba(15,23,42
             <span>Worth It</span>
         </a>
 
-        <div class="nav-links" id="navLinks">
-            <button onclick="showHome()">Home</button>
-            <button onclick="showCategory('cars')">Cars</button>
-            <button onclick="showCategory('money')">Money</button>
-            <button onclick="showCategory('technology')">Technology</button>
-            <button onclick="showCategory('home')">Home Costs</button>
-            <button onclick="scrollToFAQ()">FAQ</button>
-        </div>
+<div class="nav-links" id="navLinks">
+    <button onclick="showHome()">Home</button>
+    <button onclick="showCategory('cars')">Cars</button>
+    <button onclick="showCategory('money')">Money</button>
+    <button onclick="showCategory('technology')">Technology</button>
+    <button onclick="showCategory('home')">Home Costs</button>
+    <button onclick="scrollToFAQ()">FAQ</button>
+
+    <button onclick="openWeather()">🌤️ Weather</button>
+    <button onclick="openNews()">📰 News</button>
+    <button onclick="openDiscounts()">🏷️ Discounts</button>
+
+    <span class="nav-calculator-spacer"></span>
+
+    <button onclick="openCalculator('calculator')">🧮 Calculator</button>
+</div>
 
         <button class="menu-btn" onclick="toggleMenu()">☰</button>
 
