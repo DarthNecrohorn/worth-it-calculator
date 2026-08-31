@@ -3110,7 +3110,7 @@ function calculatorPress(value){
         return;
     }
 
-  /* PLUS / MINUS */
+ /* PLUS / MINUS */
 if(value === "±"){
 
     if(calculatorExpression === ""){
@@ -3136,22 +3136,41 @@ if(value === "±"){
         calculatorExpression.slice(0,start);
 
     /*
-     * If the number is already negative,
-     * remove the minus sign.
+     * Negative number at the beginning:
+     * −5 → 5
      */
     if(
+        before === "−" ||
+        before === "-"
+    ){
+
+        calculatorExpression = number;
+
+    }
+
+    /*
+     * Number after an operator:
+     * 5 − 3 → 5 − −3
+     */
+    else if(
+        before.endsWith("−") ||
         before.endsWith("-") ||
-        before.endsWith("−")
+        before.endsWith("+") ||
+        before.endsWith("×") ||
+        before.endsWith("÷")
     ){
 
         calculatorExpression =
-            before.slice(0,-1) + number;
+            before + "−" + number;
 
-    }else{
+    }
 
-        /*
-         * Otherwise make the number negative.
-         */
+    /*
+     * Positive standalone number:
+     * 5 → −5
+     */
+    else{
+
         calculatorExpression =
             before + "−" + number;
     }
