@@ -2831,6 +2831,209 @@ function setCalculatorMode(mode){
 }
 
 /* =========================================================
+   STANDARD CALCULATOR
+========================================================= */
+
+let calculatorExpression = "";
+
+function renderCalculator(){
+
+    const keypad = $("calculatorKeypad");
+
+    if(!keypad) return;
+
+    let buttons = [];
+
+    if(calculatorMode === "basic"){
+
+        buttons = [
+            ["C","clear"],
+            ["⌫","backspace"],
+            ["÷","operator"],
+            ["×","operator"],
+
+            ["7","number"],
+            ["8","number"],
+            ["9","number"],
+            ["−","operator"],
+
+            ["4","number"],
+            ["5","number"],
+            ["6","number"],
+            ["+","operator"],
+
+            ["1","number"],
+            ["2","number"],
+            ["3","number"],
+            ["=","equals"],
+
+            ["0","number"],
+            [".","number"]
+        ];
+
+    }else if(calculatorMode === "advanced"){
+
+        buttons = [
+            ["C","clear"],
+            ["⌫","backspace"],
+            ["÷","operator"],
+            ["×","operator"],
+
+            ["7","number"],
+            ["8","number"],
+            ["9","number"],
+            ["−","operator"],
+
+            ["4","number"],
+            ["5","number"],
+            ["6","number"],
+            ["+","operator"],
+
+            ["1","number"],
+            ["2","number"],
+            ["3","number"],
+            ["=","equals"],
+
+            ["0","number"],
+            [".","number"],
+            ["%","operator"],
+            ["±","operator"]
+        ];
+
+    }else{
+
+        buttons = [
+            ["C","clear"],
+            ["⌫","backspace"],
+            ["(","operator"],
+            [")","operator"],
+            ["÷","operator"],
+
+            ["sin","function"],
+            ["cos","function"],
+            ["tan","function"],
+            ["√","function"],
+            ["π","constant"],
+
+            ["7","number"],
+            ["8","number"],
+            ["9","number"],
+            ["×","operator"],
+            ["^","operator"],
+
+            ["4","number"],
+            ["5","number"],
+            ["6","number"],
+            ["−","operator"],
+            ["log","function"],
+
+            ["1","number"],
+            ["2","number"],
+            ["3","number"],
+            ["+","operator"],
+            ["ln","function"],
+
+            ["0","number"],
+            [".","number"],
+            ["%","operator"],
+            ["=","equals"]
+        ];
+
+    }
+
+    keypad.innerHTML = buttons.map(([label,type]) => `
+        <button
+            type="button"
+            class="calculator-key ${type}"
+            onclick="calculatorPress('${label}')">
+            ${label}
+        </button>
+    `).join("");
+
+    updateCalculatorDisplay();
+}
+
+function calculatorPress(value){
+
+    const display = $("calculatorDisplay");
+
+    if(!display) return;
+
+    if(value === "C"){
+        calculatorExpression = "";
+        updateCalculatorDisplay();
+        return;
+    }
+
+    if(value === "⌫"){
+        calculatorExpression =
+            calculatorExpression.slice(0,-1);
+
+        updateCalculatorDisplay();
+        return;
+    }
+
+    if(value === "="){
+        calculateExpression();
+        return;
+    }
+
+    calculatorExpression += value;
+
+    updateCalculatorDisplay();
+}
+
+function updateCalculatorDisplay(){
+
+    const display = $("calculatorDisplay");
+
+    if(!display) return;
+
+    display.textContent =
+        calculatorExpression || "0";
+}
+
+function calculateExpression(){
+
+    try{
+
+        let expression =
+            calculatorExpression
+                .replaceAll("×","*")
+                .replaceAll("÷","/")
+                .replaceAll("−","-")
+                .replaceAll("^","**");
+
+        if(!expression.trim()){
+            return;
+        }
+
+        const result =
+            Function(`"use strict"; return (${expression})`)();
+
+        if(!Number.isFinite(result)){
+            throw new Error("Invalid result");
+        }
+
+        calculatorExpression =
+            String(result);
+
+        updateCalculatorDisplay();
+
+    }catch(error){
+
+        calculatorExpression = "";
+
+        const display =
+            $("calculatorDisplay");
+
+        if(display){
+            display.textContent = "Error";
+        }
+    }
+}
+
+/* =========================================================
    EV VS GAS
 ========================================================= */
 
