@@ -3292,6 +3292,10 @@ function updateCalculatorDisplay(){
         calculatorExpression || "0";
 }
 
+/* =========================================================
+   CALCULATE EXPRESSION
+========================================================= */
+
 function calculateExpression(){
 
     try{
@@ -3304,16 +3308,19 @@ function calculateExpression(){
                 .replaceAll("^","**")
                 .replaceAll("π","Math.PI");
 
+        /* SCIENTIFIC FUNCTIONS */
+
         expression =
             expression
                 .replaceAll("sin(","Math.sin(")
                 .replaceAll("cos(","Math.cos(")
                 .replaceAll("tan(","Math.tan(")
-                .replaceAll("sqrt(","Math.sqrt(")
+                .replaceAll("√(","Math.sqrt(")
                 .replaceAll("log(","Math.log10(")
                 .replaceAll("ln(","Math.log(");
 
         /* PERCENT */
+
         expression =
             expression.replace(
                 /(-?\d*\.?\d+)%/g,
@@ -3321,6 +3328,7 @@ function calculateExpression(){
             );
 
         /* AUTO CLOSE PARENTHESES */
+
         let open =
             (expression.match(/\(/g) || []).length;
 
