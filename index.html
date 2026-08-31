@@ -3068,16 +3068,16 @@ function renderCalculator(){
 
     }
 
-    keypad.innerHTML = buttons.map(([label,type]) => `
-        <button
-            type="button"
-            class="calculator-key ${type}"
-            onclick="calculatorPress('${label}')">
-            ${label}
-        </button>
-    `).join("");
+   keypad.innerHTML = buttons.map(([label,type]) => `
+    <button
+        type="button"
+        class="calculator-key ${type}"
+        onclick="calculatorPress('${label}')">
+        ${label}
+    </button>
+`).join("");
 
-    updateCalculatorDisplay();
+updateCalculatorDisplay();
 }
 
 function calculatorPress(value){
@@ -3105,10 +3105,108 @@ function calculatorPress(value){
         return;
     }
 
+    if(value === "±"){
+
+        const match =
+            calculatorExpression.match(/(-?\d*\.?\d+)$/);
+
+        if(match){
+
+            const number = match[1];
+
+            const start =
+                calculatorExpression.length - number.length;
+
+            if(number.startsWith("-")){
+
+                calculatorExpression =
+                    calculatorExpression.slice(0,start) +
+                    number.slice(1);
+
+            }else{
+
+                calculatorExpression =
+                    calculatorExpression.slice(0,start) +
+                    "-" + number;
+            }
+
+        }else if(calculatorExpression === ""){
+
+            calculatorExpression = "-";
+        }
+
+        updateCalculatorDisplay();
+        return;
+    }
+
+    if(value === "%"){
+
+        const match =
+            calculatorExpression.match(/(\d*\.?\d+)$/);
+
+        if(match){
+
+            const number = match[1];
+
+            calculatorExpression =
+                calculatorExpression.slice(
+                    0,
+                    calculatorExpression.length - number.length
+                ) +
+                "(" + number + "/100)";
+        }
+
+        updateCalculatorDisplay();
+        return;
+    }
+
+    if(value === "sin"){
+        calculatorExpression += "sin(";
+        updateCalculatorDisplay();
+        return;
+    }
+
+    if(value === "cos"){
+        calculatorExpression += "cos(";
+        updateCalculatorDisplay();
+        return;
+    }
+
+    if(value === "tan"){
+        calculatorExpression += "tan(";
+        updateCalculatorDisplay();
+        return;
+    }
+
+    if(value === "√"){
+        calculatorExpression += "sqrt(";
+        updateCalculatorDisplay();
+        return;
+    }
+
+    if(value === "log"){
+        calculatorExpression += "log(";
+        updateCalculatorDisplay();
+        return;
+    }
+
+    if(value === "ln"){
+        calculatorExpression += "ln(";
+        updateCalculatorDisplay();
+        return;
+    }
+
+    if(value === "π"){
+        calculatorExpression += "π";
+        updateCalculatorDisplay();
+        return;
+    }
+
     calculatorExpression += value;
 
     updateCalculatorDisplay();
 }
+
 
 function updateCalculatorDisplay(){
 
@@ -3120,6 +3218,7 @@ function updateCalculatorDisplay(){
         calculatorExpression || "0";
 }
 
+
 function calculateExpression(){
 
     try{
@@ -3129,14 +3228,23 @@ function calculateExpression(){
                 .replaceAll("×","*")
                 .replaceAll("÷","/")
                 .replaceAll("−","-")
-                .replaceAll("^","**");
+                .replaceAll("^","**")
+                .replaceAll("π","Math.PI")
+                .replaceAll("sin","Math.sin")
+                .replaceAll("cos","Math.cos")
+                .replaceAll("tan","Math.tan")
+                .replaceAll("sqrt","Math.sqrt")
+                .replaceAll("log","Math.log10")
+                .replaceAll("ln","Math.log");
 
         if(!expression.trim()){
             return;
         }
 
         const result =
-            Function(`"use strict"; return (${expression})`)();
+            Function(
+                `"use strict"; return (${expression})`
+            )();
 
         if(!Number.isFinite(result)){
             throw new Error("Invalid result");
@@ -3148,6 +3256,8 @@ function calculateExpression(){
         updateCalculatorDisplay();
 
     }catch(error){
+
+        console.error("Calculator error:",error);
 
         calculatorExpression = "";
 
@@ -3163,7 +3273,6 @@ function calculateExpression(){
 /* =========================================================
    EV VS GAS
 ========================================================= */
-
 function calculateCars(){
 
     $("carResults").style.display="block";
