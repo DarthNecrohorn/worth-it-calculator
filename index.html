@@ -3253,6 +3253,31 @@ const sunset =
                 const current =
                     data.current;
 
+                                const daily =
+                    data.daily;
+
+                if(sunrise && daily.sunrise){
+                    sunrise.textContent =
+                        new Date(daily.sunrise[0]).toLocaleTimeString(
+                            "en-US",
+                            {
+                                hour: "2-digit",
+                                minute: "2-digit"
+                            }
+                        );
+                }
+
+                if(sunset && daily.sunset){
+                    sunset.textContent =
+                        new Date(daily.sunset[0]).toLocaleTimeString(
+                            "en-US",
+                            {
+                                hour: "2-digit",
+                                minute: "2-digit"
+                            }
+                        );
+                }
+                
                 temperature.textContent =
                     `${Math.round(current.temperature_2m)}°C`;
 
