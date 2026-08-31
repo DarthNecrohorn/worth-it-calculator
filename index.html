@@ -2941,7 +2941,7 @@ function openCalculator(type){
 
 function openWeather(){
 
-    hideHome();
+    $("homePage").style.display = "none";
 
     document.querySelectorAll(".app")
         .forEach(x=>x.classList.remove("active"));
