@@ -1563,6 +1563,110 @@ html[data-theme="light"] .ai-chat-nav-btn{color:#0f172a;background:rgba(15,23,42
 
 }
 
+/* =========================================================
+   MAIN WEATHER CARD
+========================================================= */
+
+.weather-card {
+    width: 100%;
+    max-width: 900px;
+    margin: 0 auto 28px;
+    padding: 28px;
+    border-radius: 22px;
+    background: rgba(255,255,255,0.045);
+    border: 1px solid rgba(255,255,255,0.10);
+    box-sizing: border-box;
+}
+
+.weather-location {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 24px;
+    font-size: 15px;
+    opacity: 0.85;
+}
+
+.weather-main {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 22px;
+    padding: 10px 0 28px;
+}
+
+.weather-icon {
+    font-size: 64px;
+    line-height: 1;
+}
+
+.weather-temperature {
+    font-size: 52px;
+    font-weight: 800;
+    line-height: 1;
+    letter-spacing: -1px;
+}
+
+.weather-description {
+    margin-top: 10px;
+    font-size: 16px;
+    opacity: 0.7;
+}
+
+.weather-details {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    border-top: 1px solid rgba(255,255,255,0.08);
+    padding-top: 20px;
+}
+
+.weather-details > div {
+    text-align: center;
+    padding: 14px;
+    border-radius: 14px;
+    background: rgba(255,255,255,0.035);
+}
+
+.weather-details span {
+    display: block;
+    font-size: 12px;
+    opacity: 0.6;
+    margin-bottom: 6px;
+}
+
+.weather-details strong {
+    font-size: 17px;
+}
+
+@media (max-width: 600px) {
+
+    .weather-card {
+        padding: 20px;
+    }
+
+    .weather-main {
+        gap: 16px;
+    }
+
+    .weather-icon {
+        font-size: 48px;
+    }
+
+    .weather-temperature {
+        font-size: 40px;
+    }
+
+    .weather-details {
+        gap: 8px;
+    }
+
+    .weather-details > div {
+        padding: 12px 6px;
+    }
+
+}
+
 </style>
 </head>
 
