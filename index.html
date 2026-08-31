@@ -3255,7 +3255,6 @@ function updateCalculatorDisplay(){
         calculatorExpression || "0";
 }
 
-
 function calculateExpression(){
 
     try{
@@ -3277,6 +3276,14 @@ function calculateExpression(){
                 .replaceAll("log(","Math.log10(")
                 .replaceAll("ln(","Math.log(");
 
+        /* PERCENT */
+        expression =
+            expression.replace(
+                /(-?\d*\.?\d+)%/g,
+                "($1/100)"
+            );
+
+        /* AUTO CLOSE PARENTHESES */
         let open =
             (expression.match(/\(/g) || []).length;
 
