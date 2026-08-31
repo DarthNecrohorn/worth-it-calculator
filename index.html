@@ -3070,7 +3070,7 @@ function renderCalculator(){
 
     }
 
-   keypad.innerHTML = buttons.map(([label,type]) => `
+keypad.innerHTML = buttons.map(([label,type]) => `
     <button
         type="button"
         class="calculator-key ${type}"
@@ -3123,13 +3123,10 @@ function calculatorPress(value){
                 calculatorExpression.length - number.length;
 
             if(number.startsWith("-")){
-
                 calculatorExpression =
                     calculatorExpression.slice(0,start) +
                     number.slice(1);
-
             }else{
-
                 calculatorExpression =
                     calculatorExpression.slice(0,start) +
                     "-" + number;
@@ -3138,7 +3135,6 @@ function calculatorPress(value){
         }else if(calculatorExpression === ""){
 
             calculatorExpression = "-";
-
         }
 
         updateCalculatorDisplay();
@@ -3169,11 +3165,20 @@ function calculatorPress(value){
 
     /* SCIENTIFIC FUNCTIONS */
 
-    if(value === "sin" ||
-       value === "cos" ||
-       value === "tan" ||
-       value === "log" ||
-       value === "ln"){
+    if(
+        value === "sin" ||
+        value === "cos" ||
+        value === "tan" ||
+        value === "log" ||
+        value === "ln"
+    ){
+
+        if(
+            calculatorExpression &&
+            /[\dπ)]$/.test(calculatorExpression)
+        ){
+            calculatorExpression += "×";
+        }
 
         calculatorExpression += value + "(";
 
@@ -3185,6 +3190,13 @@ function calculatorPress(value){
 
     if(value === "√"){
 
+        if(
+            calculatorExpression &&
+            /[\dπ)]$/.test(calculatorExpression)
+        ){
+            calculatorExpression += "×";
+        }
+
         calculatorExpression += "sqrt(";
 
         updateCalculatorDisplay();
@@ -3195,7 +3207,31 @@ function calculatorPress(value){
 
     if(value === "π"){
 
+        if(
+            calculatorExpression &&
+            /[\d)]$/.test(calculatorExpression)
+        ){
+            calculatorExpression += "×";
+        }
+
         calculatorExpression += "π";
+
+        updateCalculatorDisplay();
+        return;
+    }
+
+    /* OPEN PARENTHESIS */
+
+    if(value === "("){
+
+        if(
+            calculatorExpression &&
+            /[\dπ)]$/.test(calculatorExpression)
+        ){
+            calculatorExpression += "×";
+        }
+
+        calculatorExpression += "(";
 
         updateCalculatorDisplay();
         return;
@@ -3232,12 +3268,6 @@ function calculateExpression(){
                 .replaceAll("^","**")
                 .replaceAll("π","Math.PI");
 
-        /*
-         * Convert scientific functions.
-         * We use explicit replacements so that
-         * function names are converted correctly.
-         */
-
         expression =
             expression
                 .replaceAll("sin(","Math.sin(")
@@ -3246,11 +3276,6 @@ function calculateExpression(){
                 .replaceAll("sqrt(","Math.sqrt(")
                 .replaceAll("log(","Math.log10(")
                 .replaceAll("ln(","Math.log(");
-
-        /*
-         * Automatically close missing parentheses.
-         * This allows √9 and sin(1 to be calculated.
-         */
 
         let open =
             (expression.match(/\(/g) || []).length;
@@ -3296,6 +3321,7 @@ function calculateExpression(){
         }
     }
 }
+
 /* =========================================================
    EV VS GAS
 ========================================================= */
