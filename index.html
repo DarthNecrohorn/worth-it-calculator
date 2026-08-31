@@ -2804,6 +2804,31 @@ function scrollToFAQ(){
     },100);
 }
 
+/* =========================================================
+   STANDARD CALCULATOR MODES
+========================================================= */
+
+let calculatorMode = "basic";
+
+function setCalculatorMode(mode){
+
+    calculatorMode = mode;
+
+    document.querySelectorAll(".calculator-mode-btn")
+        .forEach(btn => {
+            btn.classList.remove("active");
+        });
+
+    const activeButton = document.querySelector(
+        `.calculator-mode-btn[onclick="setCalculatorMode('${mode}')"]`
+    );
+
+    if(activeButton){
+        activeButton.classList.add("active");
+    }
+
+    renderCalculator();
+}
 
 /* =========================================================
    EV VS GAS
