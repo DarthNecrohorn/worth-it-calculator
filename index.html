@@ -3110,11 +3110,17 @@ function calculatorPress(value){
         return;
     }
 
-    /* PLUS / MINUS */
+  /* PLUS / MINUS */
 if(value === "±"){
 
+    if(calculatorExpression === ""){
+        calculatorExpression = "-";
+        updateCalculatorDisplay();
+        return;
+    }
+
     const match =
-        calculatorExpression.match(/(\d*\.?\d+)$/);
+        calculatorExpression.match(/(-?\d*\.?\d+)$/);
 
     if(match){
 
@@ -3123,23 +3129,19 @@ if(value === "±"){
         const start =
             calculatorExpression.length - number.length;
 
-        const before =
-            calculatorExpression.slice(0,start);
-
-        if(before.endsWith("-")){
+        if(number.startsWith("-")){
 
             calculatorExpression =
-                before.slice(0,-1) + number;
+                calculatorExpression.slice(0,start) +
+                number.slice(1);
 
         }else{
 
             calculatorExpression =
-                before + "-" + number;
+                calculatorExpression.slice(0,start) +
+                "-" + number;
         }
 
-    }else if(calculatorExpression === ""){
-
-        calculatorExpression = "-";
     }
 
     updateCalculatorDisplay();
