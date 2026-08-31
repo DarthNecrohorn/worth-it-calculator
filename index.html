@@ -3074,8 +3074,23 @@ async function loadWeather(){
                 description.textContent =
                     weather.text;
 
-                location.textContent =
-                    `${latitude.toFixed(2)}, ${longitude.toFixed(2)}`;
+               const locationResponse =
+    await fetch(
+        `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&zoom=10&addressdetails=1`
+    );
+
+const locationData =
+    await locationResponse.json();
+
+const address =
+    locationData.address || {};
+
+location.textContent =
+    address.city ||
+    address.town ||
+    address.village ||
+    address.municipality ||
+    `${latitude.toFixed(2)}, ${longitude.toFixed(2)}`;
 
             },
 
