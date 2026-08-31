@@ -2935,6 +2935,26 @@ function openCalculator(type){
     $("navLinks").classList.remove("open");
 }
 
+/* =========================================================
+   WEATHER
+========================================================= */
+
+function openWeather(){
+
+    hideHome();
+
+    document.querySelectorAll(".app")
+        .forEach(x=>x.classList.remove("active"));
+
+    $("weatherSection").style.display = "block";
+
+    window.scrollTo({
+        top: 0,
+        behavior: "smooth"
+    });
+
+    $("navLinks").classList.remove("open");
+}
 
 function scrollToFAQ(){
 
