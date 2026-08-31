@@ -3114,50 +3114,51 @@ function calculatorPress(value){
 if(value === "±"){
 
     if(calculatorExpression === ""){
-        calculatorExpression = "-";
+        calculatorExpression = "−";
         updateCalculatorDisplay();
         return;
     }
 
     const match =
-        calculatorExpression.match(/(-?\d*\.?\d+)$/);
+        calculatorExpression.match(/(\d*\.?\d+)$/);
 
-    if(match){
+    if(!match){
+        updateCalculatorDisplay();
+        return;
+    }
 
-        const number = match[1];
+    const number = match[1];
 
-        const start =
-            calculatorExpression.length - number.length;
+    const start =
+        calculatorExpression.length - number.length;
 
-        const before =
-            calculatorExpression.slice(0,start);
+    const before =
+        calculatorExpression.slice(0,start);
 
-        /* Remove existing minus sign */
-        if(number.startsWith("-")){
+    /*
+     * If the number is already negative,
+     * remove the minus sign.
+     */
+    if(
+        before.endsWith("-") ||
+        before.endsWith("−")
+    ){
 
-            calculatorExpression =
-                before + number.slice(1);
+        calculatorExpression =
+            before.slice(0,-1) + number;
 
-        }else{
+    }else{
 
-            /* Do not create −-5 */
-            if(before.endsWith("−")){
-
-                calculatorExpression =
-                    before.slice(0,-1) + "−" + "-" + number;
-
-            }else{
-
-                calculatorExpression =
-                    before + "-" + number;
-            }
-        }
+        /*
+         * Otherwise make the number negative.
+         */
+        calculatorExpression =
+            before + "−" + number;
     }
 
     updateCalculatorDisplay();
     return;
 }
-
     /* PERCENT */
 if(value === "%"){
 
