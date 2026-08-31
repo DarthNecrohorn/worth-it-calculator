@@ -2427,7 +2427,7 @@ html[data-theme="light"] .ai-chat-nav-btn{color:#0f172a;background:rgba(15,23,42
             <p>Check the current weather and forecast.</p>
         </div>
 
-        <div id="weatherContent">
+       <div id="weatherContent">
 
     <div class="weather-card">
 
@@ -2442,6 +2442,7 @@ html[data-theme="light"] .ai-chat-nav-btn{color:#0f172a;background:rgba(15,23,42
 
             <div>
                 <div class="weather-temperature" id="weatherTemperature">--°C</div>
+
                 <div class="weather-description" id="weatherDescription">
                     Loading weather...
                 </div>
@@ -2470,9 +2471,18 @@ html[data-theme="light"] .ai-chat-nav-btn{color:#0f172a;background:rgba(15,23,42
 
     </div>
 
-</div>
+    <div class="weather-forecast">
+
+        <h3>7-day forecast</h3>
+
+        <div
+            class="weather-forecast-grid"
+            id="weatherForecast">
+        </div>
 
     </div>
+
+</div>
 
 </section>
 
