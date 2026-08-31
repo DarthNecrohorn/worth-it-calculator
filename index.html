@@ -2428,8 +2428,49 @@ html[data-theme="light"] .ai-chat-nav-btn{color:#0f172a;background:rgba(15,23,42
         </div>
 
         <div id="weatherContent">
-            <p>Weather loading...</p>
+
+    <div class="weather-card">
+
+        <div class="weather-location">
+            <span>📍</span>
+            <strong id="weatherLocation">Detecting location...</strong>
         </div>
+
+        <div class="weather-main">
+
+            <div class="weather-icon" id="weatherIcon">🌤️</div>
+
+            <div>
+                <div class="weather-temperature" id="weatherTemperature">--°C</div>
+                <div class="weather-description" id="weatherDescription">
+                    Loading weather...
+                </div>
+            </div>
+
+        </div>
+
+        <div class="weather-details">
+
+            <div>
+                <span>Feels like</span>
+                <strong id="weatherFeelsLike">--°C</strong>
+            </div>
+
+            <div>
+                <span>Humidity</span>
+                <strong id="weatherHumidity">--%</strong>
+            </div>
+
+            <div>
+                <span>Wind</span>
+                <strong id="weatherWind">-- km/h</strong>
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
 
     </div>
 
