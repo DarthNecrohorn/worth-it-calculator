@@ -3129,19 +3129,29 @@ if(value === "±"){
         const start =
             calculatorExpression.length - number.length;
 
+        const before =
+            calculatorExpression.slice(0,start);
+
+        /* Remove existing minus sign */
         if(number.startsWith("-")){
 
             calculatorExpression =
-                calculatorExpression.slice(0,start) +
-                number.slice(1);
+                before + number.slice(1);
 
         }else{
 
-            calculatorExpression =
-                calculatorExpression.slice(0,start) +
-                "-" + number;
-        }
+            /* Do not create −-5 */
+            if(before.endsWith("−")){
 
+                calculatorExpression =
+                    before.slice(0,-1) + "−" + "-" + number;
+
+            }else{
+
+                calculatorExpression =
+                    before + "-" + number;
+            }
+        }
     }
 
     updateCalculatorDisplay();
