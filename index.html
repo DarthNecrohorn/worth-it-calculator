@@ -3136,7 +3136,7 @@ if(value === "±"){
         calculatorExpression.slice(0,start);
 
     /*
-     * Negative number at the beginning:
+     * Standalone negative number:
      * −5 → 5
      */
     if(
@@ -3150,7 +3150,7 @@ if(value === "±"){
 
     /*
      * Number after an operator:
-     * 5 − 3 → 5 − −3
+     * 5−3 → 5−(−3)
      */
     else if(
         before.endsWith("−") ||
@@ -3161,12 +3161,12 @@ if(value === "±"){
     ){
 
         calculatorExpression =
-            before + "−" + number;
+            before + "(-" + number + ")";
 
     }
 
     /*
-     * Positive standalone number:
+     * Positive number:
      * 5 → −5
      */
     else{
