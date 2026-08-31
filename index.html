@@ -3142,26 +3142,26 @@ function calculatorPress(value){
     }
 
     /* PERCENT */
-    if(value === "%"){
+if(value === "%"){
 
-        const match =
-            calculatorExpression.match(/(-?\d*\.?\d+)$/);
+    const match =
+        calculatorExpression.match(/(-?\d*\.?\d+)$/);
 
-        if(match){
+    if(match){
 
-            const number = match[1];
+        const number = match[1];
 
-            calculatorExpression =
-                calculatorExpression.slice(
-                    0,
-                    calculatorExpression.length - number.length
-                ) +
-                "(" + number + "/100)";
-        }
-
-        updateCalculatorDisplay();
-        return;
+        calculatorExpression =
+            calculatorExpression.slice(
+                0,
+                calculatorExpression.length - number.length
+            ) +
+            String(Number(number) / 100);
     }
+
+    updateCalculatorDisplay();
+    return;
+}
 
     /* SCIENTIFIC FUNCTIONS */
 
