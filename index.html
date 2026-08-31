@@ -3030,41 +3030,43 @@ function renderCalculator(){
     }else{
 
         buttons = [
-            ["C","clear"],
-            ["⌫","backspace"],
-            ["(","operator"],
-            [")","operator"],
-            ["÷","operator"],
+    ["C","clear"],
+    ["⌫","backspace"],
+    ["(","operator"],
+    [")","operator"],
 
-            ["sin","function"],
-            ["cos","function"],
-            ["tan","function"],
-            ["√","function"],
-            ["π","constant"],
+    ["sin","function"],
+    ["cos","function"],
+    ["tan","function"],
+    ["√","function"],
 
-            ["7","number"],
-            ["8","number"],
-            ["9","number"],
-            ["×","operator"],
-            ["^","operator"],
+    ["π","constant"],
+    ["^","operator"],
+    ["log","function"],
+    ["ln","function"],
 
-            ["4","number"],
-            ["5","number"],
-            ["6","number"],
-            ["−","operator"],
-            ["log","function"],
+    ["7","number"],
+    ["8","number"],
+    ["9","number"],
+    ["÷","operator"],
 
-            ["1","number"],
-            ["2","number"],
-            ["3","number"],
-            ["+","operator"],
-            ["ln","function"],
+    ["4","number"],
+    ["5","number"],
+    ["6","number"],
+    ["×","operator"],
 
-            ["0","number"],
-            [".","number"],
-            ["%","operator"],
-            ["=","equals"]
-        ];
+    ["1","number"],
+    ["2","number"],
+    ["3","number"],
+    ["−","operator"],
+
+    ["0","number"],
+    [".","number"],
+    ["%","operator"],
+    ["+","operator"],
+
+    ["=","equals"]
+];
 
     }
 
@@ -3086,12 +3088,14 @@ function calculatorPress(value){
 
     if(!display) return;
 
+    /* CLEAR */
     if(value === "C"){
         calculatorExpression = "";
         updateCalculatorDisplay();
         return;
     }
 
+    /* BACKSPACE */
     if(value === "⌫"){
         calculatorExpression =
             calculatorExpression.slice(0,-1);
@@ -3100,11 +3104,13 @@ function calculatorPress(value){
         return;
     }
 
+    /* EQUALS */
     if(value === "="){
         calculateExpression();
         return;
     }
 
+    /* PLUS / MINUS */
     if(value === "±"){
 
         const match =
@@ -3113,7 +3119,6 @@ function calculatorPress(value){
         if(match){
 
             const number = match[1];
-
             const start =
                 calculatorExpression.length - number.length;
 
@@ -3133,16 +3138,18 @@ function calculatorPress(value){
         }else if(calculatorExpression === ""){
 
             calculatorExpression = "-";
+
         }
 
         updateCalculatorDisplay();
         return;
     }
 
+    /* PERCENT */
     if(value === "%"){
 
         const match =
-            calculatorExpression.match(/(\d*\.?\d+)$/);
+            calculatorExpression.match(/(-?\d*\.?\d+)$/);
 
         if(match){
 
@@ -3160,47 +3167,41 @@ function calculatorPress(value){
         return;
     }
 
-    if(value === "sin"){
-        calculatorExpression += "sin(";
+    /* SCIENTIFIC FUNCTIONS */
+
+    if(value === "sin" ||
+       value === "cos" ||
+       value === "tan" ||
+       value === "log" ||
+       value === "ln"){
+
+        calculatorExpression += value + "(";
+
         updateCalculatorDisplay();
         return;
     }
 
-    if(value === "cos"){
-        calculatorExpression += "cos(";
-        updateCalculatorDisplay();
-        return;
-    }
-
-    if(value === "tan"){
-        calculatorExpression += "tan(";
-        updateCalculatorDisplay();
-        return;
-    }
+    /* SQUARE ROOT */
 
     if(value === "√"){
+
         calculatorExpression += "sqrt(";
+
         updateCalculatorDisplay();
         return;
     }
 
-    if(value === "log"){
-        calculatorExpression += "log(";
-        updateCalculatorDisplay();
-        return;
-    }
-
-    if(value === "ln"){
-        calculatorExpression += "ln(";
-        updateCalculatorDisplay();
-        return;
-    }
+    /* PI */
 
     if(value === "π"){
+
         calculatorExpression += "π";
+
         updateCalculatorDisplay();
         return;
     }
+
+    /* NORMAL BUTTON */
 
     calculatorExpression += value;
 
@@ -3229,13 +3230,38 @@ function calculateExpression(){
                 .replaceAll("÷","/")
                 .replaceAll("−","-")
                 .replaceAll("^","**")
-                .replaceAll("π","Math.PI")
-                .replaceAll("sin","Math.sin")
-                .replaceAll("cos","Math.cos")
-                .replaceAll("tan","Math.tan")
-                .replaceAll("sqrt","Math.sqrt")
-                .replaceAll("log","Math.log10")
-                .replaceAll("ln","Math.log");
+                .replaceAll("π","Math.PI");
+
+        /*
+         * Convert scientific functions.
+         * We use explicit replacements so that
+         * function names are converted correctly.
+         */
+
+        expression =
+            expression
+                .replaceAll("sin(","Math.sin(")
+                .replaceAll("cos(","Math.cos(")
+                .replaceAll("tan(","Math.tan(")
+                .replaceAll("sqrt(","Math.sqrt(")
+                .replaceAll("log(","Math.log10(")
+                .replaceAll("ln(","Math.log(");
+
+        /*
+         * Automatically close missing parentheses.
+         * This allows √9 and sin(1 to be calculated.
+         */
+
+        let open =
+            (expression.match(/\(/g) || []).length;
+
+        let close =
+            (expression.match(/\)/g) || []).length;
+
+        while(open > close){
+            expression += ")";
+            close++;
+        }
 
         if(!expression.trim()){
             return;
@@ -3257,9 +3283,10 @@ function calculateExpression(){
 
     }catch(error){
 
-        console.error("Calculator error:",error);
-
-        calculatorExpression = "";
+        console.error(
+            "Calculator error:",
+            error
+        );
 
         const display =
             $("calculatorDisplay");
@@ -3269,7 +3296,6 @@ function calculateExpression(){
         }
     }
 }
-
 /* =========================================================
    EV VS GAS
 ========================================================= */
