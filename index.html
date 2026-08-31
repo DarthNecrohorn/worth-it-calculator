@@ -3111,35 +3111,40 @@ function calculatorPress(value){
     }
 
     /* PLUS / MINUS */
-    if(value === "±"){
+if(value === "±"){
 
-        const match =
-            calculatorExpression.match(/(-?\d*\.?\d+)$/);
+    const match =
+        calculatorExpression.match(/(\d*\.?\d+)$/);
 
-        if(match){
+    if(match){
 
-            const number = match[1];
-            const start =
-                calculatorExpression.length - number.length;
+        const number = match[1];
 
-            if(number.startsWith("-")){
-                calculatorExpression =
-                    calculatorExpression.slice(0,start) +
-                    number.slice(1);
-            }else{
-                calculatorExpression =
-                    calculatorExpression.slice(0,start) +
-                    "-" + number;
-            }
+        const start =
+            calculatorExpression.length - number.length;
 
-        }else if(calculatorExpression === ""){
+        const before =
+            calculatorExpression.slice(0,start);
 
-            calculatorExpression = "-";
+        if(before.endsWith("-")){
+
+            calculatorExpression =
+                before.slice(0,-1) + number;
+
+        }else{
+
+            calculatorExpression =
+                before + "-" + number;
         }
 
-        updateCalculatorDisplay();
-        return;
+    }else if(calculatorExpression === ""){
+
+        calculatorExpression = "-";
     }
+
+    updateCalculatorDisplay();
+    return;
+}
 
     /* PERCENT */
 if(value === "%"){
