@@ -3424,7 +3424,8 @@ async function loadNews(){
         latest: $("newsLatest"),
         weird: $("newsWeird"),
         awesome: $("newsAwesome"),
-        underrated: $("newsUnderrated")
+        underrated: $("newsUnderrated"),
+        world: $("newsWorld")
     };
 
     try{
@@ -3471,6 +3472,11 @@ async function loadNews(){
             data.underrated
         );
 
+         renderNewsCategory(
+            categories.world,
+            data.world
+        );
+        
     }catch(error){
 
         console.error(
