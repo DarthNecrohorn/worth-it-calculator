@@ -1,4 +1,3 @@
-```js
 export async function onRequestGet(context) {
 
     const apiKey = context.env.NEWSDATA_API_KEY;
@@ -104,4 +103,3 @@ export async function onRequestGet(context) {
         );
     }
 }
-```
