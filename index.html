@@ -1697,7 +1697,7 @@ html[data-theme="light"] .ai-chat-nav-btn{color:#0f172a;background:rgba(15,23,42
 
 .news-grid {
     display: grid;
-    grid-template-columns: repeat(5, 1fr);
+    grid-template-columns: repeat(5, minmax(0, 1fr));
     gap: 12px;
     align-items: stretch;
 }
@@ -1713,6 +1713,7 @@ html[data-theme="light"] .ai-chat-nav-btn{color:#0f172a;background:rgba(15,23,42
     flex-direction: column;
     height: 100%;
     box-sizing: border-box;
+    min-width: 0;
 }
 
 .news-card:hover {
