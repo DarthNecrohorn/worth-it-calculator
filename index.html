@@ -3405,6 +3405,7 @@ function openNews(){
     document.querySelectorAll(".app")
         .forEach(x => x.classList.remove("active"));
 
+    $("weatherSection").style.display = "none";
     $("newsSection").style.display = "block";
 
     $("navLinks").classList.remove("open");
