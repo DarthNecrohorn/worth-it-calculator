@@ -3398,6 +3398,24 @@ function openWeather(){
     loadWeather();
 }
 
+function openNews(){
+
+    $("homePage").style.display = "none";
+
+    document.querySelectorAll(".app")
+        .forEach(x => x.classList.remove("active"));
+
+    $("newsSection").style.display = "block";
+
+    window.scrollTo({
+        top: 0,
+        behavior: "smooth"
+    });
+
+    $("navLinks").classList.remove("open");
+
+    loadNews();
+}
 
 async function loadWeather(){
 
