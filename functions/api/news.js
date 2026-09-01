@@ -122,10 +122,54 @@ export async function onRequestGet(context) {
 
                         }
 
+                        /*
+                         * Remove duplicate stories.
+                         *
+                         * Some news providers publish the same
+                         * story through multiple sources or feeds.
+                         */
+                        const uniqueArticles = [];
+                        const seenUrls = new Set();
+                        const seenTitles = new Set();
+
+                        for (const article of articles) {
+
+                            const articleUrl =
+                                (article.link || "")
+                                    .trim()
+                                    .toLowerCase();
+
+                            const articleTitle =
+                                (article.title || "")
+                                    .trim()
+                                    .toLowerCase();
+
+                            if (
+                                (articleUrl && seenUrls.has(articleUrl)) ||
+                                (articleTitle && seenTitles.has(articleTitle))
+                            ) {
+                                continue;
+                            }
+
+                            if (articleUrl) {
+                                seenUrls.add(articleUrl);
+                            }
+
+                            if (articleTitle) {
+                                seenTitles.add(articleTitle);
+                            }
+
+                            uniqueArticles.push(article);
+
+                            if (uniqueArticles.length >= 10) {
+                                break;
+                            }
+
+                        }
+
                         return [
                             category,
-                            articles
-                                .slice(0, 10)
+                            uniqueArticles
                                 .map(article => ({
 
                                     title:
@@ -171,10 +215,48 @@ export async function onRequestGet(context) {
                                         q: settings.fallback
                                     });
 
+                                const uniqueArticles = [];
+                                const seenUrls = new Set();
+                                const seenTitles = new Set();
+
+                                for (const article of articles) {
+
+                                    const articleUrl =
+                                        (article.link || "")
+                                            .trim()
+                                            .toLowerCase();
+
+                                    const articleTitle =
+                                        (article.title || "")
+                                            .trim()
+                                            .toLowerCase();
+
+                                    if (
+                                        (articleUrl && seenUrls.has(articleUrl)) ||
+                                        (articleTitle && seenTitles.has(articleTitle))
+                                    ) {
+                                        continue;
+                                    }
+
+                                    if (articleUrl) {
+                                        seenUrls.add(articleUrl);
+                                    }
+
+                                    if (articleTitle) {
+                                        seenTitles.add(articleTitle);
+                                    }
+
+                                    uniqueArticles.push(article);
+
+                                    if (uniqueArticles.length >= 10) {
+                                        break;
+                                    }
+
+                                }
+
                                 return [
                                     category,
-                                    articles
-                                        .slice(0, 10)
+                                    uniqueArticles
                                         .map(article => ({
 
                                             title:
