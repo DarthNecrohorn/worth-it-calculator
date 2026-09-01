@@ -3313,7 +3313,6 @@ function toggleSettings(){
     $("settingsPanel").classList.toggle("open");
 }
 
-
 /* =========================================================
    HOME / NAVIGATION
 ========================================================= */
@@ -3321,120 +3320,32 @@ function toggleSettings(){
 function showHome(){
 
     document.querySelectorAll(".app")
-        .forEach(x=>x.classList.remove("active"));
+        .forEach(x => x.classList.remove("active"));
 
-    $("homePage").style.display="block";
+    $("homePage").style.display = "block";
+
+    $("weatherSection").style.display = "none";
+    $("newsSection").style.display = "none";
 
     document.querySelectorAll(".calc-card")
-        .forEach(card=>{
-            card.style.display="";
+        .forEach(card => {
+            card.style.display = "";
         });
 
     $("categoryDescription").textContent =
         "Find the right tool for your decision.";
 
     window.scrollTo({
-        top:0,
-        behavior:"smooth"
+        top: 0,
+        behavior: "smooth"
     });
+
+    document.documentElement.style.overflowY = "auto";
+    document.body.style.overflowY = "auto";
 
     $("navLinks").classList.remove("open");
 }
 
-function hideHome(){
-    $("homePage").style.display="none";
-}
-
-
-/* =========================================================
-   CATEGORY NAVIGATION
-========================================================= */
-
-function showCategory(category){
-
-    hideHome();
-
-    document.querySelectorAll(".app")
-        .forEach(x=>x.classList.remove("active"));
-
-    $("homePage").style.display="block";
-
-    const cards=document.querySelectorAll(".calc-card");
-
-    cards.forEach(card=>{
-
-        card.style.display =
-            card.dataset.category===category
-            ? ""
-            : "none";
-
-    });
-
-    const descriptions={
-
-    cars:
-        "Car calculators for ownership costs, repairs, buying decisions and transportation.",
-        
-        money:
-            "Financial calculators for saving, investing, loans, purchases and income.",
-
-        technology:
-            "Calculators for deciding whether your next technology upgrade is worth it.",
-
-        home:
-            "Calculators for housing, energy, solar power and heating."
-
-    };
-
-    $("categoryDescription").textContent =
-        descriptions[category] ||
-        "Find the right tool for your decision.";
-
-    $("calculators").scrollIntoView({
-        behavior:"smooth",
-        block:"start"
-    });
-
-    $("navLinks").classList.remove("open");
-}
-
-
-/* =========================================================
-   OPEN CALCULATOR
-========================================================= */
-
-function openCalculator(type){
-
-    hideHome();
-
-    document.querySelectorAll(".app")
-        .forEach(x=>x.classList.remove("active"));
-
-    if(type==="cars"){
-
-    $("carsApp").classList.add("active");
-
-}else if(type==="calculator"){
-
-    $("calculatorApp").classList.add("active");
-
-    setCalculatorMode("basic");
-
-}else{
-
-    $("genericApp").classList.add("active");
-
-    setupGeneric(type);
-
-}
-
-    window.scrollTo({
-        top:0,
-        behavior:"smooth"
-    });
-
-    $("navLinks").classList.remove("open");
-}
 
 /* =========================================================
    WEATHER
@@ -3445,19 +3356,28 @@ function openWeather(){
     $("homePage").style.display = "none";
 
     document.querySelectorAll(".app")
-        .forEach(x=>x.classList.remove("active"));
+        .forEach(x => x.classList.remove("active"));
 
+    $("newsSection").style.display = "none";
     $("weatherSection").style.display = "block";
+
+    $("navLinks").classList.remove("open");
+
+    document.documentElement.style.overflowY = "auto";
+    document.body.style.overflowY = "auto";
 
     window.scrollTo({
         top: 0,
         behavior: "smooth"
     });
 
-    $("navLinks").classList.remove("open");
-
     loadWeather();
 }
+
+
+/* =========================================================
+   NEWS
+========================================================= */
 
 function openNews(){
 
@@ -3471,6 +3391,9 @@ function openNews(){
 
     $("navLinks").classList.remove("open");
 
+    document.documentElement.style.overflowY = "auto";
+    document.body.style.overflowY = "auto";
+
     window.scrollTo({
         top: 0,
         behavior: "smooth"
@@ -3478,87 +3401,8 @@ function openNews(){
 
     loadNews();
 }
+```
 
-async function loadNews(){
-
-    const categories = {
-        latest: $("newsLatest"),
-        weird: $("newsWeird"),
-        awesome: $("newsAwesome"),
-        underrated: $("newsUnderrated"),
-        world: $("newsWorld")
-    };
-
-    try{
-
-        Object.values(categories).forEach(container => {
-
-            if(container){
-                container.innerHTML = `
-                    <div class="news-loading">
-                        Loading news...
-                    </div>
-                `;
-            }
-
-        });
-
-        const response =
-    await fetch("/api/news?v=2");
-        
-        if(!response.ok){
-            throw new Error("News request failed");
-        }
-
-        const data =
-            await response.json();
-        
-        renderNewsCategory(
-            categories.latest,
-            data.latest
-        );
-
-        renderNewsCategory(
-            categories.weird,
-            data.weird
-        );
-
-        renderNewsCategory(
-            categories.awesome,
-            data.awesome
-        );
-
-        renderNewsCategory(
-            categories.underrated,
-            data.underrated
-        );
-
-         renderNewsCategory(
-            categories.world,
-            data.world
-        );
-        
-    }catch(error){
-
-        console.error(
-            "News error:",
-            error
-        );
-
-        Object.values(categories).forEach(container => {
-
-            if(container){
-                container.innerHTML = `
-                    <div class="news-loading">
-                        News unavailable right now.
-                    </div>
-                `;
-            }
-
-        });
-
-    }
-}
 
 
 function renderNewsCategory(
