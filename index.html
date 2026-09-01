@@ -3531,6 +3531,23 @@ function renderNewsCategory(
         return;
     }
 
+        const category =
+        container.closest(".news-category");
+
+    if(category){
+
+        const count =
+            category.querySelector(
+                ".news-category-header span"
+            );
+
+       const visibleCount =
+             Math.min(articles.length, 10);
+
+       count.textContent =
+            `${visibleCount} ${visibleCount === 1 ? "story" : "stories"}`;
+        }
+    
     container.innerHTML = "";
 
     articles
