@@ -30,7 +30,8 @@ export async function onRequestGet(context) {
         },
 
         world: {
-            category: "world"
+            category: "world",
+            fallback: "international OR global OR world"
         }
 
     };
@@ -38,11 +39,10 @@ export async function onRequestGet(context) {
     try {
 
         const results = await Promise.all(
-
             Object.entries(categories).map(
                 async ([category, settings]) => {
 
-                    try {
+                    async function fetchNews(params) {
 
                         const url = new URL(
                             "https://newsdata.io/api/1/latest"
@@ -63,55 +63,69 @@ export async function onRequestGet(context) {
                             "10"
                         );
 
-                        if (settings.category) {
-
+                        if (params.category) {
                             url.searchParams.set(
                                 "category",
-                                settings.category
+                                params.category
                             );
+                        }
 
-                        } else if (settings.q) {
-
+                        if (params.q) {
                             url.searchParams.set(
                                 "q",
-                                settings.q
+                                params.q
                             );
-
                         }
 
                         const response =
                             await fetch(url.toString());
 
-                        if (!response.ok) {
-
-                            console.error(
-                                `${category} request failed: ${response.status}`
-                            );
-
-                            return [
-                                category,
-                                []
-                            ];
-
-                        }
-
                         const data =
                             await response.json();
 
-                        console.log(
-                            `${category} NewsData response:`,
-                            data
-                        );
+                        if (!response.ok) {
+                            throw new Error(
+                                `${category} request failed: ${response.status}`
+                            );
+                        }
 
-                        const articles =
-                            Array.isArray(data.results)
-                                ? data.results
-                                : [];
+                        return Array.isArray(data.results)
+                            ? data.results
+                            : [];
+                    }
+
+                    try {
+
+                        let articles =
+                            await fetchNews({
+                                category:
+                                    settings.category,
+                                q:
+                                    settings.q
+                            });
+
+                        /*
+                         * If World category returns no stories,
+                         * automatically try a keyword-based fallback.
+                         */
+                        if (
+                            category === "world" &&
+                            articles.length === 0 &&
+                            settings.fallback
+                        ) {
+
+                            articles =
+                                await fetchNews({
+                                    q: settings.fallback
+                                });
+
+                        }
 
                         return [
                             category,
-                            articles.slice(0, 10).map(
-                                article => ({
+                            articles
+                                .slice(0, 10)
+                                .map(article => ({
 
                                     title:
                                         article.title || "",
@@ -131,8 +145,7 @@ export async function onRequestGet(context) {
                                     source:
                                         article.source_name || ""
 
-                                })
-                            )
+                                }))
                         ];
 
                     } catch (error) {
@@ -141,6 +154,59 @@ export async function onRequestGet(context) {
                             `${category} error:`,
                             error
                         );
+
+                        /*
+                         * Extra World fallback if category request fails.
+                         */
+                        if (
+                            category === "world" &&
+                            settings.fallback
+                        ) {
+
+                            try {
+
+                                const articles =
+                                    await fetchNews({
+                                        q: settings.fallback
+                                    });
+
+                                return [
+                                    category,
+                                    articles
+                                        .slice(0, 10)
+                                        .map(article => ({
+
+                                            title:
+                                                article.title || "",
+
+                                            description:
+                                                article.description || "",
+
+                                            url:
+                                                article.link || "",
+
+                                            image:
+                                                article.image_url || "",
+
+                                            publishedAt:
+                                                article.pubDate || "",
+
+                                            source:
+                                                article.source_name || ""
+
+                                        }))
+                                ];
+
+                            } catch (fallbackError) {
+
+                                console.error(
+                                    "World fallback error:",
+                                    fallbackError
+                                );
+
+                            }
+
+                        }
 
                         return [
                             category,
@@ -153,12 +219,42 @@ export async function onRequestGet(context) {
             )
         );
 
+        const output =
+            Object.fromEntries(results);
+
+        /*
+         * Make absolutely sure all five keys exist.
+         */
+        output.latest =
+            Array.isArray(output.latest)
+                ? output.latest
+                : [];
+
+        output.weird =
+            Array.isArray(output.weird)
+                ? output.weird
+                : [];
+
+        output.awesome =
+            Array.isArray(output.awesome)
+                ? output.awesome
+                : [];
+
+        output.underrated =
+            Array.isArray(output.underrated)
+                ? output.underrated
+                : [];
+
+        output.world =
+            Array.isArray(output.world)
+                ? output.world
+                : [];
+
         return Response.json(
-            Object.fromEntries(results),
+            output,
             {
                 headers: {
-                    "Cache-Control":
-                        "public, max-age=14400, s-maxage=14400"
+                    "Cache-Control": "no-store"
                 }
             }
         );
