@@ -1,4 +1,3 @@
-```js
 export async function onRequestGet(context) {
 
     const apiKey = context.env.NEWSDATA_API_KEY;
@@ -65,7 +64,6 @@ export async function onRequestGet(context) {
                             "10"
                         );
 
-                        // World koristi NewsData "world" kategoriju
                         if (settings.category) {
 
                             url.searchParams.set(
@@ -75,7 +73,6 @@ export async function onRequestGet(context) {
 
                         }
 
-                        // Ostale kategorije koriste search query
                         if (settings.q) {
 
                             url.searchParams.set(
@@ -181,4 +178,3 @@ export async function onRequestGet(context) {
     }
 
 }
-```
