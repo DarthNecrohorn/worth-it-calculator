@@ -30,7 +30,7 @@ export async function onRequestGet(context) {
         },
 
         world: {
-            category: "world"
+            q: "international OR global OR world"
         }
 
     };
