@@ -30,7 +30,7 @@ const categories = {
 },
 
 world: {
-    q: "international"
+    q: "news"
 }
 
 };
