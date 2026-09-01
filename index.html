@@ -3541,12 +3541,16 @@ function renderNewsCategory(
                 ".news-category-header span"
             );
 
-       const visibleCount =
-             Math.min(articles.length, 10);
+      if(count){
 
-       count.textContent =
-            `${visibleCount} ${visibleCount === 1 ? "story" : "stories"}`;
-        }
+        const visibleCount =
+            Math.min(articles.length, 10);
+
+        count.textContent =
+           `${visibleCount} News`;
+       }
+   
+    }
     
     container.innerHTML = "";
 
