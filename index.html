@@ -3409,14 +3409,12 @@ function openNews(){
 
     $("navLinks").classList.remove("open");
 
-    loadNews();
+    window.scrollTo({
+        top: 0,
+        behavior: "smooth"
+    });
 
-    setTimeout(() => {
-        $("newsSection").scrollIntoView({
-            behavior: "smooth",
-            block: "start"
-        });
-    }, 50);
+    loadNews();
 }
 
 async function loadNews(){
