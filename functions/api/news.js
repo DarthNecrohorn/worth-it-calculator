@@ -1,16 +1,15 @@
 export async function onRequestGet(context) {
 
-const apiKey = context.env.NEWSDATA_API_KEY;
+    const apiKey = context.env.NEWSDATA_API_KEY;
 
-if (!apiKey) {
-    return Response.json(
-        {
-            error: "NEWSDATA_API_KEY is not configured."
-        },
-        { status: 500 }
-    );
-}
-
+    if (!apiKey) {
+        return Response.json(
+            {
+                error: "NEWSDATA_API_KEY is not configured."
+            },
+            { status: 500 }
+        );
+    }
 const categories = {
 
     latest: {
