@@ -1,47 +1,70 @@
 export async function onRequestGet(context) {
 
-const apiKey = context.env.GNEWS_API_KEY;
+const apiKey = context.env.NEWSDATA_API_KEY;
 
 if (!apiKey) {
     return Response.json(
         {
-            error: "GNEWS_API_KEY is not configured."
+            error: "NEWSDATA_API_KEY is not configured."
         },
         { status: 500 }
     );
 }
 
+const categories = {
+
+    latest: {
+        q: "news"
+    },
+
+    weird: {
+        q: "weird OR strange OR unusual"
+    },
+
+    awesome: {
+        q: "amazing OR incredible OR inspiring"
+    },
+
+    underrated: {
+        q: "overlooked OR underrated OR little known"
+    }
+
+};
+
 try {
-
-    const requests = {
-
-        latest:
-            "https://gnews.io/api/v4/top-headlines?category=general&lang=en&max=10",
-
-        weird:
-            "https://gnews.io/api/v4/search?q=weird%20OR%20strange%20OR%20unusual&lang=en&max=10",
-
-        awesome:
-            "https://gnews.io/api/v4/search?q=amazing%20OR%20incredible%20OR%20awesome&lang=en&max=10",
-
-        underrated:
-            "https://gnews.io/api/v4/search?q=underrated%20OR%20overlooked%20OR%20little-known&lang=en&max=10"
-
-    };
-
 
     const results = await Promise.all(
 
-        Object.entries(requests).map(
-            async ([category, url]) => {
+        Object.entries(categories).map(
+            async ([category, settings]) => {
 
-                const separator =
-                    url.includes("?") ? "&" : "?";
+                const url =
+                    new URL(
+                        "https://newsdata.io/api/1/latest"
+                    );
+
+                url.searchParams.set(
+                    "apikey",
+                    apiKey
+                );
+
+                url.searchParams.set(
+                    "q",
+                    settings.q
+                );
+
+                url.searchParams.set(
+                    "language",
+                    "en"
+                );
+
+                url.searchParams.set(
+                    "size",
+                    "10"
+                );
 
                 const response =
-                    await fetch(
-                        `${url}${separator}apikey=${encodeURIComponent(apiKey)}`
-                    );
+                    await fetch(url.toString());
 
                 if (!response.ok) {
                     throw new Error(
@@ -52,40 +75,54 @@ try {
                 const data =
                     await response.json();
 
+                const articles =
+                    Array.isArray(data.results)
+                        ? data.results
+                        : [];
+
                 return [
                     category,
-                    Array.isArray(data.articles)
-                        ? data.articles.slice(0, 10).map(article => ({
-                            title: article.title || "",
-                            description: article.description || "",
-                            url: article.url || "",
-                            image: article.image || "",
-                            publishedAt: article.publishedAt || "",
-                            source: article.source?.name || ""
-                        }))
-                        : []
+                    articles.slice(0, 10).map(article => ({
+
+                        title:
+                            article.title || "",
+
+                        description:
+                            article.description || "",
+
+                        url:
+                            article.link || "",
+
+                        image:
+                            article.image_url || "",
+
+                        publishedAt:
+                            article.pubDate || "",
+
+                        source:
+                            article.source_name || ""
+
+                    }))
                 ];
 
             }
         )
     );
 
-
-    const news = Object.fromEntries(results);
-
-
-    return Response.json(news, {
-        headers: {
-            "Cache-Control":
-                "public, max-age=14400, s-maxage=14400"
+    return Response.json(
+        Object.fromEntries(results),
+        {
+            headers: {
+                "Cache-Control":
+                    "public, max-age=14400, s-maxage=14400"
+            }
         }
-    });
+    );
 
-
-} catch(error) {
+} catch (error) {
 
     console.error(
-        "News API error:",
+        "NewsData API error:",
         error
     );
 
