@@ -1,3 +1,4 @@
+```js
 export async function onRequestGet(context) {
 
     const apiKey = context.env.NEWSDATA_API_KEY;
@@ -12,125 +13,57 @@ export async function onRequestGet(context) {
     }
 
     const categories = {
-
-        latest: {
-            q: "news"
-        },
-
-        weird: {
-            q: "weird OR strange OR unusual"
-        },
-
-        awesome: {
-            q: "amazing OR incredible OR inspiring"
-        },
-
-        underrated: {
-            q: "overlooked OR underrated OR little known"
-        },
-
-        world: {
-            q: "international OR global OR world"
-        }
-
+        latest: "news",
+        weird: "weird OR strange OR unusual",
+        awesome: "amazing OR incredible OR inspiring",
+        underrated: "overlooked OR underrated OR little known",
+        world: "international OR global OR world"
     };
 
     try {
 
         const results = await Promise.all(
-
             Object.entries(categories).map(
-                async ([category, settings]) => {
+                async ([category, query]) => {
+
+                    const url = new URL(
+                        "https://newsdata.io/api/1/latest"
+                    );
+
+                    url.searchParams.set("apikey", apiKey);
+                    url.searchParams.set("q", query);
+                    url.searchParams.set("language", "en");
+                    url.searchParams.set("size", "10");
 
                     try {
 
-                        const url =
-                            new URL(
-                                "https://newsdata.io/api/1/latest"
-                            );
+                        const response = await fetch(url.toString());
 
-                        url.searchParams.set(
-                            "apikey",
-                            apiKey
-                        );
-
-                        url.searchParams.set(
-                            "language",
-                            "en"
-                        );
-
-                        url.searchParams.set(
-                            "size",
-                            "10"
-                        );
-
-                        if (settings.category) {
-
-                            url.searchParams.set(
-                                "category",
-                                settings.category
-                            );
-
-                        }
-
-                        if (settings.q) {
-
-                            url.searchParams.set(
-                                "q",
-                                settings.q
-                            );
-
-                        }
-
-                        const response =
-                            await fetch(url.toString());
+                        const data = await response.json();
 
                         if (!response.ok) {
-
                             console.error(
-                                `${category} request failed: ${response.status}`
+                                `${category} request failed:`,
+                                data
                             );
 
-                            return [
-                                category,
-                                []
-                            ];
-
+                            return [category, []];
                         }
 
-                        const data =
-                            await response.json();
-
-                        const articles =
-                            Array.isArray(data.results)
-                                ? data.results
-                                : [];
+                        const articles = Array.isArray(data.results)
+                            ? data.results
+                            : [];
 
                         return [
                             category,
-                            articles
-                                .slice(0, 10)
-                                .map(article => ({
-
-                                    title:
-                                        article.title || "",
-
-                                    description:
-                                        article.description || "",
-
-                                    url:
-                                        article.link || "",
-
-                                    image:
-                                        article.image_url || "",
-
-                                    publishedAt:
-                                        article.pubDate || "",
-
-                                    source:
-                                        article.source_name || ""
-
-                                }))
+                            articles.slice(0, 10).map(article => ({
+                                title: article.title || "",
+                                description: article.description || "",
+                                url: article.link || "",
+                                image: article.image_url || "",
+                                publishedAt: article.pubDate || "",
+                                source: article.source_name || ""
+                            }))
                         ];
 
                     } catch (error) {
@@ -140,13 +73,8 @@ export async function onRequestGet(context) {
                             error
                         );
 
-                        return [
-                            category,
-                            []
-                        ];
-
+                        return [category, []];
                     }
-
                 }
             )
         );
@@ -174,7 +102,6 @@ export async function onRequestGet(context) {
             },
             { status: 500 }
         );
-
     }
-
 }
+```
