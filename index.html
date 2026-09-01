@@ -3407,14 +3407,16 @@ function openNews(){
 
     $("newsSection").style.display = "block";
 
-    window.scrollTo({
-        top: 0,
-        behavior: "smooth"
-    });
-
     $("navLinks").classList.remove("open");
 
     loadNews();
+
+    setTimeout(() => {
+        $("newsSection").scrollIntoView({
+            behavior: "smooth",
+            block: "start"
+        });
+    }, 50);
 }
 
 async function loadNews(){
