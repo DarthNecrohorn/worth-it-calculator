@@ -30,7 +30,7 @@ const categories = {
 },
 
 world: {
-    q: "world news OR international news OR global news"
+    q: "international"
 }
 
 };
