@@ -3448,9 +3448,6 @@ async function loadNews(){
 
         const data =
             await response.json();
-
-        console.log("NEWS API DATA:", data);
-console.log("WORLD DATA:", data.world);
         
         renderNewsCategory(
             categories.latest,
