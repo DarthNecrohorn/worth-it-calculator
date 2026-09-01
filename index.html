@@ -1143,6 +1143,33 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 @media(max-width:520px){.translate-browser-tabs{grid-template-columns:1fr}.translate-modal-card{padding:20px}}
 html[data-theme="light"] .translate-modal-card{background:#fff}
 
+/* =========================================================
+   LIGHT THEME - WEATHER & NEWS
+========================================================= */
+
+html[data-theme="light"] .weather-card,
+html[data-theme="light"] .weather-forecast-card,
+html[data-theme="light"] .weather-details > div,
+html[data-theme="light"] .news-card {
+    background: rgba(255,255,255,.92);
+    border-color: rgba(15,23,42,.11);
+    box-shadow: 0 10px 30px rgba(15,23,42,.06);
+}
+
+html[data-theme="light"] .weather-details {
+    border-top-color: rgba(15,23,42,.10);
+}
+
+html[data-theme="light"] .news-card:hover,
+html[data-theme="light"] .weather-forecast-card:hover,
+html[data-theme="light"] .weather-card:hover {
+    border-color: rgba(15,23,42,.18);
+}
+
+html[data-theme="light"] .news-card-placeholder {
+    background: rgba(15,23,42,.04);
+    color: rgba(15,23,42,.40);
+}
 
 .ai-chat-nav-btn{
     border:1px solid var(--border);
