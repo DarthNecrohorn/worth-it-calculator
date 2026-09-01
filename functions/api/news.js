@@ -64,6 +64,11 @@ export async function onRequestGet(context) {
                             "10"
                         );
 
+                         url.searchParams.set(
+                             "removeduplicate",
+                             "1"
+                        );
+                        
                         if (params.category) {
                             url.searchParams.set(
                                 "category",
