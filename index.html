@@ -3531,16 +3531,20 @@ function renderNewsCategory(
                 "news-card";
 
             const image =
-                article.image
-                    ? `
-                        <img
-                            class="news-card-image"
-                            src="${escapeNewsHtml(article.image)}"
-                            alt=""
-                            loading="lazy"
-                        >
-                    `
-                    : "";
+    article.image
+        ? `
+            <img
+                class="news-card-image"
+                src="${escapeNewsHtml(article.image)}"
+                alt=""
+                loading="lazy"
+            >
+        `
+        : `
+            <div class="news-card-image news-card-placeholder">
+                📰
+            </div>
+        `;
 
             const source =
                 article.source ||
