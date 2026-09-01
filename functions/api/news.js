@@ -12,57 +12,127 @@ export async function onRequestGet(context) {
     }
 
     const categories = {
-        latest: "news",
-        weird: "weird OR strange OR unusual",
-        awesome: "amazing OR incredible OR inspiring",
-        underrated: "overlooked OR underrated OR little known",
-        world: "international OR global OR world"
+
+        latest: {
+            q: "news"
+        },
+
+        weird: {
+            q: "weird OR strange OR unusual"
+        },
+
+        awesome: {
+            q: "amazing OR incredible OR inspiring"
+        },
+
+        underrated: {
+            q: "overlooked OR underrated OR little known"
+        },
+
+        world: {
+            category: "world"
+        }
+
     };
 
     try {
 
         const results = await Promise.all(
+
             Object.entries(categories).map(
-                async ([category, query]) => {
-
-                    const url = new URL(
-                        "https://newsdata.io/api/1/latest"
-                    );
-
-                    url.searchParams.set("apikey", apiKey);
-                    url.searchParams.set("q", query);
-                    url.searchParams.set("language", "en");
-                    url.searchParams.set("size", "10");
+                async ([category, settings]) => {
 
                     try {
 
-                        const response = await fetch(url.toString());
+                        const url = new URL(
+                            "https://newsdata.io/api/1/latest"
+                        );
 
-                        const data = await response.json();
+                        url.searchParams.set(
+                            "apikey",
+                            apiKey
+                        );
 
-                        if (!response.ok) {
-                            console.error(
-                                `${category} request failed:`,
-                                data
+                        url.searchParams.set(
+                            "language",
+                            "en"
+                        );
+
+                        url.searchParams.set(
+                            "size",
+                            "10"
+                        );
+
+                        if (settings.category) {
+
+                            url.searchParams.set(
+                                "category",
+                                settings.category
                             );
 
-                            return [category, []];
+                        } else if (settings.q) {
+
+                            url.searchParams.set(
+                                "q",
+                                settings.q
+                            );
+
                         }
 
-                        const articles = Array.isArray(data.results)
-                            ? data.results
-                            : [];
+                        const response =
+                            await fetch(url.toString());
+
+                        if (!response.ok) {
+
+                            console.error(
+                                `${category} request failed: ${response.status}`
+                            );
+
+                            return [
+                                category,
+                                []
+                            ];
+
+                        }
+
+                        const data =
+                            await response.json();
+
+                        console.log(
+                            `${category} NewsData response:`,
+                            data
+                        );
+
+                        const articles =
+                            Array.isArray(data.results)
+                                ? data.results
+                                : [];
 
                         return [
                             category,
-                            articles.slice(0, 10).map(article => ({
-                                title: article.title || "",
-                                description: article.description || "",
-                                url: article.link || "",
-                                image: article.image_url || "",
-                                publishedAt: article.pubDate || "",
-                                source: article.source_name || ""
-                            }))
+                            articles.slice(0, 10).map(
+                                article => ({
+
+                                    title:
+                                        article.title || "",
+
+                                    description:
+                                        article.description || "",
+
+                                    url:
+                                        article.link || "",
+
+                                    image:
+                                        article.image_url || "",
+
+                                    publishedAt:
+                                        article.pubDate || "",
+
+                                    source:
+                                        article.source_name || ""
+
+                                })
+                            )
                         ];
 
                     } catch (error) {
@@ -72,8 +142,13 @@ export async function onRequestGet(context) {
                             error
                         );
 
-                        return [category, []];
+                        return [
+                            category,
+                            []
+                        ];
+
                     }
+
                 }
             )
         );
@@ -101,5 +176,7 @@ export async function onRequestGet(context) {
             },
             { status: 500 }
         );
+
     }
+
 }
