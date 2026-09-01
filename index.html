@@ -3442,6 +3442,9 @@ async function loadNews(){
 
         });
 
+        const response =
+            await fetch("/api/news");
+        
         if(!response.ok){
             throw new Error("News request failed");
         }
