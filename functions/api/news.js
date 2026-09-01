@@ -36,7 +36,6 @@ export async function onRequestGet(context) {
 
     };
 
-    
     try {
 
         const results = await Promise.all(
@@ -64,11 +63,11 @@ export async function onRequestGet(context) {
                             "10"
                         );
 
-                         url.searchParams.set(
-                             "removeduplicate",
-                             "1"
+                        url.searchParams.set(
+                            "removeduplicate",
+                            "1"
                         );
-                        
+
                         if (params.category) {
                             url.searchParams.set(
                                 "category",
@@ -135,7 +134,75 @@ export async function onRequestGet(context) {
                          */
                         const uniqueArticles = [];
                         const seenUrls = new Set();
-                        const seenTitles = new Set();
+                        const seenTitles = [];
+
+                        function normalizeTitle(title) {
+
+                            return (title || "")
+                                .trim()
+                                .toLowerCase()
+                                .replace(
+                                    /[^\p{L}\p{N}\s]/gu,
+                                    " "
+                                )
+                                .replace(
+                                    /\b(reuters|ap|associated press|breaking|update|news)\b/g,
+                                    ""
+                                )
+                                .replace(
+                                    /\s+/g,
+                                    " "
+                                )
+                                .trim();
+                        }
+
+                        function titleSimilarity(titleA, titleB) {
+
+                            const wordsA =
+                                new Set(
+                                    normalizeTitle(titleA)
+                                        .split(" ")
+                                        .filter(
+                                            word =>
+                                                word.length >= 4
+                                        )
+                                );
+
+                            const wordsB =
+                                new Set(
+                                    normalizeTitle(titleB)
+                                        .split(" ")
+                                        .filter(
+                                            word =>
+                                                word.length >= 4
+                                        )
+                                );
+
+                            if (
+                                !wordsA.size ||
+                                !wordsB.size
+                            ) {
+                                return 0;
+                            }
+
+                            let commonWords = 0;
+
+                            for (const word of wordsA) {
+
+                                if (wordsB.has(word)) {
+                                    commonWords++;
+                                }
+
+                            }
+
+                            return (
+                                commonWords /
+                                Math.max(
+                                    wordsA.size,
+                                    wordsB.size
+                                )
+                            );
+                        }
 
                         for (const article of articles) {
 
@@ -145,14 +212,36 @@ export async function onRequestGet(context) {
                                     .toLowerCase();
 
                             const articleTitle =
-                                (article.title || "")
-                                    .trim()
-                                    .toLowerCase();
+                                normalizeTitle(
+                                    article.title
+                                );
 
                             if (
-                                (articleUrl && seenUrls.has(articleUrl)) ||
-                                (articleTitle && seenTitles.has(articleTitle))
+                                articleUrl &&
+                                seenUrls.has(articleUrl)
                             ) {
+                                continue;
+                            }
+
+                            let duplicate = false;
+
+                            for (const existingTitle of seenTitles) {
+
+                                if (
+                                    titleSimilarity(
+                                        articleTitle,
+                                        existingTitle
+                                    ) >= 0.65
+                                ) {
+
+                                    duplicate = true;
+                                    break;
+
+                                }
+
+                            }
+
+                            if (duplicate) {
                                 continue;
                             }
 
@@ -161,7 +250,7 @@ export async function onRequestGet(context) {
                             }
 
                             if (articleTitle) {
-                                seenTitles.add(articleTitle);
+                                seenTitles.push(articleTitle);
                             }
 
                             uniqueArticles.push(article);
@@ -222,7 +311,75 @@ export async function onRequestGet(context) {
 
                                 const uniqueArticles = [];
                                 const seenUrls = new Set();
-                                const seenTitles = new Set();
+                                const seenTitles = [];
+
+                                function normalizeTitle(title) {
+
+                                    return (title || "")
+                                        .trim()
+                                        .toLowerCase()
+                                        .replace(
+                                            /[^\p{L}\p{N}\s]/gu,
+                                            " "
+                                        )
+                                        .replace(
+                                            /\b(reuters|ap|associated press|breaking|update|news)\b/g,
+                                            ""
+                                        )
+                                        .replace(
+                                            /\s+/g,
+                                            " "
+                                        )
+                                        .trim();
+                                }
+
+                                function titleSimilarity(titleA, titleB) {
+
+                                    const wordsA =
+                                        new Set(
+                                            normalizeTitle(titleA)
+                                                .split(" ")
+                                                .filter(
+                                                    word =>
+                                                        word.length >= 4
+                                                )
+                                        );
+
+                                    const wordsB =
+                                        new Set(
+                                            normalizeTitle(titleB)
+                                                .split(" ")
+                                                .filter(
+                                                    word =>
+                                                        word.length >= 4
+                                                )
+                                        );
+
+                                    if (
+                                        !wordsA.size ||
+                                        !wordsB.size
+                                    ) {
+                                        return 0;
+                                    }
+
+                                    let commonWords = 0;
+
+                                    for (const word of wordsA) {
+
+                                        if (wordsB.has(word)) {
+                                            commonWords++;
+                                        }
+
+                                    }
+
+                                    return (
+                                        commonWords /
+                                        Math.max(
+                                            wordsA.size,
+                                            wordsB.size
+                                        )
+                                    );
+                                }
 
                                 for (const article of articles) {
 
@@ -232,14 +389,36 @@ export async function onRequestGet(context) {
                                             .toLowerCase();
 
                                     const articleTitle =
-                                        (article.title || "")
-                                            .trim()
-                                            .toLowerCase();
+                                        normalizeTitle(
+                                            article.title
+                                        );
 
                                     if (
-                                        (articleUrl && seenUrls.has(articleUrl)) ||
-                                        (articleTitle && seenTitles.has(articleTitle))
+                                        articleUrl &&
+                                        seenUrls.has(articleUrl)
                                     ) {
+                                        continue;
+                                    }
+
+                                    let duplicate = false;
+
+                                    for (const existingTitle of seenTitles) {
+
+                                        if (
+                                            titleSimilarity(
+                                                articleTitle,
+                                                existingTitle
+                                            ) >= 0.65
+                                        ) {
+
+                                            duplicate = true;
+                                            break;
+
+                                        }
+
+                                    }
+
+                                    if (duplicate) {
                                         continue;
                                     }
 
@@ -248,12 +427,18 @@ export async function onRequestGet(context) {
                                     }
 
                                     if (articleTitle) {
-                                        seenTitles.add(articleTitle);
+                                        seenTitles.push(
+                                            articleTitle
+                                        );
                                     }
 
-                                    uniqueArticles.push(article);
+                                    uniqueArticles.push(
+                                        article
+                                    );
 
-                                    if (uniqueArticles.length >= 10) {
+                                    if (
+                                        uniqueArticles.length >= 10
+                                    ) {
                                         break;
                                     }
 
