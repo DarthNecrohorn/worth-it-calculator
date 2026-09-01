@@ -26,8 +26,12 @@ const categories = {
     },
 
     underrated: {
-        q: "overlooked OR underrated OR little known"
-    }
+    q: "overlooked OR underrated OR little known"
+},
+
+world: {
+    q: "world news OR international news OR global news"
+}
 
 };
 
