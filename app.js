@@ -1158,6 +1158,20 @@ function money(value) {
 
 window.money = money;
 
+function decimal(value) {
+    const number = Number(value);
+
+    if (!Number.isFinite(number)) {
+        return "0";
+    }
+
+    return number.toLocaleString("en-US", {
+        maximumFractionDigits: 2
+    });
+}
+
+window.decimal = decimal;
+
 function toggleMenu() {
     const navLinks = document.getElementById("navLinks");
 
