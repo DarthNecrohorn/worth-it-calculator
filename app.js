@@ -348,3 +348,42 @@ $("navLinks").classList.toggle("open");
 function toggleSettings(){
 $("settingsPanel").classList.toggle("open");
 }
+
+/* =========================================================
+   HOME / NAVIGATION
+========================================================= */
+
+function showHome(){
+
+    document.querySelectorAll(".app")
+        .forEach(x => x.classList.remove("active"));
+
+    $("homePage").style.display = "block";
+
+    $("weatherSection").style.display = "none";
+    $("newsSection").style.display = "none";
+
+    const settingsPage = $("settingsPage");
+
+    if(settingsPage){
+        settingsPage.style.display = "none";
+    }
+
+    document.querySelectorAll(".calc-card")
+        .forEach(card => {
+            card.style.display = "";
+        });
+
+    $("categoryDescription").textContent =
+        "Find the right tool for your decision.";
+
+    window.scrollTo({
+        top: 0,
+        behavior: "smooth"
+    });
+
+    document.documentElement.style.overflowY = "auto";
+    document.body.style.overflowY = "auto";
+
+    $("navLinks").classList.remove("open");
+}
