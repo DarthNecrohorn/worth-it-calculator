@@ -32,20 +32,24 @@ USER HELPERS
 ========================================================= */
 
 function getUserDisplayName(user){
+
 return (
 user?.user_metadata?.full_name ||
 user?.user_metadata?.name ||
 user?.email?.split("@")[0] ||
 "User"
 );
+
 }
 
 function getUserAvatar(user){
+
 return (
 user?.user_metadata?.avatar_url ||
 user?.user_metadata?.picture ||
 ""
 );
+
 }
 
 function makeAvatarMarkup(
@@ -121,6 +125,24 @@ String(!open)
 
 }
 
+function openAccountPanel(){
+
+if(!currentAuthUser) return;
+
+const panel =
+$("accountPanel");
+
+if(!panel) return;
+
+panel.classList.add("open");
+
+panel.setAttribute(
+"aria-hidden",
+"false"
+);
+
+}
+
 /* =========================================================
 AUTH UI
 ========================================================= */
@@ -152,15 +174,21 @@ const signOutBtn =
 $("signOutNavBtn");
 
 /*
-Do not stop the entire function if an optional
-account element is missing.
+Keep authentication state even if an optional
+HTML element is missing.
 */
 
 if(!btn){
+
 return;
+
 }
 
 if(user){
+
+/* -----------------------------------------
+SIGNED IN
+----------------------------------------- */
 
 btn.style.display =
 "none";
@@ -177,6 +205,11 @@ profileBtn.setAttribute(
 "aria-label",
 `Open profile for ${getUserDisplayName(user)}`
 );
+
+/*
+Clicking the profile/avatar opens the
+account panel.
+*/
 
 profileBtn.onclick =
 event => {
@@ -238,6 +271,10 @@ if(signOutBtn){
 signOutBtn.style.display =
 "inline-flex";
 
+/*
+Sign out button handler.
+*/
+
 signOutBtn.onclick =
 event => {
 
@@ -252,6 +289,10 @@ signOutUser();
 
 }else{
 
+/* -----------------------------------------
+SIGNED OUT
+----------------------------------------- */
+
 btn.style.display =
 "inline-flex";
 
@@ -263,6 +304,9 @@ event.preventDefault();
 handleAuthButton();
 
 };
+
+btn.title =
+"Sign in with Google";
 
 if(icon){
 
@@ -277,9 +321,6 @@ label.textContent =
 "Sign in";
 
 }
-
-btn.title =
-"Sign in with Google";
 
 if(profileBtn){
 
@@ -659,6 +700,9 @@ openAccountInfo;
 window.toggleAccountPanel =
 toggleAccountPanel;
 
+window.openAccountPanel =
+openAccountPanel;
+
 window.updateAuthUI =
 updateAuthUI;
 
@@ -776,6 +820,7 @@ event => {
 if(event.key === "Escape"){
 
 closeAccountPage();
+
 closeAccountPanel();
 
 }
@@ -929,7 +974,8 @@ setupGeneric(type);
 
 window.scrollTo({
 
-top: 0,
+top:
+0,
 
 behavior:
 "smooth"
