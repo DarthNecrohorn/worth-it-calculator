@@ -280,7 +280,7 @@ function openNews(){
 
     $("weatherSection").style.display = "none";
 
-    const settingsPage = $("settingsPage");
+   const settingsPanel = $("settingsPanel");
 
     if(settingsPage){
         settingsPage.style.display = "none";
