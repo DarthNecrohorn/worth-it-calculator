@@ -1,251 +1,181 @@
 /* =========================================================
-   NEWS CATEGORY RENDER
+NEWS CATEGORY RENDER
 ========================================================= */
 
 function renderNewsCategory(
-    container,
-    articles
+container,
+articles
 ){
 
-    if(!container) return;
+if(!container) return;
 
-    if(!Array.isArray(articles) || !articles.length){
+if(!Array.isArray(articles) || !articles.length){
 
-        container.innerHTML = `
-            <div class="news-loading">
-                No stories available.
-            </div>
-        `;
+    container.innerHTML = `
+        <div class="news-loading">
+            No stories available.
+        </div>
+    `;
 
-        return;
-    }
-
-    const category =
-        container.closest(".news-category");
-
-    if(category){
-
-        const count =
-            category.querySelector(
-                ".news-category-header span"
-            );
-
-        if(count){
-
-            const visibleCount =
-                Math.min(articles.length, 10);
-
-            count.textContent =
-                `${visibleCount} News`;
-        }
-
-    }
-
-    container.innerHTML = "";
-
-    articles
-        .slice(0,10)
-        .forEach(article => {
-
-            const card =
-                document.createElement("article");
-
-            card.className =
-                "news-card";
-
-            const image =
-                article.image
-                    ? `
-                        <img
-                            class="news-card-image"
-                            src="${escapeNewsHtml(article.image)}"
-                            alt=""
-                            loading="lazy"
-                        >
-                    `
-                    : `
-                        <div class="news-card-image news-card-placeholder">
-                            📰
-                        </div>
-                    `;
-
-            const source =
-                article.source ||
-                "Unknown source";
-
-            const title =
-                article.title ||
-                "Untitled story";
-
-            const description =
-                article.description ||
-                "";
-
-            const time =
-                article.publishedAt
-                    ? formatNewsTime(article.publishedAt)
-                    : "";
-
-            card.innerHTML = `
-
-                <a
-                    href="${escapeNewsHtml(article.url || "#")}"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                >
-
-                    ${image}
-
-                    <div class="news-card-source">
-                        ${escapeNewsHtml(source)}
-                    </div>
-
-                    <div class="news-card-title">
-                        ${escapeNewsHtml(title)}
-                    </div>
-
-                    <div class="news-card-description">
-                        ${escapeNewsHtml(description)}
-                    </div>
-
-                    <div class="news-card-time">
-                        ${escapeNewsHtml(time)}
-                    </div>
-
-                </a>
-
-            `;
-
-            container.appendChild(card);
-
-        });
+    return;
 }
 
+const category =
+    container.closest(".news-category");
 
-function escapeNewsHtml(value){
+if(category){
 
-    return String(value ?? "")
-        .replaceAll("&","&amp;")
-        .replaceAll("<","&lt;")
-        .replaceAll(">","&gt;")
-        .replaceAll('"',"&quot;")
-        .replaceAll("'","&#039;");
-}
-
-
-function formatNewsTime(date){
-
-    const time =
-        new Date(date);
-
-    if(Number.isNaN(time.getTime())){
-        return "";
-    }
-
-    return time.toLocaleString(
-        "en-US",
-        {
-            dateStyle: "medium",
-            timeStyle: "short"
-        }
-    );
-}
-
-async function loadNews(){
-
-const containers = {
-    latest: $("newsLatest"),
-    weird: $("newsWeird"),
-    awesome: $("newsAwesome"),
-    underrated: $("newsUnderrated"),
-    world: $("newsWorld")
-};
-
-Object.values(containers).forEach(container => {
-
-    if(container){
-
-        container.innerHTML = `
-            <div class="news-loading">
-                Loading news...
-            </div>
-        `;
-
-    }
-
-});
-
-try{
-
-    const response =
-        await fetch("/api/news");
-
-    if(!response.ok){
-        throw new Error(
-            `News API error: ${response.status}`
+    const count =
+        category.querySelector(
+            ".news-category-header span"
         );
+
+    if(count){
+
+        const visibleCount =
+            Math.min(articles.length, 10);
+
+        count.textContent =
+            `${visibleCount} News`;
     }
 
-    const data =
-        await response.json();
+}
 
-    renderNewsCategory(
-        containers.latest,
-        data.latest
-    );
+container.innerHTML = "";
 
-    renderNewsCategory(
-        containers.weird,
-        data.weird
-    );
+articles
+    .slice(0,10)
+    .forEach(article => {
 
-    renderNewsCategory(
-        containers.awesome,
-        data.awesome
-    );
+        const card =
+            document.createElement("article");
 
-    renderNewsCategory(
-        containers.underrated,
-        data.underrated
-    );
+        card.className =
+            "news-card";
 
-    renderNewsCategory(
-        containers.world,
-        data.world
-    );
+        const image =
+            article.image
+                ? `
+                    <img
+                        class="news-card-image"
+                        src="${escapeNewsHtml(article.image)}"
+                        alt=""
+                        loading="lazy"
+                    >
+                `
+                : `
+                    <div class="news-card-image news-card-placeholder">
+                        📰
+                    </div>
+                `;
 
-}catch(error){
+        const source =
+            article.source ||
+            "Unknown source";
 
-    console.error(
-        "Failed to load news:",
-        error
-    );
+        const title =
+            article.title ||
+            "Untitled story";
 
-    Object.values(containers).forEach(container => {
+        const description =
+            article.description ||
+            "";
 
-        if(container){
+        const time =
+            article.publishedAt
+                ? formatNewsTime(article.publishedAt)
+                : "";
 
-            container.innerHTML = `
-                <div class="news-loading">
-                    Failed to load news.
+        card.innerHTML = `
+
+            <a
+                href="${escapeNewsHtml(article.url || "#")}"
+                target="_blank"
+                rel="noopener noreferrer"
+            >
+
+                ${image}
+
+                <div class="news-card-source">
+                    ${escapeNewsHtml(source)}
                 </div>
-            `;
 
-        }
+                <div class="news-card-title">
+                    ${escapeNewsHtml(title)}
+                </div>
+
+                <div class="news-card-description">
+                    ${escapeNewsHtml(description)}
+                </div>
+
+                <div class="news-card-time">
+                    ${escapeNewsHtml(time)}
+                </div>
+
+            </a>
+
+        `;
+
+        container.appendChild(card);
 
     });
 
 }
 
+/* =========================================================
+NEWS HTML ESCAPE
+========================================================= */
+
+function escapeNewsHtml(value){
+
+return String(value ?? "")
+    .replaceAll("&","&amp;")
+    .replaceAll("<","&lt;")
+    .replaceAll(">","&gt;")
+    .replaceAll('"',"&quot;")
+    .replaceAll("'","&#039;");
+
 }
 
+/* =========================================================
+NEWS TIME FORMAT
+========================================================= */
+
+function formatNewsTime(date){
+
+const time =
+    new Date(date);
+
+if(Number.isNaN(time.getTime())){
+    return "";
+}
+
+return time.toLocaleString(
+    "en-US",
+    {
+        dateStyle: "medium",
+        timeStyle: "short"
+    }
+);
+
+}
+
+/* =========================================================
+LOAD NEWS
+========================================================= */
+
+async function loadNews(){
+
 const containers = {
+
     latest: $("newsLatest"),
     weird: $("newsWeird"),
     awesome: $("newsAwesome"),
     underrated: $("newsUnderrated"),
     world: $("newsWorld")
+
 };
+
 
 Object.values(containers).forEach(container => {
 
@@ -261,44 +191,55 @@ Object.values(containers).forEach(container => {
 
 });
 
+
 try{
 
     const response =
         await fetch("/api/news");
 
+
     if(!response.ok){
+
         throw new Error(
             `News API error: ${response.status}`
         );
+
     }
+
 
     const data =
         await response.json();
+
 
     renderNewsCategory(
         containers.latest,
         data.latest
     );
 
+
     renderNewsCategory(
         containers.weird,
         data.weird
     );
+
 
     renderNewsCategory(
         containers.awesome,
         data.awesome
     );
 
+
     renderNewsCategory(
         containers.underrated,
         data.underrated
     );
 
+
     renderNewsCategory(
         containers.world,
         data.world
     );
+
 
 }catch(error){
 
@@ -306,6 +247,7 @@ try{
         "Failed to load news:",
         error
     );
+
 
     Object.values(containers).forEach(container => {
 
