@@ -4486,3 +4486,13 @@ RESET GENERIC
 ========================================================= */
 
 function resetGeneric(){
+
+    setupGeneric(
+        currentGenericType
+    );
+
+    showToast(
+        "Reset complete"
+    );
+
+}
