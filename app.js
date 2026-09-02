@@ -293,3 +293,59 @@ if(event.key === "Escape"){
 closeAccountPage();
 }
 });
+
+/* =========================================================
+BASIC HELPERS
+========================================================= */
+
+function num(id){
+return Number($(id)?.value || 0);
+}
+
+function money(value,currency="€"){
+
+if(!Number.isFinite(value)){
+    value=0;
+}
+
+return currency + value.toLocaleString("en-US",{
+    minimumFractionDigits:2,
+    maximumFractionDigits:2
+});
+
+}
+
+function decimal(value){
+
+if(!Number.isFinite(value)){
+    value=0;
+}
+
+return value.toLocaleString("en-US",{
+    minimumFractionDigits:2,
+    maximumFractionDigits:2
+});
+
+}
+
+function showToast(text){
+
+const toast=$("toast");
+
+toast.textContent=text;
+
+toast.classList.add("show");
+
+setTimeout(()=>{
+    toast.classList.remove("show");
+},2200);
+
+}
+
+function toggleMenu(){
+$("navLinks").classList.toggle("open");
+}
+
+function toggleSettings(){
+$("settingsPanel").classList.toggle("open");
+}
