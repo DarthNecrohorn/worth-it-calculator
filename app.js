@@ -4,22 +4,37 @@ CALCULATOR NAVIGATION
 
 function openCalculator(type){
 
-$("homePage").style.display = "none";
+```
+const homePage = document.getElementById("homePage");
+const weatherSection = document.getElementById("weatherSection");
+const newsSection = document.getElementById("newsSection");
+const settingsPage = document.getElementById("settingsPage");
+const calculatorApp = document.getElementById("calculatorApp");
+const carsApp = document.getElementById("carsApp");
+const genericApp = document.getElementById("genericApp");
+const carResults = document.getElementById("carResults");
+const navLinks = document.getElementById("navLinks");
 
-$("weatherSection").style.display = "none";
-$("newsSection").style.display = "none";
+if(homePage){
+    homePage.style.display = "none";
+}
 
-const settingsPage = $("settingsPage");
+if(weatherSection){
+    weatherSection.style.display = "none";
+}
+
+if(newsSection){
+    newsSection.style.display = "none";
+}
 
 if(settingsPage){
     settingsPage.style.display = "none";
 }
 
-document.querySelectorAll(".app")
-    .forEach(x => {
-        x.classList.remove("active");
-        x.style.display = "none";
-    });
+document.querySelectorAll(".app").forEach(app => {
+    app.classList.remove("active");
+    app.style.display = "none";
+});
 
 if(
     type === "basic" ||
@@ -27,30 +42,36 @@ if(
     type === "scientific"
 ){
 
-    $("calculatorApp").style.display = "block";
+    if(calculatorApp){
+        calculatorApp.style.display = "block";
+        calculatorApp.classList.add("active");
+    }
 
-    $("calculatorApp").classList.add("active");
-
-    setCalculatorMode(type);
+    if(typeof setCalculatorMode === "function"){
+        setCalculatorMode(type);
+    }
 
 }else if(type === "cars"){
 
-    $("carsApp").style.display = "block";
+    if(carsApp){
+        carsApp.style.display = "block";
+        carsApp.classList.add("active");
+    }
 
-    $("carsApp").classList.add("active");
-
-    if($("carResults")){
-        $("carResults").style.display = "none";
+    if(carResults){
+        carResults.style.display = "none";
     }
 
 }else{
 
-    $("genericApp").style.display = "block";
+    if(genericApp){
+        genericApp.style.display = "block";
+        genericApp.classList.add("active");
+    }
 
-    $("genericApp").classList.add("active");
-
-    setupGeneric(type);
-
+    if(typeof setupGeneric === "function"){
+        setupGeneric(type);
+    }
 }
 
 window.scrollTo({
@@ -61,7 +82,10 @@ window.scrollTo({
 document.documentElement.style.overflowY = "auto";
 document.body.style.overflowY = "auto";
 
-$("navLinks").classList.remove("open");
+if(navLinks){
+    navLinks.classList.remove("open");
+}
+```
 
 }
 
