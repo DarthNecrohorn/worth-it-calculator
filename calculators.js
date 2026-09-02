@@ -4319,17 +4319,84 @@ else if(type==="repairreplace"){
 
 if(!metrics.length){
 
-    title=
+    title =
         "Unable to calculate";
 
-    text=
+    text =
         "Please check the values and try again.";
 
-    metrics=[];
+    metrics = [];
+
 }
 
 
-result.innerHTML=`
+/* =====================================================
+   SMART VERDICT
+===================================================== */
+
+let verdict = "";
+let verdictClass = "result-neutral";
+
+
+if(
+    title.toLowerCase().includes("cheaper") ||
+    title.toLowerCase().includes("save") ||
+    title.toLowerCase().includes("affordable") ||
+    title.toLowerCase().includes("low") ||
+    title.toLowerCase().includes("growth") ||
+    title.toLowerCase().includes("excellent") ||
+    title.toLowerCase().includes("goal reached")
+){
+
+    verdict = "✅ Looks favorable";
+    verdictClass = "result-positive";
+
+}else if(
+    title.toLowerCase().includes("consider") ||
+    title.toLowerCase().includes("similar") ||
+    title.toLowerCase().includes("reasonable") ||
+    title.toLowerCase().includes("estimate") ||
+    title.toLowerCase().includes("target")
+){
+
+    verdict = "⚠️ Worth considering";
+    verdictClass = "result-warning";
+
+}else if(
+    title.toLowerCase().includes("high") ||
+    title.toLowerCase().includes("too low") ||
+    title.toLowerCase().includes("long") ||
+    title.toLowerCase().includes("expensive")
+){
+
+    verdict = "❌ Needs caution";
+    verdictClass = "result-negative";
+
+}else{
+
+    verdict = "ℹ️ Based on your inputs";
+}
+
+
+/* =====================================================
+   MAIN RESULT
+===================================================== */
+
+const mainMetric =
+    metrics.length
+    ? metrics[0][1]
+    : "—";
+
+
+const extraMetrics =
+    metrics.slice(1);
+
+
+/* =====================================================
+   RENDER RESULT
+===================================================== */
+
+result.innerHTML = `
 
     <div class="big-result">
 
@@ -4338,42 +4405,73 @@ result.innerHTML=`
         </div>
 
         <div class="number">
-            ${metrics[0]?.[1] || ""}
+            ${mainMetric}
         </div>
 
-        <p style="color:var(--muted);margin-top:8px">
+        <div
+            class="result-verdict ${verdictClass}"
+            style="margin-top:12px"
+        >
+            ${verdict}
+        </div>
+
+        <p
+            style="
+                color:var(--muted);
+                margin-top:12px;
+                line-height:1.6;
+            "
+        >
             ${text}
         </p>
 
     </div>
 
-    <div
-        class="result-grid"
-        style="margin-top:15px">
 
-        ${metrics.map(m=>`
-
-            <div class="metric">
-
-                <span>
-                    ${m[0]}
-                </span>
-
-                <strong>
-                    ${m[1]}
-                </strong>
-
+    ${
+        extraMetrics.length
+        ? `
+            <div
+                class="result-section-title"
+                style="
+                    margin-top:22px;
+                    margin-bottom:10px;
+                    font-weight:700;
+                "
+            >
+                📊 Breakdown
             </div>
 
-        `).join("")}
+            <div
+                class="result-grid"
+                style="margin-top:0"
+            >
 
-    </div>
+                ${extraMetrics.map(m => `
+
+                    <div class="metric">
+
+                        <span>
+                            ${m[0]}
+                        </span>
+
+                        <strong>
+                            ${m[1]}
+                        </strong>
+
+                    </div>
+
+                `).join("")}
+
+            </div>
+        `
+        : ""
+    }
 
 `;
 
 
 result.classList.add("active");
-
 
 result.scrollIntoView({
     behavior:"smooth",
@@ -4382,27 +4480,9 @@ result.scrollIntoView({
 
 }
 
+
 /* =========================================================
 RESET GENERIC
 ========================================================= */
 
 function resetGeneric(){
-
-setupGeneric(
-    currentGenericType
-);
-
-showToast(
-    "Reset complete"
-);
-
-}
-
-/* =========================================================
-OPEN CALCULATOR
-========================================================= */
-
-/*
-    openCalculator() is defined in app.js.
-    This file does not define it again.
-*/
