@@ -3288,95 +3288,138 @@ async function sendAIChatMessage(){
     }
 
     const previousHistory = aiChatHistory.slice();
-    addAIChatMessage("user", text, "You");
-    aiChatHistory.push({role:"user",content:text});
+addAIChatMessage("user", text, "You");
+aiChatHistory.push({role:"user", content:text});
 
-    if(input) input.value = "";
-    aiChatBusy = true;
-    if(sendBtn) sendBtn.disabled = true;
-    setAIChatStatus("Worth It AI is thinking…");
+if(input) input.value = "";
+aiChatBusy = true;
 
-    try{
-        const { data, error } = await supabaseClient.auth.getSession();
-
-        if(error || !data?.session?.access_token){
-            throw new Error("Your login session is unavailable. Please sign in again.");
-        }
-
-        const response = await fetch("/api/ai-chat", {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                "Authorization": `Bearer ${data.session.access_token}`
-            },
-            body: JSON.stringify({
-                message: text,
-                history: previousHistory.slice(-8),
-                page: location.pathname
-            })
-        });
-
-        const result = await response.json().catch(()=>({}));
-
-        if(!response.ok){
-            throw new Error(result?.error || `AI request failed (${response.status}).`);
-        }
-
-        const answer = String(result?.answer || "").trim();
-        if(!answer){
-            throw new Error("The AI returned an empty response.");
-        }
-
-        const providerLabel = result.provider === "grok"
-            ? "Worth It AI · backup"
-            : result.provider === "gemini"
-                ? "Worth It AI · Gemini"
-                : "Worth It AI";
-
-        addAIChatMessage("assistant", answer, providerLabel);
-        aiChatHistory.push({role:"assistant",content:answer});
-        setAIChatStatus("");
-
-    }catch(error){
-        console.error("Worth It AI error:", error);
-
-        /* The user message remains visible; the failed request is not stored in history. */
-        aiChatHistory = previousHistory;
-        addAIChatMessage("assistant", error.message || "Could not reach Worth It AI. Please try again.", "Worth It AI");
-        setAIChatStatus("");
-
-    }finally{
-        aiChatBusy = false;
-        if(sendBtn) sendBtn.disabled = false;
-        input?.focus();
-    }
+if(sendBtn) {
+sendBtn.disabled = true;
 }
 
-$("aiChatInput")?.addEventListener("keydown", event=>{
-    if(event.key === "Enter" && !event.shiftKey){
-        event.preventDefault();
-        sendAIChatMessage();
-    }
+setAIChatStatus("Worth It AI is thinking…");
+
+try {
+const { data, error } = await supabaseClient.auth.getSession();
+
+if(error || !data?.session?.access_token) {
+    throw new Error("Your login session is unavailable. Please sign in again.");
+}
+
+const response = await fetch("/api/ai-chat", {
+    method: "POST",
+    headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${data.session.access_token}`
+    },
+    body: JSON.stringify({
+        message: text,
+        history: previousHistory.slice(-8),
+        page: location.pathname
+    })
 });
 
-$("aiChatOverlay")?.addEventListener("click", event=>{
-    if(event.target === event.currentTarget) closeAIChat();
+const result = await response.json().catch(() => ({}));
+
+if(!response.ok) {
+    throw new Error(
+        result?.error || `AI request failed (${response.status}).`
+    );
+}
+
+const answer = String(result?.answer || "").trim();
+
+if(!answer) {
+    throw new Error("The AI returned an empty response.");
+}
+
+const providerLabel =
+    result.provider === "grok"
+        ? "Worth It AI · backup"
+        : result.provider === "gemini"
+            ? "Worth It AI · Gemini"
+            : "Worth It AI";
+
+addAIChatMessage("assistant", answer, providerLabel);
+aiChatHistory.push({
+    role: "assistant",
+    content: answer
 });
 
-document.addEventListener("keydown", event=>{
-    if(event.key === "Escape") closeAIChat();
+setAIChatStatus("");
+
+} catch(error) {
+    
+console.error("Worth It AI error:", error);
+
+/* Keep the user message visible, but remove it from saved history. */
+aiChatHistory = previousHistory;
+
+addAIChatMessage(
+    "assistant",
+    error?.message || "Could not reach Worth It AI. Please try again.",
+    "Worth It AI"
+);
+
+setAIChatStatus("");
+
+} finally {
+
+aiChatBusy = false;
+
+if(sendBtn) {
+    sendBtn.disabled = false;
+}
+
+if(input) {
+    input.focus();
+}
+
+}
+
+$("aiChatInput")?.addEventListener("keydown", event => {
+if(event.key === "Enter" && !event.shiftKey) {
+event.preventDefault();
+sendAIChatMessage();
+}
+});
+
+$("aiChatOverlay")?.addEventListener("click", event => {
+if(event.target === event.currentTarget) {
+closeAIChat();
+}
+});
+
+document.addEventListener("keydown", event => {
+if(event.key === "Escape") {
+closeAIChat();
+}
 });
 
 /* Keep AI Chat view synced with login/logout. */
-const originalUpdateAuthUIForAI = updateAuthUI;
-updateAuthUI = function(user){
-    originalUpdateAuthUIForAI(user);
+const originalUpdateAuthUIForAI = window.updateAuthUI;
+
+window.updateAuthUI = function(user) {
+if(typeof originalUpdateAuthUIForAI === "function") {
+originalUpdateAuthUIForAI(user);
+}
+
+if(typeof updateAIChatView === "function") {
     updateAIChatView();
+}
+
 };
 
 </script>
 
-    <script src="app.js"></script> <script src="calculators.js"></script> <script src="weather.js"></script> <script src="news-ui.js"></script> <script src="settings.js"></script>
+<script src="calculators.js"></script>
+
+<script src="weather.js"></script>
+
+<script src="news-ui.js"></script>
+
+<script src="settings.js"></script>
 
 </body>
 </html>
