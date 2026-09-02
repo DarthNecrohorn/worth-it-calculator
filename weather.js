@@ -11,8 +11,8 @@ $("newsSection").style.display = "none";
 
 const settingsPanel = $("settingsPanel");
 
-if(settingsPage){
-    settingsPage.style.display = "none";
+if(settingsPanel){
+    settingsPanel.style.display = "none";
 }
 
 $("weatherSection").style.display = "block";
