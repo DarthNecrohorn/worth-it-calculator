@@ -1157,3 +1157,13 @@ function money(value) {
 }
 
 window.money = money;
+
+function toggleMenu() {
+    const navLinks = document.getElementById("navLinks");
+
+    if (!navLinks) return;
+
+    navLinks.classList.toggle("open");
+}
+
+window.toggleMenu = toggleMenu;
