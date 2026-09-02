@@ -2850,17 +2850,24 @@ else if(type==="energy"){
 
 else if(type==="purchase"){
 
-    const price=num("gPrice");
-    const years=num("gYears");
-    const uses=num("gUses");
-    const resale=num("gResale");
+    const price =
+        num("gPrice");
+
+    const years =
+        num("gYears");
+
+    const uses =
+        num("gUses");
+
+    const resale =
+        num("gResale");
 
 
     if(
-        price<0 ||
-        years<=0 ||
-        uses<0 ||
-        resale<0
+        price < 0 ||
+        years <= 0 ||
+        uses < 0 ||
+        resale < 0
     ){
 
         showToast(
@@ -2871,56 +2878,129 @@ else if(type==="purchase"){
     }
 
 
-    const net=
+    const net =
         Math.max(
             0,
-            price-resale
+            price - resale
         );
 
-    const totalUses=
-        years*52*uses;
 
-    const perUse=
-        totalUses>0
-        ? net/totalUses
+    const totalUses =
+        years *
+        52 *
+        uses;
+
+
+    const perUse =
+        totalUses > 0
+        ? net / totalUses
         : 0;
 
 
-    if(perUse<1){
+    const yearlyCost =
+        net / years;
 
-        title=
-            "🛒 Very low estimated cost per use.";
 
-        text=
-            `Using the item regularly would bring the estimated cost below ${money(1)} per use.`;
+    const monthlyCost =
+        yearlyCost / 12;
 
-    }else if(perUse<5){
 
-        title=
-            "🛒 Potentially reasonable if you use it often.";
+    const weeklyUses =
+        uses;
 
-        text=
-            `The estimated cost is ${money(perUse)} per use.`;
+
+    const monthlyUses =
+        uses * 52 / 12;
+
+
+    /* =================================================
+       DECISION
+    ================================================= */
+
+    if(net === 0){
+
+        title =
+            "🛒 Your resale value covers the purchase.";
+
+        text =
+            "Based on your inputs, the estimated net cost of owning the item is €0.";
+
+    }else if(perUse < 1){
+
+        title =
+            "🛒 Very low cost per use.";
+
+        text =
+            `At about ${decimal(perUse)} € per use, this looks like strong value if you use it as often as planned.`;
+
+    }else if(perUse < 5){
+
+        title =
+            "🛒 Reasonable cost per use.";
+
+        text =
+            `The item costs about ${decimal(perUse)} € per use based on your expected usage.`;
 
     }else{
 
-        title=
-            "🛒 Consider how frequently you will use it.";
+        title =
+            "🛒 Cost per use is relatively high.";
 
-        text=
-            `At the estimated usage rate, each use costs about ${money(perUse)}.`;
+        text =
+            `At about ${decimal(perUse)} € per use, the purchase makes more sense if you expect to use it frequently or keep it longer.`;
     }
 
 
-    metrics=[
+    /* =================================================
+       RESULTS
+    ================================================= */
 
-        ["Net purchase cost",money(net)],
+    metrics = [
 
-        ["Estimated uses",decimal(totalUses)],
+        [
+            "Cost per use",
+            money(perUse)
+        ],
 
-        ["Cost per use",money(perUse)],
+        [
+            "Net purchase cost",
+            money(net)
+        ],
 
-        ["Years of use",decimal(years)]
+        [
+            "Purchase price",
+            money(price)
+        ],
+
+        [
+            "Resale value",
+            money(resale)
+        ],
+
+        [
+            "Estimated total uses",
+            decimal(totalUses)
+        ],
+
+        [
+            "Cost / year",
+            money(yearlyCost)
+        ],
+
+        [
+            "Cost / month",
+            money(monthlyCost)
+        ],
+
+        [
+            "Uses / month",
+            decimal(monthlyUses)
+        ],
+
+        [
+            "Years of use",
+            decimal(years)
+        ]
 
     ];
 }
