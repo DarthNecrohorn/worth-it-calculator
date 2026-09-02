@@ -1,6 +1,6 @@
 /* DOM helper */
 const $ = id =>
-document.getElementById(id);
+window.$ = id => document.getElementById(id);
 
 /* =========================================================
 SUPABASE AUTH
