@@ -1,3 +1,5 @@
+/* =WEATHER = */
+
 function openWeather(){
 
 $("homePage").style.display = "none";
