@@ -794,12 +794,15 @@ document.body.style.overflowY =
 
 if(navLinks){
 
-    navLinks.classList.remove(
-        "open"
-    );
-}
+if(navLinks){
+
+navLinks.classList.remove(
+    "open"
+);
 
 }
 
-window.handleAuthButton = handleAuthButton;
+}
 
+window.openCalculator = openCalculator;
+    
