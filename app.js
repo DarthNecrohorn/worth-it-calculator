@@ -4,7 +4,6 @@ CALCULATOR NAVIGATION
 
 function openCalculator(type){
 
-```
 $("homePage").style.display = "none";
 
 $("weatherSection").style.display = "none";
@@ -63,7 +62,6 @@ document.documentElement.style.overflowY = "auto";
 document.body.style.overflowY = "auto";
 
 $("navLinks").classList.remove("open");
-```
 
 }
 
