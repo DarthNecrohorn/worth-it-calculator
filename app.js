@@ -787,22 +787,17 @@ window.scrollTo({
 });
 
 document.documentElement.style.overflowY =
-    "auto";
+"auto";
 
 document.body.style.overflowY =
-    "auto";
+"auto";
 
 if(navLinks){
-
-if(navLinks){
-
 navLinks.classList.remove(
-    "open"
+"open"
 );
-
 }
 
 }
 
 window.openCalculator = openCalculator;
-    
