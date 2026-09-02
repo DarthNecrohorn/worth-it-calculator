@@ -1042,9 +1042,29 @@ function showHome() {
     });
 
     // Sakrij posebne sekcije
-    if (weatherSection) weatherSection.style.display = "none";
-    if (newsSection) newsSection.style.display = "none";
-    if (settingsPanel) settingsPanel.style.display = "none";
+    if (weatherSection) {
+        weatherSection.style.display = "none";
+    }
+
+    if (newsSection) {
+        newsSection.style.display = "none";
+    }
+
+    if (settingsPanel) {
+        settingsPanel.style.display = "none";
+    }
+
+    // Vrati sve calculator kartice
+    document.querySelectorAll(".calc-card").forEach(card => {
+        card.style.display = "";
+    });
+
+    // Vrati category filter na All
+    const filter = document.getElementById("categoryFilter");
+
+    if (filter) {
+        filter.value = "all";
+    }
 
     // Prikaži početnu stranicu
     if (homePage) {
