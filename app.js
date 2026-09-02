@@ -1048,3 +1048,44 @@ function showHome() {
 }
 
 window.showHome = showHome;
+
+function showCategory(category) {
+    showHome();
+
+    const element = document.getElementById(category);
+
+    if (element) {
+        element.scrollIntoView({
+            behavior: "smooth",
+            block: "start"
+        });
+    }
+}
+
+window.showCategory = showCategory;
+
+function scrollToFAQ() {
+    const faq = document.getElementById("faq");
+
+    if (faq) {
+        faq.scrollIntoView({
+            behavior: "smooth",
+            block: "start"
+        });
+    }
+}
+
+window.scrollToFAQ = scrollToFAQ;
+
+function toggleSettings() {
+    const settingsPage = document.getElementById("settingsPage");
+
+    if (!settingsPage) return;
+
+    settingsPage.style.display =
+        settingsPage.style.display === "none"
+            ? "block"
+            : "none";
+}
+
+window.toggleSettings = toggleSettings;
