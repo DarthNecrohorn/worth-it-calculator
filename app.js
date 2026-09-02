@@ -32,44 +32,35 @@ USER HELPERS
 ========================================================= */
 
 function getUserDisplayName(user){
-
 return (
 user?.user_metadata?.full_name ||
 user?.user_metadata?.name ||
 user?.email?.split("@")[0] ||
 "User"
 );
-
 }
 
 function getUserAvatar(user){
-
 return (
 user?.user_metadata?.avatar_url ||
 user?.user_metadata?.picture ||
 ""
 );
-
 }
 
 function makeAvatarMarkup(
 user,
 className = "auth-avatar"
 ){
-
 const avatar =
 getUserAvatar(user);
 
 if(avatar){
-
 return `<img
-class="${className}"
-src="${avatar.replaceAll('"',""")}"
-alt=""
-referrerpolicy="no-referrer"
-
-> `;
-
+        class="${className}"
+        src="${avatar.replaceAll('"',"&quot;")}"
+        alt=""
+        referrerpolicy="no-referrer"     >`;
 }
 
 const initial =
@@ -83,7 +74,6 @@ className.includes("account-head")
 : "auth-avatar-fallback";
 
 return `<div class="${fallbackClass}">${initial}</div>`;
-
 }
 
 /* =========================================================
@@ -103,7 +93,6 @@ panel.setAttribute(
 "aria-hidden",
 "true"
 );
-
 }
 
 function toggleAccountPanel(){
@@ -122,25 +111,6 @@ panel.setAttribute(
 "aria-hidden",
 String(!open)
 );
-
-}
-
-function openAccountPanel(){
-
-if(!currentAuthUser) return;
-
-const panel =
-$("accountPanel");
-
-if(!panel) return;
-
-panel.classList.add("open");
-
-panel.setAttribute(
-"aria-hidden",
-"false"
-);
-
 }
 
 /* =========================================================
@@ -173,207 +143,114 @@ $("accountPanel");
 const signOutBtn =
 $("signOutNavBtn");
 
-/*
-Keep authentication state even if an optional
-HTML element is missing.
-*/
-
-if(!btn){
-
+if(
+!btn ||
+!icon ||
+!label ||
+!profileBtn ||
+!profileIcon ||
+!signOutBtn
+){
 return;
-
 }
 
 if(user){
 
-/* -----------------------------------------
-SIGNED IN
------------------------------------------ */
-
+```
 btn.style.display =
-"none";
-
-if(profileBtn){
+    "none";
 
 profileBtn.style.display =
-"inline-flex";
+    "inline-flex";
 
 profileBtn.title =
-`Open profile for ${getUserDisplayName(user)}`;
+    `Open profile for ${getUserDisplayName(user)}`;
 
 profileBtn.setAttribute(
-"aria-label",
-`Open profile for ${getUserDisplayName(user)}`
+    "aria-label",
+    `Open profile for ${getUserDisplayName(user)}`
 );
-
-/*
-Clicking the profile/avatar opens the
-account panel.
-*/
-
-profileBtn.onclick =
-event => {
-
-event.preventDefault();
-event.stopPropagation();
-
-toggleAccountPanel();
-
-};
-
-}
-
-if(profileIcon){
 
 profileIcon.innerHTML =
-makeAvatarMarkup(
-user,
-"auth-avatar"
-);
-
-}
+    makeAvatarMarkup(
+        user,
+        "auth-avatar"
+    );
 
 if($("accountHeadAvatar")){
-
-$("accountHeadAvatar").innerHTML =
-makeAvatarMarkup(
-user,
-"account-head-avatar"
-);
-
+    $("accountHeadAvatar").innerHTML =
+        makeAvatarMarkup(
+            user,
+            "account-head-avatar"
+        );
 }
 
 if($("accountName")){
-
-$("accountName").textContent =
-getUserDisplayName(user);
-
+    $("accountName").textContent =
+        getUserDisplayName(user);
 }
 
 if($("accountEmail")){
-
-$("accountEmail").textContent =
-user.email || "";
-
+    $("accountEmail").textContent =
+        user.email || "";
 }
 
 if(panel){
-
-panel.style.display =
-"";
-
-closeAccountPanel();
-
+    panel.style.display =
+        "";
+    closeAccountPanel();
 }
-
-if(signOutBtn){
 
 signOutBtn.style.display =
-"inline-flex";
-
-/*
-Sign out button handler.
-*/
-
-signOutBtn.onclick =
-event => {
-
-event.preventDefault();
-event.stopPropagation();
-
-signOutUser();
-
-};
-
-}
+    "inline-flex";
+```
 
 }else{
 
-/* -----------------------------------------
-SIGNED OUT
------------------------------------------ */
-
+```
 btn.style.display =
-"inline-flex";
+    "inline-flex";
 
 btn.onclick =
-event => {
-
-event.preventDefault();
-
-handleAuthButton();
-
-};
+    handleAuthButton;
 
 btn.title =
-"Sign in with Google";
-
-if(icon){
+    "Sign in with Google";
 
 icon.textContent =
-"🔐";
-
-}
-
-if(label){
+    "🔐";
 
 label.textContent =
-"Sign in";
-
-}
-
-if(profileBtn){
+    "Sign in";
 
 profileBtn.style.display =
-"none";
-
-profileBtn.onclick =
-null;
-
-}
-
-if(profileIcon){
+    "none";
 
 profileIcon.innerHTML =
-"👤";
-
-}
+    "👤";
 
 closeAccountPanel();
 
-if(signOutBtn){
-
 signOutBtn.style.display =
-"none";
-
-signOutBtn.onclick =
-null;
-
-}
+    "none";
 
 if($("accountHeadAvatar")){
-
-$("accountHeadAvatar").innerHTML =
-"";
-
+    $("accountHeadAvatar").innerHTML =
+        "";
 }
 
 if($("accountName")){
-
-$("accountName").textContent =
-"Account";
-
+    $("accountName").textContent =
+        "Account";
 }
 
 if($("accountEmail")){
-
-$("accountEmail").textContent =
-"";
+    $("accountEmail").textContent =
+        "";
+}
+```
 
 }
-
-}
-
 }
 
 /* =========================================================
@@ -383,64 +260,53 @@ SIGN IN
 async function handleAuthButton(){
 
 if(currentAuthUser){
-
 toggleAccountPanel();
-
 return;
-
 }
 
 try{
 
+```
 const { error } =
-await supabaseClient.auth.signInWithOAuth({
-
-provider:
-"google",
-
-options: {
-
-redirectTo:
-`${window.location.origin}/`
-
-}
-
-});
+    await supabaseClient.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+            redirectTo:
+                `${window.location.origin}/`
+        }
+    });
 
 if(error){
 
-console.error(
-"Supabase Google sign-in error:",
-error
-);
+    console.error(
+        "Supabase Google sign-in error:",
+        error
+    );
 
-if(typeof showToast === "function"){
-
-showToast(
-"Could not start Google sign-in."
-);
-
+    if(typeof showToast === "function"){
+        showToast(
+            "Could not start Google sign-in."
+        );
+    }
 }
-
-}
+```
 
 }catch(error){
 
+```
 console.error(
-"Supabase Google sign-in error:",
-error
+    "Supabase Google sign-in error:",
+    error
 );
 
 if(typeof showToast === "function"){
-
-showToast(
-"Could not start Google sign-in."
-);
+    showToast(
+        "Could not start Google sign-in."
+    );
+}
+```
 
 }
-
-}
-
 }
 
 /* =========================================================
@@ -451,55 +317,51 @@ async function signOutUser(){
 
 try{
 
+```
 const { error } =
-await supabaseClient.auth.signOut();
+    await supabaseClient.auth.signOut();
 
 if(error){
 
-console.error(
-"Supabase sign-out error:",
-error
-);
+    console.error(
+        "Supabase sign-out error:",
+        error
+    );
 
-if(typeof showToast === "function"){
+    if(typeof showToast === "function"){
+        showToast(
+            "Could not sign out."
+        );
+    }
 
-showToast(
-"Could not sign out."
-);
-
-}
-
-return;
-
+    return;
 }
 
 closeAccountPanel();
 
 if(typeof showToast === "function"){
-
-showToast(
-"Signed out."
-);
-
+    showToast(
+        "Signed out."
+    );
 }
+```
 
 }catch(error){
 
+```
 console.error(
-"Supabase sign-out error:",
-error
+    "Supabase sign-out error:",
+    error
 );
 
 if(typeof showToast === "function"){
-
-showToast(
-"Could not sign out."
-);
+    showToast(
+        "Could not sign out."
+    );
+}
+```
 
 }
-
-}
-
 }
 
 /* =========================================================
@@ -527,27 +389,28 @@ getUserAvatar(user);
 
 if(avatar){
 
+```
 holder.innerHTML =
-`<img
-class="account-page-avatar"
-src="${avatar.replaceAll('"',""")}"
-alt=""
-referrerpolicy="no-referrer"
-
-> `;
+    `<img
+        class="account-page-avatar"
+        src="${avatar.replaceAll('"',"&quot;")}"
+        alt=""
+        referrerpolicy="no-referrer"
+    >`;
+```
 
 }else{
 
+```
 holder.innerHTML =
-`<div class="account-page-avatar-fallback">
-${getUserDisplayName(user)
-.charAt(0)
-.toUpperCase()}
-
-</div>`;
+    `<div class="account-page-avatar-fallback">
+        ${getUserDisplayName(user)
+            .charAt(0)
+            .toUpperCase()}
+    </div>`;
+```
 
 }
-
 }
 
 function openAccountInfo(
@@ -558,15 +421,15 @@ closeAccountPanel();
 
 if(!currentAuthUser){
 
+```
 if(typeof showToast === "function"){
-
-showToast(
-"Please sign in first."
-);
-
+    showToast(
+        "Please sign in first."
+    );
 }
 
 return;
+```
 
 }
 
@@ -588,9 +451,7 @@ if(
 !email ||
 !content
 ){
-
 return;
-
 }
 
 renderAccountPageAvatar(
@@ -601,24 +462,18 @@ email.textContent =
 currentAuthUser.email || "";
 
 if($("accountPageFriends")){
-
 $("accountPageFriends").textContent =
 "0";
-
 }
 
 if($("accountPageFollowers")){
-
 $("accountPageFollowers").textContent =
 "0";
-
 }
 
 if($("accountPageFollowing")){
-
 $("accountPageFollowing").textContent =
 "0";
-
 }
 
 const name =
@@ -628,52 +483,72 @@ currentAuthUser
 
 if(section === "profile"){
 
+```
 title.textContent =
-name;
+    name;
 
 content.innerHTML =
-`<strong>👤 Your profile</strong><br> <span>
-Welcome to your Worth It profile.
-Your account is connected and ready
-for the social features. </span>`;
+    `<strong>👤 Your profile</strong><br>
+     <span>
+        Welcome to your Worth It profile.
+        Your account is connected and ready
+        for the social features.
+     </span>`;
+```
 
 }else if(section === "friends"){
 
+```
 title.textContent =
-"Friends";
+    "Friends";
 
 content.innerHTML =
-`<strong>🤝 No friends yet</strong><br> <span>
-Your friends list is empty.
-Friends will appear here once you add people. </span>`;
+    `<strong>🤝 No friends yet</strong><br>
+     <span>
+        Your friends list is empty.
+        Friends will appear here once you add people.
+     </span>`;
+```
 
 }else if(section === "followers"){
 
+```
 title.textContent =
-"Followers";
+    "Followers";
 
 content.innerHTML =
-`<strong>👥 No followers yet</strong><br> <span>
-People who follow your profile
-will appear here. </span>`;
+    `<strong>👥 No followers yet</strong><br>
+     <span>
+        People who follow your profile
+        will appear here.
+     </span>`;
+```
 
 }else if(section === "following"){
 
+```
 title.textContent =
-"Following";
+    "Following";
 
 content.innerHTML =
-`<strong>➕ Not following anyone yet</strong><br> <span>
-Profiles you follow will appear here. </span>`;
+    `<strong>➕ Not following anyone yet</strong><br>
+     <span>
+        Profiles you follow will appear here.
+     </span>`;
+```
 
 }else{
 
+```
 title.textContent =
-name;
+    name;
 
 content.innerHTML =
-`<strong>👤 Your profile</strong><br> <span>
-Your profile is ready. </span>`;
+    `<strong>👤 Your profile</strong><br>
+     <span>
+        Your profile is ready.
+     </span>`;
+```
 
 }
 
@@ -700,9 +575,6 @@ openAccountInfo;
 window.toggleAccountPanel =
 toggleAccountPanel;
 
-window.openAccountPanel =
-openAccountPanel;
-
 window.updateAuthUI =
 updateAuthUI;
 
@@ -713,18 +585,18 @@ SUPABASE AUTH STATE
 supabaseClient.auth.onAuthStateChange(
 (event, session) => {
 
+```
 updateAuthUI(
-session?.user || null
+    session?.user || null
 );
 
 if(
-typeof updateAIChatView ===
-"function"
+    typeof updateAIChatView ===
+    "function"
 ){
-
-updateAIChatView();
-
+    updateAIChatView();
 }
+```
 
 }
 );
@@ -737,37 +609,40 @@ INITIALIZE SUPABASE AUTH
 
 try{
 
+```
 const {
-data,
-error
+    data,
+    error
 } =
-await supabaseClient.auth.getSession();
+    await supabaseClient.auth.getSession();
 
 if(error){
 
-console.error(
-"Supabase session error:",
-error
-);
+    console.error(
+        "Supabase session error:",
+        error
+    );
 
-updateAuthUI(null);
+    updateAuthUI(null);
 
-return;
-
+    return;
 }
 
 updateAuthUI(
-data.session?.user || null
+    data.session?.user || null
 );
+```
 
 }catch(error){
 
+```
 console.error(
-"Supabase initialization error:",
-error
+    "Supabase initialization error:",
+    error
 );
 
 updateAuthUI(null);
+```
 
 }
 
@@ -781,17 +656,17 @@ document.addEventListener(
 "click",
 event => {
 
+```
 const wrap =
-$("authWrap");
+    $("authWrap");
 
 if(
-wrap &&
-!wrap.contains(event.target)
+    wrap &&
+    !wrap.contains(event.target)
 ){
-
-closeAccountPanel();
-
+    closeAccountPanel();
 }
+```
 
 }
 );
@@ -801,14 +676,14 @@ $("accountPageOverlay")
 "click",
 event => {
 
+```
 if(
-event.target ===
-event.currentTarget
+    event.target ===
+    event.currentTarget
 ){
-
-closeAccountPage();
-
+    closeAccountPage();
 }
+```
 
 }
 );
@@ -817,13 +692,12 @@ document.addEventListener(
 "keydown",
 event => {
 
+```
 if(event.key === "Escape"){
-
-closeAccountPage();
-
-closeAccountPanel();
-
+    closeAccountPage();
+    closeAccountPanel();
 }
+```
 
 }
 );
@@ -862,45 +736,38 @@ const navLinks =
 document.getElementById("navLinks");
 
 if(homePage){
-
 homePage.style.display =
 "none";
-
 }
 
 if(weatherSection){
-
 weatherSection.style.display =
 "none";
-
 }
 
 if(newsSection){
-
 newsSection.style.display =
 "none";
-
 }
 
 if(settingsPage){
-
 settingsPage.style.display =
 "none";
-
 }
 
 document
 .querySelectorAll(".app")
 .forEach(app => {
 
-app.classList.remove(
-"active"
-);
+```
+    app.classList.remove(
+        "active"
+    );
 
-app.style.display =
-"none";
-
+    app.style.display =
+        "none";
 });
+```
 
 if(
 type === "basic" ||
@@ -908,78 +775,71 @@ type === "advanced" ||
 type === "scientific"
 ){
 
+```
 if(calculatorApp){
 
-calculatorApp.style.display =
-"block";
+    calculatorApp.style.display =
+        "block";
 
-calculatorApp.classList.add(
-"active"
-);
-
+    calculatorApp.classList.add(
+        "active"
+    );
 }
 
 if(
-typeof setCalculatorMode ===
-"function"
+    typeof setCalculatorMode ===
+    "function"
 ){
-
-setCalculatorMode(type);
-
+    setCalculatorMode(type);
 }
+```
 
 }else if(type === "cars"){
 
+```
 if(carsApp){
 
-carsApp.style.display =
-"block";
+    carsApp.style.display =
+        "block";
 
-carsApp.classList.add(
-"active"
-);
-
+    carsApp.classList.add(
+        "active"
+    );
 }
 
 if(carResults){
 
-carResults.style.display =
-"none";
-
+    carResults.style.display =
+        "none";
 }
+```
 
 }else{
 
+```
 if(genericApp){
 
-genericApp.style.display =
-"block";
+    genericApp.style.display =
+        "block";
 
-genericApp.classList.add(
-"active"
-);
-
+    genericApp.classList.add(
+        "active"
+    );
 }
 
 if(
-typeof setupGeneric ===
-"function"
+    typeof setupGeneric ===
+    "function"
 ){
-
-setupGeneric(type);
-
+    setupGeneric(type);
 }
+```
 
 }
 
 window.scrollTo({
-
-top:
-0,
-
-behavior:
-"smooth"
-
+top: 0,
+behavior: "smooth"
 });
 
 document.documentElement.style.overflowY =
@@ -989,11 +849,9 @@ document.body.style.overflowY =
 "auto";
 
 if(navLinks){
-
 navLinks.classList.remove(
 "open"
 );
-
 }
 
 }
