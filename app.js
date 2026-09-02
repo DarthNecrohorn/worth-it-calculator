@@ -1060,23 +1060,33 @@ function showHome() {
 window.showHome = showHome;
 
 
-function showCategory(category) {
+ffunction showCategory(category) {
     showHome();
 
     const calculators = document.getElementById("calculators");
+    const filter = document.getElementById("categoryFilter");
 
     if (!calculators) return;
 
-    const filter = document.getElementById("categoryFilter");
-
+    // Postavi kategoriju u dropdown
     if (filter) {
         filter.value = category;
-
-        filter.dispatchEvent(
-            new Event("change", { bubbles: true })
-        );
     }
 
+    // Prikaži samo kalkulatore iz izabrane kategorije
+    const cards = document.querySelectorAll(".calc-card");
+
+    cards.forEach(card => {
+        const cardCategory = card.getAttribute("data-category");
+
+        if (cardCategory === category) {
+            card.style.display = "";
+        } else {
+            card.style.display = "none";
+        }
+    });
+
+    // Skroluj do kalkulatora
     setTimeout(() => {
         calculators.scrollIntoView({
             behavior: "smooth",
@@ -1093,14 +1103,14 @@ function scrollToFAQ() {
 
     const faq = document.getElementById("faq");
 
-    if (faq) {
-        setTimeout(() => {
-            faq.scrollIntoView({
-                behavior: "smooth",
-                block: "start"
-            });
-        }, 50);
-    }
+    if (!faq) return;
+
+    setTimeout(() => {
+        faq.scrollIntoView({
+            behavior: "smooth",
+            block: "start"
+        });
+    }, 50);
 }
 
 window.scrollToFAQ = scrollToFAQ;
@@ -1115,7 +1125,9 @@ function toggleSettings() {
         settingsPanel.style.display === "none" ||
         getComputedStyle(settingsPanel).display === "none";
 
-    settingsPanel.style.display = isHidden ? "block" : "none";
+    settingsPanel.style.display = isHidden
+        ? "block"
+        : "none";
 }
 
 window.toggleSettings = toggleSettings;
