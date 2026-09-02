@@ -296,7 +296,7 @@
 
             <div class="calculator-grid" id="calculatorGrid">
 
-                <!-- EXISTING 12 -->
+                <!-- CALCULATORS -->
 
                 <div class="calc-card" data-category="cars" style="--glow:#7c5cff">
                     <div class="calc-icon">🚗</div>
@@ -381,8 +381,6 @@
                     <p>Estimate seasonal heating costs from energy use and prices.</p>
                     <button class="open-calc" onclick="openCalculator('heating')">Open calculator →</button>
                 </div>
-
-                <!-- NEW 10 -->
 
                 <div class="calc-card" data-category="cars" style="--glow:#60a5fa">
                     <div class="calc-icon">🚘</div>
@@ -1270,11 +1268,6 @@ async function shareCurrentResult(){
     }
 
 }
-
-    /* =========================================================
-   EXTRA 18 CALCULATORS
-   Added without changing existing calculators
-========================================================= */
 
 const originalCalculateGeneric = calculateGeneric;
 
@@ -2419,10 +2412,6 @@ calculateGeneric = function(){
     });
 
 };
-
-    /* =========================================================
-   EXTRA 10 CALCULATORS
-========================================================= */
 
 const originalCalculateGeneric2 = calculateGeneric;
 
