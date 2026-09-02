@@ -858,8 +858,8 @@ function openCalculator(type) {
     const newsSection =
         document.getElementById("newsSection");
 
-    const settingsPage =
-        document.getElementById("settingsPage");
+   const settingsPanel =
+    document.getElementById("settingsPanel");
 
     const calculatorApp =
         document.getElementById("calculatorApp");
@@ -901,12 +901,12 @@ function openCalculator(type) {
     }
 
 
-    if (settingsPage) {
+    if (settingsPanel) {
 
-        settingsPage.style.display =
-            "none";
+    settingsPanel.style.display =
+        "none";
 
-    }
+}
 
 
     document
