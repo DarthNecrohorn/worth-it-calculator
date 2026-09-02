@@ -1028,3 +1028,23 @@ function openCalculator(type) {
 
 window.openCalculator =
     openCalculator;
+
+function showHome() {
+    const homePage = document.getElementById("homePage");
+
+    document.querySelectorAll(".app").forEach(app => {
+        app.classList.remove("active");
+        app.style.display = "none";
+    });
+
+    if (homePage) {
+        homePage.style.display = "block";
+    }
+
+    window.scrollTo({
+        top: 0,
+        behavior: "smooth"
+    });
+}
+
+window.showHome = showHome;
