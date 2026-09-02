@@ -800,3 +800,6 @@ if(navLinks){
 }
 
 }
+
+window.handleAuthButton = handleAuthButton;
+
