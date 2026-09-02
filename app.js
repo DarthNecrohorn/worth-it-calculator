@@ -1148,14 +1148,6 @@ function toggleSettings() {
 
 window.toggleSettings = toggleSettings;
 
-
-function openDiscounts() {
-    openCalculator("discount");
-}
-
-window.openDiscounts = openDiscounts;
-
-
 function money(value) {
     return new Intl.NumberFormat("en-US", {
         style: "currency",
