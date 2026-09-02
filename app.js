@@ -1,5 +1,6 @@
 /* DOM helper */
-window.$ = window.$ || (id => document.getElementById(id));
+const $ = id =>
+document.getElementById(id);
 
 /* =========================================================
 SUPABASE AUTH
@@ -10,9 +11,6 @@ const SUPABASE_URL =
 
 const SUPABASE_PUBLISHABLE_KEY =
 "sb_publishable_W9769alA1ckSllKvue4U2Q_TdXpWnjp";
-
-const $ = id =>
-document.getElementById(id);
 
 const supabaseClient =
 window.supabase.createClient(
