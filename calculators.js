@@ -2681,10 +2681,10 @@ if(settingsPage){
 }
 
 document.querySelectorAll(".app")
-    .forEach(x => x.classList.remove("active"));
-
-$("genericApp").style.display = "none";
-$("calculatorApp").style.display = "none";
+    .forEach(x => {
+        x.classList.remove("active");
+        x.style.display = "none";
+    });
 
 if(type === "basic" || type === "advanced" || type === "scientific"){
 
@@ -2692,6 +2692,13 @@ if(type === "basic" || type === "advanced" || type === "scientific"){
     $("calculatorApp").classList.add("active");
 
     setCalculatorMode(type);
+
+}else if(type === "cars"){
+
+    $("carsApp").style.display = "block";
+    $("carsApp").classList.add("active");
+
+    $("carResults").style.display = "none";
 
 }else{
 
