@@ -274,27 +274,20 @@ async function loadNews() {
 NEWS
 ========================================================= */
 
-function openNews() {
+function openNews(){
 
     $("homePage").style.display = "none";
 
-    document
-        .querySelectorAll(".app")
+    document.querySelectorAll(".app")
         .forEach(x => x.classList.remove("active"));
 
     $("weatherSection").style.display = "none";
 
+    const settingsPanel = $("settingsPanel");
 
-    const settingsPanel =
-        $("settingsPanel");
-
-
-    if (settingsPanel) {
-
+    if(settingsPanel){
         settingsPanel.style.display = "none";
-
     }
-
 
     $("newsSection").style.display = "block";
 
@@ -303,15 +296,10 @@ function openNews() {
     document.documentElement.style.overflowY = "auto";
     document.body.style.overflowY = "auto";
 
-
     window.scrollTo({
-
         top: 0,
         behavior: "smooth"
-
     });
 
-
     loadNews();
-
 }
