@@ -1,4 +1,38 @@
 /* =========================================================
+   SETTINGS
+========================================================= */
+
+function openSettings(){
+
+    $("homePage").style.display = "none";
+
+    document.querySelectorAll(".app")
+        .forEach(x => x.classList.remove("active"));
+
+    $("weatherSection").style.display = "none";
+    $("newsSection").style.display = "none";
+
+    const settingsPage = $("settingsPage");
+
+    if(!settingsPage){
+        console.error("Settings page not found: #settingsPage");
+        return;
+    }
+
+    settingsPage.style.display = "block";
+
+    $("navLinks").classList.remove("open");
+
+    document.documentElement.style.overflowY = "auto";
+    document.body.style.overflowY = "auto";
+
+    window.scrollTo({
+        top: 0,
+        behavior: "smooth"
+    });
+}
+
+/* =========================================================
    WORTH IT - SETTINGS / SEARCH / FEEDBACK
 ========================================================= */
 (function(){
