@@ -52,27 +52,31 @@ function makeAvatarMarkup(
 user,
 className = "auth-avatar"
 ){
+
 const avatar =
 getUserAvatar(user);
 
 if(avatar){
-    return `<img
-        class="${className}"
-        src="${avatar.replaceAll('"',"&quot;")}"
-        alt=""
-        referrerpolicy="no-referrer"
-    >`;
+
+return `<img
+class="${className}"
+src="${avatar.replaceAll('"',""")}"
+alt=""
+referrerpolicy="no-referrer"
+
+> `;
+
 }
 
 const initial =
-    getUserDisplayName(user)
-        .charAt(0)
-        .toUpperCase();
+getUserDisplayName(user)
+.charAt(0)
+.toUpperCase();
 
 const fallbackClass =
-    className.includes("account-head")
-        ? "account-head-fallback"
-        : "auth-avatar-fallback";
+className.includes("account-head")
+? "account-head-fallback"
+: "auth-avatar-fallback";
 
 return `<div class="${fallbackClass}">${initial}</div>`;
 
@@ -85,15 +89,15 @@ ACCOUNT PANEL
 function closeAccountPanel(){
 
 const panel =
-    $("accountPanel");
+$("accountPanel");
 
 if(!panel) return;
 
 panel.classList.remove("open");
 
 panel.setAttribute(
-    "aria-hidden",
-    "true"
+"aria-hidden",
+"true"
 );
 
 }
@@ -103,16 +107,16 @@ function toggleAccountPanel(){
 if(!currentAuthUser) return;
 
 const panel =
-    $("accountPanel");
+$("accountPanel");
 
 if(!panel) return;
 
 const open =
-    panel.classList.toggle("open");
+panel.classList.toggle("open");
 
 panel.setAttribute(
-    "aria-hidden",
-    String(!open)
+"aria-hidden",
+String(!open)
 );
 
 }
@@ -124,130 +128,209 @@ AUTH UI
 function updateAuthUI(user){
 
 currentAuthUser =
-    user || null;
+user || null;
 
 const btn =
-    $("authBtn");
+$("authBtn");
 
 const icon =
-    $("authIcon");
+$("authIcon");
 
 const label =
-    $("authLabel");
+$("authLabel");
 
 const profileBtn =
-    $("profileNavBtn");
+$("profileNavBtn");
 
 const profileIcon =
-    $("profileNavIcon");
+$("profileNavIcon");
 
 const panel =
-    $("accountPanel");
+$("accountPanel");
 
 const signOutBtn =
-    $("signOutNavBtn");
+$("signOutNavBtn");
 
-if(
-    !btn ||
-    !icon ||
-    !label ||
-    !profileBtn ||
-    !profileIcon ||
-    !signOutBtn
-){
-    return;
+/*
+Do not stop the entire function if an optional
+account element is missing.
+*/
+
+if(!btn){
+return;
 }
 
 if(user){
 
-    btn.style.display =
-        "none";
+btn.style.display =
+"none";
 
-    profileBtn.style.display =
-        "inline-flex";
+if(profileBtn){
 
-    profileBtn.title =
-        `Open profile for ${getUserDisplayName(user)}`;
+profileBtn.style.display =
+"inline-flex";
 
-    profileBtn.setAttribute(
-        "aria-label",
-        `Open profile for ${getUserDisplayName(user)}`
-    );
+profileBtn.title =
+`Open profile for ${getUserDisplayName(user)}`;
 
-    profileIcon.innerHTML =
-        makeAvatarMarkup(
-            user,
-            "auth-avatar"
-        );
+profileBtn.setAttribute(
+"aria-label",
+`Open profile for ${getUserDisplayName(user)}`
+);
 
-    if($("accountHeadAvatar")){
-        $("accountHeadAvatar").innerHTML =
-            makeAvatarMarkup(
-                user,
-                "account-head-avatar"
-            );
-    }
+profileBtn.onclick =
+event => {
 
-    if($("accountName")){
-        $("accountName").textContent =
-            getUserDisplayName(user);
-    }
+event.preventDefault();
+event.stopPropagation();
 
-    if($("accountEmail")){
-        $("accountEmail").textContent =
-            user.email || "";
-    }
+toggleAccountPanel();
 
-    if(panel){
-        panel.style.display = "";
-        closeAccountPanel();
-    }
+};
 
-    signOutBtn.style.display =
-        "inline-flex";
+}
+
+if(profileIcon){
+
+profileIcon.innerHTML =
+makeAvatarMarkup(
+user,
+"auth-avatar"
+);
+
+}
+
+if($("accountHeadAvatar")){
+
+$("accountHeadAvatar").innerHTML =
+makeAvatarMarkup(
+user,
+"account-head-avatar"
+);
+
+}
+
+if($("accountName")){
+
+$("accountName").textContent =
+getUserDisplayName(user);
+
+}
+
+if($("accountEmail")){
+
+$("accountEmail").textContent =
+user.email || "";
+
+}
+
+if(panel){
+
+panel.style.display =
+"";
+
+closeAccountPanel();
+
+}
+
+if(signOutBtn){
+
+signOutBtn.style.display =
+"inline-flex";
+
+signOutBtn.onclick =
+event => {
+
+event.preventDefault();
+event.stopPropagation();
+
+signOutUser();
+
+};
+
+}
 
 }else{
 
-    btn.style.display =
-        "inline-flex";
+btn.style.display =
+"inline-flex";
 
-    btn.onclick =
-        handleAuthButton;
+btn.onclick =
+event => {
 
-    btn.title =
-        "Sign in with Google";
+event.preventDefault();
 
-    icon.textContent =
-        "🔐";
+handleAuthButton();
 
-    label.textContent =
-        "Sign in";
+};
 
-    profileBtn.style.display =
-        "none";
+if(icon){
 
-    profileIcon.innerHTML =
-        "👤";
+icon.textContent =
+"🔐";
 
-    closeAccountPanel();
+}
 
-    signOutBtn.style.display =
-        "none";
+if(label){
 
-    if($("accountHeadAvatar")){
-        $("accountHeadAvatar").innerHTML =
-            "";
-    }
+label.textContent =
+"Sign in";
 
-    if($("accountName")){
-        $("accountName").textContent =
-            "Account";
-    }
+}
 
-    if($("accountEmail")){
-        $("accountEmail").textContent =
-            "";
-    }
+btn.title =
+"Sign in with Google";
+
+if(profileBtn){
+
+profileBtn.style.display =
+"none";
+
+profileBtn.onclick =
+null;
+
+}
+
+if(profileIcon){
+
+profileIcon.innerHTML =
+"👤";
+
+}
+
+closeAccountPanel();
+
+if(signOutBtn){
+
+signOutBtn.style.display =
+"none";
+
+signOutBtn.onclick =
+null;
+
+}
+
+if($("accountHeadAvatar")){
+
+$("accountHeadAvatar").innerHTML =
+"";
+
+}
+
+if($("accountName")){
+
+$("accountName").textContent =
+"Account";
+
+}
+
+if($("accountEmail")){
+
+$("accountEmail").textContent =
+"";
+
+}
+
 }
 
 }
@@ -259,47 +342,62 @@ SIGN IN
 async function handleAuthButton(){
 
 if(currentAuthUser){
-    toggleAccountPanel();
-    return;
+
+toggleAccountPanel();
+
+return;
+
 }
 
 try{
 
-    const { error } =
-        await supabaseClient.auth.signInWithOAuth({
-            provider: "google",
-            options: {
-                redirectTo:
-                    `${window.location.origin}/`
-            }
-        });
+const { error } =
+await supabaseClient.auth.signInWithOAuth({
 
-    if(error){
+provider:
+"google",
 
-        console.error(
-            "Supabase Google sign-in error:",
-            error
-        );
+options: {
 
-        if(typeof showToast === "function"){
-            showToast(
-                "Could not start Google sign-in."
-            );
-        }
-    }
+redirectTo:
+`${window.location.origin}/`
+
+}
+
+});
+
+if(error){
+
+console.error(
+"Supabase Google sign-in error:",
+error
+);
+
+if(typeof showToast === "function"){
+
+showToast(
+"Could not start Google sign-in."
+);
+
+}
+
+}
 
 }catch(error){
 
-    console.error(
-        "Supabase Google sign-in error:",
-        error
-    );
+console.error(
+"Supabase Google sign-in error:",
+error
+);
 
-    if(typeof showToast === "function"){
-        showToast(
-            "Could not start Google sign-in."
-        );
-    }
+if(typeof showToast === "function"){
+
+showToast(
+"Could not start Google sign-in."
+);
+
+}
+
 }
 
 }
@@ -312,43 +410,53 @@ async function signOutUser(){
 
 try{
 
-    const { error } =
-        await supabaseClient.auth.signOut();
+const { error } =
+await supabaseClient.auth.signOut();
 
-    if(error){
+if(error){
 
-        console.error(
-            "Supabase sign-out error:",
-            error
-        );
+console.error(
+"Supabase sign-out error:",
+error
+);
 
-        if(typeof showToast === "function"){
-            showToast(
-                "Could not sign out."
-            );
-        }
+if(typeof showToast === "function"){
 
-        return;
-    }
+showToast(
+"Could not sign out."
+);
 
-    closeAccountPanel();
+}
 
-    if(typeof showToast === "function"){
-        showToast("Signed out.");
-    }
+return;
+
+}
+
+closeAccountPanel();
+
+if(typeof showToast === "function"){
+
+showToast(
+"Signed out."
+);
+
+}
 
 }catch(error){
 
-    console.error(
-        "Supabase sign-out error:",
-        error
-    );
+console.error(
+"Supabase sign-out error:",
+error
+);
 
-    if(typeof showToast === "function"){
-        showToast(
-            "Could not sign out."
-        );
-    }
+if(typeof showToast === "function"){
+
+showToast(
+"Could not sign out."
+);
+
+}
+
 }
 
 }
@@ -358,8 +466,10 @@ ACCOUNT PAGE
 ========================================================= */
 
 function closeAccountPage(){
+
 $("accountPageOverlay")
 ?.classList.remove("open");
+
 }
 
 function renderAccountPageAvatar(user){
@@ -367,31 +477,34 @@ function renderAccountPageAvatar(user){
 if(!user) return;
 
 const holder =
-    $("accountPageAvatar");
+$("accountPageAvatar");
 
 if(!holder) return;
 
 const avatar =
-    getUserAvatar(user);
+getUserAvatar(user);
 
 if(avatar){
 
-    holder.innerHTML =
-        `<img
-            class="account-page-avatar"
-            src="${avatar.replaceAll('"',"&quot;")}"
-            alt=""
-            referrerpolicy="no-referrer"
-        >`;
+holder.innerHTML =
+`<img
+class="account-page-avatar"
+src="${avatar.replaceAll('"',""")}"
+alt=""
+referrerpolicy="no-referrer"
+
+> `;
 
 }else{
 
-    holder.innerHTML =
-        `<div class="account-page-avatar-fallback">
-            ${getUserDisplayName(user)
-                .charAt(0)
-                .toUpperCase()}
-        </div>`;
+holder.innerHTML =
+`<div class="account-page-avatar-fallback">
+${getUserDisplayName(user)
+.charAt(0)
+.toUpperCase()}
+
+</div>`;
+
 }
 
 }
@@ -404,121 +517,123 @@ closeAccountPanel();
 
 if(!currentAuthUser){
 
-    if(typeof showToast === "function"){
-        showToast(
-            "Please sign in first."
-        );
-    }
+if(typeof showToast === "function"){
 
-    return;
+showToast(
+"Please sign in first."
+);
+
+}
+
+return;
+
 }
 
 const overlay =
-    $("accountPageOverlay");
+$("accountPageOverlay");
 
 const title =
-    $("accountPageTitle");
+$("accountPageTitle");
 
 const email =
-    $("accountPageEmail");
+$("accountPageEmail");
 
 const content =
-    $("accountPageContent");
+$("accountPageContent");
 
 if(
-    !overlay ||
-    !title ||
-    !email ||
-    !content
+!overlay ||
+!title ||
+!email ||
+!content
 ){
-    return;
+
+return;
+
 }
 
 renderAccountPageAvatar(
-    currentAuthUser
+currentAuthUser
 );
 
 email.textContent =
-    currentAuthUser.email || "";
+currentAuthUser.email || "";
 
 if($("accountPageFriends")){
-    $("accountPageFriends").textContent =
-        "0";
+
+$("accountPageFriends").textContent =
+"0";
+
 }
 
 if($("accountPageFollowers")){
-    $("accountPageFollowers").textContent =
-        "0";
+
+$("accountPageFollowers").textContent =
+"0";
+
 }
 
 if($("accountPageFollowing")){
-    $("accountPageFollowing").textContent =
-        "0";
+
+$("accountPageFollowing").textContent =
+"0";
+
 }
 
 const name =
-    getUserDisplayName(
-        currentAuthUser
-    );
+getUserDisplayName(
+currentAuthUser
+);
 
 if(section === "profile"){
 
-    title.textContent =
-        name;
+title.textContent =
+name;
 
-    content.innerHTML =
-        `<strong>👤 Your profile</strong><br>
-         <span>
-            Welcome to your Worth It profile.
-            Your account is connected and ready
-            for the social features.
-         </span>`;
+content.innerHTML =
+`<strong>👤 Your profile</strong><br> <span>
+Welcome to your Worth It profile.
+Your account is connected and ready
+for the social features. </span>`;
 
 }else if(section === "friends"){
 
-    title.textContent =
-        "Friends";
+title.textContent =
+"Friends";
 
-    content.innerHTML =
-        `<strong>🤝 No friends yet</strong><br>
-         <span>
-            Your friends list is empty.
-            Friends will appear here once you add people.
-         </span>`;
+content.innerHTML =
+`<strong>🤝 No friends yet</strong><br> <span>
+Your friends list is empty.
+Friends will appear here once you add people. </span>`;
 
 }else if(section === "followers"){
 
-    title.textContent =
-        "Followers";
+title.textContent =
+"Followers";
 
-    content.innerHTML =
-        `<strong>👥 No followers yet</strong><br>
-         <span>
-            People who follow your profile
-            will appear here.
-         </span>`;
+content.innerHTML =
+`<strong>👥 No followers yet</strong><br> <span>
+People who follow your profile
+will appear here. </span>`;
 
 }else if(section === "following"){
 
-    title.textContent =
-        "Following";
+title.textContent =
+"Following";
 
-    content.innerHTML =
-        `<strong>➕ Not following anyone yet</strong><br>
-         <span>
-            Profiles you follow will appear here.
-         </span>`;
+content.innerHTML =
+`<strong>➕ Not following anyone yet</strong><br> <span>
+Profiles you follow will appear here. </span>`;
 
 }else{
 
-    title.textContent =
-        name;
+title.textContent =
+name;
 
-    content.innerHTML =
-        `<strong>👤 Your profile</strong><br>
-         <span>
-            Your profile is ready.
-         </span>`;
+content.innerHTML =
+`<strong>👤 Your profile</strong><br> <span>
+Your profile is ready. </span>`;
+
 }
 
 overlay.classList.add("open");
@@ -554,54 +669,62 @@ SUPABASE AUTH STATE
 supabaseClient.auth.onAuthStateChange(
 (event, session) => {
 
-    updateAuthUI(
-        session?.user || null
-    );
+updateAuthUI(
+session?.user || null
+);
 
-    if(
-        typeof updateAIChatView ===
-        "function"
-    ){
-        updateAIChatView();
-    }
+if(
+typeof updateAIChatView ===
+"function"
+){
+
+updateAIChatView();
+
 }
 
+}
 );
+
+/* =========================================================
+INITIALIZE SUPABASE AUTH
+========================================================= */
 
 (async function initializeSupabaseAuth(){
 
 try{
 
-    const {
-        data,
-        error
-    } =
-        await supabaseClient.auth.getSession();
+const {
+data,
+error
+} =
+await supabaseClient.auth.getSession();
 
-    if(error){
+if(error){
 
-        console.error(
-            "Supabase session error:",
-            error
-        );
+console.error(
+"Supabase session error:",
+error
+);
 
-        updateAuthUI(null);
+updateAuthUI(null);
 
-        return;
-    }
+return;
 
-    updateAuthUI(
-        data.session?.user || null
-    );
+}
+
+updateAuthUI(
+data.session?.user || null
+);
 
 }catch(error){
 
-    console.error(
-        "Supabase initialization error:",
-        error
-    );
+console.error(
+"Supabase initialization error:",
+error
+);
 
-    updateAuthUI(null);
+updateAuthUI(null);
+
 }
 
 })();
@@ -614,17 +737,19 @@ document.addEventListener(
 "click",
 event => {
 
-    const wrap =
-        $("authWrap");
+const wrap =
+$("authWrap");
 
-    if(
-        wrap &&
-        !wrap.contains(event.target)
-    ){
-        closeAccountPanel();
-    }
+if(
+wrap &&
+!wrap.contains(event.target)
+){
+
+closeAccountPanel();
+
 }
 
+}
 );
 
 $("accountPageOverlay")
@@ -632,25 +757,30 @@ $("accountPageOverlay")
 "click",
 event => {
 
-        if(
-            event.target ===
-            event.currentTarget
-        ){
-            closeAccountPage();
-        }
-    }
+if(
+event.target ===
+event.currentTarget
+){
+
+closeAccountPage();
+
+}
+
+}
 );
 
 document.addEventListener(
 "keydown",
 event => {
 
-    if(event.key === "Escape"){
-        closeAccountPage();
-        closeAccountPanel();
-    }
+if(event.key === "Escape"){
+
+closeAccountPage();
+closeAccountPanel();
+
 }
 
+}
 );
 
 /* =========================================================
@@ -660,128 +790,150 @@ CALCULATOR NAVIGATION
 function openCalculator(type){
 
 const homePage =
-    document.getElementById("homePage");
+document.getElementById("homePage");
 
 const weatherSection =
-    document.getElementById("weatherSection");
+document.getElementById("weatherSection");
 
 const newsSection =
-    document.getElementById("newsSection");
+document.getElementById("newsSection");
 
 const settingsPage =
-    document.getElementById("settingsPage");
+document.getElementById("settingsPage");
 
 const calculatorApp =
-    document.getElementById("calculatorApp");
+document.getElementById("calculatorApp");
 
 const carsApp =
-    document.getElementById("carsApp");
+document.getElementById("carsApp");
 
 const genericApp =
-    document.getElementById("genericApp");
+document.getElementById("genericApp");
 
 const carResults =
-    document.getElementById("carResults");
+document.getElementById("carResults");
 
 const navLinks =
-    document.getElementById("navLinks");
+document.getElementById("navLinks");
 
 if(homePage){
-    homePage.style.display =
-        "none";
+
+homePage.style.display =
+"none";
+
 }
 
 if(weatherSection){
-    weatherSection.style.display =
-        "none";
+
+weatherSection.style.display =
+"none";
+
 }
 
 if(newsSection){
-    newsSection.style.display =
-        "none";
+
+newsSection.style.display =
+"none";
+
 }
 
 if(settingsPage){
-    settingsPage.style.display =
-        "none";
+
+settingsPage.style.display =
+"none";
+
 }
 
 document
-    .querySelectorAll(".app")
-    .forEach(app => {
+.querySelectorAll(".app")
+.forEach(app => {
 
-        app.classList.remove(
-            "active"
-        );
+app.classList.remove(
+"active"
+);
 
-        app.style.display =
-            "none";
-    });
+app.style.display =
+"none";
+
+});
 
 if(
-    type === "basic" ||
-    type === "advanced" ||
-    type === "scientific"
+type === "basic" ||
+type === "advanced" ||
+type === "scientific"
 ){
 
-    if(calculatorApp){
+if(calculatorApp){
 
-        calculatorApp.style.display =
-            "block";
+calculatorApp.style.display =
+"block";
 
-        calculatorApp.classList.add(
-            "active"
-        );
-    }
+calculatorApp.classList.add(
+"active"
+);
 
-    if(
-        typeof setCalculatorMode ===
-        "function"
-    ){
-        setCalculatorMode(type);
-    }
+}
+
+if(
+typeof setCalculatorMode ===
+"function"
+){
+
+setCalculatorMode(type);
+
+}
 
 }else if(type === "cars"){
 
-    if(carsApp){
+if(carsApp){
 
-        carsApp.style.display =
-            "block";
+carsApp.style.display =
+"block";
 
-        carsApp.classList.add(
-            "active"
-        );
-    }
+carsApp.classList.add(
+"active"
+);
 
-    if(carResults){
+}
 
-        carResults.style.display =
-            "none";
-    }
+if(carResults){
+
+carResults.style.display =
+"none";
+
+}
 
 }else{
 
-    if(genericApp){
+if(genericApp){
 
-        genericApp.style.display =
-            "block";
+genericApp.style.display =
+"block";
 
-        genericApp.classList.add(
-            "active"
-        );
-    }
+genericApp.classList.add(
+"active"
+);
 
-    if(
-        typeof setupGeneric ===
-        "function"
-    ){
-        setupGeneric(type);
-    }
+}
+
+if(
+typeof setupGeneric ===
+"function"
+){
+
+setupGeneric(type);
+
+}
+
 }
 
 window.scrollTo({
-    top: 0,
-    behavior: "smooth"
+
+top: 0,
+
+behavior:
+"smooth"
+
 });
 
 document.documentElement.style.overflowY =
@@ -791,11 +943,14 @@ document.body.style.overflowY =
 "auto";
 
 if(navLinks){
+
 navLinks.classList.remove(
 "open"
 );
-}
 
 }
 
-window.openCalculator = openCalculator;
+}
+
+window.openCalculator =
+openCalculator;
