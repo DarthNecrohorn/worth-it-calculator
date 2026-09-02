@@ -37,14 +37,12 @@ if(avatar){
 return `<img class="${className}" src="${avatar.replaceAll('"','&quot;')}" alt="" referrerpolicy="no-referrer">`;
 }
 
-```
 const initial = getUserDisplayName(user).charAt(0).toUpperCase();
 const fallbackClass = className.includes("account-head")
     ? "account-head-fallback"
     : "auth-avatar-fallback";
 
 return `<div class="${fallbackClass}">${initial}</div>`;
-```
 
 }
 
@@ -52,30 +50,25 @@ function closeAccountPanel(){
 const panel = $("accountPanel");
 if(!panel) return;
 
-```
 panel.classList.remove("open");
 panel.setAttribute("aria-hidden","true");
-```
 
 }
 
 function toggleAccountPanel(){
 if(!currentAuthUser) return;
 
-```
 const panel = $("accountPanel");
 if(!panel) return;
 
 const open = panel.classList.toggle("open");
 panel.setAttribute("aria-hidden", String(!open));
-```
 
 }
 
 function updateAuthUI(user){
 currentAuthUser = user || null;
 
-```
 const btn = $("authBtn");
 const icon = $("authIcon");
 const label = $("authLabel");
@@ -145,7 +138,6 @@ if(user){
         $("accountEmail").textContent = "";
     }
 }
-```
 
 }
 
@@ -155,7 +147,6 @@ toggleAccountPanel();
 return;
 }
 
-```
 const { error } = await supabaseClient.auth.signInWithOAuth({
     provider: "google",
     options: {
@@ -167,14 +158,12 @@ if(error){
     console.error("Supabase Google sign-in error:", error);
     showToast("Could not start Google sign-in.");
 }
-```
 
 }
 
 async function signOutUser(){
 const { error } = await supabaseClient.auth.signOut();
 
-```
 if(error){
     console.error("Supabase sign-out error:", error);
     showToast("Could not sign out.");
@@ -183,7 +172,6 @@ if(error){
 
 closeAccountPanel();
 showToast("Signed out.");
-```
 
 }
 
@@ -194,7 +182,6 @@ $("accountPageOverlay")?.classList.remove("open");
 function renderAccountPageAvatar(user){
 if(!user) return;
 
-```
 const holder = $("accountPageAvatar");
 if(!holder) return;
 
@@ -207,14 +194,12 @@ if(avatar){
     holder.innerHTML =
         `<div class="account-page-avatar-fallback">${getUserDisplayName(user).charAt(0).toUpperCase()}</div>`;
 }
-```
 
 }
 
 function openAccountInfo(section="profile"){
 closeAccountPanel();
 
-```
 if(!currentAuthUser){
     showToast("Please sign in first.");
     return;
@@ -264,7 +249,6 @@ if(section === "profile"){
 }
 
 overlay.classList.add("open");
-```
 
 }
 
@@ -280,25 +264,21 @@ updateAuthUI(session?.user || null);
 (async function initializeSupabaseAuth(){
 const { data, error } = await supabaseClient.auth.getSession();
 
-```
 if(error){
     console.error("Supabase session error:", error);
     return;
 }
 
 updateAuthUI(data.session?.user || null);
-```
 
 })();
 
 document.addEventListener("click", (event)=>{
 const wrap = $("authWrap");
 
-```
 if(wrap && !wrap.contains(event.target)){
     closeAccountPanel();
 }
-```
 
 });
 
