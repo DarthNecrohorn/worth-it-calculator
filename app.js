@@ -1,5 +1,4 @@
 /* DOM helper is declared before Supabase auth initialization. */
-window.$ = window.$ || (id => document.getElementById(id));
 
 /* =========================================================
 SUPABASE AUTH
