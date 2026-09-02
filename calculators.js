@@ -2935,7 +2935,7 @@ else if(type==="purchase"){
             "🛒 Reasonable cost per use.";
 
         text =
-            `The item costs about ${decimal(perUse)} € per use based on your expected usage.`;
+    `The item costs about €${decimal(perUse)} per use based on your expected usage.`;
 
     }else{
 
@@ -2943,7 +2943,7 @@ else if(type==="purchase"){
             "🛒 Cost per use is relatively high.";
 
         text =
-            `At about ${decimal(perUse)} € per use, the purchase makes more sense if you expect to use it frequently or keep it longer.`;
+    `At about €${decimal(perUse)} per use, the purchase makes more sense if you expect to use it frequently or keep it longer.`;
     }
 
 
