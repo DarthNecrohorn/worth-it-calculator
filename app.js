@@ -1113,3 +1113,55 @@ function showCategory(category) {
 }
 
 window.showCategory = showCategory;
+
+function scrollToFAQ() {
+    showHome();
+
+    const faq = document.getElementById("faq");
+
+    if (!faq) return;
+
+    setTimeout(() => {
+        faq.scrollIntoView({
+            behavior: "smooth",
+            block: "start"
+        });
+    }, 50);
+}
+
+window.scrollToFAQ = scrollToFAQ;
+
+
+function toggleSettings() {
+    const settingsPanel =
+        document.getElementById("settingsPanel");
+
+    if (!settingsPanel) return;
+
+    const isHidden =
+        settingsPanel.style.display === "none" ||
+        getComputedStyle(settingsPanel).display === "none";
+
+    settingsPanel.style.display =
+        isHidden ? "block" : "none";
+}
+
+window.toggleSettings = toggleSettings;
+
+
+function openDiscounts() {
+    openCalculator("discount");
+}
+
+window.openDiscounts = openDiscounts;
+
+
+function money(value) {
+    return new Intl.NumberFormat("en-US", {
+        style: "currency",
+        currency: "EUR",
+        maximumFractionDigits: 2
+    }).format(Number(value) || 0);
+}
+
+window.money = money;
