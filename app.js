@@ -1060,7 +1060,7 @@ function showHome() {
 window.showHome = showHome;
 
 
-ffunction showCategory(category) {
+function showCategory(category) {
     showHome();
 
     const calculators = document.getElementById("calculators");
