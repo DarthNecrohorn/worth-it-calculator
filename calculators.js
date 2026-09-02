@@ -2926,8 +2926,8 @@ else if(type==="purchase"){
         title =
             "🛒 Very low cost per use.";
 
-        text =
-            `At about ${decimal(perUse)} € per use, this looks like strong value if you use it as often as planned.`;
+       text =
+    `At about €${decimal(perUse)} per use, this looks like strong value if you use it as often as planned.`;
 
     }else if(perUse < 5){
 
