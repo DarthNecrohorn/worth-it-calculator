@@ -150,3 +150,91 @@ function formatNewsTime(date){
         }
     );
 }
+
+async function loadNews(){
+
+const containers = {
+    latest: $("newsLatest"),
+    weird: $("newsWeird"),
+    awesome: $("newsAwesome"),
+    underrated: $("newsUnderrated"),
+    world: $("newsWorld")
+};
+
+Object.values(containers).forEach(container => {
+
+    if(container){
+
+        container.innerHTML = `
+            <div class="news-loading">
+                Loading news...
+            </div>
+        `;
+
+    }
+
+});
+
+try{
+
+    const response =
+        await fetch("/api/news");
+
+    if(!response.ok){
+        throw new Error(
+            `News API error: ${response.status}`
+        );
+    }
+
+    const data =
+        await response.json();
+
+    renderNewsCategory(
+        containers.latest,
+        data.latest
+    );
+
+    renderNewsCategory(
+        containers.weird,
+        data.weird
+    );
+
+    renderNewsCategory(
+        containers.awesome,
+        data.awesome
+    );
+
+    renderNewsCategory(
+        containers.underrated,
+        data.underrated
+    );
+
+    renderNewsCategory(
+        containers.world,
+        data.world
+    );
+
+}catch(error){
+
+    console.error(
+        "Failed to load news:",
+        error
+    );
+
+    Object.values(containers).forEach(container => {
+
+        if(container){
+
+            container.innerHTML = `
+                <div class="news-loading">
+                    Failed to load news.
+                </div>
+            `;
+
+        }
+
+    });
+
+}
+
+}
