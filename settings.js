@@ -32,6 +32,8 @@ function openSettings(){
     });
 }
 
+window.openSettings = openSettings;
+
 /* =========================================================
    WORTH IT - SETTINGS / SEARCH / FEEDBACK
 ========================================================= */
