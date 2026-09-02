@@ -4,7 +4,6 @@ CALCULATOR NAVIGATION
 
 function openCalculator(type){
 
-```
 const homePage = document.getElementById("homePage");
 const weatherSection = document.getElementById("weatherSection");
 const newsSection = document.getElementById("newsSection");
@@ -85,8 +84,8 @@ document.body.style.overflowY = "auto";
 if(navLinks){
     navLinks.classList.remove("open");
 }
-```
 
 }
 
 window.openCalculator = openCalculator;
+
