@@ -6,7 +6,6 @@ let calculatorMode = "basic";
 
 function setCalculatorMode(mode){
 
-```
 calculatorMode = mode;
 
 document.querySelectorAll(".calculator-mode-btn")
@@ -23,7 +22,6 @@ if(activeButton){
 }
 
 renderCalculator();
-```
 
 }
 
@@ -35,7 +33,6 @@ let calculatorExpression = "";
 
 function renderCalculator(){
 
-```
 const keypad = $("calculatorKeypad");
 
 if(!keypad) return;
@@ -151,13 +148,11 @@ keypad.innerHTML = buttons.map(([label,type]) => `
 `).join("");
 
 updateCalculatorDisplay();
-```
 
 }
 
 function calculatorPress(value){
 
-```
 const display = $("calculatorDisplay");
 
 if(!display) return;
@@ -375,20 +370,17 @@ if(value === "("){
 calculatorExpression += value;
 
 updateCalculatorDisplay();
-```
 
 }
 
 function updateCalculatorDisplay(){
 
-```
 const display = $("calculatorDisplay");
 
 if(!display) return;
 
 display.textContent =
     calculatorExpression || "0";
-```
 
 }
 
@@ -398,7 +390,6 @@ CALCULATE EXPRESSION
 
 function calculateExpression(){
 
-```
 try{
 
     let expression =
@@ -473,7 +464,6 @@ try{
             "Error";
     }
 }
-```
 
 }
 
@@ -483,7 +473,6 @@ EV VS GAS
 
 function calculateCars(){
 
-```
 $("carResults").style.display="block";
 
 const evPrice=num("evPrice");
@@ -757,13 +746,11 @@ localStorage.setItem(
         years
     })
 );
-```
 
 }
 
 function renderCarChart(rows){
 
-```
 const chart=$("carChart");
 
 if(!chart) return;
@@ -843,13 +830,11 @@ rows.forEach(row=>{
 
     chart.appendChild(group);
 });
-```
 
 }
 
 function renderCarTable(rows){
 
-```
 const table=$("carTable");
 
 if(!table) return;
@@ -878,13 +863,11 @@ rows.forEach(row=>{
 
     table.appendChild(tr);
 });
-```
 
 }
 
 function resetCars(){
 
-```
 $("evPrice").value=15000;
 $("evConsumption").value=16;
 $("homeCharge").value=80;
@@ -911,7 +894,6 @@ $("carYears").value=10;
 $("carResults").style.display="none";
 
 showToast("Reset complete");
-```
 
 }
 
@@ -928,7 +910,6 @@ value,
 step="0.01"
 ){
 
-```
 return `
     <div class="form-group">
 
@@ -943,13 +924,11 @@ return `
 
     </div>
 `;
-```
 
 }
 
 const configs={
 
-```
 savings:{
     icon:"💰",
     title:"Savings Calculator",
@@ -2194,7 +2173,6 @@ repairreplace:{
         </div>
     `
 }
-```
 
 };
 
@@ -2204,7 +2182,6 @@ GENERIC SETUP
 
 function setupGeneric(type){
 
-```
 currentGenericType=type;
 
 const config=configs[type];
@@ -2229,7 +2206,6 @@ $("genericForm").innerHTML=
 $("genericResult").classList.remove("active");
 
 $("genericResult").innerHTML="";
-```
 
 }
 
@@ -2239,7 +2215,6 @@ GENERIC CALCULATIONS
 
 function calculateGeneric(){
 
-```
 const type=currentGenericType;
 
 const result=$("genericResult");
@@ -4389,7 +4364,6 @@ result.scrollIntoView({
     behavior:"smooth",
     block:"start"
 });
-```
 
 }
 
@@ -4399,7 +4373,6 @@ RESET GENERIC
 
 function resetGeneric(){
 
-```
 setupGeneric(
     currentGenericType
 );
@@ -4407,7 +4380,6 @@ setupGeneric(
 showToast(
     "Reset complete"
 );
-```
 
 }
 
@@ -4417,7 +4389,6 @@ OPEN CALCULATOR
 
 function openCalculator(type){
 
-```
 $("homePage").style.display="none";
 
 $("weatherSection").style.display="none";
@@ -4491,6 +4462,5 @@ document.body.style.overflowY="auto";
 
 
 $("navLinks").classList.remove("open");
-```
 
 }
