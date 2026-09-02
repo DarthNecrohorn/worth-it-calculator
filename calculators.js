@@ -471,6 +471,21 @@ try{
 EV VS GAS
 ========================================================= */
 
+function num(id){
+
+    const element = $(id);
+
+    if(!element) return 0;
+
+    const value =
+        parseFloat(element.value);
+
+    return Number.isFinite(value)
+        ? value
+        : 0;
+}
+
+
 function calculateCars(){
 
 $("carResults").style.display="block";
