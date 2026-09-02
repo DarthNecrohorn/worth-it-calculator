@@ -283,11 +283,11 @@ function openNews(){
 
     $("weatherSection").style.display = "none";
 
-    const settingsPanel = $("settingsPanel");
+   const settingsPanel = $("settingsPanel");
 
-    if(settingsPanel){
-        settingsPanel.style.display = "none";
-    }
+if(settingsPanel){
+    settingsPanel.style.display = "none";
+}
 
     $("newsSection").style.display = "block";
 
