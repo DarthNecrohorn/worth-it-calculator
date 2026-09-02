@@ -2904,11 +2904,7 @@ else if(type==="purchase"){
     const monthlyCost =
         yearlyCost / 12;
 
-
-    const weeklyUses =
-        uses;
-
-
+    
     const monthlyUses =
         uses * 52 / 12;
 
