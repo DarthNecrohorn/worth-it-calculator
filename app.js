@@ -1088,12 +1088,10 @@ function showCategory(category) {
 
     if (!calculators) return;
 
-    // Postavi kategoriju u dropdown
     if (filter) {
         filter.value = category;
     }
 
-    // Prikaži samo kalkulatore iz izabrane kategorije
     const cards = document.querySelectorAll(".calc-card");
 
     cards.forEach(card => {
@@ -1106,7 +1104,6 @@ function showCategory(category) {
         }
     });
 
-    // Skroluj do kalkulatora
     setTimeout(() => {
         calculators.scrollIntoView({
             behavior: "smooth",
@@ -1116,38 +1113,3 @@ function showCategory(category) {
 }
 
 window.showCategory = showCategory;
-
-
-function scrollToFAQ() {
-    showHome();
-
-    const faq = document.getElementById("faq");
-
-    if (!faq) return;
-
-    setTimeout(() => {
-        faq.scrollIntoView({
-            behavior: "smooth",
-            block: "start"
-        });
-    }, 50);
-}
-
-window.scrollToFAQ = scrollToFAQ;
-
-
-function toggleSettings() {
-    const settingsPanel = document.getElementById("settingsPanel");
-
-    if (!settingsPanel) return;
-
-    const isHidden =
-        settingsPanel.style.display === "none" ||
-        getComputedStyle(settingsPanel).display === "none";
-
-    settingsPanel.style.display = isHidden
-        ? "block"
-        : "none";
-}
-
-window.toggleSettings = toggleSettings;
