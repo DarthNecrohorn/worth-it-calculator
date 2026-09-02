@@ -4404,78 +4404,78 @@ OPEN CALCULATOR
 
 function openCalculator(type){
 
-$("homePage").style.display="none";
+    $("homePage").style.display = "none";
 
-$("weatherSection").style.display="none";
-$("newsSection").style.display="none";
-
-
-const settingsPage=
-    $("settingsPage");
-
-if(settingsPage){
-
-    settingsPage.style.display="none";
-}
+    $("weatherSection").style.display = "none";
+    $("newsSection").style.display = "none";
 
 
-document.querySelectorAll(".app")
-    .forEach(x=>{
+    const settingsPanel =
+        $("settingsPanel");
 
-        x.classList.remove("active");
+    if(settingsPanel){
 
-        x.style.display="none";
+        settingsPanel.style.display = "none";
+    }
+
+
+    document.querySelectorAll(".app")
+        .forEach(x => {
+
+            x.classList.remove("active");
+
+            x.style.display = "none";
+
+        });
+
+
+    if(
+        type === "basic" ||
+        type === "advanced" ||
+        type === "scientific"
+    ){
+
+        $("calculatorApp").style.display = "block";
+
+        $("calculatorApp").classList.add("active");
+
+        setCalculatorMode(type);
+
+
+    }else if(type === "cars"){
+
+        $("carsApp").style.display = "block";
+
+        $("carsApp").classList.add("active");
+
+        $("carResults").style.display = "none";
+
+
+    }else{
+
+        $("genericApp").style.display = "block";
+
+        $("genericApp").classList.add("active");
+
+        setupGeneric(type);
+
+    }
+
+
+    window.scrollTo({
+
+        top: 0,
+
+        behavior: "smooth"
 
     });
 
 
-if(
-    type === "basic" ||
-    type === "advanced" ||
-    type === "scientific"
-){
+    document.documentElement.style.overflowY = "auto";
 
-    $("calculatorApp").style.display="block";
-
-    $("calculatorApp").classList.add("active");
-
-    setCalculatorMode(type);
+    document.body.style.overflowY = "auto";
 
 
-}else if(type === "cars"){
-
-    $("carsApp").style.display="block";
-
-    $("carsApp").classList.add("active");
-
-    $("carResults").style.display="none";
-
-
-}else{
-
-    $("genericApp").style.display="block";
-
-    $("genericApp").classList.add("active");
-
-    setupGeneric(type);
-
-}
-
-
-window.scrollTo({
-
-    top:0,
-
-    behavior:"smooth"
-
-});
-
-
-document.documentElement.style.overflowY="auto";
-
-document.body.style.overflowY="auto";
-
-
-$("navLinks").classList.remove("open");
+    $("navLinks").classList.remove("open");
 
 }
