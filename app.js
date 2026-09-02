@@ -1031,12 +1031,22 @@ window.openCalculator =
 
 function showHome() {
     const homePage = document.getElementById("homePage");
+    const weatherSection = document.getElementById("weatherSection");
+    const newsSection = document.getElementById("newsSection");
+    const settingsPanel = document.getElementById("settingsPanel");
 
+    // Sakrij sve aplikacije
     document.querySelectorAll(".app").forEach(app => {
         app.classList.remove("active");
         app.style.display = "none";
     });
 
+    // Sakrij posebne sekcije
+    if (weatherSection) weatherSection.style.display = "none";
+    if (newsSection) newsSection.style.display = "none";
+    if (settingsPanel) settingsPanel.style.display = "none";
+
+    // Prikaži početnu stranicu
     if (homePage) {
         homePage.style.display = "block";
     }
@@ -1049,43 +1059,63 @@ function showHome() {
 
 window.showHome = showHome;
 
+
 function showCategory(category) {
     showHome();
 
-    const element = document.getElementById(category);
+    const calculators = document.getElementById("calculators");
 
-    if (element) {
-        element.scrollIntoView({
+    if (!calculators) return;
+
+    const filter = document.getElementById("categoryFilter");
+
+    if (filter) {
+        filter.value = category;
+
+        filter.dispatchEvent(
+            new Event("change", { bubbles: true })
+        );
+    }
+
+    setTimeout(() => {
+        calculators.scrollIntoView({
             behavior: "smooth",
             block: "start"
         });
-    }
+    }, 50);
 }
 
 window.showCategory = showCategory;
 
+
 function scrollToFAQ() {
+    showHome();
+
     const faq = document.getElementById("faq");
 
     if (faq) {
-        faq.scrollIntoView({
-            behavior: "smooth",
-            block: "start"
-        });
+        setTimeout(() => {
+            faq.scrollIntoView({
+                behavior: "smooth",
+                block: "start"
+            });
+        }, 50);
     }
 }
 
 window.scrollToFAQ = scrollToFAQ;
 
+
 function toggleSettings() {
-    const settingsPage = document.getElementById("settingsPage");
+    const settingsPanel = document.getElementById("settingsPanel");
 
-    if (!settingsPage) return;
+    if (!settingsPanel) return;
 
-    settingsPage.style.display =
-        settingsPage.style.display === "none"
-            ? "block"
-            : "none";
+    const isHidden =
+        settingsPanel.style.display === "none" ||
+        getComputedStyle(settingsPanel).display === "none";
+
+    settingsPanel.style.display = isHidden ? "block" : "none";
 }
 
 window.toggleSettings = toggleSettings;
