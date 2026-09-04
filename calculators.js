@@ -4417,24 +4417,24 @@ else if(type==="debtpayoff"){
 
 else if(type==="emergency"){
 
-    const expenses=
+    const expenses =
         num("gEmergencyExpenses");
 
-    const monthsTarget=
+    const monthsTarget =
         num("gEmergencyMonths");
 
-    const current=
+    const current =
         num("gEmergencyCurrent");
 
-    const contribution=
+    const contribution =
         num("gEmergencyContribution");
 
 
     if(
-        expenses<0 ||
-        monthsTarget<=0 ||
-        current<0 ||
-        contribution<0
+        expenses < 0 ||
+        monthsTarget <= 0 ||
+        current < 0 ||
+        contribution < 0
     ){
 
         showToast(
@@ -4445,70 +4445,149 @@ else if(type==="emergency"){
     }
 
 
-    const target=
-        expenses*
+    /* =================================================
+       TARGET
+    ================================================= */
+
+    const target =
+        expenses *
         monthsTarget;
 
 
-    const needed=
+    const needed =
         Math.max(
             0,
-            target-current
+            target - current
         );
 
 
-    const months=
-        contribution>0
-        ? needed/contribution
+    const progress =
+        target > 0
+        ? Math.min(
+            100,
+            (current / target) * 100
+        )
+        : 0;
+
+
+    /* =================================================
+       TIME TO GOAL
+    ================================================= */
+
+    const months =
+        needed <= 0
+        ? 0
+        : contribution > 0
+        ? needed / contribution
         : Infinity;
 
 
-    if(needed<=0){
+    const yearsToGoal =
+        Number.isFinite(months)
+        ? months / 12
+        : Infinity;
 
-        title=
-            "🎉 Emergency fund goal reached";
 
-        text=
-            "You already have enough savings to meet your selected emergency fund target.";
+    const monthlyExpenses =
+        expenses;
 
-    }else if(contribution<=0){
 
-        title=
-            "🛟 Emergency fund target";
+    /* =================================================
+       DECISION
+    ================================================= */
 
-        text=
-            `You need ${money(needed)} more, but no monthly contribution has been entered.`;
+    if(needed <= 0){
+
+        title =
+            "🎉 Your emergency fund goal is reached.";
+
+        text =
+            `You have ${money(current)} saved, which covers about ${decimal(monthsTarget)} months of essential expenses.`;
+
+    }else if(contribution <= 0){
+
+        title =
+            "🛟 You still need to build your emergency fund.";
+
+        text =
+            `You need ${money(needed)} more to reach your ${decimal(monthsTarget)}-month target.`;
+
+    }else if(months <= 6){
+
+        title =
+            "🛟 You're on track to build your emergency fund.";
+
+        text =
+            `At ${money(contribution)} per month, you could reach your target in about ${decimal(months)} months.`;
 
     }else{
 
-        title=
-            "🛟 Emergency fund target";
+        title =
+            "🛟 Your emergency fund will take some time to build.";
 
-        text=
-            `You need ${money(needed)} more, which would take approximately ${decimal(months)} months at the selected contribution.`;
+        text =
+            `You need ${money(needed)} more, which would take about ${decimal(months)} months at your current contribution.`;
+
     }
 
 
-    metrics=[
+    /* =================================================
+       RESULTS
+    ================================================= */
 
-        ["Target fund",money(target)],
+    metrics = [
 
-        ["Current savings",money(current)],
+        [
+            "Target fund",
+            money(target)
+        ],
 
-        ["Still needed",money(needed)],
+        [
+            "Current savings",
+            money(current)
+        ],
 
-        ["Target months",decimal(monthsTarget)],
+        [
+            "Still needed",
+            money(needed)
+        ],
+
+        [
+            "Progress",
+            decimal(progress) + "%"
+        ],
+
+        [
+            "Monthly contribution",
+            money(contribution)
+        ],
+
+        [
+            "Target months",
+            decimal(monthsTarget) + " months"
+        ],
 
         [
             "Estimated time",
             Number.isFinite(months)
-            ? decimal(months)+" months"
+            ? decimal(months) + " months"
             : "—"
+        ],
+
+        [
+            "Estimated time",
+            Number.isFinite(yearsToGoal)
+            ? decimal(yearsToGoal) + " years"
+            : "—"
+        ],
+
+        [
+            "Essential expenses / month",
+            money(monthlyExpenses)
         ]
 
     ];
 }
-
 
 /* =====================================================
    BUY VS SUBSCRIBE
