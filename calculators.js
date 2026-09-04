@@ -5095,19 +5095,28 @@ else if(type==="taxi"){
 
 else if(type==="publictransport"){
 
-    const pass=num("gTransitPass");
-    const other=num("gTransitOther");
-    const fixed=num("gTransitCarFixed");
-    const kmCost=num("gTransitCarKm");
-    const km=num("gTransitKm");
+    const pass =
+        num("gTransitPass");
+
+    const other =
+        num("gTransitOther");
+
+    const fixed =
+        num("gTransitCarFixed");
+
+    const kmCost =
+        num("gTransitCarKm");
+
+    const km =
+        num("gTransitKm");
 
 
     if(
-        pass<0 ||
-        other<0 ||
-        fixed<0 ||
-        kmCost<0 ||
-        km<0
+        pass < 0 ||
+        other < 0 ||
+        fixed < 0 ||
+        kmCost < 0 ||
+        km < 0
     ){
 
         showToast(
@@ -5118,60 +5127,163 @@ else if(type==="publictransport"){
     }
 
 
-    const transit=
-        pass*
-        12+
+    /* =================================================
+       YEARLY COST
+    ================================================= */
+
+    const transit =
+        pass * 12 +
         other;
 
 
-    const car=
-        fixed+
-        km*kmCost;
+    const car =
+        fixed +
+        km * kmCost;
 
 
-    const diff=
+    /* =================================================
+       MONTHLY COST
+    ================================================= */
+
+    const transitPerMonth =
+        transit / 12;
+
+    const carPerMonth =
+        car / 12;
+
+
+    /* =================================================
+       DIFFERENCE
+    ================================================= */
+
+    const difference =
         Math.abs(
-            transit-car
+            transit - car
         );
 
 
-    if(transit<car){
+    /* =================================================
+       TRANSPORT COST BREAKDOWN
+    ================================================= */
 
-        title=
-            "🚌 Public transport is cheaper";
+    const transitPassCost =
+        pass * 12;
 
-        text=
-            `Public transport is estimated to save about ${money(diff)} per year.`;
+    const yearlyOtherTransit =
+        other;
 
-    }else if(car<transit){
+    const variableCarCost =
+        km * kmCost;
 
-        title=
-            "🚘 Car is cheaper";
 
-        text=
-            `The car is estimated to save about ${money(diff)} per year.`;
+    /* =================================================
+       DISTANCE
+    ================================================= */
+
+    const yearlyKm =
+        km;
+
+
+    const monthlyKm =
+        km / 12;
+
+
+    /* =================================================
+       DECISION
+    ================================================= */
+
+    if(transit < car){
+
+        title =
+            "🚌 Public transport is the better value.";
+
+        text =
+            `Public transport is estimated to save about ${money(difference)} per year compared with owning the car.`;
+
+    }else if(car < transit){
+
+        title =
+            "🚘 The car is the better value.";
+
+        text =
+            `The car is estimated to save about ${money(difference)} per year compared with public transport.`;
 
     }else{
 
-        title=
-            "🤝 Similar yearly cost";
+        title =
+            "🤝 Both options cost about the same.";
 
-        text=
-            "Both options have approximately the same estimated yearly cost.";
+        text =
+            "Based on your inputs, the estimated yearly costs are approximately equal.";
+
     }
 
 
-    metrics=[
+    /* =================================================
+       RESULTS
+    ================================================= */
 
-        ["Public transport / year",money(transit)],
+    metrics = [
 
-        ["Car / year",money(car)],
+        [
+            "Public transport / year",
+            money(transit)
+        ],
 
-        ["Difference",money(diff)],
+        [
+            "Car / year",
+            money(car)
+        ],
 
-        ["Public transport / month",money(transit/12)],
+        [
+            "Difference / year",
+            money(difference)
+        ],
 
-        ["Car / month",money(car/12)]
+        [
+            "Public transport / month",
+            money(transitPerMonth)
+        ],
+
+        [
+            "Car / month",
+            money(carPerMonth)
+        ],
+
+        [
+            "Transit pass / year",
+            money(transitPassCost)
+        ],
+
+        [
+            "Other transit costs / year",
+            money(yearlyOtherTransit)
+        ],
+
+        [
+            "Car fixed cost / year",
+            money(fixed)
+        ],
+
+        [
+            "Car variable cost / year",
+            money(variableCarCost)
+        ],
+
+        [
+            "Car cost / km",
+            money(kmCost)
+        ],
+
+        [
+            "Car distance / year",
+            decimal(yearlyKm) + " km"
+        ],
+
+        [
+            "Car distance / month",
+            decimal(monthlyKm) + " km"
+        ]
 
     ];
 }
