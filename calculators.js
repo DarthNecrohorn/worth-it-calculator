@@ -488,427 +488,592 @@ function num(id){
 
 function calculateCars(){
 
-$("carResults").style.display="block";
-
-const evPrice=num("evPrice");
-const evConsumption=num("evConsumption");
-
-const homeCharge =
-    Math.min(
-        100,
-        Math.max(0,num("homeCharge"))
-    )/100;
-
-const homeElectricity=num("homeElectricity");
-const publicElectricity=num("publicElectricity");
-
-const evMaintenance=num("evMaintenance");
-const evInsurance=num("evInsurance");
-const evRegistration=num("evRegistration");
-
-const gasPrice=num("gasPrice");
-const gasConsumption=num("gasConsumption");
-const fuelPrice=num("fuelPrice");
-
-const gasMaintenance=num("gasMaintenance");
-const gasInsurance=num("gasInsurance");
-const gasRegistration=num("gasRegistration");
-const gasOther=num("gasOther");
-
-const distance=num("yearlyDistance");
-const growth=num("priceGrowth")/100;
-const years=Number($("carYears").value);
+    $("carResults").style.display = "block";
 
 
-if(
-    evPrice<0 ||
-    evConsumption<=0 ||
-    homeElectricity<0 ||
-    publicElectricity<0 ||
-    evMaintenance<0 ||
-    evInsurance<0 ||
-    evRegistration<0 ||
-    gasPrice<0 ||
-    gasConsumption<=0 ||
-    fuelPrice<0 ||
-    gasMaintenance<0 ||
-    gasInsurance<0 ||
-    gasRegistration<0 ||
-    gasOther<0 ||
-    distance<=0 ||
-    years<=0
-){
+    /* =================================================
+       INPUTS
+    ================================================= */
 
-    alert("Please enter valid values.");
+    const evPrice =
+        num("evPrice");
 
-    $("carResults").style.display="none";
+    const evConsumption =
+        num("evConsumption");
 
-    return;
-}
+    const homeCharge =
+        Math.min(
+            100,
+            Math.max(
+                0,
+                num("homeCharge")
+            )
+        ) / 100;
 
+    const homeElectricity =
+        num("homeElectricity");
 
-const evEnergyBase =
-    (distance/100) *
-    evConsumption *
-    (
-        homeCharge*homeElectricity +
-        (1-homeCharge)*publicElectricity
-    );
+    const publicElectricity =
+        num("publicElectricity");
 
+    const evMaintenance =
+        num("evMaintenance");
 
-const gasFuelBase =
-    (distance/100) *
-    gasConsumption *
-    fuelPrice;
+    const evInsurance =
+        num("evInsurance");
+
+    const evRegistration =
+        num("evRegistration");
 
 
-let evCumulative=evPrice;
-let gasCumulative=gasPrice;
+    const gasPrice =
+        num("gasPrice");
 
-const rows=[];
+    const gasConsumption =
+        num("gasConsumption");
 
-let breakEvenYear=null;
+    const fuelPrice =
+        num("fuelPrice");
 
+    const gasMaintenance =
+        num("gasMaintenance");
 
-for(
-    let year=1;
-    year<=years;
-    year++
-){
+    const gasInsurance =
+        num("gasInsurance");
 
-    const multiplier =
-        Math.pow(1+growth,year-1);
+    const gasRegistration =
+        num("gasRegistration");
 
-    const evEnergy =
-        evEnergyBase*multiplier;
-
-    const gasFuel =
-        gasFuelBase*multiplier;
+    const gasOther =
+        num("gasOther");
 
 
-    const evYearCost =
-        evEnergy +
-        evMaintenance +
-        evInsurance +
-        evRegistration;
+    const distance =
+        num("yearlyDistance");
+
+    const growth =
+        num("priceGrowth") / 100;
+
+    const years =
+        parseFloat(
+            $("carYears").value
+        );
 
 
-    const gasYearCost =
-        gasFuel +
-        gasMaintenance +
-        gasInsurance +
-        gasRegistration +
-        gasOther;
-
-
-    evCumulative += evYearCost;
-    gasCumulative += gasYearCost;
-
+    /* =================================================
+       VALIDATION
+    ================================================= */
 
     if(
-        breakEvenYear===null &&
-        evCumulative<gasCumulative
+        evPrice < 0 ||
+        evConsumption <= 0 ||
+        homeElectricity < 0 ||
+        publicElectricity < 0 ||
+        evMaintenance < 0 ||
+        evInsurance < 0 ||
+        evRegistration < 0 ||
+        gasPrice < 0 ||
+        gasConsumption <= 0 ||
+        fuelPrice < 0 ||
+        gasMaintenance < 0 ||
+        gasInsurance < 0 ||
+        gasRegistration < 0 ||
+        gasOther < 0 ||
+        distance <= 0 ||
+        growth < 0 ||
+        !Number.isFinite(years) ||
+        years <= 0
     ){
 
-        breakEvenYear=year;
+        alert(
+            "Please enter valid values."
+        );
+
+        $("carResults").style.display =
+            "none";
+
+        return;
     }
 
 
-    rows.push({
+    /* =================================================
+       YEARLY ENERGY / FUEL COST
+    ================================================= */
 
-        year,
+    const evEnergyBase =
+        (distance / 100) *
+        evConsumption *
+        (
+            homeCharge *
+            homeElectricity +
 
-        ev:evCumulative,
+            (1 - homeCharge) *
+            publicElectricity
+        );
 
-        gas:gasCumulative,
 
-        diff:
-            Math.abs(
-                evCumulative-gasCumulative
-            ),
+    const gasFuelBase =
+        (distance / 100) *
+        gasConsumption *
+        fuelPrice;
 
-        winner:
-            evCumulative<gasCumulative
-            ? "⚡ Electric"
-            : gasCumulative<evCumulative
-            ? "⛽ Gasoline"
-            : "🤝 Equal"
+
+    /* =================================================
+       CALCULATION PERIOD
+    ================================================= */
+
+    const fullYears =
+        Math.floor(years);
+
+    const partialYear =
+        years - fullYears;
+
+
+    let evCumulative =
+        evPrice;
+
+    let gasCumulative =
+        gasPrice;
+
+
+    const rows = [];
+
+
+    let breakEvenYear =
+        null;
+
+
+    /* =================================================
+       FULL YEARS
+    ================================================= */
+
+    for(
+        let year = 1;
+        year <= fullYears;
+        year++
+    ){
+
+        const multiplier =
+            Math.pow(
+                1 + growth,
+                year - 1
+            );
+
+
+        const evEnergy =
+            evEnergyBase *
+            multiplier;
+
+
+        const gasFuel =
+            gasFuelBase *
+            multiplier;
+
+
+        const evYearCost =
+            evEnergy +
+            evMaintenance +
+            evInsurance +
+            evRegistration;
+
+
+        const gasYearCost =
+            gasFuel +
+            gasMaintenance +
+            gasInsurance +
+            gasRegistration +
+            gasOther;
+
+
+        evCumulative +=
+            evYearCost;
+
+        gasCumulative +=
+            gasYearCost;
+
+
+        if(
+            breakEvenYear === null &&
+            evCumulative < gasCumulative
+        ){
+
+            breakEvenYear =
+                year;
+        }
+
+
+        rows.push({
+
+            year,
+
+            ev:
+                evCumulative,
+
+            gas:
+                gasCumulative,
+
+            diff:
+                Math.abs(
+                    evCumulative -
+                    gasCumulative
+                ),
+
+            winner:
+                evCumulative < gasCumulative
+                ? "⚡ Electric"
+                :
+                gasCumulative < evCumulative
+                ? "⛽ Gasoline"
+                :
+                "🤝 Equal"
+
+        });
+
+    }
+
+
+    /* =================================================
+       PARTIAL FINAL YEAR
+    ================================================= */
+
+    if(partialYear > 0){
+
+        const year =
+            fullYears + 1;
+
+
+        const multiplier =
+            Math.pow(
+                1 + growth,
+                fullYears
+            );
+
+
+        const evEnergy =
+            evEnergyBase *
+            multiplier *
+            partialYear;
+
+
+        const gasFuel =
+            gasFuelBase *
+            multiplier *
+            partialYear;
+
+
+        const evYearCost =
+            evEnergy +
+            (
+                evMaintenance +
+                evInsurance +
+                evRegistration
+            ) *
+            partialYear;
+
+
+        const gasYearCost =
+            gasFuel +
+            (
+                gasMaintenance +
+                gasInsurance +
+                gasRegistration +
+                gasOther
+            ) *
+            partialYear;
+
+
+        evCumulative +=
+            evYearCost;
+
+        gasCumulative +=
+            gasYearCost;
+
+
+        if(
+            breakEvenYear === null &&
+            evCumulative < gasCumulative
+        ){
+
+            breakEvenYear =
+                year;
+        }
+
+
+        rows.push({
+
+            year,
+
+            ev:
+                evCumulative,
+
+            gas:
+                gasCumulative,
+
+            diff:
+                Math.abs(
+                    evCumulative -
+                    gasCumulative
+                ),
+
+            winner:
+                evCumulative < gasCumulative
+                ? "⚡ Electric"
+                :
+                gasCumulative < evCumulative
+                ? "⛽ Gasoline"
+                :
+                "🤝 Equal"
+
+        });
+    }
+
+
+    /* =================================================
+       FINAL TOTALS
+    ================================================= */
+
+    const evTotal =
+        evCumulative;
+
+    const gasTotal =
+        gasCumulative;
+
+
+    const savings =
+        Math.abs(
+            evTotal -
+            gasTotal
+        );
+
+
+    const winner =
+        evTotal < gasTotal
+        ? "⚡ Electric car"
+        :
+        gasTotal < evTotal
+        ? "⛽ Gasoline car"
+        :
+        "🤝 Almost equal";
+
+
+    /* =================================================
+       WINNER TEXT
+    ================================================= */
+
+    let winnerText;
+
+
+    if(evTotal < gasTotal){
+
+        winnerText =
+            `The EV is estimated to save ${money(savings)} over ${decimal(years)} years.`;
+
+    }else if(gasTotal < evTotal){
+
+        winnerText =
+            `The gasoline car is estimated to save ${money(savings)} over ${decimal(years)} years.`;
+
+    }else{
+
+        winnerText =
+            "Both options have approximately the same estimated cost.";
+
+    }
+
+
+    $("carWinner").textContent =
+        winner;
+
+    $("carWinnerText").textContent =
+        winnerText;
+
+
+    /* =================================================
+       MAIN RESULTS
+    ================================================= */
+
+    $("evTotalResult").textContent =
+        money(evTotal);
+
+    $("gasTotalResult").textContent =
+        money(gasTotal);
+
+    $("carSavings").textContent =
+        money(savings);
+
+
+    $("evEnergyResult").textContent =
+        money(evEnergyBase);
+
+    $("gasFuelResult").textContent =
+        money(gasFuelBase);
+
+
+    $("breakEven").textContent =
+        breakEvenYear
+        ? `${breakEvenYear} year${breakEvenYear === 1 ? "" : "s"}`
+        : "Not reached";
+
+
+    /* =================================================
+       WORTH IT SCORE
+    ================================================= */
+
+    let score;
+
+
+    if(evTotal === gasTotal){
+
+        score = 50;
+
+    }else{
+
+        const cheaper =
+            Math.min(
+                evTotal,
+                gasTotal
+            );
+
+
+        const expensive =
+            Math.max(
+                evTotal,
+                gasTotal
+            );
+
+
+        const ratio =
+            cheaper /
+            expensive;
+
+
+        score =
+            Math.round(
+                Math.min(
+                    98,
+                    Math.max(
+                        52,
+                        50 + (1 - ratio) * 150
+                    )
+                )
+            );
+
+    }
+
+
+    $("carScore").textContent =
+        score;
+
+
+    $("carScoreText").textContent =
+        score >= 85
+        ? "Excellent value"
+        :
+        score >= 70
+        ? "Strong value"
+        :
+        score >= 55
+        ? "Worth considering"
+        :
+        "Needs more consideration";
+
+
+    /* =================================================
+       EXTRA RESULT SUMMARY
+    ================================================= */
+
+    const carResultSummary =
+        $("carResultSummary");
+
+
+    if(carResultSummary){
+
+        carResultSummary.innerHTML = `
+
+            <div
+                style="
+                    margin-top:16px;
+                    padding:16px;
+                    border-radius:14px;
+                    background:var(--card-bg, rgba(127,127,127,.08));
+                    border:1px solid var(--border, rgba(127,127,127,.18));
+                "
+            >
+
+                <div
+                    style="
+                        font-weight:800;
+                        margin-bottom:6px;
+                    "
+                >
+                    💡 What this means
+                </div>
+
+                <div
+                    style="
+                        color:var(--muted);
+                        line-height:1.6;
+                    "
+                >
+                    ${
+                        evTotal < gasTotal
+                        ? `The EV becomes the cheaper option in this model, with estimated savings of ${money(savings)} over ${decimal(years)} years.`
+                        :
+                        gasTotal < evTotal
+                        ? `The gasoline car remains cheaper in this model, with estimated savings of ${money(savings)} over ${decimal(years)} years.`
+                        :
+                        "The two vehicles have approximately the same estimated total cost."
+                    }
+                </div>
+
+            </div>
+
+        `;
+
+    }
+
+
+    /* =================================================
+       RENDER
+    ================================================= */
+
+    renderCarChart(rows);
+
+    renderCarTable(rows);
+
+
+    $("carResults").scrollIntoView({
+
+        behavior:
+            "smooth",
+
+        block:
+            "start"
 
     });
-}
 
 
-const evTotal=evCumulative;
-const gasTotal=gasCumulative;
+    /* =================================================
+       SAVE LAST RESULT
+    ================================================= */
 
-const savings=
-    Math.abs(
-        evTotal-gasTotal
+    localStorage.setItem(
+
+        "lastCarResult",
+
+        JSON.stringify({
+
+            evTotal,
+
+            gasTotal,
+
+            savings,
+
+            years
+
+        })
+
     );
-
-
-const winner =
-    evTotal<gasTotal
-    ? "⚡ Electric car"
-    :
-    gasTotal<evTotal
-    ? "⛽ Gasoline car"
-    :
-    "🤝 Almost equal";
-
-
-const winnerText =
-    evTotal<gasTotal
-    ?
-    `Estimated to save ${money(savings)} over ${years} years.`
-    :
-    gasTotal<evTotal
-    ?
-    `Estimated to save ${money(savings)} over ${years} years.`
-    :
-    "Both options have approximately the same estimated cost.";
-
-
-$("carWinner").textContent=winner;
-$("carWinnerText").textContent=winnerText;
-
-$("evTotalResult").textContent=money(evTotal);
-$("gasTotalResult").textContent=money(gasTotal);
-$("carSavings").textContent=money(savings);
-
-$("evEnergyResult").textContent=
-    money(evEnergyBase);
-
-$("gasFuelResult").textContent=
-    money(gasFuelBase);
-
-
-$("breakEven").textContent =
-    breakEvenYear
-    ?
-    `${breakEvenYear} year${breakEvenYear===1?"":"s"}`
-    :
-    "Not reached";
-
-
-let score;
-
-if(evTotal===gasTotal){
-
-    score=50;
-
-}else{
-
-    const cheaper=
-        Math.min(
-            evTotal,
-            gasTotal
-        );
-
-    const expensive=
-        Math.max(
-            evTotal,
-            gasTotal
-        );
-
-    const ratio=
-        cheaper/expensive;
-
-    score=
-        Math.round(
-            Math.min(
-                98,
-                Math.max(
-                    52,
-                    50+(1-ratio)*150
-                )
-            )
-        );
-}
-
-
-$("carScore").textContent=score;
-
-$("carScoreText").textContent =
-    score>=85
-    ? "Excellent value"
-    :
-    score>=70
-    ? "Strong value"
-    :
-    score>=55
-    ? "Worth considering"
-    :
-    "Needs more consideration";
-
-
-renderCarChart(rows);
-renderCarTable(rows);
-
-
-$("carResults").scrollIntoView({
-    behavior:"smooth",
-    block:"start"
-});
-
-
-localStorage.setItem(
-    "lastCarResult",
-    JSON.stringify({
-        evTotal,
-        gasTotal,
-        savings,
-        years
-    })
-);
-
-}
-
-function renderCarChart(rows){
-
-const chart=$("carChart");
-
-if(!chart) return;
-
-chart.innerHTML="";
-
-if(!rows.length) return;
-
-
-const max=Math.max(
-    ...rows.map(
-        x=>Math.max(
-            x.ev,
-            x.gas
-        )
-    )
-);
-
-
-rows.forEach(row=>{
-
-    const group=
-        document.createElement("div");
-
-    group.className="bar-group";
-
-
-    const bars=
-        document.createElement("div");
-
-    bars.className="bars";
-
-
-    const evBar=
-        document.createElement("div");
-
-    evBar.className="bar";
-
-    evBar.style.height=
-        max>0
-        ? (row.ev/max*100)+"%"
-        : "0%";
-
-    evBar.title=
-        `EV: ${money(row.ev)}`;
-
-
-    const gasBar=
-        document.createElement("div");
-
-    gasBar.className="bar alt";
-
-    gasBar.style.height=
-        max>0
-        ? (row.gas/max*100)+"%"
-        : "0%";
-
-    gasBar.title=
-        `Gas: ${money(row.gas)}`;
-
-
-    bars.appendChild(evBar);
-    bars.appendChild(gasBar);
-
-
-    const label=
-        document.createElement("div");
-
-    label.className="bar-label";
-
-    label.textContent=
-        "Y"+row.year;
-
-
-    group.appendChild(bars);
-    group.appendChild(label);
-
-    chart.appendChild(group);
-});
-
-}
-
-function renderCarTable(rows){
-
-const table=$("carTable");
-
-if(!table) return;
-
-table.innerHTML="";
-
-
-rows.forEach(row=>{
-
-    const tr=
-        document.createElement("tr");
-
-    tr.innerHTML=`
-
-        <td>${row.year}</td>
-
-        <td>${money(row.ev)}</td>
-
-        <td>${money(row.gas)}</td>
-
-        <td>${money(row.diff)}</td>
-
-        <td>${row.winner}</td>
-
-    `;
-
-    table.appendChild(tr);
-});
-
-}
-
-function resetCars(){
-
-$("evPrice").value=15000;
-$("evConsumption").value=16;
-$("homeCharge").value=80;
-$("homeElectricity").value=.15;
-$("publicElectricity").value=.40;
-
-$("evMaintenance").value=350;
-$("evInsurance").value=400;
-$("evRegistration").value=150;
-
-$("gasPrice").value=10000;
-$("gasConsumption").value=7;
-$("fuelPrice").value=1.60;
-
-$("gasMaintenance").value=650;
-$("gasInsurance").value=400;
-$("gasRegistration").value=250;
-$("gasOther").value=100;
-
-$("yearlyDistance").value=15000;
-$("priceGrowth").value=3;
-$("carYears").value=10;
-
-$("carResults").style.display="none";
-
-showToast("Reset complete");
 
 }
 
