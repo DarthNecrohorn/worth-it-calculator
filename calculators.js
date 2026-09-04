@@ -3978,19 +3978,28 @@ const tenYearSavings =
 
 else if(type==="heating"){
 
-    const kwh=num("gKwh");
-    const days=num("gDays");
-    const rate=num("gRate");
-    const growth=num("gGrowth")/100;
-    const years=num("gYears");
+    const kwh =
+        num("gKwh");
+
+    const days =
+        num("gDays");
+
+    const rate =
+        num("gRate");
+
+    const growth =
+        num("gGrowth") / 100;
+
+    const years =
+        num("gYears");
 
 
     if(
-        kwh<0 ||
-        days<=0 ||
-        rate<0 ||
-        growth<0 ||
-        years<=0
+        kwh < 0 ||
+        days <= 0 ||
+        rate < 0 ||
+        growth < 0 ||
+        years <= 0
     ){
 
         showToast(
@@ -4001,61 +4010,214 @@ else if(type==="heating"){
     }
 
 
-    let total=0;
+    /* =================================================
+       FIRST-YEAR COST
+    ================================================= */
 
-
-    const yearlyBase=
-        kwh*
-        days*
+    const yearlyBase =
+        kwh *
+        days *
         rate;
 
 
-    for(
-        let y=0;
-        y<Math.max(0,Math.round(years));
-        y++
-    ){
+   /* =================================================
+   TOTAL COST OVER PERIOD
+  ================================================= */
 
-        total +=
-            yearlyBase*
-            Math.pow(
-                1+growth,
-                y
-            );
+const calculationYears =
+    Math.max(
+        0.1,
+        years
+    );
+
+const fullYears =
+    Math.floor(
+        calculationYears
+    );
+
+const partialYear =
+    calculationYears -
+    fullYears;
+
+let total =
+    0;
+
+
+/* Full years */
+
+for(
+    let y = 0;
+    y < fullYears;
+    y++
+){
+
+    total +=
+        yearlyBase *
+        Math.pow(
+            1 + growth,
+            y
+        );
+
+}
+
+
+/* Partial final year */
+
+if(partialYear > 0){
+
+    total +=
+        yearlyBase *
+        Math.pow(
+            1 + growth,
+            fullYears
+        ) *
+        partialYear;
+
+}
+
+
+/* =================================================
+   AVERAGES
+================================================= */
+
+    const firstYear =
+        yearlyBase;
+
+    const average =
+    total / calculationYears;
+
+    const monthlyFirstYear =
+        firstYear / 12;
+
+    const monthlyAverage =
+        average / 12;
+
+
+    /* =================================================
+       FINAL-YEAR COST
+   ================================================= */
+
+    const finalYearCost =
+        yearlyBase *
+        Math.pow(
+        1 + growth,
+        Math.max(
+            0,
+        fullYears
+       )
+    );
+
+
+    /* =================================================
+       COST INCREASE
+    ================================================= */
+
+    const totalIncrease =
+        Math.max(
+            0,
+            finalYearCost - firstYear
+        );
+
+
+    /* =================================================
+       DECISION
+    ================================================= */
+
+    if(growth === 0){
+
+        title =
+            "🔥 Estimated heating cost.";
+
+        text =
+            `Your heating cost is estimated at ${money(firstYear)} per year, or about ${money(monthlyFirstYear)} per month.`;
+
+    }else if(growth <= 0.03){
+
+        title =
+            "🔥 Heating cost looks relatively stable.";
+
+        text =
+            `Your first-year cost is about ${money(firstYear)}, with an estimated average of ${money(average)} per year over the selected period.`;
+
+    }else{
+
+        title =
+            "🔥 Heating costs could rise significantly.";
+
+        text =
+            `Your first-year cost is about ${money(firstYear)}, but yearly price growth could raise the final-year cost to around ${money(finalYearCost)}.`;
+
     }
 
 
-    const firstYear=
-        yearlyBase;
+    /* =================================================
+       RESULTS
+    ================================================= */
 
+    metrics = [
 
-    const average=
-        total/years;
+        [
+            "First year",
+            money(firstYear)
+        ],
 
+        [
+            "Monthly first year",
+            money(monthlyFirstYear)
+        ],
 
-    title=
-        "🔥 Estimated heating cost";
+        [
+            "Total period",
+            money(total)
+        ],
 
+        [
+            "Average / year",
+            money(average)
+        ],
 
-    text=
-        growth>0
-        ? `With the selected price growth, the average yearly cost is approximately ${money(average)}.`
-        : `Your estimated first-year heating cost is ${money(firstYear)}.`;
+        [
+            "Average / month",
+            money(monthlyAverage)
+        ],
 
+        [
+            "Final year",
+            money(finalYearCost)
+        ],
 
-    metrics=[
+        [
+            "Increase by final year",
+            money(totalIncrease)
+        ],
 
-        ["First year",money(firstYear)],
+        [
+            "Energy / day",
+            decimal(kwh) + " kWh"
+        ],
 
-        ["Total period",money(total)],
+        [
+            "Heating days / year",
+            decimal(days)
+        ],
 
-        ["Average / year",money(average)],
+        [
+            "Energy price",
+            money(rate) + " / kWh"
+        ],
 
-        ["Period",decimal(years)+" years"]
+        [
+            "Annual price growth",
+            decimal(growth * 100) + "%"
+        ],
+
+        [
+            "Period",
+            decimal(years) + " years"
+        ]
 
     ];
 }
-
 
 /* =====================================================
    CAR OWNERSHIP
