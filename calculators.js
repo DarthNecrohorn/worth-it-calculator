@@ -2620,95 +2620,227 @@ else if(type==="investment"){
 
 else if(type==="loan"){
 
-    const amount=num("gLoan");
-    const down=num("gDown");
-    const annual=num("gRate");
-    const years=num("gYears");
+    const amount =
+        num("gLoan");
+
+    const down =
+        num("gDown");
+
+    const annual =
+        num("gRate");
+
+    const years =
+        num("gYears");
 
 
     if(
-        amount<0 ||
-        down<0 ||
-        annual<0 ||
-        years<=0 ||
-        down>amount
+        amount < 0 ||
+        down < 0 ||
+        annual < 0 ||
+        years <= 0 ||
+        down > amount
     ){
 
-        showToast("Please enter valid loan values.");
+        showToast(
+            "Please enter valid loan values."
+        );
 
         return;
     }
 
 
-    const loan=
+    /* =================================================
+       LOAN AMOUNT
+    ================================================= */
+
+    const loan =
         Math.max(
             0,
-            amount-down
+            amount - down
         );
 
-    const n=years*12;
-    const r=annual/100/12;
 
-    let payment=0;
+    const months =
+        Math.max(
+            1,
+            Math.round(years * 12)
+        );
+
+    const rate =
+        annual / 100 / 12;
 
 
-    if(loan>0){
+    /* =================================================
+       MONTHLY PAYMENT
+    ================================================= */
 
-        if(r===0){
+    let payment = 0;
 
-            payment=loan/n;
+
+    if(loan > 0){
+
+        if(rate === 0){
+
+            payment =
+                loan / months;
 
         }else{
 
-            payment=
-                loan*
-                r*
-                Math.pow(1+r,n)/
+            payment =
+                loan *
+                rate *
+                Math.pow(1 + rate, months) /
                 (
-                    Math.pow(1+r,n)-1
+                    Math.pow(1 + rate, months) - 1
                 );
+
         }
+
     }
 
 
-    const total=
-        payment*n;
+    /* =================================================
+       TOTAL COST
+    ================================================= */
 
-    const interest=
-        total-loan;
-
-
-    title=
-        loan===0
-        ? "🏦 No financing needed"
-        :
-        interest===0
-        ? "🏦 Interest-free loan estimate"
-        : "🏦 Loan estimate";
+    const total =
+        payment * months;
 
 
-    text=
-        loan===0
-        ? "Your upfront payment covers the full purchase price."
-        :
-        interest>0
-        ? `You would pay approximately ${money(interest)} in interest over the loan term.`
-        : "No interest is included in this estimate.";
+    const interest =
+        Math.max(
+            0,
+            total - loan
+        );
 
 
-    metrics=[
+    const totalOutOfPocket =
+        down + total;
 
-        ["Monthly payment",money(payment)],
 
-        ["Amount financed",money(loan)],
+    /* =================================================
+       YEARLY / MONTHLY VIEW
+    ================================================= */
 
-        ["Total repayment",money(total)],
+    const yearlyPayments =
+        payment * 12;
 
-        ["Total interest",money(interest)]
+
+    const monthlyInterestAverage =
+        months > 0
+        ? interest / months
+        : 0;
+
+
+    /* =================================================
+       DECISION
+    ================================================= */
+
+    if(loan === 0){
+
+        title =
+            "🏦 No financing needed.";
+
+        text =
+            `Your upfront payment covers the full purchase price of ${money(amount)}.`;
+
+
+    }else if(rate === 0){
+
+        title =
+            "🏦 Interest-free loan estimate.";
+
+        text =
+            `Your estimated payment is ${money(payment)} per month with no interest added.`;
+
+
+    }else if(interest > loan * 0.5){
+
+        title =
+            "⚠️ This loan is expensive.";
+
+        text =
+            `You would pay approximately ${money(interest)} in interest, which is a large part of the amount financed.`;
+
+
+    }else if(interest > loan * 0.25){
+
+        title =
+            "🏦 A significant amount goes to interest.";
+
+        text =
+            `The loan would add approximately ${money(interest)} in interest over the selected term.`;
+
+
+    }else{
+
+        title =
+            "🏦 Estimated loan cost.";
+
+        text =
+            `You would pay ${money(payment)} per month and approximately ${money(interest)} in interest over the loan term.`;
+
+    }
+
+
+    /* =================================================
+       RESULTS
+    ================================================= */
+
+    metrics = [
+
+        [
+            "Monthly payment",
+            money(payment)
+        ],
+
+        [
+            "Amount financed",
+            money(loan)
+        ],
+
+        [
+            "Down payment",
+            money(down)
+        ],
+
+        [
+            "Total loan payments",
+            money(total)
+        ],
+
+        [
+            "Total interest",
+            money(interest)
+        ],
+
+        [
+            "Total out-of-pocket",
+            money(totalOutOfPocket)
+        ],
+
+        [
+            "Average / month interest",
+            money(monthlyInterestAverage)
+        ],
+
+        [
+            "Payments / year",
+            money(yearlyPayments)
+        ],
+
+        [
+            "Interest rate",
+            decimal(annual) + "%"
+        ],
+
+        [
+            "Loan term",
+            decimal(years) + " years"
+        ]
 
     ];
 }
-
 
 /* =====================================================
    PC
