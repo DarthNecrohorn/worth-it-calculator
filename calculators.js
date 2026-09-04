@@ -2489,75 +2489,156 @@ else if(type==="loan"){
 
 else if(type==="pc"){
 
-    const upgrade=num("gUpgrade");
-    const fresh=num("gNew");
-    const upgradeYears=num("gYears");
-    const newYears=num("gNewYears");
+    const upgrade =
+        num("gUpgrade");
+
+    const fresh =
+        num("gNew");
+
+    const upgradeYears =
+        num("gYears");
+
+    const newYears =
+        num("gNewYears");
 
 
     if(
-        upgrade<0 ||
-        fresh<0 ||
-        upgradeYears<=0 ||
-        newYears<=0
+        upgrade < 0 ||
+        fresh < 0 ||
+        upgradeYears <= 0 ||
+        newYears <= 0
     ){
 
-        showToast("Please enter valid values.");
+        showToast(
+            "Please enter valid values."
+        );
 
         return;
     }
 
 
-    const upgradePerYear=
-        upgrade/upgradeYears;
+    /* =================================================
+       YEARLY COST
+    ================================================= */
 
-    const newPerYear=
-        fresh/newYears;
+    const upgradePerYear =
+        upgrade / upgradeYears;
 
-    const difference=
+    const newPerYear =
+        fresh / newYears;
+
+
+    /* =================================================
+       MONTHLY COST
+    ================================================= */
+
+    const upgradePerMonth =
+        upgradePerYear / 12;
+
+    const newPerMonth =
+        newPerYear / 12;
+
+
+    /* =================================================
+       DIFFERENCE
+    ================================================= */
+
+    const yearlyDifference =
         Math.abs(
-            upgradePerYear-
+            upgradePerYear -
             newPerYear
         );
 
+    const totalDifference =
+        Math.abs(
+            upgrade -
+            fresh
+        );
 
-    if(upgradePerYear<newPerYear){
 
-        title=
-            "💻 Upgrading is cheaper per year";
+    /* =================================================
+       BEST OPTION
+    ================================================= */
 
-        text=
-            `The upgrade costs approximately ${money(difference)} less per expected year.`;
+    if(upgradePerYear < newPerYear){
 
-    }else if(newPerYear<upgradePerYear){
+        title =
+            "💻 Upgrading is cheaper per year.";
 
-        title=
-            "🖥️ Buying new is cheaper per year";
+        text =
+            `The upgrade costs about ${money(yearlyDifference)} less per year than buying a new PC.`;
 
-        text=
-            `A new PC costs approximately ${money(difference)} less per expected year.`;
+
+    }else if(newPerYear < upgradePerYear){
+
+        title =
+            "🖥️ Buying a new PC is cheaper per year.";
+
+        text =
+            `Buying new costs about ${money(yearlyDifference)} less per year than the upgrade.`;
+
 
     }else{
 
-        title=
-            "🤝 Similar yearly cost";
+        title =
+            "🤝 Both options have a similar yearly cost.";
 
-        text=
-            "Both options have approximately the same estimated cost per year.";
+        text =
+            "The estimated yearly cost is approximately the same for both options.";
+
     }
 
 
-    metrics=[
+    /* =================================================
+       RESULTS
+    ================================================= */
 
-        ["Upgrade cost",money(upgrade)],
+    metrics = [
 
-        ["New PC cost",money(fresh)],
+        [
+            "Upgrade / year",
+            money(upgradePerYear)
+        ],
 
-        ["Upgrade / year",money(upgradePerYear)],
+        [
+            "New PC / year",
+            money(newPerYear)
+        ],
 
-        ["New PC / year",money(newPerYear)],
+        [
+            "Upgrade / month",
+            money(upgradePerMonth)
+        ],
 
-        ["Yearly difference",money(difference)]
+        [
+            "New PC / month",
+            money(newPerMonth)
+        ],
+
+        [
+            "Upgrade cost",
+            money(upgrade)
+        ],
+
+        [
+            "New PC cost",
+            money(fresh)
+        ],
+
+        [
+            "Yearly difference",
+            money(yearlyDifference)
+        ],
+
+        [
+            "Upgrade lifespan",
+            decimal(upgradeYears) + " years"
+        ],
+
+        [
+            "New PC lifespan",
+            decimal(newYears) + " years"
+        ]
 
     ];
 }
