@@ -2540,20 +2540,14 @@ else if(type==="pc"){
 
 
     /* =================================================
-       DIFFERENCE
-    ================================================= */
+   DIFFERENCE
+================================================= */
 
-    const yearlyDifference =
-        Math.abs(
-            upgradePerYear -
-            newPerYear
-        );
-
-    const totalDifference =
-        Math.abs(
-            upgrade -
-            fresh
-        );
+const yearlyDifference =
+    Math.abs(
+        upgradePerYear -
+        newPerYear
+    );
 
 
     /* =================================================
