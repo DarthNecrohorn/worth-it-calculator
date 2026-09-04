@@ -4567,15 +4567,8 @@ else if(type==="emergency"){
             decimal(monthsTarget) + " months"
         ],
 
-        [
-            "Estimated time",
-            Number.isFinite(months)
-            ? decimal(months) + " months"
-            : "—"
-        ],
-
-        [
-            "Estimated time",
+       [
+            "Time to goal / years",
             Number.isFinite(yearsToGoal)
             ? decimal(yearsToGoal) + " years"
             : "—"
