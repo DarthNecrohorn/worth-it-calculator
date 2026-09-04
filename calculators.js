@@ -3796,20 +3796,29 @@ else if(type==="salary"){
 
 else if(type==="solar"){
 
-    const kw=num("gKW");
-    const sun=num("gSun");
-    const rate=num("gRate");
-    const price=num("gPrice");
-    const efficiency=num("gEfficiency")/100;
+    const kw =
+        num("gKW");
+
+    const sun =
+        num("gSun");
+
+    const rate =
+        num("gRate");
+
+    const price =
+        num("gPrice");
+
+    const efficiency =
+        num("gEfficiency") / 100;
 
 
     if(
-        kw<=0 ||
-        sun<0 ||
-        rate<0 ||
-        price<0 ||
-        efficiency<=0 ||
-        efficiency>1
+        kw <= 0 ||
+        sun < 0 ||
+        rate < 0 ||
+        price < 0 ||
+        efficiency <= 0 ||
+        efficiency > 1
     ){
 
         showToast(
@@ -3820,58 +3829,112 @@ else if(type==="solar"){
     }
 
 
-    const yearlyKwh=
-        kw*
-        sun*
-        365*
+    /* =================================================
+       YEARLY GENERATION
+    ================================================= */
+
+    const yearlyKwh =
+        kw *
+        sun *
+        365 *
         efficiency;
 
-    const yearlySavings=
-        yearlyKwh*
+
+    /* =================================================
+       SAVINGS
+    ================================================= */
+
+    const yearlySavings =
+        yearlyKwh *
         rate;
 
-    const payback=
-        yearlySavings>0
-        ? price/yearlySavings
+    const monthlySavings =
+        yearlySavings / 12;
+
+    const dailySavings =
+        yearlySavings / 365;
+
+
+    /* =================================================
+       PAYBACK
+    ================================================= */
+
+    const payback =
+        yearlySavings > 0
+        ? price / yearlySavings
         : Infinity;
 
 
-    if(payback<5){
+    /* =================================================
+   10-YEAR NET SAVINGS
+===================================================== */
 
-        title=
-            "☀️ Excellent simple payback";
+const tenYearSavings =
+    Math.max(
+        0,
+        yearlySavings * 10 - price
+    );
 
-        text=
-            `The system could theoretically recover its cost in about ${decimal(payback)} years.`;
 
-    }else if(payback<10){
+/* =================================================
+   DECISION
+===================================================== */
+    if(payback < 5){
 
-        title=
-            "☀️ Solar may have an attractive simple payback.";
+        title =
+            "☀️ Solar has a strong simple payback.";
 
-        text=
+        text =
+            `At the selected assumptions, the system could recover its upfront cost in about ${decimal(payback)} years.`;
+
+    }else if(payback < 10){
+
+        title =
+            "☀️ Solar may offer reasonable value.";
+
+        text =
             `The estimated simple payback is about ${decimal(payback)} years.`;
 
     }else{
 
-        title=
-            "☀️ The simple payback period is relatively long.";
+        title =
+            "☀️ The simple payback is relatively long.";
 
-        text=
-            `The estimated payback is about ${decimal(payback)} years, so the upfront cost takes longer to recover.`;
+        text =
+            `The estimated payback is about ${decimal(payback)} years, so the upfront investment takes longer to recover.`;
+
     }
 
 
-    metrics=[
+    /* =================================================
+       RESULTS
+    ================================================= */
+
+    metrics = [
 
         [
-            "Estimated yearly generation",
-            decimal(yearlyKwh)+" kWh"
+            "Yearly generation",
+            decimal(yearlyKwh) + " kWh"
         ],
 
         [
-            "Estimated yearly savings",
+            "Daily generation",
+            decimal(yearlyKwh / 365) + " kWh"
+        ],
+
+        [
+            "Yearly savings",
             money(yearlySavings)
+        ],
+
+        [
+            "Monthly savings",
+            money(monthlySavings)
+        ],
+
+        [
+            "Daily savings",
+            money(dailySavings)
         ],
 
         [
@@ -3882,13 +3945,32 @@ else if(type==="solar"){
         [
             "Simple payback",
             Number.isFinite(payback)
-            ? decimal(payback)+" years"
+            ? decimal(payback) + " years"
             : "—"
+        ],
+
+        [
+            "10-year net savings",
+            money(tenYearSavings)
+        ],
+
+        [
+            "System size",
+            decimal(kw) + " kW"
+        ],
+
+        [
+            "Estimated efficiency",
+            decimal(efficiency * 100) + "%"
+        ],
+
+        [
+            "Electricity price",
+            money(rate) + " / kWh"
         ]
 
     ];
 }
-
 
 /* =====================================================
    HEATING
