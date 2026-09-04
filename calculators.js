@@ -4365,32 +4365,32 @@ else if(type==="buysubscribe"){
 
 else if(type==="repairreplace"){
 
-    const repair=
+    const repair =
         num("gRRRepair");
 
-    const repairYears=
+    const repairYears =
         num("gRRRepairYears");
 
-    const repairAnnual=
+    const repairAnnual =
         num("gRRRepairAnnual");
 
-    const replace=
+    const replace =
         num("gRRNew");
 
-    const replaceYears=
+    const replaceYears =
         num("gRRNewYears");
 
-    const replaceAnnual=
+    const replaceAnnual =
         num("gRRNewAnnual");
 
 
     if(
-        repair<0 ||
-        repairYears<=0 ||
-        repairAnnual<0 ||
-        replace<0 ||
-        replaceYears<=0 ||
-        replaceAnnual<0
+        repair < 0 ||
+        repairYears <= 0 ||
+        repairAnnual < 0 ||
+        replace < 0 ||
+        replaceYears <= 0 ||
+        replaceAnnual < 0
     ){
 
         showToast(
@@ -4401,64 +4401,144 @@ else if(type==="repairreplace"){
     }
 
 
-    const repairPerYear=
-        (
-            repair+
-            repairAnnual*repairYears
-        )/repairYears;
+    /* =================================================
+       TOTAL COST
+    ================================================= */
+
+    const repairTotal =
+        repair +
+        repairAnnual * repairYears;
+
+    const replaceTotal =
+        replace +
+        replaceAnnual * replaceYears;
 
 
-    const replacePerYear=
-        (
-            replace+
-            replaceAnnual*replaceYears
-        )/replaceYears;
+    /* =================================================
+       YEARLY COST
+    ================================================= */
+
+    const repairPerYear =
+        repairTotal / repairYears;
+
+    const replacePerYear =
+        replaceTotal / replaceYears;
 
 
-    const diff=
+    /* =================================================
+       MONTHLY COST
+    ================================================= */
+
+    const repairPerMonth =
+        repairPerYear / 12;
+
+    const replacePerMonth =
+        replacePerYear / 12;
+
+
+    /* =================================================
+       DIFFERENCE
+    ================================================= */
+
+    const yearlyDifference =
         Math.abs(
-            repairPerYear-
+            repairPerYear -
             replacePerYear
         );
 
+    const totalDifference =
+        Math.abs(
+            repairTotal -
+            replaceTotal
+        );
 
-    if(repairPerYear<replacePerYear){
 
-        title=
-            "🔧 Repair appears cheaper";
+    /* =================================================
+       DECISION
+    ================================================= */
 
-        text=
-            `Repairing is estimated to cost about ${money(diff)} less per year.`;
+    if(repairPerYear < replacePerYear){
 
-    }else if(replacePerYear<repairPerYear){
+        title =
+            "🔧 Repair appears to be the better value.";
 
-        title=
-            "🆕 Replacement appears cheaper";
+        text =
+            `Repairing costs about ${money(yearlyDifference)} less per year over the selected period.`;
 
-        text=
-            `Replacing is estimated to cost about ${money(diff)} less per year.`;
+    }else if(replacePerYear < repairPerYear){
+
+        title =
+            "🆕 Replacement appears to be the better value.";
+
+        text =
+            `Replacing costs about ${money(yearlyDifference)} less per year over the selected period.`;
 
     }else{
 
-        title=
-            "🤝 Similar cost";
+        title =
+            "🤝 Both options have a similar estimated cost.";
 
-        text=
-            "Both options have approximately the same estimated yearly cost.";
+        text =
+            "The estimated yearly cost is approximately the same for repairing and replacing.";
+
     }
 
 
-    metrics=[
+    /* =================================================
+       RESULTS
+    ================================================= */
 
-        ["Repair / year",money(repairPerYear)],
+    metrics = [
 
-        ["Replacement / year",money(replacePerYear)],
+        [
+            "Repair / year",
+            money(repairPerYear)
+        ],
 
-        ["Difference / year",money(diff)],
+        [
+            "Replacement / year",
+            money(replacePerYear)
+        ],
 
-        ["Repair period",decimal(repairYears)+" years"],
+        [
+            "Repair / month",
+            money(repairPerMonth)
+        ],
 
-        ["Replacement period",decimal(replaceYears)+" years"]
+        [
+            "Replacement / month",
+            money(replacePerMonth)
+        ],
+
+        [
+            "Repair total",
+            money(repairTotal)
+        ],
+
+        [
+            "Replacement total",
+            money(replaceTotal)
+        ],
+
+        [
+            "Yearly difference",
+            money(yearlyDifference)
+        ],
+
+        [
+            "Total difference",
+            money(totalDifference)
+        ],
+
+        [
+            "Repair period",
+            decimal(repairYears) + " years"
+        ],
+
+        [
+            "Replacement period",
+            decimal(replaceYears) + " years"
+        ]
 
     ];
 }
