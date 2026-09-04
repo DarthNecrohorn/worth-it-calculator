@@ -4673,24 +4673,36 @@ else if(type==="usednew"){
 
 else if(type==="carrepair"){
 
-    const repair=num("gRepairCost");
-    const repairYears=num("gRepairYears");
-    const currentAnnual=num("gCurrentAnnual");
+    const repair =
+        num("gRepairCost");
 
-    const replacement=num("gReplacementPrice");
-    const replacementYears=num("gReplacementYears");
-    const replacementAnnual=num("gReplacementAnnual");
-    const replacementResale=num("gReplacementResale");
+    const repairYears =
+        num("gRepairYears");
+
+    const currentAnnual =
+        num("gCurrentAnnual");
+
+    const replacement =
+        num("gReplacementPrice");
+
+    const replacementYears =
+        num("gReplacementYears");
+
+    const replacementAnnual =
+        num("gReplacementAnnual");
+
+    const replacementResale =
+        num("gReplacementResale");
 
 
     if(
-        repair<0 ||
-        repairYears<=0 ||
-        currentAnnual<0 ||
-        replacement<0 ||
-        replacementYears<=0 ||
-        replacementAnnual<0 ||
-        replacementResale<0
+        repair < 0 ||
+        repairYears <= 0 ||
+        currentAnnual < 0 ||
+        replacement < 0 ||
+        replacementYears <= 0 ||
+        replacementAnnual < 0 ||
+        replacementResale < 0
     ){
 
         showToast(
@@ -4701,69 +4713,184 @@ else if(type==="carrepair"){
     }
 
 
-    const repairPerYear=
-        (
-            repair+
-            currentAnnual*repairYears
-        )/repairYears;
+    /* =================================================
+       TOTAL COST
+    ================================================= */
+
+    const repairTotal =
+        repair +
+        currentAnnual * repairYears;
 
 
-    const replacePerYear=
-        (
-            replacement+
-            replacementAnnual*replacementYears-
-            replacementResale
-        )/replacementYears;
+    const replaceTotal =
+        replacement +
+        replacementAnnual * replacementYears -
+        replacementResale;
 
 
-    const diff=
+    /* =================================================
+       YEARLY COST
+    ================================================= */
+
+    const repairPerYear =
+        repairTotal / repairYears;
+
+
+    const replacePerYear =
+        replaceTotal / replacementYears;
+
+
+    /* =================================================
+       MONTHLY COST
+    ================================================= */
+
+    const repairPerMonth =
+        repairPerYear / 12;
+
+
+    const replacePerMonth =
+        replacePerYear / 12;
+
+
+    /* =================================================
+       DIFFERENCE
+    ================================================= */
+
+    const yearlyDifference =
         Math.abs(
-            repairPerYear-
+            repairPerYear -
             replacePerYear
         );
 
 
-    if(repairPerYear<replacePerYear){
+    const totalDifference =
+        Math.abs(
+            repairTotal -
+            replaceTotal
+        );
 
-        title=
-            "🛠️ Repair appears cheaper";
 
-        text=
-            `Repairing is estimated to cost about ${money(diff)} less per year.`;
+    /* =================================================
+       DEPRECIATION / RESALE
+    ================================================= */
 
-    }else if(replacePerYear<repairPerYear){
+    const replacementDepreciation =
+        Math.max(
+            0,
+            replacement -
+            replacementResale
+        );
 
-        title=
-            "🚘 Replacement appears cheaper";
 
-        text=
-            `Replacing is estimated to cost about ${money(diff)} less per year.`;
+    /* =================================================
+       DECISION
+    ================================================= */
+
+    if(repairPerYear < replacePerYear){
+
+        title =
+            "🛠️ Repair is the better value.";
+
+        text =
+            `Repairing is estimated to cost about ${money(yearlyDifference)} less per year over its expected period.`;
+
+    }else if(replacePerYear < repairPerYear){
+
+        title =
+            "🚘 Replacement is the better value.";
+
+        text =
+            `Replacing is estimated to cost about ${money(yearlyDifference)} less per year over its expected period.`;
 
     }else{
 
-        title=
-            "🤝 Similar cost";
+        title =
+            "🤝 Both options have a similar estimated cost.";
 
-        text=
-            "Both options have approximately the same estimated annual cost.";
+        text =
+            "Based on your inputs, repairing and replacing have approximately the same yearly cost.";
+
     }
 
 
-    metrics=[
+    /* =================================================
+       RESULTS
+    ================================================= */
 
-        ["Repair / year",money(repairPerYear)],
+    metrics = [
 
-        ["Replace / year",money(replacePerYear)],
+        [
+            "Repair total",
+            money(repairTotal)
+        ],
 
-        ["Difference / year",money(diff)],
+        [
+            "Replacement total",
+            money(replaceTotal)
+        ],
 
-        ["Repair period",decimal(repairYears)+" years"],
+        [
+            "Repair / year",
+            money(repairPerYear)
+        ],
 
-        ["Replace period",decimal(replacementYears)+" years"]
+        [
+            "Replacement / year",
+            money(replacePerYear)
+        ],
+
+        [
+            "Repair / month",
+            money(repairPerMonth)
+        ],
+
+        [
+            "Replacement / month",
+            money(replacePerMonth)
+        ],
+
+        [
+            "Yearly difference",
+            money(yearlyDifference)
+        ],
+
+        [
+            "Total difference",
+            money(totalDifference)
+        ],
+
+        [
+            "Repair cost",
+            money(repair)
+        ],
+
+        [
+            "Replacement price",
+            money(replacement)
+        ],
+
+        [
+            "Replacement resale",
+            money(replacementResale)
+        ],
+
+        [
+            "Replacement depreciation",
+            money(replacementDepreciation)
+        ],
+
+        [
+            "Repair period",
+            decimal(repairYears) + " years"
+        ],
+
+        [
+            "Replacement period",
+            decimal(replacementYears) + " years"
+        ]
 
     ];
 }
-
 
 /* =====================================================
    CAR VS TAXI
