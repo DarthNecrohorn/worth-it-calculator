@@ -2756,99 +2756,223 @@ else if(type==="phone"){
 
 else if(type==="rent"){
 
-    const rent=num("gRent");
-    const home=num("gHome");
-    const owner=num("gOwner");
-    const years=num("gYears");
-    const future=num("gFutureHome");
-    const growth=num("gRentGrowth")/100;
+    const rent =
+        num("gRent");
+
+    const home =
+        num("gHome");
+
+    const owner =
+        num("gOwner");
+
+    const years =
+        num("gYears");
+
+    const future =
+        num("gFutureHome");
+
+    const growth =
+        num("gRentGrowth") / 100;
 
 
     if(
-        rent<0 ||
-        home<0 ||
-        owner<0 ||
-        years<=0 ||
-        future<0 ||
-        growth<0
+        rent < 0 ||
+        home < 0 ||
+        owner < 0 ||
+        years <= 0 ||
+        future < 0 ||
+        growth < 0
     ){
 
-        showToast("Please enter valid housing values.");
+        showToast(
+            "Please enter valid housing values."
+        );
 
         return;
     }
 
 
-    let totalRent=0;
-    let currentRent=rent;
+    /* =================================================
+       TOTAL RENT
+    ================================================= */
+
+    let totalRent =
+        0;
+
+    let currentRent =
+        rent;
 
 
     for(
-        let y=0;
-        y<Math.max(0,Math.round(years));
+        let y = 0;
+        y < Math.max(0, Math.round(years));
         y++
     ){
 
         totalRent +=
-            currentRent*12;
+            currentRent * 12;
 
         currentRent *=
-            1+growth;
+            1 + growth;
     }
 
 
-    const ownershipCost=
-        home+
-        owner*12*years;
+    /* =================================================
+       BUYING COST
+    ================================================= */
 
-    const netOwnership=
-        ownershipCost-
+    const ownershipCost =
+        home +
+        owner * 12 * years;
+
+
+    const netOwnership =
+        ownershipCost -
         future;
 
-    const difference=
+
+    /* =================================================
+       DIFFERENCE
+    ================================================= */
+
+    const difference =
         Math.abs(
-            totalRent-
+            totalRent -
             netOwnership
         );
 
 
-    if(netOwnership<totalRent){
+    /* =================================================
+       YEARLY COST
+    ================================================= */
 
-        title=
-            "🏠 Buying is cheaper in this simplified model.";
+    const rentPerYear =
+        totalRent / years;
 
-        text=
-            `Buying is estimated to cost about ${money(difference)} less over the selected period.`;
+    const ownershipPerYear =
+        netOwnership / years;
 
-    }else if(totalRent<netOwnership){
 
-        title=
-            "🏠 Renting is cheaper in this simplified model.";
+    /* =================================================
+       MONTHLY COST
+    ================================================= */
 
-        text=
-            `Renting is estimated to cost about ${money(difference)} less over the selected period.`;
+    const rentPerMonth =
+        rentPerYear / 12;
+
+    const ownershipPerMonth =
+        ownershipPerYear / 12;
+
+
+    /* =================================================
+       EFFECT OF RENT GROWTH
+    ================================================= */
+
+    const finalMonthlyRent =
+        currentRent;
+
+
+    /* =================================================
+       DECISION
+    ================================================= */
+
+    if(netOwnership < totalRent){
+
+        title =
+            "🏠 Buying is the better value.";
+
+        text =
+            `Buying is estimated to cost about ${money(difference)} less over the selected period after accounting for the home's estimated value.`;
+
+    }else if(totalRent < netOwnership){
+
+        title =
+            "🏠 Renting is the better value.";
+
+        text =
+            `Renting is estimated to cost about ${money(difference)} less over the selected period in this simplified comparison.`;
 
     }else{
 
-        title=
-            "🤝 Renting and buying are approximately equal";
+        title =
+            "🤝 Renting and buying cost about the same.";
 
-        text=
-            "Both options have approximately the same estimated cost.";
+        text =
+            "Based on your inputs, both options have approximately the same estimated long-term cost.";
+
     }
 
 
-    metrics=[
+    /* =================================================
+       RESULTS
+    ================================================= */
 
-        ["Total rent",money(totalRent)],
+    metrics = [
 
-        ["Ownership costs",money(ownershipCost)],
+        [
+            "Total rent",
+            money(totalRent)
+        ],
 
-        ["Estimated home value",money(future)],
+        [
+            "Net buying cost",
+            money(netOwnership)
+        ],
 
-        ["Net ownership cost",money(netOwnership)],
+        [
+            "Difference",
+            money(difference)
+        ],
 
-        ["Difference",money(difference)]
+        [
+            "Rent / year",
+            money(rentPerYear)
+        ],
+
+        [
+            "Buying / year",
+            money(ownershipPerYear)
+        ],
+
+        [
+            "Rent / month",
+            money(rentPerMonth)
+        ],
+
+        [
+            "Buying / month",
+            money(ownershipPerMonth)
+        ],
+
+        [
+            "Home purchase price",
+            money(home)
+        ],
+
+        [
+            "Ownership costs",
+            money(owner * 12 * years)
+        ],
+
+        [
+            "Estimated home value",
+            money(future)
+        ],
+
+        [
+            "Final monthly rent",
+            money(finalMonthlyRent)
+        ],
+
+        [
+            "Rent increase / year",
+            decimal(growth * 100) + "%"
+        ],
+
+        [
+            "Comparison period",
+            decimal(years) + " years"
+        ]
 
     ];
 }
