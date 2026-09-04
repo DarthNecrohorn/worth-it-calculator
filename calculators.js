@@ -2247,67 +2247,175 @@ let metrics=[];
 
 if(type==="savings"){
 
-    const start=num("gStart");
-    const monthly=num("gMonthly");
-    const annualRate=num("gRate");
-    const rate=annualRate/100/12;
-    const years=num("gYears");
+    const start =
+        num("gStart");
+
+    const monthly =
+        num("gMonthly");
+
+    const annualRate =
+        num("gRate");
+
+    const rate =
+        annualRate / 100 / 12;
+
+    const years =
+        num("gYears");
+
 
     if(
-        start<0 ||
-        monthly<0 ||
-        annualRate<0 ||
-        years<=0
+        start < 0 ||
+        monthly < 0 ||
+        annualRate < 0 ||
+        years <= 0
     ){
 
-        showToast("Please enter valid values.");
+        showToast(
+            "Please enter valid savings values."
+        );
 
         return;
     }
 
 
-    let balance=start;
+    /* =================================================
+       FUTURE VALUE
+    ================================================= */
+
+    let balance =
+        start;
+
+
+    const months =
+        Math.max(
+            0,
+            Math.round(years * 12)
+        );
+
 
     for(
-        let i=0;
-        i<Math.max(0,Math.round(years*12));
+        let i = 0;
+        i < months;
         i++
     ){
 
-        balance=
-            balance*(1+rate)+monthly;
+        balance =
+            balance * (1 + rate) +
+            monthly;
+
     }
 
 
-    const contributed=
-        start+
-        monthly*years*12;
+    /* =================================================
+       CONTRIBUTIONS
+    ================================================= */
 
-    const interest=
-        balance-contributed;
-
-
-    title=
-        interest>0
-        ? "💰 Your savings can grow"
-        : "💰 Your estimated savings";
+    const contributed =
+        start +
+        monthly * months;
 
 
-    text=
-        interest>0
-        ? `You could finish with ${money(balance)}, including approximately ${money(interest)} from interest.`
-        : "Your result is based mainly on the money you contribute.";
+    const interest =
+        Math.max(
+            0,
+            balance - contributed
+        );
 
 
-    metrics=[
+    /* =================================================
+       AVERAGES
+    ================================================= */
 
-        ["Final balance",money(balance)],
+    const averageMonthlyGrowth =
+        interest / Math.max(1, years * 12);
 
-        ["Your contributions",money(contributed)],
+    const averageYearlyGrowth =
+        interest / Math.max(1, years);
 
-        ["Estimated interest",money(interest)],
 
-        ["Monthly deposit",money(monthly)]
+    /* =================================================
+       GROWTH RATE
+    ================================================= */
+
+    const effectiveGrowth =
+        contributed > 0
+        ? (interest / contributed) * 100
+        : 0;
+
+
+    /* =================================================
+       DECISION
+    ================================================= */
+
+    if(interest > 0){
+
+        title =
+            "💰 Your savings can grow.";
+
+        text =
+            `You could finish with ${money(balance)}, including about ${money(interest)} from interest over ${decimal(years)} years.`;
+
+    }else{
+
+        title =
+            "💰 Your estimated savings.";
+
+        text =
+            `Most of your final balance comes from the money you contribute rather than interest.`;
+
+    }
+
+
+    /* =================================================
+       RESULTS
+    ================================================= */
+
+    metrics = [
+
+        [
+            "Final balance",
+            money(balance)
+        ],
+
+        [
+            "Your contributions",
+            money(contributed)
+        ],
+
+        [
+            "Estimated interest",
+            money(interest)
+        ],
+
+        [
+            "Monthly deposit",
+            money(monthly)
+        ],
+
+        [
+            "Average growth / year",
+            money(averageYearlyGrowth)
+        ],
+
+        [
+            "Average growth / month",
+            money(averageMonthlyGrowth)
+        ],
+
+        [
+            "Interest vs contributions",
+            decimal(effectiveGrowth) + "%"
+        ],
+
+        [
+            "Annual interest rate",
+            decimal(annualRate) + "%"
+        ],
+
+        [
+            "Savings period",
+            decimal(years) + " years"
+        ]
 
     ];
 }
