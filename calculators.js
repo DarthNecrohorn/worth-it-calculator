@@ -2984,18 +2984,25 @@ else if(type==="rent"){
 
 else if(type==="energy"){
 
-    const watts=num("gWatts");
-    const hours=num("gHours");
-    const rate=num("gRate");
-    const days=num("gDays");
+    const watts =
+        num("gWatts");
+
+    const hours =
+        num("gHours");
+
+    const rate =
+        num("gRate");
+
+    const days =
+        num("gDays");
 
 
     if(
-        watts<0 ||
-        hours<0 ||
-        rate<0 ||
-        days<=0 ||
-        hours>24
+        watts < 0 ||
+        hours < 0 ||
+        rate < 0 ||
+        days <= 0 ||
+        hours > 24
     ){
 
         showToast(
@@ -3006,38 +3013,128 @@ else if(type==="energy"){
     }
 
 
-    const dailyKwh=
-        watts/1000*hours;
+    /* =================================================
+       ENERGY USAGE
+    ================================================= */
 
-    const yearlyKwh=
-        dailyKwh*days;
+    const dailyKwh =
+        watts / 1000 * hours;
 
-    const yearlyCost=
-        yearlyKwh*rate;
+    const yearlyKwh =
+        dailyKwh * days;
 
-    const monthly=
-        yearlyCost/12;
-
-
-    title=
-        "⚡ Estimated energy cost";
+    const monthlyKwh =
+        yearlyKwh / 12;
 
 
-    text=
-        yearlyCost>500
-        ? `This device could cost approximately ${money(yearlyCost)} per year to run.`
-        : `This device costs approximately ${money(monthly)} per month at the selected usage.`;
+    /* =================================================
+       ENERGY COST
+    ================================================= */
+
+    const dailyCost =
+        dailyKwh * rate;
+
+    const yearlyCost =
+        yearlyKwh * rate;
+
+    const monthlyCost =
+        yearlyCost / 12;
 
 
-    metrics=[
+    /* =================================================
+       COST / HOUR
+    ================================================= */
 
-        ["Daily energy",decimal(dailyKwh)+" kWh"],
+    const hourlyCost =
+        (watts / 1000) * rate;
 
-        ["Yearly energy",decimal(yearlyKwh)+" kWh"],
 
-        ["Monthly cost",money(monthly)],
+    /* =================================================
+       DECISION
+    ================================================= */
 
-        ["Yearly cost",money(yearlyCost)]
+    if(yearlyCost < 50){
+
+        title =
+            "⚡ Very low estimated running cost.";
+
+        text =
+            `At your selected usage, this device costs about ${money(monthlyCost)} per month to run.`;
+
+    }else if(yearlyCost < 500){
+
+        title =
+            "⚡ Moderate estimated energy cost.";
+
+        text =
+            `This device costs about ${money(yearlyCost)} per year at the selected electricity price and usage.`;
+
+    }else{
+
+        title =
+            "⚡ High estimated running cost.";
+
+        text =
+            `This device could cost about ${money(yearlyCost)} per year to run, so its energy use may be worth paying attention to.`;
+
+    }
+
+
+    /* =================================================
+       RESULTS
+    ================================================= */
+
+    metrics = [
+
+        [
+            "Daily cost",
+            money(dailyCost)
+        ],
+
+        [
+            "Monthly cost",
+            money(monthlyCost)
+        ],
+
+        [
+            "Yearly cost",
+            money(yearlyCost)
+        ],
+
+        [
+            "Cost / hour",
+            money(hourlyCost)
+        ],
+
+        [
+            "Daily energy",
+            decimal(dailyKwh) + " kWh"
+        ],
+
+        [
+            "Monthly energy",
+            decimal(monthlyKwh) + " kWh"
+        ],
+
+        [
+            "Yearly energy",
+            decimal(yearlyKwh) + " kWh"
+        ],
+
+        [
+            "Device power",
+            decimal(watts) + " W"
+        ],
+
+        [
+            "Daily usage",
+            decimal(hours) + " hours"
+        ],
+
+        [
+            "Electricity price",
+            money(rate) + " / kWh"
+        ]
 
     ];
 }
