@@ -4588,17 +4588,24 @@ else if(type==="emergency"){
 
 else if(type==="buysubscribe"){
 
-    const purchase=num("gBuyPrice");
-    const resale=num("gBuyResale");
-    const monthly=num("gSubMonthly");
-    const years=num("gBuyYears");
+    const purchase =
+        num("gBuyPrice");
+
+    const resale =
+        num("gBuyResale");
+
+    const monthly =
+        num("gSubMonthly");
+
+    const years =
+        num("gBuyYears");
 
 
     if(
-        purchase<0 ||
-        resale<0 ||
-        monthly<0 ||
-        years<=0
+        purchase < 0 ||
+        resale < 0 ||
+        monthly < 0 ||
+        years <= 0
     ){
 
         showToast(
@@ -4609,70 +4616,161 @@ else if(type==="buysubscribe"){
     }
 
 
-    const buy=
+    /* =================================================
+       BUYING COST
+    ================================================= */
+
+    const buy =
         Math.max(
             0,
-            purchase-resale
+            purchase - resale
         );
 
 
-    const sub=
-        monthly*
-        12*
+    /* =================================================
+       SUBSCRIPTION COST
+    ================================================= */
+
+    const sub =
+        monthly *
+        12 *
         years;
 
 
-    const diff=
+    /* =================================================
+       DIFFERENCE
+    ================================================= */
+
+    const difference =
         Math.abs(
-            buy-sub
+            buy - sub
         );
 
 
-    const breakEven=
-        monthly>0
-        ? buy/monthly
+    /* =================================================
+       MONTHLY BUY COST
+    ================================================= */
+
+    const buyPerMonth =
+        buy / (years * 12);
+
+
+    /* =================================================
+       MONTHLY SUBSCRIPTION
+    ================================================= */
+
+    const subscriptionPerMonth =
+        monthly;
+
+
+    /* =================================================
+       BREAK-EVEN
+    ================================================= */
+
+    const breakEven =
+        monthly > 0
+        ? buy / monthly
         : Infinity;
 
 
-    if(buy<sub){
+    /* =================================================
+       YEARLY COST
+    ================================================= */
 
-        title=
-            "🛒 Buying is cheaper";
+    const buyPerYear =
+        buy / years;
 
-        text=
-            `Buying is estimated to save about ${money(diff)} over ${decimal(years)} years.`;
+    const subscriptionPerYear =
+        monthly * 12;
 
-    }else if(sub<buy){
 
-        title=
-            "🔄 Subscription is cheaper";
+    /* =================================================
+       DECISION
+    ================================================= */
 
-        text=
-            `The subscription is estimated to save about ${money(diff)} over ${decimal(years)} years.`;
+    if(buy < sub){
+
+        title =
+            "🛒 Buying is the better value.";
+
+        text =
+            `Buying is estimated to save about ${money(difference)} over ${decimal(years)} years compared with subscribing.`;
+
+    }else if(sub < buy){
+
+        title =
+            "🔄 Subscription is the better value.";
+
+        text =
+            `The subscription is estimated to save about ${money(difference)} over ${decimal(years)} years compared with buying.`;
 
     }else{
 
-        title=
-            "🤝 Similar cost";
+        title =
+            "🤝 Buying and subscribing cost about the same.";
 
-        text=
-            "Both options have approximately the same estimated cost over the selected period.";
+        text =
+            "Based on your inputs, both options have approximately the same total cost over the selected period.";
+
     }
 
 
-    metrics=[
+    /* =================================================
+       RESULTS
+    ================================================= */
 
-        ["Buying cost",money(buy)],
+    metrics = [
 
-        ["Subscription cost",money(sub)],
+        [
+            "Buying total",
+            money(buy)
+        ],
 
-        ["Difference",money(diff)],
+        [
+            "Subscription total",
+            money(sub)
+        ],
+
+        [
+            "Difference",
+            money(difference)
+        ],
+
+        [
+            "Buying / year",
+            money(buyPerYear)
+        ],
+
+        [
+            "Subscription / year",
+            money(subscriptionPerYear)
+        ],
+
+        [
+            "Buying / month",
+            money(buyPerMonth)
+        ],
+
+        [
+            "Subscription / month",
+            money(subscriptionPerMonth)
+        ],
 
         [
             "Break-even",
             Number.isFinite(breakEven)
-            ? decimal(breakEven)+" months"
+            ? decimal(breakEven) + " months"
             : "No subscription cost"
+        ],
+
+        [
+            "Comparison period",
+            decimal(years) + " years"
+        ],
+
+        [
+            "Resale value",
+            money(resale)
         ]
 
     ];
