@@ -4898,19 +4898,28 @@ else if(type==="carrepair"){
 
 else if(type==="taxi"){
 
-    const trips=num("gTaxiTrips");
-    const tripCost=num("gTaxiTripCost");
-    const fixed=num("gTaxiCarFixed");
-    const kmCost=num("gTaxiCarKm");
-    const km=num("gTaxiKm");
+    const trips =
+        num("gTaxiTrips");
+
+    const tripCost =
+        num("gTaxiTripCost");
+
+    const fixed =
+        num("gTaxiCarFixed");
+
+    const kmCost =
+        num("gTaxiCarKm");
+
+    const km =
+        num("gTaxiKm");
 
 
     if(
-        trips<0 ||
-        tripCost<0 ||
-        fixed<0 ||
-        kmCost<0 ||
-        km<0
+        trips < 0 ||
+        tripCost < 0 ||
+        fixed < 0 ||
+        kmCost < 0 ||
+        km < 0
     ){
 
         showToast(
@@ -4921,64 +4930,164 @@ else if(type==="taxi"){
     }
 
 
-    const taxi=
-        trips*
-        52*
+    /* =================================================
+       YEARLY COST
+    ================================================= */
+
+    const taxi =
+        trips *
+        52 *
         tripCost;
 
 
-    const car=
-        fixed+
-        km*kmCost;
+    const car =
+        fixed +
+        km * kmCost;
 
 
-    const diff=
+    /* =================================================
+       MONTHLY COST
+    ================================================= */
+
+    const taxiPerMonth =
+        taxi / 12;
+
+    const carPerMonth =
+        car / 12;
+
+
+    /* =================================================
+       DIFFERENCE
+    ================================================= */
+
+    const difference =
         Math.abs(
-            taxi-car
+            taxi - car
         );
 
+    /* =================================================
+       TAXI USAGE
+    ================================================= */
 
-    if(car<taxi){
+    const yearlyTrips =
+        trips * 52;
 
-        title=
-            "🚘 Owning a car is cheaper";
 
-        text=
-            `Owning the car is estimated to save about ${money(diff)} per year.`;
+    const monthlyTrips =
+        yearlyTrips / 12;
 
-    }else if(taxi<car){
 
-        title=
-            "🚕 Using taxis is cheaper";
+    const taxiCostPerTrip =
+        tripCost;
 
-        text=
-            `Using taxis is estimated to save about ${money(diff)} per year.`;
+
+    /* =================================================
+       CAR VARIABLE COST
+    ================================================= */
+
+    const variableCarCost =
+        km * kmCost;
+
+
+    /* =================================================
+       DECISION
+    ================================================= */
+
+    if(car < taxi){
+
+        title =
+            "🚘 Owning the car is the better value.";
+
+        text =
+            `The car is estimated to save about ${money(difference)} per year compared with using taxis.`;
+
+    }else if(taxi < car){
+
+        title =
+            "🚕 Using taxis is the better value.";
+
+        text =
+            `Taxis are estimated to save about ${money(difference)} per year compared with owning the car.`;
 
     }else{
 
-        title=
-            "🤝 Similar yearly cost";
+        title =
+            "🤝 Both options cost about the same.";
 
-        text=
-            "Both options have approximately the same estimated yearly cost.";
+        text =
+            "Based on your inputs, the estimated yearly costs are approximately equal.";
+
     }
 
 
-    metrics=[
+    /* =================================================
+       RESULTS
+    ================================================= */
 
-        ["Taxi / year",money(taxi)],
+    metrics = [
 
-        ["Car / year",money(car)],
+        [
+            "Taxi / year",
+            money(taxi)
+        ],
 
-        ["Difference",money(diff)],
+        [
+            "Car / year",
+            money(car)
+        ],
 
-        ["Taxi / month",money(taxi/12)],
+        [
+            "Difference / year",
+            money(difference)
+        ],
 
-        ["Car / month",money(car/12)]
+        [
+            "Taxi / month",
+            money(taxiPerMonth)
+        ],
+
+        [
+            "Car / month",
+            money(carPerMonth)
+        ],
+
+        [
+            "Taxi trips / year",
+            decimal(yearlyTrips)
+        ],
+
+        [
+            "Taxi trips / month",
+            decimal(monthlyTrips)
+        ],
+
+        [
+            "Taxi cost / trip",
+            money(taxiCostPerTrip)
+        ],
+
+        [
+            "Car fixed cost / year",
+            money(fixed)
+        ],
+
+        [
+            "Car variable cost / year",
+            money(variableCarCost)
+        ],
+
+        [
+            "Car cost / km",
+            money(kmCost)
+        ],
+
+        [
+            "Car km / year",
+            decimal(km)
+        ]
 
     ];
 }
-
 
 /* =====================================================
    CAR VS PUBLIC TRANSPORT
