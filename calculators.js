@@ -4431,40 +4431,44 @@ else if(type==="ownership"){
 
 else if(type==="usednew"){
 
-    const years=num("gUsedYears");
+    const years =
+        num("gUsedYears");
 
-    const usedPrice=num("gUsedPrice");
-    const newPrice=num("gNewPrice");
+    const usedPrice =
+        num("gUsedPrice");
 
-    const usedMaintenance=
+    const newPrice =
+        num("gNewPrice");
+
+    const usedMaintenance =
         num("gUsedMaintenance");
 
-    const newMaintenance=
+    const newMaintenance =
         num("gNewMaintenance");
 
-    const usedInsurance=
+    const usedInsurance =
         num("gUsedInsurance");
 
-    const newInsurance=
+    const newInsurance =
         num("gNewInsurance");
 
-    const usedResale=
+    const usedResale =
         num("gUsedResale");
 
-    const newResale=
+    const newResale =
         num("gNewResale");
 
 
     if(
-        years<=0 ||
-        usedPrice<0 ||
-        newPrice<0 ||
-        usedMaintenance<0 ||
-        newMaintenance<0 ||
-        usedInsurance<0 ||
-        newInsurance<0 ||
-        usedResale<0 ||
-        newResale<0
+        years <= 0 ||
+        usedPrice < 0 ||
+        newPrice < 0 ||
+        usedMaintenance < 0 ||
+        newMaintenance < 0 ||
+        usedInsurance < 0 ||
+        newInsurance < 0 ||
+        usedResale < 0 ||
+        newResale < 0
     ){
 
         showToast(
@@ -4475,67 +4479,189 @@ else if(type==="usednew"){
     }
 
 
-    const used=
-        usedPrice+
+    /* =================================================
+       TOTAL COST
+    ================================================= */
+
+    const used =
+        usedPrice +
         (
-            usedMaintenance+
+            usedMaintenance +
             usedInsurance
-        )*years-
+        ) * years -
         usedResale;
 
 
-    const fresh=
-        newPrice+
+    const fresh =
+        newPrice +
         (
-            newMaintenance+
+            newMaintenance +
             newInsurance
-        )*years-
+        ) * years -
         newResale;
 
 
-    const diff=
+    /* =================================================
+       YEARLY / MONTHLY COST
+    ================================================= */
+
+    const usedPerYear =
+        used / years;
+
+    const newPerYear =
+        fresh / years;
+
+    const usedPerMonth =
+        usedPerYear / 12;
+
+    const newPerMonth =
+        newPerYear / 12;
+
+
+    /* =================================================
+       DIFFERENCE
+    ================================================= */
+
+    const difference =
         Math.abs(
-            used-fresh
+            used - fresh
         );
 
 
-    if(used<fresh){
+    const yearlyDifference =
+        Math.abs(
+            usedPerYear - newPerYear
+        );
 
-        title=
-            "🚙 Used car is cheaper";
 
-        text=
-            `The used car is estimated to save about ${money(diff)} over ${decimal(years)} years.`;
+    /* =================================================
+       DEPRECIATION
+    ================================================= */
 
-    }else if(fresh<used){
+    const usedDepreciation =
+        Math.max(
+            0,
+            usedPrice - usedResale
+        );
 
-        title=
-            "🚘 New car is cheaper";
+    const newDepreciation =
+        Math.max(
+            0,
+            newPrice - newResale
+        );
 
-        text=
-            `The new car is estimated to save about ${money(diff)} over ${decimal(years)} years.`;
+
+    /* =================================================
+       DECISION
+    ================================================= */
+
+    if(used < fresh){
+
+        title =
+            "🚙 The used car is the better value.";
+
+        text =
+            `The used car is estimated to save about ${money(difference)} over ${decimal(years)} years.`;
+
+    }else if(fresh < used){
+
+        title =
+            "🚘 The new car is the better value.";
+
+        text =
+            `The new car is estimated to save about ${money(difference)} over ${decimal(years)} years.`;
 
     }else{
 
-        title=
-            "🤝 Similar cost";
+        title =
+            "🤝 Both options have a similar estimated cost.";
 
-        text=
-            "Both options have approximately the same estimated cost.";
+        text =
+            "Based on your inputs, the used and new car options cost approximately the same.";
+
     }
 
 
-    metrics=[
+    /* =================================================
+       RESULTS
+    ================================================= */
 
-        ["Used total",money(used)],
+    metrics = [
 
-        ["New total",money(fresh)],
+        [
+            "Used car total",
+            money(used)
+        ],
 
-        ["Difference",money(diff)],
+        [
+            "New car total",
+            money(fresh)
+        ],
 
-        ["Used / year",money(used/years)],
+        [
+            "Total difference",
+            money(difference)
+        ],
 
-        ["New / year",money(fresh/years)]
+        [
+            "Used / year",
+            money(usedPerYear)
+        ],
+
+        [
+            "New / year",
+            money(newPerYear)
+        ],
+
+        [
+            "Used / month",
+            money(usedPerMonth)
+        ],
+
+        [
+            "New / month",
+            money(newPerMonth)
+        ],
+
+        [
+            "Yearly difference",
+            money(yearlyDifference)
+        ],
+
+        [
+            "Used purchase price",
+            money(usedPrice)
+        ],
+
+        [
+            "New purchase price",
+            money(newPrice)
+        ],
+
+        [
+            "Used resale value",
+            money(usedResale)
+        ],
+
+        [
+            "New resale value",
+            money(newResale)
+        ],
+
+        [
+            "Used depreciation",
+            money(usedDepreciation)
+        ],
+
+        [
+            "New depreciation",
+            money(newDepreciation)
+        ],
+
+        [
+            "Comparison period",
+            decimal(years) + " years"
+        ]
 
     ];
 }
