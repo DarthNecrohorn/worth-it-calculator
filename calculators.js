@@ -4225,25 +4225,40 @@ if(partialYear > 0){
 
 else if(type==="ownership"){
 
-    const purchase=num("gPurchase");
-    const resale=num("gResale");
-    const energy=num("gEnergy");
-    const maintenance=num("gMaintenance");
-    const insurance=num("gInsurance");
-    const registration=num("gRegistration");
-    const other=num("gOther");
-    const years=num("gYears");
+    const purchase =
+        num("gPurchase");
+
+    const resale =
+        num("gResale");
+
+    const energy =
+        num("gEnergy");
+
+    const maintenance =
+        num("gMaintenance");
+
+    const insurance =
+        num("gInsurance");
+
+    const registration =
+        num("gRegistration");
+
+    const other =
+        num("gOther");
+
+    const years =
+        num("gYears");
 
 
     if(
-        purchase<0 ||
-        resale<0 ||
-        energy<0 ||
-        maintenance<0 ||
-        insurance<0 ||
-        registration<0 ||
-        other<0 ||
-        years<=0
+        purchase < 0 ||
+        resale < 0 ||
+        energy < 0 ||
+        maintenance < 0 ||
+        insurance < 0 ||
+        registration < 0 ||
+        other < 0 ||
+        years <= 0
     ){
 
         showToast(
@@ -4254,43 +4269,157 @@ else if(type==="ownership"){
     }
 
 
-    const yearly=
-        energy+
-        maintenance+
-        insurance+
-        registration+
+    /* =================================================
+       YEARLY RUNNING COST
+    ================================================= */
+
+    const yearly =
+        energy +
+        maintenance +
+        insurance +
+        registration +
         other;
 
 
-    const total=
-        purchase+
-        yearly*years-
+    /* =================================================
+       TOTAL OWNERSHIP COST
+    ================================================= */
+
+    const total =
+        purchase +
+        yearly * years -
         resale;
 
 
-    const average=
-        total/years;
+    /* =================================================
+       COST PER YEAR / MONTH
+    ================================================= */
+
+    const average =
+        total / years;
+
+    const monthly =
+        average / 12;
 
 
-    title=
-        "🚘 Estimated total ownership cost";
+    /* =================================================
+       VALUE LOST TO DEPRECIATION
+    ================================================= */
+
+    const depreciation =
+        Math.max(
+            0,
+            purchase - resale
+        );
 
 
-    text=
-        `After accounting for resale value, the car costs approximately ${money(average)} per year to own.`;
+    /* =================================================
+       RUNNING COST SHARE
+    ================================================= */
+
+    const runningCostTotal =
+        yearly * years;
+
+    const runningCostShare =
+        total > 0
+        ? (runningCostTotal / total) * 100
+        : 0;
 
 
-    metrics=[
+    /* =================================================
+       DECISION
+    ================================================= */
 
-        ["Total cost",money(total)],
+    if(total <= 0){
 
-        ["Average / year",money(average)],
+        title =
+            "🚘 Estimated ownership cost is very low.";
 
-        ["Yearly running cost",money(yearly)],
+        text =
+            "After accounting for resale value, the estimated ownership cost is approximately €0 or less.";
 
-        ["Resale value",money(resale)],
+    }else if(average < 3000){
 
-        ["Ownership period",decimal(years)+" years"]
+        title =
+            "🚘 Relatively low yearly ownership cost.";
+
+        text =
+            `The car is estimated to cost about ${money(average)} per year, or ${money(monthly)} per month to own.`;
+
+    }else if(average < 6000){
+
+        title =
+            "🚘 Moderate yearly ownership cost.";
+
+        text =
+            `Your estimated ownership cost is about ${money(average)} per year after running costs and resale value.`;
+
+    }else{
+
+        title =
+            "🚘 High yearly ownership cost.";
+
+        text =
+            `The car is estimated to cost about ${money(average)} per year, so its total ownership cost deserves careful consideration.`;
+
+    }
+
+
+    /* =================================================
+       RESULTS
+    ================================================= */
+
+    metrics = [
+
+        [
+            "Total ownership cost",
+            money(total)
+        ],
+
+        [
+            "Average / year",
+            money(average)
+        ],
+
+        [
+            "Average / month",
+            money(monthly)
+        ],
+
+        [
+            "Yearly running cost",
+            money(yearly)
+        ],
+
+        [
+            "Total running costs",
+            money(runningCostTotal)
+        ],
+
+        [
+            "Purchase price",
+            money(purchase)
+        ],
+
+        [
+            "Resale value",
+            money(resale)
+        ],
+
+        [
+            "Estimated depreciation",
+            money(depreciation)
+        ],
+
+        [
+            "Running cost share",
+            decimal(runningCostShare) + "%"
+        ],
+
+        [
+            "Ownership period",
+            decimal(years) + " years"
+        ]
 
     ];
 }
