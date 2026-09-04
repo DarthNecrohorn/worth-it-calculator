@@ -3800,17 +3800,24 @@ else if(type==="publictransport"){
 
 else if(type==="creditcard"){
 
-    const balance=num("gCCBalance");
-    const apr=num("gCCAPR")/100;
-    const payment=num("gCCPayment");
-    const fee=num("gCCFee");
+    const balance =
+        num("gCCBalance");
+
+    const apr =
+        num("gCCAPR") / 100;
+
+    const payment =
+        num("gCCPayment");
+
+    const fee =
+        num("gCCFee");
 
 
     if(
-        balance<0 ||
-        apr<0 ||
-        payment<0 ||
-        fee<0
+        balance < 0 ||
+        apr < 0 ||
+        payment < 0 ||
+        fee < 0
     ){
 
         showToast(
@@ -3821,139 +3828,289 @@ else if(type==="creditcard"){
     }
 
 
-    const rate=
-        apr/12;
+    const rate =
+        apr / 12;
 
-    let remaining=
+
+    let remaining =
         balance;
 
-    let interest=
+    let interest =
         0;
 
-    let months=
+    let months =
         0;
 
 
-    if(balance===0){
+    /* =================================================
+       NO BALANCE
+    ================================================= */
 
-        title=
-            "💳 No balance";
+    if(balance === 0){
 
-        text=
-            "There is no credit card balance to repay.";
+        title =
+            "💳 No credit card balance.";
 
-        metrics=[
+        text =
+            "There is currently no balance to repay.";
 
-            ["Balance",money(0)]
+        metrics = [
+
+            [
+                "Current balance",
+                money(0)
+            ]
 
         ];
 
-    }else if(payment<=0){
 
-        title=
-            "💳 Monthly payment required";
+    /* =================================================
+       NO PAYMENT
+    ================================================= */
 
-        text=
-            "Enter a monthly payment greater than zero.";
+    }else if(payment <= 0){
 
-        metrics=[
+        title =
+            "⚠️ Monthly payment required.";
 
-            ["Balance",money(balance)],
+        text =
+            "Enter a monthly payment greater than zero to estimate your payoff.";
 
-            ["Monthly payment",money(payment)]
+        metrics = [
+
+            [
+                "Current balance",
+                money(balance)
+            ],
+
+            [
+                "Monthly payment",
+                money(payment)
+            ],
+
+            [
+                "Annual interest rate",
+                decimal(apr * 100) + "%"
+            ]
 
         ];
+
+
+    /* =================================================
+       PAYMENT TOO LOW
+    ================================================= */
 
     }else if(
-        rate>0 &&
-        payment<=remaining*rate
+        rate > 0 &&
+        payment <= remaining * rate
     ){
 
-        title=
-            "⚠️ Payment is too low";
+        const monthlyInterest =
+            remaining * rate;
 
-        text=
-            "The monthly payment does not cover the monthly interest, so the balance may not be paid off.";
 
-        metrics=[
+        title =
+            "⚠️ Payment is too low.";
 
-            ["Monthly interest",money(remaining*rate)],
+        text =
+            `Your monthly payment of ${money(payment)} does not cover the estimated monthly interest of ${money(monthlyInterest)}.`;
 
-            ["Monthly payment",money(payment)]
+
+        metrics = [
+
+            [
+                "Current balance",
+                money(balance)
+            ],
+
+            [
+                "Monthly interest",
+                money(monthlyInterest)
+            ],
+
+            [
+                "Monthly payment",
+                money(payment)
+            ],
+
+            [
+                "Annual interest rate",
+                decimal(apr * 100) + "%"
+            ]
 
         ];
+
+
+    /* =================================================
+       NORMAL REPAYMENT
+    ================================================= */
 
     }else{
 
         while(
-            remaining>0.005 &&
-            months<1200
+            remaining > 0.005 &&
+            months < 1200
         ){
 
-            const monthInterest=
-                remaining*rate;
+            const monthInterest =
+                remaining * rate;
 
-            interest+=
+            interest +=
                 monthInterest;
 
-            remaining+=
+            remaining +=
                 monthInterest;
 
-            const paid=
+            const paid =
                 Math.min(
                     payment,
                     remaining
                 );
 
-            remaining-=
+            remaining -=
                 paid;
 
             months++;
         }
 
 
-        if(months>=1200){
+        if(months >= 1200){
 
-            title=
-                "⚠️ Very long repayment period";
+            title =
+                "⚠️ Very long repayment period.";
 
-            text=
-                "The balance would take an unusually long time to repay with these settings.";
+            text =
+                "With these settings, the balance would take an unusually long time to repay.";
+
+            metrics = [
+
+                [
+                    "Current balance",
+                    money(balance)
+                ],
+
+                [
+                    "Monthly payment",
+                    money(payment)
+                ],
+
+                [
+                    "Annual interest rate",
+                    decimal(apr * 100) + "%"
+                ]
+
+            ];
+
 
         }else{
 
-            const fees=
-                fee*
-                (months/12);
+            const fees =
+                fee * (months / 12);
 
-            const extraCost=
-                interest+
+
+            const totalPaid =
+                balance +
+                interest +
                 fees;
 
 
-            title=
-                extraCost>balance
-                ? "💳 High repayment cost"
-                : "💳 Credit card repayment estimate";
+            const extraCost =
+                interest +
+                fees;
 
 
-            text=
-                `Estimated payoff time: ${decimal(months/12)} years.`;
+            const payoffYears =
+                months / 12;
 
 
-            metrics=[
+            const payoffMonths =
+                months;
 
-                ["Total interest",money(interest)],
 
-                ["Card fees",money(fees)],
+            /* =========================================
+               DECISION
+            ========================================= */
 
-                ["Total extra cost",money(extraCost)],
+            if(extraCost > balance){
 
-                ["Payoff time",decimal(months/12)+" years"],
+                title =
+                    "💳 This balance is expensive to repay.";
 
-                ["Monthly payment",money(payment)]
+                text =
+                    `You could pay approximately ${money(extraCost)} in interest and fees before the balance is fully repaid.`;
+
+            }else if(extraCost > balance * 0.25){
+
+                title =
+                    "💳 A significant amount goes to interest.";
+
+                text =
+                    `Interest and fees add approximately ${money(extraCost)} to the cost of repaying this balance.`;
+
+            }else{
+
+                title =
+                    "💳 Estimated credit card repayment.";
+
+                text =
+                    `At ${money(payment)} per month, the balance could be repaid in about ${decimal(payoffYears)} years.`;
+
+            }
+
+
+            /* =========================================
+               RESULTS
+            ========================================= */
+
+            metrics = [
+
+                [
+                    "Current balance",
+                    money(balance)
+                ],
+
+                [
+                    "Monthly payment",
+                    money(payment)
+                ],
+
+                [
+                    "Total interest",
+                    money(interest)
+                ],
+
+                [
+                    "Card fees",
+                    money(fees)
+                ],
+
+                [
+                    "Total extra cost",
+                    money(extraCost)
+                ],
+
+                [
+                    "Total paid",
+                    money(totalPaid)
+                ],
+
+                [
+                    "Payoff time",
+                    decimal(payoffYears) + " years"
+                ],
+
+                [
+                    "Payoff months",
+                    decimal(payoffMonths)
+                ],
+
+                [
+                    "Annual interest rate",
+                    decimal(apr * 100) + "%"
+                ]
 
             ];
+
         }
     }
 }
