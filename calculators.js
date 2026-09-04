@@ -3663,18 +3663,25 @@ else if(type==="purchase"){
 
 else if(type==="salary"){
 
-    const monthly=num("gSalary");
-    const weeks=num("gWeeks");
-    const hours=num("gHours");
-    const days=num("gDays");
+    const monthly =
+        num("gSalary");
+
+    const weeks =
+        num("gWeeks");
+
+    const hours =
+        num("gHours");
+
+    const days =
+        num("gDays");
 
 
     if(
-        monthly<0 ||
-        weeks<=0 ||
-        hours<=0 ||
-        days<=0 ||
-        days>7
+        monthly < 0 ||
+        weeks <= 0 ||
+        hours <= 0 ||
+        days <= 0 ||
+        days > 7
     ){
 
         showToast(
@@ -3685,38 +3692,99 @@ else if(type==="salary"){
     }
 
 
-    const annual=
-        monthly*12;
+    /* =================================================
+       INCOME BREAKDOWN
+    ================================================= */
 
-    const weekly=
-        annual/weeks;
+    const annual =
+        monthly * 12;
 
-    const hourly=
-        weekly/hours;
+    const weekly =
+        annual / weeks;
 
-    const daily=
-        weekly/days;
+    const daily =
+        weekly / days;
 
-
-    title=
-        "💼 Your salary breakdown";
-
-
-    text=
-        `Your estimated hourly income is ${money(hourly)} based on the entered schedule.`;
+    const hourly =
+        weekly / hours;
 
 
-    metrics=[
+    /* =================================================
+       WORKING HOURS
+    ================================================= */
 
-        ["Monthly",money(monthly)],
+    const yearlyHours =
+        hours * weeks;
 
-        ["Yearly",money(annual)],
+    const monthlyHours =
+        yearlyHours / 12;
 
-        ["Weekly",money(weekly)],
+    /* =================================================
+       DECISION
+    ================================================= */
 
-        ["Daily",money(daily)],
+    title =
+        "💼 Your salary breakdown.";
 
-        ["Hourly",money(hourly)]
+    text =
+        `Your estimated hourly income is ${money(hourly)} based on ${decimal(hours)} working hours per week.`;
+
+
+    /* =================================================
+       RESULTS
+    ================================================= */
+
+    metrics = [
+
+        [
+            "Monthly income",
+            money(monthly)
+        ],
+
+        [
+            "Yearly income",
+            money(annual)
+        ],
+
+        [
+            "Weekly income",
+            money(weekly)
+        ],
+
+        [
+            "Daily income",
+            money(daily)
+        ],
+
+        [
+            "Hourly income",
+            money(hourly)
+        ],
+
+        [
+            "Working hours / week",
+            decimal(hours)
+        ],
+
+        [
+            "Working hours / month",
+            decimal(monthlyHours)
+        ],
+
+        [
+            "Working hours / year",
+            decimal(yearlyHours)
+        ],
+
+        [
+            "Work days / week",
+            decimal(days)
+        ],
+
+        [
+            "Paid weeks / year",
+            decimal(weeks)
+        ]
 
     ];
 }
