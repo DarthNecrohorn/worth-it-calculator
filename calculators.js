@@ -4122,17 +4122,24 @@ else if(type==="creditcard"){
 
 else if(type==="debtpayoff"){
 
-    const debt=num("gDebt");
-    const apr=num("gDebtAPR")/100;
-    const payment=num("gDebtPayment");
-    const extra=num("gDebtExtra");
+    const debt =
+        num("gDebt");
+
+    const apr =
+        num("gDebtAPR") / 100;
+
+    const payment =
+        num("gDebtPayment");
+
+    const extra =
+        num("gDebtExtra");
 
 
     if(
-        debt<0 ||
-        apr<0 ||
-        payment<0 ||
-        extra<0
+        debt < 0 ||
+        apr < 0 ||
+        payment < 0 ||
+        extra < 0
     ){
 
         showToast(
@@ -4143,8 +4150,8 @@ else if(type==="debtpayoff"){
     }
 
 
-    const rate=
-        apr/12;
+    const rate =
+        apr / 12;
 
 
     function payoff(
@@ -4152,28 +4159,28 @@ else if(type==="debtpayoff"){
         monthlyPayment
     ){
 
-        let remaining=
+        let remaining =
             amount;
 
-        let interest=
+        let interest =
             0;
 
-        let months=
+        let months =
             0;
 
 
-        if(amount<=0){
+        if(amount <= 0){
 
             return {
-                months:0,
-                interest:0
+                months: 0,
+                interest: 0
             };
         }
 
 
         if(
-            rate>0 &&
-            monthlyPayment<=remaining*rate
+            rate > 0 &&
+            monthlyPayment <= remaining * rate
         ){
 
             return null;
@@ -4181,26 +4188,26 @@ else if(type==="debtpayoff"){
 
 
         while(
-            remaining>0.005 &&
-            months<1200
+            remaining > 0.005 &&
+            months < 1200
         ){
 
-            const monthInterest=
-                remaining*rate;
+            const monthInterest =
+                remaining * rate;
 
-            interest+=
+            interest +=
                 monthInterest;
 
-            remaining+=
+            remaining +=
                 monthInterest;
 
-            const paid=
+            const paid =
                 Math.min(
                     monthlyPayment,
                     remaining
                 );
 
-            remaining-=
+            remaining -=
                 paid;
 
             months++;
@@ -4214,87 +4221,151 @@ else if(type==="debtpayoff"){
     }
 
 
-    const normal=
+    const normal =
         payoff(
             debt,
             payment
         );
 
 
-    const accelerated=
+    const accelerated =
         payoff(
             debt,
-            payment+extra
+            payment + extra
         );
 
 
+    /* =================================================
+       PAYMENT TOO LOW
+    ================================================= */
+
     if(!normal){
 
-        title=
-            "⚠️ Monthly payment is too low";
+        title =
+            "⚠️ Monthly payment is too low.";
 
-        text=
-            "The payment does not cover the interest. Increase the monthly payment.";
+        text =
+            "The payment does not cover the interest. Increase the monthly payment to reduce the balance.";
 
-        metrics=[
+        metrics = [
 
-            ["Current debt",money(debt)],
+            [
+                "Current debt",
+                money(debt)
+            ],
 
-            ["Monthly payment",money(payment)]
+            [
+                "Monthly payment",
+                money(payment)
+            ],
+
+            [
+                "Annual interest rate",
+                decimal(apr * 100) + "%"
+            ]
 
         ];
 
+
     }else{
 
-        const saved=
+        const interestSaved =
             accelerated
             ? Math.max(
                 0,
-                normal.interest-
+                normal.interest -
                 accelerated.interest
             )
             : 0;
 
 
-        const monthsSaved=
+        const monthsSaved =
             accelerated
             ? Math.max(
                 0,
-                normal.months-
+                normal.months -
                 accelerated.months
             )
             : 0;
 
 
-        if(extra>0 && saved>0){
+        const normalYears =
+            normal.months / 12;
 
-            title=
-                "💸 Extra payments can save money";
+        const acceleratedYears =
+            accelerated
+            ? accelerated.months / 12
+            : 0;
 
-            text=
-                `An extra ${money(extra)} per month could save approximately ${money(saved)} in interest and ${decimal(monthsSaved/12)} years of repayment.`;
+
+        const normalTotal =
+            debt +
+            normal.interest;
+
+
+        const acceleratedTotal =
+            accelerated
+            ? debt +
+                accelerated.interest
+            : normalTotal;
+
+
+        /* =============================================
+           DECISION
+        ============================================= */
+
+        if(extra > 0 && interestSaved > 0){
+
+            title =
+                "💸 Extra payments can save you money.";
+
+            text =
+                `An extra ${money(extra)} per month could save about ${money(interestSaved)} in interest and pay off the debt ${decimal(monthsSaved / 12)} years sooner.`;
+
+        }else if(interestSaved > 0){
+
+            title =
+                "💸 Paying more each month reduces interest.";
+
+            text =
+                `A higher monthly payment would reduce both the repayment time and total interest paid.`;
 
         }else{
 
-            title=
-                "💸 Debt payoff comparison";
+            title =
+                "💸 Debt payoff estimate.";
 
-            text=
-                `Estimated payoff time: ${decimal(normal.months/12)} years.`;
+            text =
+                `At ${money(payment)} per month, the debt could be repaid in about ${decimal(normalYears)} years.`;
+
         }
 
 
-        metrics=[
+        /* =============================================
+           RESULTS
+        ============================================= */
+
+        metrics = [
 
             [
-                "Current payoff",
-                decimal(normal.months/12)+" years"
+                "Current monthly payment",
+                money(payment)
             ],
 
             [
-                "With extra",
+                "Extra monthly payment",
+                money(extra)
+            ],
+
+            [
+                "Current payoff time",
+                decimal(normalYears) + " years"
+            ],
+
+            [
+                "With extra payment",
                 accelerated
-                ? decimal(accelerated.months/12)+" years"
+                ? decimal(acceleratedYears) + " years"
                 : "—"
             ],
 
@@ -4312,13 +4383,33 @@ else if(type==="debtpayoff"){
 
             [
                 "Interest saved",
-                money(saved)
+                money(interestSaved)
+            ],
+
+            [
+                "Current total paid",
+                money(normalTotal)
+            ],
+
+            [
+                "Total paid with extra",
+                money(acceleratedTotal)
+            ],
+
+            [
+                "Time saved",
+                decimal(monthsSaved / 12) + " years"
+            ],
+
+            [
+                "Annual interest rate",
+                decimal(apr * 100) + "%"
             ]
 
         ];
+
     }
 }
-
 
 /* =====================================================
    EMERGENCY FUND
