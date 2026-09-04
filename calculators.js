@@ -2427,69 +2427,188 @@ if(type==="savings"){
 
 else if(type==="investment"){
 
-    const initial=num("gInitial");
-    const monthly=num("gMonthly");
-    const annual=num("gRate");
-    const years=num("gYears");
+    const initial =
+        num("gInitial");
+
+    const monthly =
+        num("gMonthly");
+
+    const annual =
+        num("gRate");
+
+    const years =
+        num("gYears");
+
 
     if(
-        initial<0 ||
-        monthly<0 ||
-        years<=0
+        initial < 0 ||
+        monthly < 0 ||
+        annual < 0 ||
+        years <= 0
     ){
 
-        showToast("Please enter valid values.");
+        showToast(
+            "Please enter valid investment values."
+        );
 
         return;
     }
 
 
-    const monthlyRate=
-        annual/100/12;
+    /* =================================================
+       FUTURE VALUE
+    ================================================= */
 
-    let balance=initial;
+    const monthlyRate =
+        annual / 100 / 12;
+
+
+    const months =
+        Math.max(
+            0,
+            Math.round(years * 12)
+        );
+
+
+    let balance =
+        initial;
 
 
     for(
-        let i=0;
-        i<Math.max(0,Math.round(years*12));
+        let i = 0;
+        i < months;
         i++
     ){
 
-        balance=
-            balance*(1+monthlyRate)+monthly;
+        balance =
+            balance * (1 + monthlyRate) +
+            monthly;
+
     }
 
 
-    const contributed=
-        initial+
-        monthly*years*12;
+    /* =================================================
+       CONTRIBUTIONS
+    ================================================= */
 
-    const growth=
-        balance-contributed;
-
-
-    title=
-        growth>0
-        ? "📈 Estimated investment growth"
-        : "📈 Estimated future value";
+    const contributed =
+        initial +
+        monthly * months;
 
 
-    text=
-        growth>0
-        ? `The estimate suggests approximately ${money(growth)} of growth beyond your contributions.`
-        : "This calculation assumes the selected return and contribution schedule.";
+    const growth =
+        Math.max(
+            0,
+            balance - contributed
+        );
 
 
-    metrics=[
+    /* =================================================
+       GROWTH %
+    ================================================= */
 
-        ["Future value",money(balance)],
+    const growthPercentage =
+        contributed > 0
+        ? (growth / contributed) * 100
+        : 0;
 
-        ["Total contributed",money(contributed)],
 
-        ["Estimated growth",money(growth)],
+    /* =================================================
+       AVERAGE GROWTH
+    ================================================= */
 
-        ["Time invested",decimal(years)+" years"]
+    const averageYearlyGrowth =
+        growth / Math.max(
+            1,
+            years
+        );
+
+
+    const averageMonthlyGrowth =
+        growth / Math.max(
+            1,
+            months
+        );
+
+
+    /* =================================================
+       DECISION
+    ================================================= */
+
+    if(growth > 0){
+
+        title =
+            "📈 Your investment can grow significantly.";
+
+        text =
+            `The estimate reaches ${money(balance)}, with approximately ${money(growth)} coming from investment growth beyond your contributions.`;
+
+    }else{
+
+        title =
+            "📈 Estimated future investment value.";
+
+        text =
+            "Based on the selected return and contribution schedule, most of the final value comes from your own contributions.";
+
+    }
+
+
+    /* =================================================
+       RESULTS
+    ================================================= */
+
+    metrics = [
+
+        [
+            "Future value",
+            money(balance)
+        ],
+
+        [
+            "Total contributed",
+            money(contributed)
+        ],
+
+        [
+            "Estimated growth",
+            money(growth)
+        ],
+
+        [
+            "Growth vs contributions",
+            decimal(growthPercentage) + "%"
+        ],
+
+        [
+            "Initial investment",
+            money(initial)
+        ],
+
+        [
+            "Monthly contribution",
+            money(monthly)
+        ],
+
+        [
+            "Average growth / year",
+            money(averageYearlyGrowth)
+        ],
+
+        [
+            "Average growth / month",
+            money(averageMonthlyGrowth)
+        ],
+
+        [
+            "Expected annual return",
+            decimal(annual) + "%"
+        ],
+
+        [
+            "Investment period",
+            decimal(years) + " years"
+        ]
 
     ];
 }
