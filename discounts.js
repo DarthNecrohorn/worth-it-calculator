@@ -403,17 +403,16 @@ if(!container){
 
 
         discounts
-           .slice(0, 8)
-           .forEach(
-               deal => {
+        .forEach(
+          deal => {
 
-                   html +=
-                      createDealCard(
-                           deal
-                   );
+            html +=
+                createDealCard(
+                    deal
+                );
 
-              }
-         );
+        }
+    );
 
 
         html += `
