@@ -278,6 +278,13 @@ function openNews(){
 
     $("homePage").style.display = "none";
 
+const discountsSection =
+    document.getElementById("discountsSection");
+
+if(discountsSection){
+    discountsSection.style.display = "none";
+}
+
     document.querySelectorAll(".app")
         .forEach(x => x.classList.remove("active"));
 
