@@ -105,20 +105,36 @@
 
         if(!container){
 
-            container =
-                document.createElement("section");
+    container =
+        document.createElement("section");
 
-            container.id =
-                "discountsSection";
+    container.id =
+        "discountsSection";
 
-            container.className =
-                "discounts-section";
+    container.className =
+        "discounts-section";
 
-            document.body.appendChild(
-                container
-            );
 
-        }
+    const newsSection =
+        document.getElementById("newsSection");
+
+
+    if(newsSection){
+
+        newsSection.insertAdjacentElement(
+            "afterend",
+            container
+        );
+
+    }else{
+
+        document.body.appendChild(
+            container
+        );
+
+    }
+
+}
 
 
         /* ---------------------------------------------
