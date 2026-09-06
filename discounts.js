@@ -402,16 +402,18 @@ if(!container){
         `;
 
 
-        discounts.forEach(
-            deal => {
+        discounts
+           .slice(0, 8)
+           .forEach(
+               deal => {
 
-                html +=
-                    createDealCard(
-                        deal
-                    );
+                   html +=
+                      createDealCard(
+                           deal
+                   );
 
-            }
-        );
+              }
+         );
 
 
         html += `
