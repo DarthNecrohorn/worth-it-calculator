@@ -3168,109 +3168,193 @@ const yearlyDifference =
 
 else if(type==="phone"){
 
-    const price=num("gNew");
-    const trade=num("gTrade");
-    const age=num("gAge");
-    const years=num("gYears");
+    const price =
+        num("gNew");
 
+    const trade =
+        num("gTrade");
+
+    const age =
+        num("gAge");
+
+    const years =
+        num("gYears");
+
+
+    /* =================================================
+       VALIDATION
+    ================================================= */
 
     if(
-        price<0 ||
-        trade<0 ||
-        age<0 ||
-        years<=0
+        price < 0 ||
+        trade < 0 ||
+        age < 0 ||
+        years <= 0
     ){
 
-        showToast("Please enter valid phone values.");
+        showToast(
+            "Please enter valid phone values."
+        );
 
         return;
     }
 
 
-    const net=
-        price-trade;
+    /* =================================================
+       NET UPGRADE COST
+    ================================================= */
 
-    const annual=
-        net/years;
-
-
-    if(net<0){
-
-        const surplus=
-            Math.abs(net);
-
-        title=
-            "📱 Trade-in value exceeds the phone price";
-
-        text=
-            `Based on these values, the trade-in would leave you with an estimated ${money(surplus)} surplus.`;
+    const netCost =
+        Math.max(
+            0,
+            price - trade
+        );
 
 
-        metrics=[
+    /* =================================================
+       TRADE-IN SURPLUS
+    ================================================= */
 
-            ["New phone",money(price)],
-
-            ["Trade-in value",money(trade)],
-
-            ["Trade-in surplus",money(surplus)],
-
-            ["Surplus / year",money(surplus/years)],
-
-            ["Current age",decimal(age)+" years"]
-
-        ];
-
-    }else if(net===0){
-
-        title=
-            "📱 The trade-in covers the new phone";
-
-        text=
-            "Your estimated trade-in value exactly covers the new phone price.";
+    const tradeSurplus =
+        Math.max(
+            0,
+            trade - price
+        );
 
 
-        metrics=[
+    /* =================================================
+       YEARLY COST
+    ================================================= */
 
-            ["New phone",money(price)],
+    const costPerYear =
+        netCost / years;
 
-            ["Trade-in value",money(trade)],
 
-            ["Net cost",money(0)],
+    /* =================================================
+       MONTHLY COST
+    ================================================= */
 
-            ["Cost / year",money(0)],
+    const costPerMonth =
+        costPerYear / 12;
 
-            ["Current age",decimal(age)+" years"]
 
-        ];
+    /* =================================================
+       CURRENT PHONE AGE
+    ================================================= */
+
+    const totalAgeAfterPeriod =
+        age + years;
+
+
+    /* =================================================
+       VALUE OF TRADE-IN
+    ================================================= */
+
+    const tradeInPercent =
+        price > 0
+        ? (trade / price) * 100
+        : 0;
+
+
+    /* =================================================
+       DECISION
+    ================================================= */
+
+    if(trade > price){
+
+        title =
+            "📱 Trade-in value exceeds the new phone price.";
+
+        text =
+            `Based on your inputs, the trade-in would cover the new phone and leave an estimated ${money(tradeSurplus)} surplus.`;
+
+    }else if(netCost === 0){
+
+        title =
+            "📱 The trade-in fully covers the new phone.";
+
+        text =
+            `Your estimated trade-in value covers the entire ${money(price)} purchase price.`;
+
+    }else if(costPerYear < 150){
+
+        title =
+            "📱 Upgrade looks relatively affordable.";
+
+        text =
+            `The estimated net upgrade cost is ${money(netCost)} over ${decimal(years)} years, or about ${money(costPerYear)} per year.`;
+
+    }else if(costPerYear < 250){
+
+        title =
+            "📱 Upgrade looks reasonably affordable.";
+
+        text =
+            `The upgrade would cost about ${money(costPerYear)} per year after the trade-in.`;
 
     }else{
 
-        title=
-            annual<250
-            ? "📱 Upgrade looks relatively affordable."
-            : "📱 Consider keeping your current phone.";
+        title =
+            "📱 Keeping your current phone may be better value.";
 
+        text =
+            `The upgrade would cost about ${money(costPerYear)} per year after the trade-in. Consider keeping your current phone if it still meets your needs.`;
 
-        text=
-            annual<250
-            ? `The estimated net cost is ${money(net)} over ${decimal(years)} years of use.`
-            : `The upgrade would cost about ${money(annual)} per year after the trade-in.`;
-
-
-        metrics=[
-
-            ["New phone",money(price)],
-
-            ["Trade-in value",money(trade)],
-
-            ["Net cost",money(net)],
-
-            ["Cost / year",money(annual)],
-
-            ["Current age",decimal(age)+" years"]
-
-        ];
     }
+
+
+    /* =================================================
+       RESULTS
+    ================================================= */
+
+    metrics = [
+
+        [
+            "New phone price",
+            money(price)
+        ],
+
+        [
+            "Trade-in value",
+            money(trade)
+        ],
+
+        [
+            "Net upgrade cost",
+            money(netCost)
+        ],
+
+        [
+            "Cost / year",
+            money(costPerYear)
+        ],
+
+        [
+            "Cost / month",
+            money(costPerMonth)
+        ],
+
+        [
+            "Trade-in coverage",
+            decimal(tradeInPercent) + "%"
+        ],
+
+        [
+            "Current phone age",
+            decimal(age) + " years"
+        ],
+
+        [
+            "Expected years with new phone",
+            decimal(years) + " years"
+        ],
+
+        [
+            "Age after comparison period",
+            decimal(totalAgeAfterPeriod) + " years"
+        ]
+
+    ];
 }
 
 
