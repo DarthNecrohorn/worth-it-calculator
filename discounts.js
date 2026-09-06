@@ -1,1 +1,469 @@
+/* =====================================================
+   DISCOUNTS
+===================================================== */
 
+(function(){
+
+    "use strict";
+
+    /* =================================================
+       TEST DEAL DATA
+       Ovo ćemo kasnije zameniti pravim dnevnim podacima.
+    ================================================= */
+
+    const discounts = [
+
+        {
+            title: "Wireless Headphones",
+            store: "Example Store",
+            category: "Electronics",
+            oldPrice: 99.99,
+            price: 69.99,
+            currency: "$",
+            image: "",
+            url: "https://example.com"
+        },
+
+        {
+            title: "Smart Watch",
+            store: "Example Shop",
+            category: "Electronics",
+            oldPrice: 149.99,
+            price: 99.99,
+            currency: "$",
+            image: "",
+            url: "https://example.com"
+        },
+
+        {
+            title: "Running Shoes",
+            store: "Example Sports",
+            category: "Fashion",
+            oldPrice: 120,
+            price: 79.99,
+            currency: "$",
+            image: "",
+            url: "https://example.com"
+        },
+
+        {
+            title: "Coffee Machine",
+            store: "Example Home",
+            category: "Home",
+            oldPrice: 199.99,
+            price: 139.99,
+            currency: "$",
+            image: "",
+            url: "https://example.com"
+        }
+
+    ];
+
+
+    /* =================================================
+       HELPERS
+    ================================================= */
+
+    function calculateDiscount(oldPrice, price){
+
+        if(
+            !Number.isFinite(oldPrice) ||
+            !Number.isFinite(price) ||
+            oldPrice <= 0
+        ){
+            return 0;
+        }
+
+        return Math.round(
+            ((oldPrice - price) / oldPrice) * 100
+        );
+    }
+
+
+    function formatPrice(value, currency){
+
+        return (
+            currency || "$"
+        ) + Number(value).toFixed(2);
+
+    }
+
+
+    /* =================================================
+       OPEN DISCOUNTS
+    ================================================= */
+
+    window.openDiscounts = function(){
+
+        let container =
+            document.getElementById("discountsSection");
+
+
+        /* ---------------------------------------------
+           CREATE SECTION IF IT DOES NOT EXIST
+        --------------------------------------------- */
+
+        if(!container){
+
+            container =
+                document.createElement("section");
+
+            container.id =
+                "discountsSection";
+
+            container.className =
+                "discounts-section";
+
+            document.body.appendChild(
+                container
+            );
+
+        }
+
+
+        /* ---------------------------------------------
+           RENDER
+        --------------------------------------------- */
+
+        renderDiscounts(
+            container
+        );
+
+
+        /* ---------------------------------------------
+           SHOW
+        --------------------------------------------- */
+
+        container.style.display =
+            "block";
+
+
+        container.scrollIntoView({
+            behavior: "smooth",
+            block: "start"
+        });
+
+    };
+
+
+    /* =================================================
+       RENDER DISCOUNTS
+    ================================================= */
+
+    function renderDiscounts(container){
+
+        const today =
+            new Date();
+
+
+        const dateText =
+            today.toLocaleDateString(
+                undefined,
+                {
+                    year: "numeric",
+                    month: "long",
+                    day: "numeric"
+                }
+            );
+
+
+        let html = `
+
+            <div class="discounts-header">
+
+                <div>
+
+                    <h2>
+                        🏷️ Today's Discounts
+                    </h2>
+
+                    <p>
+                        Today's selected deals
+                    </p>
+
+                    <small>
+                        Updated ${dateText}
+                    </small>
+
+                </div>
+
+                <button
+                    type="button"
+                    onclick="closeDiscounts()"
+                    class="discounts-close"
+                >
+                    ✕ Close
+                </button>
+
+            </div>
+
+
+            <div class="discounts-filters">
+
+                <button
+                    type="button"
+                    class="discount-filter active"
+                    data-category="all"
+                >
+                    All
+                </button>
+
+                <button
+                    type="button"
+                    class="discount-filter"
+                    data-category="Electronics"
+                >
+                    Electronics
+                </button>
+
+                <button
+                    type="button"
+                    class="discount-filter"
+                    data-category="Fashion"
+                >
+                    Fashion
+                </button>
+
+                <button
+                    type="button"
+                    class="discount-filter"
+                    data-category="Home"
+                >
+                    Home
+                </button>
+
+            </div>
+
+
+            <div
+                class="discounts-grid"
+                id="discountsGrid"
+            >
+
+        `;
+
+
+        discounts.forEach(
+            deal => {
+
+                html +=
+                    createDealCard(
+                        deal
+                    );
+
+            }
+        );
+
+
+        html += `
+
+            </div>
+
+        `;
+
+
+        container.innerHTML =
+            html;
+
+
+        setupDiscountFilters();
+
+    }
+
+
+    /* =================================================
+       DEAL CARD
+    ================================================= */
+
+    function createDealCard(deal){
+
+        const discount =
+            calculateDiscount(
+                deal.oldPrice,
+                deal.price
+            );
+
+
+        const image =
+            deal.image
+            ? `
+                <img
+                    src="${deal.image}"
+                    alt="${deal.title}"
+                    class="discount-image"
+                >
+              `
+            : `
+                <div class="discount-image-placeholder">
+                    🛍️
+                </div>
+              `;
+
+
+        return `
+
+            <article
+                class="discount-card"
+                data-category="${deal.category}"
+            >
+
+                <div class="discount-card-image">
+
+                    ${image}
+
+                    <span class="discount-badge">
+                        -${discount}%
+                    </span>
+
+                </div>
+
+
+                <div class="discount-card-content">
+
+                    <div class="discount-store">
+                        ${deal.store}
+                    </div>
+
+
+                    <h3>
+                        ${deal.title}
+                    </h3>
+
+
+                    <div class="discount-category">
+                        ${deal.category}
+                    </div>
+
+
+                    <div class="discount-prices">
+
+                        <span class="discount-old-price">
+                            ${formatPrice(
+                                deal.oldPrice,
+                                deal.currency
+                            )}
+                        </span>
+
+                        <span class="discount-new-price">
+                            ${formatPrice(
+                                deal.price,
+                                deal.currency
+                            )}
+                        </span>
+
+                    </div>
+
+
+                    <a
+                        href="${deal.url}"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        class="discount-deal-button"
+                    >
+                        View Deal →
+                    </a>
+
+                </div>
+
+            </article>
+
+        `;
+
+    }
+
+
+    /* =================================================
+       FILTERS
+    ================================================= */
+
+    function setupDiscountFilters(){
+
+        const buttons =
+            document.querySelectorAll(
+                ".discount-filter"
+            );
+
+
+        buttons.forEach(
+            button => {
+
+                button.addEventListener(
+                    "click",
+                    function(){
+
+                        const category =
+                            this.dataset.category;
+
+
+                        buttons.forEach(
+                            btn =>
+                                btn.classList.remove(
+                                    "active"
+                                )
+                        );
+
+
+                        this.classList.add(
+                            "active"
+                        );
+
+
+                        const cards =
+                            document.querySelectorAll(
+                                ".discount-card"
+                            );
+
+
+                        cards.forEach(
+                            card => {
+
+                                if(
+                                    category === "all" ||
+                                    card.dataset.category === category
+                                ){
+
+                                    card.style.display =
+                                        "";
+
+                                }else{
+
+                                    card.style.display =
+                                        "none";
+
+                                }
+
+                            }
+                        );
+
+                    }
+                );
+
+            }
+        );
+
+    }
+
+
+    /* =================================================
+       CLOSE DISCOUNTS
+    ================================================= */
+
+    window.closeDiscounts = function(){
+
+        const container =
+            document.getElementById(
+                "discountsSection"
+            );
+
+
+        if(container){
+
+            container.style.display =
+                "none";
+
+        }
+
+    };
+
+
+})();
