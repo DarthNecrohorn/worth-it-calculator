@@ -611,19 +611,43 @@ if(!container){
 
                  }
                    
-                    grid.innerHTML = "";
+                                grid.innerHTML = "";
 
 
-                    visibleDeals.forEach(
-                        deal => {
+                               visibleDeals.forEach(
+                               deal => {
 
-                            grid.innerHTML +=
-                                createDealCard(
-                                    deal
-                                );
+                               if(deal){
+
+                               grid.innerHTML +=
+                               createDealCard(
+                               deal
+                         );
+
+                               }else{
+
+                               grid.innerHTML += `
+                               <article class="discount-card">
+                               <div class="discount-card-image">
+                               <div class="discount-image-placeholder">
+                               🛍️
+                        </div>
+                    </div>
+
+                    <div class="discount-card-content">
+
+                        <h3>
+                            No discounts available right now
+                        </h3>
+
+                     </div>
+                          </article>
+                        `;
 
                         }
-                    );
+
+                      }
+                  );
 
                 }
             );
