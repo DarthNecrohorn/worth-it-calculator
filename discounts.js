@@ -358,14 +358,6 @@ if(!container){
 
                 </div>
 
-                <button
-                    type="button"
-                    onclick="closeDiscounts()"
-                    class="discounts-close"
-                >
-                    ✕ Close
-                </button>
-
             </div>
 
 
