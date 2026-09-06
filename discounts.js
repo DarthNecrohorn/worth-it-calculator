@@ -230,27 +230,41 @@ window.openDiscounts = function(){
     --------------------------------------------- */
 
     let container =
-        document.getElementById(
-            "discountsSection"
+    document.getElementById(
+        "discountsSection"
+    );
+
+
+if(!container){
+
+    container =
+        document.createElement("section");
+
+    container.id =
+        "discountsSection";
+
+    container.className =
+        "discounts-section";
+
+    const footer =
+        document.querySelector("footer");
+
+    if(footer){
+
+        footer.parentNode.insertBefore(
+            container,
+            footer
         );
 
-
-    if(!container){
-
-        container =
-            document.createElement("section");
-
-        container.id =
-            "discountsSection";
-
-        container.className =
-            "discounts-section";
+    }else{
 
         document.body.appendChild(
             container
         );
 
     }
+
+}
 
 
     /* ---------------------------------------------
