@@ -357,39 +357,35 @@ window.openDiscounts = function(){
 
             <div class="discounts-filters">
 
-                <button
-                    type="button"
-                    class="discount-filter active"
-                    data-category="all"
-                >
-                    All
-                </button>
+    <button
+        type="button"
+        class="discount-filter active"
+        data-category="all"
+    >
+        All
+    </button>
 
-                <button
-                    type="button"
-                    class="discount-filter"
-                    data-category="Electronics"
-                >
-                    Electronics
-                </button>
+    ${[
+        ...new Set(
+            discounts
+                .map(deal => deal.category)
+                .filter(Boolean)
+        )
+    ]
+        .map(category => `
 
-                <button
-                    type="button"
-                    class="discount-filter"
-                    data-category="Fashion"
-                >
-                    Fashion
-                </button>
+            <button
+                type="button"
+                class="discount-filter"
+                data-category="${category}"
+            >
+                ${category}
+            </button>
 
-                <button
-                    type="button"
-                    class="discount-filter"
-                    data-category="Home"
-                >
-                    Home
-                </button>
+        `)
+        .join("")}
 
-            </div>
+</div>
 
 
             <div
