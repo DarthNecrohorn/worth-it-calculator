@@ -590,13 +590,27 @@ if(!container){
                             );
 
 
-                    const visibleDeals =
-                        filteredDeals.slice(
-                            0,
-                            8
-                        );
+                   const visibleDeals =
+                       category === "all"
+                       ? filteredDeals
+                       : filteredDeals.slice(
+                       0,
+                       8
+                 );
 
+                   if(category !== "all"){
 
+                       const missing =
+                       8 - visibleDeals.length;
+
+                       for(let i = 0; i < missing; i++){
+
+                       visibleDeals.push(null);
+
+                       }
+
+                 }
+                   
                     grid.innerHTML = "";
 
 
