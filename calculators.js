@@ -795,7 +795,7 @@ function calculateCars(){
         ){
 
             breakEvenYear =
-                year;
+            fullYears + partialYear;
         }
 
 
