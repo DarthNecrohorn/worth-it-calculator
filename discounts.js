@@ -539,70 +539,86 @@ if(!container){
 
     function setupDiscountFilters(){
 
-        const buttons =
-            document.querySelectorAll(
-                ".discount-filter"
-            );
+    const buttons =
+        document.querySelectorAll(
+            ".discount-filter"
+        );
 
 
-        buttons.forEach(
-            button => {
+    buttons.forEach(
+        button => {
 
-                button.addEventListener(
-                    "click",
-                    function(){
+            button.addEventListener(
+                "click",
+                function(){
 
-                        const category =
-                            this.dataset.category;
+                    const category =
+                        this.dataset.category;
 
 
-                        buttons.forEach(
-                            btn =>
-                                btn.classList.remove(
-                                    "active"
-                                )
+                    buttons.forEach(
+                        btn =>
+                            btn.classList.remove(
+                                "active"
+                            )
+                    );
+
+
+                    this.classList.add(
+                        "active"
+                    );
+
+
+                    const grid =
+                        document.getElementById(
+                            "discountsGrid"
                         );
 
 
-                        this.classList.add(
-                            "active"
-                        );
+                    if(!grid){
+                        return;
+                    }
 
 
-                        const cards =
-                            document.querySelectorAll(
-                                ".discount-card"
+                    const filteredDeals =
+                        category === "all"
+
+                            ? discounts
+
+                            : discounts.filter(
+                                deal =>
+                                    deal.category === category
                             );
 
 
-                        cards.forEach(
-                            card => {
-
-                                if(
-                                    category === "all" ||
-                                    card.dataset.category === category
-                                ){
-
-                                    card.style.display =
-                                        "";
-
-                                }else{
-
-                                    card.style.display =
-                                        "none";
-
-                                }
-
-                            }
+                    const visibleDeals =
+                        filteredDeals.slice(
+                            0,
+                            8
                         );
 
-                    }
-                );
 
-            }
-        );
+                    grid.innerHTML = "";
 
-    }
+
+                    visibleDeals.forEach(
+                        deal => {
+
+                            grid.innerHTML +=
+                                createDealCard(
+                                    deal
+                                );
+
+                        }
+                    );
+
+                }
+            );
+
+        }
+    );
+
+}
 
 
     /* =================================================
