@@ -90,43 +90,74 @@
 
 
     /* =================================================
-       OPEN DISCOUNTS
-    ================================================= */
+   OPEN DISCOUNTS
+================================================= */
 
-    window.openDiscounts = function(){
+window.openDiscounts = function(){
 
-        let container =
-            document.getElementById("discountsSection");
+    /* ---------------------------------------------
+       HIDE OTHER SECTIONS
+    --------------------------------------------- */
+
+    const homePage =
+        document.getElementById("homePage");
+
+    if(homePage){
+        homePage.style.display = "none";
+    }
 
 
-        /* ---------------------------------------------
-           CREATE SECTION IF IT DOES NOT EXIST
-        --------------------------------------------- */
+    document
+        .querySelectorAll(".app")
+        .forEach(x =>
+            x.classList.remove("active")
+        );
 
-        if(!container){
 
-    container =
-        document.createElement("section");
+    const weatherSection =
+        document.getElementById("weatherSection");
 
-    container.id =
-        "discountsSection";
-
-    container.className =
-        "discounts-section";
+    if(weatherSection){
+        weatherSection.style.display = "none";
+    }
 
 
     const newsSection =
         document.getElementById("newsSection");
 
-
     if(newsSection){
+        newsSection.style.display = "none";
+    }
 
-        newsSection.insertAdjacentElement(
-            "afterend",
-            container
+
+    const settingsPanel =
+        document.getElementById("settingsPanel");
+
+    if(settingsPanel){
+        settingsPanel.style.display = "none";
+    }
+
+
+    /* ---------------------------------------------
+       GET / CREATE DISCOUNTS SECTION
+    --------------------------------------------- */
+
+    let container =
+        document.getElementById(
+            "discountsSection"
         );
 
-    }else{
+
+    if(!container){
+
+        container =
+            document.createElement("section");
+
+        container.id =
+            "discountsSection";
+
+        container.className =
+            "discounts-section";
 
         document.body.appendChild(
             container
@@ -134,32 +165,55 @@
 
     }
 
-}
+
+    /* ---------------------------------------------
+       RENDER
+    --------------------------------------------- */
+
+    renderDiscounts(
+        container
+    );
 
 
-        /* ---------------------------------------------
-           RENDER
-        --------------------------------------------- */
+    /* ---------------------------------------------
+       SHOW
+    --------------------------------------------- */
 
-        renderDiscounts(
-            container
+    container.style.display =
+        "block";
+
+
+    /* ---------------------------------------------
+       CLOSE NAVIGATION
+    --------------------------------------------- */
+
+    const navLinks =
+        document.getElementById(
+            "navLinks"
         );
 
-
-        /* ---------------------------------------------
-           SHOW
-        --------------------------------------------- */
-
-        container.style.display =
-            "block";
+    if(navLinks){
+        navLinks.classList.remove("open");
+    }
 
 
-        container.scrollIntoView({
-            behavior: "smooth",
-            block: "start"
-        });
+    /* ---------------------------------------------
+       SCROLL TO TOP
+    --------------------------------------------- */
 
-    };
+    document.documentElement.style.overflowY =
+        "auto";
+
+    document.body.style.overflowY =
+        "auto";
+
+
+    window.scrollTo({
+        top: 0,
+        behavior: "smooth"
+    });
+
+};
 
 
     /* =================================================
