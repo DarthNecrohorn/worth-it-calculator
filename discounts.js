@@ -13,52 +13,139 @@
 
     const discounts = [
 
-        {
-            title: "Wireless Headphones",
-            store: "Example Store",
-            category: "Electronics",
-            oldPrice: 99.99,
-            price: 69.99,
-            currency: "$",
-            image: "",
-            url: "https://example.com"
-        },
+    {
+        title: "Wireless Headphones",
+        store: "Example Store",
+        category: "Electronics",
+        oldPrice: 99.99,
+        price: 69.99,
+        currency: "$",
+        image: "",
+        url: "https://example.com"
+    },
 
-        {
-            title: "Smart Watch",
-            store: "Example Shop",
-            category: "Electronics",
-            oldPrice: 149.99,
-            price: 99.99,
-            currency: "$",
-            image: "",
-            url: "https://example.com"
-        },
+    {
+        title: "Smart Watch",
+        store: "Example Shop",
+        category: "Electronics",
+        oldPrice: 149.99,
+        price: 99.99,
+        currency: "$",
+        image: "",
+        url: "https://example.com"
+    },
 
-        {
-            title: "Running Shoes",
-            store: "Example Sports",
-            category: "Fashion",
-            oldPrice: 120,
-            price: 79.99,
-            currency: "$",
-            image: "",
-            url: "https://example.com"
-        },
+    {
+        title: "Running Shoes",
+        store: "Example Sports",
+        category: "Fashion",
+        oldPrice: 120,
+        price: 79.99,
+        currency: "$",
+        image: "",
+        url: "https://example.com"
+    },
 
-        {
-            title: "Coffee Machine",
-            store: "Example Home",
-            category: "Home",
-            oldPrice: 199.99,
-            price: 139.99,
-            currency: "$",
-            image: "",
-            url: "https://example.com"
-        }
+    {
+        title: "Coffee Machine",
+        store: "Example Home",
+        category: "Home",
+        oldPrice: 199.99,
+        price: 139.99,
+        currency: "$",
+        image: "",
+        url: "https://example.com"
+    },
 
-    ];
+    {
+        title: "Gaming Keyboard",
+        store: "Example Gaming",
+        category: "Gaming",
+        oldPrice: 89.99,
+        price: 59.99,
+        currency: "$",
+        image: "",
+        url: "https://example.com"
+    },
 
+    {
+        title: "Face Care Set",
+        store: "Example Beauty",
+        category: "Beauty",
+        oldPrice: 49.99,
+        price: 34.99,
+        currency: "$",
+        image: "",
+        url: "https://example.com"
+    },
+
+    {
+        title: "Yoga Mat",
+        store: "Example Fitness",
+        category: "Sports",
+        oldPrice: 39.99,
+        price: 27.99,
+        currency: "$",
+        image: "",
+        url: "https://example.com"
+    },
+
+    {
+        title: "Car Phone Holder",
+        store: "Example Auto",
+        category: "Automotive",
+        oldPrice: 29.99,
+        price: 19.99,
+        currency: "$",
+        image: "",
+        url: "https://example.com"
+    },
+
+    {
+        title: "Travel Backpack",
+        store: "Example Travel",
+        category: "Travel",
+        oldPrice: 79.99,
+        price: 54.99,
+        currency: "$",
+        image: "",
+        url: "https://example.com"
+    },
+
+    {
+        title: "Office Chair",
+        store: "Example Office",
+        category: "Office",
+        oldPrice: 249.99,
+        price: 179.99,
+        currency: "$",
+        image: "",
+        url: "https://example.com"
+    },
+
+    {
+        title: "Kids Building Set",
+        store: "Example Kids",
+        category: "Kids",
+        oldPrice: 59.99,
+        price: 39.99,
+        currency: "$",
+        image: "",
+        url: "https://example.com"
+    },
+
+    {
+        title: "Tool Set",
+        store: "Example Tools",
+        category: "Tools",
+        oldPrice: 119.99,
+        price: 84.99,
+        currency: "$",
+        image: "",
+        url: "https://example.com"
+    }
+
+];
 
     /* =================================================
        HELPERS
