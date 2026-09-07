@@ -2305,14 +2305,34 @@ html[data-theme="light"] .discount-image-placeholder{
     min-width:0;
 }
 
-.movement-scale{
-    position:relative;
-    flex:1;
-    height:8px;
-    min-width:55px;
-    border-radius:999px;
-    background:rgba(255,255,255,.08);
-    overflow:hidden;
+.movement-scale {
+    position: relative;
+    flex: 1;
+    height: 8px;
+    min-width: 55px;
+    border-radius: 999px;
+    background: rgba(255,255,255,.08);
+    overflow: hidden;
+}
+
+.movement-scale::before {
+    content: "";
+    position: absolute;
+    left: 50%;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    transform: translateX(-50%);
+    background: rgba(255,255,255,.35);
+    z-index: 2;
+}
+
+.movement-bar {
+    position: absolute;
+    top: 0;
+    height: 100%;
+    border-radius: 999px;
+    background: currentColor;
 }
 
 .movement-scale span{
