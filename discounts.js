@@ -873,45 +873,96 @@
                 : "—";
 
 
-        const storeRows =
-            stores
-                .slice(0, 3)
-                .map(
-                    (store, index) => {
+        /* ---------------------------------------------
+           BEST PRICE
+        --------------------------------------------- */
 
-                        const isBest =
-                            index === 0;
+        let bestStoreHTML = "";
 
 
-                        return `
+        if(bestStore){
 
-                            <div
-                                class="discount-store-row
-                                ${isBest
-                                    ? "discount-best-store"
-                                    : ""
-                                }"
-                            >
+            bestStoreHTML = `
 
-                                <div>
+                <div class="discount-best-price-box">
 
-                                    <strong>
-                                        ${escapeHTML(
-                                            store.name
-                                        )}
-                                    </strong>
+                    <div class="discount-best-price-info">
 
-                                    ${
-                                        isBest
-                                        ? `
-                                            <span class="discount-best-label">
-                                                Best Price
-                                            </span>
-                                          `
-                                        : ""
-                                    }
+                        <span class="discount-best-label">
+                            BEST PRICE
+                        </span>
 
-                                </div>
+                        <strong>
+                            ${escapeHTML(
+                                bestStore.name
+                            )}
+                        </strong>
+
+                    </div>
+
+
+                    <div class="discount-best-price-right">
+
+                        <strong class="discount-best-price">
+                            ${formatPrice(
+                                bestStore.price,
+                                deal.currency
+                            )}
+                        </strong>
+
+
+                        <a
+                            href="${escapeHTML(
+                                bestStore.url
+                            )}"
+                            target="_blank"
+                            rel="noopener noreferrer sponsored"
+                            class="discount-buy-button discount-buy-button-primary"
+                        >
+                            Buy →
+                        </a>
+
+                    </div>
+
+                </div>
+
+            `;
+
+        }
+
+
+        /* ---------------------------------------------
+           OTHER STORES
+        --------------------------------------------- */
+
+        const otherStores =
+            stores.slice(1, 4);
+
+
+        let otherStoresHTML = "";
+
+
+        if(otherStores.length){
+
+            otherStoresHTML = `
+
+                <div class="discount-other-stores">
+
+                    <div class="discount-other-title">
+                        Other options
+                    </div>
+
+
+                    ${otherStores
+                        .map(store => `
+
+                            <div class="discount-store-row">
+
+                                <strong class="discount-store-name">
+                                    ${escapeHTML(
+                                        store.name
+                                    )}
+                                </strong>
 
 
                                 <div class="discount-store-action">
@@ -925,7 +976,9 @@
 
 
                                     <a
-                                        href="${escapeHTML(store.url)}"
+                                        href="${escapeHTML(
+                                            store.url
+                                        )}"
                                         target="_blank"
                                         rel="noopener noreferrer sponsored"
                                         class="discount-buy-button"
@@ -937,12 +990,19 @@
 
                             </div>
 
-                        `;
+                        `)
+                        .join("")}
 
-                    }
-                )
-                .join("");
+                </div>
 
+            `;
+
+        }
+
+
+        /* ---------------------------------------------
+           CARD
+        --------------------------------------------- */
 
         return `
 
@@ -952,6 +1012,7 @@
                     deal.category
                 )}"
             >
+
 
                 <div class="discount-card-image">
 
@@ -968,7 +1029,7 @@
                 <div class="discount-card-content">
 
 
-                    <div class="discount-card-top">
+                    <div class="discount-card-meta">
 
                         <span class="discount-category">
                             ${escapeHTML(
@@ -978,34 +1039,45 @@
 
 
                         <span class="discount-worth-it">
-                            Worth It ${score}/10
+
+                            Worth It
+                            <strong>
+                                ${score}
+                            </strong>/10
+
                         </span>
 
                     </div>
 
 
-                    <h3>
+                    <h3 class="discount-title">
+
                         ${escapeHTML(
                             deal.title
                         )}
+
                     </h3>
 
 
-                    <div class="discount-prices">
+                    <div class="discount-price-block">
 
                         <span class="discount-old-price">
+
                             ${formatPrice(
                                 deal.oldPrice,
                                 deal.currency
                             )}
+
                         </span>
 
 
                         <span class="discount-new-price">
+
                             ${formatPrice(
                                 bestPrice,
                                 deal.currency
                             )}
+
                         </span>
 
                     </div>
@@ -1013,7 +1085,8 @@
 
                     <div class="discount-savings">
 
-                        Save
+                        You save
+
                         <strong>
                             ${formatPrice(
                                 savings,
@@ -1026,15 +1099,20 @@
 
                     <div class="discount-verdict">
 
-                        <strong>
-                            Worth It verdict
-                        </strong>
+                        <div class="discount-verdict-title">
+
+                            ✓ Our verdict
+
+                        </div>
+
 
                         <p>
+
                             ${escapeHTML(
                                 deal.verdict ||
                                 "Good value at this price."
                             )}
+
                         </p>
 
                     </div>
@@ -1043,11 +1121,16 @@
                     <div class="discount-where-to-buy">
 
                         <div class="discount-where-title">
+
                             Where to buy
+
                         </div>
 
 
-                        ${storeRows}
+                        ${bestStoreHTML}
+
+
+                        ${otherStoresHTML}
 
                     </div>
 
