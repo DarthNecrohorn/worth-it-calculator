@@ -27,6 +27,22 @@ export async function onRequestGet(context) {
         "NATURAL_GAS_USD"
     ];
 
+    const cache = caches.default;
+
+    // Cache ključ mora biti stabilan.
+    const cacheUrl = new URL(context.request.url);
+    cacheUrl.search = "";
+    const cacheRequest = new Request(cacheUrl.toString(), {
+        method: "GET"
+    });
+
+    // Proveri Cloudflare cache.
+    const cachedResponse = await cache.match(cacheRequest);
+
+    if (cachedResponse) {
+        return cachedResponse;
+    }
+
     try {
         const response = await fetch(
             `https://api.oilpriceapi.com/v1/prices/latest?by_code=${codes.join(",")}`,
@@ -40,20 +56,37 @@ export async function onRequestGet(context) {
 
         const data = await response.json();
 
-        return new Response(
+        if (!response.ok) {
+            return new Response(
+                JSON.stringify(data),
+                {
+                    status: response.status,
+                    headers: {
+                        "Content-Type": "application/json",
+                        "Cache-Control": "no-store"
+                    }
+                }
+            );
+        }
+
+        const result = new Response(
             JSON.stringify(data),
             {
-                status: response.status,
+                status: 200,
                 headers: {
-                  "Content-Type": "application/json",
-                  "Cache-Control": "no-store",
-                  "Cloudflare-CDN-Cache-Control": "no-store"
-               }
+                    "Content-Type": "application/json",
+                    "Cache-Control": "public, max-age=300",
+                    "Cloudflare-CDN-Cache-Control": "max-age=300"
+                }
             }
         );
 
-    } catch (error) {
+        // Sačuvaj rezultat 5 minuta.
+        await cache.put(cacheRequest, result.clone());
 
+        return result;
+
+    } catch (error) {
         console.error("Markets API error:", error);
 
         return new Response(
@@ -63,7 +96,8 @@ export async function onRequestGet(context) {
             {
                 status: 500,
                 headers: {
-                    "Content-Type": "application/json"
+                    "Content-Type": "application/json",
+                    "Cache-Control": "no-store"
                 }
             }
         );
