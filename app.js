@@ -1237,3 +1237,12 @@ function openDiscountsFromMenu() {
 window.toggleMoreMenu = toggleMoreMenu;
 window.closeMoreMenu = closeMoreMenu;
 window.openDiscountsFromMenu = openDiscountsFromMenu;
+function openMarketsFromMenu() {
+    closeMoreMenu();
+
+    if (typeof window.openMarkets === "function") {
+        window.openMarkets();
+    }
+}
+
+window.openMarketsFromMenu = openMarketsFromMenu;
