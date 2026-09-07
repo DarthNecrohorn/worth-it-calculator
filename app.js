@@ -1247,6 +1247,16 @@ function openMarketsFromMenu() {
 
 window.openMarketsFromMenu = openMarketsFromMenu;
 
+function openMoneyFromMenu() {
+    closeMoreMenu();
+
+    if (typeof window.openMoney === "function") {
+        window.openMoney();
+    }
+}
+
+window.openMoneyFromMenu = openMoneyFromMenu;
+
 function openMarkets() {
 
     const homePage =
