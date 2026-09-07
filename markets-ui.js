@@ -1,8 +1,15 @@
+```js
 /* =========================================================
 MARKETS
 ========================================================= */
 
+
+/* =========================================================
+MARKET CONFIG
+========================================================= */
+
 const MARKET_CONFIG = {
+
     GOLD_USD: {
         name: "Gold",
         symbol: "XAU",
@@ -65,69 +72,268 @@ const MARKET_CONFIG = {
         icon: "🔥",
         unit: "USD / MMBtu"
     }
+
 };
 
 
-function formatMarketPrice(value) {
+/* =========================================================
+USD → EUR EXCHANGE RATE
+========================================================= */
 
-    const number = Number(value);
+const EUR_RATE_CACHE_KEY =
+    "worth_it_usd_eur_rate";
 
-    if (!Number.isFinite(number)) {
-        return "—";
+const EUR_RATE_CACHE_DURATION =
+    60 * 60 * 1000; // 1 hour
+
+
+let usdToEurRate = null;
+
+
+async function getUsdToEurRate() {
+
+    /*
+        Ako imamo svež kurs u localStorage,
+        koristi njega umesto novog API poziva.
+    */
+
+    try {
+
+        const cached =
+            localStorage.getItem(
+                EUR_RATE_CACHE_KEY
+            );
+
+        if (cached) {
+
+            const parsed =
+                JSON.parse(cached);
+
+            if (
+                Number.isFinite(
+                    Number(parsed.rate)
+                ) &&
+                Date.now() - Number(parsed.timestamp)
+                    < EUR_RATE_CACHE_DURATION
+            ) {
+
+                return Number(parsed.rate);
+
+            }
+
+        }
+
+    } catch (error) {
+
+        console.warn(
+            "Could not read cached EUR rate:",
+            error
+        );
+
     }
 
-    return number.toLocaleString("en-US", {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2
-    });
+
+    /*
+        Jedan poziv za USD → EUR kurs.
+
+        Ovo nije OilPriceAPI poziv.
+        Koristi ECB referentni kurs preko Frankfurter API-ja.
+    */
+
+    try {
+
+        const response =
+            await fetch(
+                "https://api.frankfurter.app/latest?from=USD&to=EUR",
+                {
+                    method: "GET",
+                    cache: "no-store"
+                }
+            );
+
+
+        if (!response.ok) {
+
+            throw new Error(
+                "EUR exchange rate request failed."
+            );
+
+        }
+
+
+        const data =
+            await response.json();
+
+
+        const rate =
+            Number(
+                data?.rates?.EUR
+            );
+
+
+        if (
+            !Number.isFinite(rate) ||
+            rate <= 0
+        ) {
+
+            throw new Error(
+                "Invalid USD to EUR exchange rate."
+            );
+
+        }
+
+
+        /*
+            Sačuvaj kurs 1 sat.
+        */
+
+        try {
+
+            localStorage.setItem(
+                EUR_RATE_CACHE_KEY,
+                JSON.stringify({
+                    rate,
+                    timestamp: Date.now()
+                })
+            );
+
+        } catch (error) {
+
+            console.warn(
+                "Could not cache EUR rate:",
+                error
+            );
+
+        }
+
+
+        return rate;
+
+    } catch (error) {
+
+        console.error(
+            "USD → EUR exchange rate error:",
+            error
+        );
+
+
+        return null;
+
+    }
+
+}
+
+
+/* =========================================================
+FORMATTING
+========================================================= */
+
+function formatMarketPrice(value) {
+
+    const number =
+        Number(value);
+
+
+    if (!Number.isFinite(number)) {
+
+        return "—";
+
+    }
+
+
+    return number.toLocaleString(
+        "en-US",
+        {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+        }
+    );
+
 }
 
 
 function formatMarketChange(value) {
 
-    const number = Number(value);
+    const number =
+        Number(value);
+
 
     if (!Number.isFinite(number)) {
+
         return "—";
+
     }
+
 
     const sign =
         number > 0
             ? "+"
             : "";
 
+
     return `${sign}${number.toFixed(2)}%`;
+
 }
 
 
+/* =========================================================
+MOVEMENT BAR
+========================================================= */
+
 function getMarketMovementWidth(value) {
 
-    const number = Number(value);
+    const number =
+        Number(value);
 
-    if (!Number.isFinite(number)) {
+
+    if (
+        !Number.isFinite(number) ||
+        number === 0
+    ) {
+
         return 0;
+
     }
+
+
+    /*
+        Minimum 4% da bi i veoma male promene,
+        npr. +0.05%, bile vizuelno vidljive.
+    */
 
     return Math.min(
         50,
         Math.max(
-            0,
+            4,
             Math.abs(number) * 10
         )
     );
+
 }
 
 
-function renderMarkets(data) {
+/* =========================================================
+RENDER MARKETS
+========================================================= */
+
+function renderMarkets(
+    data,
+    exchangeRate = null
+) {
 
     const grid =
-        document.getElementById("materialsGrid");
+        document.getElementById(
+            "materialsGrid"
+        );
+
 
     if (!grid) return;
 
 
     const prices =
-        Array.isArray(data?.data?.prices)
+        Array.isArray(
+            data?.data?.prices
+        )
             ? data.data.prices
             : [];
 
@@ -136,17 +342,32 @@ function renderMarkets(data) {
 
         grid.innerHTML = `
             <div class="market-card">
+
                 <div class="market-card-main">
-                    <div class="market-icon">⚠️</div>
-                    <div>
-                        <strong>No market data</strong>
-                        <small>Unable to load current prices</small>
+
+                    <div class="market-icon">
+                        ⚠️
                     </div>
+
+                    <div>
+
+                        <strong>
+                            No market data
+                        </strong>
+
+                        <small>
+                            Unable to load current prices
+                        </small>
+
+                    </div>
+
                 </div>
+
             </div>
         `;
 
         return;
+
     }
 
 
@@ -156,19 +377,27 @@ function renderMarkets(data) {
             const config =
                 MARKET_CONFIG[item.code];
 
+
             if (!config) {
+
                 return "";
+
             }
 
 
-           const change =
-              Number(
-              item?.changes?.["24h"]?.percent
-        );
+            /* -----------------------------------------
+            24H CHANGE
+            ----------------------------------------- */
+
+            const change =
+                Number(
+                    item?.changes?.["24h"]?.percent
+                );
 
 
             const changeIsUp =
                 change > 0;
+
 
             const changeIsDown =
                 change < 0;
@@ -191,7 +420,49 @@ function renderMarkets(data) {
 
 
             const width =
-                getMarketMovementWidth(change);
+                getMarketMovementWidth(
+                    change
+                );
+
+
+            /* -----------------------------------------
+            USD PRICE
+            ----------------------------------------- */
+
+            const usdPrice =
+                Number(item.price);
+
+
+            const formattedUsdPrice =
+                formatMarketPrice(
+                    usdPrice
+                );
+
+
+            /* -----------------------------------------
+            EUR PRICE
+            ----------------------------------------- */
+
+            let formattedEurPrice =
+                "—";
+
+
+            if (
+                Number.isFinite(usdPrice) &&
+                Number.isFinite(exchangeRate) &&
+                exchangeRate > 0
+            ) {
+
+                const eurPrice =
+                    usdPrice * exchangeRate;
+
+
+                formattedEurPrice =
+                    formatMarketPrice(
+                        eurPrice
+                    );
+
+            }
 
 
             return `
@@ -204,6 +475,7 @@ function renderMarkets(data) {
                         </div>
 
                         <div>
+
                             <strong>
                                 ${config.name}
                             </strong>
@@ -211,6 +483,7 @@ function renderMarkets(data) {
                             <small>
                                 ${config.symbol}
                             </small>
+
                         </div>
 
                     </div>
@@ -219,7 +492,13 @@ function renderMarkets(data) {
                     <div class="market-price">
 
                         <strong>
-                            $${formatMarketPrice(item.price)}
+                            $${formattedUsdPrice}
+                        </strong>
+
+                        <strong
+                            class="market-price-eur"
+                        >
+                            €${formattedEurPrice}
                         </strong>
 
                         <small>
@@ -236,16 +515,23 @@ function renderMarkets(data) {
 
                         <div class="movement-scale">
 
-                       <span
-                            class="movement-bar"
-                       style="
-                            width:${width}%;
-                       ${changeIsUp ? "left:50%;" : ""}
-                       ${changeIsDown ? "right:50%;" : ""}
-                    "
-                       ></span>
+                            <span
+                                class="movement-bar"
+                                style="
+                                    width:${width}%;
 
-               </div>
+                                    ${changeIsUp
+                                        ? "left:50%;"
+                                        : ""}
+
+                                    ${changeIsDown
+                                        ? "right:50%;"
+                                        : ""}
+                                "
+                            ></span>
+
+                        </div>
+
 
                         <strong>
                             ${arrow}
@@ -260,6 +546,10 @@ function renderMarkets(data) {
         }).join("");
 
 
+    /* =====================================================
+    UPDATED TIME
+    ===================================================== */
+
     const updated =
         data?.data?.prices?.reduce(
             (latest, item) => {
@@ -268,6 +558,7 @@ function renderMarkets(data) {
                     new Date(
                         item.updated_at || 0
                     ).getTime();
+
 
                 return time > latest
                     ? time
@@ -303,10 +594,17 @@ function renderMarkets(data) {
 }
 
 
+/* =========================================================
+REFRESH MARKETS
+========================================================= */
+
 async function refreshMarkets() {
 
     const grid =
-        document.getElementById("materialsGrid");
+        document.getElementById(
+            "materialsGrid"
+        );
+
 
     if (!grid) return;
 
@@ -320,25 +618,49 @@ async function refreshMarkets() {
     if (refreshButton) {
 
         refreshButton.disabled = true;
-        refreshButton.textContent = "↻ Loading...";
+
+        refreshButton.textContent =
+            "↻ Loading...";
 
     }
 
 
     try {
 
-        const response =
-            await fetch("/api/markets", {
-                method: "GET",
-                cache: "no-store"
-            });
+        /*
+            Učitaj Markets podatke i EUR kurs.
+
+            OilPriceAPI:
+            1 poziv preko /api/markets
+
+            EUR:
+            koristi cache 1h ili napravi
+            jedan FX API poziv ako je potreban.
+        */
+
+        const [
+            marketResponse,
+            exchangeRate
+        ] = await Promise.all([
+
+            fetch(
+                "/api/markets",
+                {
+                    method: "GET",
+                    cache: "no-store"
+                }
+            ),
+
+            getUsdToEurRate()
+
+        ]);
 
 
         const data =
-            await response.json();
+            await marketResponse.json();
 
 
-        if (!response.ok) {
+        if (!marketResponse.ok) {
 
             throw new Error(
                 data?.error ||
@@ -348,7 +670,15 @@ async function refreshMarkets() {
         }
 
 
-        renderMarkets(data);
+        /*
+            Ako EUR servis privremeno ne radi,
+            Markets i dalje normalno rade u USD.
+        */
+
+        renderMarkets(
+            data,
+            exchangeRate
+        );
 
 
     } catch (error) {
@@ -391,7 +721,9 @@ async function refreshMarkets() {
         if (refreshButton) {
 
             refreshButton.disabled = false;
-            refreshButton.textContent = "↻ Refresh";
+
+            refreshButton.textContent =
+                "↻ Refresh";
 
         }
 
@@ -399,6 +731,10 @@ async function refreshMarkets() {
 
 }
 
+
+/* =========================================================
+GLOBAL REFRESH
+========================================================= */
 
 window.refreshMarkets =
     refreshMarkets;
@@ -416,3 +752,4 @@ document.addEventListener(
 
     }
 );
+```
