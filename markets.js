@@ -105,14 +105,14 @@ function getMarketMovementWidth(value) {
     const number = Number(value);
 
     if (!Number.isFinite(number)) {
-        return 50;
+        return 0;
     }
 
     return Math.min(
-        100,
+        50,
         Math.max(
-            8,
-            50 + Math.abs(number) * 10
+            0,
+            Math.abs(number) * 10
         )
     );
 }
@@ -236,11 +236,16 @@ function renderMarkets(data) {
 
                         <div class="movement-scale">
 
-                            <span
-                                style="width:${width}%;"
-                            ></span>
+                       <span
+                            class="movement-bar"
+                       style="
+                            width:${width}%;
+                       ${changeIsUp ? "left:50%;" : ""}
+                       ${changeIsDown ? "right:50%;" : ""}
+                    "
+                       ></span>
 
-                        </div>
+               </div>
 
                         <strong>
                             ${arrow}
