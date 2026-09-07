@@ -1091,6 +1091,14 @@ function showHome() {
         discountsSection.style.display = "none";
     }
 
+    if (marketsSection) {
+    marketsSection.style.display = "none";
+}
+
+if (moneySection) {
+    moneySection.style.display = "none";
+}
+    
     // Vrati sve calculator kartice
     document.querySelectorAll(".calc-card").forEach(card => {
         card.style.display = "";
