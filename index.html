@@ -142,6 +142,375 @@
         
     </div>
 </div>
+
+<section class="markets-section" id="marketsSection" style="display:none;">
+
+    <div class="markets-header">
+        <div>
+            <span class="section-kicker">LIVE MARKETS</span>
+            <h2>Markets</h2>
+            <p>Materials and currency movement in one place.</p>
+        </div>
+
+        <button
+            type="button"
+            class="markets-refresh-btn"
+            onclick="refreshMarkets()"
+        >
+            ↻ Refresh
+        </button>
+    </div>
+
+
+    <!-- MATERIALS -->
+
+    <div class="markets-block">
+
+        <div class="markets-block-header">
+            <div>
+                <h3>Materials</h3>
+                <p>Popular commodities and precious materials</p>
+            </div>
+        </div>
+
+        <div class="markets-grid" id="materialsGrid">
+
+            <div class="market-card">
+                <div class="market-card-main">
+                    <span class="market-icon">🥇</span>
+
+                    <div>
+                        <strong>Gold</strong>
+                        <small>XAU</small>
+                    </div>
+                </div>
+
+                <div class="market-price">
+                    <strong>—</strong>
+                    <small>USD / oz</small>
+                </div>
+
+                <div class="market-movement">
+                    <div class="movement-scale">
+                        <span></span>
+                    </div>
+                    <strong>—</strong>
+                </div>
+            </div>
+
+
+            <div class="market-card">
+                <div class="market-card-main">
+                    <span class="market-icon">🥈</span>
+
+                    <div>
+                        <strong>Silver</strong>
+                        <small>XAG</small>
+                    </div>
+                </div>
+
+                <div class="market-price">
+                    <strong>—</strong>
+                    <small>USD / oz</small>
+                </div>
+
+                <div class="market-movement">
+                    <div class="movement-scale">
+                        <span></span>
+                    </div>
+                    <strong>—</strong>
+                </div>
+            </div>
+
+
+            <div class="market-card">
+                <div class="market-card-main">
+                    <span class="market-icon">💎</span>
+
+                    <div>
+                        <strong>Platinum</strong>
+                        <small>XPT</small>
+                    </div>
+                </div>
+
+                <div class="market-price">
+                    <strong>—</strong>
+                    <small>USD / oz</small>
+                </div>
+
+                <div class="market-movement">
+                    <div class="movement-scale">
+                        <span></span>
+                    </div>
+                    <strong>—</strong>
+                </div>
+            </div>
+
+
+            <div class="market-card">
+                <div class="market-card-main">
+                    <span class="market-icon">💎</span>
+
+                    <div>
+                        <strong>Palladium</strong>
+                        <small>XPD</small>
+                    </div>
+                </div>
+
+                <div class="market-price">
+                    <strong>—</strong>
+                    <small>USD / oz</small>
+                </div>
+
+                <div class="market-movement">
+                    <div class="movement-scale">
+                        <span></span>
+                    </div>
+                    <strong>—</strong>
+                </div>
+            </div>
+
+
+            <div class="market-card">
+                <div class="market-card-main">
+                    <span class="market-icon">🔩</span>
+
+                    <div>
+                        <strong>Copper</strong>
+                        <small>COPPER</small>
+                    </div>
+                </div>
+
+                <div class="market-price">
+                    <strong>—</strong>
+                    <small>USD / lb</small>
+                </div>
+
+                <div class="market-movement">
+                    <div class="movement-scale">
+                        <span></span>
+                    </div>
+                    <strong>—</strong>
+                </div>
+            </div>
+
+
+            <div class="market-card">
+                <div class="market-card-main">
+                    <span class="market-icon">⛓️</span>
+
+                    <div>
+                        <strong>Iron</strong>
+                        <small>IRON</small>
+                    </div>
+                </div>
+
+                <div class="market-price">
+                    <strong>—</strong>
+                    <small>USD / ton</small>
+                </div>
+
+                <div class="market-movement">
+                    <div class="movement-scale">
+                        <span></span>
+                    </div>
+                    <strong>—</strong>
+                </div>
+            </div>
+
+
+            <div class="market-card">
+                <div class="market-card-main">
+                    <span class="market-icon">🪨</span>
+
+                    <div>
+                        <strong>Aluminum</strong>
+                        <small>ALUMINUM</small>
+                    </div>
+                </div>
+
+                <div class="market-price">
+                    <strong>—</strong>
+                    <small>USD / ton</small>
+                </div>
+
+                <div class="market-movement">
+                    <div class="movement-scale">
+                        <span></span>
+                    </div>
+                    <strong>—</strong>
+                </div>
+            </div>
+
+
+            <div class="market-card">
+                <div class="market-card-main">
+                    <span class="market-icon">🛢️</span>
+
+                    <div>
+                        <strong>Crude Oil</strong>
+                        <small>WTI</small>
+                    </div>
+                </div>
+
+                <div class="market-price">
+                    <strong>—</strong>
+                    <small>USD / barrel</small>
+                </div>
+
+                <div class="market-movement">
+                    <div class="movement-scale">
+                        <span></span>
+                    </div>
+                    <strong>—</strong>
+                </div>
+            </div>
+
+
+            <div class="market-card">
+                <div class="market-card-main">
+                    <span class="market-icon">🔥</span>
+
+                    <div>
+                        <strong>Natural Gas</strong>
+                        <small>NATGAS</small>
+                    </div>
+                </div>
+
+                <div class="market-price">
+                    <strong>—</strong>
+                    <small>USD / MMBtu</small>
+                </div>
+
+                <div class="market-movement">
+                    <div class="movement-scale">
+                        <span></span>
+                    </div>
+                    <strong>—</strong>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+
+    <!-- MONEY -->
+
+    <div class="markets-block">
+
+        <div class="markets-block-header">
+            <div>
+                <h3>Money</h3>
+                <p>Currency movement</p>
+            </div>
+        </div>
+
+        <div class="markets-grid" id="currencyGrid">
+
+            <div class="market-card">
+                <div class="market-card-main">
+                    <span class="market-icon">🇪🇺</span>
+
+                    <div>
+                        <strong>EUR / USD</strong>
+                        <small>Euro / US Dollar</small>
+                    </div>
+                </div>
+
+                <div class="market-price">
+                    <strong>—</strong>
+                    <small>Exchange rate</small>
+                </div>
+
+                <div class="market-movement">
+                    <div class="movement-scale">
+                        <span></span>
+                    </div>
+                    <strong>—</strong>
+                </div>
+            </div>
+
+
+            <div class="market-card">
+                <div class="market-card-main">
+                    <span class="market-icon">🇬🇧</span>
+
+                    <div>
+                        <strong>GBP / USD</strong>
+                        <small>British Pound / US Dollar</small>
+                    </div>
+                </div>
+
+                <div class="market-price">
+                    <strong>—</strong>
+                    <small>Exchange rate</small>
+                </div>
+
+                <div class="market-movement">
+                    <div class="movement-scale">
+                        <span></span>
+                    </div>
+                    <strong>—</strong>
+                </div>
+            </div>
+
+
+            <div class="market-card">
+                <div class="market-card-main">
+                    <span class="market-icon">🇯🇵</span>
+
+                    <div>
+                        <strong>USD / JPY</strong>
+                        <small>US Dollar / Japanese Yen</small>
+                    </div>
+                </div>
+
+                <div class="market-price">
+                    <strong>—</strong>
+                    <small>Exchange rate</small>
+                </div>
+
+                <div class="market-movement">
+                    <div class="movement-scale">
+                        <span></span>
+                    </div>
+                    <strong>—</strong>
+                </div>
+            </div>
+
+
+            <div class="market-card">
+                <div class="market-card-main">
+                    <span class="market-icon">🇨🇭</span>
+
+                    <div>
+                        <strong>USD / CHF</strong>
+                        <small>US Dollar / Swiss Franc</small>
+                    </div>
+                </div>
+
+                <div class="market-price">
+                    <strong>—</strong>
+                    <small>Exchange rate</small>
+                </div>
+
+                <div class="market-movement">
+                    <div class="movement-scale">
+                        <span></span>
+                    </div>
+                    <strong>—</strong>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+
+    <div class="markets-updated">
+        Last updated: <span id="marketsLastUpdated">—</span>
+    </div>
+
+</section>
     
 <div class="settings-panel" id="settingsPanel">
 
