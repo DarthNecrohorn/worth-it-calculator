@@ -884,6 +884,12 @@ function openCalculator(type) {
 
 const moneySection =
     document.getElementById("moneySection");
+    
+    const marketsSection =
+    document.getElementById("marketsSection");
+
+const moneySection =
+    document.getElementById("moneySection");
 
     if (homePage) {
 
