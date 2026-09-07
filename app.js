@@ -1330,6 +1330,13 @@ function openMarkets() {
     const marketsSection =
         document.getElementById("marketsSection");
 
+    const moneySection =
+    document.getElementById("moneySection");
+
+if (moneySection) {
+    moneySection.style.display = "none";
+}
+    
     if (marketsSection) {
         marketsSection.style.display = "block";
     }
