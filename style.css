@@ -2511,24 +2511,26 @@ html[data-theme="light"] .more-menu-btn{
 .money-section{
     width:min(1180px,calc(100% - 32px));
     margin:0 auto;
-    padding:42px 0 70px;
+    padding:48px 0 76px;
 }
 
-/* HEADER */
+/* =========================================================
+   HEADER
+========================================================= */
 
 .money-header{
     display:flex;
     align-items:flex-end;
     justify-content:space-between;
-    gap:20px;
+    gap:24px;
     margin-bottom:34px;
 }
 
 .money-header h2{
-    margin:5px 0 8px;
-    font-size:34px;
-    line-height:1.05;
-    letter-spacing:-1.2px;
+    margin:6px 0 8px;
+    font-size:38px;
+    line-height:1;
+    letter-spacing:-1.5px;
 }
 
 .money-header p{
@@ -2544,37 +2546,59 @@ html[data-theme="light"] .more-menu-btn{
     color:#a78bfa;
     font-size:11px;
     font-weight:900;
-    letter-spacing:1.2px;
+    letter-spacing:1.4px;
 }
 
-/* REFRESH */
+/* =========================================================
+   REFRESH
+========================================================= */
 
 .money-refresh-btn{
     display:inline-flex;
     align-items:center;
     justify-content:center;
-    gap:7px;
+    gap:8px;
+
     border:1px solid var(--border);
-    background:rgba(255,255,255,.05);
+    background:rgba(255,255,255,.055);
     color:var(--text);
-    border-radius:11px;
-    padding:10px 15px;
+
+    border-radius:12px;
+    padding:11px 17px;
+
     font-size:13px;
-    font-weight:800;
+    font-weight:900;
+
     cursor:pointer;
-    transition:.2s;
+    transition:
+        transform .2s ease,
+        background .2s ease,
+        border-color .2s ease,
+        box-shadow .2s ease;
 }
 
 .money-refresh-btn:hover{
-    background:rgba(124,92,255,.10);
-    border-color:rgba(124,92,255,.40);
-    transform:translateY(-1px);
+    transform:translateY(-2px);
+
+    background:
+        linear-gradient(
+            135deg,
+            rgba(124,92,255,.14),
+            rgba(56,189,248,.08)
+        );
+
+    border-color:rgba(124,92,255,.42);
+
+    box-shadow:
+        0 8px 24px rgba(0,0,0,.14);
 }
 
-/* BLOCK */
+/* =========================================================
+   BLOCK
+========================================================= */
 
 .money-block{
-    margin-top:30px;
+    margin-top:34px;
 }
 
 .money-block-header{
@@ -2582,13 +2606,13 @@ html[data-theme="light"] .more-menu-btn{
     align-items:flex-end;
     justify-content:space-between;
     gap:15px;
-    margin-bottom:15px;
+    margin-bottom:16px;
 }
 
 .money-block-header h3{
-    margin:0 0 4px;
-    font-size:20px;
-    letter-spacing:-.3px;
+    margin:0 0 5px;
+    font-size:21px;
+    letter-spacing:-.45px;
 }
 
 .money-block-header p{
@@ -2597,94 +2621,139 @@ html[data-theme="light"] .more-menu-btn{
     font-size:13px;
 }
 
-/* GRID */
+/* =========================================================
+   GRID
+========================================================= */
 
 .money-grid{
     display:grid;
     grid-template-columns:repeat(2,minmax(0,1fr));
-    gap:12px;
+    gap:13px;
 }
 
-/* CARD */
+/* =========================================================
+   FX CARD
+========================================================= */
 
 .money-card{
     position:relative;
+
     display:grid;
-    grid-template-columns:minmax(180px,1.35fr) minmax(100px,.8fr) minmax(130px,1fr);
+    grid-template-columns:
+        minmax(190px,1.35fr)
+        minmax(120px,.85fr)
+        minmax(160px,1fr);
+
     align-items:center;
-    gap:18px;
+    gap:20px;
 
     min-width:0;
-    padding:17px;
+
+    padding:18px;
 
     border:1px solid var(--border);
-    border-radius:16px;
+    border-radius:18px;
 
     background:
+        radial-gradient(
+            circle at 0% 0%,
+            rgba(124,92,255,.08),
+            transparent 45%
+        ),
         linear-gradient(
             145deg,
             rgba(255,255,255,.055),
-            rgba(255,255,255,.025)
+            rgba(255,255,255,.018)
         );
 
     box-shadow:
-        0 10px 35px rgba(0,0,0,.12);
+        0 12px 38px rgba(0,0,0,.13);
+
+    overflow:hidden;
 
     transition:
-        transform .2s ease,
-        border-color .2s ease,
-        background .2s ease,
-        box-shadow .2s ease;
+        transform .22s ease,
+        border-color .22s ease,
+        background .22s ease,
+        box-shadow .22s ease;
 }
 
-.money-card:hover{
-    transform:translateY(-3px);
-    border-color:rgba(124,92,255,.38);
+.money-card::after{
+    content:"";
+
+    position:absolute;
+    inset:auto 0 0 0;
+
+    height:1px;
 
     background:
         linear-gradient(
+            90deg,
+            transparent,
+            rgba(124,92,255,.35),
+            transparent
+        );
+
+    opacity:.55;
+}
+
+.money-card:hover{
+    transform:translateY(-4px);
+
+    border-color:rgba(124,92,255,.42);
+
+    background:
+        radial-gradient(
+            circle at 0% 0%,
+            rgba(124,92,255,.13),
+            transparent 48%
+        ),
+        linear-gradient(
             145deg,
-            rgba(124,92,255,.08),
+            rgba(124,92,255,.055),
             rgba(255,255,255,.035)
         );
 
     box-shadow:
-        0 16px 45px rgba(0,0,0,.20);
+        0 18px 48px rgba(0,0,0,.20);
 }
 
-/* LEFT SIDE */
+/* =========================================================
+   LEFT SIDE
+========================================================= */
 
 .money-card-main{
     display:flex;
     align-items:center;
-    gap:12px;
+    gap:13px;
     min-width:0;
 }
 
 .money-icon{
-    width:44px;
-    height:44px;
+    width:48px;
+    height:48px;
 
     display:grid;
     place-items:center;
 
-    flex:0 0 44px;
+    flex:0 0 48px;
 
-    border-radius:13px;
+    border-radius:14px;
 
     background:
         linear-gradient(
             135deg,
-            rgba(124,92,255,.16),
-            rgba(56,189,248,.10)
+            rgba(124,92,255,.18),
+            rgba(56,189,248,.11)
         );
 
-    border:1px solid rgba(124,92,255,.15);
+    border:1px solid rgba(124,92,255,.18);
 
-    font-size:22px;
+    font-size:23px;
 
     box-shadow:
-        inset 0 1px 0 rgba(255,255,255,.06);
+        inset 0 1px 0 rgba(255,255,255,.08),
+        0 7px 20px rgba(0,0,0,.10);
 }
 
 .money-card-main > div{
@@ -2693,14 +2762,17 @@ html[data-theme="light"] .more-menu-btn{
 
 .money-card-main strong{
     display:block;
+
     font-size:15px;
-    font-weight:900;
-    letter-spacing:-.2px;
+    font-weight:950;
+    letter-spacing:-.25px;
 }
 
 .money-card-main small{
     display:block;
-    margin-top:3px;
+
+    margin-top:4px;
+
     color:var(--muted);
     font-size:11px;
 
@@ -2709,58 +2781,95 @@ html[data-theme="light"] .more-menu-btn{
     white-space:nowrap;
 }
 
-/* PRICE */
+/* =========================================================
+   PRICE
+========================================================= */
 
 .money-price{
     min-width:0;
+
+    padding-left:2px;
 }
 
 .money-price strong{
     display:block;
-    font-size:18px;
-    font-weight:900;
-    letter-spacing:-.4px;
+
+    font-size:20px;
+    line-height:1.1;
+    font-weight:950;
+
+    letter-spacing:-.6px;
 }
 
 .money-price small{
     display:block;
-    margin-top:3px;
+
+    margin-top:5px;
+
     color:var(--muted2);
     font-size:10px;
 }
 
-/* MOVEMENT */
+/* =========================================================
+   MOVEMENT
+========================================================= */
 
 .money-movement{
     display:flex;
     align-items:center;
-    gap:10px;
+    gap:11px;
+
     min-width:0;
 }
 
 .money-movement .movement-scale{
     position:relative;
+
     flex:1;
-    height:8px;
-    min-width:60px;
+
+    height:9px;
+    min-width:65px;
 
     border-radius:999px;
 
     background:
         linear-gradient(
             90deg,
-            rgba(251,113,133,.18),
-            rgba(255,255,255,.07) 50%,
-            rgba(52,211,153,.18)
+            rgba(251,113,133,.20),
+            rgba(255,255,255,.065) 50%,
+            rgba(52,211,153,.20)
         );
+
+    border:1px solid rgba(255,255,255,.035);
 
     overflow:hidden;
 }
 
+.money-movement .movement-scale::before{
+    content:"";
+
+    position:absolute;
+
+    top:0;
+    bottom:0;
+    left:50%;
+
+    width:1px;
+
+    background:rgba(255,255,255,.20);
+
+    z-index:2;
+}
+
 .money-movement .movement-scale span{
+    position:relative;
+    z-index:1;
+
     display:block;
+
     width:50%;
     height:100%;
+
     border-radius:999px;
 
     background:
@@ -2769,61 +2878,88 @@ html[data-theme="light"] .more-menu-btn{
             var(--primary),
             var(--primary2)
         );
+
+    box-shadow:
+        0 0 12px rgba(124,92,255,.30);
 }
 
 .money-movement > strong{
-    min-width:58px;
+    min-width:62px;
+
     text-align:right;
 
     font-size:12px;
-    font-weight:900;
+    font-weight:950;
 }
 
-/* UPDATED */
+/* =========================================================
+   UPDATED
+========================================================= */
 
 .money-updated{
-    margin-top:24px;
-    padding-top:16px;
+    display:flex;
+    justify-content:flex-end;
+    align-items:center;
+
+    margin-top:28px;
+    padding-top:17px;
 
     border-top:1px solid var(--border);
 
     color:var(--muted2);
     font-size:11px;
-    text-align:right;
 }
 
-/* LIGHT THEME */
+/* =========================================================
+   LIGHT THEME
+========================================================= */
 
 html[data-theme="light"] .money-card{
     background:
-        linear-gradient(
-            145deg,
-            rgba(255,255,255,.98),
-            rgba(248,250,252,.96)
-        );
-
-    border-color:rgba(15,23,42,.10);
-
-    box-shadow:
-        0 10px 30px rgba(15,23,42,.07);
-}
-
-html[data-theme="light"] .money-card:hover{
-    background:
+        radial-gradient(
+            circle at 0% 0%,
+            rgba(124,92,255,.055),
+            transparent 45%
+        ),
         linear-gradient(
             145deg,
             #ffffff,
             #f8fafc
         );
 
-    border-color:rgba(124,92,255,.30);
+    border-color:rgba(15,23,42,.09);
 
     box-shadow:
-        0 15px 40px rgba(15,23,42,.10);
+        0 12px 34px rgba(15,23,42,.07);
+}
+
+html[data-theme="light"] .money-card:hover{
+    background:
+        radial-gradient(
+            circle at 0% 0%,
+            rgba(124,92,255,.09),
+            transparent 48%
+        ),
+        linear-gradient(
+            145deg,
+            #ffffff,
+            #f8fafc
+        );
+
+    border-color:rgba(124,92,255,.32);
+
+    box-shadow:
+        0 18px 42px rgba(15,23,42,.11);
 }
 
 html[data-theme="light"] .money-icon{
-    background:rgba(124,92,255,.07);
+    background:
+        linear-gradient(
+            135deg,
+            rgba(124,92,255,.08),
+            rgba(56,189,248,.06)
+        );
+
     border-color:rgba(124,92,255,.12);
 }
 
@@ -2831,13 +2967,19 @@ html[data-theme="light"] .money-movement .movement-scale{
     background:
         linear-gradient(
             90deg,
-            rgba(244,63,94,.12),
-            rgba(15,23,42,.06) 50%,
-            rgba(16,185,129,.12)
+            rgba(244,63,94,.13),
+            rgba(15,23,42,.055) 50%,
+            rgba(16,185,129,.13)
         );
 }
 
-/* RESPONSIVE */
+html[data-theme="light"] .money-movement .movement-scale::before{
+    background:rgba(15,23,42,.16);
+}
+
+/* =========================================================
+   RESPONSIVE
+========================================================= */
 
 @media(max-width:900px){
 
@@ -2845,56 +2987,84 @@ html[data-theme="light"] .money-movement .movement-scale{
         grid-template-columns:1fr;
     }
 
+    .money-card{
+        grid-template-columns:
+            minmax(190px,1.3fr)
+            minmax(120px,.8fr)
+            minmax(150px,1fr);
+    }
 }
 
 @media(max-width:700px){
 
     .money-section{
         width:min(100% - 22px,1180px);
-        padding:32px 0 60px;
+        padding:34px 0 60px;
     }
 
     .money-header{
         align-items:flex-start;
         flex-direction:column;
-        margin-bottom:26px;
+        gap:18px;
+        margin-bottom:27px;
     }
 
     .money-header h2{
-        font-size:29px;
+        font-size:31px;
     }
 
     .money-refresh-btn{
         width:100%;
     }
 
+    .money-block{
+        margin-top:28px;
+    }
+
     .money-card{
         grid-template-columns:1fr;
-        gap:13px;
-        padding:15px;
+        gap:14px;
+        padding:16px;
     }
 
     .money-price{
-        padding-left:56px;
+        padding-left:61px;
     }
 
     .money-movement{
-        padding-left:56px;
+        padding-left:61px;
     }
-
 }
 
 @media(max-width:450px){
 
+    .money-section{
+        width:calc(100% - 18px);
+    }
+
+    .money-header h2{
+        font-size:28px;
+    }
+
+    .money-block-header h3{
+        font-size:19px;
+    }
+
+    .money-card{
+        border-radius:16px;
+        padding:14px;
+    }
+
     .money-card-main{
-        gap:10px;
+        gap:11px;
     }
 
     .money-icon{
-        width:40px;
-        height:40px;
-        flex-basis:40px;
+        width:42px;
+        height:42px;
+        flex-basis:42px;
         font-size:20px;
+        border-radius:12px;
     }
 
     .money-card-main strong{
@@ -2906,11 +3076,18 @@ html[data-theme="light"] .money-movement .movement-scale{
     }
 
     .money-price{
-        padding-left:50px;
+        padding-left:53px;
+    }
+
+    .money-price strong{
+        font-size:18px;
     }
 
     .money-movement{
-        padding-left:50px;
+        padding-left:53px;
     }
 
+    .money-updated{
+        justify-content:flex-start;
+    }
 }
