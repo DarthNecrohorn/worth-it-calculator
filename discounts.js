@@ -651,12 +651,10 @@
         }
 
 
-        document
-            .querySelectorAll(".app")
-            .forEach(x =>
-                x.classList.remove("active")
-            );
-
+        document.querySelectorAll(".app").forEach(x => {
+    x.classList.remove("active");
+    x.style.display = "none";
+});
 
         const weatherSection =
             document.getElementById("weatherSection");
