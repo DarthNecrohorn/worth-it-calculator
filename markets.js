@@ -39,7 +39,7 @@ const MARKET_CONFIG = {
     },
 
     IRON_ORE_USD: {
-        name: "Iron Ore",
+        name: "Iron USA",
         symbol: "IRON",
         icon: "⛓️",
         unit: "USD / metric ton"
