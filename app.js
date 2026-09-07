@@ -1197,3 +1197,43 @@ function toggleMenu() {
 }
 
 window.toggleMenu = toggleMenu;
+
+function closeMoreMenu() {
+    const menu = document.getElementById("moreMenu");
+    if (!menu) return;
+
+    menu.classList.remove("open");
+    menu.setAttribute("aria-hidden", "true");
+}
+
+function toggleMoreMenu() {
+    // Guest → Google login
+    if (!currentAuthUser) {
+        handleAuthButton();
+        return;
+    }
+
+    const menu = document.getElementById("moreMenu");
+    if (!menu) return;
+
+    const isOpen = menu.classList.contains("open");
+
+    if (isOpen) {
+        closeMoreMenu();
+    } else {
+        menu.classList.add("open");
+        menu.setAttribute("aria-hidden", "false");
+    }
+}
+
+function openDiscountsFromMenu() {
+    closeMoreMenu();
+
+    if (typeof window.openDiscounts === "function") {
+        window.openDiscounts();
+    }
+}
+
+window.toggleMoreMenu = toggleMoreMenu;
+window.closeMoreMenu = closeMoreMenu;
+window.openDiscountsFromMenu = openDiscountsFromMenu;
