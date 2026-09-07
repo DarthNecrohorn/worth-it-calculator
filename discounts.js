@@ -1,151 +1,505 @@
 /* =====================================================
-   DISCOUNTS
+   DISCOUNTS — WORTH IT AFFILIATE ENGINE
 ===================================================== */
 
 (function(){
 
     "use strict";
 
+
     /* =================================================
-       TEST DEAL DATA
-       Ovo ćemo kasnije zameniti pravim dnevnim podacima.
+       DEAL DATA
+
+       Ovo je trenutno TEST DATA.
+
+       Kasnije:
+       Awin Feed/API
+              ↓
+       Backend
+              ↓
+       discounts data
+              ↓
+       ovaj renderer
     ================================================= */
 
     const discounts = [
 
-    {
-        title: "Wireless Headphones",
-        store: "Example Store",
-        category: "Electronics",
-        oldPrice: 99.99,
-        price: 69.99,
-        currency: "$",
-        image: "",
-        url: "https://example.com"
-    },
+        {
+            id: "kids-building-set",
 
-    {
-        title: "Smart Watch",
-        store: "Example Shop",
-        category: "Electronics",
-        oldPrice: 149.99,
-        price: 99.99,
-        currency: "$",
-        image: "",
-        url: "https://example.com"
-    },
+            title: "Kids Building Set",
 
-    {
-        title: "Running Shoes",
-        store: "Example Sports",
-        category: "Fashion",
-        oldPrice: 120,
-        price: 79.99,
-        currency: "$",
-        image: "",
-        url: "https://example.com"
-    },
+            category: "Kids",
 
-    {
-        title: "Coffee Machine",
-        store: "Example Home",
-        category: "Home",
-        oldPrice: 199.99,
-        price: 139.99,
-        currency: "$",
-        image: "",
-        url: "https://example.com"
-    },
+            oldPrice: 59.99,
+            currency: "$",
 
-    {
-        title: "Gaming Keyboard",
-        store: "Example Gaming",
-        category: "Gaming",
-        oldPrice: 89.99,
-        price: 59.99,
-        currency: "$",
-        image: "",
-        url: "https://example.com"
-    },
+            image: "",
 
-    {
-        title: "Face Care Set",
-        store: "Example Beauty",
-        category: "Beauty",
-        oldPrice: 49.99,
-        price: 34.99,
-        currency: "$",
-        image: "",
-        url: "https://example.com"
-    },
+            worthItScore: 9.2,
 
-    {
-        title: "Yoga Mat",
-        store: "Example Fitness",
-        category: "Sports",
-        oldPrice: 39.99,
-        price: 27.99,
-        currency: "$",
-        image: "",
-        url: "https://example.com"
-    },
+            verdict:
+                "Excellent value for educational play",
 
-    {
-        title: "Car Phone Holder",
-        store: "Example Auto",
-        category: "Automotive",
-        oldPrice: 29.99,
-        price: 19.99,
-        currency: "$",
-        image: "",
-        url: "https://example.com"
-    },
+            updatedAt: "Today",
 
-    {
-        title: "Travel Backpack",
-        store: "Example Travel",
-        category: "Travel",
-        oldPrice: 79.99,
-        price: 54.99,
-        currency: "$",
-        image: "",
-        url: "https://example.com"
-    },
+            stores: [
 
-    {
-        title: "Office Chair",
-        store: "Example Office",
-        category: "Office",
-        oldPrice: 249.99,
-        price: 179.99,
-        currency: "$",
-        image: "",
-        url: "https://example.com"
-    },
+                {
+                    name: "Example Kids",
+                    price: 39.99,
+                    url: "https://example.com",
+                    affiliate: true
+                },
 
-    {
-        title: "Kids Building Set",
-        store: "Example Kids",
-        category: "Kids",
-        oldPrice: 59.99,
-        price: 39.99,
-        currency: "$",
-        image: "",
-        url: "https://example.com"
-    },
+                {
+                    name: "Example Toys",
+                    price: 42.99,
+                    url: "https://example.com",
+                    affiliate: true
+                },
 
-    {
-        title: "Tool Set",
-        store: "Example Tools",
-        category: "Tools",
-        oldPrice: 119.99,
-        price: 84.99,
-        currency: "$",
-        image: "",
-        url: "https://example.com"
-    }
+                {
+                    name: "Example Store",
+                    price: 46.99,
+                    url: "https://example.com",
+                    affiliate: false
+                }
 
-];
+            ]
+        },
+
+
+        {
+            id: "wireless-headphones",
+
+            title: "Wireless Headphones",
+
+            category: "Electronics",
+
+            oldPrice: 99.99,
+            currency: "$",
+
+            image: "",
+
+            worthItScore: 8.7,
+
+            verdict:
+                "Strong price for everyday use",
+
+            updatedAt: "Today",
+
+            stores: [
+
+                {
+                    name: "Example Store",
+                    price: 69.99,
+                    url: "https://example.com",
+                    affiliate: true
+                },
+
+                {
+                    name: "Example Electronics",
+                    price: 74.99,
+                    url: "https://example.com",
+                    affiliate: true
+                }
+
+            ]
+        },
+
+
+        {
+            id: "smart-watch",
+
+            title: "Smart Watch",
+
+            category: "Electronics",
+
+            oldPrice: 149.99,
+            currency: "$",
+
+            image: "",
+
+            worthItScore: 8.4,
+
+            verdict:
+                "Good discount for a popular upgrade",
+
+            updatedAt: "Today",
+
+            stores: [
+
+                {
+                    name: "Example Shop",
+                    price: 99.99,
+                    url: "https://example.com",
+                    affiliate: true
+                },
+
+                {
+                    name: "Example Tech",
+                    price: 104.99,
+                    url: "https://example.com",
+                    affiliate: true
+                }
+
+            ]
+        },
+
+
+        {
+            id: "running-shoes",
+
+            title: "Running Shoes",
+
+            category: "Fashion",
+
+            oldPrice: 120,
+            currency: "$",
+
+            image: "",
+
+            worthItScore: 8.8,
+
+            verdict:
+                "Very good value at this price",
+
+            updatedAt: "Today",
+
+            stores: [
+
+                {
+                    name: "Example Sports",
+                    price: 79.99,
+                    url: "https://example.com",
+                    affiliate: true
+                },
+
+                {
+                    name: "Example Fashion",
+                    price: 84.99,
+                    url: "https://example.com",
+                    affiliate: true
+                }
+
+            ]
+        },
+
+
+        {
+            id: "coffee-machine",
+
+            title: "Coffee Machine",
+
+            category: "Home",
+
+            oldPrice: 199.99,
+            currency: "$",
+
+            image: "",
+
+            worthItScore: 9.0,
+
+            verdict:
+                "Great deal for frequent coffee drinkers",
+
+            updatedAt: "Today",
+
+            stores: [
+
+                {
+                    name: "Example Home",
+                    price: 139.99,
+                    url: "https://example.com",
+                    affiliate: true
+                },
+
+                {
+                    name: "Example Appliances",
+                    price: 149.99,
+                    url: "https://example.com",
+                    affiliate: true
+                }
+
+            ]
+        },
+
+
+        {
+            id: "gaming-keyboard",
+
+            title: "Gaming Keyboard",
+
+            category: "Gaming",
+
+            oldPrice: 89.99,
+            currency: "$",
+
+            image: "",
+
+            worthItScore: 8.5,
+
+            verdict:
+                "Solid upgrade without overspending",
+
+            updatedAt: "Today",
+
+            stores: [
+
+                {
+                    name: "Example Gaming",
+                    price: 59.99,
+                    url: "https://example.com",
+                    affiliate: true
+                },
+
+                {
+                    name: "Example Tech",
+                    price: 64.99,
+                    url: "https://example.com",
+                    affiliate: true
+                }
+
+            ]
+        },
+
+
+        {
+            id: "face-care-set",
+
+            title: "Face Care Set",
+
+            category: "Beauty",
+
+            oldPrice: 49.99,
+            currency: "$",
+
+            image: "",
+
+            worthItScore: 8.1,
+
+            verdict:
+                "Good savings on a complete set",
+
+            updatedAt: "Today",
+
+            stores: [
+
+                {
+                    name: "Example Beauty",
+                    price: 34.99,
+                    url: "https://example.com",
+                    affiliate: true
+                },
+
+                {
+                    name: "Example Care",
+                    price: 37.99,
+                    url: "https://example.com",
+                    affiliate: true
+                }
+
+            ]
+        },
+
+
+        {
+            id: "yoga-mat",
+
+            title: "Yoga Mat",
+
+            category: "Sports",
+
+            oldPrice: 39.99,
+            currency: "$",
+
+            image: "",
+
+            worthItScore: 8.3,
+
+            verdict:
+                "Worth it for regular home workouts",
+
+            updatedAt: "Today",
+
+            stores: [
+
+                {
+                    name: "Example Fitness",
+                    price: 27.99,
+                    url: "https://example.com",
+                    affiliate: true
+                },
+
+                {
+                    name: "Example Sports",
+                    price: 29.99,
+                    url: "https://example.com",
+                    affiliate: true
+                }
+
+            ]
+        },
+
+
+        {
+            id: "car-phone-holder",
+
+            title: "Car Phone Holder",
+
+            category: "Automotive",
+
+            oldPrice: 29.99,
+            currency: "$",
+
+            image: "",
+
+            worthItScore: 8.9,
+
+            verdict:
+                "Small cost with practical everyday value",
+
+            updatedAt: "Today",
+
+            stores: [
+
+                {
+                    name: "Example Auto",
+                    price: 19.99,
+                    url: "https://example.com",
+                    affiliate: true
+                },
+
+                {
+                    name: "Example Accessories",
+                    price: 21.99,
+                    url: "https://example.com",
+                    affiliate: true
+                }
+
+            ]
+        },
+
+
+        {
+            id: "travel-backpack",
+
+            title: "Travel Backpack",
+
+            category: "Travel",
+
+            oldPrice: 79.99,
+            currency: "$",
+
+            image: "",
+
+            worthItScore: 8.6,
+
+            verdict:
+                "Good long-term value for frequent travelers",
+
+            updatedAt: "Today",
+
+            stores: [
+
+                {
+                    name: "Example Travel",
+                    price: 54.99,
+                    url: "https://example.com",
+                    affiliate: true
+                },
+
+                {
+                    name: "Example Bags",
+                    price: 59.99,
+                    url: "https://example.com",
+                    affiliate: true
+                }
+
+            ]
+        },
+
+
+        {
+            id: "office-chair",
+
+            title: "Office Chair",
+
+            category: "Office",
+
+            oldPrice: 249.99,
+            currency: "$",
+
+            image: "",
+
+            worthItScore: 9.1,
+
+            verdict:
+                "Strong value for a long-term purchase",
+
+            updatedAt: "Today",
+
+            stores: [
+
+                {
+                    name: "Example Office",
+                    price: 179.99,
+                    url: "https://example.com",
+                    affiliate: true
+                },
+
+                {
+                    name: "Example Furniture",
+                    price: 189.99,
+                    url: "https://example.com",
+                    affiliate: true
+                }
+
+            ]
+        },
+
+
+        {
+            id: "tool-set",
+
+            title: "Tool Set",
+
+            category: "Tools",
+
+            oldPrice: 119.99,
+            currency: "$",
+
+            image: "",
+
+            worthItScore: 8.8,
+
+            verdict:
+                "Excellent value for a complete starter set",
+
+            updatedAt: "Today",
+
+            stores: [
+
+                {
+                    name: "Example Tools",
+                    price: 84.99,
+                    url: "https://example.com",
+                    affiliate: true
+                },
+
+                {
+                    name: "Example Hardware",
+                    price: 89.99,
+                    url: "https://example.com",
+                    affiliate: true
+                }
+
+            ]
+        }
+
+    ];
+
 
     /* =================================================
        HELPERS
@@ -167,6 +521,22 @@
     }
 
 
+    function calculateSavings(oldPrice, price){
+
+        if(
+            !Number.isFinite(oldPrice) ||
+            !Number.isFinite(price)
+        ){
+            return 0;
+        }
+
+        return Math.max(
+            0,
+            oldPrice - price
+        );
+    }
+
+
     function formatPrice(value, currency){
 
         return (
@@ -176,145 +546,165 @@
     }
 
 
+    function getStores(deal){
+
+        if(
+            !Array.isArray(deal.stores)
+        ){
+            return [];
+        }
+
+        return deal.stores
+            .filter(
+                store =>
+                    store &&
+                    Number.isFinite(store.price)
+            )
+            .sort(
+                (a,b) =>
+                    a.price - b.price
+            );
+
+    }
+
+
+    function getBestStore(deal){
+
+        const stores =
+            getStores(deal);
+
+        return stores.length
+            ? stores[0]
+            : null;
+
+    }
+
+
+    function escapeHTML(value){
+
+        return String(value ?? "")
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#039;");
+
+    }
+
+
     /* =================================================
-   OPEN DISCOUNTS
-================================================= */
+       OPEN DISCOUNTS
+    ================================================= */
 
-window.openDiscounts = function(){
+    window.openDiscounts = function(){
 
-    /* ---------------------------------------------
-       HIDE OTHER SECTIONS
-    --------------------------------------------- */
+        const homePage =
+            document.getElementById("homePage");
 
-    const homePage =
-        document.getElementById("homePage");
-
-    if(homePage){
-        homePage.style.display = "none";
-    }
+        if(homePage){
+            homePage.style.display = "none";
+        }
 
 
-    document
-        .querySelectorAll(".app")
-        .forEach(x =>
-            x.classList.remove("active")
-        );
+        document
+            .querySelectorAll(".app")
+            .forEach(x =>
+                x.classList.remove("active")
+            );
 
 
-    const weatherSection =
-        document.getElementById("weatherSection");
+        const weatherSection =
+            document.getElementById("weatherSection");
 
-    if(weatherSection){
-        weatherSection.style.display = "none";
-    }
-
-
-    const newsSection =
-        document.getElementById("newsSection");
-
-    if(newsSection){
-        newsSection.style.display = "none";
-    }
+        if(weatherSection){
+            weatherSection.style.display = "none";
+        }
 
 
-    const settingsPanel =
-        document.getElementById("settingsPanel");
+        const newsSection =
+            document.getElementById("newsSection");
 
-    if(settingsPanel){
-        settingsPanel.style.display = "none";
-    }
-
-
-    /* ---------------------------------------------
-       GET / CREATE DISCOUNTS SECTION
-    --------------------------------------------- */
-
-    let container =
-    document.getElementById(
-        "discountsSection"
-    );
+        if(newsSection){
+            newsSection.style.display = "none";
+        }
 
 
-if(!container){
+        const settingsPanel =
+            document.getElementById("settingsPanel");
 
-    container =
-        document.createElement("section");
-
-    container.id =
-        "discountsSection";
-
-    container.className =
-        "discounts-section";
-
-    const footer =
-        document.querySelector("footer");
-
-    if(footer){
-
-        footer.parentNode.insertBefore(
-            container,
-            footer
-        );
-
-    }else{
-
-        document.body.appendChild(
-            container
-        );
-
-    }
-
-}
+        if(settingsPanel){
+            settingsPanel.style.display = "none";
+        }
 
 
-    /* ---------------------------------------------
-       RENDER
-    --------------------------------------------- */
-
-    renderDiscounts(
-        container
-    );
+        let container =
+            document.getElementById(
+                "discountsSection"
+            );
 
 
-    /* ---------------------------------------------
-       SHOW
-    --------------------------------------------- */
+        if(!container){
 
-    container.style.display =
-        "block";
+            container =
+                document.createElement("section");
 
+            container.id =
+                "discountsSection";
 
-    /* ---------------------------------------------
-       CLOSE NAVIGATION
-    --------------------------------------------- */
-
-    const navLinks =
-        document.getElementById(
-            "navLinks"
-        );
-
-    if(navLinks){
-        navLinks.classList.remove("open");
-    }
+            container.className =
+                "discounts-section";
 
 
-    /* ---------------------------------------------
-       SCROLL TO TOP
-    --------------------------------------------- */
-
-    document.documentElement.style.overflowY =
-        "auto";
-
-    document.body.style.overflowY =
-        "auto";
+            const footer =
+                document.querySelector("footer");
 
 
-    window.scrollTo({
-        top: 0,
-        behavior: "smooth"
-    });
+            if(footer){
 
-};
+                footer.parentNode.insertBefore(
+                    container,
+                    footer
+                );
+
+            }else{
+
+                document.body.appendChild(
+                    container
+                );
+
+            }
+
+        }
+
+
+        renderDiscounts(container);
+
+
+        container.style.display =
+            "block";
+
+
+        const navLinks =
+            document.getElementById("navLinks");
+
+        if(navLinks){
+            navLinks.classList.remove("open");
+        }
+
+
+        document.documentElement.style.overflowY =
+            "auto";
+
+        document.body.style.overflowY =
+            "auto";
+
+
+        window.scrollTo({
+            top: 0,
+            behavior: "smooth"
+        });
+
+    };
 
 
     /* =================================================
@@ -338,6 +728,15 @@ if(!container){
             );
 
 
+        const categories = [
+            ...new Set(
+                discounts
+                    .map(deal => deal.category)
+                    .filter(Boolean)
+            )
+        ];
+
+
         let html = `
 
             <div class="discounts-header">
@@ -349,11 +748,11 @@ if(!container){
                     </h2>
 
                     <p>
-                        Today's selected deals
+                        Smart deals selected by Worth It
                     </p>
 
                     <small>
-                        Updated ${dateText}
+                        Updated ${escapeHTML(dateText)}
                     </small>
 
                 </div>
@@ -363,35 +762,29 @@ if(!container){
 
             <div class="discounts-filters">
 
-    <button
-        type="button"
-        class="discount-filter active"
-        data-category="all"
-    >
-        All
-    </button>
+                <button
+                    type="button"
+                    class="discount-filter active"
+                    data-category="all"
+                >
+                    All
+                </button>
 
-    ${[
-        ...new Set(
-            discounts
-                .map(deal => deal.category)
-                .filter(Boolean)
-        )
-    ]
-        .map(category => `
+                ${categories
+                    .map(category => `
 
-            <button
-                type="button"
-                class="discount-filter"
-                data-category="${category}"
-            >
-                ${category}
-            </button>
+                        <button
+                            type="button"
+                            class="discount-filter"
+                            data-category="${escapeHTML(category)}"
+                        >
+                            ${escapeHTML(category)}
+                        </button>
 
-        `)
-        .join("")}
+                    `)
+                    .join("")}
 
-</div>
+            </div>
 
 
             <div
@@ -399,23 +792,11 @@ if(!container){
                 id="discountsGrid"
             >
 
-        `;
-
-
-        discounts
-        .forEach(
-          deal => {
-
-            html +=
-                createDealCard(
-                    deal
-                );
-
-        }
-    );
-
-
-        html += `
+                ${discounts
+                    .map(deal =>
+                        createDealCard(deal)
+                    )
+                    .join("")}
 
             </div>
 
@@ -437,39 +818,145 @@ if(!container){
 
     function createDealCard(deal){
 
+        const stores =
+            getStores(deal);
+
+
+        const bestStore =
+            getBestStore(deal);
+
+
+        const bestPrice =
+            bestStore
+                ? bestStore.price
+                : 0;
+
+
         const discount =
             calculateDiscount(
                 deal.oldPrice,
-                deal.price
+                bestPrice
+            );
+
+
+        const savings =
+            calculateSavings(
+                deal.oldPrice,
+                bestPrice
             );
 
 
         const image =
             deal.image
+
             ? `
                 <img
-                    src="${deal.image}"
-                    alt="${deal.title}"
+                    src="${escapeHTML(deal.image)}"
+                    alt="${escapeHTML(deal.title)}"
                     class="discount-image"
+                    loading="lazy"
                 >
-              `
+            `
+
             : `
                 <div class="discount-image-placeholder">
                     🛍️
                 </div>
-              `;
+            `;
+
+
+        const score =
+            Number.isFinite(
+                deal.worthItScore
+            )
+                ? deal.worthItScore.toFixed(1)
+                : "—";
+
+
+        const storeRows =
+            stores
+                .slice(0, 3)
+                .map(
+                    (store, index) => {
+
+                        const isBest =
+                            index === 0;
+
+
+                        return `
+
+                            <div
+                                class="discount-store-row
+                                ${isBest
+                                    ? "discount-best-store"
+                                    : ""
+                                }"
+                            >
+
+                                <div>
+
+                                    <strong>
+                                        ${escapeHTML(
+                                            store.name
+                                        )}
+                                    </strong>
+
+                                    ${
+                                        isBest
+                                        ? `
+                                            <span class="discount-best-label">
+                                                Best Price
+                                            </span>
+                                          `
+                                        : ""
+                                    }
+
+                                </div>
+
+
+                                <div class="discount-store-action">
+
+                                    <strong class="discount-store-price">
+                                        ${formatPrice(
+                                            store.price,
+                                            deal.currency
+                                        )}
+                                    </strong>
+
+
+                                    <a
+                                        href="${escapeHTML(store.url)}"
+                                        target="_blank"
+                                        rel="noopener noreferrer sponsored"
+                                        class="discount-buy-button"
+                                    >
+                                        Buy →
+                                    </a>
+
+                                </div>
+
+                            </div>
+
+                        `;
+
+                    }
+                )
+                .join("");
 
 
         return `
 
             <article
                 class="discount-card"
-                data-category="${deal.category}"
+                data-category="${escapeHTML(
+                    deal.category
+                )}"
             >
 
                 <div class="discount-card-image">
 
                     ${image}
+
 
                     <span class="discount-badge">
                         -${discount}%
@@ -480,19 +967,28 @@ if(!container){
 
                 <div class="discount-card-content">
 
-                    <div class="discount-store">
-                        ${deal.store}
+
+                    <div class="discount-card-top">
+
+                        <span class="discount-category">
+                            ${escapeHTML(
+                                deal.category
+                            )}
+                        </span>
+
+
+                        <span class="discount-worth-it">
+                            Worth It ${score}/10
+                        </span>
+
                     </div>
 
 
                     <h3>
-                        ${deal.title}
+                        ${escapeHTML(
+                            deal.title
+                        )}
                     </h3>
-
-
-                    <div class="discount-category">
-                        ${deal.category}
-                    </div>
 
 
                     <div class="discount-prices">
@@ -504,9 +1000,10 @@ if(!container){
                             )}
                         </span>
 
+
                         <span class="discount-new-price">
                             ${formatPrice(
-                                deal.price,
+                                bestPrice,
                                 deal.currency
                             )}
                         </span>
@@ -514,14 +1011,56 @@ if(!container){
                     </div>
 
 
-                    <a
-                        href="${deal.url}"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        class="discount-deal-button"
-                    >
-                        View Deal →
-                    </a>
+                    <div class="discount-savings">
+
+                        Save
+                        <strong>
+                            ${formatPrice(
+                                savings,
+                                deal.currency
+                            )}
+                        </strong>
+
+                    </div>
+
+
+                    <div class="discount-verdict">
+
+                        <strong>
+                            Worth It verdict
+                        </strong>
+
+                        <p>
+                            ${escapeHTML(
+                                deal.verdict ||
+                                "Good value at this price."
+                            )}
+                        </p>
+
+                    </div>
+
+
+                    <div class="discount-where-to-buy">
+
+                        <div class="discount-where-title">
+                            Where to buy
+                        </div>
+
+
+                        ${storeRows}
+
+                    </div>
+
+
+                    <div class="discount-updated">
+
+                        Updated:
+                        ${escapeHTML(
+                            deal.updatedAt || "Today"
+                        )}
+
+                    </div>
+
 
                 </div>
 
@@ -538,124 +1077,103 @@ if(!container){
 
     function setupDiscountFilters(){
 
-    const buttons =
-        document.querySelectorAll(
-            ".discount-filter"
-        );
+        const buttons =
+            document.querySelectorAll(
+                ".discount-filter"
+            );
 
 
-    buttons.forEach(
-        button => {
+        buttons.forEach(
+            button => {
 
-            button.addEventListener(
-                "click",
-                function(){
+                button.addEventListener(
+                    "click",
+                    function(){
 
-                    const category =
-                        this.dataset.category;
-
-
-                    buttons.forEach(
-                        btn =>
-                            btn.classList.remove(
-                                "active"
-                            )
-                    );
+                        const category =
+                            this.dataset.category;
 
 
-                    this.classList.add(
-                        "active"
-                    );
-
-
-                    const grid =
-                        document.getElementById(
-                            "discountsGrid"
+                        buttons.forEach(
+                            btn =>
+                                btn.classList.remove(
+                                    "active"
+                                )
                         );
 
 
-                    if(!grid){
-                        return;
-                    }
+                        this.classList.add(
+                            "active"
+                        );
 
 
-                    const filteredDeals =
-                        category === "all"
-
-                            ? discounts
-
-                            : discounts.filter(
-                                deal =>
-                                    deal.category === category
+                        const grid =
+                            document.getElementById(
+                                "discountsGrid"
                             );
 
 
-                   const visibleDeals =
-                       category === "all"
-                       ? filteredDeals
-                       : filteredDeals.slice(
-                       0,
-                       8
-                 );
-
-                   if(category !== "all"){
-
-                       const missing =
-                       8 - visibleDeals.length;
-
-                       for(let i = 0; i < missing; i++){
-
-                       visibleDeals.push(null);
-
-                       }
-
-                 }
-                   
-                                grid.innerHTML = "";
-
-
-                               visibleDeals.forEach(
-                               deal => {
-
-                               if(deal){
-
-                               grid.innerHTML +=
-                               createDealCard(
-                               deal
-                         );
-
-                               }else{
-
-                               grid.innerHTML += `
-                               <article class="discount-card">
-                               <div class="discount-card-image">
-                               <div class="discount-image-placeholder">
-                               🛍️
-                        </div>
-                    </div>
-
-                    <div class="discount-card-content">
-
-                        <h3>
-                            No discounts available right now
-                        </h3>
-
-                     </div>
-                          </article>
-                        `;
-
+                        if(!grid){
+                            return;
                         }
 
-                      }
-                  );
 
-                }
-            );
+                        const filteredDeals =
+                            category === "all"
 
-        }
-    );
+                                ? discounts
 
-}
+                                : discounts.filter(
+                                    deal =>
+                                        deal.category === category
+                                );
+
+
+                        if(!filteredDeals.length){
+
+                            grid.innerHTML = `
+
+                                <article class="discount-card">
+
+                                    <div class="discount-card-image">
+
+                                        <div class="discount-image-placeholder">
+                                            🛍️
+                                        </div>
+
+                                    </div>
+
+
+                                    <div class="discount-card-content">
+
+                                        <h3>
+                                            No discounts available right now
+                                        </h3>
+
+                                    </div>
+
+                                </article>
+
+                            `;
+
+                            return;
+                        }
+
+
+                        grid.innerHTML =
+                            filteredDeals
+                                .map(deal =>
+                                    createDealCard(deal)
+                                )
+                                .join("");
+
+                    }
+                );
+
+            }
+        );
+
+    }
 
 
     /* =================================================
