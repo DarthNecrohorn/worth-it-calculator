@@ -11,6 +11,20 @@ if(discountsSection){
     discountsSection.style.display = "none";
 }
 
+const marketsSection =
+    document.getElementById("marketsSection");
+
+if(marketsSection){
+    marketsSection.style.display = "none";
+}
+
+const moneySection =
+    document.getElementById("moneySection");
+
+if(moneySection){
+    moneySection.style.display = "none";
+}
+    
 document.querySelectorAll(".app").forEach(x => {
     x.classList.remove("active");
     x.style.display = "none";
