@@ -2335,14 +2335,6 @@ html[data-theme="light"] .discount-image-placeholder{
     background: currentColor;
 }
 
-.movement-scale span{
-    display:block;
-    width:50%;
-    height:100%;
-    border-radius:999px;
-    background:currentColor;
-}
-
 .market-movement strong{
     min-width:52px;
     text-align:right;
