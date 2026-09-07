@@ -1367,33 +1367,33 @@ function openMoney() {
     }
 
     const marketsSection =
-        document.getElementById("marketsSection");
+    document.getElementById("marketsSection");
 
-    if (marketsSection) {
-        marketsSection.style.display = "none";
-    }
+if (marketsSection) {
+    marketsSection.style.display = "none";
+}
 
-    const moneySection =
-        document.getElementById("moneySection");
+const moneySection =
+    document.getElementById("moneySection");
 
-    if (moneySection) {
-        moneySection.style.display = "block";
-    }
+if (moneySection) {
+    moneySection.style.display = "block";
+}
 
-    const navLinks =
-        document.getElementById("navLinks");
+const navLinks =
+    document.getElementById("navLinks");
 
-    if (navLinks) {
-        navLinks.classList.remove("open");
-    }
+if (navLinks) {
+    navLinks.classList.remove("open");
+}
 
-    document.documentElement.style.overflowY = "auto";
-    document.body.style.overflowY = "auto";
+document.documentElement.style.overflowY = "auto";
+document.body.style.overflowY = "auto";
 
-    window.scrollTo({
-        top: 0,
-        behavior: "smooth"
-    });
+window.scrollTo({
+    top: 0,
+    behavior: "smooth"
+});
 }
 
 window.openMoney = openMoney;
