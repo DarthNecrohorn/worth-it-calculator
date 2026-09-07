@@ -2503,3 +2503,414 @@ html[data-theme="light"] .more-menu-btn{
         width:min(300px,calc(100vw - 22px));
     }
 }
+
+/* =========================================================
+   MONEY / FX DASHBOARD
+========================================================= */
+
+.money-section{
+    width:min(1180px,calc(100% - 32px));
+    margin:0 auto;
+    padding:42px 0 70px;
+}
+
+/* HEADER */
+
+.money-header{
+    display:flex;
+    align-items:flex-end;
+    justify-content:space-between;
+    gap:20px;
+    margin-bottom:34px;
+}
+
+.money-header h2{
+    margin:5px 0 8px;
+    font-size:34px;
+    line-height:1.05;
+    letter-spacing:-1.2px;
+}
+
+.money-header p{
+    margin:0;
+    color:var(--muted);
+    font-size:14px;
+}
+
+.section-kicker{
+    display:inline-flex;
+    align-items:center;
+    gap:7px;
+    color:#a78bfa;
+    font-size:11px;
+    font-weight:900;
+    letter-spacing:1.2px;
+}
+
+/* REFRESH */
+
+.money-refresh-btn{
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    gap:7px;
+    border:1px solid var(--border);
+    background:rgba(255,255,255,.05);
+    color:var(--text);
+    border-radius:11px;
+    padding:10px 15px;
+    font-size:13px;
+    font-weight:800;
+    cursor:pointer;
+    transition:.2s;
+}
+
+.money-refresh-btn:hover{
+    background:rgba(124,92,255,.10);
+    border-color:rgba(124,92,255,.40);
+    transform:translateY(-1px);
+}
+
+/* BLOCK */
+
+.money-block{
+    margin-top:30px;
+}
+
+.money-block-header{
+    display:flex;
+    align-items:flex-end;
+    justify-content:space-between;
+    gap:15px;
+    margin-bottom:15px;
+}
+
+.money-block-header h3{
+    margin:0 0 4px;
+    font-size:20px;
+    letter-spacing:-.3px;
+}
+
+.money-block-header p{
+    margin:0;
+    color:var(--muted);
+    font-size:13px;
+}
+
+/* GRID */
+
+.money-grid{
+    display:grid;
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:12px;
+}
+
+/* CARD */
+
+.money-card{
+    position:relative;
+    display:grid;
+    grid-template-columns:minmax(180px,1.35fr) minmax(100px,.8fr) minmax(130px,1fr);
+    align-items:center;
+    gap:18px;
+
+    min-width:0;
+    padding:17px;
+
+    border:1px solid var(--border);
+    border-radius:16px;
+
+    background:
+        linear-gradient(
+            145deg,
+            rgba(255,255,255,.055),
+            rgba(255,255,255,.025)
+        );
+
+    box-shadow:
+        0 10px 35px rgba(0,0,0,.12);
+
+    transition:
+        transform .2s ease,
+        border-color .2s ease,
+        background .2s ease,
+        box-shadow .2s ease;
+}
+
+.money-card:hover{
+    transform:translateY(-3px);
+    border-color:rgba(124,92,255,.38);
+
+    background:
+        linear-gradient(
+            145deg,
+            rgba(124,92,255,.08),
+            rgba(255,255,255,.035)
+        );
+
+    box-shadow:
+        0 16px 45px rgba(0,0,0,.20);
+}
+
+/* LEFT SIDE */
+
+.money-card-main{
+    display:flex;
+    align-items:center;
+    gap:12px;
+    min-width:0;
+}
+
+.money-icon{
+    width:44px;
+    height:44px;
+
+    display:grid;
+    place-items:center;
+
+    flex:0 0 44px;
+
+    border-radius:13px;
+
+    background:
+        linear-gradient(
+            135deg,
+            rgba(124,92,255,.16),
+            rgba(56,189,248,.10)
+        );
+
+    border:1px solid rgba(124,92,255,.15);
+
+    font-size:22px;
+
+    box-shadow:
+        inset 0 1px 0 rgba(255,255,255,.06);
+}
+
+.money-card-main > div{
+    min-width:0;
+}
+
+.money-card-main strong{
+    display:block;
+    font-size:15px;
+    font-weight:900;
+    letter-spacing:-.2px;
+}
+
+.money-card-main small{
+    display:block;
+    margin-top:3px;
+    color:var(--muted);
+    font-size:11px;
+
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+}
+
+/* PRICE */
+
+.money-price{
+    min-width:0;
+}
+
+.money-price strong{
+    display:block;
+    font-size:18px;
+    font-weight:900;
+    letter-spacing:-.4px;
+}
+
+.money-price small{
+    display:block;
+    margin-top:3px;
+    color:var(--muted2);
+    font-size:10px;
+}
+
+/* MOVEMENT */
+
+.money-movement{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    min-width:0;
+}
+
+.money-movement .movement-scale{
+    position:relative;
+    flex:1;
+    height:8px;
+    min-width:60px;
+
+    border-radius:999px;
+
+    background:
+        linear-gradient(
+            90deg,
+            rgba(251,113,133,.18),
+            rgba(255,255,255,.07) 50%,
+            rgba(52,211,153,.18)
+        );
+
+    overflow:hidden;
+}
+
+.money-movement .movement-scale span{
+    display:block;
+    width:50%;
+    height:100%;
+    border-radius:999px;
+
+    background:
+        linear-gradient(
+            90deg,
+            var(--primary),
+            var(--primary2)
+        );
+}
+
+.money-movement > strong{
+    min-width:58px;
+    text-align:right;
+
+    font-size:12px;
+    font-weight:900;
+}
+
+/* UPDATED */
+
+.money-updated{
+    margin-top:24px;
+    padding-top:16px;
+
+    border-top:1px solid var(--border);
+
+    color:var(--muted2);
+    font-size:11px;
+    text-align:right;
+}
+
+/* LIGHT THEME */
+
+html[data-theme="light"] .money-card{
+    background:
+        linear-gradient(
+            145deg,
+            rgba(255,255,255,.98),
+            rgba(248,250,252,.96)
+        );
+
+    border-color:rgba(15,23,42,.10);
+
+    box-shadow:
+        0 10px 30px rgba(15,23,42,.07);
+}
+
+html[data-theme="light"] .money-card:hover{
+    background:
+        linear-gradient(
+            145deg,
+            #ffffff,
+            #f8fafc
+        );
+
+    border-color:rgba(124,92,255,.30);
+
+    box-shadow:
+        0 15px 40px rgba(15,23,42,.10);
+}
+
+html[data-theme="light"] .money-icon{
+    background:rgba(124,92,255,.07);
+    border-color:rgba(124,92,255,.12);
+}
+
+html[data-theme="light"] .money-movement .movement-scale{
+    background:
+        linear-gradient(
+            90deg,
+            rgba(244,63,94,.12),
+            rgba(15,23,42,.06) 50%,
+            rgba(16,185,129,.12)
+        );
+}
+
+/* RESPONSIVE */
+
+@media(max-width:900px){
+
+    .money-grid{
+        grid-template-columns:1fr;
+    }
+
+}
+
+@media(max-width:700px){
+
+    .money-section{
+        width:min(100% - 22px,1180px);
+        padding:32px 0 60px;
+    }
+
+    .money-header{
+        align-items:flex-start;
+        flex-direction:column;
+        margin-bottom:26px;
+    }
+
+    .money-header h2{
+        font-size:29px;
+    }
+
+    .money-refresh-btn{
+        width:100%;
+    }
+
+    .money-card{
+        grid-template-columns:1fr;
+        gap:13px;
+        padding:15px;
+    }
+
+    .money-price{
+        padding-left:56px;
+    }
+
+    .money-movement{
+        padding-left:56px;
+    }
+
+}
+
+@media(max-width:450px){
+
+    .money-card-main{
+        gap:10px;
+    }
+
+    .money-icon{
+        width:40px;
+        height:40px;
+        flex-basis:40px;
+        font-size:20px;
+    }
+
+    .money-card-main strong{
+        font-size:14px;
+    }
+
+    .money-card-main small{
+        font-size:10px;
+    }
+
+    .money-price{
+        padding-left:50px;
+    }
+
+    .money-movement{
+        padding-left:50px;
+    }
+
+}
