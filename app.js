@@ -1045,6 +1045,9 @@ function showHome() {
     const newsSection = document.getElementById("newsSection");
     const settingsPanel = document.getElementById("settingsPanel");
 
+    const discountsSection =
+        document.getElementById("discountsSection");
+
     // Sakrij sve aplikacije
     document.querySelectorAll(".app").forEach(app => {
         app.classList.remove("active");
@@ -1062,6 +1065,10 @@ function showHome() {
 
     if (settingsPanel) {
         settingsPanel.style.display = "none";
+    }
+
+    if (discountsSection) {
+        discountsSection.style.display = "none";
     }
 
     // Vrati sve calculator kartice
@@ -1121,7 +1128,6 @@ function showCategory(category) {
         });
     }, 50);
 }
-
 window.showCategory = showCategory;
 
 function scrollToFAQ() {
