@@ -878,7 +878,12 @@ function openCalculator(type) {
 
     const discountsSection =
     document.getElementById("discountsSection");
-    
+
+    const marketsSection =
+    document.getElementById("marketsSection");
+
+const moneySection =
+    document.getElementById("moneySection");
 
     if (homePage) {
 
@@ -917,7 +922,16 @@ function openCalculator(type) {
         "none";
 
 }
-    
+
+    if (marketsSection) {
+    marketsSection.style.display = "none";
+
+}
+
+if (moneySection) {
+    moneySection.style.display = "none";
+
+}
 
     document
         .querySelectorAll(".app")
