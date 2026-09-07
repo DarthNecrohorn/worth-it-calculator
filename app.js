@@ -1062,6 +1062,12 @@ function showHome() {
     const discountsSection =
         document.getElementById("discountsSection");
 
+    const marketsSection =
+    document.getElementById("marketsSection");
+
+    const moneySection =
+    document.getElementById("moneySection");
+    
     // Sakrij sve aplikacije
     document.querySelectorAll(".app").forEach(app => {
         app.classList.remove("active");
