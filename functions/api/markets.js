@@ -46,13 +46,7 @@ export async function onRequestGet(context) {
                 status: response.status,
                 headers: {
                     "Content-Type": "application/json",
-
-                    // Cloudflare CDN cache:
-                    // 30 minutes = 1800 seconds
                     "Cloudflare-CDN-Cache-Control": "public, max-age=1800",
-
-                    // Browser/client cache:
-                    // keep this response fresh for a short time only
                     "Cache-Control": "public, max-age=60"
                 }
             }
