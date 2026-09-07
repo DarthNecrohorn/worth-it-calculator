@@ -1246,3 +1246,70 @@ function openMarketsFromMenu() {
 }
 
 window.openMarketsFromMenu = openMarketsFromMenu;
+
+function openMarkets() {
+
+    const homePage =
+        document.getElementById("homePage");
+
+    if (homePage) {
+        homePage.style.display = "none";
+    }
+
+    document.querySelectorAll(".app").forEach(x => {
+        x.classList.remove("active");
+        x.style.display = "none";
+    });
+
+    const weatherSection =
+        document.getElementById("weatherSection");
+
+    if (weatherSection) {
+        weatherSection.style.display = "none";
+    }
+
+    const newsSection =
+        document.getElementById("newsSection");
+
+    if (newsSection) {
+        newsSection.style.display = "none";
+    }
+
+    const discountsSection =
+        document.getElementById("discountsSection");
+
+    if (discountsSection) {
+        discountsSection.style.display = "none";
+    }
+
+    const settingsPanel =
+        document.getElementById("settingsPanel");
+
+    if (settingsPanel) {
+        settingsPanel.style.display = "none";
+    }
+
+    const marketsSection =
+        document.getElementById("marketsSection");
+
+    if (marketsSection) {
+        marketsSection.style.display = "block";
+    }
+
+    const navLinks =
+        document.getElementById("navLinks");
+
+    if (navLinks) {
+        navLinks.classList.remove("open");
+    }
+
+    document.documentElement.style.overflowY = "auto";
+    document.body.style.overflowY = "auto";
+
+    window.scrollTo({
+        top: 0,
+        behavior: "smooth"
+    });
+}
+
+window.openMarkets = openMarkets;
