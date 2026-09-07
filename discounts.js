@@ -36,7 +36,9 @@
 
             image: "",
 
-            worthItScore: 9.2,
+            expectedUsage: "100+ sessions",
+            costPerUse: 0.40,
+            alternative: "$29.99",
 
             verdict:
                 "Excellent value for educational play",
@@ -82,7 +84,9 @@
 
             image: "",
 
-            worthItScore: 8.7,
+            expectedUsage: "500+ hours",
+            costPerUse: 0.14,
+            alternative: "$54.99",
 
             verdict:
                 "Strong price for everyday use",
@@ -121,7 +125,9 @@
 
             image: "",
 
-            worthItScore: 8.4,
+            expectedUsage: "1,000+ days",
+            costPerUse: 0.10,
+            alternative: "$89.99",
 
             verdict:
                 "Good discount for a popular upgrade",
@@ -160,7 +166,9 @@
 
             image: "",
 
-            worthItScore: 8.8,
+            expectedUsage: "150+ runs",
+            costPerUse: 0.53,
+            alternative: "$69.99",
 
             verdict:
                 "Very good value at this price",
@@ -199,7 +207,9 @@
 
             image: "",
 
-            worthItScore: 9.0,
+            expectedUsage: "1,500+ uses",
+            costPerUse: 0.09,
+            alternative: "$119.99",
 
             verdict:
                 "Great deal for frequent coffee drinkers",
@@ -238,7 +248,9 @@
 
             image: "",
 
-            worthItScore: 8.5,
+            expectedUsage: "2,000+ hours",
+            costPerUse: 0.03,
+            alternative: "$49.99",
 
             verdict:
                 "Solid upgrade without overspending",
@@ -277,7 +289,9 @@
 
             image: "",
 
-            worthItScore: 8.1,
+            expectedUsage: "60+ uses",
+            costPerUse: 0.58,
+            alternative: "$27.99",
 
             verdict:
                 "Good savings on a complete set",
@@ -316,7 +330,9 @@
 
             image: "",
 
-            worthItScore: 8.3,
+            expectedUsage: "200+ workouts",
+            costPerUse: 0.14,
+            alternative: "$19.99",
 
             verdict:
                 "Worth it for regular home workouts",
@@ -355,7 +371,9 @@
 
             image: "",
 
-            worthItScore: 8.9,
+            expectedUsage: "1,000+ trips",
+            costPerUse: 0.02,
+            alternative: "$14.99",
 
             verdict:
                 "Small cost with practical everyday value",
@@ -394,7 +412,9 @@
 
             image: "",
 
-            worthItScore: 8.6,
+            expectedUsage: "300+ trips",
+            costPerUse: 0.18,
+            alternative: "$44.99",
 
             verdict:
                 "Good long-term value for frequent travelers",
@@ -433,7 +453,9 @@
 
             image: "",
 
-            worthItScore: 9.1,
+            expectedUsage: "5,000+ hours",
+            costPerUse: 0.04,
+            alternative: "$149.99",
 
             verdict:
                 "Strong value for a long-term purchase",
@@ -472,7 +494,9 @@
 
             image: "",
 
-            worthItScore: 8.8,
+            expectedUsage: "500+ projects",
+            costPerUse: 0.17,
+            alternative: "$69.99",
 
             verdict:
                 "Excellent value for a complete starter set",
@@ -588,6 +612,27 @@
             .replace(/>/g, "&gt;")
             .replace(/"/g, "&quot;")
             .replace(/'/g, "&#039;");
+
+    }
+
+
+    /* =================================================
+       TEMPORARY TEST WORTH IT SCORE
+
+       Discounts engine još nije aktivan.
+
+       Zato trenutno vraćamo samo:
+       0 ili 10
+
+       Kasnije se ovde ubacuje prava
+       Worth It Score kalkulacija.
+    ================================================= */
+
+    function getTemporaryWorthItScore(){
+
+        return Math.random() < 0.5
+            ? 0
+            : 10;
 
     }
 
@@ -865,12 +910,14 @@
             `;
 
 
+        /*
+           TEMPORARY TEST SCORE
+
+           Svaki renderer dobija 0 ili 10.
+        */
+
         const score =
-            Number.isFinite(
-                deal.worthItScore
-            )
-                ? deal.worthItScore.toFixed(1)
-                : "—";
+            getTemporaryWorthItScore();
 
 
         /* ---------------------------------------------
@@ -1037,16 +1084,6 @@
                             )}
                         </span>
 
-
-                        <span class="discount-worth-it">
-
-                            Worth It
-                            <strong>
-                                ${score}
-                            </strong>/10
-
-                        </span>
-
                     </div>
 
 
@@ -1079,6 +1116,76 @@
                             )}
 
                         </span>
+
+                    </div>
+
+
+                    <div class="discount-value-analysis">
+
+
+                        <div class="discount-analysis-row">
+
+                            <span>
+                                Expected usage
+                            </span>
+
+                            <strong>
+                                ${escapeHTML(
+                                    deal.expectedUsage ||
+                                    "—"
+                                )}
+                            </strong>
+
+                        </div>
+
+
+                        <div class="discount-analysis-row">
+
+                            <span>
+                                Cost per use
+                            </span>
+
+                            <strong>
+                                ${deal.costPerUse != null
+                                    ? `~${formatPrice(
+                                        deal.costPerUse,
+                                        deal.currency
+                                    )}`
+                                    : "—"
+                                }
+                            </strong>
+
+                        </div>
+
+
+                        <div class="discount-analysis-row">
+
+                            <span>
+                                Alternative
+                            </span>
+
+                            <strong>
+                                ${escapeHTML(
+                                    deal.alternative ||
+                                    "—"
+                                )}
+                            </strong>
+
+                        </div>
+
+
+                        <div class="discount-score-row">
+
+                            <span>
+                                Worth It Score
+                            </span>
+
+                            <strong>
+                                ${score}/10
+                            </strong>
+
+                        </div>
+
 
                     </div>
 
