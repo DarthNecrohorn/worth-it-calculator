@@ -285,8 +285,10 @@ if(discountsSection){
     discountsSection.style.display = "none";
 }
 
-    document.querySelectorAll(".app")
-        .forEach(x => x.classList.remove("active"));
+    document.querySelectorAll(".app").forEach(x => {
+    x.classList.remove("active");
+    x.style.display = "none";
+});
 
     $("weatherSection").style.display = "none";
 
