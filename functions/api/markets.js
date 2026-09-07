@@ -45,10 +45,10 @@ export async function onRequestGet(context) {
             {
                 status: response.status,
                 headers: {
-                    "Content-Type": "application/json",
-                    "Cloudflare-CDN-Cache-Control": "public, max-age=1800",
-                    "Cache-Control": "public, max-age=60"
-                }
+                  "Content-Type": "application/json",
+                  "Cache-Control": "no-store",
+                  "Cloudflare-CDN-Cache-Control": "no-store"
+               }
             }
         );
 
