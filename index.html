@@ -523,7 +523,525 @@
     </div>
 
 </section>
-    
+
+   ```html
+<section class="money-section" id="moneySection" style="display:none;">
+
+    <div class="money-header">
+        <div>
+            <span class="section-kicker">GLOBAL CURRENCIES</span>
+            <h2>Money</h2>
+            <p>Popular currencies and exchange rates in one place.</p>
+        </div>
+
+        <button
+            type="button"
+            class="money-refresh-btn"
+            onclick="refreshMoney()"
+        >
+            ↻ Refresh
+        </button>
+    </div>
+
+
+    <!-- POPULAR -->
+
+    <div class="money-block">
+
+        <div class="money-block-header">
+            <div>
+                <h3>Popular</h3>
+                <p>Most followed currency pairs</p>
+            </div>
+        </div>
+
+        <div class="money-grid" id="popularCurrenciesGrid">
+
+            <div class="money-card">
+                <div class="money-card-main">
+                    <span class="money-icon">🇪🇺</span>
+                    <div>
+                        <strong>EUR / USD</strong>
+                        <small>Euro / US Dollar</small>
+                    </div>
+                </div>
+
+                <div class="money-price">
+                    <strong>—</strong>
+                    <small>Exchange rate</small>
+                </div>
+
+                <div class="money-movement">
+                    <div class="movement-scale">
+                        <span></span>
+                    </div>
+                    <strong>—</strong>
+                </div>
+            </div>
+
+
+            <div class="money-card">
+                <div class="money-card-main">
+                    <span class="money-icon">🇯🇵</span>
+                    <div>
+                        <strong>USD / JPY</strong>
+                        <small>US Dollar / Japanese Yen</small>
+                    </div>
+                </div>
+
+                <div class="money-price">
+                    <strong>—</strong>
+                    <small>Exchange rate</small>
+                </div>
+
+                <div class="money-movement">
+                    <div class="movement-scale">
+                        <span></span>
+                    </div>
+                    <strong>—</strong>
+                </div>
+            </div>
+
+
+            <div class="money-card">
+                <div class="money-card-main">
+                    <span class="money-icon">🇬🇧</span>
+                    <div>
+                        <strong>GBP / USD</strong>
+                        <small>British Pound / US Dollar</small>
+                    </div>
+                </div>
+
+                <div class="money-price">
+                    <strong>—</strong>
+                    <small>Exchange rate</small>
+                </div>
+
+                <div class="money-movement">
+                    <div class="movement-scale">
+                        <span></span>
+                    </div>
+                    <strong>—</strong>
+                </div>
+            </div>
+
+
+            <div class="money-card">
+                <div class="money-card-main">
+                    <span class="money-icon">🇨🇭</span>
+                    <div>
+                        <strong>USD / CHF</strong>
+                        <small>US Dollar / Swiss Franc</small>
+                    </div>
+                </div>
+
+                <div class="money-price">
+                    <strong>—</strong>
+                    <small>Exchange rate</small>
+                </div>
+
+                <div class="money-movement">
+                    <div class="movement-scale">
+                        <span></span>
+                    </div>
+                    <strong>—</strong>
+                </div>
+            </div>
+
+
+            <div class="money-card">
+                <div class="money-card-main">
+                    <span class="money-icon">🇨🇦</span>
+                    <div>
+                        <strong>USD / CAD</strong>
+                        <small>US Dollar / Canadian Dollar</small>
+                    </div>
+                </div>
+
+                <div class="money-price">
+                    <strong>—</strong>
+                    <small>Exchange rate</small>
+                </div>
+
+                <div class="money-movement">
+                    <div class="movement-scale">
+                        <span></span>
+                    </div>
+                    <strong>—</strong>
+                </div>
+            </div>
+
+
+            <div class="money-card">
+                <div class="money-card-main">
+                    <span class="money-icon">🇦🇺</span>
+                    <div>
+                        <strong>AUD / USD</strong>
+                        <small>Australian Dollar / US Dollar</small>
+                    </div>
+                </div>
+
+                <div class="money-price">
+                    <strong>—</strong>
+                    <small>Exchange rate</small>
+                </div>
+
+                <div class="money-movement">
+                    <div class="movement-scale">
+                        <span></span>
+                    </div>
+                    <strong>—</strong>
+                </div>
+            </div>
+
+
+            <div class="money-card">
+                <div class="money-card-main">
+                    <span class="money-icon">🇳🇿</span>
+                    <div>
+                        <strong>NZD / USD</strong>
+                        <small>New Zealand Dollar / US Dollar</small>
+                    </div>
+                </div>
+
+                <div class="money-price">
+                    <strong>—</strong>
+                    <small>Exchange rate</small>
+                </div>
+
+                <div class="money-movement">
+                    <div class="movement-scale">
+                        <span></span>
+                    </div>
+                    <strong>—</strong>
+                </div>
+            </div>
+
+
+            <div class="money-card">
+                <div class="money-card-main">
+                    <span class="money-icon">🇨🇳</span>
+                    <div>
+                        <strong>USD / CNY</strong>
+                        <small>US Dollar / Chinese Yuan</small>
+                    </div>
+                </div>
+
+                <div class="money-price">
+                    <strong>—</strong>
+                    <small>Exchange rate</small>
+                </div>
+
+                <div class="money-movement">
+                    <div class="movement-scale">
+                        <span></span>
+                    </div>
+                    <strong>—</strong>
+                </div>
+            </div>
+
+
+            <div class="money-card">
+                <div class="money-card-main">
+                    <span class="money-icon">🇮🇳</span>
+                    <div>
+                        <strong>USD / INR</strong>
+                        <small>US Dollar / Indian Rupee</small>
+                    </div>
+                </div>
+
+                <div class="money-price">
+                    <strong>—</strong>
+                    <small>Exchange rate</small>
+                </div>
+
+                <div class="money-movement">
+                    <div class="movement-scale">
+                        <span></span>
+                    </div>
+                    <strong>—</strong>
+                </div>
+            </div>
+
+
+            <div class="money-card">
+                <div class="money-card-main">
+                    <span class="money-icon">🇧🇷</span>
+                    <div>
+                        <strong>USD / BRL</strong>
+                        <small>US Dollar / Brazilian Real</small>
+                    </div>
+                </div>
+
+                <div class="money-price">
+                    <strong>—</strong>
+                    <small>Exchange rate</small>
+                </div>
+
+                <div class="money-movement">
+                    <div class="movement-scale">
+                        <span></span>
+                    </div>
+                    <strong>—</strong>
+                </div>
+            </div>
+
+
+            <div class="money-card">
+                <div class="money-card-main">
+                    <span class="money-icon">🇹🇷</span>
+                    <div>
+                        <strong>USD / TRY</strong>
+                        <small>US Dollar / Turkish Lira</small>
+                    </div>
+                </div>
+
+                <div class="money-price">
+                    <strong>—</strong>
+                    <small>Exchange rate</small>
+                </div>
+
+                <div class="money-movement">
+                    <div class="movement-scale">
+                        <span></span>
+                    </div>
+                    <strong>—</strong>
+                </div>
+            </div>
+
+
+            <div class="money-card">
+                <div class="money-card-main">
+                    <span class="money-icon">🇵🇱</span>
+                    <div>
+                        <strong>EUR / PLN</strong>
+                        <small>Euro / Polish Zloty</small>
+                    </div>
+                </div>
+
+                <div class="money-price">
+                    <strong>—</strong>
+                    <small>Exchange rate</small>
+                </div>
+
+                <div class="money-movement">
+                    <div class="movement-scale">
+                        <span></span>
+                    </div>
+                    <strong>—</strong>
+                </div>
+            </div>
+
+
+            <div class="money-card">
+                <div class="money-card-main">
+                    <span class="money-icon">🇷🇸</span>
+                    <div>
+                        <strong>EUR / RSD</strong>
+                        <small>Euro / Serbian Dinar</small>
+                    </div>
+                </div>
+
+                <div class="money-price">
+                    <strong>—</strong>
+                    <small>Exchange rate</small>
+                </div>
+
+                <div class="money-movement">
+                    <div class="movement-scale">
+                        <span></span>
+                    </div>
+                    <strong>—</strong>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+
+    <!-- REGIONS -->
+
+    <div class="money-block">
+
+        <div class="money-block-header">
+            <div>
+                <h3>Major currencies</h3>
+                <p>Important currencies from major economies</p>
+            </div>
+        </div>
+
+        <div class="money-grid" id="majorCurrenciesGrid">
+
+            <div class="money-card">
+                <div class="money-card-main">
+                    <span class="money-icon">🇭🇰</span>
+                    <div>
+                        <strong>USD / HKD</strong>
+                        <small>US Dollar / Hong Kong Dollar</small>
+                    </div>
+                </div>
+
+                <div class="money-price">
+                    <strong>—</strong>
+                    <small>Exchange rate</small>
+                </div>
+
+                <div class="money-movement">
+                    <div class="movement-scale">
+                        <span></span>
+                    </div>
+                    <strong>—</strong>
+                </div>
+            </div>
+
+
+            <div class="money-card">
+                <div class="money-card-main">
+                    <span class="money-icon">🇸🇬</span>
+                    <div>
+                        <strong>USD / SGD</strong>
+                        <small>US Dollar / Singapore Dollar</small>
+                    </div>
+                </div>
+
+                <div class="money-price">
+                    <strong>—</strong>
+                    <small>Exchange rate</small>
+                </div>
+
+                <div class="money-movement">
+                    <div class="movement-scale">
+                        <span></span>
+                    </div>
+                    <strong>—</strong>
+                </div>
+            </div>
+
+
+            <div class="money-card">
+                <div class="money-card-main">
+                    <span class="money-icon">🇰🇷</span>
+                    <div>
+                        <strong>USD / KRW</strong>
+                        <small>US Dollar / South Korean Won</small>
+                    </div>
+                </div>
+
+                <div class="money-price">
+                    <strong>—</strong>
+                    <small>Exchange rate</small>
+                </div>
+
+                <div class="money-movement">
+                    <div class="movement-scale">
+                        <span></span>
+                    </div>
+                    <strong>—</strong>
+                </div>
+            </div>
+
+
+            <div class="money-card">
+                <div class="money-card-main">
+                    <span class="money-icon">🇿🇦</span>
+                    <div>
+                        <strong>USD / ZAR</strong>
+                        <small>US Dollar / South African Rand</small>
+                    </div>
+                </div>
+
+                <div class="money-price">
+                    <strong>—</strong>
+                    <small>Exchange rate</small>
+                </div>
+
+                <div class="money-movement">
+                    <div class="movement-scale">
+                        <span></span>
+                    </div>
+                    <strong>—</strong>
+                </div>
+            </div>
+
+
+            <div class="money-card">
+                <div class="money-card-main">
+                    <span class="money-icon">🇳🇴</span>
+                    <div>
+                        <strong>USD / NOK</strong>
+                        <small>US Dollar / Norwegian Krone</small>
+                    </div>
+                </div>
+
+                <div class="money-price">
+                    <strong>—</strong>
+                    <small>Exchange rate</small>
+                </div>
+
+                <div class="money-movement">
+                    <div class="movement-scale">
+                        <span></span>
+                    </div>
+                    <strong>—</strong>
+                </div>
+            </div>
+
+
+            <div class="money-card">
+                <div class="money-card-main">
+                    <span class="money-icon">🇸🇪</span>
+                    <div>
+                        <strong>USD / SEK</strong>
+                        <small>US Dollar / Swedish Krona</small>
+                    </div>
+                </div>
+
+                <div class="money-price">
+                    <strong>—</strong>
+                    <small>Exchange rate</small>
+                </div>
+
+                <div class="money-movement">
+                    <div class="movement-scale">
+                        <span></span>
+                    </div>
+                    <strong>—</strong>
+                </div>
+            </div>
+
+
+            <div class="money-card">
+                <div class="money-card-main">
+                    <span class="money-icon">🇨🇿</span>
+                    <div>
+                        <strong>EUR / CZK</strong>
+                        <small>Euro / Czech Koruna</small>
+                    </div>
+                </div>
+
+                <div class="money-price">
+                    <strong>—</strong>
+                    <small>Exchange rate</small>
+                </div>
+
+                <div class="money-movement">
+                    <div class="movement-scale">
+                        <span></span>
+                    </div>
+                    <strong>—</strong>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+
+    <div class="money-updated">
+        Last updated: <span id="moneyLastUpdated">—</span>
+    </div>
+
+</section>
+
 <div class="settings-panel" id="settingsPanel">
 
     <div class="settings-header">
