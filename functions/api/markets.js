@@ -41,14 +41,15 @@ export async function onRequestGet(context) {
         const data = await response.json();
 
         return new Response(
-            JSON.stringify(data),
-            {
-                status: response.status,
-                headers: {
-                    "Content-Type": "application/json"
-                }
-            }
-        );
+           JSON.stringify(data),
+    {
+           status: response.status,
+           headers: {
+           "Content-Type": "application/json",
+           "Cache-Control": "public, s-maxage=600, stale-while-revalidate=60"
+        }
+    }
+);
 
     } catch (error) {
 
