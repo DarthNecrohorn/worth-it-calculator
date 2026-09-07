@@ -161,10 +161,10 @@ function renderMarkets(data) {
             }
 
 
-            const change =
-                Number(
-                    item?.changes?.percentage?.["24h"]
-                );
+           const change =
+              Number(
+              item?.changes?.["24h"]?.percent
+        );
 
 
             const changeIsUp =
