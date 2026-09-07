@@ -876,6 +876,9 @@ function openCalculator(type) {
     const navLinks =
         document.getElementById("navLinks");
 
+    const discountsSection =
+    document.getElementById("discountsSection");
+    
 
     if (homePage) {
 
@@ -908,6 +911,13 @@ function openCalculator(type) {
 
 }
 
+    if (discountsSection) {
+
+    discountsSection.style.display =
+        "none";
+
+}
+    
 
     document
         .querySelectorAll(".app")
