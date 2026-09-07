@@ -278,20 +278,33 @@ function openNews(){
 
     $("homePage").style.display = "none";
 
-const discountsSection =
-    document.getElementById("discountsSection");
+    const discountsSection =
+        document.getElementById("discountsSection");
 
-if(discountsSection){
-    discountsSection.style.display = "none";
-}
+    if(discountsSection){
+        discountsSection.style.display = "none";
+    }
 
+    const marketsSection =
+        document.getElementById("marketsSection");
+
+    if(marketsSection){
+        marketsSection.style.display = "none";
+    }
+
+    const moneySection =
+        document.getElementById("moneySection");
+
+    if(moneySection){
+        moneySection.style.display = "none";
+    }
+    
     document.querySelectorAll(".app").forEach(x => {
-    x.classList.remove("active");
-    x.style.display = "none";
-});
+        x.classList.remove("active");
+        x.style.display = "none";
+    });
 
     $("weatherSection").style.display = "none";
-
    const settingsPanel = $("settingsPanel");
 
 if(settingsPanel){
