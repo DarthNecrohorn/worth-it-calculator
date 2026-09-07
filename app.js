@@ -858,8 +858,8 @@ function openCalculator(type) {
     const newsSection =
         document.getElementById("newsSection");
 
-   const settingsPanel =
-    document.getElementById("settingsPanel");
+    const settingsPanel =
+        document.getElementById("settingsPanel");
 
     const calculatorApp =
         document.getElementById("calculatorApp");
@@ -877,19 +877,13 @@ function openCalculator(type) {
         document.getElementById("navLinks");
 
     const discountsSection =
-    document.getElementById("discountsSection");
+        document.getElementById("discountsSection");
 
     const marketsSection =
-    document.getElementById("marketsSection");
+        document.getElementById("marketsSection");
 
-const moneySection =
-    document.getElementById("moneySection");
-    
-    const marketsSection =
-    document.getElementById("marketsSection");
-
-const moneySection =
-    document.getElementById("moneySection");
+    const moneySection =
+        document.getElementById("moneySection");
 
     if (homePage) {
 
