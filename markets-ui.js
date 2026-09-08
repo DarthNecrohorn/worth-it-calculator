@@ -5,68 +5,79 @@ MARKETS
 ========================================================= */
 
 const MARKET_CONFIG = {
+
     GOLD_USD: {
         name: "Gold",
         symbol: "XAU",
         icon: "🥇",
-        unit: "USD / troy oz"
+        unit: "EUR / g",
+        conversion: 1 / 31.1034768
     },
 
     SILVER_USD: {
         name: "Silver",
         symbol: "XAG",
         icon: "🥈",
-        unit: "USD / troy oz"
+        unit: "EUR / g",
+        conversion: 1 / 31.1034768
     },
 
     PLATINUM_USD: {
         name: "Platinum",
         symbol: "XPT",
         icon: "⚪",
-        unit: "USD / troy oz"
+        unit: "EUR / g",
+        conversion: 1 / 31.1034768
     },
 
     PALLADIUM_USD: {
         name: "Palladium",
         symbol: "XPD",
         icon: "⚪",
-        unit: "USD / troy oz"
+        unit: "EUR / g",
+        conversion: 1 / 31.1034768
     },
 
     COPPER_USD: {
         name: "Copper",
         symbol: "COPPER",
         icon: "🟠",
-        unit: "USD / lb"
+        unit: "EUR / kg",
+        conversion: 2.20462262185
     },
 
     IRON_ORE_USD: {
-        name: "Iron USA",
+        name: "Iron Ore",
         symbol: "IRON",
         icon: "⛓️",
-        unit: "USD / metric ton"
+        unit: "EUR / metric ton",
+        conversion: 1
     },
 
     ALUMINUM_USD: {
         name: "Aluminum",
         symbol: "ALUMINUM",
         icon: "🔩",
-        unit: "USD / lb"
+        unit: "EUR / kg",
+        conversion: 2.20462262185
     },
 
     WTI_USD: {
         name: "Crude Oil",
         symbol: "WTI",
         icon: "🛢️",
-        unit: "USD / barrel"
+        unit: "EUR / liter",
+        conversion: 1 / 158.9872949
     },
 
     NATURAL_GAS_USD: {
         name: "Natural Gas",
         symbol: "NATGAS",
         icon: "🔥",
-        unit: "USD / MMBtu"
+        unit: "EUR / MWh",
+        conversion: 0.29307107
     }
+
 };
 
 
