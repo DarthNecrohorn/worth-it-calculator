@@ -1,15 +1,8 @@
-```js
 /* =========================================================
 MARKETS
 ========================================================= */
 
-
-/* =========================================================
-MARKET CONFIG
-========================================================= */
-
 const MARKET_CONFIG = {
-
     GOLD_USD: {
         name: "Gold",
         symbol: "XAU",
@@ -72,7 +65,6 @@ const MARKET_CONFIG = {
         icon: "🔥",
         unit: "USD / MMBtu"
     }
-
 };
 
 
@@ -86,16 +78,10 @@ const EUR_RATE_CACHE_KEY =
 const EUR_RATE_CACHE_DURATION =
     60 * 60 * 1000; // 1 hour
 
-
 let usdToEurRate = null;
 
 
 async function getUsdToEurRate() {
-
-    /*
-        Ako imamo svež kurs u localStorage,
-        koristi njega umesto novog API poziva.
-    */
 
     try {
 
@@ -132,13 +118,6 @@ async function getUsdToEurRate() {
 
     }
 
-
-    /*
-        Jedan poziv za USD → EUR kurs.
-
-        Ovo nije OilPriceAPI poziv.
-        Koristi ECB referentni kurs preko Frankfurter API-ja.
-    */
 
     try {
 
@@ -183,10 +162,6 @@ async function getUsdToEurRate() {
         }
 
 
-        /*
-            Sačuvaj kurs 1 sat.
-        */
-
         try {
 
             localStorage.setItem(
@@ -216,7 +191,6 @@ async function getUsdToEurRate() {
             error
         );
 
-
         return null;
 
     }
@@ -233,13 +207,9 @@ function formatMarketPrice(value) {
     const number =
         Number(value);
 
-
     if (!Number.isFinite(number)) {
-
         return "—";
-
     }
-
 
     return number.toLocaleString(
         "en-US",
@@ -257,19 +227,14 @@ function formatMarketChange(value) {
     const number =
         Number(value);
 
-
     if (!Number.isFinite(number)) {
-
         return "—";
-
     }
-
 
     const sign =
         number > 0
             ? "+"
             : "";
-
 
     return `${sign}${number.toFixed(2)}%`;
 
@@ -285,7 +250,6 @@ function getMarketMovementWidth(value) {
     const number =
         Number(value);
 
-
     if (
         !Number.isFinite(number) ||
         number === 0
@@ -294,12 +258,6 @@ function getMarketMovementWidth(value) {
         return 0;
 
     }
-
-
-    /*
-        Minimum 4% da bi i veoma male promene,
-        npr. +0.05%, bile vizuelno vidljive.
-    */
 
     return Math.min(
         50,
@@ -325,7 +283,6 @@ function renderMarkets(
         document.getElementById(
             "materialsGrid"
         );
-
 
     if (!grid) return;
 
@@ -377,17 +334,10 @@ function renderMarkets(
             const config =
                 MARKET_CONFIG[item.code];
 
-
             if (!config) {
-
                 return "";
-
             }
 
-
-            /* -----------------------------------------
-            24H CHANGE
-            ----------------------------------------- */
 
             const change =
                 Number(
@@ -397,7 +347,6 @@ function renderMarkets(
 
             const changeIsUp =
                 change > 0;
-
 
             const changeIsDown =
                 change < 0;
@@ -425,10 +374,6 @@ function renderMarkets(
                 );
 
 
-            /* -----------------------------------------
-            USD PRICE
-            ----------------------------------------- */
-
             const usdPrice =
                 Number(item.price);
 
@@ -438,10 +383,6 @@ function renderMarkets(
                     usdPrice
                 );
 
-
-            /* -----------------------------------------
-            EUR PRICE
-            ----------------------------------------- */
 
             let formattedEurPrice =
                 "—";
@@ -455,7 +396,6 @@ function renderMarkets(
 
                 const eurPrice =
                     usdPrice * exchangeRate;
-
 
                 formattedEurPrice =
                     formatMarketPrice(
@@ -495,9 +435,7 @@ function renderMarkets(
                             $${formattedUsdPrice}
                         </strong>
 
-                        <strong
-                            class="market-price-eur"
-                        >
+                        <strong class="market-price-eur">
                             €${formattedEurPrice}
                         </strong>
 
@@ -532,7 +470,6 @@ function renderMarkets(
 
                         </div>
 
-
                         <strong>
                             ${arrow}
                             ${formatMarketChange(change)}
@@ -558,7 +495,6 @@ function renderMarkets(
                     new Date(
                         item.updated_at || 0
                     ).getTime();
-
 
                 return time > latest
                     ? time
@@ -605,7 +541,6 @@ async function refreshMarkets() {
             "materialsGrid"
         );
 
-
     if (!grid) return;
 
 
@@ -626,17 +561,6 @@ async function refreshMarkets() {
 
 
     try {
-
-        /*
-            Učitaj Markets podatke i EUR kurs.
-
-            OilPriceAPI:
-            1 poziv preko /api/markets
-
-            EUR:
-            koristi cache 1h ili napravi
-            jedan FX API poziv ako je potreban.
-        */
 
         const [
             marketResponse,
@@ -669,11 +593,6 @@ async function refreshMarkets() {
 
         }
 
-
-        /*
-            Ako EUR servis privremeno ne radi,
-            Markets i dalje normalno rade u USD.
-        */
 
         renderMarkets(
             data,
@@ -715,7 +634,6 @@ async function refreshMarkets() {
             </div>
         `;
 
-
     } finally {
 
         if (refreshButton) {
@@ -752,4 +670,3 @@ document.addEventListener(
 
     }
 );
-```
