@@ -47,7 +47,6 @@ export async function onRequestGet(context) {
     }
 
     try {
-
         const response =
             await fetch(
                 `https://api.oilpriceapi.com/v1/prices/latest?by_code=${codes.join(",")}`,
@@ -63,7 +62,6 @@ export async function onRequestGet(context) {
             await response.json();
 
         if (!response.ok) {
-
             return new Response(
                 JSON.stringify(data),
                 {
@@ -74,7 +72,6 @@ export async function onRequestGet(context) {
                     }
                 }
             );
-
         }
 
         const result =
@@ -116,6 +113,5 @@ export async function onRequestGet(context) {
                 }
             }
         );
-
     }
 }
