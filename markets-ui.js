@@ -409,7 +409,9 @@ function renderMarkets(
             ) {
 
                 const eurPrice =
-                    usdPrice * exchangeRate;
+                usdPrice *
+                exchangeRate *
+                config.conversion;
 
                 formattedEurPrice =
                     formatMarketPrice(
