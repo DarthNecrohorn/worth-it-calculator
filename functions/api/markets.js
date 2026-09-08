@@ -68,11 +68,6 @@ export async function onRequestGet(context) {
                 }
             );
 
-        await cache.put(
-            cacheRequest,
-            result.clone()
-        );
-
         return result;
 
     } catch (error) {
