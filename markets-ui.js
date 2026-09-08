@@ -75,7 +75,7 @@ const MARKET_CONFIG = {
         symbol: "NATGAS",
         icon: "🔥",
         unit: "EUR / MWh",
-        conversion: 0.29307107
+        conversion: 3.412141633
     }
 
 };
