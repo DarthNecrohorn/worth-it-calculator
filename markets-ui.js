@@ -457,17 +457,15 @@ function renderMarkets(
 
                     <strong class="market-price-eur">
                     €${formattedEurPrice}
-                    </strong>
-
-                    <small>
-                    ${config.unit}
-                    </small>
+                    <small>/ ${config.eurUnit}</small>
+              </strong>
 
                     <span class="market-price-usd">
                     $${formattedUsdPrice}
-                    </span>
+                    <small>/ ${config.usUnit}</small>
+              </span>
 
-                 </div>
+           </div>
 
 
                     <div
