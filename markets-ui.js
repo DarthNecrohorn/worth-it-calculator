@@ -121,14 +121,14 @@ async function getUsdToEurRate() {
 
     try {
 
-        const response =
-            await fetch(
-                "https://api.frankfurter.app/latest?from=USD&to=EUR",
-                {
-                    method: "GET",
-                    cache: "no-store"
-                }
-            );
+          const response =
+             await fetch(
+             "/api/exchange-rate",
+          {
+              method: "GET",
+              cache: "no-store"
+          }
+     );
 
 
         if (!response.ok) {
