@@ -7,7 +7,26 @@ const MARKET_CONFIG = {
     GOLD_USD: {
         name: "Gold",
         symbol: "XAU",
-        icon: "🥇",
+        icon: `
+            <svg viewBox="0 0 48 48" aria-hidden="true">
+                <path d="M10 17h28l-5 19H15z" fill="currentColor" opacity=".18"/>
+                <path d="M10 17h28l-5 19H15z"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2.5"
+                      stroke-linejoin="round"/>
+                <path d="M14 17l4-7h12l4 7"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2.5"
+                      stroke-linejoin="round"/>
+                <path d="M17 24h14M16 29h12"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      stroke-linecap="round"/>
+            </svg>
+        `,
         eurUnit: "g",
         usUnit: "oz",
         conversion: 1 / 31.1034768
@@ -16,7 +35,26 @@ const MARKET_CONFIG = {
     SILVER_USD: {
         name: "Silver",
         symbol: "XAG",
-        icon: "🥈",
+        icon: `
+            <svg viewBox="0 0 48 48" aria-hidden="true">
+                <path d="M10 17h28l-5 19H15z" fill="currentColor" opacity=".12"/>
+                <path d="M10 17h28l-5 19H15z"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2.5"
+                      stroke-linejoin="round"/>
+                <path d="M14 17l4-7h12l4 7"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2.5"
+                      stroke-linejoin="round"/>
+                <path d="M17 24h14M16 29h12"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      stroke-linecap="round"/>
+            </svg>
+        `,
         eurUnit: "g",
         usUnit: "oz",
         conversion: 1 / 31.1034768
@@ -25,7 +63,28 @@ const MARKET_CONFIG = {
     PLATINUM_USD: {
         name: "Platinum",
         symbol: "XPT",
-        icon: "⚪",
+        icon: `
+            <svg viewBox="0 0 48 48" aria-hidden="true">
+                <path d="M11 16h26l-4 21H15z"
+                      fill="currentColor"
+                      opacity=".14"/>
+                <path d="M11 16h26l-4 21H15z"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2.5"
+                      stroke-linejoin="round"/>
+                <path d="M15 16l4-6h10l4 6"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2.5"
+                      stroke-linejoin="round"/>
+                <path d="M18 23h12M17 29h14"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      stroke-linecap="round"/>
+            </svg>
+        `,
         eurUnit: "g",
         usUnit: "oz",
         conversion: 1 / 31.1034768
@@ -34,7 +93,23 @@ const MARKET_CONFIG = {
     PALLADIUM_USD: {
         name: "Palladium",
         symbol: "XPD",
-        icon: "⚪",
+        icon: `
+            <svg viewBox="0 0 48 48" aria-hidden="true">
+                <path d="M24 8l14 8-4 21H14l-4-21z"
+                      fill="currentColor"
+                      opacity=".12"/>
+                <path d="M24 8l14 8-4 21H14l-4-21z"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2.5"
+                      stroke-linejoin="round"/>
+                <path d="M17 18h14M18 25h12M19 31h10"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      stroke-linecap="round"/>
+            </svg>
+        `,
         eurUnit: "g",
         usUnit: "oz",
         conversion: 1 / 31.1034768
@@ -43,7 +118,22 @@ const MARKET_CONFIG = {
     COPPER_USD: {
         name: "Copper",
         symbol: "COPPER",
-        icon: "🟠",
+        icon: `
+            <svg viewBox="0 0 48 48" aria-hidden="true">
+                <path d="M10 25c0-7 6-12 14-12s14 5 14 12-6 11-14 11-14-4-14-11z"
+                      fill="currentColor"
+                      opacity=".16"/>
+                <path d="M10 25c0-7 6-12 14-12s14 5 14 12-6 11-14 11-14-4-14-11z"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2.5"/>
+                <path d="M15 20c4-3 14-3 18 0"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      stroke-linecap="round"/>
+            </svg>
+        `,
         eurUnit: "kg",
         usUnit: "lb",
         conversion: 2.20462262185
@@ -52,7 +142,24 @@ const MARKET_CONFIG = {
     IRON_ORE_USD: {
         name: "Iron Ore",
         symbol: "IRON",
-        icon: "⛓️",
+        icon: `
+            <svg viewBox="0 0 48 48" aria-hidden="true">
+                <path d="M10 31l7-18 10-4 11 9-5 17-14 3z"
+                      fill="currentColor"
+                      opacity=".16"/>
+                <path d="M10 31l7-18 10-4 11 9-5 17-14 3z"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2.5"
+                      stroke-linejoin="round"/>
+                <path d="M17 19l8 4 8-5M16 27l8 3 7-3"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"/>
+            </svg>
+        `,
         eurUnit: "metric ton",
         usUnit: "metric ton",
         conversion: 1
@@ -61,7 +168,28 @@ const MARKET_CONFIG = {
     ALUMINUM_USD: {
         name: "Aluminum",
         symbol: "ALUMINUM",
-        icon: "🔩",
+        icon: `
+            <svg viewBox="0 0 48 48" aria-hidden="true">
+                <path d="M13 12h22v24H13z"
+                      fill="currentColor"
+                      opacity=".12"/>
+                <path d="M13 12h22v24H13z"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2.5"
+                      stroke-linejoin="round"/>
+                <path d="M18 12v24M30 12v24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      stroke-linecap="round"/>
+                <path d="M13 20h22M13 28h22"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      stroke-linecap="round"/>
+            </svg>
+        `,
         eurUnit: "kg",
         usUnit: "lb",
         conversion: 2.20462262185
@@ -70,7 +198,27 @@ const MARKET_CONFIG = {
     WTI_USD: {
         name: "Crude Oil",
         symbol: "WTI",
-        icon: "🛢️",
+        icon: `
+            <svg viewBox="0 0 48 48" aria-hidden="true">
+                <path d="M14 11h20v26H14z"
+                      fill="currentColor"
+                      opacity=".14"/>
+                <path d="M14 11h20v26H14z"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2.5"
+                      stroke-linejoin="round"/>
+                <path d="M14 17h20M14 31h20"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2.5"/>
+                <path d="M19 22h10M19 26h10"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      stroke-linecap="round"/>
+            </svg>
+        `,
         eurUnit: "liter",
         usUnit: "barrel",
         conversion: 1 / 158.9872949
@@ -79,7 +227,23 @@ const MARKET_CONFIG = {
     NATURAL_GAS_USD: {
         name: "Natural Gas",
         symbol: "NATGAS",
-        icon: "🔥",
+        icon: `
+            <svg viewBox="0 0 48 48" aria-hidden="true">
+                <path d="M25 7c4 7 10 10 10 19 0 8-5 14-12 14S11 34 11 27c0-6 3-10 8-15 1 5 4 7 5 8 2-4 1-8 1-13z"
+                      fill="currentColor"
+                      opacity=".18"/>
+                <path d="M25 7c4 7 10 10 10 19 0 8-5 14-12 14S11 34 11 27c0-6 3-10 8-15 1 5 4 7 5 8 2-4 1-8 1-13z"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2.5"
+                      stroke-linejoin="round"/>
+                <path d="M24 25c2 3 3 5 3 7 0 2-1 4-3 4s-4-2-4-5c0-2 1-4 2-6"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      stroke-linecap="round"/>
+            </svg>
+        `,
         eurUnit: "MWh",
         usUnit: "MMBtu",
         conversion: 3.412141633
