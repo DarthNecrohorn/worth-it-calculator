@@ -146,8 +146,8 @@ async function getUsdToEurRate() {
 
         const rate =
             Number(
-                data?.rates?.EUR
-            );
+            data?.rate
+       );
 
         console.log("USD → EUR rate:", rate);
         
