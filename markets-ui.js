@@ -149,7 +149,8 @@ async function getUsdToEurRate() {
                 data?.rates?.EUR
             );
 
-
+        console.log("USD → EUR rate:", rate);
+        
         if (
             !Number.isFinite(rate) ||
             rate <= 0
