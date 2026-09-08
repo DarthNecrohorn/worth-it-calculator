@@ -10,7 +10,8 @@ const MARKET_CONFIG = {
         name: "Gold",
         symbol: "XAU",
         icon: "🥇",
-        unit: "EUR / g",
+        eurUnit: "g",
+        usUnit: "oz",
         conversion: 1 / 31.1034768
     },
 
@@ -18,7 +19,8 @@ const MARKET_CONFIG = {
         name: "Silver",
         symbol: "XAG",
         icon: "🥈",
-        unit: "EUR / g",
+        eurUnit: "g",
+        usUnit: "oz",
         conversion: 1 / 31.1034768
     },
 
@@ -26,7 +28,8 @@ const MARKET_CONFIG = {
         name: "Platinum",
         symbol: "XPT",
         icon: "⚪",
-        unit: "EUR / g",
+        eurUnit: "g",
+        usUnit: "oz",
         conversion: 1 / 31.1034768
     },
 
@@ -34,7 +37,8 @@ const MARKET_CONFIG = {
         name: "Palladium",
         symbol: "XPD",
         icon: "⚪",
-        unit: "EUR / g",
+        eurUnit: "g",
+        usUnit: "oz",
         conversion: 1 / 31.1034768
     },
 
@@ -42,7 +46,8 @@ const MARKET_CONFIG = {
         name: "Copper",
         symbol: "COPPER",
         icon: "🟠",
-        unit: "EUR / kg",
+        eurUnit: "kg",
+        usUnit: "lb",
         conversion: 2.20462262185
     },
 
@@ -50,7 +55,8 @@ const MARKET_CONFIG = {
         name: "Iron Ore",
         symbol: "IRON",
         icon: "⛓️",
-        unit: "EUR / metric ton",
+        eurUnit: "metric ton",
+        usUnit: "metric ton",
         conversion: 1
     },
 
@@ -58,7 +64,8 @@ const MARKET_CONFIG = {
         name: "Aluminum",
         symbol: "ALUMINUM",
         icon: "🔩",
-        unit: "EUR / kg",
+        eurUnit: "kg",
+        usUnit: "lb",
         conversion: 2.20462262185
     },
 
@@ -66,7 +73,8 @@ const MARKET_CONFIG = {
         name: "Crude Oil",
         symbol: "WTI",
         icon: "🛢️",
-        unit: "EUR / liter",
+        eurUnit: "liter",
+        usUnit: "barrel",
         conversion: 1 / 158.9872949
     },
 
@@ -74,12 +82,12 @@ const MARKET_CONFIG = {
         name: "Natural Gas",
         symbol: "NATGAS",
         icon: "🔥",
-        unit: "EUR / MWh",
+        eurUnit: "MWh",
+        usUnit: "MMBtu",
         conversion: 3.412141633
     }
 
 };
-
 
 /* =========================================================
 USD → EUR EXCHANGE RATE
