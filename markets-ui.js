@@ -567,7 +567,7 @@ async function refreshMarkets() {
 
     try {
 
-        const [
+                const [
             marketResponse,
             exchangeRate
         ] = await Promise.all([
@@ -584,6 +584,8 @@ async function refreshMarkets() {
 
         ]);
 
+        console.log("MARKET RESPONSE URL:", marketResponse.url);
+        console.log("MARKET RESPONSE STATUS:", marketResponse.status);
 
         const data =
             await marketResponse.json();
