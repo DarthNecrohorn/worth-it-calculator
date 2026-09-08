@@ -77,12 +77,23 @@ export async function onRequestGet(context) {
 
     } catch (error) {
 
-        console.error(
-            "Markets API error:",
-            error
-        );
+    console.error(
+        "Markets API error:",
+        error
+    );
 
-        return new Response(
+    console.error(
+        "Markets API ERROR MESSAGE:",
+        error?.message
+    );
+
+    console.error(
+        "Markets API ERROR STACK:",
+        error?.stack
+    );
+
+    return new Response(
+        
             JSON.stringify({
                 error: "Unable to load market data."
             }),
