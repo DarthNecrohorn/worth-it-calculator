@@ -539,6 +539,8 @@ REFRESH MARKETS
 
 async function refreshMarkets() {
 
+ console.log("refreshMarkets() STARTED");
+    
     const grid =
         document.getElementById(
             "materialsGrid"
