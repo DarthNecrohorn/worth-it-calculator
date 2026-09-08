@@ -27,25 +27,6 @@ export async function onRequestGet(context) {
         "NATURAL_GAS_USD"
     ];
 
-    const cache = caches.default;
-
-    const cacheUrl = new URL(context.request.url);
-    cacheUrl.search = "";
-
-    const cacheRequest = new Request(
-        cacheUrl.toString(),
-        {
-            method: "GET"
-        }
-    );
-
-    const cachedResponse =
-        await cache.match(cacheRequest);
-
-    if (cachedResponse) {
-        return cachedResponse;
-    }
-
     try {
         const response =
             await fetch(
