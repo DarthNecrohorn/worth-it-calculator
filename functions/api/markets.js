@@ -1,37 +1,9 @@
 export async function onRequestGet(context) {
-    const apiKey = context.env.OILPRICEAPI_KEY;
-
-    if (!apiKey) {
-        return new Response(
-            JSON.stringify({
-                error: "OILPRICEAPI_KEY is not configured."
-            }),
-            {
-                status: 500,
-                headers: {
-                    "Content-Type": "application/json"
-                }
-            }
-        );
-    }
-
-    const codes = [
-        "GOLD_USD",
-        "SILVER_USD",
-        "PLATINUM_USD",
-        "PALLADIUM_USD",
-        "COPPER_USD",
-        "IRON_ORE_USD",
-        "ALUMINUM_USD",
-        "WTI_USD",
-        "NATURAL_GAS_USD"
-    ];
-
     const cache = caches.default;
 
-    // Cache ključ mora biti stabilan.
     const cacheUrl = new URL(context.request.url);
     cacheUrl.search = "";
+
     const cacheRequest = new Request(cacheUrl.toString(), {
         method: "GET"
     });
@@ -45,11 +17,11 @@ export async function onRequestGet(context) {
 
     try {
         const response = await fetch(
-            `https://api.oilpriceapi.com/v1/prices/latest?by_code=${codes.join(",")}`,
+            "https://api.frankfurter.app/latest?from=USD&to=EUR",
             {
+                method: "GET",
                 headers: {
-                    "Authorization": `Token ${apiKey}`,
-                    "Content-Type": "application/json"
+                    "Accept": "application/json"
                 }
             }
         );
@@ -58,7 +30,9 @@ export async function onRequestGet(context) {
 
         if (!response.ok) {
             return new Response(
-                JSON.stringify(data),
+                JSON.stringify({
+                    error: "Unable to load USD to EUR exchange rate."
+                }),
                 {
                     status: response.status,
                     headers: {
@@ -69,29 +43,56 @@ export async function onRequestGet(context) {
             );
         }
 
+        const rate = Number(data?.rates?.EUR);
+
+        if (!Number.isFinite(rate) || rate <= 0) {
+            return new Response(
+                JSON.stringify({
+                    error: "Invalid USD to EUR exchange rate."
+                }),
+                {
+                    status: 500,
+                    headers: {
+                        "Content-Type": "application/json",
+                        "Cache-Control": "no-store"
+                    }
+                }
+            );
+        }
+
         const result = new Response(
-            JSON.stringify(data),
+            JSON.stringify({
+                base: "USD",
+                target: "EUR",
+                rate: rate,
+                date: data.date
+            }),
             {
                 status: 200,
                 headers: {
                     "Content-Type": "application/json",
-                    "Cache-Control": "public, max-age=300",
-                    "Cloudflare-CDN-Cache-Control": "max-age=300"
+                    "Cache-Control": "public, max-age=3600",
+                    "Cloudflare-CDN-Cache-Control": "max-age=3600"
                 }
             }
         );
 
-        // Sačuvaj rezultat 5 minuta.
-        await cache.put(cacheRequest, result.clone());
+        await cache.put(
+            cacheRequest,
+            result.clone()
+        );
 
         return result;
 
     } catch (error) {
-        console.error("Markets API error:", error);
+        console.error(
+            "Exchange rate API error:",
+            error
+        );
 
         return new Response(
             JSON.stringify({
-                error: "Unable to load market data."
+                error: "Unable to load exchange rate."
             }),
             {
                 status: 500,
