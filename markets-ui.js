@@ -447,19 +447,19 @@ function renderMarkets(
 
                     <div class="market-price">
 
-                        <strong>
-                            $${formattedUsdPrice}
-                        </strong>
+                    <strong class="market-price-eur">
+                    €${formattedEurPrice}
+                    </strong>
 
-                        <strong class="market-price-eur">
-                            €${formattedEurPrice}
-                        </strong>
+                    <small>
+                    ${config.unit}
+                    </small>
 
-                        <small>
-                            ${config.unit}
-                        </small>
+                    <span class="market-price-usd">
+                    $${formattedUsdPrice}
+                    </span>
 
-                    </div>
+                 </div>
 
 
                     <div
