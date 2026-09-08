@@ -2286,14 +2286,37 @@ html[data-theme="light"] .discount-image-placeholder{
     font-size:11px;
 }
 
-.market-price strong{
-    display:block;
-    font-size:15px;
+.market-price{
+    display:flex;
+    flex-direction:column;
+    align-items:flex-start;
+    gap:3px;
 }
 
-.market-price small{
+.market-price-eur{
     display:block;
-    margin-top:3px;
+    font-size:15px;
+    line-height:1.2;
+}
+
+.market-price-eur small{
+    display:inline;
+    margin:0;
+    color:var(--muted);
+    font-size:10px;
+    font-weight:400;
+}
+
+.market-price-usd{
+    display:block;
+    color:var(--muted);
+    font-size:11px;
+    line-height:1.2;
+}
+
+.market-price-usd small{
+    display:inline;
+    margin:0;
     color:var(--muted);
     font-size:10px;
 }
