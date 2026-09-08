@@ -588,7 +588,9 @@ async function refreshMarkets() {
         const data =
             await marketResponse.json();
 
+        console.log("MARKETS API RESPONSE:", data);
 
+        
         if (!marketResponse.ok) {
 
             throw new Error(
