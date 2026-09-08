@@ -2274,6 +2274,12 @@ html[data-theme="light"] .discount-image-placeholder{
     font-size:20px;
 }
 
+.market-icon svg{
+    width:22px;
+    height:22px;
+    display:block;
+}
+
 .market-card-main strong{
     display:block;
     font-size:14px;
