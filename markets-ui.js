@@ -9,18 +9,20 @@ const MARKET_CONFIG = {
         symbol: "XAU",
         icon: `
             <svg viewBox="0 0 48 48" aria-hidden="true">
-                <path d="M10 17h28l-5 19H15z" fill="currentColor" opacity=".18"/>
-                <path d="M10 17h28l-5 19H15z"
+                <path d="M9 29l5-16h20l5 16H9z"
+                      fill="currentColor"
+                      opacity=".16"/>
+                <path d="M9 29l5-16h20l5 16H9z"
                       fill="none"
                       stroke="currentColor"
                       stroke-width="2.5"
                       stroke-linejoin="round"/>
-                <path d="M14 17l4-7h12l4 7"
+                <path d="M14 13l-3-5h26l-3 5"
                       fill="none"
                       stroke="currentColor"
                       stroke-width="2.5"
                       stroke-linejoin="round"/>
-                <path d="M17 24h14M16 29h12"
+                <path d="M17 21h14M15 26h18"
                       fill="none"
                       stroke="currentColor"
                       stroke-width="2"
@@ -37,18 +39,18 @@ const MARKET_CONFIG = {
         symbol: "XAG",
         icon: `
             <svg viewBox="0 0 48 48" aria-hidden="true">
-                <path d="M10 17h28l-5 19H15z" fill="currentColor" opacity=".12"/>
-                <path d="M10 17h28l-5 19H15z"
-                      fill="none"
-                      stroke="currentColor"
-                      stroke-width="2.5"
-                      stroke-linejoin="round"/>
-                <path d="M14 17l4-7h12l4 7"
-                      fill="none"
-                      stroke="currentColor"
-                      stroke-width="2.5"
-                      stroke-linejoin="round"/>
-                <path d="M17 24h14M16 29h12"
+                <ellipse cx="24" cy="24" rx="14" ry="17"
+                         fill="currentColor"
+                         opacity=".14"/>
+                <ellipse cx="24" cy="24" rx="14" ry="17"
+                         fill="none"
+                         stroke="currentColor"
+                         stroke-width="2.5"/>
+                <ellipse cx="24" cy="24" rx="9" ry="12"
+                         fill="none"
+                         stroke="currentColor"
+                         stroke-width="2"/>
+                <path d="M20 18h8M19 24h10M20 30h8"
                       fill="none"
                       stroke="currentColor"
                       stroke-width="2"
@@ -65,24 +67,19 @@ const MARKET_CONFIG = {
         symbol: "XPT",
         icon: `
             <svg viewBox="0 0 48 48" aria-hidden="true">
-                <path d="M11 16h26l-4 21H15z"
+                <path d="M15 12h18l7 9-16 17L8 21l7-9z"
                       fill="currentColor"
                       opacity=".14"/>
-                <path d="M11 16h26l-4 21H15z"
+                <path d="M15 12h18l7 9-16 17L8 21l7-9z"
                       fill="none"
                       stroke="currentColor"
                       stroke-width="2.5"
                       stroke-linejoin="round"/>
-                <path d="M15 16l4-6h10l4 6"
-                      fill="none"
-                      stroke="currentColor"
-                      stroke-width="2.5"
-                      stroke-linejoin="round"/>
-                <path d="M18 23h12M17 29h14"
+                <path d="M15 12l9 26M33 12l-9 26M8 21h32"
                       fill="none"
                       stroke="currentColor"
                       stroke-width="2"
-                      stroke-linecap="round"/>
+                      stroke-linejoin="round"/>
             </svg>
         `,
         eurUnit: "g",
@@ -95,19 +92,19 @@ const MARKET_CONFIG = {
         symbol: "XPD",
         icon: `
             <svg viewBox="0 0 48 48" aria-hidden="true">
-                <path d="M24 8l14 8-4 21H14l-4-21z"
+                <path d="M24 7l15 14-15 20L9 21 24 7z"
                       fill="currentColor"
-                      opacity=".12"/>
-                <path d="M24 8l14 8-4 21H14l-4-21z"
+                      opacity=".14"/>
+                <path d="M24 7l15 14-15 20L9 21 24 7z"
                       fill="none"
                       stroke="currentColor"
                       stroke-width="2.5"
                       stroke-linejoin="round"/>
-                <path d="M17 18h14M18 25h12M19 31h10"
+                <path d="M9 21h30M24 7v34M16 14l8 7 8-7"
                       fill="none"
                       stroke="currentColor"
                       stroke-width="2"
-                      stroke-linecap="round"/>
+                      stroke-linejoin="round"/>
             </svg>
         `,
         eurUnit: "g",
@@ -120,18 +117,18 @@ const MARKET_CONFIG = {
         symbol: "COPPER",
         icon: `
             <svg viewBox="0 0 48 48" aria-hidden="true">
-                <path d="M10 25c0-7 6-12 14-12s14 5 14 12-6 11-14 11-14-4-14-11z"
+                <path d="M15 15c-5 0-8 4-8 9s3 9 8 9h13c5 0 8-4 8-9s-3-9-8-9H15z"
                       fill="currentColor"
-                      opacity=".16"/>
-                <path d="M10 25c0-7 6-12 14-12s14 5 14 12-6 11-14 11-14-4-14-11z"
+                      opacity=".14"/>
+                <path d="M15 15c-5 0-8 4-8 9s3 9 8 9h13c5 0 8-4 8-9s-3-9-8-9H15z"
                       fill="none"
                       stroke="currentColor"
-                      stroke-width="2.5"/>
-                <path d="M15 20c4-3 14-3 18 0"
-                      fill="none"
-                      stroke="currentColor"
-                      stroke-width="2"
+                      stroke-width="2.5"
                       stroke-linecap="round"/>
+                <path d="M15 20h13c2 0 4 2 4 4s-2 4-4 4H15c-2 0-4-2-4-4s2-4 4-4z"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"/>
             </svg>
         `,
         eurUnit: "kg",
@@ -144,19 +141,18 @@ const MARKET_CONFIG = {
         symbol: "IRON",
         icon: `
             <svg viewBox="0 0 48 48" aria-hidden="true">
-                <path d="M10 31l7-18 10-4 11 9-5 17-14 3z"
+                <path d="M8 31l6-16 11-7 13 7 3 13-10 9H17l-9-6z"
                       fill="currentColor"
                       opacity=".16"/>
-                <path d="M10 31l7-18 10-4 11 9-5 17-14 3z"
+                <path d="M8 31l6-16 11-7 13 7 3 13-10 9H17l-9-6z"
                       fill="none"
                       stroke="currentColor"
                       stroke-width="2.5"
                       stroke-linejoin="round"/>
-                <path d="M17 19l8 4 8-5M16 27l8 3 7-3"
+                <path d="M14 15l7 9 15-9M21 24l-4 13M21 24l20 4"
                       fill="none"
                       stroke="currentColor"
                       stroke-width="2"
-                      stroke-linecap="round"
                       stroke-linejoin="round"/>
             </svg>
         `,
@@ -170,24 +166,24 @@ const MARKET_CONFIG = {
         symbol: "ALUMINUM",
         icon: `
             <svg viewBox="0 0 48 48" aria-hidden="true">
-                <path d="M13 12h22v24H13z"
+                <path d="M11 10h26v28H11z"
                       fill="currentColor"
                       opacity=".12"/>
-                <path d="M13 12h22v24H13z"
+                <path d="M11 10h26v28H11z"
                       fill="none"
                       stroke="currentColor"
                       stroke-width="2.5"
                       stroke-linejoin="round"/>
-                <path d="M18 12v24M30 12v24"
+                <path d="M17 10v28M31 10v28M11 18h26M11 30h26"
                       fill="none"
                       stroke="currentColor"
                       stroke-width="2"
                       stroke-linecap="round"/>
-                <path d="M13 20h22M13 28h22"
+                <path d="M17 18l14 12M31 18L17 30"
                       fill="none"
                       stroke="currentColor"
-                      stroke-width="2"
-                      stroke-linecap="round"/>
+                      stroke-width="1.5"
+                      opacity=".7"/>
             </svg>
         `,
         eurUnit: "kg",
@@ -200,19 +196,15 @@ const MARKET_CONFIG = {
         symbol: "WTI",
         icon: `
             <svg viewBox="0 0 48 48" aria-hidden="true">
-                <path d="M14 11h20v26H14z"
+                <path d="M24 7c-5 8-12 14-12 22a12 12 0 0024 0c0-8-7-14-12-22z"
                       fill="currentColor"
-                      opacity=".14"/>
-                <path d="M14 11h20v26H14z"
+                      opacity=".16"/>
+                <path d="M24 7c-5 8-12 14-12 22a12 12 0 0024 0c0-8-7-14-12-22z"
                       fill="none"
                       stroke="currentColor"
                       stroke-width="2.5"
                       stroke-linejoin="round"/>
-                <path d="M14 17h20M14 31h20"
-                      fill="none"
-                      stroke="currentColor"
-                      stroke-width="2.5"/>
-                <path d="M19 22h10M19 26h10"
+                <path d="M18 29c1 4 4 6 8 6"
                       fill="none"
                       stroke="currentColor"
                       stroke-width="2"
