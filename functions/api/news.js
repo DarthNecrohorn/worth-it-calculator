@@ -742,73 +742,72 @@ export async function onRequestGet(context) {
                         ...secondPage.articles
                     );
 
-                } catch (pageError) {
+                            } catch (pageError) {
 
-                    console.error(
-                        `${category} second page error:`,
-                        pageError
-                    );
-
-                }
+                console.error(
+                    `${category} second page error:`,
+                    pageError
+                );
 
             }
 
-
-            /*
-             * Remove duplicates first.
-             */
-
-            articles =
-                removeDuplicateArticles(
-                    articles
-                );
+        }
 
 
-            /*
-             * Special categories need
-             * additional relevance filtering.
-             */
+        /*
+         * Remove duplicates first.
+         */
 
-            if (
-                [
-                    "gaming",
-                    "weird",
-                    "awesome",
-                    "underrated"
-                ].includes(
-                    category
-                )
-            ) {
-
-                articles =
-                    articles.filter(
-                        article =>
-                            isRelevantSpecialCategory(
-                                article,
-                                category
-                            )
-                    );
-
-            }
-
-
-            /*
-             * Maximum 12.
-             *
-             * This is NOT a requirement
-             * to have 12.
-             */
-
-            articles =
-                articles.slice(
-                    0,
-                    12
-                );
-
-
-            return formatArticles(
+        articles =
+            removeDuplicateArticles(
                 articles
             );
+
+
+        /*
+         * Special categories need
+         * additional relevance filtering.
+         */
+
+        if (
+            [
+                "gaming",
+                "weird",
+                "underrated"
+            ].includes(
+                category
+            )
+        ) {
+
+            articles =
+                articles.filter(
+                    article =>
+                        isRelevantSpecialCategory(
+                            article,
+                            category
+                        )
+                );
+
+        }
+
+
+        /*
+         * Maximum 12.
+         *
+         * This is NOT a requirement
+         * to have 12.
+         */
+
+        articles =
+            articles.slice(
+                0,
+                12
+            );
+
+
+        return formatArticles(
+            articles
+        );
 
         }
 
