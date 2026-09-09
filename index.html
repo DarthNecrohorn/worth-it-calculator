@@ -1502,16 +1502,95 @@
 
         <!-- NEWS CATEGORIES -->
 
-        <div class="news-category">
+        <div class="news-category-nav">
 
-            <div class="news-category-header">
-                <h3>📰 Latest News</h3>
-                <span>10 stories</span>
-            </div>
+            <button
+                type="button"
+                class="news-category-btn active"
+                data-news-category="all"
+            >
+                All
+            </button>
 
-            <div class="news-grid" id="newsLatest">
-                <!-- News articles will be loaded here -->
-            </div>
+            <button
+                type="button"
+                class="news-category-btn"
+                data-news-category="world"
+            >
+                World
+            </button>
+
+            <button
+                type="button"
+                class="news-category-btn"
+                data-news-category="technology"
+            >
+                Technology
+            </button>
+
+            <button
+                type="button"
+                class="news-category-btn"
+                data-news-category="business"
+            >
+                Business
+            </button>
+
+            <button
+                type="button"
+                class="news-category-btn"
+                data-news-category="science"
+            >
+                Science
+            </button>
+
+            <button
+                type="button"
+                class="news-category-btn"
+                data-news-category="weird"
+            >
+                Weird
+            </button>
+
+            <button
+                type="button"
+                class="news-category-btn"
+                data-news-category="awesome"
+            >
+                Awesome
+            </button>
+
+            <button
+                type="button"
+                class="news-category-btn"
+                data-news-category="underrated"
+            >
+                Underrated
+            </button>
+
+            <button
+                type="button"
+                class="news-category-btn"
+                data-news-category="sports"
+            >
+                Sports
+            </button>
+
+            <button
+                type="button"
+                class="news-category-btn"
+                data-news-category="automotive"
+            >
+                Automotive
+            </button>
+
+            <button
+                type="button"
+                class="news-category-btn"
+                data-news-category="travel"
+            >
+                Travel
+            </button>
 
         </div>
 
@@ -1519,53 +1598,11 @@
         <div class="news-category">
 
             <div class="news-category-header">
-                <h3>🤯 Weird</h3>
-                <span>10 stories</span>
+                <h3 id="newsCategoryTitle">📰 All News</h3>
+                <span id="newsCategoryCount">12 stories</span>
             </div>
 
-            <div class="news-grid" id="newsWeird">
-                <!-- News articles will be loaded here -->
-            </div>
-
-        </div>
-
-
-        <div class="news-category">
-
-            <div class="news-category-header">
-                <h3>🔥 Awesome</h3>
-                <span>10 stories</span>
-            </div>
-
-            <div class="news-grid" id="newsAwesome">
-                <!-- News articles will be loaded here -->
-            </div>
-
-        </div>
-
-
-        <div class="news-category">
-
-            <div class="news-category-header">
-                <h3>👀 Underrated</h3>
-                <span>10 stories</span>
-            </div>
-
-            <div class="news-grid" id="newsUnderrated">
-                <!-- News articles will be loaded here -->
-            </div>
-
-        </div>
-
-
-        <div class="news-category">
-
-            <div class="news-category-header">
-                <h3>🌎 Around the World</h3>
-                <span>10 stories</span>
-            </div>
-
-            <div class="news-grid" id="newsWorld">
+            <div class="news-grid" id="newsGrid">
                 <!-- News articles will be loaded here -->
             </div>
 
@@ -1603,56 +1640,105 @@
             <div><h3 id="feedbackTitle">Bugs &amp; Suggestions</h3><p>Help improve Worth It by reporting a problem or sharing an idea.</p></div>
             <button type="button" class="feedback-close" onclick="closeFeedback()">✕</button>
         </div>
+
         <div class="feedback-type">
             <button type="button" id="feedbackBugBtn" class="active" onclick="setFeedbackType('bug')">🐞 <span>Bug report</span></button>
             <button type="button" id="feedbackSuggestionBtn" onclick="setFeedbackType('suggestion')">💡 <span>Suggestion</span></button>
         </div>
-        <div class="feedback-field"><label for="feedbackMessage">Message</label><textarea id="feedbackMessage" maxlength="4000" placeholder="Describe the bug or suggestion..."></textarea></div>
+
+        <div class="feedback-field">
+            <label for="feedbackMessage">Message</label>
+            <textarea id="feedbackMessage" maxlength="4000" placeholder="Describe the bug or suggestion..."></textarea>
+        </div>
+
         <input id="feedbackHoneypot" class="feedback-honeypot" type="text" tabindex="-1" autocomplete="off">
-        <div class="feedback-actions"><div class="feedback-status" id="feedbackStatus"></div><button type="button" class="btn btn-secondary" onclick="closeFeedback()">Cancel</button><button type="button" class="btn btn-primary" id="feedbackSubmitBtn" onclick="submitFeedback()">Send feedback</button></div>
+
+        <div class="feedback-actions">
+            <div class="feedback-status" id="feedbackStatus"></div>
+            <button type="button" class="btn btn-secondary" onclick="closeFeedback()">Cancel</button>
+            <button type="button" class="btn btn-primary" id="feedbackSubmitBtn" onclick="submitFeedback()">Send feedback</button>
+        </div>
+
     </div>
 </div>
 
 <div class="account-page-overlay" id="accountPageOverlay" role="dialog" aria-modal="true" aria-labelledby="accountPageTitle">
     <div class="account-page-card">
+
         <div class="account-page-head">
+
             <div class="account-page-title-wrap">
+
                 <div id="accountPageAvatar"></div>
+
                 <div style="min-width:0">
+
                     <div class="account-page-title" id="accountPageTitle">Profile</div>
+
                     <div class="account-page-email" id="accountPageEmail"></div>
+
                 </div>
+
             </div>
+
             <button type="button" class="account-page-close" onclick="closeAccountPage()" aria-label="Close">✕</button>
+
         </div>
+
         <div class="account-page-stats">
-            <div class="account-page-stat"><strong id="accountPageFriends">0</strong><span>Friends</span></div>
-            <div class="account-page-stat"><strong id="accountPageFollowers">0</strong><span>Followers</span></div>
-            <div class="account-page-stat"><strong id="accountPageFollowing">0</strong><span>Following</span></div>
+
+            <div class="account-page-stat">
+                <strong id="accountPageFriends">0</strong>
+                <span>Friends</span>
+            </div>
+
+            <div class="account-page-stat">
+                <strong id="accountPageFollowers">0</strong>
+                <span>Followers</span>
+            </div>
+
+            <div class="account-page-stat">
+                <strong id="accountPageFollowing">0</strong>
+                <span>Following</span>
+            </div>
+
         </div>
+
         <div id="accountPageContent" class="account-page-empty"></div>
+
     </div>
 </div>
 
 <div class="toast" id="toast">Copied!</div>
 
 <div class="admin-feedback-overlay" id="adminFeedbackOverlay" role="dialog" aria-modal="true" aria-labelledby="adminFeedbackTitle">
+
     <div class="admin-feedback-card">
+
         <div class="admin-feedback-head">
+
             <div>
                 <h3 id="adminFeedbackTitle">Bugs &amp; Suggestions</h3>
                 <p>Admin feedback panel</p>
             </div>
+
             <button type="button" onclick="closeAdminFeedback()">✕</button>
+
         </div>
 
         <div class="admin-feedback-toolbar">
+
             <button type="button" class="btn btn-secondary" onclick="loadAdminFeedback()">↻ Refresh</button>
+
         </div>
 
         <div id="adminFeedbackStatus" class="feedback-status"></div>
 
         <div id="adminFeedbackList" class="admin-feedback-list"></div>
+
+    </div>
+
+</div>
     </div>
 </div>
 
