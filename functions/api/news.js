@@ -164,7 +164,7 @@ export async function onRequestGet(context) {
         gaming: {
 
             q:
-                "(gaming OR \"video game\" OR \"video games\" OR videogame OR PlayStation OR Xbox OR Nintendo OR \"Nintendo Switch\" OR Steam OR \"PC gaming\" OR gameplay OR esports OR PS5 OR PS4 OR \"Xbox Series\" OR Switch OR \"game developer\" OR \"game studio\" OR \"game release\" OR \"new game\" OR RPG OR Fortnite OR Minecraft OR Roblox OR GTA)"
+                "(gaming OR gamer OR gamers OR \"video game\" OR \"video games\" OR videogame OR gameplay OR PlayStation OR Xbox OR Nintendo OR \"Nintendo Switch\" OR Steam OR \"PC gaming\" OR esports OR PS5 OR PS4 OR \"Xbox Series\" OR Switch OR console OR consoles OR \"game developer\" OR \"game studio\" OR \"game release\" OR \"new game\" OR RPG OR Fortnite OR Minecraft OR Roblox OR GTA)"
 
         },
 
@@ -172,7 +172,7 @@ export async function onRequestGet(context) {
         weird: {
 
             q:
-                "(weird OR strange OR bizarre OR unusual OR odd OR peculiar OR mysterious OR unexpected OR unbelievable OR \"strange event\" OR \"unusual event\" OR unexplained OR \"strange discovery\" OR \"unusual discovery\")"
+                "(weird OR strange OR bizarre OR unusual OR odd OR peculiar OR mysterious OR unexpected OR unbelievable OR unexplained OR rare OR mystery OR \"strange event\" OR \"unusual event\" OR \"strange discovery\" OR \"unusual discovery\" OR \"rare discovery\" OR \"unexpected discovery\")"
 
         },
 
@@ -180,7 +180,7 @@ export async function onRequestGet(context) {
         awesome: {
 
             q:
-                "(cute OR adorable OR heartwarming OR \"heart-warming\" OR wholesome OR uplifting OR inspiring OR kindness OR \"kind act\" OR \"acts of kindness\" OR \"good deed\" OR \"good deeds\" OR helping OR helped OR rescue OR rescued OR saving OR saved OR \"good news\" OR \"feel good\" OR \"feel-good\" OR \"happy ending\" OR \"happy story\" OR \"positive story\" OR \"positive news\" OR \"human kindness\" OR \"local hero\" OR hero OR heroes OR cat OR cats OR kitten OR kittens OR dog OR dogs OR puppy OR puppies OR pet OR pets OR animal OR animals OR wildlife)"
+                "(cute OR adorable OR heartwarming OR \"heart-warming\" OR wholesome OR uplifting OR inspiring OR kindness OR \"kind act\" OR \"acts of kindness\" OR \"good deed\" OR \"good deeds\" OR helping OR helped OR help OR rescue OR rescued OR rescuing OR saving OR saved OR saves OR \"good news\" OR \"feel good\" OR \"feel-good\" OR \"happy ending\" OR \"happy story\" OR \"positive story\" OR \"positive news\" OR \"human kindness\" OR \"local hero\" OR hero OR heroes OR volunteer OR volunteers OR volunteering OR donation OR donations OR donated OR charity OR charities OR reunited OR reunion OR adoption OR adopted OR shelter OR animal OR animals OR wildlife OR cat OR cats OR kitten OR kittens OR dog OR dogs OR puppy OR puppies OR pet OR pets)"
 
         },
 
@@ -188,7 +188,7 @@ export async function onRequestGet(context) {
         underrated: {
 
             q:
-                "(underrated OR overlooked OR \"little known\" OR \"little-known\" OR \"hidden gem\" OR \"hidden gems\" OR unknown OR forgotten OR \"under the radar\" OR \"off the radar\" OR \"lesser known\" OR \"lesser-known\" OR unsung OR \"unsung hero\" OR \"overlooked destination\" OR \"overlooked place\" OR \"overlooked artist\" OR \"overlooked game\")"
+                "(underrated OR overlooked OR \"little known\" OR \"little-known\" OR \"hidden gem\" OR \"hidden gems\" OR unknown OR forgotten OR \"under the radar\" OR \"under-the-radar\" OR \"off the radar\" OR \"lesser known\" OR \"lesser-known\" OR unsung OR \"unsung hero\" OR obscure OR \"rarely known\" OR \"rarely visited\" OR \"overlooked destination\" OR \"overlooked place\" OR \"overlooked artist\" OR \"overlooked game\" OR \"hidden destination\" OR \"hidden place\")"
 
         }
 
