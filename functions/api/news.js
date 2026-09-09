@@ -161,7 +161,7 @@ export async function onRequestGet(context) {
         awesome: {
 
     q:
-        "(cute OR adorable OR heartwarming OR wholesome OR uplifting OR inspiring OR rescue OR rescued OR helping OR helped OR kindness OR kind OR \"good news\" OR \"feel good\" OR \"happy ending\" OR \"happy story\" OR cat OR cats OR kitten OR kittens OR dog OR dogs OR puppy OR puppies OR pet OR pets OR animal OR animals)"
+        "cute OR adorable OR heartwarming OR wholesome OR uplifting OR inspiring OR rescue OR rescued OR helping OR helped OR kindness OR \"good news\" OR \"feel good\" OR \"happy ending\" OR \"happy story\" OR cat OR cats OR kitten OR kittens OR dog OR dogs OR puppy OR puppies OR pet OR pets OR animal OR animals"
 
     },
 
