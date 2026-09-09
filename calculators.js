@@ -7043,7 +7043,8 @@ function resetCars() {
 
   const result = document.getElementById("carResults");
   if (result) {
-    result.classList.remove("active");
+    result.innerHTML = "";
+      result.classList.remove("active");
   }
 }
 
