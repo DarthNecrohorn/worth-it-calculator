@@ -245,9 +245,8 @@ const NEWS_CATEGORY_LABELS = {
     entertainment:
         "🎬 Entertainment"
 
-
     lifestyle:
-       "🌿 Lifestyle"
+        "🌿 Lifestyle"
 
 };
 
