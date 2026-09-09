@@ -70,20 +70,21 @@ function renderNewsCategory(
 
 
         const image =
-            article.image
-                ? `
-                    <img
-                        class="news-card-image"
-                        src="${escapeNewsHtml(article.image)}"
-                        alt=""
-                        loading="lazy"
-                    >
-                `
-                : `
-                    <div class="news-card-image news-card-placeholder">
-                        📰
-                    </div>
-                `;
+        article.image
+        ? `
+            <img
+                class="news-card-image"
+                src="${escapeNewsHtml(article.image)}"
+                alt=""
+                loading="lazy"
+                onerror="this.outerHTML='<div class=&quot;news-card-image news-card-placeholder&quot;>📰</div>'"
+            >
+        `
+        : `
+            <div class="news-card-image news-card-placeholder">
+                📰
+            </div>
+        `;
 
 
         const source =
