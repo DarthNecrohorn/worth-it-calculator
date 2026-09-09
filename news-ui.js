@@ -80,7 +80,7 @@ function renderNewsCategory(
                 article.worthItTake ||
                 "";
             
-            const descrip    tion =
+            const description =
                 article.description ||
                 "";
 
@@ -111,10 +111,25 @@ function renderNewsCategory(
                         ${escapeNewsHtml(description)}
                     </div>
 
-                    <div class="news-card-time">
-                        ${escapeNewsHtml(time)}
-                    </div>
+                                 ${
+                    worthItTake
+                        ? `
+                            <div class="news-card-take">
+                                <div class="news-card-take-label">
+                                    Worth It Take
+                                </div>
 
+                                <div class="news-card-take-text">
+                                    ${escapeNewsHtml(worthItTake)}
+                                </div>
+                            </div>
+                        `
+                        : ""
+                }
+
+                <div class="news-card-time">
+                    ${escapeNewsHtml(time)}
+                </div>
                 </a>
 
             `;
