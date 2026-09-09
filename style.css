@@ -1734,7 +1734,7 @@ html[data-theme="light"] .ai-chat-nav-btn{color:#0f172a;background:rgba(15,23,42
     font-size:12px;
     font-weight:800;
 
-    white-space:nowrap;
+      white-space:nowrap;
 
     transition:
         color .2s,
@@ -1763,6 +1763,11 @@ html[data-theme="light"] .ai-chat-nav-btn{color:#0f172a;background:rgba(15,23,42
 
     box-shadow:
         0 6px 18px rgba(124,92,255,.22);
+}
+
+.news-category-btn:last-child {
+    padding-left: 9px;
+    padding-right: 9px;
 }
 
 
