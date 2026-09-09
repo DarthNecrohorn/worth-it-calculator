@@ -33,7 +33,7 @@ export async function onRequestGet(context) {
 
     /*
      * v6 = expanded category search
-     * with improved special-category relevance.
+     * and improved special-category relevance.
      */
 
     const requestUrl =
@@ -170,7 +170,7 @@ export async function onRequestGet(context) {
         underrated: {
 
             q:
-                "(underrated OR overlooked OR \"little known\" OR \"little-known\" OR \"hidden gem\" OR \"hidden gems\" OR unknown OR forgotten OR \"under the radar\" OR \"off the radar\" OR \"lesser known\" OR \"lesser-known\" OR unsung OR \"unsung hero\")"
+                "(underrated OR overlooked OR \"little known\" OR \"little-known\" OR \"hidden gem\" OR \"hidden gems\" OR unknown OR forgotten OR \"under the radar\" OR \"off the radar\" OR \"lesser known\" OR \"lesser-known\" OR unsung OR \"unsung hero\" OR \"overlooked destination\" OR \"overlooked place\" OR \"overlooked artist\" OR \"overlooked game\")"
 
         }
 
@@ -880,11 +880,6 @@ export async function onRequestGet(context) {
 
             /*
              * Fourth page.
-             *
-             * Special categories can
-             * need additional results
-             * because relevance filtering
-             * removes some articles.
              */
 
             if (
@@ -937,9 +932,6 @@ export async function onRequestGet(context) {
             /*
              * Special categories need
              * additional relevance filtering.
-             *
-             * Standard NewsData categories
-             * are already category-filtered.
              */
 
             if (
