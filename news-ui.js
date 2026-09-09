@@ -24,8 +24,8 @@ function renderNewsCategory(
 
 
     /*
-     * All News has no limit.
-     * Individual categories are limited to 12.
+     * All News = no limit.
+     * Individual categories = maximum 12.
      */
 
     const visibleArticles =
@@ -199,7 +199,8 @@ let newsData = {};
  * when News is opened multiple times.
  */
 
-let newsCategoryButtonsInitialized = false;
+let newsCategoryButtonsInitialized =
+    false;
 
 
 /* =========================================================
@@ -223,9 +224,6 @@ const NEWS_CATEGORY_LABELS = {
     science:
         "🔬 Science",
 
-    gaming:
-        "🎮 Gaming",
-
     weird:
         "🤯 Weird",
 
@@ -237,6 +235,9 @@ const NEWS_CATEGORY_LABELS = {
 
     sports:
         "🏆 Sports",
+
+    gaming:
+        "🎮 Gaming",
 
     travel:
         "✈️ Travel",
@@ -306,12 +307,16 @@ function removeNewsDuplicates(
 
 
         if (url) {
+
             seenUrls.add(url);
+
         }
 
 
         if (title) {
+
             seenTitles.add(title);
+
         }
 
 
@@ -382,7 +387,8 @@ function showNewsCategory(
 
         /*
          * All News:
-         * NO 12-story limit.
+         * remove duplicates,
+         * but DO NOT limit to 12.
          */
 
         articles =
@@ -612,7 +618,10 @@ async function loadNews() {
 
 
         if (count) {
-            count.textContent = "";
+
+            count.textContent =
+                "";
+
         }
 
     }
