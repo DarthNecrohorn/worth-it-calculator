@@ -51,7 +51,7 @@ export async function onRequestGet(context) {
 
 
     /*
-     * v8 = persistent D1 News history.
+     * v9 = persistent D1 News history.
      */
 
     const requestUrl =
@@ -61,7 +61,7 @@ export async function onRequestGet(context) {
 
 
     const cacheKeyUrl =
-        `${requestUrl.origin}${requestUrl.pathname}/?news-cache=v8`;
+        `${requestUrl.origin}${requestUrl.pathname}/?news-cache=v9`;
 
 
     const cacheKey =
