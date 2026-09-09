@@ -32,8 +32,7 @@ export async function onRequestGet(context) {
 
 
     /*
-     * v3 = Gaming + Entertainment
-     *       + new All News structure
+     * v4 = stricter category relevance
      */
 
     const requestUrl =
@@ -43,7 +42,7 @@ export async function onRequestGet(context) {
 
 
     const cacheKeyUrl =
-        `${requestUrl.origin}${requestUrl.pathname}/?news-cache=v3`;
+        `${requestUrl.origin}${requestUrl.pathname}/?news-cache=v4`;
 
 
     const cacheKey =
@@ -54,10 +53,6 @@ export async function onRequestGet(context) {
             }
         );
 
-
-    /*
-     * Return cached News data when available.
-     */
 
     const cachedResponse =
         await cache.match(
@@ -94,10 +89,7 @@ export async function onRequestGet(context) {
         world: {
 
             category:
-                "world",
-
-            fallback:
-                "international OR global OR world"
+                "world"
 
         },
 
@@ -105,10 +97,7 @@ export async function onRequestGet(context) {
         technology: {
 
             category:
-                "technology",
-
-            fallback:
-                "technology OR tech OR gadgets"
+                "technology"
 
         },
 
@@ -116,10 +105,7 @@ export async function onRequestGet(context) {
         business: {
 
             category:
-                "business",
-
-            fallback:
-                "business OR economy OR finance"
+                "business"
 
         },
 
@@ -127,34 +113,7 @@ export async function onRequestGet(context) {
         science: {
 
             category:
-                "science",
-
-            fallback:
-                "science OR research OR discovery"
-
-        },
-
-
-        weird: {
-
-            q:
-                "weird OR strange OR unusual"
-
-        },
-
-
-        awesome: {
-
-            q:
-                "amazing OR incredible OR inspiring"
-
-        },
-
-
-        underrated: {
-
-            q:
-                "overlooked OR underrated OR \"little known\""
+                "science"
 
         },
 
@@ -162,18 +121,7 @@ export async function onRequestGet(context) {
         sports: {
 
             category:
-                "sports",
-
-            fallback:
-                "sports OR football OR basketball OR tennis"
-
-        },
-
-
-        gaming: {
-
-            q:
-                "gaming OR video games OR videogames OR PlayStation OR Xbox OR Nintendo"
+                "sports"
 
         },
 
@@ -181,10 +129,7 @@ export async function onRequestGet(context) {
         travel: {
 
             category:
-                "tourism",
-
-            fallback:
-                "travel OR tourism OR destinations"
+                "tourism"
 
         },
 
@@ -192,10 +137,39 @@ export async function onRequestGet(context) {
         entertainment: {
 
             category:
-                "entertainment",
+                "entertainment"
 
-            fallback:
-                "movies OR music OR television OR celebrities"
+        },
+
+
+        gaming: {
+
+            q:
+                "(gaming OR \"video games\" OR videogames OR PlayStation OR Xbox OR Nintendo)"
+
+        },
+
+
+        weird: {
+
+            q:
+                "(weird OR strange OR bizarre OR unusual OR odd)"
+
+        },
+
+
+        awesome: {
+
+            q:
+                "(amazing OR incredible OR inspiring OR extraordinary)"
+
+        },
+
+
+        underrated: {
+
+            q:
+                "(underrated OR overlooked OR \"little known\" OR \"hidden gem\")"
 
         }
 
@@ -234,9 +208,7 @@ export async function onRequestGet(context) {
 
 
             /*
-             * Keep this at 10 because this
-             * works with the free NewsData
-             * response limit as well.
+             * NewsData free response limit.
              */
 
             url.searchParams.set(
@@ -270,10 +242,6 @@ export async function onRequestGet(context) {
 
             }
 
-
-            /*
-             * NewsData pagination.
-             */
 
             if (page) {
 
@@ -425,7 +393,7 @@ export async function onRequestGet(context) {
 
 
         /* =====================================================
-           REMOVE DUPLICATE ARTICLES
+           REMOVE DUPLICATES
         ===================================================== */
 
         function removeDuplicateArticles(
@@ -510,7 +478,9 @@ export async function onRequestGet(context) {
 
 
                 if (duplicate) {
+
                     continue;
+
                 }
 
 
@@ -536,24 +506,106 @@ export async function onRequestGet(context) {
                     article
                 );
 
-
-                /*
-                 * We only need 12
-                 * articles per category.
-                 */
-
-                if (
-                    uniqueArticles.length >= 12
-                ) {
-
-                    break;
-
-                }
-
             }
 
 
             return uniqueArticles;
+
+        }
+
+
+        /* =====================================================
+           SPECIAL CATEGORY RELEVANCE
+        ===================================================== */
+
+        function isRelevantSpecialCategory(
+            article,
+            category
+        ) {
+
+            const title =
+                String(
+                    article.title || ""
+                )
+                    .toLowerCase();
+
+
+            const description =
+                String(
+                    article.description || ""
+                )
+                    .toLowerCase();
+
+
+            const text =
+                `${title} ${description}`;
+
+
+            const rules = {
+
+                gaming: [
+                    "gaming",
+                    "video game",
+                    "video games",
+                    "videogame",
+                    "playstation",
+                    "xbox",
+                    "nintendo",
+                    "steam",
+                    "gameplay",
+                    "esports",
+                    "xbox",
+                    "ps5",
+                    "ps4",
+                    "switch"
+                ],
+
+
+                weird: [
+                    "weird",
+                    "strange",
+                    "bizarre",
+                    "unusual",
+                    "odd",
+                    "peculiar",
+                    "mysterious",
+                    "unexpected"
+                ],
+
+
+                awesome: [
+                    "amazing",
+                    "incredible",
+                    "inspiring",
+                    "extraordinary",
+                    "remarkable",
+                    "spectacular",
+                    "astonishing"
+                ],
+
+
+                underrated: [
+                    "underrated",
+                    "overlooked",
+                    "little known",
+                    "hidden gem",
+                    "unknown",
+                    "forgotten"
+                ]
+
+            };
+
+
+            const keywords =
+                rules[category] || [];
+
+
+            return keywords.some(
+                keyword =>
+                    text.includes(
+                        keyword
+                    )
+            );
 
         }
 
@@ -608,8 +660,11 @@ export async function onRequestGet(context) {
             settings
         ) {
 
+            let articles = [];
+
+
             /*
-             * First request.
+             * First page.
              */
 
             let result =
@@ -625,26 +680,17 @@ export async function onRequestGet(context) {
                 );
 
 
-            let articles =
-                result.articles;
+            articles.push(
+                ...result.articles
+            );
 
 
             /*
-             * First duplicate cleanup.
+             * Second page only when
+             * necessary.
              */
 
-            let uniqueArticles =
-                removeDuplicateArticles(
-                    articles
-                );
-
-
-            /* =================================================
-               SECOND PAGE
-            ================================================= */
-
             if (
-                uniqueArticles.length < 12 &&
                 result.nextPage
             ) {
 
@@ -664,16 +710,9 @@ export async function onRequestGet(context) {
                         );
 
 
-                    articles = [
-                        ...articles,
+                    articles.push(
                         ...secondPage.articles
-                    ];
-
-
-                    uniqueArticles =
-                        removeDuplicateArticles(
-                            articles
-                        );
+                    );
 
                 } catch (pageError) {
 
@@ -687,111 +726,60 @@ export async function onRequestGet(context) {
             }
 
 
-            /* =================================================
-               FALLBACK
-            ================================================= */
+            /*
+             * Remove duplicates first.
+             */
+
+            articles =
+                removeDuplicateArticles(
+                    articles
+                );
+
+
+            /*
+             * Special categories need
+             * additional relevance filtering.
+             */
 
             if (
-                uniqueArticles.length === 0 &&
-                settings.fallback
+                [
+                    "gaming",
+                    "weird",
+                    "awesome",
+                    "underrated"
+                ].includes(
+                    category
+                )
             ) {
 
-                try {
-
-                    const fallbackResult =
-                        await fetchNews(
-                            category,
-                            {
-                                q:
-                                    settings.fallback
-                            }
-                        );
-
-
-                    articles =
-                        fallbackResult.articles;
-
-
-                    uniqueArticles =
-                        removeDuplicateArticles(
-                            articles
-                        );
-
-
-                    /*
-                     * Second fallback page.
-                     */
-
-                    if (
-                        uniqueArticles.length < 12 &&
-                        fallbackResult.nextPage
-                    ) {
-
-                        try {
-
-                            const secondFallbackPage =
-                                await fetchNews(
-                                    category,
-                                    {
-                                        q:
-                                            settings.fallback
-                                    },
-                                    fallbackResult.nextPage
-                                );
-
-
-                            articles = [
-                                ...articles,
-                                ...secondFallbackPage.articles
-                            ];
-
-
-                            uniqueArticles =
-                                removeDuplicateArticles(
-                                    articles
-                                );
-
-                        } catch (
-                            secondFallbackError
-                        ) {
-
-                            console.error(
-                                `${category} second fallback page error:`,
-                                secondFallbackError
-                            );
-
-                        }
-
-                    }
-
-                } catch (
-                    fallbackError
-                ) {
-
-                    console.error(
-                        `${category} fallback error:`,
-                        fallbackError
+                articles =
+                    articles.filter(
+                        article =>
+                            isRelevantSpecialCategory(
+                                article,
+                                category
+                            )
                     );
-
-                }
 
             }
 
 
             /*
-             * Final maximum:
-             * 12 articles per category.
+             * Maximum 12.
+             *
+             * This is NOT a requirement
+             * to have 12.
              */
 
-            uniqueArticles =
-                uniqueArticles.slice(
+            articles =
+                articles.slice(
                     0,
                     12
                 );
 
 
             return formatArticles(
-                uniqueArticles
+                articles
             );
 
         }
