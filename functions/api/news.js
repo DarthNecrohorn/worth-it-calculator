@@ -564,12 +564,17 @@ export async function onRequestGet(context) {
 
             const rules = {
 
-                gaming: [
+               gaming: [
 
                     "gaming",
+                    "gamer",
+                    "gamers",
+
                     "video game",
                     "video games",
                     "videogame",
+
+                    "gameplay",
 
                     "playstation",
                     "xbox",
@@ -578,13 +583,16 @@ export async function onRequestGet(context) {
 
                     "steam",
                     "pc gaming",
-                    "gameplay",
+
                     "esports",
 
                     "ps5",
                     "ps4",
                     "xbox series",
                     "switch",
+
+                    "console",
+                    "consoles",
 
                     "game developer",
                     "game studio",
@@ -609,12 +617,24 @@ export async function onRequestGet(context) {
                     "unusual",
                     "odd",
                     "peculiar",
+
                     "mysterious",
+                    "mystery",
+
                     "unexpected",
                     "unbelievable",
                     "unexplained",
+
+                    "rare",
+
+                    "strange event",
+                    "unusual event",
+
                     "strange discovery",
-                    "unusual discovery"
+                    "unusual discovery",
+
+                    "rare discovery",
+                    "unexpected discovery"
 
                 ],
 
@@ -638,14 +658,18 @@ export async function onRequestGet(context) {
                     "good deed",
                     "good deeds",
 
+                    "help",
                     "helping",
                     "helped",
                     "helps",
 
                     "rescue",
                     "rescued",
+                    "rescuing",
+
                     "saving",
                     "saved",
+                    "saves",
 
                     "good news",
                     "feel good",
@@ -662,6 +686,24 @@ export async function onRequestGet(context) {
                     "local hero",
                     "hero",
                     "heroes",
+
+                    "volunteer",
+                    "volunteers",
+                    "volunteering",
+
+                    "donation",
+                    "donations",
+                    "donated",
+
+                    "charity",
+                    "charities",
+
+                    "reunited",
+                    "reunion",
+
+                    "adoption",
+                    "adopted",
+                    "shelter",
 
                     "cat",
                     "cats",
@@ -699,6 +741,8 @@ export async function onRequestGet(context) {
                     "forgotten",
 
                     "under the radar",
+                    "under-the-radar",
+
                     "off the radar",
 
                     "lesser known",
@@ -707,13 +751,20 @@ export async function onRequestGet(context) {
                     "unsung",
                     "unsung hero",
 
+                    "obscure",
+
+                    "rarely known",
+                    "rarely visited",
+
                     "overlooked destination",
                     "overlooked place",
                     "overlooked artist",
-                    "overlooked game"
+                    "overlooked game",
+
+                    "hidden destination",
+                    "hidden place"
 
                 ]
-
             };
 
 
