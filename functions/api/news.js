@@ -4,12 +4,31 @@ export async function onRequestGet(context) {
         context.env.NEWSDATA_API_KEY;
 
 
+    const db =
+        context.env.DB;
+
+
     if (!apiKey) {
 
         return Response.json(
             {
                 error:
                     "NEWSDATA_API_KEY is not configured."
+            },
+            {
+                status: 500
+            }
+        );
+
+    }
+
+
+    if (!db) {
+
+        return Response.json(
+            {
+                error:
+                    "D1 database binding DB is not configured."
             },
             {
                 status: 500
@@ -32,8 +51,7 @@ export async function onRequestGet(context) {
 
 
     /*
-     * v6 = expanded category search
-     * and improved special-category relevance.
+     * v7 = persistent D1 News history.
      */
 
     const requestUrl =
@@ -43,7 +61,7 @@ export async function onRequestGet(context) {
 
 
     const cacheKeyUrl =
-        `${requestUrl.origin}${requestUrl.pathname}/?news-cache=v6`;
+        `${requestUrl.origin}${requestUrl.pathname}/?news-cache=v7`;
 
 
     const cacheKey =
@@ -753,7 +771,7 @@ export async function onRequestGet(context) {
 
 
         /* =====================================================
-           LOAD CATEGORY
+           LOAD CATEGORY FROM NEWSDATA
         ===================================================== */
 
         async function loadCategory(
@@ -958,18 +976,15 @@ export async function onRequestGet(context) {
 
 
             /*
-             * Maximum 12.
+             * IMPORTANT:
              *
-             * This is NOT a requirement
-             * to have 12.
+             * Do NOT slice to 12 here.
+             *
+             * We need all newly discovered
+             * articles so D1 can determine
+             * which ones are new and which
+             * old articles should leave.
              */
-
-            articles =
-                articles.slice(
-                    0,
-                    12
-                );
-
 
             return formatArticles(
                 articles
@@ -979,8 +994,461 @@ export async function onRequestGet(context) {
 
 
         /* =====================================================
-           LOAD ALL CATEGORIES
-        ===================================================== */
+           PERSISTENT NEWS HISTORY
+           ===================================================== */
+
+        async function persistCategory(
+            category,
+            freshArticles
+        ) {
+
+            /*
+             * Get the current persistent
+             * history for this category.
+             */
+
+            const existingResult =
+                await db
+                    .prepare(
+                        `
+                        SELECT
+                            category,
+                            url,
+                            title,
+                            description,
+                            image,
+                            published_at,
+                            source,
+                            added_at
+                        FROM news_articles
+                        WHERE category = ?
+                        ORDER BY added_at DESC
+                        LIMIT 12
+                        `
+                    )
+                    .bind(
+                        category
+                    )
+                    .all();
+
+
+            const existingRows =
+                Array.isArray(
+                    existingResult.results
+                )
+                    ? existingResult.results
+                    : [];
+
+
+            /*
+             * Convert D1 rows to the same
+             * frontend article structure.
+             */
+
+            const existingArticles =
+                existingRows.map(
+                    row => ({
+
+                        title:
+                            row.title ||
+                            "",
+
+                        description:
+                            row.description ||
+                            "",
+
+                        url:
+                            row.url ||
+                            "",
+
+                        image:
+                            row.image ||
+                            "",
+
+                        publishedAt:
+                            row.published_at ||
+                            "",
+
+                        source:
+                            row.source ||
+                            ""
+
+                    })
+                );
+
+
+            /*
+             * Fresh articles first.
+             *
+             * Existing articles follow.
+             *
+             * This means newly discovered
+             * articles are placed at the top.
+             */
+
+            const merged =
+                removeDuplicateFormattedArticles(
+                    [
+                        ...freshArticles,
+                        ...existingArticles
+                    ]
+                );
+
+
+            /*
+             * Only the first 12 survive.
+             */
+
+            const finalArticles =
+                merged.slice(
+                    0,
+                    12
+                );
+
+
+            /*
+             * Existing URLs.
+             */
+
+            const existingUrls =
+                new Set(
+                    existingRows
+                        .map(
+                            row =>
+                                String(
+                                    row.url || ""
+                                )
+                                    .trim()
+                                    .toLowerCase()
+                        )
+                        .filter(
+                            Boolean
+                        )
+                );
+
+
+            /*
+             * Insert only genuinely new
+             * articles.
+             *
+             * Existing articles keep their
+             * original added_at timestamp.
+             */
+
+            const statements =
+                [];
+
+
+            const now =
+                Date.now();
+
+
+            for (
+                const article
+                of finalArticles
+            ) {
+
+                const articleUrl =
+                    String(
+                        article.url || ""
+                    )
+                        .trim();
+
+
+                if (!articleUrl) {
+
+                    continue;
+
+                }
+
+
+                const normalizedUrl =
+                    articleUrl.toLowerCase();
+
+
+                if (
+                    existingUrls.has(
+                        normalizedUrl
+                    )
+                ) {
+
+                    continue;
+
+                }
+
+
+                statements.push(
+                    db
+                        .prepare(
+                            `
+                            INSERT OR IGNORE INTO news_articles
+                            (
+                                category,
+                                url,
+                                title,
+                                description,
+                                image,
+                                published_at,
+                                source,
+                                added_at
+                            )
+                            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                            `
+                        )
+                        .bind(
+                            category,
+                            articleUrl,
+                            article.title || "",
+                            article.description || "",
+                            article.image || "",
+                            article.publishedAt || "",
+                            article.source || "",
+                            now
+                        )
+                );
+
+            }
+
+
+            /*
+             * Execute inserts.
+             */
+
+            if (
+                statements.length
+            ) {
+
+                await db.batch(
+                    statements
+                );
+
+            }
+
+
+            /*
+             * Remove anything older than
+             * the newest 12 persistent
+             * articles.
+             */
+
+            await db
+                .prepare(
+                    `
+                    DELETE FROM news_articles
+                    WHERE category = ?
+                    AND url NOT IN (
+                        SELECT url
+                        FROM news_articles
+                        WHERE category = ?
+                        ORDER BY added_at DESC
+                        LIMIT 12
+                    )
+                    `
+                )
+                .bind(
+                    category,
+                    category
+                )
+                .run();
+
+
+            /*
+             * Read the final persistent state
+             * again from D1.
+             *
+             * This guarantees that the response
+             * represents what is actually stored.
+             */
+
+            const finalResult =
+                await db
+                    .prepare(
+                        `
+                        SELECT
+                            title,
+                            description,
+                            url,
+                            image,
+                            published_at,
+                            source
+                        FROM news_articles
+                        WHERE category = ?
+                        ORDER BY added_at DESC
+                        LIMIT 12
+                        `
+                    )
+                    .bind(
+                        category
+                    )
+                    .all();
+
+
+            const finalRows =
+                Array.isArray(
+                    finalResult.results
+                )
+                    ? finalResult.results
+                    : [];
+
+
+            return finalRows.map(
+                row => ({
+
+                    title:
+                        row.title ||
+                        "",
+
+                    description:
+                        row.description ||
+                        "",
+
+                    url:
+                        row.url ||
+                        "",
+
+                    image:
+                        row.image ||
+                        "",
+
+                    publishedAt:
+                        row.published_at ||
+                        "",
+
+                    source:
+                        row.source ||
+                        ""
+
+                })
+            );
+
+        }
+
+
+        /* =====================================================
+           REMOVE DUPLICATES FROM FORMATTED ARTICLES
+           ===================================================== */
+
+        function removeDuplicateFormattedArticles(
+            articles
+        ) {
+
+            const uniqueArticles =
+                [];
+
+
+            const seenUrls =
+                new Set();
+
+
+            const seenTitles =
+                [];
+
+
+            for (
+                const article
+                of articles
+            ) {
+
+                const articleUrl =
+                    String(
+                        article.url || ""
+                    )
+                        .trim()
+                        .toLowerCase();
+
+
+                const articleTitle =
+                    normalizeTitle(
+                        article.title
+                    );
+
+
+                /*
+                 * Duplicate URL.
+                 */
+
+                if (
+                    articleUrl &&
+                    seenUrls.has(
+                        articleUrl
+                    )
+                ) {
+
+                    continue;
+
+                }
+
+
+                /*
+                 * Duplicate / very similar title.
+                 */
+
+                let duplicate =
+                    false;
+
+
+                for (
+                    const existingTitle
+                    of seenTitles
+                ) {
+
+                    if (
+                        titleSimilarity(
+                            articleTitle,
+                            existingTitle
+                        ) >= 0.65
+                    ) {
+
+                        duplicate =
+                            true;
+
+                        break;
+
+                    }
+
+                }
+
+
+                if (duplicate) {
+
+                    continue;
+
+                }
+
+
+                if (articleUrl) {
+
+                    seenUrls.add(
+                        articleUrl
+                    );
+
+                }
+
+
+                if (articleTitle) {
+
+                    seenTitles.push(
+                        articleTitle
+                    );
+
+                }
+
+
+                uniqueArticles.push(
+                    article
+                );
+
+            }
+
+
+            return uniqueArticles;
+
+        }
+
+
+        /* =====================================================
+           LOAD + PERSIST ALL CATEGORIES
+           ===================================================== */
 
         const results =
             await Promise.all(
@@ -996,10 +1464,27 @@ export async function onRequestGet(context) {
 
                         try {
 
-                            const articles =
+                            /*
+                             * Get newly discovered
+                             * articles from NewsData.
+                             */
+
+                            const freshArticles =
                                 await loadCategory(
                                     category,
                                     settings
+                                );
+
+
+                            /*
+                             * Merge them with
+                             * persistent D1 history.
+                             */
+
+                            const articles =
+                                await persistCategory(
+                                    category,
+                                    freshArticles
                                 );
 
 
@@ -1016,10 +1501,96 @@ export async function onRequestGet(context) {
                             );
 
 
-                            return [
-                                category,
-                                []
-                            ];
+                            /*
+                             * IMPORTANT:
+                             *
+                             * If NewsData fails,
+                             * still try to return
+                             * the existing D1 history.
+                             */
+
+                            try {
+
+                                const fallbackResult =
+                                    await db
+                                        .prepare(
+                                            `
+                                            SELECT
+                                                title,
+                                                description,
+                                                url,
+                                                image,
+                                                published_at,
+                                                source
+                                            FROM news_articles
+                                            WHERE category = ?
+                                            ORDER BY added_at DESC
+                                            LIMIT 12
+                                            `
+                                        )
+                                        .bind(
+                                            category
+                                        )
+                                        .all();
+
+
+                                const fallbackRows =
+                                    Array.isArray(
+                                        fallbackResult.results
+                                    )
+                                        ? fallbackResult.results
+                                        : [];
+
+
+                                return [
+                                    category,
+                                    fallbackRows.map(
+                                        row => ({
+
+                                            title:
+                                                row.title ||
+                                                "",
+
+                                            description:
+                                                row.description ||
+                                                "",
+
+                                            url:
+                                                row.url ||
+                                                "",
+
+                                            image:
+                                                row.image ||
+                                                "",
+
+                                            publishedAt:
+                                                row.published_at ||
+                                                "",
+
+                                            source:
+                                                row.source ||
+                                                ""
+
+                                        })
+                                    )
+                                ];
+
+                            } catch (
+                                fallbackError
+                            ) {
+
+                                console.error(
+                                    `${category} D1 fallback error:`,
+                                    fallbackError
+                                );
+
+
+                                return [
+                                    category,
+                                    []
+                                ];
+
+                            }
 
                         }
 
