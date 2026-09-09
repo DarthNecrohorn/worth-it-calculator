@@ -107,22 +107,6 @@ function renderNewsCategory(
                         ${escapeNewsHtml(description)}
                     </div>
 
-                                 ${
-                    worthItTake
-                        ? `
-                            <div class="news-card-take">
-                                <div class="news-card-take-label">
-                                    Worth It Take
-                                </div>
-
-                                <div class="news-card-take-text">
-                                    ${escapeNewsHtml(worthItTake)}
-                                </div>
-                            </div>
-                        `
-                        : ""
-                }
-
                 <div class="news-card-time">
                     ${escapeNewsHtml(time)}
                 </div>
