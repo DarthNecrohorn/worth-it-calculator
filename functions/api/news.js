@@ -561,7 +561,8 @@ export async function onRequestGet(context) {
                 ],
 
 
-                weird: [
+               weird: [
+
                     "weird",
                     "strange",
                     "bizarre",
@@ -570,19 +571,46 @@ export async function onRequestGet(context) {
                     "peculiar",
                     "mysterious",
                     "unexpected"
+
                 ],
 
 
                 awesome: [
-                    "amazing",
-                    "incredible",
-                    "inspiring",
-                    "extraordinary",
-                    "remarkable",
-                    "spectacular",
-                    "astonishing"
-                ],
 
+                    "cute",
+                    "adorable",
+                    "heartwarming",
+                    "heart-warming",
+                    "wholesome",
+                    "uplifting",
+                    "inspiring",
+                    "kindness",
+                    "kind act",
+                    "helping",
+                    "helped",
+                    "rescue",
+                    "rescued",
+                    "saved",
+                    "saving",
+                    "good news",
+                    "feel good",
+                    "feel-good",
+                    "happy ending",
+                    "happy story",
+                    "cat",
+                    "cats",
+                    "kitten",
+                    "kittens",
+                    "dog",
+                    "dogs",
+                    "puppy",
+                    "puppies",
+                    "pet",
+                    "pets",
+                    "animal",
+                    "animals"
+
+                ],
 
                 underrated: [
                     "underrated",
