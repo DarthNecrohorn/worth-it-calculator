@@ -1,40 +1,50 @@
 export async function onRequestGet(context) {
 
-    const apiKey = context.env.NEWSDATA_API_KEY;
+    const apiKey =
+        context.env.NEWSDATA_API_KEY;
+
 
     if (!apiKey) {
+
         return Response.json(
             {
-                error: "NEWSDATA_API_KEY is not configured."
+                error:
+                    "NEWSDATA_API_KEY is not configured."
             },
-            { status: 500 }
+            {
+                status: 500
+            }
         );
+
     }
 
 
-    /*
-     * Cache News results for 2 hours.
-     */
+    /* =========================================================
+       CACHE
+    ========================================================= */
+
     const CACHE_TTL =
         2 * 60 * 60;
+
 
     const cache =
         caches.default;
 
 
     /*
-     * Use a stable cache key for the whole
-     * News endpoint.
-     *
-     * v2 = new News category structure.
+     * v3 = Gaming + Entertainment
+     *       + new All News structure
      */
+
     const requestUrl =
         new URL(
             context.request.url
         );
 
+
     const cacheKeyUrl =
-        `${requestUrl.origin}${requestUrl.pathname}/?news-cache=v2`;
+        `${requestUrl.origin}${requestUrl.pathname}/?news-cache=v3`;
+
 
     const cacheKey =
         new Request(
@@ -48,8 +58,12 @@ export async function onRequestGet(context) {
     /*
      * Return cached News data when available.
      */
+
     const cachedResponse =
-        await cache.match(cacheKey);
+        await cache.match(
+            cacheKey
+        );
+
 
     if (cachedResponse) {
 
@@ -59,69 +73,130 @@ export async function onRequestGet(context) {
                 cachedResponse
             );
 
+
         response.headers.set(
             "X-News-Cache",
             "HIT"
         );
 
+
         return response;
+
     }
 
 
-    /*
-     * News categories.
-     *
-     * "all" is NOT requested separately.
-     * The frontend combines all returned
-     * categories into All News.
-     */
+    /* =========================================================
+       NEWS CATEGORIES
+    ========================================================= */
+
     const categories = {
 
         world: {
-            category: "world",
-            fallback: "international OR global OR world"
+
+            category:
+                "world",
+
+            fallback:
+                "international OR global OR world"
+
         },
+
 
         technology: {
-            category: "technology",
-            fallback: "technology OR tech OR gadgets"
+
+            category:
+                "technology",
+
+            fallback:
+                "technology OR tech OR gadgets"
+
         },
+
 
         business: {
-            category: "business",
-            fallback: "business OR economy OR finance"
+
+            category:
+                "business",
+
+            fallback:
+                "business OR economy OR finance"
+
         },
+
 
         science: {
-            category: "science",
-            fallback: "science OR research OR discovery"
+
+            category:
+                "science",
+
+            fallback:
+                "science OR research OR discovery"
+
         },
+
 
         weird: {
-            q: "weird OR strange OR unusual"
+
+            q:
+                "weird OR strange OR unusual"
+
         },
+
 
         awesome: {
-            q: "amazing OR incredible OR inspiring"
+
+            q:
+                "amazing OR incredible OR inspiring"
+
         },
+
 
         underrated: {
-            q: "overlooked OR underrated OR \"little known\""
+
+            q:
+                "overlooked OR underrated OR \"little known\""
+
         },
+
 
         sports: {
-            category: "sports",
-            fallback: "sports OR football OR basketball OR tennis"
+
+            category:
+                "sports",
+
+            fallback:
+                "sports OR football OR basketball OR tennis"
+
         },
 
-        automotive: {
-            category: "automobiles",
-            fallback: "automotive OR cars OR vehicles"
+
+        gaming: {
+
+            q:
+                "gaming OR video games OR videogames OR PlayStation OR Xbox OR Nintendo"
+
         },
+
 
         travel: {
-            category: "tourism",
-            fallback: "travel OR tourism OR destinations"
+
+            category:
+                "tourism",
+
+            fallback:
+                "travel OR tourism OR destinations"
+
+        },
+
+
+        entertainment: {
+
+            category:
+                "entertainment",
+
+            fallback:
+                "movies OR music OR television OR celebrities"
+
         }
 
     };
@@ -130,9 +205,9 @@ export async function onRequestGet(context) {
     try {
 
 
-        /* =========================================================
+        /* =====================================================
            FETCH NEWS
-        ========================================================= */
+        ===================================================== */
 
         async function fetchNews(
             category,
@@ -151,19 +226,24 @@ export async function onRequestGet(context) {
                 apiKey
             );
 
+
             url.searchParams.set(
                 "language",
                 "en"
             );
 
+
             /*
-             * NewsData returns up to 10 articles
-             * per request.
+             * Keep this at 10 because this
+             * works with the free NewsData
+             * response limit as well.
              */
+
             url.searchParams.set(
                 "size",
                 "10"
             );
+
 
             url.searchParams.set(
                 "removeduplicate",
@@ -192,9 +272,9 @@ export async function onRequestGet(context) {
 
 
             /*
-             * Used when we need a second page
-             * to reach 12 unique stories.
+             * NewsData pagination.
              */
+
             if (page) {
 
                 url.searchParams.set(
@@ -227,7 +307,9 @@ export async function onRequestGet(context) {
             return {
 
                 articles:
-                    Array.isArray(data.results)
+                    Array.isArray(
+                        data.results
+                    )
                         ? data.results
                         : [],
 
@@ -239,9 +321,9 @@ export async function onRequestGet(context) {
         }
 
 
-        /* =========================================================
+        /* =====================================================
            NORMALIZE TITLE
-        ========================================================= */
+        ===================================================== */
 
         function normalizeTitle(
             title
@@ -267,9 +349,9 @@ export async function onRequestGet(context) {
         }
 
 
-        /* =========================================================
+        /* =====================================================
            TITLE SIMILARITY
-        ========================================================= */
+        ===================================================== */
 
         function titleSimilarity(
             titleA,
@@ -278,7 +360,9 @@ export async function onRequestGet(context) {
 
             const wordsA =
                 new Set(
-                    normalizeTitle(titleA)
+                    normalizeTitle(
+                        titleA
+                    )
                         .split(" ")
                         .filter(
                             word =>
@@ -289,7 +373,9 @@ export async function onRequestGet(context) {
 
             const wordsB =
                 new Set(
-                    normalizeTitle(titleB)
+                    normalizeTitle(
+                        titleB
+                    )
                         .split(" ")
                         .filter(
                             word =>
@@ -302,11 +388,14 @@ export async function onRequestGet(context) {
                 !wordsA.size ||
                 !wordsB.size
             ) {
+
                 return 0;
+
             }
 
 
-            let commonWords = 0;
+            let commonWords =
+                0;
 
 
             for (
@@ -335,20 +424,24 @@ export async function onRequestGet(context) {
         }
 
 
-        /* =========================================================
+        /* =====================================================
            REMOVE DUPLICATE ARTICLES
-        ========================================================= */
+        ===================================================== */
 
         function removeDuplicateArticles(
             articles
         ) {
 
-            const uniqueArticles = [];
+            const uniqueArticles =
+                [];
+
 
             const seenUrls =
                 new Set();
 
-            const seenTitles = [];
+
+            const seenTitles =
+                [];
 
 
             for (
@@ -356,7 +449,10 @@ export async function onRequestGet(context) {
             ) {
 
                 const articleUrl =
-                    (article.link || "")
+                    (
+                        article.link ||
+                        ""
+                    )
                         .trim()
                         .toLowerCase();
 
@@ -367,9 +463,15 @@ export async function onRequestGet(context) {
                     );
 
 
+                /*
+                 * Duplicate URL.
+                 */
+
                 if (
                     articleUrl &&
-                    seenUrls.has(articleUrl)
+                    seenUrls.has(
+                        articleUrl
+                    )
                 ) {
 
                     continue;
@@ -377,11 +479,17 @@ export async function onRequestGet(context) {
                 }
 
 
-                let duplicate = false;
+                /*
+                 * Duplicate / very similar title.
+                 */
+
+                let duplicate =
+                    false;
 
 
                 for (
-                    const existingTitle of seenTitles
+                    const existingTitle
+                    of seenTitles
                 ) {
 
                     if (
@@ -391,7 +499,9 @@ export async function onRequestGet(context) {
                         ) >= 0.65
                     ) {
 
-                        duplicate = true;
+                        duplicate =
+                            true;
+
                         break;
 
                     }
@@ -428,8 +538,10 @@ export async function onRequestGet(context) {
 
 
                 /*
-                 * We only need 12 unique stories.
+                 * We only need 12
+                 * articles per category.
                  */
+
                 if (
                     uniqueArticles.length >= 12
                 ) {
@@ -446,9 +558,9 @@ export async function onRequestGet(context) {
         }
 
 
-        /* =========================================================
+        /* =====================================================
            FORMAT ARTICLES
-        ========================================================= */
+        ===================================================== */
 
         function formatArticles(
             articles
@@ -458,22 +570,28 @@ export async function onRequestGet(context) {
                 article => ({
 
                     title:
-                        article.title || "",
+                        article.title ||
+                        "",
 
                     description:
-                        article.description || "",
+                        article.description ||
+                        "",
 
                     url:
-                        article.link || "",
+                        article.link ||
+                        "",
 
                     image:
-                        article.image_url || "",
+                        article.image_url ||
+                        "",
 
                     publishedAt:
-                        article.pubDate || "",
+                        article.pubDate ||
+                        "",
 
                     source:
-                        article.source_name || ""
+                        article.source_name ||
+                        ""
 
                 })
             );
@@ -481,9 +599,9 @@ export async function onRequestGet(context) {
         }
 
 
-        /* =========================================================
-           FETCH CATEGORY
-        ========================================================= */
+        /* =====================================================
+           LOAD CATEGORY
+        ===================================================== */
 
         async function loadCategory(
             category,
@@ -493,6 +611,7 @@ export async function onRequestGet(context) {
             /*
              * First request.
              */
+
             let result =
                 await fetchNews(
                     category,
@@ -511,75 +630,67 @@ export async function onRequestGet(context) {
 
 
             /*
-             * If the category has fewer than
-             * 12 unique stories, try the next
-             * NewsData page.
+             * First duplicate cleanup.
              */
-            if (
-                articles.length > 0
-            ) {
 
-                let uniqueArticles =
-                    removeDuplicateArticles(
-                        articles
-                    );
-
-
-                if (
-                    uniqueArticles.length < 12 &&
-                    result.nextPage
-                ) {
-
-                    try {
-
-                        const secondPage =
-                            await fetchNews(
-                                category,
-                                {
-                                    category:
-                                        settings.category,
-
-                                    q:
-                                        settings.q
-                                },
-                                result.nextPage
-                            );
-
-
-                        articles = [
-                            ...articles,
-                            ...secondPage.articles
-                        ];
-
-                    } catch (pageError) {
-
-                        console.error(
-                            `${category} second page error:`,
-                            pageError
-                        );
-
-                    }
-
-                }
-
-            }
-
-
-            /*
-             * Final duplicate removal.
-             */
             let uniqueArticles =
                 removeDuplicateArticles(
                     articles
                 );
 
 
-            /*
-             * Category fallback.
-             *
-             * Used when the main category
-             * returns no useful stories.
-             */
+            /* =================================================
+               SECOND PAGE
+            ================================================= */
+
+            if (
+                uniqueArticles.length < 12 &&
+                result.nextPage
+            ) {
+
+                try {
+
+                    const secondPage =
+                        await fetchNews(
+                            category,
+                            {
+                                category:
+                                    settings.category,
+
+                                q:
+                                    settings.q
+                            },
+                            result.nextPage
+                        );
+
+
+                    articles = [
+                        ...articles,
+                        ...secondPage.articles
+                    ];
+
+
+                    uniqueArticles =
+                        removeDuplicateArticles(
+                            articles
+                        );
+
+                } catch (pageError) {
+
+                    console.error(
+                        `${category} second page error:`,
+                        pageError
+                    );
+
+                }
+
+            }
+
+
+            /* =================================================
+               FALLBACK
+            ================================================= */
+
             if (
                 uniqueArticles.length === 0 &&
                 settings.fallback
@@ -601,65 +712,61 @@ export async function onRequestGet(context) {
                         fallbackResult.articles;
 
 
-                    /*
-                     * Try second fallback page
-                     * if necessary.
-                     */
-                    if (
-                        articles.length > 0
-                    ) {
-
-                        uniqueArticles =
-                            removeDuplicateArticles(
-                                articles
-                            );
-
-
-                        if (
-                            uniqueArticles.length < 12 &&
-                            fallbackResult.nextPage
-                        ) {
-
-                            try {
-
-                                const secondFallbackPage =
-                                    await fetchNews(
-                                        category,
-                                        {
-                                            q:
-                                                settings.fallback
-                                        },
-                                        fallbackResult.nextPage
-                                    );
-
-
-                                articles = [
-                                    ...articles,
-                                    ...secondFallbackPage.articles
-                                ];
-
-                            } catch (
-                                secondFallbackError
-                            ) {
-
-                                console.error(
-                                    `${category} second fallback page error:`,
-                                    secondFallbackError
-                                );
-
-                            }
-
-                        }
-
-                    }
-
-
                     uniqueArticles =
                         removeDuplicateArticles(
                             articles
                         );
 
-                } catch (fallbackError) {
+
+                    /*
+                     * Second fallback page.
+                     */
+
+                    if (
+                        uniqueArticles.length < 12 &&
+                        fallbackResult.nextPage
+                    ) {
+
+                        try {
+
+                            const secondFallbackPage =
+                                await fetchNews(
+                                    category,
+                                    {
+                                        q:
+                                            settings.fallback
+                                    },
+                                    fallbackResult.nextPage
+                                );
+
+
+                            articles = [
+                                ...articles,
+                                ...secondFallbackPage.articles
+                            ];
+
+
+                            uniqueArticles =
+                                removeDuplicateArticles(
+                                    articles
+                                );
+
+                        } catch (
+                            secondFallbackError
+                        ) {
+
+                            console.error(
+                                `${category} second fallback page error:`,
+                                secondFallbackError
+                            );
+
+                        }
+
+                    }
+
+                } catch (
+                    fallbackError
+                ) {
 
                     console.error(
                         `${category} fallback error:`,
@@ -671,6 +778,18 @@ export async function onRequestGet(context) {
             }
 
 
+            /*
+             * Final maximum:
+             * 12 articles per category.
+             */
+
+            uniqueArticles =
+                uniqueArticles.slice(
+                    0,
+                    12
+                );
+
+
             return formatArticles(
                 uniqueArticles
             );
@@ -678,9 +797,9 @@ export async function onRequestGet(context) {
         }
 
 
-        /* =========================================================
+        /* =====================================================
            LOAD ALL CATEGORIES
-        ========================================================= */
+        ===================================================== */
 
         const results =
             await Promise.all(
@@ -728,9 +847,9 @@ export async function onRequestGet(context) {
             );
 
 
-        /* =========================================================
+        /* =====================================================
            BUILD OUTPUT
-        ========================================================= */
+        ===================================================== */
 
         const output =
             Object.fromEntries(
@@ -739,25 +858,29 @@ export async function onRequestGet(context) {
 
 
         /*
-         * Make absolutely sure every category
-         * exists even if NewsData fails.
+         * Make sure every category exists.
          */
-        Object.keys(categories)
-            .forEach(category => {
 
-                output[category] =
-                    Array.isArray(
-                        output[category]
-                    )
-                        ? output[category]
-                        : [];
+        Object.keys(
+            categories
+        )
+            .forEach(
+                category => {
 
-            });
+                    output[category] =
+                        Array.isArray(
+                            output[category]
+                        )
+                            ? output[category]
+                            : [];
+
+                }
+            );
 
 
-        /* =========================================================
+        /* =====================================================
            RESPONSE
-        ========================================================= */
+        ===================================================== */
 
         const response =
             Response.json(
@@ -776,10 +899,10 @@ export async function onRequestGet(context) {
             );
 
 
-        /*
-         * Store successful response
-         * in Cloudflare cache.
-         */
+        /* =====================================================
+           CLOUDFLARE CACHE
+        ===================================================== */
+
         context.waitUntil(
             cache.put(
                 cacheKey,
