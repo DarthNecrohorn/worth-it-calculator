@@ -243,7 +243,7 @@ const NEWS_CATEGORY_LABELS = {
         "✈️ Travel",
 
     entertainment:
-        "🎬 Entertainment"
+        "🎬 Entertainment",
 
     lifestyle:
         "🌿 Lifestyle"
