@@ -1077,6 +1077,98 @@ function calculateCars(){
 
 }
 
+function renderCarChart(rows){
+
+    const chart =
+        $("carChart");
+
+    if(!chart) return;
+
+    chart.innerHTML = "";
+
+    if(!rows.length) return;
+
+
+    const max =
+        Math.max(
+            ...rows.map(
+                x =>
+                    Math.max(
+                        x.ev,
+                        x.gas
+                    )
+            )
+        );
+
+    rows.forEach(row => {
+
+        const group =
+            document.createElement("div");
+
+        group.className =
+            "bar-group";
+
+
+        const bars =
+            document.createElement("div");
+
+        bars.className =
+            "bars";
+
+
+        const evBar =
+            document.createElement("div");
+
+        evBar.className =
+            "bar";
+
+        evBar.style.height =
+            max > 0
+            ? (row.ev / max * 100) + "%"
+            : "0%";
+
+        evBar.title =
+            `EV: ${money(row.ev)}`;
+
+
+        const gasBar =
+            document.createElement("div");
+
+        gasBar.className =
+            "bar alt";
+
+        gasBar.style.height =
+            max > 0
+            ? (row.gas / max * 100) + "%"
+            : "0%";
+
+        gasBar.title =
+            `Gas: ${money(row.gas)}`;
+
+
+        bars.appendChild(evBar);
+        bars.appendChild(gasBar);
+
+
+        const label =
+            document.createElement("div");
+
+        label.className =
+            "bar-label";
+
+        label.textContent =
+            "Y" + row.year;
+
+
+        group.appendChild(bars);
+        group.appendChild(label);
+
+        chart.appendChild(group);
+
+    });
+
+}
+
 function renderCarTable(rows){
 
     const table =
