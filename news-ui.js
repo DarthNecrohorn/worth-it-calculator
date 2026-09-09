@@ -76,7 +76,11 @@ function renderNewsCategory(
                 article.title ||
                 "Untitled story";
 
-            const description =
+            const worthItTake =
+                article.worthItTake ||
+                "";
+            
+            const descrip    tion =
                 article.description ||
                 "";
 
