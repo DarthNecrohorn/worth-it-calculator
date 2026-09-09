@@ -7019,3 +7019,36 @@ function resetGeneric(){
     );
 
 }
+
+function resetCars() {
+  const defaults = {
+    evPrice: 15000,
+    evConsumption: 16,
+    homeCharge: 80,
+    homeElectricity: 0.15,
+    publicElectricity: 0.40,
+    evMaintenance: 350,
+    evInsurance: 400,
+    evRegistration: 150,
+    gasPrice: 10000,
+    gasConsumption: 7,
+    fuelPrice: 1.60,
+    gasMaintenance: 650,
+    gasInsurance: 400,
+    gasRegistration: 250,
+    gasOther: 100,
+    yearlyDistance: 15000,
+    priceGrowth: 3,
+    carYears: 10
+  };
+
+  for (const [id, value] of Object.entries(defaults)) {
+    const input = document.getElementById(id);
+    if (input) input.value = value;
+  }
+
+  const results = document.getElementById('carResults');
+  if (results) results.innerHTML = '';
+}
+
+window.resetCars = resetCars;
