@@ -390,7 +390,9 @@ export async function onRequestGet(context) {
             ) {
 
                 if (
-                    wordsB.has(word)
+                    wordsB.has(
+                        word
+                    )
                 ) {
 
                     commonWords++;
@@ -980,10 +982,8 @@ export async function onRequestGet(context) {
              *
              * Do NOT slice to 12 here.
              *
-             * We need all newly discovered
-             * articles so D1 can determine
-             * which ones are new and which
-             * old articles should leave.
+             * D1 must receive all newly
+             * discovered relevant articles.
              */
 
             return formatArticles(
@@ -994,395 +994,8 @@ export async function onRequestGet(context) {
 
 
         /* =====================================================
-           PERSISTENT NEWS HISTORY
-           ===================================================== */
-
-        async function persistCategory(
-            category,
-            freshArticles
-        ) {
-
-            /*
-             * Get the current persistent
-             * history for this category.
-             */
-
-            const existingResult =
-                await db
-                    .prepare(
-                        `
-                        SELECT
-                            category,
-                            url,
-                            title,
-                            description,
-                            image,
-                            published_at,
-                            source,
-                            added_at
-                        FROM news_articles
-                        WHERE category = ?
-                        ORDER BY added_at DESC
-                        LIMIT 12
-                        `
-                    )
-                    .bind(
-                        category
-                    )
-                    .all();
-
-
-            const existingRows =
-                Array.isArray(
-                    existingResult.results
-                )
-                    ? existingResult.results
-                    : [];
-
-
-            /*
-             * Convert D1 rows to the same
-             * frontend article structure.
-             */
-
-            const existingArticles =
-                existingRows.map(
-                    row => ({
-
-                        title:
-                            row.title ||
-                            "",
-
-                        description:
-                            row.description ||
-                            "",
-
-                        url:
-                            row.url ||
-                            "",
-
-                        image:
-                            row.image ||
-                            "",
-
-                        publishedAt:
-                            row.published_at ||
-                            "",
-
-                        source:
-                            row.source ||
-                            ""
-
-                    })
-                );
-
-
-            /*
-             * Fresh articles first.
-             *
-             * Existing articles follow.
-             *
-             * This means newly discovered
-             * articles are placed at the top.
-             */
-
-            const merged =
-                removeDuplicateFormattedArticles(
-                    [
-                        ...freshArticles,
-                        ...existingArticles
-                    ]
-                );
-
-
-            /*
-             * Only the first 12 survive.
-             */
-
-            const finalArticles =
-                merged.slice(
-                    0,
-                    12
-                );
-
-
-            /*
-             * Existing URLs.
-             */
-
-            const existingUrls =
-                new Set(
-                    existingRows
-                        .map(
-                            row =>
-                                String(
-                                    row.url || ""
-                                )
-                                    .trim()
-                                    .toLowerCase()
-                        )
-                        .filter(
-                            Boolean
-                        )
-                );
-
-
-            /*
-             * Insert only genuinely new
-             * articles.
-             *
-             * Existing articles keep their
-             * original added_at timestamp.
-             */
-
-                       const statements =
-                [];
-
-
-            const now =
-                Date.now();
-
-
-            let newArticleIndex =
-                0;
-
-
-            for (
-                const article
-                of finalArticles
-            ) {
-
-                const articleUrl =
-                    String(
-                        article.url || ""
-                    )
-                        .trim();
-
-
-                if (!articleUrl) {
-
-                    continue;
-
-                }
-
-
-                const normalizedUrl =
-                    articleUrl.toLowerCase();
-
-
-                if (
-                    existingUrls.has(
-                        normalizedUrl
-                    )
-                ) {
-
-                    continue;
-
-                }
-
-
-                statements.push(
-                    db
-                        .prepare(
-                            `
-                            INSERT OR IGNORE INTO news_articles
-                            (
-                                category,
-                                url,
-                                title,
-                                description,
-                                image,
-                                published_at,
-                                source,
-                                added_at
-                            )
-                            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                            `
-                        )
-                        .bind(
-                            category,
-                            articleUrl,
-                            article.title || "",
-                            article.description || "",
-                            article.image || "",
-                            article.publishedAt || "",
-                            article.source || "",
-                            now - newArticleIndex++
-                        )
-                );
-
-            }
-
-                    continue;
-
-                }
-
-
-                const normalizedUrl =
-                    articleUrl.toLowerCase();
-
-
-                if (
-                    existingUrls.has(
-                        normalizedUrl
-                    )
-                ) {
-
-                    continue;
-
-                }
-
-
-                statements.push(
-                    db
-                        .prepare(
-                            `
-                            INSERT OR IGNORE INTO news_articles
-                            (
-                                category,
-                                url,
-                                title,
-                                description,
-                                image,
-                                published_at,
-                                source,
-                                added_at
-                            )
-                            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                            `
-                        )
-                        .bind(
-                            category,
-                            articleUrl,
-                            article.title || "",
-                            article.description || "",
-                            article.image || "",
-                            article.publishedAt || "",
-                            article.source || "",
-                            now
-                        )
-                );
-
-            }
-
-
-            /*
-             * Execute inserts.
-             */
-
-            if (
-                statements.length
-            ) {
-
-                await db.batch(
-                    statements
-                );
-
-            }
-
-
-            /*
-             * Remove anything older than
-             * the newest 12 persistent
-             * articles.
-             */
-
-            await db
-                .prepare(
-                    `
-                    DELETE FROM news_articles
-                    WHERE category = ?
-                    AND url NOT IN (
-                        SELECT url
-                        FROM news_articles
-                        WHERE category = ?
-                        ORDER BY added_at DESC
-                        LIMIT 12
-                    )
-                    `
-                )
-                .bind(
-                    category,
-                    category
-                )
-                .run();
-
-
-            /*
-             * Read the final persistent state
-             * again from D1.
-             *
-             * This guarantees that the response
-             * represents what is actually stored.
-             */
-
-            const finalResult =
-                await db
-                    .prepare(
-                        `
-                        SELECT
-                            title,
-                            description,
-                            url,
-                            image,
-                            published_at,
-                            source
-                        FROM news_articles
-                        WHERE category = ?
-                        ORDER BY added_at DESC
-                        LIMIT 12
-                        `
-                    )
-                    .bind(
-                        category
-                    )
-                    .all();
-
-
-            const finalRows =
-                Array.isArray(
-                    finalResult.results
-                )
-                    ? finalResult.results
-                    : [];
-
-
-            return finalRows.map(
-                row => ({
-
-                    title:
-                        row.title ||
-                        "",
-
-                    description:
-                        row.description ||
-                        "",
-
-                    url:
-                        row.url ||
-                        "",
-
-                    image:
-                        row.image ||
-                        "",
-
-                    publishedAt:
-                        row.published_at ||
-                        "",
-
-                    source:
-                        row.source ||
-                        ""
-
-                })
-            );
-
-        }
-
-
-        /* =====================================================
            REMOVE DUPLICATES FROM FORMATTED ARTICLES
-           ===================================================== */
+        ===================================================== */
 
         function removeDuplicateFormattedArticles(
             articles
@@ -1503,8 +1116,344 @@ export async function onRequestGet(context) {
 
 
         /* =====================================================
+           PERSISTENT NEWS HISTORY
+        ===================================================== */
+
+        async function persistCategory(
+            category,
+            freshArticles
+        ) {
+
+            /*
+             * Get the current persistent
+             * history for this category.
+             */
+
+            const existingResult =
+                await db
+                    .prepare(
+                        `
+                        SELECT
+                            category,
+                            url,
+                            title,
+                            description,
+                            image,
+                            published_at,
+                            source,
+                            added_at
+                        FROM news_articles
+                        WHERE category = ?
+                        ORDER BY added_at DESC
+                        LIMIT 12
+                        `
+                    )
+                    .bind(
+                        category
+                    )
+                    .all();
+
+
+            const existingRows =
+                Array.isArray(
+                    existingResult.results
+                )
+                    ? existingResult.results
+                    : [];
+
+
+            /*
+             * Convert D1 rows to the same
+             * frontend article structure.
+             */
+
+            const existingArticles =
+                existingRows.map(
+                    row => ({
+
+                        title:
+                            row.title ||
+                            "",
+
+                        description:
+                            row.description ||
+                            "",
+
+                        url:
+                            row.url ||
+                            "",
+
+                        image:
+                            row.image ||
+                            "",
+
+                        publishedAt:
+                            row.published_at ||
+                            "",
+
+                        source:
+                            row.source ||
+                            ""
+
+                    })
+                );
+
+
+            /*
+             * Fresh articles first.
+             *
+             * Existing articles follow.
+             *
+             * Therefore new discoveries are
+             * always considered before old ones.
+             */
+
+            const merged =
+                removeDuplicateFormattedArticles(
+                    [
+                        ...freshArticles,
+                        ...existingArticles
+                    ]
+                );
+
+
+            /*
+             * Only the newest 12 survive.
+             */
+
+            const finalArticles =
+                merged.slice(
+                    0,
+                    12
+                );
+
+
+            /*
+             * Existing URLs.
+             *
+             * Existing articles must keep
+             * their original added_at value.
+             */
+
+            const existingUrls =
+                new Set(
+                    existingRows
+                        .map(
+                            row =>
+                                String(
+                                    row.url || ""
+                                )
+                                    .trim()
+                                    .toLowerCase()
+                        )
+                        .filter(
+                            Boolean
+                        )
+                );
+
+
+            /* =================================================
+               INSERT NEW ARTICLES
+            ================================================= */
+
+            const statements =
+                [];
+
+
+            const now =
+                Date.now();
+
+
+            let newArticleIndex =
+                0;
+
+
+            for (
+                const article
+                of finalArticles
+            ) {
+
+                const articleUrl =
+                    String(
+                        article.url || ""
+                    )
+                        .trim();
+
+
+                if (!articleUrl) {
+
+                    continue;
+
+                }
+
+
+                const normalizedUrl =
+                    articleUrl.toLowerCase();
+
+
+                /*
+                 * Existing article:
+                 *
+                 * do not insert again.
+                 * Its original added_at
+                 * remains unchanged.
+                 */
+
+                if (
+                    existingUrls.has(
+                        normalizedUrl
+                    )
+                ) {
+
+                    continue;
+
+                }
+
+
+                statements.push(
+                    db
+                        .prepare(
+                            `
+                            INSERT OR IGNORE INTO news_articles
+                            (
+                                category,
+                                url,
+                                title,
+                                description,
+                                image,
+                                published_at,
+                                source,
+                                added_at
+                            )
+                            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                            `
+                        )
+                        .bind(
+                            category,
+                            articleUrl,
+                            article.title || "",
+                            article.description || "",
+                            article.image || "",
+                            article.publishedAt || "",
+                            article.source || "",
+                            now - newArticleIndex++
+                        )
+                );
+
+            }
+
+
+            /*
+             * Execute inserts.
+             */
+
+            if (
+                statements.length
+            ) {
+
+                await db.batch(
+                    statements
+                );
+
+            }
+
+
+            /* =================================================
+               REMOVE ARTICLES OUTSIDE NEWEST 12
+            ================================================= */
+
+            await db
+                .prepare(
+                    `
+                    DELETE FROM news_articles
+                    WHERE category = ?
+                    AND url NOT IN (
+                        SELECT url
+                        FROM news_articles
+                        WHERE category = ?
+                        ORDER BY added_at DESC
+                        LIMIT 12
+                    )
+                    `
+                )
+                .bind(
+                    category,
+                    category
+                )
+                .run();
+
+
+            /* =================================================
+               READ FINAL PERSISTENT STATE
+            ================================================= */
+
+            const finalResult =
+                await db
+                    .prepare(
+                        `
+                        SELECT
+                            title,
+                            description,
+                            url,
+                            image,
+                            published_at,
+                            source
+                        FROM news_articles
+                        WHERE category = ?
+                        ORDER BY added_at DESC
+                        LIMIT 12
+                        `
+                    )
+                    .bind(
+                        category
+                    )
+                    .all();
+
+
+            const finalRows =
+                Array.isArray(
+                    finalResult.results
+                )
+                    ? finalResult.results
+                    : [];
+
+
+            return finalRows.map(
+                row => ({
+
+                    title:
+                        row.title ||
+                        "",
+
+                    description:
+                        row.description ||
+                        "",
+
+                    url:
+                        row.url ||
+                        "",
+
+                    image:
+                        row.image ||
+                        "",
+
+                    publishedAt:
+                        row.published_at ||
+                        "",
+
+                    source:
+                        row.source ||
+                        ""
+
+                })
+            );
+
+        }
+
+
+        /* =====================================================
            LOAD + PERSIST ALL CATEGORIES
-           ===================================================== */
+        ===================================================== */
 
         const results =
             await Promise.all(
@@ -1521,7 +1470,7 @@ export async function onRequestGet(context) {
                         try {
 
                             /*
-                             * Get newly discovered
+                             * Fetch newly discovered
                              * articles from NewsData.
                              */
 
@@ -1533,8 +1482,8 @@ export async function onRequestGet(context) {
 
 
                             /*
-                             * Merge them with
-                             * persistent D1 history.
+                             * Merge with persistent
+                             * D1 history.
                              */
 
                             const articles =
@@ -1558,11 +1507,8 @@ export async function onRequestGet(context) {
 
 
                             /*
-                             * IMPORTANT:
-                             *
                              * If NewsData fails,
-                             * still try to return
-                             * the existing D1 history.
+                             * return existing D1 history.
                              */
 
                             try {
