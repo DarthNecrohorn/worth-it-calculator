@@ -1765,14 +1765,6 @@ html[data-theme="light"] .ai-chat-nav-btn{color:#0f172a;background:rgba(15,23,42
         0 6px 18px rgba(124,92,255,.22);
 }
 
-.news-category-btn:last-child {
-    width: fit-content;
-    min-width: 0;
-    padding-left: 8px;
-    padding-right: 8px;
-}
-
-
 /* =========================================================
    NEWS CATEGORY HEADER
 ========================================================= */
