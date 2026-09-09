@@ -1135,12 +1135,16 @@ export async function onRequestGet(context) {
              * original added_at timestamp.
              */
 
-            const statements =
+                       const statements =
                 [];
 
 
             const now =
                 Date.now();
+
+
+            let newArticleIndex =
+                0;
 
 
             for (
@@ -1156,6 +1160,58 @@ export async function onRequestGet(context) {
 
 
                 if (!articleUrl) {
+
+                    continue;
+
+                }
+
+
+                const normalizedUrl =
+                    articleUrl.toLowerCase();
+
+
+                if (
+                    existingUrls.has(
+                        normalizedUrl
+                    )
+                ) {
+
+                    continue;
+
+                }
+
+
+                statements.push(
+                    db
+                        .prepare(
+                            `
+                            INSERT OR IGNORE INTO news_articles
+                            (
+                                category,
+                                url,
+                                title,
+                                description,
+                                image,
+                                published_at,
+                                source,
+                                added_at
+                            )
+                            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                            `
+                        )
+                        .bind(
+                            category,
+                            articleUrl,
+                            article.title || "",
+                            article.description || "",
+                            article.image || "",
+                            article.publishedAt || "",
+                            article.source || "",
+                            now - newArticleIndex++
+                        )
+                );
+
+            }
 
                     continue;
 
