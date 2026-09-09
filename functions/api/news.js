@@ -157,7 +157,15 @@ export async function onRequestGet(context) {
 
             category:
                 "entertainment"
+      
+        },
+                
+        
+        lifestyle: {
 
+            category:
+                "lifestyle"
+            
         },
 
 
