@@ -1700,7 +1700,8 @@ html[data-theme="light"] .ai-chat-nav-btn{color:#0f172a;background:rgba(15,23,42
 ========================================================= */
 
 .news-category-nav{
-    width:100%;
+    width:fit-content;
+    max-width:100%;
     display:flex;
     align-items:center;
     gap:8px;
