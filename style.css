@@ -3371,3 +3371,21 @@ html[data-theme="light"] .money-movement .movement-scale::before{
         justify-content:flex-start;
     }
 }
+
+/* =========================================================
+   CAR COST PROJECTION - FULL WIDTH
+========================================================= */
+
+.chart-card{
+    width:100%;
+}
+
+.chart{
+    width:100%;
+    display:flex;
+}
+
+.bar-group{
+    flex:1 1 0;
+    min-width:0;
+}
