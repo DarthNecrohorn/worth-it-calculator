@@ -160,10 +160,10 @@ export async function onRequestGet(context) {
 
         awesome: {
 
-    q:
-        "cute OR adorable OR heartwarming OR wholesome OR uplifting OR inspiring OR rescue OR rescued OR helping OR helped OR kindness OR \"good news\" OR \"feel good\" OR \"happy ending\" OR \"happy story\" OR cat OR cats OR kitten OR kittens OR dog OR dogs OR puppy OR puppies OR pet OR pets OR animal OR animals"
+            q:
+                "cute OR adorable OR heartwarming OR wholesome OR uplifting OR inspiring OR rescue OR rescued OR helping OR helped OR kindness OR \"good news\" OR \"feel good\" OR \"happy ending\" OR \"happy story\" OR cat OR cats OR kitten OR kittens OR dog OR dogs OR puppy OR puppies OR pet OR pets OR animal OR animals"
 
-    },
+        },
 
 
         underrated: {
@@ -544,6 +544,7 @@ export async function onRequestGet(context) {
             const rules = {
 
                 gaming: [
+
                     "gaming",
                     "video game",
                     "video games",
@@ -558,10 +559,11 @@ export async function onRequestGet(context) {
                     "ps5",
                     "ps4",
                     "switch"
+
                 ],
 
 
-               weird: [
+                weird: [
 
                     "weird",
                     "strange",
@@ -612,13 +614,16 @@ export async function onRequestGet(context) {
 
                 ],
 
+
                 underrated: [
+
                     "underrated",
                     "overlooked",
                     "little known",
                     "hidden gem",
                     "unknown",
                     "forgotten"
+
                 ]
 
             };
@@ -742,72 +747,73 @@ export async function onRequestGet(context) {
                         ...secondPage.articles
                     );
 
-                            } catch (pageError) {
 
-                console.error(
-                    `${category} second page error:`,
-                    pageError
-                );
+                } catch (pageError) {
+
+                    console.error(
+                        `${category} second page error:`,
+                        pageError
+                    );
+
+                }
 
             }
 
-        }
 
-
-        /*
-         * Remove duplicates first.
-         */
-
-        articles =
-            removeDuplicateArticles(
-                articles
-            );
-
-
-        /*
-         * Special categories need
-         * additional relevance filtering.
-         */
-
-        if (
-            [
-                "gaming",
-                "weird",
-                "underrated"
-            ].includes(
-                category
-            )
-        ) {
+            /*
+             * Remove duplicates first.
+             */
 
             articles =
-                articles.filter(
-                    article =>
-                        isRelevantSpecialCategory(
-                            article,
-                            category
-                        )
+                removeDuplicateArticles(
+                    articles
                 );
 
-        }
+
+            /*
+             * Special categories need
+             * additional relevance filtering.
+             */
+
+            if (
+                [
+                    "gaming",
+                    "weird",
+                    "underrated"
+                ].includes(
+                    category
+                )
+            ) {
+
+                articles =
+                    articles.filter(
+                        article =>
+                            isRelevantSpecialCategory(
+                                article,
+                                category
+                            )
+                    );
+
+            }
 
 
-        /*
-         * Maximum 12.
-         *
-         * This is NOT a requirement
-         * to have 12.
-         */
+            /*
+             * Maximum 12.
+             *
+             * This is NOT a requirement
+             * to have 12.
+             */
 
-        articles =
-            articles.slice(
-                0,
-                12
+            articles =
+                articles.slice(
+                    0,
+                    12
+                );
+
+
+            return formatArticles(
+                articles
             );
-
-
-        return formatArticles(
-            articles
-        );
 
         }
 
