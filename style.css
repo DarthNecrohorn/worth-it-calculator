@@ -1861,6 +1861,47 @@ html[data-theme="light"] .ai-chat-nav-btn{color:#0f172a;background:rgba(15,23,42
     overflow:hidden;
 }
 
+/* =========================================================
+   WORTH IT TAKE
+========================================================= */
+
+.news-card-take{
+    margin:18px 20px 0;
+    padding:14px 15px;
+
+    border-left:3px solid rgba(124,92,255,.75);
+
+    background:rgba(124,92,255,.07);
+
+    border-radius:0 10px 10px 0;
+}
+
+.news-card-take-label{
+    margin-bottom:6px;
+
+    color:var(--text);
+
+    font-size:11px;
+    font-weight:800;
+    letter-spacing:.2px;
+}
+
+.news-card-take-text{
+    color:var(--muted);
+
+    font-size:12px;
+    line-height:1.55;
+}
+
+
+/* =========================================================
+   LIGHT THEME
+========================================================= */
+
+html[data-theme="light"] .news-card-take{
+    background:rgba(124,92,255,.055);
+    border-left-color:rgba(124,92,255,.65);
+}
 
 /* =========================================================
    NEWS FOOTER
