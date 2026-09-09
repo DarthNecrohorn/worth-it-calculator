@@ -7005,19 +7005,13 @@ result.scrollIntoView({
 
 
 /* =========================================================
-RESET GENERIC
+   RESET GENERIC
 ========================================================= */
 
-function resetGeneric(){
+function resetGeneric() {
+  setupGeneric(currentGenericType);
 
-    setupGeneric(
-        currentGenericType
-    );
-
-    showToast(
-        "Reset complete"
-    );
-
+  showToast("Reset complete");
 }
 
 function resetCars() {
@@ -7047,8 +7041,11 @@ function resetCars() {
     if (input) input.value = value;
   }
 
-  const results = document.getElementById('carResults');
-  if (results) results.innerHTML = '';
+  const result = document.getElementById("carResults");
+  if (result) {
+    result.innerHTML = "";
+    result.classList.remove("active");
+  }
 }
 
 window.resetCars = resetCars;
