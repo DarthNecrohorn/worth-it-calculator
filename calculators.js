@@ -1077,6 +1077,44 @@ function calculateCars(){
 
 }
 
+function renderCarTable(rows){
+
+    const table =
+        $("carTable");
+
+    if(!table) return;
+
+    table.innerHTML =
+        rows.map(row => `
+
+            <tr>
+
+                <td>
+                    ${row.year}
+                </td>
+
+                <td>
+                    ${money(row.ev)}
+                </td>
+
+                <td>
+                    ${money(row.gas)}
+                </td>
+
+                <td>
+                    ${money(row.diff)}
+                </td>
+
+                <td>
+                    ${row.winner}
+                </td>
+
+            </tr>
+
+        `).join("");
+
+}
+
 /* =========================================================
 GENERIC CALCULATORS
 ========================================================= */
