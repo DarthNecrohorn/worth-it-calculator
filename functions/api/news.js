@@ -773,6 +773,9 @@ export async function onRequestGet(context) {
             /*
              * Special categories need
              * additional relevance filtering.
+             *
+             * Awesome is intentionally
+             * NOT included here.
              */
 
             if (
