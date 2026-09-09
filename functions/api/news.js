@@ -32,8 +32,8 @@ export async function onRequestGet(context) {
 
 
     /*
-     * v5 = expanded category search
-     * and expanded special-category relevance.
+     * v6 = expanded category search
+     * with improved special-category relevance.
      */
 
     const requestUrl =
@@ -43,7 +43,7 @@ export async function onRequestGet(context) {
 
 
     const cacheKeyUrl =
-        `${requestUrl.origin}${requestUrl.pathname}/?news-cache=v5`;
+        `${requestUrl.origin}${requestUrl.pathname}/?news-cache=v6`;
 
 
     const cacheKey =
@@ -154,7 +154,7 @@ export async function onRequestGet(context) {
         weird: {
 
             q:
-                "(weird OR strange OR bizarre OR unusual OR odd OR peculiar OR mysterious OR unexpected OR unbelievable OR bizarre event OR strange event OR unusual event OR unexplained)"
+                "(weird OR strange OR bizarre OR unusual OR odd OR peculiar OR mysterious OR unexpected OR unbelievable OR \"strange event\" OR \"unusual event\" OR unexplained OR \"strange discovery\" OR \"unusual discovery\")"
 
         },
 
@@ -162,7 +162,7 @@ export async function onRequestGet(context) {
         awesome: {
 
             q:
-                "(cute OR adorable OR heartwarming OR \"heart-warming\" OR wholesome OR uplifting OR inspiring OR kindness OR \"kind act\" OR helping OR helped OR rescue OR rescued OR saving OR saved OR \"good news\" OR \"feel good\" OR \"feel-good\" OR \"happy ending\" OR \"happy story\" OR \"good deed\" OR \"acts of kindness\" OR cat OR cats OR kitten OR kittens OR dog OR dogs OR puppy OR puppies OR pet OR pets OR animal OR animals OR home OR house OR family OR community)"
+                "(cute OR adorable OR heartwarming OR \"heart-warming\" OR wholesome OR uplifting OR inspiring OR kindness OR \"kind act\" OR \"acts of kindness\" OR \"good deed\" OR \"good deeds\" OR helping OR helped OR rescue OR rescued OR saving OR saved OR \"good news\" OR \"feel good\" OR \"feel-good\" OR \"happy ending\" OR \"happy story\" OR \"positive story\" OR \"positive news\" OR \"human kindness\" OR \"local hero\" OR hero OR heroes OR cat OR cats OR kitten OR kittens OR dog OR dogs OR puppy OR puppies OR pet OR pets OR animal OR animals OR wildlife)"
 
         },
 
@@ -170,7 +170,7 @@ export async function onRequestGet(context) {
         underrated: {
 
             q:
-                "(underrated OR overlooked OR \"little known\" OR \"little-known\" OR \"hidden gem\" OR unknown OR forgotten OR \"under the radar\" OR \"off the radar\" OR \"lesser known\" OR \"lesser-known\")"
+                "(underrated OR overlooked OR \"little known\" OR \"little-known\" OR \"hidden gem\" OR \"hidden gems\" OR unknown OR forgotten OR \"under the radar\" OR \"off the radar\" OR \"lesser known\" OR \"lesser-known\" OR unsung OR \"unsung hero\")"
 
         }
 
@@ -593,11 +593,6 @@ export async function onRequestGet(context) {
                     "unexpected",
                     "unbelievable",
                     "unexplained",
-                    "rare",
-                    "extraordinary",
-                    "shocking",
-                    "surprising",
-                    "surprising discovery",
                     "strange discovery",
                     "unusual discovery"
 
@@ -618,9 +613,10 @@ export async function onRequestGet(context) {
                     "kindness",
                     "kind act",
                     "kindness story",
+                    "acts of kindness",
+
                     "good deed",
                     "good deeds",
-                    "acts of kindness",
 
                     "helping",
                     "helped",
@@ -634,10 +630,18 @@ export async function onRequestGet(context) {
                     "good news",
                     "feel good",
                     "feel-good",
+
                     "happy ending",
                     "happy story",
+
                     "positive story",
                     "positive news",
+
+                    "human kindness",
+
+                    "local hero",
+                    "hero",
+                    "heroes",
 
                     "cat",
                     "cats",
@@ -655,15 +659,7 @@ export async function onRequestGet(context) {
                     "animal",
                     "animals",
 
-                    "home",
-                    "house",
-                    "family",
-                    "community",
-
-                    "hero",
-                    "heroes",
-                    "local hero",
-                    "human kindness"
+                    "wildlife"
 
                 ],
 
@@ -690,6 +686,7 @@ export async function onRequestGet(context) {
 
                     "unsung",
                     "unsung hero",
+
                     "overlooked destination",
                     "overlooked place",
                     "overlooked artist",
@@ -837,10 +834,6 @@ export async function onRequestGet(context) {
 
             /*
              * Third page.
-             *
-             * This gives the category
-             * more chances to find
-             * relevant stories.
              */
 
             if (
@@ -868,10 +861,61 @@ export async function onRequestGet(context) {
                     );
 
 
+                    result.nextPage =
+                        thirdPage.nextPage ||
+                        null;
+
+
                 } catch (pageError) {
 
                     console.error(
                         `${category} third page error:`,
+                        pageError
+                    );
+
+                }
+
+            }
+
+
+            /*
+             * Fourth page.
+             *
+             * Special categories can
+             * need additional results
+             * because relevance filtering
+             * removes some articles.
+             */
+
+            if (
+                result.nextPage
+            ) {
+
+                try {
+
+                    const fourthPage =
+                        await fetchNews(
+                            category,
+                            {
+                                category:
+                                    settings.category,
+
+                                q:
+                                    settings.q
+                            },
+                            result.nextPage
+                        );
+
+
+                    articles.push(
+                        ...fourthPage.articles
+                    );
+
+
+                } catch (pageError) {
+
+                    console.error(
+                        `${category} fourth page error:`,
                         pageError
                     );
 
@@ -894,17 +938,15 @@ export async function onRequestGet(context) {
              * Special categories need
              * additional relevance filtering.
              *
-             * Awesome is intentionally
-             * NOT included here because
-             * its query is already broad
-             * and its keywords are intended
-             * to allow positive stories.
+             * Standard NewsData categories
+             * are already category-filtered.
              */
 
             if (
                 [
                     "gaming",
                     "weird",
+                    "awesome",
                     "underrated"
                 ].includes(
                     category
