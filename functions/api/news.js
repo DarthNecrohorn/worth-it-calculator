@@ -51,7 +51,7 @@ export async function onRequestGet(context) {
 
 
     /*
-     * v7 = persistent D1 News history.
+     * v8 = persistent D1 News history.
      */
 
     const requestUrl =
