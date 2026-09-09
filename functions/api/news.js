@@ -11,27 +11,30 @@ export async function onRequestGet(context) {
         );
     }
 
+
     /*
      * Cache News results for 2 hours.
-     *
-     * This prevents every visitor from triggering
-     * new NewsData API requests.
      */
-    const CACHE_TTL = 2 * 60 * 60;
+    const CACHE_TTL =
+        2 * 60 * 60;
 
-    const cache = caches.default;
+    const cache =
+        caches.default;
+
 
     /*
-     * Use a stable cache key for the whole News endpoint.
+     * Use a stable cache key for the whole
+     * News endpoint.
      *
-     * The API is intentionally cached independently of
-     * the incoming query string so ?v=2 does not create
-     * a separate cache entry.
+     * v2 = new News category structure.
      */
-    const requestUrl = new URL(context.request.url);
+    const requestUrl =
+        new URL(
+            context.request.url
+        );
 
     const cacheKeyUrl =
-        `${requestUrl.origin}${requestUrl.pathname}/?news-cache=v1`;
+        `${requestUrl.origin}${requestUrl.pathname}/?news-cache=v2`;
 
     const cacheKey =
         new Request(
@@ -40,6 +43,7 @@ export async function onRequestGet(context) {
                 method: "GET"
             }
         );
+
 
     /*
      * Return cached News data when available.
@@ -63,10 +67,34 @@ export async function onRequestGet(context) {
         return response;
     }
 
+
+    /*
+     * News categories.
+     *
+     * "all" is NOT requested separately.
+     * The frontend combines all returned
+     * categories into All News.
+     */
     const categories = {
 
-        latest: {
-            q: "news"
+        world: {
+            category: "world",
+            fallback: "international OR global OR world"
+        },
+
+        technology: {
+            category: "technology",
+            fallback: "technology OR tech OR gadgets"
+        },
+
+        business: {
+            category: "business",
+            fallback: "business OR economy OR finance"
+        },
+
+        science: {
+            category: "science",
+            fallback: "science OR research OR discovery"
         },
 
         weird: {
@@ -78,27 +106,45 @@ export async function onRequestGet(context) {
         },
 
         underrated: {
-            q: "overlooked OR underrated OR little known"
+            q: "overlooked OR underrated OR \"little known\""
         },
 
-        world: {
-            category: "world",
-            fallback: "international OR global OR world"
+        sports: {
+            category: "sports",
+            fallback: "sports OR football OR basketball OR tennis"
+        },
+
+        automotive: {
+            category: "automobiles",
+            fallback: "automotive OR cars OR vehicles"
+        },
+
+        travel: {
+            category: "tourism",
+            fallback: "travel OR tourism OR destinations"
         }
 
     };
 
+
     try {
+
+
+        /* =========================================================
+           FETCH NEWS
+        ========================================================= */
 
         async function fetchNews(
             category,
-            params
+            params,
+            page = null
         ) {
 
             const url =
                 new URL(
                     "https://newsdata.io/api/1/latest"
                 );
+
 
             url.searchParams.set(
                 "apikey",
@@ -110,6 +156,10 @@ export async function onRequestGet(context) {
                 "en"
             );
 
+            /*
+             * NewsData returns up to 10 articles
+             * per request.
+             */
             url.searchParams.set(
                 "size",
                 "10"
@@ -120,6 +170,7 @@ export async function onRequestGet(context) {
                 "1"
             );
 
+
             if (params.category) {
 
                 url.searchParams.set(
@@ -128,6 +179,7 @@ export async function onRequestGet(context) {
                 );
 
             }
+
 
             if (params.q) {
 
@@ -138,13 +190,30 @@ export async function onRequestGet(context) {
 
             }
 
+
+            /*
+             * Used when we need a second page
+             * to reach 12 unique stories.
+             */
+            if (page) {
+
+                url.searchParams.set(
+                    "page",
+                    page
+                );
+
+            }
+
+
             const response =
                 await fetch(
                     url.toString()
                 );
 
+
             const data =
                 await response.json();
+
 
             if (!response.ok) {
 
@@ -154,11 +223,25 @@ export async function onRequestGet(context) {
 
             }
 
-            return Array.isArray(data.results)
-                ? data.results
-                : [];
+
+            return {
+
+                articles:
+                    Array.isArray(data.results)
+                        ? data.results
+                        : [],
+
+                nextPage:
+                    data.nextPage || null
+
+            };
 
         }
+
+
+        /* =========================================================
+           NORMALIZE TITLE
+        ========================================================= */
 
         function normalizeTitle(
             title
@@ -183,6 +266,11 @@ export async function onRequestGet(context) {
 
         }
 
+
+        /* =========================================================
+           TITLE SIMILARITY
+        ========================================================= */
+
         function titleSimilarity(
             titleA,
             titleB
@@ -198,6 +286,7 @@ export async function onRequestGet(context) {
                         )
                 );
 
+
             const wordsB =
                 new Set(
                     normalizeTitle(titleB)
@@ -208,6 +297,7 @@ export async function onRequestGet(context) {
                         )
                 );
 
+
             if (
                 !wordsA.size ||
                 !wordsB.size
@@ -215,7 +305,9 @@ export async function onRequestGet(context) {
                 return 0;
             }
 
+
             let commonWords = 0;
+
 
             for (
                 const word of wordsA
@@ -224,10 +316,13 @@ export async function onRequestGet(context) {
                 if (
                     wordsB.has(word)
                 ) {
+
                     commonWords++;
+
                 }
 
             }
+
 
             return (
                 commonWords /
@@ -238,6 +333,11 @@ export async function onRequestGet(context) {
             );
 
         }
+
+
+        /* =========================================================
+           REMOVE DUPLICATE ARTICLES
+        ========================================================= */
 
         function removeDuplicateArticles(
             articles
@@ -250,6 +350,7 @@ export async function onRequestGet(context) {
 
             const seenTitles = [];
 
+
             for (
                 const article of articles
             ) {
@@ -259,19 +360,25 @@ export async function onRequestGet(context) {
                         .trim()
                         .toLowerCase();
 
+
                 const articleTitle =
                     normalizeTitle(
                         article.title
                     );
 
+
                 if (
                     articleUrl &&
                     seenUrls.has(articleUrl)
                 ) {
+
                     continue;
+
                 }
 
+
                 let duplicate = false;
+
 
                 for (
                     const existingTitle of seenTitles
@@ -291,9 +398,11 @@ export async function onRequestGet(context) {
 
                 }
 
+
                 if (duplicate) {
                     continue;
                 }
+
 
                 if (articleUrl) {
 
@@ -303,6 +412,7 @@ export async function onRequestGet(context) {
 
                 }
 
+
                 if (articleTitle) {
 
                     seenTitles.push(
@@ -311,21 +421,34 @@ export async function onRequestGet(context) {
 
                 }
 
+
                 uniqueArticles.push(
                     article
                 );
 
+
+                /*
+                 * We only need 12 unique stories.
+                 */
                 if (
-                    uniqueArticles.length >= 10
+                    uniqueArticles.length >= 12
                 ) {
+
                     break;
+
                 }
 
             }
 
+
             return uniqueArticles;
 
         }
+
+
+        /* =========================================================
+           FORMAT ARTICLES
+        ========================================================= */
 
         function formatArticles(
             articles
@@ -357,56 +480,232 @@ export async function onRequestGet(context) {
 
         }
 
-        const results =
-            await Promise.all(
-                Object.entries(categories).map(
-                    async ([category, settings]) => {
 
-                        try {
+        /* =========================================================
+           FETCH CATEGORY
+        ========================================================= */
 
-                            let articles =
-                                await fetchNews(
-                                    category,
-                                    {
-                                        category:
-                                            settings.category,
+        async function loadCategory(
+            category,
+            settings
+        ) {
 
-                                        q:
-                                            settings.q
-                                    }
-                                );
+            /*
+             * First request.
+             */
+            let result =
+                await fetchNews(
+                    category,
+                    {
+                        category:
+                            settings.category,
 
-                            /*
-                             * World fallback if the
-                             * category returns no stories.
-                             */
-                            if (
-                                category === "world" &&
-                                articles.length === 0 &&
-                                settings.fallback
-                            ) {
+                        q:
+                            settings.q
+                    }
+                );
 
-                                articles =
+
+            let articles =
+                result.articles;
+
+
+            /*
+             * If the category has fewer than
+             * 12 unique stories, try the next
+             * NewsData page.
+             */
+            if (
+                articles.length > 0
+            ) {
+
+                let uniqueArticles =
+                    removeDuplicateArticles(
+                        articles
+                    );
+
+
+                if (
+                    uniqueArticles.length < 12 &&
+                    result.nextPage
+                ) {
+
+                    try {
+
+                        const secondPage =
+                            await fetchNews(
+                                category,
+                                {
+                                    category:
+                                        settings.category,
+
+                                    q:
+                                        settings.q
+                                },
+                                result.nextPage
+                            );
+
+
+                        articles = [
+                            ...articles,
+                            ...secondPage.articles
+                        ];
+
+                    } catch (pageError) {
+
+                        console.error(
+                            `${category} second page error:`,
+                            pageError
+                        );
+
+                    }
+
+                }
+
+            }
+
+
+            /*
+             * Final duplicate removal.
+             */
+            let uniqueArticles =
+                removeDuplicateArticles(
+                    articles
+                );
+
+
+            /*
+             * Category fallback.
+             *
+             * Used when the main category
+             * returns no useful stories.
+             */
+            if (
+                uniqueArticles.length === 0 &&
+                settings.fallback
+            ) {
+
+                try {
+
+                    const fallbackResult =
+                        await fetchNews(
+                            category,
+                            {
+                                q:
+                                    settings.fallback
+                            }
+                        );
+
+
+                    articles =
+                        fallbackResult.articles;
+
+
+                    /*
+                     * Try second fallback page
+                     * if necessary.
+                     */
+                    if (
+                        articles.length > 0
+                    ) {
+
+                        uniqueArticles =
+                            removeDuplicateArticles(
+                                articles
+                            );
+
+
+                        if (
+                            uniqueArticles.length < 12 &&
+                            fallbackResult.nextPage
+                        ) {
+
+                            try {
+
+                                const secondFallbackPage =
                                     await fetchNews(
                                         category,
                                         {
                                             q:
                                                 settings.fallback
-                                        }
+                                        },
+                                        fallbackResult.nextPage
                                     );
+
+
+                                articles = [
+                                    ...articles,
+                                    ...secondFallbackPage.articles
+                                ];
+
+                            } catch (
+                                secondFallbackError
+                            ) {
+
+                                console.error(
+                                    `${category} second fallback page error:`,
+                                    secondFallbackError
+                                );
 
                             }
 
-                            const uniqueArticles =
-                                removeDuplicateArticles(
-                                    articles
+                        }
+
+                    }
+
+
+                    uniqueArticles =
+                        removeDuplicateArticles(
+                            articles
+                        );
+
+                } catch (fallbackError) {
+
+                    console.error(
+                        `${category} fallback error:`,
+                        fallbackError
+                    );
+
+                }
+
+            }
+
+
+            return formatArticles(
+                uniqueArticles
+            );
+
+        }
+
+
+        /* =========================================================
+           LOAD ALL CATEGORIES
+        ========================================================= */
+
+        const results =
+            await Promise.all(
+                Object.entries(
+                    categories
+                ).map(
+                    async (
+                        [
+                            category,
+                            settings
+                        ]
+                    ) => {
+
+                        try {
+
+                            const articles =
+                                await loadCategory(
+                                    category,
+                                    settings
                                 );
+
 
                             return [
                                 category,
-                                formatArticles(
-                                    uniqueArticles
-                                )
+                                articles
                             ];
 
                         } catch (error) {
@@ -416,50 +715,6 @@ export async function onRequestGet(context) {
                                 error
                             );
 
-                            /*
-                             * Extra World fallback if the
-                             * category request itself fails.
-                             */
-                            if (
-                                category === "world" &&
-                                settings.fallback
-                            ) {
-
-                                try {
-
-                                    const articles =
-                                        await fetchNews(
-                                            category,
-                                            {
-                                                q:
-                                                    settings.fallback
-                                            }
-                                        );
-
-                                    const uniqueArticles =
-                                        removeDuplicateArticles(
-                                            articles
-                                        );
-
-                                    return [
-                                        category,
-                                        formatArticles(
-                                            uniqueArticles
-                                        )
-                                    ];
-
-                                } catch (
-                                    fallbackError
-                                ) {
-
-                                    console.error(
-                                        "World fallback error:",
-                                        fallbackError
-                                    );
-
-                                }
-
-                            }
 
                             return [
                                 category,
@@ -472,73 +727,58 @@ export async function onRequestGet(context) {
                 )
             );
 
+
+        /* =========================================================
+           BUILD OUTPUT
+        ========================================================= */
+
         const output =
             Object.fromEntries(
                 results
             );
 
-        /*
-         * Make absolutely sure all five
-         * category keys exist.
-         */
-        output.latest =
-            Array.isArray(
-                output.latest
-            )
-                ? output.latest
-                : [];
-
-        output.weird =
-            Array.isArray(
-                output.weird
-            )
-                ? output.weird
-                : [];
-
-        output.awesome =
-            Array.isArray(
-                output.awesome
-            )
-                ? output.awesome
-                : [];
-
-        output.underrated =
-            Array.isArray(
-                output.underrated
-            )
-                ? output.underrated
-                : [];
-
-        output.world =
-            Array.isArray(
-                output.world
-            )
-                ? output.world
-                : [];
 
         /*
-         * Create the response.
-         *
-         * s-maxage tells Cloudflare how long
-         * the response can stay in shared cache.
+         * Make absolutely sure every category
+         * exists even if NewsData fails.
          */
+        Object.keys(categories)
+            .forEach(category => {
+
+                output[category] =
+                    Array.isArray(
+                        output[category]
+                    )
+                        ? output[category]
+                        : [];
+
+            });
+
+
+        /* =========================================================
+           RESPONSE
+        ========================================================= */
+
         const response =
             Response.json(
                 output,
                 {
                     headers: {
+
                         "Cache-Control":
                             `public, max-age=0, s-maxage=${CACHE_TTL}`,
 
                         "X-News-Cache":
                             "MISS"
+
                     }
                 }
             );
 
+
         /*
-         * Store the successful response in
-         * Cloudflare's cache.
+         * Store successful response
+         * in Cloudflare cache.
          */
         context.waitUntil(
             cache.put(
@@ -547,7 +787,9 @@ export async function onRequestGet(context) {
             )
         );
 
+
         return response;
+
 
     } catch (error) {
 
@@ -555,6 +797,7 @@ export async function onRequestGet(context) {
             "NewsData API error:",
             error
         );
+
 
         return Response.json(
             {
