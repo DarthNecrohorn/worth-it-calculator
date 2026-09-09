@@ -3398,32 +3398,30 @@ html[data-theme="light"] .money-movement .movement-scale::before{
 }
 
 .bars{
-    gap:7px;
+    gap:9px;
 }
 
 .bar{
-    width:26px;
-    border-radius:7px 7px 2px 2px;
+    width:32px;
+    border-radius:8px 8px 2px 2px;
 }
 
 .bar-label{
-    font-size:13px;
-    font-weight:700;
-    color:var(--muted);
+    font-size:15px;
 }
 
 .legend{
-    font-size:13px;
+    font-size:14px;
 }
 
 .dot{
-    width:10px;
-    height:10px;
+    width:11px;
+    height:11px;
 }
 
 @media(max-width:700px){
     .bar{
-        width:18px;
+        width:20px;
     }
 
     .bar-label{
