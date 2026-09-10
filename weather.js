@@ -3773,6 +3773,46 @@ window.addEventListener(
 
 );
 
+/* =========================================================
+   AUTO REFRESH CLOUDS
+========================================================= */
+
+function startWeatherCloudAutoRefresh(){
+
+    clearInterval(
+        weatherCloudAutoRefreshTimer
+    );
+
+
+    weatherCloudAutoRefreshTimer =
+        setInterval(
+
+            () => {
+
+                if(
+                    !weatherRadarMap
+                ){
+
+                    return;
+
+                }
+
+
+                /*
+                 * Force a fresh cloud/weather request.
+                 */
+                weatherCloudLastUpdate = 0;
+
+
+                updateWeatherCloudLayer();
+
+            },
+
+            WEATHER_CLOUD_REFRESH
+
+        );
+
+}
 
 /* =========================================================
    GLOBAL EXPORTS
