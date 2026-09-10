@@ -83,6 +83,8 @@ let weatherCloudAnimationTimer = null;
 
 let weatherCloudAnimationRunning = false;
 
+let weatherCloudAutoRefreshTimer = null;
+
 let weatherCloudDataLoading = false;
 
 let weatherCloudLastUpdate = 0;
