@@ -2091,7 +2091,42 @@ async function updateWeatherCloudLayer(){
         const bounds =
             weatherRadarMap.getBounds();
 
+          /*
+ * Do not load detailed cloud/wind data
+ * when the map is far away from the user's
+ * approximate location.
+ */
+if(weatherRadarLocation){
 
+    const mapCenter =
+        weatherRadarMap.getCenter();
+
+    const distanceFromUser =
+        getWeatherDistanceKm(
+
+            weatherRadarLocation.latitude,
+
+            weatherRadarLocation.longitude,
+
+            mapCenter.lat,
+
+            mapCenter.lng
+
+        );
+
+    if(
+        distanceFromUser >
+        WEATHER_LOCAL_CLOUD_RADIUS_KM
+    ){
+
+        clearWeatherCloudMarkers();
+
+        return;
+
+    }
+
+}
+       
         const south =
             bounds.getSouth();
 
