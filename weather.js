@@ -1213,7 +1213,58 @@ async function refreshWeatherMapData(){
     return;
 
 }
+       
+        /*
+         * IMPORTANT:
+         *
+         * Do not save the cache key until the
+         * places and weather markers have loaded
+         * successfully.
+         */
+        const places =
+            await getPlacesForMap(
+                south,
+                west,
+                north,
+                east,
+                zoom
+            );
 
+
+        await updateWeatherPlaceMarkers(
+            places,
+            zoom
+        );
+
+        /*
+         * Cloud grid is independent from city markers.
+         */
+        await updateWeatherCloudLayer();
+
+        /*
+         * Mark this area as successfully loaded.
+         */
+        weatherLastPlacesKey =
+            key;
+
+
+    }
+    catch(error){
+
+        console.warn(
+            "Map weather refresh failed:",
+            error
+        );
+
+    }
+    finally{
+
+        weatherPlacesLoading =
+            false;
+
+    }
+
+}
 
 /* =========================================================
    WEATHER DISTANCE
@@ -1276,58 +1327,6 @@ function getWeatherDistanceKm(
 
 
     return earthRadius * c;
-
-}
-       
-        /*
-         * IMPORTANT:
-         *
-         * Do not save the cache key until the
-         * places and weather markers have loaded
-         * successfully.
-         */
-        const places =
-            await getPlacesForMap(
-                south,
-                west,
-                north,
-                east,
-                zoom
-            );
-
-
-        await updateWeatherPlaceMarkers(
-            places,
-            zoom
-        );
-
-        /*
-         * Cloud grid is independent from city markers.
-         */
-        await updateWeatherCloudLayer();
-
-        /*
-         * Mark this area as successfully loaded.
-         */
-        weatherLastPlacesKey =
-            key;
-
-
-    }
-    catch(error){
-
-        console.warn(
-            "Map weather refresh failed:",
-            error
-        );
-
-    }
-    finally{
-
-        weatherPlacesLoading =
-            false;
-
-    }
 
 }
 
