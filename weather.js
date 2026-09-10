@@ -2645,26 +2645,38 @@ function clearWeatherPlaceMarkers(){
 
 function clearWeatherCloudMarkers(){
 
+    stopWeatherCloudAnimation();
+
+
     if(!weatherRadarMap){
+
+        weatherCloudMarkers = [];
+
         return;
+
     }
 
 
     weatherCloudMarkers.forEach(
+
         marker => {
 
-            weatherRadarMap.removeLayer(
-                marker
-            );
+            if(marker){
+
+                weatherRadarMap.removeLayer(
+                    marker
+                );
+
+            }
 
         }
+
     );
 
 
     weatherCloudMarkers = [];
 
 }
-
 
 /* =========================================================
    ESCAPE HTML
