@@ -307,7 +307,7 @@ function addAIChatMessage(role, content, meta = ""){
 
     const bubble = document.createElement("div");
     bubble.className = "ai-chat-bubble";
-    bubble.textContent = content;
+    bubble.innerHTML = renderAIMarkdown(content);
 
     const metaEl = document.createElement("div");
     metaEl.className = "ai-chat-meta";
