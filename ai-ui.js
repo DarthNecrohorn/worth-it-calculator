@@ -135,13 +135,20 @@ function renderAIMarkdown(text){
     }
 
     function parseTableRow(line){
-        return line
-            .trim()
-            .replace(/^\|/, "")
-            .replace(/\|$/, "")
-            .split("|")
-            .map(cell => cell.trim());
+    let value = String(line).trim();
+
+    if(value.startsWith("|")){
+        value = value.slice(1);
     }
+
+    if(value.endsWith("|")){
+        value = value.slice(0, -1);
+    }
+
+    return value
+        .split("|")
+        .map(cell => cell.trim());
+}
 
     for(let i = 0; i < lines.length; i++){
 
