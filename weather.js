@@ -1903,260 +1903,536 @@ function getWeatherPlaceKey(
 
 
 /* =========================================================
-   ANIMATED CLOUD LAYER
+   ANIMATED CLOUD GRID
 ========================================================= */
 
 /*
- * Animated cloud visualization.
+ * Clouds are independent from city markers.
  *
- * This is NOT a satellite cloud image.
- * Clouds are visual markers based on:
+ * The map viewport is divided into a grid.
+ * Each grid point gets its own Open-Meteo weather data.
  *
- * - cloud cover
- * - wind direction
- * - wind speed
+ * Therefore clouds can appear over:
  *
- * The animation moves the cloud markers
- * in the approximate local wind direction.
+ * Europe
+ * Asia
+ * Australia
+ * North America
+ * South America
+ * Africa
+ *
+ * without depending on whether a city exists there.
+ *
+ * This is a visual weather layer based on current
+ * cloud cover and wind. It is NOT satellite imagery.
  */
 
-async function updateWeatherCloudLayer(
-    places,
-    weatherData
-){
 
-    clearWeatherCloudMarkers();
-
+async function updateWeatherCloudLayer(){
 
     if(
         !weatherRadarMap ||
-        !places.length
+        weatherCloudDataLoading
     ){
-
-        stopWeatherCloudAnimation();
 
         return;
 
     }
 
 
+    const now =
+        Date.now();
+
+
     /*
-     * Create cloud markers.
+     * Avoid unnecessary API requests.
      */
-    for(
-        let i = 0;
-        i < places.length;
-        i++
+    if(
+        weatherCloudLastUpdate &&
+        now - weatherCloudLastUpdate <
+            WEATHER_CLOUD_REFRESH
     ){
 
-        const place =
-            places[i];
-
-
-        const weather =
-            weatherData[i];
-
-
+        /*
+         * If data is still fresh, only make sure
+         * the animation is running.
+         */
         if(
-            !weather ||
-            !Number.isFinite(weather.cloudCover)
+            weatherCloudMarkers.length &&
+            !weatherCloudAnimationRunning
         ){
 
-            continue;
+            startWeatherCloudAnimation();
 
         }
 
-
-        const cloud =
-            Math.max(
-                0,
-                Math.min(
-                    100,
-                    weather.cloudCover
-                )
-            );
-
-
-        /*
-         * Don't show clouds when cloud cover
-         * is very low.
-         */
-        if(cloud < 20){
-
-            continue;
-
-        }
-
-
-        /*
-         * More cloud cover = more visible clouds.
-         */
-        const cloudCount =
-            cloud >= 80
-                ? 4
-                : cloud >= 55
-                    ? 3
-                    : cloud >= 35
-                        ? 2
-                        : 1;
-
-
-        for(
-            let c = 0;
-            c < cloudCount;
-            c++
-        ){
-
-            /*
-             * Small random-looking offset.
-             *
-             * We use deterministic values so the
-             * clouds don't jump around every refresh.
-             */
-            const latOffset =
-                ((c * 37 + i * 17) % 100 - 50)
-                / 500;
-
-
-            const lonOffset =
-                ((c * 53 + i * 29) % 100 - 50)
-                / 500;
-
-
-            const latitude =
-                place.lat + latOffset;
-
-
-            const longitude =
-                place.lon + lonOffset;
-
-
-            /*
-             * Cloud size depends on cloud cover.
-             */
-            const size =
-                24 +
-                Math.round(
-                    cloud * 0.18
-                );
-
-
-            /*
-             * Cloud opacity depends on cloud cover.
-             */
-            const opacity =
-                0.18 +
-                (cloud / 100) * 0.30;
-
-
-            const html = `
-
-                <div
-                    class="weather-animated-cloud"
-                    style="
-                        --cloud-size:${size}px;
-                        --cloud-opacity:${opacity};
-                    "
-                >
-
-                    <span class="weather-cloud-shape">
-                        ☁️
-                    </span>
-
-                </div>
-
-            `;
-
-
-            const marker =
-                L.marker(
-
-                    [
-                        latitude,
-                        longitude
-                    ],
-
-                    {
-
-                        icon:
-                            L.divIcon({
-
-                                className:
-                                    "weather-cloud-icon-wrapper",
-
-                                html,
-
-                                iconSize:
-                                    [size, size],
-
-                                iconAnchor:
-                                    [
-                                        size / 2,
-                                        size / 2
-                                    ]
-
-                            }),
-
-                        interactive:
-                            false,
-
-                        keyboard:
-                            false,
-
-                        zIndexOffset:
-                            -100
-
-                    }
-
-                );
-
-
-            marker.addTo(
-                weatherRadarMap
-            );
-
-
-            /*
-             * Store animation information directly
-             * on the marker.
-             */
-            marker.weatherCloudData = {
-
-                baseLat:
-                    latitude,
-
-                baseLon:
-                    longitude,
-
-                windDirection:
-                    Number(
-                        weather.windDirection || 0
-                    ),
-
-                windSpeed:
-                    Number(
-                        weather.windSpeed || 0
-                    ),
-
-                cloudCover:
-                    cloud
-
-            };
-
-
-            weatherCloudMarkers.push(
-                marker
-            );
-
-        }
+        return;
 
     }
 
 
-    /*
-     * Start visual cloud movement.
-     */
-    startWeatherCloudAnimation();
+    weatherCloudDataLoading =
+        true;
+
+
+    try{
+
+        const bounds =
+            weatherRadarMap.getBounds();
+
+
+        const south =
+            bounds.getSouth();
+
+        const west =
+            bounds.getWest();
+
+        const north =
+            bounds.getNorth();
+
+        const east =
+            bounds.getEast();
+
+
+        /*
+         * Build a viewport grid.
+         *
+         * We intentionally use a fixed grid so
+         * the cloud layer is visible across the
+         * entire screen instead of only around cities.
+         */
+
+        const rows =
+            5;
+
+        const columns =
+            7;
+
+
+        const points = [];
+
+
+        for(
+            let row = 0;
+            row < rows;
+            row++
+        ){
+
+            const lat =
+                rows === 1
+                    ? (south + north) / 2
+                    : south +
+                      (
+                          (north - south) *
+                          row /
+                          (rows - 1)
+                      );
+
+
+            for(
+                let col = 0;
+                col < columns;
+                col++
+            ){
+
+                const lon =
+                    columns === 1
+                        ? (west + east) / 2
+                        : west +
+                          (
+                              (east - west) *
+                              col /
+                              (columns - 1)
+                          );
+
+
+                points.push({
+
+                    latitude:
+                        lat,
+
+                    longitude:
+                        lon
+
+                });
+
+            }
+
+        }
+
+
+        if(!points.length){
+
+            return;
+
+        }
+
+
+        /*
+         * Multiple coordinates are supported by
+         * Open-Meteo.
+         */
+        const latitudes =
+            points.map(
+                point =>
+                    point.latitude
+            );
+
+
+        const longitudes =
+            points.map(
+                point =>
+                    point.longitude
+            );
+
+
+        const url =
+
+            "https://api.open-meteo.com/v1/forecast" +
+
+            `?latitude=${latitudes.join(",")}` +
+
+            `&longitude=${longitudes.join(",")}` +
+
+            "&current=cloud_cover,wind_speed_10m,wind_direction_10m" +
+
+            "&timezone=auto";
+
+
+        const response =
+            await fetch(
+                url,
+                {
+                    cache:
+                        "no-store"
+                }
+            );
+
+
+        if(!response.ok){
+
+            throw new Error(
+                `Open-Meteo cloud HTTP ${response.status}`
+            );
+
+        }
+
+
+        const data =
+            await response.json();
+
+
+        const results =
+            Array.isArray(data)
+                ? data
+                : [data];
+
+
+        /*
+         * Remove the old cloud layer.
+         */
+        clearWeatherCloudMarkers();
+
+
+        for(
+            let i = 0;
+            i < points.length;
+            i++
+        ){
+
+            const point =
+                points[i];
+
+
+            const result =
+                results[i];
+
+
+            if(
+                !result ||
+                !result.current
+            ){
+
+                continue;
+
+            }
+
+
+            const current =
+                result.current;
+
+
+            const cloudCover =
+                Number(
+                    current.cloud_cover
+                );
+
+
+            const windSpeed =
+                Number(
+                    current.wind_speed_10m || 0
+                );
+
+
+            const windDirection =
+                Number(
+                    current.wind_direction_10m || 0
+                );
+
+
+            if(
+                !Number.isFinite(
+                    cloudCover
+                )
+            ){
+
+                continue;
+
+            }
+
+
+            /*
+             * Don't completely hide partly cloudy
+             * areas. This makes the layer much easier
+             * to see while keeping clear sky mostly clean.
+             */
+            if(cloudCover < 15){
+
+                continue;
+
+            }
+
+
+            /*
+             * Number of cloud symbols at each
+             * grid point.
+             */
+            const cloudCount =
+                cloudCover >= 80
+                    ? 4
+                    : cloudCover >= 60
+                        ? 3
+                        : cloudCover >= 35
+                            ? 2
+                            : 1;
+
+
+            for(
+                let c = 0;
+                c < cloudCount;
+                c++
+            ){
+
+                /*
+                 * Deterministic offsets prevent clouds
+                 * from jumping randomly on refresh.
+                 */
+                const latOffset =
+                    (
+                        ((i * 17 + c * 31) % 100)
+                        - 50
+                    ) /
+                    100;
+
+
+                const lonOffset =
+                    (
+                        ((i * 29 + c * 43) % 100)
+                        - 50
+                    ) /
+                    100;
+
+
+                /*
+                 * Scale offsets to the viewport.
+                 */
+                const latitudeScale =
+                    Math.max(
+                        (north - south) * 0.025,
+                        0.05
+                    );
+
+
+                const longitudeScale =
+                    Math.max(
+                        (east - west) * 0.025,
+                        0.05
+                    );
+
+
+                const cloudLat =
+                    point.latitude +
+                    latOffset *
+                    latitudeScale;
+
+
+                const cloudLon =
+                    point.longitude +
+                    lonOffset *
+                    longitudeScale;
+
+
+                /*
+                 * Bigger cloud symbols when cloud cover
+                 * is stronger.
+                 */
+                const size =
+                    cloudCover >= 80
+                        ? 42
+                        : cloudCover >= 60
+                            ? 36
+                            : cloudCover >= 35
+                                ? 31
+                                : 27;
+
+
+                const opacity =
+                    0.34 +
+                    (
+                        cloudCover /
+                        100
+                    ) *
+                    0.38;
+
+
+                const html = `
+
+                    <div
+                        class="weather-animated-cloud"
+                        style="
+                            --cloud-size:${size}px;
+                            --cloud-opacity:${opacity};
+                        "
+                    >
+
+                        <span class="weather-cloud-shape">
+                            ☁️
+                        </span>
+
+                    </div>
+
+                `;
+
+
+                const marker =
+                    L.marker(
+
+                        [
+                            cloudLat,
+                            cloudLon
+                        ],
+
+                        {
+
+                            icon:
+                                L.divIcon({
+
+                                    className:
+                                        "weather-cloud-icon-wrapper",
+
+                                    html,
+
+                                    iconSize:
+                                        [size, size],
+
+                                    iconAnchor:
+                                        [
+                                            size / 2,
+                                            size / 2
+                                        ]
+
+                                }),
+
+                            interactive:
+                                false,
+
+                            keyboard:
+                                false,
+
+                            zIndexOffset:
+                                -50
+
+                        }
+
+                    );
+
+
+                marker.addTo(
+                    weatherRadarMap
+                );
+
+
+                /*
+                 * Save animation data.
+                 *
+                 * Direction:
+                 *
+                 * 0   = North
+                 * 90  = East
+                 * 180 = South
+                 * 270 = West
+                 */
+                marker.weatherCloudData = {
+
+                    baseLat:
+                        cloudLat,
+
+                    baseLon:
+                        cloudLon,
+
+                    windDirection:
+
+                        Number.isFinite(
+                            windDirection
+                        )
+
+                            ? windDirection
+
+                            : 0,
+
+                    windSpeed:
+
+                        Number.isFinite(
+                            windSpeed
+                        )
+
+                            ? windSpeed
+
+                            : 0
+
+                };
+
+
+                weatherCloudMarkers.push(
+                    marker
+                );
+
+            }
+
+        }
+
+
+        weatherCloudLastUpdate =
+            now;
+
+
+        startWeatherCloudAnimation();
+
+    }
+    catch(error){
+
+        console.warn(
+            "Animated cloud layer failed:",
+            error
+        );
+
+    }
+    finally{
+
+        weatherCloudDataLoading =
+            false;
+
+    }
 
 }
 
@@ -2184,7 +2460,8 @@ function startWeatherCloudAnimation(){
         true;
 
 
-    let animationStep = 0;
+    let progress =
+        0;
 
 
     weatherCloudAnimationTimer =
@@ -2202,7 +2479,8 @@ function startWeatherCloudAnimation(){
                 }
 
 
-                animationStep++;
+                progress +=
+                    0.08;
 
 
                 weatherCloudMarkers.forEach(
@@ -2219,81 +2497,80 @@ function startWeatherCloudAnimation(){
                         }
 
 
-                        const data =
+                        const cloud =
                             marker.weatherCloudData;
 
 
-                        /*
-                         * Convert wind direction
-                         * from degrees to radians.
-                         *
-                         * 0°   = North
-                         * 90°  = East
-                         * 180° = South
-                         * 270° = West
-                         */
                         const direction =
                             Number(
-                                data.windDirection
-                            ) * Math.PI / 180;
+                                cloud.windDirection
+                            ) *
+                            Math.PI /
+                            180;
 
 
                         /*
-                         * Animation speed.
+                         * Wind speed affects
+                         * animation speed.
                          *
-                         * Stronger wind produces
-                         * slightly faster movement.
+                         * This remains intentionally
+                         * subtle so clouds do not fly
+                         * across the map.
                          */
                         const speed =
                             Math.max(
-                                0.00008,
+
+                                0.002,
+
                                 Math.min(
-                                    0.00045,
-                                    0.00008 +
-                                    data.windSpeed *
-                                    0.000008
+
+                                    0.012,
+
+                                    0.002 +
+                                    cloud.windSpeed *
+                                    0.00018
+
                                 )
+
                             );
 
 
-                        /*
-                         * Move gradually in the
-                         * wind direction.
-                         */
                         const distance =
-                            animationStep *
-                            speed;
+                            (
+                                progress *
+                                speed
+                            ) %
+                            0.16;
 
 
                         /*
-                         * Latitude:
-                         *
-                         * cos(direction)
-                         *
-                         * Longitude:
-                         *
-                         * sin(direction)
+                         * Move the cloud according to
+                         * the local wind direction.
                          */
                         const lat =
-                            data.baseLat +
+                            cloud.baseLat +
                             Math.cos(direction) *
                             distance;
 
 
                         const lon =
-                            data.baseLon +
+                            cloud.baseLon +
                             Math.sin(direction) *
                             distance;
 
 
                         marker.setLatLng([
+
                             lat,
+
                             lon
+
                         ]);
 
                     }
 
                 );
+
 
             },
 
@@ -2321,46 +2598,6 @@ function stopWeatherCloudAnimation(){
 
     weatherCloudAnimationTimer =
         null;
-
-}
-
-
-/* =========================================================
-   CLEAR CLOUD MARKERS
-========================================================= */
-
-function clearWeatherCloudMarkers(){
-
-    stopWeatherCloudAnimation();
-
-
-    if(!weatherRadarMap){
-
-        weatherCloudMarkers = [];
-
-        return;
-
-    }
-
-
-    weatherCloudMarkers.forEach(
-
-        marker => {
-
-            if(marker){
-
-                weatherRadarMap.removeLayer(
-                    marker
-                );
-
-            }
-
-        }
-
-    );
-
-
-    weatherCloudMarkers = [];
 
 }
 
