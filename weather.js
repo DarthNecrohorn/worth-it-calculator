@@ -1145,8 +1145,11 @@ async function refreshWeatherMapData(){
             bounds.getEast();
 
 
-        /*
+               /*
          * Round the area to create a cache key.
+         *
+         * The zoom bucket is included so that we request
+         * more detailed places as the user zooms in.
          */
         const key = [
 
@@ -1158,33 +1161,54 @@ async function refreshWeatherMapData(){
 
             Math.round(east * 10) / 10,
 
-            zoom >= 11 ? 3 : zoom >= 8 ? 2 : 1
+            zoom >= 12
+                ? "high"
+                : zoom >= 9
+                    ? "medium"
+                    : "low"
 
         ].join("|");
 
 
-        if(key !== weatherLastPlacesKey){
+        /*
+         * Only reload places when the visible area
+         * or zoom level has actually changed.
+         */
+        if(key === weatherLastPlacesKey){
 
-            weatherLastPlacesKey =
-                key;
+            return;
 
-
-            const places =
-                await getPlacesForMap(
-                    south,
-                    west,
-                    north,
-                    east,
-                    zoom
-                );
+        }
 
 
-            await updateWeatherPlaceMarkers(
-                places,
+        /*
+         * IMPORTANT:
+         *
+         * Do not save the cache key until the
+         * places and weather markers have loaded
+         * successfully.
+         */
+        const places =
+            await getPlacesForMap(
+                south,
+                west,
+                north,
+                east,
                 zoom
             );
 
-        }
+
+        await updateWeatherPlaceMarkers(
+            places,
+            zoom
+        );
+
+
+        /*
+         * Mark this area as successfully loaded.
+         */
+        weatherLastPlacesKey =
+            key;
 
 
     }
@@ -1204,7 +1228,6 @@ async function refreshWeatherMapData(){
     }
 
 }
-
 
 /* =========================================================
    GET PLACES FROM OPENSTREETMAP
