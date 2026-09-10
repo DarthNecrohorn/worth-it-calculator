@@ -3428,3 +3428,15 @@ html[data-theme="light"] .money-movement .movement-scale::before{
         font-size:12px;
     }
 }
+
+.ai-chat-bubble ul,
+.ai-chat-bubble ol {
+    margin-left: 0;
+    padding-left: 20px;
+    box-sizing: border-box;
+}
+
+.ai-chat-bubble li {
+    padding-left: 2px;
+    box-sizing: border-box;
+}
