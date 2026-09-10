@@ -1,25 +1,96 @@
+javascript
 /* =========================================================
-   WEATHER
+   WEATHER + LIVE RADAR + MAP WEATHER
+========================================================= */
+
+/* =========================================================
+   RAINVIEWER
 ========================================================= */
 
 const RAINVIEWER_API =
     "https://api.rainviewer.com/public/weather-maps.json";
 
 const RAINVIEWER_TILE_SIZE = 512;
-const RAINVIEWER_COLOR = 2;       // Universal Blue
-const RAINVIEWER_OPTIONS = "1_0"; // smoothed, no separate snow color
+const RAINVIEWER_COLOR = 2;
+const RAINVIEWER_OPTIONS = "1_0";
+
+/*
+ * RainViewer public radar currently works reliably
+ * up to zoom 7.
+ *
+ * The Leaflet map itself can zoom much further.
+ */
 const RAINVIEWER_MAX_ZOOM = 7;
 
+
+/* =========================================================
+   MAP WEATHER SETTINGS
+========================================================= */
+
+const WEATHER_MAP_MAX_ZOOM = 15;
+
+/*
+ * OpenStreetMap Overpass server.
+ *
+ * We use this to find towns/cities in the visible
+ * map area when the user zooms in.
+ */
+const OVERPASS_API =
+    "https://overpass-api.de/api/interpreter";
+
+/*
+ * Maximum number of places requested at once.
+ *
+ * This prevents the map from becoming overloaded.
+ */
+const WEATHER_MAX_PLACES = 100;
+
+
+/* =========================================================
+   GLOBAL STATE
+========================================================= */
+
 let weatherRadarMap = null;
+
 let weatherRadarLayer = null;
+
 let weatherRadarMarker = null;
 
 let weatherRadarFrames = [];
+
 let weatherRadarIndex = -1;
+
 let weatherRadarPlaying = false;
+
 let weatherRadarTimer = null;
+
 let weatherRadarLocation = null;
+
 let weatherRadarInitialized = false;
+
+
+/* =========================================================
+   MAP WEATHER STATE
+========================================================= */
+
+let weatherPlaceMarkers = [];
+
+let weatherCloudMarkers = [];
+
+let weatherPlacesLoading = false;
+
+let weatherPlacesTimer = null;
+
+let weatherLastPlacesKey = "";
+
+let weatherPlacesCache = new Map();
+
+let weatherWeatherCache = new Map();
+
+let weatherLastWeatherUpdate = 0;
+
+const WEATHER_CACHE_TIME =
+    10 * 60 * 1000;
 
 
 /* =========================================================
@@ -27,7 +98,9 @@ let weatherRadarInitialized = false;
 ========================================================= */
 
 function $(id) {
+
     return document.getElementById(id);
+
 }
 
 
@@ -43,31 +116,39 @@ function openWeather(){
         homePage.style.display = "none";
     }
 
+
     const discountsSection =
-        document.getElementById("discountsSection");
+        $("discountsSection");
 
     if(discountsSection){
         discountsSection.style.display = "none";
     }
 
+
     const marketsSection =
-        document.getElementById("marketsSection");
+        $("marketsSection");
 
     if(marketsSection){
         marketsSection.style.display = "none";
     }
 
+
     const moneySection =
-        document.getElementById("moneySection");
+        $("moneySection");
 
     if(moneySection){
         moneySection.style.display = "none";
     }
 
+
     document.querySelectorAll(".app").forEach(x => {
+
         x.classList.remove("active");
+
         x.style.display = "none";
+
     });
+
 
     const newsSection = $("newsSection");
 
@@ -75,11 +156,13 @@ function openWeather(){
         newsSection.style.display = "none";
     }
 
+
     const settingsPanel = $("settingsPanel");
 
     if(settingsPanel){
         settingsPanel.style.display = "none";
     }
+
 
     const weatherSection = $("weatherSection");
 
@@ -87,7 +170,9 @@ function openWeather(){
         return;
     }
 
+
     weatherSection.style.display = "block";
+
 
     const navLinks = $("navLinks");
 
@@ -95,15 +180,23 @@ function openWeather(){
         navLinks.classList.remove("open");
     }
 
+
     document.documentElement.style.overflowY = "auto";
+
     document.body.style.overflowY = "auto";
 
+
     window.scrollTo({
+
         top: 0,
+
         behavior: "smooth"
+
     });
 
+
     loadWeather();
+
 }
 
 
@@ -143,28 +236,38 @@ async function loadWeather(){
     const sunset =
         $("weatherSunset");
 
+
     if(!location){
         return;
     }
 
+
     location.textContent =
         "Detecting location...";
 
+
     if(description){
+
         description.textContent =
             "Loading weather...";
+
     }
+
 
     try{
 
         const userLocation =
             await getWeatherLocation();
 
+
         if(!userLocation){
+
             throw new Error(
                 "Unable to determine location."
             );
+
         }
+
 
         const latitude =
             userLocation.latitude;
@@ -172,29 +275,46 @@ async function loadWeather(){
         const longitude =
             userLocation.longitude;
 
+
         weatherRadarLocation = {
+
             latitude,
+
             longitude
+
         };
 
 
         /* =================================================
-           OPEN-METEO
+           OPEN-METEO CURRENT WEATHER
         ================================================= */
 
         const response =
             await fetch(
-                `https://api.open-meteo.com/v1/forecast?latitude=${encodeURIComponent(latitude)}&longitude=${encodeURIComponent(longitude)}&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,sunrise,sunset&forecast_days=7&timezone=auto`
+
+                `https://api.open-meteo.com/v1/forecast` +
+                `?latitude=${encodeURIComponent(latitude)}` +
+                `&longitude=${encodeURIComponent(longitude)}` +
+                `&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m,cloud_cover` +
+                `&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,sunrise,sunset` +
+                `&forecast_days=7` +
+                `&timezone=auto`
+
             );
 
+
         if(!response.ok){
+
             throw new Error(
                 `Open-Meteo HTTP ${response.status}`
             );
+
         }
+
 
         const data =
             await response.json();
+
 
         const current =
             data.current;
@@ -204,10 +324,14 @@ async function loadWeather(){
 
 
         /* =================================================
-           SUNRISE / SUNSET
+           SUNRISE
         ================================================= */
 
-        if(sunrise && daily.sunrise){
+        if(
+            sunrise &&
+            daily &&
+            daily.sunrise
+        ){
 
             sunrise.textContent =
                 new Date(
@@ -219,9 +343,19 @@ async function loadWeather(){
                         minute: "2-digit"
                     }
                 );
+
         }
 
-        if(sunset && daily.sunset){
+
+        /* =================================================
+           SUNSET
+        ================================================= */
+
+        if(
+            sunset &&
+            daily &&
+            daily.sunset
+        ){
 
             sunset.textContent =
                 new Date(
@@ -233,11 +367,12 @@ async function loadWeather(){
                         minute: "2-digit"
                     }
                 );
+
         }
 
 
         /* =================================================
-           CURRENT WEATHER
+           CURRENT TEMPERATURE
         ================================================= */
 
         if(temperature){
@@ -246,7 +381,13 @@ async function loadWeather(){
                 `${Math.round(
                     current.temperature_2m
                 )}°C`;
+
         }
+
+
+        /* =================================================
+           FEELS LIKE
+        ================================================= */
 
         if(feelsLike){
 
@@ -254,13 +395,25 @@ async function loadWeather(){
                 `${Math.round(
                     current.apparent_temperature
                 )}°C`;
+
         }
+
+
+        /* =================================================
+           HUMIDITY
+        ================================================= */
 
         if(humidity){
 
             humidity.textContent =
                 `${current.relative_humidity_2m}%`;
+
         }
+
+
+        /* =================================================
+           WIND
+        ================================================= */
 
         if(wind){
 
@@ -268,35 +421,49 @@ async function loadWeather(){
                 `${Math.round(
                     current.wind_speed_10m
                 )} km/h`;
-        }
 
-
-        const weather =
-            getWeatherDescription(
-                current.weather_code
-            );
-
-        if(icon){
-            icon.textContent =
-                weather.icon;
-        }
-
-        if(description){
-            description.textContent =
-                weather.text;
         }
 
 
         /* =================================================
-           7-DAY FORECAST
+           CURRENT WEATHER DESCRIPTION
+        ================================================= */
+
+        const weather =
+            getWeatherDescription(
+                current.weather_code,
+                current.wind_speed_10m
+            );
+
+
+        if(icon){
+
+            icon.textContent =
+                weather.icon;
+
+        }
+
+
+        if(description){
+
+            description.textContent =
+                weather.text;
+
+        }
+
+
+        /* =================================================
+           7 DAY FORECAST
         ================================================= */
 
         if(forecastContainer){
 
             forecastContainer.innerHTML = "";
 
+
             const forecast =
                 data.daily;
+
 
             for(
                 let i = 0;
@@ -309,11 +476,13 @@ async function loadWeather(){
                         forecast.weather_code[i]
                     );
 
+
                 const date =
                     new Date(
                         forecast.time[i] +
                         "T00:00:00"
                     );
+
 
                 const day =
                     date.toLocaleDateString(
@@ -323,11 +492,14 @@ async function loadWeather(){
                         }
                     );
 
+
                 const card =
                     document.createElement("div");
 
+
                 card.className =
                     "weather-forecast-card";
+
 
                 card.innerHTML = `
 
@@ -365,10 +537,13 @@ async function loadWeather(){
 
                 `;
 
+
                 forecastContainer.appendChild(
                     card
                 );
+
             }
+
         }
 
 
@@ -380,22 +555,33 @@ async function loadWeather(){
 
             const locationResponse =
                 await fetch(
-                    `https://nominatim.openstreetmap.org/reverse?format=json&lat=${encodeURIComponent(latitude)}&lon=${encodeURIComponent(longitude)}&zoom=10&addressdetails=1`,
+
+                    `https://nominatim.openstreetmap.org/reverse` +
+                    `?format=json` +
+                    `&lat=${encodeURIComponent(latitude)}` +
+                    `&lon=${encodeURIComponent(longitude)}` +
+                    `&zoom=10` +
+                    `&addressdetails=1`,
+
                     {
                         headers: {
                             "Accept":
                                 "application/json"
                         }
                     }
+
                 );
+
 
             if(locationResponse.ok){
 
                 const locationData =
                     await locationResponse.json();
 
+
                 const address =
                     locationData.address || {};
+
 
                 location.textContent =
                     address.city ||
@@ -403,11 +589,13 @@ async function loadWeather(){
                     address.village ||
                     address.municipality ||
                     `${latitude.toFixed(2)}, ${longitude.toFixed(2)}`;
+
             }
             else{
 
                 location.textContent =
                     `${latitude.toFixed(2)}, ${longitude.toFixed(2)}`;
+
             }
 
         }
@@ -418,8 +606,10 @@ async function loadWeather(){
                 locationError
             );
 
+
             location.textContent =
                 `${latitude.toFixed(2)}, ${longitude.toFixed(2)}`;
+
         }
 
 
@@ -432,6 +622,7 @@ async function loadWeather(){
             longitude
         );
 
+
     }
     catch(error){
 
@@ -440,38 +631,43 @@ async function loadWeather(){
             error
         );
 
+
         if(location){
 
             location.textContent =
                 "Location unavailable";
+
         }
+
 
         if(description){
 
             description.textContent =
                 "Weather unavailable.";
+
         }
+
 
         showWeatherRadarError(
             "Unable to load radar location."
         );
+
     }
+
 }
 
 
 /* =========================================================
-   GET LOCATION
-   Browser Geolocation -> IP FALLBACK
+   GET BROWSER LOCATION
 ========================================================= */
 
 function getBrowserLocation(){
 
     return new Promise(
+
         (resolve, reject) => {
 
-            if(
-                !navigator.geolocation
-            ){
+            if(!navigator.geolocation){
 
                 reject(
                     new Error(
@@ -480,7 +676,9 @@ function getBrowserLocation(){
                 );
 
                 return;
+
             }
+
 
             navigator.geolocation.getCurrentPosition(
 
@@ -501,6 +699,7 @@ function getBrowserLocation(){
 
                 },
 
+
                 error => {
 
                     console.warn(
@@ -508,19 +707,34 @@ function getBrowserLocation(){
                         error
                     );
 
+
                     reject(error);
+
                 },
 
+
                 {
+
                     enableHighAccuracy: true,
+
                     timeout: 10000,
+
                     maximumAge: 300000
+
                 }
+
             );
+
         }
+
     );
+
 }
 
+
+/* =========================================================
+   IP LOCATION
+========================================================= */
 
 async function getIPLocation(){
 
@@ -529,21 +743,27 @@ async function getIPLocation(){
             "https://ipapi.co/json/"
         );
 
+
     if(!response.ok){
 
         throw new Error(
             `IP location HTTP ${response.status}`
         );
+
     }
+
 
     const data =
         await response.json();
 
+
     const latitude =
         Number(data.latitude);
 
+
     const longitude =
         Number(data.longitude);
+
 
     if(
         !Number.isFinite(latitude) ||
@@ -553,11 +773,14 @@ async function getIPLocation(){
         throw new Error(
             "Invalid IP location response."
         );
+
     }
+
 
     return {
 
         latitude,
+
         longitude,
 
         city:
@@ -573,8 +796,13 @@ async function getIPLocation(){
             "ip"
 
     };
+
 }
 
+
+/* =========================================================
+   WEATHER LOCATION
+========================================================= */
 
 async function getWeatherLocation(){
 
@@ -589,6 +817,7 @@ async function getWeatherLocation(){
             "Using IP location fallback."
         );
 
+
         try{
 
             return await getIPLocation();
@@ -601,11 +830,15 @@ async function getWeatherLocation(){
                 ipError
             );
 
+
             throw new Error(
                 "Unable to determine location."
             );
+
         }
+
     }
+
 }
 
 
@@ -621,32 +854,36 @@ async function initializeWeatherRadar(
     const radarContainer =
         $("weatherRadarMap");
 
+
     if(!radarContainer){
         return;
     }
 
-    if(
-        typeof L === "undefined"
-    ){
+
+    if(typeof L === "undefined"){
 
         showWeatherRadarError(
             "Leaflet could not be loaded."
         );
 
         return;
+
     }
 
 
     /* =================================================
-       CREATE MAP ONCE
+       CREATE MAP
     ================================================= */
 
     if(!weatherRadarMap){
 
         weatherRadarMap =
             L.map(
+
                 radarContainer,
+
                 {
+
                     center: [
                         latitude,
                         longitude
@@ -657,12 +894,14 @@ async function initializeWeatherRadar(
                     minZoom: 3,
 
                     maxZoom:
-                        RAINVIEWER_MAX_ZOOM,
+                        WEATHER_MAP_MAX_ZOOM,
 
                     zoomControl: true,
 
                     attributionControl: true
+
                 }
+
             );
 
 
@@ -671,35 +910,45 @@ async function initializeWeatherRadar(
         ================================================= */
 
         L.tileLayer(
+
             "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+
             {
+
                 maxZoom: 19,
 
                 attribution:
                     '&copy; OpenStreetMap contributors'
+
             }
+
         ).addTo(
             weatherRadarMap
         );
 
 
         /* =================================================
-           USER LOCATION MARKER
+           USER LOCATION
         ================================================= */
 
         weatherRadarMarker =
             L.circleMarker(
+
                 [
                     latitude,
                     longitude
                 ],
+
                 {
+
                     radius: 8,
 
                     weight: 3,
 
                     fillOpacity: 1
+
                 }
+
             )
             .addTo(
                 weatherRadarMap
@@ -707,62 +956,1093 @@ async function initializeWeatherRadar(
 
 
         weatherRadarMarker.bindTooltip(
+
             "Your approximate location",
+
             {
                 direction: "top"
             }
+
         );
 
 
         weatherRadarInitialized =
             true;
+
+
+        /* =================================================
+           MAP MOVE / ZOOM EVENTS
+        ================================================= */
+
+        weatherRadarMap.on(
+            "zoomend",
+            handleWeatherMapChanged
+        );
+
+
+        weatherRadarMap.on(
+            "moveend",
+            handleWeatherMapChanged
+        );
+
     }
     else{
 
         weatherRadarMap.setView(
+
             [
                 latitude,
                 longitude
             ],
+
             Math.max(
                 weatherRadarMap.getZoom(),
                 7
             )
+
         );
 
 
         if(weatherRadarMarker){
 
             weatherRadarMarker.setLatLng(
+
                 [
                     latitude,
                     longitude
                 ]
+
             );
+
         }
+
     }
 
 
-    /* =================================================
-       IMPORTANT:
-       Leaflet maps inside hidden sections sometimes
-       calculate their dimensions incorrectly.
-    ================================================= */
-
     setTimeout(
+
         () => {
 
             if(weatherRadarMap){
 
                 weatherRadarMap.invalidateSize();
+
             }
 
         },
+
         150
+
     );
 
 
     await loadRainViewerFrames();
+
+
+    /*
+     * Load map weather after radar is ready.
+     */
+    scheduleWeatherMapRefresh();
+
+}
+
+
+/* =========================================================
+   MAP CHANGED
+========================================================= */
+
+function handleWeatherMapChanged(){
+
+    scheduleWeatherMapRefresh();
+
+}
+
+
+/* =========================================================
+   SCHEDULE MAP WEATHER
+========================================================= */
+
+function scheduleWeatherMapRefresh(){
+
+    clearTimeout(
+        weatherPlacesTimer
+    );
+
+
+    weatherPlacesTimer =
+        setTimeout(
+
+            () => {
+
+                refreshWeatherMapData();
+
+            },
+
+            500
+
+        );
+
+}
+
+
+/* =========================================================
+   REFRESH MAP WEATHER
+========================================================= */
+
+async function refreshWeatherMapData(){
+
+    if(
+        !weatherRadarMap ||
+        weatherPlacesLoading
+    ){
+
+        return;
+
+    }
+
+
+    const zoom =
+        weatherRadarMap.getZoom();
+
+
+    /*
+     * Don't load a huge number of places
+     * while zoomed far out.
+     */
+    if(zoom < 5){
+
+        clearWeatherPlaceMarkers();
+
+        clearWeatherCloudMarkers();
+
+        return;
+
+    }
+
+
+    weatherPlacesLoading =
+        true;
+
+
+    try{
+
+        const bounds =
+            weatherRadarMap.getBounds();
+
+
+        const south =
+            bounds.getSouth();
+
+        const west =
+            bounds.getWest();
+
+        const north =
+            bounds.getNorth();
+
+        const east =
+            bounds.getEast();
+
+
+        /*
+         * Round the area to create a cache key.
+         */
+        const key = [
+
+            Math.round(south * 10) / 10,
+
+            Math.round(west * 10) / 10,
+
+            Math.round(north * 10) / 10,
+
+            Math.round(east * 10) / 10,
+
+            zoom >= 11 ? 3 : zoom >= 8 ? 2 : 1
+
+        ].join("|");
+
+
+        if(key !== weatherLastPlacesKey){
+
+            weatherLastPlacesKey =
+                key;
+
+
+            const places =
+                await getPlacesForMap(
+                    south,
+                    west,
+                    north,
+                    east,
+                    zoom
+                );
+
+
+            await updateWeatherPlaceMarkers(
+                places,
+                zoom
+            );
+
+        }
+
+
+    }
+    catch(error){
+
+        console.warn(
+            "Map weather refresh failed:",
+            error
+        );
+
+    }
+    finally{
+
+        weatherPlacesLoading =
+            false;
+
+    }
+
+}
+
+
+/* =========================================================
+   GET PLACES FROM OPENSTREETMAP
+========================================================= */
+
+async function getPlacesForMap(
+    south,
+    west,
+    north,
+    east,
+    zoom
+){
+
+    /*
+     * At lower zoom levels we only ask for
+     * cities / towns.
+     *
+     * At higher zoom we include villages.
+     */
+
+    let placeFilter;
+
+
+    if(zoom >= 12){
+
+        placeFilter = `
+            node["place"~"city|town|village|hamlet"]
+        `;
+
+    }
+    else if(zoom >= 9){
+
+        placeFilter = `
+            node["place"~"city|town|village"]
+        `;
+
+    }
+    else{
+
+        placeFilter = `
+            node["place"~"city|town"]
+        `;
+
+    }
+
+
+    /*
+     * Keep the bounding box reasonably small.
+     */
+    const query = `
+
+        [out:json][timeout:20];
+
+        (
+            ${placeFilter}
+            (${south},${west},${north},${east});
+        );
+
+        out body;
+
+    `;
+
+
+    const cacheKey = [
+
+        Math.round(south * 10) / 10,
+
+        Math.round(west * 10) / 10,
+
+        Math.round(north * 10) / 10,
+
+        Math.round(east * 10) / 10,
+
+        zoom >= 12 ? "v" :
+        zoom >= 9 ? "t" :
+        "c"
+
+    ].join("|");
+
+
+    if(weatherPlacesCache.has(cacheKey)){
+
+        return weatherPlacesCache.get(
+            cacheKey
+        );
+
+    }
+
+
+    const response =
+        await fetch(
+
+            OVERPASS_API,
+
+            {
+
+                method: "POST",
+
+                body: query,
+
+                headers: {
+
+                    "Content-Type":
+                        "text/plain;charset=UTF-8"
+
+                }
+
+            }
+
+        );
+
+
+    if(!response.ok){
+
+        throw new Error(
+            `Overpass HTTP ${response.status}`
+        );
+
+    }
+
+
+    const data =
+        await response.json();
+
+
+    let places =
+        Array.isArray(data.elements)
+            ? data.elements
+            : [];
+
+
+    /*
+     * Remove entries without names.
+     */
+    places =
+        places.filter(
+            place =>
+                place &&
+                place.tags &&
+                place.tags.name &&
+                Number.isFinite(place.lat) &&
+                Number.isFinite(place.lon)
+        );
+
+
+    /*
+     * Sort by importance:
+     *
+     * city > town > village > hamlet
+     */
+    const priority = {
+
+        city: 4,
+
+        town: 3,
+
+        village: 2,
+
+        hamlet: 1
+
+    };
+
+
+    places.sort(
+        (a, b) => {
+
+            const pa =
+                priority[
+                    a.tags.place
+                ] || 0;
+
+            const pb =
+                priority[
+                    b.tags.place
+                ] || 0;
+
+            return pb - pa;
+
+        }
+    );
+
+
+    /*
+     * Limit the number of places.
+     */
+    places =
+        places.slice(
+            0,
+            WEATHER_MAX_PLACES
+        );
+
+
+    weatherPlacesCache.set(
+        cacheKey,
+        places
+    );
+
+
+    return places;
+
+}
+
+
+/* =========================================================
+   UPDATE PLACE MARKERS
+========================================================= */
+
+async function updateWeatherPlaceMarkers(
+    places,
+    zoom
+){
+
+    clearWeatherPlaceMarkers();
+
+
+    if(!places.length){
+
+        return;
+
+    }
+
+
+    /*
+     * Get weather for all visible places.
+     */
+    const weatherData =
+        await getWeatherForPlaces(
+            places
+        );
+
+
+    for(
+        let i = 0;
+        i < places.length;
+        i++
+    ){
+
+        const place =
+            places[i];
+
+
+        const weather =
+            weatherData[i];
+
+
+        if(!weather){
+            continue;
+        }
+
+
+        const name =
+            place.tags.name;
+
+
+        const temp =
+            Math.round(
+                weather.temperature
+            );
+
+
+        const weatherInfo =
+            getWeatherDescription(
+
+                weather.weatherCode,
+
+                weather.windSpeed
+
+            );
+
+
+        /*
+         * Marker becomes slightly smaller
+         * when zoomed out.
+         */
+        const fontSize =
+            zoom >= 12
+                ? 14
+                : zoom >= 9
+                    ? 13
+                    : 12;
+
+
+        const html = `
+
+            <div
+                class="weather-place-marker"
+                style="
+                    font-size:${fontSize}px;
+                "
+            >
+
+                <span class="weather-place-icon">
+                    ${weatherInfo.icon}
+                </span>
+
+                <span class="weather-place-name">
+                    ${escapeWeatherHTML(name)}
+                </span>
+
+                <span class="weather-place-temp">
+                    ${temp}°C
+                </span>
+
+            </div>
+
+        `;
+
+
+        const marker =
+            L.marker(
+
+                [
+                    place.lat,
+                    place.lon
+                ],
+
+                {
+
+                    icon:
+                        L.divIcon({
+
+                            className:
+                                "weather-place-icon-wrapper",
+
+                            html,
+
+                            iconSize:
+                                null,
+
+                            iconAnchor:
+                                [0, 0]
+
+                        }),
+
+                    interactive: true
+
+                }
+
+            );
+
+
+        marker.bindTooltip(
+
+            `
+
+                <strong>
+                    ${escapeWeatherHTML(name)}
+                </strong>
+
+                <br>
+
+                ${weatherInfo.icon}
+                ${escapeWeatherHTML(
+                    weatherInfo.text
+                )}
+
+                <br>
+
+                🌡️ ${temp}°C
+
+                <br>
+
+                ☁️ ${Math.round(
+                    weather.cloudCover
+                )}%
+
+            `,
+
+            {
+
+                direction:
+                    "top",
+
+                opacity:
+                    0.95
+
+            }
+
+        );
+
+
+        marker.addTo(
+            weatherRadarMap
+        );
+
+
+        weatherPlaceMarkers.push(
+            marker
+        );
+
+    }
+
+
+    /*
+     * Cloud overlay.
+     */
+    await updateWeatherCloudLayer(
+        places,
+        weatherData
+    );
+
+}
+
+
+/* =========================================================
+   GET WEATHER FOR MANY PLACES
+========================================================= */
+
+async function getWeatherForPlaces(
+    places
+){
+
+    const now =
+        Date.now();
+
+
+    const fresh =
+        now - weatherLastWeatherUpdate <
+        WEATHER_CACHE_TIME;
+
+
+    /*
+     * If cache is still fresh and every place
+     * exists in cache, use it.
+     */
+    if(fresh){
+
+        let allCached = true;
+
+        const cached =
+            places.map(
+                place => {
+
+                    const key =
+                        getWeatherPlaceKey(
+                            place.lat,
+                            place.lon
+                        );
+
+                    const value =
+                        weatherWeatherCache.get(
+                            key
+                        );
+
+                    if(!value){
+
+                        allCached = false;
+
+                    }
+
+                    return value;
+
+                }
+            );
+
+
+        if(allCached){
+
+            return cached;
+
+        }
+
+    }
+
+
+    const latitudes =
+        places.map(
+            place =>
+                place.lat
+        );
+
+
+    const longitudes =
+        places.map(
+            place =>
+                place.lon
+        );
+
+
+    const url =
+
+        "https://api.open-meteo.com/v1/forecast" +
+
+        `?latitude=${latitudes.join(",")}` +
+
+        `&longitude=${longitudes.join(",")}` +
+
+        "&current=temperature_2m,weather_code,cloud_cover,wind_speed_10m" +
+
+        "&timezone=auto";
+
+
+    const response =
+        await fetch(
+            url
+        );
+
+
+    if(!response.ok){
+
+        throw new Error(
+            `Open-Meteo map HTTP ${response.status}`
+        );
+
+    }
+
+
+    const data =
+        await response.json();
+
+
+    /*
+     * Multiple coordinates return an array.
+     *
+     * Some API responses may contain a single
+     * object, so handle both forms.
+     */
+    const results =
+        Array.isArray(data)
+            ? data
+            : [data];
+
+
+    const weather =
+        places.map(
+            (place, index) => {
+
+                const result =
+                    results[index];
+
+
+                if(
+                    !result ||
+                    !result.current
+                ){
+
+                    return null;
+
+                }
+
+
+                const current =
+                    result.current;
+
+
+                const item = {
+
+                    temperature:
+                        Number(
+                            current.temperature_2m
+                        ),
+
+                    weatherCode:
+                        Number(
+                            current.weather_code
+                        ),
+
+                    cloudCover:
+                        Number(
+                            current.cloud_cover || 0
+                        ),
+
+                    windSpeed:
+                        Number(
+                            current.wind_speed_10m || 0
+                        )
+
+                };
+
+
+                const key =
+                    getWeatherPlaceKey(
+                        place.lat,
+                        place.lon
+                    );
+
+
+                weatherWeatherCache.set(
+                    key,
+                    item
+                );
+
+
+                return item;
+
+            }
+        );
+
+
+    weatherLastWeatherUpdate =
+        now;
+
+
+    return weather;
+
+}
+
+
+/* =========================================================
+   WEATHER PLACE KEY
+========================================================= */
+
+function getWeatherPlaceKey(
+    latitude,
+    longitude
+){
+
+    return (
+
+        `${Math.round(latitude * 100)}` +
+
+        "_" +
+
+        `${Math.round(longitude * 100)}`
+
+    );
+
+}
+
+
+/* =========================================================
+   CLOUD LAYER
+========================================================= */
+
+/*
+ * This is a lightweight cloud-cover visualization.
+ *
+ * It uses current cloud-cover percentages from
+ * Open-Meteo and displays them as a translucent
+ * blue layer.
+ *
+ * It is NOT a satellite photograph.
+ */
+
+async function updateWeatherCloudLayer(
+    places,
+    weatherData
+){
+
+    clearWeatherCloudMarkers();
+
+
+    if(
+        !weatherRadarMap ||
+        !places.length
+    ){
+
+        return;
+
+    }
+
+
+    /*
+     * Only draw cloud visualization when enough
+     * data is available.
+     */
+    for(
+        let i = 0;
+        i < places.length;
+        i++
+    ){
+
+        const place =
+            places[i];
+
+
+        const weather =
+            weatherData[i];
+
+
+        if(
+            !weather ||
+            !Number.isFinite(
+                weather.cloudCover
+            )
+        ){
+
+            continue;
+
+        }
+
+
+        const cloud =
+            Math.max(
+                0,
+                Math.min(
+                    100,
+                    weather.cloudCover
+                )
+            );
+
+
+        /*
+         * Avoid showing almost invisible circles.
+         */
+        if(cloud < 25){
+            continue;
+        }
+
+
+        /*
+         * Radius grows with cloud cover.
+         */
+        const radius =
+            12000 +
+            cloud * 500;
+
+
+        const opacity =
+            0.04 +
+            (cloud / 100) * 0.13;
+
+
+        const circle =
+            L.circle(
+
+                [
+                    place.lat,
+                    place.lon
+                ],
+
+                {
+
+                    radius,
+
+                    stroke:
+                        false,
+
+                    fillColor:
+                        "#60a5fa",
+
+                    fillOpacity:
+                        opacity,
+
+                    interactive:
+                        false
+
+                }
+
+            );
+
+
+        circle.addTo(
+            weatherRadarMap
+        );
+
+
+        weatherCloudMarkers.push(
+            circle
+        );
+
+    }
+
+}
+
+
+/* =========================================================
+   CLEAR PLACE MARKERS
+========================================================= */
+
+function clearWeatherPlaceMarkers(){
+
+    if(!weatherRadarMap){
+        return;
+    }
+
+
+    weatherPlaceMarkers.forEach(
+        marker => {
+
+            weatherRadarMap.removeLayer(
+                marker
+            );
+
+        }
+    );
+
+
+    weatherPlaceMarkers = [];
+
+}
+
+
+/* =========================================================
+   CLEAR CLOUD MARKERS
+========================================================= */
+
+function clearWeatherCloudMarkers(){
+
+    if(!weatherRadarMap){
+        return;
+    }
+
+
+    weatherCloudMarkers.forEach(
+        marker => {
+
+            weatherRadarMap.removeLayer(
+                marker
+            );
+
+        }
+    );
+
+
+    weatherCloudMarkers = [];
+
+}
+
+
+/* =========================================================
+   ESCAPE HTML
+========================================================= */
+
+function escapeWeatherHTML(
+    value
+){
+
+    return String(value)
+        .replace(
+            /&/g,
+            "&amp;"
+        )
+        .replace(
+            /</g,
+            "&lt;"
+        )
+        .replace(
+            />/g,
+            "&gt;"
+        )
+        .replace(
+            /"/g,
+            "&quot;"
+        )
+        .replace(
+            /'/g,
+            "&#039;"
+        );
+
 }
 
 
@@ -775,39 +2055,53 @@ async function loadRainViewerFrames(){
     const status =
         $("weatherRadarStatus");
 
+
     try{
 
         if(status){
 
             status.textContent =
                 "Loading radar...";
+
         }
 
 
         const response =
             await fetch(
+
                 RAINVIEWER_API,
+
                 {
-                    cache: "no-store"
+                    cache:
+                        "no-store"
                 }
+
             );
+
 
         if(!response.ok){
 
             throw new Error(
                 `RainViewer HTTP ${response.status}`
             );
+
         }
+
 
         const data =
             await response.json();
 
 
         const pastFrames =
+
             data &&
             data.radar &&
-            Array.isArray(data.radar.past)
+            Array.isArray(
+                data.radar.past
+            )
+
                 ? data.radar.past
+
                 : [];
 
 
@@ -816,27 +2110,38 @@ async function loadRainViewerFrames(){
             throw new Error(
                 "No radar frames available."
             );
+
         }
 
 
         weatherRadarFrames =
+
             pastFrames
+
                 .filter(
+
                     frame =>
+
                         frame &&
                         frame.path &&
                         Number.isFinite(
                             Number(frame.time)
                         )
+
                 )
+
                 .map(
+
                     frame => ({
+
                         time:
                             Number(frame.time),
 
                         path:
                             frame.path
+
                     })
+
                 );
 
 
@@ -845,18 +2150,15 @@ async function loadRainViewerFrames(){
             throw new Error(
                 "No valid radar frames."
             );
+
         }
 
 
-        /*
-         * The API returns the past timeline.
-         * We keep its real order and show the newest
-         * available frame first.
-         */
-
         weatherRadarFrames.sort(
+
             (a, b) =>
                 a.time - b.time
+
         );
 
 
@@ -869,6 +2171,7 @@ async function loadRainViewerFrames(){
 
         renderWeatherRadarControls();
 
+
         showWeatherRadarFrame(
             weatherRadarIndex
         );
@@ -878,7 +2181,9 @@ async function loadRainViewerFrames(){
 
             status.textContent =
                 `${weatherRadarFrames.length} radar frames available`;
+
         }
+
 
     }
     catch(error){
@@ -888,16 +2193,21 @@ async function loadRainViewerFrames(){
             error
         );
 
+
         weatherRadarFrames = [];
 
         weatherRadarIndex = -1;
 
+
         stopWeatherRadar();
+
 
         showWeatherRadarError(
             "Radar data is temporarily unavailable."
         );
+
     }
+
 }
 
 
@@ -915,16 +2225,26 @@ function getRainViewerTileUrl(
     ){
 
         return "";
+
     }
 
+
     return (
+
         `https://tilecache.rainviewer.com` +
+
         `${frame.path}` +
+
         `/${RAINVIEWER_TILE_SIZE}` +
+
         `/{z}/{x}/{y}` +
+
         `/${RAINVIEWER_COLOR}` +
+
         `/${RAINVIEWER_OPTIONS}.png`
+
     );
+
 }
 
 
@@ -942,6 +2262,7 @@ function showWeatherRadarFrame(
     ){
 
         return;
+
     }
 
 
@@ -951,11 +2272,13 @@ function showWeatherRadarFrame(
     ){
 
         return;
+
     }
 
 
     const frame =
         weatherRadarFrames[index];
+
 
     const tileUrl =
         getRainViewerTileUrl(
@@ -966,6 +2289,7 @@ function showWeatherRadarFrame(
     if(!tileUrl){
 
         return;
+
     }
 
 
@@ -976,27 +2300,37 @@ function showWeatherRadarFrame(
         );
 
         weatherRadarLayer = null;
+
     }
 
 
     weatherRadarLayer =
         L.tileLayer(
+
             tileUrl,
+
             {
+
                 tileSize:
                     RAINVIEWER_TILE_SIZE,
 
-                opacity: 0.72,
+                opacity:
+                    0.72,
 
                 maxZoom:
                     RAINVIEWER_MAX_ZOOM,
 
-                updateWhenIdle: true,
+                updateWhenIdle:
+                    true,
 
-                updateWhenZooming: false,
+                updateWhenZooming:
+                    false,
 
-                keepBuffer: 2
+                keepBuffer:
+                    2
+
             }
+
         );
 
 
@@ -1010,11 +2344,12 @@ function showWeatherRadarFrame(
 
 
     updateWeatherRadarUI();
+
 }
 
 
 /* =========================================================
-   RADAR UI
+   RADAR CONTROLS
 ========================================================= */
 
 function renderWeatherRadarControls(){
@@ -1031,39 +2366,57 @@ function renderWeatherRadarControls(){
     const play =
         $("weatherRadarPlay");
 
+
     if(!slider){
 
         return;
+
     }
 
 
     slider.min =
         "0";
 
+
     slider.max =
         String(
+
             Math.max(
+
                 weatherRadarFrames.length - 1,
+
                 0
+
             )
+
         );
+
 
     slider.step =
         "1";
 
+
     slider.value =
         String(
+
             Math.max(
                 weatherRadarIndex,
                 0
             )
+
         );
+
+
+    slider.disabled =
+        false;
 
 
     if(!slider.dataset.bound){
 
         slider.addEventListener(
+
             "input",
+
             () => {
 
                 const index =
@@ -1071,16 +2424,22 @@ function renderWeatherRadarControls(){
                         slider.value
                     );
 
+
                 stopWeatherRadar();
+
 
                 showWeatherRadarFrame(
                     index
                 );
+
             }
+
         );
+
 
         slider.dataset.bound =
             "true";
+
     }
 
 
@@ -1090,25 +2449,36 @@ function renderWeatherRadarControls(){
     ){
 
         previous.addEventListener(
+
             "click",
+
             () => {
 
                 stopWeatherRadar();
 
+
                 const nextIndex =
                     Math.max(
+
                         weatherRadarIndex - 1,
+
                         0
+
                     );
+
 
                 showWeatherRadarFrame(
                     nextIndex
                 );
+
             }
+
         );
+
 
         previous.dataset.bound =
             "true";
+
     }
 
 
@@ -1118,25 +2488,36 @@ function renderWeatherRadarControls(){
     ){
 
         next.addEventListener(
+
             "click",
+
             () => {
 
                 stopWeatherRadar();
 
+
                 const nextIndex =
                     Math.min(
+
                         weatherRadarIndex + 1,
+
                         weatherRadarFrames.length - 1
+
                     );
+
 
                 showWeatherRadarFrame(
                     nextIndex
                 );
+
             }
+
         );
+
 
         next.dataset.bound =
             "true";
+
     }
 
 
@@ -1146,7 +2527,9 @@ function renderWeatherRadarControls(){
     ){
 
         play.addEventListener(
+
             "click",
+
             () => {
 
                 if(weatherRadarPlaying){
@@ -1157,21 +2540,27 @@ function renderWeatherRadarControls(){
                 else{
 
                     startWeatherRadar();
+
                 }
+
             }
+
         );
+
 
         play.dataset.bound =
             "true";
+
     }
 
 
     updateWeatherRadarUI();
+
 }
 
 
 /* =========================================================
-   RADAR UI UPDATE
+   RADAR UI
 ========================================================= */
 
 function updateWeatherRadarUI(){
@@ -1196,27 +2585,39 @@ function updateWeatherRadarUI(){
 
         slider.value =
             String(
+
                 Math.max(
                     weatherRadarIndex,
                     0
                 )
+
             );
+
 
         slider.max =
             String(
+
                 Math.max(
+
                     weatherRadarFrames.length - 1,
+
                     0
+
                 )
+
             );
+
     }
 
 
     if(frameTime){
 
         if(
+
             weatherRadarFrames.length &&
+
             weatherRadarIndex >= 0
+
         ){
 
             const frame =
@@ -1224,32 +2625,46 @@ function updateWeatherRadarUI(){
                     weatherRadarIndex
                 ];
 
+
             frameTime.textContent =
                 formatRadarTime(
                     frame.time
                 );
+
         }
         else{
 
             frameTime.textContent =
                 "No radar frame";
+
         }
+
     }
 
 
     if(play){
 
         play.textContent =
+
             weatherRadarPlaying
+
                 ? "⏸ Pause"
+
                 : "▶ Play";
 
+
         play.setAttribute(
+
             "aria-label",
+
             weatherRadarPlaying
+
                 ? "Pause radar"
+
                 : "Play radar"
+
         );
+
     }
 
 
@@ -1257,15 +2672,19 @@ function updateWeatherRadarUI(){
 
         previous.disabled =
             weatherRadarIndex <= 0;
+
     }
 
 
     if(next){
 
         next.disabled =
+
             weatherRadarIndex >=
             weatherRadarFrames.length - 1;
+
     }
+
 }
 
 
@@ -1280,6 +2699,7 @@ function startWeatherRadar(){
     ){
 
         return;
+
     }
 
 
@@ -1290,19 +2710,15 @@ function startWeatherRadar(){
     updateWeatherRadarUI();
 
 
-    /*
-     * Each RainViewer public past frame is a real
-     * radar frame. We advance every 700ms to create
-     * a smooth playback effect.
-     */
-
     clearInterval(
         weatherRadarTimer
     );
 
 
     weatherRadarTimer =
+
         setInterval(
+
             () => {
 
                 let nextIndex =
@@ -1310,16 +2726,14 @@ function startWeatherRadar(){
 
 
                 if(
+
                     nextIndex >=
                     weatherRadarFrames.length
+
                 ){
 
-                    /*
-                     * Loop back to the oldest
-                     * available real frame.
-                     */
-
                     nextIndex = 0;
+
                 }
 
 
@@ -1328,8 +2742,11 @@ function startWeatherRadar(){
                 );
 
             },
+
             700
+
         );
+
 }
 
 
@@ -1353,6 +2770,7 @@ function stopWeatherRadar(){
 
 
     updateWeatherRadarUI();
+
 }
 
 
@@ -1371,18 +2789,33 @@ function formatRadarTime(
 
 
     return date.toLocaleString(
+
         "en-US",
+
         {
-            weekday: "short",
-            month: "short",
-            day: "numeric",
 
-            hour: "2-digit",
-            minute: "2-digit",
+            weekday:
+                "short",
 
-            hour12: false
+            month:
+                "short",
+
+            day:
+                "numeric",
+
+            hour:
+                "2-digit",
+
+            minute:
+                "2-digit",
+
+            hour12:
+                false
+
         }
+
     );
+
 }
 
 
@@ -1400,26 +2833,32 @@ function showWeatherRadarError(
     const frameTime =
         $("weatherRadarTime");
 
+
     if(status){
 
         status.textContent =
             message;
+
     }
+
 
     if(frameTime){
 
         frameTime.textContent =
             "Radar unavailable";
+
     }
 
 
     const slider =
         $("weatherRadarSlider");
 
+
     if(slider){
 
         slider.disabled =
             true;
+
     }
 
 
@@ -1437,13 +2876,16 @@ function showWeatherRadarError(
         play.disabled = true;
     }
 
+
     if(previous){
         previous.disabled = true;
     }
 
+
     if(next){
         next.disabled = true;
     }
+
 }
 
 
@@ -1451,80 +2893,213 @@ function showWeatherRadarError(
    WEATHER DESCRIPTION
 ========================================================= */
 
-function getWeatherDescription(code){
+function getWeatherDescription(
+    code,
+    windSpeed = 0
+){
 
-    if(code === 0)
+    /*
+     * Very strong wind.
+     *
+     * This does NOT claim that it is literally
+     * a hurricane/tornado. It is simply used as
+     * an extreme-weather visual indicator.
+     */
+    if(
+        Number(windSpeed) >= 75 &&
+        Number(code) < 95
+    ){
+
         return {
-            icon:"☀️",
-            text:"Clear sky"
+
+            icon:
+                "🌪️",
+
+            text:
+                "Very strong wind / extreme weather"
+
         };
 
-    if(code === 1 || code === 2)
+    }
+
+
+    if(code === 0){
+
         return {
-            icon:"🌤️",
-            text:"Partly cloudy"
+
+            icon:
+                "☀️",
+
+            text:
+                "Clear sky"
+
         };
 
-    if(code === 3)
+    }
+
+
+    if(code === 1){
+
         return {
-            icon:"☁️",
-            text:"Cloudy"
+
+            icon:
+                "🌤️",
+
+            text:
+                "Mainly clear"
+
         };
 
-    if(code >= 45 && code <= 48)
+    }
+
+
+    if(code === 2){
+
         return {
-            icon:"🌫️",
-            text:"Fog"
+
+            icon:
+                "🌤️",
+
+            text:
+                "Partly cloudy"
+
         };
 
-    if(code >= 51 && code <= 57)
+    }
+
+
+    if(code === 3){
+
         return {
-            icon:"🌦️",
-            text:"Drizzle"
+
+            icon:
+                "☁️",
+
+            text:
+                "Cloudy"
+
         };
 
-    if(code >= 61 && code <= 67)
+    }
+
+
+    if(code >= 45 && code <= 48){
+
         return {
-            icon:"🌧️",
-            text:"Rain"
+
+            icon:
+                "🌫️",
+
+            text:
+                "Fog"
+
         };
 
-    if(code >= 71 && code <= 77)
+    }
+
+
+    if(code >= 51 && code <= 57){
+
         return {
-            icon:"❄️",
-            text:"Snow"
+
+            icon:
+                "🌦️",
+
+            text:
+                "Drizzle"
+
         };
 
-    if(code >= 80 && code <= 82)
+    }
+
+
+    if(code >= 61 && code <= 67){
+
         return {
-            icon:"🌦️",
-            text:"Rain showers"
+
+            icon:
+                "🌧️",
+
+            text:
+                "Rain"
+
         };
 
-    if(code >= 95)
+    }
+
+
+    if(code >= 71 && code <= 77){
+
         return {
-            icon:"⛈️",
-            text:"Thunderstorm"
+
+            icon:
+                "🌨️",
+
+            text:
+                "Snow"
+
         };
+
+    }
+
+
+    if(code >= 80 && code <= 82){
+
+        return {
+
+            icon:
+                "🌧️",
+
+            text:
+                "Rain showers"
+
+        };
+
+    }
+
+
+    if(code >= 95){
+
+        return {
+
+            icon:
+                "🌩️",
+
+            text:
+                "Thunderstorm"
+
+        };
+
+    }
+
 
     return {
-        icon:"🌤️",
-        text:"Unknown"
+
+        icon:
+            "🌤️",
+
+        text:
+            "Unknown"
+
     };
+
 }
 
 
 /* =========================================================
-   CLEANUP WHEN LEAVING WEATHER
+   CLEANUP
 ========================================================= */
 
 window.addEventListener(
+
     "beforeunload",
+
     () => {
 
         stopWeatherRadar();
 
     }
+
 );
 
 
