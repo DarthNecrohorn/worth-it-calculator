@@ -1201,47 +1201,42 @@ async function refreshWeatherMapData(){
        * Only reload places when the visible area
        * or zoom level has actually changed.
        */
-     if(key === weatherLastPlacesKey){
+if(key === weatherLastPlacesKey){
+
+    await updateWeatherCloudLayer();
 
     return;
 
 }
-       
-        /*
-         * IMPORTANT:
-         *
-         * Do not save the cache key until the
-         * places and weather markers have loaded
-         * successfully.
-         */
-        const places =
-            await getPlacesForMap(
-                south,
-                west,
-                north,
-                east,
-                zoom
-            );
 
 
-        await updateWeatherPlaceMarkers(
-            places,
-            zoom
-        );
+/*
+ * IMPORTANT:
+ *
+ * Do not save the cache key until the
+ * places and weather markers have loaded
+ * successfully.
+ */
+const places =
+    await getPlacesForMap(
+        south,
+        west,
+        north,
+        east,
+        zoom
+    );
 
-        /*
-         * Cloud grid is independent from city markers.
-         */
-        await updateWeatherCloudLayer();
 
-        /*
-         * Mark this area as successfully loaded.
-         */
-        weatherLastPlacesKey =
-            key;
+await updateWeatherPlaceMarkers(
+    places,
+    zoom
+);
 
 
-    }
+weatherLastPlacesKey =
+    key;
+
+}
     catch(error){
 
         console.warn(
@@ -1250,6 +1245,7 @@ async function refreshWeatherMapData(){
         );
 
     }
+       
     finally{
 
         weatherPlacesLoading =
