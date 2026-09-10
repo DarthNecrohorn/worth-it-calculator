@@ -34,8 +34,11 @@ const WEATHER_MAP_MAX_ZOOM = 15;
  * We use this to find towns/cities in the visible
  * map area when the user zooms in.
  */
-const OVERPASS_API =
-    "https://overpass-api.de/api/interpreter";
+const OVERPASS_APIS = [
+    "https://overpass.kumi.systems/api/interpreter",
+    "https://overpass.private.coffee/api/interpreter",
+    "https://overpass-api.de/api/interpreter"
+];
 
 /*
  * Maximum number of places requested at once.
