@@ -1,5 +1,5 @@
 /* =========================================================
-   WORTH IT AI CHAT - FRONTEND
+WORTH IT AI CHAT - FRONTEND
 ========================================================= */
 
 let aiChatHistory = [];
@@ -94,6 +94,12 @@ function addAIChatMessage(role, content, meta = ""){
     messages.appendChild(wrapper);
 
     messages.scrollTop = messages.scrollHeight;
+
+    return {
+        wrapper,
+        bubble,
+        metaEl
+    };
 }
 
 function setAIChatStatus(text = ""){
@@ -150,6 +156,10 @@ async function sendAIChatMessage(){
         "Worth It AI is thinking…"
     );
 
+    let assistantMessage = null;
+    let streamedAnswer = "";
+    let provider = "";
+
     try{
         const {
             data,
@@ -184,45 +194,168 @@ async function sendAIChatMessage(){
             }
         );
 
-        const result =
-            await response
-                .json()
-                .catch(() => ({}));
-
         if(!response.ok){
+            const result =
+                await response
+                    .json()
+                    .catch(() => ({}));
+
             throw new Error(
                 result?.error ||
                 `AI request failed (${response.status}).`
             );
         }
 
-        const answer =
-            String(
-                result?.answer || ""
-            ).trim();
+        if(!response.body){
+            throw new Error(
+                "AI streaming is not available."
+            );
+        }
 
-        if(!answer){
+        const reader =
+            response.body.getReader();
+
+        const decoder =
+            new TextDecoder();
+
+        let buffer = "";
+
+        while(true){
+            const { value, done } =
+                await reader.read();
+
+            if(done) break;
+
+            buffer += decoder.decode(
+                value,
+                {
+                    stream: true
+                }
+            );
+
+            const events =
+                buffer.split("\n\n");
+
+            buffer =
+                events.pop() || "";
+
+            for(const event of events){
+                const lines =
+                    event.split("\n");
+
+                for(const line of lines){
+                    if(!line.startsWith("data:")){
+                        continue;
+                    }
+
+                    const rawData =
+                        line.slice(5).trim();
+
+                    if(!rawData){
+                        continue;
+                    }
+
+                    let data;
+
+                    try{
+                        data =
+                            JSON.parse(rawData);
+                    }catch(error){
+                        continue;
+                    }
+
+                    if(data.type === "start"){
+                        setAIChatStatus(
+                            "Worth It AI is thinking…"
+                        );
+
+                        continue;
+                    }
+
+                    if(data.type === "chunk"){
+                        const chunk =
+                            typeof data.text === "string"
+                                ? data.text
+                                : "";
+
+                        if(!chunk){
+                            continue;
+                        }
+
+                        provider =
+                            data.provider || provider;
+
+                        streamedAnswer += chunk;
+
+                        if(!assistantMessage){
+                            const providerLabel =
+                                provider === "groq"
+                                    ? "Worth It AI · backup"
+                                    : provider === "gemini"
+                                        ? "Worth It AI · Gemini"
+                                        : "Worth It AI";
+
+                            assistantMessage =
+                                addAIChatMessage(
+                                    "assistant",
+                                    "",
+                                    providerLabel
+                                );
+                        }
+
+                        assistantMessage.bubble.textContent =
+                            streamedAnswer;
+
+                        const messages =
+                            $("aiChatMessages");
+
+                        if(messages){
+                            messages.scrollTop =
+                                messages.scrollHeight;
+                        }
+
+                        setAIChatStatus("");
+                    }
+
+                    if(data.type === "done"){
+                        provider =
+                            data.provider ||
+                            provider;
+                    }
+
+                    if(data.type === "error"){
+                        throw new Error(
+                            data.error ||
+                            "Could not reach Worth It AI. Please try again."
+                        );
+                    }
+                }
+            }
+        }
+
+        buffer += decoder.decode();
+
+        if(!streamedAnswer.trim()){
             throw new Error(
                 "The AI returned an empty response."
             );
         }
 
-        const providerLabel =
-            result.provider === "grok"
-                ? "Worth It AI · backup"
-                : result.provider === "gemini"
-                    ? "Worth It AI · Gemini"
-                    : "Worth It AI";
+        if(assistantMessage){
+            const providerLabel =
+                provider === "groq"
+                    ? "Worth It AI · backup"
+                    : provider === "gemini"
+                        ? "Worth It AI · Gemini"
+                        : "Worth It AI";
 
-        addAIChatMessage(
-            "assistant",
-            answer,
-            providerLabel
-        );
+            assistantMessage.metaEl.textContent =
+                providerLabel;
+        }
 
         aiChatHistory.push({
             role: "assistant",
-            content: answer
+            content: streamedAnswer
         });
 
         setAIChatStatus("");
@@ -235,6 +368,10 @@ async function sendAIChatMessage(){
         );
 
         aiChatHistory = previousHistory;
+
+        if(assistantMessage){
+            assistantMessage.wrapper.remove();
+        }
 
         addAIChatMessage(
             "assistant",
@@ -260,7 +397,7 @@ async function sendAIChatMessage(){
 }
 
 /* =========================================================
-   AI CHAT EVENTS
+AI CHAT EVENTS
 ========================================================= */
 
 $("aiChatInput")?.addEventListener(
@@ -301,7 +438,7 @@ document.addEventListener(
 );
 
 /* =========================================================
-   KEEP AI CHAT SYNCED WITH AUTH
+KEEP AI CHAT SYNCED WITH AUTH
 ========================================================= */
 
 const originalUpdateAuthUIForAI =
