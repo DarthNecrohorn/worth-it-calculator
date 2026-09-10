@@ -1798,8 +1798,13 @@ async function getWeatherForPlaces(
                     windSpeed:
                         Number(
                             current.wind_speed_10m || 0
-                        )
+                        ),
 
+                    windDirection:
+                        Number(
+                            current.wind_direction_10m || 0
+                        )
+                
                 };
 
 
