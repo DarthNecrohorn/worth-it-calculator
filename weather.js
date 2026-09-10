@@ -320,7 +320,7 @@ async function loadWeather(){
                 `https://api.open-meteo.com/v1/forecast` +
                 `?latitude=${encodeURIComponent(latitude)}` +
                 `&longitude=${encodeURIComponent(longitude)}` +
-                `&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m,cloud_cover` +
+                `&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m,wind_direction_10m,cloud_cover` +
                 `&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,sunrise,sunset` +
                 `&forecast_days=7` +
                 `&timezone=auto`
@@ -442,10 +442,20 @@ async function loadWeather(){
 
         if(wind){
 
-            wind.textContent =
-                `${Math.round(
+            const windSpeed =
+                Math.round(
                     current.wind_speed_10m
-                )} km/h`;
+                );
+
+            const windDirection =
+                Number(
+                    current.wind_direction_10m
+                );
+
+            wind.textContent =
+                Number.isFinite(windDirection)
+                    ? `${windSpeed} km/h · ${getWindFlowArrow(windDirection)} ${getWindFlowCompass(windDirection)}`
+                    : `${windSpeed} km/h`;
 
         }
 
@@ -1153,90 +1163,88 @@ async function refreshWeatherMapData(){
         true;
 
 
+    const bounds =
+        weatherRadarMap.getBounds();
+
+    const south =
+        bounds.getSouth();
+
+    const west =
+        bounds.getWest();
+
+    const north =
+        bounds.getNorth();
+
+    const east =
+        bounds.getEast();
+
+    const key = [
+
+        Math.round(south * 10) / 10,
+
+        Math.round(west * 10) / 10,
+
+        Math.round(north * 10) / 10,
+
+        Math.round(east * 10) / 10,
+
+        zoom >= 12
+            ? "high"
+            : zoom >= 9
+                ? "medium"
+                : "low"
+
+    ].join("|");
+
     try{
 
-        const bounds =
-            weatherRadarMap.getBounds();
-
-
-        const south =
-            bounds.getSouth();
-
-        const west =
-            bounds.getWest();
-
-        const north =
-            bounds.getNorth();
-
-        const east =
-            bounds.getEast();
-
-
-               /*
-         * Round the area to create a cache key.
-         *
-         * The zoom bucket is included so that we request
-         * more detailed places as the user zooms in.
+        /*
+         * City labels are optional.  Overpass can be slow,
+         * blocked by CORS, or temporarily unavailable; that
+         * must never prevent clouds, wind and map temperatures
+         * from loading below.
          */
-        const key = [
+        if(key !== weatherLastPlacesKey){
 
-            Math.round(south * 10) / 10,
+            try{
 
-            Math.round(west * 10) / 10,
+                const places =
+                    await getPlacesForMap(
+                        south,
+                        west,
+                        north,
+                        east,
+                        zoom
+                    );
 
-            Math.round(north * 10) / 10,
+                await updateWeatherPlaceMarkers(
+                    places,
+                    zoom
+                );
 
-            Math.round(east * 10) / 10,
+                weatherLastPlacesKey =
+                    key;
 
-            zoom >= 12
-                ? "high"
-                : zoom >= 9
-                    ? "medium"
-                    : "low"
+            }
+            catch(error){
 
-        ].join("|");
+                console.warn(
+                    "City weather markers unavailable:",
+                    error
+                );
 
+            }
 
-      /*
-       * Only reload places when the visible area
-       * or zoom level has actually changed.
-       */
-if(key === weatherLastPlacesKey){
+        }
 
-    await updateWeatherCloudLayer();
+        /*
+         * This call is intentionally outside the Overpass
+         * branch.  It uses only Open-Meteo and still works
+         * when city lookup has failed.
+         */
+        await updateWeatherCloudLayer();
 
-    return;
-
-}
-
-
-/*
- * IMPORTANT:
- *
- * Do not save the cache key until the
- * places and weather markers have loaded
- * successfully.
- */
-const places =
-    await getPlacesForMap(
-        south,
-        west,
-        north,
-        east,
-        zoom
-    );
-
-
-await updateWeatherPlaceMarkers(
-    places,
-    zoom
-);
-
-
-weatherLastPlacesKey =
-    key;
-
-}
+    }
     catch(error){
 
         console.warn(
@@ -1245,7 +1253,6 @@ weatherLastPlacesKey =
         );
 
     }
-       
     finally{
 
         weatherPlacesLoading =
@@ -1316,6 +1323,80 @@ function getWeatherDistanceKm(
 
 
     return earthRadius * c;
+
+}
+
+
+/* =========================================================
+   WIND FLOW HELPERS
+
+   Open-Meteo reports the direction the wind comes FROM.
+   The visual arrow and cloud movement show where it flows TO.
+========================================================= */
+
+function getWindFlowDirection(
+    windFromDirection
+){
+
+    return (
+        Number(windFromDirection) +
+        180 +
+        360
+    ) % 360;
+
+}
+
+
+function getWindFlowCompass(
+    windFromDirection
+){
+
+    const compass = [
+        "N",
+        "NE",
+        "E",
+        "SE",
+        "S",
+        "SW",
+        "W",
+        "NW"
+    ];
+
+    const index =
+        Math.round(
+            getWindFlowDirection(
+                windFromDirection
+            ) / 45
+        ) % compass.length;
+
+    return compass[index];
+
+}
+
+
+function getWindFlowArrow(
+    windFromDirection
+){
+
+    const arrows = [
+        "↑",
+        "↗",
+        "→",
+        "↘",
+        "↓",
+        "↙",
+        "←",
+        "↖"
+    ];
+
+    const index =
+        Math.round(
+            getWindFlowDirection(
+                windFromDirection
+            ) / 45
+        ) % arrows.length;
+
+    return arrows[index];
 
 }
 
@@ -1768,15 +1849,6 @@ async function updateWeatherPlaceMarkers(
 
     }
 
-
-    /*
-     * Cloud overlay.
-     */
-    await updateWeatherCloudLayer(
-        places,
-        weatherData
-    );
-
 }
 
 
@@ -2228,7 +2300,7 @@ if(weatherRadarLocation){
 
             `&longitude=${longitudes.join(",")}` +
 
-            "&current=cloud_cover,wind_speed_10m,wind_direction_10m" +
+            "&current=temperature_2m,cloud_cover,wind_speed_10m,wind_direction_10m" +
 
             "&timezone=auto";
 
@@ -2314,6 +2386,18 @@ if(weatherRadarLocation){
                 );
 
 
+            const temperature =
+                Number(
+                    current.temperature_2m
+                );
+
+
+            const windFlowDirection =
+                getWindFlowDirection(
+                    windDirection
+                );
+
+
             if(
                 !Number.isFinite(
                     cloudCover
@@ -2326,20 +2410,9 @@ if(weatherRadarLocation){
 
 
             /*
-             * Don't completely hide partly cloudy
-             * areas. This makes the layer much easier
-             * to see while keeping clear sky mostly clean.
-             */
-            if(cloudCover < 15){
-
-                continue;
-
-            }
-
-
-            /*
              * Number of cloud symbols at each
-             * grid point.
+             * grid point.  Even clear cells keep one marker:
+             * it contains the visible wind and temperature badge.
              */
             const cloudCount =
                 cloudCover >= 80
@@ -2429,6 +2502,59 @@ if(weatherRadarLocation){
                     0.38;
 
 
+                const primaryMarker =
+                    c === 0;
+
+
+                const markerWidth =
+                    primaryMarker
+                        ? size + 58
+                        : size;
+
+
+                const markerHeight =
+                    primaryMarker
+                        ? size + 18
+                        : size;
+
+
+                const windMarkup =
+                    primaryMarker
+                        ? `
+                            <span
+                                class="weather-wind-flow"
+                                title="Wind flows ${getWindFlowCompass(windDirection)} at ${Math.round(windSpeed)} km/h"
+                                style="
+                                    position:absolute;
+                                    top:0;
+                                    left:${size - 2}px;
+                                    display:flex;
+                                    align-items:center;
+                                    gap:3px;
+                                    padding:2px 5px;
+                                    border:1px solid rgba(255,255,255,.65);
+                                    border-radius:8px;
+                                    background:rgba(8,20,47,.84);
+                                    color:#fff;
+                                    font:700 11px/1 system-ui,sans-serif;
+                                    white-space:nowrap;
+                                    text-shadow:0 1px 3px rgba(0,0,0,.8);
+                                "
+                            >
+                                <span
+                                    style="
+                                        display:inline-block;
+                                        font-size:17px;
+                                        line-height:17px;
+                                        transform:rotate(${windFlowDirection}deg);
+                                    "
+                                >↑</span>
+                                <span>${Number.isFinite(temperature) ? Math.round(temperature) : "--"}° · ${Math.round(windSpeed)}</span>
+                            </span>
+                        `
+                        : "";
+
+
                 const html = `
 
                     <div
@@ -2436,12 +2562,17 @@ if(weatherRadarLocation){
                         style="
                             --cloud-size:${size}px;
                             --cloud-opacity:${opacity};
+                            position:relative;
+                            width:${markerWidth}px;
+                            height:${markerHeight}px;
                         "
                     >
 
                         <span class="weather-cloud-shape">
                             ☁️
                         </span>
+
+                        ${windMarkup}
 
                     </div>
 
@@ -2467,12 +2598,15 @@ if(weatherRadarLocation){
                                     html,
 
                                     iconSize:
-                                        [size, size],
+                                        [
+                                            markerWidth,
+                                            markerHeight
+                                        ],
 
                                     iconAnchor:
                                         [
-                                            size / 2,
-                                            size / 2
+                                            markerWidth / 2,
+                                            markerHeight / 2
                                         ]
 
                                 }),
@@ -2484,7 +2618,9 @@ if(weatherRadarLocation){
                                 false,
 
                             zIndexOffset:
-                                -50
+                                primaryMarker
+                                    ? 500
+                                    : -50
 
                         }
 
@@ -2520,7 +2656,7 @@ if(weatherRadarLocation){
                             windDirection
                         )
 
-                            ? windDirection
+                            ? windFlowDirection
 
                             : 0,
 
