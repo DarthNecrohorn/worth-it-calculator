@@ -3580,3 +3580,63 @@ html[data-theme="light"] .weather-radar-header h3 {
 html[data-theme="light"] .weather-radar-header p {
     color: rgba(15,23,42,.65);
 }
+
+/* =========================================================
+   WEATHER RADAR - DARK THEME FIX
+========================================================= */
+
+/* Veliki okvir oko celog radara */
+.weather-radar-card {
+    background: rgba(15, 23, 42, .96);
+    border: 1px solid rgba(255, 255, 255, .10);
+    color: #ffffff;
+}
+
+/* Dugmad Previous / Play / Next */
+.weather-radar-controls button {
+    background: #1e293b;
+    color: #ffffff;
+    border: 1px solid rgba(255, 255, 255, .12);
+}
+
+/* Hover */
+.weather-radar-controls button:hover {
+    background: #334155;
+    color: #ffffff;
+}
+
+/* Timeline tekst */
+#weatherRadarTime {
+    color: rgba(255, 255, 255, .75);
+}
+
+/* Slider */
+#weatherRadarSlider {
+    accent-color: #60a5fa;
+}
+
+
+/* =========================================================
+   LIGHT THEME
+========================================================= */
+
+html[data-theme="light"] .weather-radar-card {
+    background: rgba(255, 255, 255, .96);
+    border-color: rgba(15, 23, 42, .11);
+    color: #0f172a;
+}
+
+html[data-theme="light"] .weather-radar-controls button {
+    background: #f1f5f9;
+    color: #0f172a;
+    border-color: rgba(15, 23, 42, .12);
+}
+
+html[data-theme="light"] .weather-radar-controls button:hover {
+    background: #e2e8f0;
+    color: #0f172a;
+}
+
+html[data-theme="light"] #weatherRadarTime {
+    color: rgba(15, 23, 42, .65);
+}
