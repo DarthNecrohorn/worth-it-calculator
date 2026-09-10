@@ -79,6 +79,10 @@ let weatherPlaceMarkers = [];
 
 let weatherCloudMarkers = [];
 
+let weatherCloudAnimationTimer = null;
+
+let weatherCloudAnimationRunning = false;
+
 let weatherPlacesLoading = false;
 
 let weatherPlacesTimer = null;
