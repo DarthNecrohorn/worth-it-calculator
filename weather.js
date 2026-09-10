@@ -1294,27 +1294,55 @@ async function getPlacesForMap(
     }
 
 
-    const response =
-        await fetch(
+    let response = null;
+let lastError = null;
 
-            OVERPASS_API,
+for (const api of OVERPASS_APIS) {
 
+    try {
+
+        response = await fetch(
+            api,
             {
-
                 method: "POST",
 
                 body: query,
 
                 headers: {
-
                     "Content-Type":
                         "text/plain;charset=UTF-8"
-
                 }
-
             }
-
         );
+
+        if (response.ok) {
+            break;
+        }
+
+        lastError =
+            new Error(
+                `Overpass HTTP ${response.status}`
+            );
+
+    }
+    catch (error) {
+
+        lastError = error;
+
+    }
+
+}
+
+if (!response || !response.ok) {
+
+    throw (
+        lastError ||
+        new Error(
+            "All Overpass servers failed."
+        )
+    );
+
+}
 
 
     if(!response.ok){
