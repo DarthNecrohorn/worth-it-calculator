@@ -1197,9 +1197,16 @@ async function refreshWeatherMapData(){
          */
         if(key === weatherLastPlacesKey){
 
-            return;
+    /*
+     * City/place data did not change,
+     * but the cloud/weather layer may need
+     * its own refresh.
+     */
+    await updateWeatherCloudLayer();
 
-        }
+    return;
+
+}
 
 
         /*
@@ -1224,6 +1231,10 @@ async function refreshWeatherMapData(){
             zoom
         );
 
+        /*
+         * Cloud grid is independent from city markers.
+         */
+        await updateWeatherCloudLayer();
 
         /*
          * Mark this area as successfully loaded.
