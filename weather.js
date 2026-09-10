@@ -47,6 +47,16 @@ const OVERPASS_APIS = [
  */
 const WEATHER_MAX_PLACES = 100;
 
+/*
+ * Weather information is only shown around
+ * the user's approximate location.
+ *
+ * This keeps the map responsive and prevents
+ * unnecessary weather API requests worldwide.
+ */
+const WEATHER_LOCAL_RADIUS_KM = 450;
+
+const WEATHER_LOCAL_CLOUD_RADIUS_KM = 650;
 
 /* =========================================================
    GLOBAL STATE
