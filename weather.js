@@ -104,16 +104,6 @@ let weatherWeatherCache = new Map();
 
 let weatherLastWeatherUpdate = 0;
 
-let weatherPlacesTimer = null;
-
-let weatherLastPlacesKey = "";
-
-let weatherPlacesCache = new Map();
-
-let weatherWeatherCache = new Map();
-
-let weatherLastWeatherUpdate = 0;
-
 const WEATHER_CACHE_TIME =
     10 * 60 * 1000;
 
