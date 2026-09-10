@@ -3640,3 +3640,80 @@ html[data-theme="light"] .weather-radar-controls button:hover {
 html[data-theme="light"] #weatherRadarTime {
     color: rgba(15, 23, 42, .65);
 }
+
+/* =========================================================
+   WEATHER MAP PLACE MARKERS
+========================================================= */
+
+.weather-place-icon-wrapper {
+    background: transparent !important;
+    border: none !important;
+}
+
+.weather-place-marker {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+
+    padding: 5px 8px;
+
+    border-radius: 9px;
+
+    background: rgba(15, 23, 42, .88);
+
+    border: 1px solid rgba(255, 255, 255, .16);
+
+    color: #ffffff;
+
+    white-space: nowrap;
+
+    box-shadow:
+        0 3px 12px rgba(0,0,0,.28);
+
+    backdrop-filter: blur(5px);
+
+    pointer-events: auto;
+}
+
+.weather-place-icon {
+    font-size: 1.05em;
+}
+
+.weather-place-name {
+    font-weight: 600;
+}
+
+.weather-place-temp {
+    font-weight: 800;
+
+    color: #93c5fd;
+}
+
+
+/* LIGHT THEME */
+
+html[data-theme="light"] .weather-place-marker {
+    background: rgba(255, 255, 255, .94);
+
+    border-color:
+        rgba(15, 23, 42, .13);
+
+    color: #0f172a;
+
+    box-shadow:
+        0 3px 12px rgba(15,23,42,.18);
+}
+
+html[data-theme="light"] .weather-place-temp {
+    color: #2563eb;
+}
+
+
+/* =========================================================
+   WEATHER TOOLTIP
+========================================================= */
+
+.leaflet-tooltip {
+    font-size: 13px;
+    line-height: 1.5;
+}
