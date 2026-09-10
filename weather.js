@@ -1493,15 +1493,45 @@ if (!response || !response.ok) {
      * Remove entries without names.
      */
     places =
+    places.filter(
+        place =>
+            place &&
+            place.tags &&
+            place.tags.name &&
+            Number.isFinite(place.lat) &&
+            Number.isFinite(place.lon)
+    );
+
+
+/*
+ * Keep detailed weather information local
+ * to the user's approximate location.
+ *
+ * This prevents temperatures and city weather
+ * markers from being loaded worldwide.
+ */
+if(weatherRadarLocation){
+
+    places =
         places.filter(
+
             place =>
-                place &&
-                place.tags &&
-                place.tags.name &&
-                Number.isFinite(place.lat) &&
-                Number.isFinite(place.lon)
+
+                getWeatherDistanceKm(
+
+                    weatherRadarLocation.latitude,
+
+                    weatherRadarLocation.longitude,
+
+                    place.lat,
+
+                    place.lon
+
+                ) <= WEATHER_LOCAL_RADIUS_KM
+
         );
 
+}
 
     /*
      * Sort by importance:
