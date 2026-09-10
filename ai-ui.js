@@ -135,20 +135,140 @@ function renderAIMarkdown(text){
     }
 
     function parseTableRow(line){
-    let value = String(line).trim();
+        let value = String(line).trim();
 
-    if(value.startsWith("|")){
-        value = value.slice(1);
+        if(value.startsWith("|")){
+            value = value.slice(1);
+        }
+
+        if(value.endsWith("|")){
+            value = value.slice(0, -1);
+        }
+
+        return value
+            .split("|")
+            .map(cell => cell.trim());
     }
 
-    if(value.endsWith("|")){
-        value = value.slice(0, -1);
-    }
+    function repairTableHeader(headers){
+        if(headers.length >= 3){
+            return headers;
+        }
 
-    return value
-        .split("|")
-        .map(cell => cell.trim());
-}
+        if(headers.length !== 1){
+            return headers;
+        }
+
+        const header = headers[0].trim();
+
+        /*
+         * Repairs malformed AI headers such as:
+         *
+         * | FactorElectric carFuel (gasoline) car |
+         *
+         * into:
+         *
+         * | Factor | Electric car | Fuel (gasoline) car |
+         */
+
+        const knownFactorMatch =
+            header.match(
+                /^Factor\s+(.+?)\s+(Electric car|EV|Fuel(?:\s+\([^)]*\))?\s+car|Gasoline(?:\/diesel)?\s+car|Gasoline\s+car|Diesel\s+car)\s*$/i
+            );
+
+        if(knownFactorMatch){
+            const firstOption =
+                knownFactorMatch[1].trim();
+
+            const secondOption =
+                knownFactorMatch[2].trim();
+
+            return [
+                "Factor",
+                firstOption,
+                secondOption
+            ];
+        }
+
+        /*
+         * Common car-comparison repair.
+         */
+
+        if(
+            /^FactorElectric car/i.test(header)
+        ){
+            const rest =
+                header.replace(
+                    /^FactorElectric car/i,
+                    ""
+                ).trim();
+
+            if(rest){
+                return [
+                    "Factor",
+                    "Electric car",
+                    rest
+                ];
+            }
+
+            return [
+                "Factor",
+                "Electric car",
+                "Fuel car"
+            ];
+        }
+
+        /*
+         * Generic fallback:
+         * If the malformed header contains "Factor"
+         * followed immediately by two recognizable options,
+         * split it into three columns.
+         */
+
+        const factorIndex =
+            header.toLowerCase().indexOf("factor");
+
+        if(factorIndex === 0){
+            const remainder =
+                header
+                    .slice(6)
+                    .trim();
+
+            const optionWords =
+                [
+                    "Electric car",
+                    "EV",
+                    "Fuel car",
+                    "Gasoline car",
+                    "Diesel car"
+                ];
+
+            for(const firstOption of optionWords){
+                if(
+                    remainder
+                        .toLowerCase()
+                        .startsWith(
+                            firstOption.toLowerCase()
+                        )
+                ){
+                    const rest =
+                        remainder
+                            .slice(firstOption.length)
+                            .trim();
+
+                    if(rest){
+                        return [
+                            "Factor",
+                            firstOption,
+                            rest
+                        ];
+                    }
+                }
+            }
+        }
+
+        return headers;
+    }
 
     for(let i = 0; i < lines.length; i++){
 
@@ -163,7 +283,12 @@ function renderAIMarkdown(text){
         ){
             closeList();
 
-            const headers = parseTableRow(line);
+            let headers =
+                parseTableRow(line);
+
+            headers =
+                repairTableHeader(headers);
+
             i++;
 
             const rows = [];
@@ -175,11 +300,26 @@ function renderAIMarkdown(text){
             ){
                 i++;
 
-                const row = parseTableRow(lines[i]);
+                const row =
+                    parseTableRow(lines[i]);
 
                 if(row.length){
                     rows.push(row);
                 }
+            }
+
+            /*
+             * Make sure the table always has
+             * at least the expected 3 columns.
+             */
+
+            if(headers.length < 3){
+                headers = [
+                    ...headers,
+                    ...Array(
+                        3 - headers.length
+                    ).fill("")
+                ];
             }
 
             output.push(
@@ -199,12 +339,13 @@ function renderAIMarkdown(text){
                     .slice(0, 5)
                     .map(row => {
 
-                        const cells = headers
-                            .slice(0, 3)
-                            .map(
-                                (_, index) =>
-                                    row[index] || ""
-                            );
+                        const cells =
+                            headers
+                                .slice(0, 3)
+                                .map(
+                                    (_, index) =>
+                                        row[index] || ""
+                                );
 
                         return (
                             "<tr>" +
@@ -286,7 +427,10 @@ function renderAIMarkdown(text){
         /* EMPTY LINE */
 
         if(!line.trim()){
-            output.push("<div class=\"ai-chat-spacer\"></div>");
+            output.push(
+                "<div class=\"ai-chat-spacer\"></div>"
+            );
+
             continue;
         }
 
