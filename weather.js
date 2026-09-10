@@ -3877,7 +3877,6 @@ function getWeatherDescription(
 
 }
 
-
 /* =========================================================
    CLEANUP
 ========================================================= */
@@ -3889,6 +3888,12 @@ window.addEventListener(
     () => {
 
         stopWeatherRadar();
+
+        stopWeatherCloudAnimation();
+
+        clearInterval(
+            weatherCloudAutoRefreshTimer
+        );
 
     }
 
