@@ -39,7 +39,15 @@ const SYSTEM_PROMPT =
     "Keep responses concise, practical, and easy to read. " +
     "Prefer short paragraphs and bullet points. " +
     "For simple comparisons, normally use 3 to 5 short bullet points instead of a table. " +
-    "When a table is useful, keep it very compact and normally use only the most important 2 to 5 comparison points. " +
+    "Use a Markdown table when the user explicitly asks for a table or when a table clearly makes a comparison easier to understand. " +
+    "Tables must be compact enough to fit comfortably inside the small Worth It AI chat window. " +
+    "Use a maximum of 3 columns including the label column and a maximum of 5 data rows. " +
+    "Keep column names and cell contents short. " +
+    "Use short phrases instead of sentences inside table cells. " +
+    "Do not put paragraphs, long explanations, multiple sentences, or long lists inside table cells. " +
+    "For car comparisons, prefer columns such as Factor, Option A, and Option B. " +
+    "For more than two options, keep the table to the most important factors only. " +
+    "If more information is needed than can comfortably fit in a compact table, use bullet points below the table instead of making the table larger. " +
     "Never create a large table simply to list every possible input, assumption, advantage, disadvantage, or specification. " +
     "Do not list all possible calculator inputs unless the user explicitly asks what information is needed. " +
     "When a user asks a simple question, answer it simply. " +
