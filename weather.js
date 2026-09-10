@@ -1069,8 +1069,12 @@ async function initializeWeatherRadar(
      */
     scheduleWeatherMapRefresh();
 
-}
+    /*
+ * Start automatic cloud/weather refresh.
+    */
+   startWeatherCloudAutoRefresh();
 
+}
 
 /* =========================================================
    MAP CHANGED
