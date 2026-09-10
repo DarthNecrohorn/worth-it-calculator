@@ -1423,72 +1423,164 @@
             <p>Check the current weather and forecast.</p>
         </div>
 
-       <div id="weatherContent">
+        <div id="weatherContent">
 
-    <div class="weather-card">
+            <!-- CURRENT WEATHER -->
 
-        <div class="weather-location">
-            <span>📍</span>
-            <strong id="weatherLocation">Detecting location...</strong>
-        </div>
+            <div class="weather-card">
 
-        <div class="weather-main">
-
-            <div class="weather-icon" id="weatherIcon">🌤️</div>
-
-            <div>
-                <div class="weather-temperature" id="weatherTemperature">--°C</div>
-
-                <div class="weather-description" id="weatherDescription">
-                    Loading weather...
+                <div class="weather-location">
+                    <span>📍</span>
+                    <strong id="weatherLocation">
+                        Detecting location...
+                    </strong>
                 </div>
+
+                <div class="weather-main">
+
+                    <div
+                        class="weather-icon"
+                        id="weatherIcon">
+                        🌤️
+                    </div>
+
+                    <div>
+
+                        <div
+                            class="weather-temperature"
+                            id="weatherTemperature">
+                            --°C
+                        </div>
+
+                        <div
+                            class="weather-description"
+                            id="weatherDescription">
+                            Loading weather...
+                        </div>
+
+                    </div>
+
+                </div>
+
+                <div class="weather-details">
+
+                    <div>
+                        <span>Feels like</span>
+                        <strong id="weatherFeelsLike">
+                            --°C
+                        </strong>
+                    </div>
+
+                    <div>
+                        <span>Humidity</span>
+                        <strong id="weatherHumidity">
+                            --%
+                        </strong>
+                    </div>
+
+                    <div>
+                        <span>Wind</span>
+                        <strong id="weatherWind">
+                            -- km/h
+                        </strong>
+                    </div>
+
+                    <div>
+                        <span>Sunrise</span>
+                        <strong id="weatherSunrise">
+                            --:--
+                        </strong>
+                    </div>
+
+                    <div>
+                        <span>Sunset</span>
+                        <strong id="weatherSunset">
+                            --:--
+                        </strong>
+                    </div>
+
+                </div>
+
+            </div>
+
+            <!-- WEATHER RADAR -->
+
+            <div class="weather-radar-card">
+
+                <div class="weather-radar-header">
+
+                    <div>
+                        <h3>🌧️ Live Rain Radar</h3>
+
+                        <p id="weatherRadarStatus">
+                            Loading radar...
+                        </p>
+                    </div>
+
+                </div>
+
+                <div
+                    id="weatherRadarMap"
+                    class="weather-radar-map">
+                </div>
+
+                <div class="weather-radar-controls">
+
+                    <button
+                        type="button"
+                        id="weatherRadarPrevious">
+                        ◀ Previous
+                    </button>
+
+                    <button
+                        type="button"
+                        id="weatherRadarPlay">
+                        ▶ Play
+                    </button>
+
+                    <button
+                        type="button"
+                        id="weatherRadarNext">
+                        Next ▶
+                    </button>
+
+                </div>
+
+                <div class="weather-radar-timeline">
+
+                    <input
+                        type="range"
+                        id="weatherRadarSlider"
+                        min="0"
+                        max="0"
+                        value="0"
+                        step="1"
+                    >
+
+                    <div id="weatherRadarTime">
+                        --
+                    </div>
+
+                </div>
+
+            </div>
+
+            <!-- 7-DAY FORECAST -->
+
+            <div class="weather-forecast">
+
+                <h3>7-day forecast</h3>
+
+                <div
+                    class="weather-forecast-grid"
+                    id="weatherForecast">
+                </div>
+
             </div>
 
         </div>
 
-        <div class="weather-details">
-
-            <div>
-    <span>Feels like</span>
-    <strong id="weatherFeelsLike">--°C</strong>
-</div>
-
-<div>
-    <span>Humidity</span>
-    <strong id="weatherHumidity">--%</strong>
-</div>
-
-<div>
-    <span>Wind</span>
-    <strong id="weatherWind">-- km/h</strong>
-</div>
-
-<div>
-    <span>Sunrise</span>
-    <strong id="weatherSunrise">--:--</strong>
-</div>
-
-<div>
-    <span>Sunset</span>
-    <strong id="weatherSunset">--:--</strong>
-</div>
-
-</div>
-
     </div>
-
-    <div class="weather-forecast">
-
-        <h3>7-day forecast</h3>
-
-        <div
-            class="weather-forecast-grid"
-            id="weatherForecast">
-        </div>
-
-    </div>
-
-</div>
 
 </section>
 
