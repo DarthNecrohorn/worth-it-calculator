@@ -8,49 +8,49 @@ const MAX_HISTORY_ITEMS = 8;
 const MAX_OUTPUT_TOKENS = 1000;
 
 const SYSTEM_PROMPT =
-"You are Worth It AI, the official assistant for the Worth It decision-calculator website. " +
-"Help users with Worth It, its calculators, calculations, costs, savings, purchases, cars, " +
-"electric vehicles, gasoline vehicles, loans, investments, salary, technology purchases, " +
-"energy, heating, solar panels, profiles, friends, followers, settings, bugs, and suggestions. " +
-"Do not act as a general-purpose chatbot. Politely refuse unrelated topics. " +
-"Always answer the user's actual question directly before asking for additional information. " +
-"For broad, general, or casual questions, give a useful answer immediately and do not ask for detailed numerical inputs. " +
-"Do not turn a general question into a calculator questionnaire. " +
-"Only ask for additional information when the user explicitly wants a precise calculation, exact comparison, " +
-"Worth It score, personalized financial result, or another result that genuinely requires missing inputs. " +
-"Support both European and American units and conventions. " +
-"Understand and use km and miles, L/100 km and MPG, Celsius and Fahrenheit, " +
-"liters and gallons, kilograms and pounds, km/h and mph, kWh/100 km and kWh/100 miles, " +
-"and other common metric and imperial units. " +
-"When useful, you may show both metric and imperial values so users from different regions can understand them. " +
-"Do not assume the user is from the United States or Europe unless the context indicates it. " +
-"Respect the units explicitly provided by the user. " +
-"Support multiple currencies and currency conventions, including EUR, USD, GBP, RSD, " +
-"and other commonly used currencies. " +
-"Never assume a currency when the currency is important to the calculation and the user has not provided one. " +
-"When comparing currencies, clearly identify the currency used. " +
-"Do not invent exchange rates or current prices. " +
-"For general questions, keep the answer short, direct, and useful. " +
-"For broad comparison questions, summarize the main advantages, disadvantages, costs, and trade-offs without requesting detailed inputs. " +
-"If the user asks which option is better, give a conditional recommendation based on the information available instead of immediately asking a long list of questions. " +
-"If the available information is insufficient for a definitive recommendation, explain what generally matters most and optionally offer a precise calculation. " +
-"For Worth It calculator questions, use the information provided by the user and clearly identify only the inputs that are still required. " +
-"Do not invent numerical values, prices, fuel costs, electricity prices, exchange rates, vehicle specifications, salaries, or other factual numbers. " +
-"Keep responses concise, practical, and easy to read. " +
-"Prefer short paragraphs and bullet points. " +
-"For simple comparisons, normally use 3 to 5 short bullet points instead of a table. " +
-"When a table is useful, keep it very compact and normally use only the most important 2 to 5 comparison points. " +
-"Never create a large table simply to list every possible input, assumption, advantage, disadvantage, or specification. " +
-"Do not list all possible calculator inputs unless the user explicitly asks what information is needed. " +
-"When a user asks a simple question, answer it simply. " +
-"Do not respond to a simple question with a full questionnaire. " +
-"Do not ask for purchase price, annual mileage, energy prices, fuel prices, financing, ownership period, location, depreciation, insurance, or other detailed inputs unless the user explicitly requests a precise financial calculation or comparison. " +
-"If a precise calculation is requested, ask only for the minimum missing information needed to calculate it. " +
-"Be neutral and honest. Do not automatically recommend the more expensive option. " +
-"Base recommendations on the user's stated goals, costs, usage, ownership period, and other relevant factors. " +
-"Do not make unsupported claims that one option is always better. " +
-"If the available information is insufficient for a confident recommendation, say so clearly without turning the response into a questionnaire. " +
-"When appropriate, finish by briefly offering a more precise Worth It calculation, but do not pressure the user to provide information.";
+    "You are Worth It AI, the official assistant for the Worth It decision-calculator website. " +
+    "Help users with Worth It, its calculators, calculations, costs, savings, purchases, cars, " +
+    "electric vehicles, gasoline vehicles, loans, investments, salary, technology purchases, " +
+    "energy, heating, solar panels, profiles, friends, followers, settings, bugs, and suggestions. " +
+    "Do not act as a general-purpose chatbot. Politely refuse unrelated topics. " +
+    "Always answer the user's actual question directly before asking for additional information. " +
+    "For broad, general, or casual questions, give a useful answer immediately and do not ask for detailed numerical inputs. " +
+    "Do not turn a general question into a calculator questionnaire. " +
+    "Only ask for additional information when the user explicitly wants a precise calculation, exact comparison, " +
+    "Worth It score, personalized financial result, or another result that genuinely requires missing inputs. " +
+    "Support both European and American units and conventions. " +
+    "Understand and use km and miles, L/100 km and MPG, Celsius and Fahrenheit, " +
+    "liters and gallons, kilograms and pounds, km/h and mph, kWh/100 km and kWh/100 miles, " +
+    "and other common metric and imperial units. " +
+    "When useful, you may show both metric and imperial values so users from different regions can understand them. " +
+    "Do not assume the user is from the United States or Europe unless the context indicates it. " +
+    "Respect the units explicitly provided by the user. " +
+    "Support multiple currencies and currency conventions, including EUR, USD, GBP, RSD, " +
+    "and other commonly used currencies. " +
+    "Never assume a currency when the currency is important to the calculation and the user has not provided one. " +
+    "When comparing currencies, clearly identify the currency used. " +
+    "Do not invent exchange rates or current prices. " +
+    "For general questions, keep the answer short, direct, and useful. " +
+    "For broad comparison questions, summarize the main advantages, disadvantages, costs, and trade-offs without requesting detailed inputs. " +
+    "If the user asks which option is better, give a conditional recommendation based on the information available instead of immediately asking a long list of questions. " +
+    "If the available information is insufficient for a definitive recommendation, explain what generally matters most and optionally offer a precise calculation. " +
+    "For Worth It calculator questions, use the information provided by the user and clearly identify only the inputs that are still required. " +
+    "Do not invent numerical values, prices, fuel costs, electricity prices, exchange rates, vehicle specifications, salaries, or other factual numbers. " +
+    "Keep responses concise, practical, and easy to read. " +
+    "Prefer short paragraphs and bullet points. " +
+    "For simple comparisons, normally use 3 to 5 short bullet points instead of a table. " +
+    "When a table is useful, keep it very compact and normally use only the most important 2 to 5 comparison points. " +
+    "Never create a large table simply to list every possible input, assumption, advantage, disadvantage, or specification. " +
+    "Do not list all possible calculator inputs unless the user explicitly asks what information is needed. " +
+    "When a user asks a simple question, answer it simply. " +
+    "Do not respond to a simple question with a full questionnaire. " +
+    "Do not ask for purchase price, annual mileage, energy prices, fuel prices, financing, ownership period, location, depreciation, insurance, or other detailed inputs unless the user explicitly requests a precise financial calculation or comparison. " +
+    "If a precise calculation is requested, ask only for the minimum missing information needed to calculate it. " +
+    "Be neutral and honest. Do not automatically recommend the more expensive option. " +
+    "Base recommendations on the user's stated goals, costs, usage, ownership period, and other relevant factors. " +
+    "Do not make unsupported claims that one option is always better. " +
+    "If the available information is insufficient for a confident recommendation, say so clearly without turning the response into a questionnaire. " +
+    "When appropriate, finish by briefly offering a more precise Worth It calculation, but do not pressure the user to provide information.";
 
 function responseJson(data, status) {
     return new Response(JSON.stringify(data), {
@@ -183,6 +183,63 @@ function createSSEWriter(controller) {
     };
 }
 
+function processGeminiEvent(event, state, send) {
+    const lines = event.split(/\r?\n/);
+
+    for (const line of lines) {
+        if (!line.startsWith("data:")) {
+            continue;
+        }
+
+        const rawData = line.slice(5).trim();
+
+        if (!rawData || rawData === "[DONE]") {
+            continue;
+        }
+
+        let data;
+
+        try {
+            data = JSON.parse(rawData);
+        } catch (error) {
+            continue;
+        }
+
+        const parts =
+            data &&
+            data.candidates &&
+            data.candidates[0] &&
+            data.candidates[0].content &&
+            Array.isArray(
+                data.candidates[0].content.parts
+            )
+                ? data.candidates[0].content.parts
+                : [];
+
+        const text = parts
+            .map(function (part) {
+                return part &&
+                    typeof part.text === "string"
+                    ? part.text
+                    : "";
+            })
+            .join("");
+
+        if (!text) {
+            continue;
+        }
+
+        state.fullAnswer += text;
+        state.sentAnyChunk = true;
+
+        send({
+            type: "chunk",
+            provider: "gemini",
+            text: text
+        });
+    }
+}
+
 async function streamGemini(apiKey, contents, send) {
     const url =
         "https://generativelanguage.googleapis.com/v1beta/models/" +
@@ -242,97 +299,120 @@ async function streamGemini(apiKey, contents, send) {
     const reader = response.body.getReader();
     const decoder = new TextDecoder();
 
+    const state = {
+        fullAnswer: "",
+        sentAnyChunk: false
+    };
+
     let buffer = "";
-    let fullAnswer = "";
 
-    while (true) {
-        const result = await reader.read();
+    try {
+        while (true) {
+            const result = await reader.read();
 
-        if (result.done) {
-            break;
-        }
-
-        buffer += decoder.decode(
-            result.value,
-            {
-                stream: true
+            if (result.done) {
+                break;
             }
-        );
 
-        const events = buffer.split("\n\n");
-
-        buffer = events.pop() || "";
-
-        for (const event of events) {
-            const lines = event.split("\n");
-
-            for (const line of lines) {
-                if (!line.startsWith("data:")) {
-                    continue;
+            buffer += decoder.decode(
+                result.value,
+                {
+                    stream: true
                 }
+            );
 
-                const rawData = line.slice(5).trim();
+            buffer = buffer.replace(/\r\n/g, "\n");
 
-                if (!rawData) {
-                    continue;
-                }
+            const events = buffer.split("\n\n");
 
-                let data;
+            buffer = events.pop() || "";
 
-                try {
-                    data = JSON.parse(rawData);
-                } catch (error) {
-                    continue;
-                }
-
-                const parts =
-                    data &&
-                    data.candidates &&
-                    data.candidates[0] &&
-                    data.candidates[0].content &&
-                    Array.isArray(
-                        data.candidates[0].content.parts
-                    )
-                        ? data.candidates[0].content.parts
-                        : [];
-
-                const text = parts
-                    .map(function (part) {
-                        return part &&
-                            typeof part.text === "string"
-                            ? part.text
-                            : "";
-                    })
-                    .join("");
-
-                if (!text) {
-                    continue;
-                }
-
-                fullAnswer += text;
-
-                send({
-                    type: "chunk",
-                    provider: "gemini",
-                    text: text
-                });
+            for (const event of events) {
+                processGeminiEvent(
+                    event,
+                    state,
+                    send
+                );
             }
         }
+
+        buffer += decoder.decode();
+
+        if (buffer.trim()) {
+            processGeminiEvent(
+                buffer,
+                state,
+                send
+            );
+        }
+    } catch (error) {
+        error.sentAnyChunk =
+            state.sentAnyChunk;
+
+        throw error;
     }
 
-    buffer += decoder.decode();
-
-    if (!fullAnswer.trim()) {
+    if (!state.fullAnswer.trim()) {
         const error = new Error(
             "Gemini returned an empty response."
         );
 
         error.status = 502;
+        error.sentAnyChunk =
+            state.sentAnyChunk;
 
         throw error;
     }
 
-    return fullAnswer.trim();
+    return {
+        answer: state.fullAnswer.trim(),
+        sentAnyChunk: state.sentAnyChunk
+    };
+}
+
+function processGroqEvent(event, state, send) {
+    const lines = event.split(/\r?\n/);
+
+    for (const line of lines) {
+        if (!line.startsWith("data:")) {
+            continue;
+        }
+
+        const rawData = line.slice(5).trim();
+
+        if (!rawData || rawData === "[DONE]") {
+            continue;
+        }
+
+        let data;
+
+        try {
+            data = JSON.parse(rawData);
+        } catch (error) {
+            continue;
+        }
+
+        const text =
+            data &&
+            data.choices &&
+            data.choices[0] &&
+            data.choices[0].delta &&
+            typeof data.choices[0].delta.content === "string"
+                ? data.choices[0].delta.content
+                : "";
+
+        if (!text) {
+            continue;
+        }
+
+        state.fullAnswer += text;
+
+        send({
+            type: "chunk",
+            provider: "groq",
+            text: text
+        });
+    }
 }
 
 async function streamGroq(apiKey, messages, send) {
@@ -382,8 +462,11 @@ async function streamGroq(apiKey, messages, send) {
     const reader = response.body.getReader();
     const decoder = new TextDecoder();
 
+    const state = {
+        fullAnswer: ""
+    };
+
     let buffer = "";
-    let fullAnswer = "";
 
     while (true) {
         const result = await reader.read();
@@ -399,59 +482,32 @@ async function streamGroq(apiKey, messages, send) {
             }
         );
 
+        buffer = buffer.replace(/\r\n/g, "\n");
+
         const events = buffer.split("\n\n");
 
         buffer = events.pop() || "";
 
         for (const event of events) {
-            const lines = event.split("\n");
-
-            for (const line of lines) {
-                if (!line.startsWith("data:")) {
-                    continue;
-                }
-
-                const rawData = line.slice(5).trim();
-
-                if (!rawData || rawData === "[DONE]") {
-                    continue;
-                }
-
-                let data;
-
-                try {
-                    data = JSON.parse(rawData);
-                } catch (error) {
-                    continue;
-                }
-
-                const text =
-                    data &&
-                    data.choices &&
-                    data.choices[0] &&
-                    data.choices[0].delta &&
-                    typeof data.choices[0].delta.content === "string"
-                        ? data.choices[0].delta.content
-                        : "";
-
-                if (!text) {
-                    continue;
-                }
-
-                fullAnswer += text;
-
-                send({
-                    type: "chunk",
-                    provider: "groq",
-                    text: text
-                });
-            }
+            processGroqEvent(
+                event,
+                state,
+                send
+            );
         }
     }
 
     buffer += decoder.decode();
 
-    if (!fullAnswer.trim()) {
+    if (buffer.trim()) {
+        processGroqEvent(
+            buffer,
+            state,
+            send
+        );
+    }
+
+    if (!state.fullAnswer.trim()) {
         const error = new Error(
             "Groq returned an empty response."
         );
@@ -461,7 +517,7 @@ async function streamGroq(apiKey, messages, send) {
         throw error;
     }
 
-    return fullAnswer.trim();
+    return state.fullAnswer.trim();
 }
 
 function shouldUseGroq(error) {
@@ -666,6 +722,26 @@ export async function onRequestPost(context) {
                                 geminiError
                             );
 
+                            /*
+                             * IMPORTANT:
+                             * If Gemini already sent any part of an answer,
+                             * never switch to Groq.
+                             */
+                            if (
+                                geminiError &&
+                                geminiError.sentAnyChunk
+                            ) {
+                                send({
+                                    type: "error",
+                                    error:
+                                        "The AI response was interrupted. Please try sending your message again."
+                                });
+
+                                controller.close();
+
+                                return;
+                            }
+
                             if (
                                 !shouldUseGroq(
                                     geminiError
@@ -742,7 +818,14 @@ export async function onRequestPost(context) {
                         );
                     }
 
-                    controller.close();
+                    try {
+                        controller.close();
+                    } catch (closeError) {
+                        console.error(
+                            "Could not close stream:",
+                            closeError
+                        );
+                    }
                 }
             }
         });
