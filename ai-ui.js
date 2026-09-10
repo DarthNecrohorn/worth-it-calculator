@@ -65,6 +65,236 @@ async function signInForAIChat(){
     }
 }
 
+function escapeAIHtml(text){
+    return String(text)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+}
+
+function renderAIMarkdown(text){
+    if(!text){
+        return "";
+    }
+
+    let source = String(text)
+        .replace(/\\\*\*/g, "**")
+        .replace(/\\\*/g, "*")
+        .replace(/\\\|/g, "|")
+        .replace(/\\_/g, "_");
+
+    const lines = source.split(/\r?\n/);
+    const output = [];
+
+    let inList = false;
+    let listType = "";
+
+    function closeList(){
+        if(!inList) return;
+
+        output.push(
+            listType === "ol"
+                ? "</ol>"
+                : "</ul>"
+        );
+
+        inList = false;
+        listType = "";
+    }
+
+    function formatInline(value){
+        let html = escapeAIHtml(value);
+
+        html = html.replace(
+            /`([^`]+)`/g,
+            "<code>$1</code>"
+        );
+
+        html = html.replace(
+            /\*\*([^*]+)\*\*/g,
+            "<strong>$1</strong>"
+        );
+
+        html = html.replace(
+            /\*([^*]+)\*/g,
+            "<em>$1</em>"
+        );
+
+        html = html.replace(
+            /__([^_]+)__/g,
+            "<strong>$1</strong>"
+        );
+
+        return html;
+    }
+
+    function isTableSeparator(line){
+        return /^\s*\|?\s*:?-+:?\s*(\|\s*:?-+:?\s*)+\|?\s*$/.test(line);
+    }
+
+    function parseTableRow(line){
+        return line
+            .trim()
+            .replace(/^\|/, "")
+            .replace(/\|$/, "")
+            .split("|")
+            .map(cell => cell.trim());
+    }
+
+    for(let i = 0; i < lines.length; i++){
+
+        const line = lines[i];
+
+        /* TABLE */
+
+        if(
+            line.includes("|") &&
+            i + 1 < lines.length &&
+            isTableSeparator(lines[i + 1])
+        ){
+            closeList();
+
+            const headers = parseTableRow(line);
+            i++;
+
+            const rows = [];
+
+            while(
+                i + 1 < lines.length &&
+                lines[i + 1].includes("|") &&
+                !isTableSeparator(lines[i + 1])
+            ){
+                i++;
+
+                const row = parseTableRow(lines[i]);
+
+                if(row.length){
+                    rows.push(row);
+                }
+            }
+
+            output.push(
+                '<div class="ai-chat-table-wrap">' +
+                '<table class="ai-chat-table">' +
+                '<thead><tr>' +
+                headers
+                    .slice(0, 3)
+                    .map(
+                        cell =>
+                            `<th>${formatInline(cell)}</th>`
+                    )
+                    .join("") +
+                "</tr></thead>" +
+                "<tbody>" +
+                rows
+                    .slice(0, 5)
+                    .map(row => {
+
+                        const cells = headers
+                            .slice(0, 3)
+                            .map(
+                                (_, index) =>
+                                    row[index] || ""
+                            );
+
+                        return (
+                            "<tr>" +
+                            cells
+                                .map(
+                                    cell =>
+                                        `<td>${formatInline(cell)}</td>`
+                                )
+                                .join("") +
+                            "</tr>"
+                        );
+                    })
+                    .join("") +
+                "</tbody>" +
+                "</table>" +
+                "</div>"
+            );
+
+            continue;
+        }
+
+        /* BULLET LIST */
+
+        const bulletMatch =
+            line.match(/^\s*[-*]\s+(.+)$/);
+
+        if(bulletMatch){
+
+            if(!inList || listType !== "ul"){
+                closeList();
+                output.push("<ul>");
+                inList = true;
+                listType = "ul";
+            }
+
+            output.push(
+                `<li>${formatInline(bulletMatch[1])}</li>`
+            );
+
+            continue;
+        }
+
+        /* NUMBERED LIST */
+
+        const numberMatch =
+            line.match(/^\s*\d+\.\s+(.+)$/);
+
+        if(numberMatch){
+
+            if(!inList || listType !== "ol"){
+                closeList();
+                output.push("<ol>");
+                inList = true;
+                listType = "ol";
+            }
+
+            output.push(
+                `<li>${formatInline(numberMatch[1])}</li>`
+            );
+
+            continue;
+        }
+
+        closeList();
+
+        /* HEADINGS */
+
+        const headingMatch =
+            line.match(/^\s*#{1,3}\s+(.+)$/);
+
+        if(headingMatch){
+            output.push(
+                `<div class="ai-chat-heading">${formatInline(headingMatch[1])}</div>`
+            );
+
+            continue;
+        }
+
+        /* EMPTY LINE */
+
+        if(!line.trim()){
+            output.push("<div class=\"ai-chat-spacer\"></div>");
+            continue;
+        }
+
+        /* NORMAL TEXT */
+
+        output.push(
+            `<div class="ai-chat-line">${formatInline(line)}</div>`
+        );
+    }
+
+    closeList();
+
+    return output.join("");
+}
+
 function addAIChatMessage(role, content, meta = ""){
     const messages = $("aiChatMessages");
 
