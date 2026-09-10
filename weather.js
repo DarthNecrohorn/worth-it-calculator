@@ -83,7 +83,24 @@ let weatherCloudAnimationTimer = null;
 
 let weatherCloudAnimationRunning = false;
 
+let weatherCloudDataLoading = false;
+
+let weatherCloudLastUpdate = 0;
+
+const WEATHER_CLOUD_REFRESH =
+    10 * 60 * 1000;
+
 let weatherPlacesLoading = false;
+
+let weatherPlacesTimer = null;
+
+let weatherLastPlacesKey = "";
+
+let weatherPlacesCache = new Map();
+
+let weatherWeatherCache = new Map();
+
+let weatherLastWeatherUpdate = 0;
 
 let weatherPlacesTimer = null;
 
