@@ -3537,3 +3537,20 @@ html[data-theme="light"] .money-movement .movement-scale::before{
     }
 }
 
+/* =========================================================
+   WEATHER RADAR HEADER BACKGROUND
+========================================================= */
+
+.weather-radar-header {
+    padding: 12px 14px;
+    border-radius: 12px;
+    background: var(--card-bg, #ffffff);
+    position: relative;
+    z-index: 2;
+}
+
+.weather-radar-header h3,
+.weather-radar-header p {
+    color: inherit;
+}
+
