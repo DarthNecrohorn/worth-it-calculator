@@ -1197,18 +1197,11 @@ async function refreshWeatherMapData(){
         ].join("|");
 
 
-        /*
-         * Only reload places when the visible area
-         * or zoom level has actually changed.
-         */
-        if(key === weatherLastPlacesKey){
-
-    /*
-     * City/place data did not change,
-     * but the cloud/weather layer may need
-     * its own refresh.
-     */
-    await updateWeatherCloudLayer();
+      /*
+       * Only reload places when the visible area
+       * or zoom level has actually changed.
+       */
+     if(key === weatherLastPlacesKey){
 
     return;
 
