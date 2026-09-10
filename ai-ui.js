@@ -533,8 +533,8 @@ async function sendAIChatMessage(){
                                 );
                         }
 
-                        assistantMessage.bubble.textContent =
-                            streamedAnswer;
+                        assistantMessage.bubble.innerHTML =
+                            renderAIMarkdown(streamedAnswer);
 
                         const messages =
                             $("aiChatMessages");
