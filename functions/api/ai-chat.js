@@ -117,11 +117,42 @@ async function verifySupabaseUser(env, token) {
     return user;
 }
 
-async function callGemini(apiKey, contents) {
+function createStreamResponse(stream) {
+    return new Response(stream, {
+        status: 200,
+        headers: {
+            "Content-Type": "text/event-stream; charset=utf-8",
+            "Cache-Control": "no-cache, no-store, must-revalidate",
+            "Connection": "keep-alive",
+            "Access-Control-Allow-Origin": SITE_ORIGIN,
+            "Access-Control-Allow-Headers": "Content-Type, Authorization",
+            "Access-Control-Allow-Methods": "POST, OPTIONS",
+            "X-Accel-Buffering": "no"
+        }
+    });
+}
+
+function encodeSSE(data) {
+    return "data: " + JSON.stringify(data) + "\n\n";
+}
+
+function createSSEWriter(controller) {
+    const encoder = new TextEncoder();
+
+    return function (data) {
+        controller.enqueue(
+            encoder.encode(
+                encodeSSE(data)
+            )
+        );
+    };
+}
+
+async function streamGemini(apiKey, contents, send) {
     const url =
         "https://generativelanguage.googleapis.com/v1beta/models/" +
         encodeURIComponent(GEMINI_MODEL) +
-        ":generateContent";
+        ":streamGenerateContent?alt=sse";
 
     const response = await fetch(
         url,
@@ -147,18 +178,25 @@ async function callGemini(apiKey, contents) {
         }
     );
 
-    const data =
-        await response.json().catch(function () {
-            return {};
+    if (!response.ok || !response.body) {
+        const text = await response.text().catch(function () {
+            return "";
         });
 
-    if (!response.ok) {
+        let data = {};
+
+        try {
+            data = JSON.parse(text);
+        } catch (error) {
+            data = {};
+        }
+
         const error = new Error(
             data &&
             data.error &&
             data.error.message
                 ? data.error.message
-                : "Gemini request failed."
+                : "Gemini streaming request failed."
         );
 
         error.status = response.status;
@@ -166,27 +204,90 @@ async function callGemini(apiKey, contents) {
         throw error;
     }
 
-    const parts =
-        data &&
-        data.candidates &&
-        data.candidates[0] &&
-        data.candidates[0].content &&
-        Array.isArray(data.candidates[0].content.parts)
-            ? data.candidates[0].content.parts
-            : [];
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
 
-    const answer =
-        parts
-            .map(function (part) {
-                return part &&
-                    typeof part.text === "string"
-                    ? part.text
-                    : "";
-            })
-            .join("\n")
-            .trim();
+    let buffer = "";
+    let fullAnswer = "";
 
-    if (!answer) {
+    while (true) {
+        const result = await reader.read();
+
+        if (result.done) {
+            break;
+        }
+
+        buffer += decoder.decode(
+            result.value,
+            {
+                stream: true
+            }
+        );
+
+        const events = buffer.split("\n\n");
+
+        buffer = events.pop() || "";
+
+        for (const event of events) {
+            const lines = event.split("\n");
+
+            for (const line of lines) {
+                if (!line.startsWith("data:")) {
+                    continue;
+                }
+
+                const rawData = line.slice(5).trim();
+
+                if (!rawData) {
+                    continue;
+                }
+
+                let data;
+
+                try {
+                    data = JSON.parse(rawData);
+                } catch (error) {
+                    continue;
+                }
+
+                const parts =
+                    data &&
+                    data.candidates &&
+                    data.candidates[0] &&
+                    data.candidates[0].content &&
+                    Array.isArray(
+                        data.candidates[0].content.parts
+                    )
+                        ? data.candidates[0].content.parts
+                        : [];
+
+                const text = parts
+                    .map(function (part) {
+                        return part &&
+                            typeof part.text === "string"
+                            ? part.text
+                            : "";
+                    })
+                    .join("");
+
+                if (!text) {
+                    continue;
+                }
+
+                fullAnswer += text;
+
+                send({
+                    type: "chunk",
+                    provider: "gemini",
+                    text: text
+                });
+            }
+        }
+    }
+
+    buffer += decoder.decode();
+
+    if (!fullAnswer.trim()) {
         const error = new Error(
             "Gemini returned an empty response."
         );
@@ -196,10 +297,10 @@ async function callGemini(apiKey, contents) {
         throw error;
     }
 
-    return answer;
+    return fullAnswer.trim();
 }
 
-async function callGroq(apiKey, messages) {
+async function streamGroq(apiKey, messages, send) {
     const response = await fetch(
         "https://api.groq.com/openai/v1/chat/completions",
         {
@@ -211,23 +312,31 @@ async function callGroq(apiKey, messages) {
             body: JSON.stringify({
                 model: GROQ_MODEL,
                 messages: messages,
-                max_tokens: MAX_OUTPUT_TOKENS
+                max_tokens: MAX_OUTPUT_TOKENS,
+                stream: true
             })
         }
     );
 
-    const data =
-        await response.json().catch(function () {
-            return {};
+    if (!response.ok || !response.body) {
+        const text = await response.text().catch(function () {
+            return "";
         });
 
-    if (!response.ok) {
+        let data = {};
+
+        try {
+            data = JSON.parse(text);
+        } catch (error) {
+            data = {};
+        }
+
         const error = new Error(
             data &&
             data.error &&
             data.error.message
                 ? data.error.message
-                : "Groq request failed."
+                : "Groq streaming request failed."
         );
 
         error.status = response.status;
@@ -235,16 +344,79 @@ async function callGroq(apiKey, messages) {
         throw error;
     }
 
-    const answer =
-        data &&
-        data.choices &&
-        data.choices[0] &&
-        data.choices[0].message &&
-        typeof data.choices[0].message.content === "string"
-            ? data.choices[0].message.content.trim()
-            : "";
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
 
-    if (!answer) {
+    let buffer = "";
+    let fullAnswer = "";
+
+    while (true) {
+        const result = await reader.read();
+
+        if (result.done) {
+            break;
+        }
+
+        buffer += decoder.decode(
+            result.value,
+            {
+                stream: true
+            }
+        );
+
+        const events = buffer.split("\n\n");
+
+        buffer = events.pop() || "";
+
+        for (const event of events) {
+            const lines = event.split("\n");
+
+            for (const line of lines) {
+                if (!line.startsWith("data:")) {
+                    continue;
+                }
+
+                const rawData = line.slice(5).trim();
+
+                if (!rawData || rawData === "[DONE]") {
+                    continue;
+                }
+
+                let data;
+
+                try {
+                    data = JSON.parse(rawData);
+                } catch (error) {
+                    continue;
+                }
+
+                const text =
+                    data &&
+                    data.choices &&
+                    data.choices[0] &&
+                    data.choices[0].delta &&
+                    typeof data.choices[0].delta.content === "string"
+                        ? data.choices[0].delta.content
+                        : "";
+
+                if (!text) {
+                    continue;
+                }
+
+                fullAnswer += text;
+
+                send({
+                    type: "chunk",
+                    provider: "groq",
+                    text: text
+                });
+            }
+        }
+    }
+
+    buffer += decoder.decode();
+
+    if (!fullAnswer.trim()) {
         const error = new Error(
             "Groq returned an empty response."
         );
@@ -254,7 +426,7 @@ async function callGroq(apiKey, messages) {
         throw error;
     }
 
-    return answer;
+    return fullAnswer.trim();
 }
 
 function shouldUseGroq(error) {
@@ -427,81 +599,120 @@ export async function onRequestPost(context) {
             content: message
         });
 
-        if (env.GEMINI_API_KEY) {
-            try {
-                const answer =
-                    await callGemini(
-                        env.GEMINI_API_KEY,
-                        geminiContents
-                    );
+        const stream = new ReadableStream({
+            async start(controller) {
+                const send =
+                    createSSEWriter(controller);
 
-                return responseJson(
-                    {
-                        provider: "gemini",
-                        answer: answer
-                    },
-                    200
-                );
-            } catch (geminiError) {
-                console.error(
-                    "Gemini request failed:",
-                    geminiError
-                );
+                try {
+                    send({
+                        type: "start"
+                    });
 
-                if (
-                    !shouldUseGroq(
-                        geminiError
-                    )
-                ) {
-                    return responseJson(
-                        {
+                    if (env.GEMINI_API_KEY) {
+                        try {
+                            await streamGemini(
+                                env.GEMINI_API_KEY,
+                                geminiContents,
+                                send
+                            );
+
+                            send({
+                                type: "done",
+                                provider: "gemini"
+                            });
+
+                            controller.close();
+
+                            return;
+                        } catch (geminiError) {
+                            console.error(
+                                "Gemini streaming request failed:",
+                                geminiError
+                            );
+
+                            if (
+                                !shouldUseGroq(
+                                    geminiError
+                                )
+                            ) {
+                                send({
+                                    type: "error",
+                                    error:
+                                        "Gemini is temporarily unavailable. Please try again later."
+                                });
+
+                                controller.close();
+
+                                return;
+                            }
+                        }
+                    }
+
+                    if (!env.GROQ_API_KEY) {
+                        send({
+                            type: "error",
                             error:
-                                "Gemini is temporarily unavailable. Please try again later."
-                        },
-                        503
+                                "Gemini is unavailable and Groq backup is not configured."
+                        });
+
+                        controller.close();
+
+                        return;
+                    }
+
+                    try {
+                        await streamGroq(
+                            env.GROQ_API_KEY,
+                            groqMessages,
+                            send
+                        );
+
+                        send({
+                            type: "done",
+                            provider: "groq"
+                        });
+
+                        controller.close();
+                    } catch (groqError) {
+                        console.error(
+                            "Groq streaming request failed:",
+                            groqError
+                        );
+
+                        send({
+                            type: "error",
+                            error:
+                                "Both AI providers are temporarily unavailable. Please try again later."
+                        });
+
+                        controller.close();
+                    }
+                } catch (error) {
+                    console.error(
+                        "Unhandled ai-chat stream error:",
+                        error
                     );
+
+                    try {
+                        send({
+                            type: "error",
+                            error:
+                                "AI request failed. Please try again."
+                        });
+                    } catch (sendError) {
+                        console.error(
+                            "Could not send stream error:",
+                            sendError
+                        );
+                    }
+
+                    controller.close();
                 }
             }
-        }
+        });
 
-        if (!env.GROQ_API_KEY) {
-            return responseJson(
-                {
-                    error:
-                        "Gemini is unavailable and Groq backup is not configured."
-                },
-                503
-            );
-        }
-
-        try {
-            const answer =
-                await callGroq(
-                    env.GROQ_API_KEY,
-                    groqMessages
-                );
-
-            return responseJson(
-                {
-                    provider: "groq",
-                    answer: answer
-                },
-                200
-            );
-        } catch (groqError) {
-            console.error(
-                "Groq request failed:",
-                groqError
-            );
-
-            return responseJson(
-                {
-                    error:
-                        "Both AI providers are temporarily unavailable. Please try again later."
-                },
-                503
-            );
-        }
+        return createStreamResponse(stream);
     } catch (error) {
         console.error(
             "Unhandled ai-chat error:",
