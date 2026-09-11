@@ -14,6 +14,10 @@ export async function onRequest(context) {
                 .toUpperCase();
 
 
+        /* =====================================================
+           CURRENCY LIST
+        ===================================================== */
+
         const currenciesResponse =
             await fetch(
                 "https://api.frankfurter.dev/v2/currencies"
@@ -32,6 +36,10 @@ export async function onRequest(context) {
         const currencies =
             await currenciesResponse.json();
 
+
+        /* =====================================================
+           CURRENT RATES
+        ===================================================== */
 
         const ratesResponse =
             await fetch(
@@ -52,7 +60,92 @@ export async function onRequest(context) {
             await ratesResponse.json();
 
 
+        const currentDate =
+            rates[0]?.date || null;
+
+
+        /* =====================================================
+           PREVIOUS RATES
+        ===================================================== */
+
+        let previousRates = [];
+
+
+        if (currentDate) {
+
+            const current =
+                new Date(
+                    `${currentDate}T12:00:00Z`
+                );
+
+
+            const previous =
+                new Date(current);
+
+
+            previous.setUTCDate(
+                previous.getUTCDate() - 7
+            );
+
+
+            const previousFrom =
+                previous
+                    .toISOString()
+                    .slice(0, 10);
+
+
+            const previousResponse =
+                await fetch(
+                    `https://api.frankfurter.dev/v2/rates?base=${encodeURIComponent(base)}&from=${previousFrom}&to=${currentDate}`
+                );
+
+
+            if (previousResponse.ok) {
+
+                const history =
+                    await previousResponse.json();
+
+
+                if (
+                    Array.isArray(history) &&
+                    history.length
+                ) {
+
+                    const previousDate =
+                        history
+                            .map(
+                                item =>
+                                    item.date
+                            )
+                            .filter(Boolean)
+                            .sort()
+                            .at(-1);
+
+
+                    if (previousDate) {
+
+                        previousRates =
+                            history.filter(
+                                item =>
+                                    item.date ===
+                                    previousDate
+                            );
+
+                    }
+
+                }
+
+            }
+
+        }
+
+
+        /* =====================================================
+           RESPONSE
+        ===================================================== */
+
         return new Response(
+
             JSON.stringify({
 
                 base,
@@ -61,21 +154,27 @@ export async function onRequest(context) {
 
                 rates,
 
+                previousRates,
+
                 date:
-                    rates[0]?.date || null
+                    currentDate
 
             }),
 
             {
                 headers: {
+
                     "Content-Type":
                         "application/json",
 
                     "Cache-Control":
                         "public, max-age=1800"
+
                 }
             }
+
         );
+
 
     } catch (error) {
 
@@ -86,6 +185,7 @@ export async function onRequest(context) {
 
 
         return new Response(
+
             JSON.stringify({
 
                 error:
@@ -94,13 +194,18 @@ export async function onRequest(context) {
             }),
 
             {
+
                 status: 500,
 
                 headers: {
+
                     "Content-Type":
                         "application/json"
+
                 }
+
             }
+
         );
 
     }
