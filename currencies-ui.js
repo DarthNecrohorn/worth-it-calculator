@@ -670,9 +670,9 @@ function renderMajorCurrencies() {
 
                 <div class="money-card-main">
 
-                    <span class="money-icon">
-                        ${pair.icon}
-                    </span>
+                    <div class="money-icon">
+                         ${getCurrencyFlag(pair.target)}
+               </div>
 
                     <div>
 
