@@ -836,10 +836,6 @@ card.innerHTML = `
                 ${currencyEscapeHtml(currency.symbol || code)}
             </strong>
 
-            <span class="currency-card-type">
-                FIAT
-            </span>
-
         </div>
 
     </div>
