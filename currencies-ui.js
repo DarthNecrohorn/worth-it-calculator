@@ -799,9 +799,7 @@ card.innerHTML = `
     <div class="currency-card-main">
 
 <div class="currency-card-flag" aria-label="${currencyEscapeHtml(currency.name)}">
-    <span class="currency-card-flag-emoji">
-        ${getCurrencyFlag(code)}
-    </span>
+    ${getCurrencyFlag(code)}
 </div>
 
         <div class="currency-card-info">
