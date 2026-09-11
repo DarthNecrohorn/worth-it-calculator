@@ -647,17 +647,6 @@ async function loadWeather(){
 
         }
 
-
-        /* =================================================
-           RADAR
-        ================================================= */
-
-        await initializeWeatherRadar(
-            latitude,
-            longitude
-        );
-
-
     }
     catch(error){
 
