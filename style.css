@@ -3853,3 +3853,13 @@ html[data-theme="light"] .currency-card:hover{
     }
 
 }
+
+.currency-card-flag-image{
+    display:block !important;
+    width:40px !important;
+    height:30px !important;
+    object-fit:cover !important;
+    border-radius:4px !important;
+    opacity:1 !important;
+    visibility:visible !important;
+}
