@@ -1407,6 +1407,18 @@ html[data-theme="light"] .ai-chat-nav-btn{color:#0f172a;background:rgba(15,23,42
     transform:translateY(-2px);
 }
 
+html[data-theme="light"] .admin-feedback-nav-btn{
+    color:#0f172a;
+    background:rgba(15,23,42,.045);
+    border-color:rgba(15,23,42,.11);
+}
+
+html[data-theme="light"] .admin-feedback-nav-btn:hover{
+    color:#0f172a;
+    background:rgba(15,23,42,.075);
+    border-color:rgba(124,92,255,.4);
+}
+
 @media(max-width:700px){
     .admin-feedback-nav-btn span{display:none}
     .admin-feedback-nav-btn{
