@@ -3686,6 +3686,16 @@ html[data-theme="light"] .currency-card:hover{
     background:var(--surface-soft);
 }
 
+.currency-card-flag-image{
+    display:block !important;
+    width:40px !important;
+    height:30px !important;
+    object-fit:cover !important;
+    border-radius:4px !important;
+    opacity:1 !important;
+    visibility:visible !important;
+}
+
 /* CENTER */
 
 .currency-card-info{
