@@ -671,11 +671,6 @@ async function loadWeather(){
 
         }
 
-
-        showWeatherRadarError(
-            "Unable to load radar location."
-        );
-
     }
 
 }
@@ -1131,69 +1126,6 @@ function getWeatherDescription(
             "Unknown"
 
     };
-
-}
-
-/* =========================================================
-   CLEANUP
-========================================================= */
-
-window.addEventListener(
-
-    "beforeunload",
-
-    () => {
-
-        stopWeatherRadar();
-
-        stopWeatherCloudAnimation();
-
-        clearInterval(
-            weatherCloudAutoRefreshTimer
-        );
-
-    }
-
-);
-
-/* =========================================================
-   AUTO REFRESH CLOUDS
-========================================================= */
-
-function startWeatherCloudAutoRefresh(){
-
-    clearInterval(
-        weatherCloudAutoRefreshTimer
-    );
-
-
-    weatherCloudAutoRefreshTimer =
-        setInterval(
-
-            () => {
-
-                if(
-                    !weatherRadarMap
-                ){
-
-                    return;
-
-                }
-
-
-                /*
-                 * Force a fresh cloud/weather request.
-                 */
-                weatherCloudLastUpdate = 0;
-
-
-                updateWeatherCloudLayer();
-
-            },
-
-            WEATHER_CLOUD_REFRESH
-
-        );
 
 }
 
