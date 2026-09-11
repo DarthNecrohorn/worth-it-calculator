@@ -3440,3 +3440,41 @@ html[data-theme="light"] .money-movement .movement-scale::before{
     padding-left: 2px;
     box-sizing: border-box;
 }
+
+/* =========================================================
+   NAVIGATION BUTTON FRAMES
+========================================================= */
+
+.nav-links button {
+    border: 1px solid color-mix(
+        in srgb,
+        currentColor 25%,
+        transparent
+    );
+
+    border-radius: 10px;
+    padding: 8px 12px;
+
+    background: transparent;
+    transition:
+        border-color 0.2s ease,
+        background 0.2s ease,
+        transform 0.2s ease;
+}
+
+/* Hover */
+.nav-links button:hover {
+    border-color: color-mix(
+        in srgb,
+        currentColor 55%,
+        transparent
+    );
+
+    background: color-mix(
+        in srgb,
+        currentColor 8%,
+        transparent
+    );
+
+    transform: translateY(-1px);
+}
