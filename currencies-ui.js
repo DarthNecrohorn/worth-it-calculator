@@ -527,6 +527,26 @@ async function loadCurrencies() {
 
         }
 
+       previousCurrencyRates = {};
+
+if (Array.isArray(data.previousRates)) {
+
+    data.previousRates.forEach(rate => {
+
+        if (
+            rate &&
+            rate.quote &&
+            Number.isFinite(
+                Number(rate.rate)
+            )
+        ) {
+            previousCurrencyRates[
+                rate.quote
+            ] =
+                Number(rate.rate);
+        }
+    });
+}
 
         renderMajorCurrencies();
 
