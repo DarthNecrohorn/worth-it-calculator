@@ -3452,8 +3452,8 @@ html[data-theme="light"] .money-movement .movement-scale::before{
         transparent
     );
 
-    border-radius: 8px;
-    padding: 6px 9px;
+    border-radius: 7px;
+    padding: 4px 7px;
 
     background: transparent;
     transition:
