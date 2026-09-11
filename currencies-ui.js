@@ -771,15 +771,36 @@ function renderMajorCurrencies() {
 
                 <div class="money-movement">
 
-                    <span class="money-movement-label">
-                        Change
-                    </span>
+    <span class="money-movement-label">
+        Change
+    </span>
 
-                    <strong class="money-movement-value">
-                        —
-                    </strong>
+    <strong class="money-movement-value">
+        ${
+            (() => {
 
-                </div>
+                const change =
+                    getCrossRateChange(
+                        pair.base,
+                        pair.target
+                    );
+
+                if (!Number.isFinite(change)) {
+                    return "—";
+                }
+
+                const sign =
+                    change > 0
+                        ? "+"
+                        : "";
+
+                return `${sign}${change.toFixed(2)}%`;
+
+            })()
+        }
+    </strong>
+
+</div>
 
             `;
 
