@@ -646,7 +646,7 @@ function renderAllCurrencies(
 
 
             card.className =
-                "money-card";
+                "currency-card";
 
 
             const rateText =
