@@ -52,6 +52,7 @@ const MAJOR_CURRENCY_PAIRS = [
 
 let currenciesData = [];
 let currencyRates = {};
+let previousCurrencyRates = {};
 let currenciesInitialized = false;
 
 
