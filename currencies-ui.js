@@ -771,11 +771,71 @@ function renderMajorCurrencies() {
 
                 <div class="money-movement">
 
-    <span class="money-movement-label">
-        Change
-    </span>
+    <div class="movement-scale">
 
-    <strong class="money-movement-value">
+        ${
+            (() => {
+
+                const change =
+                    getCrossRateChange(
+                        pair.base,
+                        pair.target
+                    );
+
+                if (!Number.isFinite(change)) {
+                    return `
+                        <span
+                            class="movement-bar"
+                            style="
+                                left:50%;
+                                width:0;
+                                color:var(--muted);
+                            "
+                        ></span>
+                    `;
+                }
+
+                const capped =
+                    Math.min(
+                        Math.abs(change),
+                        5
+                    );
+
+                const width =
+                    (capped / 5) * 50;
+
+                if (change >= 0) {
+
+                    return `
+                        <span
+                            class="movement-bar"
+                            style="
+                                left:50%;
+                                width:${width}%;
+                                color:#34d399;
+                            "
+                        ></span>
+                    `;
+
+                }
+
+                return `
+                    <span
+                        class="movement-bar"
+                        style="
+                            left:${50 - width}%;
+                            width:${width}%;
+                            color:#fb7185;
+                        "
+                    ></span>
+                `;
+
+            })()
+        }
+
+    </div>
+
+    <strong>
         ${
             (() => {
 
