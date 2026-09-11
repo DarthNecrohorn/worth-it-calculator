@@ -3459,3 +3459,15 @@ html[data-theme="light"] .money-movement .movement-scale::before{
     background:rgba(255,255,255,.09);
     border-color:rgba(124,92,255,.4);
 }
+
+html[data-theme="light"] .nav-links button{
+    color:#475569;
+    background:rgba(15,23,42,.045);
+    border-color:rgba(15,23,42,.11);
+}
+
+html[data-theme="light"] .nav-links button:hover{
+    color:#0f172a;
+    background:rgba(15,23,42,.075);
+    border-color:rgba(124,92,255,.4);
+}
