@@ -636,9 +636,7 @@ function renderMajorCurrencies() {
         return;
     }
 
-
     grid.innerHTML = "";
-
 
     MAJOR_CURRENCY_PAIRS.forEach(
         pair => {
@@ -651,13 +649,11 @@ function renderMajorCurrencies() {
             card.className =
                 "money-card";
 
-
             const rate =
                 getCrossRate(
                     pair.base,
                     pair.target
                 );
-
 
             const targetCurrency =
                 currenciesData.find(
@@ -666,11 +662,9 @@ function renderMajorCurrencies() {
                         pair.target
                 );
 
-
             const targetName =
                 targetCurrency?.name ||
                 pair.target;
-
 
             card.innerHTML = `
 
@@ -694,14 +688,13 @@ function renderMajorCurrencies() {
 
                 </div>
 
-
                 <div class="money-price">
 
                     <strong>
                         ${formatRate(rate)}
                     </strong>
 
-                                        <small>
+                    <small>
                         Exchange rate
                     </small>
 
@@ -721,11 +714,12 @@ function renderMajorCurrencies() {
 
             `;
 
+            grid.appendChild(card);
+
         }
     );
 
 }
-
 
 /* =========================================================
    RENDER ALL CURRENCIES
