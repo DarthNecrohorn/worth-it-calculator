@@ -658,57 +658,53 @@ const rateText =
 
 
 card.innerHTML = `
+    <div class="currency-card-main">
 
-    <div class="currency-card-top">
-
-        <span class="currency-card-flag">
+        <div class="currency-card-flag">
             ${getCurrencyFlag(code)}
-        </span>
+        </div>
 
-        <div class="currency-card-title">
+        <div class="currency-card-info">
 
-            <strong>
-                ${currencyEscapeHtml(code)}
+            <div class="currency-card-title">
+                <strong>
+                    ${currencyEscapeHtml(code)}
+                </strong>
+
+                <small>
+                    ${currencyEscapeHtml(currency.name)}
+                </small>
+            </div>
+
+            <div class="currency-card-rate">
+                <span>
+                    Exchange rate
+                </span>
+
+                <strong>
+                    ${currencyEscapeHtml(rateText)}
+                </strong>
+            </div>
+
+        </div>
+
+        <div class="currency-card-side">
+
+            <span class="currency-card-side-label">
+                Symbol
+            </span>
+
+            <strong class="currency-card-symbol-value">
+                ${currencyEscapeHtml(currency.symbol || code)}
             </strong>
 
-            <small>
-                ${currencyEscapeHtml(
-                    currency.name
-                )}
-            </small>
+            <span class="currency-card-type">
+                FIAT
+            </span>
 
         </div>
 
     </div>
-
-
-    <div class="currency-card-rate">
-
-        <span>
-            Exchange rate
-        </span>
-
-        <strong>
-            ${currencyEscapeHtml(rateText)}
-        </strong>
-
-    </div>
-
-
-    <div class="currency-card-symbol">
-
-        <span>
-            Symbol
-        </span>
-
-        <strong>
-            ${currencyEscapeHtml(
-                currency.symbol || code
-            )}
-        </strong>
-
-    </div>
-
 `;
 
 
