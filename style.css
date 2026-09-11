@@ -3445,35 +3445,18 @@ html[data-theme="light"] .money-movement .movement-scale::before{
    NAVIGATION BUTTON FRAMES
 ========================================================= */
 
-.nav-links button {
-    border: 1px solid color-mix(
-        in srgb,
-        currentColor 25%,
-        transparent
-    );
-
-    border-radius: 8px;
-    padding: 6px 9px;
-
-    background: transparent;
-    transition:
-        border-color 0.2s ease,
-        background 0.2s ease,
-        transform 0.2s ease;
+.nav-links button{
+    border:1px solid var(--border);
+    color:var(--muted);
+    background:rgba(255,255,255,.05);
+    border-radius:10px;
+    padding:6px 8px;
+    transition:.2s;
 }
 
-.nav-links button:hover {
-    border-color: color-mix(
-        in srgb,
-        currentColor 55%,
-        transparent
-    );
-
-    background: color-mix(
-        in srgb,
-        currentColor 8%,
-        transparent
-    );
-
-    transform: translateY(-1px);
+.nav-links button:hover{
+    color:white;
+    background:rgba(255,255,255,.09);
+    border-color:rgba(124,92,255,.4);
+    transform:translateY(-2px);
 }
