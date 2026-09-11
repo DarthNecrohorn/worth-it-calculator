@@ -179,17 +179,7 @@ async function loadWeather(){
 
         const longitude =
             userLocation.longitude;
-
-
-        weatherRadarLocation = {
-
-            latitude,
-
-            longitude
-
-        };
-
-
+       
         /* =================================================
            OPEN-METEO CURRENT WEATHER
         ================================================= */
