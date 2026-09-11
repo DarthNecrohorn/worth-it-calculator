@@ -3491,143 +3491,8 @@ html[data-theme="light"] .nav-links button:hover{
 ========================================================= */
 
 .currency-card{
-    display:flex;
-    flex-direction:column;
-    gap:16px;
-
-    min-width:0;
-
-    padding:18px;
-
-    border:1px solid var(--border);
-    border-radius:16px;
-
-    background:rgba(255,255,255,.035);
-
-    transition:
-        transform .2s ease,
-        border-color .2s ease,
-        background .2s ease,
-        box-shadow .2s ease;
-}
-
-.currency-card:hover{
-    transform:translateY(-3px);
-    border-color:rgba(124,92,255,.4);
-    background:rgba(255,255,255,.055);
-    box-shadow:0 12px 30px rgba(0,0,0,.14);
-}
-
-.currency-card-top{
-    display:flex;
-    align-items:center;
-    gap:12px;
-    min-width:0;
-}
-
-.currency-card-flag{
-    width:46px;
-    height:46px;
-
-    display:grid;
-    place-items:center;
-
-    flex:0 0 46px;
-
-    border-radius:13px;
-
-    background:var(--surface-soft);
-
-    border:1px solid var(--border);
-
-    font-size:25px;
-}
-
-.currency-card-title{
-    min-width:0;
-}
-
-.currency-card-title strong{
-    display:block;
-    font-size:16px;
-    font-weight:900;
-}
-
-.currency-card-title small{
-    display:block;
-    margin-top:3px;
-
-    color:var(--muted);
-
-    font-size:11px;
-
-    overflow:hidden;
-    text-overflow:ellipsis;
-    white-space:nowrap;
-}
-
-.currency-card-rate{
-    display:flex;
-    flex-direction:column;
-    gap:5px;
-}
-
-.currency-card-rate span,
-.currency-card-symbol span{
-    color:var(--muted2);
-    font-size:10px;
-    text-transform:uppercase;
-    letter-spacing:.5px;
-    font-weight:800;
-}
-
-.currency-card-rate strong{
-    font-size:14px;
-    line-height:1.4;
-}
-
-.currency-card-symbol{
-    display:flex;
-    justify-content:space-between;
-    align-items:center;
-
-    padding-top:12px;
-
-    border-top:1px solid var(--border);
-}
-
-.currency-card-symbol strong{
-    font-size:16px;
-}
-
-html[data-theme="light"] .currency-card{
-    background:rgba(15,23,42,.025);
-    border-color:rgba(15,23,42,.11);
-    box-shadow:0 8px 24px rgba(15,23,42,.045);
-}
-
-html[data-theme="light"] .currency-card:hover{
-    background:rgba(15,23,42,.045);
-    border-color:rgba(124,92,255,.35);
-    box-shadow:0 12px 30px rgba(15,23,42,.08);
-}
-
-@media(max-width:700px){
-
-    .currency-card{
-        padding:16px;
-    }
-
-}
-
-/* =========================================================
-   CURRENCY CARD LAYOUT
-========================================================= */
-
-.currency-card{
     display:block;
     min-width:0;
-
     padding:18px;
 
     border:1px solid var(--border);
@@ -3648,17 +3513,6 @@ html[data-theme="light"] .currency-card:hover{
     background:rgba(255,255,255,.055);
     box-shadow:0 12px 30px rgba(0,0,0,.14);
 }
-
-.currency-card-main{
-    display:grid;
-    grid-template-columns:64px minmax(0,1fr) auto;
-    align-items:center;
-    gap:16px;
-}
-
-/* =========================================================
-   CURRENCY CARD CONTENT
-========================================================= */
 
 .currency-card-main{
     display:grid;
@@ -3684,16 +3538,30 @@ html[data-theme="light"] .currency-card:hover{
     border-radius:16px;
 
     background:var(--surface-soft);
+
+    overflow:hidden;
 }
 
 .currency-card-flag-image{
-    display:block !important;
-    width:40px !important;
-    height:30px !important;
-    object-fit:cover !important;
-    border-radius:4px !important;
-    opacity:1 !important;
-    visibility:visible !important;
+    display:block;
+
+    width:40px;
+    height:30px;
+
+    object-fit:cover;
+    border-radius:4px;
+
+    opacity:1;
+    visibility:visible;
+}
+
+.currency-card-flag-fallback{
+    display:flex;
+    align-items:center;
+    justify-content:center;
+
+    font-size:30px;
+    line-height:1;
 }
 
 /* CENTER */
@@ -3734,7 +3602,6 @@ html[data-theme="light"] .currency-card:hover{
     flex-direction:column;
 
     gap:4px;
-
     margin-top:10px;
 }
 
@@ -3764,7 +3631,6 @@ html[data-theme="light"] .currency-card:hover{
     justify-content:center;
 
     gap:4px;
-
     padding-left:16px;
 
     border-left:1px solid var(--border);
@@ -3800,7 +3666,6 @@ html[data-theme="light"] .currency-card:hover{
 
     font-size:9px;
     font-weight:900;
-
     letter-spacing:.5px;
 }
 
@@ -3834,8 +3699,13 @@ html[data-theme="light"] .currency-card:hover{
         border-radius:14px;
     }
 
-    .currency-card-flag-emoji{
-        font-size:30px;
+    .currency-card-flag-image{
+        width:32px;
+        height:24px;
+    }
+
+    .currency-card-flag-fallback{
+        font-size:26px;
     }
 
     .currency-card-title strong{
@@ -3854,15 +3724,4 @@ html[data-theme="light"] .currency-card:hover{
     .currency-card-symbol-value{
         font-size:17px;
     }
-
-}
-
-.currency-card-flag-image{
-    display:block !important;
-    width:40px !important;
-    height:30px !important;
-    object-fit:cover !important;
-    border-radius:4px !important;
-    opacity:1 !important;
-    visibility:visible !important;
 }
