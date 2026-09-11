@@ -641,6 +641,54 @@ function getCrossRate(
 
 }
 
+function getCrossRateChange(
+    base,
+    target
+) {
+
+    const currentRate =
+        getCrossRate(
+            base,
+            target
+        );
+
+    if (!Number.isFinite(currentRate)) {
+        return null;
+    }
+
+    const basePrevious =
+        Number(
+            previousCurrencyRates[base]
+        );
+
+    const targetPrevious =
+        Number(
+            previousCurrencyRates[target]
+        );
+
+    if (
+        !Number.isFinite(basePrevious) ||
+        !Number.isFinite(targetPrevious) ||
+        basePrevious === 0
+    ) {
+        return null;
+    }
+
+    const previousRate =
+        targetPrevious / basePrevious;
+
+    if (
+        !Number.isFinite(previousRate) ||
+        previousRate === 0
+    ) {
+        return null;
+    }
+
+    return (
+        (currentRate - previousRate) /
+        previousRate
+    ) * 100;
+}
 
 /* =========================================================
    RENDER MAJOR CURRENCIES
