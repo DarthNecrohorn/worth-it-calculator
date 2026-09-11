@@ -646,77 +646,73 @@ function renderAllCurrencies(
 
 
             card.className =
-                "currency-card";
+    "currency-card";
 
 
-            const rateText =
-                code === "EUR"
-                    ? "1 EUR = 1 EUR"
-                    : Number.isFinite(rate)
-                        ? `1 EUR = ${formatRate(rate)} ${code}`
-                        : "Exchange rate unavailable";
+const rateText =
+    code === "EUR"
+        ? "1 EUR = 1 EUR"
+        : Number.isFinite(rate)
+            ? `1 EUR = ${formatRate(rate)} ${code}`
+            : "Exchange rate unavailable";
 
 
-            card.innerHTML = `
+card.innerHTML = `
 
-                <div class="money-card-main">
+    <div class="currency-card-top">
 
-                    <span class="money-icon">
-                        ${getCurrencyFlag(code)}
-                    </span>
+        <span class="currency-card-flag">
+            ${getCurrencyFlag(code)}
+        </span>
 
-                    <div>
+        <div class="currency-card-title">
 
-                        <strong>
-                            ${currencyEscapeHtml(code)}
-                        </strong>
+            <strong>
+                ${currencyEscapeHtml(code)}
+            </strong>
 
-                        <small>
-                            ${currencyEscapeHtml(
-                                currency.name
-                            )}
-                        </small>
+            <small>
+                ${currencyEscapeHtml(
+                    currency.name
+                )}
+            </small>
 
-                    </div>
+        </div>
 
-                </div>
-
-
-                <div class="money-price">
-
-                    <strong>
-                        ${currencyEscapeHtml(
-                            currency.symbol || code
-                        )}
-                    </strong>
-
-                    <small>
-                        ${currencyEscapeHtml(
-                            rateText
-                        )}
-                    </small>
-
-                </div>
+    </div>
 
 
-                <div class="money-movement">
+    <div class="currency-card-rate">
 
-                    <div class="movement-scale">
-                        <span></span>
-                    </div>
+        <span>
+            Exchange rate
+        </span>
 
-                    <strong>
-                        ${Number.isFinite(rate)
-                            ? formatRate(rate)
-                            : "—"}
-                    </strong>
+        <strong>
+            ${currencyEscapeHtml(rateText)}
+        </strong>
 
-                </div>
-
-            `;
+    </div>
 
 
-            grid.appendChild(card);
+    <div class="currency-card-symbol">
+
+        <span>
+            Symbol
+        </span>
+
+        <strong>
+            ${currencyEscapeHtml(
+                currency.symbol || code
+            )}
+        </strong>
+
+    </div>
+
+`;
+
+
+grid.appendChild(card);
 
         }
     );
