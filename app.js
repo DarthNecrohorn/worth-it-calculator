@@ -1415,6 +1415,10 @@ if (moneySection) {
     moneySection.style.display = "block";
 }
 
+if (typeof initCurrenciesUI === "function") {
+    initCurrenciesUI();
+}
+    
 const navLinks =
     document.getElementById("navLinks");
 
