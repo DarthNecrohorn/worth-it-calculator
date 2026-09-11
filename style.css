@@ -3686,13 +3686,6 @@ html[data-theme="light"] .currency-card:hover{
     background:var(--surface-soft);
 }
 
-.currency-card-flag-emoji{
-    display:block;
-
-    font-size:36px;
-    line-height:1;
-}
-
 /* CENTER */
 
 .currency-card-info{
