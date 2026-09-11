@@ -701,29 +701,25 @@ function renderMajorCurrencies() {
                         ${formatRate(rate)}
                     </strong>
 
-                    <small>
+                                        <small>
                         Exchange rate
                     </small>
 
                 </div>
 
-
                 <div class="money-movement">
 
-                    <div class="movement-scale">
-                        <span></span>
-                    </div>
+                    <span class="money-movement-label">
+                        Change
+                    </span>
 
-                    <strong>
+                    <strong class="money-movement-value">
                         —
                     </strong>
 
                 </div>
 
             `;
-
-
-            grid.appendChild(card);
 
         }
     );
