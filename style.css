@@ -1313,7 +1313,7 @@ html[data-theme="light"] .ai-chat-nav-btn{color:#0f172a;background:rgba(15,23,42
     flex:1 1 0;
     min-width:0;
     justify-content:flex-start;
-    overflow:hidden;
+    overflow:visible;
 }
 
 .nav-calculator-spacer{
