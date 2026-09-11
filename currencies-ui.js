@@ -4,13 +4,6 @@
 
 const CURRENCIES_API = "/api/currencies";
 
-/*
-    Currencies that should NOT appear in the
-    normal fiat currency list.
-
-    These are metals, commodities or special units
-    that already belong elsewhere in the website.
-*/
 const EXCLUDED_CURRENCY_CODES = new Set([
     "XAG",
     "XAU",
@@ -18,11 +11,6 @@ const EXCLUDED_CURRENCY_CODES = new Set([
     "XPD",
     "XPT"
 ]);
-
-
-/* =========================================================
-   MAJOR CURRENCY PAIRS
-========================================================= */
 
 const MAJOR_CURRENCY_PAIRS = [
     {
@@ -62,12 +50,8 @@ const MAJOR_CURRENCY_PAIRS = [
     }
 ];
 
-
-/* =========================================================
-   STATE
-========================================================= */
-
 let currenciesData = [];
+let currencyRates = {};
 let currenciesInitialized = false;
 
 
@@ -84,6 +68,83 @@ function currencyEscapeHtml(value) {
         .replace(/"/g, "&quot;")
         .replace(/'/g, "&#039;");
 
+}
+
+
+function getCurrencyFlag(code) {
+
+    const specialFlags = {
+        EUR: "🇪🇺",
+        USD: "🇺🇸",
+        GBP: "🇬🇧",
+        RSD: "🇷🇸",
+        CHF: "🇨🇭",
+        JPY: "🇯🇵",
+        CNY: "🇨🇳",
+        CNH: "🇨🇳",
+        CAD: "🇨🇦",
+        AUD: "🇦🇺",
+        NZD: "🇳🇿",
+        SEK: "🇸🇪",
+        NOK: "🇳🇴",
+        DKK: "🇩🇰",
+        PLN: "🇵🇱",
+        CZK: "🇨🇿",
+        HUF: "🇭🇺",
+        RON: "🇷🇴",
+        BGN: "🇧🇬",
+        MKD: "🇲🇰",
+        BAM: "🇧🇦",
+        TRY: "🇹🇷",
+        UAH: "🇺🇦",
+        RUB: "🇷🇺",
+        ZAR: "🇿🇦",
+        HKD: "🇭🇰",
+        SGD: "🇸🇬",
+        KRW: "🇰🇷",
+        INR: "🇮🇳",
+        BRL: "🇧🇷",
+        MXN: "🇲🇽",
+        AED: "🇦🇪",
+        SAR: "🇸🇦",
+        ILS: "🇮🇱",
+        THB: "🇹🇭",
+        MYR: "🇲🇾",
+        IDR: "🇮🇩",
+        PHP: "🇵🇭",
+        VND: "🇻🇳",
+        PKR: "🇵🇰",
+        EGP: "🇪🇬",
+        NGN: "🇳🇬",
+        KZT: "🇰🇿",
+        GEL: "🇬🇪",
+        ISK: "🇮🇸",
+        CLP: "🇨🇱",
+        COP: "🇨🇴",
+        PEN: "🇵🇪",
+        UYU: "🇺🇾",
+        MAD: "🇲🇦"
+    };
+
+    return specialFlags[code] || "🌐";
+}
+
+
+function formatRate(rate) {
+
+    const number =
+        Number(rate);
+
+    if (!Number.isFinite(number)) {
+        return "—";
+    }
+
+    return number.toLocaleString(
+        undefined,
+        {
+            maximumFractionDigits: 6
+        }
+    );
 }
 
 
@@ -114,7 +175,6 @@ function getFiatCurrencies(data) {
                 String(b.name || "")
             )
         );
-
 }
 
 
@@ -162,11 +222,9 @@ function renderCurrenciesUI() {
                     class="money-grid"
                     id="majorCurrenciesGrid"
                 >
-
                     <div class="money-card">
-                        Loading...
+                        Loading exchange rates...
                     </div>
-
                 </div>
 
             </div>
@@ -210,11 +268,9 @@ function renderCurrenciesUI() {
                     class="money-grid"
                     id="allCurrenciesGrid"
                 >
-
                     <div class="money-card">
                         Loading currencies...
                     </div>
-
                 </div>
 
             </div>
@@ -252,7 +308,7 @@ function renderCurrenciesUI() {
 
 
 /* =========================================================
-   LOAD CURRENCIES
+   LOAD CURRENCIES + RATES
 ========================================================= */
 
 async function loadCurrencies() {
@@ -262,21 +318,39 @@ async function loadCurrencies() {
             "allCurrenciesGrid"
         );
 
-    if (allGrid) {
-
-        allGrid.innerHTML = `
-            <div class="money-card">
-                Loading currencies...
-            </div>
-        `;
-
-    }
+    const majorGrid =
+        document.getElementById(
+            "majorCurrenciesGrid"
+        );
 
 
     try {
 
+        if (allGrid) {
+
+            allGrid.innerHTML = `
+                <div class="money-card">
+                    Loading currencies...
+                </div>
+            `;
+
+        }
+
+        if (majorGrid) {
+
+            majorGrid.innerHTML = `
+                <div class="money-card">
+                    Loading exchange rates...
+                </div>
+            `;
+
+        }
+
+
         const response =
-            await fetch(CURRENCIES_API);
+            await fetch(
+                `${CURRENCIES_API}?base=EUR`
+            );
 
 
         if (!response.ok) {
@@ -293,7 +367,36 @@ async function loadCurrencies() {
 
 
         currenciesData =
-            getFiatCurrencies(data);
+            getFiatCurrencies(
+                data.currencies
+            );
+
+
+        currencyRates = {};
+
+
+        if (Array.isArray(data.rates)) {
+
+            data.rates.forEach(rate => {
+
+                if (
+                    rate &&
+                    rate.quote &&
+                    Number.isFinite(
+                        Number(rate.rate)
+                    )
+                ) {
+
+                    currencyRates[
+                        rate.quote
+                    ] =
+                        Number(rate.rate);
+
+                }
+
+            });
+
+        }
 
 
         renderMajorCurrencies();
@@ -311,16 +414,9 @@ async function loadCurrencies() {
         if (updated) {
 
             updated.textContent =
-                new Date().toLocaleTimeString(
-                    [],
-                    {
-                        hour: "2-digit",
-                        minute: "2-digit"
-                    }
-                );
+                data.date || "—";
 
         }
-
 
     } catch (error) {
 
@@ -340,7 +436,59 @@ async function loadCurrencies() {
 
         }
 
+
+        if (majorGrid) {
+
+            majorGrid.innerHTML = `
+                <div class="money-card">
+                    Failed to load exchange rates.
+                </div>
+            `;
+
+        }
+
     }
+
+}
+
+
+/* =========================================================
+   GET CROSS RATE
+========================================================= */
+
+function getCrossRate(
+    base,
+    target
+) {
+
+    if (base === target) {
+        return 1;
+    }
+
+
+    const baseRate =
+        Number(
+            currencyRates[base]
+        );
+
+    const targetRate =
+        Number(
+            currencyRates[target]
+        );
+
+
+    if (
+        !Number.isFinite(baseRate) ||
+        !Number.isFinite(targetRate) ||
+        baseRate === 0
+    ) {
+
+        return null;
+
+    }
+
+
+    return targetRate / baseRate;
 
 }
 
@@ -349,7 +497,7 @@ async function loadCurrencies() {
    RENDER MAJOR CURRENCIES
 ========================================================= */
 
-async function renderMajorCurrencies() {
+function renderMajorCurrencies() {
 
     const grid =
         document.getElementById(
@@ -364,170 +512,93 @@ async function renderMajorCurrencies() {
     grid.innerHTML = "";
 
 
-    for (
-        const pair
-        of MAJOR_CURRENCY_PAIRS
-    ) {
+    MAJOR_CURRENCY_PAIRS.forEach(
+        pair => {
 
-        const card =
-            document.createElement("div");
+            const card =
+                document.createElement(
+                    "div"
+                );
 
-        card.className =
-            "money-card";
+            card.className =
+                "money-card";
 
 
-        card.innerHTML = `
+            const rate =
+                getCrossRate(
+                    pair.base,
+                    pair.target
+                );
 
-            <div class="money-card-main">
 
-                <span class="money-icon">
-                    ${pair.icon}
-                </span>
+            const targetCurrency =
+                currenciesData.find(
+                    currency =>
+                        currency.iso_code ===
+                        pair.target
+                );
 
-                <div>
+
+            const targetName =
+                targetCurrency?.name ||
+                pair.target;
+
+
+            card.innerHTML = `
+
+                <div class="money-card-main">
+
+                    <span class="money-icon">
+                        ${pair.icon}
+                    </span>
+
+                    <div>
+
+                        <strong>
+                            ${pair.base} / ${pair.target}
+                        </strong>
+
+                        <small>
+                            ${pair.base} / ${targetName}
+                        </small>
+
+                    </div>
+
+                </div>
+
+
+                <div class="money-price">
 
                     <strong>
-                        ${pair.base} / ${pair.target}
+                        ${formatRate(rate)}
                     </strong>
 
                     <small>
-                        Loading exchange rate...
+                        Exchange rate
                     </small>
 
                 </div>
 
-            </div>
 
+                <div class="money-movement">
 
-            <div class="money-price">
+                    <div class="movement-scale">
+                        <span></span>
+                    </div>
 
-                <strong>
-                    —
-                </strong>
+                    <strong>
+                        —
+                    </strong>
 
-                <small>
-                    Exchange rate
-                </small>
-
-            </div>
-
-
-            <div class="money-movement">
-
-                <div class="movement-scale">
-                    <span></span>
                 </div>
 
-                <strong>
-                    —
-                </strong>
-
-            </div>
-
-        `;
+            `;
 
 
-        grid.appendChild(card);
-
-
-        loadMajorCurrencyRate(
-            pair,
-            card
-        );
-
-    }
-
-}
-
-
-/* =========================================================
-   LOAD MAJOR RATE
-========================================================= */
-
-async function loadMajorCurrencyRate(
-    pair,
-    card
-) {
-
-    try {
-
-        const url =
-            `https://api.frankfurter.dev/v2/rate/${pair.base}/${pair.target}`;
-
-
-        const response =
-            await fetch(url);
-
-
-        if (!response.ok) {
-
-            throw new Error(
-                `Rate error: ${response.status}`
-            );
+            grid.appendChild(card);
 
         }
-
-
-        const data =
-            await response.json();
-
-
-        const rate =
-            Number(data.rate);
-
-
-        if (!Number.isFinite(rate)) {
-            throw new Error(
-                "Invalid exchange rate"
-            );
-        }
-
-
-        const name =
-            currenciesData.find(
-                currency =>
-                    currency.iso_code === pair.target
-            )?.name || pair.target;
-
-
-        const small =
-            card.querySelector(
-                ".money-card-main small"
-            );
-
-        if (small) {
-
-            small.textContent =
-                `${pair.base} / ${name}`;
-
-        }
-
-
-        const price =
-            card.querySelector(
-                ".money-price strong"
-            );
-
-        if (price) {
-
-            price.textContent =
-                rate.toLocaleString(
-                    undefined,
-                    {
-                        maximumFractionDigits: 6
-                    }
-                );
-
-        }
-
-    } catch (error) {
-
-        console.error(
-            `Failed to load ${pair.base}/${pair.target}:`,
-            error
-        );
-
-    }
+    );
 
 }
 
@@ -559,53 +630,106 @@ function renderAllCurrencies(
         `;
 
         return;
+
     }
 
 
     grid.innerHTML = "";
 
 
-    currencies.forEach(currency => {
+    currencies.forEach(
+        currency => {
 
-        const card =
-            document.createElement("div");
+            const code =
+                currency.iso_code;
 
-        card.className =
-            "money-card";
+            const rate =
+                Number(
+                    currencyRates[code]
+                );
 
 
-        card.innerHTML = `
+            const card =
+                document.createElement(
+                    "div"
+                );
 
-            <div class="money-card-main">
 
-                <span class="money-icon">
-                    💱
-                </span>
+            card.className =
+                "money-card";
 
-                <div>
+
+            const rateText =
+                code === "EUR"
+                    ? "1 EUR = 1 EUR"
+                    : Number.isFinite(rate)
+                        ? `1 EUR = ${formatRate(rate)} ${code}`
+                        : "Exchange rate unavailable";
+
+
+            card.innerHTML = `
+
+                <div class="money-card-main">
+
+                    <span class="money-icon">
+                        ${getCurrencyFlag(code)}
+                    </span>
+
+                    <div>
+
+                        <strong>
+                            ${currencyEscapeHtml(code)}
+                        </strong>
+
+                        <small>
+                            ${currencyEscapeHtml(
+                                currency.name
+                            )}
+                        </small>
+
+                    </div>
+
+                </div>
+
+
+                <div class="money-price">
 
                     <strong>
                         ${currencyEscapeHtml(
-                            currency.iso_code
+                            currency.symbol || code
                         )}
                     </strong>
 
                     <small>
                         ${currencyEscapeHtml(
-                            currency.name
+                            rateText
                         )}
                     </small>
 
                 </div>
 
-            </div>
 
-        `;
+                <div class="money-movement">
+
+                    <div class="movement-scale">
+                        <span></span>
+                    </div>
+
+                    <strong>
+                        ${Number.isFinite(rate)
+                            ? formatRate(rate)
+                            : "—"}
+                    </strong>
+
+                </div>
+
+            `;
 
 
-        grid.appendChild(card);
+            grid.appendChild(card);
 
-    });
+        }
+    );
 
 }
 
@@ -614,7 +738,9 @@ function renderAllCurrencies(
    SEARCH
 ========================================================= */
 
-function handleCurrencySearch(event) {
+function handleCurrencySearch(
+    event
+) {
 
     const query =
         String(
@@ -636,31 +762,35 @@ function handleCurrencySearch(event) {
 
 
     const filtered =
-        currenciesData.filter(currency => {
+        currenciesData.filter(
+            currency => {
 
-            const code =
-                String(
-                    currency.iso_code || ""
-                ).toLowerCase();
-
-            const name =
-                String(
-                    currency.name || ""
-                ).toLowerCase();
-
-            const symbol =
-                String(
-                    currency.symbol || ""
-                ).toLowerCase();
+                const code =
+                    String(
+                        currency.iso_code || ""
+                    ).toLowerCase();
 
 
-            return (
-                code.includes(query) ||
-                name.includes(query) ||
-                symbol.includes(query)
-            );
+                const name =
+                    String(
+                        currency.name || ""
+                    ).toLowerCase();
 
-        });
+
+                const symbol =
+                    String(
+                        currency.symbol || ""
+                    ).toLowerCase();
+
+
+                return (
+                    code.includes(query) ||
+                    name.includes(query) ||
+                    symbol.includes(query)
+                );
+
+            }
+        );
 
 
     renderAllCurrencies(
@@ -676,31 +806,11 @@ function handleCurrencySearch(event) {
 
 async function initCurrenciesUI() {
 
-    if (currenciesInitialized) {
-
-        renderCurrenciesUI();
-
-        if (currenciesData.length) {
-
-            renderMajorCurrencies();
-
-            renderAllCurrencies(
-                currenciesData
-            );
-
-        }
-
-        return;
-
-    }
-
-
-    currenciesInitialized = true;
-
-
     renderCurrenciesUI();
 
     await loadCurrencies();
+
+    currenciesInitialized = true;
 
 }
 
