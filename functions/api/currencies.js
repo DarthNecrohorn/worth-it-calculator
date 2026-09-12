@@ -64,11 +64,21 @@ const rates =
    FIND LATEST CURRENT DATE
 ===================================================== */
 
+const today =
+    new Date()
+        .toISOString()
+        .slice(0, 10);
+
+
 const validCurrentDates =
     Array.isArray(rates)
         ? rates
             .map(item => item?.date)
-            .filter(Boolean)
+            .filter(
+                date =>
+                    date &&
+                    date <= today
+            )
             .sort()
         : [];
 
