@@ -38,102 +38,124 @@ export async function onRequest(context) {
 
 
         /* =====================================================
-           CURRENT RATES
-        ===================================================== */
+   CURRENT RATES
+===================================================== */
 
-        const ratesResponse =
-            await fetch(
-                `https://api.frankfurter.dev/v2/rates?base=${encodeURIComponent(base)}`
-            );
-
-
-        if (!ratesResponse.ok) {
-
-            throw new Error(
-                `Rates error: ${ratesResponse.status}`
-            );
-
-        }
+const ratesResponse =
+    await fetch(
+        `https://api.frankfurter.dev/v2/rates?base=${encodeURIComponent(base)}`
+    );
 
 
-        const rates =
-            await ratesResponse.json();
+if (!ratesResponse.ok) {
+
+    throw new Error(
+        `Rates error: ${ratesResponse.status}`
+    );
+
+}
 
 
-        const currentDate =
-            rates[0]?.date || null;
+const rates =
+    await ratesResponse.json();
 
 
-       /* =====================================================
-           PREVIOUS RATES
-        ===================================================== */
+/* =====================================================
+   FIND LATEST CURRENT DATE
+===================================================== */
 
-        let previousRates = [];
+const validCurrentDates =
+    Array.isArray(rates)
+        ? rates
+            .map(item => item?.date)
+            .filter(Boolean)
+            .sort()
+        : [];
 
-        if (currentDate) {
 
-            const current =
-                new Date(
-                    `${currentDate}T12:00:00Z`
-                );
+const currentDate =
+    validCurrentDates.length
+        ? validCurrentDates[validCurrentDates.length - 1]
+        : null;
 
-            const previous =
-                new Date(current);
 
-            previous.setUTCDate(
-                previous.getUTCDate() - 7
-            );
+/* =====================================================
+   PREVIOUS RATES
+===================================================== */
 
-            const previousFrom =
-                previous
-                    .toISOString()
-                    .slice(0, 10);
+let previousRates = [];
 
-            const previousResponse =
-                await fetch(
-                    `https://api.frankfurter.dev/v2/rates?base=${encodeURIComponent(base)}&from=${previousFrom}&to=${currentDate}`
-                );
+if (currentDate) {
 
-            if (previousResponse.ok) {
+    const current =
+        new Date(
+            `${currentDate}T12:00:00Z`
+        );
 
-                const history =
-                    await previousResponse.json();
 
-                if (
-                    Array.isArray(history) &&
-                    history.length
-                ) {
+    const previous =
+        new Date(current);
 
-                    const previousDate =
-                        history
-                            .map(
-                                item =>
-                                    item.date
-                            )
-                            .filter(
-                                date =>
-                                    date &&
-                                    date < currentDate
-                            )
-                            .sort()
-                            .at(-1);
 
-                    if (previousDate) {
+    previous.setUTCDate(
+        previous.getUTCDate() - 7
+    );
 
-                        previousRates =
-                            history.filter(
-                                item =>
-                                    item.date ===
-                                    previousDate
-                            );
 
-                    }
+    const previousFrom =
+        previous
+            .toISOString()
+            .slice(0, 10);
 
-                }
+
+    const previousResponse =
+        await fetch(
+            `https://api.frankfurter.dev/v2/rates?base=${encodeURIComponent(base)}&from=${previousFrom}&to=${currentDate}`
+        );
+
+
+    if (previousResponse.ok) {
+
+        const history =
+            await previousResponse.json();
+
+
+        if (
+            Array.isArray(history) &&
+            history.length
+        ) {
+
+            const previousDate =
+                history
+                    .map(
+                        item =>
+                            item?.date
+                    )
+                    .filter(
+                        date =>
+                            date &&
+                            date < currentDate
+                    )
+                    .sort()
+                    .at(-1);
+
+
+            if (previousDate) {
+
+                previousRates =
+                    history.filter(
+                        item =>
+                            item?.date ===
+                            previousDate
+                    );
 
             }
 
         }
+
+    }
+
+}
 
 
         /* =====================================================
