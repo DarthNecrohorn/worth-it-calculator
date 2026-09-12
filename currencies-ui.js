@@ -742,10 +742,23 @@ async function loadCurrencies() {
    GET CROSS RATE
 ========================================================= */
 
-function getCrossRate(
-    base,
-    target
-) {
+function getCrossRate(base, target) {
+
+    base =
+        String(base || "")
+            .trim()
+            .toUpperCase();
+
+    target =
+        String(target || "")
+            .trim()
+            .toUpperCase();
+
+
+    if (!base || !target) {
+        return NaN;
+    }
+
 
     if (base === target) {
         return 1;
@@ -753,15 +766,67 @@ function getCrossRate(
 
 
     /* =====================================================
-       MAJOR CURRENCIES
-       EUR is the API base currency, therefore EUR = 1.
+       MAJOR RATE
+       Backend now returns majorRates as plain numbers.
+    ===================================================== */
+
+    if (
+        target !== "EUR" &&
+        majorRates &&
+        Object.prototype.hasOwnProperty.call(
+            majorRates,
+            target
+        )
+    ) {
+
+        const majorValue =
+            Number(
+                majorRates[target]
+            );
+
+
+        if (
+            Number.isFinite(majorValue) &&
+            majorValue > 0
+        ) {
+
+            if (base === "EUR") {
+                return majorValue;
+            }
+
+
+            const baseMajor =
+                Number(
+                    majorRates[base]
+                );
+
+
+            if (
+                Number.isFinite(baseMajor) &&
+                baseMajor > 0
+            ) {
+
+                return (
+                    majorValue /
+                    baseMajor
+                );
+
+            }
+
+        }
+
+    }
+
+
+    /* =====================================================
+       NORMAL RATE
     ===================================================== */
 
     const baseRate =
         base === "EUR"
             ? 1
             : Number(
-                majorRates[base]?.rate
+                currencyRates[base]
             );
 
 
@@ -769,54 +834,31 @@ function getCrossRate(
         target === "EUR"
             ? 1
             : Number(
-                majorRates[target]?.rate
+                currencyRates[target]
             );
 
 
     if (
-        Number.isFinite(baseRate) &&
-        Number.isFinite(targetRate) &&
-        baseRate !== 0
+        !Number.isFinite(baseRate) ||
+        !Number.isFinite(targetRate) ||
+        baseRate <= 0 ||
+        targetRate <= 0
     ) {
 
-        return targetRate / baseRate;
+        return NaN;
 
     }
 
 
-    /* =====================================================
-       NORMAL CURRENCIES
-    ===================================================== */
-
-    const normalBaseRate =
-        Number(
-            currencyRates[base]
-        );
-
-
-    const normalTargetRate =
-        Number(
-            currencyRates[target]
-        );
-
-
-    if (
-        !Number.isFinite(normalBaseRate) ||
-        !Number.isFinite(normalTargetRate) ||
-        normalBaseRate === 0
-    ) {
-
-        return null;
-
-    }
-
-
-    return normalTargetRate / normalBaseRate;
+    return (
+        targetRate /
+        baseRate
+    );
 
 }
 
 
-    /* =========================================================
+/* =========================================================
    GET CROSS RATE CHANGE
 ========================================================= */
 
