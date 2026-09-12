@@ -924,153 +924,142 @@ function renderAllCurrencies(
 
 
             card.className =
-    "currency-card";
+                "currency-card";
 
 
-const rateText =
-    code === "EUR"
-        ? "1 EUR = 1 EUR"
-        : Number.isFinite(rate)
-            ? `1 EUR = ${formatRate(rate)} ${code}`
-            : "Exchange rate unavailable";
+            const rateText =
+                code === "EUR"
+                    ? "1 EUR = 1 EUR"
+                    : Number.isFinite(rate)
+                        ? `1 EUR = ${formatRate(rate)} ${code}`
+                        : "Exchange rate unavailable";
 
 
-card.innerHTML = `
-
-    <div class="money-card-main">
-
-        <div class="money-icon">
-            ${getCurrencyFlag(pair.target)}
-        </div>
-
-        <div>
-
-            <strong>
-                ${pair.base} / ${pair.target}
-            </strong>
-
-            <small>
-                ${pair.base} / ${targetName}
-            </small>
-
-        </div>
-
-    </div>
+            const change =
+                getCrossRateChange(
+                    "EUR",
+                    code
+                );
 
 
-    <div class="money-price">
+            card.innerHTML = `
 
-        <div class="movement-scale">
+                <div class="money-card-main">
 
-            ${
-                (() => {
+                    <div class="money-icon">
+                        ${getCurrencyFlag(code)}
+                    </div>
 
-                    const change =
-                        getCrossRateChange(
-                            pair.base,
-                            pair.target
-                        );
+                    <div>
 
-                    if (!Number.isFinite(change)) {
+                        <strong>
+                            EUR / ${currencyEscapeHtml(code)}
+                        </strong>
 
-                        return `
-                            <span
-                                class="movement-bar"
-                                style="
-                                    left:50%;
-                                    width:0;
-                                    color:var(--muted);
-                                "
-                            ></span>
-                        `;
+                        <small>
+                            EUR / ${currencyEscapeHtml(currency.name || code)}
+                        </small>
 
-                    }
+                    </div>
 
-                    const capped =
-                        Math.min(
-                            Math.abs(change),
-                            5
-                        );
-
-                    const width =
-                        (capped / 5) * 50;
-
-                    if (change >= 0) {
-
-                        return `
-                            <span
-                                class="movement-bar"
-                                style="
-                                    left:50%;
-                                    width:${width}%;
-                                    color:#34d399;
-                                "
-                            ></span>
-                        `;
-
-                    }
-
-                    return `
-                        <span
-                            class="movement-bar"
-                            style="
-                                left:${50 - width}%;
-                                width:${width}%;
-                                color:#fb7185;
-                            "
-                        ></span>
-                    `;
-
-                })()
-            }
-
-        </div>
+                </div>
 
 
-        <small>
-            Exchange rate
-        </small>
+                <div class="money-price">
+
+                    <div class="movement-scale">
+
+                        ${
+                            (() => {
+
+                                if (!Number.isFinite(change)) {
+
+                                    return `
+                                        <span
+                                            class="movement-bar"
+                                            style="
+                                                left:50%;
+                                                width:0;
+                                                color:var(--muted);
+                                            "
+                                        ></span>
+                                    `;
+
+                                }
 
 
-        <strong>
-            ${formatRate(rate)}
-        </strong>
+                                const capped =
+                                    Math.min(
+                                        Math.abs(change),
+                                        5
+                                    );
 
-    </div>
+
+                                const width =
+                                    (capped / 5) * 50;
 
 
-    <div class="money-movement">
+                                if (change >= 0) {
 
-        <strong>
-            ${
-                (() => {
+                                    return `
+                                        <span
+                                            class="movement-bar"
+                                            style="
+                                                left:50%;
+                                                width:${width}%;
+                                                color:#34d399;
+                                            "
+                                        ></span>
+                                    `;
 
-                    const change =
-                        getCrossRateChange(
-                            pair.base,
-                            pair.target
-                        );
+                                }
 
-                    if (!Number.isFinite(change)) {
-                        return "—";
-                    }
 
-                    const sign =
-                        change > 0
-                            ? "+"
-                            : "";
+                                return `
+                                    <span
+                                        class="movement-bar"
+                                        style="
+                                            left:${50 - width}%;
+                                            width:${width}%;
+                                            color:#fb7185;
+                                        "
+                                    ></span>
+                                `;
 
-                    return `${sign}${change.toFixed(2)}%`;
+                            })()
+                        }
 
-                })()
-            }
-        </strong>
+                    </div>
 
-    </div>
 
-`;
+                    <small>
+                        Exchange rate
+                    </small>
 
-grid.appendChild(card);
+
+                    <strong>
+                        ${currencyEscapeHtml(rateText)}
+                    </strong>
+
+                </div>
+
+
+                <div class="money-movement">
+
+                    <strong>
+                        ${
+                            Number.isFinite(change)
+                                ? `${change > 0 ? "+" : ""}${change.toFixed(2)}%`
+                                : "—"
+                        }
+                    </strong>
+
+                </div>
+
+            `;
+
+
+            grid.appendChild(card);
 
         }
     );
