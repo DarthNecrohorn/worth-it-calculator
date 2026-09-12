@@ -1078,10 +1078,9 @@ const changeIsDown =
 
 
             const width =
-                getCurrencyMovementWidth(
-                    change
-                );
-
+               getCurrencyMovementWidth(
+                    displayChange
+             );
 
             card.innerHTML = `
 
