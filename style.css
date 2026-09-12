@@ -3871,9 +3871,10 @@ html[data-theme="light"] .currency-card:hover{
 /* Procenat */
 .market-movement > strong {
     display: block !important;
-    margin: 0 !important;
+    margin: 2px 0 0 0 !important;
     font-size: 0.78rem !important;
-    line-height: 1 !important;
+    line-height: 1.1 !important;
     font-weight: 700 !important;
+    letter-spacing: 0.1px !important;
     text-align: center !important;
 }
