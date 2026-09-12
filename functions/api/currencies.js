@@ -581,9 +581,9 @@ export async function onRequest(context) {
         ===================================================== */
 
         const ratesResponse =
-            await fetch(
-                `${FRANKFUTTER_API}/rates?base=${encodeURIComponent(base)}`
-            );
+           await fetch(
+               `${FRANKFURTER_API}/rates?base=${encodeURIComponent(base)}`
+      );
 
 
         let broadRates = [];
