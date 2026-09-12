@@ -717,23 +717,6 @@ async function refreshMarkets() {
 
     if (!grid) return;
 
-
-    const refreshButton =
-        document.querySelector(
-            ".markets-refresh-btn"
-        );
-
-
-    if (refreshButton) {
-
-        refreshButton.disabled = true;
-
-        refreshButton.textContent =
-            "↻ Loading...";
-
-    }
-
-
     try {
 
                 const [
@@ -805,19 +788,6 @@ async function refreshMarkets() {
             </div>
         `;
 
-    } finally {
-
-        if (refreshButton) {
-
-            refreshButton.disabled = false;
-
-            refreshButton.textContent =
-                "↻ Refresh";
-
-        }
-
-    }
-
 }
 
 
@@ -840,4 +810,11 @@ document.addEventListener(
         refreshMarkets();
 
     }
+);
+
+setInterval(
+    () => {
+        refreshMarkets();
+    },
+    60 * 60 * 1000
 );
