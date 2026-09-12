@@ -597,11 +597,20 @@ async function loadCurrencies() {
 
         }
 
+      /* =====================================================
+           MAJOR RATES
+        ===================================================== */
+
+        majorRates =
+            data.majorRates || {};
+
+        majorPreviousRates =
+            data.majorPreviousRates || {};
+
 
         /* =====================================================
            DEBUG
         ===================================================== */
-
         console.log(
             "CURRENCY CURRENT RATES:",
             currencyRates
