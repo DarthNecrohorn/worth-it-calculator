@@ -221,14 +221,48 @@ export async function onRequest(context) {
                 ]
                 : null;
 
+/* =====================================================
+   CURRENT RATES
+   Use the latest available valid rate for each currency.
+   Some currencies are not published every day.
+===================================================== */
 
-        const currentRates =
-            currentDate
-                ? rates.filter(
-                    item =>
-                        item?.date === currentDate
-                )
-                : [];
+const currentRates = [];
+
+if (Array.isArray(rates)) {
+
+    const latestByQuote = {};
+
+    rates
+        .filter(item =>
+            item &&
+            item.quote &&
+            item.date &&
+            item.date <= today &&
+            Number.isFinite(Number(item.rate))
+        )
+        .forEach(item => {
+
+            const quote = item.quote;
+
+            if (
+                !latestByQuote[quote] ||
+                item.date > latestByQuote[quote].date
+            ) {
+
+                latestByQuote[quote] = item;
+
+            }
+
+        });
+
+    Object.values(latestByQuote).forEach(item => {
+
+        currentRates.push(item);
+
+    });
+
+}
 
 
         /* =====================================================
