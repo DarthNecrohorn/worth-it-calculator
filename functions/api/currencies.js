@@ -162,24 +162,26 @@ const previousFrom =
 
         return new Response(
 
-            JSON.stringify({
+    JSON.stringify({
 
-                base,
+        base,
 
-                currencies,
+        currencies,
 
-                rates,
+        rates,
 
-                previousRates,
+        previousRates,
 
-                date:
-                    currentDate
+        date:
+            currentDate,
 
-            }),
+        previousDate:
+            previousRates[0]?.date || null
 
-            {
-                headers: {
+    }),
 
+    {
+        headers: {
                     "Content-Type":
                         "application/json",
 
