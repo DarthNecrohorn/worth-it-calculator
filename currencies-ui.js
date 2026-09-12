@@ -1247,21 +1247,53 @@ function renderAllCurrencies(
 
 
             card.className =
-                "currency-card";
-
-
-            const rateText =
-                code === "EUR"
-                    ? "1 EUR = 1 EUR"
-                    : Number.isFinite(rate)
-                        ? `1 EUR = ${formatRate(rate)} ${code}`
-                        : "Exchange rate unavailable";
+                "money-card";
 
 
             const change =
                 getCrossRateChange(
                     "EUR",
                     code
+                );
+
+
+            const displayChange =
+                Number.isFinite(change)
+                    ? Math.abs(change) < 0.005
+                        ? 0
+                        : change
+                    : null;
+
+
+            const changeIsUp =
+                Number.isFinite(displayChange) &&
+                displayChange > 0;
+
+
+            const changeIsDown =
+                Number.isFinite(displayChange) &&
+                displayChange < 0;
+
+
+            const movementClass =
+                changeIsUp
+                    ? "market-up"
+                    : changeIsDown
+                        ? "market-down"
+                        : "market-flat";
+
+
+            const arrow =
+                changeIsUp
+                    ? "▲"
+                    : changeIsDown
+                        ? "▼"
+                        : "—";
+
+
+            const width =
+                getCurrencyMovementWidth(
+                    displayChange
                 );
 
 
@@ -1290,91 +1322,80 @@ function renderAllCurrencies(
 
                 <div class="money-price">
 
-                    <div class="movement-scale">
-
-                        ${
-                            (() => {
-
-                                if (
-                                    !Number.isFinite(change)
-                                ) {
-
-                                    return `
-                                        <span
-                                            class="movement-bar"
-                                            style="
-                                                left:50%;
-                                                width:0;
-                                                color:var(--muted);
-                                            "
-                                        ></span>
-                                    `;
-
-                                }
-
-
-                                const capped =
-                                    Math.min(
-                                        Math.abs(change),
-                                        5
-                                    );
-
-
-                                const width =
-                                    (capped / 5) * 50;
-
-
-                                if (change >= 0) {
-
-                                    return `
-                                        <span
-                                            class="movement-bar"
-                                            style="
-                                                left:50%;
-                                                width:${width}%;
-                                                color:#34d399;
-                                            "
-                                        ></span>
-                                    `;
-
-                                }
-
-
-                                return `
-                                    <span
-                                        class="movement-bar"
-                                        style="
-                                            left:${50 - width}%;
-                                            width:${width}%;
-                                            color:#fb7185;
-                                        "
-                                    ></span>
-                                `;
-
-                            })()
-                        }
-
-                    </div>
-
-
                     <small>
                         Exchange rate
                     </small>
 
-
-                    <strong>
-                        ${currencyEscapeHtml(rateText)}
+                    <strong class="major-exchange-rate">
+                        ${
+                            code === "EUR"
+                                ? "1 EUR = 1 EUR"
+                                : Number.isFinite(rate)
+                                    ? `1 EUR = ${formatRate(rate)} ${currencyEscapeHtml(code)}`
+                                    : "Exchange rate unavailable"
+                        }
                     </strong>
 
                 </div>
 
 
-                <div class="money-movement">
+                <div
+                    class="market-movement ${movementClass}"
+                    style="
+                        color:var(--market-movement-color);
+                        display:flex;
+                        flex-direction:column;
+                        align-items:center;
+                        justify-content:center;
+                        gap:8px;
+                        width:100%;
+                    "
+                >
+
+                    <div
+                        class="movement-scale"
+                        style="
+                            width:92%;
+                            position:relative;
+                            margin:0 auto;
+                        "
+                    >
+
+                        <span
+                            class="movement-bar"
+                            style="
+                                width:${width}%;
+
+                                ${
+                                    changeIsUp
+                                        ? "left:50%; right:auto;"
+                                        : ""
+                                }
+
+                                ${
+                                    changeIsDown
+                                        ? "right:50%; left:auto;"
+                                        : ""
+                                }
+
+                                ${
+                                    !changeIsUp &&
+                                    !changeIsDown
+                                        ? "left:50%; width:0;"
+                                        : ""
+                                }
+                            "
+                        ></span>
+
+                    </div>
+
 
                     <strong>
                         ${
                             Number.isFinite(change)
-                                ? `${change > 0 ? "+" : ""}${change.toFixed(2)}%`
+                                ? `${arrow} ${Math.abs(change) < 0.005
+                                    ? "0.00"
+                                    : (change > 0 ? "+" : "") + change.toFixed(2)}%`
                                 : "—"
                         }
                     </strong>
