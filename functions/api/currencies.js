@@ -15,6 +15,20 @@ export async function onRequest(context) {
 
 
         /* =====================================================
+           TODAY
+        ===================================================== */
+
+        const now = new Date();
+
+        const today =
+            [
+                now.getUTCFullYear(),
+                String(now.getUTCMonth() + 1).padStart(2, "0"),
+                String(now.getUTCDate()).padStart(2, "0")
+            ].join("-");
+
+
+        /* =====================================================
            CURRENCY LIST
         ===================================================== */
 
@@ -31,21 +45,6 @@ export async function onRequest(context) {
 
         const currencies =
             await currenciesResponse.json();
-
-
-        /* =====================================================
-           TODAY
-           Never allow future dates.
-        ===================================================== */
-
-        const now = new Date();
-
-        const today =
-            [
-                now.getUTCFullYear(),
-                String(now.getUTCMonth() + 1).padStart(2, "0"),
-                String(now.getUTCDate()).padStart(2, "0")
-            ].join("-");
 
 
         /* =====================================================
@@ -84,72 +83,106 @@ export async function onRequest(context) {
 
 
         /* =====================================================
-           FIND LATEST VALID RATE FOR EACH MAJOR CURRENCY
+           HISTORICAL DATA FOR MAJOR CURRENCIES
            
-           Frankfurter may return:
-           
-           2026-09-13 -> USD/HKD/etc.
-           2026-09-12 -> other currencies
-           2026-09-11 -> other currencies
-           
-           Therefore each currency gets its own latest
-           non-future observation.
+           We deliberately request a wider period because
+           Frankfurter can return incomplete data for the
+           latest calendar date.
         ===================================================== */
 
-        const latestMajorRates = {};
+        const historicalFromDate = new Date(now);
 
-        const previousMajorRates = {};
+        historicalFromDate.setUTCDate(
+            historicalFromDate.getUTCDate() - 30
+        );
+
+        const fromDate =
+            [
+                historicalFromDate.getUTCFullYear(),
+                String(
+                    historicalFromDate.getUTCMonth() + 1
+                ).padStart(2, "0"),
+                String(
+                    historicalFromDate.getUTCDate()
+                ).padStart(2, "0")
+            ].join("-");
+
+
+        const historicalResponse =
+            await fetch(
+                `https://api.frankfurter.dev/v2/rates?base=${encodeURIComponent(base)}&from=${fromDate}&to=${today}`
+            );
+
+
+        let historicalRates = [];
+
+
+        if (historicalResponse.ok) {
+
+            const result =
+                await historicalResponse.json();
+
+            if (Array.isArray(result)) {
+                historicalRates = result;
+            }
+
+        }
+
+
+        /* =====================================================
+           MAJOR CURRENT + PREVIOUS
+        ===================================================== */
+
+        const majorRates = {};
+        const majorPreviousRates = {};
 
 
         for (const quote of majorQuotes) {
 
-            const validRows =
-                Array.isArray(rates)
-                    ? rates
-                        .filter(
-                            item =>
-                                item?.quote === quote &&
-                                item?.date &&
-                                item.date <= today
-                        )
-                        .sort(
-                            (a, b) =>
-                                a.date.localeCompare(b.date)
-                        )
-                    : [];
+            const rows =
+                historicalRates
+                    .filter(
+                        item =>
+                            item?.quote === quote &&
+                            item?.date &&
+                            item.date <= today &&
+                            Number.isFinite(
+                                Number(item.rate)
+                            )
+                    )
+                    .sort(
+                        (a, b) =>
+                            a.date.localeCompare(b.date)
+                    );
 
 
-            if (!validRows.length) {
+            if (!rows.length) {
                 continue;
             }
 
 
-            /* =================================================
+            /* ================================================
                CURRENT
-            ================================================= */
+            ================================================ */
 
             const current =
-                validRows[
-                    validRows.length - 1
-                ];
+                rows[rows.length - 1];
 
 
-            latestMajorRates[quote] =
+            majorRates[quote] =
                 current;
 
 
-            /* =================================================
+            /* ================================================
                PREVIOUS
-            ================================================= */
+            ================================================ */
 
-            if (validRows.length >= 2) {
+            if (rows.length >= 2) {
 
                 const previous =
-                    validRows[
-                        validRows.length - 2
-                    ];
+                    rows[rows.length - 2];
 
-                previousMajorRates[quote] =
+                majorPreviousRates[quote] =
                     previous;
 
             }
@@ -158,10 +191,8 @@ export async function onRequest(context) {
 
 
         /* =====================================================
-           NORMAL CURRENT RATES
-           
-           Keep the existing currencies functionality intact.
-           Only use the latest non-future date available.
+           NORMAL CURRENT DATE
+           Ignore future dates.
         ===================================================== */
 
         const validDates =
@@ -243,11 +274,9 @@ export async function onRequest(context) {
 
                 previousDate,
 
-                majorRates:
-                    latestMajorRates,
+                majorRates,
 
-                majorPreviousRates:
-                    previousMajorRates
+                majorPreviousRates
 
             }),
 
