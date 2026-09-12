@@ -837,11 +837,80 @@ function getCrossRateChange(
     }
 
 
+    /* =====================================================
+       MAJOR CURRENCIES
+    ===================================================== */
+
+    if (
+        majorRates[base] &&
+        majorRates[target] &&
+        majorPreviousRates[base] &&
+        majorPreviousRates[target]
+    ) {
+
+        const currentBase =
+            Number(
+                majorRates[base].rate
+            );
+
+        const currentTarget =
+            Number(
+                majorRates[target].rate
+            );
+
+        const previousBase =
+            Number(
+                majorPreviousRates[base].rate
+            );
+
+        const previousTarget =
+            Number(
+                majorPreviousRates[target].rate
+            );
+
+
+        if (
+            Number.isFinite(currentBase) &&
+            Number.isFinite(currentTarget) &&
+            Number.isFinite(previousBase) &&
+            Number.isFinite(previousTarget) &&
+            currentBase !== 0 &&
+            previousBase !== 0
+        ) {
+
+            const previousRate =
+                previousTarget /
+                previousBase;
+
+
+            if (
+                Number.isFinite(previousRate) &&
+                previousRate !== 0
+            ) {
+
+                return (
+                    (
+                        currentRate -
+                        previousRate
+                    ) /
+                    previousRate
+                ) * 100;
+
+            }
+
+        }
+
+    }
+
+
+    /* =====================================================
+       NORMAL CURRENCIES
+    ===================================================== */
+
     const basePrevious =
         Number(
             previousCurrencyRates[base]
         );
-
 
     const targetPrevious =
         Number(
@@ -861,7 +930,8 @@ function getCrossRateChange(
 
 
     const previousRate =
-        targetPrevious / basePrevious;
+        targetPrevious /
+        basePrevious;
 
 
     if (
@@ -875,12 +945,14 @@ function getCrossRateChange(
 
 
     return (
-        (currentRate - previousRate) /
+        (
+            currentRate -
+            previousRate
+        ) /
         previousRate
     ) * 100;
 
 }
-
 
 /* =========================================================
    GET MOVEMENT WIDTH
