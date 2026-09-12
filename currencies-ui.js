@@ -4,6 +4,7 @@
 
 const CURRENCIES_API = "/api/currencies";
 
+
 const EXCLUDED_CURRENCY_CODES = new Set([
     "XAG",
     "XAU",
@@ -11,6 +12,7 @@ const EXCLUDED_CURRENCY_CODES = new Set([
     "XPD",
     "XPT"
 ]);
+
 
 const MAJOR_CURRENCY_PAIRS = [
     {
@@ -50,6 +52,7 @@ const MAJOR_CURRENCY_PAIRS = [
     }
 ];
 
+
 let currenciesData = [];
 let currencyRates = {};
 let previousCurrencyRates = {};
@@ -76,9 +79,14 @@ function currencyEscapeHtml(value) {
 }
 
 
+/* =========================================================
+   FLAG
+========================================================= */
+
 function getCurrencyFlag(code) {
 
     const countryMap = {
+
         AED:"ae",
         AFN:"af",
         ALL:"al",
@@ -89,6 +97,7 @@ function getCurrencyFlag(code) {
         AUD:"au",
         AWG:"aw",
         AZN:"az",
+
         BAM:"ba",
         BBD:"bb",
         BDT:"bd",
@@ -103,6 +112,7 @@ function getCurrencyFlag(code) {
         BWP:"bw",
         BYN:"by",
         BZD:"bz",
+
         CAD:"ca",
         CDF:"cd",
         CHF:"ch",
@@ -114,17 +124,21 @@ function getCurrencyFlag(code) {
         CUP:"cu",
         CVE:"cv",
         CZK:"cz",
+
         DJF:"dj",
         DKK:"dk",
         DOP:"do",
         DZD:"dz",
+
         EGP:"eg",
         ERN:"er",
         ETB:"et",
         EUR:"eu",
+
         FJD:"fj",
         FKP:"fk",
         FOK:"fo",
+
         GBP:"gb",
         GEL:"ge",
         GGP:"gg",
@@ -134,10 +148,12 @@ function getCurrencyFlag(code) {
         GNF:"gn",
         GTQ:"gt",
         GYD:"gy",
+
         HKD:"hk",
         HNL:"hn",
         HTG:"ht",
         HUF:"hu",
+
         IDR:"id",
         ILS:"il",
         IMP:"im",
@@ -145,10 +161,12 @@ function getCurrencyFlag(code) {
         IQD:"iq",
         IRR:"ir",
         ISK:"is",
+
         JEP:"je",
         JMD:"jm",
         JOD:"jo",
         JPY:"jp",
+
         KES:"ke",
         KGS:"kg",
         KHR:"kh",
@@ -158,12 +176,14 @@ function getCurrencyFlag(code) {
         KWD:"kw",
         KYD:"ky",
         KZT:"kz",
+
         LAK:"la",
         LBP:"lb",
         LKR:"lk",
         LRD:"lr",
         LSL:"ls",
         LYD:"ly",
+
         MAD:"ma",
         MDL:"md",
         MGA:"mg",
@@ -179,13 +199,16 @@ function getCurrencyFlag(code) {
         MXN:"mx",
         MYR:"my",
         MZN:"mz",
+
         NAD:"na",
         NGN:"ng",
         NIO:"ni",
         NOK:"no",
         NPR:"np",
         NZD:"nz",
+
         OMR:"om",
+
         PAB:"pa",
         PEN:"pe",
         PGK:"pg",
@@ -193,11 +216,14 @@ function getCurrencyFlag(code) {
         PKR:"pk",
         PLN:"pl",
         PYG:"py",
+
         QAR:"qa",
+
         RON:"ro",
         RSD:"rs",
         RUB:"ru",
         RWF:"rw",
+
         SAR:"sa",
         SBD:"sb",
         SCR:"sc",
@@ -213,6 +239,7 @@ function getCurrencyFlag(code) {
         SVC:"sv",
         SYP:"sy",
         SZL:"sz",
+
         THB:"th",
         TJS:"tj",
         TMT:"tm",
@@ -222,35 +249,51 @@ function getCurrencyFlag(code) {
         TTD:"tt",
         TWD:"tw",
         TZS:"tz",
+
         UAH:"ua",
         UGX:"ug",
         USD:"us",
         UYU:"uy",
         UZS:"uz",
+
         VES:"ve",
         VND:"vn",
         VUV:"vu",
+
         WST:"ws",
+
         XCD:"ag",
         XCG:"cw",
         XAF:"cm",
         XOF:"sn",
         XPF:"pf",
+
         YER:"ye",
+
         ZAR:"za",
         ZMW:"zm",
         ZWG:"zw"
+
     };
 
-    const country = countryMap[code];
+
+    const country =
+        countryMap[
+            String(code || "")
+                .toUpperCase()
+        ];
+
 
     if (!country) {
+
         return `
             <span class="currency-card-flag-fallback">
                 🌐
             </span>
         `;
+
     }
+
 
     return `
         <img
@@ -260,17 +303,28 @@ function getCurrencyFlag(code) {
             loading="lazy"
         >
     `;
+
 }
 
+
+/* =========================================================
+   FORMAT RATE
+========================================================= */
 
 function formatRate(rate) {
 
     const number =
         Number(rate);
 
-    if (!Number.isFinite(number)) {
+
+    if (
+        !Number.isFinite(number)
+    ) {
+
         return "—";
+
     }
+
 
     return number.toLocaleString(
         undefined,
@@ -278,6 +332,47 @@ function formatRate(rate) {
             maximumFractionDigits: 6
         }
     );
+
+}
+
+
+/* =========================================================
+   GET RATE NUMBER
+   Accepts:
+   - 1.17
+   - "1.17"
+   - { rate: 1.17 }
+========================================================= */
+
+function normalizeRateValue(value) {
+
+    if (
+        value &&
+        typeof value === "object"
+    ) {
+
+        value =
+            value.rate;
+
+    }
+
+
+    const number =
+        Number(value);
+
+
+    if (
+        !Number.isFinite(number) ||
+        number <= 0
+    ) {
+
+        return NaN;
+
+    }
+
+
+    return number;
+
 }
 
 
@@ -291,23 +386,35 @@ function getFiatCurrencies(data) {
         return [];
     }
 
+
     return data
         .filter(currency => {
 
-            if (!currency || !currency.iso_code) {
+            if (
+                !currency ||
+                !currency.iso_code
+            ) {
+
                 return false;
+
             }
 
+
             return !EXCLUDED_CURRENCY_CODES.has(
-                currency.iso_code
+                String(
+                    currency.iso_code
+                ).toUpperCase()
             );
 
         })
-        .sort((a, b) =>
-            String(a.name || "").localeCompare(
-                String(b.name || "")
-            )
+        .sort(
+            (a, b) =>
+                String(a.name || "")
+                    .localeCompare(
+                        String(b.name || "")
+                    )
         );
+
 }
 
 
@@ -318,11 +425,15 @@ function getFiatCurrencies(data) {
 function renderCurrenciesUI() {
 
     const app =
-        document.getElementById("currenciesApp");
+        document.getElementById(
+            "currenciesApp"
+        );
+
 
     if (!app) {
         return;
     }
+
 
     app.innerHTML = `
 
@@ -344,8 +455,6 @@ function renderCurrenciesUI() {
 
             </div>
 
-
-            <!-- MAJOR CURRENCIES -->
 
             <div class="money-block">
 
@@ -379,8 +488,6 @@ function renderCurrenciesUI() {
 
             </div>
 
-
-            <!-- ALL CURRENCIES -->
 
             <div class="money-block">
 
@@ -446,6 +553,7 @@ function renderCurrenciesUI() {
             </div>
 
         </div>
+
     `;
 
 
@@ -453,6 +561,7 @@ function renderCurrenciesUI() {
         document.getElementById(
             "currencySearch"
         );
+
 
     if (search) {
 
@@ -467,7 +576,7 @@ function renderCurrenciesUI() {
 
 
 /* =========================================================
-   LOAD CURRENCIES + RATES
+   LOAD CURRENCIES
 ========================================================= */
 
 async function loadCurrencies() {
@@ -476,6 +585,7 @@ async function loadCurrencies() {
         document.getElementById(
             "allCurrenciesGrid"
         );
+
 
     const majorGrid =
         document.getElementById(
@@ -509,7 +619,11 @@ async function loadCurrencies() {
 
         const response =
             await fetch(
-                `${CURRENCIES_API}?base=EUR`
+                `${CURRENCIES_API}?base=EUR`,
+                {
+                    method: "GET",
+                    cache: "no-store"
+                }
             );
 
 
@@ -543,26 +657,39 @@ async function loadCurrencies() {
         currencyRates = {};
 
 
-        if (Array.isArray(data.rates)) {
+        if (
+            Array.isArray(data.rates)
+        ) {
 
-            data.rates.forEach(rate => {
+            data.rates.forEach(
+                item => {
 
-                if (
-                    rate &&
-                    rate.quote &&
-                    Number.isFinite(
-                        Number(rate.rate)
-                    )
-                ) {
+                    const code =
+                        String(
+                            item?.quote || ""
+                        )
+                            .trim()
+                            .toUpperCase();
 
-                    currencyRates[
-                        rate.quote
-                    ] =
-                        Number(rate.rate);
+
+                    const rate =
+                        normalizeRateValue(
+                            item
+                        );
+
+
+                    if (
+                        code &&
+                        Number.isFinite(rate)
+                    ) {
+
+                        currencyRates[code] =
+                            rate;
+
+                    }
 
                 }
-
-            });
+            );
 
         }
 
@@ -574,43 +701,181 @@ async function loadCurrencies() {
         previousCurrencyRates = {};
 
 
-        if (Array.isArray(data.previousRates)) {
+        if (
+            Array.isArray(
+                data.previousRates
+            )
+        ) {
 
-            data.previousRates.forEach(rate => {
+            data.previousRates.forEach(
+                item => {
 
-                if (
-                    rate &&
-                    rate.quote &&
-                    Number.isFinite(
-                        Number(rate.rate)
-                    )
-                ) {
+                    const code =
+                        String(
+                            item?.quote || ""
+                        )
+                            .trim()
+                            .toUpperCase();
 
-                    previousCurrencyRates[
-                        rate.quote
-                    ] =
-                        Number(rate.rate);
+
+                    const rate =
+                        normalizeRateValue(
+                            item
+                        );
+
+
+                    if (
+                        code &&
+                        Number.isFinite(rate)
+                    ) {
+
+                        previousCurrencyRates[code] =
+                            rate;
+
+                    }
 
                 }
-
-            });
+            );
 
         }
 
-      /* =====================================================
+
+        /* =====================================================
            MAJOR RATES
+           
+           Normalize BOTH:
+           majorRates.USD = 1.17
+           or
+           majorRates.USD = { rate: 1.17 }
         ===================================================== */
 
-        majorRates =
-            data.majorRates || {};
+        majorRates = {};
 
-        majorPreviousRates =
-            data.majorPreviousRates || {};
+
+        if (
+            data.majorRates &&
+            typeof data.majorRates === "object"
+        ) {
+
+            Object.keys(
+                data.majorRates
+            ).forEach(
+                code => {
+
+                    const normalizedCode =
+                        String(code)
+                            .trim()
+                            .toUpperCase();
+
+
+                    const rate =
+                        normalizeRateValue(
+                            data.majorRates[code]
+                        );
+
+
+                    if (
+                        normalizedCode &&
+                        Number.isFinite(rate)
+                    ) {
+
+                        majorRates[
+                            normalizedCode
+                        ] = rate;
+
+                    }
+
+                }
+            );
+
+        }
+
+
+        majorPreviousRates = {};
+
+
+        if (
+            data.majorPreviousRates &&
+            typeof data.majorPreviousRates === "object"
+        ) {
+
+            Object.keys(
+                data.majorPreviousRates
+            ).forEach(
+                code => {
+
+                    const normalizedCode =
+                        String(code)
+                            .trim()
+                            .toUpperCase();
+
+
+                    const rate =
+                        normalizeRateValue(
+                            data.majorPreviousRates[code]
+                        );
+
+
+                    if (
+                        normalizedCode &&
+                        Number.isFinite(rate)
+                    ) {
+
+                        majorPreviousRates[
+                            normalizedCode
+                        ] = rate;
+
+                    }
+
+                }
+            );
+
+        }
 
 
         /* =====================================================
-           DEBUG
+           IMPORTANT FALLBACK
+           
+           Major currencies can also use normal EUR rates.
+           This protects the UI even if majorRates is incomplete.
         ===================================================== */
+
+        MAJOR_CURRENCY_PAIRS.forEach(
+            pair => {
+
+                const target =
+                    pair.target;
+
+
+                if (
+                    !Number.isFinite(
+                        majorRates[target]
+                    )
+                ) {
+
+                    const fallback =
+                        normalizeRateValue(
+                            currencyRates[target]
+                        );
+
+
+                    if (
+                        Number.isFinite(
+                            fallback
+                        )
+                    ) {
+
+                        majorRates[target] =
+                            fallback;
+
+                    }
+
+                }
+
+            }
+        );
+
+
         console.log(
             "CURRENCY CURRENT RATES:",
             currencyRates
@@ -620,6 +885,18 @@ async function loadCurrencies() {
         console.log(
             "CURRENCY PREVIOUS RATES:",
             previousCurrencyRates
+        );
+
+
+        console.log(
+            "CURRENCY MAJOR RATES:",
+            majorRates
+        );
+
+
+        console.log(
+            "CURRENCY MAJOR PREVIOUS RATES:",
+            majorPreviousRates
         );
 
 
@@ -635,61 +912,12 @@ async function loadCurrencies() {
         );
 
 
-        /* =====================================================
-           TEST MAJOR CURRENCY MOVEMENTS
-        ===================================================== */
-
-        MAJOR_CURRENCY_PAIRS.forEach(
-            pair => {
-
-                const current =
-                    getCrossRate(
-                        pair.base,
-                        pair.target
-                    );
-
-
-                const change =
-                    getCrossRateChange(
-                        pair.base,
-                        pair.target
-                    );
-
-
-                console.log(
-                    `CURRENCY MOVEMENT ${pair.base}/${pair.target}:`,
-                    {
-                        current,
-                        change,
-                        currentBase:
-                            currencyRates[pair.base],
-                        currentTarget:
-                            currencyRates[pair.target],
-                        previousBase:
-                            previousCurrencyRates[pair.base],
-                        previousTarget:
-                            previousCurrencyRates[pair.target]
-                    }
-                );
-
-            }
-        );
-
-
-        /* =====================================================
-           RENDER
-        ===================================================== */
-
         renderMajorCurrencies();
 
         renderAllCurrencies(
             currenciesData
         );
 
-
-        /* =====================================================
-           LAST UPDATED
-        ===================================================== */
 
         const updated =
             document.getElementById(
@@ -738,11 +966,15 @@ async function loadCurrencies() {
 
 }
 
+
 /* =========================================================
    GET CROSS RATE
 ========================================================= */
 
-function getCrossRate(base, target) {
+function getCrossRate(
+    base,
+    target
+) {
 
     base =
         String(base || "")
@@ -755,86 +987,56 @@ function getCrossRate(base, target) {
             .toUpperCase();
 
 
-    if (!base || !target) {
-        return NaN;
-    }
-
-
-    if (base === target) {
-        return 1;
-    }
-
-
-    /* =====================================================
-       MAJOR RATE
-       Backend now returns majorRates as plain numbers.
-    ===================================================== */
-
     if (
-        target !== "EUR" &&
-        majorRates &&
-        Object.prototype.hasOwnProperty.call(
-            majorRates,
-            target
-        )
+        !base ||
+        !target
     ) {
 
-        const majorValue =
-            Number(
-                majorRates[target]
-            );
-
-
-        if (
-            Number.isFinite(majorValue) &&
-            majorValue > 0
-        ) {
-
-            if (base === "EUR") {
-                return majorValue;
-            }
-
-
-            const baseMajor =
-                Number(
-                    majorRates[base]
-                );
-
-
-            if (
-                Number.isFinite(baseMajor) &&
-                baseMajor > 0
-            ) {
-
-                return (
-                    majorValue /
-                    baseMajor
-                );
-
-            }
-
-        }
+        return NaN;
 
     }
 
 
-    /* =====================================================
-       NORMAL RATE
-    ===================================================== */
+    if (
+        base === target
+    ) {
+
+        return 1;
+
+    }
+
+
+    /*
+       All rates are stored against EUR.
+
+       Example:
+       EUR/USD = 1.17
+       EUR/HKD = 9.12
+
+       USD/HKD =
+       9.12 / 1.17
+    */
+
 
     const baseRate =
         base === "EUR"
             ? 1
-            : Number(
+            : normalizeRateValue(
                 currencyRates[base]
+            ) ||
+              normalizeRateValue(
+                majorRates[base]
             );
 
 
     const targetRate =
         target === "EUR"
             ? 1
-            : Number(
+            : normalizeRateValue(
                 currencyRates[target]
+            ) ||
+              normalizeRateValue(
+                majorRates[target]
             );
 
 
@@ -878,86 +1080,74 @@ function getCrossRateChange(
             .toUpperCase();
 
 
-    if (!base || !target) {
-        return NaN;
-    }
-
-
-    if (base === target) {
-        return 0;
-    }
-
-
-    let currentBase;
-    let currentTarget;
-
-    let previousBase;
-    let previousTarget;
-
-
-    /* =====================================================
-       CURRENT VALUES
-    ===================================================== */
-
-    if (base === "EUR") {
-
-        currentBase = 1;
-
-    } else if (
-        majorRates &&
-        Object.prototype.hasOwnProperty.call(
-            majorRates,
-            base
-        )
+    if (
+        !base ||
+        !target
     ) {
 
-        currentBase =
-            Number(
+        return NaN;
+
+    }
+
+
+    if (
+        base === target
+    ) {
+
+        return 0;
+
+    }
+
+
+    const currentBase =
+        base === "EUR"
+            ? 1
+            : normalizeRateValue(
+                currencyRates[base]
+            ) ||
+              normalizeRateValue(
                 majorRates[base]
             );
 
-    } else {
 
-        currentBase =
-            Number(
-                currencyRates[base]
-            );
-
-    }
-
-
-    if (target === "EUR") {
-
-        currentTarget = 1;
-
-    } else if (
-        majorRates &&
-        Object.prototype.hasOwnProperty.call(
-            majorRates,
-            target
-        )
-    ) {
-
-        currentTarget =
-            Number(
+    const currentTarget =
+        target === "EUR"
+            ? 1
+            : normalizeRateValue(
+                currencyRates[target]
+            ) ||
+              normalizeRateValue(
                 majorRates[target]
             );
 
-    } else {
 
-        currentTarget =
-            Number(
-                currencyRates[target]
+    const previousBase =
+        base === "EUR"
+            ? 1
+            : normalizeRateValue(
+                previousCurrencyRates[base]
+            ) ||
+              normalizeRateValue(
+                majorPreviousRates[base]
             );
 
-    }
+
+    const previousTarget =
+        target === "EUR"
+            ? 1
+            : normalizeRateValue(
+                previousCurrencyRates[target]
+            ) ||
+              normalizeRateValue(
+                majorPreviousRates[target]
+            );
 
 
     if (
         !Number.isFinite(currentBase) ||
         !Number.isFinite(currentTarget) ||
-        currentBase <= 0 ||
-        currentTarget <= 0
+        !Number.isFinite(previousBase) ||
+        !Number.isFinite(previousTarget)
     ) {
 
         return NaN;
@@ -965,67 +1155,9 @@ function getCrossRateChange(
     }
 
 
-    /* =====================================================
-       PREVIOUS VALUES
-    ===================================================== */
-
-    if (base === "EUR") {
-
-        previousBase = 1;
-
-    } else if (
-        majorPreviousRates &&
-        Object.prototype.hasOwnProperty.call(
-            majorPreviousRates,
-            base
-        )
-    ) {
-
-        previousBase =
-            Number(
-                majorPreviousRates[base]
-            );
-
-    } else {
-
-        previousBase =
-            Number(
-                previousCurrencyRates[base]
-            );
-
-    }
-
-
-    if (target === "EUR") {
-
-        previousTarget = 1;
-
-    } else if (
-        majorPreviousRates &&
-        Object.prototype.hasOwnProperty.call(
-            majorPreviousRates,
-            target
-        )
-    ) {
-
-        previousTarget =
-            Number(
-                majorPreviousRates[target]
-            );
-
-    } else {
-
-        previousTarget =
-            Number(
-                previousCurrencyRates[target]
-            );
-
-    }
-
-
     if (
-        !Number.isFinite(previousBase) ||
-        !Number.isFinite(previousTarget) ||
+        currentBase <= 0 ||
+        currentTarget <= 0 ||
         previousBase <= 0 ||
         previousTarget <= 0
     ) {
@@ -1048,7 +1180,7 @@ function getCrossRateChange(
     if (
         !Number.isFinite(currentCross) ||
         !Number.isFinite(previousCross) ||
-        previousCross === 0
+        previousCross <= 0
     ) {
 
         return NaN;
@@ -1057,15 +1189,20 @@ function getCrossRateChange(
 
 
     return (
-        (currentCross - previousCross) /
+        (
+            currentCross -
+            previousCross
+        ) /
         previousCross
     ) * 100;
 
 }
 
+
 /* =========================================================
-   GET MOVEMENT WIDTH
+   MOVEMENT WIDTH
 ========================================================= */
+
 function getCurrencyMovementWidth(
     value
 ) {
@@ -1138,7 +1275,9 @@ function renderMajorCurrencies() {
             const targetCurrency =
                 currenciesData.find(
                     currency =>
-                        currency.iso_code ===
+                        String(
+                            currency.iso_code
+                        ).toUpperCase() ===
                         pair.target
                 );
 
@@ -1156,21 +1295,22 @@ function renderMajorCurrencies() {
 
 
             const displayChange =
-    Number.isFinite(change)
-        ? Math.abs(change) < 0.005
-            ? 0
-            : change
-        : null;
+                Number.isFinite(change)
+                    ? Math.abs(change) < 0.005
+                        ? 0
+                        : change
+                    : null;
 
 
-const changeIsUp =
-    Number.isFinite(displayChange) &&
-    displayChange > 0;
+            const changeIsUp =
+                Number.isFinite(displayChange) &&
+                displayChange > 0;
 
 
-const changeIsDown =
-    Number.isFinite(displayChange) &&
-    displayChange < 0;
+            const changeIsDown =
+                Number.isFinite(displayChange) &&
+                displayChange < 0;
+
 
             const movementClass =
                 changeIsUp
@@ -1189,17 +1329,23 @@ const changeIsDown =
 
 
             const width =
-               getCurrencyMovementWidth(
+                getCurrencyMovementWidth(
                     displayChange
-             );
+                );
+
 
             card.innerHTML = `
 
                 <div class="money-card-main">
 
                     <div class="money-icon">
-                        ${getCurrencyFlag(pair.target)}
+
+                        ${getCurrencyFlag(
+                            pair.target
+                        )}
+
                     </div>
+
 
                     <div>
 
@@ -1207,8 +1353,9 @@ const changeIsDown =
                             ${pair.base} / ${pair.target}
                         </strong>
 
+
                         <small>
-                            ${pair.base} / ${targetName}
+                            ${pair.base} / ${currencyEscapeHtml(targetName)}
                         </small>
 
                     </div>
@@ -1222,8 +1369,15 @@ const changeIsDown =
                         Exchange rate
                     </small>
 
+
                     <strong class="major-exchange-rate">
-                        ${formatRate(rate)}
+
+                        ${
+                            Number.isFinite(rate)
+                                ? `1 ${pair.base} = ${formatRate(rate)} ${pair.target}`
+                                : "Exchange rate unavailable"
+                        }
+
                     </strong>
 
                 </div>
@@ -1280,14 +1434,23 @@ const changeIsDown =
                     </div>
 
 
-                     <strong>
+                    <strong>
+
                         ${
                             Number.isFinite(change)
-                                ? `${arrow} ${Math.abs(change) < 0.005
-                                    ? "0.00"
-                                    : (change > 0 ? "+" : "") + change.toFixed(2)}%`
+                                ? `${arrow} ${
+                                    Math.abs(change) < 0.005
+                                        ? "0.00"
+                                        : (
+                                            change > 0
+                                                ? "+"
+                                                : ""
+                                        ) +
+                                        change.toFixed(2)
+                                  }%`
                                 : "—"
                         }
+
                     </strong>
 
                 </div>
@@ -1295,7 +1458,9 @@ const changeIsDown =
             `;
 
 
-            grid.appendChild(card);
+            grid.appendChild(
+                card
+            );
 
         }
     );
@@ -1307,164 +1472,250 @@ const changeIsDown =
    RENDER ALL CURRENCIES
 ========================================================= */
 
-function renderAllCurrencies(currencies) {
-    const grid = document.getElementById("allCurrenciesGrid");
+function renderAllCurrencies(
+    currencies
+) {
+
+    const grid =
+        document.getElementById(
+            "allCurrenciesGrid"
+        );
+
 
     if (!grid) {
         return;
     }
 
-    if (!currencies.length) {
+
+    if (
+        !currencies.length
+    ) {
+
         grid.innerHTML = `
             <div class="money-card">
                 No currencies found.
             </div>
         `;
+
         return;
+
     }
+
 
     grid.innerHTML = "";
 
-    currencies.forEach(currency => {
 
-        const code = currency.iso_code;
+    currencies.forEach(
+        currency => {
 
-        const rate = Number(currencyRates[code]);
+            const code =
+                String(
+                    currency.iso_code
+                )
+                    .trim()
+                    .toUpperCase();
 
-        const card = document.createElement("div");
-        card.className = "money-card";
 
-        const change = getCrossRateChange("EUR", code);
+            const rate =
+                code === "EUR"
+                    ? 1
+                    : normalizeRateValue(
+                        currencyRates[code]
+                    );
 
-        const displayChange =
-            Number.isFinite(change)
-                ? Math.abs(change) < 0.005
-                    ? 0
-                    : change
-                : null;
 
-        const changeIsUp =
-            Number.isFinite(displayChange) &&
-            displayChange > 0;
+            const card =
+                document.createElement(
+                    "div"
+                );
 
-        const changeIsDown =
-            Number.isFinite(displayChange) &&
-            displayChange < 0;
 
-        const movementClass =
-            changeIsUp
-                ? "market-up"
-                : changeIsDown
-                    ? "market-down"
-                    : "market-flat";
+            card.className =
+                "money-card";
 
-        const arrow =
-            changeIsUp
-                ? "▲"
-                : changeIsDown
-                    ? "▼"
-                    : "—";
 
-        const width =
-            getCurrencyMovementWidth(displayChange);
+            const change =
+                getCrossRateChange(
+                    "EUR",
+                    code
+                );
 
-        card.innerHTML = `
-            <div class="money-card-main">
-                <div class="money-icon">
-                    ${getCurrencyFlag(code)}
+
+            const displayChange =
+                Number.isFinite(change)
+                    ? Math.abs(change) < 0.005
+                        ? 0
+                        : change
+                    : null;
+
+
+            const changeIsUp =
+                Number.isFinite(displayChange) &&
+                displayChange > 0;
+
+
+            const changeIsDown =
+                Number.isFinite(displayChange) &&
+                displayChange < 0;
+
+
+            const movementClass =
+                changeIsUp
+                    ? "market-up"
+                    : changeIsDown
+                        ? "market-down"
+                        : "market-flat";
+
+
+            const arrow =
+                changeIsUp
+                    ? "▲"
+                    : changeIsDown
+                        ? "▼"
+                        : "—";
+
+
+            const width =
+                getCurrencyMovementWidth(
+                    displayChange
+                );
+
+
+            card.innerHTML = `
+
+                <div class="money-card-main">
+
+                    <div class="money-icon">
+
+                        ${getCurrencyFlag(code)}
+
+                    </div>
+
+
+                    <div>
+
+                        <strong>
+                            EUR / ${currencyEscapeHtml(code)}
+                        </strong>
+
+
+                        <small>
+                            EUR / ${
+                                currencyEscapeHtml(
+                                    currency.name || code
+                                )
+                            }
+                        </small>
+
+                    </div>
+
                 </div>
 
-                <div>
-                    <strong>
-                        EUR / ${currencyEscapeHtml(code)}
-                    </strong>
+
+                <div class="money-price">
 
                     <small>
-                        EUR / ${currencyEscapeHtml(currency.name || code)}
+                        Exchange rate
                     </small>
+
+
+                    <strong class="major-exchange-rate">
+
+                        ${
+                            code === "EUR"
+                                ? "1 EUR = 1 EUR"
+                                : Number.isFinite(rate)
+                                    ? `1 EUR = ${formatRate(rate)} ${currencyEscapeHtml(code)}`
+                                    : "Exchange rate unavailable"
+                        }
+
+                    </strong>
+
                 </div>
-            </div>
 
-            <div class="money-price">
-                <small>
-                    Exchange rate
-                </small>
 
-                <strong class="major-exchange-rate">
-               ${
-                 code === "EUR"
-                 ? "1 EUR = 1 EUR"
-                 : Number.isFinite(rate)
-                 ? `1 EUR = ${formatRate(rate)} ${currencyEscapeHtml(code)}`
-                 : "Exchange rate unavailable"
-              }
-      </strong>
-            </div>
-
-            <div
-                class="market-movement ${movementClass}"
-                style="
-                    color:var(--market-movement-color);
-                    display:flex;
-                    flex-direction:column;
-                    align-items:center;
-                    justify-content:center;
-                    gap:8px;
-                    width:100%;
-                "
-            >
                 <div
-                    class="movement-scale"
+                    class="market-movement ${movementClass}"
                     style="
-                        width:92%;
-                        position:relative;
-                        margin:0 auto;
+                        color:var(--market-movement-color);
+                        display:flex;
+                        flex-direction:column;
+                        align-items:center;
+                        justify-content:center;
+                        gap:8px;
+                        width:100%;
                     "
                 >
-                    <span
-                        class="movement-bar"
+
+                    <div
+                        class="movement-scale"
                         style="
-                            width:${width}%;
-
-                            ${
-                                changeIsUp
-                                    ? "left:50%; right:auto;"
-                                    : ""
-                            }
-
-                            ${
-                                changeIsDown
-                                    ? "right:50%; left:auto;"
-                                    : ""
-                            }
-
-                            ${
-                                !changeIsUp &&
-                                !changeIsDown
-                                    ? "left:50%; width:0;"
-                                    : ""
-                            }
+                            width:92%;
+                            position:relative;
+                            margin:0 auto;
                         "
-                    ></span>
+                    >
+
+                        <span
+                            class="movement-bar"
+                            style="
+                                width:${width}%;
+
+                                ${
+                                    changeIsUp
+                                        ? "left:50%; right:auto;"
+                                        : ""
+                                }
+
+                                ${
+                                    changeIsDown
+                                        ? "right:50%; left:auto;"
+                                        : ""
+                                }
+
+                                ${
+                                    !changeIsUp &&
+                                    !changeIsDown
+                                        ? "left:50%; width:0;"
+                                        : ""
+                                }
+                            "
+                        ></span>
+
+                    </div>
+
+
+                    <strong>
+
+                        ${
+                            Number.isFinite(change)
+                                ? `${arrow} ${
+                                    Math.abs(change) < 0.005
+                                        ? "0.00"
+                                        : (
+                                            change > 0
+                                                ? "+"
+                                                : ""
+                                        ) +
+                                        change.toFixed(2)
+                                  }%`
+                                : "—"
+                        }
+
+                    </strong>
+
                 </div>
 
-                <strong>
-                    ${
-                        Number.isFinite(change)
-                            ? `${arrow} ${
-                                Math.abs(change) < 0.005
-                                    ? "0.00"
-                                    : (change > 0 ? "+" : "") +
-                                      change.toFixed(2)
-                              }%`
-                            : "—"
-                    }
-                </strong>
-            </div>
-        `;
+            `;
 
-        grid.appendChild(card);
-    });
+
+            grid.appendChild(
+                card
+            );
+
+        }
+    );
+
 }
 
 
@@ -1480,8 +1731,8 @@ function handleCurrencySearch(
         String(
             event.target.value || ""
         )
-        .trim()
-        .toLowerCase();
+            .trim()
+            .toLowerCase();
 
 
     if (!query) {
@@ -1502,19 +1753,22 @@ function handleCurrencySearch(
                 const code =
                     String(
                         currency.iso_code || ""
-                    ).toLowerCase();
+                    )
+                        .toLowerCase();
 
 
                 const name =
                     String(
                         currency.name || ""
-                    ).toLowerCase();
+                    )
+                        .toLowerCase();
 
 
                 const symbol =
                     String(
                         currency.symbol || ""
-                    ).toLowerCase();
+                    )
+                        .toLowerCase();
 
 
                 return (
@@ -1544,13 +1798,14 @@ async function initCurrenciesUI() {
 
     await loadCurrencies();
 
-    currenciesInitialized = true;
+    currenciesInitialized =
+        true;
 
 }
 
 
 /* =========================================================
-   GLOBAL EXPORT
+   GLOBAL EXPORTS
 ========================================================= */
 
 window.initCurrenciesUI =
