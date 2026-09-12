@@ -522,11 +522,19 @@ async function loadCurrencies() {
             await response.json();
 
 
+        /* =====================================================
+           CURRENCIES
+        ===================================================== */
+
         currenciesData =
             getFiatCurrencies(
                 data.currencies
             );
 
+
+        /* =====================================================
+           CURRENT RATES
+        ===================================================== */
 
         currencyRates = {};
 
@@ -555,94 +563,109 @@ async function loadCurrencies() {
         }
 
 
+        /* =====================================================
+           PREVIOUS RATES
+        ===================================================== */
+
         previousCurrencyRates = {};
 
-if (Array.isArray(data.previousRates)) {
 
-    data.previousRates.forEach(rate => {
+        if (Array.isArray(data.previousRates)) {
 
-        if (
-            rate &&
-            rate.quote &&
-            Number.isFinite(
-                Number(rate.rate)
-            )
-        ) {
+            data.previousRates.forEach(rate => {
 
-            previousCurrencyRates[
-                rate.quote
-            ] =
-                Number(rate.rate);
+                if (
+                    rate &&
+                    rate.quote &&
+                    Number.isFinite(
+                        Number(rate.rate)
+                    )
+                ) {
+
+                    previousCurrencyRates[
+                        rate.quote
+                    ] =
+                        Number(rate.rate);
+
+                }
+
+            });
 
         }
 
-    });
 
-}
+        /* =====================================================
+           DEBUG
+        ===================================================== */
 
-
-/* =========================================================
-   FALLBACK PREVIOUS RATES
-
-   Ako API ne šalje previousRates, pokušaj da koristimo
-   prethodni datum iz samih currency podataka.
-========================================================= */
-
-if (
-    Object.keys(previousCurrencyRates).length === 0 &&
-    Array.isArray(data.rates)
-) {
-
-    const groupedRates = {};
-
-    data.rates.forEach(rate => {
-
-        if (
-            !rate ||
-            !rate.quote ||
-            !Number.isFinite(
-                Number(rate.rate)
-            )
-        ) {
-            return;
-        }
-
-        if (!groupedRates[rate.quote]) {
-            groupedRates[rate.quote] = [];
-        }
-
-        groupedRates[rate.quote].push({
-            date: rate.date || "",
-            rate: Number(rate.rate)
-        });
-
-    });
+        console.log(
+            "CURRENCY CURRENT RATES:",
+            currencyRates
+        );
 
 
-    Object.keys(groupedRates).forEach(
-        quote => {
-
-            const entries =
-                groupedRates[quote];
-
-            entries.sort(
-                (a, b) =>
-                    new Date(b.date) -
-                    new Date(a.date)
-            );
+        console.log(
+            "CURRENCY PREVIOUS RATES:",
+            previousCurrencyRates
+        );
 
 
-            if (entries.length > 1) {
+        console.log(
+            "CURRENCY API DATE:",
+            data.date
+        );
 
-                previousCurrencyRates[quote] =
-                    entries[1].rate;
+
+        console.log(
+            "CURRENCY PREVIOUS DATE:",
+            data.previousDate
+        );
+
+
+        /* =====================================================
+           TEST MAJOR CURRENCY MOVEMENTS
+        ===================================================== */
+
+        MAJOR_CURRENCY_PAIRS.forEach(
+            pair => {
+
+                const current =
+                    getCrossRate(
+                        pair.base,
+                        pair.target
+                    );
+
+
+                const change =
+                    getCrossRateChange(
+                        pair.base,
+                        pair.target
+                    );
+
+
+                console.log(
+                    `CURRENCY MOVEMENT ${pair.base}/${pair.target}:`,
+                    {
+                        current,
+                        change,
+                        currentBase:
+                            currencyRates[pair.base],
+                        currentTarget:
+                            currencyRates[pair.target],
+                        previousBase:
+                            previousCurrencyRates[pair.base],
+                        previousTarget:
+                            previousCurrencyRates[pair.target]
+                    }
+                );
 
             }
+        );
 
-        }
-    );
 
-}
+        /* =====================================================
+           RENDER
+        ===================================================== */
 
         renderMajorCurrencies();
 
@@ -650,6 +673,10 @@ if (
             currenciesData
         );
 
+
+        /* =====================================================
+           LAST UPDATED
+        ===================================================== */
 
         const updated =
             document.getElementById(
@@ -663,6 +690,7 @@ if (
                 data.date || "—";
 
         }
+
 
     } catch (error) {
 
@@ -696,7 +724,6 @@ if (
     }
 
 }
-
 
 /* =========================================================
    GET CROSS RATE
