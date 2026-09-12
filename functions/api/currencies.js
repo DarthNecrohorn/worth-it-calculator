@@ -786,13 +786,6 @@ export async function onRequest(context) {
            NORMAL CURRENT + PREVIOUS
         ===================================================== */
 
-        const normalizedHistoricalLatest =
-            latestByQuote(
-                combinedHistoricalRows,
-                today
-            );
-
-
         const normalizedHistoricalPrevious =
             previousByQuote(
                 combinedHistoricalRows,
