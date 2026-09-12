@@ -3782,72 +3782,92 @@ html[data-theme="light"] .currency-card:hover{
 ========================================================= */
 
 .market-movement {
-    width: 100%;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    margin-top: 8px;
+    width: 100% !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 8px !important;
+    margin-top: 8px !important;
 }
 
-/* Horizontalna skala */
-.movement-scale {
-    width: 92%;
-    height: 4px;
-    position: relative;
-    margin: 0 auto;
-    border-radius: 999px;
-    background: rgba(255, 255, 255, 0.35);
-    overflow: visible;
+.market-movement .movement-scale {
+    width: 92% !important;
+    height: 4px !important;
+    min-height: 4px !important;
+    position: relative !important;
+    display: block !important;
+    margin: 0 auto !important;
+    padding: 0 !important;
+    border: 0 !important;
+    border-radius: 999px !important;
+    background: rgba(255, 255, 255, 0.28) !important;
+    overflow: visible !important;
+}
+
+/* Cela horizontalna linija */
+.market-movement .movement-scale::after {
+    content: "" !important;
+    position: absolute !important;
+    left: 0 !important;
+    right: 0 !important;
+    top: 50% !important;
+    height: 3px !important;
+    transform: translateY(-50%) !important;
+    border-radius: 999px !important;
+    background: rgba(255, 255, 255, 0.35) !important;
+    z-index: 1 !important;
 }
 
 /* Centralna tačka */
-.movement-scale::before {
-    content: "";
-    position: absolute;
-    left: 50%;
-    top: 50%;
-    width: 6px;
-    height: 6px;
-    transform: translate(-50%, -50%);
-    border-radius: 50%;
-    background: currentColor;
-    z-index: 3;
+.market-movement .movement-scale::before {
+    content: "" !important;
+    position: absolute !important;
+    left: 50% !important;
+    top: 50% !important;
+    width: 6px !important;
+    height: 6px !important;
+    transform: translate(-50%, -50%) !important;
+    border-radius: 50% !important;
+    background: currentColor !important;
+    z-index: 3 !important;
 }
 
-/* Bar koji pokazuje kretanje */
-.movement-bar {
-    position: absolute;
-    top: 0;
-    height: 100%;
-    min-width: 0;
-    max-width: 50%;
-    border-radius: 999px;
-    background: currentColor;
-    z-index: 2;
+/* Kretanje */
+.market-movement .movement-bar {
+    position: absolute !important;
+    top: 50% !important;
+    height: 4px !important;
+    min-width: 0 !important;
+    max-width: 50% !important;
+    transform: translateY(-50%) !important;
+    border-radius: 999px !important;
+    background: currentColor !important;
+    z-index: 2 !important;
 }
 
 /* Rast */
-.market-up .movement-bar {
-    left: 50%;
+.market-movement.market-up .movement-bar {
+    left: 50% !important;
 }
 
 /* Pad */
-.market-down .movement-bar {
-    right: 50%;
+.market-movement.market-down .movement-bar {
+    right: 50% !important;
 }
 
-/* Bez promene */
-.market-flat .movement-bar {
-    display: none;
+/* Bez promene — nema obojenog dela,
+   ali osnovna linija ostaje vidljiva */
+.market-movement.market-flat .movement-bar {
+    display: none !important;
 }
 
-/* Procenat ispod skale */
+/* Procenat */
 .market-movement > strong {
-    display: block;
-    font-size: 0.78rem;
-    line-height: 1;
-    font-weight: 700;
-    text-align: center;
+    display: block !important;
+    margin: 0 !important;
+    font-size: 0.78rem !important;
+    line-height: 1 !important;
+    font-weight: 700 !important;
+    text-align: center !important;
 }
