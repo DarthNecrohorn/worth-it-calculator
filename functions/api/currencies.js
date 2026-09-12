@@ -995,7 +995,9 @@ export async function onRequest(
             ) {
 
                 majorPreviousRates[quote] =
-                    previousMap[quote];
+                  Number(
+                    previousMap[quote].rate
+                );
 
             }
 
