@@ -787,9 +787,8 @@ async function refreshMarkets() {
 
             </div>
         `;
-
+    }
 }
-
 
 /* =========================================================
 GLOBAL REFRESH
