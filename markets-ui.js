@@ -395,29 +395,29 @@ const MARKET_CONFIG = {
     },
 
     NICKEL_USD: {
-        name: "Nickel",
-        symbol: "NICKEL",
-        icon: `
-            <svg viewBox="0 0 48 48" aria-hidden="true">
-                <path d="M10 12h28v24H10z"
-                      fill="currentColor"
-                      opacity=".14"/>
-                <path d="M10 12h28v24H10z"
-                      fill="none"
-                      stroke="currentColor"
-                      stroke-width="2.5"
-                      stroke-linejoin="round"/>
-                <path d="M16 18v12M32 18v12M16 18h16M16 30h16"
-                      fill="none"
-                      stroke="currentColor"
-                      stroke-width="2"
-                      stroke-linecap="round"/>
-            </svg>
-        `,
-        eurUnit: "metric ton",
-        usUnit: "metric ton",
-        conversion: 1
-    }
+    name: "Nickel",
+    symbol: "NICKEL",
+    icon: `
+        <svg viewBox="0 0 48 48" aria-hidden="true">
+            <path d="M10 12h28v24H10z"
+                  fill="currentColor"
+                  opacity=".14"/>
+            <path d="M10 12h28v24H10z"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2.5"
+                  stroke-linejoin="round"/>
+            <path d="M16 18v12M32 18v12M16 18h16M16 30h16"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"/>
+        </svg>
+    `,
+    eurUnit: "kg",
+    usUnit: "lb",
+    conversion: 2.20462262185
+}
 
 };
 
