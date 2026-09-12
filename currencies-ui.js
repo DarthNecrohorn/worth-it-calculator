@@ -1105,7 +1105,7 @@ function renderMajorCurrencies() {
                         Exchange rate
                     </small>
 
-                    <strong>
+                    <strong class="major-exchange-rate">
                         ${formatRate(rate)}
                     </strong>
 
