@@ -61,27 +61,49 @@ export async function onRequest(context) {
 
 
         /* =====================================================
-           FIND TODAY
-           Ignore future dates returned by the API.
+           TODAY
+           Ignore future dates returned by Frankfurter.
         ===================================================== */
 
         const now =
             new Date();
 
+
         const today =
             [
                 now.getUTCFullYear(),
-                String(now.getUTCMonth() + 1).padStart(2, "0"),
-                String(now.getUTCDate()).padStart(2, "0")
+                String(
+                    now.getUTCMonth() + 1
+                ).padStart(2, "0"),
+                String(
+                    now.getUTCDate()
+                ).padStart(2, "0")
             ].join("-");
 
 
         /* =====================================================
-           FIND LATEST AVAILABLE DATE
-           THAT IS NOT IN THE FUTURE
+           MAJOR CURRENCIES
+           These are required for the movement cards.
         ===================================================== */
 
-        const validCurrentDates =
+        const majorQuotes = [
+            "USD",
+            "HKD",
+            "SGD",
+            "KRW",
+            "ZAR",
+            "NOK",
+            "SEK",
+            "CZK"
+        ];
+
+
+        /* =====================================================
+           FIND AVAILABLE DATES
+           Only dates that are not in the future.
+        ===================================================== */
+
+        const availableDates =
             Array.isArray(rates)
                 ? [
                     ...new Set(
@@ -100,24 +122,80 @@ export async function onRequest(context) {
                 : [];
 
 
-        const currentDate =
-            validCurrentDates.length
-                ? validCurrentDates[
-                    validCurrentDates.length - 1
-                ]
-                : null;
+        /* =====================================================
+           FIND CURRENT MAJOR DATE
+           Choose the latest date that contains
+           all required major currencies.
+        ===================================================== */
 
-         const currentRates =
-         Array.isArray(rates)
-        ? rates.filter(
-            item =>
-                item?.date &&
-                item.date <= today
-        )
-        : [];
-       
+        let currentDate = null;
+
+
+        for (
+            let i = availableDates.length - 1;
+            i >= 0;
+            i--
+        ) {
+
+            const date =
+                availableDates[i];
+
+
+            const quotesForDate =
+                new Set(
+                    rates
+                        .filter(
+                            item =>
+                                item?.date === date
+                        )
+                        .map(
+                            item =>
+                                item?.quote
+                        )
+                );
+
+
+            const hasAllMajorCurrencies =
+                majorQuotes.every(
+                    quote =>
+                        quotesForDate.has(quote)
+                );
+
+
+            if (hasAllMajorCurrencies) {
+
+                currentDate =
+                    date;
+
+                break;
+
+            }
+
+        }
+
+
+        /* =====================================================
+           CURRENT RATES
+           Return only the selected current date.
+        ===================================================== */
+
+        const currentRates =
+            currentDate &&
+            Array.isArray(rates)
+
+                ? rates.filter(
+                    item =>
+                        item?.date ===
+                        currentDate
+                )
+
+                : [];
+
+
         /* =====================================================
            PREVIOUS RATES
+           Search a wider historical period so weekends
+           and holidays do not cause missing data.
         ===================================================== */
 
         let previousRates = [];
@@ -137,14 +215,8 @@ export async function onRequest(context) {
                 new Date(current);
 
 
-            /*
-             * Search a wider range so weekends/holidays
-             * do not prevent us from finding the previous
-             * available trading day.
-             */
-
             previous.setUTCDate(
-                previous.getUTCDate() - 14
+                previous.getUTCDate() - 30
             );
 
 
@@ -177,12 +249,11 @@ export async function onRequest(context) {
                     history.length
                 ) {
 
-                    /*
-                     * Find the latest date strictly before
-                     * the current date.
-                     */
+                    /* =========================================
+                       AVAILABLE HISTORICAL DATES
+                    ========================================= */
 
-                    const availablePreviousDates =
+                    const historicalDates =
                         [
                             ...new Set(
                                 history
@@ -199,13 +270,62 @@ export async function onRequest(context) {
                         ].sort();
 
 
-                    previousDate =
-                        availablePreviousDates.length
-                            ? availablePreviousDates[
-                                availablePreviousDates.length - 1
-                            ]
-                            : null;
+                    /* =========================================
+                       FIND PREVIOUS MAJOR DATE
+                    ========================================= */
 
+                    for (
+                        let i =
+                            historicalDates.length - 1;
+                        i >= 0;
+                        i--
+                    ) {
+
+                        const date =
+                            historicalDates[i];
+
+
+                        const quotesForDate =
+                            new Set(
+                                history
+                                    .filter(
+                                        item =>
+                                            item?.date ===
+                                            date
+                                    )
+                                    .map(
+                                        item =>
+                                            item?.quote
+                                    )
+                            );
+
+
+                        const hasAllMajorCurrencies =
+                            majorQuotes.every(
+                                quote =>
+                                    quotesForDate.has(
+                                        quote
+                                    )
+                            );
+
+
+                        if (
+                            hasAllMajorCurrencies
+                        ) {
+
+                            previousDate =
+                                date;
+
+                            break;
+
+                        }
+
+                    }
+
+
+                    /* =========================================
+                       PREVIOUS RATES
+                    ========================================= */
 
                     if (previousDate) {
 
@@ -226,44 +346,44 @@ export async function onRequest(context) {
 
 
         /* =====================================================
-   RESPONSE
-===================================================== */
+           RESPONSE
+        ===================================================== */
 
-return new Response(
+        return new Response(
 
-    JSON.stringify({
+            JSON.stringify({
 
-        base,
+                base,
 
-        currencies,
+                currencies,
 
-        rates:
-            currentRates,
+                rates:
+                    currentRates,
 
-        previousRates,
+                previousRates,
 
-        date:
-            currentDate,
+                date:
+                    currentDate,
 
-        previousDate:
-            previousDate
+                previousDate:
+                    previousDate
 
-    }),
+            }),
 
-    {
-        headers: {
+            {
+                headers: {
 
-            "Content-Type":
-                "application/json",
+                    "Content-Type":
+                        "application/json",
 
-            "Cache-Control":
-                "public, max-age=300"
+                    "Cache-Control":
+                        "public, max-age=300"
 
-        }
+                }
 
-    }
+            }
 
-);
+        );
 
 
     } catch (error) {
@@ -284,7 +404,6 @@ return new Response(
             }),
 
             {
-
                 status: 500,
 
                 headers: {
