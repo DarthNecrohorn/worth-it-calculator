@@ -721,13 +721,6 @@ export async function onRequest(context) {
            NORMAL HISTORICAL LATEST/PREVIOUS PER QUOTE
         ===================================================== */
 
-        const historicalLatestMap =
-            latestByQuote(
-                historicalRates,
-                today
-            );
-
-
         const historicalPreviousMap =
             previousByQuote(
                 historicalRates,
