@@ -17,16 +17,24 @@ export async function onRequestGet(context) {
     }
 
     const codes = [
-        "GOLD_USD",
-        "SILVER_USD",
-        "PLATINUM_USD",
-        "PALLADIUM_USD",
-        "COPPER_USD",
-        "IRON_ORE_USD",
-        "ALUMINUM_USD",
-        "WTI_USD",
-        "NATURAL_GAS_USD"
-    ];
+    "GOLD_USD",
+    "SILVER_USD",
+    "PLATINUM_USD",
+    "PALLADIUM_USD",
+    "COPPER_USD",
+    "IRON_ORE_USD",
+    "ALUMINUM_USD",
+    "WTI_USD",
+    "NATURAL_GAS_USD",
+
+    "BRENT_CRUDE_USD",
+    "GASOLINE_USD",
+    "DIESEL_USD",
+    "JET_FUEL_USD",
+    "HEATING_OIL_USD",
+    "COAL_USD",
+    "NICKEL_USD"
+];
 
     try {
         const response = await fetch(
