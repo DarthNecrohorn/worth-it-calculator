@@ -745,7 +745,6 @@ async function refreshMarkets() {
                 "/api/markets",
                 {
                     method: "GET",
-                    cache: "no-store"
                 }
             ),
 
