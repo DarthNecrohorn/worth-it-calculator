@@ -772,19 +772,16 @@ function renderMajorCurrencies() {
 
 
             const width =
-                Number.isFinite(change)
-          ? (
-                change === 0
-                ? 0
-                : Math.min(
-                    50,
-                    Math.max(
-                        4,
-                        Math.abs(change) * 10
-                    )
-                )
+            Number.isFinite(change) &&
+            change !== 0
+            ? Math.min(
+            50,
+            Math.max(
+                4,
+                Math.abs(change) * 10
+            )
         )
-        : 0;
+            : 0;
 
             card.innerHTML = `
 
