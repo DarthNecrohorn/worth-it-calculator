@@ -867,130 +867,199 @@ function getCrossRateChange(
     target
 ) {
 
-    const currentRate =
-        getCrossRate(
-            base,
+    base =
+        String(base || "")
+            .trim()
+            .toUpperCase();
+
+    target =
+        String(target || "")
+            .trim()
+            .toUpperCase();
+
+
+    if (!base || !target) {
+        return NaN;
+    }
+
+
+    if (base === target) {
+        return 0;
+    }
+
+
+    let currentBase;
+    let currentTarget;
+
+    let previousBase;
+    let previousTarget;
+
+
+    /* =====================================================
+       CURRENT VALUES
+    ===================================================== */
+
+    if (base === "EUR") {
+
+        currentBase = 1;
+
+    } else if (
+        majorRates &&
+        Object.prototype.hasOwnProperty.call(
+            majorRates,
+            base
+        )
+    ) {
+
+        currentBase =
+            Number(
+                majorRates[base]
+            );
+
+    } else {
+
+        currentBase =
+            Number(
+                currencyRates[base]
+            );
+
+    }
+
+
+    if (target === "EUR") {
+
+        currentTarget = 1;
+
+    } else if (
+        majorRates &&
+        Object.prototype.hasOwnProperty.call(
+            majorRates,
             target
-        );
+        )
+    ) {
+
+        currentTarget =
+            Number(
+                majorRates[target]
+            );
+
+    } else {
+
+        currentTarget =
+            Number(
+                currencyRates[target]
+            );
+
+    }
 
 
-    if (!Number.isFinite(currentRate)) {
-        return null;
+    if (
+        !Number.isFinite(currentBase) ||
+        !Number.isFinite(currentTarget) ||
+        currentBase <= 0 ||
+        currentTarget <= 0
+    ) {
+
+        return NaN;
+
     }
 
 
     /* =====================================================
-       MAJOR CURRENCIES
-       EUR = 1 for both current and previous rates.
+       PREVIOUS VALUES
     ===================================================== */
 
-    const currentBase =
-        base === "EUR"
-            ? 1
-            : Number(
-                majorRates[base]?.rate
-            );
+    if (base === "EUR") {
 
+        previousBase = 1;
 
-    const currentTarget =
-        target === "EUR"
-            ? 1
-            : Number(
-                majorRates[target]?.rate
-            );
-
-
-    const previousBase =
-        base === "EUR"
-            ? 1
-            : Number(
-                majorPreviousRates[base]?.rate
-            );
-
-
-    const previousTarget =
-        target === "EUR"
-            ? 1
-            : Number(
-                majorPreviousRates[target]?.rate
-            );
-
-
-    if (
-        Number.isFinite(currentBase) &&
-        Number.isFinite(currentTarget) &&
-        Number.isFinite(previousBase) &&
-        Number.isFinite(previousTarget) &&
-        currentBase !== 0 &&
-        previousBase !== 0
+    } else if (
+        majorPreviousRates &&
+        Object.prototype.hasOwnProperty.call(
+            majorPreviousRates,
+            base
+        )
     ) {
 
-        const previousRate =
-            previousTarget /
-            previousBase;
+        previousBase =
+            Number(
+                majorPreviousRates[base]
+            );
 
+    } else {
 
-        if (
-            Number.isFinite(previousRate) &&
-            previousRate !== 0
-        ) {
-
-            return (
-                (
-                    currentRate -
-                    previousRate
-                ) /
-                previousRate
-            ) * 100;
-
-        }
+        previousBase =
+            Number(
+                previousCurrencyRates[base]
+            );
 
     }
 
-/* =====================================================
-   NORMAL CURRENCIES
-===================================================== */
 
-const basePrevious =
-    Number(
-        previousCurrencyRates[base]
-    );
+    if (target === "EUR") {
 
-const targetPrevious =
-    Number(
-        previousCurrencyRates[target]
-    );
+        previousTarget = 1;
 
-if (
-    !Number.isFinite(basePrevious) ||
-    !Number.isFinite(targetPrevious) ||
-    basePrevious === 0
-) {
+    } else if (
+        majorPreviousRates &&
+        Object.prototype.hasOwnProperty.call(
+            majorPreviousRates,
+            target
+        )
+    ) {
 
-    return null;
+        previousTarget =
+            Number(
+                majorPreviousRates[target]
+            );
 
-}
+    } else {
 
-const previousRate =
-    targetPrevious /
-    basePrevious;
+        previousTarget =
+            Number(
+                previousCurrencyRates[target]
+            );
 
-if (
-    !Number.isFinite(previousRate) ||
-    previousRate === 0
-) {
+    }
 
-    return null;
 
-}
+    if (
+        !Number.isFinite(previousBase) ||
+        !Number.isFinite(previousTarget) ||
+        previousBase <= 0 ||
+        previousTarget <= 0
+    ) {
 
-return (
-    (
-        currentRate -
-        previousRate
-    ) /
-    previousRate
-) * 100;
+        return NaN;
+
+    }
+
+
+    const currentCross =
+        currentTarget /
+        currentBase;
+
+
+    const previousCross =
+        previousTarget /
+        previousBase;
+
+
+    if (
+        !Number.isFinite(currentCross) ||
+        !Number.isFinite(previousCross) ||
+        previousCross === 0
+    ) {
+
+        return NaN;
+
+    }
+
+
+    return (
+        (currentCross - previousCross) /
+        previousCross
+    ) * 100;
 
 }
 
