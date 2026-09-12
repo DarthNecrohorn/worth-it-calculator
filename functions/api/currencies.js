@@ -82,25 +82,7 @@ export async function onRequest(context) {
 
 
         /* =====================================================
-           MAJOR CURRENCIES
-           These are required for the movement cards.
-        ===================================================== */
-
-        const majorQuotes = [
-            "USD",
-            "HKD",
-            "SGD",
-            "KRW",
-            "ZAR",
-            "NOK",
-            "SEK",
-            "CZK"
-        ];
-
-
-        /* =====================================================
-           FIND AVAILABLE DATES
-           Only dates that are not in the future.
+           AVAILABLE DATES
         ===================================================== */
 
         const availableDates =
@@ -123,55 +105,30 @@ export async function onRequest(context) {
 
 
         /* =====================================================
-           FIND CURRENT MAJOR DATE
-           Choose the latest date that contains
-           all required major currencies.
+           CURRENT DATE
+           Use the latest available date that contains USD.
+           
+           USD is required for the Major currency pairs
+           and gives us a reliable common trading date.
         ===================================================== */
 
-        let currentDate = null;
+        const currentDatesWithUSD =
+            availableDates.filter(
+                date =>
+                    rates.some(
+                        item =>
+                            item?.date === date &&
+                            item?.quote === "USD"
+                    )
+            );
 
 
-        for (
-            let i = availableDates.length - 1;
-            i >= 0;
-            i--
-        ) {
-
-            const date =
-                availableDates[i];
-
-
-            const quotesForDate =
-                new Set(
-                    rates
-                        .filter(
-                            item =>
-                                item?.date === date
-                        )
-                        .map(
-                            item =>
-                                item?.quote
-                        )
-                );
-
-
-            const hasAllMajorCurrencies =
-                majorQuotes.every(
-                    quote =>
-                        quotesForDate.has(quote)
-                );
-
-
-            if (hasAllMajorCurrencies) {
-
-                currentDate =
-                    date;
-
-                break;
-
-            }
-
-        }
+        const currentDate =
+            currentDatesWithUSD.length
+                ? currentDatesWithUSD[
+                    currentDatesWithUSD.length - 1
+                ]
+                : null;
 
 
         /* =====================================================
@@ -194,8 +151,7 @@ export async function onRequest(context) {
 
         /* =====================================================
            PREVIOUS RATES
-           Search a wider historical period so weekends
-           and holidays do not cause missing data.
+           Search the previous 30 days.
         ===================================================== */
 
         let previousRates = [];
@@ -250,7 +206,7 @@ export async function onRequest(context) {
                 ) {
 
                     /* =========================================
-                       AVAILABLE HISTORICAL DATES
+                       HISTORICAL DATES
                     ========================================= */
 
                     const historicalDates =
@@ -271,56 +227,28 @@ export async function onRequest(context) {
 
 
                     /* =========================================
-                       FIND PREVIOUS MAJOR DATE
+                       PREVIOUS DATE
+                       Find the latest previous date
+                       that contains USD.
                     ========================================= */
 
-                    for (
-                        let i =
-                            historicalDates.length - 1;
-                        i >= 0;
-                        i--
-                    ) {
-
-                        const date =
-                            historicalDates[i];
-
-
-                        const quotesForDate =
-                            new Set(
-                                history
-                                    .filter(
-                                        item =>
-                                            item?.date ===
-                                            date
-                                    )
-                                    .map(
-                                        item =>
-                                            item?.quote
-                                    )
-                            );
+                    const historicalDatesWithUSD =
+                        historicalDates.filter(
+                            date =>
+                                history.some(
+                                    item =>
+                                        item?.date === date &&
+                                        item?.quote === "USD"
+                                )
+                        );
 
 
-                        const hasAllMajorCurrencies =
-                            majorQuotes.every(
-                                quote =>
-                                    quotesForDate.has(
-                                        quote
-                                    )
-                            );
-
-
-                        if (
-                            hasAllMajorCurrencies
-                        ) {
-
-                            previousDate =
-                                date;
-
-                            break;
-
-                        }
-
-                    }
+                    previousDate =
+                        historicalDatesWithUSD.length
+                            ? historicalDatesWithUSD[
+                                historicalDatesWithUSD.length - 1
+                            ]
+                            : null;
 
 
                     /* =========================================
