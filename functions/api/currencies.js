@@ -225,48 +225,44 @@ export async function onRequest(context) {
 
 
         /* =====================================================
-           RESPONSE
-        ===================================================== */
+   RESPONSE
+===================================================== */
 
-        return new Response(
+return new Response(
 
-            JSON.stringify({
+    JSON.stringify({
 
-                base,
+        base,
 
-                currencies,
+        currencies,
 
-                rates,
+        rates:
+            currentRates,
 
-                previousRates,
+        previousRates,
 
-                date:
-                    currentDate,
+        date:
+            currentDate,
 
-                previousDate:
-                    previousDate
+        previousDate:
+            previousDate
 
-            }),
+    }),
 
-            {
-                headers: {
+    {
+        headers: {
 
-                    "Content-Type":
-                        "application/json",
+            "Content-Type":
+                "application/json",
 
-                    /*
-                     * Short cache so that a new daily rate
-                     * becomes visible reasonably quickly.
-                     */
+            "Cache-Control":
+                "public, max-age=300"
 
-                    "Cache-Control":
-                        "public, max-age=300"
+        }
 
-                }
+    }
 
-            }
-
-        );
+);
 
 
     } catch (error) {
