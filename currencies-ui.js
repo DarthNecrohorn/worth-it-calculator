@@ -1044,15 +1044,22 @@ function renderMajorCurrencies() {
                 );
 
 
-            const changeIsUp =
-                Number.isFinite(change) &&
-                change > 0;
+            const displayChange =
+    Number.isFinite(change)
+        ? Math.abs(change) < 0.005
+            ? 0
+            : change
+        : null;
 
 
-            const changeIsDown =
-                Number.isFinite(change) &&
-                change < 0;
+const changeIsUp =
+    Number.isFinite(displayChange) &&
+    displayChange > 0;
 
+
+const changeIsDown =
+    Number.isFinite(displayChange) &&
+    displayChange < 0;
 
             const movementClass =
                 changeIsUp
