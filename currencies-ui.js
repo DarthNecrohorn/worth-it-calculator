@@ -936,51 +936,139 @@ const rateText =
 
 
 card.innerHTML = `
-    <div class="currency-card-main">
 
-<div class="currency-card-flag" aria-label="${currencyEscapeHtml(currency.name)}">
-    ${getCurrencyFlag(code)}
-</div>
+    <div class="money-card-main">
 
-        <div class="currency-card-info">
-
-            <div class="currency-card-title">
-                <strong>
-                    ${currencyEscapeHtml(code)}
-                </strong>
-
-                <small>
-                    ${currencyEscapeHtml(currency.name)}
-                </small>
-            </div>
-
-            <div class="currency-card-rate">
-                <span>
-                    Exchange rate
-                </span>
-
-                <strong>
-                    ${currencyEscapeHtml(rateText)}
-                </strong>
-            </div>
-
+        <div class="money-icon">
+            ${getCurrencyFlag(pair.target)}
         </div>
 
-        <div class="currency-card-side">
+        <div>
 
-            <span class="currency-card-side-label">
-                Symbol
-            </span>
-
-            <strong class="currency-card-symbol-value">
-                ${currencyEscapeHtml(currency.symbol || code)}
+            <strong>
+                ${pair.base} / ${pair.target}
             </strong>
+
+            <small>
+                ${pair.base} / ${targetName}
+            </small>
 
         </div>
 
     </div>
-`;
 
+
+    <div class="money-price">
+
+        <div class="movement-scale">
+
+            ${
+                (() => {
+
+                    const change =
+                        getCrossRateChange(
+                            pair.base,
+                            pair.target
+                        );
+
+                    if (!Number.isFinite(change)) {
+
+                        return `
+                            <span
+                                class="movement-bar"
+                                style="
+                                    left:50%;
+                                    width:0;
+                                    color:var(--muted);
+                                "
+                            ></span>
+                        `;
+
+                    }
+
+                    const capped =
+                        Math.min(
+                            Math.abs(change),
+                            5
+                        );
+
+                    const width =
+                        (capped / 5) * 50;
+
+                    if (change >= 0) {
+
+                        return `
+                            <span
+                                class="movement-bar"
+                                style="
+                                    left:50%;
+                                    width:${width}%;
+                                    color:#34d399;
+                                "
+                            ></span>
+                        `;
+
+                    }
+
+                    return `
+                        <span
+                            class="movement-bar"
+                            style="
+                                left:${50 - width}%;
+                                width:${width}%;
+                                color:#fb7185;
+                            "
+                        ></span>
+                    `;
+
+                })()
+            }
+
+        </div>
+
+
+        <small>
+            Exchange rate
+        </small>
+
+
+        <strong>
+            ${formatRate(rate)}
+        </strong>
+
+    </div>
+
+
+    <div class="money-movement">
+
+        <strong>
+            ${
+                (() => {
+
+                    const change =
+                        getCrossRateChange(
+                            pair.base,
+                            pair.target
+                        );
+
+                    if (!Number.isFinite(change)) {
+                        return "—";
+                    }
+
+                    const sign =
+                        change > 0
+                            ? "+"
+                            : "";
+
+                    return `${sign}${change.toFixed(2)}%`;
+
+                })()
+            }
+        </strong>
+
+    </div>
+
+`;
 
 grid.appendChild(card);
 
