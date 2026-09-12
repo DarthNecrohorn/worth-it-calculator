@@ -3798,7 +3798,7 @@ html[data-theme="light"] .currency-card:hover{
     position: relative;
     margin: 0 auto;
     border-radius: 999px;
-    background: rgba(255, 255, 255, 0.25);
+    background: rgba(255, 255, 255, 0.35);
     overflow: visible;
 }
 
