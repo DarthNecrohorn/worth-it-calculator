@@ -216,7 +216,7 @@ const MARKET_CONFIG = {
         conversion: 1 / 158.9872949
     },
 
-    NATURAL_GAS_USD: {
+        NATURAL_GAS_USD: {
         name: "Natural Gas",
         symbol: "NATGAS",
         icon: `
@@ -224,7 +224,7 @@ const MARKET_CONFIG = {
                 <path d="M25 7c4 7 10 10 10 19 0 8-5 14-12 14S11 34 11 27c0-6 3-10 8-15 1 5 4 7 5 8 2-4 1-8 1-13z"
                       fill="currentColor"
                       opacity=".18"/>
-                <path d="M25 7c4 7 10 10 10 19 0 8-5 14-12 14S11 34 11 27c0-6 3-10 8-15 1 5 4 7 5 8 2-4 1-8 1-13z"
+                <path d="M25 7c4 7 10 10 10 19 0 8-5 14-12 14S11 34 11 27c0-6 3-10 8-15 1 5 4 7 5 8 2-4 3-7 3-10z"
                       fill="none"
                       stroke="currentColor"
                       stroke-width="2.5"
@@ -239,6 +239,184 @@ const MARKET_CONFIG = {
         eurUnit: "MWh",
         usUnit: "MMBtu",
         conversion: 3.412141633
+    },
+
+    BRENT_CRUDE_USD: {
+        name: "Brent Crude",
+        symbol: "BRENT",
+        icon: `
+            <svg viewBox="0 0 48 48" aria-hidden="true">
+                <path d="M24 6c-5 8-13 15-13 24a13 13 0 0026 0C37 21 29 14 24 6z"
+                      fill="currentColor"
+                      opacity=".16"/>
+                <path d="M24 6c-5 8-13 15-13 24a13 13 0 0026 0C37 21 29 14 24 6z"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2.5"
+                      stroke-linejoin="round"/>
+            </svg>
+        `,
+        eurUnit: "liter",
+        usUnit: "barrel",
+        conversion: 1 / 158.9872949
+    },
+
+    GASOLINE_USD: {
+        name: "Gasoline",
+        symbol: "GASOLINE",
+        icon: `
+            <svg viewBox="0 0 48 48" aria-hidden="true">
+                <path d="M13 10h19v28H13z"
+                      fill="currentColor"
+                      opacity=".14"/>
+                <path d="M13 10h19v28H13z"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2.5"
+                      stroke-linejoin="round"/>
+                <path d="M18 15h9v8h-9z"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"/>
+                <path d="M32 15h4v15c0 2 2 3 3 3"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      stroke-linecap="round"/>
+            </svg>
+        `,
+        eurUnit: "liter",
+        usUnit: "gallon",
+        conversion: 1 / 3.785411784
+    },
+
+    DIESEL_USD: {
+        name: "Diesel",
+        symbol: "DIESEL",
+        icon: `
+            <svg viewBox="0 0 48 48" aria-hidden="true">
+                <path d="M13 10h19v28H13z"
+                      fill="currentColor"
+                      opacity=".14"/>
+                <path d="M13 10h19v28H13z"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2.5"
+                      stroke-linejoin="round"/>
+                <path d="M18 15h9v8h-9z"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"/>
+                <path d="M32 15h4v15c0 2 2 3 3 3"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      stroke-linecap="round"/>
+            </svg>
+        `,
+        eurUnit: "liter",
+        usUnit: "gallon",
+        conversion: 1 / 3.785411784
+    },
+
+    JET_FUEL_USD: {
+        name: "Jet Fuel",
+        symbol: "JET FUEL",
+        icon: `
+            <svg viewBox="0 0 48 48" aria-hidden="true">
+                <path d="M24 7l4 13 13 6-13 2-4 13-4-13-13-2 13-6 4-13z"
+                      fill="currentColor"
+                      opacity=".14"/>
+                <path d="M24 7l4 13 13 6-13 2-4 13-4-13-13-2 13-6 4-13z"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2.5"
+                      stroke-linejoin="round"/>
+            </svg>
+        `,
+        eurUnit: "liter",
+        usUnit: "gallon",
+        conversion: 1 / 3.785411784
+    },
+
+    HEATING_OIL_USD: {
+        name: "Heating Oil",
+        symbol: "HEATING OIL",
+        icon: `
+            <svg viewBox="0 0 48 48" aria-hidden="true">
+                <path d="M14 12h20v24H14z"
+                      fill="currentColor"
+                      opacity=".14"/>
+                <path d="M14 12h20v24H14z"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2.5"
+                      stroke-linejoin="round"/>
+                <path d="M19 12V8h10v4"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2.5"
+                      stroke-linejoin="round"/>
+                <path d="M20 20h8M20 25h8M20 30h5"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      stroke-linecap="round"/>
+            </svg>
+        `,
+        eurUnit: "liter",
+        usUnit: "gallon",
+        conversion: 1 / 3.785411784
+    },
+
+    COAL_USD: {
+        name: "Coal",
+        symbol: "COAL",
+        icon: `
+            <svg viewBox="0 0 48 48" aria-hidden="true">
+                <path d="M9 29l7-15 13-5 10 10-5 14-15 5-10-9z"
+                      fill="currentColor"
+                      opacity=".16"/>
+                <path d="M9 29l7-15 13-5 10 10-5 14-15 5-10-9z"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2.5"
+                      stroke-linejoin="round"/>
+                <path d="M16 14l8 10 5-15M24 24l-15 5M24 24l10 9"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      stroke-linejoin="round"/>
+            </svg>
+        `,
+        eurUnit: "metric ton",
+        usUnit: "metric ton",
+        conversion: 1
+    },
+
+    NICKEL_USD: {
+        name: "Nickel",
+        symbol: "NICKEL",
+        icon: `
+            <svg viewBox="0 0 48 48" aria-hidden="true">
+                <path d="M10 12h28v24H10z"
+                      fill="currentColor"
+                      opacity=".14"/>
+                <path d="M10 12h28v24H10z"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2.5"
+                      stroke-linejoin="round"/>
+                <path d="M16 18v12M32 18v12M16 18h16M16 30h16"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      stroke-linecap="round"/>
+            </svg>
+        `,
+        eurUnit: "metric ton",
+        usUnit: "metric ton",
+        conversion: 1
     }
 
 };
