@@ -325,12 +325,19 @@ function renderCurrenciesUI() {
         <div class="money-block">
 
             <div class="money-block-header">
+
                 <div>
-                    <h3>💱 Currencies</h3>
+
+                    <h3>
+                        💱 Currencies
+                    </h3>
+
                     <p>
                         Popular currencies & exchange rates
                     </p>
+
                 </div>
+
             </div>
 
 
@@ -339,21 +346,31 @@ function renderCurrenciesUI() {
             <div class="money-block">
 
                 <div class="money-block-header">
+
                     <div>
-                        <h3>Major currencies</h3>
+
+                        <h3>
+                            Major currencies
+                        </h3>
+
                         <p>
                             Important currencies from major economies
                         </p>
+
                     </div>
+
                 </div>
+
 
                 <div
                     class="money-grid"
                     id="majorCurrenciesGrid"
                 >
+
                     <div class="money-card">
                         Loading exchange rates...
                     </div>
+
                 </div>
 
             </div>
@@ -364,12 +381,19 @@ function renderCurrenciesUI() {
             <div class="money-block">
 
                 <div class="money-block-header">
+
                     <div>
-                        <h3>All currencies</h3>
+
+                        <h3>
+                            All currencies
+                        </h3>
+
                         <p>
                             Browse available fiat currencies
                         </p>
+
                     </div>
+
                 </div>
 
 
@@ -397,9 +421,11 @@ function renderCurrenciesUI() {
                     class="money-grid"
                     id="allCurrenciesGrid"
                 >
+
                     <div class="money-card">
                         Loading currencies...
                     </div>
+
                 </div>
 
             </div>
@@ -465,6 +491,7 @@ async function loadCurrencies() {
 
         }
 
+
         if (majorGrid) {
 
             majorGrid.innerHTML = `
@@ -527,26 +554,33 @@ async function loadCurrencies() {
 
         }
 
-       previousCurrencyRates = {};
 
-if (Array.isArray(data.previousRates)) {
+        previousCurrencyRates = {};
 
-    data.previousRates.forEach(rate => {
 
-        if (
-            rate &&
-            rate.quote &&
-            Number.isFinite(
-                Number(rate.rate)
-            )
-        ) {
-            previousCurrencyRates[
-                rate.quote
-            ] =
-                Number(rate.rate);
+        if (Array.isArray(data.previousRates)) {
+
+            data.previousRates.forEach(rate => {
+
+                if (
+                    rate &&
+                    rate.quote &&
+                    Number.isFinite(
+                        Number(rate.rate)
+                    )
+                ) {
+
+                    previousCurrencyRates[
+                        rate.quote
+                    ] =
+                        Number(rate.rate);
+
+                }
+
+            });
+
         }
-    });
-}
+
 
         renderMajorCurrencies();
 
@@ -559,6 +593,7 @@ if (Array.isArray(data.previousRates)) {
             document.getElementById(
                 "moneyLastUpdated"
             );
+
 
         if (updated) {
 
@@ -620,6 +655,7 @@ function getCrossRate(
             currencyRates[base]
         );
 
+
     const targetRate =
         Number(
             currencyRates[target]
@@ -641,6 +677,11 @@ function getCrossRate(
 
 }
 
+
+/* =========================================================
+   GET CROSS RATE CHANGE
+========================================================= */
+
 function getCrossRateChange(
     base,
     target
@@ -652,43 +693,89 @@ function getCrossRateChange(
             target
         );
 
+
     if (!Number.isFinite(currentRate)) {
         return null;
     }
+
 
     const basePrevious =
         Number(
             previousCurrencyRates[base]
         );
 
+
     const targetPrevious =
         Number(
             previousCurrencyRates[target]
         );
+
 
     if (
         !Number.isFinite(basePrevious) ||
         !Number.isFinite(targetPrevious) ||
         basePrevious === 0
     ) {
+
         return null;
+
     }
+
 
     const previousRate =
         targetPrevious / basePrevious;
+
 
     if (
         !Number.isFinite(previousRate) ||
         previousRate === 0
     ) {
+
         return null;
+
     }
+
 
     return (
         (currentRate - previousRate) /
         previousRate
     ) * 100;
+
 }
+
+
+/* =========================================================
+   GET MOVEMENT WIDTH
+========================================================= */
+
+function getCurrencyMovementWidth(
+    value
+) {
+
+    const number =
+        Number(value);
+
+
+    if (
+        !Number.isFinite(number) ||
+        number === 0
+    ) {
+
+        return 0;
+
+    }
+
+
+    return Math.min(
+        50,
+        Math.max(
+            4,
+            Math.abs(number) * 10
+        )
+    );
+
+}
+
 
 /* =========================================================
    RENDER MAJOR CURRENCIES
@@ -701,9 +788,11 @@ function renderMajorCurrencies() {
             "majorCurrenciesGrid"
         );
 
+
     if (!grid) {
         return;
     }
+
 
     grid.innerHTML = "";
 
@@ -715,6 +804,7 @@ function renderMajorCurrencies() {
                 document.createElement(
                     "div"
                 );
+
 
             card.className =
                 "money-card";
@@ -748,10 +838,12 @@ function renderMajorCurrencies() {
 
 
             const changeIsUp =
+                Number.isFinite(change) &&
                 change > 0;
 
 
             const changeIsDown =
+                Number.isFinite(change) &&
                 change < 0;
 
 
@@ -772,16 +864,10 @@ function renderMajorCurrencies() {
 
 
             const width =
-            Number.isFinite(change) &&
-            change !== 0
-            ? Math.min(
-            50,
-            Math.max(
-                4,
-                Math.abs(change) * 10
-            )
-        )
-            : 0;
+                getCurrencyMovementWidth(
+                    change
+                );
+
 
             card.innerHTML = `
 
@@ -819,58 +905,66 @@ function renderMajorCurrencies() {
                 </div>
 
 
-<div
-    class="market-movement ${movementClass}"
-    style="
-        color:var(--market-movement-color);
-        display:flex;
-        flex-direction:column;
-        align-items:center;
-        justify-content:center;
-        gap:8px;
-        width:100%;
-    "
->
+                <div
+                    class="market-movement ${movementClass}"
+                    style="
+                        color:var(--market-movement-color);
+                        display:flex;
+                        flex-direction:column;
+                        align-items:center;
+                        justify-content:center;
+                        gap:8px;
+                        width:100%;
+                    "
+                >
 
-    <div
-        class="movement-scale"
-        style="
-            width:92%;
-            position:relative;
-            margin:0 auto;
-        "
-    >
+                    <div
+                        class="movement-scale"
+                        style="
+                            width:92%;
+                            position:relative;
+                            margin:0 auto;
+                        "
+                    >
 
-        <span
-            class="movement-bar"
-            style="
-                width:${width}%;
+                        <span
+                            class="movement-bar"
+                            style="
+                                width:${width}%;
 
-                ${
-                    changeIsUp
-                        ? "left:50%;"
-                        : ""
-                }
+                                ${
+                                    changeIsUp
+                                        ? "left:50%; right:auto;"
+                                        : ""
+                                }
 
-                ${
-                    changeIsDown
-                        ? "right:50%;"
-                        : ""
-                }
-            "
-        ></span>
+                                ${
+                                    changeIsDown
+                                        ? "right:50%; left:auto;"
+                                        : ""
+                                }
 
-    </div>
+                                ${
+                                    !changeIsUp &&
+                                    !changeIsDown
+                                        ? "left:50%; width:0;"
+                                        : ""
+                                }
+                            "
+                        ></span>
 
-    <strong>
-        ${
-            Number.isFinite(change)
-                ? `${arrow} ${change > 0 ? "+" : ""}${change.toFixed(2)}%`
-                : "—"
-        }
-    </strong>
+                    </div>
 
-</div>
+
+                    <strong>
+                        ${
+                            Number.isFinite(change)
+                                ? `${arrow} ${change > 0 ? "+" : ""}${change.toFixed(2)}%`
+                                : "—"
+                        }
+                    </strong>
+
+                </div>
 
             `;
 
@@ -881,6 +975,7 @@ function renderMajorCurrencies() {
     );
 
 }
+
 
 /* =========================================================
    RENDER ALL CURRENCIES
@@ -894,6 +989,7 @@ function renderAllCurrencies(
         document.getElementById(
             "allCurrenciesGrid"
         );
+
 
     if (!grid) {
         return;
@@ -921,6 +1017,7 @@ function renderAllCurrencies(
 
             const code =
                 currency.iso_code;
+
 
             const rate =
                 Number(
@@ -983,7 +1080,9 @@ function renderAllCurrencies(
                         ${
                             (() => {
 
-                                if (!Number.isFinite(change)) {
+                                if (
+                                    !Number.isFinite(change)
+                                ) {
 
                                     return `
                                         <span
