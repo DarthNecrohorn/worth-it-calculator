@@ -3097,11 +3097,11 @@ html[data-theme="light"] .more-menu-btn{
 .money-price strong{
     display:block;
 
-    font-size:20px;
+    font-size:17px;
     line-height:1.1;
-    font-weight:950;
+    font-weight:800;
 
-    letter-spacing:-.6px;
+    letter-spacing:-.3px;
 }
 
 .money-price small{
