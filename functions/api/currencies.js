@@ -94,18 +94,16 @@ if (currentDate) {
 
 
     const previous =
-        new Date(current);
+    new Date(current);
 
+previous.setUTCDate(
+    previous.getUTCDate() - 7
+);
 
-    previous.setUTCDate(
-        previous.getUTCDate() - 7
-    );
-
-
-    const previousFrom =
-        previous
-            .toISOString()
-            .slice(0, 10);
+const previousFrom =
+    previous
+        .toISOString()
+        .slice(0, 10);
 
 
     const previousResponse =
