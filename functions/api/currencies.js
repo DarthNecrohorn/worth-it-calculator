@@ -889,14 +889,19 @@ export async function onRequest(
             }
 
 
-            if (current) {
+                if (
+                  current &&
+                    Number.isFinite(
+                      Number(current.rate)
+                    )
+                  ) {
 
-               majorRates[quote] =
-                   Number(current.rate);
+                   majorRates[quote] =
+                     Number(current.rate);
 
-            }
+               }
 
-        }
+          }
 
 
         /* =====================================================
