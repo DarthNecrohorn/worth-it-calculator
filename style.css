@@ -3781,7 +3781,7 @@ html[data-theme="light"] .currency-card:hover{
    CURRENCY MOVEMENT SCALE
 ========================================================= */
 
-.money-card .market-movement {
+.market-movement {
     width: 100%;
     display: flex;
     flex-direction: column;
@@ -3791,18 +3791,19 @@ html[data-theme="light"] .currency-card:hover{
     margin-top: 8px;
 }
 
-.money-card .movement-scale {
+/* Horizontalna skala */
+.movement-scale {
     width: 92%;
     height: 4px;
     position: relative;
     margin: 0 auto;
     border-radius: 999px;
-    background: rgba(255, 255, 255, 0.18);
-    overflow: hidden;
+    background: rgba(255, 255, 255, 0.25);
+    overflow: visible;
 }
 
 /* Centralna tačka */
-.money-card .movement-scale::before {
+.movement-scale::before {
     content: "";
     position: absolute;
     left: 50%;
@@ -3812,11 +3813,11 @@ html[data-theme="light"] .currency-card:hover{
     transform: translate(-50%, -50%);
     border-radius: 50%;
     background: currentColor;
-    z-index: 2;
+    z-index: 3;
 }
 
-/* Deo koji pokazuje kretanje */
-.money-card .movement-bar {
+/* Bar koji pokazuje kretanje */
+.movement-bar {
     position: absolute;
     top: 0;
     height: 100%;
@@ -3824,25 +3825,29 @@ html[data-theme="light"] .currency-card:hover{
     max-width: 50%;
     border-radius: 999px;
     background: currentColor;
+    z-index: 2;
 }
 
 /* Rast */
-.money-card .market-up .movement-bar {
+.market-up .movement-bar {
     left: 50%;
 }
 
 /* Pad */
-.money-card .market-down .movement-bar {
+.market-down .movement-bar {
     right: 50%;
 }
 
 /* Bez promene */
-.money-card .market-flat .movement-bar {
+.market-flat .movement-bar {
     display: none;
 }
 
-.money-card .market-movement strong {
+/* Procenat ispod skale */
+.market-movement > strong {
+    display: block;
     font-size: 0.78rem;
     line-height: 1;
     font-weight: 700;
+    text-align: center;
 }
