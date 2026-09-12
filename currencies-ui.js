@@ -1196,220 +1196,164 @@ const changeIsDown =
    RENDER ALL CURRENCIES
 ========================================================= */
 
-function renderAllCurrencies(
-    currencies
-) {
-
-    const grid =
-        document.getElementById(
-            "allCurrenciesGrid"
-        );
-
+function renderAllCurrencies(currencies) {
+    const grid = document.getElementById("allCurrenciesGrid");
 
     if (!grid) {
         return;
     }
 
-
     if (!currencies.length) {
-
         grid.innerHTML = `
             <div class="money-card">
                 No currencies found.
             </div>
         `;
-
         return;
-
     }
-
 
     grid.innerHTML = "";
 
+    currencies.forEach(currency => {
 
-    currencies.forEach(
-        currency => {
+        const code = currency.iso_code;
 
-            const code =
-                currency.iso_code;
+        const rate = Number(currencyRates[code]);
 
+        const card = document.createElement("div");
+        card.className = "money-card";
 
-            const rate =
-                Number(
-                    currencyRates[code]
-                );
+        const change = getCrossRateChange("EUR", code);
 
+        const displayChange =
+            Number.isFinite(change)
+                ? Math.abs(change) < 0.005
+                    ? 0
+                    : change
+                : null;
 
-            const card =
-                document.createElement(
-                    "div"
-                );
+        const changeIsUp =
+            Number.isFinite(displayChange) &&
+            displayChange > 0;
 
+        const changeIsDown =
+            Number.isFinite(displayChange) &&
+            displayChange < 0;
 
-            card.className =
-                "money-card";
+        const movementClass =
+            changeIsUp
+                ? "market-up"
+                : changeIsDown
+                    ? "market-down"
+                    : "market-flat";
 
+        const arrow =
+            changeIsUp
+                ? "▲"
+                : changeIsDown
+                    ? "▼"
+                    : "—";
 
-            const change =
-                getCrossRateChange(
-                    "EUR",
-                    code
-                );
+        const width =
+            getCurrencyMovementWidth(displayChange);
 
-
-            const displayChange =
-                Number.isFinite(change)
-                    ? Math.abs(change) < 0.005
-                        ? 0
-                        : change
-                    : null;
-
-
-            const changeIsUp =
-                Number.isFinite(displayChange) &&
-                displayChange > 0;
-
-
-            const changeIsDown =
-                Number.isFinite(displayChange) &&
-                displayChange < 0;
-
-
-            const movementClass =
-                changeIsUp
-                    ? "market-up"
-                    : changeIsDown
-                        ? "market-down"
-                        : "market-flat";
-
-
-            const arrow =
-                changeIsUp
-                    ? "▲"
-                    : changeIsDown
-                        ? "▼"
-                        : "—";
-
-
-            const width =
-                getCurrencyMovementWidth(
-                    displayChange
-                );
-
-
-            card.innerHTML = `
-
-                <div class="money-card-main">
-
-                    <div class="money-icon">
-                        ${getCurrencyFlag(code)}
-                    </div>
-
-                    <div>
-
-                        <strong>
-                            EUR / ${currencyEscapeHtml(code)}
-                        </strong>
-
-                        <small>
-                            EUR / ${currencyEscapeHtml(currency.name || code)}
-                        </small>
-
-                    </div>
-
+        card.innerHTML = `
+            <div class="money-card-main">
+                <div class="money-icon">
+                    ${getCurrencyFlag(code)}
                 </div>
 
-
-                <div class="money-price">
+                <div>
+                    <strong>
+                        EUR / ${currencyEscapeHtml(code)}
+                    </strong>
 
                     <small>
-                        Exchange rate
+                        EUR / ${currencyEscapeHtml(currency.name || code)}
                     </small>
-
-                    <strong class="major-exchange-rate">
-                        ${
-                            code === "EUR"
-                                ? "1 EUR = 1 EUR"
-                                : Number.isFinite(rate)
-                                    ? `1 EUR = ${formatRate(rate)} ${currencyEscapeHtml(code)}`
-                                    : "Exchange rate unavailable"
-                        }
-                    </strong>
-
                 </div>
+            </div>
 
+            <div class="money-price">
+                <small>
+                    Exchange rate
+                </small>
 
+                <strong class="major-exchange-rate">
+                    ${
+                        code === "EUR"
+                            ? "1"
+                            : Number.isFinite(rate)
+                                ? formatRate(rate)
+                                : "—"
+                    }
+                </strong>
+            </div>
+
+            <div
+                class="market-movement ${movementClass}"
+                style="
+                    color:var(--market-movement-color);
+                    display:flex;
+                    flex-direction:column;
+                    align-items:center;
+                    justify-content:center;
+                    gap:8px;
+                    width:100%;
+                "
+            >
                 <div
-                    class="market-movement ${movementClass}"
+                    class="movement-scale"
                     style="
-                        color:var(--market-movement-color);
-                        display:flex;
-                        flex-direction:column;
-                        align-items:center;
-                        justify-content:center;
-                        gap:8px;
-                        width:100%;
+                        width:92%;
+                        position:relative;
+                        margin:0 auto;
                     "
                 >
-
-                    <div
-                        class="movement-scale"
+                    <span
+                        class="movement-bar"
                         style="
-                            width:92%;
-                            position:relative;
-                            margin:0 auto;
+                            width:${width}%;
+
+                            ${
+                                changeIsUp
+                                    ? "left:50%; right:auto;"
+                                    : ""
+                            }
+
+                            ${
+                                changeIsDown
+                                    ? "right:50%; left:auto;"
+                                    : ""
+                            }
+
+                            ${
+                                !changeIsUp &&
+                                !changeIsDown
+                                    ? "left:50%; width:0;"
+                                    : ""
+                            }
                         "
-                    >
-
-                        <span
-                            class="movement-bar"
-                            style="
-                                width:${width}%;
-
-                                ${
-                                    changeIsUp
-                                        ? "left:50%; right:auto;"
-                                        : ""
-                                }
-
-                                ${
-                                    changeIsDown
-                                        ? "right:50%; left:auto;"
-                                        : ""
-                                }
-
-                                ${
-                                    !changeIsUp &&
-                                    !changeIsDown
-                                        ? "left:50%; width:0;"
-                                        : ""
-                                }
-                            "
-                        ></span>
-
-                    </div>
-
-
-                    <strong>
-                        ${
-                            Number.isFinite(change)
-                                ? `${arrow} ${Math.abs(change) < 0.005
-                                    ? "0.00"
-                                    : (change > 0 ? "+" : "") + change.toFixed(2)}%`
-                                : "—"
-                        }
-                    </strong>
-
+                    ></span>
                 </div>
 
-            `;
+                <strong>
+                    ${
+                        Number.isFinite(change)
+                            ? `${arrow} ${
+                                Math.abs(change) < 0.005
+                                    ? "0.00"
+                                    : (change > 0 ? "+" : "") +
+                                      change.toFixed(2)
+                              }%`
+                            : "—"
+                    }
+                </strong>
+            </div>
+        `;
 
-
-            grid.appendChild(card);
-
-        }
-    );
-
+        grid.appendChild(card);
+    });
 }
 
 
