@@ -1163,10 +1163,12 @@ function renderMajorCurrencies() {
                     </div>
 
 
-                    <strong>
+                     <strong>
                         ${
                             Number.isFinite(change)
-                                ? `${arrow} ${change > 0 ? "+" : ""}${change.toFixed(2)}%`
+                                ? `${arrow} ${Math.abs(change) < 0.005
+                                    ? "0.00"
+                                    : (change > 0 ? "+" : "") + change.toFixed(2)}%`
                                 : "—"
                         }
                     </strong>
