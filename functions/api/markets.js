@@ -63,7 +63,7 @@ export async function onRequestGet(context) {
 
                     // Browser cache: 60 seconds
                     "Cache-Control":
-                        "public, max-age=60, s-maxage=300",
+                       "public, max-age=18000, s-maxage=18000",
 
                     // Cloudflare CDN cache: 5 minutes
                     "Cloudflare-CDN-Cache-Control":
