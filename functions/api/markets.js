@@ -1,4 +1,3 @@
-```js
 export async function onRequestGet(context) {
     const apiKey = context.env.OILPRICEAPI_KEY;
 
@@ -104,4 +103,3 @@ export async function onRequestGet(context) {
         );
     }
 }
-```
