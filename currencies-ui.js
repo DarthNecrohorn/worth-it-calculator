@@ -1280,14 +1280,14 @@ function renderAllCurrencies(currencies) {
                 </small>
 
                 <strong class="major-exchange-rate">
-                    ${
-                        code === "EUR"
-                            ? "1"
-                            : Number.isFinite(rate)
-                                ? formatRate(rate)
-                                : "—"
-                    }
-                </strong>
+               ${
+                 code === "EUR"
+                 ? "1 EUR = 1 EUR"
+                 : Number.isFinite(rate)
+                 ? `1 EUR = ${formatRate(rate)} ${currencyEscapeHtml(code)}`
+                 : "Exchange rate unavailable"
+              }
+      </strong>
             </div>
 
             <div
