@@ -707,6 +707,7 @@ function renderMajorCurrencies() {
 
     grid.innerHTML = "";
 
+
     MAJOR_CURRENCY_PAIRS.forEach(
         pair => {
 
@@ -718,11 +719,13 @@ function renderMajorCurrencies() {
             card.className =
                 "money-card";
 
+
             const rate =
                 getCrossRate(
                     pair.base,
                     pair.target
                 );
+
 
             const targetCurrency =
                 currenciesData.find(
@@ -731,17 +734,62 @@ function renderMajorCurrencies() {
                         pair.target
                 );
 
+
             const targetName =
                 targetCurrency?.name ||
                 pair.target;
+
+
+            const change =
+                getCrossRateChange(
+                    pair.base,
+                    pair.target
+                );
+
+
+            const changeIsUp =
+                change > 0;
+
+
+            const changeIsDown =
+                change < 0;
+
+
+            const movementClass =
+                changeIsUp
+                    ? "market-up"
+                    : changeIsDown
+                        ? "market-down"
+                        : "market-flat";
+
+
+            const arrow =
+                changeIsUp
+                    ? "▲"
+                    : changeIsDown
+                        ? "▼"
+                        : "—";
+
+
+            const width =
+                Number.isFinite(change)
+                    ? Math.min(
+                        50,
+                        Math.max(
+                            4,
+                            Math.abs(change) * 10
+                        )
+                    )
+                    : 0;
+
 
             card.innerHTML = `
 
                 <div class="money-card-main">
 
                     <div class="money-icon">
-                         ${getCurrencyFlag(pair.target)}
-               </div>
+                        ${getCurrencyFlag(pair.target)}
+                    </div>
 
                     <div>
 
@@ -757,112 +805,62 @@ function renderMajorCurrencies() {
 
                 </div>
 
-                <div class="money-price">
 
-                    <strong>
-                        ${formatRate(rate)}
-                    </strong>
+                <div class="money-price">
 
                     <small>
                         Exchange rate
                     </small>
 
+                    <strong>
+                        ${formatRate(rate)}
+                    </strong>
+
                 </div>
 
-                <div class="money-movement">
 
-    <div class="movement-scale">
+                <div
+                    class="market-movement ${movementClass}"
+                    style="color:var(--market-movement-color);"
+                >
 
-        ${
-            (() => {
+                    <div class="movement-scale">
 
-                const change =
-                    getCrossRateChange(
-                        pair.base,
-                        pair.target
-                    );
-
-                if (!Number.isFinite(change)) {
-                    return `
                         <span
                             class="movement-bar"
                             style="
-                                left:50%;
-                                width:0;
-                                color:var(--muted);
-                            "
-                        ></span>
-                    `;
-                }
-
-                const capped =
-                    Math.min(
-                        Math.abs(change),
-                        5
-                    );
-
-                const width =
-                    (capped / 5) * 50;
-
-                if (change >= 0) {
-
-                    return `
-                        <span
-                            class="movement-bar"
-                            style="
-                                left:50%;
                                 width:${width}%;
-                                color:#34d399;
+
+                                ${
+                                    changeIsUp
+                                        ? "left:50%;"
+                                        : ""
+                                }
+
+                                ${
+                                    changeIsDown
+                                        ? "right:50%;"
+                                        : ""
+                                }
                             "
                         ></span>
-                    `;
 
-                }
+                    </div>
 
-                return `
-                    <span
-                        class="movement-bar"
-                        style="
-                            left:${50 - width}%;
-                            width:${width}%;
-                            color:#fb7185;
-                        "
-                    ></span>
-                `;
+                    <strong>
 
-            })()
-        }
+                        ${
+                            Number.isFinite(change)
+                                ? `${arrow} ${change > 0 ? "+" : ""}${change.toFixed(2)}%`
+                                : "—"
+                        }
 
-    </div>
+                    </strong>
 
-    <strong>
-        ${
-            (() => {
-
-                const change =
-                    getCrossRateChange(
-                        pair.base,
-                        pair.target
-                    );
-
-                if (!Number.isFinite(change)) {
-                    return "—";
-                }
-
-                const sign =
-                    change > 0
-                        ? "+"
-                        : "";
-
-                return `${sign}${change.toFixed(2)}%`;
-
-            })()
-        }
-    </strong>
-
-</div>
+                </div>
 
             `;
+
 
             grid.appendChild(card);
 
