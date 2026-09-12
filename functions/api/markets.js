@@ -67,7 +67,7 @@ export async function onRequestGet(context) {
 
                     // Cloudflare CDN cache: 5 minutes
                     "Cloudflare-CDN-Cache-Control":
-                        "public, max-age=300"
+                        "public, max-age=18000"
                 }
             }
         );
