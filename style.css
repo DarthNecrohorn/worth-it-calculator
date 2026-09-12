@@ -3120,30 +3120,24 @@ html[data-theme="light"] .more-menu-btn{
 .money-movement{
     display:flex;
     align-items:center;
-    gap:11px;
+    justify-content:center;
+    gap:12px;
 
     min-width:0;
+    width:100%;
 }
 
 .money-movement .movement-scale{
     position:relative;
 
-    flex:1;
+    width:120px;
+    min-width:120px;
 
-    height:9px;
-    min-width:65px;
+    height:8px;
 
     border-radius:999px;
 
-    background:
-        linear-gradient(
-            90deg,
-            rgba(251,113,133,.20),
-            rgba(255,255,255,.065) 50%,
-            rgba(52,211,153,.20)
-        );
-
-    border:1px solid rgba(255,255,255,.035);
+    background:rgba(255,255,255,.08);
 
     overflow:hidden;
 }
@@ -3153,41 +3147,33 @@ html[data-theme="light"] .more-menu-btn{
 
     position:absolute;
 
+    left:50%;
     top:0;
     bottom:0;
-    left:50%;
 
-    width:1px;
+    width:2px;
 
-    background:rgba(255,255,255,.20);
+    transform:translateX(-50%);
+
+    background:rgba(255,255,255,.35);
 
     z-index:2;
 }
 
-.money-movement .movement-scale span{
-    position:relative;
-    z-index:1;
+.money-movement .movement-bar{
+    position:absolute;
 
-    display:block;
+    top:0;
 
-    width:50%;
     height:100%;
 
     border-radius:999px;
 
-    background:
-        linear-gradient(
-            90deg,
-            var(--primary),
-            var(--primary2)
-        );
-
-    box-shadow:
-        0 0 12px rgba(124,92,255,.30);
+    background:currentColor;
 }
 
 .money-movement > strong{
-    min-width:62px;
+    min-width:52px;
 
     text-align:right;
 
