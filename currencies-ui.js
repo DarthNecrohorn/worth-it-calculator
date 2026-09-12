@@ -754,36 +754,66 @@ function getCrossRate(
 
     /* =====================================================
        MAJOR CURRENCIES
-       Use the dedicated Major API data.
+       EUR is the API base currency, therefore EUR = 1.
     ===================================================== */
 
+    const baseRate =
+        base === "EUR"
+            ? 1
+            : Number(
+                majorRates[base]?.rate
+            );
+
+
+    const targetRate =
+        target === "EUR"
+            ? 1
+            : Number(
+                majorRates[target]?.rate
+            );
+
+
     if (
-        majorRates[base] &&
-        majorRates[target]
+        Number.isFinite(baseRate) &&
+        Number.isFinite(targetRate) &&
+        baseRate !== 0
     ) {
 
-        const baseRate =
-            Number(
-                majorRates[base].rate
-            );
-
-        const targetRate =
-            Number(
-                majorRates[target].rate
-            );
-
-
-        if (
-            Number.isFinite(baseRate) &&
-            Number.isFinite(targetRate) &&
-            baseRate !== 0
-        ) {
-
-            return targetRate / baseRate;
-
-        }
+        return targetRate / baseRate;
 
     }
+
+
+    /* =====================================================
+       NORMAL CURRENCIES
+    ===================================================== */
+
+    const normalBaseRate =
+        Number(
+            currencyRates[base]
+        );
+
+
+    const normalTargetRate =
+        Number(
+            currencyRates[target]
+        );
+
+
+    if (
+        !Number.isFinite(normalBaseRate) ||
+        !Number.isFinite(normalTargetRate) ||
+        normalBaseRate === 0
+    ) {
+
+        return null;
+
+    }
+
+
+    return normalTargetRate / normalBaseRate;
+
+}
 
 
     /* =====================================================
