@@ -107,7 +107,14 @@ export async function onRequest(context) {
                 ]
                 : null;
 
-
+         const currentRates =
+            Array.isArray(rates)
+               ? rates.filter(
+                  item =>
+                    item?.date === currentDate
+        )
+            : [];
+       
         /* =====================================================
            PREVIOUS RATES
         ===================================================== */
