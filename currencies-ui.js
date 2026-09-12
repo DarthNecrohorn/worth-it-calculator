@@ -557,30 +557,92 @@ async function loadCurrencies() {
 
         previousCurrencyRates = {};
 
+if (Array.isArray(data.previousRates)) {
 
-        if (Array.isArray(data.previousRates)) {
+    data.previousRates.forEach(rate => {
 
-            data.previousRates.forEach(rate => {
+        if (
+            rate &&
+            rate.quote &&
+            Number.isFinite(
+                Number(rate.rate)
+            )
+        ) {
 
-                if (
-                    rate &&
-                    rate.quote &&
-                    Number.isFinite(
-                        Number(rate.rate)
-                    )
-                ) {
-
-                    previousCurrencyRates[
-                        rate.quote
-                    ] =
-                        Number(rate.rate);
-
-                }
-
-            });
+            previousCurrencyRates[
+                rate.quote
+            ] =
+                Number(rate.rate);
 
         }
 
+    });
+
+}
+
+
+/* =========================================================
+   FALLBACK PREVIOUS RATES
+
+   Ako API ne šalje previousRates, pokušaj da koristimo
+   prethodni datum iz samih currency podataka.
+========================================================= */
+
+if (
+    Object.keys(previousCurrencyRates).length === 0 &&
+    Array.isArray(data.rates)
+) {
+
+    const groupedRates = {};
+
+    data.rates.forEach(rate => {
+
+        if (
+            !rate ||
+            !rate.quote ||
+            !Number.isFinite(
+                Number(rate.rate)
+            )
+        ) {
+            return;
+        }
+
+        if (!groupedRates[rate.quote]) {
+            groupedRates[rate.quote] = [];
+        }
+
+        groupedRates[rate.quote].push({
+            date: rate.date || "",
+            rate: Number(rate.rate)
+        });
+
+    });
+
+
+    Object.keys(groupedRates).forEach(
+        quote => {
+
+            const entries =
+                groupedRates[quote];
+
+            entries.sort(
+                (a, b) =>
+                    new Date(b.date) -
+                    new Date(a.date)
+            );
+
+
+            if (entries.length > 1) {
+
+                previousCurrencyRates[quote] =
+                    entries[1].rate;
+
+            }
+
+        }
+    );
+
+}
 
         renderMajorCurrencies();
 
