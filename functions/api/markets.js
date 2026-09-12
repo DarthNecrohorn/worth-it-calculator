@@ -1,3 +1,4 @@
+```js
 export async function onRequestGet(context) {
     const apiKey = context.env.OILPRICEAPI_KEY;
 
@@ -9,7 +10,8 @@ export async function onRequestGet(context) {
             {
                 status: 500,
                 headers: {
-                    "Content-Type": "application/json"
+                    "Content-Type": "application/json",
+                    "Cache-Control": "no-store"
                 }
             }
         );
@@ -28,19 +30,17 @@ export async function onRequestGet(context) {
     ];
 
     try {
-        const response =
-            await fetch(
-                `https://api.oilpriceapi.com/v1/prices/latest?by_code=${codes.join(",")}`,
-                {
-                    headers: {
-                        "Authorization": `Token ${apiKey}`,
-                        "Content-Type": "application/json"
-                    }
+        const response = await fetch(
+            `https://api.oilpriceapi.com/v1/prices/latest?by_code=${codes.join(",")}`,
+            {
+                headers: {
+                    "Authorization": `Token ${apiKey}`,
+                    "Content-Type": "application/json"
                 }
-            );
+            }
+        );
 
-        const data =
-            await response.json();
+        const data = await response.json();
 
         if (!response.ok) {
             return new Response(
@@ -55,40 +55,42 @@ export async function onRequestGet(context) {
             );
         }
 
-        const result =
-            new Response(
-                JSON.stringify(data),
-                {
-                    status: 200,
-                    headers: {
-                        "Content-Type": "application/json",
-                        "Cache-Control": "public, max-age=300",
-                        "Cloudflare-CDN-Cache-Control": "max-age=300"
-                    }
-                }
-            );
+        return new Response(
+            JSON.stringify(data),
+            {
+                status: 200,
+                headers: {
+                    "Content-Type": "application/json",
 
-        return result;
+                    // Browser cache: 60 seconds
+                    "Cache-Control":
+                        "public, max-age=60, s-maxage=300",
+
+                    // Cloudflare CDN cache: 5 minutes
+                    "Cloudflare-CDN-Cache-Control":
+                        "public, max-age=300"
+                }
+            }
+        );
 
     } catch (error) {
 
-    console.error(
-        "Markets API error:",
-        error
-    );
+        console.error(
+            "Markets API error:",
+            error
+        );
 
-    console.error(
-        "Markets API ERROR MESSAGE:",
-        error?.message
-    );
+        console.error(
+            "Markets API ERROR MESSAGE:",
+            error?.message
+        );
 
-    console.error(
-        "Markets API ERROR STACK:",
-        error?.stack
-    );
+        console.error(
+            "Markets API ERROR STACK:",
+            error?.stack
+        );
 
-    return new Response(
-        
+        return new Response(
             JSON.stringify({
                 error: "Unable to load market data."
             }),
@@ -102,3 +104,4 @@ export async function onRequestGet(context) {
         );
     }
 }
+```
