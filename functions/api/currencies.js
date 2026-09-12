@@ -891,8 +891,8 @@ export async function onRequest(
 
             if (current) {
 
-                majorRates[quote] =
-                    current;
+               majorRates[quote] =
+                   Number(current.rate);
 
             }
 
