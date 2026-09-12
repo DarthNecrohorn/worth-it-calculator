@@ -38,132 +38,183 @@ export async function onRequest(context) {
 
 
         /* =====================================================
-   CURRENT RATES
-===================================================== */
+           CURRENT RATES
+        ===================================================== */
 
-const ratesResponse =
-    await fetch(
-        `https://api.frankfurter.dev/v2/rates?base=${encodeURIComponent(base)}`
-    );
-
-
-if (!ratesResponse.ok) {
-
-    throw new Error(
-        `Rates error: ${ratesResponse.status}`
-    );
-
-}
+        const ratesResponse =
+            await fetch(
+                `https://api.frankfurter.dev/v2/rates?base=${encodeURIComponent(base)}`
+            );
 
 
-const rates =
-    await ratesResponse.json();
+        if (!ratesResponse.ok) {
+
+            throw new Error(
+                `Rates error: ${ratesResponse.status}`
+            );
+
+        }
 
 
-/* =====================================================
-   FIND LATEST CURRENT DATE
-===================================================== */
-
-const today =
-    new Date()
-        .toISOString()
-        .slice(0, 10);
+        const rates =
+            await ratesResponse.json();
 
 
-const validCurrentDates =
-    Array.isArray(rates)
-        ? rates
-            .map(item => item?.date)
-            .filter(
-                date =>
-                    date &&
-                    date <= today
-            )
-            .sort()
-        : [];
+        /* =====================================================
+           FIND TODAY
+           Ignore future dates returned by the API.
+        ===================================================== */
+
+        const now =
+            new Date();
+
+        const today =
+            [
+                now.getUTCFullYear(),
+                String(now.getUTCMonth() + 1).padStart(2, "0"),
+                String(now.getUTCDate()).padStart(2, "0")
+            ].join("-");
 
 
-const currentDate =
-    validCurrentDates.length
-        ? validCurrentDates[validCurrentDates.length - 1]
-        : null;
+        /* =====================================================
+           FIND LATEST AVAILABLE DATE
+           THAT IS NOT IN THE FUTURE
+        ===================================================== */
 
-
-/* =====================================================
-   PREVIOUS RATES
-===================================================== */
-
-let previousRates = [];
-
-if (currentDate) {
-
-    const current =
-        new Date(
-            `${currentDate}T12:00:00Z`
-        );
-
-
-    const previous =
-    new Date(current);
-
-previous.setUTCDate(
-    previous.getUTCDate() - 7
-);
-
-const previousFrom =
-    previous
-        .toISOString()
-        .slice(0, 10);
-
-
-    const previousResponse =
-        await fetch(
-            `https://api.frankfurter.dev/v2/rates?base=${encodeURIComponent(base)}&from=${previousFrom}&to=${currentDate}`
-        );
-
-
-    if (previousResponse.ok) {
-
-        const history =
-            await previousResponse.json();
-
-
-        if (
-            Array.isArray(history) &&
-            history.length
-        ) {
-
-            const previousDate =
-                history
-                    .map(
-                        item =>
-                            item?.date
+        const validCurrentDates =
+            Array.isArray(rates)
+                ? [
+                    ...new Set(
+                        rates
+                            .map(
+                                item =>
+                                    item?.date
+                            )
+                            .filter(
+                                date =>
+                                    date &&
+                                    date <= today
+                            )
                     )
-                    .filter(
-                        date =>
-                            date &&
-                            date < currentDate
-                    )
-                    .sort()
-                    .at(-1);
+                ].sort()
+                : [];
 
 
-            if (previousDate) {
+        const currentDate =
+            validCurrentDates.length
+                ? validCurrentDates[
+                    validCurrentDates.length - 1
+                ]
+                : null;
 
-                previousRates =
-                    history.filter(
-                        item =>
-                            item?.date ===
-                            previousDate
-                    );
+
+        /* =====================================================
+           PREVIOUS RATES
+        ===================================================== */
+
+        let previousRates = [];
+
+        let previousDate = null;
+
+
+        if (currentDate) {
+
+            const current =
+                new Date(
+                    `${currentDate}T12:00:00Z`
+                );
+
+
+            const previous =
+                new Date(current);
+
+
+            /*
+             * Search a wider range so weekends/holidays
+             * do not prevent us from finding the previous
+             * available trading day.
+             */
+
+            previous.setUTCDate(
+                previous.getUTCDate() - 14
+            );
+
+
+            const previousFrom =
+                [
+                    previous.getUTCFullYear(),
+                    String(
+                        previous.getUTCMonth() + 1
+                    ).padStart(2, "0"),
+                    String(
+                        previous.getUTCDate()
+                    ).padStart(2, "0")
+                ].join("-");
+
+
+            const previousResponse =
+                await fetch(
+                    `https://api.frankfurter.dev/v2/rates?base=${encodeURIComponent(base)}&from=${previousFrom}&to=${currentDate}`
+                );
+
+
+            if (previousResponse.ok) {
+
+                const history =
+                    await previousResponse.json();
+
+
+                if (
+                    Array.isArray(history) &&
+                    history.length
+                ) {
+
+                    /*
+                     * Find the latest date strictly before
+                     * the current date.
+                     */
+
+                    const availablePreviousDates =
+                        [
+                            ...new Set(
+                                history
+                                    .map(
+                                        item =>
+                                            item?.date
+                                    )
+                                    .filter(
+                                        date =>
+                                            date &&
+                                            date < currentDate
+                                    )
+                            )
+                        ].sort();
+
+
+                    previousDate =
+                        availablePreviousDates.length
+                            ? availablePreviousDates[
+                                availablePreviousDates.length - 1
+                            ]
+                            : null;
+
+
+                    if (previousDate) {
+
+                        previousRates =
+                            history.filter(
+                                item =>
+                                    item?.date ===
+                                    previousDate
+                            );
+
+                    }
+
+                }
 
             }
 
         }
-
-    }
-
-}
 
 
         /* =====================================================
@@ -172,33 +223,40 @@ const previousFrom =
 
         return new Response(
 
-    JSON.stringify({
+            JSON.stringify({
 
-        base,
+                base,
 
-        currencies,
+                currencies,
 
-        rates,
+                rates,
 
-        previousRates,
+                previousRates,
 
-        date:
-            currentDate,
+                date:
+                    currentDate,
 
-        previousDate:
-            previousRates[0]?.date || null
+                previousDate:
+                    previousDate
 
-    }),
+            }),
 
-    {
-        headers: {
+            {
+                headers: {
+
                     "Content-Type":
                         "application/json",
 
+                    /*
+                     * Short cache so that a new daily rate
+                     * becomes visible reasonably quickly.
+                     */
+
                     "Cache-Control":
-                        "public, max-age=1800"
+                        "public, max-age=300"
 
                 }
+
             }
 
         );
