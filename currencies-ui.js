@@ -816,37 +816,7 @@ function getCrossRate(
 }
 
 
-    /* =====================================================
-       NORMAL CURRENCIES
-    ===================================================== */
-
-    const baseRate =
-        Number(
-            currencyRates[base]
-        );
-
-    const targetRate =
-        Number(
-            currencyRates[target]
-        );
-
-
-    if (
-        !Number.isFinite(baseRate) ||
-        !Number.isFinite(targetRate) ||
-        baseRate === 0
-    ) {
-
-        return null;
-
-    }
-
-
-    return targetRate / baseRate;
-
-}
-
-/* =========================================================
+    /* =========================================================
    GET CROSS RATE CHANGE
 ========================================================= */
 
@@ -869,69 +839,124 @@ function getCrossRateChange(
 
     /* =====================================================
        MAJOR CURRENCIES
+       EUR = 1 for both current and previous rates.
     ===================================================== */
 
+    const currentBase =
+        base === "EUR"
+            ? 1
+            : Number(
+                majorRates[base]?.rate
+            );
+
+
+    const currentTarget =
+        target === "EUR"
+            ? 1
+            : Number(
+                majorRates[target]?.rate
+            );
+
+
+    const previousBase =
+        base === "EUR"
+            ? 1
+            : Number(
+                majorPreviousRates[base]?.rate
+            );
+
+
+    const previousTarget =
+        target === "EUR"
+            ? 1
+            : Number(
+                majorPreviousRates[target]?.rate
+            );
+
+
     if (
-        majorRates[base] &&
-        majorRates[target] &&
-        majorPreviousRates[base] &&
-        majorPreviousRates[target]
+        Number.isFinite(currentBase) &&
+        Number.isFinite(currentTarget) &&
+        Number.isFinite(previousBase) &&
+        Number.isFinite(previousTarget) &&
+        currentBase !== 0 &&
+        previousBase !== 0
     ) {
 
-        const currentBase =
-            Number(
-                majorRates[base].rate
-            );
-
-        const currentTarget =
-            Number(
-                majorRates[target].rate
-            );
-
-        const previousBase =
-            Number(
-                majorPreviousRates[base].rate
-            );
-
-        const previousTarget =
-            Number(
-                majorPreviousRates[target].rate
-            );
+        const previousRate =
+            previousTarget /
+            previousBase;
 
 
         if (
-            Number.isFinite(currentBase) &&
-            Number.isFinite(currentTarget) &&
-            Number.isFinite(previousBase) &&
-            Number.isFinite(previousTarget) &&
-            currentBase !== 0 &&
-            previousBase !== 0
+            Number.isFinite(previousRate) &&
+            previousRate !== 0
         ) {
 
-            const previousRate =
-                previousTarget /
-                previousBase;
-
-
-            if (
-                Number.isFinite(previousRate) &&
-                previousRate !== 0
-            ) {
-
-                return (
-                    (
-                        currentRate -
-                        previousRate
-                    ) /
+            return (
+                (
+                    currentRate -
                     previousRate
-                ) * 100;
-
-            }
+                ) /
+                previousRate
+            ) * 100;
 
         }
 
     }
 
+
+    /* =====================================================
+       NORMAL CURRENCIES
+    ===================================================== */
+
+    const basePrevious =
+        Number(
+            previousCurrencyRates[base]
+        );
+
+
+    const targetPrevious =
+        Number(
+            previousCurrencyRates[target]
+        );
+
+
+    if (
+        !Number.isFinite(basePrevious) ||
+        !Number.isFinite(targetPrevious) ||
+        basePrevious === 0
+    ) {
+
+        return null;
+
+    }
+
+
+    const previousRate =
+        targetPrevious /
+        basePrevious;
+
+
+    if (
+        !Number.isFinite(previousRate) ||
+        previousRate === 0
+    ) {
+
+        return null;
+
+    }
+
+
+    return (
+        (
+            currentRate -
+            previousRate
+        ) /
+        previousRate
+    ) * 100;
+
+}
 
     /* =====================================================
        NORMAL CURRENCIES
