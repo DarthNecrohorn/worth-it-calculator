@@ -63,11 +63,11 @@ export async function onRequestGet(context) {
 
                     // Browser cache: 60 seconds
                     "Cache-Control":
-                       "public, max-age=18000, s-maxage=18000",
+                       "public, max-age=3600, s-maxage=3600",
 
                     // Cloudflare CDN cache: 5 minutes
                     "Cloudflare-CDN-Cache-Control":
-                        "public, max-age=18000"
+                       "public, max-age=3600"
                 }
             }
         );
