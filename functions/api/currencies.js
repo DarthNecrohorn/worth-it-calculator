@@ -960,12 +960,11 @@ export async function onRequest(
 
         let historicalRates =
             await fetchHistorical(
-                base,
-                fromDate,
-                today,
-                null
-            );
-
+            base,
+            fromDate,
+            today,
+            MAJOR_QUOTES
+       );
 
         /* =====================================================
            HISTORICAL QUOTE COVERAGE
