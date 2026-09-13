@@ -1421,46 +1421,6 @@ function renderMajorCurrencies() {
                 );
 
 
-            const displayChange =
-                Number.isFinite(change)
-                    ? Math.abs(change) < 0.005
-                        ? 0
-                        : change
-                    : null;
-
-
-            const changeIsUp =
-                Number.isFinite(displayChange) &&
-                displayChange > 0;
-
-
-            const changeIsDown =
-                Number.isFinite(displayChange) &&
-                displayChange < 0;
-
-
-            const movementClass =
-                changeIsUp
-                    ? "market-up"
-                    : changeIsDown
-                        ? "market-down"
-                        : "market-flat";
-
-
-            const arrow =
-                changeIsUp
-                    ? "▲"
-                    : changeIsDown
-                        ? "▼"
-                        : "—";
-
-
-            const width =
-                getCurrencyMovementWidth(
-                    displayChange
-                );
-
-
             card.innerHTML = `
 
                 <div class="money-card-main">
@@ -1510,77 +1470,7 @@ function renderMajorCurrencies() {
                 </div>
 
 
-                <div
-                    class="market-movement ${movementClass}"
-                    style="
-                        color:var(--market-movement-color);
-                        display:flex;
-                        flex-direction:column;
-                        align-items:center;
-                        justify-content:center;
-                        gap:8px;
-                        width:100%;
-                    "
-                >
-
-                    <div
-                        class="movement-scale"
-                        style="
-                            width:92%;
-                            position:relative;
-                            margin:0 auto;
-                        "
-                    >
-
-                        <span
-                            class="movement-bar"
-                            style="
-                                width:${width}%;
-
-                                ${
-                                    changeIsUp
-                                        ? "left:50%; right:auto;"
-                                        : ""
-                                }
-
-                                ${
-                                    changeIsDown
-                                        ? "right:50%; left:auto;"
-                                        : ""
-                                }
-
-                                ${
-                                    !changeIsUp &&
-                                    !changeIsDown
-                                        ? "left:50%; width:0;"
-                                        : ""
-                                }
-                            "
-                        ></span>
-
-                    </div>
-
-
-                    <strong>
-
-                        ${
-                            Number.isFinite(change)
-                                ? `${arrow} ${
-                                    Math.abs(change) < 0.005
-                                        ? "0.00"
-                                        : (
-                                            change > 0
-                                                ? "+"
-                                                : ""
-                                        ) +
-                                        change.toFixed(2)
-                                  }%`
-                                : "—"
-                        }
-
-                    </strong>
-
-                </div>
+                ${renderCurrencyMovement(change)}
 
             `;
 
@@ -1593,7 +1483,6 @@ function renderMajorCurrencies() {
     );
 
 }
-
 
 /* =========================================================
    RENDER ALL CURRENCIES
@@ -1668,46 +1557,6 @@ function renderAllCurrencies(
                 );
 
 
-            const displayChange =
-                Number.isFinite(change)
-                    ? Math.abs(change) < 0.005
-                        ? 0
-                        : change
-                    : null;
-
-
-            const changeIsUp =
-                Number.isFinite(displayChange) &&
-                displayChange > 0;
-
-
-            const changeIsDown =
-                Number.isFinite(displayChange) &&
-                displayChange < 0;
-
-
-            const movementClass =
-                changeIsUp
-                    ? "market-up"
-                    : changeIsDown
-                        ? "market-down"
-                        : "market-flat";
-
-
-            const arrow =
-                changeIsUp
-                    ? "▲"
-                    : changeIsDown
-                        ? "▼"
-                        : "—";
-
-
-            const width =
-                getCurrencyMovementWidth(
-                    displayChange
-                );
-
-
             card.innerHTML = `
 
                 <div class="money-card-main">
@@ -1761,77 +1610,7 @@ function renderAllCurrencies(
                 </div>
 
 
-                <div
-                    class="market-movement ${movementClass}"
-                    style="
-                        color:var(--market-movement-color);
-                        display:flex;
-                        flex-direction:column;
-                        align-items:center;
-                        justify-content:center;
-                        gap:8px;
-                        width:100%;
-                    "
-                >
-
-                    <div
-                        class="movement-scale"
-                        style="
-                            width:92%;
-                            position:relative;
-                            margin:0 auto;
-                        "
-                    >
-
-                        <span
-                            class="movement-bar"
-                            style="
-                                width:${width}%;
-
-                                ${
-                                    changeIsUp
-                                        ? "left:50%; right:auto;"
-                                        : ""
-                                }
-
-                                ${
-                                    changeIsDown
-                                        ? "right:50%; left:auto;"
-                                        : ""
-                                }
-
-                                ${
-                                    !changeIsUp &&
-                                    !changeIsDown
-                                        ? "left:50%; width:0;"
-                                        : ""
-                                }
-                            "
-                        ></span>
-
-                    </div>
-
-
-                    <strong>
-
-                        ${
-                            Number.isFinite(change)
-                                ? `${arrow} ${
-                                    Math.abs(change) < 0.005
-                                        ? "0.00"
-                                        : (
-                                            change > 0
-                                                ? "+"
-                                                : ""
-                                        ) +
-                                        change.toFixed(2)
-                                  }%`
-                                : "—"
-                        }
-
-                    </strong>
-
-                </div>
+                ${renderCurrencyMovement(change)}
 
             `;
 
