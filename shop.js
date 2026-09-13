@@ -800,11 +800,11 @@ if(moneySection){
                 <div>
 
                     <h2>
-                        🏷️ Today's Discounts
+                        🛒 Today's Shop
                     </h2>
 
                     <p>
-                        Smart deals selected by Worth It
+                        Smart deals selected by Worth It , (Note: Shop resets once a day)
                     </p>
 
                     <small>
