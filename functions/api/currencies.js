@@ -1313,28 +1313,64 @@ console.log(
         ===================================================== */
 
         for (
-            const quote of MAJOR_QUOTES
-        ) {
+    const quote of MAJOR_QUOTES
+) {
 
-            if (
-                quote === base
-            ) {
-                continue;
-            }
+    if (
+        quote === base
+    ) {
+        continue;
+    }
 
 
-            if (
-                previousMap[quote]
-            ) {
+    /*
+       First use historical map if available.
+    */
 
-                majorPreviousRates[quote] =
-                  Number(
-                    previousMap[quote].rate
-                );
+    if (
+        previousMap[quote]
+    ) {
 
-            }
+        majorPreviousRates[quote] =
+            Number(
+                previousMap[quote].rate
+            );
 
-        }
+        continue;
+
+    }
+
+
+    /*
+       Fallback:
+       Ask Frankfurter for previous available
+       observation by individual date.
+    */
+
+    const previous =
+        await fetchPreviousRateByDate(
+            base,
+            quote,
+            today,
+            14
+        );
+
+
+    if (
+        previous &&
+        Number.isFinite(
+            Number(previous.rate)
+        )
+    ) {
+
+        majorPreviousRates[quote] =
+            Number(
+                previous.rate
+            );
+
+    }
+
+}
 
 
         /* =====================================================
