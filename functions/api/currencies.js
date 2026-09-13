@@ -966,6 +966,23 @@ export async function onRequest(
             MAJOR_QUOTES
        );
 
+         console.log(
+    "HISTORICAL DEBUG:",
+    {
+        fromDate,
+        today,
+        count: historicalRates.length,
+        dates: [
+            ...new Set(
+                historicalRates.map(
+                    row => row?.date
+                )
+            )
+        ],
+        sample: historicalRates.slice(0, 10)
+    }
+);
+       
         /* =====================================================
            HISTORICAL QUOTE COVERAGE
            
