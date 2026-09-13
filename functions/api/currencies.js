@@ -184,6 +184,7 @@ function previousByQuote(
 
         const quote =
             String(item.quote)
+                .trim()
                 .toUpperCase();
 
 
@@ -215,14 +216,41 @@ function previousByQuote(
                 );
 
 
+        const uniqueDates = [
+            ...new Set(
+                rowsForQuote.map(
+                    row => row.date
+                )
+            )
+        ];
+
+
         if (
-            rowsForQuote.length >= 2
+            uniqueDates.length >= 2
         ) {
 
-            result[quote] =
-                rowsForQuote[
-                    rowsForQuote.length - 2
+            const previousDate =
+                uniqueDates[
+                    uniqueDates.length - 2
                 ];
+
+
+            const previousRow =
+                rowsForQuote
+                    .filter(
+                        row =>
+                            row.date ===
+                            previousDate
+                    )
+                    .at(-1);
+
+
+            if (previousRow) {
+
+                result[quote] =
+                    previousRow;
+
+            }
 
         }
 
