@@ -628,6 +628,13 @@ async function fetchHistorical(
         }
 
 
+        /*
+           IMPORTANT:
+
+           Instead of relying on a large time-series
+           response, request the historical range directly.
+        */
+
         if (from) {
 
             params.set(
@@ -650,7 +657,13 @@ async function fetchHistorical(
 
         const response =
             await fetch(
-                `${FRANKFURTER_API}/rates?${params.toString()}`
+                `${FRANKFURTER_API}/rates?${params.toString()}`,
+                {
+                    headers: {
+                        "Accept":
+                            "application/json"
+                    }
+                }
             );
 
 
@@ -673,6 +686,11 @@ async function fetchHistorical(
         if (
             !Array.isArray(data)
         ) {
+
+            console.warn(
+                "Historical rates returned non-array:",
+                data
+            );
 
             return [];
 
@@ -701,6 +719,136 @@ async function fetchHistorical(
 
 }
 
+/* =========================================================
+   FETCH PREVIOUS RATE BY DATE
+========================================================= */
+
+async function fetchPreviousRateByDate(
+    base,
+    quote,
+    today,
+    maxDaysBack = 14
+) {
+
+    const currentDate =
+        new Date(
+            `${today}T00:00:00Z`
+        );
+
+
+    for (
+        let daysBack = 1;
+        daysBack <= maxDaysBack;
+        daysBack++
+    ) {
+
+        const testDate =
+            new Date(
+                currentDate
+            );
+
+
+        testDate.setUTCDate(
+            testDate.getUTCDate() -
+            daysBack
+        );
+
+
+        const date =
+            getUTCDate(
+                testDate
+            );
+
+
+        try {
+
+            const params =
+                new URLSearchParams();
+
+
+            params.set(
+                "base",
+                base
+            );
+
+
+            params.set(
+                "quotes",
+                quote
+            );
+
+
+            params.set(
+                "date",
+                date
+            );
+
+
+            const response =
+                await fetch(
+                    `${FRANKFURTER_API}/rates?${params.toString()}`,
+                    {
+                        headers: {
+                            "Accept":
+                                "application/json"
+                        }
+                    }
+                );
+
+
+            if (!response.ok) {
+                continue;
+            }
+
+
+            const data =
+                await response.json();
+
+
+            if (
+                !Array.isArray(data)
+            ) {
+                continue;
+            }
+
+
+            const validRow =
+                data.find(
+                    row =>
+                        isValidRate(
+                            row,
+                            today
+                        ) &&
+                        String(
+                            row.quote
+                        ).toUpperCase() ===
+                        String(
+                            quote
+                        ).toUpperCase()
+                );
+
+
+            if (validRow) {
+
+                return validRow;
+
+            }
+
+        } catch (error) {
+
+            console.warn(
+                `Previous rate failed: ${base}/${quote} ${date}`,
+                error
+            );
+
+        }
+
+    }
+
+
+    return null;
+
+}
 
 /* =========================================================
    MAIN API
