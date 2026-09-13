@@ -1,5 +1,5 @@
 /* =========================================================
-   CURRENCIES API - Production Ready Version
+   CURRENCIES API - Full Compatibility Version
 ========================================================= */
 
 const FRANKFURTER_API = "https://api.frankfurter.dev/v2";
@@ -63,37 +63,44 @@ function normalizeRatesResponse(data, defaultBase = "EUR") {
 
     const base = data.base || defaultBase;
 
-    // Ako API direktno vrati niz objekata
     if (Array.isArray(data)) {
-        return data.map(item => ({
-            base: item.base || base,
-            quote: String(item.quote || item.symbol || "").toUpperCase(),
-            rate: Number(item.rate || item.value),
-            date: item.date
-        }));
+        return data.map(item => {
+            const q = String(item.quote || item.symbol || item.code || "").toUpperCase();
+            return {
+                base: item.base || base,
+                quote: q,
+                code: q,
+                symbol: q,
+                rate: Number(item.rate || item.value),
+                date: item.date
+            };
+        });
     }
 
-    // Ako API vrati standardni 'rates' objekat
     if (data.rates && typeof data.rates === "object") {
         const topDate = data.date || getUTCDate(new Date());
 
         for (const [key, value] of Object.entries(data.rates)) {
             if (value && typeof value === "object") {
-                // Vremenska serija (Range): key je DATUM, value je { "USD": 1.08, ... }
                 const rowDate = key;
                 for (const [quote, rate] of Object.entries(value)) {
+                    const q = quote.toUpperCase();
                     results.push({
                         base: base,
-                        quote: quote.toUpperCase(),
+                        quote: q,
+                        code: q,
+                        symbol: q,
                         rate: Number(rate),
                         date: rowDate
                     });
                 }
             } else {
-                // Pojedinačni odziv: key je VALUTA ("USD"), value je BROJ (1.08)
+                const q = key.toUpperCase();
                 results.push({
                     base: base,
-                    quote: key.toUpperCase(),
+                    quote: q,
+                    code: q,
+                    symbol: q,
                     rate: Number(value),
                     date: topDate
                 });
@@ -159,7 +166,7 @@ function previousByQuote(rows, currentMap, today) {
 }
 
 /* =========================================================
-   FETCH HELPER WITH ERROR HANDLING
+   FETCH HELPER
 ========================================================= */
 
 async function safeFetchJson(url) {
@@ -223,43 +230,61 @@ export async function onRequest(context) {
 
         /* 3. Obrada trenutnih kurseva */
         const currentMap = latestByQuote(currentNormalized, today);
-        const currentRates = Object.values(currentMap).filter(item => !EXCLUDED_CURRENCY_CODES.has(item.quote));
 
         /* 4. Obrada prethodnih kurseva */
         const previousMap = previousByQuote(historicalNormalized, currentMap, today);
-        const previousRates = Object.values(previousMap).filter(item => !EXCLUDED_CURRENCY_CODES.has(item.quote));
 
-        /* 5. Obrada Major kurseva */
+        /* 5. Generisanje i Object Map-a i Nizova za potpunu kompatibilnost */
+        const rates = {};
+        const previousRates = {};
+        const ratesList = [];
+        const previousRatesList = [];
+
+        for (const [quote, item] of Object.entries(currentMap)) {
+            if (EXCLUDED_CURRENCY_CODES.has(quote)) continue;
+            rates[quote] = Number(item.rate);
+            ratesList.push(item);
+        }
+
+        for (const [quote, item] of Object.entries(previousMap)) {
+            if (EXCLUDED_CURRENCY_CODES.has(quote)) continue;
+            previousRates[quote] = Number(item.rate);
+            previousRatesList.push(item);
+        }
+
+        /* 6. Obrada Major kurseva */
         const majorRates = {};
         const majorPreviousRates = {};
 
         for (const quote of MAJOR_QUOTES) {
             if (quote === base) continue;
 
-            if (currentMap[quote]) {
-                majorRates[quote] = Number(currentMap[quote].rate);
+            if (rates[quote] !== undefined) {
+                majorRates[quote] = rates[quote];
             }
 
-            if (previousMap[quote]) {
-                majorPreviousRates[quote] = Number(previousMap[quote].rate);
+            if (previousRates[quote] !== undefined) {
+                majorPreviousRates[quote] = previousRates[quote];
             }
         }
 
-        /* 6. Određivanje tačnih datuma za odgovor */
-        const currentDates = [...new Set(currentRates.map(r => r.date))].sort();
+        /* 7. Određivanje tačnih datuma za odgovor */
+        const currentDates = [...new Set(ratesList.map(r => r.date))].sort();
         const currentDate = currentDates.length ? currentDates[currentDates.length - 1] : today;
-        
+
         const historicalDates = [...new Set(historicalNormalized.map(item => item.date))].sort();
         const validPreviousDates = historicalDates.filter(d => d < currentDate);
         const previousDate = validPreviousDates.length ? validPreviousDates[validPreviousDates.length - 1] : null;
 
-        /* 7. Odgovor API-ja */
+        /* 8. Odgovor API-ja */
         return new Response(
             JSON.stringify({
                 base,
                 currencies,
-                rates: currentRates,
-                previousRates,
+                rates,               // Object Map: { "USD": 1.08, "GBP": 0.85, ... }
+                previousRates,       // Object Map: { "USD": 1.07, "GBP": 0.84, ... }
+                ratesList,           // Array: [{ quote: "USD", code: "USD", symbol: "USD", rate: 1.08 }, ...]
+                previousRatesList,   // Array
                 date: currentDate,
                 previousDate,
                 majorRates,
