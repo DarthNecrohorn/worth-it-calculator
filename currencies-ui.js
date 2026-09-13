@@ -1,5 +1,6 @@
 /* =========================================================
    CURRENCIES UI
+   Stable replacement
 ========================================================= */
 
 const CURRENCIES_API = "/api/currencies";
@@ -14,6 +15,17 @@ const EXCLUDED_CURRENCY_CODES = new Set([
 ]);
 
 
+/*
+   Major cards are displayed as:
+
+   USD / HKD
+   USD / SGD
+   USD / KRW
+   USD / ZAR
+   USD / NOK
+   USD / SEK
+   EUR / CZK
+*/
 const MAJOR_CURRENCY_PAIRS = [
     {
         base: "USD",
@@ -87,201 +99,204 @@ function getCurrencyFlag(code) {
 
     const countryMap = {
 
-        AED:"ae",
-        AFN:"af",
-        ALL:"al",
-        AMD:"am",
-        ANG:"cw",
-        AOA:"ao",
-        ARS:"ar",
-        AUD:"au",
-        AWG:"aw",
-        AZN:"az",
+        AED: "ae",
+        AFN: "af",
+        ALL: "al",
+        AMD: "am",
+        ANG: "cw",
+        AOA: "ao",
+        ARS: "ar",
+        AUD: "au",
+        AWG: "aw",
+        AZN: "az",
 
-        BAM:"ba",
-        BBD:"bb",
-        BDT:"bd",
-        BHD:"bh",
-        BIF:"bi",
-        BMD:"bm",
-        BND:"bn",
-        BOB:"bo",
-        BRL:"br",
-        BSD:"bs",
-        BTN:"bt",
-        BWP:"bw",
-        BYN:"by",
-        BZD:"bz",
+        BAM: "ba",
+        BBD: "bb",
+        BDT: "bd",
+        BHD: "bh",
+        BIF: "bi",
+        BMD: "bm",
+        BND: "bn",
+        BOB: "bo",
+        BRL: "br",
+        BSD: "bs",
+        BTN: "bt",
+        BWP: "bw",
+        BYN: "by",
+        BZD: "bz",
 
-        CAD:"ca",
-        CDF:"cd",
-        CHF:"ch",
-        CLP:"cl",
-        CNY:"cn",
-        CNH:"cn",
-        COP:"co",
-        CRC:"cr",
-        CUP:"cu",
-        CVE:"cv",
-        CZK:"cz",
+        CAD: "ca",
+        CDF: "cd",
+        CHF: "ch",
+        CLP: "cl",
+        CNY: "cn",
+        CNH: "cn",
+        COP: "co",
+        CRC: "cr",
+        CUP: "cu",
+        CVE: "cv",
+        CZK: "cz",
 
-        DJF:"dj",
-        DKK:"dk",
-        DOP:"do",
-        DZD:"dz",
+        DJF: "dj",
+        DKK: "dk",
+        DOP: "do",
+        DZD: "dz",
 
-        EGP:"eg",
-        ERN:"er",
-        ETB:"et",
-        EUR:"eu",
+        EGP: "eg",
+        ERN: "er",
+        ETB: "et",
+        EUR: "eu",
 
-        FJD:"fj",
-        FKP:"fk",
-        FOK:"fo",
+        FJD: "fj",
+        FKP: "fk",
+        FOK: "fo",
 
-        GBP:"gb",
-        GEL:"ge",
-        GGP:"gg",
-        GHS:"gh",
-        GIP:"gi",
-        GMD:"gm",
-        GNF:"gn",
-        GTQ:"gt",
-        GYD:"gy",
+        GBP: "gb",
+        GEL: "ge",
+        GGP: "gg",
+        GHS: "gh",
+        GIP: "gi",
+        GMD: "gm",
+        GNF: "gn",
+        GTQ: "gt",
+        GYD: "gy",
 
-        HKD:"hk",
-        HNL:"hn",
-        HTG:"ht",
-        HUF:"hu",
+        HKD: "hk",
+        HNL: "hn",
+        HTG: "ht",
+        HUF: "hu",
 
-        IDR:"id",
-        ILS:"il",
-        IMP:"im",
-        INR:"in",
-        IQD:"iq",
-        IRR:"ir",
-        ISK:"is",
+        IDR: "id",
+        ILS: "il",
+        IMP: "im",
+        INR: "in",
+        IQD: "iq",
+        IRR: "ir",
+        ISK: "is",
 
-        JEP:"je",
-        JMD:"jm",
-        JOD:"jo",
-        JPY:"jp",
+        JEP: "je",
+        JMD: "jm",
+        JOD: "jo",
+        JPY: "jp",
 
-        KES:"ke",
-        KGS:"kg",
-        KHR:"kh",
-        KMF:"km",
-        KPW:"kp",
-        KRW:"kr",
-        KWD:"kw",
-        KYD:"ky",
-        KZT:"kz",
+        KES: "ke",
+        KGS: "kg",
+        KHR: "kh",
+        KMF: "km",
+        KPW: "kp",
+        KRW: "kr",
+        KWD: "kw",
+        KYD: "ky",
+        KZT: "kz",
 
-        LAK:"la",
-        LBP:"lb",
-        LKR:"lk",
-        LRD:"lr",
-        LSL:"ls",
-        LYD:"ly",
+        LAK: "la",
+        LBP: "lb",
+        LKR: "lk",
+        LRD: "lr",
+        LSL: "ls",
+        LYD: "ly",
 
-        MAD:"ma",
-        MDL:"md",
-        MGA:"mg",
-        MKD:"mk",
-        MMK:"mm",
-        MNT:"mn",
-        MOP:"mo",
-        MRO:"mr",
-        MRU:"mr",
-        MUR:"mu",
-        MVR:"mv",
-        MWK:"mw",
-        MXN:"mx",
-        MYR:"my",
-        MZN:"mz",
+        MAD: "ma",
+        MDL: "md",
+        MGA: "mg",
+        MKD: "mk",
+        MMK: "mm",
+        MNT: "mn",
+        MOP: "mo",
+        MRO: "mr",
+        MRU: "mr",
+        MUR: "mu",
+        MVR: "mv",
+        MWK: "mw",
+        MXN: "mx",
+        MYR: "my",
+        MZN: "mz",
 
-        NAD:"na",
-        NGN:"ng",
-        NIO:"ni",
-        NOK:"no",
-        NPR:"np",
-        NZD:"nz",
+        NAD: "na",
+        NGN: "ng",
+        NIO: "ni",
+        NOK: "no",
+        NPR: "np",
+        NZD: "nz",
 
-        OMR:"om",
+        OMR: "om",
 
-        PAB:"pa",
-        PEN:"pe",
-        PGK:"pg",
-        PHP:"ph",
-        PKR:"pk",
-        PLN:"pl",
-        PYG:"py",
+        PAB: "pa",
+        PEN: "pe",
+        PGK: "pg",
+        PHP: "ph",
+        PKR: "pk",
+        PLN: "pl",
+        PYG: "py",
 
-        QAR:"qa",
+        QAR: "qa",
 
-        RON:"ro",
-        RSD:"rs",
-        RUB:"ru",
-        RWF:"rw",
+        RON: "ro",
+        RSD: "rs",
+        RUB: "ru",
+        RWF: "rw",
 
-        SAR:"sa",
-        SBD:"sb",
-        SCR:"sc",
-        SDG:"sd",
-        SEK:"se",
-        SGD:"sg",
-        SHP:"sh",
-        SLE:"sl",
-        SOS:"so",
-        SRD:"sr",
-        SSP:"ss",
-        STN:"st",
-        SVC:"sv",
-        SYP:"sy",
-        SZL:"sz",
+        SAR: "sa",
+        SBD: "sb",
+        SCR: "sc",
+        SDG: "sd",
+        SEK: "se",
+        SGD: "sg",
+        SHP: "sh",
+        SLE: "sl",
+        SOS: "so",
+        SRD: "sr",
+        SSP: "ss",
+        STN: "st",
+        SVC: "sv",
+        SYP: "sy",
+        SZL: "sz",
 
-        THB:"th",
-        TJS:"tj",
-        TMT:"tm",
-        TND:"tn",
-        TOP:"to",
-        TRY:"tr",
-        TTD:"tt",
-        TWD:"tw",
-        TZS:"tz",
+        THB: "th",
+        TJS: "tj",
+        TMT: "tm",
+        TND: "tn",
+        TOP: "to",
+        TRY: "tr",
+        TTD: "tt",
+        TWD: "tw",
+        TZS: "tz",
 
-        UAH:"ua",
-        UGX:"ug",
-        USD:"us",
-        UYU:"uy",
-        UZS:"uz",
+        UAH: "ua",
+        UGX: "ug",
+        USD: "us",
+        UYU: "uy",
+        UZS: "uz",
 
-        VES:"ve",
-        VND:"vn",
-        VUV:"vu",
+        VES: "ve",
+        VND: "vn",
+        VUV: "vu",
 
-        WST:"ws",
+        WST: "ws",
 
-        XCD:"ag",
-        XCG:"cw",
-        XAF:"cm",
-        XOF:"sn",
-        XPF:"pf",
+        XCD: "ag",
+        XCG: "cw",
+        XAF: "cm",
+        XOF: "sn",
+        XPF: "pf",
 
-        YER:"ye",
+        YER: "ye",
 
-        ZAR:"za",
-        ZMW:"zm",
-        ZWG:"zw"
+        ZAR: "za",
+        ZMW: "zm",
+        ZWG: "zw"
 
     };
 
 
+    const normalizedCode =
+        String(code || "")
+            .trim()
+            .toUpperCase();
+
+
     const country =
-        countryMap[
-            String(code || "")
-                .toUpperCase()
-        ];
+        countryMap[normalizedCode];
 
 
     if (!country) {
@@ -337,11 +352,7 @@ function formatRate(rate) {
 
 
 /* =========================================================
-   GET RATE NUMBER
-   Accepts:
-   - 1.17
-   - "1.17"
-   - { rate: 1.17 }
+   NORMALIZE RATE
 ========================================================= */
 
 function normalizeRateValue(value) {
@@ -377,6 +388,60 @@ function normalizeRateValue(value) {
 
 
 /* =========================================================
+   NORMALIZE RATE MAP
+========================================================= */
+
+function normalizeRateMap(data) {
+
+    const result = {};
+
+
+    if (
+        !data ||
+        typeof data !== "object" ||
+        Array.isArray(data)
+    ) {
+
+        return result;
+
+    }
+
+
+    Object.keys(data).forEach(
+        code => {
+
+            const normalizedCode =
+                String(code)
+                    .trim()
+                    .toUpperCase();
+
+
+            const rate =
+                normalizeRateValue(
+                    data[code]
+                );
+
+
+            if (
+                normalizedCode &&
+                Number.isFinite(rate)
+            ) {
+
+                result[normalizedCode] =
+                    rate;
+
+            }
+
+        }
+    );
+
+
+    return result;
+
+}
+
+
+/* =========================================================
    FILTER FIAT CURRENCIES
 ========================================================= */
 
@@ -388,25 +453,35 @@ function getFiatCurrencies(data) {
 
 
     return data
-        .filter(currency => {
+        .filter(
+            currency => {
 
-            if (
-                !currency ||
-                !currency.iso_code
-            ) {
+                if (
+                    !currency ||
+                    !currency.iso_code
+                ) {
 
-                return false;
+                    return false;
+
+                }
+
+
+                const code =
+                    String(
+                        currency.iso_code
+                    )
+                        .trim()
+                        .toUpperCase();
+
+
+                return (
+                    !EXCLUDED_CURRENCY_CODES.has(
+                        code
+                    )
+                );
 
             }
-
-
-            return !EXCLUDED_CURRENCY_CODES.has(
-                String(
-                    currency.iso_code
-                ).toUpperCase()
-            );
-
-        })
+        )
         .sort(
             (a, b) =>
                 String(a.name || "")
@@ -622,7 +697,11 @@ async function loadCurrencies() {
                 `${CURRENCIES_API}?base=EUR`,
                 {
                     method: "GET",
-                    cache: "no-store"
+                    cache: "no-store",
+                    headers: {
+                        "Accept":
+                            "application/json"
+                    }
                 }
             );
 
@@ -638,6 +717,18 @@ async function loadCurrencies() {
 
         const data =
             await response.json();
+
+
+        if (
+            !data ||
+            typeof data !== "object"
+        ) {
+
+            throw new Error(
+                "Currencies API returned invalid data."
+            );
+
+        }
 
 
         /* =====================================================
@@ -741,110 +832,39 @@ async function loadCurrencies() {
 
 
         /* =====================================================
-           MAJOR RATES
-           
-           Normalize BOTH:
-           majorRates.USD = 1.17
-           or
-           majorRates.USD = { rate: 1.17 }
+           MAJOR CURRENT RATES
         ===================================================== */
 
-        majorRates = {};
-
-
-        if (
-            data.majorRates &&
-            typeof data.majorRates === "object"
-        ) {
-
-            Object.keys(
+        majorRates =
+            normalizeRateMap(
                 data.majorRates
-            ).forEach(
-                code => {
-
-                    const normalizedCode =
-                        String(code)
-                            .trim()
-                            .toUpperCase();
-
-
-                    const rate =
-                        normalizeRateValue(
-                            data.majorRates[code]
-                        );
-
-
-                    if (
-                        normalizedCode &&
-                        Number.isFinite(rate)
-                    ) {
-
-                        majorRates[
-                            normalizedCode
-                        ] = rate;
-
-                    }
-
-                }
             );
-
-        }
-
-
-        majorPreviousRates = {};
-
-
-        if (
-            data.majorPreviousRates &&
-            typeof data.majorPreviousRates === "object"
-        ) {
-
-            Object.keys(
-                data.majorPreviousRates
-            ).forEach(
-                code => {
-
-                    const normalizedCode =
-                        String(code)
-                            .trim()
-                            .toUpperCase();
-
-
-                    const rate =
-                        normalizeRateValue(
-                            data.majorPreviousRates[code]
-                        );
-
-
-                    if (
-                        normalizedCode &&
-                        Number.isFinite(rate)
-                    ) {
-
-                        majorPreviousRates[
-                            normalizedCode
-                        ] = rate;
-
-                    }
-
-                }
-            );
-
-        }
 
 
         /* =====================================================
-           IMPORTANT FALLBACK
-           
-           Major currencies can also use normal EUR rates.
-           This protects the UI even if majorRates is incomplete.
+           MAJOR PREVIOUS RATES
         ===================================================== */
+
+        majorPreviousRates =
+            normalizeRateMap(
+                data.majorPreviousRates
+            );
+
+
+        /*
+           API already provides major rates.
+           Normal EUR rates are only used as a fallback.
+        */
 
         MAJOR_CURRENCY_PAIRS.forEach(
             pair => {
 
                 const target =
-                    pair.target;
+                    String(
+                        pair.target
+                    )
+                        .trim()
+                        .toUpperCase();
 
 
                 if (
@@ -912,7 +932,12 @@ async function loadCurrencies() {
         );
 
 
+        /* =====================================================
+           RENDER
+        ===================================================== */
+
         renderMajorCurrencies();
+
 
         renderAllCurrencies(
             currenciesData
@@ -968,6 +993,206 @@ async function loadCurrencies() {
 
 
 /* =========================================================
+   GET EUR RATE
+========================================================= */
+
+function getEURRate(code) {
+
+    const normalizedCode =
+        String(code || "")
+            .trim()
+            .toUpperCase();
+
+
+    if (!normalizedCode) {
+        return NaN;
+    }
+
+
+    if (
+        normalizedCode === "EUR"
+    ) {
+
+        return 1;
+
+    }
+
+
+    return normalizeRateValue(
+        currencyRates[normalizedCode]
+    );
+
+}
+
+
+/* =========================================================
+   GET PREVIOUS EUR RATE
+========================================================= */
+
+function getPreviousEURRate(code) {
+
+    const normalizedCode =
+        String(code || "")
+            .trim()
+            .toUpperCase();
+
+
+    if (!normalizedCode) {
+        return NaN;
+    }
+
+
+    if (
+        normalizedCode === "EUR"
+    ) {
+
+        return 1;
+
+    }
+
+
+    return normalizeRateValue(
+        previousCurrencyRates[
+            normalizedCode
+        ]
+    );
+
+}
+
+
+/* =========================================================
+   GET RATE NUMBER
+   Current EUR-based rate first.
+   Major rate is fallback only.
+========================================================= */
+
+function getRateNumber(code) {
+
+    const normalizedCode =
+        String(code || "")
+            .trim()
+            .toUpperCase();
+
+
+    if (!normalizedCode) {
+        return NaN;
+    }
+
+
+    if (
+        normalizedCode === "EUR"
+    ) {
+
+        return 1;
+
+    }
+
+
+    const normalRate =
+        normalizeRateValue(
+            currencyRates[
+                normalizedCode
+            ]
+        );
+
+
+    if (
+        Number.isFinite(normalRate)
+    ) {
+
+        return normalRate;
+
+    }
+
+
+    const majorRate =
+        normalizeRateValue(
+            majorRates[
+                normalizedCode
+            ]
+        );
+
+
+    if (
+        Number.isFinite(majorRate)
+    ) {
+
+        return majorRate;
+
+    }
+
+
+    return NaN;
+
+}
+
+
+/* =========================================================
+   GET PREVIOUS RATE NUMBER
+========================================================= */
+
+function getPreviousRateNumber(code) {
+
+    const normalizedCode =
+        String(code || "")
+            .trim()
+            .toUpperCase();
+
+
+    if (!normalizedCode) {
+        return NaN;
+    }
+
+
+    if (
+        normalizedCode === "EUR"
+    ) {
+
+        return 1;
+
+    }
+
+
+    const normalRate =
+        normalizeRateValue(
+            previousCurrencyRates[
+                normalizedCode
+            ]
+        );
+
+
+    if (
+        Number.isFinite(normalRate)
+    ) {
+
+        return normalRate;
+
+    }
+
+
+    const majorRate =
+        normalizeRateValue(
+            majorPreviousRates[
+                normalizedCode
+            ]
+        );
+
+
+    if (
+        Number.isFinite(majorRate)
+    ) {
+
+        return majorRate;
+
+    }
+
+
+    return NaN;
+
+}
+
+
+/* =========================================================
    GET CROSS RATE
 ========================================================= */
 
@@ -980,6 +1205,7 @@ function getCrossRate(
         String(base || "")
             .trim()
             .toUpperCase();
+
 
     target =
         String(target || "")
@@ -1007,42 +1233,40 @@ function getCrossRate(
 
 
     /*
-       All rates are stored against EUR.
+       All API rates are EUR-based.
 
        Example:
+
        EUR/USD = 1.17
        EUR/HKD = 9.12
 
+       Therefore:
+
        USD/HKD =
-       9.12 / 1.17
+       EUR/HKD / EUR/USD
+
+       = 9.12 / 1.17
     */
 
-
     const baseRate =
-        base === "EUR"
-            ? 1
-            : normalizeRateValue(
-                currencyRates[base]
-            ) ||
-              normalizeRateValue(
-                majorRates[base]
-            );
+        getRateNumber(base);
 
 
     const targetRate =
-        target === "EUR"
-            ? 1
-            : normalizeRateValue(
-                currencyRates[target]
-            ) ||
-              normalizeRateValue(
-                majorRates[target]
-            );
+        getRateNumber(target);
 
 
     if (
         !Number.isFinite(baseRate) ||
-        !Number.isFinite(targetRate) ||
+        !Number.isFinite(targetRate)
+    ) {
+
+        return NaN;
+
+    }
+
+
+    if (
         baseRate <= 0 ||
         targetRate <= 0
     ) {
@@ -1052,10 +1276,16 @@ function getCrossRate(
     }
 
 
-    return (
+    const crossRate =
         targetRate /
-        baseRate
-    );
+        baseRate;
+
+
+    return Number.isFinite(
+        crossRate
+    )
+        ? crossRate
+        : NaN;
 
 }
 
@@ -1073,6 +1303,7 @@ function getCrossRateChange(
         String(base || "")
             .trim()
             .toUpperCase();
+
 
     target =
         String(target || "")
@@ -1100,47 +1331,19 @@ function getCrossRateChange(
 
 
     const currentBase =
-        base === "EUR"
-            ? 1
-            : normalizeRateValue(
-                currencyRates[base]
-            ) ||
-              normalizeRateValue(
-                majorRates[base]
-            );
+        getRateNumber(base);
 
 
     const currentTarget =
-        target === "EUR"
-            ? 1
-            : normalizeRateValue(
-                currencyRates[target]
-            ) ||
-              normalizeRateValue(
-                majorRates[target]
-            );
+        getRateNumber(target);
 
 
     const previousBase =
-        base === "EUR"
-            ? 1
-            : normalizeRateValue(
-                previousCurrencyRates[base]
-            ) ||
-              normalizeRateValue(
-                majorPreviousRates[base]
-            );
+        getPreviousRateNumber(base);
 
 
     const previousTarget =
-        target === "EUR"
-            ? 1
-            : normalizeRateValue(
-                previousCurrencyRates[target]
-            ) ||
-              normalizeRateValue(
-                majorPreviousRates[target]
-            );
+        getPreviousRateNumber(target);
 
 
     if (
@@ -1203,16 +1406,23 @@ function getCrossRateChange(
    CURRENCY MOVEMENT SCALE
 ========================================================= */
 
-function getCurrencyMovementWidth(value) {
+function getCurrencyMovementWidth(
+    value
+) {
 
-    const number = Number(value);
+    const number =
+        Number(value);
+
 
     if (
         !Number.isFinite(number) ||
         number === 0
     ) {
+
         return 0;
+
     }
+
 
     return Math.min(
         50,
@@ -1221,10 +1431,17 @@ function getCurrencyMovementWidth(value) {
             Math.abs(number) * 10
         )
     );
+
 }
 
 
-function renderCurrencyMovement(change) {
+/* =========================================================
+   RENDER CURRENCY MOVEMENT
+========================================================= */
+
+function renderCurrencyMovement(
+    change
+) {
 
     const validChange =
         Number.isFinite(change)
@@ -1235,16 +1452,20 @@ function renderCurrencyMovement(change) {
             )
             : 0;
 
+
     const isUp =
         validChange > 0;
 
+
     const isDown =
         validChange < 0;
+
 
     const width =
         getCurrencyMovementWidth(
             validChange
         );
+
 
     const movementClass =
         isUp
@@ -1253,12 +1474,14 @@ function renderCurrencyMovement(change) {
                 ? "market-down"
                 : "market-flat";
 
+
     const arrow =
         isUp
             ? "▲"
             : isDown
                 ? "▼"
                 : "—";
+
 
     const percentage =
         Number.isFinite(change)
@@ -1271,8 +1494,9 @@ function renderCurrencyMovement(change) {
                             : ""
                     ) +
                     change.toFixed(2)
-              )
+            )
             : "—";
+
 
     return `
         <div
@@ -1317,6 +1541,7 @@ function renderCurrencyMovement(change) {
                         : ""
                 }
 
+
                 ${
                     isUp
                         ? `
@@ -1335,6 +1560,7 @@ function renderCurrencyMovement(change) {
                         : ""
                 }
 
+
                 <span
                     style="
                         position:absolute;
@@ -1351,13 +1577,16 @@ function renderCurrencyMovement(change) {
 
             </div>
 
+
             <strong>
                 ${arrow} ${percentage}%
             </strong>
 
         </div>
     `;
+
 }
+
 
 /* =========================================================
    RENDER MAJOR CURRENCIES
@@ -1403,8 +1632,10 @@ function renderMajorCurrencies() {
                 currenciesData.find(
                     currency =>
                         String(
-                            currency.iso_code
-                        ).toUpperCase() ===
+                            currency?.iso_code || ""
+                        )
+                            .trim()
+                            .toUpperCase() ===
                         pair.target
                 );
 
@@ -1437,12 +1668,16 @@ function renderMajorCurrencies() {
                     <div>
 
                         <strong>
-                            ${pair.base} / ${pair.target}
+                            ${currencyEscapeHtml(pair.base)}
+                            /
+                            ${currencyEscapeHtml(pair.target)}
                         </strong>
 
 
                         <small>
-                            ${pair.base} / ${currencyEscapeHtml(targetName)}
+                            ${currencyEscapeHtml(pair.base)}
+                            /
+                            ${currencyEscapeHtml(targetName)}
                         </small>
 
                     </div>
@@ -1461,7 +1696,7 @@ function renderMajorCurrencies() {
 
                         ${
                             Number.isFinite(rate)
-                                ? `1 ${pair.base} = ${formatRate(rate)} ${pair.target}`
+                                ? `1 ${currencyEscapeHtml(pair.base)} = ${formatRate(rate)} ${currencyEscapeHtml(pair.target)}`
                                 : "Exchange rate unavailable"
                         }
 
@@ -1484,6 +1719,7 @@ function renderMajorCurrencies() {
 
 }
 
+
 /* =========================================================
    RENDER ALL CURRENCIES
 ========================================================= */
@@ -1504,6 +1740,7 @@ function renderAllCurrencies(
 
 
     if (
+        !Array.isArray(currencies) ||
         !currencies.length
     ) {
 
@@ -1526,18 +1763,19 @@ function renderAllCurrencies(
 
             const code =
                 String(
-                    currency.iso_code
+                    currency?.iso_code || ""
                 )
                     .trim()
                     .toUpperCase();
 
 
+            if (!code) {
+                return;
+            }
+
+
             const rate =
-                code === "EUR"
-                    ? 1
-                    : normalizeRateValue(
-                        currencyRates[code]
-                    );
+                getEURRate(code);
 
 
             const card =
@@ -1555,6 +1793,11 @@ function renderAllCurrencies(
                     "EUR",
                     code
                 );
+
+
+            const currencyName =
+                currency?.name ||
+                code;
 
 
             card.innerHTML = `
@@ -1576,11 +1819,10 @@ function renderAllCurrencies(
 
 
                         <small>
-                            EUR / ${
-                                currencyEscapeHtml(
-                                    currency.name || code
-                                )
-                            }
+                            EUR /
+                            ${currencyEscapeHtml(
+                                currencyName
+                            )}
                         </small>
 
                     </div>
@@ -1635,7 +1877,7 @@ function handleCurrencySearch(
 
     const query =
         String(
-            event.target.value || ""
+            event?.target?.value || ""
         )
             .trim()
             .toLowerCase();
@@ -1658,21 +1900,21 @@ function handleCurrencySearch(
 
                 const code =
                     String(
-                        currency.iso_code || ""
+                        currency?.iso_code || ""
                     )
                         .toLowerCase();
 
 
                 const name =
                     String(
-                        currency.name || ""
+                        currency?.name || ""
                     )
                         .toLowerCase();
 
 
                 const symbol =
                     String(
-                        currency.symbol || ""
+                        currency?.symbol || ""
                     )
                         .toLowerCase();
 
@@ -1702,7 +1944,9 @@ async function initCurrenciesUI() {
 
     renderCurrenciesUI();
 
+
     await loadCurrencies();
+
 
     currenciesInitialized =
         true;
