@@ -954,32 +954,146 @@ export async function onRequest(
           }
 
 
-        /* =====================================================
-           HISTORICAL DATA
-        ===================================================== */
+        /* =========================================================
+   HISTORICAL DATA
+========================================================= */
 
-        let historicalRates =
-            await fetchHistorical(
+let historicalRates = [];
+
+
+/*
+   First try the full historical range for the Major
+   currencies.
+*/
+
+historicalRates =
+    await fetchHistorical(
+        base,
+        fromDate,
+        today,
+        MAJOR_QUOTES
+    );
+
+
+/*
+   If the historical request did not return at least
+   two different dates, explicitly request the Major
+   currencies again through the batch endpoint.
+*/
+
+const historicalDatesInitial = [
+    ...new Set(
+        historicalRates
+            .map(
+                row =>
+                    row?.date
+            )
+            .filter(Boolean)
+            .filter(
+                date =>
+                    date <= today
+            )
+    )
+].sort();
+
+
+if (
+    historicalDatesInitial.length < 2
+) {
+
+    const majorHistoricalFallback =
+        await fetchQuoteBatches(
             base,
-            fromDate,
-            today,
-            MAJOR_QUOTES
-       );
+            MAJOR_QUOTES,
+            {
+                from:
+                    fromDate,
 
-         console.log(
+                to:
+                    today
+            }
+        );
+
+
+    historicalRates = [
+        ...historicalRates,
+        ...majorHistoricalFallback
+    ];
+
+}
+
+
+/*
+   Remove invalid / future rows and duplicate
+   date + quote combinations.
+*/
+
+const historicalUniqueMap =
+    new Map();
+
+
+for (
+    const row of historicalRates
+) {
+
+    if (
+        !isValidRate(
+            row,
+            today
+        )
+    ) {
+        continue;
+    }
+
+
+    const key =
+        `${row.quote}|${row.date}`;
+
+
+    historicalUniqueMap.set(
+        key,
+        row
+    );
+
+}
+
+
+historicalRates =
+    Array.from(
+        historicalUniqueMap.values()
+    );
+
+
+/*
+   Temporary diagnostic.
+*/
+
+console.log(
     "HISTORICAL DEBUG:",
     {
         fromDate,
         today,
-        count: historicalRates.length,
+
+        count:
+            historicalRates.length,
+
         dates: [
             ...new Set(
                 historicalRates.map(
-                    row => row?.date
+                    row =>
+                        row?.date
                 )
             )
-        ],
-        sample: historicalRates.slice(0, 10)
+        ].sort(),
+
+        majorQuotes:
+            MAJOR_QUOTES,
+
+        sample:
+            historicalRates.slice(
+                0,
+                20
+            )
     }
 );
        
