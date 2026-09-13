@@ -382,7 +382,7 @@
             <div class="discounts-header">
                 <div>
                     <h2>🛒 Today's Shop</h2>
-                    <p>Smart deals selected by Worth It , (Note: Shop resets once a day)</p>
+                    <p>Smart deals selected by Worth It
                     <small>Updated ${escapeHTML(dateText)}</small>
                 </div>
             </div>
