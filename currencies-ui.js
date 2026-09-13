@@ -1200,26 +1200,19 @@ function getCrossRateChange(
 
 
 /* =========================================================
-   MOVEMENT WIDTH
+   CURRENCY MOVEMENT SCALE
 ========================================================= */
 
-function getCurrencyMovementWidth(
-    value
-) {
+function getCurrencyMovementWidth(value) {
 
-    const number =
-        Number(value);
-
+    const number = Number(value);
 
     if (
         !Number.isFinite(number) ||
         number === 0
     ) {
-
         return 0;
-
     }
-
 
     return Math.min(
         50,
@@ -1228,7 +1221,94 @@ function getCurrencyMovementWidth(
             Math.abs(number) * 10
         )
     );
+}
 
+
+function renderCurrencyMovement(change) {
+
+    const validChange =
+        Number.isFinite(change)
+            ? (
+                Math.abs(change) < 0.005
+                    ? 0
+                    : change
+            )
+            : 0;
+
+    const isUp =
+        validChange > 0;
+
+    const isDown =
+        validChange < 0;
+
+    const width =
+        getCurrencyMovementWidth(
+            validChange
+        );
+
+    const movementClass =
+        isUp
+            ? "market-up"
+            : isDown
+                ? "market-down"
+                : "market-flat";
+
+    let movementStyle = `
+        width:${width}%;
+    `;
+
+    if (isUp) {
+
+        movementStyle += `
+            left:50%;
+            right:auto;
+        `;
+
+    } else if (isDown) {
+
+        movementStyle += `
+            right:50%;
+            left:auto;
+        `;
+
+    } else {
+
+        movementStyle += `
+            left:50%;
+            width:0;
+        `;
+
+    }
+
+    return `
+        <div
+            class="market-movement ${movementClass}"
+            style="
+                width:100%;
+                display:flex;
+                justify-content:center;
+                align-items:center;
+            "
+        >
+
+            <div
+                class="movement-scale"
+                style="
+                    width:92%;
+                    position:relative;
+                    margin:0 auto;
+                "
+            >
+
+                <span
+                    class="movement-bar"
+                    style="${movementStyle}"
+                ></span>
+
+            </div>
+
+        </div>
+    `;
 }
 
 
