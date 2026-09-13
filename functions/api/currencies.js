@@ -615,7 +615,10 @@ async function fetchHistorical(
         );
 
 
-        if (quotes && quotes.length) {
+        if (
+            Array.isArray(quotes) &&
+            quotes.length
+        ) {
 
             params.set(
                 "quotes",
@@ -653,6 +656,11 @@ async function fetchHistorical(
 
         if (!response.ok) {
 
+            console.warn(
+                "Historical rates HTTP error:",
+                response.status
+            );
+
             return [];
 
         }
@@ -662,9 +670,23 @@ async function fetchHistorical(
             await response.json();
 
 
-        return Array.isArray(data)
-            ? data
-            : [];
+        if (
+            !Array.isArray(data)
+        ) {
+
+            return [];
+
+        }
+
+
+        return data.filter(
+            item =>
+                isValidRate(
+                    item,
+                    to
+                )
+        );
+
 
     } catch (error) {
 
