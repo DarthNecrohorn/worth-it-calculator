@@ -1235,19 +1235,16 @@ function renderCurrencyMovement(change) {
             )
             : 0;
 
-
     const isUp =
         validChange > 0;
 
     const isDown =
         validChange < 0;
 
-
     const width =
         getCurrencyMovementWidth(
             validChange
         );
-
 
     const movementClass =
         isUp
@@ -1256,14 +1253,12 @@ function renderCurrencyMovement(change) {
                 ? "market-down"
                 : "market-flat";
 
-
     const arrow =
         isUp
             ? "▲"
             : isDown
                 ? "▼"
                 : "—";
-
 
     const percentage =
         Number.isFinite(change)
@@ -1278,7 +1273,6 @@ function renderCurrencyMovement(change) {
                     change.toFixed(2)
               )
             : "—";
-
 
     return `
         <div
@@ -1305,8 +1299,6 @@ function renderCurrencyMovement(change) {
                 "
             >
 
-                <!-- LEFT movement -->
-
                 ${
                     isDown
                         ? `
@@ -1324,9 +1316,6 @@ function renderCurrencyMovement(change) {
                         `
                         : ""
                 }
-
-
-                <!-- RIGHT movement -->
 
                 ${
                     isUp
@@ -1346,9 +1335,6 @@ function renderCurrencyMovement(change) {
                         : ""
                 }
 
-
-                <!-- CENTER DOT -->
-
                 <span
                     style="
                         position:absolute;
@@ -1359,18 +1345,14 @@ function renderCurrencyMovement(change) {
                         transform:translate(-50%,-50%);
                         border-radius:50%;
                         background:currentColor;
-                        box-shadow:0 0 0 2px var(--card-bg, #fff);
                         z-index:2;
                     "
                 ></span>
 
             </div>
 
-
             <strong>
-
                 ${arrow} ${percentage}%
-
             </strong>
 
         </div>
