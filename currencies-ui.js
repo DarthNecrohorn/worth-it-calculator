@@ -1235,16 +1235,19 @@ function renderCurrencyMovement(change) {
             )
             : 0;
 
+
     const isUp =
         validChange > 0;
 
     const isDown =
         validChange < 0;
 
+
     const width =
         getCurrencyMovementWidth(
             validChange
         );
+
 
     const movementClass =
         isUp
@@ -1253,64 +1256,126 @@ function renderCurrencyMovement(change) {
                 ? "market-down"
                 : "market-flat";
 
-    let movementStyle = `
-        width:${width}%;
-    `;
 
-    if (isUp) {
+    const arrow =
+        isUp
+            ? "▲"
+            : isDown
+                ? "▼"
+                : "—";
 
-        movementStyle += `
-            left:50%;
-            right:auto;
-        `;
 
-    } else if (isDown) {
+    const percentage =
+        Number.isFinite(change)
+            ? (
+                Math.abs(change) < 0.005
+                    ? "0.00"
+                    : (
+                        change > 0
+                            ? "+"
+                            : ""
+                    ) +
+                    change.toFixed(2)
+              )
+            : "—";
 
-        movementStyle += `
-            right:50%;
-            left:auto;
-        `;
-
-    } else {
-
-        movementStyle += `
-            left:50%;
-            width:0;
-        `;
-
-    }
 
     return `
         <div
-            class="market-movement ${movementClass}"
+            class="currency-movement ${movementClass}"
             style="
                 width:100%;
                 display:flex;
-                justify-content:center;
+                flex-direction:column;
                 align-items:center;
+                justify-content:center;
+                gap:8px;
+                color:var(--market-movement-color);
             "
         >
 
             <div
-                class="movement-scale"
+                class="currency-movement-line"
                 style="
-                    width:92%;
                     position:relative;
-                    margin:0 auto;
+                    width:92%;
+                    height:3px;
+                    background:rgba(128,128,128,.30);
+                    border-radius:999px;
                 "
             >
 
+                <!-- LEFT movement -->
+
+                ${
+                    isDown
+                        ? `
+                            <span
+                                style="
+                                    position:absolute;
+                                    height:3px;
+                                    width:${width}%;
+                                    right:50%;
+                                    top:0;
+                                    background:currentColor;
+                                    border-radius:999px 0 0 999px;
+                                "
+                            ></span>
+                        `
+                        : ""
+                }
+
+
+                <!-- RIGHT movement -->
+
+                ${
+                    isUp
+                        ? `
+                            <span
+                                style="
+                                    position:absolute;
+                                    height:3px;
+                                    width:${width}%;
+                                    left:50%;
+                                    top:0;
+                                    background:currentColor;
+                                    border-radius:0 999px 999px 0;
+                                "
+                            ></span>
+                        `
+                        : ""
+                }
+
+
+                <!-- CENTER DOT -->
+
                 <span
-                    class="movement-bar"
-                    style="${movementStyle}"
+                    style="
+                        position:absolute;
+                        width:9px;
+                        height:9px;
+                        left:50%;
+                        top:50%;
+                        transform:translate(-50%,-50%);
+                        border-radius:50%;
+                        background:currentColor;
+                        box-shadow:0 0 0 2px var(--card-bg, #fff);
+                        z-index:2;
+                    "
                 ></span>
 
             </div>
 
+
+            <strong>
+
+                ${arrow} ${percentage}%
+
+            </strong>
+
         </div>
     `;
 }
-
 
 /* =========================================================
    RENDER MAJOR CURRENCIES
