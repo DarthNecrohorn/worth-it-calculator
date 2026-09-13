@@ -1,5 +1,5 @@
 /* =========================================================
-   CURRENCIES API - Full Compatibility Version
+   CURRENCIES API - Clean Production Version (1-Hour Cache)
 ========================================================= */
 
 const FRANKFURTER_API = "https://api.frankfurter.dev/v2";
@@ -187,6 +187,19 @@ async function safeFetchJson(url) {
 ========================================================= */
 
 export async function onRequest(context) {
+    const corsHeaders = {
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods": "GET, OPTIONS",
+        "Access-Control-Allow-Headers": "Content-Type, Accept"
+    };
+
+    if (context.request.method === "OPTIONS") {
+        return new Response(null, {
+            status: 204,
+            headers: corsHeaders
+        });
+    }
+
     try {
         const url = new URL(context.request.url);
         const base = (url.searchParams.get("base") || "EUR").trim().toUpperCase();
@@ -194,33 +207,24 @@ export async function onRequest(context) {
         if (EXCLUDED_CURRENCY_CODES.has(base)) {
             return new Response(
                 JSON.stringify({ error: "Unsupported base currency" }),
-                { status: 400, headers: { "Content-Type": "application/json" } }
+                { 
+                    status: 400, 
+                    headers: { 
+                        "Content-Type": "application/json",
+                        ...corsHeaders
+                    } 
+                }
             );
         }
 
         const now = new Date();
         const today = getUTCDate(now);
 
-        const historicalFromDate = new Date(now);
-        historicalFromDate.setUTCDate(historicalFromDate.getUTCDate() - 30);
+        const historicalFromDate = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - 30));
         const fromDate = getUTCDate(historicalFromDate);
 
-        /* 1. Učitavanje liste valuta */
-        const currenciesData = await safeFetchJson(`${FRANKFURTER_API}/currencies`);
-        if (!currenciesData) {
-            throw new Error("Neuspešno preuzimanje liste valuta.");
-        }
-
-        const currencies = {};
-        for (const [code, name] of Object.entries(currenciesData)) {
-            const cleanCode = code.trim().toUpperCase();
-            if (!EXCLUDED_CURRENCY_CODES.has(cleanCode)) {
-                currencies[cleanCode] = name;
-            }
-        }
-
-        /* 2. Paralelno preuzimanje trenutnih i istorijskih kurseva */
-        const [currentRaw, historicalRaw] = await Promise.all([
+        const [currenciesData, currentRaw, historicalRaw] = await Promise.all([
+            safeFetchJson(`${FRANKFURTER_API}/currencies`),
             safeFetchJson(`${FRANKFURTER_API}/rates?base=${encodeURIComponent(base)}`),
             safeFetchJson(`${FRANKFURTER_API}/rates?base=${encodeURIComponent(base)}&from=${fromDate}&to=${today}`)
         ]);
@@ -228,13 +232,29 @@ export async function onRequest(context) {
         const currentNormalized = normalizeRatesResponse(currentRaw, base);
         const historicalNormalized = normalizeRatesResponse(historicalRaw, base);
 
-        /* 3. Obrada trenutnih kurseva */
-        const currentMap = latestByQuote(currentNormalized, today);
+        if (!currentNormalized.length) {
+            throw new Error("Unable to retrieve current exchange rates.");
+        }
 
-        /* 4. Obrada prethodnih kurseva */
+        const currencies = {};
+        if (currenciesData) {
+            for (const [code, name] of Object.entries(currenciesData)) {
+                const cleanCode = code.trim().toUpperCase();
+                if (!EXCLUDED_CURRENCY_CODES.has(cleanCode)) {
+                    currencies[cleanCode] = name;
+                }
+            }
+        } else {
+            for (const item of currentNormalized) {
+                if (!EXCLUDED_CURRENCY_CODES.has(item.quote)) {
+                    currencies[item.quote] = item.quote;
+                }
+            }
+        }
+
+        const currentMap = latestByQuote(currentNormalized, today);
         const previousMap = previousByQuote(historicalNormalized, currentMap, today);
 
-        /* 5. Generisanje i Object Map-a i Nizova za potpunu kompatibilnost */
         const rates = {};
         const previousRates = {};
         const ratesList = [];
@@ -252,7 +272,6 @@ export async function onRequest(context) {
             previousRatesList.push(item);
         }
 
-        /* 6. Obrada Major kurseva */
         const majorRates = {};
         const majorPreviousRates = {};
 
@@ -268,7 +287,6 @@ export async function onRequest(context) {
             }
         }
 
-        /* 7. Određivanje tačnih datuma za odgovor */
         const currentDates = [...new Set(ratesList.map(r => r.date))].sort();
         const currentDate = currentDates.length ? currentDates[currentDates.length - 1] : today;
 
@@ -276,15 +294,14 @@ export async function onRequest(context) {
         const validPreviousDates = historicalDates.filter(d => d < currentDate);
         const previousDate = validPreviousDates.length ? validPreviousDates[validPreviousDates.length - 1] : null;
 
-        /* 8. Odgovor API-ja */
         return new Response(
             JSON.stringify({
                 base,
                 currencies,
-                rates,               // Object Map: { "USD": 1.08, "GBP": 0.85, ... }
-                previousRates,       // Object Map: { "USD": 1.07, "GBP": 0.84, ... }
-                ratesList,           // Array: [{ quote: "USD", code: "USD", symbol: "USD", rate: 1.08 }, ...]
-                previousRatesList,   // Array
+                rates,
+                previousRates,
+                ratesList,
+                previousRatesList,
                 date: currentDate,
                 previousDate,
                 majorRates,
@@ -293,14 +310,14 @@ export async function onRequest(context) {
             {
                 headers: {
                     "Content-Type": "application/json",
-                    "Cache-Control": "public, max-age=300",
-                    "Access-Control-Allow-Origin": "*"
+                    "Cache-Control": "public, max-age=3600",
+                    ...corsHeaders
                 }
             }
         );
 
     } catch (error) {
-        console.error("Currencies API failed:", error);
+        console.error("Currencies API error:", error);
 
         return new Response(
             JSON.stringify({
@@ -311,7 +328,7 @@ export async function onRequest(context) {
                 status: 500,
                 headers: {
                     "Content-Type": "application/json",
-                    "Access-Control-Allow-Origin": "*"
+                    ...corsHeaders
                 }
             }
         );
