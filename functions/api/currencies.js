@@ -1,11 +1,11 @@
 /* =========================================================
    CURRENCIES API
-   Complete stable version
+   Stable version
 
    - Loads full currency list
    - Loads current EUR rates
    - Fills missing current rates
-   - Uses direct pair lookup for stubborn currencies
+   - Uses direct pair lookup when needed
    - Keeps Major currency rates reliable
    - Loads historical data for movement %
    - Loads previous observation per currency
@@ -47,15 +47,8 @@ function getUTCDate(date) {
 
     return [
         date.getUTCFullYear(),
-
-        String(
-            date.getUTCMonth() + 1
-        ).padStart(2, "0"),
-
-        String(
-            date.getUTCDate()
-        ).padStart(2, "0")
-
+        String(date.getUTCMonth() + 1).padStart(2, "0"),
+        String(date.getUTCDate()).padStart(2, "0")
     ].join("-");
 
 }
@@ -65,10 +58,7 @@ function getUTCDate(date) {
    VALID RATE
 ========================================================= */
 
-function isValidRate(
-    item,
-    today = null
-) {
+function isValidRate(item, today = null) {
 
     if (!item) {
         return false;
@@ -82,18 +72,11 @@ function isValidRate(
         return false;
     }
 
-    if (
-        !Number.isFinite(
-            Number(item.rate)
-        )
-    ) {
+    if (!Number.isFinite(Number(item.rate))) {
         return false;
     }
 
-    if (
-        today &&
-        item.date > today
-    ) {
+    if (today && item.date > today) {
         return false;
     }
 
@@ -106,10 +89,7 @@ function isValidRate(
    LATEST RATE PER QUOTE
 ========================================================= */
 
-function latestByQuote(
-    rows,
-    today
-) {
+function latestByQuote(rows, today = null) {
 
     const result = {};
 
@@ -117,36 +97,25 @@ function latestByQuote(
         return result;
     }
 
-
     for (const item of rows) {
 
-        if (
-            !isValidRate(
-                item,
-                today
-            )
-        ) {
+        if (!isValidRate(item, today)) {
             continue;
         }
 
-
         const quote =
             String(item.quote)
+                .trim()
                 .toUpperCase();
-
 
         if (
             !result[quote] ||
-            item.date >
-                result[quote].date
+            item.date > result[quote].date
         ) {
-
             result[quote] = item;
-
         }
 
     }
-
 
     return result;
 
@@ -157,64 +126,42 @@ function latestByQuote(
    PREVIOUS OBSERVATION PER QUOTE
 ========================================================= */
 
-function previousByQuote(
-    rows,
-    today
-) {
+function previousByQuote(rows, today) {
 
     const grouped = {};
-
 
     if (!Array.isArray(rows)) {
         return {};
     }
 
-
     for (const item of rows) {
 
-        if (
-            !isValidRate(
-                item,
-                today
-            )
-        ) {
+        if (!isValidRate(item, today)) {
             continue;
         }
-
 
         const quote =
             String(item.quote)
                 .trim()
                 .toUpperCase();
 
-
         if (!grouped[quote]) {
             grouped[quote] = [];
         }
-
 
         grouped[quote].push(item);
 
     }
 
-
     const result = {};
 
-
-    for (
-        const quote of
-        Object.keys(grouped)
-    ) {
+    for (const quote of Object.keys(grouped)) {
 
         const rowsForQuote =
-            grouped[quote]
-                .sort(
-                    (a, b) =>
-                        a.date.localeCompare(
-                            b.date
-                        )
-                );
-
+            grouped[quote].sort(
+                (a, b) =>
+                    a.date.localeCompare(b.date)
+            );
 
         const uniqueDates = [
             ...new Set(
@@ -222,40 +169,30 @@ function previousByQuote(
                     row => row.date
                 )
             )
-        ];
+        ].sort();
 
+        if (uniqueDates.length < 2) {
+            continue;
+        }
 
-        if (
-            uniqueDates.length >= 2
-        ) {
+        const previousDate =
+            uniqueDates[
+                uniqueDates.length - 2
+            ];
 
-            const previousDate =
-                uniqueDates[
-                    uniqueDates.length - 2
-                ];
+        const previousRow =
+            rowsForQuote
+                .filter(
+                    row =>
+                        row.date === previousDate
+                )
+                .at(-1);
 
-
-            const previousRow =
-                rowsForQuote
-                    .filter(
-                        row =>
-                            row.date ===
-                            previousDate
-                    )
-                    .at(-1);
-
-
-            if (previousRow) {
-
-                result[quote] =
-                    previousRow;
-
-            }
-
+        if (previousRow) {
+            result[quote] = previousRow;
         }
 
     }
-
 
     return result;
 
@@ -277,41 +214,38 @@ async function fetchQuoteBatches(
         to = null
     } = options;
 
-
-    const cleanQuotes =
-        [
-            ...new Set(
-                (quotes || [])
-                    .map(
-                        code =>
-                            String(code || "")
-                                .trim()
-                                .toUpperCase()
-                    )
-                    .filter(Boolean)
-                    .filter(
-                        code =>
-                            code !== base
-                    )
-                    .filter(
-                        code =>
-                            !EXCLUDED_CURRENCY_CODES
-                                .has(code)
-                    )
-            )
-        ];
-
+    const cleanQuotes = [
+        ...new Set(
+            (quotes || [])
+                .map(
+                    code =>
+                        String(code || "")
+                            .trim()
+                            .toUpperCase()
+                )
+                .filter(Boolean)
+                .filter(
+                    code =>
+                        code !== base
+                )
+                .filter(
+                    code =>
+                        !EXCLUDED_CURRENCY_CODES.has(code)
+                )
+        )
+    ];
 
     if (!cleanQuotes.length) {
         return [];
     }
 
-
     const results = [];
 
-
+    /*
+       Frankfurter accepts multiple quotes.
+       Keep requests reasonably small.
+    */
     const chunkSize = 40;
-
 
     for (
         let i = 0;
@@ -325,68 +259,46 @@ async function fetchQuoteBatches(
                 i + chunkSize
             );
 
-
         const params =
             new URLSearchParams();
 
-
-        params.set(
-            "base",
-            base
-        );
-
-
-        params.set(
-            "quotes",
-            chunk.join(",")
-        );
-
+        params.set("base", base);
+        params.set("quotes", chunk.join(","));
 
         if (from) {
-
-            params.set(
-                "from",
-                from
-            );
-
+            params.set("from", from);
         }
-
 
         if (to) {
-
-            params.set(
-                "to",
-                to
-            );
-
+            params.set("to", to);
         }
-
 
         try {
 
             const response =
                 await fetch(
-                    `${FRANKFURTER_API}/rates?${params.toString()}`
+                    `${FRANKFURTER_API}/rates?${params.toString()}`,
+                    {
+                        headers: {
+                            "Accept":
+                                "application/json"
+                        }
+                    }
                 );
 
-
             if (!response.ok) {
+                console.warn(
+                    "Frankfurter batch HTTP error:",
+                    response.status
+                );
                 continue;
             }
-
 
             const data =
                 await response.json();
 
-
-            if (
-                Array.isArray(data)
-            ) {
-
-                results.push(
-                    ...data
-                );
-
+            if (Array.isArray(data)) {
+                results.push(...data);
             }
 
         } catch (error) {
@@ -400,7 +312,6 @@ async function fetchQuoteBatches(
 
     }
 
-
     return results;
 
 }
@@ -410,39 +321,35 @@ async function fetchQuoteBatches(
    FETCH ONE CURRENT PAIR
 ========================================================= */
 
-async function fetchSingleRate(
-    base,
-    quote
-) {
+async function fetchSingleRate(base, quote) {
 
     try {
 
         const response =
             await fetch(
-                `${FRANKFURTER_API}/rate/${encodeURIComponent(base)}/${encodeURIComponent(quote)}`
+                `${FRANKFURTER_API}/rate/${encodeURIComponent(base)}/${encodeURIComponent(quote)}`,
+                {
+                    headers: {
+                        "Accept":
+                            "application/json"
+                    }
+                }
             );
-
 
         if (!response.ok) {
             return null;
         }
 
-
         const data =
             await response.json();
-
 
         if (
             data &&
             data.quote &&
             data.date &&
-            Number.isFinite(
-                Number(data.rate)
-            )
+            Number.isFinite(Number(data.rate))
         ) {
-
             return data;
-
         }
 
     } catch (error) {
@@ -454,7 +361,6 @@ async function fetchSingleRate(
 
     }
 
-
     return null;
 
 }
@@ -464,17 +370,11 @@ async function fetchSingleRate(
    FETCH MULTIPLE SINGLE CURRENT PAIRS
 ========================================================= */
 
-async function fetchSingleRates(
-    base,
-    quotes
-) {
+async function fetchSingleRates(base, quotes) {
 
     const results = [];
 
-
-    for (
-        const quote of quotes
-    ) {
+    for (const quote of quotes) {
 
         const row =
             await fetchSingleRate(
@@ -482,15 +382,11 @@ async function fetchSingleRates(
                 quote
             );
 
-
         if (row) {
-
             results.push(row);
-
         }
 
     }
-
 
     return results;
 
@@ -509,10 +405,8 @@ async function fillMissingCurrentRates(
 
     const existingMap =
         latestByQuote(
-            existingRows,
-            null
+            existingRows
         );
-
 
     const missingQuotes =
         requiredQuotes.filter(
@@ -520,18 +414,13 @@ async function fillMissingCurrentRates(
                 !existingMap[quote]
         );
 
-
     if (!missingQuotes.length) {
-
         return existingRows;
-
     }
 
-
-    /* -----------------------------------------------------
-       STEP 1:
-       Explicit quote batches
-    ----------------------------------------------------- */
+    /*
+       First try grouped requests.
+    */
 
     const batchRows =
         await fetchQuoteBatches(
@@ -539,24 +428,19 @@ async function fillMissingCurrentRates(
             missingQuotes
         );
 
-
     let merged = [
         ...existingRows,
         ...batchRows
     ];
 
-
-    /* -----------------------------------------------------
-       STEP 2:
-       Check what is still missing
-    ----------------------------------------------------- */
+    /*
+       Then identify anything still missing.
+    */
 
     const afterBatchMap =
         latestByQuote(
-            merged,
-            null
+            merged
         );
-
 
     const stillMissing =
         missingQuotes.filter(
@@ -564,11 +448,9 @@ async function fillMissingCurrentRates(
                 !afterBatchMap[quote]
         );
 
-
-    /* -----------------------------------------------------
-       STEP 3:
-       Direct pair endpoint
-    ----------------------------------------------------- */
+    /*
+       Finally try individual pair requests.
+    */
 
     if (stillMissing.length) {
 
@@ -578,14 +460,12 @@ async function fillMissingCurrentRates(
                 stillMissing
             );
 
-
         merged = [
             ...merged,
             ...directRows
         ];
 
     }
-
 
     return merged;
 
@@ -608,52 +488,34 @@ async function fetchHistorical(
         const params =
             new URLSearchParams();
 
-
         params.set(
             "base",
             base
         );
 
-
         if (
             Array.isArray(quotes) &&
             quotes.length
         ) {
-
             params.set(
                 "quotes",
                 quotes.join(",")
             );
-
         }
 
-
-        /*
-           IMPORTANT:
-
-           Instead of relying on a large time-series
-           response, request the historical range directly.
-        */
-
         if (from) {
-
             params.set(
                 "from",
                 from
             );
-
         }
 
-
         if (to) {
-
             params.set(
                 "to",
                 to
             );
-
         }
-
 
         const response =
             await fetch(
@@ -666,7 +528,6 @@ async function fetchHistorical(
                 }
             );
 
-
         if (!response.ok) {
 
             console.warn(
@@ -678,14 +539,10 @@ async function fetchHistorical(
 
         }
 
-
         const data =
             await response.json();
 
-
-        if (
-            !Array.isArray(data)
-        ) {
+        if (!Array.isArray(data)) {
 
             console.warn(
                 "Historical rates returned non-array:",
@@ -696,7 +553,6 @@ async function fetchHistorical(
 
         }
 
-
         return data.filter(
             item =>
                 isValidRate(
@@ -704,7 +560,6 @@ async function fetchHistorical(
                     to
                 )
         );
-
 
     } catch (error) {
 
@@ -718,6 +573,7 @@ async function fetchHistorical(
     }
 
 }
+
 
 /* =========================================================
    FETCH PREVIOUS RATE BY DATE
@@ -735,7 +591,6 @@ async function fetchPreviousRateByDate(
             `${today}T00:00:00Z`
         );
 
-
     for (
         let daysBack = 1;
         daysBack <= maxDaysBack;
@@ -743,46 +598,35 @@ async function fetchPreviousRateByDate(
     ) {
 
         const testDate =
-            new Date(
-                currentDate
-            );
-
+            new Date(currentDate);
 
         testDate.setUTCDate(
             testDate.getUTCDate() -
             daysBack
         );
 
-
         const date =
-            getUTCDate(
-                testDate
-            );
-
+            getUTCDate(testDate);
 
         try {
 
             const params =
                 new URLSearchParams();
 
-
             params.set(
                 "base",
                 base
             );
-
 
             params.set(
                 "quotes",
                 quote
             );
 
-
             params.set(
                 "date",
                 date
             );
-
 
             const response =
                 await fetch(
@@ -795,22 +639,16 @@ async function fetchPreviousRateByDate(
                     }
                 );
 
-
             if (!response.ok) {
                 continue;
             }
 
-
             const data =
                 await response.json();
 
-
-            if (
-                !Array.isArray(data)
-            ) {
+            if (!Array.isArray(data)) {
                 continue;
             }
-
 
             const validRow =
                 data.find(
@@ -819,19 +657,16 @@ async function fetchPreviousRateByDate(
                             row,
                             today
                         ) &&
-                        String(
-                            row.quote
-                        ).toUpperCase() ===
-                        String(
-                            quote
-                        ).toUpperCase()
+                        String(row.quote)
+                            .trim()
+                            .toUpperCase() ===
+                        String(quote)
+                            .trim()
+                            .toUpperCase()
                 );
 
-
             if (validRow) {
-
                 return validRow;
-
             }
 
         } catch (error) {
@@ -845,18 +680,16 @@ async function fetchPreviousRateByDate(
 
     }
 
-
     return null;
 
 }
+
 
 /* =========================================================
    MAIN API
 ========================================================= */
 
-export async function onRequest(
-    context
-) {
+export async function onRequest(context) {
 
     try {
 
@@ -864,7 +697,6 @@ export async function onRequest(
             new URL(
                 context.request.url
             );
-
 
         const base =
             (
@@ -882,26 +714,19 @@ export async function onRequest(
         const now =
             new Date();
 
-
         const today =
-            getUTCDate(
-                now
-            );
-
+            getUTCDate(now);
 
         const historicalFromDate =
             new Date(now);
 
-
         /*
-           120 days gives enough room for currencies
-           that publish less frequently than daily.
+           120 days gives enough historical coverage.
         */
 
         historicalFromDate.setUTCDate(
             historicalFromDate.getUTCDate() - 120
         );
-
 
         const fromDate =
             getUTCDate(
@@ -915,9 +740,14 @@ export async function onRequest(
 
         const currenciesResponse =
             await fetch(
-                `${FRANKFURTER_API}/currencies`
+                `${FRANKFURTER_API}/currencies`,
+                {
+                    headers: {
+                        "Accept":
+                            "application/json"
+                    }
+                }
             );
-
 
         if (!currenciesResponse.ok) {
 
@@ -926,7 +756,6 @@ export async function onRequest(
             );
 
         }
-
 
         const currencies =
             await currenciesResponse.json();
@@ -949,8 +778,7 @@ export async function onRequest(
                 .filter(Boolean)
                 .filter(
                     code =>
-                        !EXCLUDED_CURRENCY_CODES
-                            .has(code)
+                        !EXCLUDED_CURRENCY_CODES.has(code)
                 )
                 .filter(
                     code =>
@@ -964,31 +792,34 @@ export async function onRequest(
 
         let broadCurrentRows = [];
 
-
         try {
 
             const ratesResponse =
                 await fetch(
-                    `${FRANKFURTER_API}/rates?base=${encodeURIComponent(base)}`
+                    `${FRANKFURTER_API}/rates?base=${encodeURIComponent(base)}`,
+                    {
+                        headers: {
+                            "Accept":
+                                "application/json"
+                        }
+                    }
                 );
 
-
-            if (
-                ratesResponse.ok
-            ) {
+            if (ratesResponse.ok) {
 
                 const result =
                     await ratesResponse.json();
 
-
-                if (
-                    Array.isArray(result)
-                ) {
-
-                    broadCurrentRows =
-                        result;
-
+                if (Array.isArray(result)) {
+                    broadCurrentRows = result;
                 }
+
+            } else {
+
+                console.warn(
+                    "Broad current rates HTTP error:",
+                    ratesResponse.status
+                );
 
             }
 
@@ -1037,7 +868,6 @@ export async function onRequest(
                 today
             );
 
-
         const currentRates =
             Object.values(
                 currentMap
@@ -1046,34 +876,23 @@ export async function onRequest(
 
         /* =====================================================
            MAJOR CURRENCIES
-           
-           IMPORTANT:
-           Get each Major pair directly so that the Major
-           cards always have a valid current rate.
         ===================================================== */
 
         const majorRates = {};
         const majorPreviousRates = {};
 
+        for (const quote of MAJOR_QUOTES) {
 
-        for (
-            const quote of MAJOR_QUOTES
-        ) {
-
-            if (
-                quote === base
-            ) {
+            if (quote === base) {
                 continue;
             }
-
 
             let current =
                 currentMap[quote];
 
-
             /*
-               If broad/quote requests did not provide it,
-               ask the direct pair endpoint.
+               If the broad request did not return the
+               currency, ask for the pair directly.
             */
 
             if (!current) {
@@ -1086,170 +905,124 @@ export async function onRequest(
 
             }
 
-
-                if (
-                  current &&
-                    Number.isFinite(
-                      Number(current.rate)
-                    )
-                  ) {
-
-                   majorRates[quote] =
-                     Number(current.rate);
-
-               }
-
-          }
-
-
-        /* =========================================================
-   HISTORICAL DATA
-========================================================= */
-
-let historicalRates = [];
-
-
-/*
-   First try the full historical range for the Major
-   currencies.
-*/
-
-historicalRates =
-    await fetchHistorical(
-        base,
-        fromDate,
-        today,
-        MAJOR_QUOTES
-    );
-
-
-/*
-   If the historical request did not return at least
-   two different dates, explicitly request the Major
-   currencies again through the batch endpoint.
-*/
-
-const historicalDatesInitial = [
-    ...new Set(
-        historicalRates
-            .map(
-                row =>
-                    row?.date
-            )
-            .filter(Boolean)
-            .filter(
-                date =>
-                    date <= today
-            )
-    )
-].sort();
-
-
-if (
-    historicalDatesInitial.length < 2
-) {
-
-    const majorHistoricalFallback =
-        await fetchQuoteBatches(
-            base,
-            MAJOR_QUOTES,
-            {
-                from:
-                    fromDate,
-
-                to:
-                    today
-            }
-        );
-
-
-    historicalRates = [
-        ...historicalRates,
-        ...majorHistoricalFallback
-    ];
-
-}
-
-
-/*
-   Remove invalid / future rows and duplicate
-   date + quote combinations.
-*/
-
-const historicalUniqueMap =
-    new Map();
-
-
-for (
-    const row of historicalRates
-) {
-
-    if (
-        !isValidRate(
-            row,
-            today
-        )
-    ) {
-        continue;
-    }
-
-
-    const key =
-        `${row.quote}|${row.date}`;
-
-
-    historicalUniqueMap.set(
-        key,
-        row
-    );
-
-}
-
-
-historicalRates =
-    Array.from(
-        historicalUniqueMap.values()
-    );
-
-
-/*
-   Temporary diagnostic.
-*/
-
-console.log(
-    "HISTORICAL DEBUG:",
-    {
-        fromDate,
-        today,
-
-        count:
-            historicalRates.length,
-
-        dates: [
-            ...new Set(
-                historicalRates.map(
-                    row =>
-                        row?.date
+            if (
+                current &&
+                Number.isFinite(
+                    Number(current.rate)
                 )
-            )
-        ].sort(),
+            ) {
 
-        majorQuotes:
-            MAJOR_QUOTES,
+                majorRates[quote] =
+                    Number(current.rate);
 
-        sample:
-            historicalRates.slice(
-                0,
-                20
+            }
+
+        }
+
+
+        /* =====================================================
+           HISTORICAL DATA FOR MAJORS
+        ===================================================== */
+
+        let historicalRates =
+            await fetchHistorical(
+                base,
+                fromDate,
+                today,
+                MAJOR_QUOTES
+            );
+
+
+        /*
+           If history is unexpectedly empty or has fewer
+           than two dates, retry through batch requests.
+        */
+
+        const historicalDatesInitial = [
+            ...new Set(
+                historicalRates
+                    .map(
+                        row =>
+                            row?.date
+                    )
+                    .filter(Boolean)
+                    .filter(
+                        date =>
+                            date <= today
+                    )
             )
-    }
-);
-       
+        ].sort();
+
+
+        if (
+            historicalDatesInitial.length < 2
+        ) {
+
+            const majorHistoricalFallback =
+                await fetchQuoteBatches(
+                    base,
+                    MAJOR_QUOTES,
+                    {
+                        from:
+                            fromDate,
+
+                        to:
+                            today
+                    }
+                );
+
+            historicalRates = [
+                ...historicalRates,
+                ...majorHistoricalFallback
+            ];
+
+        }
+
+
+        /* =====================================================
+           CLEAN HISTORICAL DATA
+        ===================================================== */
+
+        const historicalUniqueMap =
+            new Map();
+
+        for (const row of historicalRates) {
+
+            if (
+                !isValidRate(
+                    row,
+                    today
+                )
+            ) {
+                continue;
+            }
+
+            const quote =
+                String(row.quote)
+                    .trim()
+                    .toUpperCase();
+
+            const key =
+                `${quote}|${row.date}`;
+
+            historicalUniqueMap.set(
+                key,
+                {
+                    ...row,
+                    quote
+                }
+            );
+
+        }
+
+        historicalRates =
+            Array.from(
+                historicalUniqueMap.values()
+            );
+
+
         /* =====================================================
            HISTORICAL QUOTE COVERAGE
-           
-           If broad history does not contain enough data for
-           some currencies, explicitly request them.
         ===================================================== */
 
         const historicalPreviousInitial =
@@ -1257,7 +1030,6 @@ console.log(
                 historicalRates,
                 today
             );
-
 
         const historicalMissingQuotes =
             currencyCodes.filter(
@@ -1277,11 +1049,11 @@ console.log(
                     {
                         from:
                             fromDate,
+
                         to:
                             today
                     }
                 );
-
 
             historicalRates = [
                 ...historicalRates,
@@ -1289,6 +1061,48 @@ console.log(
             ];
 
         }
+
+
+        /* =====================================================
+           CLEAN HISTORICAL DATA AGAIN
+        ===================================================== */
+
+        const finalHistoricalMap =
+            new Map();
+
+        for (const row of historicalRates) {
+
+            if (
+                !isValidRate(
+                    row,
+                    today
+                )
+            ) {
+                continue;
+            }
+
+            const quote =
+                String(row.quote)
+                    .trim()
+                    .toUpperCase();
+
+            const key =
+                `${quote}|${row.date}`;
+
+            finalHistoricalMap.set(
+                key,
+                {
+                    ...row,
+                    quote
+                }
+            );
+
+        }
+
+        historicalRates =
+            Array.from(
+                finalHistoricalMap.values()
+            );
 
 
         /* =====================================================
@@ -1301,7 +1115,6 @@ console.log(
                 today
             );
 
-
         const previousRates =
             Object.values(
                 previousMap
@@ -1312,65 +1125,52 @@ console.log(
            MAJOR PREVIOUS RATES
         ===================================================== */
 
-        for (
-    const quote of MAJOR_QUOTES
-) {
+        for (const quote of MAJOR_QUOTES) {
 
-    if (
-        quote === base
-    ) {
-        continue;
-    }
+            if (quote === base) {
+                continue;
+            }
 
+            /*
+               First use historical data.
+            */
 
-    /*
-       First use historical map if available.
-    */
+            if (previousMap[quote]) {
 
-    if (
-        previousMap[quote]
-    ) {
+                majorPreviousRates[quote] =
+                    Number(
+                        previousMap[quote].rate
+                    );
 
-        majorPreviousRates[quote] =
-            Number(
-                previousMap[quote].rate
-            );
+                continue;
 
-        continue;
+            }
 
-    }
+            /*
+               Fallback to individual previous dates.
+            */
 
+            const previous =
+                await fetchPreviousRateByDate(
+                    base,
+                    quote,
+                    today,
+                    14
+                );
 
-    /*
-       Fallback:
-       Ask Frankfurter for previous available
-       observation by individual date.
-    */
+            if (
+                previous &&
+                Number.isFinite(
+                    Number(previous.rate)
+                )
+            ) {
 
-    const previous =
-        await fetchPreviousRateByDate(
-            base,
-            quote,
-            today,
-            14
-        );
+                majorPreviousRates[quote] =
+                    Number(previous.rate);
 
+            }
 
-    if (
-        previous &&
-        Number.isFinite(
-            Number(previous.rate)
-        )
-    ) {
-
-        majorPreviousRates[quote] =
-            Number(
-                previous.rate
-            );
-
-    }
-
-}
+        }
 
 
         /* =====================================================
@@ -1389,7 +1189,6 @@ console.log(
                         date <= today
                 )
                 .sort();
-
 
         const currentDate =
             currentDates.length
@@ -1420,12 +1219,9 @@ console.log(
                         index,
                         array
                     ) =>
-                        array.indexOf(
-                            value
-                        ) === index
+                        array.indexOf(value) === index
                 )
                 .sort();
-
 
         const previousDate =
             historicalDates.length >= 2
@@ -1487,7 +1283,6 @@ console.log(
             "Currencies API failed:",
             error
         );
-
 
         return new Response(
 
