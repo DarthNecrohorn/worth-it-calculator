@@ -2365,10 +2365,10 @@ html[data-theme="light"] .news-card-placeholder{
 .shop-prices{
     display:flex;
     align-items:baseline;
-    gap:9px;
+    gap:8px;
 
     margin-top:4px;
-    margin-bottom:18px;
+    margin-bottom:14px;
 }
 
 .shop-old-price{
@@ -2379,9 +2379,10 @@ html[data-theme="light"] .news-card-placeholder{
 
 .shop-new-price{
     color:var(--success);
-    font-size:22px;
+    font-size:20px;
     font-weight:900;
 }
+
 
 /* =========================================================
    VALUE ANALYSIS
