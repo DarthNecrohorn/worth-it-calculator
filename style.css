@@ -2268,6 +2268,7 @@ html[data-theme="light"] .news-card-placeholder{
     padding:0;
     box-sizing:border-box;
     display:block;
+    transform:scale(1.12);
     transition:transform .35s ease;
 }
 
