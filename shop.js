@@ -394,76 +394,67 @@
         window.openShop;
 
 
-    /* =================================================
-        RENDER SHOP
-    ================================================ */
+  /* =================================================
+    RENDER SHOP
+================================================ */
 
-    function renderShop(container){
+function renderShop(container){
 
-        const today =
-            new Date();
-
-
-        const dateText =
-            today.toLocaleDateString(
-                undefined,
-                {
-                    year: "numeric",
-                    month: "long",
-                    day: "numeric"
-                }
-            );
+    const today =
+        new Date();
 
 
-        const allItems =
-            getAllShopItems();
+    const dateText =
+        today.toLocaleDateString(
+            undefined,
+            {
+                year: "numeric",
+                month: "long",
+                day: "numeric"
+            }
+        );
 
 
-        const categoryOrder = [
-         "Beauty",
-         "Fashion",
-         "Electronics",
-         "Technology",
-         "Home",
-         "Gaming",
-         "Kids",
-         "Gifts"
-     ];
+    const allItems =
+        getAllShopItems();
 
 
-const categories = categoryOrder.filter(
-    category =>
-        allItems.some(
-            deal =>
-                deal.category === category
-        )
-);
+    const categories = [
+        "Beauty",
+        "Fashion",
+        "Electronics",
+        "Technology",
+        "Home",
+        "Gaming",
+        "Kids",
+        "Gifts"
+    ];
 
 
-        const html = `
+    const html = `
 
-            <div class="shop-header">
+        <div class="shop-header">
 
-                <div>
+            <div>
 
-                    <h2>
-                        🛍️ Today's Shop
-                    </h2>
+                <h2>
+                    🛍️ Today's Shop
+                </h2>
 
-                    <p>
+                <p>
 
-                        Smart deals selected by Worth It
+                    Smart deals selected by Worth It
 
-                        <small>
-                            Updated
-                            ${escapeHTML(dateText)}
-                        </small>
+                    <small>
+                        Updated
+                        ${escapeHTML(dateText)}
+                    </small>
 
-                    </p>
-
-                </div>
+                </p>
 
             </div>
+
+        </div>
 
 
             <div
