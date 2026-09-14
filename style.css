@@ -3327,7 +3327,8 @@ html[data-theme="light"] .more-menu-btn{
 
 .money-card{
     position:relative;
-
+    contain:layout paint;
+    
     display:grid;
     grid-template-columns:
         minmax(190px,1.35fr)
