@@ -2262,10 +2262,10 @@ html[data-theme="light"] .news-card-placeholder{
 }
 
 .shop-image{
-    width:300%;
-    height:127%;
+    width:100%;
+    height:100%;
     object-fit:contain;
-    padding:12px;
+    padding:0;
     box-sizing:border-box;
     display:block;
     transition:transform .35s ease;
