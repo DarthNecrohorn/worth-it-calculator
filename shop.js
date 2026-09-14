@@ -419,16 +419,25 @@
             getAllShopItems();
 
 
-        const categories = [
-            ...new Set(
-                allItems
-                    .map(
-                        deal =>
-                            deal.category
-                    )
-                    .filter(Boolean)
-            )
-        ];
+        const categoryOrder = [
+         "Beauty",
+         "Fashion",
+         "Electronics",
+         "Technology",
+         "Home",
+         "Gaming",
+         "Kids",
+         "Gifts"
+     ];
+
+
+const categories = categoryOrder.filter(
+    category =>
+        allItems.some(
+            deal =>
+                deal.category === category
+        )
+);
 
 
         const html = `
