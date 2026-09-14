@@ -796,7 +796,7 @@
                     <div class="shop-image-placeholder shop-affiliate-placeholder">
 
                         <span>
-                            Affiliate offer
+                            🛍️
                         </span>
 
                     </div>
