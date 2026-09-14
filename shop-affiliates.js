@@ -33,7 +33,7 @@ const affiliateProducts = {
                 "",
 
             affiliateUrl:
-                "https://www.awin1.com/cread.php?awinmid=90791&awinaffid=3077319&ued=https%3A%2F%2Fwww.stylevana.com%2Fen_US%2Fskin1004-madagascar-centella-hyalu-cica-water-fit-sun-serum-spf50-pa-twin-pack-50ml-2ea35662.html"
+                   "https://tidd.ly/46mlVcw"
         }
 
     ],
