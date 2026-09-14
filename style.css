@@ -2272,7 +2272,7 @@ html[data-theme="light"] .news-card-placeholder{
 }
 
 .shop-card:hover .shop-image{
-    transform:scale(1.05);
+    transform:scale(2);
 }
 
 .shop-image-placeholder{
