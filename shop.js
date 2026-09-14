@@ -608,7 +608,7 @@ function renderShop(container){
                     <div class="shop-best-price-info">
 
                         <span class="shop-best-label">
-                            BEST PRICE
+                              ${deal.isAffiliate ? "" : "BEST PRICE"}
                         </span>
 
                         <strong>
