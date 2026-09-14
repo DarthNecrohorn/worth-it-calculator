@@ -322,9 +322,8 @@
             container.id =
                 "shopSection";
 
-            container.className =
-                "shop-section";
-
+           container.className =
+                "shop-section app";
 
             const footer =
                 document.querySelector(
