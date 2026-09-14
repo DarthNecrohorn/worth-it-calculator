@@ -1850,7 +1850,6 @@ html[data-theme="light"] .admin-feedback-nav-btn:hover{
     box-shadow:var(--shadow);
 
     transition:
-        transform .25s,
         border-color .25s,
         box-shadow .25s;
 }
