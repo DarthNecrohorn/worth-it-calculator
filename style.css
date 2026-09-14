@@ -1829,6 +1829,7 @@ html[data-theme="light"] .admin-feedback-nav-btn:hover{
 
 .news-card{
     position:relative;
+    contain:layout paint;
     overflow:hidden;
 
     display:flex;
