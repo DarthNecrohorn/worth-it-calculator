@@ -2262,8 +2262,8 @@ html[data-theme="light"] .news-card-placeholder{
 }
 
 .shop-image{
-    width:130%;
-    height:115%;
+    width:150%;
+    height:130%;
     object-fit:contain;
     padding:12px;
     box-sizing:border-box;
