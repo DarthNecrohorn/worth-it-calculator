@@ -227,6 +227,7 @@
         if(!Number.isFinite(oldPrice) || !Number.isFinite(price) || oldPrice <= 0){
             return 0;
         }
+
         return Math.round(((oldPrice - price) / oldPrice) * 100);
     }
 
@@ -235,6 +236,7 @@
         if(!Number.isFinite(oldPrice) || !Number.isFinite(price)){
             return 0;
         }
+
         return Math.max(0, oldPrice - price);
     }
 
@@ -248,6 +250,7 @@
         if(!Array.isArray(deal.stores)){
             return [];
         }
+
         return deal.stores
             .filter(store => store && Number.isFinite(store.price))
             .sort((a, b) => a.price - b.price);
@@ -275,18 +278,21 @@
     ================================================ */
 
     function getDealScore(deal){
-        // Ako skor već postoji na objektu, vrati ga (keširano)
+
         if(deal._cachedScore !== undefined){
             return deal._cachedScore;
         }
-        // Generiši stabilan skor na osnovu ID-ja (da se ne menja nasumično pri svakom kliku)
+
         let hash = 0;
         const str = deal.id || deal.title || "default";
-        for (let i = 0; i < str.length; i++) {
+
+        for(let i = 0; i < str.length; i++){
             hash = (hash << 5) - hash + str.charCodeAt(i);
             hash |= 0;
         }
+
         deal._cachedScore = Math.abs(hash) % 2 === 0 ? 10 : 0;
+
         return deal._cachedScore;
     }
 
@@ -295,9 +301,10 @@
         OPEN SHOP
     ================================================ */
 
-    window.openDiscounts = function(){
+    window.openShop = function(){
 
         const homePage = document.getElementById("homePage");
+
         if(homePage){
             homePage.style.display = "none";
         }
@@ -307,29 +314,56 @@
             x.style.display = "none";
         });
 
+
         const weatherSection = document.getElementById("weatherSection");
-        if(weatherSection) weatherSection.style.display = "none";
+
+        if(weatherSection){
+            weatherSection.style.display = "none";
+        }
+
 
         const newsSection = document.getElementById("newsSection");
-        if(newsSection) newsSection.style.display = "none";
+
+        if(newsSection){
+            newsSection.style.display = "none";
+        }
+
 
         const settingsPanel = document.getElementById("settingsPanel");
-        if(settingsPanel) settingsPanel.style.display = "none";
+
+        if(settingsPanel){
+            settingsPanel.style.display = "none";
+        }
+
 
         const marketsSection = document.getElementById("marketsSection");
-        if(marketsSection) marketsSection.style.display = "none";
+
+        if(marketsSection){
+            marketsSection.style.display = "none";
+        }
+
 
         const moneySection = document.getElementById("moneySection");
-        if(moneySection) moneySection.style.display = "none";
 
-        let container = document.getElementById("discountsSection");
+        if(moneySection){
+            moneySection.style.display = "none";
+        }
+
+
+        let container = document.getElementById("shopSection");
+
 
         if(!container){
+
             container = document.createElement("section");
-            container.id = "discountsSection";
-            container.className = "discounts-section";
+
+            container.id = "shopSection";
+
+            container.className = "shop-section";
+
 
             const footer = document.querySelector("footer");
+
             if(footer){
                 footer.parentNode.insertBefore(container, footer);
             }else{
@@ -337,17 +371,23 @@
             }
         }
 
+
         renderShop(container);
+
 
         container.style.display = "block";
 
+
         const navLinks = document.getElementById("navLinks");
+
         if(navLinks){
             navLinks.classList.remove("open");
         }
 
+
         document.documentElement.style.overflowY = "auto";
         document.body.style.overflowY = "auto";
+
 
         window.scrollTo({
             top: 0,
@@ -357,6 +397,15 @@
     };
 
 
+    /*
+        Compatibility:
+        Ako index.html još uvek koristi openDiscounts(),
+        stari poziv će i dalje otvoriti Shop.
+    */
+
+    window.openDiscounts = window.openShop;
+
+
     /* =================================================
         RENDER SHOP
     ================================================ */
@@ -364,11 +413,13 @@
     function renderShop(container){
 
         const today = new Date();
+
         const dateText = today.toLocaleDateString(undefined, {
             year: "numeric",
             month: "long",
             day: "numeric"
         });
+
 
         const categories = [
             ...new Set(
@@ -378,44 +429,68 @@
             )
         ];
 
+
         let html = `
-            <div class="discounts-header">
+            <div class="shop-header">
+
                 <div>
-                    <h2>🛒 Today's Shop</h2>
-                    <p>Smart deals selected by Worth It
-                    <small>Updated ${escapeHTML(dateText)}</small>
+
+                    <h2>🛍️ Today's Shop</h2>
+
+                    <p>
+                        Smart deals selected by Worth It
+                        <small>
+                            Updated ${escapeHTML(dateText)}
+                        </small>
+                    </p>
+
                 </div>
+
             </div>
 
-            <div class="discounts-filters" id="discountsFiltersContainer">
+
+            <div
+                class="shop-filters"
+                id="shopFiltersContainer"
+            >
+
                 <button
                     type="button"
-                    class="discount-filter active"
+                    class="shop-filter active"
                     data-category="all"
                 >
                     All
                 </button>
+
                 ${categories
                     .map(category => `
                         <button
                             type="button"
-                            class="discount-filter"
+                            class="shop-filter"
                             data-category="${escapeHTML(category)}"
                         >
                             ${escapeHTML(category)}
                         </button>
                     `)
                     .join("")}
+
             </div>
 
-            <div class="discounts-grid" id="discountsGrid">
+
+            <div
+                class="shop-grid"
+                id="shopGrid"
+            >
                 ${shopItems.map(deal => createDealCard(deal)).join("")}
             </div>
         `;
 
+
         container.innerHTML = html;
 
+
         setupShopFilters();
+
     }
 
 
@@ -426,173 +501,447 @@
     function createDealCard(deal){
 
         const stores = getStores(deal);
+
         const bestStore = getBestStore(deal);
+
         const bestPrice = bestStore ? bestStore.price : 0;
 
-        const discount = calculateDiscount(deal.oldPrice, bestPrice);
-        const savings = calculateSavings(deal.oldPrice, bestPrice);
+
+        const discount = calculateDiscount(
+            deal.oldPrice,
+            bestPrice
+        );
+
+
+        const savings = calculateSavings(
+            deal.oldPrice,
+            bestPrice
+        );
+
 
         const image = deal.image
-          ? `<img src="${escapeHTML(deal.image)}" alt="${escapeHTML(deal.title)}" class="discount-image" loading="lazy">`
-          : `<div class="discount-image-placeholder">🛍️</div>`;
+            ? `
+                <img
+                    src="${escapeHTML(deal.image)}"
+                    alt="${escapeHTML(deal.title)}"
+                    class="shop-image"
+                    loading="lazy"
+                >
+            `
+            : `
+                <div class="shop-image-placeholder">
+                    🛍️
+                </div>
+            `;
+
 
         const score = getDealScore(deal);
 
+
         let bestStoreHTML = "";
+
+
         if(bestStore){
+
             bestStoreHTML = `
-                <div class="discount-best-price-box">
-                    <div class="discount-best-price-info">
-                        <span class="discount-best-label">BEST PRICE</span>
-                        <strong>${escapeHTML(bestStore.name)}</strong>
+                <div class="shop-best-price-box">
+
+                    <div class="shop-best-price-info">
+
+                        <span class="shop-best-label">
+                            BEST PRICE
+                        </span>
+
+                        <strong>
+                            ${escapeHTML(bestStore.name)}
+                        </strong>
+
                     </div>
-                    <div class="discount-best-price-right">
-                        <strong class="discount-best-price">${formatPrice(bestStore.price, deal.currency)}</strong>
+
+
+                    <div class="shop-best-price-right">
+
+                        <strong class="shop-best-price">
+                            ${formatPrice(
+                                bestStore.price,
+                                deal.currency
+                            )}
+                        </strong>
+
+
                         <a
                             href="${escapeHTML(bestStore.url)}"
                             target="_blank"
                             rel="noopener noreferrer sponsored"
-                            class="discount-buy-button discount-buy-button-primary"
+                            class="shop-buy-button shop-buy-button-primary"
                         >
                             Buy →
                         </a>
+
                     </div>
+
                 </div>
             `;
         }
 
+
         const otherStores = stores.slice(1, 4);
+
         let otherStoresHTML = "";
 
+
         if(otherStores.length){
+
             otherStoresHTML = `
-                <div class="discount-other-stores">
-                    <div class="discount-other-title">Other options</div>
+                <div class="shop-other-stores">
+
+                    <div class="shop-other-title">
+                        Other options
+                    </div>
+
+
                     ${otherStores.map(store => {
-                        const storeUrl = store.url ? escapeHTML(store.url) : "#";
+
+                        const storeUrl =
+                            store.url
+                                ? escapeHTML(store.url)
+                                : "#";
+
+
                         return `
-                            <div class="discount-store-row">
-                                <strong class="discount-store-name">${escapeHTML(store.name)}</strong>
-                                <div class="discount-store-action">
-                                    <strong class="discount-store-price">${formatPrice(store.price, deal.currency)}</strong>
+                            <div class="shop-store-row">
+
+                                <strong class="shop-store-name">
+                                    ${escapeHTML(store.name)}
+                                </strong>
+
+
+                                <div class="shop-store-action">
+
+                                    <strong class="shop-store-price">
+                                        ${formatPrice(
+                                            store.price,
+                                            deal.currency
+                                        )}
+                                    </strong>
+
+
                                     <a
                                         href="${storeUrl}"
                                         target="_blank"
                                         rel="noopener noreferrer sponsored"
-                                        class="discount-buy-button"
+                                        class="shop-buy-button"
                                     >
                                         Buy →
                                     </a>
+
                                 </div>
+
                             </div>
                         `;
+
                     }).join("")}
+
                 </div>
             `;
         }
 
+
         return `
-            <article class="discount-card" data-category="${escapeHTML(deal.category)}">
-                <div class="discount-card-image">
+            <article
+                class="shop-card"
+                data-category="${escapeHTML(deal.category)}"
+            >
+
+                <div class="shop-card-image">
+
                     ${image}
-                    <span class="discount-badge">-${discount}%</span>
+
+                    <span class="shop-badge">
+                        -${discount}%
+                    </span>
+
                 </div>
-                <div class="discount-card-content">
-                    <div class="discount-card-meta">
-                        <span class="discount-category">${escapeHTML(deal.category)}</span>
+
+
+                <div class="shop-card-content">
+
+                    <div class="shop-card-meta">
+
+                        <span class="shop-category">
+                            ${escapeHTML(deal.category)}
+                        </span>
+
                     </div>
-                    <h3 class="discount-title">${escapeHTML(deal.title)}</h3>
-                    <div class="discount-price-block">
-                        <span class="discount-old-price">${formatPrice(deal.oldPrice, deal.currency)}</span>
-                        <span class="discount-new-price">${formatPrice(bestPrice, deal.currency)}</span>
+
+
+                    <h3 class="shop-title">
+                        ${escapeHTML(deal.title)}
+                    </h3>
+
+
+                    <div class="shop-prices">
+
+                        <span class="shop-old-price">
+                            ${formatPrice(
+                                deal.oldPrice,
+                                deal.currency
+                            )}
+                        </span>
+
+
+                        <span class="shop-new-price">
+                            ${formatPrice(
+                                bestPrice,
+                                deal.currency
+                            )}
+                        </span>
+
                     </div>
-                    <div class="discount-value-analysis">
-                        <div class="discount-analysis-row">
-                            <span>Expected usage</span>
-                            <strong>${escapeHTML(deal.expectedUsage || "—")}</strong>
+
+
+                    <div class="shop-value-analysis">
+
+                        <div class="shop-analysis-row">
+
+                            <span>
+                                Expected usage
+                            </span>
+
+                            <strong>
+                                ${escapeHTML(
+                                    deal.expectedUsage || "—"
+                                )}
+                            </strong>
+
                         </div>
-                        <div class="discount-analysis-row">
-                            <span>Cost per use</span>
-                            <strong>${deal.costPerUse != null ? `~${formatPrice(deal.costPerUse, deal.currency)}` : "—"}</strong>
+
+
+                        <div class="shop-analysis-row">
+
+                            <span>
+                                Cost per use
+                            </span>
+
+                            <strong>
+                                ${
+                                    deal.costPerUse != null
+                                        ? `~${formatPrice(
+                                            deal.costPerUse,
+                                            deal.currency
+                                        )}`
+                                        : "—"
+                                }
+                            </strong>
+
                         </div>
-                        <div class="discount-analysis-row">
-                            <span>Alternative</span>
-                            <strong>${escapeHTML(deal.alternative || "—")}</strong>
+
+
+                        <div class="shop-analysis-row">
+
+                            <span>
+                                Alternative
+                            </span>
+
+                            <strong>
+                                ${escapeHTML(
+                                    deal.alternative || "—"
+                                )}
+                            </strong>
+
                         </div>
-                        <div class="discount-score-row">
-                            <span>Worth It Score</span>
-                            <strong>${score}/10</strong>
+
+
+                        <div class="shop-score-row">
+
+                            <span>
+                                Worth It Score
+                            </span>
+
+                            <strong>
+                                ${score}/10
+                            </strong>
+
                         </div>
+
                     </div>
-                    <div class="discount-savings">
-                        You save <strong>${formatPrice(savings, deal.currency)}</strong>
+
+
+                    <div class="shop-savings">
+
+                        You save
+
+                        <strong>
+                            ${formatPrice(
+                                savings,
+                                deal.currency
+                            )}
+                        </strong>
+
                     </div>
-                    <div class="discount-verdict">
-                        <div class="discount-verdict-title">✓ Our verdict</div>
-                        <p>${escapeHTML(deal.verdict || "Good value at this price.")}</p>
+
+
+                    <div class="shop-verdict">
+
+                        <div class="shop-verdict-title">
+                            ✓ Our verdict
+                        </div>
+
+                        <p>
+                            ${escapeHTML(
+                                deal.verdict ||
+                                "Good value at this price."
+                            )}
+                        </p>
+
                     </div>
-                    <div class="discount-where-to-buy">
-                        <div class="discount-where-title">Where to buy</div>
+
+
+                    <div class="shop-where-to-buy">
+
+                        <div class="shop-where-title">
+                            Where to buy
+                        </div>
+
                         ${bestStoreHTML}
+
                         ${otherStoresHTML}
+
                     </div>
-                    <div class="discount-updated">
-                        Updated: ${escapeHTML(deal.updatedAt || "Today")}
+
+
+                    <div class="shop-updated">
+
+                        Updated:
+                        ${escapeHTML(
+                            deal.updatedAt || "Today"
+                        )}
+
                     </div>
+
                 </div>
+
             </article>
         `;
     }
 
 
     /* =================================================
-        FILTERS (Event Delegation - No duplicates)
+        FILTERS
+        Event Delegation - No duplicates
     ================================================ */
 
     function setupShopFilters(){
-        const filtersContainer = document.getElementById("discountsFiltersContainer");
-        if(!filtersContainer) return;
 
-        // Uklanjamo stari listener ako je slučajnoostao (za svaki slučaj)
+        const filtersContainer =
+            document.getElementById(
+                "shopFiltersContainer"
+            );
+
+
+        if(!filtersContainer){
+            return;
+        }
+
+
         if(filtersContainer._hasClickListener){
             return;
         }
 
+
         filtersContainer._hasClickListener = true;
 
-        filtersContainer.addEventListener("click", function(event){
-            const button = event.target.closest(".discount-filter");
-            if(!button) return;
 
-            const category = button.dataset.category;
-            const buttons = filtersContainer.querySelectorAll(".discount-filter");
+        filtersContainer.addEventListener(
+            "click",
+            function(event){
 
-            buttons.forEach(btn => btn.classList.remove("active"));
-            button.classList.add("active");
+                const button =
+                    event.target.closest(
+                        ".shop-filter"
+                    );
 
-            const grid = document.getElementById("discountsGrid");
-            if(!grid) return;
 
-            const filteredDeals = category === "all"
-                ? shopItems
-                : shopItems.filter(deal => deal.category === category);
+                if(!button){
+                    return;
+                }
 
-            if(!filteredDeals.length){
-                grid.innerHTML = `
-                    <article class="discount-card">
-                        <div class="discount-card-image">
-                            <div class="discount-image-placeholder">🛍️</div>
-                        </div>
-                        <div class="discount-card-content">
-                            <h3>No shop items available right now</h3>
-                        </div>
-                    </article>
-                `;
-                return;
+
+                const category =
+                    button.dataset.category;
+
+
+                const buttons =
+                    filtersContainer.querySelectorAll(
+                        ".shop-filter"
+                    );
+
+
+                buttons.forEach(btn =>
+                    btn.classList.remove("active")
+                );
+
+
+                button.classList.add("active");
+
+
+                const grid =
+                    document.getElementById(
+                        "shopGrid"
+                    );
+
+
+                if(!grid){
+                    return;
+                }
+
+
+                const filteredDeals =
+                    category === "all"
+                        ? shopItems
+                        : shopItems.filter(
+                            deal =>
+                                deal.category === category
+                        );
+
+
+                if(!filteredDeals.length){
+
+                    grid.innerHTML = `
+                        <article class="shop-card">
+
+                            <div class="shop-card-image">
+
+                                <div class="shop-image-placeholder">
+                                    🛍️
+                                </div>
+
+                            </div>
+
+
+                            <div class="shop-card-content">
+
+                                <h3>
+                                    No shop items available right now
+                                </h3>
+
+                            </div>
+
+                        </article>
+                    `;
+
+                    return;
+                }
+
+
+                grid.innerHTML =
+                    filteredDeals
+                        .map(deal => createDealCard(deal))
+                        .join("");
+
             }
+        );
 
-            grid.innerHTML = filteredDeals.map(deal => createDealCard(deal)).join("");
-        });
     }
 
 
@@ -600,11 +949,28 @@
         CLOSE SHOP
     ================================================ */
 
-    window.closeDiscounts = function(){
-        const container = document.getElementById("discountsSection");
+    window.closeShop = function(){
+
+        const container =
+            document.getElementById(
+                "shopSection"
+            );
+
+
         if(container){
             container.style.display = "none";
         }
+
     };
+
+
+    /*
+        Compatibility:
+        Ako neki postojeći kod još koristi
+        closeDiscounts(), i dalje će raditi.
+    */
+
+    window.closeDiscounts = window.closeShop;
+
 
 })();
