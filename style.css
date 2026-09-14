@@ -2088,17 +2088,18 @@ html[data-theme="light"] .news-card-placeholder{
 
 }
 
+
 /* =========================================================
-   DISCOUNTS
+   SHOP
 ========================================================= */
 
-.discounts-section{
+.shop-section{
     width:min(1180px,calc(100% - 32px));
     margin:0 auto;
     padding:45px 0 90px;
 }
 
-.discounts-header{
+.shop-header{
     display:flex;
     align-items:center;
     justify-content:space-between;
@@ -2106,26 +2107,26 @@ html[data-theme="light"] .news-card-placeholder{
     margin-bottom:28px;
 }
 
-.discounts-header h2{
+.shop-header h2{
     font-size:32px;
     letter-spacing:-1px;
     text-align:center;
 }
 
-.discounts-header p{
+.shop-header p{
     color:var(--muted);
     margin-top:5px;
     text-align:center;
 }
 
-.discounts-header small{
+.shop-header small{
     display:block;
     color:var(--muted2);
     margin-top:5px;
     text-align:center;
 }
 
-.discounts-close{
+.shop-close{
     flex:0 0 auto;
     background:rgba(255,255,255,.05);
     color:var(--text);
@@ -2134,14 +2135,14 @@ html[data-theme="light"] .news-card-placeholder{
     padding:9px 13px;
 }
 
-.discounts-close:hover{
+.shop-close:hover{
     background:rgba(255,255,255,.09);
 }
 
 
 /* FILTERS */
 
-.discounts-filters{
+.shop-filters{
     display:flex;
     justify-content:center;
     align-items:center;
@@ -2150,7 +2151,7 @@ html[data-theme="light"] .news-card-placeholder{
     margin-bottom:28px;
 }
 
-.discount-filter{
+.shop-filter{
     border:1px solid var(--border);
     background:rgba(255,255,255,.05);
     color:var(--muted);
@@ -2160,12 +2161,12 @@ html[data-theme="light"] .news-card-placeholder{
     transition:.2s;
 }
 
-.discount-filter:hover{
+.shop-filter:hover{
     color:var(--text);
     background:rgba(255,255,255,.08);
 }
 
-.discount-filter.active{
+.shop-filter.active{
     color:white;
     background:linear-gradient(
         135deg,
@@ -2178,7 +2179,7 @@ html[data-theme="light"] .news-card-placeholder{
 
 /* GRID */
 
-.discounts-grid{
+.shop-grid{
     width:100%;
     display:grid;
     grid-template-columns:repeat(4,minmax(0,1fr));
@@ -2188,7 +2189,7 @@ html[data-theme="light"] .news-card-placeholder{
 
 /* CARD */
 
-.discount-card{
+.shop-card{
     position:relative;
     overflow:hidden;
     display:flex;
@@ -2212,7 +2213,7 @@ html[data-theme="light"] .news-card-placeholder{
         box-shadow .25s;
 }
 
-.discount-card:hover{
+.shop-card:hover{
     transform:translateY(-5px);
     border-color:rgba(124,92,255,.4);
 }
@@ -2220,7 +2221,7 @@ html[data-theme="light"] .news-card-placeholder{
 
 /* IMAGE */
 
-.discount-card-image{
+.shop-card-image{
     position:relative;
     width:100%;
     height:190px;
@@ -2237,14 +2238,14 @@ html[data-theme="light"] .news-card-placeholder{
         );
 }
 
-.discount-image{
+.shop-image{
     width:100%;
     height:100%;
     object-fit:cover;
     display:block;
 }
 
-.discount-image-placeholder{
+.shop-image-placeholder{
     width:100%;
     height:100%;
     display:grid;
@@ -2254,9 +2255,9 @@ html[data-theme="light"] .news-card-placeholder{
 }
 
 
-/* DISCOUNT BADGE */
+/* SHOP BADGE */
 
-.discount-badge{
+.shop-badge{
     position:absolute;
     top:12px;
     right:12px;
@@ -2277,27 +2278,27 @@ html[data-theme="light"] .news-card-placeholder{
 
 /* CONTENT */
 
-.discount-card-content{
+.shop-card-content{
     display:flex;
     flex-direction:column;
     flex:1;
     padding:20px;
 }
 
-.discount-store{
+.shop-store{
     color:var(--muted);
     font-size:12px;
     font-weight:700;
     margin-bottom:6px;
 }
 
-.discount-card h3{
+.shop-card h3{
     font-size:19px;
     line-height:1.3;
     margin-bottom:8px;
 }
 
-.discount-category{
+.shop-category{
     color:var(--muted2);
     font-size:12px;
     margin-bottom:18px;
@@ -2306,7 +2307,7 @@ html[data-theme="light"] .news-card-placeholder{
 
 /* PRICES */
 
-.discount-prices{
+.shop-prices{
     display:flex;
     align-items:baseline;
     gap:9px;
@@ -2314,13 +2315,13 @@ html[data-theme="light"] .news-card-placeholder{
     margin-bottom:18px;
 }
 
-.discount-old-price{
+.shop-old-price{
     color:var(--muted2);
     font-size:14px;
     text-decoration:line-through;
 }
 
-.discount-new-price{
+.shop-new-price{
     color:var(--success);
     font-size:22px;
     font-weight:900;
@@ -2329,7 +2330,7 @@ html[data-theme="light"] .news-card-placeholder{
 
 /* BUTTON */
 
-.discount-deal-button{
+.shop-deal-button{
     display:block;
     width:100%;
     padding:11px 14px;
@@ -2351,7 +2352,7 @@ html[data-theme="light"] .news-card-placeholder{
     transition:.2s;
 }
 
-.discount-deal-button:hover{
+.shop-deal-button:hover{
     transform:translateY(-2px);
     box-shadow:0 10px 25px rgba(124,92,255,.25);
 }
@@ -2359,7 +2360,7 @@ html[data-theme="light"] .news-card-placeholder{
 
 /* LIGHT THEME */
 
-html[data-theme="light"] .discount-card{
+html[data-theme="light"] .shop-card{
     background:linear-gradient(
         145deg,
         #ffffff,
@@ -2371,11 +2372,11 @@ html[data-theme="light"] .discount-card{
     box-shadow:0 10px 30px rgba(15,23,42,.08);
 }
 
-html[data-theme="light"] .discount-card-image{
+html[data-theme="light"] .shop-card-image{
     background:rgba(15,23,42,.035);
 }
 
-html[data-theme="light"] .discount-image-placeholder{
+html[data-theme="light"] .shop-image-placeholder{
     background:rgba(15,23,42,.035);
 }
 
@@ -2384,7 +2385,7 @@ html[data-theme="light"] .discount-image-placeholder{
 
 @media(max-width:1000px){
 
-    .discounts-grid{
+    .shop-grid{
         grid-template-columns:repeat(2,minmax(0,1fr));
     }
 
@@ -2392,21 +2393,21 @@ html[data-theme="light"] .discount-image-placeholder{
 
 @media(max-width:700px){
 
-    .discounts-section{
+    .shop-section{
         width:min(100% - 22px,1180px);
         padding:35px 0 70px;
     }
 
-    .discounts-header{
+    .shop-header{
         flex-direction:column;
         text-align:center;
     }
 
-    .discounts-grid{
+    .shop-grid{
         grid-template-columns:1fr;
     }
 
-    .discount-card-image{
+    .shop-card-image{
         height:210px;
     }
 
@@ -2414,11 +2415,12 @@ html[data-theme="light"] .discount-image-placeholder{
 
 @media(max-width:450px){
 
-    .discounts-header h2{
+    .shop-header h2{
         font-size:27px;
     }
 
 }
+
 
 /* MARKETS */
 
