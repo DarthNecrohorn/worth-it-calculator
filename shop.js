@@ -6,8 +6,9 @@
 
     "use strict";
 
+
     /* =================================================
-        DEAL DATA
+        DEMO / INTERNAL DEAL DATA
     ================================================ */
 
     const shopItems = [
@@ -224,46 +225,75 @@
     ================================================ */
 
     function calculateDiscount(oldPrice, price){
-        if(!Number.isFinite(oldPrice) || !Number.isFinite(price) || oldPrice <= 0){
+
+        if(
+            !Number.isFinite(oldPrice) ||
+            !Number.isFinite(price) ||
+            oldPrice <= 0
+        ){
             return 0;
         }
 
-        return Math.round(((oldPrice - price) / oldPrice) * 100);
+        return Math.round(
+            ((oldPrice - price) / oldPrice) * 100
+        );
     }
 
 
     function calculateSavings(oldPrice, price){
-        if(!Number.isFinite(oldPrice) || !Number.isFinite(price)){
+
+        if(
+            !Number.isFinite(oldPrice) ||
+            !Number.isFinite(price)
+        ){
             return 0;
         }
 
-        return Math.max(0, oldPrice - price);
+        return Math.max(
+            0,
+            oldPrice - price
+        );
     }
 
 
     function formatPrice(value, currency){
-        return (currency || "$") + Number(value).toFixed(2);
+
+        return (currency || "$") +
+            Number(value).toFixed(2);
     }
 
 
     function getStores(deal){
+
         if(!Array.isArray(deal.stores)){
             return [];
         }
 
         return deal.stores
-            .filter(store => store && Number.isFinite(store.price))
-            .sort((a, b) => a.price - b.price);
+            .filter(
+                store =>
+                    store &&
+                    Number.isFinite(store.price)
+            )
+            .sort(
+                (a, b) =>
+                    a.price - b.price
+            );
     }
 
 
     function getBestStore(deal){
+
         const stores = getStores(deal);
-        return stores.length ? stores[0] : null;
+
+        return stores.length
+            ? stores[0]
+            : null;
     }
 
 
     function escapeHTML(value){
+
         return String(value ?? "")
             .replace(/&/g, "&amp;")
             .replace(/</g, "&lt;")
@@ -284,16 +314,143 @@
         }
 
         let hash = 0;
-        const str = deal.id || deal.title || "default";
+
+        const str =
+            deal.id ||
+            deal.title ||
+            "default";
 
         for(let i = 0; i < str.length; i++){
-            hash = (hash << 5) - hash + str.charCodeAt(i);
+
+            hash =
+                (hash << 5) -
+                hash +
+                str.charCodeAt(i);
+
             hash |= 0;
         }
 
-        deal._cachedScore = Math.abs(hash) % 2 === 0 ? 10 : 0;
+        deal._cachedScore =
+            Math.abs(hash) % 2 === 0
+                ? 10
+                : 0;
 
         return deal._cachedScore;
+    }
+
+
+    /* =================================================
+        GET ALL SHOP ITEMS
+    ================================================ */
+
+    function getAllShopItems(){
+
+        const affiliateItems = [];
+
+
+        Object.keys(affiliateProducts).forEach(
+            category => {
+
+                const products =
+                    Array.isArray(
+                        affiliateProducts[category]
+                    )
+                        ? affiliateProducts[category]
+                        : [];
+
+
+                products.forEach(product => {
+
+                    if(
+                        !product ||
+                        !product.title ||
+                        !product.affiliateUrl ||
+                        !Number.isFinite(product.price)
+                    ){
+                        return;
+                    }
+
+
+                    affiliateItems.push({
+
+                        id:
+                            product.id ||
+                            `affiliate-${category.toLowerCase()}-${product.title
+                                .toLowerCase()
+                                .replace(/[^a-z0-9]+/g, "-")
+                                .replace(/^-|-$/g, "")
+                            }`,
+
+                        title: product.title,
+
+                        category:
+                            product.category ||
+                            category,
+
+                        oldPrice:
+                            Number.isFinite(product.oldPrice)
+                                ? product.oldPrice
+                                : product.price,
+
+                        currency:
+                            product.currency ||
+                            "$",
+
+                        image:
+                            product.image ||
+                            "",
+
+                        expectedUsage:
+                            product.expectedUsage ||
+                            "",
+
+                        costPerUse:
+                            product.costPerUse != null
+                                ? product.costPerUse
+                                : null,
+
+                        alternative:
+                            product.alternative ||
+                            "",
+
+                        verdict:
+                            product.verdict ||
+                            "Affiliate deal available from this store.",
+
+                        updatedAt:
+                            product.updatedAt ||
+                            "Today",
+
+                        isAffiliate: true,
+
+                        stores: [
+                            {
+                                name:
+                                    product.store ||
+                                    "Store",
+
+                                price:
+                                    product.price,
+
+                                url:
+                                    product.affiliateUrl,
+
+                                affiliate: true
+                            }
+                        ]
+
+                    });
+
+                });
+
+            }
+        );
+
+
+        return [
+            ...shopItems,
+            ...affiliateItems
+        ];
     }
 
 
@@ -303,71 +460,121 @@
 
     window.openShop = function(){
 
-        const homePage = document.getElementById("homePage");
+        const homePage =
+            document.getElementById(
+                "homePage"
+            );
+
 
         if(homePage){
             homePage.style.display = "none";
         }
 
-        document.querySelectorAll(".app").forEach(x => {
-            x.classList.remove("active");
-            x.style.display = "none";
-        });
+
+        document
+            .querySelectorAll(".app")
+            .forEach(x => {
+
+                x.classList.remove("active");
+                x.style.display = "none";
+
+            });
 
 
-        const weatherSection = document.getElementById("weatherSection");
+        const weatherSection =
+            document.getElementById(
+                "weatherSection"
+            );
+
 
         if(weatherSection){
             weatherSection.style.display = "none";
         }
 
 
-        const newsSection = document.getElementById("newsSection");
+        const newsSection =
+            document.getElementById(
+                "newsSection"
+            );
+
 
         if(newsSection){
             newsSection.style.display = "none";
         }
 
 
-        const settingsPanel = document.getElementById("settingsPanel");
+        const settingsPanel =
+            document.getElementById(
+                "settingsPanel"
+            );
+
 
         if(settingsPanel){
             settingsPanel.style.display = "none";
         }
 
 
-        const marketsSection = document.getElementById("marketsSection");
+        const marketsSection =
+            document.getElementById(
+                "marketsSection"
+            );
+
 
         if(marketsSection){
             marketsSection.style.display = "none";
         }
 
 
-        const moneySection = document.getElementById("moneySection");
+        const moneySection =
+            document.getElementById(
+                "moneySection"
+            );
+
 
         if(moneySection){
             moneySection.style.display = "none";
         }
 
 
-        let container = document.getElementById("shopSection");
+        let container =
+            document.getElementById(
+                "shopSection"
+            );
 
 
         if(!container){
 
-            container = document.createElement("section");
+            container =
+                document.createElement(
+                    "section"
+                );
 
-            container.id = "shopSection";
+            container.id =
+                "shopSection";
 
-            container.className = "shop-section";
+            container.className =
+                "shop-section";
 
 
-            const footer = document.querySelector("footer");
+            const footer =
+                document.querySelector(
+                    "footer"
+                );
+
 
             if(footer){
-                footer.parentNode.insertBefore(container, footer);
+
+                footer.parentNode.insertBefore(
+                    container,
+                    footer
+                );
+
             }else{
-                document.body.appendChild(container);
+
+                document.body.appendChild(
+                    container
+                );
+
             }
         }
 
@@ -375,18 +582,28 @@
         renderShop(container);
 
 
-        container.style.display = "block";
+        container.style.display =
+            "block";
 
 
-        const navLinks = document.getElementById("navLinks");
+        const navLinks =
+            document.getElementById(
+                "navLinks"
+            );
+
 
         if(navLinks){
-            navLinks.classList.remove("open");
+            navLinks.classList.remove(
+                "open"
+            );
         }
 
 
-        document.documentElement.style.overflowY = "auto";
-        document.body.style.overflowY = "auto";
+        document.documentElement.style.overflowY =
+            "auto";
+
+        document.body.style.overflowY =
+            "auto";
 
 
         window.scrollTo({
@@ -403,7 +620,8 @@
         stari poziv će i dalje otvoriti Shop.
     */
 
-    window.openDiscounts = window.openShop;
+    window.openDiscounts =
+        window.openShop;
 
 
     /* =================================================
@@ -412,36 +630,56 @@
 
     function renderShop(container){
 
-        const today = new Date();
+        const today =
+            new Date();
 
-        const dateText = today.toLocaleDateString(undefined, {
-            year: "numeric",
-            month: "long",
-            day: "numeric"
-        });
+
+        const dateText =
+            today.toLocaleDateString(
+                undefined,
+                {
+                    year: "numeric",
+                    month: "long",
+                    day: "numeric"
+                }
+            );
+
+
+        const allItems =
+            getAllShopItems();
 
 
         const categories = [
             ...new Set(
-                shopItems
-                    .map(deal => deal.category)
+                allItems
+                    .map(
+                        deal =>
+                            deal.category
+                    )
                     .filter(Boolean)
             )
         ];
 
 
         let html = `
+
             <div class="shop-header">
 
                 <div>
 
-                    <h2>🛍️ Today's Shop</h2>
+                    <h2>
+                        🛍️ Today's Shop
+                    </h2>
 
                     <p>
+
                         Smart deals selected by Worth It
+
                         <small>
-                            Updated ${escapeHTML(dateText)}
+                            Updated
+                            ${escapeHTML(dateText)}
                         </small>
+
                     </p>
 
                 </div>
@@ -462,16 +700,21 @@
                     All
                 </button>
 
+
                 ${categories
-                    .map(category => `
-                        <button
-                            type="button"
-                            class="shop-filter"
-                            data-category="${escapeHTML(category)}"
-                        >
-                            ${escapeHTML(category)}
-                        </button>
-                    `)
+                    .map(
+                        category => `
+
+                            <button
+                                type="button"
+                                class="shop-filter"
+                                data-category="${escapeHTML(category)}"
+                            >
+                                ${escapeHTML(category)}
+                            </button>
+
+                        `
+                    )
                     .join("")}
 
             </div>
@@ -481,12 +724,23 @@
                 class="shop-grid"
                 id="shopGrid"
             >
-                ${shopItems.map(deal => createDealCard(deal)).join("")}
+
+                ${allItems
+                    .map(
+                        deal =>
+                            createDealCard(
+                                deal
+                            )
+                    )
+                    .join("")}
+
             </div>
+
         `;
 
 
-        container.innerHTML = html;
+        container.innerHTML =
+            html;
 
 
         setupShopFilters();
@@ -500,50 +754,71 @@
 
     function createDealCard(deal){
 
-        const stores = getStores(deal);
-
-        const bestStore = getBestStore(deal);
-
-        const bestPrice = bestStore ? bestStore.price : 0;
+        const stores =
+            getStores(deal);
 
 
-        const discount = calculateDiscount(
-            deal.oldPrice,
-            bestPrice
-        );
+        const bestStore =
+            getBestStore(deal);
 
 
-        const savings = calculateSavings(
-            deal.oldPrice,
-            bestPrice
-        );
+        const bestPrice =
+            bestStore
+                ? bestStore.price
+                : 0;
 
 
-        const image = deal.image
-            ? `
-                <img
-                    src="${escapeHTML(deal.image)}"
-                    alt="${escapeHTML(deal.title)}"
-                    class="shop-image"
-                    loading="lazy"
-                >
-            `
-            : `
-                <div class="shop-image-placeholder">
-                    🛍️
-                </div>
-            `;
+        const discount =
+            calculateDiscount(
+                deal.oldPrice,
+                bestPrice
+            );
 
 
-        const score = getDealScore(deal);
+        const savings =
+            calculateSavings(
+                deal.oldPrice,
+                bestPrice
+            );
 
 
-        let bestStoreHTML = "";
+        const image =
+            deal.image
+
+                ? `
+
+                    <img
+                        src="${escapeHTML(deal.image)}"
+                        alt="${escapeHTML(deal.title)}"
+                        class="shop-image"
+                        loading="lazy"
+                    >
+
+                `
+
+                : `
+
+                    <div class="shop-image-placeholder">
+                        🛍️
+                    </div>
+
+                `;
+
+
+        const score =
+            deal.isAffiliate
+                ? null
+                : getDealScore(deal);
+
+
+        let bestStoreHTML =
+            "";
 
 
         if(bestStore){
 
             bestStoreHTML = `
+
                 <div class="shop-best-price-box">
 
                     <div class="shop-best-price-info">
@@ -553,7 +828,9 @@
                         </span>
 
                         <strong>
-                            ${escapeHTML(bestStore.name)}
+                            ${escapeHTML(
+                                bestStore.name
+                            )}
                         </strong>
 
                     </div>
@@ -562,15 +839,19 @@
                     <div class="shop-best-price-right">
 
                         <strong class="shop-best-price">
+
                             ${formatPrice(
                                 bestStore.price,
                                 deal.currency
                             )}
+
                         </strong>
 
 
                         <a
-                            href="${escapeHTML(bestStore.url)}"
+                            href="${escapeHTML(
+                                bestStore.url
+                            )}"
                             target="_blank"
                             rel="noopener noreferrer sponsored"
                             class="shop-buy-button shop-buy-button-primary"
@@ -581,18 +862,23 @@
                     </div>
 
                 </div>
+
             `;
         }
 
 
-        const otherStores = stores.slice(1, 4);
+        const otherStores =
+            stores.slice(1, 4);
 
-        let otherStoresHTML = "";
+
+        let otherStoresHTML =
+            "";
 
 
         if(otherStores.length){
 
             otherStoresHTML = `
+
                 <div class="shop-other-stores">
 
                     <div class="shop-other-title">
@@ -600,62 +886,79 @@
                     </div>
 
 
-                    ${otherStores.map(store => {
+                    ${otherStores
+                        .map(store => {
 
-                        const storeUrl =
-                            store.url
-                                ? escapeHTML(store.url)
-                                : "#";
-
-
-                        return `
-                            <div class="shop-store-row">
-
-                                <strong class="shop-store-name">
-                                    ${escapeHTML(store.name)}
-                                </strong>
+                            const storeUrl =
+                                store.url
+                                    ? escapeHTML(
+                                        store.url
+                                    )
+                                    : "#";
 
 
-                                <div class="shop-store-action">
+                            return `
 
-                                    <strong class="shop-store-price">
-                                        ${formatPrice(
-                                            store.price,
-                                            deal.currency
+                                <div class="shop-store-row">
+
+                                    <strong class="shop-store-name">
+
+                                        ${escapeHTML(
+                                            store.name
                                         )}
+
                                     </strong>
 
 
-                                    <a
-                                        href="${storeUrl}"
-                                        target="_blank"
-                                        rel="noopener noreferrer sponsored"
-                                        class="shop-buy-button"
-                                    >
-                                        Buy →
-                                    </a>
+                                    <div class="shop-store-action">
+
+                                        <strong class="shop-store-price">
+
+                                            ${formatPrice(
+                                                store.price,
+                                                deal.currency
+                                            )}
+
+                                        </strong>
+
+
+                                        <a
+                                            href="${storeUrl}"
+                                            target="_blank"
+                                            rel="noopener noreferrer sponsored"
+                                            class="shop-buy-button"
+                                        >
+                                            Buy →
+                                        </a>
+
+                                    </div>
 
                                 </div>
 
-                            </div>
-                        `;
+                            `;
 
-                    }).join("")}
+                        })
+                        .join("")}
 
                 </div>
+
             `;
         }
 
 
         return `
+
             <article
                 class="shop-card"
-                data-category="${escapeHTML(deal.category)}"
+                data-category="${escapeHTML(
+                    deal.category
+                )}"
             >
 
                 <div class="shop-card-image">
 
                     ${image}
+
 
                     <span class="shop-badge">
                         -${discount}%
@@ -669,32 +972,44 @@
                     <div class="shop-card-meta">
 
                         <span class="shop-category">
-                            ${escapeHTML(deal.category)}
+
+                            ${escapeHTML(
+                                deal.category
+                            )}
+
                         </span>
 
                     </div>
 
 
                     <h3 class="shop-title">
-                        ${escapeHTML(deal.title)}
+
+                        ${escapeHTML(
+                            deal.title
+                        )}
+
                     </h3>
 
 
                     <div class="shop-prices">
 
                         <span class="shop-old-price">
+
                             ${formatPrice(
                                 deal.oldPrice,
                                 deal.currency
                             )}
+
                         </span>
 
 
                         <span class="shop-new-price">
+
                             ${formatPrice(
                                 bestPrice,
                                 deal.currency
                             )}
+
                         </span>
 
                     </div>
@@ -709,9 +1024,15 @@
                             </span>
 
                             <strong>
-                                ${escapeHTML(
-                                    deal.expectedUsage || "—"
-                                )}
+
+                                ${
+                                    deal.expectedUsage
+                                        ? escapeHTML(
+                                            deal.expectedUsage
+                                        )
+                                        : "—"
+                                }
+
                             </strong>
 
                         </div>
@@ -724,6 +1045,7 @@
                             </span>
 
                             <strong>
+
                                 ${
                                     deal.costPerUse != null
                                         ? `~${formatPrice(
@@ -732,6 +1054,7 @@
                                         )}`
                                         : "—"
                                 }
+
                             </strong>
 
                         </div>
@@ -744,9 +1067,15 @@
                             </span>
 
                             <strong>
-                                ${escapeHTML(
-                                    deal.alternative || "—"
-                                )}
+
+                                ${
+                                    deal.alternative
+                                        ? escapeHTML(
+                                            deal.alternative
+                                        )
+                                        : "—"
+                                }
+
                             </strong>
 
                         </div>
@@ -759,7 +1088,13 @@
                             </span>
 
                             <strong>
-                                ${score}/10
+
+                                ${
+                                    score !== null
+                                        ? `${score}/10`
+                                        : "—"
+                                }
+
                             </strong>
 
                         </div>
@@ -772,10 +1107,12 @@
                         You save
 
                         <strong>
+
                             ${formatPrice(
                                 savings,
                                 deal.currency
                             )}
+
                         </strong>
 
                     </div>
@@ -784,14 +1121,19 @@
                     <div class="shop-verdict">
 
                         <div class="shop-verdict-title">
+
                             ✓ Our verdict
+
                         </div>
 
+
                         <p>
+
                             ${escapeHTML(
                                 deal.verdict ||
                                 "Good value at this price."
                             )}
+
                         </p>
 
                     </div>
@@ -800,10 +1142,14 @@
                     <div class="shop-where-to-buy">
 
                         <div class="shop-where-title">
+
                             Where to buy
+
                         </div>
 
+
                         ${bestStoreHTML}
+
 
                         ${otherStoresHTML}
 
@@ -812,9 +1158,15 @@
 
                     <div class="shop-updated">
 
-                        Updated:
+                        ${
+                            deal.isAffiliate
+                                ? "Affiliate deal • "
+                                : "Updated: "
+                        }
+
                         ${escapeHTML(
-                            deal.updatedAt || "Today"
+                            deal.updatedAt ||
+                            "Today"
                         )}
 
                     </div>
@@ -822,6 +1174,7 @@
                 </div>
 
             </article>
+
         `;
     }
 
@@ -849,7 +1202,8 @@
         }
 
 
-        filtersContainer._hasClickListener = true;
+        filtersContainer._hasClickListener =
+            true;
 
 
         filtersContainer.addEventListener(
@@ -878,11 +1232,15 @@
 
 
                 buttons.forEach(btn =>
-                    btn.classList.remove("active")
+                    btn.classList.remove(
+                        "active"
+                    )
                 );
 
 
-                button.classList.add("active");
+                button.classList.add(
+                    "active"
+                );
 
 
                 const grid =
@@ -896,18 +1254,26 @@
                 }
 
 
+                const allItems =
+                    getAllShopItems();
+
+
                 const filteredDeals =
                     category === "all"
-                        ? shopItems
-                        : shopItems.filter(
+
+                        ? allItems
+
+                        : allItems.filter(
                             deal =>
-                                deal.category === category
+                                deal.category ===
+                                category
                         );
 
 
                 if(!filteredDeals.length){
 
                     grid.innerHTML = `
+
                         <article class="shop-card">
 
                             <div class="shop-card-image">
@@ -928,6 +1294,7 @@
                             </div>
 
                         </article>
+
                     `;
 
                     return;
@@ -936,7 +1303,12 @@
 
                 grid.innerHTML =
                     filteredDeals
-                        .map(deal => createDealCard(deal))
+                        .map(
+                            deal =>
+                                createDealCard(
+                                    deal
+                                )
+                        )
                         .join("");
 
             }
@@ -958,7 +1330,8 @@
 
 
         if(container){
-            container.style.display = "none";
+            container.style.display =
+                "none";
         }
 
     };
@@ -970,7 +1343,124 @@
         closeDiscounts(), i dalje će raditi.
     */
 
-    window.closeDiscounts = window.closeShop;
+    window.closeDiscounts =
+        window.closeShop;
+
+
+    /* =================================================
+        =================================================
+        AWIN AFFILIATE PRODUCTS
+        =================================================
+
+        OVAJ DEO JE NAMERNO NA SAMOM DNU.
+
+        OVDE DODAJEŠ NOVE AFFILIATE PROIZVODE.
+
+        Kategorije:
+
+        Beauty
+        Fashion
+        Technology
+        Home
+        Gaming
+        Gifts
+
+        Za novi proizvod samo dodaj novi objekat
+        u odgovarajuću kategoriju.
+
+    =================================================
+    ================================================= */
+
+    const affiliateProducts = {
+
+        /* =================================================
+            BEAUTY
+        ================================================= */
+
+        Beauty: [
+
+            {
+                id:
+                    "skin1004-hyalu-cica-sun-serum",
+
+                title:
+                    "SKIN1004 Madagascar Centella Hyalu-Cica Water-Fit Sun Serum SPF50+ PA++++ Twin Pack",
+
+                oldPrice:
+                    27.00,
+
+                price:
+                    18.04,
+
+                currency:
+                    "$",
+
+                store:
+                    "Stylevana",
+
+                affiliateUrl:
+                    "https://www.awin1.com/cread.php?awinmid=90791&awinaffid=3077319&ued=https%3A%2F%2Fwww.stylevana.com%2Fen_US%2Fskin1004-madagascar-centella-hyalu-cica-water-fit-sun-serum-spf50-pa-twin-pack-50ml-2ea35662.html"
+
+            }
+
+        ],
+
+
+        /* =================================================
+            FASHION
+        ================================================= */
+
+        Fashion: [
+
+            // OVDE DODAJ FASHION PROIZVODE
+
+        ],
+
+
+        /* =================================================
+            TECHNOLOGY
+        ================================================= */
+
+        Technology: [
+
+            // OVDE DODAJ TECHNOLOGY PROIZVODE
+
+        ],
+
+
+        /* =================================================
+            HOME
+        ================================================= */
+
+        Home: [
+
+            // OVDE DODAJ HOME PROIZVODE
+
+        ],
+
+
+        /* =================================================
+            GAMING
+        ================================================= */
+
+        Gaming: [
+
+            // OVDE DODAJ GAMING PROIZVODE
+
+        ],
+
+
+        /* =================================================
+            GIFTS
+        ================================================= */
+
+        Gifts: [
+
+            // OVDE DODAJ GIFT PROIZVODE
+
+        ]
+
+    };
 
 
 })();
