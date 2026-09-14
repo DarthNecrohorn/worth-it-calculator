@@ -30,6 +30,7 @@
                 { name: "Example Store", price: 46.99, url: "https://example.com", affiliate: false }
             ]
         },
+
         {
             id: "wireless-headphones",
             title: "Wireless Headphones",
@@ -47,6 +48,7 @@
                 { name: "Example Electronics", price: 74.99, url: "https://example.com", affiliate: true }
             ]
         },
+
         {
             id: "smart-watch",
             title: "Smart Watch",
@@ -64,6 +66,7 @@
                 { name: "Example Tech", price: 104.99, url: "https://example.com", affiliate: true }
             ]
         },
+
         {
             id: "running-shoes",
             title: "Running Shoes",
@@ -81,6 +84,7 @@
                 { name: "Example Fashion", price: 84.99, url: "https://example.com", affiliate: true }
             ]
         },
+
         {
             id: "coffee-machine",
             title: "Coffee Machine",
@@ -98,6 +102,7 @@
                 { name: "Example Appliances", price: 149.99, url: "https://example.com", affiliate: true }
             ]
         },
+
         {
             id: "gaming-keyboard",
             title: "Gaming Keyboard",
@@ -115,6 +120,7 @@
                 { name: "Example Tech", price: 64.99, url: "https://example.com", affiliate: true }
             ]
         },
+
         {
             id: "face-care-set",
             title: "Face Care Set",
@@ -132,6 +138,7 @@
                 { name: "Example Care", price: 37.99, url: "https://example.com", affiliate: true }
             ]
         },
+
         {
             id: "yoga-mat",
             title: "Yoga Mat",
@@ -149,6 +156,7 @@
                 { name: "Example Sports", price: 29.99, url: "https://example.com", affiliate: true }
             ]
         },
+
         {
             id: "car-phone-holder",
             title: "Car Phone Holder",
@@ -166,6 +174,7 @@
                 { name: "Example Accessories", price: 21.99, url: "https://example.com", affiliate: true }
             ]
         },
+
         {
             id: "travel-backpack",
             title: "Travel Backpack",
@@ -183,6 +192,7 @@
                 { name: "Example Bags", price: 59.99, url: "https://example.com", affiliate: true }
             ]
         },
+
         {
             id: "office-chair",
             title: "Office Chair",
@@ -200,6 +210,7 @@
                 { name: "Example Furniture", price: 189.99, url: "https://example.com", affiliate: true }
             ]
         },
+
         {
             id: "tool-set",
             title: "Tool Set",
@@ -284,7 +295,8 @@
 
     function getBestStore(deal){
 
-        const stores = getStores(deal);
+        const stores =
+            getStores(deal);
 
         return stores.length
             ? stores[0]
@@ -371,21 +383,32 @@
                     }
 
 
+                    const safeCategory =
+                        product.category ||
+                        category;
+
+
+                    const generatedId =
+                        `affiliate-${safeCategory
+                            .toLowerCase()
+                            .replace(/[^a-z0-9]+/g, "-")
+                            .replace(/^-|-$/g, "")}-${product.title
+                            .toLowerCase()
+                            .replace(/[^a-z0-9]+/g, "-")
+                            .replace(/^-|-$/g, "")}`;
+
+
                     affiliateItems.push({
 
                         id:
                             product.id ||
-                            `affiliate-${category.toLowerCase()}-${product.title
-                                .toLowerCase()
-                                .replace(/[^a-z0-9]+/g, "-")
-                                .replace(/^-|-$/g, "")
-                            }`,
+                            generatedId,
 
-                        title: product.title,
+                        title:
+                            product.title,
 
                         category:
-                            product.category ||
-                            category,
+                            safeCategory,
 
                         oldPrice:
                             Number.isFinite(product.oldPrice)
@@ -421,7 +444,8 @@
                             product.updatedAt ||
                             "Today",
 
-                        isAffiliate: true,
+                        isAffiliate:
+                            true,
 
                         stores: [
                             {
@@ -435,7 +459,8 @@
                                 url:
                                     product.affiliateUrl,
 
-                                affiliate: true
+                                affiliate:
+                                    true
                             }
                         ]
 
@@ -467,7 +492,8 @@
 
 
         if(homePage){
-            homePage.style.display = "none";
+            homePage.style.display =
+                "none";
         }
 
 
@@ -481,59 +507,26 @@
             });
 
 
-        const weatherSection =
-            document.getElementById(
-                "weatherSection"
-            );
+        const sectionsToHide = [
+            "weatherSection",
+            "newsSection",
+            "settingsPanel",
+            "marketsSection",
+            "moneySection"
+        ];
 
 
-        if(weatherSection){
-            weatherSection.style.display = "none";
-        }
+        sectionsToHide.forEach(id => {
 
+            const element =
+                document.getElementById(id);
 
-        const newsSection =
-            document.getElementById(
-                "newsSection"
-            );
+            if(element){
+                element.style.display =
+                    "none";
+            }
 
-
-        if(newsSection){
-            newsSection.style.display = "none";
-        }
-
-
-        const settingsPanel =
-            document.getElementById(
-                "settingsPanel"
-            );
-
-
-        if(settingsPanel){
-            settingsPanel.style.display = "none";
-        }
-
-
-        const marketsSection =
-            document.getElementById(
-                "marketsSection"
-            );
-
-
-        if(marketsSection){
-            marketsSection.style.display = "none";
-        }
-
-
-        const moneySection =
-            document.getElementById(
-                "moneySection"
-            );
-
-
-        if(moneySection){
-            moneySection.style.display = "none";
-        }
+        });
 
 
         let container =
@@ -593,9 +586,11 @@
 
 
         if(navLinks){
+
             navLinks.classList.remove(
                 "open"
             );
+
         }
 
 
@@ -614,11 +609,9 @@
     };
 
 
-    /*
-        Compatibility:
-        Ako index.html još uvek koristi openDiscounts(),
-        stari poziv će i dalje otvoriti Shop.
-    */
+    /* =================================================
+        COMPATIBILITY
+    ================================================ */
 
     window.openDiscounts =
         window.openShop;
@@ -661,7 +654,7 @@
         ];
 
 
-        let html = `
+        const html = `
 
             <div class="shop-header">
 
@@ -728,9 +721,7 @@
                 ${allItems
                     .map(
                         deal =>
-                            createDealCard(
-                                deal
-                            )
+                            createDealCard(deal)
                     )
                     .join("")}
 
@@ -782,6 +773,10 @@
             );
 
 
+        /* ---------------------------------------------
+            IMAGE
+        --------------------------------------------- */
+
         const image =
             deal.image
 
@@ -798,18 +793,30 @@
 
                 : `
 
-                    <div class="shop-image-placeholder">
-                        🛍️
+                    <div class="shop-image-placeholder shop-affiliate-placeholder">
+
+                        <span>
+                            Affiliate offer
+                        </span>
+
                     </div>
 
                 `;
 
+
+        /* ---------------------------------------------
+            SCORE
+        --------------------------------------------- */
 
         const score =
             deal.isAffiliate
                 ? null
                 : getDealScore(deal);
 
+
+        /* ---------------------------------------------
+            BEST STORE
+        --------------------------------------------- */
 
         let bestStoreHTML =
             "";
@@ -850,7 +857,7 @@
 
                         <a
                             href="${escapeHTML(
-                                bestStore.url
+                                bestStore.url || "#"
                             )}"
                             target="_blank"
                             rel="noopener noreferrer sponsored"
@@ -866,6 +873,10 @@
             `;
         }
 
+
+        /* ---------------------------------------------
+            OTHER STORES
+        --------------------------------------------- */
 
         const otherStores =
             stores.slice(1, 4);
@@ -946,74 +957,16 @@
         }
 
 
-        return `
+        /* ---------------------------------------------
+            VALUE ANALYSIS
+        --------------------------------------------- */
 
-            <article
-                class="shop-card"
-                data-category="${escapeHTML(
-                    deal.category
-                )}"
-            >
+        const valueAnalysis =
+            deal.isAffiliate
 
-                <div class="shop-card-image">
+                ? ""
 
-                    ${image}
-
-
-                    <span class="shop-badge">
-                        -${discount}%
-                    </span>
-
-                </div>
-
-
-                <div class="shop-card-content">
-
-                    <div class="shop-card-meta">
-
-                        <span class="shop-category">
-
-                            ${escapeHTML(
-                                deal.category
-                            )}
-
-                        </span>
-
-                    </div>
-
-
-                    <h3 class="shop-title">
-
-                        ${escapeHTML(
-                            deal.title
-                        )}
-
-                    </h3>
-
-
-                    <div class="shop-prices">
-
-                        <span class="shop-old-price">
-
-                            ${formatPrice(
-                                deal.oldPrice,
-                                deal.currency
-                            )}
-
-                        </span>
-
-
-                        <span class="shop-new-price">
-
-                            ${formatPrice(
-                                bestPrice,
-                                deal.currency
-                            )}
-
-                        </span>
-
-                    </div>
-
+                : `
 
                     <div class="shop-value-analysis">
 
@@ -1101,29 +1054,70 @@
 
                     </div>
 
+                `;
 
-                    <div class="shop-savings">
 
-                        You save
+        /* ---------------------------------------------
+            SAVINGS
+        --------------------------------------------- */
 
-                        <strong>
+        const savingsHTML = `
 
-                            ${formatPrice(
-                                savings,
-                                deal.currency
-                            )}
+            <div class="shop-savings">
 
-                        </strong>
+                You save
 
-                    </div>
+                <strong>
 
+                    ${formatPrice(
+                        savings,
+                        deal.currency
+                    )}
+
+                </strong>
+
+            </div>
+
+        `;
+
+
+        /* ---------------------------------------------
+            VERDICT
+        --------------------------------------------- */
+
+        const verdictHTML =
+            deal.isAffiliate
+
+                ? `
 
                     <div class="shop-verdict">
 
                         <div class="shop-verdict-title">
+                            Affiliate offer
+                        </div>
 
+
+                        <p>
+
+                            Available from
+                            ${escapeHTML(
+                                bestStore
+                                    ? bestStore.name
+                                    : "this store"
+                            )}
+
+                        </p>
+
+                    </div>
+
+                `
+
+                : `
+
+                    <div class="shop-verdict">
+
+                        <div class="shop-verdict-title">
                             ✓ Our verdict
-
                         </div>
 
 
@@ -1137,6 +1131,92 @@
                         </p>
 
                     </div>
+
+                `;
+
+
+        /* ---------------------------------------------
+            FINAL CARD
+        --------------------------------------------- */
+
+        return `
+
+            <article
+                class="shop-card ${deal.isAffiliate ? "shop-affiliate-card" : ""}"
+                data-category="${escapeHTML(
+                    deal.category
+                )}"
+            >
+
+                <div class="shop-card-image">
+
+                    ${image}
+
+
+                    <span class="shop-badge">
+
+                        -${discount}%
+
+                    </span>
+
+                </div>
+
+
+                <div class="shop-card-content">
+
+                    <div class="shop-card-meta">
+
+                        <span class="shop-category">
+
+                            ${escapeHTML(
+                                deal.category
+                            )}
+
+                        </span>
+
+                    </div>
+
+
+                    <h3 class="shop-title">
+
+                        ${escapeHTML(
+                            deal.title
+                        )}
+
+                    </h3>
+
+
+                    <div class="shop-prices">
+
+                        <span class="shop-old-price">
+
+                            ${formatPrice(
+                                deal.oldPrice,
+                                deal.currency
+                            )}
+
+                        </span>
+
+
+                        <span class="shop-new-price">
+
+                            ${formatPrice(
+                                bestPrice,
+                                deal.currency
+                            )}
+
+                        </span>
+
+                    </div>
+
+
+                    ${valueAnalysis}
+
+
+                    ${savingsHTML}
+
+
+                    ${verdictHTML}
 
 
                     <div class="shop-where-to-buy">
@@ -1181,7 +1261,6 @@
 
     /* =================================================
         FILTERS
-        Event Delegation - No duplicates
     ================================================ */
 
     function setupShopFilters(){
@@ -1225,17 +1304,15 @@
                     button.dataset.category;
 
 
-                const buttons =
-                    filtersContainer.querySelectorAll(
+                filtersContainer
+                    .querySelectorAll(
                         ".shop-filter"
-                    );
-
-
-                buttons.forEach(btn =>
-                    btn.classList.remove(
-                        "active"
                     )
-                );
+                    .forEach(btn =>
+                        btn.classList.remove(
+                            "active"
+                        )
+                    );
 
 
                 button.classList.add(
@@ -1279,7 +1356,7 @@
                             <div class="shop-card-image">
 
                                 <div class="shop-image-placeholder">
-                                    🛍️
+                                    No products
                                 </div>
 
                             </div>
@@ -1330,18 +1407,18 @@
 
 
         if(container){
+
             container.style.display =
                 "none";
+
         }
 
     };
 
 
-    /*
-        Compatibility:
-        Ako neki postojeći kod još koristi
-        closeDiscounts(), i dalje će raditi.
-    */
+    /* =================================================
+        COMPATIBILITY
+    ================================================ */
 
     window.closeDiscounts =
         window.closeShop;
@@ -1397,6 +1474,14 @@
 
                 store:
                     "Stylevana",
+
+                /*
+                    Ako kasnije dodaš direktan URL slike,
+                    Shop će automatski prikazati sliku.
+                */
+
+                image:
+                    "",
 
                 affiliateUrl:
                     "https://www.awin1.com/cread.php?awinmid=90791&awinaffid=3077319&ued=https%3A%2F%2Fwww.stylevana.com%2Fen_US%2Fskin1004-madagascar-centella-hyalu-cica-water-fit-sun-serum-spf50-pa-twin-pack-50ml-2ea35662.html"
