@@ -463,14 +463,9 @@ function filterCarsByCategory(category) {
             break;
 
        case "diesel":
-  const dieselModels = [
-    "Audi Q7"
-];
-
     filteredCars = carsData.filter(car =>
-        dieselModels.includes(
-            `${car.make} ${car.model}`
-        )
+        car.loadedData &&
+        car.loadedData.powertrain === "Diesel"
     );
     break;
 
