@@ -123,6 +123,50 @@ async function fetchCarData(car, year = 2024) {
     }
 }
 
+async function fetchCarImage(car, year = 2024) {
+
+    try {
+
+        const params = new URLSearchParams({
+            action: "images",
+            year: year,
+            make: car.make,
+            model: car.model
+        });
+
+        const response = await fetch(
+            `/api/cars?${params.toString()}`
+        );
+
+        if (!response.ok) {
+            throw new Error(
+                `Failed to load image for ${car.make} ${car.model}`
+            );
+        }
+
+        const data = await response.json();
+
+        if (
+            !data.success ||
+            !data.images ||
+            !data.images.length
+        ) {
+            return null;
+        }
+
+        return data.images[0];
+
+    } catch (error) {
+
+        console.error(
+            `Cars image API error for ${car.make} ${car.model}:`,
+            error
+        );
+
+        return null;
+    }
+}
+
 function normalizeCarData(data, fallbackCar) {
 
     if (!data || !data.bestMatch) {
