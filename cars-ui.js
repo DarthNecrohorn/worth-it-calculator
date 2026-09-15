@@ -301,8 +301,6 @@ window.filterCarsByCategory = filterCarsByCategory;
 
 document.addEventListener("DOMContentLoaded", function () {
 
-    renderPopularCars();
-
     const searchInput =
         document.getElementById("carsSearchInput");
 
@@ -321,9 +319,7 @@ document.addEventListener("DOMContentLoaded", function () {
                     .toLowerCase();
 
                 return searchText.includes(query);
-            });
-
-        renderPopularCars(filteredCars);
+        });
 
     });
 
