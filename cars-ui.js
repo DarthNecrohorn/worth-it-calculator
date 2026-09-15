@@ -695,8 +695,11 @@ function openCars() {
 
     updateCarsCategoryHeader("popular");
 
-    renderPopularCars(popularCars);
-
+    renderPopularCars(
+       popularCars,
+          2024
+  );
+    
     window.scrollTo({
         top: 0,
         behavior: "smooth"
