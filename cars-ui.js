@@ -138,12 +138,70 @@ async function fetchCarImage(car, year = 2024) {
 }
 
 function normalizeCarData(data, fallbackCar) {
-
     if (!data || !data.bestMatch) {
         return null;
     }
 
     const vehicle = data.bestMatch;
+
+    const engineType =
+        data.bestMatch?.features?.standard
+            ?.find(feature =>
+                feature.category === "Engine"
+            )
+            ?.features
+            ?.find(feature =>
+                feature.name === "Base engine type"
+            )
+            ?.value;
+
+    const fuelType =
+        data.bestMatch?.features?.standard
+            ?.find(feature =>
+                feature.category === "Fuel"
+            )
+            ?.features
+            ?.find(feature =>
+                feature.name === "Fuel type"
+            )
+            ?.value;
+
+    const normalizedEngineType =
+        String(engineType || "").toLowerCase();
+
+    const normalizedFuelType =
+        String(fuelType || "").toLowerCase();
+
+    let powertrain = "Petrol";
+
+    if (vehicle.is_electric === true) {
+        powertrain = "Electric";
+    } else if (vehicle.is_plugin_electric === true) {
+        powertrain = "Hybrid";
+    } else if (
+        normalizedEngineType.includes("hybrid") ||
+        normalizedFuelType.includes("hybrid")
+    ) {
+        powertrain = "Hybrid";
+    } else if (
+        normalizedEngineType.includes("diesel") ||
+        normalizedFuelType.includes("diesel")
+    ) {
+        powertrain = "Diesel";
+    } else if (
+        normalizedEngineType.includes("electric") ||
+        normalizedFuelType.includes("electric")
+    ) {
+        powertrain = "Electric";
+    } else if (
+        normalizedEngineType.includes("gasoline") ||
+        normalizedEngineType.includes("petrol") ||
+        normalizedFuelType.includes("gasoline") ||
+        normalizedFuelType.includes("petrol") ||
+        normalizedFuelType.includes("unleaded")
+    ) {
+        powertrain = "Petrol";
+    }
 
     return {
         make: vehicle.make || fallbackCar.make,
@@ -152,61 +210,37 @@ function normalizeCarData(data, fallbackCar) {
         year: vehicle.year || 2024,
 
         price:
-    vehicle.base_msrp ??
-    null,
+            vehicle.base_msrp ??
+            null,
 
-horsepower:
-    vehicle.horsepower ??
-    null,
+        horsepower:
+            vehicle.horsepower ??
+            null,
 
-drivetrain:
-    vehicle.drivetrain ||
-    vehicle.drive_train ||
-    null,
+        drivetrain:
+            vehicle.drivetrain ||
+            vehicle.drive_train ||
+            null,
 
-fuel:
-    vehicle.fuel_type ||
-    vehicle.fuel ||
-    null,
+        fuel:
+            vehicle.fuel_type ||
+            vehicle.fuel ||
+            fuelType ||
+            null,
 
-powertrain:
-    vehicle.is_electric === true
-        ? "Electric"
-        : (() => {
-            const engineType =
-                data.bestMatch?.features?.standard
-                    ?.find(feature =>
-                        feature.category === "Engine"
-                    )
-                    ?.features
-                    ?.find(feature =>
-                        feature.name === "Base engine type"
-                    )
-                    ?.value;
+        powertrain,
 
-            const normalizedEngineType =
-                String(engineType || "").toLowerCase();
+        engine:
+            vehicle.engine ||
+            null,
 
-            return normalizedEngineType.includes("hybrid")
-                ? "Hybrid"
-                : normalizedEngineType.includes("diesel")
-                    ? "Diesel"
-                    : "Petrol";
-      
-        })(),
+        transmission:
+            vehicle.transmission ||
+            null,
 
-        
-engine:
-    vehicle.engine ||
-    null,
-
-transmission:
-    vehicle.transmission ||
-    null,
-
-mpg:
-    vehicle.mpg_combined ??
-    null,
+        mpg:
+            vehicle.mpg_combined ??
+            null,
 
         electric:
             vehicle.is_electric === true,
