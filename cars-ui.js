@@ -98,6 +98,32 @@ function getCachedCarData(car, year) {
     return carDataCache.get(key) || null;
 }
 
+const carImageCache = new Map();
+
+function getCarImageCacheKey(car, year) {
+    return `${year}|${car.make}|${car.model}`;
+}
+
+function getCachedCarImage(car, year) {
+
+    const key =
+        getCarImageCacheKey(car, year);
+
+    return carImageCache.has(key)
+        ? carImageCache.get(key)
+        : undefined;
+}
+
+function setCachedCarImage(car, year, image) {
+
+    const key =
+        getCarImageCacheKey(car, year);
+
+    carImageCache.set(key, image);
+
+    return image;
+}
+
 async function fetchCarData(car, year = 2024) {
 
     try {
