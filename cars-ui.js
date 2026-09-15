@@ -165,4 +165,28 @@ document.addEventListener("DOMContentLoaded", function () {
 
     renderPopularCars();
 
+    const searchInput =
+        document.getElementById("carsSearchInput");
+
+    if (!searchInput) return;
+
+    searchInput.addEventListener("input", function () {
+
+        const query =
+            this.value.trim().toLowerCase();
+
+        const filteredCars =
+            carsData.filter(car => {
+
+                const searchText =
+                    `${car.make} ${car.model} ${car.type} ${car.powertrain}`
+                    .toLowerCase();
+
+                return searchText.includes(query);
+            });
+
+        renderPopularCars(filteredCars);
+
+    });
+
 });
