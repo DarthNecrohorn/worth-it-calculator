@@ -83,7 +83,7 @@ export async function onRequestGet(context) {
     }
 
     const imagesUrl = new URL(
-        "https://api.carsxe.com/v1/images"
+        "https://api.carsxe.com/images"
     );
 
     imagesUrl.searchParams.set(
