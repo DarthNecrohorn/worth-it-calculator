@@ -4543,6 +4543,6 @@ html[data-theme="light"] .cars-compare-placeholder {
 .car-card-image {
     width: 100%;
     height: 180px;
-    object-fit: cover;
+    object-fit: contain;
     display: block;
 }
