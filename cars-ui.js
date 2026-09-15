@@ -326,12 +326,8 @@ function filterCarsByCategory(category) {
             break;
 
        case "diesel":
-   const dieselModels = [
-    "Audi Q7",
-    "Volkswagen Tiguan",
-    "Ford F-150",
-    "Hyundai Tucson",
-    "Kia Sportage"
+  const dieselModels = [
+    "Audi Q7"
 ];
 
     filteredCars = carsData.filter(car =>
