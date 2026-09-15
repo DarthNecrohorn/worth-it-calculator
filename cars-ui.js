@@ -84,10 +84,11 @@ function renderPopularCars(cars = carsData) {
         card.className = "car-card";
 
         card.innerHTML = `
-            <div class="car-card-icon">${car.icon}</div>
-            <strong>${car.make} ${car.model}</strong>
-            <span>${car.powertrain} · ${car.type}</span>
-        `;
+          <div class="car-card-icon">${car.icon}</div>
+          <strong>${car.make} ${car.model}</strong>
+          <span>${car.powertrain} · ${car.type}</span>
+          <small>${car.condition}</small>
+    `;
 
         grid.appendChild(card);
     });
