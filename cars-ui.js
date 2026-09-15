@@ -126,6 +126,36 @@ async function fetchCarData(car, year = 2024) {
     }
 }
 
+async function loadUsedCars() {
+
+    const usedCars = [];
+
+    for (const car of carsData) {
+
+        const data =
+            await fetchCarData(car, 2023);
+
+        if (!data || !data.bestMatch) {
+            continue;
+        }
+
+        const normalizedCar =
+            normalizeCarData(data, car);
+
+        if (!normalizedCar) {
+            continue;
+        }
+
+        normalizedCar.year = 2023;
+
+        car.usedData = normalizedCar;
+
+        usedCars.push(car);
+    }
+
+    return usedCars;
+}
+
 async function fetchCarImage(car, year = 2024) {
 
     try {
