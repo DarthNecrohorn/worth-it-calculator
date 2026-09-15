@@ -35,7 +35,7 @@ const popularCars = [
     { make: "BMW", model: "3 Series" },
     { make: "BMW", model: "X5" },
 
-    { make: "Mercedes-Benz", model: "C-Class" },
+    { make: "Volkswagen", model: "Golf" },
     { make: "Mercedes-Benz", model: "E-Class" },
 
     { make: "Audi", model: "Q5" },
