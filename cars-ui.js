@@ -137,6 +137,13 @@ function setCachedCarImage(car, year, image) {
 }
 async function fetchCarData(car, year = 2024) {
 
+    const cachedData =
+        getCachedCarData(car, year);
+
+    if (cachedData !== undefined) {
+        return cachedData;
+    }
+
     try {
 
         const params = new URLSearchParams({
@@ -163,6 +170,12 @@ async function fetchCarData(car, year = 2024) {
                 `No vehicle data found for ${car.make} ${car.model}`
             );
         }
+
+        setCachedCarData(
+            car,
+            year,
+            data
+        );
 
         return data;
 
