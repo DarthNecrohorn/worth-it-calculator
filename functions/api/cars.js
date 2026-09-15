@@ -452,6 +452,9 @@ if (action === "vehicle") {
     const year = requestUrl.searchParams.get("year");
     const make = requestUrl.searchParams.get("make");
     const model = requestUrl.searchParams.get("model");
+    const trim = requestUrl.searchParams.get("trim");
+    const allTrimOptions =
+        requestUrl.searchParams.get("allTrimOptions");
 
     if (!year || !make || !model) {
         return new Response(
@@ -478,6 +481,24 @@ if (action === "vehicle") {
     cacheKey.searchParams.set("year", year);
     cacheKey.searchParams.set("make", make);
     cacheKey.searchParams.set("model", model);
+
+    if (trim) {
+        cacheKey.searchParams.set(
+            "trim",
+            trim
+        );
+    } else {
+        cacheKey.searchParams.delete("trim");
+    }
+
+    if (allTrimOptions) {
+        cacheKey.searchParams.set(
+            "allTrimOptions",
+            allTrimOptions
+        );
+    } else {
+        cacheKey.searchParams.delete("allTrimOptions");
+    }
 
     /*
      * API key must never be part of the cache key.
