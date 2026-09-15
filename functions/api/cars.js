@@ -90,50 +90,39 @@ export async function onRequestGet(context) {
              * Request images from CarsXE.
              */
 
-            const imagesUrl = new URL(
-                "https://api.carsxe.com/images"
-            );
+           imagesUrl.searchParams.set(
+    "license",
+    "ShareCommercially"
+);
 
-            imagesUrl.searchParams.set(
-                "key",
-                env.CARSXE_API_KEY
-            );
+const response = await fetch(
+    imagesUrl.toString()
+);
 
-            imagesUrl.searchParams.set(
-                "make",
-                make
-            );
+const responseText =
+    await response.text();
 
-            imagesUrl.searchParams.set(
-                "model",
-                model
-            );
+let data;
 
-            if (year) {
-                imagesUrl.searchParams.set(
-                    "year",
-                    year
-                );
-            }
+try {
 
-            /*
-             * Only request commercially shareable images.
-             */
+    data = JSON.parse(
+        responseText
+    );
 
-            imagesUrl.searchParams.set(
-                "license",
-                "ShareCommercially"
-            );
+} catch {
 
-            const response = await fetch(
-                imagesUrl.toString()
-            );
+    data = {
+        success: false,
+        error:
+            responseText ||
+            "Invalid response from CarsXE"
+    };
+}
 
-            const data = await response.json();
-
-            /*
-             * Do not cache failed API responses.
-             */
+/*
+ * Do not cache failed API responses.
+ */
 
             if (!response.ok) {
                 return new Response(
