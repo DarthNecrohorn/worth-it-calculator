@@ -199,7 +199,16 @@ fuel:
 powertrain:
     vehicle.is_electric === true
         ? "Electric"
-        : vehicle.is_plugin_electric === true
+        : (
+            vehicle.is_plugin_electric === true ||
+            String(
+                vehicle.fuel_type ||
+                vehicle.fuel ||
+                ""
+            )
+                .toLowerCase()
+                .includes("hybrid")
+        )
             ? "Hybrid"
             : (
                 String(
