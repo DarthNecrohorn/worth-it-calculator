@@ -84,6 +84,19 @@ const carPowertrainMap = {
     "Porsche 911": ["Petrol"]
 };
 
+  function getCachedCarData(car, year) {
+
+    if (year === 2024 && car.loadedData) {
+        return car.loadedData;
+    }
+
+    if (year === 2023 && car.usedData) {
+        return car.usedData;
+    }
+
+    return null;
+}
+
 async function fetchCarData(car, year = 2024) {
 
     try {
