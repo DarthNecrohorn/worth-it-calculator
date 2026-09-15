@@ -338,7 +338,7 @@ function filterCarsByCategory(category) {
             break;
 
         case "used":
-            filteredCars = carsData;
+             filteredCars = [];
             break;
 
         default:
