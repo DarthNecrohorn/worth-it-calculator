@@ -199,26 +199,30 @@ fuel:
 powertrain:
     vehicle.is_electric === true
         ? "Electric"
-        : (
-            vehicle.is_plugin_electric === true ||
-            String(vehicle.name || "")
-                .toLowerCase()
-                .includes("hybrid")
-        )
-            ? "Hybrid"
-            : (
-                String(
-                    vehicle.fuel_type ||
-                    vehicle.fuel ||
-                    vehicle.name ||
-                    ""
-                )
-                    .toLowerCase()
-                    .includes("diesel")
-                    ? "Diesel"
-                    : "Petrol"
-            ),
+        : (() => {
+            const engineType =
+                data.bestMatch?.features?.standard
+                    ?.find(feature =>
+                        feature.category === "Engine"
+                    )
+                    ?.features
+                    ?.find(feature =>
+                        feature.name === "Base engine type"
+                    )
+                    ?.value;
 
+            const normalizedEngineType =
+                String(engineType || "").toLowerCase();
+
+            return normalizedEngineType.includes("hybrid")
+                ? "Hybrid"
+                : normalizedEngineType.includes("diesel")
+                    ? "Diesel"
+                    : "Petrol";
+      
+        })(),
+
+        
 engine:
     vehicle.engine ||
     null,
