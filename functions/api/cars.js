@@ -526,6 +526,11 @@ if (action === "vehicle") {
         model
     );
 
+    vehicleUrl.searchParams.set(
+        "model",
+        model
+    );
+
     const response = await fetch(
         vehicleUrl.toString()
     );
