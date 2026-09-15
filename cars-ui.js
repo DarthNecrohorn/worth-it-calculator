@@ -528,6 +528,7 @@ function openCars() {
         carsSection.style.display = "block";
     }
 
+    updateCarsCategoryHeader("popular");
     renderPopularCars(popularCars);
 
     window.scrollTo({
