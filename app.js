@@ -1273,6 +1273,16 @@ function openMarketsFromMenu() {
     }
 }
 
+function openCarsFromMenu() {
+    closeMoreMenu();
+
+    if (typeof window.openCars === "function") {
+        window.openCars();
+    }
+}
+
+window.openCarsFromMenu = openCarsFromMenu;
+
 window.openMarketsFromMenu = openMarketsFromMenu;
 
 function openMoneyFromMenu() {
