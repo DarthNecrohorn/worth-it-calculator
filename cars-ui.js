@@ -383,7 +383,7 @@ function normalizeCarData(data, fallbackCar) {
     };
 }
 
-async function renderPopularCars(cars = carsData) {
+async function renderPopularCars(cars = carsData, year = 2024) {
 
     const grid =
         document.getElementById("popularCarsGrid");
@@ -436,7 +436,7 @@ async function renderPopularCars(cars = carsData) {
         carCards.map(async ({ car, card }) => {
 
             const data =
-                await fetchCarData(car, 2024);
+                await fetchCarData(car, year);
 
             if (!data || !data.bestMatch) {
 
@@ -457,27 +457,8 @@ async function renderPopularCars(cars = carsData) {
                 return;
             }
 
-            const image =
-                await fetchCarImage(
-                    car,
-                    normalizedCar.year
-                );
-
             card.innerHTML = `
-                ${
-                    image
-                        ? `
-                            <img
-                                class="car-card-image"
-                                src="${image}"
-                                alt="${normalizedCar.make} ${normalizedCar.model}"
-                                loading="lazy"
-                            >
-                        `
-                        : `
-                            <div class="car-card-icon">🚗</div>
-                        `
-                }
+                <div class="car-card-icon">🚗</div>
 
                 <strong>
                     ${normalizedCar.make}
