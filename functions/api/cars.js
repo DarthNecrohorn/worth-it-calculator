@@ -1,6 +1,6 @@
 export async function onRequestGet(context) {
     try {
-        const { env } = context;
+        const { env, request } = context;
 
         if (!env.CARSXE_API_KEY) {
             return new Response(
@@ -17,16 +17,131 @@ export async function onRequestGet(context) {
             );
         }
 
-        const url = new URL(
-            "https://api.carsxe.com/v1/ymm"
+        const requestUrl = new URL(request.url);
+
+        const action = requestUrl.searchParams.get("action");
+
+        const carsxeUrl = new URL(
+            "https://api.carsxe.com/v1/ymm-options"
         );
 
-        url.searchParams.set("key", env.CARSXE_API_KEY);
-        url.searchParams.set("year", "2024");
-        url.searchParams.set("make", "BMW");
-        url.searchParams.set("model", "3 Series");
+        carsxeUrl.searchParams.set(
+            "key",
+            env.CARSXE_API_KEY
+        );
 
-        const response = await fetch(url.toString());
+        // Get model list for a manufacturer
+        if (action === "models") {
+
+            const make = requestUrl.searchParams.get("make");
+
+            if (!make) {
+                return new Response(
+                    JSON.stringify({
+                        success: false,
+                        error: "Missing make parameter"
+                    }),
+                    {
+                        status: 400,
+                        headers: {
+                            "Content-Type": "application/json"
+                        }
+                    }
+                );
+            }
+
+            carsxeUrl.searchParams.set(
+                "dimension",
+                "models"
+            );
+
+            carsxeUrl.searchParams.set(
+                "make",
+                make
+            );
+        }
+
+        // Get detailed vehicle information
+        else if (action === "vehicle") {
+
+            const year = requestUrl.searchParams.get("year");
+            const make = requestUrl.searchParams.get("make");
+            const model = requestUrl.searchParams.get("model");
+
+            if (!year || !make || !model) {
+                return new Response(
+                    JSON.stringify({
+                        success: false,
+                        error: "Missing year, make, or model parameter"
+                    }),
+                    {
+                        status: 400,
+                        headers: {
+                            "Content-Type": "application/json"
+                        }
+                    }
+                );
+            }
+
+            const vehicleUrl = new URL(
+                "https://api.carsxe.com/v1/ymm"
+            );
+
+            vehicleUrl.searchParams.set(
+                "key",
+                env.CARSXE_API_KEY
+            );
+
+            vehicleUrl.searchParams.set(
+                "year",
+                year
+            );
+
+            vehicleUrl.searchParams.set(
+                "make",
+                make
+            );
+
+            vehicleUrl.searchParams.set(
+                "model",
+                model
+            );
+
+            const response = await fetch(
+                vehicleUrl.toString()
+            );
+
+            const data = await response.json();
+
+            return new Response(
+                JSON.stringify(data),
+                {
+                    status: response.status,
+                    headers: {
+                        "Content-Type": "application/json"
+                    }
+                }
+            );
+        }
+
+        else {
+            return new Response(
+                JSON.stringify({
+                    success: false,
+                    error: "Invalid action"
+                }),
+                {
+                    status: 400,
+                    headers: {
+                        "Content-Type": "application/json"
+                    }
+                }
+            );
+        }
+
+        const response = await fetch(
+            carsxeUrl.toString()
+        );
 
         const data = await response.json();
 
