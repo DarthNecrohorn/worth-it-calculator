@@ -51,6 +51,17 @@ const popularCars = [
     { make: "Porsche", model: "911" }
 ];
 
+    const usedCars = [
+    { make: "BMW", model: "X5" },
+    { make: "Mercedes-Benz", model: "E-Class" },
+    { make: "Audi", model: "Q5" },
+    { make: "Volkswagen", model: "Golf" },
+    { make: "Toyota", model: "RAV4" },
+    { make: "Tesla", model: "Model 3" },
+    { make: "Hyundai", model: "Tucson" },
+    { make: "Porsche", model: "911" }
+];
+
 const carPowertrainMap = {
     "BMW 3 Series": ["Petrol"],
     "BMW X5": ["Petrol", "Hybrid"],
