@@ -438,8 +438,11 @@ if (!normalizedCar) {
         return;
     }
 
-        car.loadedData = normalizedCar;
-    }
+        setCachedCarData(
+        car,
+        2024,
+        normalizedCar
+    );
 
             const image =
                 await fetchCarImage(
