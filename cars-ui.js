@@ -201,11 +201,7 @@ powertrain:
         ? "Electric"
         : (
             vehicle.is_plugin_electric === true ||
-            String(
-                vehicle.fuel_type ||
-                vehicle.fuel ||
-                ""
-            )
+            String(vehicle.name || "")
                 .toLowerCase()
                 .includes("hybrid")
         )
@@ -214,6 +210,7 @@ powertrain:
                 String(
                     vehicle.fuel_type ||
                     vehicle.fuel ||
+                    vehicle.name ||
                     ""
                 )
                     .toLowerCase()
