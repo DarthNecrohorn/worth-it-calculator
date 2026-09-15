@@ -492,7 +492,7 @@ function updateCarsCategoryHeader(category) {
     description.textContent = info.description;
 }
 
-function filterCarsByCategory(category) {
+async function filterCarsByCategory(category) {
 
     updateCarsCategoryHeader(category);
 
