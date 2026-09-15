@@ -74,11 +74,8 @@ const carsData = [
     {
         make: "Porsche",
         model: "911"
-    },
-    {
-        make: "Skoda",
-        model: "Octavia"
     }
+    
 ];
 
 async function fetchCarData(car, year = 2024) {
