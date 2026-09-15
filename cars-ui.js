@@ -404,15 +404,9 @@ if (!normalizedCar) {
         return;
     }
 
-    car.loadedData = normalizedCar;
-}
+        car.loadedData = normalizedCar;
+    }
 
-                card.querySelector("span").textContent =
-                    "Vehicle data unavailable";
-
-                return;
-            }
-            
             const image =
                 await fetchCarImage(
                     car,
