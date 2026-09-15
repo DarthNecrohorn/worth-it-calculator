@@ -123,6 +123,58 @@ async function fetchCarData(car, year = 2024) {
     }
 }
 
+function normalizeCarData(data, fallbackCar) {
+
+    if (!data || !data.bestMatch) {
+        return null;
+    }
+
+    const vehicle = data.bestMatch;
+
+    return {
+        make: vehicle.make || fallbackCar.make,
+        model: vehicle.model || fallbackCar.model,
+        name: vehicle.name || "",
+        year: vehicle.year || 2024,
+
+        price:
+            vehicle.base_msrp ??
+            null,
+
+        horsepower:
+            vehicle.horsepower ??
+            null,
+
+        drivetrain:
+            vehicle.drivetrain ||
+            vehicle.drive_train ||
+            null,
+
+        fuel:
+            vehicle.fuel_type ||
+            vehicle.fuel ||
+            null,
+
+        engine:
+            vehicle.engine ||
+            null,
+
+        transmission:
+            vehicle.transmission ||
+            null,
+
+        mpg:
+            vehicle.mpg_combined ??
+            null,
+
+        electric:
+            vehicle.is_electric === true,
+
+        plugInHybrid:
+            vehicle.is_plugin_electric === true
+    };
+}
+
 async function renderPopularCars(cars = carsData) {
 
     const grid =
