@@ -314,6 +314,8 @@ if (action === "variants") {
     const make = requestUrl.searchParams.get("make");
     const model = requestUrl.searchParams.get("model");
     const trim = requestUrl.searchParams.get("trim");
+    const allTrimOptions =
+    requestUrl.searchParams.get("allTrimOptions");
     
     if (!year || !make || !model) {
         return new Response(
