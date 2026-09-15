@@ -243,15 +243,13 @@ async function fetchCarImage(car, year = 2024) {
                 ? data.images[0].link
                 : null;
 
-        if (year === 2024) {
-            car.loadedImage = image;
-        }
+        setCachedCarImage(
+        car,
+        year,
+        image
+    );
 
-        if (year === 2023) {
-            car.usedImage = image;
-        }
-
-        return image;
+return image;
 
     } catch (error) {
 
