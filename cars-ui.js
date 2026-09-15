@@ -326,15 +326,13 @@ function filterCarsByCategory(category) {
             break;
 
        case "diesel":
-    const dieselModels = [
-        "BMW X5",
-        "Mercedes-Benz GLE",
-        "Audi Q7",
-        "Volkswagen Tiguan",
-        "Ford F-150",
-        "Hyundai Tucson",
-        "Kia Sportage"
-    ];
+   const dieselModels = [
+    "Audi Q7",
+    "Volkswagen Tiguan",
+    "Ford F-150",
+    "Hyundai Tucson",
+    "Kia Sportage"
+];
 
     filteredCars = carsData.filter(car =>
         dieselModels.includes(
