@@ -94,6 +94,51 @@ function renderPopularCars(cars = carsData) {
     });
 }
 
+function filterCarsByCategory(category) {
+
+    let filteredCars = [];
+
+    switch (category) {
+
+        case "new":
+            filteredCars = carsData.filter(car =>
+                car.condition === "New"
+            );
+            break;
+
+        case "used":
+            filteredCars = carsData.filter(car =>
+                car.condition === "Used"
+            );
+            break;
+
+        case "electric":
+            filteredCars = carsData.filter(car =>
+                car.powertrain === "Electric"
+            );
+            break;
+
+        case "hybrid":
+            filteredCars = carsData.filter(car =>
+                car.powertrain === "Hybrid"
+            );
+            break;
+
+        case "petrol":
+            filteredCars = carsData.filter(car =>
+                car.powertrain === "Petrol"
+            );
+            break;
+
+        case "diesel":
+            filteredCars = carsData.filter(car =>
+                car.powertrain === "Diesel"
+            );
+            break;
+    }
+
+    renderPopularCars(filteredCars);
+}
 
 function openCars() {
 
