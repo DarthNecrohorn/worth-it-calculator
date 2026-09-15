@@ -403,6 +403,10 @@ function filterCarsByCategory(category) {
 
     switch (category) {
 
+        case "popular":
+           filteredCars = popularCars;
+               break;
+            
         case "electric":
             filteredCars = carsData.filter(car =>
                 car.loadedData &&
