@@ -214,6 +214,7 @@ function openCars() {
 
 window.openCars = openCars;
 
+window.filterCarsByCategory = filterCarsByCategory;
 
 document.addEventListener("DOMContentLoaded", function () {
 
