@@ -4,6 +4,7 @@ const carsData = [
         model: "3 Series",
         type: "Sedan",
         powertrain: "Petrol",
+        condition: "New",
         icon: "🚘"
     },
     {
@@ -11,6 +12,7 @@ const carsData = [
         model: "Model 3",
         type: "Sedan",
         powertrain: "Electric",
+        condition: "New",
         icon: "⚡"
     },
     {
@@ -18,6 +20,7 @@ const carsData = [
         model: "Golf",
         type: "Hatchback",
         powertrain: "Petrol",
+        condition: "Used",
         icon: "🚗"
     },
     {
@@ -25,6 +28,7 @@ const carsData = [
         model: "RAV4",
         type: "SUV",
         powertrain: "Hybrid",
+        condition: "New",
         icon: "🚙"
     },
     {
@@ -32,13 +36,15 @@ const carsData = [
         model: "C-Class",
         type: "Sedan",
         powertrain: "Petrol",
+        condition: "Used",
         icon: "🚘"
     },
     {
         make: "Audi",
         model: "A4",
         type: "Sedan",
-        powertrain: "Petrol",
+        powertrain: "Diesel",
+        condition: "Used",
         icon: "🚘"
     },
     {
@@ -46,6 +52,7 @@ const carsData = [
         model: "Corolla",
         type: "Sedan",
         powertrain: "Hybrid",
+        condition: "New",
         icon: "🚗"
     },
     {
@@ -53,6 +60,7 @@ const carsData = [
         model: "F-150",
         type: "Pickup",
         powertrain: "Petrol",
+        condition: "Used",
         icon: "🛻"
     }
 ];
