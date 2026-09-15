@@ -4550,3 +4550,39 @@ html[data-theme="light"] .cars-compare-placeholder {
     object-fit: contain;
     display: block;
 }
+
+.cars-empty-state {
+    grid-column: 1 / -1;
+
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+
+    min-height: 180px;
+    padding: 30px;
+
+    text-align: center;
+
+    border: 1px dashed var(--border);
+    border-radius: 15px;
+
+    background: rgba(255,255,255,.02);
+}
+
+.cars-empty-icon {
+    font-size: 38px;
+    margin-bottom: 12px;
+}
+
+.cars-empty-state strong {
+    font-size: 17px;
+}
+
+.cars-empty-state p {
+    max-width: 500px;
+    margin: 6px 0 0;
+
+    color: var(--muted);
+    font-size: 13px;
+}
