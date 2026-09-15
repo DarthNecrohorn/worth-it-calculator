@@ -1,67 +1,83 @@
 const carsData = [
     {
         make: "BMW",
-        model: "3 Series",
-        type: "Sedan",
-        powertrain: "Petrol",
-        condition: "New",
-        icon: "🚘"
+        model: "3 Series"
     },
     {
-        make: "Tesla",
-        model: "Model 3",
-        type: "Sedan",
-        powertrain: "Electric",
-        condition: "New",
-        icon: "⚡"
-    },
-    {
-        make: "Volkswagen",
-        model: "Golf",
-        type: "Hatchback",
-        powertrain: "Petrol",
-        condition: "Used",
-        icon: "🚗"
-    },
-    {
-        make: "Toyota",
-        model: "RAV4",
-        type: "SUV",
-        powertrain: "Hybrid",
-        condition: "New",
-        icon: "🚙"
+        make: "BMW",
+        model: "X5"
     },
     {
         make: "Mercedes-Benz",
-        model: "C-Class",
-        type: "Sedan",
-        powertrain: "Petrol",
-        condition: "Used",
-        icon: "🚘"
+        model: "C-Class"
+    },
+    {
+        make: "Mercedes-Benz",
+        model: "GLC"
     },
     {
         make: "Audi",
-        model: "A4",
-        type: "Sedan",
-        powertrain: "Diesel",
-        condition: "Used",
-        icon: "🚘"
+        model: "A4"
+    },
+    {
+        make: "Audi",
+        model: "Q5"
+    },
+    {
+        make: "Volkswagen",
+        model: "Golf"
+    },
+    {
+        make: "Volkswagen",
+        model: "Tiguan"
     },
     {
         make: "Toyota",
-        model: "Corolla",
-        type: "Sedan",
-        powertrain: "Hybrid",
-        condition: "New",
-        icon: "🚗"
+        model: "Corolla"
+    },
+    {
+        make: "Toyota",
+        model: "RAV4"
+    },
+    {
+        make: "Toyota",
+        model: "Camry"
+    },
+    {
+        make: "Tesla",
+        model: "Model 3"
+    },
+    {
+        make: "Tesla",
+        model: "Model Y"
     },
     {
         make: "Ford",
-        model: "F-150",
-        type: "Pickup",
-        powertrain: "Petrol",
-        condition: "Used",
-        icon: "🛻"
+        model: "F-150"
+    },
+    {
+        make: "Ford",
+        model: "Mustang"
+    },
+    {
+        make: "Hyundai",
+        model: "Tucson"
+    },
+    {
+        make: "Hyundai",
+        model: "Ioniq 5"
+    },
+    {
+        make: "Kia",
+        model: "Sportage"
+    },
+    {
+        make: "Porsche",
+        model: "911"
+    },
+    {
+        make: "Skoda",
+        model: "Octavia"
     }
 ];
 
@@ -84,11 +100,10 @@ function renderPopularCars(cars = carsData) {
         card.className = "car-card";
 
         card.innerHTML = `
-          <div class="car-card-icon">${car.icon}</div>
-          <strong>${car.make} ${car.model}</strong>
-          <span>${car.powertrain} · ${car.type}</span>
-          <small>${car.condition}</small>
-    `;
+            <div class="car-card-icon">🚗</div>
+            <strong>${car.make} ${car.model}</strong>
+            <span>Loading vehicle data...</span>
+        `;
 
         grid.appendChild(card);
     });
