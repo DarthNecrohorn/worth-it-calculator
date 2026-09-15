@@ -13,7 +13,6 @@ const carsData = [
 
     { make: "Volkswagen", model: "Golf" },
     { make: "Volkswagen", model: "Tiguan" },
-    { make: "Volkswagen", model: "Touareg" },
 
     { make: "Toyota", model: "Corolla" },
     { make: "Toyota", model: "RAV4" },
