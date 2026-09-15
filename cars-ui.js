@@ -95,17 +95,46 @@ function getCachedCarData(car, year) {
     const key =
         getCarCacheKey(car, year);
 
-    function getCachedCarData(car, year) {
-
-    const key =
-        getCarCacheKey(car, year);
-
     return carDataCache.has(key)
         ? carDataCache.get(key)
         : undefined;
 }
-    
+
+function setCachedCarData(car, year, data) {
+
+    const key =
+        getCarCacheKey(car, year);
+
+    carDataCache.set(key, data);
+
+    return data;
+}
+
 const carImageCache = new Map();
+
+function getCarImageCacheKey(car, year) {
+    return `${year}|${car.make}|${car.model}`;
+}
+
+function getCachedCarImage(car, year) {
+
+    const key =
+        getCarImageCacheKey(car, year);
+
+    return carImageCache.has(key)
+        ? carImageCache.get(key)
+        : undefined;
+}
+
+function setCachedCarImage(car, year, image) {
+
+    const key =
+        getCarImageCacheKey(car, year);
+
+    carImageCache.set(key, image);
+
+    return image;
+}
 
 function getCarImageCacheKey(car, year) {
     return `${year}|${car.make}|${car.model}`;
