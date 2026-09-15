@@ -51,6 +51,39 @@ const popularCars = [
     { make: "Porsche", model: "911" }
 ];
 
+const carPowertrainMap = {
+    "BMW 3 Series": ["Petrol"],
+    "BMW X5": ["Petrol", "Hybrid"],
+    "BMW 5 Series": ["Petrol", "Hybrid"],
+
+    "Mercedes-Benz GLC": ["Petrol", "Hybrid"],
+    "Mercedes-Benz E-Class": ["Petrol", "Hybrid"],
+
+    "Audi A4": ["Petrol", "Diesel", "Hybrid"],
+    "Audi Q5": ["Petrol", "Diesel", "Hybrid"],
+    "Audi Q7": ["Petrol", "Diesel", "Hybrid"],
+
+    "Volkswagen Golf": ["Petrol", "Diesel"],
+    "Volkswagen Tiguan": ["Petrol", "Diesel", "Hybrid"],
+
+    "Toyota Corolla": ["Petrol", "Hybrid"],
+    "Toyota RAV4": ["Petrol", "Hybrid"],
+    "Toyota Camry": ["Petrol", "Hybrid"],
+
+    "Tesla Model 3": ["Electric"],
+    "Tesla Model Y": ["Electric"],
+
+    "Ford F-150": ["Petrol", "Hybrid"],
+    "Ford Mustang": ["Petrol"],
+
+    "Hyundai Tucson": ["Petrol", "Diesel", "Hybrid"],
+    "Hyundai Ioniq 5": ["Electric"],
+
+    "Kia Sportage": ["Petrol", "Diesel", "Hybrid"],
+
+    "Porsche 911": ["Petrol"]
+};
+
 async function fetchCarData(car, year = 2024) {
 
     try {
