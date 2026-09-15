@@ -100,16 +100,6 @@ function getCachedCarData(car, year) {
         : undefined;
 }
 
-function setCachedCarData(car, year, data) {
-
-    const key =
-        getCarCacheKey(car, year);
-
-    carDataCache.set(key, data);
-
-    return data;
-}
-
 const carImageCache = new Map();
 
 function getCarImageCacheKey(car, year) {
