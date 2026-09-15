@@ -391,20 +391,20 @@ async function renderPopularCars(cars = carsData) {
     grid.innerHTML = "";
 
     if (!cars.length) {
-    grid.innerHTML = `
-        <div class="cars-empty-state">
-            <div class="cars-empty-icon">🚗</div>
-            <strong>No cars available</strong>
-            <p>
-                There are currently no vehicles available
-                for this category.
-            </p>
-        </div>
-    `;
+        grid.innerHTML = `
+            <div class="cars-empty-state">
+                <div class="cars-empty-icon">🚗</div>
+                <strong>No cars available</strong>
+                <p>
+                    There are currently no vehicles available
+                    for this category.
+                </p>
+            </div>
+        `;
 
-    return;
-}
-    
+        return;
+    }
+
     const carCards = [];
 
     for (const car of cars) {
@@ -432,38 +432,39 @@ async function renderPopularCars(cars = carsData) {
     await Promise.all(
         carCards.map(async ({ car, card }) => {
 
-           let normalizedCar =
-    getCachedCarData(car, 2024);
+            let normalizedCar =
+                getCachedCarData(car, 2024);
 
-if (!normalizedCar) {
+            if (!normalizedCar) {
 
-    const data =
-        await fetchCarData(car);
+                const data =
+                    await fetchCarData(car);
 
-    if (!data || !data.bestMatch) {
+                if (!data || !data.bestMatch) {
 
-        card.querySelector("span").textContent =
-            "Vehicle data unavailable";
+                    card.querySelector("span").textContent =
+                        "Vehicle data unavailable";
 
-        return;
-    }
+                    return;
+                }
 
-    normalizedCar =
-        normalizeCarData(data, car);
+                normalizedCar =
+                    normalizeCarData(data, car);
 
-    if (!normalizedCar) {
+                if (!normalizedCar) {
 
-        card.querySelector("span").textContent =
-            "Vehicle data unavailable";
+                    card.querySelector("span").textContent =
+                        "Vehicle data unavailable";
 
-        return;
-    }
+                    return;
+                }
 
-        setCachedCarData(
-        car,
-        2024,
-        normalizedCar
-    );
+                setCachedCarData(
+                    car,
+                    2024,
+                    normalizedCar
+                );
+            }
 
             const image =
                 await fetchCarImage(
