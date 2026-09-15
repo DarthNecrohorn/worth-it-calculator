@@ -258,13 +258,11 @@ return image;
             error
         );
 
-        if (year === 2024) {
-            car.loadedImage = null;
-        }
-
-        if (year === 2023) {
-            car.usedImage = null;
-        }
+        setCachedCarImage(
+        car,
+        year,
+        null
+    );
 
         return null;
     }
