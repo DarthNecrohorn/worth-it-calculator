@@ -313,7 +313,8 @@ if (action === "variants") {
     const year = requestUrl.searchParams.get("year");
     const make = requestUrl.searchParams.get("make");
     const model = requestUrl.searchParams.get("model");
-
+    const trim = requestUrl.searchParams.get("trim");
+    
     if (!year || !make || !model) {
         return new Response(
             JSON.stringify({
