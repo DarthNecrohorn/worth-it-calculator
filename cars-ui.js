@@ -266,8 +266,27 @@ async function renderPopularCars(cars = carsData) {
             continue;
         }
 
+        const image =
+            await fetchCarImage(
+                car,
+                normalizedCar.year
+            );
+
         card.innerHTML = `
-            <div class="car-card-icon">🚗</div>
+            ${
+                image
+                    ? `
+                        <img
+                            class="car-card-image"
+                            src="${image}"
+                            alt="${normalizedCar.make} ${normalizedCar.model}"
+                            loading="lazy"
+                        >
+                    `
+                    : `
+                        <div class="car-card-icon">🚗</div>
+                    `
+            }
 
             <strong>
                 ${normalizedCar.make}
