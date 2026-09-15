@@ -18,19 +18,166 @@ export async function onRequestGet(context) {
         }
 
         const requestUrl = new URL(request.url);
-
         const action = requestUrl.searchParams.get("action");
 
-        const carsxeUrl = new URL(
-            "https://api.carsxe.com/v1/ymm-options"
-        );
+        /*
+         * =========================
+         * IMAGES
+         * =========================
+         */
 
-        carsxeUrl.searchParams.set(
-            "key",
-            env.CARSXE_API_KEY
-        );
+        if (action === "images") {
 
-        // Get model list for a manufacturer
+            const make = requestUrl.searchParams.get("make");
+            const model = requestUrl.searchParams.get("model");
+            const year = requestUrl.searchParams.get("year");
+
+            if (!make || !model) {
+                return new Response(
+                    JSON.stringify({
+                        success: false,
+                        error: "Missing make or model parameter"
+                    }),
+                    {
+                        status: 400,
+                        headers: {
+                            "Content-Type": "application/json"
+                        }
+                    }
+                );
+            }
+
+            /*
+             * Build a clean cache key.
+             *
+             * The API key is intentionally NOT included
+             * in the cache key.
+             */
+
+            const cacheKey = new URL(request.url);
+
+            cacheKey.searchParams.set("action", "images");
+            cacheKey.searchParams.set("make", make);
+            cacheKey.searchParams.set("model", model);
+
+            if (year) {
+                cacheKey.searchParams.set("year", year);
+            } else {
+                cacheKey.searchParams.delete("year");
+            }
+
+            /*
+             * Remove anything that should not affect
+             * the cached result.
+             */
+
+            cacheKey.searchParams.delete("key");
+
+            /*
+             * Use Cloudflare's edge cache.
+             */
+
+            const cache = caches.default;
+
+            const cachedResponse = await cache.match(cacheKey.toString());
+
+            if (cachedResponse) {
+                return cachedResponse;
+            }
+
+            /*
+             * No cached result.
+             * Request images from CarsXE.
+             */
+
+            const imagesUrl = new URL(
+                "https://api.carsxe.com/images"
+            );
+
+            imagesUrl.searchParams.set(
+                "key",
+                env.CARSXE_API_KEY
+            );
+
+            imagesUrl.searchParams.set(
+                "make",
+                make
+            );
+
+            imagesUrl.searchParams.set(
+                "model",
+                model
+            );
+
+            if (year) {
+                imagesUrl.searchParams.set(
+                    "year",
+                    year
+                );
+            }
+
+            /*
+             * Only request commercially shareable images.
+             */
+
+            imagesUrl.searchParams.set(
+                "license",
+                "ShareCommercially"
+            );
+
+            const response = await fetch(
+                imagesUrl.toString()
+            );
+
+            const data = await response.json();
+
+            /*
+             * Do not cache failed API responses.
+             */
+
+            if (!response.ok) {
+                return new Response(
+                    JSON.stringify(data),
+                    {
+                        status: response.status,
+                        headers: {
+                            "Content-Type": "application/json"
+                        }
+                    }
+                );
+            }
+
+            /*
+             * Cache successful image results.
+             *
+             * 7 days is a good starting point.
+             */
+
+            const cacheResponse = new Response(
+                JSON.stringify(data),
+                {
+                    status: 200,
+                    headers: {
+                        "Content-Type": "application/json",
+                        "Cache-Control": "public, max-age=604800"
+                    }
+                }
+            );
+
+            await cache.put(
+                cacheKey.toString(),
+                cacheResponse.clone()
+            );
+
+            return cacheResponse;
+        }
+
+        /*
+         * =========================
+         * MODELS
+         * =========================
+         */
+
         if (action === "models") {
 
             const make = requestUrl.searchParams.get("make");
@@ -50,6 +197,15 @@ export async function onRequestGet(context) {
                 );
             }
 
+            const carsxeUrl = new URL(
+                "https://api.carsxe.com/v1/ymm-options"
+            );
+
+            carsxeUrl.searchParams.set(
+                "key",
+                env.CARSXE_API_KEY
+            );
+
             carsxeUrl.searchParams.set(
                 "dimension",
                 "models"
@@ -59,79 +215,31 @@ export async function onRequestGet(context) {
                 "make",
                 make
             );
-        }
 
-        else if (action === "images") {
+            const response = await fetch(
+                carsxeUrl.toString()
+            );
 
-    const make = requestUrl.searchParams.get("make");
-    const model = requestUrl.searchParams.get("model");
-    const year = requestUrl.searchParams.get("year");
+            const data = await response.json();
 
-    if (!make || !model) {
-        return new Response(
-            JSON.stringify({
-                success: false,
-                error: "Missing make or model parameter"
-            }),
-            {
-                status: 400,
-                headers: {
-                    "Content-Type": "application/json"
+            return new Response(
+                JSON.stringify(data),
+                {
+                    status: response.status,
+                    headers: {
+                        "Content-Type": "application/json"
+                    }
                 }
-            }
-        );
-    }
-
-    const imagesUrl = new URL(
-        "https://api.carsxe.com/images"
-    );
-
-    imagesUrl.searchParams.set(
-        "key",
-        env.CARSXE_API_KEY
-    );
-
-    imagesUrl.searchParams.set(
-        "make",
-        make
-    );
-
-    imagesUrl.searchParams.set(
-        "model",
-        model
-    );
-
-    if (year) {
-        imagesUrl.searchParams.set(
-            "year",
-            year
-        );
-    }
-
-    imagesUrl.searchParams.set(
-    "license",
-    "ShareCommercially"
-);
-            
-    const response = await fetch(
-        imagesUrl.toString()
-    );
-
-    const data = await response.json();
-
-    return new Response(
-        JSON.stringify(data),
-        {
-            status: response.status,
-            headers: {
-                "Content-Type": "application/json"
-            }
+            );
         }
-    );
-}
-            
-        // Get detailed vehicle information
-        else if (action === "vehicle") {
+
+        /*
+         * =========================
+         * VEHICLE
+         * =========================
+         */
+
+        if (action === "vehicle") {
 
             const year = requestUrl.searchParams.get("year");
             const make = requestUrl.searchParams.get("make");
@@ -193,31 +301,19 @@ export async function onRequestGet(context) {
             );
         }
 
-        else {
-            return new Response(
-                JSON.stringify({
-                    success: false,
-                    error: "Invalid action"
-                }),
-                {
-                    status: 400,
-                    headers: {
-                        "Content-Type": "application/json"
-                    }
-                }
-            );
-        }
-
-        const response = await fetch(
-            carsxeUrl.toString()
-        );
-
-        const data = await response.json();
+        /*
+         * =========================
+         * INVALID ACTION
+         * =========================
+         */
 
         return new Response(
-            JSON.stringify(data),
+            JSON.stringify({
+                success: false,
+                error: "Invalid action"
+            }),
             {
-                status: response.status,
+                status: 400,
                 headers: {
                     "Content-Type": "application/json"
                 }
