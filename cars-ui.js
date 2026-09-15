@@ -475,33 +475,32 @@ function filterCarsByCategory(category) {
            break;
             
         case "electric":
-            filteredCars = carsData.filter(car =>
-                car.loadedData &&
-                car.loadedData.powertrain === "Electric"
-            );
-            break;
-
-        case "hybrid":
-            filteredCars = carsData.filter(car =>
-                car.loadedData &&
-                car.loadedData.powertrain === "Hybrid"
-            );
-            break;
-
-        case "petrol":
-            filteredCars = carsData.filter(car =>
-                car.loadedData &&
-                car.loadedData.powertrain === "Petrol"
-            );
-            break;
-
-       case "diesel":
     filteredCars = carsData.filter(car =>
-        car.loadedData &&
-        car.loadedData.powertrain === "Diesel"
+        (carPowertrainMap[`${car.make} ${car.model}`] || [])
+            .includes("Electric")
     );
     break;
 
+case "hybrid":
+    filteredCars = carsData.filter(car =>
+        (carPowertrainMap[`${car.make} ${car.model}`] || [])
+            .includes("Hybrid")
+    );
+    break;
+
+case "petrol":
+    filteredCars = carsData.filter(car =>
+        (carPowertrainMap[`${car.make} ${car.model}`] || [])
+            .includes("Petrol")
+    );
+    break;
+
+case "diesel":
+    filteredCars = carsData.filter(car =>
+        (carPowertrainMap[`${car.make} ${car.model}`] || [])
+            .includes("Diesel")
+    );
+    break;
         case "new": {
     const availableYears = carsData
         .map(car => car.loadedData?.year)
