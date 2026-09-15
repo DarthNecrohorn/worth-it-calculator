@@ -420,8 +420,14 @@ async function renderPopularCars(cars = carsData, year = 2024) {
 
         card.innerHTML = `
             <div class="car-card-icon">🚗</div>
-            <strong>${car.make} ${car.model}</strong>
-            <span>Loading vehicle data...</span>
+
+            <strong>
+                ${car.make} ${car.model}
+            </strong>
+
+            <span>
+                Loading vehicle data...
+            </span>
         `;
 
         grid.appendChild(card);
@@ -435,8 +441,11 @@ async function renderPopularCars(cars = carsData, year = 2024) {
     await Promise.all(
         carCards.map(async ({ car, card }) => {
 
-            const data =
-                await fetchCarData(car, year);
+            const [data, image] =
+                await Promise.all([
+                    fetchCarData(car, year),
+                    fetchCarImage(car, year)
+                ]);
 
             if (!data || !data.bestMatch) {
 
@@ -458,7 +467,19 @@ async function renderPopularCars(cars = carsData, year = 2024) {
             }
 
             card.innerHTML = `
-                <div class="car-card-icon">🚗</div>
+                ${image
+                    ? `
+                        <img
+                            src="${image}"
+                            alt="${normalizedCar.make} ${normalizedCar.model}"
+                            class="car-card-image"
+                            loading="lazy"
+                        >
+                    `
+                    : `
+                        <div class="car-card-icon">🚗</div>
+                    `
+                }
 
                 <strong>
                     ${normalizedCar.make}
@@ -478,7 +499,6 @@ async function renderPopularCars(cars = carsData, year = 2024) {
         })
     );
 }
-
 function updateCarsCategoryHeader(category) {
 
     const title =
