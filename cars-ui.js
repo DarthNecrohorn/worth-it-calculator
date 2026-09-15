@@ -476,11 +476,13 @@ document.addEventListener("DOMContentLoaded", function () {
             carsData.filter(car => {
 
                 const searchText =
-                    `${car.make} ${car.model} ${car.type} ${car.powertrain}`
+                    `${car.make} ${car.model}`
                     .toLowerCase();
 
                 return searchText.includes(query);
-        });
+            });
+
+        renderPopularCars(filteredCars);
 
     });
 
