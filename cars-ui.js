@@ -1,81 +1,36 @@
 const carsData = [
-    {
-        make: "BMW",
-        model: "3 Series"
-    },
-    {
-        make: "BMW",
-        model: "X5"
-    },
-    {
-        make: "Mercedes-Benz",
-        model: "C-Class"
-    },
-    {
-        make: "Mercedes-Benz",
-        model: "GLC"
-    },
-    {
-        make: "Audi",
-        model: "A4"
-    },
-    {
-        make: "Audi",
-        model: "Q5"
-    },
-    {
-        make: "Volkswagen",
-        model: "Golf"
-    },
-    {
-        make: "Volkswagen",
-        model: "Tiguan"
-    },
-    {
-        make: "Toyota",
-        model: "Corolla"
-    },
-    {
-        make: "Toyota",
-        model: "RAV4"
-    },
-    {
-        make: "Toyota",
-        model: "Camry"
-    },
-    {
-        make: "Tesla",
-        model: "Model 3"
-    },
-    {
-        make: "Tesla",
-        model: "Model Y"
-    },
-    {
-        make: "Ford",
-        model: "F-150"
-    },
-    {
-        make: "Ford",
-        model: "Mustang"
-    },
-    {
-        make: "Hyundai",
-        model: "Tucson"
-    },
-    {
-        make: "Hyundai",
-        model: "Ioniq 5"
-    },
-    {
-        make: "Kia",
-        model: "Sportage"
-    },
-    {
-        make: "Porsche",
-        model: "911"
-    }
-    
+    { make: "BMW", model: "3 Series" },
+    { make: "BMW", model: "X5" },
+    { make: "BMW", model: "5 Series" },
+
+    { make: "Mercedes-Benz", model: "C-Class" },
+    { make: "Mercedes-Benz", model: "GLC" },
+    { make: "Mercedes-Benz", model: "E-Class" },
+
+    { make: "Audi", model: "A4" },
+    { make: "Audi", model: "Q5" },
+    { make: "Audi", model: "Q7" },
+
+    { make: "Volkswagen", model: "Golf" },
+    { make: "Volkswagen", model: "Tiguan" },
+    { make: "Volkswagen", model: "Touareg" },
+
+    { make: "Toyota", model: "Corolla" },
+    { make: "Toyota", model: "RAV4" },
+    { make: "Toyota", model: "Camry" },
+
+    { make: "Tesla", model: "Model 3" },
+    { make: "Tesla", model: "Model Y" },
+
+    { make: "Ford", model: "F-150" },
+    { make: "Ford", model: "Mustang" },
+
+    { make: "Hyundai", model: "Tucson" },
+    { make: "Hyundai", model: "Ioniq 5" },
+
+    { make: "Kia", model: "Sportage" },
+
+    { make: "Porsche", model: "911" }
 ];
 
 async function fetchCarData(car, year = 2024) {
