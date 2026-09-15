@@ -291,6 +291,8 @@ async function renderPopularCars(cars = carsData) {
                 return;
             }
 
+            car.loadedData = normalizedCar;
+            
             const image =
                 await fetchCarImage(
                     car,
