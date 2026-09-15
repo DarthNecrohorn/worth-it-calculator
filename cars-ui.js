@@ -154,7 +154,7 @@ async function fetchCarImage(car, year = 2024) {
             return null;
         }
 
-        return data.images[0];
+        return data.images[0].link;
 
     } catch (error) {
 
