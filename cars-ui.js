@@ -171,6 +171,14 @@ async function loadUsedCars() {
 
 async function fetchCarImage(car, year = 2024) {
 
+    if (year === 2024 && car.loadedImage !== undefined) {
+        return car.loadedImage;
+    }
+
+    if (year === 2023 && car.usedImage !== undefined) {
+        return car.usedImage;
+    }
+
     try {
 
         const params = new URLSearchParams({
@@ -192,15 +200,22 @@ async function fetchCarImage(car, year = 2024) {
 
         const data = await response.json();
 
-        if (
-            !data.success ||
-            !data.images ||
-            !data.images.length
-        ) {
-            return null;
+        const image =
+            data.success &&
+            data.images &&
+            data.images.length
+                ? data.images[0].link
+                : null;
+
+        if (year === 2024) {
+            car.loadedImage = image;
         }
 
-        return data.images[0].link;
+        if (year === 2023) {
+            car.usedImage = image;
+        }
+
+        return image;
 
     } catch (error) {
 
@@ -208,6 +223,14 @@ async function fetchCarImage(car, year = 2024) {
             `Cars image API error for ${car.make} ${car.model}:`,
             error
         );
+
+        if (year === 2024) {
+            car.loadedImage = null;
+        }
+
+        if (year === 2023) {
+            car.usedImage = null;
+        }
 
         return null;
     }
