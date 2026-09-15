@@ -405,7 +405,7 @@ function filterCarsByCategory(category) {
 
         case "popular":
            filteredCars = popularCars;
-               break;
+           break;
             
         case "electric":
             filteredCars = carsData.filter(car =>
