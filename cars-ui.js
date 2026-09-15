@@ -208,12 +208,11 @@ async function loadUsedCars() {
 
 async function fetchCarImage(car, year = 2024) {
 
-    if (year === 2024 && car.loadedImage !== undefined) {
-        return car.loadedImage;
-    }
+    const cachedImage =
+        getCachedCarImage(car, year);
 
-    if (year === 2023 && car.usedImage !== undefined) {
-        return car.usedImage;
+    if (cachedImage !== undefined) {
+        return cachedImage;
     }
 
     try {
