@@ -32,6 +32,26 @@ const carsData = [
     { make: "Porsche", model: "911" }
 ];
 
+const popularCars = [
+    { make: "BMW", model: "3 Series" },
+    { make: "BMW", model: "X5" },
+
+    { make: "Mercedes-Benz", model: "C-Class" },
+    { make: "Mercedes-Benz", model: "E-Class" },
+
+    { make: "Audi", model: "Q5" },
+    { make: "Audi", model: "Q7" },
+
+    { make: "Toyota", model: "RAV4" },
+    { make: "Toyota", model: "Camry" },
+
+    { make: "Tesla", model: "Model 3" },
+    { make: "Tesla", model: "Model Y" },
+
+    { make: "Hyundai", model: "Tucson" },
+    { make: "Porsche", model: "911" }
+];
+
 async function fetchCarData(car, year = 2024) {
 
     try {
