@@ -61,6 +61,70 @@ export async function onRequestGet(context) {
             );
         }
 
+        else if (action === "images") {
+
+    const make = requestUrl.searchParams.get("make");
+    const model = requestUrl.searchParams.get("model");
+    const year = requestUrl.searchParams.get("year");
+
+    if (!make || !model) {
+        return new Response(
+            JSON.stringify({
+                success: false,
+                error: "Missing make or model parameter"
+            }),
+            {
+                status: 400,
+                headers: {
+                    "Content-Type": "application/json"
+                }
+            }
+        );
+    }
+
+    const imagesUrl = new URL(
+        "https://api.carsxe.com/v1/images"
+    );
+
+    imagesUrl.searchParams.set(
+        "key",
+        env.CARSXE_API_KEY
+    );
+
+    imagesUrl.searchParams.set(
+        "make",
+        make
+    );
+
+    imagesUrl.searchParams.set(
+        "model",
+        model
+    );
+
+    if (year) {
+        imagesUrl.searchParams.set(
+            "year",
+            year
+        );
+    }
+
+    const response = await fetch(
+        imagesUrl.toString()
+    );
+
+    const data = await response.json();
+
+    return new Response(
+        JSON.stringify(data),
+        {
+            status: response.status,
+            headers: {
+                "Content-Type": "application/json"
+            }
+        }
+    );
+}
+            
         // Get detailed vehicle information
         else if (action === "vehicle") {
 
