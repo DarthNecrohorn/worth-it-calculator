@@ -544,15 +544,12 @@ if (action === "vehicle") {
         make
     );
 
-    vehicleUrl.searchParams.set(
-        "model",
-        model
-    );
+   vehicleUrl.searchParams.set(
+    "model",
+    model
+);
 
-    const trim =
-    requestUrl.searchParams.get("trim");
-
-    if (trim) {
+if (trim) {
         vehicleUrl.searchParams.set(
         "trim",
         trim
