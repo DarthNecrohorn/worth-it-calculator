@@ -177,16 +177,6 @@ async function fetchCarData(car, year = 2024) {
     }
 }
 
-function setCachedCarData(car, year, data) {
-
-    const key =
-        getCarCacheKey(car, year);
-
-    carDataCache.set(key, data);
-
-    return data;
-}
-
 async function loadUsedCars() {
 
     const usedCars = [];
