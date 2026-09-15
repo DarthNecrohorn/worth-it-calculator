@@ -3,7 +3,6 @@ const carsData = [
     { make: "BMW", model: "X5" },
     { make: "BMW", model: "5 Series" },
 
-    { make: "Mercedes-Benz", model: "C-Class" },
     { make: "Mercedes-Benz", model: "GLC" },
     { make: "Mercedes-Benz", model: "E-Class" },
 
