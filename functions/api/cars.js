@@ -533,6 +533,16 @@ if (action === "vehicle") {
         model
     );
 
+    const trim =
+    requestUrl.searchParams.get("trim");
+
+    if (trim) {
+        vehicleUrl.searchParams.set(
+        "trim",
+        trim
+    );
+}
+    
     if (allTrimOptions) {
     vehicleUrl.searchParams.set(
         "allTrimOptions",
