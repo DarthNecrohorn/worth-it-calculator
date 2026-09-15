@@ -192,16 +192,19 @@ async function fetchCarData(car, year = 2024) {
 
 async function loadUsedCars() {
 
-    const usedCars = [];
+    const usedCars = [
+        { make: "BMW", model: "X5" },
+        { make: "Mercedes-Benz", model: "E-Class" },
+        { make: "Audi", model: "Q5" },
+        { make: "Volkswagen", model: "Golf" },
+        { make: "Toyota", model: "RAV4" },
+        { make: "Tesla", model: "Model 3" },
+        { make: "Hyundai", model: "Tucson" },
+        { make: "Porsche", model: "911" }
+    ];
 
-    for (const car of carsData) {
-
-        const data =
-            await fetchCarData(car, 2023);
-
-        if (!data || !data.bestMatch) {
-            continue;
-        }
+    return usedCars;
+}
 
         const normalizedCar =
             normalizeCarData(data, car);
