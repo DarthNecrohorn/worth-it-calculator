@@ -333,46 +333,51 @@ async function renderPopularCars(cars = carsData) {
         })
     );
 }
+
 function filterCarsByCategory(category) {
 
     let filteredCars = [];
 
     switch (category) {
 
-        case "new":
-            filteredCars = carsData.filter(car =>
-                car.condition === "New"
-            );
-            break;
-
-        case "used":
-            filteredCars = carsData.filter(car =>
-                car.condition === "Used"
-            );
-            break;
-
         case "electric":
             filteredCars = carsData.filter(car =>
-                car.powertrain === "Electric"
+                car.loadedData &&
+                car.loadedData.powertrain === "Electric"
             );
             break;
 
         case "hybrid":
             filteredCars = carsData.filter(car =>
-                car.powertrain === "Hybrid"
+                car.loadedData &&
+                car.loadedData.powertrain === "Hybrid"
             );
             break;
 
         case "petrol":
             filteredCars = carsData.filter(car =>
-                car.powertrain === "Petrol"
+                car.loadedData &&
+                car.loadedData.powertrain === "Petrol"
             );
             break;
 
         case "diesel":
             filteredCars = carsData.filter(car =>
-                car.powertrain === "Diesel"
+                car.loadedData &&
+                car.loadedData.powertrain === "Diesel"
             );
+            break;
+
+        case "new":
+            filteredCars = carsData;
+            break;
+
+        case "used":
+            filteredCars = carsData;
+            break;
+
+        default:
+            filteredCars = carsData;
             break;
     }
 
