@@ -123,7 +123,7 @@ async function fetchCarData(car, year = 2024) {
     }
 }
 
-function renderPopularCars(cars = carsData) {
+async function renderPopularCars(cars = carsData) {
 
     const grid =
         document.getElementById("popularCarsGrid");
@@ -132,7 +132,7 @@ function renderPopularCars(cars = carsData) {
 
     grid.innerHTML = "";
 
-    cars.forEach(car => {
+    for (const car of cars) {
 
         const card =
             document.createElement("button");
@@ -147,7 +147,34 @@ function renderPopularCars(cars = carsData) {
         `;
 
         grid.appendChild(card);
-    });
+
+        const data =
+            await fetchCarData(car);
+
+        if (!data || !data.bestMatch) {
+
+            card.querySelector("span").textContent =
+                "Vehicle data unavailable";
+
+            continue;
+        }
+
+        const vehicle =
+            data.bestMatch;
+
+        card.innerHTML = `
+            <div class="car-card-icon">🚗</div>
+
+            <strong>
+                ${vehicle.make || car.make}
+                ${vehicle.model || car.model}
+            </strong>
+
+            <span>
+                ${vehicle.name || "Vehicle details available"}
+            </span>
+        `;
+    }
 }
 
 function filterCarsByCategory(category) {
