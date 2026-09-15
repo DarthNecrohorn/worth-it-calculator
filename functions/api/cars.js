@@ -108,6 +108,11 @@ export async function onRequestGet(context) {
         );
     }
 
+    imagesUrl.searchParams.set(
+    "license",
+    "ShareCommercially"
+);
+            
     const response = await fetch(
         imagesUrl.toString()
     );
