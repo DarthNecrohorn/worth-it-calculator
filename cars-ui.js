@@ -206,6 +206,21 @@ async function renderPopularCars(cars = carsData) {
 
     grid.innerHTML = "";
 
+    if (!cars.length) {
+    grid.innerHTML = `
+        <div class="cars-empty-state">
+            <div class="cars-empty-icon">🚗</div>
+            <strong>No cars available</strong>
+            <p>
+                There are currently no vehicles available
+                for this category.
+            </p>
+        </div>
+    `;
+
+    return;
+}
+    
     const carCards = [];
 
     for (const car of cars) {
