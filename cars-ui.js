@@ -547,12 +547,28 @@ async function filterCarsByCategory(category) {
     updateCarsCategoryHeader(category);
 
     let filteredCars = [];
+    let year = 2024;
 
     switch (category) {
 
         case "popular":
 
             filteredCars = popularCars;
+            year = 2024;
+
+            break;
+
+        case "new":
+
+            filteredCars = carsData;
+            year = 2024;
+
+            break;
+
+        case "used":
+
+            filteredCars = usedCars;
+            year = 2023;
 
             break;
 
@@ -563,6 +579,8 @@ async function filterCarsByCategory(category) {
                     .includes("Electric")
             );
 
+            year = 2024;
+
             break;
 
         case "hybrid":
@@ -571,6 +589,8 @@ async function filterCarsByCategory(category) {
                 (carPowertrainMap[`${car.make} ${car.model}`] || [])
                     .includes("Hybrid")
             );
+
+            year = 2024;
 
             break;
 
@@ -581,6 +601,8 @@ async function filterCarsByCategory(category) {
                     .includes("Petrol")
             );
 
+            year = 2024;
+
             break;
 
         case "diesel":
@@ -590,42 +612,22 @@ async function filterCarsByCategory(category) {
                     .includes("Diesel")
             );
 
-            break;
-
-        case "new": {
-
-            const availableYears = carsData
-                .map(car => car.loadedData?.year)
-                .filter(Boolean);
-
-            const latestYear = availableYears.length
-                ? Math.max(...availableYears)
-                : null;
-
-            filteredCars = latestYear
-                ? carsData.filter(car =>
-                    car.loadedData &&
-                    car.loadedData.year === latestYear
-                )
-                : carsData;
-
-            break;
-        }
-
-        case "used":
-
-            filteredCars = [];
+            year = 2024;
 
             break;
 
         default:
 
             filteredCars = carsData;
+            year = 2024;
 
             break;
     }
 
-    renderPopularCars(filteredCars);
+    await renderPopularCars(
+        filteredCars,
+        year
+    );
 }
 
 function openCars() {
