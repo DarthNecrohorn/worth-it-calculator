@@ -397,6 +397,8 @@ function updateCarsCategoryHeader(category) {
 
 function filterCarsByCategory(category) {
 
+    updateCarsCategoryHeader(category);
+
     let filteredCars = [];
 
     switch (category) {
