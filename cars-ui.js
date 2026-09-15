@@ -466,7 +466,7 @@ function openCars() {
         carsSection.style.display = "block";
     }
 
-    renderPopularCars();
+    renderPopularCars(popularCars);
 
     window.scrollTo({
         top: 0,
