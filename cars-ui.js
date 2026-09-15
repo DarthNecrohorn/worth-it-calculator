@@ -377,29 +377,41 @@ async function renderPopularCars(cars = carsData) {
     await Promise.all(
         carCards.map(async ({ car, card }) => {
 
-            const data =
-                await fetchCarData(car);
+           let normalizedCar =
+    getCachedCarData(car, 2024);
 
-            if (!data || !data.bestMatch) {
+if (!normalizedCar) {
+
+    const data =
+        await fetchCarData(car);
+
+    if (!data || !data.bestMatch) {
+
+        card.querySelector("span").textContent =
+            "Vehicle data unavailable";
+
+        return;
+    }
+
+    normalizedCar =
+        normalizeCarData(data, car);
+
+    if (!normalizedCar) {
+
+        card.querySelector("span").textContent =
+            "Vehicle data unavailable";
+
+        return;
+    }
+
+    car.loadedData = normalizedCar;
+}
 
                 card.querySelector("span").textContent =
                     "Vehicle data unavailable";
 
                 return;
             }
-
-            const normalizedCar =
-                normalizeCarData(data, car);
-
-            if (!normalizedCar) {
-
-                card.querySelector("span").textContent =
-                    "Vehicle data unavailable";
-
-                return;
-            }
-
-            car.loadedData = normalizedCar;
             
             const image =
                 await fetchCarImage(
