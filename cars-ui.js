@@ -332,6 +332,69 @@ async function renderPopularCars(cars = carsData) {
     );
 }
 
+function updateCarsCategoryHeader(category) {
+
+    const title =
+        document.getElementById("carsResultsTitle");
+
+    const description =
+        document.getElementById("carsResultsDescription");
+
+    if (!title || !description) return;
+
+    const categoryInfo = {
+
+        popular: {
+            title: "⭐ Popular Cars",
+            description:
+                "Discover some of the most popular cars."
+        },
+
+        new: {
+            title: "🆕 New Cars",
+            description:
+                "Explore the latest car models."
+        },
+
+        used: {
+            title: "🔄 Used Cars",
+            description:
+                "Explore used and pre-owned cars."
+        },
+
+        electric: {
+            title: "⚡ Electric Cars",
+            description:
+                "Discover electric and EV models."
+        },
+
+        hybrid: {
+            title: "🔋 Hybrid Cars",
+            description:
+                "Explore hybrid and plug-in hybrid models."
+        },
+
+        petrol: {
+            title: "⛽ Petrol Cars",
+            description:
+                "Explore cars powered by petrol engines."
+        },
+
+        diesel: {
+            title: "🛢️ Diesel Cars",
+            description:
+                "Explore cars powered by diesel engines."
+        }
+    };
+
+    const info =
+        categoryInfo[category] ||
+        categoryInfo.popular;
+
+    title.textContent = info.title;
+    description.textContent = info.description;
+}
+
 function filterCarsByCategory(category) {
 
     let filteredCars = [];
