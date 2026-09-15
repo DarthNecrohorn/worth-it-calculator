@@ -84,7 +84,7 @@ const carPowertrainMap = {
     "Porsche 911": ["Petrol"]
 };
 
-  const carDataCache = new Map();
+const carDataCache = new Map();
 
 function getCarCacheKey(car, year) {
     return `${year}|${car.make}|${car.model}`;
@@ -135,6 +135,7 @@ function setCachedCarImage(car, year, image) {
 
     return image;
 }
+
 async function fetchCarData(car, year = 2024) {
 
     const cachedData =
@@ -190,39 +191,6 @@ async function fetchCarData(car, year = 2024) {
     }
 }
 
-async function loadUsedCars() {
-
-    const usedCars = [
-        { make: "BMW", model: "X5" },
-        { make: "Mercedes-Benz", model: "E-Class" },
-        { make: "Audi", model: "Q5" },
-        { make: "Volkswagen", model: "Golf" },
-        { make: "Toyota", model: "RAV4" },
-        { make: "Tesla", model: "Model 3" },
-        { make: "Hyundai", model: "Tucson" },
-        { make: "Porsche", model: "911" }
-    ];
-
-    return usedCars;
-}
-
-        const normalizedCar =
-            normalizeCarData(data, car);
-
-        if (!normalizedCar) {
-            continue;
-        }
-
-        normalizedCar.year = 2023;
-
-        car.usedData = normalizedCar;
-
-        usedCars.push(car);
-    }
-
-    return usedCars;
-}
-
 async function fetchCarImage(car, year = 2024) {
 
     const cachedImage =
@@ -261,12 +229,12 @@ async function fetchCarImage(car, year = 2024) {
                 : null;
 
         setCachedCarImage(
-        car,
-        year,
-        image
-    );
+            car,
+            year,
+            image
+        );
 
-return image;
+        return image;
 
     } catch (error) {
 
@@ -276,16 +244,17 @@ return image;
         );
 
         setCachedCarImage(
-        car,
-        year,
-        null
-    );
+            car,
+            year,
+            null
+        );
 
         return null;
     }
 }
 
 function normalizeCarData(data, fallbackCar) {
+
     if (!data || !data.bestMatch) {
         return null;
     }
@@ -324,23 +293,28 @@ function normalizeCarData(data, fallbackCar) {
 
     if (vehicle.is_electric === true) {
         powertrain = "Electric";
+
     } else if (vehicle.is_plugin_electric === true) {
         powertrain = "Hybrid";
+
     } else if (
         normalizedEngineType.includes("hybrid") ||
         normalizedFuelType.includes("hybrid")
     ) {
         powertrain = "Hybrid";
+
     } else if (
         normalizedEngineType.includes("diesel") ||
         normalizedFuelType.includes("diesel")
     ) {
         powertrain = "Diesel";
+
     } else if (
         normalizedEngineType.includes("electric") ||
         normalizedFuelType.includes("electric")
     ) {
         powertrain = "Electric";
+
     } else if (
         normalizedEngineType.includes("gasoline") ||
         normalizedEngineType.includes("petrol") ||
@@ -408,6 +382,7 @@ async function renderPopularCars(cars = carsData) {
     grid.innerHTML = "";
 
     if (!cars.length) {
+
         grid.innerHTML = `
             <div class="cars-empty-state">
                 <div class="cars-empty-icon">🚗</div>
@@ -450,26 +425,26 @@ async function renderPopularCars(cars = carsData) {
         carCards.map(async ({ car, card }) => {
 
             const data =
-    await fetchCarData(car, 2024);
+                await fetchCarData(car, 2024);
 
-if (!data || !data.bestMatch) {
+            if (!data || !data.bestMatch) {
 
-    card.querySelector("span").textContent =
-        "Vehicle data unavailable";
+                card.querySelector("span").textContent =
+                    "Vehicle data unavailable";
 
-    return;
-}
+                return;
+            }
 
-const normalizedCar =
-    normalizeCarData(data, car);
+            const normalizedCar =
+                normalizeCarData(data, car);
 
-if (!normalizedCar) {
+            if (!normalizedCar) {
 
-    card.querySelector("span").textContent =
-        "Vehicle data unavailable";
+                card.querySelector("span").textContent =
+                    "Vehicle data unavailable";
 
-    return;
-}
+                return;
+            }
 
             const image =
                 await fetchCarImage(
@@ -584,61 +559,77 @@ async function filterCarsByCategory(category) {
     switch (category) {
 
         case "popular":
-           filteredCars = popularCars;
-           break;
-            
+
+            filteredCars = popularCars;
+
+            break;
+
         case "electric":
-    filteredCars = carsData.filter(car =>
-        (carPowertrainMap[`${car.make} ${car.model}`] || [])
-            .includes("Electric")
-    );
-    break;
 
-case "hybrid":
-    filteredCars = carsData.filter(car =>
-        (carPowertrainMap[`${car.make} ${car.model}`] || [])
-            .includes("Hybrid")
-    );
-    break;
+            filteredCars = carsData.filter(car =>
+                (carPowertrainMap[`${car.make} ${car.model}`] || [])
+                    .includes("Electric")
+            );
 
-case "petrol":
-    filteredCars = carsData.filter(car =>
-        (carPowertrainMap[`${car.make} ${car.model}`] || [])
-            .includes("Petrol")
-    );
-    break;
+            break;
 
-case "diesel":
-    filteredCars = carsData.filter(car =>
-        (carPowertrainMap[`${car.make} ${car.model}`] || [])
-            .includes("Diesel")
-    );
-    break;
+        case "hybrid":
+
+            filteredCars = carsData.filter(car =>
+                (carPowertrainMap[`${car.make} ${car.model}`] || [])
+                    .includes("Hybrid")
+            );
+
+            break;
+
+        case "petrol":
+
+            filteredCars = carsData.filter(car =>
+                (carPowertrainMap[`${car.make} ${car.model}`] || [])
+                    .includes("Petrol")
+            );
+
+            break;
+
+        case "diesel":
+
+            filteredCars = carsData.filter(car =>
+                (carPowertrainMap[`${car.make} ${car.model}`] || [])
+                    .includes("Diesel")
+            );
+
+            break;
+
         case "new": {
-    const availableYears = carsData
-        .map(car => car.loadedData?.year)
-        .filter(Boolean);
 
-    const latestYear = availableYears.length
-        ? Math.max(...availableYears)
-        : null;
+            const availableYears = carsData
+                .map(car => car.loadedData?.year)
+                .filter(Boolean);
 
-    filteredCars = latestYear
-        ? carsData.filter(car =>
-            car.loadedData &&
-            car.loadedData.year === latestYear
-        )
-        : carsData;
+            const latestYear = availableYears.length
+                ? Math.max(...availableYears)
+                : null;
 
-    break;
-}
+            filteredCars = latestYear
+                ? carsData.filter(car =>
+                    car.loadedData &&
+                    car.loadedData.year === latestYear
+                )
+                : carsData;
+
+            break;
+        }
 
         case "used":
-    filteredCars = [];
-    break;
+
+            filteredCars = [];
+
+            break;
 
         default:
+
             filteredCars = carsData;
+
             break;
     }
 
@@ -709,6 +700,7 @@ function openCars() {
     }
 
     updateCarsCategoryHeader("popular");
+
     renderPopularCars(popularCars);
 
     window.scrollTo({
@@ -716,7 +708,6 @@ function openCars() {
         behavior: "smooth"
     });
 }
-
 
 window.openCars = openCars;
 
