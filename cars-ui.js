@@ -95,9 +95,16 @@ function getCachedCarData(car, year) {
     const key =
         getCarCacheKey(car, year);
 
-    return carDataCache.get(key) || null;
-}
+    function getCachedCarData(car, year) {
 
+    const key =
+        getCarCacheKey(car, year);
+
+    return carDataCache.has(key)
+        ? carDataCache.get(key)
+        : undefined;
+}
+    
 const carImageCache = new Map();
 
 function getCarImageCacheKey(car, year) {
