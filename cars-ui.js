@@ -352,9 +352,24 @@ function filterCarsByCategory(category) {
     );
     break;
 
-        case "new":
-            filteredCars = carsData;
-            break;
+        case "new": {
+    const availableYears = carsData
+        .map(car => car.loadedData?.year)
+        .filter(Boolean);
+
+    const latestYear = availableYears.length
+        ? Math.max(...availableYears)
+        : null;
+
+    filteredCars = latestYear
+        ? carsData.filter(car =>
+            car.loadedData &&
+            car.loadedData.year === latestYear
+        )
+        : carsData;
+
+    break;
+}
 
         case "used":
              filteredCars = [];
