@@ -81,6 +81,47 @@ const carsData = [
     }
 ];
 
+async function fetchCarData(car, year = 2024) {
+
+    try {
+
+        const params = new URLSearchParams({
+            action: "vehicle",
+            year: year,
+            make: car.make,
+            model: car.model
+        });
+
+        const response = await fetch(
+            `/api/cars?${params.toString()}`
+        );
+
+        if (!response.ok) {
+            throw new Error(
+                `Failed to load ${car.make} ${car.model}`
+            );
+        }
+
+        const data = await response.json();
+
+        if (!data.success || !data.bestMatch) {
+            throw new Error(
+                `No vehicle data found for ${car.make} ${car.model}`
+            );
+        }
+
+        return data;
+
+    } catch (error) {
+
+        console.error(
+            `Cars API error for ${car.make} ${car.model}:`,
+            error
+        );
+
+        return null;
+    }
+}
 
 function renderPopularCars(cars = carsData) {
 
