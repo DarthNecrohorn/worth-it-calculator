@@ -533,6 +533,13 @@ if (action === "vehicle") {
         model
     );
 
+    if (allTrimOptions) {
+    vehicleUrl.searchParams.set(
+        "allTrimOptions",
+        allTrimOptions
+    );
+}
+    
     const response = await fetch(
         vehicleUrl.toString()
     );
