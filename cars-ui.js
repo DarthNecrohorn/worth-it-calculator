@@ -211,19 +211,33 @@ async function renderPopularCars(cars = carsData) {
             continue;
         }
 
-        const vehicle =
-            data.bestMatch;
+        const normalizedCar =
+            normalizeCarData(data, car);
+
+        if (!normalizedCar) {
+
+            card.querySelector("span").textContent =
+                "Vehicle data unavailable";
+
+            continue;
+        }
 
         card.innerHTML = `
             <div class="car-card-icon">🚗</div>
 
             <strong>
-                ${vehicle.make || car.make}
-                ${vehicle.model || car.model}
+                ${normalizedCar.make}
+                ${normalizedCar.model}
             </strong>
 
             <span>
-                ${vehicle.name || "Vehicle details available"}
+                ${normalizedCar.year}
+                ${normalizedCar.horsepower
+                    ? ` • ${normalizedCar.horsepower} hp`
+                    : ""}
+                ${normalizedCar.fuel
+                    ? ` • ${normalizedCar.fuel}`
+                    : ""}
             </span>
         `;
     }
