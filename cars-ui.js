@@ -551,8 +551,8 @@ case "diesel":
 }
 
         case "used":
-             filteredCars = [];
-            break;
+           filteredCars = await loadUsedCars();
+           break;
 
         default:
             filteredCars = carsData;
