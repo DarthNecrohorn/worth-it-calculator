@@ -228,6 +228,8 @@ async function renderPopularCars(cars = carsData) {
 
     grid.innerHTML = "";
 
+    const carCards = [];
+
     for (const car of cars) {
 
         const card =
@@ -244,68 +246,77 @@ async function renderPopularCars(cars = carsData) {
 
         grid.appendChild(card);
 
-        const data =
-            await fetchCarData(car);
+        carCards.push({
+            car,
+            card
+        });
+    }
 
-        if (!data || !data.bestMatch) {
+    await Promise.all(
+        carCards.map(async ({ car, card }) => {
 
-            card.querySelector("span").textContent =
-                "Vehicle data unavailable";
+            const data =
+                await fetchCarData(car);
 
-            continue;
-        }
+            if (!data || !data.bestMatch) {
 
-        const normalizedCar =
-            normalizeCarData(data, car);
+                card.querySelector("span").textContent =
+                    "Vehicle data unavailable";
 
-        if (!normalizedCar) {
-
-            card.querySelector("span").textContent =
-                "Vehicle data unavailable";
-
-            continue;
-        }
-
-        const image =
-            await fetchCarImage(
-                car,
-                normalizedCar.year
-            );
-
-        card.innerHTML = `
-            ${
-                image
-                    ? `
-                        <img
-                            class="car-card-image"
-                            src="${image}"
-                            alt="${normalizedCar.make} ${normalizedCar.model}"
-                            loading="lazy"
-                        >
-                    `
-                    : `
-                        <div class="car-card-icon">🚗</div>
-                    `
+                return;
             }
 
-            <strong>
-                ${normalizedCar.make}
-                ${normalizedCar.model}
-            </strong>
+            const normalizedCar =
+                normalizeCarData(data, car);
 
-            <span>
-                ${normalizedCar.year}
-                ${normalizedCar.horsepower
-                    ? ` • ${normalizedCar.horsepower} hp`
-                    : ""}
-                ${normalizedCar.fuel
-                    ? ` • ${normalizedCar.fuel}`
-                    : ""}
-            </span>
-        `;
-    }
+            if (!normalizedCar) {
+
+                card.querySelector("span").textContent =
+                    "Vehicle data unavailable";
+
+                return;
+            }
+
+            const image =
+                await fetchCarImage(
+                    car,
+                    normalizedCar.year
+                );
+
+            card.innerHTML = `
+                ${
+                    image
+                        ? `
+                            <img
+                                class="car-card-image"
+                                src="${image}"
+                                alt="${normalizedCar.make} ${normalizedCar.model}"
+                                loading="lazy"
+                            >
+                        `
+                        : `
+                            <div class="car-card-icon">🚗</div>
+                        `
+                }
+
+                <strong>
+                    ${normalizedCar.make}
+                    ${normalizedCar.model}
+                </strong>
+
+                <span>
+                    ${normalizedCar.year}
+                    ${normalizedCar.horsepower
+                        ? ` • ${normalizedCar.horsepower} hp`
+                        : ""}
+                    ${normalizedCar.fuel
+                        ? ` • ${normalizedCar.fuel}`
+                        : ""}
+                </span>
+            `;
+        })
+    );
 }
-
 function filterCarsByCategory(category) {
 
     let filteredCars = [];
