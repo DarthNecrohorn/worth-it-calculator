@@ -173,66 +173,134 @@ export async function onRequestGet(context) {
         }
 
         /*
-         * =========================
-         * MODELS
-         * =========================
-         */
+ * =========================
+ * MODELS
+ * =========================
+ */
 
-        if (action === "models") {
+if (action === "models") {
 
-            const make = requestUrl.searchParams.get("make");
+    const make = requestUrl.searchParams.get("make");
 
-            if (!make) {
-                return new Response(
-                    JSON.stringify({
-                        success: false,
-                        error: "Missing make parameter"
-                    }),
-                    {
-                        status: 400,
-                        headers: {
-                            "Content-Type": "application/json"
-                        }
-                    }
-                );
-            }
-
-            const carsxeUrl = new URL(
-                "https://api.carsxe.com/v1/ymm-options"
-            );
-
-            carsxeUrl.searchParams.set(
-                "key",
-                env.CARSXE_API_KEY
-            );
-
-            carsxeUrl.searchParams.set(
-                "dimension",
-                "models"
-            );
-
-            carsxeUrl.searchParams.set(
-                "make",
-                make
-            );
-
-            const response = await fetch(
-                carsxeUrl.toString()
-            );
-
-            const data = await response.json();
-
-            return new Response(
-                JSON.stringify(data),
-                {
-                    status: response.status,
-                    headers: {
-                        "Content-Type": "application/json"
-                    }
+    if (!make) {
+        return new Response(
+            JSON.stringify({
+                success: false,
+                error: "Missing make parameter"
+            }),
+            {
+                status: 400,
+                headers: {
+                    "Content-Type": "application/json"
                 }
-            );
-        }
+            }
+        );
+    }
 
+    /*
+     * Build a clean cache key.
+     */
+
+    const cacheKey = new URL(request.url);
+
+    cacheKey.searchParams.set(
+        "action",
+        "models"
+    );
+
+    cacheKey.searchParams.set(
+        "make",
+        make
+    );
+
+    /*
+     * API key must never be part of the cache key.
+     */
+
+    cacheKey.searchParams.delete("key");
+
+    /*
+     * Use Cloudflare's edge cache.
+     */
+
+    const cache = caches.default;
+
+    const cachedResponse = await cache.match(
+        cacheKey.toString()
+    );
+
+    if (cachedResponse) {
+        return cachedResponse;
+    }
+
+    /*
+     * No cached result.
+     * Request models from CarsXE.
+     */
+
+    const carsxeUrl = new URL(
+        "https://api.carsxe.com/v1/ymm-options"
+    );
+
+    carsxeUrl.searchParams.set(
+        "key",
+        env.CARSXE_API_KEY
+    );
+
+    carsxeUrl.searchParams.set(
+        "dimension",
+        "models"
+    );
+
+    carsxeUrl.searchParams.set(
+        "make",
+        make
+    );
+
+    const response = await fetch(
+        carsxeUrl.toString()
+    );
+
+    const data = await response.json();
+
+    /*
+     * Do not cache failed API responses.
+     */
+
+    if (!response.ok) {
+        return new Response(
+            JSON.stringify(data),
+            {
+                status: response.status,
+                headers: {
+                    "Content-Type": "application/json"
+                }
+            }
+        );
+    }
+
+    /*
+     * Cache successful model lists for 30 days.
+     */
+
+    const cacheResponse = new Response(
+        JSON.stringify(data),
+        {
+            status: 200,
+            headers: {
+                "Content-Type": "application/json",
+                "Cache-Control": "public, max-age=2592000"
+            }
+        }
+    );
+
+    await cache.put(
+        cacheKey.toString(),
+        cacheResponse.clone()
+    );
+
+    return cacheResponse;
+}
         
 /*
  * =========================
