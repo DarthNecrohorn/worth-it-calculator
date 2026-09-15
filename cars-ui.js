@@ -179,34 +179,51 @@ function normalizeCarData(data, fallbackCar) {
         year: vehicle.year || 2024,
 
         price:
-            vehicle.base_msrp ??
-            null,
+    vehicle.base_msrp ??
+    null,
 
-        horsepower:
-            vehicle.horsepower ??
-            null,
+horsepower:
+    vehicle.horsepower ??
+    null,
 
-        drivetrain:
-            vehicle.drivetrain ||
-            vehicle.drive_train ||
-            null,
+drivetrain:
+    vehicle.drivetrain ||
+    vehicle.drive_train ||
+    null,
 
-        fuel:
-            vehicle.fuel_type ||
-            vehicle.fuel ||
-            null,
+fuel:
+    vehicle.fuel_type ||
+    vehicle.fuel ||
+    null,
 
-        engine:
-            vehicle.engine ||
-            null,
+powertrain:
+    vehicle.is_electric === true
+        ? "Electric"
+        : vehicle.is_plugin_electric === true
+            ? "Hybrid"
+            : (
+                String(
+                    vehicle.fuel_type ||
+                    vehicle.fuel ||
+                    ""
+                )
+                    .toLowerCase()
+                    .includes("diesel")
+                    ? "Diesel"
+                    : "Petrol"
+            ),
 
-        transmission:
-            vehicle.transmission ||
-            null,
+engine:
+    vehicle.engine ||
+    null,
 
-        mpg:
-            vehicle.mpg_combined ??
-            null,
+transmission:
+    vehicle.transmission ||
+    null,
+
+mpg:
+    vehicle.mpg_combined ??
+    null,
 
         electric:
             vehicle.is_electric === true,
