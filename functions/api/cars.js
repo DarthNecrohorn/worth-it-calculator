@@ -86,11 +86,41 @@ export async function onRequestGet(context) {
             }
 
             /*
-             * No cached result.
-             * Request images from CarsXE.
-             */
+ * No cached result.
+ * Request images from CarsXE.
+ */
 
-           imagesUrl.searchParams.set(
+const imagesUrl = new URL(
+    "https://api.carsxe.com/images"
+);
+
+imagesUrl.searchParams.set(
+    "key",
+    env.CARSXE_API_KEY
+);
+
+imagesUrl.searchParams.set(
+    "make",
+    make
+);
+
+imagesUrl.searchParams.set(
+    "model",
+    model
+);
+
+if (year) {
+    imagesUrl.searchParams.set(
+        "year",
+        year
+    );
+}
+
+/*
+ * Only request commercially shareable images.
+ */
+
+imagesUrl.searchParams.set(
     "license",
     "ShareCommercially"
 );
