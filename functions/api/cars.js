@@ -233,73 +233,139 @@ export async function onRequestGet(context) {
             );
         }
 
-        /*
-         * =========================
-         * VEHICLE
-         * =========================
-         */
+        
+/*
+ * =========================
+ * VEHICLE
+ * =========================
+ */
 
-        if (action === "vehicle") {
+if (action === "vehicle") {
 
-            const year = requestUrl.searchParams.get("year");
-            const make = requestUrl.searchParams.get("make");
-            const model = requestUrl.searchParams.get("model");
+    const year = requestUrl.searchParams.get("year");
+    const make = requestUrl.searchParams.get("make");
+    const model = requestUrl.searchParams.get("model");
 
-            if (!year || !make || !model) {
-                return new Response(
-                    JSON.stringify({
-                        success: false,
-                        error: "Missing year, make, or model parameter"
-                    }),
-                    {
-                        status: 400,
-                        headers: {
-                            "Content-Type": "application/json"
-                        }
-                    }
-                );
-            }
-
-            const vehicleUrl = new URL(
-                "https://api.carsxe.com/v1/ymm"
-            );
-
-            vehicleUrl.searchParams.set(
-                "key",
-                env.CARSXE_API_KEY
-            );
-
-            vehicleUrl.searchParams.set(
-                "year",
-                year
-            );
-
-            vehicleUrl.searchParams.set(
-                "make",
-                make
-            );
-
-            vehicleUrl.searchParams.set(
-                "model",
-                model
-            );
-
-            const response = await fetch(
-                vehicleUrl.toString()
-            );
-
-            const data = await response.json();
-
-            return new Response(
-                JSON.stringify(data),
-                {
-                    status: response.status,
-                    headers: {
-                        "Content-Type": "application/json"
-                    }
+    if (!year || !make || !model) {
+        return new Response(
+            JSON.stringify({
+                success: false,
+                error: "Missing year, make, or model parameter"
+            }),
+            {
+                status: 400,
+                headers: {
+                    "Content-Type": "application/json"
                 }
-            );
+            }
+        );
+    }
+
+    /*
+     * Build a clean cache key.
+     */
+
+    const cacheKey = new URL(request.url);
+
+    cacheKey.searchParams.set("action", "vehicle");
+    cacheKey.searchParams.set("year", year);
+    cacheKey.searchParams.set("make", make);
+    cacheKey.searchParams.set("model", model);
+
+    /*
+     * API key must never be part of the cache key.
+     */
+
+    cacheKey.searchParams.delete("key");
+
+    /*
+     * Use Cloudflare's edge cache.
+     */
+
+    const cache = caches.default;
+
+    const cachedResponse = await cache.match(
+        cacheKey.toString()
+    );
+
+    if (cachedResponse) {
+        return cachedResponse;
+    }
+
+    /*
+     * No cached result.
+     * Request vehicle data from CarsXE.
+     */
+
+    const vehicleUrl = new URL(
+        "https://api.carsxe.com/v1/ymm"
+    );
+
+    vehicleUrl.searchParams.set(
+        "key",
+        env.CARSXE_API_KEY
+    );
+
+    vehicleUrl.searchParams.set(
+        "year",
+        year
+    );
+
+    vehicleUrl.searchParams.set(
+        "make",
+        make
+    );
+
+    vehicleUrl.searchParams.set(
+        "model",
+        model
+    );
+
+    const response = await fetch(
+        vehicleUrl.toString()
+    );
+
+    const data = await response.json();
+
+    /*
+     * Do not cache failed API responses.
+     */
+
+    if (!response.ok) {
+        return new Response(
+            JSON.stringify(data),
+            {
+                status: response.status,
+                headers: {
+                    "Content-Type": "application/json"
+                }
+            }
+        );
+    }
+
+    /*
+     * Cache successful vehicle data for 30 days.
+     */
+
+    const cacheResponse = new Response(
+        JSON.stringify(data),
+        {
+            status: 200,
+            headers: {
+                "Content-Type": "application/json",
+                "Cache-Control": "public, max-age=2592000"
+            }
         }
+    );
+
+    await cache.put(
+        cacheKey.toString(),
+        cacheResponse.clone()
+    );
+
+    return cacheResponse;
+}
+
 
         /*
          * =========================
