@@ -42,8 +42,15 @@ export async function onRequestGet(context) {
        CACHE
     ========================================================= */
 
+    /*
+     * 4 hours.
+     *
+     * NewsData is only contacted when the Cloudflare
+     * cache expires.
+     */
+
     const CACHE_TTL =
-        2 * 60 * 60;
+        4 * 60 * 60;
 
 
     const cache =
@@ -51,7 +58,9 @@ export async function onRequestGet(context) {
 
 
     /*
-     * v9 = persistent D1 News history.
+     * v10 = optimized NewsData usage.
+     *
+     * Only one NewsData request is made per category.
      */
 
     const requestUrl =
@@ -61,7 +70,7 @@ export async function onRequestGet(context) {
 
 
     const cacheKeyUrl =
-        `${requestUrl.origin}${requestUrl.pathname}/?news-cache=v9`;
+        `${requestUrl.origin}${requestUrl.pathname}/?news-cache=v10`;
 
 
     const cacheKey =
@@ -157,15 +166,15 @@ export async function onRequestGet(context) {
 
             category:
                 "entertainment"
-      
+
         },
-                
-        
+
+
         lifestyle: {
 
             category:
                 "lifestyle"
-            
+
         },
 
 
@@ -212,8 +221,7 @@ export async function onRequestGet(context) {
 
         async function fetchNews(
             category,
-            params,
-            page = null
+            params
         ) {
 
             const url =
@@ -270,16 +278,6 @@ export async function onRequestGet(context) {
             }
 
 
-            if (page) {
-
-                url.searchParams.set(
-                    "page",
-                    page
-                );
-
-            }
-
-
             const response =
                 await fetch(
                     url.toString()
@@ -306,10 +304,7 @@ export async function onRequestGet(context) {
                         data.results
                     )
                         ? data.results
-                        : [],
-
-                nextPage:
-                    data.nextPage || null
+                        : []
 
             };
 
@@ -572,7 +567,7 @@ export async function onRequestGet(context) {
 
             const rules = {
 
-               gaming: [
+                gaming: [
 
                     "gaming",
                     "gamer",
@@ -773,6 +768,7 @@ export async function onRequestGet(context) {
                     "hidden place"
 
                 ]
+
             };
 
 
@@ -840,11 +836,13 @@ export async function onRequestGet(context) {
             settings
         ) {
 
-            let articles = [];
-
-
             /*
-             * First page.
+             * IMPORTANT:
+             *
+             * Only ONE NewsData request per category.
+             *
+             * Previously this function could request up to
+             * four pages, which greatly increased API usage.
              */
 
             let result =
@@ -860,142 +858,12 @@ export async function onRequestGet(context) {
                 );
 
 
-            articles.push(
-                ...result.articles
-            );
-
-
-            /*
-             * Second page.
-             */
-
-            if (
-                result.nextPage
-            ) {
-
-                try {
-
-                    const secondPage =
-                        await fetchNews(
-                            category,
-                            {
-                                category:
-                                    settings.category,
-
-                                q:
-                                    settings.q
-                            },
-                            result.nextPage
-                        );
-
-
-                    articles.push(
-                        ...secondPage.articles
-                    );
-
-
-                    result.nextPage =
-                        secondPage.nextPage ||
-                        null;
-
-
-                } catch (pageError) {
-
-                    console.error(
-                        `${category} second page error:`,
-                        pageError
-                    );
-
-                }
-
-            }
-
-
-            /*
-             * Third page.
-             */
-
-            if (
-                result.nextPage
-            ) {
-
-                try {
-
-                    const thirdPage =
-                        await fetchNews(
-                            category,
-                            {
-                                category:
-                                    settings.category,
-
-                                q:
-                                    settings.q
-                            },
-                            result.nextPage
-                        );
-
-
-                    articles.push(
-                        ...thirdPage.articles
-                    );
-
-
-                    result.nextPage =
-                        thirdPage.nextPage ||
-                        null;
-
-
-                } catch (pageError) {
-
-                    console.error(
-                        `${category} third page error:`,
-                        pageError
-                    );
-
-                }
-
-            }
-
-
-            /*
-             * Fourth page.
-             */
-
-            if (
-                result.nextPage
-            ) {
-
-                try {
-
-                    const fourthPage =
-                        await fetchNews(
-                            category,
-                            {
-                                category:
-                                    settings.category,
-
-                                q:
-                                    settings.q
-                            },
-                            result.nextPage
-                        );
-
-
-                    articles.push(
-                        ...fourthPage.articles
-                    );
-
-
-                } catch (pageError) {
-
-                    console.error(
-                        `${category} fourth page error:`,
-                        pageError
-                    );
-
-                }
-
-            }
+            let articles =
+                Array.isArray(
+                    result.articles
+                )
+                    ? result.articles
+                    : [];
 
 
             /*
@@ -1037,12 +905,11 @@ export async function onRequestGet(context) {
 
 
             /*
-             * IMPORTANT:
+             * Return the complete result of the
+             * single NewsData request.
              *
-             * Do NOT slice to 12 here.
-             *
-             * D1 must receive all newly
-             * discovered relevant articles.
+             * D1 will merge these with the existing
+             * persistent article history.
              */
 
             return formatArticles(
@@ -1531,6 +1398,9 @@ export async function onRequestGet(context) {
                             /*
                              * Fetch newly discovered
                              * articles from NewsData.
+                             *
+                             * Exactly ONE API request
+                             * for this category.
                              */
 
                             const freshArticles =
