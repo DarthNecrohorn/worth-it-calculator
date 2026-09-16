@@ -1,5 +1,6 @@
 /* =========================================================
-   CURRENCIES API - Clean Production Version (1-Hour Cache)
+   CURRENCIES API - Frankfurter v2
+   Production version with 1-hour Cloudflare caching
 ========================================================= */
 
 const FRANKFURTER_API = "https://api.frankfurter.dev/v2";
@@ -43,39 +44,76 @@ function isValidRate(item, today = null) {
     if (!item || !item.quote || !item.date) {
         return false;
     }
+
     if (!Number.isFinite(Number(item.rate))) {
         return false;
     }
+
     if (today && item.date > today) {
         return false;
     }
+
     return true;
 }
 
 /* =========================================================
-   PARSE FRANKFURTER RESPONSE
+   NORMALIZE FRANKFURTER RATES
 ========================================================= */
 
 function normalizeRatesResponse(data, defaultBase = "EUR") {
+    if (!data) return [];
+
     const results = [];
 
-    if (!data) return results;
+    /*
+       Frankfurter v2 /rates returns:
 
-    const base = data.base || defaultBase;
+       [
+         {
+           date: "2026-09-16",
+           base: "EUR",
+           quote: "USD",
+           rate: 1.17
+         }
+       ]
+    */
 
     if (Array.isArray(data)) {
-        return data.map(item => {
-            const q = String(item.quote || item.symbol || item.code || "").toUpperCase();
-            return {
-                base: item.base || base,
-                quote: q,
-                code: q,
-                symbol: q,
-                rate: Number(item.rate || item.value),
+        for (const item of data) {
+            const quote = String(
+                item?.quote ||
+                item?.symbol ||
+                item?.code ||
+                ""
+            ).trim().toUpperCase();
+
+            const rate = Number(item?.rate ?? item?.value);
+
+            if (!quote || !item?.date || !Number.isFinite(rate)) {
+                continue;
+            }
+
+            results.push({
+                base: String(item?.base || defaultBase).toUpperCase(),
+                quote,
+                code: quote,
+                symbol: quote,
+                rate,
                 date: item.date
-            };
-        });
+            });
+        }
+
+        return results;
     }
+
+    /*
+       Backward-compatible handling in case the provider
+       ever returns an object-style response.
+    */
+
+    const base = String(
+        data.base || defaultBase
+    ).trim().toUpperCase();
 
     if (data.rates && typeof data.rates === "object") {
         const topDate = data.date || getUTCDate(new Date());
@@ -83,25 +121,34 @@ function normalizeRatesResponse(data, defaultBase = "EUR") {
         for (const [key, value] of Object.entries(data.rates)) {
             if (value && typeof value === "object") {
                 const rowDate = key;
+
                 for (const [quote, rate] of Object.entries(value)) {
-                    const q = quote.toUpperCase();
+                    const q = quote.trim().toUpperCase();
+                    const numericRate = Number(rate);
+
+                    if (!Number.isFinite(numericRate)) continue;
+
                     results.push({
-                        base: base,
+                        base,
                         quote: q,
                         code: q,
                         symbol: q,
-                        rate: Number(rate),
+                        rate: numericRate,
                         date: rowDate
                     });
                 }
             } else {
-                const q = key.toUpperCase();
+                const q = key.trim().toUpperCase();
+                const numericRate = Number(value);
+
+                if (!Number.isFinite(numericRate)) continue;
+
                 results.push({
-                    base: base,
+                    base,
                     quote: q,
                     code: q,
                     symbol: q,
-                    rate: Number(value),
+                    rate: numericRate,
                     date: topDate
                 });
             }
@@ -117,14 +164,24 @@ function normalizeRatesResponse(data, defaultBase = "EUR") {
 
 function latestByQuote(rows, today = null) {
     const result = {};
-    if (!Array.isArray(rows)) return result;
+
+    if (!Array.isArray(rows)) {
+        return result;
+    }
 
     for (const item of rows) {
-        if (!isValidRate(item, today)) continue;
+        if (!isValidRate(item, today)) {
+            continue;
+        }
 
-        const quote = String(item.quote).trim().toUpperCase();
+        const quote = String(item.quote)
+            .trim()
+            .toUpperCase();
 
-        if (!result[quote] || item.date > result[quote].date) {
+        if (
+            !result[quote] ||
+            item.date > result[quote].date
+        ) {
             result[quote] = item;
         }
     }
@@ -133,18 +190,29 @@ function latestByQuote(rows, today = null) {
 }
 
 /* =========================================================
-   PREVIOUS OBSERVATION PER QUOTE
+   PREVIOUS RATE PER QUOTE
 ========================================================= */
 
 function previousByQuote(rows, currentMap, today) {
     const grouped = {};
-    if (!Array.isArray(rows)) return {};
+
+    if (!Array.isArray(rows)) {
+        return {};
+    }
 
     for (const item of rows) {
-        if (!isValidRate(item, today)) continue;
+        if (!isValidRate(item, today)) {
+            continue;
+        }
 
-        const quote = String(item.quote).trim().toUpperCase();
-        if (!grouped[quote]) grouped[quote] = [];
+        const quote = String(item.quote)
+            .trim()
+            .toUpperCase();
+
+        if (!grouped[quote]) {
+            grouped[quote] = [];
+        }
+
         grouped[quote].push(item);
     }
 
@@ -152,14 +220,23 @@ function previousByQuote(rows, currentMap, today) {
 
     for (const [quote, items] of Object.entries(grouped)) {
         const currentItem = currentMap[quote];
-        const currentDate = currentItem ? currentItem.date : today;
 
-        const strictPreviousItems = items.filter(item => item.date < currentDate);
+        if (!currentItem) {
+            continue;
+        }
 
-        if (strictPreviousItems.length === 0) continue;
+        const currentDate = currentItem.date;
 
-        strictPreviousItems.sort((a, b) => a.date.localeCompare(b.date));
-        result[quote] = strictPreviousItems[strictPreviousItems.length - 1];
+        const previousItems = items
+            .filter(item => item.date < currentDate)
+            .sort((a, b) =>
+                a.date.localeCompare(b.date)
+            );
+
+        if (previousItems.length > 0) {
+            result[quote] =
+                previousItems[previousItems.length - 1];
+        }
     }
 
     return result;
@@ -172,14 +249,105 @@ function previousByQuote(rows, currentMap, today) {
 async function safeFetchJson(url) {
     try {
         const response = await fetch(url, {
-            headers: { "Accept": "application/json" }
+            method: "GET",
+            headers: {
+                "Accept": "application/json"
+            },
+            cf: {
+                cacheTtl: 3600,
+                cacheEverything: true
+            }
         });
-        if (!response.ok) return null;
+
+        if (!response.ok) {
+            console.warn(
+                `Frankfurter request failed: ${response.status} ${response.statusText}`
+            );
+
+            return null;
+        }
+
         return await response.json();
-    } catch (err) {
-        console.warn(`Fetch failed for ${url}:`, err);
+
+    } catch (error) {
+        console.warn(
+            `Frankfurter fetch failed for ${url}:`,
+            error
+        );
+
         return null;
     }
+}
+
+/* =========================================================
+   CURRENCY METADATA
+========================================================= */
+
+function normalizeCurrencies(data) {
+    const currencies = {};
+
+    if (!data) {
+        return currencies;
+    }
+
+    /*
+       Frankfurter v2 /currencies returns:
+
+       [
+         {
+           iso_code: "USD",
+           name: "United States Dollar",
+           ...
+         }
+       ]
+    */
+
+    if (Array.isArray(data)) {
+        for (const item of data) {
+            const code = String(
+                item?.iso_code || ""
+            ).trim().toUpperCase();
+
+            const name = String(
+                item?.name || code
+            ).trim();
+
+            if (!code) {
+                continue;
+            }
+
+            if (EXCLUDED_CURRENCY_CODES.has(code)) {
+                continue;
+            }
+
+            currencies[code] = name;
+        }
+
+        return currencies;
+    }
+
+    /*
+       Backward-compatible object format.
+    */
+
+    if (typeof data === "object") {
+        for (const [code, name] of Object.entries(data)) {
+            const cleanCode = code
+                .trim()
+                .toUpperCase();
+
+            if (EXCLUDED_CURRENCY_CODES.has(cleanCode)) {
+                continue;
+            }
+
+            currencies[cleanCode] =
+                typeof name === "string"
+                    ? name
+                    : cleanCode;
+        }
+    }
+
+    return currencies;
 }
 
 /* =========================================================
@@ -187,11 +355,16 @@ async function safeFetchJson(url) {
 ========================================================= */
 
 export async function onRequest(context) {
+
     const corsHeaders = {
         "Access-Control-Allow-Origin": "*",
         "Access-Control-Allow-Methods": "GET, OPTIONS",
         "Access-Control-Allow-Headers": "Content-Type, Accept"
     };
+
+    /* =====================================================
+       CORS PREFLIGHT
+    ===================================================== */
 
     if (context.request.method === "OPTIONS") {
         return new Response(null, {
@@ -200,134 +373,358 @@ export async function onRequest(context) {
         });
     }
 
-    try {
-        const url = new URL(context.request.url);
-        const base = (url.searchParams.get("base") || "EUR").trim().toUpperCase();
+    /* =====================================================
+       ONLY GET
+    ===================================================== */
 
-        if (EXCLUDED_CURRENCY_CODES.has(base)) {
+    if (context.request.method !== "GET") {
+        return new Response(
+            JSON.stringify({
+                error: "Method not allowed"
+            }),
+            {
+                status: 405,
+                headers: {
+                    "Content-Type": "application/json",
+                    ...corsHeaders
+                }
+            }
+        );
+    }
+
+    try {
+
+        const url = new URL(
+            context.request.url
+        );
+
+        const base = (
+            url.searchParams.get("base") ||
+            "EUR"
+        )
+            .trim()
+            .toUpperCase();
+
+        /* =================================================
+           BASIC BASE VALIDATION
+        ================================================= */
+
+        if (
+            !/^[A-Z]{3}$/.test(base) ||
+            EXCLUDED_CURRENCY_CODES.has(base)
+        ) {
             return new Response(
-                JSON.stringify({ error: "Unsupported base currency" }),
-                { 
-                    status: 400, 
-                    headers: { 
-                        "Content-Type": "application/json",
+                JSON.stringify({
+                    error: "Unsupported base currency"
+                }),
+                {
+                    status: 400,
+                    headers: {
+                        "Content-Type":
+                            "application/json",
                         ...corsHeaders
-                    } 
+                    }
                 }
             );
         }
 
+        /* =================================================
+           DATE RANGE
+
+           30 days gives us enough room to find the
+           previous working day even around weekends
+           and holidays.
+        ================================================= */
+
         const now = new Date();
+
         const today = getUTCDate(now);
 
-        const historicalFromDate = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - 30));
-        const fromDate = getUTCDate(historicalFromDate);
+        const historicalFromDate = new Date(
+            Date.UTC(
+                now.getUTCFullYear(),
+                now.getUTCMonth(),
+                now.getUTCDate() - 30
+            )
+        );
 
-        const [currenciesData, currentRaw, historicalRaw] = await Promise.all([
-            safeFetchJson(`${FRANKFURTER_API}/currencies`),
-            safeFetchJson(`${FRANKFURTER_API}/rates?base=${encodeURIComponent(base)}`),
-            safeFetchJson(`${FRANKFURTER_API}/rates?base=${encodeURIComponent(base)}&from=${fromDate}&to=${today}`)
+        const fromDate =
+            getUTCDate(historicalFromDate);
+
+        /* =================================================
+           FETCH
+
+           Only TWO requests:
+           1. Currency metadata
+           2. 30-day rates history
+
+           The latest and previous rates are both
+           calculated from the same rates response.
+        ================================================= */
+
+        const [
+            currenciesRaw,
+            historicalRaw
+        ] = await Promise.all([
+
+            safeFetchJson(
+                `${FRANKFURTER_API}/currencies`
+            ),
+
+            safeFetchJson(
+                `${FRANKFURTER_API}/rates` +
+                `?base=${encodeURIComponent(base)}` +
+                `&from=${fromDate}` +
+                `&to=${today}`
+            )
+
         ]);
 
-        const currentNormalized = normalizeRatesResponse(currentRaw, base);
-        const historicalNormalized = normalizeRatesResponse(historicalRaw, base);
+        /* =================================================
+           NORMALIZE
+        ================================================= */
 
-        if (!currentNormalized.length) {
-            throw new Error("Unable to retrieve current exchange rates.");
+        const normalizedRates =
+            normalizeRatesResponse(
+                historicalRaw,
+                base
+            );
+
+        if (!normalizedRates.length) {
+            throw new Error(
+                "Unable to retrieve current exchange rates."
+            );
         }
 
-        const currencies = {};
-        if (currenciesData) {
-            for (const [code, name] of Object.entries(currenciesData)) {
-                const cleanCode = code.trim().toUpperCase();
-                if (!EXCLUDED_CURRENCY_CODES.has(cleanCode)) {
-                    currencies[cleanCode] = name;
-                }
-            }
-        } else {
-            for (const item of currentNormalized) {
-                if (!EXCLUDED_CURRENCY_CODES.has(item.quote)) {
-                    currencies[item.quote] = item.quote;
+        /* =================================================
+           CURRENCIES
+        ================================================= */
+
+        const currencies =
+            normalizeCurrencies(
+                currenciesRaw
+            );
+
+        /*
+           Fallback in case currency metadata fails.
+        */
+
+        if (Object.keys(currencies).length === 0) {
+            for (const item of normalizedRates) {
+                const quote =
+                    String(item.quote)
+                        .trim()
+                        .toUpperCase();
+
+                if (
+                    !EXCLUDED_CURRENCY_CODES.has(
+                        quote
+                    )
+                ) {
+                    currencies[quote] = quote;
                 }
             }
         }
 
-        const currentMap = latestByQuote(currentNormalized, today);
-        const previousMap = previousByQuote(historicalNormalized, currentMap, today);
+        /* =================================================
+           CURRENT + PREVIOUS
+        ================================================= */
+
+        const currentMap =
+            latestByQuote(
+                normalizedRates,
+                today
+            );
+
+        const previousMap =
+            previousByQuote(
+                normalizedRates,
+                currentMap,
+                today
+            );
+
+        /* =================================================
+           RATES OBJECTS
+        ================================================= */
 
         const rates = {};
         const previousRates = {};
+
         const ratesList = [];
         const previousRatesList = [];
 
-        for (const [quote, item] of Object.entries(currentMap)) {
-            if (EXCLUDED_CURRENCY_CODES.has(quote)) continue;
-            rates[quote] = Number(item.rate);
+        for (
+            const [quote, item]
+            of Object.entries(currentMap)
+        ) {
+
+            if (
+                EXCLUDED_CURRENCY_CODES.has(
+                    quote
+                )
+            ) {
+                continue;
+            }
+
+            rates[quote] =
+                Number(item.rate);
+
             ratesList.push(item);
         }
 
-        for (const [quote, item] of Object.entries(previousMap)) {
-            if (EXCLUDED_CURRENCY_CODES.has(quote)) continue;
-            previousRates[quote] = Number(item.rate);
+        for (
+            const [quote, item]
+            of Object.entries(previousMap)
+        ) {
+
+            if (
+                EXCLUDED_CURRENCY_CODES.has(
+                    quote
+                )
+            ) {
+                continue;
+            }
+
+            previousRates[quote] =
+                Number(item.rate);
+
             previousRatesList.push(item);
         }
+
+        /* =================================================
+           MAJOR CURRENCIES
+        ================================================= */
 
         const majorRates = {};
         const majorPreviousRates = {};
 
         for (const quote of MAJOR_QUOTES) {
-            if (quote === base) continue;
 
-            if (rates[quote] !== undefined) {
-                majorRates[quote] = rates[quote];
+            if (quote === base) {
+                continue;
             }
 
-            if (previousRates[quote] !== undefined) {
-                majorPreviousRates[quote] = previousRates[quote];
+            if (
+                rates[quote] !== undefined
+            ) {
+                majorRates[quote] =
+                    rates[quote];
+            }
+
+            if (
+                previousRates[quote] !== undefined
+            ) {
+                majorPreviousRates[quote] =
+                    previousRates[quote];
             }
         }
 
-        const currentDates = [...new Set(ratesList.map(r => r.date))].sort();
-        const currentDate = currentDates.length ? currentDates[currentDates.length - 1] : today;
+        /* =================================================
+           DATES
+        ================================================= */
 
-        const historicalDates = [...new Set(historicalNormalized.map(item => item.date))].sort();
-        const validPreviousDates = historicalDates.filter(d => d < currentDate);
-        const previousDate = validPreviousDates.length ? validPreviousDates[validPreviousDates.length - 1] : null;
+        const currentDates = [
+            ...new Set(
+                ratesList.map(
+                    item => item.date
+                )
+            )
+        ].sort();
+
+        const currentDate =
+            currentDates.length
+                ? currentDates[
+                    currentDates.length - 1
+                ]
+                : today;
+
+        const historicalDates = [
+            ...new Set(
+                normalizedRates.map(
+                    item => item.date
+                )
+            )
+        ].sort();
+
+        const validPreviousDates =
+            historicalDates.filter(
+                date => date < currentDate
+            );
+
+        const previousDate =
+            validPreviousDates.length
+                ? validPreviousDates[
+                    validPreviousDates.length - 1
+                ]
+                : null;
+
+        /* =================================================
+           RESPONSE
+        ================================================= */
+
+        const responseData = {
+            base,
+
+            currencies,
+
+            rates,
+
+            previousRates,
+
+            ratesList,
+
+            previousRatesList,
+
+            date: currentDate,
+
+            previousDate,
+
+            majorRates,
+
+            majorPreviousRates
+        };
 
         return new Response(
-            JSON.stringify({
-                base,
-                currencies,
-                rates,
-                previousRates,
-                ratesList,
-                previousRatesList,
-                date: currentDate,
-                previousDate,
-                majorRates,
-                majorPreviousRates
-            }),
+            JSON.stringify(responseData),
             {
+                status: 200,
                 headers: {
-                    "Content-Type": "application/json",
-                    "Cache-Control": "public, max-age=3600",
+                    "Content-Type":
+                        "application/json",
+
+                    "Cache-Control":
+                        "public, max-age=3600, s-maxage=3600",
+
                     ...corsHeaders
                 }
             }
         );
 
     } catch (error) {
-        console.error("Currencies API error:", error);
+
+        console.error(
+            "Currencies API error:",
+            error
+        );
 
         return new Response(
             JSON.stringify({
-                error: "Failed to load currency data",
-                message: error?.message || "Unknown error"
+                error:
+                    "Failed to load currency data",
+
+                message:
+                    error?.message ||
+                    "Unknown error"
             }),
             {
                 status: 500,
                 headers: {
-                    "Content-Type": "application/json",
+                    "Content-Type":
+                        "application/json",
+
+                    "Cache-Control":
+                        "no-store",
+
                     ...corsHeaders
                 }
             }
