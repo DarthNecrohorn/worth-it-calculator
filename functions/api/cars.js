@@ -1848,6 +1848,45 @@ async function searchCommonsImage(
                     page.title || ""
                 );
 
+            const metadata =
+    image.extmetadata || {};
+
+const searchableText =
+    `${title}
+     ${metadata.ObjectName?.value || ""}
+     ${metadata.ImageDescription?.value || ""}`
+        .toLowerCase();
+
+const rejectedTerms = [
+    "museum",
+    "musée",
+    "musee",
+    "building",
+    "architecture",
+    "facade",
+    "façade",
+    "house",
+    "station",
+    "church",
+    "castle",
+    "palace",
+    "office",
+    "interior",
+    "monument",
+    "statue",
+    "sculpture",
+    "exhibition hall"
+];
+
+if (
+    rejectedTerms.some(
+        term =>
+            searchableText.includes(term)
+    )
+) {
+    continue;
+}
+            
             const titleText =
                 simplifyText(
                     title
