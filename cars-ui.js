@@ -795,19 +795,19 @@ async function loadVehicleCardImage(
 
     }
 
-    if (image.licenseUrl) {
+   if (image.license_url) {
 
-        imageElement.dataset.imageLicenseUrl =
-            image.licenseUrl;
+    imageElement.dataset.imageLicenseUrl =
+        image.license_url;
 
-    }
+}
 
-    if (image.sourceUrl) {
+if (image.source_url) {
 
-        imageElement.dataset.imageSourceUrl =
-            image.sourceUrl;
+    imageElement.dataset.imageSourceUrl =
+        image.source_url;
 
-    }
+}
 
 }
 
