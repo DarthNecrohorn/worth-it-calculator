@@ -767,6 +767,8 @@ async function loadVehicleCardImage(
     imageElement.dataset.loaded =
         "loading";
 
+    imageElement.dataset.queued =
+    "false";
 
     const details =
         await fetchVehicleDetails(
