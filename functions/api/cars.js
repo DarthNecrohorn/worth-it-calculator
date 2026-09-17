@@ -2191,7 +2191,8 @@ const wikidataImage =
                     )
             },
 
-            image
+                       image:
+                primaryImage
 
         },
         200,
