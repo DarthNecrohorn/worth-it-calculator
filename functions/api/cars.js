@@ -1602,31 +1602,6 @@ async function getWikidataImage(
          * ----------------------------------------------------
          */
 
-        const targetMake =
-            simplifyText(make);
-
-        const targetModel =
-            simplifyText(model);
-
-        const imageText =
-            simplifyText(
-                `${filename} ${metadata.ObjectName?.value || ""}`
-            );
-
-        /*
-         * The image filename/title should contain
-         * both the make and model.
-         *
-         * If not, do not trust the Wikidata image.
-         */
-
-        if (
-            targetMake &&
-            !imageText.includes(targetMake)
-        ) {
-            return null;
-        }
-
         if (
             targetModel &&
             !imageText.includes(targetModel)
