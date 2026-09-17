@@ -1772,7 +1772,7 @@ async function searchCommonsImage(make, model) {
         return null;
     }
 
-    const normalizedMake = simplifyText(make);
+    const normalizedMake = normalizeText(make);
     const normalizedModel = normalizeText(model);
 
     if (!normalizedMake || !normalizedModel) {
