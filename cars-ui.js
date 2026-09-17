@@ -28,9 +28,9 @@
 
 const VEHICLE_API = "/api/cars";
 
-const MAX_POPULAR_VEHICLES = 24;
-
 const MAX_SEARCH_RESULTS = 100;
+
+const INITIAL_VISIBLE_ROWS = 3;
 
 const VEHICLE_KINDS = [
     "car",
@@ -121,6 +121,9 @@ let currentVehicleCatalog =
 let currentVehicleResults =
     [];
 
+let currentVehicleShowAll =
+    false;
+
 
 /*
  * ============================================================
@@ -165,10 +168,14 @@ function getVehicleKindInfo(kind) {
  * ============================================================
  */
 
-async function fetchVehicleCatalog(kind = "car") {
+async function fetchVehicleCatalog(
+    kind = "car"
+) {
 
     if (!VEHICLE_KINDS.includes(kind)) {
+
         kind = "car";
+
     }
 
     if (
@@ -289,7 +296,9 @@ async function fetchVehicleCatalog(kind = "car") {
  * ============================================================
  */
 
-function getVehiclePopularityValue(vehicle) {
+function getVehiclePopularityValue(
+    vehicle
+) {
 
     const value =
         Number(
@@ -304,12 +313,13 @@ function getVehiclePopularityValue(vehicle) {
 
 
 function getPopularVehicles(
-    vehicles,
-    limit = MAX_POPULAR_VEHICLES
+    vehicles
 ) {
 
     if (!Array.isArray(vehicles)) {
+
         return [];
+
     }
 
     return [...vehicles]
@@ -338,7 +348,9 @@ function getPopularVehicles(
                     );
 
             if (makeCompare !== 0) {
+
                 return makeCompare;
+
             }
 
             return String(a.model || "")
@@ -350,8 +362,7 @@ function getPopularVehicles(
                     }
                 );
 
-        })
-        .slice(0, limit);
+        });
 
 }
 
@@ -371,9 +382,11 @@ function searchVehicleCatalog(
         normalizeVehicleText(query);
 
     if (!normalizedQuery) {
+
         return getPopularVehicles(
             vehicles
         );
+
     }
 
     const results =
@@ -394,6 +407,297 @@ function searchVehicleCatalog(
         0,
         MAX_SEARCH_RESULTS
     );
+
+}
+
+
+/*
+ * ============================================================
+ * CALCULATE VEHICLES FOR 3 ROWS
+ *
+ * Uses the actual CSS grid width and card width.
+ * This makes the limit responsive on desktop,
+ * tablet and mobile.
+ * ============================================================
+ */
+
+function getVehiclesPerRow() {
+
+    const grid =
+        document.getElementById(
+            "popularCarsGrid"
+        );
+
+    if (!grid) {
+
+        return 4;
+
+    }
+
+    const styles =
+        window.getComputedStyle(
+            grid
+        );
+
+    const columns =
+        styles.gridTemplateColumns;
+
+    if (
+        columns &&
+        columns !== "none"
+    ) {
+
+        const count =
+            columns
+                .split(" ")
+                .filter(Boolean)
+                .length;
+
+        if (count > 0) {
+
+            return count;
+
+        }
+
+    }
+
+    const cards =
+        grid.querySelectorAll(
+            ".car-card"
+        );
+
+    if (cards.length > 1) {
+
+        const firstTop =
+            cards[0].getBoundingClientRect().top;
+
+        let count = 0;
+
+        for (
+            const card of cards
+        ) {
+
+            if (
+                Math.abs(
+                    card.getBoundingClientRect().top -
+                    firstTop
+                ) < 2
+            ) {
+
+                count++;
+
+            }
+
+        }
+
+        if (count > 0) {
+
+            return count;
+
+        }
+
+    }
+
+    return 4;
+
+}
+
+
+function getInitialVehicleLimit(
+    vehicles
+) {
+
+    if (
+        !Array.isArray(vehicles) ||
+        !vehicles.length
+    ) {
+
+        return 0;
+
+    }
+
+    const perRow =
+        getVehiclesPerRow();
+
+    return Math.min(
+        vehicles.length,
+        perRow * INITIAL_VISIBLE_ROWS
+    );
+
+}
+
+
+/*
+ * ============================================================
+ * SHOW ALL / SHOW LESS BUTTON
+ * ============================================================
+ */
+
+function renderVehicleExpandButton(
+    totalVehicles,
+    visibleVehicles,
+    kind
+) {
+
+    const existing =
+        document.getElementById(
+            "carsVehicleExpandButton"
+        );
+
+    if (existing) {
+
+        existing.remove();
+
+    }
+
+    if (
+        !Array.isArray(totalVehicles) ||
+        totalVehicles.length <= visibleVehicles.length
+    ) {
+
+        return;
+
+    }
+
+    const info =
+        getVehicleKindInfo(kind);
+
+    const wrapper =
+        document.createElement("div");
+
+    wrapper.id =
+        "carsVehicleExpandButton";
+
+    wrapper.className =
+        "cars-expand-wrapper";
+
+    const button =
+        document.createElement("button");
+
+    button.type =
+        "button";
+
+    button.className =
+        "cars-expand-button";
+
+    button.textContent =
+        `Show all ${info.plural.toLowerCase()} ↓`;
+
+    button.addEventListener(
+        "click",
+        () => {
+
+            currentVehicleShowAll =
+                true;
+
+            renderVehicleCards(
+                totalVehicles,
+                kind,
+                true
+            );
+
+        }
+    );
+
+    wrapper.appendChild(
+        button
+    );
+
+    const grid =
+        document.getElementById(
+            "popularCarsGrid"
+        );
+
+    if (
+        grid &&
+        grid.parentNode
+    ) {
+
+        grid.parentNode.insertBefore(
+            wrapper,
+            grid.nextSibling
+        );
+
+    }
+
+}
+
+
+function renderVehicleCollapseButton(
+    kind
+) {
+
+    const existing =
+        document.getElementById(
+            "carsVehicleExpandButton"
+        );
+
+    if (existing) {
+
+        existing.remove();
+
+    }
+
+    const info =
+        getVehicleKindInfo(kind);
+
+    const wrapper =
+        document.createElement("div");
+
+    wrapper.id =
+        "carsVehicleExpandButton";
+
+    wrapper.className =
+        "cars-expand-wrapper";
+
+    const button =
+        document.createElement("button");
+
+    button.type =
+        "button";
+
+    button.className =
+        "cars-expand-button";
+
+    button.textContent =
+        `Show less ${info.plural.toLowerCase()} ↑`;
+
+    button.addEventListener(
+        "click",
+        () => {
+
+            currentVehicleShowAll =
+                false;
+
+            renderVehicleCards(
+                currentVehicleResults,
+                kind,
+                false
+            );
+
+        }
+    );
+
+    wrapper.appendChild(
+        button
+    );
+
+    const grid =
+        document.getElementById(
+            "popularCarsGrid"
+        );
+
+    if (
+        grid &&
+        grid.parentNode
+    ) {
+
+        grid.parentNode.insertBefore(
+            wrapper,
+            grid.nextSibling
+        );
+
+    }
 
 }
 
@@ -490,7 +794,8 @@ function createVehicleCard(
 
 function renderVehicleCards(
     vehicles,
-    kind = currentVehicleKind
+    kind = currentVehicleKind,
+    forceShowAll = false
 ) {
 
     const grid =
@@ -499,6 +804,21 @@ function renderVehicleCards(
         );
 
     if (!grid) return;
+
+    /*
+     * Remove old Show All / Show Less button.
+     */
+
+    const existingExpandButton =
+        document.getElementById(
+            "carsVehicleExpandButton"
+        );
+
+    if (existingExpandButton) {
+
+        existingExpandButton.remove();
+
+    }
 
     grid.innerHTML = "";
 
@@ -531,7 +851,40 @@ function renderVehicleCards(
 
         `;
 
+        currentVehicleResults =
+            vehicles || [];
+
         return;
+
+    }
+
+    /*
+     * Keep the complete current result set.
+     */
+
+    currentVehicleResults =
+        vehicles;
+
+    let vehiclesToRender =
+        vehicles;
+
+    /*
+     * Search results are shown directly.
+     * Normal category browsing starts with 3 rows.
+     */
+
+    if (!forceShowAll && !currentVehicleShowAll) {
+
+        const limit =
+            getInitialVehicleLimit(
+                vehicles
+            );
+
+        vehiclesToRender =
+            vehicles.slice(
+                0,
+                limit
+            );
 
     }
 
@@ -539,7 +892,7 @@ function renderVehicleCards(
         document.createDocumentFragment();
 
     for (
-        const vehicle of vehicles
+        const vehicle of vehiclesToRender
     ) {
 
         fragment.appendChild(
@@ -555,8 +908,31 @@ function renderVehicleCards(
         fragment
     );
 
-    currentVehicleResults =
-        vehicles;
+    /*
+     * Add Show All / Show Less.
+     */
+
+    if (
+        currentVehicleShowAll ||
+        forceShowAll
+    ) {
+
+        currentVehicleShowAll =
+            true;
+
+        renderVehicleCollapseButton(
+            kind
+        );
+
+    } else {
+
+        renderVehicleExpandButton(
+            vehicles,
+            vehiclesToRender,
+            kind
+        );
+
+    }
 
 }
 
@@ -586,7 +962,9 @@ function updateCarsCategoryHeader(
         !title ||
         !description
     ) {
+
         return;
+
     }
 
     const info =
@@ -630,7 +1008,9 @@ function renderVehicleCategoryButtons() {
         );
 
     if (!categoryGrid) {
+
         return;
+
     }
 
     categoryGrid.innerHTML = "";
@@ -711,6 +1091,9 @@ async function filterCarsByCategory(
     currentVehicleKind =
         kind;
 
+    currentVehicleShowAll =
+        false;
+
     const info =
         getVehicleKindInfo(kind);
 
@@ -718,6 +1101,17 @@ async function filterCarsByCategory(
         "popular",
         kind
     );
+
+    const oldExpandButton =
+        document.getElementById(
+            "carsVehicleExpandButton"
+        );
+
+    if (oldExpandButton) {
+
+        oldExpandButton.remove();
+
+    }
 
     const grid =
         document.getElementById(
@@ -763,7 +1157,8 @@ async function filterCarsByCategory(
 
     renderVehicleCards(
         popularVehicles,
-        kind
+        kind,
+        false
     );
 
 }
@@ -779,19 +1174,39 @@ function handleVehicleSearch(
     query
 ) {
 
+    const hasQuery =
+        String(query || "").trim();
+
+    /*
+     * When searching, always reset
+     * the Show All state.
+     */
+
+    currentVehicleShowAll =
+        false;
+
     const results =
         searchVehicleCatalog(
             currentVehicleCatalog,
             query
         );
 
-    if (
-        String(query || "").trim()
-    ) {
+    if (hasQuery) {
 
         updateCarsCategoryHeader(
             "search",
             currentVehicleKind
+        );
+
+        /*
+         * Search results are not limited
+         * to the normal 3-row browsing view.
+         */
+
+        renderVehicleCards(
+            results,
+            currentVehicleKind,
+            true
         );
 
     } else {
@@ -801,12 +1216,13 @@ function handleVehicleSearch(
             currentVehicleKind
         );
 
-    }
+        renderVehicleCards(
+            results,
+            currentVehicleKind,
+            false
+        );
 
-    renderVehicleCards(
-        results,
-        currentVehicleKind
-    );
+    }
 
 }
 
@@ -916,11 +1332,29 @@ async function openCars() {
     currentVehicleCatalog =
         [];
 
+    currentVehicleResults =
+        [];
+
+    currentVehicleShowAll =
+        false;
+
 
     updateCarsCategoryHeader(
         "popular",
         "car"
     );
+
+
+    const oldExpandButton =
+        document.getElementById(
+            "carsVehicleExpandButton"
+        );
+
+    if (oldExpandButton) {
+
+        oldExpandButton.remove();
+
+    }
 
 
     const grid =
@@ -966,11 +1400,16 @@ async function openCars() {
         vehicles;
 
 
-    renderVehicleCards(
+    const popularVehicles =
         getPopularVehicles(
             vehicles
-        ),
-        "car"
+        );
+
+
+    renderVehicleCards(
+        popularVehicles,
+        "car",
+        false
     );
 
 
@@ -1005,7 +1444,9 @@ function ensureVehiclesDBAttribution() {
         );
 
     if (!carsContent) {
+
         return;
+
     }
 
     if (
@@ -1013,7 +1454,9 @@ function ensureVehiclesDBAttribution() {
             "vehiclesDbAttribution"
         )
     ) {
+
         return;
+
     }
 
     const attribution =
@@ -1077,7 +1520,7 @@ document.addEventListener(
     function () {
 
         /*
-         * Create the new six-category vehicle navigation.
+         * Create the six vehicle categories.
          */
 
         renderVehicleCategoryButtons();
@@ -1100,7 +1543,9 @@ document.addEventListener(
             );
 
         if (!searchInput) {
+
             return;
+
         }
 
 
