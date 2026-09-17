@@ -1772,7 +1772,10 @@ async function searchCommonsImage(make, model) {
         return null;
     }
 
-    const normalizedMake = normalizeText(make);
+    const normalizedMake =
+        normalizeText(make)
+            .replace(/[-_/]+/g, " ");
+
     const normalizedModel = normalizeText(model);
 
     if (!normalizedMake || !normalizedModel) {
@@ -1925,10 +1928,11 @@ async function searchCommonsImage(make, model) {
                         ""
                     );
 
-               const searchableText =
-                  normalizeText(
-                       `${filename} ${objectName} ${description}`
-                    );
+                const searchableText =
+                    normalizeText(
+                        `${filename} ${objectName} ${description}`
+                    )
+                    .replace(/[-_/]+/g, " ");
 
                 /*
                  * Reject obvious non-vehicle / irrelevant content.
@@ -2029,12 +2033,13 @@ async function searchCommonsImage(make, model) {
                     );
 
                 const makeMatches =
-                   searchableText.includes(
-                       normalizedMake
-            ) ||
-                searchableText.includes(
-                   simplifyText(make)
-            );
+                    searchableText.includes(
+                        normalizedMake
+                    ) ||
+                    searchableText.includes(
+                        simplifyText(make)
+                    );
+
                 if (!makeMatches) {
                     continue;
                 }
@@ -2163,9 +2168,17 @@ async function searchCommonsImage(make, model) {
                         ""
                     );
 
+                const licenseUrl =
+                    String(
+                        metadata.LicenseUrl?.value ||
+                        metadata.LicenseUrl?.url ||
+                        ""
+                    );
+
                 if (
                     !isAcceptedCommonsLicense(
-                        metadata
+                        license,
+                        licenseUrl
                     )
                 ) {
                     continue;
@@ -2190,7 +2203,7 @@ async function searchCommonsImage(make, model) {
                         null,
                     license,
                     license_url:
-                        metadata.LicenseUrl?.value ||
+                        licenseUrl ||
                         null,
                     source_url:
                         `https://commons.wikimedia.org/wiki/${encodeURIComponent(title.replace(/ /g, "_"))}`
