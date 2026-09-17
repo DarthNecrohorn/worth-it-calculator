@@ -328,7 +328,7 @@ function getVehicleImageObserver() {
                  * This prevents hundreds of details
                  * requests from starting at once.
                  */
-                rootMargin: "150px 0px"
+                rootMargin: "400px 0px"
             }
         );
 
