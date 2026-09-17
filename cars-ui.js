@@ -32,7 +32,7 @@
 
 const VEHICLE_API = "/api/cars";
 
-const MAX_SEARCH_RESULTS = 100;
+const MAX_SEARCH_RESULTS = Infinity;
 
 const INITIAL_VISIBLE_ROWS = 3;
 
