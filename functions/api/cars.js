@@ -1687,6 +1687,78 @@ async function getWikidataImage(
     }
 }
 
+function calculateCommonsVehicleScore(
+    normalizedMake,
+    normalizedModel,
+    titleText,
+    width,
+    height,
+    metadata
+) {
+    let score = 0;
+
+    if (
+        titleText.includes(
+            simplifyText(normalizedMake)
+        )
+    ) {
+        score += 30;
+    }
+
+    if (
+        titleText.includes(
+            simplifyText(normalizedModel)
+        )
+    ) {
+        score += 40;
+    }
+
+    if (
+        titleText.includes(
+            simplifyText(
+                `${normalizedMake}${normalizedModel}`
+            )
+        )
+    ) {
+        score += 20;
+    }
+
+    if (
+        width >= 1000 &&
+        height >= 600
+    ) {
+        score += 10;
+    } else if (
+        width >= 600 &&
+        height >= 400
+    ) {
+        score += 5;
+    }
+
+    const license =
+        String(
+            metadata.LicenseShortName?.value ||
+            metadata.License?.value ||
+            ""
+        ).toLowerCase();
+
+    if (
+        license.includes("cc0") ||
+        license.includes("public domain")
+    ) {
+        score += 10;
+    } else if (
+        license.includes("cc by-sa")
+    ) {
+        score += 5;
+    } else if (
+        license.includes("cc by")
+    ) {
+        score += 5;
+    }
+
+    return score;
+}
 
 /*
  * ------------------------------------------------------------
