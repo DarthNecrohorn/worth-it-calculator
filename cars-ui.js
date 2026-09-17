@@ -634,13 +634,38 @@ function createVehicleImageElement(
 }
 
 
-function createVehicleImagePlaceholder(message = "Loading image...") {
+function createVehicleImagePlaceholder(
+    vehicle,
+    kind,
+    message = "Loading image..."
+) {
+    const info = getVehicleKindInfo(kind);
+
     const placeholder = document.createElement("div");
-    placeholder.className = "car-image-placeholder";
+
+    placeholder.className = "car-card-image-placeholder";
+    placeholder.style.width = "100%";
+    placeholder.style.height = "180px";
+    placeholder.style.display = "flex";
+    placeholder.style.alignItems = "center";
+    placeholder.style.justifyContent = "center";
+    placeholder.style.flexDirection = "column";
+    placeholder.style.gap = "8px";
+    placeholder.style.borderRadius = "12px 12px 0 0";
+    placeholder.style.background = "rgba(128,128,128,0.10)";
+
     placeholder.innerHTML = `
-        <span>🚗</span>
-        <small class="car-image-loading-text">${message}</small>
+        <div style="font-size:2.2rem;opacity:0.75;">
+            ${info.icon}
+        </div>
+        <small
+            class="car-image-loading-text"
+            style="font-size:0.75rem;opacity:0.55;"
+        >
+            ${message}
+        </small>
     `;
+
     return placeholder;
 }
 
