@@ -682,28 +682,32 @@ function showVehicleImagePlaceholder(
 
     }
 
-    const make =
-        image.dataset.vehicleMake || "";
-
-    const model =
-        image.dataset.vehicleModel || "";
-
     const kind =
         image.dataset.vehicleKind || "car";
 
-    const placeholder =
-    createVehicleImagePlaceholder(
-        {
-            make: make,
-            model: model
-        },
-        kind,
-        "Image unavailable"
-    );
+    const existingPlaceholder =
+        parent.querySelector(
+            ".car-card-image-placeholder"
+        );
 
-    image.replaceWith(
-        placeholder
-    );
+    if (existingPlaceholder) {
+
+        existingPlaceholder.innerHTML = `
+            <div style="font-size:2.2rem;opacity:0.75;">
+                ${getVehicleKindInfo(kind).icon}
+            </div>
+
+            <small
+                class="car-image-loading-text"
+                style="font-size:0.75rem;opacity:0.55;"
+            >
+                Image unavailable
+            </small>
+        `;
+
+    }
+
+    image.remove();
 
 }
 
