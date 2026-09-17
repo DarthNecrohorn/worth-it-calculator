@@ -1915,9 +1915,6 @@ if (
                 continue;
             }
 
-            const metadata =
-                image.extmetadata || {};
-
             const license =
                 stripHtml(
                     metadata
