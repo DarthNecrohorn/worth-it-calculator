@@ -1,665 +1,1304 @@
-export async function onRequestGet(context) {
-    try {
-        const { env, request } = context;
-
-        if (!env.CARSXE_API_KEY) {
-            return new Response(
-                JSON.stringify({
-                    success: false,
-                    error: "CARSXE_API_KEY is not configured"
-                }),
-                {
-                    status: 500,
-                    headers: {
-                        "Content-Type": "application/json"
-                    }
-                }
-            );
-        }
-
-        const requestUrl = new URL(request.url);
-        const action = requestUrl.searchParams.get("action");
-
-        /*
-         * =========================
-         * IMAGES
-         * =========================
-         */
-
-        if (action === "images") {
-
-            const make = requestUrl.searchParams.get("make");
-            const model = requestUrl.searchParams.get("model");
-            const year = requestUrl.searchParams.get("year");
-
-            if (!make || !model) {
-                return new Response(
-                    JSON.stringify({
-                        success: false,
-                        error: "Missing make or model parameter"
-                    }),
-                    {
-                        status: 400,
-                        headers: {
-                            "Content-Type": "application/json"
-                        }
-                    }
-                );
-            }
-
-            /*
-             * Build a clean cache key.
-             *
-             * The API key is intentionally NOT included
-             * in the cache key.
-             */
-
-            const cacheKey = new URL(request.url);
-
-            cacheKey.searchParams.set("action", "images");
-            cacheKey.searchParams.set("make", make);
-            cacheKey.searchParams.set("model", model);
-
-            if (year) {
-                cacheKey.searchParams.set("year", year);
-            } else {
-                cacheKey.searchParams.delete("year");
-            }
-
-            /*
-             * Remove anything that should not affect
-             * the cached result.
-             */
-
-            cacheKey.searchParams.delete("key");
-
-            /*
-             * Use Cloudflare's edge cache.
-             */
-
-            const cache = caches.default;
-
-            const cachedResponse = await cache.match(cacheKey.toString());
-
-            if (cachedResponse) {
-                return cachedResponse;
-            }
-
-            /*
- * No cached result.
- * Request images from CarsXE.
+/*
+ * ============================================================
+ * WORTH IT - VEHICLES API
+ * VehiclesDB Open Dataset
+ *
+ * Supports:
+ *   car
+ *   motorcycle
+ *   moped
+ *   van
+ *   truck
+ *   bus
+ *
+ * No API key required.
+ * VehiclesDB Open Dataset: CC BY 4.0
+ * Attribution required on the website.
+ * ============================================================
  */
 
-const imagesUrl = new URL(
-    "https://api.carsxe.com/images"
-);
+const VEHICLES_DB_URL =
+    "https://cdn.jsdelivr.net/gh/vehiclesdb/vehiclesdb@latest/dist/vehicles.json";
 
-imagesUrl.searchParams.set(
-    "key",
-    env.CARSXE_API_KEY
-);
+const CACHE_TTL = 86400; // 24 hours
 
-imagesUrl.searchParams.set(
-    "make",
-    make
-);
+const VALID_KINDS = new Set([
+    "car",
+    "motorcycle",
+    "moped",
+    "van",
+    "truck",
+    "bus"
+]);
 
-imagesUrl.searchParams.set(
-    "model",
-    model
-);
+/*
+ * ------------------------------------------------------------
+ * Response helper
+ * ------------------------------------------------------------
+ */
 
-if (year) {
-    imagesUrl.searchParams.set(
-        "year",
-        year
+function jsonResponse(
+    data,
+    status = 200,
+    cacheSeconds = CACHE_TTL
+) {
+    return new Response(
+        JSON.stringify(data),
+        {
+            status,
+            headers: {
+                "Content-Type":
+                    "application/json; charset=UTF-8",
+
+                "Cache-Control":
+                    `public, max-age=${cacheSeconds}`
+            }
+        }
     );
 }
 
 /*
- * Only request commercially shareable images.
+ * ------------------------------------------------------------
+ * Normalization helpers
+ * ------------------------------------------------------------
  */
 
-imagesUrl.searchParams.set(
-    "license",
-    "ShareCommercially"
-);
+function normalizeKind(kind) {
 
-const response = await fetch(
-    imagesUrl.toString()
-);
+    if (!kind) {
+        return "car";
+    }
 
-const responseText =
-    await response.text();
+    const value =
+        String(kind)
+            .trim()
+            .toLowerCase();
 
-let data;
+    const aliases = {
+        car: "car",
+        cars: "car",
 
-try {
+        motorcycle: "motorcycle",
+        motorcycles: "motorcycle",
+        bike: "motorcycle",
+        bikes: "motorcycle",
 
-    data = JSON.parse(
-        responseText
+        moped: "moped",
+        mopeds: "moped",
+
+        van: "van",
+        vans: "van",
+
+        truck: "truck",
+        trucks: "truck",
+
+        bus: "bus",
+        buses: "bus"
+    };
+
+    return aliases[value] || "car";
+}
+
+function isValidKind(kind) {
+    return VALID_KINDS.has(kind);
+}
+
+function normalizeText(value) {
+
+    return String(value || "")
+        .trim()
+        .toLowerCase();
+}
+
+function simplifyText(value) {
+
+    return normalizeText(value)
+        .replace(/[^a-z0-9]/g, "");
+}
+
+/*
+ * ------------------------------------------------------------
+ * VehiclesDB loader
+ * ------------------------------------------------------------
+ */
+
+async function loadVehiclesDatabase() {
+
+    const cache =
+        caches.default;
+
+    const cacheKey =
+        new Request(
+            "https://worth-it-internal-cache.local/vehiclesdb/latest.json"
+        );
+
+    const cached =
+        await cache.match(cacheKey);
+
+    if (cached) {
+
+        try {
+
+            const cachedData =
+                await cached.json();
+
+            if (
+                cachedData &&
+                Array.isArray(cachedData.makes)
+            ) {
+                return cachedData;
+            }
+
+        } catch {
+
+            // Ignore invalid cached data.
+        }
+    }
+
+    const response =
+        await fetch(
+            VEHICLES_DB_URL,
+            {
+                headers: {
+                    "Accept": "application/json"
+                }
+            }
+        );
+
+    if (!response.ok) {
+
+        throw new Error(
+            `VehiclesDB request failed with status ${response.status}`
+        );
+    }
+
+    const data =
+        await response.json();
+
+    if (
+        !data ||
+        !Array.isArray(data.makes)
+    ) {
+
+        throw new Error(
+            "VehiclesDB returned an invalid dataset"
+        );
+    }
+
+    /*
+     * Cache the complete dataset at Cloudflare edge.
+     */
+
+    const cacheResponse =
+        new Response(
+            JSON.stringify(data),
+            {
+                status: 200,
+                headers: {
+                    "Content-Type":
+                        "application/json; charset=UTF-8",
+
+                    "Cache-Control":
+                        `public, max-age=${CACHE_TTL}`
+                }
+            }
+        );
+
+    await cache.put(
+        cacheKey,
+        cacheResponse
     );
 
-} catch {
+    return data;
+}
 
-    data = {
-        success: false,
-        error:
-            responseText ||
-            "Invalid response from CarsXE"
+/*
+ * ------------------------------------------------------------
+ * Extract models for a specific vehicle kind
+ * ------------------------------------------------------------
+ */
+
+function getModelsByKind(
+    database,
+    kind
+) {
+
+    if (
+        !database ||
+        !Array.isArray(database.makes) ||
+        !isValidKind(kind)
+    ) {
+        return [];
+    }
+
+    const models = [];
+
+    for (const make of database.makes) {
+
+        if (
+            !make ||
+            !Array.isArray(make.models)
+        ) {
+            continue;
+        }
+
+        for (const model of make.models) {
+
+            if (!model) {
+                continue;
+            }
+
+            const modelKind =
+                normalizeKind(model.kind);
+
+            if (modelKind !== kind) {
+                continue;
+            }
+
+            models.push({
+
+                make:
+                    make.name || "",
+
+                makeSlug:
+                    make.slug || "",
+
+                model:
+                    model.name || "",
+
+                modelSlug:
+                    model.slug || "",
+
+                kind:
+                    modelKind,
+
+                bodyType:
+                    model.body_type || null,
+
+                bodyTypes:
+                    Array.isArray(model.body_types)
+                        ? model.body_types
+                        : [],
+
+                globalDecile:
+                    model.global_decile ??
+                    model.global_popularity_decile ??
+                    null,
+
+                availability:
+                    Array.isArray(model.availability)
+                        ? model.availability
+                        : [],
+
+                yearStart:
+                    model.year_start ??
+                    null,
+
+                yearEnd:
+                    model.year_end ??
+                    null
+            });
+        }
+    }
+
+    /*
+     * Remove duplicate make/model/kind combinations.
+     */
+
+    const unique =
+        new Map();
+
+    for (const vehicle of models) {
+
+        const key =
+            `${simplifyText(vehicle.make)}|` +
+            `${simplifyText(vehicle.model)}|` +
+            `${vehicle.kind}`;
+
+        if (!unique.has(key)) {
+            unique.set(
+                key,
+                vehicle
+            );
+        }
+    }
+
+    return Array.from(
+        unique.values()
+    );
+}
+
+/*
+ * ------------------------------------------------------------
+ * Find vehicle
+ * ------------------------------------------------------------
+ */
+
+function findVehicle(
+    models,
+    make,
+    model
+) {
+
+    const targetMake =
+        normalizeText(make);
+
+    const targetModel =
+        normalizeText(model);
+
+    /*
+     * 1. Exact match
+     */
+
+    const exact =
+        models.find(vehicle =>
+            normalizeText(vehicle.make) ===
+                targetMake &&
+            normalizeText(vehicle.model) ===
+                targetModel
+        );
+
+    if (exact) {
+        return exact;
+    }
+
+    /*
+     * 2. Simplified match
+     *
+     * Example:
+     * Mercedes-Benz
+     * Mercedes Benz
+     */
+
+    const simplifiedMake =
+        simplifyText(make);
+
+    const simplifiedModel =
+        simplifyText(model);
+
+    const simplified =
+        models.find(vehicle =>
+            simplifyText(vehicle.make) ===
+                simplifiedMake &&
+            simplifyText(vehicle.model) ===
+                simplifiedModel
+        );
+
+    if (simplified) {
+        return simplified;
+    }
+
+    /*
+     * 3. Partial model match
+     *
+     * Only allow this when the make itself matches.
+     */
+
+    return (
+        models.find(vehicle => {
+
+            const vehicleMake =
+                normalizeText(vehicle.make);
+
+            const vehicleModel =
+                normalizeText(vehicle.model);
+
+            return (
+                vehicleMake === targetMake &&
+                targetModel &&
+                (
+                    vehicleModel.includes(
+                        targetModel
+                    ) ||
+                    targetModel.includes(
+                        vehicleModel
+                    )
+                )
+            );
+
+        }) || null
+    );
+}
+
+/*
+ * ------------------------------------------------------------
+ * Create frontend-compatible vehicle object
+ * ------------------------------------------------------------
+ */
+
+function createBestMatch(
+    vehicle,
+    requestedYear
+) {
+
+    if (!vehicle) {
+        return null;
+    }
+
+    let year =
+        requestedYear
+            ? Number(requestedYear)
+            : null;
+
+    if (
+        !Number.isFinite(year) ||
+        year <= 0
+    ) {
+        year = null;
+    }
+
+    const startYear =
+        vehicle.yearStart !== null &&
+        vehicle.yearStart !== undefined
+            ? Number(vehicle.yearStart)
+            : null;
+
+    const endYear =
+        vehicle.yearEnd !== null &&
+        vehicle.yearEnd !== undefined
+            ? Number(vehicle.yearEnd)
+            : null;
+
+    /*
+     * Keep requested year when possible.
+     * If it falls outside the known range,
+     * use the nearest valid boundary.
+     */
+
+    if (
+        year !== null &&
+        Number.isFinite(startYear) &&
+        year < startYear
+    ) {
+        year = startYear;
+    }
+
+    if (
+        year !== null &&
+        Number.isFinite(endYear) &&
+        year > endYear
+    ) {
+        year = endYear;
+    }
+
+    return {
+
+        /*
+         * Basic identity
+         */
+
+        make:
+            vehicle.make,
+
+        model:
+            vehicle.model,
+
+        name:
+            `${vehicle.make} ${vehicle.model}`,
+
+        year,
+
+        kind:
+            vehicle.kind,
+
+        body_type:
+            vehicle.bodyType,
+
+        body_types:
+            vehicle.bodyTypes,
+
+        /*
+         * Detailed specifications are intentionally null.
+         *
+         * VehiclesDB Open Dataset is primarily the
+         * vehicle identity/catalog layer.
+         */
+
+        base_msrp:
+            null,
+
+        horsepower:
+            null,
+
+        drivetrain:
+            null,
+
+        drive_train:
+            null,
+
+        fuel_type:
+            null,
+
+        fuel:
+            null,
+
+        engine:
+            null,
+
+        transmission:
+            null,
+
+        mpg_combined:
+            null,
+
+        is_electric:
+            false,
+
+        is_plugin_electric:
+            false,
+
+        /*
+         * VehiclesDB catalog information
+         */
+
+        global_decile:
+            vehicle.globalDecile,
+
+        availability:
+            vehicle.availability,
+
+        year_start:
+            vehicle.yearStart,
+
+        year_end:
+            vehicle.yearEnd,
+
+        make_slug:
+            vehicle.makeSlug,
+
+        model_slug:
+            vehicle.modelSlug
     };
 }
 
 /*
- * Do not cache failed API responses.
+ * ------------------------------------------------------------
+ * Validate kind
+ * ------------------------------------------------------------
  */
 
-            if (!response.ok) {
-                return new Response(
-                    JSON.stringify(data),
-                    {
-                        status: response.status,
-                        headers: {
-                            "Content-Type": "application/json"
-                        }
-                    }
-                );
-            }
+function getRequestedKind(requestUrl) {
 
-            /*
-             * Cache successful image results.
-             *
-             * 7 days is a good starting point.
-             */
+    const rawKind =
+        requestUrl.searchParams.get(
+            "kind"
+        );
 
-            const cacheResponse = new Response(
-                JSON.stringify(data),
+    const kind =
+        normalizeKind(rawKind);
+
+    /*
+     * Unknown values should not silently become
+     * another vehicle category.
+     */
+
+    if (
+        rawKind &&
+        !VALID_KINDS.has(kind) &&
+        ![
+            "cars",
+            "motorcycles",
+            "bikes",
+            "mopeds",
+            "vans",
+            "trucks",
+            "buses"
+        ].includes(
+            String(rawKind)
+                .trim()
+                .toLowerCase()
+        )
+    ) {
+
+        return null;
+    }
+
+    return kind;
+}
+
+/*
+ * ------------------------------------------------------------
+ * ACTION: MODELS
+ *
+ * /api/cars?action=models
+ * /api/cars?action=models&kind=car
+ * /api/cars?action=models&kind=motorcycle
+ * /api/cars?action=models&make=BMW
+ * /api/cars?action=models&search=Golf
+ * ------------------------------------------------------------
+ */
+
+async function handleModels(
+    requestUrl,
+    database
+) {
+
+    const kind =
+        getRequestedKind(requestUrl);
+
+    if (!kind) {
+
+        return jsonResponse(
+            {
+                success: false,
+                error:
+                    "Invalid vehicle kind",
+                supportedKinds:
+                    Array.from(
+                        VALID_KINDS
+                    )
+            },
+            400,
+            60
+        );
+    }
+
+    const make =
+        requestUrl.searchParams.get(
+            "make"
+        );
+
+    const search =
+        requestUrl.searchParams.get(
+            "search"
+        );
+
+    let models =
+        getModelsByKind(
+            database,
+            kind
+        );
+
+    /*
+     * Filter by make.
+     */
+
+    if (make) {
+
+        const targetMake =
+            normalizeText(make);
+
+        const simplifiedMake =
+            simplifyText(make);
+
+        models =
+            models.filter(vehicle =>
+                normalizeText(
+                    vehicle.make
+                ) === targetMake ||
+                simplifyText(
+                    vehicle.make
+                ) === simplifiedMake
+            );
+    }
+
+    /*
+     * Search make + model.
+     */
+
+    if (search) {
+
+        const query =
+            normalizeText(search);
+
+        models =
+            models.filter(vehicle => {
+
+                const text =
+                    normalizeText(
+                        `${vehicle.make} ${vehicle.model}`
+                    );
+
+                return text.includes(query);
+            });
+    }
+
+    /*
+     * Sort alphabetically.
+     */
+
+    models.sort((a, b) => {
+
+        const makeCompare =
+            a.make.localeCompare(
+                b.make,
+                undefined,
                 {
-                    status: 200,
-                    headers: {
-                        "Content-Type": "application/json",
-                        "Cache-Control": "public, max-age=604800"
-                    }
+                    sensitivity: "base"
                 }
             );
 
-            await cache.put(
-                cacheKey.toString(),
-                cacheResponse.clone()
+        if (makeCompare !== 0) {
+            return makeCompare;
+        }
+
+        return a.model.localeCompare(
+            b.model,
+            undefined,
+            {
+                sensitivity: "base"
+            }
+        );
+    });
+
+    return jsonResponse({
+
+        success: true,
+
+        kind,
+
+        count:
+            models.length,
+
+        vehicles:
+            models,
+
+        models:
+            models
+
+    });
+}
+
+/*
+ * ------------------------------------------------------------
+ * ACTION: MAKES
+ *
+ * /api/cars?action=makes
+ * /api/cars?action=makes&kind=car
+ * ------------------------------------------------------------
+ */
+
+async function handleMakes(
+    requestUrl,
+    database
+) {
+
+    const kind =
+        getRequestedKind(requestUrl);
+
+    if (!kind) {
+
+        return jsonResponse(
+            {
+                success: false,
+                error:
+                    "Invalid vehicle kind",
+                supportedKinds:
+                    Array.from(
+                        VALID_KINDS
+                    )
+            },
+            400,
+            60
+        );
+    }
+
+    if (
+        !database ||
+        !Array.isArray(database.makes)
+    ) {
+
+        return jsonResponse(
+            {
+                success: false,
+                error:
+                    "Invalid VehiclesDB dataset"
+            },
+            500,
+            60
+        );
+    }
+
+    const makes =
+        new Map();
+
+    for (const make of database.makes) {
+
+        if (
+            !make ||
+            !Array.isArray(make.models)
+        ) {
+            continue;
+        }
+
+        const hasKind =
+            make.models.some(
+                model =>
+                    model &&
+                    normalizeKind(
+                        model.kind
+                    ) === kind
             );
 
-            return cacheResponse;
+        if (!hasKind) {
+            continue;
         }
 
-        /*
- * =========================
- * MODELS
- * =========================
- */
+        const name =
+            make.name || "";
 
-if (action === "models") {
+        const key =
+            normalizeText(name);
 
-    const make = requestUrl.searchParams.get("make");
-
-    if (!make) {
-        return new Response(
-            JSON.stringify({
-                success: false,
-                error: "Missing make parameter"
-            }),
-            {
-                status: 400,
-                headers: {
-                    "Content-Type": "application/json"
-                }
-            }
-        );
-    }
-
-    /*
-     * Build a clean cache key.
-     */
-
-    const cacheKey = new URL(request.url);
-
-    cacheKey.searchParams.set(
-        "action",
-        "models"
-    );
-
-    cacheKey.searchParams.set(
-        "make",
-        make
-    );
-
-    /*
-     * API key must never be part of the cache key.
-     */
-
-    cacheKey.searchParams.delete("key");
-
-    /*
-     * Use Cloudflare's edge cache.
-     */
-
-    const cache = caches.default;
-
-    const cachedResponse = await cache.match(
-        cacheKey.toString()
-    );
-
-    if (cachedResponse) {
-        return cachedResponse;
-    }
-
-    /*
-     * No cached result.
-     * Request models from CarsXE.
-     */
-
-    const carsxeUrl = new URL(
-        "https://api.carsxe.com/v1/ymm-options"
-    );
-
-    carsxeUrl.searchParams.set(
-        "key",
-        env.CARSXE_API_KEY
-    );
-
-    carsxeUrl.searchParams.set(
-        "dimension",
-        "models"
-    );
-
-    carsxeUrl.searchParams.set(
-        "make",
-        make
-    );
-
-    const response = await fetch(
-        carsxeUrl.toString()
-    );
-
-    const data = await response.json();
-
-    /*
-     * Do not cache failed API responses.
-     */
-
-    if (!response.ok) {
-        return new Response(
-            JSON.stringify(data),
-            {
-                status: response.status,
-                headers: {
-                    "Content-Type": "application/json"
-                }
-            }
-        );
-    }
-
-    /*
-     * Cache successful model lists for 30 days.
-     */
-
-    const cacheResponse = new Response(
-        JSON.stringify(data),
-        {
-            status: 200,
-            headers: {
-                "Content-Type": "application/json",
-                "Cache-Control": "public, max-age=2592000"
-            }
+        if (!key) {
+            continue;
         }
-    );
 
-    await cache.put(
-        cacheKey.toString(),
-        cacheResponse.clone()
-    );
+        if (!makes.has(key)) {
 
-    return cacheResponse;
+            makes.set(
+                key,
+                {
+                    name,
+
+                    slug:
+                        make.slug || "",
+
+                    kind
+                }
+            );
+        }
+    }
+
+    const result =
+        Array.from(
+            makes.values()
+        ).sort((a, b) =>
+            a.name.localeCompare(
+                b.name,
+                undefined,
+                {
+                    sensitivity: "base"
+                }
+            )
+        );
+
+    return jsonResponse({
+
+        success: true,
+
+        kind,
+
+        count:
+            result.length,
+
+        makes:
+            result
+
+    });
 }
 
 /*
- * =========================
- * VARIANTS
- * =========================
+ * ------------------------------------------------------------
+ * ACTION: VEHICLE
+ *
+ * /api/cars?action=vehicle
+ *     &make=BMW
+ *     &model=3%20Series
+ *     &year=2024
+ *
+ * Optional:
+ *     &kind=car
+ * ------------------------------------------------------------
  */
 
-if (action === "variants") {
+async function handleVehicle(
+    requestUrl,
+    database
+) {
 
-    const year = requestUrl.searchParams.get("year");
-    const make = requestUrl.searchParams.get("make");
-    const model = requestUrl.searchParams.get("model");
-    const trim = requestUrl.searchParams.get("trim");
-    const allTrimOptions =
-    requestUrl.searchParams.get("allTrimOptions");
-    
-    if (!year || !make || !model) {
-        return new Response(
-            JSON.stringify({
+    const kind =
+        getRequestedKind(requestUrl);
+
+    if (!kind) {
+
+        return jsonResponse(
+            {
                 success: false,
-                error: "Missing year, make, or model parameter"
-            }),
-            {
-                status: 400,
-                headers: {
-                    "Content-Type": "application/json"
-                }
-            }
+                error:
+                    "Invalid vehicle kind",
+                supportedKinds:
+                    Array.from(
+                        VALID_KINDS
+                    )
+            },
+            400,
+            60
         );
     }
 
-    /*
-     * Build a clean cache key.
-     */
+    const make =
+        requestUrl.searchParams.get(
+            "make"
+        );
 
-    const cacheKey = new URL(request.url);
+    const model =
+        requestUrl.searchParams.get(
+            "model"
+        );
 
-    cacheKey.searchParams.set("action", "variants");
-    cacheKey.searchParams.set("year", year);
-    cacheKey.searchParams.set("make", make);
-    cacheKey.searchParams.set("model", model);
+    const year =
+        requestUrl.searchParams.get(
+            "year"
+        );
 
-    /*
-     * API key must never be part of the cache key.
-     */
+    if (!make || !model) {
 
-    cacheKey.searchParams.delete("key");
-
-    /*
-     * Use Cloudflare's edge cache.
-     */
-
-    const cache = caches.default;
-
-    const cachedResponse = await cache.match(
-        cacheKey.toString()
-    );
-
-    if (cachedResponse) {
-        return cachedResponse;
-    }
-
-    /*
-     * Request variants from CarsXE.
-     */
-
-    const carsxeUrl = new URL(
-        "https://api.carsxe.com/v1/ymm-options"
-    );
-
-    carsxeUrl.searchParams.set(
-        "key",
-        env.CARSXE_API_KEY
-    );
-
-    carsxeUrl.searchParams.set(
-        "dimension",
-        "variants"
-    );
-
-    carsxeUrl.searchParams.set(
-        "year",
-        year
-    );
-
-    carsxeUrl.searchParams.set(
-        "make",
-        make
-    );
-
-    carsxeUrl.searchParams.set(
-        "model",
-        model
-    );
-
-    const response = await fetch(
-        carsxeUrl.toString()
-    );
-
-    const data = await response.json();
-
-    /*
-     * Do not cache failed API responses.
-     */
-
-    if (!response.ok) {
-        return new Response(
-            JSON.stringify(data),
+        return jsonResponse(
             {
-                status: response.status,
-                headers: {
-                    "Content-Type": "application/json"
-                }
-            }
+                success: false,
+                error:
+                    "Missing make or model parameter",
+                bestMatch:
+                    null
+            },
+            400,
+            60
         );
     }
 
-    /*
-     * Cache successful variant lists for 30 days.
-     */
+    const models =
+        getModelsByKind(
+            database,
+            kind
+        );
 
-    const cacheResponse = new Response(
-        JSON.stringify(data),
-        {
-            status: 200,
-            headers: {
-                "Content-Type": "application/json",
-                "Cache-Control": "public, max-age=2592000"
-            }
-        }
-    );
+    const vehicle =
+        findVehicle(
+            models,
+            make,
+            model
+        );
 
-    await cache.put(
-        cacheKey.toString(),
-        cacheResponse.clone()
-    );
+    if (!vehicle) {
 
-    return cacheResponse;
+        return jsonResponse(
+            {
+                success: false,
+                error:
+                    `No ${kind} found for ${make} ${model}`,
+                bestMatch:
+                    null
+            },
+            404,
+            300
+        );
+    }
+
+    const bestMatch =
+        createBestMatch(
+            vehicle,
+            year
+        );
+
+    return jsonResponse({
+
+        success: true,
+
+        source:
+            "VehiclesDB Open Dataset",
+
+        kind,
+
+        bestMatch
+
+    });
 }
-        
+
 /*
- * =========================
- * VEHICLE
- * =========================
+ * ------------------------------------------------------------
+ * ACTION: VARIANTS
+ *
+ * VehiclesDB Open Dataset does not currently expose
+ * populated trim/configuration data in this layer.
+ *
+ * Therefore variants remain empty.
+ * ------------------------------------------------------------
  */
 
-if (action === "vehicle") {
+async function handleVariants(
+    requestUrl,
+    database
+) {
 
-    const year = requestUrl.searchParams.get("year");
-    const make = requestUrl.searchParams.get("make");
-    const model = requestUrl.searchParams.get("model");
-    const trim = requestUrl.searchParams.get("trim");
-    const allTrimOptions =
-        requestUrl.searchParams.get("allTrimOptions");
+    const kind =
+        getRequestedKind(requestUrl);
 
-    if (!year || !make || !model) {
-        return new Response(
-            JSON.stringify({
+    if (!kind) {
+
+        return jsonResponse(
+            {
                 success: false,
-                error: "Missing year, make, or model parameter"
-            }),
+                error:
+                    "Invalid vehicle kind",
+                variants: []
+            },
+            400,
+            60
+        );
+    }
+
+    const make =
+        requestUrl.searchParams.get(
+            "make"
+        );
+
+    const model =
+        requestUrl.searchParams.get(
+            "model"
+        );
+
+    const year =
+        requestUrl.searchParams.get(
+            "year"
+        );
+
+    if (!make || !model) {
+
+        return jsonResponse(
             {
-                status: 400,
-                headers: {
-                    "Content-Type": "application/json"
-                }
-            }
+                success: false,
+                error:
+                    "Missing make or model parameter",
+                variants: []
+            },
+            400,
+            60
         );
     }
 
-    /*
-     * Build a clean cache key.
-     */
-
-    const cacheKey = new URL(request.url);
-
-    cacheKey.searchParams.set("action", "vehicle");
-    cacheKey.searchParams.set("year", year);
-    cacheKey.searchParams.set("make", make);
-    cacheKey.searchParams.set("model", model);
-
-    if (trim) {
-        cacheKey.searchParams.set(
-            "trim",
-            trim
+    const models =
+        getModelsByKind(
+            database,
+            kind
         );
-    } else {
-        cacheKey.searchParams.delete("trim");
-    }
 
-    if (allTrimOptions) {
-        cacheKey.searchParams.set(
-            "allTrimOptions",
-            allTrimOptions
+    const vehicle =
+        findVehicle(
+            models,
+            make,
+            model
         );
-    } else {
-        cacheKey.searchParams.delete("allTrimOptions");
-    }
 
-    /*
-     * API key must never be part of the cache key.
-     */
+    if (!vehicle) {
 
-    cacheKey.searchParams.delete("key");
-
-    /*
-     * Use Cloudflare's edge cache.
-     */
-
-    const cache = caches.default;
-
-    const cachedResponse = await cache.match(
-        cacheKey.toString()
-    );
-
-    if (cachedResponse) {
-        return cachedResponse;
-    }
-
-    /*
-     * No cached result.
-     * Request vehicle data from CarsXE.
-     */
-
-    const vehicleUrl = new URL(
-        "https://api.carsxe.com/v1/ymm"
-    );
-
-    vehicleUrl.searchParams.set(
-        "key",
-        env.CARSXE_API_KEY
-    );
-
-    vehicleUrl.searchParams.set(
-        "year",
-        year
-    );
-
-    vehicleUrl.searchParams.set(
-        "make",
-        make
-    );
-
-   vehicleUrl.searchParams.set(
-    "model",
-    model
-);
-
-if (trim) {
-        vehicleUrl.searchParams.set(
-        "trim",
-        trim
-    );
-}
-    
-    if (allTrimOptions) {
-    vehicleUrl.searchParams.set(
-        "allTrimOptions",
-        allTrimOptions
-    );
-}
-    
-    const response = await fetch(
-        vehicleUrl.toString()
-    );
-
-    const data = await response.json();
-
-    /*
-     * Do not cache failed API responses.
-     */
-
-    if (!response.ok) {
-        return new Response(
-            JSON.stringify(data),
+        return jsonResponse(
             {
-                status: response.status,
-                headers: {
-                    "Content-Type": "application/json"
-                }
-            }
+                success: false,
+                error:
+                    `No ${kind} found for ${make} ${model}`,
+                variants: []
+            },
+            404,
+            300
         );
     }
 
-    /*
-     * Cache successful vehicle data for 30 days.
-     */
+    const bestMatch =
+        createBestMatch(
+            vehicle,
+            year
+        );
 
-    const cacheResponse = new Response(
-        JSON.stringify(data),
-        {
-            status: 200,
-            headers: {
-                "Content-Type": "application/json",
-                "Cache-Control": "public, max-age=2592000"
-            }
-        }
-    );
+    return jsonResponse({
 
-    await cache.put(
-        cacheKey.toString(),
-        cacheResponse.clone()
-    );
+        success: true,
 
-    return cacheResponse;
+        kind,
+
+        make:
+            vehicle.make,
+
+        model:
+            vehicle.model,
+
+        year:
+            year
+                ? Number(year)
+                : null,
+
+        variants: [],
+
+        bestMatch
+
+    });
 }
 
+/*
+ * ------------------------------------------------------------
+ * ACTION: IMAGES
+ *
+ * VehiclesDB Open Dataset does not provide vehicle images.
+ *
+ * Return an empty array so the existing frontend continues
+ * working without fabricated imagery.
+ * ------------------------------------------------------------
+ */
+
+async function handleImages(
+    requestUrl
+) {
+
+    const make =
+        requestUrl.searchParams.get(
+            "make"
+        );
+
+    const model =
+        requestUrl.searchParams.get(
+            "model"
+        );
+
+    if (!make || !model) {
+
+        return jsonResponse(
+            {
+                success: false,
+                error:
+                    "Missing make or model parameter",
+                images: []
+            },
+            400,
+            60
+        );
+    }
+
+    return jsonResponse({
+
+        success: true,
+
+        source:
+            "VehiclesDB Open Dataset",
+
+        make,
+
+        model,
+
+        images: []
+
+    });
+}
+
+/*
+ * ============================================================
+ * MAIN REQUEST HANDLER
+ * ============================================================
+ */
+
+export async function onRequestGet(
+    context
+) {
+
+    try {
+
+        const request =
+            context.request;
+
+        const requestUrl =
+            new URL(
+                request.url
+            );
+
+        const action =
+            (
+                requestUrl.searchParams.get(
+                    "action"
+                ) || "models"
+            )
+                .trim()
+                .toLowerCase();
 
         /*
-         * =========================
-         * INVALID ACTION
-         * =========================
+         * Load VehiclesDB dataset.
          */
 
-        return new Response(
-            JSON.stringify({
-                success: false,
-                error: "Invalid action"
-            }),
-            {
-                status: 400,
-                headers: {
-                    "Content-Type": "application/json"
-                }
-            }
-        );
+        const database =
+            await loadVehiclesDatabase();
+
+        /*
+         * Route request.
+         */
+
+        switch (action) {
+
+            case "models":
+
+                return handleModels(
+                    requestUrl,
+                    database
+                );
+
+            case "makes":
+
+                return handleMakes(
+                    requestUrl,
+                    database
+                );
+
+            case "vehicle":
+
+                return handleVehicle(
+                    requestUrl,
+                    database
+                );
+
+            case "variants":
+
+                return handleVariants(
+                    requestUrl,
+                    database
+                );
+
+            case "images":
+
+                return handleImages(
+                    requestUrl
+                );
+
+            default:
+
+                return jsonResponse(
+                    {
+                        success: false,
+
+                        error:
+                            "Invalid action",
+
+                        supportedActions: [
+                            "makes",
+                            "models",
+                            "variants",
+                            "vehicle",
+                            "images"
+                        ],
+
+                        supportedKinds:
+                            Array.from(
+                                VALID_KINDS
+                            )
+                    },
+                    400,
+                    60
+                );
+        }
 
     } catch (error) {
 
-        return new Response(
-            JSON.stringify({
-                success: false,
-                error: error.message
-            }),
+        console.error(
+            "VehiclesDB Cars API error:",
+            error
+        );
+
+        return jsonResponse(
             {
-                status: 500,
-                headers: {
-                    "Content-Type": "application/json"
-                }
-            }
+                success: false,
+
+                error:
+                    error?.message ||
+                    "Internal server error"
+            },
+            500,
+            60
         );
     }
 }
