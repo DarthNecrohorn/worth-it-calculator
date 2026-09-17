@@ -765,27 +765,37 @@ async function loadVehicleCardImage(
 ) {
 
     const parent =
-        imageElement.parentNode;
+    imageElement.parentNode;
 
-    if (parent) {
+if (parent) {
 
-        const placeholder =
-            createVehicleImagePlaceholder(
-                {
-                    make: make,
-                    model: model
-                },
-                kind,
-                "Image unavailable"
-            );
-
-        imageElement.replaceWith(
-            placeholder
+    const existingPlaceholder =
+        parent.querySelector(
+            ".car-card-image-placeholder"
         );
+
+    if (existingPlaceholder) {
+
+        existingPlaceholder.innerHTML = `
+            <div style="font-size:2.2rem;opacity:0.75;">
+                ${getVehicleKindInfo(kind).icon}
+            </div>
+
+            <small
+                class="car-image-loading-text"
+                style="font-size:0.75rem;opacity:0.55;"
+            >
+                Image unavailable
+            </small>
+        `;
 
     }
 
-    return;
+    imageElement.remove();
+
+}
+
+return;
 
 }
 
