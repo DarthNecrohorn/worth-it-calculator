@@ -1925,9 +1925,9 @@ async function searchCommonsImage(make, model) {
                         ""
                     );
 
-                const searchableText =
-                    simplifyText(
-                        `${filename} ${objectName} ${description}`
+               const searchableText =
+                  normalizeText(
+                       `${filename} ${objectName} ${description}`
                     );
 
                 /*
