@@ -2096,7 +2096,8 @@ export async function onRequestGet(
                             "models",
                             "variants",
                             "vehicle",
-                            "images"
+                            "images",
+                            "details"
                         ],
 
                         supportedKinds:
