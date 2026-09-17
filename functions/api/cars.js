@@ -2126,6 +2126,11 @@ const wikidataImage =
         wikidataEntity
     );
 
+   const primaryImage =
+    wikidataImage ||
+    image ||
+    null;
+    
     /*
      * --------------------------------------------------------
      * Final response
