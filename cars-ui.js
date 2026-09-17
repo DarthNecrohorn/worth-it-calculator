@@ -28,9 +28,6 @@
 
 const VEHICLE_API = "/api/cars";
 
-const CURRENT_VEHICLE_YEAR =
-    new Date().getFullYear();
-
 const MAX_POPULAR_VEHICLES = 24;
 
 const MAX_SEARCH_RESULTS = 100;
