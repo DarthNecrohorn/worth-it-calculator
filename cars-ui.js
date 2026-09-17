@@ -384,10 +384,9 @@ async function fetchVehicleDetails(
                 }
 
 
-                vehicleDetailsCache.set(
-                    cacheKey,
-                    data
-                );
+                if (details) {
+             vehicleDetailsCache.set(cacheKey, details);
+        }
 
 
                 return data;
