@@ -1706,376 +1706,485 @@ async function getWikidataImage(
  * ------------------------------------------------------------
  */
 
-async function searchCommonsImage(
-    make,
-    model
-) {
+async function searchCommonsImage(make, model) {
 
-    const queries = [
-        `"${make} ${model}"`,
-        `${make} ${model}`
-    ];
+    if (!make || !model) {
+        return null;
+    }
 
-    const targetMake =
-        simplifyText(make);
+    const normalizedMake = simplifyText(make);
+    const normalizedModel = simplifyText(model);
 
-    const targetModel =
-        simplifyText(model);
-
-    for (const search of queries) {
-
-        const url =
-            new URL(COMMONS_API);
-
-        url.searchParams.set(
-            "action",
-            "query"
-        );
-
-        url.searchParams.set(
-            "generator",
-            "search"
-        );
-
-        url.searchParams.set(
-            "gsrsearch",
-            search
-        );
-
-        url.searchParams.set(
-            "gsrnamespace",
-            "6"
-        );
-
-        url.searchParams.set(
-            "gsrlimit",
-            "20"
-        );
-
-        url.searchParams.set(
-            "prop",
-            "imageinfo"
-        );
-
-        url.searchParams.set(
-            "iiprop",
-            "url|size|mime|extmetadata"
-        );
-
-        url.searchParams.set(
-            "iiurlwidth",
-            "1000"
-        );
-
-        url.searchParams.set(
-            "format",
-            "json"
-        );
-
-        url.searchParams.set(
-            "formatversion",
-            "2"
-        );
-
-        const response =
-            await fetch(
-                url.toString(),
-                {
-                    headers:
-                        WIKIMEDIA_HEADERS
-                }
-            );
-
-        if (!response.ok) {
-            continue;
-        }
-
-        const data =
-            await response.json();
-
-        const pages =
-            Array.isArray(
-                data?.query?.pages
-            )
-                ? data.query.pages
-                : [];
-
-        /*
-         * ----------------------------------------------------
-         * Score every candidate instead of taking the first
-         * licensed image.
-         * ----------------------------------------------------
-         */
-
-        const candidates = [];
-
-        for (const page of pages) {
-
-            const image =
-                page?.imageinfo?.[0];
-
-            if (!image) {
-                continue;
-            }
-
-            const title =
-                String(
-                    page.title || ""
-                );
-
-            const metadata =
-    image.extmetadata || {};
-
-const searchableText =
-    `${title}
-     ${metadata.ObjectName?.value || ""}
-     ${metadata.ImageDescription?.value || ""}`
-        .toLowerCase();
-
-const rejectedTerms = [
-    "museum",
-    "musée",
-    "musee",
-    "building",
-    "architecture",
-    "facade",
-    "façade",
-    "house",
-    "station",
-    "church",
-    "castle",
-    "palace",
-    "office",
-    "interior",
-    "monument",
-    "statue",
-    "sculpture",
-    "exhibition hall"
-];
-
-if (
-    rejectedTerms.some(
-        term =>
-            searchableText.includes(term)
-    )
-) {
-    continue;
-}
-            
-            const titleText =
-                simplifyText(
-                    title
-                );
-
-            /*
-             * The filename/title must contain enough
-             * information to be relevant to the requested
-             * make/model.
-             */
-
-            const makeMatches =
-                titleText.includes(
-                    targetMake
-                );
-
-            const modelMatches =
-                titleText.includes(
-                    targetModel
-                );
-
-            if (
-                !makeMatches ||
-                !modelMatches
-            ) {
-                continue;
-            }
-
-            const license =
-                stripHtml(
-                    metadata
-                        ?.LicenseShortName
-                        ?.value
-                );
-
-            const licenseUrl =
-                stripHtml(
-                    metadata
-                        ?.LicenseUrl
-                        ?.value
-                );
-
-            const artist =
-                stripHtml(
-                    metadata
-                        ?.Artist
-                        ?.value
-                );
-
-            if (
-                !isAcceptedCommonsLicense(
-                    license,
-                    licenseUrl
-                )
-            ) {
-                continue;
-            }
-
-            /*
-             * Higher score = better match.
-             */
-
-            let score = 0;
-
-            /*
-             * Exact make + model in title.
-             */
-
-            score += 50;
-
-            /*
-             * Prefer titles that start with the
-             * requested make/model.
-             */
-
-            const simplifiedTitle =
-                titleText
-                    .replace(/^file/, "");
-
-            if (
-                simplifiedTitle
-                    .startsWith(
-                        targetMake +
-                        targetModel
-                    )
-            ) {
-                score += 30;
-            }
-
-            /*
-             * Prefer larger images.
-             */
-
-            const width =
-                Number(
-                    image.width || 0
-                );
-
-            const height =
-                Number(
-                    image.height || 0
-                );
-
-            if (
-                width >= 1200 &&
-                height >= 700
-            ) {
-                score += 10;
-            }
-
-            /*
-             * Prefer JPEG/WEBP/PNG images.
-             */
-
-            const mime =
-                String(
-                    image.mime || ""
-                ).toLowerCase();
-
-            if (
-                mime === "image/jpeg" ||
-                mime === "image/webp" ||
-                mime === "image/png"
-            ) {
-                score += 5;
-            }
-
-            /*
-             * Slight preference for CC0 / Public Domain.
-             */
-
-            const licenseText =
-                license.toLowerCase();
-
-            if (
-                licenseText.includes("cc0") ||
-                licenseText.includes(
-                    "public domain"
-                )
-            ) {
-                score += 5;
-            }
-
-            candidates.push({
-
-                score,
-
-                title,
-
-                url:
-                    image.url ||
-                    null,
-
-                thumbnail:
-                    image.thumburl ||
-                    image.url ||
-                    null,
-
-                width:
-                    image.width ||
-                    null,
-
-                height:
-                    image.height ||
-                    null,
-
-                mime:
-                    image.mime ||
-                    null,
-
-                author:
-                    artist ||
-                    null,
-
-                license:
-                    license ||
-                    null,
-
-                license_url:
-                    licenseUrl ||
-                    null,
-
-                source_url:
-                    `https://commons.wikimedia.org/wiki/${encodeURIComponent(
-                        title
-                    )}`
-
-            });
-        }
-
-        /*
-         * Return the highest-quality relevant image.
-         */
-
-        if (candidates.length) {
-
-            candidates.sort(
-                (a, b) =>
-                    b.score -
-                    a.score
-            );
-
-            return candidates[0];
-        }
+    if (!normalizedMake || !normalizedModel) {
+        return null;
     }
 
     /*
-     * No sufficiently relevant licensed
-     * image was found.
+     * Extremely strict image matching.
+     *
+     * Principle:
+     * Better no image than a wrong vehicle image.
      */
 
-    return null;
-}
+    const modelTokens =
+        normalizedModel
+            .split(/\s+/)
+            .filter(Boolean);
 
+    const isPurelyNumericModel =
+        modelTokens.length === 1 &&
+        /^\d+$/.test(modelTokens[0]);
+
+    /*
+     * Numeric-only models are too ambiguous for Commons.
+     *
+     * Examples:
+     * BMW 259
+     * Porsche 911
+     * BMW 3
+     *
+     * We therefore require a very strong structured match.
+     */
+    const minimumScore =
+        isPurelyNumericModel
+            ? 100
+            : 90;
+
+    const searchQueries = [
+        `"${make}" "${model}"`,
+        `${make} ${model}`
+    ];
+
+    const candidates = [];
+
+    for (const searchQuery of searchQueries) {
+
+        try {
+
+            const apiUrl =
+                new URL(COMMONS_API);
+
+            apiUrl.searchParams.set(
+                "action",
+                "query"
+            );
+
+            apiUrl.searchParams.set(
+                "generator",
+                "search"
+            );
+
+            apiUrl.searchParams.set(
+                "gsrsearch",
+                searchQuery
+            );
+
+            apiUrl.searchParams.set(
+                "gsrnamespace",
+                "6"
+            );
+
+            apiUrl.searchParams.set(
+                "gsrlimit",
+                "30"
+            );
+
+            apiUrl.searchParams.set(
+                "prop",
+                "imageinfo"
+            );
+
+            apiUrl.searchParams.set(
+                "iiprop",
+                "url|size|mime|extmetadata"
+            );
+
+            apiUrl.searchParams.set(
+                "iiurlwidth",
+                "1200"
+            );
+
+            apiUrl.searchParams.set(
+                "format",
+                "json"
+            );
+
+            const response =
+                await fetch(
+                    apiUrl.toString(),
+                    {
+                        headers:
+                            WIKIMEDIA_HEADERS
+                    }
+                );
+
+            if (!response.ok) {
+                continue;
+            }
+
+            const data =
+                await response.json();
+
+            const pages =
+                Object.values(
+                    data?.query?.pages || {}
+                );
+
+            for (const page of pages) {
+
+                const imageInfo =
+                    page?.imageinfo?.[0];
+
+                if (!imageInfo) {
+                    continue;
+                }
+
+                const metadata =
+                    imageInfo.extmetadata || {};
+
+                const title =
+                    String(
+                        page.title || ""
+                    );
+
+                const filename =
+                    title.replace(
+                        /^File:/i,
+                        ""
+                    );
+
+                const objectName =
+                    String(
+                        metadata.ObjectName?.value ||
+                        ""
+                    );
+
+                const description =
+                    String(
+                        metadata.ImageDescription?.value ||
+                        ""
+                    );
+
+                const searchableText =
+                    simplifyText(
+                        `${filename} ${objectName} ${description}`
+                    );
+
+                /*
+                 * Reject obvious non-vehicle / irrelevant content.
+                 */
+                const forbiddenTerms = [
+                    "museum",
+                    "musee",
+                    "building",
+                    "architecture",
+                    "facade",
+                    "house",
+                    "station",
+                    "church",
+                    "castle",
+                    "palace",
+                    "office",
+                    "interior",
+                    "exterior",
+                    "monument",
+                    "statue",
+                    "sculpture",
+                    "exhibition hall",
+                    "showroom building",
+                    "logo",
+                    "emblem",
+                    "badge",
+                    "sign",
+                    "poster",
+                    "brochure",
+                    "magazine",
+                    "toy",
+                    "model car",
+                    "diecast",
+                    "miniature"
+                ];
+
+                const hasForbiddenTerm =
+                    forbiddenTerms.some(
+                        term =>
+                            searchableText.includes(
+                                simplifyText(term)
+                            )
+                    );
+
+                if (hasForbiddenTerm) {
+                    continue;
+                }
+
+                /*
+                 * Validate image type and dimensions.
+                 */
+                const mime =
+                    String(
+                        imageInfo.mime || ""
+                    ).toLowerCase();
+
+                if (
+                    !mime.startsWith(
+                        "image/"
+                    )
+                ) {
+                    continue;
+                }
+
+                const width =
+                    Number(
+                        imageInfo.width || 0
+                    );
+
+                const height =
+                    Number(
+                        imageInfo.height || 0
+                    );
+
+                if (
+                    width < 250 ||
+                    height < 150
+                ) {
+                    continue;
+                }
+
+                /*
+                 * Token-based matching.
+                 *
+                 * This prevents:
+                 *
+                 * BMW 259
+                 *
+                 * from matching:
+                 *
+                 * BMW X2 M35i ... (259)
+                 */
+                const textTokens =
+                    new Set(
+                        searchableText
+                            .split(/\s+/)
+                            .filter(Boolean)
+                    );
+
+                const makeMatches =
+                    textTokens.has(
+                        normalizedMake
+                    );
+
+                if (!makeMatches) {
+                    continue;
+                }
+
+                /*
+                 * Full model matching.
+                 */
+                let modelMatches = false;
+
+                if (
+                    !isPurelyNumericModel
+                ) {
+
+                    modelMatches =
+                        modelTokens.every(
+                            token =>
+                                textTokens.has(
+                                    token
+                                )
+                        );
+
+                } else {
+
+                    /*
+                     * Numeric-only model:
+                     *
+                     * Require the number to appear
+                     * as a standalone token AND
+                     * reject filenames where the number
+                     * is clearly only a photo/index number.
+                     */
+                    const modelPattern =
+                        new RegExp(
+                            `(^|[^0-9])${normalizedModel}([^0-9]|$)`
+                        );
+
+                    modelMatches =
+                        modelPattern.test(
+                            searchableText
+                        );
+
+                    if (!modelMatches) {
+                        continue;
+                    }
+
+                    /*
+                     * Numeric-only model names are
+                     * inherently ambiguous on Commons.
+                     *
+                     * Require additional vehicle
+                     * context.
+                     */
+                    const vehicleTerms = [
+                        "motorcycle",
+                        "motorbike",
+                        "bike",
+                        "scooter",
+                        "moped",
+                        "automobile",
+                        "car",
+                        "sedan",
+                        "coupe",
+                        "wagon",
+                        "hatchback",
+                        "suv",
+                        "roadster",
+                        "vehicle",
+                        "touring",
+                        "sportbike",
+                        "supersport",
+                        "enduro",
+                        "naked",
+                        "cruiser"
+                    ];
+
+                    const hasVehicleContext =
+                        vehicleTerms.some(
+                            term =>
+                                searchableText.includes(
+                                    simplifyText(term)
+                                )
+                        );
+
+                    if (
+                        !hasVehicleContext
+                    ) {
+                        continue;
+                    }
+                }
+
+                if (!modelMatches) {
+                    continue;
+                }
+
+                /*
+                 * Reject obvious competing model names.
+                 *
+                 * This is particularly important for
+                 * broad/numeric searches.
+                 */
+                const titleText =
+                    simplifyText(
+                        `${filename} ${objectName}`
+                    );
+
+                const score =
+                    calculateCommonsVehicleScore(
+                        normalizedMake,
+                        normalizedModel,
+                        titleText,
+                        width,
+                        height,
+                        metadata
+                    );
+
+                if (
+                    score < minimumScore
+                ) {
+                    continue;
+                }
+
+                const license =
+                    String(
+                        metadata.LicenseShortName?.value ||
+                        metadata.License?.value ||
+                        ""
+                    );
+
+                if (
+                    !isAcceptedCommonsLicense(
+                        metadata
+                    )
+                ) {
+                    continue;
+                }
+
+                candidates.push({
+                    score,
+                    title,
+                    url:
+                        imageInfo.url ||
+                        null,
+                    thumbnail:
+                        imageInfo.thumburl ||
+                        imageInfo.url ||
+                        null,
+                    width,
+                    height,
+                    mime,
+                    author:
+                        metadata.Artist?.value ||
+                        metadata.Credit?.value ||
+                        null,
+                    license,
+                    license_url:
+                        metadata.LicenseUrl?.value ||
+                        null,
+                    source_url:
+                        `https://commons.wikimedia.org/wiki/${encodeURIComponent(title.replace(/ /g, "_"))}`
+                });
+            }
+
+        } catch (error) {
+
+            console.error(
+                "Commons image search failed:",
+                error
+            );
+        }
+    }
+
+    if (!candidates.length) {
+        return null;
+    }
+
+    /*
+     * Remove duplicate files.
+     */
+    const uniqueCandidates =
+        Array.from(
+            new Map(
+                candidates.map(
+                    candidate => [
+                        candidate.url,
+                        candidate
+                    ]
+                )
+            ).values()
+        );
+
+    /*
+     * Highest score wins, but ONLY after
+     * passing all strict validation above.
+     */
+    uniqueCandidates.sort(
+        (a, b) =>
+            b.score - a.score
+    );
+
+    const bestCandidate =
+        uniqueCandidates[0];
+
+    if (
+        !bestCandidate ||
+        bestCandidate.score <
+            minimumScore
+    ) {
+        return null;
+    }
+
+    return bestCandidate;
+}
 
 /*
  * ------------------------------------------------------------
