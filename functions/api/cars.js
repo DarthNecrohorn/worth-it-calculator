@@ -1179,6 +1179,826 @@ async function handleImages(
     });
 }
 
+    /*
+ * ============================================================
+ * WIKIDATA + WIKIMEDIA COMMONS
+ * ============================================================
+ */
+
+const WIKIDATA_API =
+    "https://www.wikidata.org/w/api.php";
+
+const COMMONS_API =
+    "https://commons.wikimedia.org/w/api.php";
+
+const WIKIMEDIA_HEADERS = {
+    "Accept": "application/json",
+    "User-Agent":
+        "Worth-It/1.0 (https://worth-it-calculator.pages.dev/)"
+};
+
+
+/*
+ * ------------------------------------------------------------
+ * Small HTML/entity helpers
+ * ------------------------------------------------------------
+ */
+
+function stripHtml(value) {
+
+    return String(value || "")
+        .replace(/<[^>]*>/g, "")
+        .replace(/&nbsp;/gi, " ")
+        .replace(/&amp;/gi, "&")
+        .replace(/&#39;/gi, "'")
+        .replace(/&quot;/gi, '"')
+        .trim();
+}
+
+
+/*
+ * ------------------------------------------------------------
+ * Wikidata search
+ * ------------------------------------------------------------
+ */
+
+async function searchWikidata(
+    make,
+    model
+) {
+
+    const searches = [
+        `${make} ${model}`,
+        model
+    ];
+
+    for (const search of searches) {
+
+        const url =
+            new URL(WIKIDATA_API);
+
+        url.searchParams.set(
+            "action",
+            "wbsearchentities"
+        );
+
+        url.searchParams.set(
+            "search",
+            search
+        );
+
+        url.searchParams.set(
+            "language",
+            "en"
+        );
+
+        url.searchParams.set(
+            "uselang",
+            "en"
+        );
+
+        url.searchParams.set(
+            "type",
+            "item"
+        );
+
+        url.searchParams.set(
+            "limit",
+            "10"
+        );
+
+        url.searchParams.set(
+            "format",
+            "json"
+        );
+
+        url.searchParams.set(
+            "formatversion",
+            "2"
+        );
+
+        const response =
+            await fetch(
+                url.toString(),
+                {
+                    headers:
+                        WIKIMEDIA_HEADERS
+                }
+            );
+
+        if (!response.ok) {
+            continue;
+        }
+
+        const data =
+            await response.json();
+
+        const results =
+            Array.isArray(data?.search)
+                ? data.search
+                : [];
+
+        const target =
+            simplifyText(
+                `${make} ${model}`
+            );
+
+        /*
+         * Prefer exact label.
+         */
+
+        const exact =
+            results.find(item =>
+                simplifyText(
+                    item?.label
+                ) === target
+            );
+
+        if (exact) {
+            return exact;
+        }
+
+        /*
+         * Otherwise prefer a result whose
+         * label contains the model name.
+         */
+
+        const modelText =
+            simplifyText(model);
+
+        const related =
+            results.find(item =>
+                simplifyText(
+                    item?.label
+                ).includes(modelText)
+            );
+
+        if (related) {
+            return related;
+        }
+    }
+
+    return null;
+}
+
+
+/*
+ * ------------------------------------------------------------
+ * Get Wikidata entity
+ * ------------------------------------------------------------
+ */
+
+async function getWikidataEntity(
+    entityId
+) {
+
+    if (!entityId) {
+        return null;
+    }
+
+    const url =
+        new URL(WIKIDATA_API);
+
+    url.searchParams.set(
+        "action",
+        "wbgetentities"
+    );
+
+    url.searchParams.set(
+        "ids",
+        entityId
+    );
+
+    url.searchParams.set(
+        "props",
+        "labels|descriptions|claims|sitelinks"
+    );
+
+    url.searchParams.set(
+        "languages",
+        "en"
+    );
+
+    url.searchParams.set(
+        "languagefallback",
+        "1"
+    );
+
+    url.searchParams.set(
+        "format",
+        "json"
+    );
+
+    url.searchParams.set(
+        "formatversion",
+        "2"
+    );
+
+    const response =
+        await fetch(
+            url.toString(),
+            {
+                headers:
+                    WIKIMEDIA_HEADERS
+            }
+        );
+
+    if (!response.ok) {
+        return null;
+    }
+
+    const data =
+        await response.json();
+
+    return (
+        data?.entities?.[entityId] ||
+        null
+    );
+}
+
+
+/*
+ * ------------------------------------------------------------
+ * Extract simple Wikidata values
+ * ------------------------------------------------------------
+ */
+
+function getClaimValue(
+    entity,
+    property
+) {
+
+    const claims =
+        entity?.claims?.[property];
+
+    if (
+        !Array.isArray(claims) ||
+        !claims.length
+    ) {
+        return null;
+    }
+
+    const value =
+        claims[0]?.mainsnak?.datavalue?.value;
+
+    if (!value) {
+        return null;
+    }
+
+    if (
+        typeof value === "object" &&
+        value.id
+    ) {
+        return value.id;
+    }
+
+    return value;
+}
+
+
+function getWikidataImage(
+    entity
+) {
+
+    const value =
+        getClaimValue(
+            entity,
+            "P18"
+        );
+
+    return (
+        typeof value === "string"
+            ? value
+            : null
+    );
+}
+
+
+/*
+ * ------------------------------------------------------------
+ * Wikimedia Commons image search
+ * ------------------------------------------------------------
+ */
+
+async function searchCommonsImage(
+    make,
+    model
+) {
+
+    const queries = [
+        `${make} ${model}`,
+        `"${make} ${model}"`
+    ];
+
+    for (const search of queries) {
+
+        const url =
+            new URL(COMMONS_API);
+
+        url.searchParams.set(
+            "action",
+            "query"
+        );
+
+        url.searchParams.set(
+            "generator",
+            "search"
+        );
+
+        url.searchParams.set(
+            "gsrsearch",
+            search
+        );
+
+        url.searchParams.set(
+            "gsrnamespace",
+            "6"
+        );
+
+        url.searchParams.set(
+            "gsrlimit",
+            "10"
+        );
+
+        url.searchParams.set(
+            "prop",
+            "imageinfo"
+        );
+
+        url.searchParams.set(
+            "iiprop",
+            "url|size|mime|extmetadata"
+        );
+
+        url.searchParams.set(
+            "iiurlwidth",
+            "1000"
+        );
+
+        url.searchParams.set(
+            "format",
+            "json"
+        );
+
+        url.searchParams.set(
+            "formatversion",
+            "2"
+        );
+
+        const response =
+            await fetch(
+                url.toString(),
+                {
+                    headers:
+                        WIKIMEDIA_HEADERS
+                }
+            );
+
+        if (!response.ok) {
+            continue;
+        }
+
+        const data =
+            await response.json();
+
+        const pages =
+            Array.isArray(data?.query?.pages)
+                ? data.query.pages
+                : [];
+
+        /*
+         * Only use real image files.
+         */
+
+        for (const page of pages) {
+
+            const image =
+                page?.imageinfo?.[0];
+
+            if (!image) {
+                continue;
+            }
+
+            const metadata =
+                image.extmetadata || {};
+
+            const license =
+                stripHtml(
+                    metadata
+                        ?.LicenseShortName
+                        ?.value
+                );
+
+            const licenseUrl =
+                stripHtml(
+                    metadata
+                        ?.LicenseUrl
+                        ?.value
+                );
+
+            const artist =
+                stripHtml(
+                    metadata
+                        ?.Artist
+                        ?.value
+                );
+
+            /*
+             * Commercially safe licenses we
+             * intentionally accept.
+             *
+             * CC0
+             * CC BY
+             * CC BY-SA
+             */
+
+            const acceptedLicense =
+                isAcceptedCommonsLicense(
+                    license,
+                    licenseUrl
+                );
+
+            if (!acceptedLicense) {
+                continue;
+            }
+
+            return {
+
+                title:
+                    page.title || "",
+
+                url:
+                    image.url || null,
+
+                thumbnail:
+                    image.thumburl ||
+                    image.url ||
+                    null,
+
+                width:
+                    image.width || null,
+
+                height:
+                    image.height || null,
+
+                mime:
+                    image.mime || null,
+
+                author:
+                    artist || null,
+
+                license:
+                    license || null,
+
+                license_url:
+                    licenseUrl || null,
+
+                source_url:
+                    `https://commons.wikimedia.org/wiki/${encodeURIComponent(
+                        page.title || ""
+                    )}`
+
+            };
+        }
+    }
+
+    return null;
+}
+
+
+/*
+ * ------------------------------------------------------------
+ * Accepted Commons licenses
+ * ------------------------------------------------------------
+ */
+
+function isAcceptedCommonsLicense(
+    license,
+    licenseUrl
+) {
+
+    const text =
+        `${license || ""} ${licenseUrl || ""}`
+            .toLowerCase();
+
+    if (!text) {
+        return false;
+    }
+
+    /*
+     * CC0 / Public Domain
+     */
+
+    if (
+        text.includes("cc0") ||
+        text.includes("public domain")
+    ) {
+        return true;
+    }
+
+    /*
+     * Creative Commons Attribution
+     */
+
+    if (
+        text.includes("cc by") &&
+        !text.includes("nc") &&
+        !text.includes("nd")
+    ) {
+        return true;
+    }
+
+    /*
+     * Creative Commons Attribution ShareAlike
+     */
+
+    if (
+        text.includes("cc by-sa") &&
+        !text.includes("nc") &&
+        !text.includes("nd")
+    ) {
+        return true;
+    }
+
+    return false;
+}
+
+
+/*
+ * ------------------------------------------------------------
+ * Convert Wikidata image filename to Commons URL
+ * ------------------------------------------------------------
+ */
+
+function createCommonsFileUrl(
+    filename
+) {
+
+    if (!filename) {
+        return null;
+    }
+
+    return (
+        "https://commons.wikimedia.org/wiki/Special:Redirect/file/" +
+        encodeURIComponent(filename)
+    );
+}
+
+
+/*
+ * ------------------------------------------------------------
+ * ACTION: DETAILS
+ *
+ * Example:
+ *
+ * /api/cars?action=details
+ *   &make=BMW
+ *   &model=3%20Series
+ *   &kind=car
+ *   &year=2024
+ *
+ * Combines:
+ *   VehiclesDB
+ *   Wikidata
+ *   Wikimedia Commons
+ * ------------------------------------------------------------
+ */
+
+async function handleDetails(
+    requestUrl,
+    database
+) {
+
+    const kind =
+        getRequestedKind(requestUrl);
+
+    if (!kind) {
+
+        return jsonResponse(
+            {
+                success: false,
+                error:
+                    "Invalid vehicle kind"
+            },
+            400,
+            60
+        );
+    }
+
+    const make =
+        requestUrl.searchParams.get(
+            "make"
+        );
+
+    const model =
+        requestUrl.searchParams.get(
+            "model"
+        );
+
+    const year =
+        requestUrl.searchParams.get(
+            "year"
+        );
+
+    if (!make || !model) {
+
+        return jsonResponse(
+            {
+                success: false,
+                error:
+                    "Missing make or model parameter"
+            },
+            400,
+            60
+        );
+    }
+
+    /*
+     * --------------------------------------------------------
+     * 1. VehiclesDB
+     * --------------------------------------------------------
+     */
+
+    const models =
+        getModelsByKind(
+            database,
+            kind
+        );
+
+    const vehicle =
+        findVehicle(
+            models,
+            make,
+            model
+        );
+
+    if (!vehicle) {
+
+        return jsonResponse(
+            {
+                success: false,
+                error:
+                    `No ${kind} found for ${make} ${model}`,
+                vehicle: null,
+                wikidata: null,
+                image: null
+            },
+            404,
+            300
+        );
+    }
+
+    const bestMatch =
+        createBestMatch(
+            vehicle,
+            year
+        );
+
+    /*
+     * --------------------------------------------------------
+     * 2. Wikidata
+     * --------------------------------------------------------
+     */
+
+    let wikidataSearch = null;
+    let wikidataEntity = null;
+
+    try {
+
+        wikidataSearch =
+            await searchWikidata(
+                vehicle.make,
+                vehicle.model
+            );
+
+        if (wikidataSearch?.id) {
+
+            wikidataEntity =
+                await getWikidataEntity(
+                    wikidataSearch.id
+                );
+        }
+
+    } catch (error) {
+
+        console.error(
+            "Wikidata lookup failed:",
+            error
+        );
+    }
+
+    /*
+     * --------------------------------------------------------
+     * 3. Commons
+     * --------------------------------------------------------
+     */
+
+    let image = null;
+
+    try {
+
+        image =
+            await searchCommonsImage(
+                vehicle.make,
+                vehicle.model
+            );
+
+    } catch (error) {
+
+        console.error(
+            "Commons lookup failed:",
+            error
+        );
+    }
+
+    /*
+     * If Wikidata itself contains an image,
+     * expose that filename too.
+     */
+
+    const wikidataImage =
+        getWikidataImage(
+            wikidataEntity
+        );
+
+    /*
+     * --------------------------------------------------------
+     * Final response
+     * --------------------------------------------------------
+     */
+
+    return jsonResponse(
+        {
+
+            success: true,
+
+            source: {
+                catalog:
+                    "VehiclesDB Open Dataset",
+                structured_data:
+                    "Wikidata",
+                media:
+                    "Wikimedia Commons"
+            },
+
+            kind,
+
+            vehicle:
+                bestMatch,
+
+            wikidata: {
+
+                id:
+                    wikidataSearch?.id ||
+                    null,
+
+                label:
+                    wikidataSearch?.label ||
+                    null,
+
+                description:
+                    wikidataSearch?.description ||
+                    null,
+
+                url:
+                    wikidataSearch?.id
+                        ? `https://www.wikidata.org/wiki/${wikidataSearch.id}`
+                        : null,
+
+                image:
+                    wikidataImage
+                        ? {
+                            filename:
+                                wikidataImage,
+
+                            url:
+                                createCommonsFileUrl(
+                                    wikidataImage
+                                )
+                        }
+                        : null,
+
+                manufacturer:
+                    getClaimValue(
+                        wikidataEntity,
+                        "P176"
+                    ),
+
+                inception:
+                    getClaimValue(
+                        wikidataEntity,
+                        "P571"
+                    )
+            },
+
+            image
+
+        },
+        200,
+        86400
+    );
+}
+
 /*
  * ============================================================
  * MAIN REQUEST HANDLER
