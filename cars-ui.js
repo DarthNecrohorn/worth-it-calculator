@@ -137,11 +137,113 @@ let currentVehicleShowAll =
 
 /*
  * ============================================================
- * IMAGE LAZY-LOAD OBSERVER
+ * IMAGE LAZY-LOAD + CONCURRENCY CONTROL
  * ============================================================
  */
 
 let vehicleImageObserver = null;
+
+const MAX_CONCURRENT_IMAGE_REQUESTS = 3;
+
+let activeVehicleImageRequests = 0;
+
+const vehicleImageQueue = [];
+
+
+function processVehicleImageQueue() {
+
+    while (
+        activeVehicleImageRequests <
+            MAX_CONCURRENT_IMAGE_REQUESTS &&
+        vehicleImageQueue.length
+    ) {
+
+        const task =
+            vehicleImageQueue.shift();
+
+        if (
+            !task ||
+            !task.imageElement ||
+            !task.imageElement.isConnected
+        ) {
+
+            continue;
+
+        }
+
+        activeVehicleImageRequests++;
+
+        Promise.resolve(
+            loadVehicleCardImage(
+                task.imageElement,
+                task.make,
+                task.model,
+                task.kind
+            )
+        )
+            .catch(
+                error => {
+
+                    console.error(
+                        "Vehicle image loading error:",
+                        task.make,
+                        task.model,
+                        task.kind,
+                        error
+                    );
+
+                }
+            )
+            .finally(
+                () => {
+
+                    activeVehicleImageRequests--;
+
+                    processVehicleImageQueue();
+
+                }
+            );
+
+    }
+
+}
+
+
+function queueVehicleImageLoad(
+    imageElement,
+    make,
+    model,
+    kind
+) {
+
+    if (
+        !imageElement ||
+        imageElement.dataset.loaded === "true" ||
+        imageElement.dataset.loaded === "loading" ||
+        imageElement.dataset.queued === "true"
+    ) {
+
+        return;
+
+    }
+
+    imageElement.dataset.queued =
+        "true";
+
+
+    vehicleImageQueue.push({
+
+        imageElement,
+        make,
+        model,
+        kind
+
+    });
+
+
+    processVehicleImageQueue();
+
+}
 
 
 function getVehicleImageObserver() {
@@ -154,6 +256,7 @@ function getVehicleImageObserver() {
 
     }
 
+
     if (
         typeof IntersectionObserver === "undefined"
     ) {
@@ -161,6 +264,7 @@ function getVehicleImageObserver() {
         return null;
 
     }
+
 
     vehicleImageObserver =
         new IntersectionObserver(
@@ -177,8 +281,10 @@ function getVehicleImageObserver() {
 
                         }
 
+
                         const imageElement =
                             entry.target;
+
 
                         const make =
                             imageElement.dataset.vehicleMake;
@@ -189,13 +295,14 @@ function getVehicleImageObserver() {
                         const kind =
                             imageElement.dataset.vehicleKind;
 
+
                         if (
                             make &&
                             model &&
                             kind
                         ) {
 
-                            loadVehicleCardImage(
+                            queueVehicleImageLoad(
                                 imageElement,
                                 make,
                                 model,
@@ -204,18 +311,27 @@ function getVehicleImageObserver() {
 
                         }
 
+
                         vehicleImageObserver.unobserve(
                             imageElement
                         );
 
-                    },
-                    {
-                        rootMargin: "300px 0px"
                     }
                 );
 
+            },
+            {
+                /*
+                 * Only start loading images that are
+                 * reasonably close to the viewport.
+                 *
+                 * This prevents hundreds of details
+                 * requests from starting at once.
+                 */
+                rootMargin: "150px 0px"
             }
         );
+
 
     return vehicleImageObserver;
 
