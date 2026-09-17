@@ -2319,7 +2319,9 @@ async function handleDetails(
 
 const wikidataImage =
     await getWikidataImage(
-        wikidataEntity
+        wikidataEntity,
+        vehicle.make,
+        vehicle.model
     );
 
    const primaryImage =
