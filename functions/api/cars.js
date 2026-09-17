@@ -1456,78 +1456,274 @@ function getClaimValue(
 }
 
 
-async function getWikidataImage(entity) {
-  const filename = entity?.claims?.P18?.[0]?.mainsnak?.datavalue?.value;
+async function getWikidataImage(
+    entity,
+    make,
+    model
+) {
 
-  if (!filename) {
-    return null;
-  }
+    const filename =
+        entity?.claims?.P18?.[0]?.mainsnak?.datavalue?.value;
 
-  try {
-    const params = new URLSearchParams({
-      action: "query",
-      format: "json",
-      formatversion: "2",
-      titles: `File:${filename}`,
-      prop: "imageinfo",
-      iiprop: "url|size|mime|extmetadata"
-    });
-
-    const response = await fetch(`${COMMONS_API}?${params.toString()}`, {
-      headers: WIKIMEDIA_HEADERS
-    });
-
-    if (!response.ok) {
-      return null;
+    if (!filename) {
+        return null;
     }
 
-    const data = await response.json();
-    const pages = data?.query?.pages || [];
-    const page = pages[0];
-    const info = page?.imageinfo?.[0];
+    try {
 
-    if (!info) {
-      return null;
+        const params =
+            new URLSearchParams({
+                action: "query",
+                format: "json",
+                formatversion: "2",
+                titles: `File:${filename}`,
+                prop: "imageinfo",
+                iiprop: "url|size|mime|extmetadata"
+            });
+
+        const response =
+            await fetch(
+                `${COMMONS_API}?${params.toString()}`,
+                {
+                    headers:
+                        WIKIMEDIA_HEADERS
+                }
+            );
+
+        if (!response.ok) {
+            return null;
+        }
+
+        const data =
+            await response.json();
+
+        const pages =
+            data?.query?.pages || [];
+
+        const page =
+            pages[0];
+
+        const info =
+            page?.imageinfo?.[0];
+
+        if (!info) {
+            return null;
+        }
+
+        const metadata =
+            info.extmetadata || {};
+
+        const license =
+            stripHtml(
+                metadata.LicenseShortName?.value ||
+                metadata.License?.value ||
+                ""
+            );
+
+        const author =
+            stripHtml(
+                metadata.Artist?.value ||
+                metadata.Credit?.value ||
+                ""
+            );
+
+        const licenseUrl =
+            stripHtml(
+                metadata.LicenseUrl?.value ||
+                metadata.LicenseUrl?.url ||
+                ""
+            );
+
+        /*
+         * ----------------------------------------------------
+         * License must be commercially acceptable.
+         * ----------------------------------------------------
+         */
+
+        if (
+            !isAcceptedCommonsLicense(
+                license,
+                licenseUrl
+            )
+        ) {
+            return null;
+        }
+
+        /*
+         * ----------------------------------------------------
+         * Reject obvious non-vehicle imagery.
+         *
+         * This prevents cases such as:
+         * "Musée BMW 259.jpg"
+         * where the model name exists in the filename
+         * but the actual subject is a building/museum.
+         * ----------------------------------------------------
+         */
+
+        const filenameText =
+            `${filename} ${metadata.ObjectName?.value || ""} ${metadata.ImageDescription?.value || ""}`
+                .toLowerCase();
+
+        const rejectedTerms = [
+            "museum",
+            "musée",
+            "musee",
+            "building",
+            "architecture",
+            "facade",
+            "façade",
+            "house",
+            "station",
+            "church",
+            "castle",
+            "palace",
+            "office",
+            "interior",
+            "exterior",
+            "monument",
+            "statue",
+            "sculpture",
+            "exhibition hall",
+            "showroom building"
+        ];
+
+        if (
+            rejectedTerms.some(
+                term =>
+                    filenameText.includes(term)
+            )
+        ) {
+            return null;
+        }
+
+        /*
+         * ----------------------------------------------------
+         * Make/model relevance check.
+         * ----------------------------------------------------
+         */
+
+        const targetMake =
+            simplifyText(make);
+
+        const targetModel =
+            simplifyText(model);
+
+        const imageText =
+            simplifyText(
+                `${filename} ${metadata.ObjectName?.value || ""}`
+            );
+
+        /*
+         * The image filename/title should contain
+         * both the make and model.
+         *
+         * If not, do not trust the Wikidata image.
+         */
+
+        if (
+            targetMake &&
+            !imageText.includes(targetMake)
+        ) {
+            return null;
+        }
+
+        if (
+            targetModel &&
+            !imageText.includes(targetModel)
+        ) {
+            return null;
+        }
+
+        /*
+         * ----------------------------------------------------
+         * Basic image validation.
+         * ----------------------------------------------------
+         */
+
+        const width =
+            Number(info.width || 0);
+
+        const height =
+            Number(info.height || 0);
+
+        const mime =
+            String(
+                info.mime || ""
+            ).toLowerCase();
+
+        if (
+            !mime.startsWith("image/")
+        ) {
+            return null;
+        }
+
+        /*
+         * Reject extremely small images.
+         */
+
+        if (
+            width > 0 &&
+            height > 0 &&
+            (
+                width < 250 ||
+                height < 150
+            )
+        ) {
+            return null;
+        }
+
+        return {
+
+            filename,
+
+            url:
+                info.url ||
+                null,
+
+            thumbnail:
+                info.thumburl ||
+                null,
+
+            width:
+                info.width ||
+                null,
+
+            height:
+                info.height ||
+                null,
+
+            mime:
+                info.mime ||
+                null,
+
+            author:
+                author ||
+                null,
+
+            license:
+                license ||
+                null,
+
+            license_url:
+                licenseUrl ||
+                null,
+
+            source_url:
+                `https://commons.wikimedia.org/wiki/File:${encodeURIComponent(filename).replace(/%2F/g, "/")}`
+
+        };
+
+    } catch (error) {
+
+        console.error(
+            "Wikidata/Commons image lookup failed:",
+            error
+        );
+
+        return null;
     }
-
-    const metadata = info.extmetadata || {};
-
-    const license =
-      metadata.LicenseShortName?.value ||
-      metadata.License?.value ||
-      "";
-
-    const author =
-      stripHtml(metadata.Artist?.value || "") ||
-      stripHtml(metadata.Credit?.value || "");
-
-    const licenseUrl =
-      metadata.LicenseUrl?.value ||
-      metadata.LicenseUrl?.url ||
-      null;
-
-    // Never use a Commons image unless its license is accepted.
-    if (!isAcceptedCommonsLicense(license)) {
-      return null;
-    }
-
-    return {
-      filename,
-      url: info.url || null,
-      thumbnail: info.thumburl || null,
-      width: info.width || null,
-      height: info.height || null,
-      mime: info.mime || null,
-      author: author || null,
-      license: stripHtml(license) || null,
-      license_url: licenseUrl,
-      source_url: `https://commons.wikimedia.org/wiki/File:${encodeURIComponent(filename).replace(/%2F/g, "/")}`
-    };
-  } catch (error) {
-    console.error("Wikidata/Commons image lookup failed:", error);
-    return null;
-  }
 }
+
 
 /*
  * ------------------------------------------------------------
