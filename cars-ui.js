@@ -1,759 +1,1122 @@
-const carsData = [
-    { make: "BMW", model: "3 Series" },
-    { make: "BMW", model: "X5" },
-    { make: "BMW", model: "5 Series" },
+/*
+ * ============================================================
+ * WORTH IT - VEHICLES UI
+ * VehiclesDB Open Dataset
+ *
+ * Supported vehicle categories:
+ *   Cars
+ *   Motorcycles
+ *   Mopeds
+ *   Vans
+ *   Trucks
+ *   Buses
+ *
+ * Uses:
+ *   /api/cars?action=models
+ *
+ * No API key required.
+ * VehiclesDB Open Dataset: CC BY 4.0
+ * ============================================================
+ */
 
-    { make: "Mercedes-Benz", model: "GLC" },
-    { make: "Mercedes-Benz", model: "E-Class" },
 
-    { make: "Audi", model: "A4" },
-    { make: "Audi", model: "Q5" },
-    { make: "Audi", model: "Q7" },
+/*
+ * ============================================================
+ * CONFIGURATION
+ * ============================================================
+ */
 
-    { make: "Volkswagen", model: "Golf" },
-    { make: "Volkswagen", model: "Tiguan" },
+const VEHICLE_API = "/api/cars";
 
-    { make: "Toyota", model: "Corolla" },
-    { make: "Toyota", model: "RAV4" },
-    { make: "Toyota", model: "Camry" },
+const CURRENT_VEHICLE_YEAR =
+    new Date().getFullYear();
 
-    { make: "Tesla", model: "Model 3" },
-    { make: "Tesla", model: "Model Y" },
+const MAX_POPULAR_VEHICLES = 24;
 
-    { make: "Ford", model: "F-150" },
-    { make: "Ford", model: "Mustang" },
+const MAX_SEARCH_RESULTS = 100;
 
-    { make: "Hyundai", model: "Tucson" },
-    { make: "Hyundai", model: "Ioniq 5" },
-
-    { make: "Kia", model: "Sportage" },
-
-    { make: "Porsche", model: "911" }
+const VEHICLE_KINDS = [
+    "car",
+    "motorcycle",
+    "moped",
+    "van",
+    "truck",
+    "bus"
 ];
 
-const popularCars = [
-    { make: "BMW", model: "3 Series" },
-    { make: "BMW", model: "X5" },
+const VEHICLE_KIND_INFO = {
 
-    { make: "Volkswagen", model: "Golf" },
-    { make: "Mercedes-Benz", model: "E-Class" },
+    car: {
+        icon: "🚗",
+        singular: "Car",
+        plural: "Cars",
+        title: "🚗 Popular Cars",
+        description:
+            "Discover some of the most popular car models."
+    },
 
-    { make: "Audi", model: "Q5" },
-    { make: "Audi", model: "Q7" },
+    motorcycle: {
+        icon: "🏍️",
+        singular: "Motorcycle",
+        plural: "Motorcycles",
+        title: "🏍️ Popular Motorcycles",
+        description:
+            "Discover some of the most popular motorcycle models."
+    },
 
-    { make: "Toyota", model: "RAV4" },
-    { make: "Toyota", model: "Camry" },
+    moped: {
+        icon: "🛵",
+        singular: "Moped",
+        plural: "Mopeds",
+        title: "🛵 Popular Mopeds",
+        description:
+            "Discover some of the most popular moped models."
+    },
 
-    { make: "Tesla", model: "Model 3" },
-    { make: "Tesla", model: "Model Y" },
+    van: {
+        icon: "🚐",
+        singular: "Van",
+        plural: "Vans",
+        title: "🚐 Popular Vans",
+        description:
+            "Discover some of the most popular van models."
+    },
 
-    { make: "Hyundai", model: "Tucson" },
-    { make: "Porsche", model: "911" }
-];
+    truck: {
+        icon: "🚚",
+        singular: "Truck",
+        plural: "Trucks",
+        title: "🚚 Popular Trucks",
+        description:
+            "Discover some of the most popular truck models."
+    },
 
-    const usedCars = [
-    { make: "BMW", model: "X5" },
-    { make: "Mercedes-Benz", model: "E-Class" },
-    { make: "Audi", model: "Q5" },
-    { make: "Volkswagen", model: "Golf" },
-    { make: "Toyota", model: "RAV4" },
-    { make: "Tesla", model: "Model 3" },
-    { make: "Hyundai", model: "Tucson" },
-    { make: "Porsche", model: "911" }
-];
+    bus: {
+        icon: "🚌",
+        singular: "Bus",
+        plural: "Buses",
+        title: "🚌 Popular Buses",
+        description:
+            "Discover some of the most popular bus models."
+    }
 
-const carPowertrainMap = {
-    "BMW 3 Series": ["Petrol"],
-    "BMW X5": ["Petrol", "Hybrid"],
-    "BMW 5 Series": ["Petrol", "Hybrid"],
-
-    "Mercedes-Benz GLC": ["Petrol", "Hybrid"],
-    "Mercedes-Benz E-Class": ["Petrol", "Hybrid"],
-
-    "Audi A4": ["Petrol", "Diesel", "Hybrid"],
-    "Audi Q5": ["Petrol", "Diesel", "Hybrid"],
-    "Audi Q7": ["Petrol", "Diesel", "Hybrid"],
-
-    "Volkswagen Golf": ["Petrol", "Diesel"],
-    "Volkswagen Tiguan": ["Petrol", "Diesel", "Hybrid"],
-
-    "Toyota Corolla": ["Petrol", "Hybrid"],
-    "Toyota RAV4": ["Petrol", "Hybrid"],
-    "Toyota Camry": ["Petrol", "Hybrid"],
-
-    "Tesla Model 3": ["Electric"],
-    "Tesla Model Y": ["Electric"],
-
-    "Ford F-150": ["Petrol", "Hybrid"],
-    "Ford Mustang": ["Petrol"],
-
-    "Hyundai Tucson": ["Petrol", "Diesel", "Hybrid"],
-    "Hyundai Ioniq 5": ["Electric"],
-
-    "Kia Sportage": ["Petrol", "Diesel", "Hybrid"],
-
-    "Porsche 911": ["Petrol"]
 };
 
-const carDataCache = new Map();
 
-function getCarCacheKey(car, year) {
-    return `${year}|${car.make}|${car.model}`;
+/*
+ * ============================================================
+ * STATE / CACHE
+ * ============================================================
+ */
+
+const vehicleCatalogCache =
+    new Map();
+
+const vehicleCatalogLoading =
+    new Map();
+
+let currentVehicleKind =
+    "car";
+
+let currentVehicleCatalog =
+    [];
+
+let currentVehicleResults =
+    [];
+
+
+/*
+ * ============================================================
+ * BASIC HELPERS
+ * ============================================================
+ */
+
+function normalizeVehicleText(value) {
+
+    return String(value || "")
+        .trim()
+        .toLowerCase();
+
 }
 
-function getCachedCarData(car, year) {
 
-    const key =
-        getCarCacheKey(car, year);
+function escapeVehicleHtml(value) {
 
-    return carDataCache.has(key)
-        ? carDataCache.get(key)
-        : undefined;
+    return String(value ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+
 }
 
-function setCachedCarData(car, year, data) {
 
-    const key =
-        getCarCacheKey(car, year);
+function getVehicleKindInfo(kind) {
 
-    carDataCache.set(key, data);
+    return (
+        VEHICLE_KIND_INFO[kind] ||
+        VEHICLE_KIND_INFO.car
+    );
 
-    return data;
 }
 
-const carImageCache = new Map();
 
-function getCarImageCacheKey(car, year) {
-    return `${year}|${car.make}|${car.model}`;
-}
+/*
+ * ============================================================
+ * LOAD VEHICLESDB CATALOG
+ * ============================================================
+ */
 
-function getCachedCarImage(car, year) {
+async function fetchVehicleCatalog(kind = "car") {
 
-    const key =
-        getCarImageCacheKey(car, year);
-
-    return carImageCache.has(key)
-        ? carImageCache.get(key)
-        : undefined;
-}
-
-function setCachedCarImage(car, year, image) {
-
-    const key =
-        getCarImageCacheKey(car, year);
-
-    carImageCache.set(key, image);
-
-    return image;
-}
-
-async function fetchCarData(car, year = 2024) {
-
-    const cachedData =
-        getCachedCarData(car, year);
-
-    if (cachedData !== undefined) {
-        return cachedData;
+    if (!VEHICLE_KINDS.includes(kind)) {
+        kind = "car";
     }
 
-    try {
+    if (
+        vehicleCatalogCache.has(kind)
+    ) {
 
-        const params = new URLSearchParams({
-            action: "vehicle",
-            year: year,
-            make: car.make,
-            model: car.model
+        return vehicleCatalogCache.get(kind);
+
+    }
+
+    if (
+        vehicleCatalogLoading.has(kind)
+    ) {
+
+        return vehicleCatalogLoading.get(kind);
+
+    }
+
+    const loadingPromise =
+        (async () => {
+
+            try {
+
+                const params =
+                    new URLSearchParams({
+
+                        action: "models",
+
+                        kind: kind
+
+                    });
+
+                const response =
+                    await fetch(
+                        `${VEHICLE_API}?${params.toString()}`,
+                        {
+                            headers: {
+                                "Accept":
+                                    "application/json"
+                            }
+                        }
+                    );
+
+                if (!response.ok) {
+
+                    throw new Error(
+                        `Vehicles API returned ${response.status}`
+                    );
+
+                }
+
+                const data =
+                    await response.json();
+
+                if (
+                    !data ||
+                    !data.success ||
+                    !Array.isArray(data.vehicles)
+                ) {
+
+                    throw new Error(
+                        "Invalid VehiclesDB response"
+                    );
+
+                }
+
+                const vehicles =
+                    data.vehicles
+                        .filter(vehicle =>
+                            vehicle &&
+                            vehicle.make &&
+                            vehicle.model
+                        );
+
+                vehicleCatalogCache.set(
+                    kind,
+                    vehicles
+                );
+
+                return vehicles;
+
+            } catch (error) {
+
+                console.error(
+                    `VehiclesDB catalog error for ${kind}:`,
+                    error
+                );
+
+                return [];
+
+            } finally {
+
+                vehicleCatalogLoading.delete(
+                    kind
+                );
+
+            }
+
+        })();
+
+    vehicleCatalogLoading.set(
+        kind,
+        loadingPromise
+    );
+
+    return loadingPromise;
+
+}
+
+
+/*
+ * ============================================================
+ * POPULARITY
+ *
+ * VehiclesDB uses global_decile.
+ *
+ * Lower decile = greater popularity.
+ * ============================================================
+ */
+
+function getVehiclePopularityValue(vehicle) {
+
+    const value =
+        Number(
+            vehicle?.globalDecile
+        );
+
+    return Number.isFinite(value)
+        ? value
+        : 999;
+
+}
+
+
+function getPopularVehicles(
+    vehicles,
+    limit = MAX_POPULAR_VEHICLES
+) {
+
+    if (!Array.isArray(vehicles)) {
+        return [];
+    }
+
+    return [...vehicles]
+        .sort((a, b) => {
+
+            const popularityDifference =
+                getVehiclePopularityValue(a) -
+                getVehiclePopularityValue(b);
+
+            if (
+                popularityDifference !== 0
+            ) {
+
+                return popularityDifference;
+
+            }
+
+            const makeCompare =
+                String(a.make || "")
+                    .localeCompare(
+                        String(b.make || ""),
+                        undefined,
+                        {
+                            sensitivity: "base"
+                        }
+                    );
+
+            if (makeCompare !== 0) {
+                return makeCompare;
+            }
+
+            return String(a.model || "")
+                .localeCompare(
+                    String(b.model || ""),
+                    undefined,
+                    {
+                        sensitivity: "base"
+                    }
+                );
+
+        })
+        .slice(0, limit);
+
+}
+
+
+/*
+ * ============================================================
+ * SEARCH
+ * ============================================================
+ */
+
+function searchVehicleCatalog(
+    vehicles,
+    query
+) {
+
+    const normalizedQuery =
+        normalizeVehicleText(query);
+
+    if (!normalizedQuery) {
+        return getPopularVehicles(
+            vehicles
+        );
+    }
+
+    const results =
+        vehicles.filter(vehicle => {
+
+            const text =
+                normalizeVehicleText(
+                    `${vehicle.make} ${vehicle.model} ${vehicle.bodyType || ""}`
+                );
+
+            return text.includes(
+                normalizedQuery
+            );
+
         });
 
-        const response = await fetch(
-            `/api/cars?${params.toString()}`
-        );
+    return results.slice(
+        0,
+        MAX_SEARCH_RESULTS
+    );
 
-        if (!response.ok) {
-            throw new Error(
-                `Failed to load ${car.make} ${car.model}`
-            );
-        }
-
-        const data = await response.json();
-
-        if (!data.success || !data.bestMatch) {
-            throw new Error(
-                `No vehicle data found for ${car.make} ${car.model}`
-            );
-        }
-
-        setCachedCarData(
-            car,
-            year,
-            data
-        );
-
-        return data;
-
-    } catch (error) {
-
-        console.error(
-            `Cars API error for ${car.make} ${car.model}:`,
-            error
-        );
-
-        return null;
-    }
 }
 
-async function fetchCarImage(car, year = 2024) {
 
-    const cachedImage =
-        getCachedCarImage(car, year);
+/*
+ * ============================================================
+ * VEHICLE CARD
+ * ============================================================
+ */
 
-    if (cachedImage !== undefined) {
-        return cachedImage;
+function createVehicleCard(
+    vehicle,
+    kind
+) {
+
+    const card =
+        document.createElement("button");
+
+    card.type = "button";
+
+    card.className =
+        "car-card";
+
+    const info =
+        getVehicleKindInfo(kind);
+
+    const make =
+        escapeVehicleHtml(
+            vehicle.make
+        );
+
+    const model =
+        escapeVehicleHtml(
+            vehicle.model
+        );
+
+    const bodyType =
+        vehicle.bodyType
+            ? escapeVehicleHtml(
+                vehicle.bodyType
+            )
+            : "";
+
+    let secondaryText =
+        info.singular;
+
+    if (bodyType) {
+
+        secondaryText +=
+            ` • ${bodyType}`;
+
     }
 
-    try {
+    card.innerHTML = `
 
-        const params = new URLSearchParams({
-            action: "images",
-            year: year,
-            make: car.make,
-            model: car.model
-        });
+        <div class="car-card-icon">
+            ${info.icon}
+        </div>
 
-        const response = await fetch(
-            `/api/cars?${params.toString()}`
-        );
+        <strong>
+            ${make} ${model}
+        </strong>
 
-        if (!response.ok) {
-            throw new Error(
-                `Failed to load image for ${car.make} ${car.model}`
-            );
-        }
+        <span>
+            ${secondaryText}
+        </span>
 
-        const data = await response.json();
+    `;
 
-        const image =
-            data.success &&
-            data.images &&
-            data.images.length
-                ? data.images[0].link
-                : null;
+    /*
+     * The comparison system will be connected
+     * to these cards later.
+     */
 
-        setCachedCarImage(
-            car,
-            year,
-            image
-        );
+    card.dataset.vehicleKind =
+        kind;
 
-        return image;
+    card.dataset.vehicleMake =
+        vehicle.make || "";
 
-    } catch (error) {
+    card.dataset.vehicleModel =
+        vehicle.model || "";
 
-        console.error(
-            `Cars image API error for ${car.make} ${car.model}:`,
-            error
-        );
+    return card;
 
-        setCachedCarImage(
-            car,
-            year,
-            null
-        );
-
-        return null;
-    }
 }
 
-function normalizeCarData(data, fallbackCar) {
 
-    if (!data || !data.bestMatch) {
-        return null;
-    }
+/*
+ * ============================================================
+ * RENDER VEHICLES
+ * ============================================================
+ */
 
-    const vehicle = data.bestMatch;
-
-    const engineType =
-        data.bestMatch?.features?.standard
-            ?.find(feature =>
-                feature.category === "Engine"
-            )
-            ?.features
-            ?.find(feature =>
-                feature.name === "Base engine type"
-            )
-            ?.value;
-
-    const fuelType =
-        data.bestMatch?.features?.standard
-            ?.find(feature =>
-                feature.category === "Fuel"
-            )
-            ?.features
-            ?.find(feature =>
-                feature.name === "Fuel type"
-            )
-            ?.value;
-
-    const normalizedEngineType =
-        String(engineType || "").toLowerCase();
-
-    const normalizedFuelType =
-        String(fuelType || "").toLowerCase();
-
-    let powertrain = "Petrol";
-
-    if (vehicle.is_electric === true) {
-        powertrain = "Electric";
-
-    } else if (vehicle.is_plugin_electric === true) {
-        powertrain = "Hybrid";
-
-    } else if (
-        normalizedEngineType.includes("hybrid") ||
-        normalizedFuelType.includes("hybrid")
-    ) {
-        powertrain = "Hybrid";
-
-    } else if (
-        normalizedEngineType.includes("diesel") ||
-        normalizedFuelType.includes("diesel")
-    ) {
-        powertrain = "Diesel";
-
-    } else if (
-        normalizedEngineType.includes("electric") ||
-        normalizedFuelType.includes("electric")
-    ) {
-        powertrain = "Electric";
-
-    } else if (
-        normalizedEngineType.includes("gasoline") ||
-        normalizedEngineType.includes("petrol") ||
-        normalizedFuelType.includes("gasoline") ||
-        normalizedFuelType.includes("petrol") ||
-        normalizedFuelType.includes("unleaded")
-    ) {
-        powertrain = "Petrol";
-    }
-
-    return {
-        make: vehicle.make || fallbackCar.make,
-        model: vehicle.model || fallbackCar.model,
-        name: vehicle.name || "",
-        year: vehicle.year || 2024,
-
-        price:
-            vehicle.base_msrp ??
-            null,
-
-        horsepower:
-            vehicle.horsepower ??
-            null,
-
-        drivetrain:
-            vehicle.drivetrain ||
-            vehicle.drive_train ||
-            null,
-
-        fuel:
-            vehicle.fuel_type ||
-            vehicle.fuel ||
-            fuelType ||
-            null,
-
-        powertrain,
-
-        engine:
-            vehicle.engine ||
-            null,
-
-        transmission:
-            vehicle.transmission ||
-            null,
-
-        mpg:
-            vehicle.mpg_combined ??
-            null,
-
-        electric:
-            vehicle.is_electric === true,
-
-        plugInHybrid:
-            vehicle.is_plugin_electric === true
-    };
-}
-
-async function renderPopularCars(cars = carsData, year = 2024) {
+function renderVehicleCards(
+    vehicles,
+    kind = currentVehicleKind
+) {
 
     const grid =
-        document.getElementById("popularCarsGrid");
+        document.getElementById(
+            "popularCarsGrid"
+        );
 
     if (!grid) return;
 
     grid.innerHTML = "";
 
-    if (!cars.length) {
+    if (
+        !Array.isArray(vehicles) ||
+        !vehicles.length
+    ) {
+
+        const info =
+            getVehicleKindInfo(kind);
 
         grid.innerHTML = `
+
             <div class="cars-empty-state">
-                <div class="cars-empty-icon">🚗</div>
-                <strong>No cars available</strong>
+
+                <div class="cars-empty-icon">
+                    ${info.icon}
+                </div>
+
+                <strong>
+                    No ${info.plural.toLowerCase()} found
+                </strong>
+
                 <p>
-                    There are currently no vehicles available
-                    for this category.
+                    There are currently no vehicles
+                    matching your search.
                 </p>
+
             </div>
+
         `;
 
         return;
+
     }
 
-    const carCards = [];
+    const fragment =
+        document.createDocumentFragment();
 
-    for (const car of cars) {
+    for (
+        const vehicle of vehicles
+    ) {
 
-        const card =
-            document.createElement("button");
+        fragment.appendChild(
+            createVehicleCard(
+                vehicle,
+                kind
+            )
+        );
 
-        card.type = "button";
-        card.className = "car-card";
-
-        card.innerHTML = `
-            <div class="car-card-icon">🚗</div>
-
-            <strong>
-                ${car.make} ${car.model}
-            </strong>
-
-            <span>
-                Loading vehicle data...
-            </span>
-        `;
-
-        grid.appendChild(card);
-
-        carCards.push({
-            car,
-            card
-        });
     }
 
-    await Promise.all(
-        carCards.map(async ({ car, card }) => {
-
-            const [data, image] =
-                await Promise.all([
-                    fetchCarData(car, year),
-                    fetchCarImage(car, year)
-                ]);
-
-            if (!data || !data.bestMatch) {
-
-                card.querySelector("span").textContent =
-                    "Vehicle data unavailable";
-
-                return;
-            }
-
-            const normalizedCar =
-                normalizeCarData(data, car);
-
-            if (!normalizedCar) {
-
-                card.querySelector("span").textContent =
-                    "Vehicle data unavailable";
-
-                return;
-            }
-
-            card.innerHTML = `
-                ${image
-                    ? `
-                        <img
-                            src="${image}"
-                            alt="${normalizedCar.make} ${normalizedCar.model}"
-                            class="car-card-image"
-                            loading="lazy"
-                        >
-                    `
-                    : `
-                        <div class="car-card-icon">🚗</div>
-                    `
-                }
-
-                <strong>
-                    ${normalizedCar.make}
-                    ${normalizedCar.model}
-                </strong>
-
-                <span>
-                    ${normalizedCar.year}
-                    ${normalizedCar.horsepower
-                        ? ` • ${normalizedCar.horsepower} hp`
-                        : ""}
-                    ${normalizedCar.fuel
-                        ? ` • ${normalizedCar.fuel}`
-                        : ""}
-                </span>
-            `;
-        })
+    grid.appendChild(
+        fragment
     );
+
+    currentVehicleResults =
+        vehicles;
+
 }
-function updateCarsCategoryHeader(category) {
+
+
+/*
+ * ============================================================
+ * CATEGORY HEADER
+ * ============================================================
+ */
+
+function updateCarsCategoryHeader(
+    mode = "popular",
+    kind = currentVehicleKind
+) {
 
     const title =
-        document.getElementById("carsResultsTitle");
+        document.getElementById(
+            "carsResultsTitle"
+        );
 
     const description =
-        document.getElementById("carsResultsDescription");
+        document.getElementById(
+            "carsResultsDescription"
+        );
 
-    if (!title || !description) return;
-
-    const categoryInfo = {
-
-        popular: {
-            title: "⭐ Popular Cars",
-            description:
-                "Discover some of the most popular cars."
-        },
-
-        new: {
-            title: "🆕 New Cars",
-            description:
-                "Explore the latest car models."
-        },
-
-        used: {
-            title: "🔄 Used Cars",
-            description:
-                "Explore used and pre-owned cars."
-        },
-
-        electric: {
-            title: "⚡ Electric Cars",
-            description:
-                "Discover electric and EV models."
-        },
-
-        hybrid: {
-            title: "🔋 Hybrid Cars",
-            description:
-                "Explore hybrid and plug-in hybrid models."
-        },
-
-        petrol: {
-            title: "⛽ Petrol Cars",
-            description:
-                "Explore cars powered by petrol engines."
-        },
-
-        diesel: {
-            title: "🛢️ Diesel Cars",
-            description:
-                "Explore cars powered by diesel engines."
-        }
-    };
+    if (
+        !title ||
+        !description
+    ) {
+        return;
+    }
 
     const info =
-        categoryInfo[category] ||
-        categoryInfo.popular;
+        getVehicleKindInfo(kind);
 
-    title.textContent = info.title;
-    description.textContent = info.description;
-}
+    if (mode === "search") {
 
-async function filterCarsByCategory(category) {
+        title.textContent =
+            `🔍 ${info.plural} Search`;
 
-    updateCarsCategoryHeader(category);
+        description.textContent =
+            `Search results from the VehiclesDB ${info.singular.toLowerCase()} catalog.`;
 
-    let filteredCars = [];
-    let year = 2024;
+        return;
 
-    switch (category) {
-
-        case "popular":
-
-            filteredCars = popularCars;
-            year = 2024;
-
-            break;
-
-        case "new":
-
-            filteredCars = carsData;
-            year = 2024;
-
-            break;
-
-        case "used":
-
-            filteredCars = usedCars;
-            year = 2023;
-
-            break;
-
-        case "electric":
-
-            filteredCars = carsData.filter(car =>
-                (carPowertrainMap[`${car.make} ${car.model}`] || [])
-                    .includes("Electric")
-            );
-
-            year = 2024;
-
-            break;
-
-        case "hybrid":
-
-            filteredCars = carsData.filter(car =>
-                (carPowertrainMap[`${car.make} ${car.model}`] || [])
-                    .includes("Hybrid")
-            );
-
-            year = 2024;
-
-            break;
-
-        case "petrol":
-
-            filteredCars = carsData.filter(car =>
-                (carPowertrainMap[`${car.make} ${car.model}`] || [])
-                    .includes("Petrol")
-            );
-
-            year = 2024;
-
-            break;
-
-        case "diesel":
-
-            filteredCars = carsData.filter(car =>
-                (carPowertrainMap[`${car.make} ${car.model}`] || [])
-                    .includes("Diesel")
-            );
-
-            year = 2024;
-
-            break;
-
-        default:
-
-            filteredCars = carsData;
-            year = 2024;
-
-            break;
     }
 
-    await renderPopularCars(
-        filteredCars,
-        year
-    );
+    title.textContent =
+        info.title;
+
+    description.textContent =
+        info.description;
+
 }
 
-function openCars() {
+
+/*
+ * ============================================================
+ * VEHICLE CATEGORY NAVIGATION
+ *
+ * We reuse the existing .cars-category-grid
+ * from index.html.
+ * ============================================================
+ */
+
+function renderVehicleCategoryButtons() {
+
+    const categoryGrid =
+        document.querySelector(
+            "#carsSection .cars-category-grid"
+        );
+
+    if (!categoryGrid) {
+        return;
+    }
+
+    categoryGrid.innerHTML = "";
+
+    for (
+        const kind of VEHICLE_KINDS
+    ) {
+
+        const info =
+            getVehicleKindInfo(kind);
+
+        const button =
+            document.createElement("button");
+
+        button.type =
+            "button";
+
+        button.className =
+            "cars-category-card";
+
+        button.dataset.vehicleKind =
+            kind;
+
+        button.innerHTML = `
+
+            <span>
+                ${info.icon}
+            </span>
+
+            <strong>
+                ${info.plural}
+            </strong>
+
+            <small>
+                Explore ${info.plural.toLowerCase()}
+            </small>
+
+        `;
+
+        button.addEventListener(
+            "click",
+            () => {
+
+                filterCarsByCategory(
+                    kind
+                );
+
+            }
+        );
+
+        categoryGrid.appendChild(
+            button
+        );
+
+    }
+
+}
+
+
+/*
+ * ============================================================
+ * LOAD + SHOW CATEGORY
+ * ============================================================
+ */
+
+async function filterCarsByCategory(
+    kind
+) {
+
+    if (
+        !VEHICLE_KINDS.includes(kind)
+    ) {
+
+        kind = "car";
+
+    }
+
+    currentVehicleKind =
+        kind;
+
+    const info =
+        getVehicleKindInfo(kind);
+
+    updateCarsCategoryHeader(
+        "popular",
+        kind
+    );
+
+    const grid =
+        document.getElementById(
+            "popularCarsGrid"
+        );
+
+    if (grid) {
+
+        grid.innerHTML = `
+
+            <div class="cars-empty-state">
+
+                <div class="cars-empty-icon">
+                    ${info.icon}
+                </div>
+
+                <strong>
+                    Loading ${info.plural.toLowerCase()}...
+                </strong>
+
+                <p>
+                    Loading the latest VehiclesDB catalog.
+                </p>
+
+            </div>
+
+        `;
+
+    }
+
+    const vehicles =
+        await fetchVehicleCatalog(
+            kind
+        );
+
+    currentVehicleCatalog =
+        vehicles;
+
+    const popularVehicles =
+        getPopularVehicles(
+            vehicles
+        );
+
+    renderVehicleCards(
+        popularVehicles,
+        kind
+    );
+
+}
+
+
+/*
+ * ============================================================
+ * SEARCH CURRENT CATEGORY
+ * ============================================================
+ */
+
+function handleVehicleSearch(
+    query
+) {
+
+    const results =
+        searchVehicleCatalog(
+            currentVehicleCatalog,
+            query
+        );
+
+    if (
+        String(query || "").trim()
+    ) {
+
+        updateCarsCategoryHeader(
+            "search",
+            currentVehicleKind
+        );
+
+    } else {
+
+        updateCarsCategoryHeader(
+            "popular",
+            currentVehicleKind
+        );
+
+    }
+
+    renderVehicleCards(
+        results,
+        currentVehicleKind
+    );
+
+}
+
+
+/*
+ * ============================================================
+ * OPEN CARS
+ * ============================================================
+ */
+
+async function openCars() {
 
     const homePage =
-        document.getElementById("homePage");
+        document.getElementById(
+            "homePage"
+        );
 
     if (homePage) {
-        homePage.style.display = "none";
+
+        homePage.style.display =
+            "none";
+
     }
 
-    document.querySelectorAll(".app").forEach(x => {
-        x.classList.remove("active");
-        x.style.display = "none";
-    });
+    document
+        .querySelectorAll(".app")
+        .forEach(x => {
 
-    const weatherSection =
-        document.getElementById("weatherSection");
+            x.classList.remove(
+                "active"
+            );
 
-    if (weatherSection) {
-        weatherSection.style.display = "none";
-    }
+            x.style.display =
+                "none";
 
-    const newsSection =
-        document.getElementById("newsSection");
+        });
 
-    if (newsSection) {
-        newsSection.style.display = "none";
-    }
 
-    const discountsSection =
-        document.getElementById("discountsSection");
+    const sectionsToHide = [
+        "weatherSection",
+        "newsSection",
+        "discountsSection",
+        "marketsSection",
+        "moneySection"
+    ];
 
-    if (discountsSection) {
-        discountsSection.style.display = "none";
-    }
+
+    sectionsToHide.forEach(
+        id => {
+
+            const element =
+                document.getElementById(
+                    id
+                );
+
+            if (element) {
+
+                element.style.display =
+                    "none";
+
+            }
+
+        }
+    );
+
 
     const settingsPanel =
-        document.getElementById("settingsPanel");
+        document.getElementById(
+            "settingsPanel"
+        );
 
     if (settingsPanel) {
-        settingsPanel.style.display = "none";
+
+        settingsPanel.style.display =
+            "none";
+
     }
 
-    const marketsSection =
-        document.getElementById("marketsSection");
-
-    if (marketsSection) {
-        marketsSection.style.display = "none";
-    }
-
-    const moneySection =
-        document.getElementById("moneySection");
-
-    if (moneySection) {
-        moneySection.style.display = "none";
-    }
 
     const carsSection =
-        document.getElementById("carsSection");
+        document.getElementById(
+            "carsSection"
+        );
 
     if (carsSection) {
-        carsSection.style.display = "block";
+
+        carsSection.style.display =
+            "block";
+
     }
 
-    updateCarsCategoryHeader("popular");
 
-    renderPopularCars(
-       popularCars,
-          2024
-  );
-    
+    /*
+     * Build the six vehicle categories.
+     */
+
+    renderVehicleCategoryButtons();
+
+
+    /*
+     * Always start with Cars.
+     */
+
+    currentVehicleKind =
+        "car";
+
+    currentVehicleCatalog =
+        [];
+
+
+    updateCarsCategoryHeader(
+        "popular",
+        "car"
+    );
+
+
+    const grid =
+        document.getElementById(
+            "popularCarsGrid"
+        );
+
+    if (grid) {
+
+        grid.innerHTML = `
+
+            <div class="cars-empty-state">
+
+                <div class="cars-empty-icon">
+                    🚗
+                </div>
+
+                <strong>
+                    Loading cars...
+                </strong>
+
+                <p>
+                    Loading the latest VehiclesDB catalog.
+                </p>
+
+            </div>
+
+        `;
+
+    }
+
+
+    /*
+     * Load Cars catalog.
+     */
+
+    const vehicles =
+        await fetchVehicleCatalog(
+            "car"
+        );
+
+    currentVehicleCatalog =
+        vehicles;
+
+
+    renderVehicleCards(
+        getPopularVehicles(
+            vehicles
+        ),
+        "car"
+    );
+
+
+    /*
+     * Scroll to Cars.
+     */
+
     window.scrollTo({
+
         top: 0,
+
         behavior: "smooth"
+
     });
+
 }
 
-window.openCars = openCars;
 
-window.filterCarsByCategory = filterCarsByCategory;
+/*
+ * ============================================================
+ * ATTRIBUTION
+ *
+ * Required by CC BY 4.0.
+ * ============================================================
+ */
 
-document.addEventListener("DOMContentLoaded", function () {
+function ensureVehiclesDBAttribution() {
 
-    const searchInput =
-        document.getElementById("carsSearchInput");
+    const carsContent =
+        document.getElementById(
+            "carsContent"
+        );
 
-    if (!searchInput) return;
+    if (!carsContent) {
+        return;
+    }
 
-    searchInput.addEventListener("input", function () {
+    if (
+        document.getElementById(
+            "vehiclesDbAttribution"
+        )
+    ) {
+        return;
+    }
 
-        const query =
-            this.value.trim().toLowerCase();
+    const attribution =
+        document.createElement("p");
 
-        const filteredCars =
-            carsData.filter(car => {
+    attribution.id =
+        "vehiclesDbAttribution";
 
-                const searchText =
-                    `${car.make} ${car.model}`
-                    .toLowerCase();
+    attribution.className =
+        "cars-data-attribution";
 
-                return searchText.includes(query);
-            });
+    attribution.style.marginTop =
+        "24px";
 
-        renderPopularCars(filteredCars);
+    attribution.style.fontSize =
+        "0.85rem";
 
-    });
+    attribution.style.opacity =
+        "0.7";
 
-});
+    attribution.innerHTML = `
+        Vehicle data by
+        <a
+            href="https://github.com/vehiclesdb/vehiclesdb"
+            target="_blank"
+            rel="noopener noreferrer"
+        >
+            VehiclesDB
+        </a>
+        · CC BY 4.0
+    `;
+
+    carsContent.appendChild(
+        attribution
+    );
+
+}
+
+
+/*
+ * ============================================================
+ * GLOBAL FUNCTIONS
+ * ============================================================
+ */
+
+window.openCars =
+    openCars;
+
+window.filterCarsByCategory =
+    filterCarsByCategory;
+
+
+/*
+ * ============================================================
+ * INITIALIZATION
+ * ============================================================
+ */
+
+document.addEventListener(
+    "DOMContentLoaded",
+    function () {
+
+        /*
+         * Create the new six-category vehicle navigation.
+         */
+
+        renderVehicleCategoryButtons();
+
+
+        /*
+         * Add attribution.
+         */
+
+        ensureVehiclesDBAttribution();
+
+
+        /*
+         * Search.
+         */
+
+        const searchInput =
+            document.getElementById(
+                "carsSearchInput"
+            );
+
+        if (!searchInput) {
+            return;
+        }
+
+
+        searchInput.addEventListener(
+            "input",
+            function () {
+
+                handleVehicleSearch(
+                    this.value
+                );
+
+            }
+        );
+
+    }
+);
