@@ -1456,23 +1456,78 @@ function getClaimValue(
 }
 
 
-function getWikidataImage(
-    entity
-) {
+async function getWikidataImage(entity) {
+  const filename = entity?.claims?.P18?.[0]?.mainsnak?.datavalue?.value;
 
-    const value =
-        getClaimValue(
-            entity,
-            "P18"
-        );
+  if (!filename) {
+    return null;
+  }
 
-    return (
-        typeof value === "string"
-            ? value
-            : null
-    );
+  try {
+    const params = new URLSearchParams({
+      action: "query",
+      format: "json",
+      formatversion: "2",
+      titles: `File:${filename}`,
+      prop: "imageinfo",
+      iiprop: "url|size|mime|extmetadata"
+    });
+
+    const response = await fetch(`${COMMONS_API}?${params.toString()}`, {
+      headers: WIKIMEDIA_HEADERS
+    });
+
+    if (!response.ok) {
+      return null;
+    }
+
+    const data = await response.json();
+    const pages = data?.query?.pages || [];
+    const page = pages[0];
+    const info = page?.imageinfo?.[0];
+
+    if (!info) {
+      return null;
+    }
+
+    const metadata = info.extmetadata || {};
+
+    const license =
+      metadata.LicenseShortName?.value ||
+      metadata.License?.value ||
+      "";
+
+    const author =
+      stripHtml(metadata.Artist?.value || "") ||
+      stripHtml(metadata.Credit?.value || "");
+
+    const licenseUrl =
+      metadata.LicenseUrl?.value ||
+      metadata.LicenseUrl?.url ||
+      null;
+
+    // Never use a Commons image unless its license is accepted.
+    if (!isAcceptedCommonsLicense(license)) {
+      return null;
+    }
+
+    return {
+      filename,
+      url: info.url || null,
+      thumbnail: info.thumburl || null,
+      width: info.width || null,
+      height: info.height || null,
+      mime: info.mime || null,
+      author: author || null,
+      license: stripHtml(license) || null,
+      license_url: licenseUrl,
+      source_url: `https://commons.wikimedia.org/wiki/File:${encodeURIComponent(filename).replace(/%2F/g, "/")}`
+    };
+  } catch (error) {
+    console.error("Wikidata/Commons image lookup failed:", error);
+    return null;
+  }
 }
-
 
 /*
  * ------------------------------------------------------------
