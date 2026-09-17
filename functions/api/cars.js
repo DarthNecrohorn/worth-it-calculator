@@ -2171,17 +2171,7 @@ const wikidataImage =
                         : null,
 
                 image:
-                    wikidataImage
-                        ? {
-                            filename:
-                                wikidataImage,
-
-                            url:
-                                createCommonsFileUrl(
-                                    wikidataImage
-                                )
-                        }
-                        : null,
+                  wikidataImage,
 
                 manufacturer:
                     getClaimValue(
