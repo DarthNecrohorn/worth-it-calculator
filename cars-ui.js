@@ -1,7 +1,7 @@
 /*
  * ============================================================
  * WORTH IT - VEHICLES UI
- * VehiclesDB Open Dataset
+ * VehiclesDB + Wikidata + Wikimedia Commons
  *
  * Supported vehicle categories:
  *   Cars
@@ -13,9 +13,13 @@
  *
  * Uses:
  *   /api/cars?action=models
+ *   /api/cars?action=details
  *
- * No API key required.
+ * No API key required in frontend.
+ *
  * VehiclesDB Open Dataset: CC BY 4.0
+ * Wikimedia Commons images: individual licenses displayed
+ * by the API when image metadata is available.
  * ============================================================
  */
 
@@ -112,6 +116,12 @@ const vehicleCatalogCache =
 const vehicleCatalogLoading =
     new Map();
 
+const vehicleDetailsCache =
+    new Map();
+
+const vehicleDetailsLoading =
+    new Map();
+
 let currentVehicleKind =
     "car";
 
@@ -123,6 +133,93 @@ let currentVehicleResults =
 
 let currentVehicleShowAll =
     false;
+
+
+/*
+ * ============================================================
+ * IMAGE LAZY-LOAD OBSERVER
+ * ============================================================
+ */
+
+let vehicleImageObserver = null;
+
+
+function getVehicleImageObserver() {
+
+    if (
+        vehicleImageObserver
+    ) {
+
+        return vehicleImageObserver;
+
+    }
+
+    if (
+        typeof IntersectionObserver === "undefined"
+    ) {
+
+        return null;
+
+    }
+
+    vehicleImageObserver =
+        new IntersectionObserver(
+            entries => {
+
+                entries.forEach(
+                    entry => {
+
+                        if (
+                            !entry.isIntersecting
+                        ) {
+
+                            return;
+
+                        }
+
+                        const imageElement =
+                            entry.target;
+
+                        const make =
+                            imageElement.dataset.vehicleMake;
+
+                        const model =
+                            imageElement.dataset.vehicleModel;
+
+                        const kind =
+                            imageElement.dataset.vehicleKind;
+
+                        if (
+                            make &&
+                            model &&
+                            kind
+                        ) {
+
+                            loadVehicleCardImage(
+                                imageElement,
+                                make,
+                                model,
+                                kind
+                            );
+
+                        }
+
+                        vehicleImageObserver.unobserve(
+                            imageElement
+                        );
+
+                    },
+                    {
+                        rootMargin: "300px 0px"
+                    }
+                );
+
+            }
+        );
+
+    return vehicleImageObserver;
+
+}
 
 
 /*
@@ -164,6 +261,487 @@ function getVehicleKindInfo(kind) {
 
 /*
  * ============================================================
+ * VEHICLE DETAILS
+ *
+ * Loads Wikidata + Wikimedia Commons image data
+ * through the Cloudflare API.
+ * ============================================================
+ */
+
+function getVehicleDetailsCacheKey(
+    make,
+    model,
+    kind
+) {
+
+    return [
+        normalizeVehicleText(make),
+        normalizeVehicleText(model),
+        normalizeVehicleText(kind)
+    ].join("|");
+
+}
+
+
+async function fetchVehicleDetails(
+    make,
+    model,
+    kind
+) {
+
+    const cacheKey =
+        getVehicleDetailsCacheKey(
+            make,
+            model,
+            kind
+        );
+
+
+    /*
+     * Browser memory cache.
+     */
+
+    if (
+        vehicleDetailsCache.has(cacheKey)
+    ) {
+
+        return vehicleDetailsCache.get(
+            cacheKey
+        );
+
+    }
+
+
+    /*
+     * Prevent duplicate requests for
+     * the same vehicle.
+     */
+
+    if (
+        vehicleDetailsLoading.has(cacheKey)
+    ) {
+
+        return vehicleDetailsLoading.get(
+            cacheKey
+        );
+
+    }
+
+
+    const loadingPromise =
+        (async () => {
+
+            try {
+
+                const params =
+                    new URLSearchParams({
+
+                        action: "details",
+
+                        make: make,
+
+                        model: model,
+
+                        kind: kind
+
+                    });
+
+
+                const response =
+                    await fetch(
+                        `${VEHICLE_API}?${params.toString()}`,
+                        {
+                            headers: {
+                                "Accept":
+                                    "application/json"
+                            }
+                        }
+                    );
+
+
+                if (!response.ok) {
+
+                    throw new Error(
+                        `Vehicle details API returned ${response.status}`
+                    );
+
+                }
+
+
+                const data =
+                    await response.json();
+
+
+                if (
+                    !data ||
+                    !data.success
+                ) {
+
+                    throw new Error(
+                        "Invalid vehicle details response"
+                    );
+
+                }
+
+
+                vehicleDetailsCache.set(
+                    cacheKey,
+                    data
+                );
+
+
+                return data;
+
+            } catch (error) {
+
+                console.error(
+                    "Vehicle details error:",
+                    make,
+                    model,
+                    kind,
+                    error
+                );
+
+                /*
+                 * Cache null temporarily in memory
+                 * so a broken request is not repeated
+                 * continuously while scrolling.
+                 */
+
+                vehicleDetailsCache.set(
+                    cacheKey,
+                    null
+                );
+
+                return null;
+
+            } finally {
+
+                vehicleDetailsLoading.delete(
+                    cacheKey
+                );
+
+            }
+
+        })();
+
+
+    vehicleDetailsLoading.set(
+        cacheKey,
+        loadingPromise
+    );
+
+
+    return loadingPromise;
+
+}
+
+
+/*
+ * ============================================================
+ * VEHICLE CARD IMAGE
+ * ============================================================
+ */
+
+function createVehicleImageElement(
+    vehicle,
+    kind
+) {
+
+    const image =
+        document.createElement("img");
+
+    image.className =
+        "car-card-image";
+
+    image.alt =
+        `${vehicle.make || ""} ${vehicle.model || ""}`.trim();
+
+    image.loading =
+        "lazy";
+
+    image.decoding =
+        "async";
+
+    image.dataset.vehicleMake =
+        vehicle.make || "";
+
+    image.dataset.vehicleModel =
+        vehicle.model || "";
+
+    image.dataset.vehicleKind =
+        kind;
+
+    image.style.width =
+        "100%";
+
+    image.style.height =
+        "180px";
+
+    image.style.display =
+        "block";
+
+    image.style.objectFit =
+        "cover";
+
+    image.style.borderRadius =
+        "12px 12px 0 0";
+
+    image.style.background =
+        "rgba(128,128,128,0.10)";
+
+    image.style.opacity =
+        "0";
+
+    image.style.transition =
+        "opacity 0.2s ease";
+
+
+    image.addEventListener(
+        "load",
+        () => {
+
+            image.style.opacity =
+                "1";
+
+        }
+    );
+
+
+    image.addEventListener(
+        "error",
+        () => {
+
+            showVehicleImagePlaceholder(
+                image
+            );
+
+        }
+    );
+
+
+    return image;
+
+}
+
+
+function createVehicleImagePlaceholder(
+    vehicle,
+    kind
+) {
+
+    const info =
+        getVehicleKindInfo(kind);
+
+    const wrapper =
+        document.createElement("div");
+
+    wrapper.className =
+        "car-card-image-placeholder";
+
+    wrapper.style.width =
+        "100%";
+
+    wrapper.style.height =
+        "180px";
+
+    wrapper.style.display =
+        "flex";
+
+    wrapper.style.alignItems =
+        "center";
+
+    wrapper.style.justifyContent =
+        "center";
+
+    wrapper.style.flexDirection =
+        "column";
+
+    wrapper.style.gap =
+        "8px";
+
+    wrapper.style.borderRadius =
+        "12px 12px 0 0";
+
+    wrapper.style.background =
+        "rgba(128,128,128,0.10)";
+
+    wrapper.style.fontSize =
+        "2.4rem";
+
+    wrapper.innerHTML = `
+
+        <div>
+            ${info.icon}
+        </div>
+
+        <small
+            style="
+                font-size:0.75rem;
+                opacity:0.65;
+            "
+        >
+            Image unavailable
+        </small>
+
+    `;
+
+    return wrapper;
+
+}
+
+
+function showVehicleImagePlaceholder(
+    image
+) {
+
+    const parent =
+        image.parentNode;
+
+    if (!parent) {
+
+        return;
+
+    }
+
+    const make =
+        image.dataset.vehicleMake || "";
+
+    const model =
+        image.dataset.vehicleModel || "";
+
+    const kind =
+        image.dataset.vehicleKind || "car";
+
+    const placeholder =
+        createVehicleImagePlaceholder(
+            {
+                make: make,
+                model: model
+            },
+            kind
+        );
+
+    image.replaceWith(
+        placeholder
+    );
+
+}
+
+
+async function loadVehicleCardImage(
+    imageElement,
+    make,
+    model,
+    kind
+) {
+
+    /*
+     * Do not load the image twice.
+     */
+
+    if (
+        imageElement.dataset.loaded === "true"
+    ) {
+
+        return;
+
+    }
+
+    imageElement.dataset.loaded =
+        "loading";
+
+
+    const details =
+        await fetchVehicleDetails(
+            make,
+            model,
+            kind
+        );
+
+
+    /*
+     * The card may have been removed
+     * while the request was running.
+     */
+
+    if (
+        !imageElement.isConnected
+    ) {
+
+        return;
+
+    }
+
+
+    const image =
+        details?.image;
+
+
+    if (
+        !image ||
+        !image.url
+    ) {
+
+        showVehicleImagePlaceholder(
+            imageElement
+        );
+
+        return;
+
+    }
+
+
+    /*
+     * Use the direct Wikimedia Commons
+     * upload URL returned by our API.
+     */
+
+    imageElement.src =
+        image.url;
+
+    imageElement.dataset.loaded =
+        "true";
+
+
+    /*
+     * Keep useful licensing metadata
+     * directly on the image element.
+     */
+
+    if (image.author) {
+
+        imageElement.dataset.imageAuthor =
+            image.author;
+
+    }
+
+    if (image.license) {
+
+        imageElement.dataset.imageLicense =
+            image.license;
+
+    }
+
+    if (image.licenseUrl) {
+
+        imageElement.dataset.imageLicenseUrl =
+            image.licenseUrl;
+
+    }
+
+    if (image.sourceUrl) {
+
+        imageElement.dataset.imageSourceUrl =
+            image.sourceUrl;
+
+    }
+
+}
+
+
+/*
+ * ============================================================
  * LOAD VEHICLESDB CATALOG
  * ============================================================
  */
@@ -178,21 +756,28 @@ async function fetchVehicleCatalog(
 
     }
 
+
     if (
         vehicleCatalogCache.has(kind)
     ) {
 
-        return vehicleCatalogCache.get(kind);
+        return vehicleCatalogCache.get(
+            kind
+        );
 
     }
+
 
     if (
         vehicleCatalogLoading.has(kind)
     ) {
 
-        return vehicleCatalogLoading.get(kind);
+        return vehicleCatalogLoading.get(
+            kind
+        );
 
     }
+
 
     const loadingPromise =
         (async () => {
@@ -208,6 +793,7 @@ async function fetchVehicleCatalog(
 
                     });
 
+
                 const response =
                     await fetch(
                         `${VEHICLE_API}?${params.toString()}`,
@@ -219,6 +805,7 @@ async function fetchVehicleCatalog(
                         }
                     );
 
+
                 if (!response.ok) {
 
                     throw new Error(
@@ -227,8 +814,10 @@ async function fetchVehicleCatalog(
 
                 }
 
+
                 const data =
                     await response.json();
+
 
                 if (
                     !data ||
@@ -242,18 +831,22 @@ async function fetchVehicleCatalog(
 
                 }
 
+
                 const vehicles =
                     data.vehicles
-                        .filter(vehicle =>
-                            vehicle &&
-                            vehicle.make &&
-                            vehicle.model
+                        .filter(
+                            vehicle =>
+                                vehicle &&
+                                vehicle.make &&
+                                vehicle.model
                         );
+
 
                 vehicleCatalogCache.set(
                     kind,
                     vehicles
                 );
+
 
                 return vehicles;
 
@@ -276,10 +869,12 @@ async function fetchVehicleCatalog(
 
         })();
 
+
     vehicleCatalogLoading.set(
         kind,
         loadingPromise
     );
+
 
     return loadingPromise;
 
@@ -322,47 +917,58 @@ function getPopularVehicles(
 
     }
 
+
     return [...vehicles]
-        .sort((a, b) => {
+        .sort(
+            (a, b) => {
 
-            const popularityDifference =
-                getVehiclePopularityValue(a) -
-                getVehiclePopularityValue(b);
+                const popularityDifference =
+                    getVehiclePopularityValue(a) -
+                    getVehiclePopularityValue(b);
 
-            if (
-                popularityDifference !== 0
-            ) {
 
-                return popularityDifference;
+                if (
+                    popularityDifference !== 0
+                ) {
 
-            }
+                    return popularityDifference;
 
-            const makeCompare =
-                String(a.make || "")
+                }
+
+
+                const makeCompare =
+                    String(a.make || "")
+                        .localeCompare(
+                            String(b.make || ""),
+                            undefined,
+                            {
+                                sensitivity:
+                                    "base"
+                            }
+                        );
+
+
+                if (
+                    makeCompare !== 0
+                ) {
+
+                    return makeCompare;
+
+                }
+
+
+                return String(a.model || "")
                     .localeCompare(
-                        String(b.make || ""),
+                        String(b.model || ""),
                         undefined,
                         {
-                            sensitivity: "base"
+                            sensitivity:
+                                "base"
                         }
                     );
 
-            if (makeCompare !== 0) {
-
-                return makeCompare;
-
             }
-
-            return String(a.model || "")
-                .localeCompare(
-                    String(b.model || ""),
-                    undefined,
-                    {
-                        sensitivity: "base"
-                    }
-                );
-
-        });
+        );
 
 }
 
@@ -379,7 +985,10 @@ function searchVehicleCatalog(
 ) {
 
     const normalizedQuery =
-        normalizeVehicleText(query);
+        normalizeVehicleText(
+            query
+        );
+
 
     if (!normalizedQuery) {
 
@@ -389,19 +998,23 @@ function searchVehicleCatalog(
 
     }
 
-    const results =
-        vehicles.filter(vehicle => {
 
-            const text =
-                normalizeVehicleText(
-                    `${vehicle.make} ${vehicle.model} ${vehicle.bodyType || ""}`
+    const results =
+        vehicles.filter(
+            vehicle => {
+
+                const text =
+                    normalizeVehicleText(
+                        `${vehicle.make} ${vehicle.model} ${vehicle.bodyType || ""}`
+                    );
+
+                return text.includes(
+                    normalizedQuery
                 );
 
-            return text.includes(
-                normalizedQuery
-            );
+            }
+        );
 
-        });
 
     return results.slice(
         0,
@@ -414,10 +1027,6 @@ function searchVehicleCatalog(
 /*
  * ============================================================
  * CALCULATE VEHICLES FOR 3 ROWS
- *
- * Uses the actual CSS grid width and card width.
- * This makes the limit responsive on desktop,
- * tablet and mobile.
  * ============================================================
  */
 
@@ -428,19 +1037,23 @@ function getVehiclesPerRow() {
             "popularCarsGrid"
         );
 
+
     if (!grid) {
 
         return 4;
 
     }
 
+
     const styles =
         window.getComputedStyle(
             grid
         );
 
+
     const columns =
         styles.gridTemplateColumns;
+
 
     if (
         columns &&
@@ -453,6 +1066,7 @@ function getVehiclesPerRow() {
                 .filter(Boolean)
                 .length;
 
+
         if (count > 0) {
 
             return count;
@@ -461,17 +1075,23 @@ function getVehiclesPerRow() {
 
     }
 
+
     const cards =
         grid.querySelectorAll(
             ".car-card"
         );
 
+
     if (cards.length > 1) {
 
         const firstTop =
-            cards[0].getBoundingClientRect().top;
+            cards[0]
+                .getBoundingClientRect()
+                .top;
+
 
         let count = 0;
+
 
         for (
             const card of cards
@@ -479,7 +1099,9 @@ function getVehiclesPerRow() {
 
             if (
                 Math.abs(
-                    card.getBoundingClientRect().top -
+                    card
+                        .getBoundingClientRect()
+                        .top -
                     firstTop
                 ) < 2
             ) {
@@ -490,6 +1112,7 @@ function getVehiclesPerRow() {
 
         }
 
+
         if (count > 0) {
 
             return count;
@@ -497,6 +1120,7 @@ function getVehiclesPerRow() {
         }
 
     }
+
 
     return 4;
 
@@ -516,8 +1140,10 @@ function getInitialVehicleLimit(
 
     }
 
+
     const perRow =
         getVehiclesPerRow();
+
 
     return Math.min(
         vehicles.length,
@@ -544,44 +1170,62 @@ function renderVehicleExpandButton(
             "carsVehicleExpandButton"
         );
 
+
     if (existing) {
 
         existing.remove();
 
     }
 
+
     if (
         !Array.isArray(totalVehicles) ||
-        totalVehicles.length <= visibleVehicles.length
+        totalVehicles.length <=
+            visibleVehicles.length
     ) {
 
         return;
 
     }
 
+
     const info =
-        getVehicleKindInfo(kind);
+        getVehicleKindInfo(
+            kind
+        );
+
 
     const wrapper =
-        document.createElement("div");
+        document.createElement(
+            "div"
+        );
+
 
     wrapper.id =
         "carsVehicleExpandButton";
 
+
     wrapper.className =
         "cars-expand-wrapper";
 
+
     const button =
-        document.createElement("button");
+        document.createElement(
+            "button"
+        );
+
 
     button.type =
         "button";
 
+
     button.className =
         "cars-expand-button";
 
+
     button.textContent =
         `Show all ${info.plural.toLowerCase()} ↓`;
+
 
     button.addEventListener(
         "click",
@@ -589,6 +1233,7 @@ function renderVehicleExpandButton(
 
             currentVehicleShowAll =
                 true;
+
 
             renderVehicleCards(
                 totalVehicles,
@@ -599,14 +1244,17 @@ function renderVehicleExpandButton(
         }
     );
 
+
     wrapper.appendChild(
         button
     );
+
 
     const grid =
         document.getElementById(
             "popularCarsGrid"
         );
+
 
     if (
         grid &&
@@ -632,35 +1280,51 @@ function renderVehicleCollapseButton(
             "carsVehicleExpandButton"
         );
 
+
     if (existing) {
 
         existing.remove();
 
     }
 
+
     const info =
-        getVehicleKindInfo(kind);
+        getVehicleKindInfo(
+            kind
+        );
+
 
     const wrapper =
-        document.createElement("div");
+        document.createElement(
+            "div"
+        );
+
 
     wrapper.id =
         "carsVehicleExpandButton";
 
+
     wrapper.className =
         "cars-expand-wrapper";
 
+
     const button =
-        document.createElement("button");
+        document.createElement(
+            "button"
+        );
+
 
     button.type =
         "button";
 
+
     button.className =
         "cars-expand-button";
 
+
     button.textContent =
         `Show less ${info.plural.toLowerCase()} ↑`;
+
 
     button.addEventListener(
         "click",
@@ -668,6 +1332,7 @@ function renderVehicleCollapseButton(
 
             currentVehicleShowAll =
                 false;
+
 
             renderVehicleCards(
                 currentVehicleResults,
@@ -678,14 +1343,17 @@ function renderVehicleCollapseButton(
         }
     );
 
+
     wrapper.appendChild(
         button
     );
+
 
     const grid =
         document.getElementById(
             "popularCarsGrid"
         );
+
 
     if (
         grid &&
@@ -714,25 +1382,36 @@ function createVehicleCard(
 ) {
 
     const card =
-        document.createElement("button");
+        document.createElement(
+            "button"
+        );
 
-    card.type = "button";
+
+    card.type =
+        "button";
+
 
     card.className =
         "car-card";
 
+
     const info =
-        getVehicleKindInfo(kind);
+        getVehicleKindInfo(
+            kind
+        );
+
 
     const make =
         escapeVehicleHtml(
             vehicle.make
         );
 
+
     const model =
         escapeVehicleHtml(
             vehicle.model
         );
+
 
     const bodyType =
         vehicle.bodyType
@@ -741,8 +1420,10 @@ function createVehicleCard(
             )
             : "";
 
+
     let secondaryText =
         info.singular;
+
 
     if (bodyType) {
 
@@ -751,11 +1432,118 @@ function createVehicleCard(
 
     }
 
-    card.innerHTML = `
 
-        <div class="car-card-icon">
-            ${info.icon}
-        </div>
+    /*
+     * Image area.
+     */
+
+    const imageContainer =
+        document.createElement(
+            "div"
+        );
+
+
+    imageContainer.className =
+        "car-card-image-container";
+
+
+    imageContainer.style.width =
+        "100%";
+
+
+    imageContainer.style.overflow =
+        "hidden";
+
+
+    /*
+     * Placeholder is shown immediately.
+     * The real image replaces it once the
+     * details API returns.
+     */
+
+    const placeholder =
+        createVehicleImagePlaceholder(
+            vehicle,
+            kind
+        );
+
+
+    imageContainer.appendChild(
+        placeholder
+    );
+
+
+    /*
+     * Real lazy-loading image.
+     */
+
+    const image =
+        createVehicleImageElement(
+            vehicle,
+            kind
+        );
+
+
+    image.style.position =
+        "absolute";
+
+
+    image.style.inset =
+        "0";
+
+
+    /*
+     * Make the image container relative.
+     */
+
+    imageContainer.style.position =
+        "relative";
+
+
+    imageContainer.style.height =
+        "180px";
+
+
+    imageContainer.appendChild(
+        image
+    );
+
+
+    /*
+     * Hide the image until loaded.
+     */
+
+    image.addEventListener(
+        "load",
+        () => {
+
+            if (
+                placeholder.isConnected
+            ) {
+
+                placeholder.remove();
+
+            }
+
+        }
+    );
+
+
+    /*
+     * Text area.
+     */
+
+    const textContainer =
+        document.createElement(
+            "div"
+        );
+
+
+    textContainer.className =
+        "car-card-content";
+
+
+    textContainer.innerHTML = `
 
         <strong>
             ${make} ${model}
@@ -767,19 +1555,64 @@ function createVehicleCard(
 
     `;
 
+
+    card.appendChild(
+        imageContainer
+    );
+
+
+    card.appendChild(
+        textContainer
+    );
+
+
     /*
-     * The comparison system will be connected
+     * Comparison system will be connected
      * to these cards later.
      */
 
     card.dataset.vehicleKind =
         kind;
 
+
     card.dataset.vehicleMake =
         vehicle.make || "";
 
+
     card.dataset.vehicleModel =
         vehicle.model || "";
+
+
+    /*
+     * Register image with IntersectionObserver.
+     */
+
+    const observer =
+        getVehicleImageObserver();
+
+
+    if (observer) {
+
+        observer.observe(
+            image
+        );
+
+    } else {
+
+        /*
+         * Fallback for browsers without
+         * IntersectionObserver.
+         */
+
+        loadVehicleCardImage(
+            image,
+            vehicle.make || "",
+            vehicle.model || "",
+            kind
+        );
+
+    }
+
 
     return card;
 
@@ -803,7 +1636,13 @@ function renderVehicleCards(
             "popularCarsGrid"
         );
 
-    if (!grid) return;
+
+    if (!grid) {
+
+        return;
+
+    }
+
 
     /*
      * Remove old Show All / Show Less button.
@@ -814,13 +1653,17 @@ function renderVehicleCards(
             "carsVehicleExpandButton"
         );
 
+
     if (existingExpandButton) {
 
         existingExpandButton.remove();
 
     }
 
-    grid.innerHTML = "";
+
+    grid.innerHTML =
+        "";
+
 
     if (
         !Array.isArray(vehicles) ||
@@ -828,7 +1671,10 @@ function renderVehicleCards(
     ) {
 
         const info =
-            getVehicleKindInfo(kind);
+            getVehicleKindInfo(
+                kind
+            );
+
 
         grid.innerHTML = `
 
@@ -851,12 +1697,15 @@ function renderVehicleCards(
 
         `;
 
+
         currentVehicleResults =
             vehicles || [];
+
 
         return;
 
     }
+
 
     /*
      * Keep the complete current result set.
@@ -865,20 +1714,25 @@ function renderVehicleCards(
     currentVehicleResults =
         vehicles;
 
+
     let vehiclesToRender =
         vehicles;
 
+
     /*
-     * Search results are shown directly.
-     * Normal category browsing starts with 3 rows.
+     * Normal browsing starts with 3 rows.
      */
 
-    if (!forceShowAll && !currentVehicleShowAll) {
+    if (
+        !forceShowAll &&
+        !currentVehicleShowAll
+    ) {
 
         const limit =
             getInitialVehicleLimit(
                 vehicles
             );
+
 
         vehiclesToRender =
             vehicles.slice(
@@ -888,8 +1742,10 @@ function renderVehicleCards(
 
     }
 
+
     const fragment =
         document.createDocumentFragment();
+
 
     for (
         const vehicle of vehiclesToRender
@@ -904,9 +1760,11 @@ function renderVehicleCards(
 
     }
 
+
     grid.appendChild(
         fragment
     );
+
 
     /*
      * Add Show All / Show Less.
@@ -919,6 +1777,7 @@ function renderVehicleCards(
 
         currentVehicleShowAll =
             true;
+
 
         renderVehicleCollapseButton(
             kind
@@ -953,10 +1812,12 @@ function updateCarsCategoryHeader(
             "carsResultsTitle"
         );
 
+
     const description =
         document.getElementById(
             "carsResultsDescription"
         );
+
 
     if (
         !title ||
@@ -967,23 +1828,33 @@ function updateCarsCategoryHeader(
 
     }
 
-    const info =
-        getVehicleKindInfo(kind);
 
-    if (mode === "search") {
+    const info =
+        getVehicleKindInfo(
+            kind
+        );
+
+
+    if (
+        mode === "search"
+    ) {
 
         title.textContent =
             `🔍 ${info.plural} Search`;
 
+
         description.textContent =
             `Search results from the VehiclesDB ${info.singular.toLowerCase()} catalog.`;
+
 
         return;
 
     }
 
+
     title.textContent =
         info.title;
+
 
     description.textContent =
         info.description;
@@ -994,9 +1865,6 @@ function updateCarsCategoryHeader(
 /*
  * ============================================================
  * VEHICLE CATEGORY NAVIGATION
- *
- * We reuse the existing .cars-category-grid
- * from index.html.
  * ============================================================
  */
 
@@ -1007,32 +1875,45 @@ function renderVehicleCategoryButtons() {
             "#carsSection .cars-category-grid"
         );
 
+
     if (!categoryGrid) {
 
         return;
 
     }
 
-    categoryGrid.innerHTML = "";
+
+    categoryGrid.innerHTML =
+        "";
+
 
     for (
         const kind of VEHICLE_KINDS
     ) {
 
         const info =
-            getVehicleKindInfo(kind);
+            getVehicleKindInfo(
+                kind
+            );
+
 
         const button =
-            document.createElement("button");
+            document.createElement(
+                "button"
+            );
+
 
         button.type =
             "button";
 
+
         button.className =
             "cars-category-card";
 
+
         button.dataset.vehicleKind =
             kind;
+
 
         button.innerHTML = `
 
@@ -1050,6 +1931,7 @@ function renderVehicleCategoryButtons() {
 
         `;
 
+
         button.addEventListener(
             "click",
             () => {
@@ -1060,6 +1942,7 @@ function renderVehicleCategoryButtons() {
 
             }
         );
+
 
         categoryGrid.appendChild(
             button
@@ -1084,28 +1967,37 @@ async function filterCarsByCategory(
         !VEHICLE_KINDS.includes(kind)
     ) {
 
-        kind = "car";
+        kind =
+            "car";
 
     }
+
 
     currentVehicleKind =
         kind;
 
+
     currentVehicleShowAll =
         false;
 
+
     const info =
-        getVehicleKindInfo(kind);
+        getVehicleKindInfo(
+            kind
+        );
+
 
     updateCarsCategoryHeader(
         "popular",
         kind
     );
 
+
     const oldExpandButton =
         document.getElementById(
             "carsVehicleExpandButton"
         );
+
 
     if (oldExpandButton) {
 
@@ -1113,10 +2005,12 @@ async function filterCarsByCategory(
 
     }
 
+
     const grid =
         document.getElementById(
             "popularCarsGrid"
         );
+
 
     if (grid) {
 
@@ -1142,18 +2036,22 @@ async function filterCarsByCategory(
 
     }
 
+
     const vehicles =
         await fetchVehicleCatalog(
             kind
         );
 
+
     currentVehicleCatalog =
         vehicles;
+
 
     const popularVehicles =
         getPopularVehicles(
             vehicles
         );
+
 
     renderVehicleCards(
         popularVehicles,
@@ -1177,19 +2075,17 @@ function handleVehicleSearch(
     const hasQuery =
         String(query || "").trim();
 
-    /*
-     * When searching, always reset
-     * the Show All state.
-     */
 
     currentVehicleShowAll =
         false;
+
 
     const results =
         searchVehicleCatalog(
             currentVehicleCatalog,
             query
         );
+
 
     if (hasQuery) {
 
@@ -1198,10 +2094,6 @@ function handleVehicleSearch(
             currentVehicleKind
         );
 
-        /*
-         * Search results are not limited
-         * to the normal 3-row browsing view.
-         */
 
         renderVehicleCards(
             results,
@@ -1215,6 +2107,7 @@ function handleVehicleSearch(
             "popular",
             currentVehicleKind
         );
+
 
         renderVehicleCards(
             results,
@@ -1240,6 +2133,7 @@ async function openCars() {
             "homePage"
         );
 
+
     if (homePage) {
 
         homePage.style.display =
@@ -1247,26 +2141,31 @@ async function openCars() {
 
     }
 
+
     document
         .querySelectorAll(".app")
-        .forEach(x => {
+        .forEach(
+            x => {
 
-            x.classList.remove(
-                "active"
-            );
+                x.classList.remove(
+                    "active"
+                );
 
-            x.style.display =
-                "none";
+                x.style.display =
+                    "none";
 
-        });
+            }
+        );
 
 
     const sectionsToHide = [
+
         "weatherSection",
         "newsSection",
         "discountsSection",
         "marketsSection",
         "moneySection"
+
     ];
 
 
@@ -1277,6 +2176,7 @@ async function openCars() {
                 document.getElementById(
                     id
                 );
+
 
             if (element) {
 
@@ -1294,6 +2194,7 @@ async function openCars() {
             "settingsPanel"
         );
 
+
     if (settingsPanel) {
 
         settingsPanel.style.display =
@@ -1306,6 +2207,7 @@ async function openCars() {
         document.getElementById(
             "carsSection"
         );
+
 
     if (carsSection) {
 
@@ -1329,11 +2231,14 @@ async function openCars() {
     currentVehicleKind =
         "car";
 
+
     currentVehicleCatalog =
         [];
 
+
     currentVehicleResults =
         [];
+
 
     currentVehicleShowAll =
         false;
@@ -1350,6 +2255,7 @@ async function openCars() {
             "carsVehicleExpandButton"
         );
 
+
     if (oldExpandButton) {
 
         oldExpandButton.remove();
@@ -1361,6 +2267,7 @@ async function openCars() {
         document.getElementById(
             "popularCarsGrid"
         );
+
 
     if (grid) {
 
@@ -1395,6 +2302,7 @@ async function openCars() {
         await fetchVehicleCatalog(
             "car"
         );
+
 
     currentVehicleCatalog =
         vehicles;
@@ -1431,8 +2339,6 @@ async function openCars() {
 /*
  * ============================================================
  * ATTRIBUTION
- *
- * Required by CC BY 4.0.
  * ============================================================
  */
 
@@ -1443,11 +2349,13 @@ function ensureVehiclesDBAttribution() {
             "carsContent"
         );
 
+
     if (!carsContent) {
 
         return;
 
     }
+
 
     if (
         document.getElementById(
@@ -1459,26 +2367,37 @@ function ensureVehiclesDBAttribution() {
 
     }
 
+
     const attribution =
-        document.createElement("p");
+        document.createElement(
+            "p"
+        );
+
 
     attribution.id =
         "vehiclesDbAttribution";
 
+
     attribution.className =
         "cars-data-attribution";
+
 
     attribution.style.marginTop =
         "24px";
 
+
     attribution.style.fontSize =
         "0.85rem";
+
 
     attribution.style.opacity =
         "0.7";
 
+
     attribution.innerHTML = `
+
         Vehicle data by
+
         <a
             href="https://github.com/vehiclesdb/vehiclesdb"
             target="_blank"
@@ -1486,8 +2405,11 @@ function ensureVehiclesDBAttribution() {
         >
             VehiclesDB
         </a>
+
         · CC BY 4.0
+
     `;
+
 
     carsContent.appendChild(
         attribution
@@ -1504,6 +2426,7 @@ function ensureVehiclesDBAttribution() {
 
 window.openCars =
     openCars;
+
 
 window.filterCarsByCategory =
     filterCarsByCategory;
@@ -1541,6 +2464,7 @@ document.addEventListener(
             document.getElementById(
                 "carsSearchInput"
             );
+
 
         if (!searchInput) {
 
