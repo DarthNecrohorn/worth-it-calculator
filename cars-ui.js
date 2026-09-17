@@ -402,10 +402,9 @@ async function fetchVehicleDetails(
                 );
 
                 /*
-                 * Cache null temporarily in memory
-                 * so a broken request is not repeated
-                 * continuously while scrolling.
-                 */
+                  * Do not cache failed requests.
+                  * A later attempt should be allowed to retry.
+                                                               */
 
                 return null;
 
