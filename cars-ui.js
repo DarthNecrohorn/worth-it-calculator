@@ -734,17 +734,34 @@ async function loadVehicleCardImage(
 
 
     if (
-        !image ||
-        !image.url
-    ) {
+    !image ||
+    !image.url
+) {
 
-        showVehicleImagePlaceholder(
-            imageElement
+    const parent =
+        imageElement.parentNode;
+
+    if (parent) {
+
+        const placeholder =
+            createVehicleImagePlaceholder(
+                {
+                    make: make,
+                    model: model
+                },
+                kind,
+                "Image unavailable"
+            );
+
+        imageElement.replaceWith(
+            placeholder
         );
 
-        return;
-
     }
+
+    return;
+
+}
 
 
     /*
