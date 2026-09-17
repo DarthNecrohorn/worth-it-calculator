@@ -1711,26 +1711,20 @@ function createVehicleCard(
 
     if (observer) {
 
-        observer.observe(
-            image
-        );
+    observer.observe(
+        image
+    );
 
-    } else {
+} else {
 
-        /*
-         * Fallback for browsers without
-         * IntersectionObserver.
-         */
+    queueVehicleImageLoad(
+        image,
+        vehicle.make || "",
+        vehicle.model || "",
+        kind
+    );
 
-        loadVehicleCardImage(
-            image,
-            vehicle.make || "",
-            vehicle.model || "",
-            kind
-        );
-
-    }
-
+}
 
     return card;
 
