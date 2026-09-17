@@ -634,77 +634,14 @@ function createVehicleImageElement(
 }
 
 
-function createVehicleImagePlaceholder(
-    vehicle,
-    kind
-) {
-
-    const info =
-        getVehicleKindInfo(kind);
-
-
-    const wrapper =
-        document.createElement("div");
-
-
-    wrapper.className =
-        "car-card-image-placeholder";
-
-
-    wrapper.style.width =
-        "100%";
-
-    wrapper.style.height =
-        "180px";
-
-    wrapper.style.display =
-        "flex";
-
-    wrapper.style.alignItems =
-        "center";
-
-    wrapper.style.justifyContent =
-        "center";
-
-    wrapper.style.flexDirection =
-        "column";
-
-    wrapper.style.gap =
-        "8px";
-
-    wrapper.style.borderRadius =
-        "12px 12px 0 0";
-
-    wrapper.style.background =
-        "rgba(128,128,128,0.10)";
-
-
-    wrapper.innerHTML = `
-
-        <div
-            style="
-                font-size:2.2rem;
-                opacity:0.75;
-            "
-        >
-            ${info.icon}
-        </div>
-
-        <small
-            class="car-image-loading-text"
-            style="
-                font-size:0.75rem;
-                opacity:0.55;
-            "
-        >
-            Loading image...
-        </small>
-
+function createVehicleImagePlaceholder(message = "Loading image...") {
+    const placeholder = document.createElement("div");
+    placeholder.className = "car-image-placeholder";
+    placeholder.innerHTML = `
+        <span>🚗</span>
+        <small class="car-image-loading-text">${message}</small>
     `;
-
-
-    return wrapper;
-
+    return placeholder;
 }
 
 function showVehicleImagePlaceholder(
