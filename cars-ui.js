@@ -410,11 +410,6 @@ async function fetchVehicleDetails(
                  * continuously while scrolling.
                  */
 
-                vehicleDetailsCache.set(
-                    cacheKey,
-                    null
-                );
-
                 return null;
 
             } finally {
