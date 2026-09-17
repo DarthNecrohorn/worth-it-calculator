@@ -2120,9 +2120,7 @@ async function handleDetails(
      * expose that filename too.
      */
 
-    const wikidataImage =
-        getWikidataImage(
-            wikidataEntity
+    const wikidataImage = await getWikidataImage(wikidataEntity);
         );
 
     /*
