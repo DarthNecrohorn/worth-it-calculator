@@ -1595,20 +1595,8 @@ async function getWikidataImage(
         ) {
             return null;
         }
-
-        /*
-         * ----------------------------------------------------
-         * Make/model relevance check.
-         * ----------------------------------------------------
-         */
-
-        if (
-            targetModel &&
-            !imageText.includes(targetModel)
-        ) {
-            return null;
-        }
-
+        
+        
         /*
          * ----------------------------------------------------
          * Basic image validation.
