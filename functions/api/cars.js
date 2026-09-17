@@ -1486,9 +1486,15 @@ async function searchCommonsImage(
 ) {
 
     const queries = [
-        `${make} ${model}`,
-        `"${make} ${model}"`
+        `"${make} ${model}"`,
+        `${make} ${model}`
     ];
+
+    const targetMake =
+        simplifyText(make);
+
+    const targetModel =
+        simplifyText(model);
 
     for (const search of queries) {
 
@@ -1517,7 +1523,7 @@ async function searchCommonsImage(
 
         url.searchParams.set(
             "gsrlimit",
-            "10"
+            "20"
         );
 
         url.searchParams.set(
@@ -1562,13 +1568,20 @@ async function searchCommonsImage(
             await response.json();
 
         const pages =
-            Array.isArray(data?.query?.pages)
+            Array.isArray(
+                data?.query?.pages
+            )
                 ? data.query.pages
                 : [];
 
         /*
-         * Only use real image files.
+         * ----------------------------------------------------
+         * Score every candidate instead of taking the first
+         * licensed image.
+         * ----------------------------------------------------
          */
+
+        const candidates = [];
 
         for (const page of pages) {
 
@@ -1576,6 +1589,39 @@ async function searchCommonsImage(
                 page?.imageinfo?.[0];
 
             if (!image) {
+                continue;
+            }
+
+            const title =
+                String(
+                    page.title || ""
+                );
+
+            const titleText =
+                simplifyText(
+                    title
+                );
+
+            /*
+             * The filename/title must contain enough
+             * information to be relevant to the requested
+             * make/model.
+             */
+
+            const makeMatches =
+                titleText.includes(
+                    targetMake
+                );
+
+            const modelMatches =
+                titleText.includes(
+                    targetModel
+                );
+
+            if (
+                !makeMatches ||
+                !modelMatches
+            ) {
                 continue;
             }
 
@@ -1603,32 +1649,109 @@ async function searchCommonsImage(
                         ?.value
                 );
 
-            /*
-             * Commercially safe licenses we
-             * intentionally accept.
-             *
-             * CC0
-             * CC BY
-             * CC BY-SA
-             */
-
-            const acceptedLicense =
-                isAcceptedCommonsLicense(
+            if (
+                !isAcceptedCommonsLicense(
                     license,
                     licenseUrl
-                );
-
-            if (!acceptedLicense) {
+                )
+            ) {
                 continue;
             }
 
-            return {
+            /*
+             * Higher score = better match.
+             */
 
-                title:
-                    page.title || "",
+            let score = 0;
+
+            /*
+             * Exact make + model in title.
+             */
+
+            score += 50;
+
+            /*
+             * Prefer titles that start with the
+             * requested make/model.
+             */
+
+            const simplifiedTitle =
+                titleText
+                    .replace(/^file/, "");
+
+            if (
+                simplifiedTitle
+                    .startsWith(
+                        targetMake +
+                        targetModel
+                    )
+            ) {
+                score += 30;
+            }
+
+            /*
+             * Prefer larger images.
+             */
+
+            const width =
+                Number(
+                    image.width || 0
+                );
+
+            const height =
+                Number(
+                    image.height || 0
+                );
+
+            if (
+                width >= 1200 &&
+                height >= 700
+            ) {
+                score += 10;
+            }
+
+            /*
+             * Prefer JPEG/WEBP/PNG images.
+             */
+
+            const mime =
+                String(
+                    image.mime || ""
+                ).toLowerCase();
+
+            if (
+                mime === "image/jpeg" ||
+                mime === "image/webp" ||
+                mime === "image/png"
+            ) {
+                score += 5;
+            }
+
+            /*
+             * Slight preference for CC0 / Public Domain.
+             */
+
+            const licenseText =
+                license.toLowerCase();
+
+            if (
+                licenseText.includes("cc0") ||
+                licenseText.includes(
+                    "public domain"
+                )
+            ) {
+                score += 5;
+            }
+
+            candidates.push({
+
+                score,
+
+                title,
 
                 url:
-                    image.url || null,
+                    image.url ||
+                    null,
 
                 thumbnail:
                     image.thumburl ||
@@ -1636,31 +1759,57 @@ async function searchCommonsImage(
                     null,
 
                 width:
-                    image.width || null,
+                    image.width ||
+                    null,
 
                 height:
-                    image.height || null,
+                    image.height ||
+                    null,
 
                 mime:
-                    image.mime || null,
+                    image.mime ||
+                    null,
 
                 author:
-                    artist || null,
+                    artist ||
+                    null,
 
                 license:
-                    license || null,
+                    license ||
+                    null,
 
                 license_url:
-                    licenseUrl || null,
+                    licenseUrl ||
+                    null,
 
                 source_url:
                     `https://commons.wikimedia.org/wiki/${encodeURIComponent(
-                        page.title || ""
+                        title
                     )}`
 
-            };
+            });
+        }
+
+        /*
+         * Return the highest-quality relevant image.
+         */
+
+        if (candidates.length) {
+
+            candidates.sort(
+                (a, b) =>
+                    b.score -
+                    a.score
+            );
+
+            return candidates[0];
         }
     }
+
+    /*
+     * No sufficiently relevant licensed
+     * image was found.
+     */
 
     return null;
 }
