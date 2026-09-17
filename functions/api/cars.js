@@ -2029,10 +2029,12 @@ async function searchCommonsImage(make, model) {
                     );
 
                 const makeMatches =
-                    textTokens.has(
-                        normalizedMake
-                    );
-
+                   searchableText.includes(
+                       normalizedMake
+            ) ||
+                searchableText.includes(
+                   simplifyText(make)
+            );
                 if (!makeMatches) {
                     continue;
                 }
