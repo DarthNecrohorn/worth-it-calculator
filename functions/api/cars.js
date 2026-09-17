@@ -2115,13 +2115,16 @@ async function handleDetails(
         );
     }
 
-    /*
-     * If Wikidata itself contains an image,
-     * expose that filename too.
-     */
+   /*
+ * If Wikidata itself contains an image,
+ * verify the Commons license and expose
+ * the complete image metadata.
+ */
 
-    const wikidataImage = await getWikidataImage(wikidataEntity);
-        );
+const wikidataImage =
+    await getWikidataImage(
+        wikidataEntity
+    );
 
     /*
      * --------------------------------------------------------
