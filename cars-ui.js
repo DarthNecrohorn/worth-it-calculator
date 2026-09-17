@@ -642,11 +642,14 @@ function createVehicleImagePlaceholder(
     const info =
         getVehicleKindInfo(kind);
 
+
     const wrapper =
         document.createElement("div");
 
+
     wrapper.className =
         "car-card-image-placeholder";
+
 
     wrapper.style.width =
         "100%";
@@ -675,30 +678,34 @@ function createVehicleImagePlaceholder(
     wrapper.style.background =
         "rgba(128,128,128,0.10)";
 
-    wrapper.style.fontSize =
-        "2.4rem";
 
     wrapper.innerHTML = `
 
-        <div>
+        <div
+            style="
+                font-size:2.2rem;
+                opacity:0.75;
+            "
+        >
             ${info.icon}
         </div>
 
         <small
+            class="car-image-loading-text"
             style="
                 font-size:0.75rem;
-                opacity:0.65;
+                opacity:0.55;
             "
         >
-            Image unavailable
+            Loading image...
         </small>
 
     `;
 
+
     return wrapper;
 
 }
-
 
 function showVehicleImagePlaceholder(
     image
