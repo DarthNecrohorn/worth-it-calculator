@@ -2075,6 +2075,13 @@ export async function onRequestGet(
                     requestUrl
                 );
 
+            case "details":
+
+            return handleDetails(
+              requestUrl,
+                 database
+          );
+                
             default:
 
                 return jsonResponse(
