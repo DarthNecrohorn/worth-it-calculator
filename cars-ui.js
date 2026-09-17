@@ -692,13 +692,14 @@ function showVehicleImagePlaceholder(
         image.dataset.vehicleKind || "car";
 
     const placeholder =
-        createVehicleImagePlaceholder(
-            {
-                make: make,
-                model: model
-            },
-            kind
-        );
+    createVehicleImagePlaceholder(
+        {
+            make: make,
+            model: model
+        },
+        kind,
+        "Image unavailable"
+    );
 
     image.replaceWith(
         placeholder
