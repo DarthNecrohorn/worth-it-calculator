@@ -1760,12 +1760,9 @@ async function searchWikipediaVehicle(
 
 
     const searches = [
-
-        `${make} ${model}`,
-
-        `${make} ${model} ${kind}`
-
-    ];
+    `${make} ${model} ${kind}`,
+    `${make} ${model}`
+];
 
 
     for (
