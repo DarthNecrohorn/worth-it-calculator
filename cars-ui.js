@@ -967,32 +967,25 @@ async function fetchVehicleCatalog(
                                 vehicle &&
                                 vehicle.make &&
                                 vehicle.model
+                        )
+                        .filter(
+                            vehicle => {
+
+                                const rawDecile =
+                                    vehicle.globalDecile;
+
+                                return (
+                                    rawDecile !== null &&
+                                    rawDecile !== undefined &&
+                                    String(rawDecile).trim() !== "" &&
+                                    Number.isFinite(Number(rawDecile)) &&
+                                    Number(rawDecile) <= 2
+                                );
+
+                            }
                         );
 
-const vehicles =
-    data.vehicles
-        .filter(
-            vehicle =>
-                vehicle &&
-                vehicle.make &&
-                vehicle.model
-        )
-        .filter(
-            vehicle => {
-                const rawDecile =
-                    vehicle.globalDecile;
 
-                return (
-                    rawDecile !== null &&
-                    rawDecile !== undefined &&
-                    String(rawDecile).trim() !== "" &&
-                    Number.isFinite(
-                        Number(rawDecile)
-                    ) &&
-                    Number(rawDecile) <= 2
-                );
-            }
-        );
                 vehicleCatalogCache.set(
                     kind,
                     vehicles
@@ -1046,10 +1039,21 @@ function getVehiclePopularityValue(
     vehicle
 ) {
 
+    const rawDecile =
+        vehicle?.globalDecile;
+
+    if (
+        rawDecile === null ||
+        rawDecile === undefined ||
+        String(rawDecile).trim() === ""
+    ) {
+
+        return 999;
+
+    }
+
     const value =
-        Number(
-            vehicle?.globalDecile
-        );
+        Number(rawDecile);
 
     return Number.isFinite(value)
         ? value
@@ -4244,6 +4248,7 @@ function openCarsFromMenu() {
     }
 
     return openCars();
+
 }
 
 
@@ -4257,6 +4262,7 @@ window.openCarsFromMenu =
 
 window.filterCarsByCategory =
     filterCarsByCategory;
+
 
 /*
  * ============================================================
