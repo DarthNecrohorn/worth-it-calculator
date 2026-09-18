@@ -924,7 +924,7 @@ async function fetchVehicleCatalog(
 
                 const response =
                     await fetch(
-                        `${VEHICLE_API}?${params.toString()}`,
+                        `${VEHICLE_API}?${params.toString()}&v=${VEHICLE_API_VERSION}`,
                         {
                             headers: {
                                 "Accept":
