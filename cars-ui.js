@@ -468,6 +468,15 @@ async function fetchVehicleDetails(
 
             try {
 
+                const catalogVehicle =
+                    currentVehicleCatalog.find(
+                        vehicle =>
+                            normalizeVehicleText(vehicle?.make) ===
+                                normalizeVehicleText(make) &&
+                            normalizeVehicleText(vehicle?.model) ===
+                                normalizeVehicleText(model)
+                    ) || null;
+
                 const params =
                     new URLSearchParams({
 
@@ -480,6 +489,55 @@ async function fetchVehicleDetails(
                         kind: kind
 
                     });
+
+                if (catalogVehicle) {
+
+                    if (catalogVehicle.bodyType) {
+                        params.set(
+                            "body_type",
+                            catalogVehicle.bodyType
+                        );
+                    }
+
+                    if (Array.isArray(catalogVehicle.bodyTypes)) {
+                        params.set(
+                            "body_types",
+                            JSON.stringify(
+                                catalogVehicle.bodyTypes
+                            )
+                        );
+                    }
+
+                    if (
+                        catalogVehicle.yearStart !== null &&
+                        catalogVehicle.yearStart !== undefined
+                    ) {
+                        params.set(
+                            "year_start",
+                            String(catalogVehicle.yearStart)
+                        );
+                    }
+
+                    if (
+                        catalogVehicle.yearEnd !== null &&
+                        catalogVehicle.yearEnd !== undefined
+                    ) {
+                        params.set(
+                            "year_end",
+                            String(catalogVehicle.yearEnd)
+                        );
+                    }
+
+                    if (
+                        catalogVehicle.globalDecile !== null &&
+                        catalogVehicle.globalDecile !== undefined
+                    ) {
+                        params.set(
+                            "global_decile",
+                            String(catalogVehicle.globalDecile)
+                        );
+                    }
+                }
 
 
                 const response =
@@ -913,8 +971,7 @@ async function fetchVehicleCatalog(
                         `${baseUrl}/models.json`,
                         {
                             headers: {
-                                "Accept":
-                                    "application/json"
+                                "Accept": "application/json"
                             }
                         }
                     ),
@@ -922,8 +979,7 @@ async function fetchVehicleCatalog(
                         `${baseUrl}/makes.json`,
                         {
                             headers: {
-                                "Accept":
-                                    "application/json"
+                                "Accept": "application/json"
                             }
                         }
                     )
@@ -933,11 +989,9 @@ async function fetchVehicleCatalog(
                     !modelsResponse.ok ||
                     !makesResponse.ok
                 ) {
-
                     throw new Error(
                         `VehiclesDB catalog request failed: models=${modelsResponse.status}, makes=${makesResponse.status}`
                     );
-
                 }
 
                 const [
@@ -952,288 +1006,165 @@ async function fetchVehicleCatalog(
                     !Array.isArray(modelRecords) ||
                     !Array.isArray(makeRecords)
                 ) {
-
                     throw new Error(
                         "Invalid VehiclesDB catalog response"
                     );
-
                 }
 
                 const makeMap =
                     new Map(
                         makeRecords
-                            .filter(
-                                make =>
-                                    make &&
-                                    make.id
-                            )
-                            .map(
-                                make => [
-                                    String(make.id),
-                                    {
-                                        name:
-                                            make.name ||
-                                            "",
-                                        slug:
-                                            make.slug ||
-                                            ""
-                                    }
-                                ]
-                            )
+                            .filter(make => make && make.id)
+                            .map(make => [
+                                String(make.id),
+                                {
+                                    name: make.name || "",
+                                    slug: make.slug || ""
+                                }
+                            ])
                     );
 
                 const vehicles =
                     modelRecords
-                        .map(
-                            model => {
+                        .map(model => {
 
-                                if (
-                                    !model ||
-                                    !model.name
-                                ) {
-                                    return null;
-                                }
+                            if (!model || !model.name) {
+                                return null;
+                            }
 
-                                const make =
-                                    makeMap.get(
-                                        String(
-                                            model.make_id ||
-                                            ""
-                                        )
-                                    ) || {
-                                        name:
-                                            model.make_name ||
-                                            model.make ||
-                                            model.make_id ||
-                                            "",
-
-                                        slug:
-                                            model.make_slug ||
-                                            ""
-                                    };
-
-                                const rawDecile =
-                                    model?.popularity?.global_decile ??
-                                    model?.global_decile ??
-                                    model?.global_popularity_decile ??
-                                    null;
-
-                                const popularityRanks =
-                                    model?.popularity?.by_country
-                                        ? Object.values(
-                                            model.popularity.by_country
-                                        )
-                                            .map(
-                                                entry =>
-                                                    entry?.rank
-                                            )
-                                            .filter(
-                                                rank => {
-
-                                                    const value =
-                                                        Number(rank);
-
-                                                    return (
-                                                        Number.isFinite(
-                                                            value
-                                                        ) &&
-                                                        value > 0
-                                                    );
-
-                                                }
-                                            )
-                                        : [];
-
-                                return {
-
-                                    make:
-                                        make.name,
-
-                                    makeSlug:
-                                        make.slug,
-
-                                    model:
-                                        model.name,
-
-                                    modelSlug:
-                                        model.slug ||
+                            const make =
+                                makeMap.get(
+                                    String(model.make_id || "")
+                                ) || {
+                                    name:
+                                        model.make_name ||
+                                        model.make ||
+                                        model.make_id ||
                                         "",
-
-                                    kind:
-                                        model.kind ||
-                                        kind,
-
-                                    bodyType:
-                                        Array.isArray(
-                                            model.body_types
-                                        ) &&
-                                        model.body_types.length
-                                            ? model.body_types[0]
-                                            : null,
-
-                                    bodyTypes:
-                                        Array.isArray(
-                                            model.body_types
-                                        )
-                                            ? model.body_types
-                                            : [],
-
-                                    popularityRanks,
-
-                                    globalDecile:
-                                        rawDecile,
-
-                                    availability:
-                                        Array.isArray(
-                                            model.availability
-                                        )
-                                            ? model.availability
-                                                .map(
-                                                    item =>
-                                                        typeof item ===
-                                                        "string"
-                                                            ? item
-                                                            : item?.country
-                                                )
-                                                .filter(
-                                                    Boolean
-                                                )
-                                            : [],
-
-                                    yearStart:
-                                        model.year_start ??
-                                        null,
-
-                                    yearEnd:
-                                        model.year_end ??
-                                        null
+                                    slug:
+                                        model.make_slug ||
+                                        ""
                                 };
 
-                            }
-                        )
+                            const rawDecile =
+                                model?.popularity?.global_decile ??
+                                model?.global_decile ??
+                                model?.global_popularity_decile ??
+                                null;
+
+                            const popularityRanks =
+                                model?.popularity?.by_country
+                                    ? Object.values(
+                                        model.popularity.by_country
+                                    )
+                                        .map(entry => entry?.rank)
+                                        .filter(rank => {
+                                            const value = Number(rank);
+                                            return (
+                                                Number.isFinite(value) &&
+                                                value > 0
+                                            );
+                                        })
+                                    : [];
+
+                            return {
+                                make: make.name,
+                                makeSlug: make.slug,
+                                model: model.name,
+                                modelSlug: model.slug || "",
+                                kind: model.kind || kind,
+                                bodyType:
+                                    Array.isArray(model.body_types) &&
+                                    model.body_types.length
+                                        ? model.body_types[0]
+                                        : null,
+                                bodyTypes:
+                                    Array.isArray(model.body_types)
+                                        ? model.body_types
+                                        : [],
+                                popularityRanks,
+                                globalDecile:
+                                    rawDecile,
+                                availability:
+                                    Array.isArray(model.availability)
+                                        ? model.availability.map(item =>
+                                            typeof item === "string"
+                                                ? item
+                                                : item?.country
+                                        ).filter(Boolean)
+                                        : [],
+                                yearStart:
+                                    model.year_start ?? null,
+                                yearEnd:
+                                    model.year_end ?? null
+                            };
+                        })
                         .filter(Boolean)
-                        .filter(
-                            vehicle => {
+                        .filter(vehicle => {
 
-                                const rawDecile =
-                                    vehicle.globalDecile;
-
-                                return (
-                                    rawDecile !== null &&
-                                    rawDecile !== undefined &&
-                                    String(
-                                        rawDecile
-                                    ).trim() !== "" &&
-                                    Number.isFinite(
-                                        Number(
-                                            rawDecile
-                                        )
-                                    ) &&
-                                    Number(
-                                        rawDecile
-                                    ) <= 2
-                                );
-
-                            }
-                        );
-
-                vehicles.sort(
-                    (a, b) => {
-
-                        const decileCompare =
-                            getVehiclePopularityValue(a) -
-                            getVehiclePopularityValue(b);
-
-                        if (
-                            decileCompare !== 0
-                        ) {
-
-                            return decileCompare;
-
-                        }
-
-                        const aSecondary =
-                            getVehicleSecondaryPopularityValue(
-                                a
-                            );
-
-                        const bSecondary =
-                            getVehicleSecondaryPopularityValue(
-                                b
-                            );
-
-                        if (
-                            Number.isFinite(
-                                aSecondary
-                            ) &&
-                            Number.isFinite(
-                                bSecondary
-                            ) &&
-                            aSecondary !==
-                                bSecondary
-                        ) {
+                            const rawDecile =
+                                vehicle.globalDecile;
 
                             return (
-                                aSecondary -
-                                bSecondary
+                                rawDecile !== null &&
+                                rawDecile !== undefined &&
+                                String(rawDecile).trim() !== "" &&
+                                Number.isFinite(Number(rawDecile)) &&
+                                Number(rawDecile) <= 2
                             );
+                        });
 
-                        }
+                vehicles.sort((a, b) => {
 
-                        if (
-                            Number.isFinite(
-                                aSecondary
-                            ) !==
-                            Number.isFinite(
-                                bSecondary
-                            )
-                        ) {
+                    const decileCompare =
+                        getVehiclePopularityValue(a) -
+                        getVehiclePopularityValue(b);
 
-                            return Number.isFinite(
-                                aSecondary
-                            )
-                                ? -1
-                                : 1;
-
-                        }
-
-                        const makeCompare =
-                            String(
-                                a.make || ""
-                            ).localeCompare(
-                                String(
-                                    b.make || ""
-                                ),
-                                undefined,
-                                {
-                                    sensitivity:
-                                        "base"
-                                }
-                            );
-
-                        if (
-                            makeCompare !== 0
-                        ) {
-
-                            return makeCompare;
-
-                        }
-
-                        return String(
-                            a.model || ""
-                        ).localeCompare(
-                            String(
-                                b.model || ""
-                            ),
-                            undefined,
-                            {
-                                sensitivity:
-                                    "base"
-                            }
-                        );
-
+                    if (decileCompare !== 0) {
+                        return decileCompare;
                     }
-                );
+
+                    const aSecondary =
+                        getVehicleSecondaryPopularityValue(a);
+                    const bSecondary =
+                        getVehicleSecondaryPopularityValue(b);
+
+                    if (
+                        Number.isFinite(aSecondary) &&
+                        Number.isFinite(bSecondary) &&
+                        aSecondary !== bSecondary
+                    ) {
+                        return aSecondary - bSecondary;
+                    }
+
+                    if (
+                        Number.isFinite(aSecondary) !==
+                        Number.isFinite(bSecondary)
+                    ) {
+                        return Number.isFinite(aSecondary)
+                            ? -1
+                            : 1;
+                    }
+
+                    const makeCompare =
+                        String(a.make || "")
+                            .localeCompare(
+                                String(b.make || ""),
+                                undefined,
+                                { sensitivity: "base" }
+                            );
+
+                    if (makeCompare !== 0) {
+                        return makeCompare;
+                    }
+
+                    return String(a.model || "")
+                        .localeCompare(
+                            String(b.model || ""),
+                            undefined,
+                            { sensitivity: "base" }
+                        );
+                });
 
                 const limitedVehicles =
                     vehicles.slice(
@@ -1275,6 +1206,7 @@ async function fetchVehicleCatalog(
     return loadingPromise;
 }
 
+
 /*
  * ============================================================
  * POPULARITY
@@ -1284,6 +1216,36 @@ async function fetchVehicleCatalog(
  * Lower decile = greater popularity.
  * ============================================================
  */
+
+function getVehicleSecondaryPopularityValue(
+    vehicle
+) {
+
+    const ranks =
+        Array.isArray(vehicle?.popularityRanks)
+            ? vehicle.popularityRanks
+            : [];
+
+    if (!ranks.length) {
+        return Number.POSITIVE_INFINITY;
+    }
+
+    let logSum = 0;
+
+    for (const rank of ranks) {
+
+        const value = Number(rank);
+
+        if (Number.isFinite(value) && value > 0) {
+            logSum += Math.log(value);
+        }
+
+    }
+
+    return Math.exp(logSum / ranks.length);
+
+}
+
 
 function getVehiclePopularityValue(
     vehicle
@@ -1311,149 +1273,68 @@ function getVehiclePopularityValue(
 
 }
 
-  function getVehicleSecondaryPopularityValue(
-    vehicle
-) {
-
-    const ranks =
-        Array.isArray(
-            vehicle?.popularityRanks
-        )
-            ? vehicle.popularityRanks
-                .map(
-                    rank => Number(rank)
-                )
-                .filter(
-                    rank =>
-                        Number.isFinite(rank) &&
-                        rank > 0
-                )
-            : [];
-
-    if (!ranks.length) {
-        return Infinity;
-    }
-
-    const total =
-        ranks.reduce(
-            (sum, rank) =>
-                sum + rank,
-            0
-        );
-
-    return total / ranks.length;
-}
 
 function getPopularVehicles(
     vehicles
 ) {
 
     if (!Array.isArray(vehicles)) {
-
         return [];
-
     }
 
-    return [...vehicles]
-        .sort(
-            (a, b) => {
+    return [...vehicles].sort((a, b) => {
 
-                const decileDifference =
-                    getVehiclePopularityValue(a) -
-                    getVehiclePopularityValue(b);
+        const decileDifference =
+            getVehiclePopularityValue(a) -
+            getVehiclePopularityValue(b);
 
-                if (
-                    decileDifference !== 0
-                ) {
+        if (decileDifference !== 0) {
+            return decileDifference;
+        }
 
-                    return decileDifference;
+        const aSecondary =
+            getVehicleSecondaryPopularityValue(a);
+        const bSecondary =
+            getVehicleSecondaryPopularityValue(b);
 
-                }
+        if (
+            Number.isFinite(aSecondary) &&
+            Number.isFinite(bSecondary) &&
+            aSecondary !== bSecondary
+        ) {
+            return aSecondary - bSecondary;
+        }
 
-                const aSecondary =
-                    getVehicleSecondaryPopularityValue(
-                        a
-                    );
+        if (
+            Number.isFinite(aSecondary) !==
+            Number.isFinite(bSecondary)
+        ) {
+            return Number.isFinite(aSecondary)
+                ? -1
+                : 1;
+        }
 
-                const bSecondary =
-                    getVehicleSecondaryPopularityValue(
-                        b
-                    );
-
-                if (
-                    Number.isFinite(
-                        aSecondary
-                    ) &&
-                    Number.isFinite(
-                        bSecondary
-                    ) &&
-                    aSecondary !==
-                        bSecondary
-                ) {
-
-                    return (
-                        aSecondary -
-                        bSecondary
-                    );
-
-                }
-
-                if (
-                    Number.isFinite(
-                        aSecondary
-                    ) !==
-                    Number.isFinite(
-                        bSecondary
-                    )
-                ) {
-
-                    return Number.isFinite(
-                        aSecondary
-                    )
-                        ? -1
-                        : 1;
-
-                }
-
-                const makeCompare =
-                    String(
-                        a.make || ""
-                    ).localeCompare(
-                        String(
-                            b.make || ""
-                        ),
-                        undefined,
-                        {
-                            sensitivity:
-                                "base"
-                        }
-                    );
-
-                if (
-                    makeCompare !== 0
-                ) {
-
-                    return makeCompare;
-
-                }
-
-                return String(
-                    a.model || ""
-                ).localeCompare(
-                    String(
-                        b.model || ""
-                    ),
+        const makeCompare =
+            String(a.make || "")
+                .localeCompare(
+                    String(b.make || ""),
                     undefined,
-                    {
-                        sensitivity:
-                            "base"
-                    }
+                    { sensitivity: "base" }
                 );
 
-            }
-        );
+        if (makeCompare !== 0) {
+            return makeCompare;
+        }
 
+        return String(a.model || "")
+            .localeCompare(
+                String(b.model || ""),
+                undefined,
+                { sensitivity: "base" }
+            );
+    });
 }
+
 
 /*
  * ============================================================
@@ -4570,26 +4451,26 @@ function ensureVehiclesDBAttribution() {
 
 function openCarsFromMenu() {
 
-    if (
-        typeof closeMoreMenu === "function"
-    ) {
-
+    if (typeof closeMoreMenu === "function") {
         closeMoreMenu();
-
     }
 
     return openCars();
 
 }
 
+
 window.openCars =
     openCars;
+
 
 window.openCarsFromMenu =
     openCarsFromMenu;
 
+
 window.filterCarsByCategory =
     filterCarsByCategory;
+
 
 /*
  * ============================================================
