@@ -399,21 +399,6 @@ function getVehicleDetailsCacheKey(
 }
 
 
-function getVehicleDetailsCacheKey(
-    make,
-    model,
-    kind
-) {
-
-    return [
-        normalizeVehicleText(make),
-        normalizeVehicleText(model),
-        normalizeVehicleText(kind)
-    ].join("|");
-
-}
-
-
 async function fetchVehicleDetails(
     make,
     model,
