@@ -24,7 +24,7 @@ const VEHICLES_DB_URL =
 
 const CACHE_TTL = 86400; // 24 hours
 const WIKIPEDIA_CACHE_TTL = 604800; // 7 days
-const WIKIPEDIA_CACHE_VERSION = "v4";
+const WIKIPEDIA_CACHE_VERSION = "v6";
 
 const WIKIPEDIA_API =
     "https://en.wikipedia.org/w/api.php";
@@ -2059,8 +2059,16 @@ function cleanWikipediaHtmlValue(value) {
                 "; "
             )
             .replace(
-                /;\s*$/g,
+                /(^|\s);\s*/g,
+                "$1"
+            )
+            .replace(
+                /\s*;\s*(?=;|$)/g,
                 ""
+            )
+            .replace(
+                /(^|\s)[–—-](?=\s*$)/g,
+                "$1"
             )
             .replace(
                 /\s+/g,
@@ -2322,6 +2330,400 @@ function parseWikipediaInfoboxHtml(html) {
     }
 
     return specifications;
+}
+
+/*
+ * ------------------------------------------------------------
+ * Parse simple technical HTML tables.
+ *
+ * This is intentionally conservative. A table is used only when
+ * its header row clearly exposes at least two vehicle-related
+ * technical columns (for example Engine + Power + Torque). This
+ * prevents unrelated Wikipedia tables from being mistaken for
+ * vehicle specifications.
+ * ------------------------------------------------------------
+ */
+
+function addAggregatedWikipediaSpecification(
+    specifications,
+    field,
+    value,
+    maxItems = 12,
+    maxLength = 1200
+) {
+
+    if (
+        !field ||
+        !isUsefulWikipediaValue(value)
+    ) {
+        return;
+    }
+
+    const cleanValue =
+        normalizeWikipediaText(value);
+
+    if (!cleanValue) {
+        return;
+    }
+
+    const current =
+        isUsefulWikipediaValue(specifications?.[field])
+            ? normalizeWikipediaText(specifications[field])
+            : "";
+
+    if (!current) {
+        specifications[field] = cleanValue;
+        return;
+    }
+
+    const existing =
+        current
+            .split("; ")
+            .map(item => item.trim())
+            .filter(Boolean);
+
+    const normalizedCurrent =
+        new Set(
+            existing.map(item => item.toLowerCase())
+        );
+
+    if (
+        normalizedCurrent.has(
+            cleanValue.toLowerCase()
+        )
+    ) {
+        return;
+    }
+
+    if (existing.length >= maxItems) {
+        return;
+    }
+
+    const combined =
+        `${current}; ${cleanValue}`;
+
+    specifications[field] =
+        combined.length <= maxLength
+            ? combined
+            : combined.slice(0, maxLength).trim();
+}
+
+function parseWikipediaTechnicalTables(html) {
+
+    const specifications =
+        createEmptyWikipediaSpecifications();
+
+    const input = String(html || "");
+
+    if (!input) {
+        return specifications;
+    }
+
+    try {
+
+        const tableOpenRegex =
+            /<table\b[^>]*>/gi;
+
+        let match;
+
+        while (
+            (match = tableOpenRegex.exec(input)) !== null
+        ) {
+
+            const openingTag = match[0];
+
+            const classMatch =
+                openingTag.match(
+                    /\\bclass\\s*=\\s*["']([^"']*)["']/i
+                );
+
+            if (
+                classMatch &&
+                /(^|\s)infobox(?:\s|$)/i.test(
+                    classMatch[1]
+                )
+            ) {
+                continue;
+            }
+
+            const table =
+                extractBalancedHtmlTable(
+                    input,
+                    match.index
+                );
+
+            if (!table) {
+                continue;
+            }
+
+            const rows =
+                extractHtmlRows(table);
+
+            if (rows.length < 2) {
+                continue;
+            }
+
+            let headerIndex = -1;
+            let headerFields = [];
+            let technicalHeaderCount = 0;
+
+            for (let rowIndex = 0; rowIndex < rows.length; rowIndex++) {
+
+                const cells =
+                    extractHtmlCells(rows[rowIndex]);
+
+                if (cells.length < 2) {
+                    continue;
+                }
+
+                const headers =
+                    cells.filter(
+                        cell => cell.tag === "th"
+                    );
+
+                if (headers.length < 2) {
+                    continue;
+                }
+
+                const candidateFields =
+                    cells.map(cell =>
+                        getWikipediaSpecificationField(
+                            cleanWikipediaHtmlValue(
+                                cell.content
+                            )
+                        )
+                    );
+
+                const candidateTechnicalCount =
+                    candidateFields.filter(Boolean).length;
+
+                if (candidateTechnicalCount < 2) {
+                    continue;
+                }
+
+                headerIndex = rowIndex;
+                headerFields = candidateFields;
+                technicalHeaderCount = candidateTechnicalCount;
+                break;
+            }
+
+            if (
+                headerIndex === -1 ||
+                technicalHeaderCount < 2
+            ) {
+                continue;
+            }
+
+            for (
+                let rowIndex = headerIndex + 1;
+                rowIndex < rows.length;
+                rowIndex++
+            ) {
+
+                const cells =
+                    extractHtmlCells(rows[rowIndex]);
+
+                if (
+                    cells.length < headerFields.length
+                ) {
+                    continue;
+                }
+
+                for (
+                    let columnIndex = 0;
+                    columnIndex < headerFields.length;
+                    columnIndex++
+                ) {
+
+                    const field =
+                        headerFields[columnIndex];
+
+                    if (!field) {
+                        continue;
+                    }
+
+                    const cell =
+                        cells[columnIndex];
+
+                    if (!cell) {
+                        continue;
+                    }
+
+                    const value =
+                        cleanWikipediaHtmlValue(
+                            cell.content
+                        );
+
+                    if (!isUsefulWikipediaValue(value)) {
+                        continue;
+                    }
+
+                    addAggregatedWikipediaSpecification(
+                        specifications,
+                        field,
+                        value
+                    );
+                }
+            }
+        }
+
+    } catch (error) {
+
+        console.error(
+            "Wikipedia technical table parsing error:",
+            error
+        );
+    }
+
+    return specifications;
+}
+
+/*
+ * ------------------------------------------------------------
+ * Find the latest generation article linked from a vehicle-family
+ * Wikipedia page.
+ *
+ * Example:
+ * BMW 3 Series -> Seventh generation -> BMW 3 Series (G20)
+ *
+ * This is used only when the family page itself does not expose
+ * enough technical data. We never guess a generation from a year;
+ * we follow Wikipedia's own "Main article" link.
+ * ------------------------------------------------------------
+ */
+
+function extractWikipediaArticleTitleFromHref(href) {
+
+    let value = String(href || "").trim();
+
+    if (!value) {
+        return null;
+    }
+
+    value =
+        value
+            .replace(/^https?:\/\/[^/]+/i, "")
+            .replace(/^\/wiki\//i, "");
+
+    if (!value || value.includes(":")) {
+        return null;
+    }
+
+    try {
+        value = decodeURIComponent(value);
+    } catch {
+        // Keep the original URL fragment if decoding fails.
+    }
+
+    value =
+        decodeWikipediaHtmlEntities(value)
+            .replace(/_/g, " ")
+            .trim();
+
+    return value || null;
+}
+
+function extractLatestGenerationArticleTitle(html) {
+
+    const input = String(html || "");
+
+    if (!input) {
+        return null;
+    }
+
+    const headings = [];
+    const headingRegex =
+        /<h2\b[^>]*>[\s\S]*?<\/h2>/gi;
+
+    let headingMatch;
+
+    while (
+        (headingMatch = headingRegex.exec(input)) !== null
+    ) {
+
+        const headingHtml = headingMatch[0];
+        const headingText =
+            cleanWikipediaHtmlValue(headingHtml);
+
+        if (!/\bgeneration\b/i.test(headingText)) {
+            continue;
+        }
+
+        headings.push({
+            index: headingMatch.index,
+            text: headingText
+        });
+    }
+
+    if (!headings.length) {
+        return null;
+    }
+
+    /*
+     * Walk backward from the last generation heading. Some older
+     * pages have the generation header but no Main article link.
+     * A slightly earlier generation is still preferable to guessing.
+     */
+    for (let i = headings.length - 1; i >= 0; i--) {
+
+        const start = headings[i].index;
+        const nextHeadingMatch =
+            input.slice(start + 4).match(
+                /<h2\b[^>]*>/i
+            );
+
+        const sectionEnd =
+            nextHeadingMatch
+                ? start + 4 + nextHeadingMatch.index
+                : input.length;
+
+        const section =
+            input.slice(start, sectionEnd);
+
+        const hrefRegex =
+            /href=["'](\/wiki\/[^"'#]+)["'][^>]*>/gi;
+
+        let hrefMatch;
+
+        while (
+            (hrefMatch = hrefRegex.exec(section)) !== null
+        ) {
+
+            const title =
+                extractWikipediaArticleTitleFromHref(
+                    hrefMatch[1]
+                );
+
+            if (!title) {
+                continue;
+            }
+
+            if (
+                /^Wikipedia:/i.test(title) ||
+                /^Template:/i.test(title) ||
+                /^Help:/i.test(title) ||
+                /^Category:/i.test(title)
+            ) {
+                continue;
+            }
+
+            /* Prefer an actual "Main article" link. */
+
+            const beforeLink =
+                section.slice(
+                    Math.max(0, hrefMatch.index - 250),
+                    hrefMatch.index
+                );
+
+            if (
+                /Main articles?:/i.test(beforeLink)
+            ) {
+                return title;
+            }
+        }
+    }
+
+    return null;
 }
 
 function mergeWikipediaSpecifications(
@@ -2651,17 +3053,23 @@ async function getWikipediaPage(title) {
 
 /*
  * ------------------------------------------------------------
- * Get Wikipedia infobox wikitext
+ * Get Wikipedia infobox/specification data
  *
- * MediaWiki documents prop=wikitext as the way to retrieve
- * the original page wikitext rather than rendered HTML.
+ * MediaWiki returns both the original wikitext and rendered HTML.
+ * We parse the infobox first, then technical tables, and finally
+ * (when necessary) the latest generation article linked by the
+ * family page.
  * ------------------------------------------------------------
  */
 
-async function getWikipediaInfobox(title) {
+async function getWikipediaInfoboxData(title) {
 
     if (!title) {
-        return createEmptyWikipediaSpecifications();
+        return {
+            specifications:
+                createEmptyWikipediaSpecifications(),
+            latestGenerationTitle: null
+        };
     }
 
     try {
@@ -2681,8 +3089,9 @@ async function getWikipediaInfobox(title) {
 
         /*
          * Request both representations in one call.
-         * MediaWiki documents prop=text for rendered HTML and
-         * prop=wikitext for the original source.
+         * wikitext is parsed directly; rendered HTML is used as a
+         * fallback because Wikipedia template parameters differ
+         * significantly between vehicle articles.
          */
         url.searchParams.set(
             "prop",
@@ -2719,7 +3128,11 @@ async function getWikipediaInfobox(title) {
                 title
             );
 
-            return createEmptyWikipediaSpecifications();
+            return {
+                specifications:
+                    createEmptyWikipediaSpecifications(),
+                latestGenerationTitle: null
+            };
         }
 
         const wikitext =
@@ -2742,10 +3155,36 @@ async function getWikipediaInfobox(title) {
                 html
             );
 
-        return mergeWikipediaSpecifications(
-            wikitextSpecifications,
-            htmlSpecifications
-        );
+        /*
+         * Technical tables are a second fallback. They are only
+         * consulted for fields still missing after both infobox
+         * parsers, so an explicit infobox value always wins.
+         */
+        const tableSpecifications =
+            parseWikipediaTechnicalTables(
+                html
+            );
+
+        const merged =
+            mergeWikipediaSpecifications(
+                wikitextSpecifications,
+                htmlSpecifications
+            );
+
+        const finalSpecifications =
+            mergeWikipediaSpecifications(
+                merged,
+                tableSpecifications
+            );
+
+        return {
+            specifications:
+                finalSpecifications,
+            latestGenerationTitle:
+                extractLatestGenerationArticleTitle(
+                    html
+                )
+        };
 
     } catch (error) {
 
@@ -2755,21 +3194,38 @@ async function getWikipediaInfobox(title) {
             error
         );
 
-        return createEmptyWikipediaSpecifications();
+        return {
+            specifications:
+                createEmptyWikipediaSpecifications(),
+            latestGenerationTitle: null
+        };
     }
 }
+
+/*
+ * Compatibility wrapper for any internal caller that only needs
+ * specifications.
+ */
+async function getWikipediaInfobox(title) {
+
+    const result =
+        await getWikipediaInfoboxData(title);
+
+    return result.specifications;
+}
+
 /*
  * ------------------------------------------------------------
  * Check whether actual technical information exists.
  * ------------------------------------------------------------
  */
 
-function hasWikipediaVehicleInformation(
+function getWikipediaVehicleInformationCount(
     specifications
 ) {
 
     if (!specifications) {
-        return false;
+        return 0;
     }
 
     const comparisonFields = [
@@ -2791,24 +3247,29 @@ function hasWikipediaVehicleInformation(
         "doors"
     ];
 
-    const availableCount =
-        comparisonFields.reduce((count, field) => {
+    return comparisonFields.reduce((count, field) => {
 
-            const value =
-                specifications[field];
+        const value =
+            specifications[field];
 
-            return (
-                count +
-                (
-                    value &&
-                    value !== "No Information"
-                        ? 1
-                        : 0
-                )
-            );
-        }, 0);
+        return (
+            count +
+            (
+                isUsefulWikipediaValue(value)
+                    ? 1
+                    : 0
+            )
+        );
+    }, 0);
+}
 
-    return availableCount >= 2;
+function hasWikipediaVehicleInformation(
+    specifications
+) {
+
+    return getWikipediaVehicleInformationCount(
+        specifications
+    ) >= 2;
 }
 
 /*
@@ -2994,10 +3455,78 @@ async function handleDetails(
     /* 4. Parse the real Wikipedia infobox data
      *    from both wikitext and rendered HTML. */
 
-    const specifications =
-        await getWikipediaInfobox(
+    const wikipediaData =
+        await getWikipediaInfoboxData(
             page.title
         );
+
+    let specifications =
+        wikipediaData.specifications;
+
+    let specificationSourceTitle =
+        page.title;
+
+    /*
+     * Family/model-line pages such as BMW 3 Series can keep most
+     * technical specifications on generation-specific articles.
+     * When the family page does not provide enough technical data,
+     * follow Wikipedia's own latest-generation Main article link.
+     */
+    if (
+        getWikipediaVehicleInformationCount(specifications) < 2 &&
+        wikipediaData.latestGenerationTitle &&
+        wikipediaData.latestGenerationTitle !== page.title
+    ) {
+
+        try {
+
+            const generationData =
+                await getWikipediaInfoboxData(
+                    wikipediaData.latestGenerationTitle
+                );
+
+            const generationSpecifications =
+                generationData.specifications;
+
+            specifications =
+                mergeWikipediaSpecifications(
+                    specifications,
+                    generationSpecifications
+                );
+
+            if (
+                hasWikipediaVehicleInformation(
+                    generationSpecifications
+                )
+            ) {
+                specificationSourceTitle =
+                    wikipediaData.latestGenerationTitle;
+            }
+
+        } catch (error) {
+
+            console.error(
+                "Wikipedia generation fallback failed:",
+                wikipediaData.latestGenerationTitle,
+                error
+            );
+        }
+    }
+
+    /*
+     * Make the scope explicit when technical values came from a
+     * generation-specific Wikipedia article. We do not invent a
+     * generation code; we use Wikipedia's exact article title.
+     */
+    if (
+        specificationSourceTitle !== page.title &&
+        !isUsefulWikipediaValue(
+            specifications.generation
+        )
+    ) {
+        specifications.generation =
+            specificationSourceTitle;
+    }
 
     const comparisonAvailable =
         hasWikipediaVehicleInformation(
