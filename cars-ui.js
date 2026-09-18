@@ -1354,36 +1354,80 @@ function getPopularVehicles(
 
     }
 
-
     return [...vehicles]
         .sort(
             (a, b) => {
 
-                const popularityDifference =
+                const decileDifference =
                     getVehiclePopularityValue(a) -
                     getVehiclePopularityValue(b);
 
-
                 if (
-                    popularityDifference !== 0
+                    decileDifference !== 0
                 ) {
 
-                    return popularityDifference;
+                    return decileDifference;
 
                 }
 
+                const aSecondary =
+                    getVehicleSecondaryPopularityValue(
+                        a
+                    );
+
+                const bSecondary =
+                    getVehicleSecondaryPopularityValue(
+                        b
+                    );
+
+                if (
+                    Number.isFinite(
+                        aSecondary
+                    ) &&
+                    Number.isFinite(
+                        bSecondary
+                    ) &&
+                    aSecondary !==
+                        bSecondary
+                ) {
+
+                    return (
+                        aSecondary -
+                        bSecondary
+                    );
+
+                }
+
+                if (
+                    Number.isFinite(
+                        aSecondary
+                    ) !==
+                    Number.isFinite(
+                        bSecondary
+                    )
+                ) {
+
+                    return Number.isFinite(
+                        aSecondary
+                    )
+                        ? -1
+                        : 1;
+
+                }
 
                 const makeCompare =
-                    String(a.make || "")
-                        .localeCompare(
-                            String(b.make || ""),
-                            undefined,
-                            {
-                                sensitivity:
-                                    "base"
-                            }
-                        );
-
+                    String(
+                        a.make || ""
+                    ).localeCompare(
+                        String(
+                            b.make || ""
+                        ),
+                        undefined,
+                        {
+                            sensitivity:
+                                "base"
+                        }
+                    );
 
                 if (
                     makeCompare !== 0
@@ -1393,22 +1437,23 @@ function getPopularVehicles(
 
                 }
 
-
-                return String(a.model || "")
-                    .localeCompare(
-                        String(b.model || ""),
-                        undefined,
-                        {
-                            sensitivity:
-                                "base"
-                        }
-                    );
+                return String(
+                    a.model || ""
+                ).localeCompare(
+                    String(
+                        b.model || ""
+                    ),
+                    undefined,
+                    {
+                        sensitivity:
+                            "base"
+                    }
+                );
 
             }
         );
 
 }
-
 
 /*
  * ============================================================
