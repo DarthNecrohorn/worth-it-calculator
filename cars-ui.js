@@ -1311,6 +1311,38 @@ function getVehiclePopularityValue(
 
 }
 
+  function getVehicleSecondaryPopularityValue(
+    vehicle
+) {
+
+    const ranks =
+        Array.isArray(
+            vehicle?.popularityRanks
+        )
+            ? vehicle.popularityRanks
+                .map(
+                    rank => Number(rank)
+                )
+                .filter(
+                    rank =>
+                        Number.isFinite(rank) &&
+                        rank > 0
+                )
+            : [];
+
+    if (!ranks.length) {
+        return Infinity;
+    }
+
+    const total =
+        ranks.reduce(
+            (sum, rank) =>
+                sum + rank,
+            0
+        );
+
+    return total / ranks.length;
+}
 
 function getPopularVehicles(
     vehicles
