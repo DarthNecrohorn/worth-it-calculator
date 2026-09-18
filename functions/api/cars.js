@@ -4042,9 +4042,6 @@ async function handleDetails(
 
     /* 1. Verify the vehicle exists in VehiclesDB. */
 
-    const models =
-        getModelsByKind(database, kind);
-
     const vehicle =
         findVehicle(models, make, model);
 
