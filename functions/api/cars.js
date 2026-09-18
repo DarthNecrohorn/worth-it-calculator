@@ -1245,15 +1245,18 @@ async function fetchWikipediaCached(
      */
 
     const response =
-        await fetch(
-            url,
-            {
-                headers: {
-                    "Accept":
-                        "application/json"
-                }
+    await fetch(
+        url,
+        {
+            headers: {
+                "Accept":
+                    "application/json",
+
+                "User-Agent":
+                    "Worth It Cars/1.0 (https://worth-it-calculator.pages.dev/)"
             }
-        );
+        }
+    );
 
 
     if (!response.ok) {
