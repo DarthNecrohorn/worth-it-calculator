@@ -1586,22 +1586,197 @@ function getWikipediaSpecificationField(
  * ------------------------------------------------------------
  */
 
-function parseWikipediaInfobox(
+async function parseWikipediaInfobox(
     html
 ) {
 
     const specifications =
         createEmptyWikipediaSpecifications();
 
-
-    if (
-        !html ||
-        typeof DOMParser === "undefined"
-    ) {
-
+    if (!html) {
         return specifications;
+    }
+
+    try {
+
+        /*
+         * HTMLRewriter is available in the
+         * Cloudflare Workers runtime.
+         */
+
+        const response =
+            new Response(
+                html,
+                {
+                    headers: {
+                        "Content-Type":
+                            "text/html; charset=UTF-8"
+                    }
+                }
+            );
+
+        let currentRow = null;
+
+        const rows = [];
+
+        const rewriter =
+            new HTMLRewriter()
+
+                /*
+                 * Find every row inside Wikipedia infobox.
+                 */
+
+                .on(
+                    "table.infobox tr",
+                    {
+
+                        element(element) {
+
+                            currentRow = {
+                                label: "",
+                                value: ""
+                            };
+
+                            rows.push(
+                                currentRow
+                            );
+
+                            element.onEndTag(
+                                () => {
+
+                                    currentRow =
+                                        null;
+
+                                }
+                            );
+
+                        }
+
+                    }
+                )
+
+                /*
+                 * Read the <th> label.
+                 */
+
+                .on(
+                    "table.infobox tr th",
+                    {
+
+                        text(text) {
+
+                            if (
+                                !currentRow
+                            ) {
+                                return;
+                            }
+
+                            currentRow.label +=
+                                text.text;
+
+                        }
+
+                    }
+                )
+
+                /*
+                 * Read the <td> value.
+                 */
+
+                .on(
+                    "table.infobox tr td",
+                    {
+
+                        text(text) {
+
+                            if (
+                                !currentRow
+                            ) {
+                                return;
+                            }
+
+                            currentRow.value +=
+                                text.text;
+
+                        }
+
+                    }
+                );
+
+        await rewriter.transform(
+            response
+        ).text();
+
+
+        /*
+         * Convert extracted rows
+         * into our normalized specification fields.
+         */
+
+        for (
+            const row of rows
+        ) {
+
+            if (
+                !row ||
+                !row.label ||
+                !row.value
+            ) {
+                continue;
+            }
+
+            const label =
+                normalizeWikipediaText(
+                    row.label
+                );
+
+            const value =
+                normalizeWikipediaText(
+                    row.value
+                )
+                    .replace(
+                        /\[\s*\d+\s*\]/g,
+                        ""
+                    )
+                    .replace(
+                        /\s+/g,
+                        " "
+                    )
+                    .trim();
+
+            if (
+                !label ||
+                !value
+            ) {
+                continue;
+            }
+
+            const field =
+                getWikipediaSpecificationField(
+                    label
+                );
+
+            if (!field) {
+                continue;
+            }
+
+            specifications[field] =
+                value;
+
+        }
+
+    } catch (error) {
+
+        console.error(
+            "Wikipedia infobox parsing error:",
+            error
+        );
 
     }
+
+    return specifications;
+
+}
 
 
     try {
