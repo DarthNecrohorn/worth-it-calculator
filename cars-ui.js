@@ -2845,6 +2845,185 @@ function createVehicleComparisonModal() {
 }
 
 
+function getVehicleComparisonSections() {
+
+    return [
+
+        {
+            title: "General",
+            rows: [
+                ["production", "Production"],
+                ["generation", "Generation"],
+                ["bodyType", "Body type"]
+            ]
+        },
+
+        {
+            title: "Engine & Performance",
+            rows: [
+                ["engine", "Engine"],
+                ["fuel", "Fuel"],
+                ["transmission", "Transmission"],
+                ["drivetrain", "Drivetrain"],
+                ["horsepower", "Power"],
+                ["torque", "Torque"],
+                ["topSpeed", "Top speed"]
+            ]
+        },
+
+        {
+            title: "Dimensions & Weight",
+            rows: [
+                ["weight", "Weight"],
+                ["length", "Length"],
+                ["width", "Width"],
+                ["height", "Height"],
+                ["wheelbase", "Wheelbase"]
+            ]
+        },
+
+        {
+            title: "Electric & Practical",
+            rows: [
+                ["battery", "Battery"],
+                ["electricRange", "Electric range"],
+                ["seating", "Seating"],
+                ["doors", "Doors"]
+            ]
+        }
+
+    ];
+
+}
+
+
+function normalizeVehicleComparisonValue(value) {
+
+    if (!isUsefulVehicleDetailValue(value)) {
+        return "";
+    }
+
+    return String(value)
+        .trim()
+        .toLowerCase()
+        .replace(/\s+/g, " ");
+
+}
+
+
+function getVehicleComparisonDifferenceState(
+    selections,
+    key
+) {
+
+    const values = selections.map(
+        item => normalizeVehicleComparisonValue(
+            item.details?.specifications?.[key]
+        )
+    );
+
+    const presentValues = values.filter(Boolean);
+
+    if (!presentValues.length) {
+        return {
+            hasDifferences: false,
+            cellIsDifferent: values.map(() => false)
+        };
+    }
+
+    const uniquePresentValues =
+        new Set(presentValues);
+
+    const hasDifferences =
+        uniquePresentValues.size > 1 ||
+        presentValues.length !== values.length;
+
+    if (!hasDifferences) {
+        return {
+            hasDifferences: false,
+            cellIsDifferent: values.map(() => false)
+        };
+    }
+
+    const frequency =
+        new Map();
+
+    presentValues.forEach(value => {
+        frequency.set(
+            value,
+            (frequency.get(value) || 0) + 1
+        );
+    });
+
+    let mostCommonValue = "";
+    let mostCommonCount = 0;
+
+    frequency.forEach((count, value) => {
+        if (count > mostCommonCount) {
+            mostCommonValue = value;
+            mostCommonCount = count;
+        }
+    });
+
+    const allValuesTie =
+        uniquePresentValues.size > 1 &&
+        Array.from(frequency.values())
+            .every(count => count === mostCommonCount);
+
+    return {
+        hasDifferences: true,
+        cellIsDifferent: values.map(value => {
+
+            if (!value) {
+                return true;
+            }
+
+            if (allValuesTie) {
+                return true;
+            }
+
+            return value !== mostCommonValue;
+        })
+    };
+
+}
+
+
+function getVehicleComparisonImageHtml(
+    item
+) {
+
+    const info =
+        getVehicleKindInfo(item.kind);
+
+    const imageUrl =
+        item.details?.image?.url || "";
+
+    if (imageUrl) {
+
+        return `
+            <img
+                class="worth-it-vehicle-comparison-vehicle-image"
+                src="${escapeVehicleHtml(imageUrl)}"
+                alt="${escapeVehicleHtml(
+                    `${item.vehicle.make || ""} ${item.vehicle.model || ""}`.trim()
+                )}"
+                loading="lazy"
+                decoding="async"
+            >
+        `;
+
+    }
+
+    return `
+        <div class="worth-it-vehicle-comparison-vehicle-image-placeholder" aria-hidden="true">
+            ${info.icon}
+        </div>
+    `;
+
+}
+
+
 function openVehicleComparisonPanel() {
 
     const selections =
@@ -2873,84 +3052,170 @@ function openVehicleComparisonPanel() {
         return;
     }
 
-    const labels = [
-        ["production", "Production"],
-        ["generation", "Generation"],
-        ["bodyType", "Body type"],
-        ["engine", "Engine"],
-        ["fuel", "Fuel"],
-        ["transmission", "Transmission"],
-        ["drivetrain", "Drivetrain"],
-        ["horsepower", "Power"],
-        ["torque", "Torque"],
-        ["weight", "Weight"],
-        ["length", "Length"],
-        ["width", "Width"],
-        ["height", "Height"],
-        ["wheelbase", "Wheelbase"],
-        ["topSpeed", "Top speed"],
-        ["battery", "Battery"],
-        ["electricRange", "Electric range"],
-        ["seating", "Seating"],
-        ["doors", "Doors"]
-    ];
+    const sections =
+        getVehicleComparisonSections();
+
+    const comparisonRows =
+        sections
+            .map(section => ({
+                ...section,
+                rows: section.rows.filter(
+                    ([key]) =>
+                        selections.some(item =>
+                            isUsefulVehicleDetailValue(
+                                item.details?.specifications?.[key]
+                            )
+                        )
+                )
+            }))
+            .filter(section => section.rows.length);
 
     body.innerHTML = `
         <div class="worth-it-vehicle-comparison-heading">
-            <div class="worth-it-vehicle-detail-kind">🚗 Vehicle comparison</div>
-            <h2 id="worthItVehicleComparisonTitle">Compare vehicles</h2>
+            <div class="worth-it-vehicle-detail-kind">⚖️ Vehicle comparison</div>
+            <h2 id="worthItVehicleComparisonTitle">Compare Vehicles</h2>
             <p>Side-by-side information from the available Wikipedia data.</p>
+            <div class="worth-it-vehicle-comparison-meta">
+                <span>${selections.length}/${MAX_COMPARE_VEHICLES} vehicles selected</span>
+                <span>Differences are highlighted</span>
+            </div>
         </div>
 
         <div class="worth-it-vehicle-comparison-table-wrap">
             <table class="worth-it-vehicle-comparison-table">
                 <thead>
                     <tr>
-                        <th>Specification</th>
+                        <th class="worth-it-vehicle-comparison-specification-header">
+                            <span>Specification</span>
+                        </th>
                         ${selections.map(item => `
-                            <th>
-                                ${escapeVehicleHtml(
-                                    `${item.vehicle.make || ""} ${item.vehicle.model || ""}`.trim()
-                                )}
+                            <th class="worth-it-vehicle-comparison-vehicle-header">
+                                <div class="worth-it-vehicle-comparison-vehicle-card">
+                                    <div class="worth-it-vehicle-comparison-vehicle-image-wrap">
+                                        ${getVehicleComparisonImageHtml(item)}
+                                    </div>
+                                    <div class="worth-it-vehicle-comparison-vehicle-info">
+                                        <div class="worth-it-vehicle-comparison-vehicle-kind">
+                                            ${escapeVehicleHtml(
+                                                getVehicleKindInfo(item.kind).singular
+                                            )}
+                                        </div>
+                                        <strong>
+                                            ${escapeVehicleHtml(
+                                                `${item.vehicle.make || ""} ${item.vehicle.model || ""}`.trim()
+                                            )}
+                                        </strong>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        class="worth-it-vehicle-comparison-remove"
+                                        aria-label="Remove ${escapeVehicleHtml(
+                                            `${item.vehicle.make || ""} ${item.vehicle.model || ""}`.trim()
+                                        )} from comparison"
+                                        data-comparison-remove="${escapeVehicleHtml(item.key)}"
+                                        title="Remove from comparison"
+                                    >
+                                        ×
+                                    </button>
+                                </div>
                             </th>
                         `).join("")}
                     </tr>
                 </thead>
                 <tbody>
-                    ${labels.map(([key, label]) => {
+                    ${comparisonRows.map(section => `
+                        <tr class="worth-it-vehicle-comparison-section-row">
+                            <th colspan="${selections.length + 1}">
+                                ${escapeVehicleHtml(section.title)}
+                            </th>
+                        </tr>
+                        ${section.rows.map(([key, label]) => {
 
-                        const hasAny =
-                            selections.some(item =>
-                                isUsefulVehicleDetailValue(
-                                    item.details?.specifications?.[key]
-                                )
-                            );
+                            const differenceState =
+                                getVehicleComparisonDifferenceState(
+                                    selections,
+                                    key
+                                );
 
-                        if (!hasAny) {
-                            return "";
-                        }
+                            return `
+                                <tr class="${differenceState.hasDifferences ? "worth-it-vehicle-comparison-different-row" : ""}">
+                                    <th class="worth-it-vehicle-comparison-label-cell">
+                                        ${escapeVehicleHtml(label)}
+                                    </th>
+                                    ${selections.map((item, index) => {
 
-                        return `
-                            <tr>
-                                <th>${escapeVehicleHtml(label)}</th>
-                                ${selections.map(item => `
-                                    <td>
-                                        ${escapeVehicleHtml(
-                                            isUsefulVehicleDetailValue(
-                                                item.details?.specifications?.[key]
-                                            )
-                                                ? item.details.specifications[key]
-                                                : "—"
-                                        )}
-                                    </td>
-                                `).join("")}
-                            </tr>
-                        `;
-                    }).join("")}
+                                        const rawValue =
+                                            item.details?.specifications?.[key];
+
+                                        const usefulValue =
+                                            isUsefulVehicleDetailValue(rawValue)
+                                                ? String(rawValue)
+                                                : "—";
+
+                                        const cellIsDifferent =
+                                            differenceState.cellIsDifferent[index];
+
+                                        return `
+                                            <td class="${cellIsDifferent ? "worth-it-vehicle-comparison-different-cell" : ""}">
+                                                ${cellIsDifferent ? `<span class="worth-it-vehicle-comparison-difference-dot" aria-hidden="true"></span>` : ""}
+                                                <span>${escapeVehicleHtml(usefulValue)}</span>
+                                            </td>
+                                        `;
+
+                                    }).join("")}
+                                </tr>
+                            `;
+
+                        }).join("")}
+                    `).join("")}
                 </tbody>
             </table>
         </div>
     `;
+
+    body.querySelectorAll(
+        "[data-comparison-remove]"
+    ).forEach(button => {
+
+        button.addEventListener(
+            "click",
+            event => {
+
+                event.stopPropagation();
+
+                const key =
+                    button.dataset.comparisonRemove || "";
+
+                if (key) {
+                    vehicleCompareSelection.delete(key);
+                }
+
+                const remaining =
+                    Array.from(
+                        vehicleCompareSelection.values()
+                    );
+
+                renderVehicleCompareBar();
+
+                if (remaining.length < 2) {
+
+                    closeVehicleComparisonPanel();
+
+                    if (remaining.length === 1) {
+                        showVehicleCompareNotice(
+                            "Add one more vehicle to compare."
+                        );
+                    }
+
+                    return;
+                }
+
+                openVehicleComparisonPanel();
+
+            }
+        );
+
+    });
 
     modal.classList.add("is-open");
     modal.setAttribute("aria-hidden", "false");
@@ -3561,22 +3826,44 @@ function injectVehicleUiStyles() {
             opacity: 0.68;
         }
 
+        .worth-it-vehicle-comparison-meta {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-top: 14px;
+        }
+
+        .worth-it-vehicle-comparison-meta span {
+            display: inline-flex;
+            align-items: center;
+            min-height: 28px;
+            padding: 0 10px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.035);
+            font-size: 0.76rem;
+            opacity: 0.76;
+        }
+
         .worth-it-vehicle-comparison-table-wrap {
             margin-top: 24px;
-            overflow-x: auto;
+            overflow: auto;
+            max-height: min(620px, calc(100vh - 250px));
             border: 1px solid rgba(255, 255, 255, 0.08);
             border-radius: 14px;
         }
 
         .worth-it-vehicle-comparison-table {
-            width: 100%;
-            min-width: 720px;
-            border-collapse: collapse;
+            width: max-content;
+            min-width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
         }
 
         .worth-it-vehicle-comparison-table th,
         .worth-it-vehicle-comparison-table td {
             padding: 13px 14px;
+            border-right: 1px solid rgba(255, 255, 255, 0.05);
             border-bottom: 1px solid rgba(255, 255, 255, 0.07);
             text-align: left;
             vertical-align: top;
@@ -3585,17 +3872,135 @@ function injectVehicleUiStyles() {
         .worth-it-vehicle-comparison-table thead th {
             position: sticky;
             top: 0;
+            z-index: 8;
             background: #171a20;
         }
 
-        .worth-it-vehicle-comparison-table tbody th {
-            width: 150px;
-            color: rgba(255, 255, 255, 0.68);
+        .worth-it-vehicle-comparison-specification-header {
+            left: 0;
+            z-index: 10 !important;
+            min-width: 150px;
         }
 
-        .worth-it-vehicle-comparison-table td {
-            line-height: 1.45;
+        .worth-it-vehicle-comparison-vehicle-header {
+            min-width: 220px;
+            width: 220px;
         }
+
+        .worth-it-vehicle-comparison-vehicle-card {
+            position: relative;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            min-height: 86px;
+            padding-right: 28px;
+        }
+
+        .worth-it-vehicle-comparison-vehicle-image-wrap {
+            width: 86px;
+            height: 68px;
+            flex: 0 0 86px;
+            overflow: hidden;
+            border-radius: 10px;
+            background: rgba(255, 255, 255, 0.06);
+        }
+
+        .worth-it-vehicle-comparison-vehicle-image,
+        .worth-it-vehicle-comparison-vehicle-image-placeholder {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            height: 100%;
+        }
+
+        .worth-it-vehicle-comparison-vehicle-image {
+            object-fit: cover;
+        }
+
+        .worth-it-vehicle-comparison-vehicle-image-placeholder {
+            font-size: 2rem;
+            opacity: 0.72;
+        }
+
+        .worth-it-vehicle-comparison-vehicle-info {
+            min-width: 0;
+        }
+
+        .worth-it-vehicle-comparison-vehicle-info strong {
+            display: block;
+            line-height: 1.3;
+            word-break: break-word;
+        }
+
+        .worth-it-vehicle-comparison-vehicle-kind {
+            margin-bottom: 5px;
+            font-size: 0.72rem;
+            font-weight: 500;
+            opacity: 0.58;
+        }
+
+        .worth-it-vehicle-comparison-remove {
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 26px;
+            height: 26px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.06);
+            color: #fff;
+            cursor: pointer;
+            font-size: 17px;
+            line-height: 1;
+        }
+
+        .worth-it-vehicle-comparison-remove:hover,
+        .worth-it-vehicle-comparison-remove:focus-visible {
+            background: rgba(255, 255, 255, 0.13);
+        }
+
+        .worth-it-vehicle-comparison-table tbody .worth-it-vehicle-comparison-label-cell {
+            position: sticky;
+            left: 0;
+            z-index: 5;
+            min-width: 150px;
+            background: #111318;
+            font-weight: 700;
+            color: rgba(255, 255, 255, 0.72);
+        }
+
+        .worth-it-vehicle-comparison-section-row th {
+            position: sticky;
+            left: 0;
+            z-index: 4;
+            padding: 11px 14px;
+            background: #171a20;
+            color: rgba(255, 255, 255, 0.86);
+            font-size: 0.78rem;
+            letter-spacing: 0.03em;
+            text-transform: uppercase;
+        }
+
+        .worth-it-vehicle-comparison-different-row {
+            background: rgba(255, 255, 255, 0.018);
+        }
+
+        .worth-it-vehicle-comparison-different-cell {
+            position: relative;
+            font-weight: 700;
+        }
+
+        .worth-it-vehicle-comparison-difference-dot {
+            display: inline-block;
+            width: 6px;
+            height: 6px;
+            margin: 0 7px 2px 0;
+            border-radius: 50%;
+            background: currentColor;
+            opacity: 0.7;
+        }
+
 
         .worth-it-vehicle-floating-collapse {
             position: fixed;
@@ -3696,6 +4101,33 @@ function injectVehicleUiStyles() {
                 justify-content: space-between;
             }
 
+            .worth-it-vehicle-comparison-table-wrap {
+                max-height: calc(100vh - 215px);
+            }
+
+            .worth-it-vehicle-comparison-vehicle-header {
+                min-width: 200px;
+                width: 200px;
+            }
+
+            .worth-it-vehicle-comparison-vehicle-card {
+                min-height: 76px;
+            }
+
+            .worth-it-vehicle-comparison-vehicle-image-wrap {
+                width: 70px;
+                height: 58px;
+                flex-basis: 70px;
+            }
+
+            .worth-it-vehicle-comparison-vehicle-image-placeholder {
+                font-size: 1.7rem;
+            }
+
+            .worth-it-vehicle-comparison-meta {
+                margin-top: 12px;
+            }
+
             .worth-it-vehicle-floating-collapse {
                 left: 8px;
                 top: auto;
@@ -3755,6 +4187,33 @@ function injectVehicleUiStyles() {
 
         html[data-theme="light"] .worth-it-vehicle-comparison-table thead th {
             background: #f4f5f7;
+        }
+
+        html[data-theme="light"] .worth-it-vehicle-comparison-meta span,
+        html[data-theme="light"] .worth-it-vehicle-comparison-vehicle-image-wrap {
+            background: rgba(0, 0, 0, 0.035);
+            border-color: rgba(0, 0, 0, 0.08);
+        }
+
+        html[data-theme="light"] .worth-it-vehicle-comparison-remove {
+            background: rgba(0, 0, 0, 0.05);
+            color: #16181d;
+            border-color: rgba(0, 0, 0, 0.08);
+        }
+
+        html[data-theme="light"] .worth-it-vehicle-comparison-remove:hover,
+        html[data-theme="light"] .worth-it-vehicle-comparison-remove:focus-visible {
+            background: rgba(0, 0, 0, 0.1);
+        }
+
+        html[data-theme="light"] .worth-it-vehicle-comparison-table tbody .worth-it-vehicle-comparison-label-cell {
+            background: #ffffff;
+            color: rgba(22, 24, 29, 0.66);
+        }
+
+        html[data-theme="light"] .worth-it-vehicle-comparison-section-row th {
+            background: #f4f5f7;
+            color: rgba(22, 24, 29, 0.72);
         }
 
         html[data-theme="light"] .worth-it-vehicle-compare-open {
