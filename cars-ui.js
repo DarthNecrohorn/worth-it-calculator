@@ -399,477 +399,85 @@ function getVehicleDetailsCacheKey(
 }
 
 
-/*
- * ============================================================
- * WIKIPEDIA VEHICLE DETAILS
- *
- * Uses the public MediaWiki API directly.
- *
- * No API key.
- * No registration.
- * Wikipedia data only.
- * ============================================================
- */
-
-const WIKIPEDIA_API =
-    "https://en.wikipedia.org/w/api.php";
-
-const WIKIPEDIA_LANGUAGE =
-    "en";
-
-
-function normalizeWikipediaTitle(value) {
-
-    return String(value || "")
-        .trim()
-        .replace(/\s+/g, " ");
-
-}
-
-
-function getWikipediaCacheKey(
+async function fetchVehicleDetails(
     make,
     model,
     kind
 ) {
+    const cacheKey =
+        getVehicleDetailsCacheKey(
+            make,
+            model,
+            kind
+        );
 
-    return [
-        normalizeVehicleText(make),
-        normalizeVehicleText(model),
-        normalizeVehicleText(kind)
-    ].join("|");
+    if (vehicleDetailsCache.has(cacheKey)) {
+        return vehicleDetailsCache.get(cacheKey);
+    }
 
-}
+    if (vehicleDetailsLoading.has(cacheKey)) {
+        return vehicleDetailsLoading.get(cacheKey);
+    }
 
-
-/*
- * Search Wikipedia for the most relevant
- * article for a vehicle.
- */
-
-async function searchWikipediaVehicle(
-    make,
-    model,
-    kind
-) {
-
-    const queries = [
-
-        `${make} ${model}`,
-
-        `${make} ${model} ${getVehicleKindInfo(kind).singular}`
-
-    ];
-
-
-    for (const query of queries) {
-
+    const loadingPromise = (async () => {
         try {
-
-            const params =
-                new URLSearchParams({
-
-                    action: "query",
-
-                    list: "search",
-
-                    srsearch: query,
-
-                    srnamespace: "0",
-
-                    srlimit: "5",
-
-                    format: "json",
-
-                    origin: "*"
-
-                });
-
-
-            const response =
-                await fetch(
-                    `${WIKIPEDIA_API}?${params.toString()}`,
-                    {
-                        headers: {
-                            "Accept":
-                                "application/json"
-                        }
-                    }
-                );
-
-
-            if (!response.ok) {
-
-                continue;
-
-            }
-
-
-            const data =
-                await response.json();
-
-
-            const results =
-                data?.query?.search;
-
-
-            if (
-                !Array.isArray(results) ||
-                !results.length
-            ) {
-
-                continue;
-
-            }
-
-
-            /*
-             * Prefer an exact title match.
-             */
-
-            const normalizedTarget =
-                normalizeVehicleText(
-                    `${make} ${model}`
-                );
-
-
-            const exact =
-                results.find(
-                    result =>
-                        normalizeVehicleText(
-                            result.title
-                        ) === normalizedTarget
-                );
-
-
-            if (exact) {
-
-                return exact.title;
-
-            }
-
-
-            /*
-             * Otherwise use the first relevant
-             * Wikipedia search result.
-             */
-
-            return results[0].title;
-
-        } catch (error) {
-
-            console.error(
-                "Wikipedia search error:",
-                query,
-                error
-            );
-
-        }
-
-    }
-
-
-    return null;
-
-}
-
-
-/*
- * Get Wikipedia page data.
- */
-
-async function fetchWikipediaPage(
-    title
-) {
-
-    if (!title) {
-
-        return null;
-
-    }
-
-
-    try {
-
-        const params =
-            new URLSearchParams({
-
-                action: "query",
-
-                prop:
-                    "extracts|pageimages|info",
-
-                exintro:
-                    "1",
-
-                explaintext:
-                    "1",
-
-                piprop:
-                    "thumbnail",
-
-                pithumbsize:
-                    "800",
-
-                inprop:
-                    "url",
-
-                titles:
-                    title,
-
-                format:
-                    "json",
-
-                origin:
-                    "*"
-
+            const params = new URLSearchParams({
+                action: "details",
+                make,
+                model,
+                kind
             });
 
-
-        const response =
-            await fetch(
-                `${WIKIPEDIA_API}?${params.toString()}`,
+            const response = await fetch(
+                `${VEHICLE_API}?${params.toString()}`,
                 {
                     headers: {
-                        "Accept":
-                            "application/json"
+                        "Accept": "application/json"
                     }
                 }
             );
 
+            if (!response.ok) {
+                throw new Error(
+                    `Vehicle details API returned ${response.status}`
+                );
+            }
 
-        if (!response.ok) {
+            const data = await response.json();
 
-            throw new Error(
-                `Wikipedia returned ${response.status}`
+            vehicleDetailsCache.set(
+                cacheKey,
+                data
             );
 
-        }
+            return data;
 
-
-        const data =
-            await response.json();
-
-
-        const pages =
-            data?.query?.pages;
-
-
-        if (!pages) {
+        } catch (error) {
+            console.error(
+                "Vehicle details error:",
+                make,
+                model,
+                kind,
+                error
+            );
 
             return null;
 
+        } finally {
+            vehicleDetailsLoading.delete(
+                cacheKey
+            );
         }
 
+    })();
 
-        const page =
-            Object.values(pages)[0];
+    vehicleDetailsLoading.set(
+        cacheKey,
+        loadingPromise
+    );
 
-
-        if (
-            !page ||
-            page.missing !== undefined
-        ) {
-
-            return null;
-
-        }
-
-
-        return {
-
-            title:
-                page.title || title,
-
-            description:
-                page.extract || "",
-
-            image:
-                page.thumbnail?.source || null,
-
-            url:
-                page.fullurl ||
-                `https://${WIKIPEDIA_LANGUAGE}.wikipedia.org/wiki/${encodeURIComponent(
-                    String(page.title || title)
-                        .replace(/ /g, "_")
-                )}`
-
-        };
-
-    } catch (error) {
-
-        console.error(
-            "Wikipedia page error:",
-            title,
-            error
-        );
-
-        return null;
-
-    }
-
+    return loadingPromise;
 }
-
-
-/*
- * Try to extract a useful value from
- * the Wikipedia introductory text.
- *
- * This is intentionally conservative.
- * We do NOT invent specifications.
- */
-
-function extractWikipediaSpecification(
-    text,
-    patterns
-) {
-
-    const source =
-        String(text || "");
-
-    if (!source) {
-
-        return null;
-
-    }
-
-
-    for (const pattern of patterns) {
-
-        const match =
-            source.match(pattern);
-
-
-        if (
-            match &&
-            match[1]
-        ) {
-
-            return match[1]
-                .trim();
-
-        }
-
-    }
-
-
-    return null;
-
-}
-
-
-/*
- * Create a normalized details object.
- *
- * Missing information is explicitly represented
- * as "No Information".
- */
-
-function normalizeWikipediaVehicleData(
-    page,
-    make,
-    model,
-    kind
-) {
-
-    const text =
-        String(
-            page?.description || ""
-        );
-
-
-    const noInfo =
-        "No Information";
-
-
-    const production =
-        extractWikipediaSpecification(
-            text,
-            [
-                /produced\s+from\s+([0-9]{4})\s+to\s+([0-9]{4})/i,
-                /produced\s+([0-9]{4})[–-]([0-9]{4})/i,
-                /production\s+([0-9]{4})[–-]([0-9]{4})/i
-            ]
-        );
-
-
-    return {
-
-        success: true,
-
-        source: "Wikipedia",
-
-        make:
-            make || noInfo,
-
-        model:
-            model || noInfo,
-
-        kind:
-            kind || noInfo,
-
-        wikipedia: {
-
-            title:
-                page?.title || noInfo,
-
-            url:
-                page?.url || null,
-
-            description:
-                page?.description || noInfo
-
-        },
-
-        image: page?.image
-            ? {
-                url: page.image,
-                source: "Wikimedia/Wikipedia"
-            }
-            : null,
-
-        specifications: {
-
-            production:
-                production || noInfo,
-
-            bodyType:
-                noInfo,
-
-            engine:
-                noInfo,
-
-            fuel:
-                noInfo,
-
-            transmission:
-                noInfo,
-
-            drivetrain:
-                noInfo,
-
-            horsepower:
-                noInfo,
-
-            torque:
-                noInfo,
-
-            dimensions:
-                noInfo,
-
-            weight:
-                noInfo
-
-        }
-
-    };
-
-}
-
-
-/*
- * Main Wikipedia details loader.
- */
 
 async function fetchVehicleDetails(
     make,
