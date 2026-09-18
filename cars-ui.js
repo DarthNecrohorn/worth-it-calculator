@@ -32,7 +32,9 @@
 
 const VEHICLE_API = "/api/cars";
 
-const VEHICLE_DETAILS_CACHE_VERSION = "v9";
+const VEHICLE_API_VERSION = "v13";
+
+const VEHICLE_DETAILS_CACHE_VERSION = "v13";
 
 const MAX_SEARCH_RESULTS = Infinity;
 
