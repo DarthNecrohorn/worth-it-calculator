@@ -4493,26 +4493,26 @@ function ensureVehiclesDBAttribution() {
 
 function openCarsFromMenu() {
 
-    if (typeof closeMoreMenu === "function") {
+    if (
+        typeof closeMoreMenu === "function"
+    ) {
+
         closeMoreMenu();
+
     }
 
     return openCars();
 
 }
 
-
 window.openCars =
     openCars;
-
 
 window.openCarsFromMenu =
     openCarsFromMenu;
 
-
 window.filterCarsByCategory =
     filterCarsByCategory;
-
 
 /*
  * ============================================================
