@@ -1114,57 +1114,18 @@ async function fetchVehicleCatalog(
                             );
                         });
 
-                vehicles.sort((a, b) => {
-
-                    const decileCompare =
+                /*
+                 * Sort only by VehiclesDB's documented global
+                 * popularity decile. Ties deliberately retain
+                 * the order supplied by VehiclesDB; we do not
+                 * invent a second global ranking from country
+                 * ranks.
+                 */
+                vehicles.sort(
+                    (a, b) =>
                         getVehiclePopularityValue(a) -
-                        getVehiclePopularityValue(b);
-
-                    if (decileCompare !== 0) {
-                        return decileCompare;
-                    }
-
-                    const aSecondary =
-                        getVehicleSecondaryPopularityValue(a);
-                    const bSecondary =
-                        getVehicleSecondaryPopularityValue(b);
-
-                    if (
-                        Number.isFinite(aSecondary) &&
-                        Number.isFinite(bSecondary) &&
-                        aSecondary !== bSecondary
-                    ) {
-                        return aSecondary - bSecondary;
-                    }
-
-                    if (
-                        Number.isFinite(aSecondary) !==
-                        Number.isFinite(bSecondary)
-                    ) {
-                        return Number.isFinite(aSecondary)
-                            ? -1
-                            : 1;
-                    }
-
-                    const makeCompare =
-                        String(a.make || "")
-                            .localeCompare(
-                                String(b.make || ""),
-                                undefined,
-                                { sensitivity: "base" }
-                            );
-
-                    if (makeCompare !== 0) {
-                        return makeCompare;
-                    }
-
-                    return String(a.model || "")
-                        .localeCompare(
-                            String(b.model || ""),
-                            undefined,
-                            { sensitivity: "base" }
-                        );
-                });
+                        getVehiclePopularityValue(b)
+                );
 
                 const limitedVehicles =
                     vehicles.slice(
@@ -1217,36 +1178,6 @@ async function fetchVehicleCatalog(
  * ============================================================
  */
 
-function getVehicleSecondaryPopularityValue(
-    vehicle
-) {
-
-    const ranks =
-        Array.isArray(vehicle?.popularityRanks)
-            ? vehicle.popularityRanks
-            : [];
-
-    if (!ranks.length) {
-        return Number.POSITIVE_INFINITY;
-    }
-
-    let logSum = 0;
-
-    for (const rank of ranks) {
-
-        const value = Number(rank);
-
-        if (Number.isFinite(value) && value > 0) {
-            logSum += Math.log(value);
-        }
-
-    }
-
-    return Math.exp(logSum / ranks.length);
-
-}
-
-
 function getVehiclePopularityValue(
     vehicle
 ) {
@@ -1282,57 +1213,16 @@ function getPopularVehicles(
         return [];
     }
 
-    return [...vehicles].sort((a, b) => {
-
-        const decileDifference =
+    /*
+     * Keep Popular Vehicles consistent with the catalog sort.
+     * Only the documented global popularity decile is used for
+     * ordering; tied deciles keep the catalog's original order.
+     */
+    return [...vehicles].sort(
+        (a, b) =>
             getVehiclePopularityValue(a) -
-            getVehiclePopularityValue(b);
-
-        if (decileDifference !== 0) {
-            return decileDifference;
-        }
-
-        const aSecondary =
-            getVehicleSecondaryPopularityValue(a);
-        const bSecondary =
-            getVehicleSecondaryPopularityValue(b);
-
-        if (
-            Number.isFinite(aSecondary) &&
-            Number.isFinite(bSecondary) &&
-            aSecondary !== bSecondary
-        ) {
-            return aSecondary - bSecondary;
-        }
-
-        if (
-            Number.isFinite(aSecondary) !==
-            Number.isFinite(bSecondary)
-        ) {
-            return Number.isFinite(aSecondary)
-                ? -1
-                : 1;
-        }
-
-        const makeCompare =
-            String(a.make || "")
-                .localeCompare(
-                    String(b.make || ""),
-                    undefined,
-                    { sensitivity: "base" }
-                );
-
-        if (makeCompare !== 0) {
-            return makeCompare;
-        }
-
-        return String(a.model || "")
-            .localeCompare(
-                String(b.model || ""),
-                undefined,
-                { sensitivity: "base" }
-            );
-    });
+            getVehiclePopularityValue(b)
+    );
 }
 
 
