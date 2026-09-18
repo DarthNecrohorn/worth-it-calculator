@@ -609,14 +609,23 @@ async function handleModels(
 
 models.sort((a, b) => {
 
+    const aRaw = a.globalDecile;
+    const bRaw = b.globalDecile;
+
     const aDecile =
-        Number.isFinite(Number(a.globalDecile))
-            ? Number(a.globalDecile)
+        aRaw !== null &&
+        aRaw !== undefined &&
+        String(aRaw).trim() !== "" &&
+        Number.isFinite(Number(aRaw))
+            ? Number(aRaw)
             : 999;
 
     const bDecile =
-        Number.isFinite(Number(b.globalDecile))
-            ? Number(b.globalDecile)
+        bRaw !== null &&
+        bRaw !== undefined &&
+        String(bRaw).trim() !== "" &&
+        Number.isFinite(Number(bRaw))
+            ? Number(bRaw)
             : 999;
 
     if (aDecile !== bDecile) {
@@ -654,7 +663,7 @@ return jsonResponse({
     vehicles: models,
     models
 });
-    
+
 }
 
 /*
