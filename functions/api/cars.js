@@ -4343,9 +4343,6 @@ export async function onRequestGet(context) {
                 .trim()
                 .toLowerCase();
 
-        const database =
-            await loadVehiclesDatabase();
-
         switch (action) {
 
             case "models":
