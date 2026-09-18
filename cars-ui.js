@@ -37,7 +37,7 @@ const VEHICLE_API_VERSION = "v13";
 const VEHICLE_CATALOG_BASE_URL =
     "https://cdn.jsdelivr.net/gh/vehiclesdb/vehiclesdb@latest/catalog";
 
-const VEHICLE_DETAILS_CACHE_VERSION = "v13";
+const VEHICLE_DETAILS_CACHE_VERSION = "v14";
 
 const MAX_SEARCH_RESULTS = 300;
 
