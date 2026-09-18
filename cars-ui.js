@@ -43,6 +43,61 @@ const MAX_SEARCH_RESULTS = 300;
 
 const INITIAL_VISIBLE_ROWS = 3;
 
+/*
+ * Popular Vehicles quality selection.
+ *
+ * VehiclesDB provides the popularity candidates, while the
+ * details endpoint is used only for a limited number of candidates
+ * at a time to keep cards with missing Wikipedia/Wikimedia data
+ * out of the Popular Vehicles view.
+ */
+const POPULAR_CANDIDATE_POOL_SIZE = 1000;
+const POPULAR_QUALITY_BATCH_SIZE = 4;
+const POPULAR_INITIAL_MAX_CHECKS = 60;
+const POPULAR_SHOW_ALL_MAX_NEW_CHECKS = 300;
+const POPULAR_MAX_DISPLAY_RESULTS = 300;
+const POPULAR_MIN_SPECIFICATION_FIELDS = 2;
+const POPULAR_MIN_DESCRIPTION_LENGTH = 60;
+
+const POPULAR_VEHICLE_TYPE_TERMS = {
+    car: [
+        "car", "automobile", "sedan", "saloon", "hatchback",
+        "coupe", "convertible", "cabriolet", "roadster", "wagon",
+        "estate", "suv", "crossover", "minivan", "mpv", "pickup"
+    ],
+    motorcycle: [
+        "motorcycle", "motorbike", "scooter", "motorcycle model",
+        "motorcycle series", "two-wheeler"
+    ],
+    moped: [
+        "moped", "scooter", "motorized bicycle", "motorised bicycle",
+        "motor scooter", "motorcycle"
+    ],
+    van: [
+        "van", "minivan", "panel van", "cargo van", "microvan",
+        "people carrier", "light commercial vehicle"
+    ],
+    truck: [
+        "truck", "lorry", "pickup truck", "heavy truck",
+        "commercial truck", "tractor unit", "tractor-trailer"
+    ],
+    bus: [
+        "bus", "coach", "transit bus", "city bus", "double-decker",
+        "shuttle bus", "school bus", "minibus"
+    ]
+};
+
+const POPULAR_NON_VEHICLE_ENTITY_TERMS = [
+    "airport", "airline", "airport authority", "iata", "icao",
+    "singer", "songwriter", "pianist", "musician", "actor",
+    "actress", "politician", "footballer", "basketball player",
+    "athlete", "person", "biography", "village", "town", "city",
+    "municipality", "river", "lake", "mountain", "university",
+    "school", "hospital", "station", "building", "church",
+    "film", "movie", "television series", "album", "song",
+    "novel", "book", "magazine", "aircraft", "airplane", "helicopter"
+];
+
 const VEHICLE_KINDS = [
     "car",
     "motorcycle",
@@ -156,6 +211,16 @@ const vehicleCompareSelection =
 
 let vehicleModalScrollY =
     0;
+
+/*
+ * Per-category state for progressively selecting popular vehicles
+ * that have usable Wikipedia + Wikimedia data.
+ */
+const popularVehicleQualityState =
+    new Map();
+
+const popularVehicleQualityCache =
+    new Map();
 
 
 /*
@@ -1103,46 +1168,21 @@ async function fetchVehicleCatalog(
                                     model.year_end ?? null
                             };
                         })
-                        .filter(Boolean)
-                        .filter(vehicle => {
-
-                            const rawDecile =
-                                vehicle.globalDecile;
-
-                            return (
-                                rawDecile !== null &&
-                                rawDecile !== undefined &&
-                                String(rawDecile).trim() !== "" &&
-                                Number.isFinite(Number(rawDecile)) &&
-                                Number(rawDecile) <= 2
-                            );
-                        });
+                        .filter(Boolean);
 
                 /*
-                 * Sort only by VehiclesDB's documented global
-                 * popularity decile. Ties deliberately retain
-                 * the order supplied by VehiclesDB; we do not
-                 * invent a second global ranking from country
-                 * ranks.
+                 * Keep the full category catalog in browser memory.
+                 * Popular Vehicles are selected separately below, so
+                 * Search can find specific models outside the popular
+                 * candidate pool (for example newer or less-popular
+                 * vehicles).
                  */
-                vehicles.sort(
-                    (a, b) =>
-                        getVehiclePopularityValue(a) -
-                        getVehiclePopularityValue(b)
-                );
-
-                const limitedVehicles =
-                    vehicles.slice(
-                        0,
-                        300
-                    );
-
                 vehicleCatalogCache.set(
                     kind,
-                    limitedVehicles
+                    vehicles
                 );
 
-                return limitedVehicles;
+                return vehicles;
 
             } catch (error) {
 
@@ -1218,14 +1258,804 @@ function getPopularVehicles(
     }
 
     /*
-     * Keep Popular Vehicles consistent with the catalog sort.
-     * Only the documented global popularity decile is used for
-     * ordering; tied deciles keep the catalog's original order.
+     * Popular Vehicles are the strongest candidates from
+     * VehiclesDB's documented global popularity deciles.
+     * We keep a larger internal candidate pool than the visible
+     * list so low-quality records can be skipped and replaced by
+     * the next suitable popular model.
      */
-    return [...vehicles].sort(
-        (a, b) =>
-            getVehiclePopularityValue(a) -
-            getVehiclePopularityValue(b)
+    return vehicles
+        .filter(vehicle => {
+
+            const rawDecile =
+                vehicle?.globalDecile;
+
+            return (
+                rawDecile !== null &&
+                rawDecile !== undefined &&
+                String(rawDecile).trim() !== "" &&
+                Number.isFinite(Number(rawDecile)) &&
+                Number(rawDecile) <= 2
+            );
+
+        })
+        .sort(
+            (a, b) =>
+                getVehiclePopularityValue(a) -
+                getVehiclePopularityValue(b)
+        )
+        .slice(
+            0,
+            POPULAR_CANDIDATE_POOL_SIZE
+        );
+}
+
+
+function getPopularVehicleQualityKey(
+    vehicle,
+    kind
+) {
+
+    return [
+        normalizeVehicleText(vehicle?.make),
+        normalizeVehicleText(vehicle?.model),
+        normalizeVehicleText(kind)
+    ].join("|");
+}
+
+
+function normalizePopularQualityText(value) {
+
+    return String(value || "")
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, " ")
+        .trim();
+
+}
+
+
+function getPopularQualityTokens(value) {
+
+    return normalizePopularQualityText(value)
+        .split(/\s+/)
+        .filter(token => token.length >= 2);
+
+}
+
+
+function getPopularVehicleIdentityTokens(
+    vehicle
+) {
+
+    const rawTokens = [
+        ...getPopularQualityTokens(vehicle?.make),
+        ...getPopularQualityTokens(vehicle?.model)
+    ];
+
+    const stopWords = new Set([
+        "and", "the", "series", "class", "model", "type",
+        "generation", "mk", "mark", "edition", "version",
+        "trim", "plus", "luxury", "design", "sport", "limited"
+    ]);
+
+    return Array.from(
+        new Set(
+            rawTokens.filter(token => !stopWords.has(token))
+        )
+    );
+
+}
+
+
+function popularQualityTextContainsToken(
+    text,
+    token
+) {
+
+    return (
+        token &&
+        new RegExp(`\\b${token.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "i").test(text)
+    );
+
+}
+
+
+function hasPopularVehicleIdentityMatch(
+    details,
+    vehicle
+) {
+
+    const wikipediaTitle =
+        details?.wikipedia?.title || "";
+
+    const description =
+        details?.wikipedia?.description || "";
+
+    const text =
+        normalizePopularQualityText(
+            `${wikipediaTitle} ${description}`
+        );
+
+    const makeTokens =
+        getPopularQualityTokens(vehicle?.make);
+
+    const modelText =
+        normalizePopularQualityText(vehicle?.model);
+
+    const modelTokens =
+        getPopularQualityTokens(vehicle?.model)
+            .filter(token =>
+                !new Set([
+                    "and", "the", "series", "class", "model",
+                    "type", "generation", "mk", "mark", "edition",
+                    "version", "trim", "plus", "luxury", "design",
+                    "sport", "limited"
+                ]).has(token)
+            );
+
+    if (
+        modelText &&
+        text.includes(modelText)
+    ) {
+        return true;
+    }
+
+    const makeMatch =
+        makeTokens.some(token =>
+            popularQualityTextContainsToken(text, token)
+        );
+
+    const modelMatches =
+        modelTokens.filter(token =>
+            popularQualityTextContainsToken(text, token)
+        );
+
+    /*
+     * Require either the full model phrase, a make + model token,
+     * or two meaningful model tokens. This prevents generic pages
+     * such as airports, biographies, or VIN articles from being
+     * accepted merely because one common word overlaps.
+     */
+    if (
+        makeMatch &&
+        modelMatches.length >= 1
+    ) {
+        return true;
+    }
+
+    return modelMatches.length >= 2;
+
+}
+
+
+function countPopularVehicleTypeTerms(
+    details,
+    kind
+) {
+
+    const text =
+        normalizePopularQualityText(
+            `${details?.wikipedia?.title || ""} ${details?.wikipedia?.description || ""}`
+        );
+
+    const terms =
+        POPULAR_VEHICLE_TYPE_TERMS[kind] ||
+        POPULAR_VEHICLE_TYPE_TERMS.car;
+
+    return terms.filter(term =>
+        text.includes(
+            normalizePopularQualityText(term)
+        )
+    ).length;
+
+}
+
+
+function countPopularNonVehicleEntityTerms(
+    details
+) {
+
+    const text =
+        normalizePopularQualityText(
+            `${details?.wikipedia?.title || ""} ${details?.wikipedia?.description || ""}`
+        );
+
+    return POPULAR_NON_VEHICLE_ENTITY_TERMS.filter(term =>
+        text.includes(
+            normalizePopularQualityText(term)
+        )
+    ).length;
+
+}
+
+
+function getPopularVehicleSpecificationCount(
+    details
+) {
+
+    const specifications =
+        details?.specifications || {};
+
+    const technicalKeys = [
+        "engine",
+        "fuel",
+        "transmission",
+        "drivetrain",
+        "horsepower",
+        "torque",
+        "weight",
+        "length",
+        "width",
+        "height",
+        "wheelbase",
+        "topSpeed",
+        "battery",
+        "electricRange",
+        "seating",
+        "doors"
+    ];
+
+    return technicalKeys.reduce(
+        (count, key) =>
+            count +
+            (
+                isUsefulVehicleDetailValue(
+                    specifications[key]
+                )
+                    ? 1
+                    : 0
+            ),
+        0
+    );
+
+}
+
+
+function hasPopularVehicleImageRelevance(
+    details,
+    vehicle
+) {
+
+    const imageUrl =
+        String(details?.image?.url || "").trim();
+
+    if (!imageUrl) {
+        return false;
+    }
+
+    let imageName = "";
+
+    try {
+        const parsed =
+            new URL(imageUrl);
+
+        imageName =
+            decodeURIComponent(
+                parsed.pathname
+                    .split("/")
+                    .pop() || ""
+            );
+    } catch {
+        imageName = imageUrl;
+    }
+
+    const normalizedImageName =
+        normalizePopularQualityText(
+            imageName
+        );
+
+    if (!normalizedImageName) {
+        return true;
+    }
+
+    const nonVehicleImageTerms =
+        POPULAR_NON_VEHICLE_ENTITY_TERMS.filter(term =>
+            normalizedImageName.includes(
+                normalizePopularQualityText(term)
+            )
+        );
+
+    if (!nonVehicleImageTerms.length) {
+        return true;
+    }
+
+    const identityTokens =
+        getPopularVehicleIdentityTokens(
+            vehicle
+        );
+
+    const identityInImage =
+        identityTokens.some(token =>
+            normalizedImageName.includes(token)
+        );
+
+    return identityInImage;
+}
+
+
+function hasUsablePopularVehicleDetails(
+    details,
+    vehicle,
+    kind
+) {
+
+    if (!details) {
+        return false;
+    }
+
+    /*
+     * The backend marks whether enough useful Wikipedia technical
+     * information exists for comparison. A false value is therefore
+     * never suitable for the Popular Vehicles section.
+     */
+    if (details.comparisonAvailable === false) {
+        return false;
+    }
+
+    const imageUrl =
+        details?.image?.url;
+
+    const wikipediaUrl =
+        details?.wikipedia?.url;
+
+    const description =
+        details?.wikipedia?.description;
+
+    if (
+        !String(imageUrl || "").trim() ||
+        !String(wikipediaUrl || "").trim() ||
+        !isUsefulVehicleDetailValue(description)
+    ) {
+        return false;
+    }
+
+    if (
+        normalizePopularQualityText(description).length <
+        POPULAR_MIN_DESCRIPTION_LENGTH
+    ) {
+        return false;
+    }
+
+    const specificationCount =
+        getPopularVehicleSpecificationCount(
+            details
+        );
+
+    if (
+        specificationCount <
+        POPULAR_MIN_SPECIFICATION_FIELDS
+    ) {
+        return false;
+    }
+
+    const identityMatch =
+        hasPopularVehicleIdentityMatch(
+            details,
+            vehicle
+        );
+
+    if (!identityMatch) {
+        return false;
+    }
+
+    const vehicleTypeTermCount =
+        countPopularVehicleTypeTerms(
+            details,
+            kind
+        );
+
+    const nonVehicleEntityTermCount =
+        countPopularNonVehicleEntityTerms(
+            details
+        );
+
+    /*
+     * A real vehicle page should either mention the expected vehicle
+     * type or expose at least one technical vehicle specification.
+     * Strong non-vehicle signals without a vehicle signal are rejected.
+     */
+    if (
+        vehicleTypeTermCount === 0 &&
+        specificationCount === 0
+    ) {
+        return false;
+    }
+
+    if (
+        nonVehicleEntityTermCount >= 2 &&
+        vehicleTypeTermCount === 0
+    ) {
+        return false;
+    }
+
+    if (
+        !hasPopularVehicleImageRelevance(
+            details,
+            vehicle
+        )
+    ) {
+        return false;
+    }
+
+    return true;
+}
+
+
+function getPopularVehicleQualityState(
+    kind,
+    candidates
+) {
+
+    const existing =
+        popularVehicleQualityState.get(kind);
+
+    if (
+        existing &&
+        existing.candidateSignature === candidates
+            .map(vehicle =>
+                getPopularVehicleQualityKey(
+                    vehicle,
+                    kind
+                )
+            )
+            .join("||")
+    ) {
+
+        return existing;
+
+    }
+
+    const state = {
+        candidateSignature: candidates
+            .map(vehicle =>
+                getPopularVehicleQualityKey(
+                    vehicle,
+                    kind
+                )
+            )
+            .join("||"),
+        candidates,
+        nextIndex: 0,
+        validVehicles: [],
+        checkedCount: 0,
+        exhausted: false,
+        loadingPromise: null
+    };
+
+    popularVehicleQualityState.set(
+        kind,
+        state
+    );
+
+    return state;
+}
+
+
+async function ensurePopularVehicleQuality(
+    kind,
+    catalogVehicles,
+    desiredCount,
+    maxNewChecks
+) {
+
+    const candidates =
+        getPopularVehicles(
+            catalogVehicles
+        );
+
+    if (!candidates.length) {
+        return [];
+    }
+
+    const state =
+        getPopularVehicleQualityState(
+            kind,
+            candidates
+        );
+
+    if (
+        state.validVehicles.length >= desiredCount ||
+        state.exhausted
+    ) {
+        return state.validVehicles.slice(
+            0,
+            desiredCount
+        );
+    }
+
+    if (state.loadingPromise) {
+        await state.loadingPromise;
+
+        return state.validVehicles.slice(
+            0,
+            desiredCount
+        );
+    }
+
+    const loadingPromise =
+        (async () => {
+
+            let newChecks = 0;
+
+            try {
+
+                while (
+                    state.nextIndex < state.candidates.length &&
+                    state.validVehicles.length < desiredCount &&
+                    newChecks < maxNewChecks
+                ) {
+
+                    const batch =
+                        state.candidates.slice(
+                            state.nextIndex,
+                            Math.min(
+                                state.nextIndex +
+                                    POPULAR_QUALITY_BATCH_SIZE,
+                                state.candidates.length
+                            )
+                        );
+
+                    state.nextIndex +=
+                        batch.length;
+
+                    newChecks +=
+                        batch.length;
+
+                    state.checkedCount +=
+                        batch.length;
+
+                    const checked =
+                        await Promise.all(
+                            batch.map(
+                                async vehicle => {
+
+                                    const key =
+                                        getPopularVehicleQualityKey(
+                                            vehicle,
+                                            kind
+                                        );
+
+                                    if (
+                                        popularVehicleQualityCache.has(
+                                            key
+                                        )
+                                    ) {
+
+                                        return {
+                                            vehicle,
+                                            usable:
+                                                popularVehicleQualityCache.get(
+                                                    key
+                                                )
+                                        };
+
+                                    }
+
+                                    const details =
+                                        await fetchVehicleDetails(
+                                            vehicle.make,
+                                            vehicle.model,
+                                            kind
+                                        );
+
+                                    if (!details) {
+
+                                        /*
+                                         * A failed request is treated as transient.
+                                         * Do not cache it as unusable so a future
+                                         * attempt can retry.
+                                         */
+                                        return {
+                                            vehicle,
+                                            usable: null
+                                        };
+
+                                    }
+
+                                    const usable =
+                                        hasUsablePopularVehicleDetails(
+                                            details,
+                                            vehicle,
+                                            kind
+                                        );
+
+                                    popularVehicleQualityCache.set(
+                                        key,
+                                        usable
+                                    );
+
+                                    return {
+                                        vehicle,
+                                        usable
+                                    };
+
+                                }
+                            )
+                        );
+
+                    for (
+                        const item of checked
+                    ) {
+
+                        if (
+                            item.usable === true &&
+                            !state.validVehicles.some(
+                                vehicle =>
+                                    getPopularVehicleQualityKey(
+                                        vehicle,
+                                        kind
+                                    ) ===
+                                    getPopularVehicleQualityKey(
+                                        item.vehicle,
+                                        kind
+                                    )
+                            )
+                        ) {
+
+                            state.validVehicles.push(
+                                item.vehicle
+                            );
+
+                            if (
+                                state.validVehicles.length >=
+                                desiredCount
+                            ) {
+
+                                break;
+
+                            }
+
+                        }
+
+                    }
+
+                }
+
+                if (
+                    state.nextIndex >=
+                    state.candidates.length
+                ) {
+                    state.exhausted = true;
+                }
+
+            } finally {
+
+                state.loadingPromise =
+                    null;
+
+            }
+
+        })();
+
+    state.loadingPromise =
+        loadingPromise;
+
+    await loadingPromise;
+
+    return state.validVehicles.slice(
+        0,
+        desiredCount
+    );
+}
+
+
+async function loadAndRenderPopularVehicles(
+    kind,
+    showAll = false
+) {
+
+    if (
+        currentVehicleKind !== kind ||
+        currentVehicleMode !== "popular"
+    ) {
+
+        return;
+
+    }
+
+    const catalogVehicles =
+        currentVehicleCatalog;
+
+    const candidates =
+        getPopularVehicles(
+            catalogVehicles
+        );
+
+    if (!candidates.length) {
+
+        renderVehicleCards(
+            [],
+            kind,
+            showAll
+        );
+
+        return;
+
+    }
+
+    const targetCount =
+        showAll
+            ? POPULAR_MAX_DISPLAY_RESULTS
+            : Math.max(
+                1,
+                getInitialVehicleLimit(
+                    candidates
+                )
+            );
+
+    const maxNewChecks =
+        showAll
+            ? POPULAR_SHOW_ALL_MAX_NEW_CHECKS
+            : POPULAR_INITIAL_MAX_CHECKS;
+
+    const qualityVehicles =
+        await ensurePopularVehicleQuality(
+            kind,
+            catalogVehicles,
+            targetCount,
+            maxNewChecks
+        );
+
+    if (
+        currentVehicleKind !== kind ||
+        currentVehicleMode !== "popular"
+    ) {
+
+        return;
+
+    }
+
+    currentVehicleResults =
+        qualityVehicles;
+
+    currentVehicleShowAll =
+        showAll &&
+        qualityVehicles.length >
+            Math.max(
+                1,
+                getInitialVehicleLimit(
+                    qualityVehicles
+                )
+            );
+
+    renderVehicleCards(
+        qualityVehicles,
+        kind,
+        showAll
+    );
+
+    /*
+     * The visible list contains only validated vehicles. Keep the
+     * existing Show All control available while more quality-checked
+     * candidates can still be discovered.
+     */
+    if (
+        !showAll &&
+        qualityVehicles.length > 0 &&
+        stateHasMorePopularVehicleCandidates(kind)
+    ) {
+        renderVehicleExpandButton(
+            candidates,
+            qualityVehicles,
+            kind
+        );
+    }
+}
+
+
+function stateHasMorePopularVehicleCandidates(
+    kind
+) {
+
+    const state =
+        popularVehicleQualityState.get(kind);
+
+    return Boolean(
+        state &&
+        !state.exhausted &&
+        state.nextIndex < state.candidates.length
     );
 }
 
@@ -1486,14 +2316,16 @@ function renderVehicleExpandButton(
 
     button.addEventListener(
         "click",
-        () => {
+        async () => {
+
+            button.disabled = true;
+            button.textContent =
+                "Loading more vehicles…";
 
             currentVehicleShowAll =
                 true;
 
-
-            renderVehicleCards(
-                totalVehicles,
+            await loadAndRenderPopularVehicles(
                 kind,
                 true
             );
@@ -4002,6 +4834,11 @@ function injectVehicleUiStyles() {
         }
 
 
+        .cars-expand-button:disabled {
+            cursor: wait;
+            opacity: 0.65;
+        }
+
         .worth-it-vehicle-floating-collapse {
             position: fixed;
             left: 14px;
@@ -4647,7 +5484,7 @@ async function filterCarsByCategory(
                 </strong>
 
                 <p>
-                    Loading the latest VehiclesDB catalog.
+                    Loading the latest VehiclesDB catalog and checking available vehicle information.
                 </p>
 
             </div>
@@ -4667,14 +5504,7 @@ async function filterCarsByCategory(
         vehicles;
 
 
-    const popularVehicles =
-        getPopularVehicles(
-            vehicles
-        );
-
-
-    renderVehicleCards(
-        popularVehicles,
+    await loadAndRenderPopularVehicles(
         kind,
         false
     );
@@ -4734,9 +5564,28 @@ function handleVehicleSearch(
             currentVehicleKind
         );
 
+        const grid =
+            document.getElementById(
+                "popularCarsGrid"
+            );
 
-        renderVehicleCards(
-            results,
+        if (grid) {
+            grid.innerHTML = `
+                <div class="cars-empty-state">
+                    <div class="cars-empty-icon">
+                        ${getVehicleKindInfo(currentVehicleKind).icon}
+                    </div>
+                    <strong>
+                        Preparing popular ${getVehicleKindInfo(currentVehicleKind).plural.toLowerCase()}...
+                    </strong>
+                    <p>
+                        Checking the most popular candidates for usable vehicle information.
+                    </p>
+                </div>
+            `;
+        }
+
+        void loadAndRenderPopularVehicles(
             currentVehicleKind,
             false
         );
@@ -4910,7 +5759,7 @@ async function openCars() {
                 </strong>
 
                 <p>
-                    Loading the latest VehiclesDB catalog.
+                    Loading the latest VehiclesDB catalog and checking available vehicle information.
                 </p>
 
             </div>
@@ -4934,14 +5783,7 @@ async function openCars() {
         vehicles;
 
 
-    const popularVehicles =
-        getPopularVehicles(
-            vehicles
-        );
-
-
-    renderVehicleCards(
-        popularVehicles,
+    await loadAndRenderPopularVehicles(
         "car",
         false
     );
