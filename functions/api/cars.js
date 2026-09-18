@@ -607,33 +607,54 @@ async function handleModels(
             );
     }
 
-    models.sort((a, b) => {
+models.sort((a, b) => {
 
-        const makeCompare =
-            a.make.localeCompare(
-                b.make,
-                undefined,
-                { sensitivity: "base" }
-            );
+    const aDecile =
+        Number.isFinite(Number(a.globalDecile))
+            ? Number(a.globalDecile)
+            : 999;
 
-        if (makeCompare !== 0) {
-            return makeCompare;
-        }
+    const bDecile =
+        Number.isFinite(Number(b.globalDecile))
+            ? Number(b.globalDecile)
+            : 999;
 
-        return a.model.localeCompare(
-            b.model,
+    if (aDecile !== bDecile) {
+        return aDecile - bDecile;
+    }
+
+    const makeCompare =
+        a.make.localeCompare(
+            b.make,
             undefined,
             { sensitivity: "base" }
         );
-    });
 
-    return jsonResponse({
-        success: true,
-        kind,
-        count: models.length,
-        vehicles: models,
-        models
-    });
+    if (makeCompare !== 0) {
+        return makeCompare;
+    }
+
+    return a.model.localeCompare(
+        b.model,
+        undefined,
+        { sensitivity: "base" }
+    );
+});
+
+models =
+    models.slice(
+        0,
+        MAX_MODELS_PER_KIND
+    );
+
+return jsonResponse({
+    success: true,
+    kind,
+    count: models.length,
+    vehicles: models,
+    models
+});
+    
 }
 
 /*
