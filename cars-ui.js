@@ -399,11 +399,27 @@ function getVehicleDetailsCacheKey(
 }
 
 
+function getVehicleDetailsCacheKey(
+    make,
+    model,
+    kind
+) {
+
+    return [
+        normalizeVehicleText(make),
+        normalizeVehicleText(model),
+        normalizeVehicleText(kind)
+    ].join("|");
+
+}
+
+
 async function fetchVehicleDetails(
     make,
     model,
     kind
 ) {
+
     const cacheKey =
         getVehicleDetailsCacheKey(
             make,
@@ -412,71 +428,102 @@ async function fetchVehicleDetails(
         );
 
     if (vehicleDetailsCache.has(cacheKey)) {
-        return vehicleDetailsCache.get(cacheKey);
+
+        return vehicleDetailsCache.get(
+            cacheKey
+        );
+
     }
 
     if (vehicleDetailsLoading.has(cacheKey)) {
-        return vehicleDetailsLoading.get(cacheKey);
+
+        return vehicleDetailsLoading.get(
+            cacheKey
+        );
+
     }
 
-    const loadingPromise = (async () => {
-        try {
-            const params = new URLSearchParams({
-                action: "details",
-                make,
-                model,
-                kind
-            });
+    const loadingPromise =
+        (async () => {
 
-            const response = await fetch(
-                `${VEHICLE_API}?${params.toString()}`,
-                {
-                    headers: {
-                        "Accept": "application/json"
-                    }
+            try {
+
+                const params =
+                    new URLSearchParams({
+
+                        action: "details",
+                        make,
+                        model,
+                        kind
+
+                    });
+
+
+                const response =
+                    await fetch(
+                        `${VEHICLE_API}?${params.toString()}`,
+                        {
+                            headers: {
+                                "Accept":
+                                    "application/json"
+                            }
+                        }
+                    );
+
+
+                if (!response.ok) {
+
+                    throw new Error(
+                        `Vehicle details API returned ${response.status}`
+                    );
+
                 }
-            );
 
-            if (!response.ok) {
-                throw new Error(
-                    `Vehicle details API returned ${response.status}`
+
+                const data =
+                    await response.json();
+
+
+                vehicleDetailsCache.set(
+                    cacheKey,
+                    data
                 );
+
+
+                return data;
+
+            } catch (error) {
+
+                console.error(
+                    "Vehicle details error:",
+                    make,
+                    model,
+                    kind,
+                    error
+                );
+
+
+                return null;
+
+            } finally {
+
+                vehicleDetailsLoading.delete(
+                    cacheKey
+                );
+
             }
 
-            const data = await response.json();
+        })();
 
-            vehicleDetailsCache.set(
-                cacheKey,
-                data
-            );
-
-            return data;
-
-        } catch (error) {
-            console.error(
-                "Vehicle details error:",
-                make,
-                model,
-                kind,
-                error
-            );
-
-            return null;
-
-        } finally {
-            vehicleDetailsLoading.delete(
-                cacheKey
-            );
-        }
-
-    })();
 
     vehicleDetailsLoading.set(
         cacheKey,
         loadingPromise
     );
 
+
     return loadingPromise;
+
 }
 
 async function fetchVehicleDetails(
