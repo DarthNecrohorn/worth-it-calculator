@@ -24,6 +24,7 @@ const VEHICLES_DB_URL =
 
 const CACHE_TTL = 86400; // 24 hours
 const WIKIPEDIA_CACHE_TTL = 604800; // 7 days
+const WIKIPEDIA_CACHE_VERSION = "v4";
 
 const WIKIPEDIA_API =
     "https://en.wikipedia.org/w/api.php";
@@ -201,17 +202,23 @@ async function loadVehiclesDatabase() {
                 headers: {
                     "Content-Type":
                         "application/json; charset=UTF-8",
-
                     "Cache-Control":
                         `public, max-age=${CACHE_TTL}`
                 }
             }
         );
 
-    await cache.put(
-        cacheKey,
-        cacheResponse
-    );
+    try {
+        await cache.put(
+            cacheKey,
+            cacheResponse
+        );
+    } catch (error) {
+        console.error(
+            "VehiclesDB cache write failed:",
+            error
+        );
+    }
 
     return data;
 }
@@ -260,53 +267,33 @@ function getModelsByKind(
             }
 
             models.push({
-
-                make:
-                    make.name || "",
-
-                makeSlug:
-                    make.slug || "",
-
-                model:
-                    model.name || "",
-
-                modelSlug:
-                    model.slug || "",
-
-                kind:
-                    modelKind,
-
-                bodyType:
-                    model.body_type || null,
-
+                make: make.name || "",
+                makeSlug: make.slug || "",
+                model: model.name || "",
+                modelSlug: model.slug || "",
+                kind: modelKind,
+                bodyType: model.body_type || null,
                 bodyTypes:
                     Array.isArray(model.body_types)
                         ? model.body_types
                         : [],
-
                 globalDecile:
                     model.global_decile ??
                     model.global_popularity_decile ??
                     null,
-
                 availability:
                     Array.isArray(model.availability)
                         ? model.availability
                         : [],
-
                 yearStart:
-                    model.year_start ??
-                    null,
-
+                    model.year_start ?? null,
                 yearEnd:
-                    model.year_end ??
-                    null
+                    model.year_end ?? null
             });
         }
     }
 
-    const unique =
-        new Map();
+    const unique = new Map();
 
     for (const vehicle of models) {
 
@@ -316,17 +303,11 @@ function getModelsByKind(
             `${vehicle.kind}`;
 
         if (!unique.has(key)) {
-
-            unique.set(
-                key,
-                vehicle
-            );
+            unique.set(key, vehicle);
         }
     }
 
-    return Array.from(
-        unique.values()
-    );
+    return Array.from(unique.values());
 }
 
 /*
@@ -349,10 +330,8 @@ function findVehicle(
 
     const exact =
         models.find(vehicle =>
-            normalizeText(vehicle.make) ===
-                targetMake &&
-            normalizeText(vehicle.model) ===
-                targetModel
+            normalizeText(vehicle.make) === targetMake &&
+            normalizeText(vehicle.model) === targetModel
         );
 
     if (exact) {
@@ -367,10 +346,8 @@ function findVehicle(
 
     const simplified =
         models.find(vehicle =>
-            simplifyText(vehicle.make) ===
-                simplifiedMake &&
-            simplifyText(vehicle.model) ===
-                simplifiedModel
+            simplifyText(vehicle.make) === simplifiedMake &&
+            simplifyText(vehicle.model) === simplifiedModel
         );
 
     if (simplified) {
@@ -390,12 +367,8 @@ function findVehicle(
                 vehicleMake === targetMake &&
                 targetModel &&
                 (
-                    vehicleModel.includes(
-                        targetModel
-                    ) ||
-                    targetModel.includes(
-                        vehicleModel
-                    )
+                    vehicleModel.includes(targetModel) ||
+                    targetModel.includes(vehicleModel)
                 )
             );
 
@@ -459,77 +432,33 @@ function createBestMatch(
     }
 
     return {
-
-        make:
-            vehicle.make,
-
-        model:
-            vehicle.model,
-
+        make: vehicle.make,
+        model: vehicle.model,
         name:
             `${vehicle.make} ${vehicle.model}`,
-
         year,
+        kind: vehicle.kind,
+        body_type: vehicle.bodyType,
+        body_types: vehicle.bodyTypes,
 
-        kind:
-            vehicle.kind,
+        base_msrp: null,
+        horsepower: null,
+        drivetrain: null,
+        drive_train: null,
+        fuel_type: null,
+        fuel: null,
+        engine: null,
+        transmission: null,
+        mpg_combined: null,
+        is_electric: false,
+        is_plugin_electric: false,
 
-        body_type:
-            vehicle.bodyType,
-
-        body_types:
-            vehicle.bodyTypes,
-
-        base_msrp:
-            null,
-
-        horsepower:
-            null,
-
-        drivetrain:
-            null,
-
-        drive_train:
-            null,
-
-        fuel_type:
-            null,
-
-        fuel:
-            null,
-
-        engine:
-            null,
-
-        transmission:
-            null,
-
-        mpg_combined:
-            null,
-
-        is_electric:
-            false,
-
-        is_plugin_electric:
-            false,
-
-        global_decile:
-            vehicle.globalDecile,
-
-        availability:
-            vehicle.availability,
-
-        year_start:
-            vehicle.yearStart,
-
-        year_end:
-            vehicle.yearEnd,
-
-        make_slug:
-            vehicle.makeSlug,
-
-        model_slug:
-            vehicle.modelSlug
+        global_decile: vehicle.globalDecile,
+        availability: vehicle.availability,
+        year_start: vehicle.yearStart,
+        year_end: vehicle.yearEnd,
+        make_slug: vehicle.makeSlug,
+        model_slug: vehicle.modelSlug
     };
 }
 
@@ -539,14 +468,10 @@ function createBestMatch(
  * ------------------------------------------------------------
  */
 
-function getRequestedKind(
-    requestUrl
-) {
+function getRequestedKind(requestUrl) {
 
     const rawKind =
-        requestUrl.searchParams.get(
-            "kind"
-        );
+        requestUrl.searchParams.get("kind");
 
     if (!rawKind) {
         return "car";
@@ -557,19 +482,15 @@ function getRequestedKind(
             .trim()
             .toLowerCase();
 
-    if (
-        !Object.prototype.hasOwnProperty.call(
-            VEHICLE_KIND_ALIASES,
-            normalizedRaw
-        )
-    ) {
+    if (!Object.prototype.hasOwnProperty.call(
+        VEHICLE_KIND_ALIASES,
+        normalizedRaw
+    )) {
         return null;
     }
 
     const kind =
-        VEHICLE_KIND_ALIASES[
-            normalizedRaw
-        ];
+        VEHICLE_KIND_ALIASES[normalizedRaw];
 
     return isValidKind(kind)
         ? kind
@@ -588,23 +509,16 @@ async function handleModels(
 ) {
 
     const kind =
-        getRequestedKind(
-            requestUrl
-        );
+        getRequestedKind(requestUrl);
 
     if (!kind) {
 
         return jsonResponse(
             {
                 success: false,
-
-                error:
-                    "Invalid vehicle kind",
-
+                error: "Invalid vehicle kind",
                 supportedKinds:
-                    Array.from(
-                        VALID_KINDS
-                    )
+                    Array.from(VALID_KINDS)
             },
             400,
             60
@@ -612,20 +526,13 @@ async function handleModels(
     }
 
     const make =
-        requestUrl.searchParams.get(
-            "make"
-        );
+        requestUrl.searchParams.get("make");
 
     const search =
-        requestUrl.searchParams.get(
-            "search"
-        );
+        requestUrl.searchParams.get("search");
 
     let models =
-        getModelsByKind(
-            database,
-            kind
-        );
+        getModelsByKind(database, kind);
 
     if (make) {
 
@@ -636,14 +543,9 @@ async function handleModels(
             simplifyText(make);
 
         models =
-            models.filter(
-                vehicle =>
-                    normalizeText(
-                        vehicle.make
-                    ) === targetMake ||
-                    simplifyText(
-                        vehicle.make
-                    ) === simplifiedMake
+            models.filter(vehicle =>
+                normalizeText(vehicle.make) === targetMake ||
+                simplifyText(vehicle.make) === simplifiedMake
             );
     }
 
@@ -653,58 +555,39 @@ async function handleModels(
             normalizeText(search);
 
         models =
-            models.filter(
-                vehicle =>
-                    normalizeText(
-                        `${vehicle.make} ${vehicle.model}`
-                    ).includes(query)
+            models.filter(vehicle =>
+                normalizeText(
+                    `${vehicle.make} ${vehicle.model}`
+                ).includes(query)
             );
     }
 
-    models.sort(
-        (a, b) => {
+    models.sort((a, b) => {
 
-            const makeCompare =
-                a.make.localeCompare(
-                    b.make,
-                    undefined,
-                    {
-                        sensitivity:
-                            "base"
-                    }
-                );
-
-            if (makeCompare !== 0) {
-                return makeCompare;
-            }
-
-            return a.model.localeCompare(
-                b.model,
+        const makeCompare =
+            a.make.localeCompare(
+                b.make,
                 undefined,
-                {
-                    sensitivity:
-                        "base"
-                }
+                { sensitivity: "base" }
             );
+
+        if (makeCompare !== 0) {
+            return makeCompare;
         }
-    );
+
+        return a.model.localeCompare(
+            b.model,
+            undefined,
+            { sensitivity: "base" }
+        );
+    });
 
     return jsonResponse({
-
-        success:
-            true,
-
+        success: true,
         kind,
-
-        count:
-            models.length,
-
-        vehicles:
-            models,
-
-        models:
-            models
-
+        count: models.length,
+        vehicles: models,
+        models
     });
 }
 
@@ -720,23 +603,16 @@ async function handleMakes(
 ) {
 
     const kind =
-        getRequestedKind(
-            requestUrl
-        );
+        getRequestedKind(requestUrl);
 
     if (!kind) {
 
         return jsonResponse(
             {
                 success: false,
-
-                error:
-                    "Invalid vehicle kind",
-
+                error: "Invalid vehicle kind",
                 supportedKinds:
-                    Array.from(
-                        VALID_KINDS
-                    )
+                    Array.from(VALID_KINDS)
             },
             400,
             60
@@ -751,28 +627,20 @@ async function handleMakes(
         return jsonResponse(
             {
                 success: false,
-
-                error:
-                    "Invalid VehiclesDB dataset"
+                error: "Invalid VehiclesDB dataset"
             },
             500,
             60
         );
     }
 
-    const makes =
-        new Map();
+    const makes = new Map();
 
-    for (
-        const make
-        of database.makes
-    ) {
+    for (const make of database.makes) {
 
         if (
             !make ||
-            !Array.isArray(
-                make.models
-            )
+            !Array.isArray(make.models)
         ) {
             continue;
         }
@@ -781,20 +649,15 @@ async function handleMakes(
             make.models.some(
                 model =>
                     model &&
-                    normalizeKind(
-                        model.kind
-                    ) === kind
+                    normalizeKind(model.kind) === kind
             );
 
         if (!hasKind) {
             continue;
         }
 
-        const name =
-            make.name || "";
-
-        const key =
-            normalizeText(name);
+        const name = make.name || "";
+        const key = normalizeText(name);
 
         if (!key) {
             continue;
@@ -802,48 +665,29 @@ async function handleMakes(
 
         if (!makes.has(key)) {
 
-            makes.set(
-                key,
-                {
-                    name,
-
-                    slug:
-                        make.slug || "",
-
-                    kind
-                }
-            );
+            makes.set(key, {
+                name,
+                slug: make.slug || "",
+                kind
+            });
         }
     }
 
     const result =
-        Array.from(
-            makes.values()
-        ).sort(
-            (a, b) =>
+        Array.from(makes.values())
+            .sort((a, b) =>
                 a.name.localeCompare(
                     b.name,
                     undefined,
-                    {
-                        sensitivity:
-                            "base"
-                    }
+                    { sensitivity: "base" }
                 )
-        );
+            );
 
     return jsonResponse({
-
-        success:
-            true,
-
+        success: true,
         kind,
-
-        count:
-            result.length,
-
-        makes:
-            result
-
+        count: result.length,
+        makes: result
     });
 }
 
@@ -859,23 +703,16 @@ async function handleVehicle(
 ) {
 
     const kind =
-        getRequestedKind(
-            requestUrl
-        );
+        getRequestedKind(requestUrl);
 
     if (!kind) {
 
         return jsonResponse(
             {
                 success: false,
-
-                error:
-                    "Invalid vehicle kind",
-
+                error: "Invalid vehicle kind",
                 supportedKinds:
-                    Array.from(
-                        VALID_KINDS
-                    )
+                    Array.from(VALID_KINDS)
             },
             400,
             60
@@ -883,31 +720,22 @@ async function handleVehicle(
     }
 
     const make =
-        requestUrl.searchParams.get(
-            "make"
-        );
+        requestUrl.searchParams.get("make");
 
     const model =
-        requestUrl.searchParams.get(
-            "model"
-        );
+        requestUrl.searchParams.get("model");
 
     const year =
-        requestUrl.searchParams.get(
-            "year"
-        );
+        requestUrl.searchParams.get("year");
 
     if (!make || !model) {
 
         return jsonResponse(
             {
                 success: false,
-
                 error:
                     "Missing make or model parameter",
-
-                bestMatch:
-                    null
+                bestMatch: null
             },
             400,
             60
@@ -915,29 +743,19 @@ async function handleVehicle(
     }
 
     const models =
-        getModelsByKind(
-            database,
-            kind
-        );
+        getModelsByKind(database, kind);
 
     const vehicle =
-        findVehicle(
-            models,
-            make,
-            model
-        );
+        findVehicle(models, make, model);
 
     if (!vehicle) {
 
         return jsonResponse(
             {
                 success: false,
-
                 error:
                     `No ${kind} found for ${make} ${model}`,
-
-                bestMatch:
-                    null
+                bestMatch: null
             },
             404,
             300
@@ -945,21 +763,11 @@ async function handleVehicle(
     }
 
     return jsonResponse({
-
-        success:
-            true,
-
-        source:
-            "VehiclesDB Open Dataset",
-
+        success: true,
+        source: "VehiclesDB Open Dataset",
         kind,
-
         bestMatch:
-            createBestMatch(
-                vehicle,
-                year
-            )
-
+            createBestMatch(vehicle, year)
     });
 }
 
@@ -975,21 +783,15 @@ async function handleVariants(
 ) {
 
     const kind =
-        getRequestedKind(
-            requestUrl
-        );
+        getRequestedKind(requestUrl);
 
     if (!kind) {
 
         return jsonResponse(
             {
                 success: false,
-
-                error:
-                    "Invalid vehicle kind",
-
-                variants:
-                    []
+                error: "Invalid vehicle kind",
+                variants: []
             },
             400,
             60
@@ -997,31 +799,22 @@ async function handleVariants(
     }
 
     const make =
-        requestUrl.searchParams.get(
-            "make"
-        );
+        requestUrl.searchParams.get("make");
 
     const model =
-        requestUrl.searchParams.get(
-            "model"
-        );
+        requestUrl.searchParams.get("model");
 
     const year =
-        requestUrl.searchParams.get(
-            "year"
-        );
+        requestUrl.searchParams.get("year");
 
     if (!make || !model) {
 
         return jsonResponse(
             {
                 success: false,
-
                 error:
                     "Missing make or model parameter",
-
-                variants:
-                    []
+                variants: []
             },
             400,
             60
@@ -1029,29 +822,19 @@ async function handleVariants(
     }
 
     const models =
-        getModelsByKind(
-            database,
-            kind
-        );
+        getModelsByKind(database, kind);
 
     const vehicle =
-        findVehicle(
-            models,
-            make,
-            model
-        );
+        findVehicle(models, make, model);
 
     if (!vehicle) {
 
         return jsonResponse(
             {
                 success: false,
-
                 error:
                     `No ${kind} found for ${make} ${model}`,
-
-                variants:
-                    []
+                variants: []
             },
             404,
             300
@@ -1059,32 +842,14 @@ async function handleVariants(
     }
 
     return jsonResponse({
-
-        success:
-            true,
-
+        success: true,
         kind,
-
-        make:
-            vehicle.make,
-
-        model:
-            vehicle.model,
-
-        year:
-            year
-                ? Number(year)
-                : null,
-
-        variants:
-            [],
-
+        make: vehicle.make,
+        model: vehicle.model,
+        year: year ? Number(year) : null,
+        variants: [],
         bestMatch:
-            createBestMatch(
-                vehicle,
-                year
-            )
-
+            createBestMatch(vehicle, year)
     });
 }
 
@@ -1094,31 +859,22 @@ async function handleVariants(
  * ------------------------------------------------------------
  */
 
-async function handleImages(
-    requestUrl
-) {
+async function handleImages(requestUrl) {
 
     const make =
-        requestUrl.searchParams.get(
-            "make"
-        );
+        requestUrl.searchParams.get("make");
 
     const model =
-        requestUrl.searchParams.get(
-            "model"
-        );
+        requestUrl.searchParams.get("model");
 
     if (!make || !model) {
 
         return jsonResponse(
             {
                 success: false,
-
                 error:
                     "Missing make or model parameter",
-
-                images:
-                    []
+                images: []
             },
             400,
             60
@@ -1126,20 +882,11 @@ async function handleImages(
     }
 
     return jsonResponse({
-
-        success:
-            true,
-
-        source:
-            "VehiclesDB Open Dataset",
-
+        success: true,
+        source: "VehiclesDB Open Dataset",
         make,
-
         model,
-
-        images:
-            []
-
+        images: []
     });
 }
 
@@ -1155,29 +902,24 @@ async function handleImages(
  * ------------------------------------------------------------
  */
 
-async function fetchWikipediaCached(
-    url
-) {
+async function fetchWikipediaCached(url) {
 
     const cache =
         caches.default;
 
     const cacheKey =
-        new Request(url);
+        new Request(
+            `https://worth-it-internal-cache.local/wikipedia/${WIKIPEDIA_CACHE_VERSION}/${url}`
+        );
 
     const cached =
-        await cache.match(
-            cacheKey
-        );
+        await cache.match(cacheKey);
 
     if (cached) {
 
         try {
-
             return await cached.json();
-
         } catch {
-
             // Ignore invalid cached response.
         }
     }
@@ -1187,10 +929,7 @@ async function fetchWikipediaCached(
             url,
             {
                 headers: {
-
-                    "Accept":
-                        "application/json",
-
+                    "Accept": "application/json",
                     "User-Agent":
                         "Worth It Cars/1.0 (https://worth-it-calculator.pages.dev/)"
                 }
@@ -1221,14 +960,10 @@ async function fetchWikipediaCached(
             new Response(
                 JSON.stringify(data),
                 {
-                    status:
-                        200,
-
+                    status: 200,
                     headers: {
-
                         "Content-Type":
                             "application/json; charset=UTF-8",
-
                         "Cache-Control":
                             `public, max-age=${WIKIPEDIA_CACHE_TTL}`
                     }
@@ -1257,60 +992,21 @@ async function fetchWikipediaCached(
  * ------------------------------------------------------------
  */
 
-function normalizeWikipediaText(
-    value
-) {
+function normalizeWikipediaText(value) {
 
     return String(value || "")
-        .replace(
-            /\s+/g,
-            " "
-        )
+        .replace(/\s+/g, " ")
         .trim();
 }
 
-function normalizeWikipediaLabel(
-    value
-) {
+function normalizeWikipediaLabel(value) {
 
-    return normalizeWikipediaText(
-        value
-    )
+    return normalizeWikipediaText(value)
         .toLowerCase()
-
-        /*
-         * IMPORTANT:
-         *
-         * Wikipedia commonly uses underscore-separated
-         * infobox field names:
-         *
-         * body_style
-         * fuel_type
-         * curb_weight
-         * electric_range
-         *
-         * Convert them to the same form as our aliases.
-         */
-
-        .replace(
-            /[_]/g,
-            " "
-        )
-
-        .replace(
-            /[:]/g,
-            ""
-        )
-
-        .replace(
-            /[–—-]/g,
-            " "
-        )
-
-        .replace(
-            /\s+/g,
-            " "
-        );
+        .replace(/[_]/g, " ")
+        .replace(/[:]/g, "")
+        .replace(/[–—-]/g, " ")
+        .replace(/\s+/g, " ");
 }
 
 /*
@@ -1320,7 +1016,6 @@ function normalizeWikipediaLabel(
  */
 
 const WIKIPEDIA_SPEC_FIELDS = [
-
     "production",
     "generation",
     "bodyType",
@@ -1340,21 +1035,14 @@ const WIKIPEDIA_SPEC_FIELDS = [
     "electricRange",
     "seating",
     "doors"
-
 ];
 
 function createEmptyWikipediaSpecifications() {
 
-    const specifications =
-        {};
+    const specifications = {};
 
-    for (
-        const field
-        of WIKIPEDIA_SPEC_FIELDS
-    ) {
-
-        specifications[field] =
-            "No Information";
+    for (const field of WIKIPEDIA_SPEC_FIELDS) {
+        specifications[field] = "No Information";
     }
 
     return specifications;
@@ -1362,275 +1050,161 @@ function createEmptyWikipediaSpecifications() {
 
 /*
  * ------------------------------------------------------------
- * Wikipedia field aliases
+ * Map Wikipedia infobox labels to our normalized fields.
  * ------------------------------------------------------------
  */
 
 const WIKIPEDIA_FIELD_ALIASES = {
+    production: "production",
+    years: "production",
+    "model years": "production",
+    "production years": "production",
+    "production date": "production",
+    "production period": "production",
+    "model year": "production",
 
-    production:
-        "production",
+    generation: "generation",
+    generations: "generation",
 
-    years:
-        "production",
+    "body style": "bodyType",
+    "body styles": "bodyType",
+    "body type": "bodyType",
+    "body types": "bodyType",
+    body: "bodyType",
 
-    "model years":
-        "production",
+    engine: "engine",
+    engines: "engine",
+    motor: "engine",
+    motors: "engine",
+    "electric motor": "engine",
+    "electric motors": "engine",
+    "engine type": "engine",
+    "motor type": "engine",
+    emotor: "engine",
 
-    "production years":
-        "production",
+    fuel: "fuel",
+    "fuel type": "fuel",
+    "fuel types": "fuel",
+    "fuel system": "fuel",
 
-    generation:
-        "generation",
+    transmission: "transmission",
+    transmissions: "transmission",
+    gearbox: "transmission",
+    gearboxes: "transmission",
 
-    generations:
-        "generation",
+    drivetrain: "drivetrain",
+    "drive train": "drivetrain",
+    "drive type": "drivetrain",
+    drive: "drivetrain",
+    layout: "drivetrain",
+    "drive layout": "drivetrain",
+    "wheel drive": "drivetrain",
 
-    "body style":
-        "bodyType",
+    power: "horsepower",
+    "power output": "horsepower",
+    "engine power": "horsepower",
+    "motor power": "horsepower",
+    "maximum power": "horsepower",
+    "max power": "horsepower",
+    "peak power": "horsepower",
+    horsepower: "horsepower",
+    hp: "horsepower",
 
-    "body styles":
-        "bodyType",
+    torque: "torque",
+    "maximum torque": "torque",
+    "max torque": "torque",
+    "peak torque": "torque",
 
-    "body type":
-        "bodyType",
+    "curb weight": "weight",
+    "kerb weight": "weight",
+    "curb mass": "weight",
+    "kerb mass": "weight",
+    "gross weight": "weight",
+    curbweight: "weight",
+    weight: "weight",
+    mass: "weight",
 
-    "body types":
-        "bodyType",
+    length: "length",
+    width: "width",
+    height: "height",
+    wheelbase: "wheelbase",
 
-    body:
-        "bodyType",
+    "top speed": "topSpeed",
+    "maximum speed": "topSpeed",
+    "max speed": "topSpeed",
+    topspeed: "topSpeed",
 
-    engine:
-        "engine",
+    battery: "battery",
+    "battery capacity": "battery",
+    "battery pack": "battery",
+    "battery energy": "battery",
+    "battery size": "battery",
 
-    engines:
-        "engine",
+    "electric range": "electricRange",
+    "all electric range": "electricRange",
+    "all-electric range": "electricRange",
+    "driving range": "electricRange",
+    "epa range": "electricRange",
+    "wltp range": "electricRange",
+    range: "electricRange",
 
-    motor:
-        "engine",
+    seating: "seating",
+    seats: "seating",
+    "seating capacity": "seating",
+    "number of seats": "seating",
 
-    motors:
-        "engine",
-
-    "electric motor":
-        "engine",
-
-    "electric motors":
-        "engine",
-
-    emotor:
-        "engine",
-
-    fuel:
-        "fuel",
-
-    "fuel type":
-        "fuel",
-
-    "fuel types":
-        "fuel",
-
-    "fuel system":
-        "fuel",
-
-    transmission:
-        "transmission",
-
-    transmissions:
-        "transmission",
-
-    gearbox:
-        "transmission",
-
-    gearboxes:
-        "transmission",
-
-    drivetrain:
-        "drivetrain",
-
-    "drive train":
-        "drivetrain",
-
-    "drive type":
-        "drivetrain",
-
-    drive:
-        "drivetrain",
-
-    layout:
-        "drivetrain",
-
-    power:
-        "horsepower",
-
-    "power output":
-        "horsepower",
-
-    "engine power":
-        "horsepower",
-
-    "motor power":
-        "horsepower",
-
-    horsepower:
-        "horsepower",
-
-    hp:
-        "horsepower",
-
-    torque:
-        "torque",
-
-    "curb weight":
-        "weight",
-
-    "kerb weight":
-        "weight",
-
-    curbweight:
-        "weight",
-
-    weight:
-        "weight",
-
-    mass:
-        "weight",
-
-    length:
-        "length",
-
-    width:
-        "width",
-
-    height:
-        "height",
-
-    wheelbase:
-        "wheelbase",
-
-    "top speed":
-        "topSpeed",
-
-    "maximum speed":
-        "topSpeed",
-
-    topspeed:
-        "topSpeed",
-
-    battery:
-        "battery",
-
-    "battery capacity":
-        "battery",
-
-    "battery pack":
-        "battery",
-
-    "electric range":
-        "electricRange",
-
-    range:
-        "electricRange",
-
-    "all electric range":
-        "electricRange",
-
-    seating:
-        "seating",
-
-    seats:
-        "seating",
-
-    "seating capacity":
-        "seating",
-
-    doors:
-        "doors"
-
+    doors: "doors",
+    "number of doors": "doors"
 };
 
-function getWikipediaSpecificationField(
-    label
-) {
+function getWikipediaSpecificationField(label) {
 
     const normalized =
-        normalizeWikipediaLabel(
-            label
-        );
+        normalizeWikipediaLabel(label);
 
-    return (
-        WIKIPEDIA_FIELD_ALIASES[
-            normalized
-        ] ||
-        null
-    );
+    return WIKIPEDIA_FIELD_ALIASES[normalized] || null;
 }
 
 /*
  * ------------------------------------------------------------
- * Find complete vehicle infobox
+ * Find the complete vehicle infobox in raw wikitext.
  * ------------------------------------------------------------
  */
 
-function findWikipediaInfobox(
-    source
-) {
+function extractBalancedWikipediaTemplate(source, start) {
 
-    const match =
-        String(source || "")
-            .match(
-                /\{\{\s*Infobox\s+(automobile|car|vehicle|motorcycle|motorbike|truck|bus|van|moped)\b/i
-            );
+    const input = String(source || "");
 
     if (
-        !match ||
-        match.index === undefined
+        start < 0 ||
+        start >= input.length
     ) {
-
         return null;
     }
 
-    const start =
-        match.index;
-
-    let depth =
-        0;
+    let depth = 0;
 
     for (
         let i = start;
-        i < source.length - 1;
+        i < input.length - 1;
         i++
     ) {
 
         const pair =
-            source.slice(
-                i,
-                i + 2
-            );
+            input.slice(i, i + 2);
 
-        if (
-            pair === "{{"
-        ) {
-
+        if (pair === "{{") {
             depth++;
-
             i++;
-
             continue;
         }
 
-        if (
-            pair === "}}"
-        ) {
+        if (pair === "}}") {
 
             depth--;
 
-            if (
-                depth === 0
-            ) {
-
-                return source.slice(
+            if (depth === 0) {
+                return input.slice(
                     start,
                     i + 2
                 );
@@ -1643,34 +1217,63 @@ function findWikipediaInfobox(
     return null;
 }
 
+function findWikipediaInfoboxes(source) {
+
+    const input = String(source || "");
+    const results = [];
+
+    const pattern =
+        /\{\{\s*Infobox\s+(automobile|car|vehicle|electric vehicle|road vehicle|motorcycle|motorbike|truck|bus|van|moped|commercial vehicle)\b/gi;
+
+    let match;
+
+    while ((match = pattern.exec(input)) !== null) {
+
+        const infobox =
+            extractBalancedWikipediaTemplate(
+                input,
+                match.index
+            );
+
+        if (infobox) {
+            results.push(infobox);
+        }
+    }
+
+    return results;
+}
+
+function findWikipediaInfobox(source) {
+
+    const infoboxes =
+        findWikipediaInfoboxes(source);
+
+    return infoboxes.length
+        ? infoboxes[0]
+        : null;
+}
+
+
 /*
  * ------------------------------------------------------------
- * Extract top-level infobox fields
+ * Split raw infobox into top-level fields.
  *
- * This parser intentionally does NOT depend on line breaks.
- * Wikipedia parameters can span multiple lines.
+ * The parser does not use line boundaries. This is important
+ * because Wikipedia infobox parameters can span multiple lines.
  * ------------------------------------------------------------
  */
 
-function extractWikipediaInfoboxFields(
-    infobox
-) {
+function extractWikipediaInfoboxFields(infobox) {
 
-    const fields =
-        {};
+    const fields = {};
 
     if (!infobox) {
         return fields;
     }
 
-    let templateDepth =
-        0;
-
-    let linkDepth =
-        0;
-
-    let fieldStart =
-        -1;
+    let templateDepth = 0;
+    let linkDepth = 0;
+    let fieldStart = -1;
 
     for (
         let i = 0;
@@ -1679,111 +1282,52 @@ function extractWikipediaInfoboxFields(
     ) {
 
         const pair =
-            infobox.slice(
-                i,
-                i + 2
-            );
+            infobox.slice(i, i + 2);
 
-        /*
-         * Nested template start.
-         */
-
-        if (
-            pair === "{{"
-        ) {
+        if (pair === "{{") {
 
             templateDepth++;
-
             i++;
-
             continue;
         }
 
-        /*
-         * Template end.
-         */
+        if (pair === "}}") {
 
-        if (
-            pair === "}}"
-        ) {
+            if (templateDepth === 1) {
 
-            /*
-             * depth 1 is the main infobox.
-             * Closing it means the final field must be saved.
-             */
-
-            if (
-                templateDepth === 1
-            ) {
-
-                if (
-                    fieldStart !== -1
-                ) {
+                if (fieldStart !== -1) {
 
                     addWikipediaInfoboxField(
                         fields,
-                        infobox.slice(
-                            fieldStart,
-                            i
-                        )
+                        infobox.slice(fieldStart, i)
                     );
                 }
 
-                fieldStart =
-                    -1;
+                fieldStart = -1;
             }
 
             templateDepth =
-                Math.max(
-                    0,
-                    templateDepth - 1
-                );
+                Math.max(0, templateDepth - 1);
 
             i++;
-
             continue;
         }
 
-        /*
-         * Wiki link start.
-         */
-
-        if (
-            pair === "[["
-        ) {
+        if (pair === "[[") {
 
             linkDepth++;
-
             i++;
-
             continue;
         }
 
-        /*
-         * Wiki link end.
-         */
-
-        if (
-            pair === "]]"
-        ) {
+        if (pair === "]]" ) {
 
             linkDepth =
-                Math.max(
-                    0,
-                    linkDepth - 1
-                );
+                Math.max(0, linkDepth - 1);
 
             i++;
-
             continue;
         }
-
-        /*
-         * Top-level infobox field separator.
-         *
-         * A pipe inside {{...}} or [[...]]
-         * must be ignored.
-         */
 
         if (
             infobox[i] === "|" &&
@@ -1791,21 +1335,15 @@ function extractWikipediaInfoboxFields(
             linkDepth === 0
         ) {
 
-            if (
-                fieldStart !== -1
-            ) {
+            if (fieldStart !== -1) {
 
                 addWikipediaInfoboxField(
                     fields,
-                    infobox.slice(
-                        fieldStart,
-                        i
-                    )
+                    infobox.slice(fieldStart, i)
                 );
             }
 
-            fieldStart =
-                i + 1;
+            fieldStart = i + 1;
         }
     }
 
@@ -1814,7 +1352,7 @@ function extractWikipediaInfoboxFields(
 
 /*
  * ------------------------------------------------------------
- * Add one infobox field
+ * Add one raw infobox field.
  * ------------------------------------------------------------
  */
 
@@ -1828,80 +1366,49 @@ function addWikipediaInfoboxField(
     }
 
     const equalsIndex =
-        findTopLevelEquals(
-            segment
-        );
+        findTopLevelEquals(segment);
 
-    if (
-        equalsIndex === -1
-    ) {
-
+    if (equalsIndex === -1) {
         return;
     }
 
     const rawKey =
-        segment
-            .slice(
-                0,
-                equalsIndex
-            )
-            .trim();
+        segment.slice(0, equalsIndex).trim();
 
     const rawValue =
-        segment
-            .slice(
-                equalsIndex + 1
-            )
-            .trim();
+        segment.slice(equalsIndex + 1).trim();
 
-    if (
-        !rawKey ||
-        !rawValue
-    ) {
-
+    if (!rawKey || !rawValue) {
         return;
     }
 
     const label =
-        normalizeWikipediaLabel(
-            rawKey
-        );
+        normalizeWikipediaLabel(rawKey);
 
     if (!label) {
         return;
     }
 
     /*
-     * Keep first occurrence.
+     * Keep the first occurrence only. Some templates contain
+     * aliases such as engine/engines or repeated parameters.
      */
 
-    if (
-        !Object.prototype.hasOwnProperty.call(
-            fields,
-            label
-        )
-    ) {
-
-        fields[label] =
-            rawValue;
+    if (!Object.prototype.hasOwnProperty.call(fields, label)) {
+        fields[label] = rawValue;
     }
 }
 
 /*
  * ------------------------------------------------------------
- * Find first top-level "="
+ * Find the first top-level = in a field.
  * ------------------------------------------------------------
  */
 
-function findTopLevelEquals(
-    text
-) {
+function findTopLevelEquals(text) {
 
-    let templateDepth =
-        0;
-
-    let linkDepth =
-        0;
+    let templateDepth = 0;
+    let linkDepth = 0;
 
     for (
         let i = 0;
@@ -1910,60 +1417,31 @@ function findTopLevelEquals(
     ) {
 
         const pair =
-            text.slice(
-                i,
-                i + 2
-            );
+            text.slice(i, i + 2);
 
-        if (
-            pair === "{{"
-        ) {
-
+        if (pair === "{{") {
             templateDepth++;
-
             i++;
-
             continue;
         }
 
-        if (
-            pair === "}}"
-        ) {
-
+        if (pair === "}}") {
             templateDepth =
-                Math.max(
-                    0,
-                    templateDepth - 1
-                );
-
+                Math.max(0, templateDepth - 1);
             i++;
-
             continue;
         }
 
-        if (
-            pair === "[["
-        ) {
-
+        if (pair === "[[") {
             linkDepth++;
-
             i++;
-
             continue;
         }
 
-        if (
-            pair === "]]"
-        ) {
-
+        if (pair === "]]" ) {
             linkDepth =
-                Math.max(
-                    0,
-                    linkDepth - 1
-                );
-
+                Math.max(0, linkDepth - 1);
             i++;
-
             continue;
         }
 
@@ -1972,7 +1450,6 @@ function findTopLevelEquals(
             templateDepth === 0 &&
             linkDepth === 0
         ) {
-
             return i;
         }
     }
@@ -1982,25 +1459,17 @@ function findTopLevelEquals(
 
 /*
  * ------------------------------------------------------------
- * Split top-level template arguments
+ * Split top-level template arguments.
  * ------------------------------------------------------------
  */
 
-function splitWikipediaTemplateArguments(
-    body
-) {
+function splitWikipediaTemplateArguments(body) {
 
-    const parts =
-        [];
+    const parts = [];
 
-    let start =
-        0;
-
-    let templateDepth =
-        0;
-
-    let linkDepth =
-        0;
+    let start = 0;
+    let templateDepth = 0;
+    let linkDepth = 0;
 
     for (
         let i = 0;
@@ -2009,60 +1478,31 @@ function splitWikipediaTemplateArguments(
     ) {
 
         const pair =
-            body.slice(
-                i,
-                i + 2
-            );
+            body.slice(i, i + 2);
 
-        if (
-            pair === "{{"
-        ) {
-
+        if (pair === "{{") {
             templateDepth++;
-
             i++;
-
             continue;
         }
 
-        if (
-            pair === "}}"
-        ) {
-
+        if (pair === "}}") {
             templateDepth =
-                Math.max(
-                    0,
-                    templateDepth - 1
-                );
-
+                Math.max(0, templateDepth - 1);
             i++;
-
             continue;
         }
 
-        if (
-            pair === "[["
-        ) {
-
+        if (pair === "[[") {
             linkDepth++;
-
             i++;
-
             continue;
         }
 
-        if (
-            pair === "]]"
-        ) {
-
+        if (pair === "]]" ) {
             linkDepth =
-                Math.max(
-                    0,
-                    linkDepth - 1
-                );
-
+                Math.max(0, linkDepth - 1);
             i++;
-
             continue;
         }
 
@@ -2073,99 +1513,63 @@ function splitWikipediaTemplateArguments(
         ) {
 
             parts.push(
-                body.slice(
-                    start,
-                    i
-                )
+                body.slice(start, i)
             );
 
-            start =
-                i + 1;
+            start = i + 1;
         }
     }
 
-    parts.push(
-        body.slice(
-            start
-        )
-    );
+    parts.push(body.slice(start));
 
     return parts;
 }
 
 /*
  * ------------------------------------------------------------
- * Replace one innermost Wikipedia template
+ * Resolve one innermost Wikipedia template.
  * ------------------------------------------------------------
  */
 
-function replaceInnermostWikipediaTemplate(
-    text
-) {
+function replaceInnermostWikipediaTemplate(text) {
 
     const match =
-        text.match(
-            /\{\{([^{}]*)\}\}/
-        );
+        text.match(/\{\{([^{}]*)\}\}/);
 
     if (!match) {
         return text;
     }
 
-    const fullTemplate =
-        match[0];
-
-    const body =
-        match[1];
+    const fullTemplate = match[0];
+    const body = match[1];
 
     const parts =
-        splitWikipediaTemplateArguments(
-            body
-        );
+        splitWikipediaTemplateArguments(body);
 
     const templateName =
-        String(
-            parts.shift() ||
-            ""
-        )
+        String(parts.shift() || "")
             .trim()
             .toLowerCase();
 
-    const positional =
-        [];
+    const positional = [];
 
-    for (
-        const part
-        of parts
-    ) {
+    for (const part of parts) {
 
         const cleanPart =
-            String(
-                part || ""
-            ).trim();
+            String(part || "").trim();
 
         if (!cleanPart) {
             continue;
         }
 
         if (
-            findTopLevelEquals(
-                cleanPart
-            ) === -1
+            findTopLevelEquals(cleanPart) === -1
         ) {
-
-            positional.push(
-                cleanPart
-            );
+            positional.push(cleanPart);
         }
     }
 
-    let replacement =
-        "";
-
-    /*
-     * Unit conversion.
-     */
+    let replacement = "";
 
     if (
         templateName === "convert" ||
@@ -2181,28 +1585,17 @@ function replaceInnermostWikipediaTemplate(
             replacement =
                 `${positional[0]}–${positional[2]} ${positional[3]}`;
 
-        } else if (
-            positional.length >= 2
-        ) {
+        } else if (positional.length >= 2) {
 
             replacement =
                 `${positional[0]} ${positional[1]}`;
 
-        } else if (
-            positional.length >= 1
-        ) {
+        } else if (positional.length >= 1) {
 
-            replacement =
-                positional[0];
+            replacement = positional[0];
         }
 
-    }
-
-    /*
-     * Simple wrapper templates.
-     */
-
-    else if (
+    } else if (
         [
             "nowrap",
             "small",
@@ -2210,120 +1603,80 @@ function replaceInnermostWikipediaTemplate(
             "plainlist",
             "plain list",
             "nowraplinks"
-        ].includes(
-            templateName
-        )
+        ].includes(templateName)
     ) {
 
-        replacement =
-            positional.join(
-                "; "
-            );
+        replacement = positional.join("; ");
 
-    }
-
-    /*
-     * List templates.
-     */
-
-    else if (
+    } else if (
         [
             "unbulleted list",
             "unbulleted",
             "ubl",
             "flatlist",
             "bulleted list"
-        ].includes(
-            templateName
-        )
+        ].includes(templateName)
     ) {
 
         replacement =
             positional
-                .map(
-                    item =>
-                        item
-                            .replace(
-                                /^[*#;:]\s*/g,
-                                ""
-                            )
-                            .trim()
+                .map(item =>
+                    item
+                        .replace(/^[*#;:]\s*/g, "")
+                        .trim()
                 )
                 .filter(Boolean)
-                .join(
-                    "; "
-                );
+                .join("; ");
 
-    }
-
-    /*
-     * Unknown simple wrappers:
-     * keep useful positional text instead of
-     * exposing raw template markup.
-     */
-
-    else if (
+    } else if (
         positional.length === 1
     ) {
 
-        replacement =
-            positional[0];
+        replacement = positional[0];
 
     } else if (
         positional.length > 1
     ) {
 
-        replacement =
-            positional.join(
-                " "
-            );
+        /*
+         * For unknown simple wrappers, keeping positional text
+         * is safer than exposing raw template syntax.
+         */
+
+        replacement = positional.join(" ");
     }
 
     return (
-        text.slice(
-            0,
-            match.index
-        ) +
+        text.slice(0, match.index) +
         replacement +
         text.slice(
-            match.index +
-            fullTemplate.length
+            match.index + fullTemplate.length
         )
     );
 }
 
 /*
  * ------------------------------------------------------------
- * Clean Wikipedia wikitext value
+ * Clean a Wikipedia wikitext value.
  * ------------------------------------------------------------
  */
 
-function cleanWikipediaWikitextValue(
-    value
-) {
+function cleanWikipediaWikitextValue(value) {
 
     let text =
-        String(
-            value || ""
-        ).trim();
+        String(value || "").trim();
 
     if (!text) {
         return "No Information";
     }
 
-    /*
-     * Remove comments.
-     */
+    /* Remove comments and references. */
 
     text =
         text.replace(
             /<!--[\s\S]*?-->/g,
             " "
         );
-
-    /*
-     * Remove reference tags.
-     */
 
     text =
         text.replace(
@@ -2337,9 +1690,7 @@ function cleanWikipediaWikitextValue(
             " "
         );
 
-    /*
-     * Convert line breaks.
-     */
+    /* HTML line breaks. */
 
     text =
         text.replace(
@@ -2347,9 +1698,7 @@ function cleanWikipediaWikitextValue(
             "; "
         );
 
-    /*
-     * Remove other HTML tags.
-     */
+    /* Remove remaining HTML tags. */
 
     text =
         text.replace(
@@ -2358,7 +1707,7 @@ function cleanWikipediaWikitextValue(
         );
 
     /*
-     * Resolve nested templates.
+     * Resolve nested templates from the inside out.
      */
 
     for (
@@ -2368,24 +1717,16 @@ function cleanWikipediaWikitextValue(
     ) {
 
         const next =
-            replaceInnermostWikipediaTemplate(
-                text
-            );
+            replaceInnermostWikipediaTemplate(text);
 
-        if (
-            next === text
-        ) {
-
+        if (next === text) {
             break;
         }
 
-        text =
-            next;
+        text = next;
     }
 
-    /*
-     * Wiki links with display text.
-     */
+    /* Wiki links with display text. */
 
     text =
         text.replace(
@@ -2393,9 +1734,7 @@ function cleanWikipediaWikitextValue(
             "$2"
         );
 
-    /*
-     * Simple wiki links.
-     */
+    /* Simple wiki links. */
 
     text =
         text.replace(
@@ -2403,9 +1742,7 @@ function cleanWikipediaWikitextValue(
             "$1"
         );
 
-    /*
-     * External links.
-     */
+    /* External links. */
 
     text =
         text.replace(
@@ -2413,71 +1750,36 @@ function cleanWikipediaWikitextValue(
             "$1"
         );
 
-    /*
-     * Bold / italic.
-     */
+    /* Formatting markup. */
 
     text =
-        text.replace(
-            /'{2,5}/g,
-            ""
-        );
+        text.replace(/'{2,5}/g, "");
 
-    /*
-     * Common HTML entities.
-     */
+    /* Common HTML entities. */
 
     const entityMap = {
-
-        "&nbsp;":
-            " ",
-
-        "&ndash;":
-            "–",
-
-        "&mdash;":
-            "—",
-
-        "&minus;":
-            "−",
-
-        "&amp;":
-            "&",
-
-        "&quot;":
-            "\"",
-
-        "&#39;":
-            "'",
-
-        "&apos;":
-            "'"
-
+        "&nbsp;": " ",
+        "&ndash;": "–",
+        "&mdash;": "—",
+        "&minus;": "−",
+        "&amp;": "&",
+        "&quot;": '"',
+        "&#39;": "'",
+        "&apos;": "'"
     };
 
     for (
-        const [
-            entity,
-            replacement
-        ]
-        of Object.entries(
-            entityMap
-        )
+        const [entity, replacement] of Object.entries(entityMap)
     ) {
 
         text =
             text.replace(
-                new RegExp(
-                    entity,
-                    "gi"
-                ),
+                new RegExp(entity, "gi"),
                 replacement
             );
     }
 
-    /*
-     * Citation markers.
-     */
+    /* Citation markers such as [1], [2]. */
 
     text =
         text.replace(
@@ -2485,9 +1787,7 @@ function cleanWikipediaWikitextValue(
             ""
         );
 
-    /*
-     * List markers.
-     */
+    /* List markers. */
 
     text =
         text.replace(
@@ -2495,36 +1795,58 @@ function cleanWikipediaWikitextValue(
             "$1"
         );
 
-    /*
-     * Normalize whitespace.
-     */
+    /* Normalize whitespace/newlines. */
 
     text =
         text
-            .replace(
-                /\s*\n\s*/g,
-                " "
-            )
-            .replace(
-                /\s+/g,
-                " "
-            )
+            .replace(/\s*\n\s*/g, " ")
+            .replace(/\s+/g, " ")
             .trim();
 
-    return (
-        text ||
-        "No Information"
-    );
+    return text || "No Information";
 }
 
 /*
  * ------------------------------------------------------------
- * Parse Wikipedia infobox from raw wikitext
+ * Parse Wikipedia infobox from raw wikitext.
  * ------------------------------------------------------------
  */
 
+function isUsefulWikipediaValue(value) {
+
+    const normalized =
+        normalizeWikipediaText(value);
+
+    return (
+        normalized.length > 0 &&
+        !/^no information$/i.test(normalized)
+    );
+}
+
+function setWikipediaSpecificationIfMissing(
+    specifications,
+    field,
+    value
+) {
+
+    if (
+        !field ||
+        !isUsefulWikipediaValue(value)
+    ) {
+        return;
+    }
+
+    if (
+        !specifications[field] ||
+        specifications[field] === "No Information"
+    ) {
+        specifications[field] =
+            normalizeWikipediaText(value);
+    }
+}
+
 function parseWikipediaInfobox(
-    wikitext
+wikitext
 ) {
 
     const specifications =
@@ -2543,62 +1865,76 @@ function parseWikipediaInfobox(
                     ""
                 );
 
-        const infobox =
-            findWikipediaInfobox(
-                source
-            );
+        const infoboxes =
+            findWikipediaInfoboxes(source);
 
-        if (!infobox) {
+        if (!infoboxes.length) {
             return specifications;
         }
 
-        const fields =
-            extractWikipediaInfoboxFields(
-                infobox
-            );
+        let best =
+            createEmptyWikipediaSpecifications();
 
-        for (
-            const [
-                label,
-                rawValue
-            ]
-            of Object.entries(
-                fields
-            )
-        ) {
+        let bestCount = 0;
 
-            const field =
-                getWikipediaSpecificationField(
-                    label
+        for (const infobox of infoboxes) {
+
+            const fields =
+                extractWikipediaInfoboxFields(
+                    infobox
                 );
 
-            if (!field) {
-                continue;
+            const candidate =
+                createEmptyWikipediaSpecifications();
+
+            for (const [label, rawValue] of Object.entries(fields)) {
+
+                const field =
+                    getWikipediaSpecificationField(
+                        label
+                    );
+
+                if (!field) {
+                    continue;
+                }
+
+                const value =
+                    cleanWikipediaWikitextValue(
+                        rawValue
+                    );
+
+                if (!isUsefulWikipediaValue(value)) {
+                    continue;
+                }
+
+                setWikipediaSpecificationIfMissing(
+                    candidate,
+                    field,
+                    value
+                );
             }
 
-            const value =
-                cleanWikipediaWikitextValue(
-                    rawValue
+            const count =
+                WIKIPEDIA_SPEC_FIELDS.reduce(
+                    (total, field) =>
+                        total +
+                        (
+                            isUsefulWikipediaValue(
+                                candidate[field]
+                            )
+                                ? 1
+                                : 0
+                        ),
+                    0
                 );
 
-            if (
-                !value ||
-                value ===
-                    "No Information"
-            ) {
-
-                continue;
-            }
-
-            if (
-                specifications[field] ===
-                    "No Information"
-            ) {
-
-                specifications[field] =
-                    value;
+            if (count > bestCount) {
+                best = candidate;
+                bestCount = count;
             }
         }
+
+        return best;
 
     } catch (error) {
 
@@ -2609,6 +1945,420 @@ function parseWikipediaInfobox(
     }
 
     return specifications;
+}
+
+
+
+/*
+ * ------------------------------------------------------------
+ * Rendered Wikipedia HTML infobox fallback
+ * ------------------------------------------------------------
+ *
+ * The MediaWiki Parse API can return both the original wikitext
+ * and rendered HTML. The HTML fallback lets us read the actual
+ * labels/data that Wikipedia renders in the infobox, even when
+ * template parameter names vary between articles.
+ * ------------------------------------------------------------
+ */
+
+function decodeWikipediaHtmlEntities(value) {
+
+    return String(value || "")
+        .replace(/&#(\d+);/g, (_, code) => {
+
+            const number = Number(code);
+
+            if (
+                !Number.isInteger(number) ||
+                number < 0 ||
+                number > 0x10FFFF
+            ) {
+                return _;
+            }
+
+            return String.fromCodePoint(number);
+        })
+        .replace(/&#x([0-9a-f]+);/gi, (_, code) => {
+
+            const number =
+                Number.parseInt(code, 16);
+
+            if (
+                !Number.isInteger(number) ||
+                number < 0 ||
+                number > 0x10FFFF
+            ) {
+                return _;
+            }
+
+            return String.fromCodePoint(number);
+        })
+        .replace(/&nbsp;/gi, " ")
+        .replace(/&ndash;/gi, "–")
+        .replace(/&mdash;/gi, "—")
+        .replace(/&minus;/gi, "−")
+        .replace(/&amp;/gi, "&")
+        .replace(/&quot;/gi, '"')
+        .replace(/&#39;/gi, "'")
+        .replace(/&apos;/gi, "'");
+}
+
+function cleanWikipediaHtmlValue(value) {
+
+    let text =
+        String(value || "")
+            .replace(
+                /<!--[\s\S]*?-->/g,
+                " "
+            )
+            .replace(
+                /<ref[^>]*>[\s\S]*?<\/ref>/gi,
+                " "
+            )
+            .replace(
+                /<ref[^>]*\/?\s*>/gi,
+                " "
+            )
+            .replace(
+                /<br\s*\/?\s*>/gi,
+                "; "
+            )
+            .replace(
+                /<\/li>/gi,
+                "; "
+            )
+            .replace(
+                /<li\b[^>]*>/gi,
+                " "
+            )
+            .replace(
+                /<\/p>/gi,
+                "; "
+            )
+            .replace(
+                /<[^>]+>/g,
+                " "
+            );
+
+    text =
+        decodeWikipediaHtmlEntities(text)
+            .replace(
+                /\[\s*\d+\s*\]/g,
+                ""
+            )
+            .replace(
+                /[\u200B-\u200D\uFEFF]/g,
+                ""
+            )
+            .replace(
+                /\s*;\s*;/g,
+                "; "
+            )
+            .replace(
+                /(?:;\s*){2,}/g,
+                "; "
+            )
+            .replace(
+                /;\s*$/g,
+                ""
+            )
+            .replace(
+                /\s+/g,
+                " "
+            )
+            .trim();
+
+    return text || "No Information";
+}
+
+function extractBalancedHtmlTable(
+    html,
+    startIndex
+) {
+
+    const input = String(html || "");
+
+    if (
+        !input ||
+        !Number.isInteger(startIndex) ||
+        startIndex < 0
+    ) {
+        return null;
+    }
+
+    const tagRegex =
+        /<\/?table\b[^>]*>/gi;
+
+    tagRegex.lastIndex = startIndex;
+
+    let depth = 0;
+    let started = false;
+    let match;
+
+    while ((match = tagRegex.exec(input)) !== null) {
+
+        const tag = match[0];
+
+        if (/^<table\b/i.test(tag)) {
+            depth++;
+            started = true;
+            continue;
+        }
+
+        if (/^<\/table\b/i.test(tag)) {
+
+            if (!started) {
+                continue;
+            }
+
+            depth--;
+
+            if (depth === 0) {
+                return input.slice(
+                    startIndex,
+                    match.index + tag.length
+                );
+            }
+        }
+    }
+
+    return null;
+}
+
+function findWikipediaInfoboxHtml(html) {
+
+    const input = String(html || "");
+
+    if (!input) {
+        return null;
+    }
+
+    const tableRegex =
+        /<table\b[^>]*>/gi;
+
+    let match;
+
+    while ((match = tableRegex.exec(input)) !== null) {
+
+        const openingTag = match[0];
+
+        const classMatch =
+            openingTag.match(
+                /\bclass\s*=\s*["']([^"']*)["']/i
+            );
+
+        if (
+            classMatch &&
+            /(^|\s)infobox(?:\s|$)/i.test(
+                classMatch[1]
+            )
+        ) {
+            return extractBalancedHtmlTable(
+                input,
+                match.index
+            );
+        }
+    }
+
+    return null;
+}
+
+function extractHtmlRows(html) {
+
+    const rows = [];
+    const rowRegex =
+        /<tr\b[^>]*>[\s\S]*?<\/tr>/gi;
+
+    let match;
+
+    while ((match = rowRegex.exec(String(html || ""))) !== null) {
+        rows.push(match[0]);
+    }
+
+    return rows;
+}
+
+function extractHtmlCells(row) {
+
+    const cells = [];
+    const cellRegex =
+        /<(th|td)\b([^>]*)>([\s\S]*?)<\/\1>/gi;
+
+    let match;
+
+    while ((match = cellRegex.exec(String(row || ""))) !== null) {
+
+        cells.push({
+            tag: match[1].toLowerCase(),
+            attributes: match[2] || "",
+            content: match[3] || ""
+        });
+    }
+
+    return cells;
+}
+
+function getHtmlAttribute(
+    attributes,
+    name
+) {
+
+    const pattern =
+        new RegExp(
+            `\\b${name}\\s*=\\s*["']([^"']*)["']`,
+            "i"
+        );
+
+    return (
+        String(attributes || "")
+            .match(pattern)?.[1] ||
+        ""
+    );
+}
+
+function parseWikipediaInfoboxHtml(html) {
+
+    const specifications =
+        createEmptyWikipediaSpecifications();
+
+    const infobox =
+        findWikipediaInfoboxHtml(html);
+
+    if (!infobox) {
+        return specifications;
+    }
+
+    try {
+
+        const rows =
+            extractHtmlRows(infobox);
+
+        for (const row of rows) {
+
+            const cells =
+                extractHtmlCells(row);
+
+            if (!cells.length) {
+                continue;
+            }
+
+            let labelCell = null;
+            let valueCell = null;
+
+            for (const cell of cells) {
+
+                const classes =
+                    getHtmlAttribute(
+                        cell.attributes,
+                        "class"
+                    );
+
+                if (
+                    /(^|\s)infobox-label(?:\s|$)/i.test(
+                        classes
+                    )
+                ) {
+                    labelCell = cell;
+                    break;
+                }
+            }
+
+            if (labelCell) {
+                valueCell =
+                    cells.find(
+                        cell => cell !== labelCell
+                    ) || null;
+            } else {
+                labelCell =
+                    cells.find(
+                        cell => cell.tag === "th"
+                    ) || cells[0];
+
+                valueCell =
+                    cells.find(
+                        cell => cell !== labelCell
+                    ) || null;
+            }
+
+            if (!labelCell || !valueCell) {
+                continue;
+            }
+
+            const label =
+                cleanWikipediaHtmlValue(
+                    labelCell.content
+                );
+
+            const value =
+                cleanWikipediaHtmlValue(
+                    valueCell.content
+                );
+
+            const field =
+                getWikipediaSpecificationField(
+                    label
+                );
+
+            if (
+                !field ||
+                !isUsefulWikipediaValue(value)
+            ) {
+                continue;
+            }
+
+            setWikipediaSpecificationIfMissing(
+                specifications,
+                field,
+                value
+            );
+        }
+
+    } catch (error) {
+
+        console.error(
+            "Wikipedia rendered HTML infobox parsing error:",
+            error
+        );
+    }
+
+    return specifications;
+}
+
+function mergeWikipediaSpecifications(
+    primary,
+    fallback
+) {
+
+    const merged =
+        createEmptyWikipediaSpecifications();
+
+    for (const field of WIKIPEDIA_SPEC_FIELDS) {
+
+        if (
+            isUsefulWikipediaValue(
+                primary?.[field]
+            )
+        ) {
+            merged[field] =
+                normalizeWikipediaText(
+                    primary[field]
+                );
+            continue;
+        }
+
+        if (
+            isUsefulWikipediaValue(
+                fallback?.[field]
+            )
+        ) {
+            merged[field] =
+                normalizeWikipediaText(
+                    fallback[field]
+                );
+        }
+    }
+
+    return merged;
 }
 
 /*
@@ -2623,33 +2373,21 @@ async function searchWikipediaVehicle(
     kind
 ) {
 
-    if (
-        !make ||
-        !model
-    ) {
-
+    if (!make || !model) {
         return null;
     }
 
     const searches = [
-
         `${make} ${model} ${kind}`,
-
         `${make} ${model}`
-
     ];
 
-    for (
-        const search
-        of searches
-    ) {
+    for (const search of searches) {
 
         try {
 
             const url =
-                new URL(
-                    WIKIPEDIA_API
-                );
+                new URL(WIKIPEDIA_API);
 
             url.searchParams.set(
                 "action",
@@ -2692,9 +2430,7 @@ async function searchWikipediaVehicle(
                 );
 
             const results =
-                Array.isArray(
-                    data?.query?.search
-                )
+                Array.isArray(data?.query?.search)
                     ? data.query.search
                     : [];
 
@@ -2707,114 +2443,76 @@ async function searchWikipediaVehicle(
                     `${make}${model}`
                 );
 
-            /*
-             * Exact article title first.
-             */
-
             const exact =
-                results.find(
-                    result =>
-                        simplifyText(
-                            result?.title
-                        ) ===
-                        normalizedTarget
+                results.find(result =>
+                    simplifyText(result?.title) ===
+                    normalizedTarget
                 );
 
             if (exact) {
-
                 return exact.title;
             }
 
             const normalizedMake =
-                simplifyText(
-                    make
-                );
+                simplifyText(make);
 
             const normalizedModel =
-                simplifyText(
-                    model
-                );
+                simplifyText(model);
 
             const scored =
                 results
-                    .map(
-                        result => {
+                    .map(result => {
 
-                            const title =
-                                String(
-                                    result?.title ||
-                                    ""
-                                );
+                        const title =
+                            String(result?.title || "");
 
-                            const simplifiedTitle =
-                                simplifyText(
-                                    title
-                                );
+                        const simplifiedTitle =
+                            simplifyText(title);
 
-                            let score =
-                                0;
+                        let score = 0;
 
-                            if (
-                                normalizedMake &&
-                                simplifiedTitle.includes(
-                                    normalizedMake
-                                )
-                            ) {
-
-                                score += 30;
-                            }
-
-                            if (
-                                normalizedModel &&
-                                simplifiedTitle.includes(
-                                    normalizedModel
-                                )
-                            ) {
-
-                                score += 50;
-                            }
-
-                            if (
-                                normalizedTarget &&
-                                simplifiedTitle.includes(
-                                    normalizedTarget
-                                )
-                            ) {
-
-                                score += 30;
-                            }
-
-                            /*
-                             * Prefer normal articles over
-                             * disambiguation-like titles.
-                             */
-
-                            if (
-                                /\s+\(.*\)$/i.test(
-                                    title
-                                )
-                            ) {
-
-                                score -= 15;
-                            }
-
-                            return {
-                                title,
-                                score
-                            };
+                        if (
+                            normalizedMake &&
+                            simplifiedTitle.includes(normalizedMake)
+                        ) {
+                            score += 30;
                         }
-                    )
+
+                        if (
+                            normalizedModel &&
+                            simplifiedTitle.includes(normalizedModel)
+                        ) {
+                            score += 50;
+                        }
+
+                        if (
+                            normalizedTarget &&
+                            simplifiedTitle.includes(normalizedTarget)
+                        ) {
+                            score += 30;
+                        }
+
+                        /* Prefer normal article titles over disambiguation pages. */
+
+                        if (
+                            /\s+\(.*\)$/i.test(title)
+                        ) {
+                            score -= 15;
+                        }
+
+                        return {
+                            title,
+                            score
+                        };
+                    })
                     .sort(
-                        (a, b) =>
-                            b.score -
-                            a.score
+                        (a, b) => b.score - a.score
                     );
 
             if (
                 scored[0] &&
                 scored[0].score >= 50
             ) {
-
                 return scored[0].title;
             }
 
@@ -2837,18 +2535,14 @@ async function searchWikipediaVehicle(
  * ------------------------------------------------------------
  */
 
-async function getWikipediaPage(
-    title
-) {
+async function getWikipediaPage(title) {
 
     if (!title) {
         return null;
     }
 
     const url =
-        new URL(
-            WIKIPEDIA_API
-        );
+        new URL(WIKIPEDIA_API);
 
     url.searchParams.set(
         "action",
@@ -2920,32 +2614,25 @@ async function getWikipediaPage(
     const page =
         Array.isArray(pages)
             ? pages[0]
-            : Object.values(
-                pages
-            )[0];
+            : Object.values(pages)[0];
 
     if (
         !page ||
         page.missing === true
     ) {
-
         return null;
     }
 
     return {
-
         pageId:
-            page.pageid ||
-            null,
+            page.pageid || null,
 
         title:
-            page.title ||
-            title,
+            page.title || title,
 
         description:
             normalizeWikipediaText(
-                page.extract ||
-                ""
+                page.extract || ""
             ),
 
         image:
@@ -2956,43 +2643,31 @@ async function getWikipediaPage(
             page.fullurl ||
             `https://en.wikipedia.org/wiki/${encodeURIComponent(
                 String(
-                    page.title ||
-                    title
-                ).replace(
-                    / /g,
-                    "_"
-                )
+                    page.title || title
+                ).replace(/ /g, "_")
             )}`
     };
 }
 
 /*
  * ------------------------------------------------------------
- * Get Wikipedia infobox
+ * Get Wikipedia infobox wikitext
  *
- * IMPORTANT:
- *
- * prop=wikitext retrieves the original page wikitext.
- * We parse that source ourselves.
+ * MediaWiki documents prop=wikitext as the way to retrieve
+ * the original page wikitext rather than rendered HTML.
  * ------------------------------------------------------------
  */
 
-async function getWikipediaInfobox(
-    title
-) {
+async function getWikipediaInfobox(title) {
 
     if (!title) {
-
         return createEmptyWikipediaSpecifications();
-
     }
 
     try {
 
         const url =
-            new URL(
-                WIKIPEDIA_API
-            );
+            new URL(WIKIPEDIA_API);
 
         url.searchParams.set(
             "action",
@@ -3004,9 +2679,14 @@ async function getWikipediaInfobox(
             title
         );
 
+        /*
+         * Request both representations in one call.
+         * MediaWiki documents prop=text for rendered HTML and
+         * prop=wikitext for the original source.
+         */
         url.searchParams.set(
             "prop",
-            "wikitext"
+            "wikitext|text"
         );
 
         url.searchParams.set(
@@ -3029,24 +2709,42 @@ async function getWikipediaInfobox(
                 url.toString()
             );
 
-        const wikitext =
-            typeof data?.parse?.wikitext ===
-                "string"
-                ? data.parse.wikitext
-                : data?.parse?.wikitext?.["*"];
+        const parse =
+            data?.parse;
 
-        if (!wikitext) {
+        if (!parse) {
 
             console.warn(
-                "Wikipedia returned no wikitext:",
+                "Wikipedia returned no parse data:",
                 title
             );
 
             return createEmptyWikipediaSpecifications();
         }
 
-        return parseWikipediaInfobox(
-            wikitext
+        const wikitext =
+            typeof parse.wikitext === "string"
+                ? parse.wikitext
+                : parse.wikitext?.["*"] || "";
+
+        const html =
+            typeof parse.text === "string"
+                ? parse.text
+                : parse.text?.["*"] || "";
+
+        const wikitextSpecifications =
+            parseWikipediaInfobox(
+                wikitext
+            );
+
+        const htmlSpecifications =
+            parseWikipediaInfoboxHtml(
+                html
+            );
+
+        return mergeWikipediaSpecifications(
+            wikitextSpecifications,
+            htmlSpecifications
         );
 
     } catch (error) {
@@ -3060,10 +2758,9 @@ async function getWikipediaInfobox(
         return createEmptyWikipediaSpecifications();
     }
 }
-
 /*
  * ------------------------------------------------------------
- * Check whether actual technical information exists
+ * Check whether actual technical information exists.
  * ------------------------------------------------------------
  */
 
@@ -3076,7 +2773,6 @@ function hasWikipediaVehicleInformation(
     }
 
     const comparisonFields = [
-
         "engine",
         "fuel",
         "transmission",
@@ -3093,27 +2789,31 @@ function hasWikipediaVehicleInformation(
         "electricRange",
         "seating",
         "doors"
-
     ];
 
-    return comparisonFields.some(
-        field => {
+    const availableCount =
+        comparisonFields.reduce((count, field) => {
 
             const value =
                 specifications[field];
 
             return (
-                value &&
-                value !==
-                    "No Information"
+                count +
+                (
+                    value &&
+                    value !== "No Information"
+                        ? 1
+                        : 0
+                )
             );
-        }
-    );
+        }, 0);
+
+    return availableCount >= 2;
 }
 
 /*
  * ------------------------------------------------------------
- * Complete "No Information" result
+ * Create complete "No Information" result
  * ------------------------------------------------------------
  */
 
@@ -3124,47 +2824,33 @@ function createWikipediaNoInformation(
 ) {
 
     return {
-
-        success:
-            true,
-
-        source:
-            "Wikipedia",
-
-        make:
-            make ||
-            "No Information",
-
-        model:
-            model ||
-            "No Information",
-
-        kind:
-            kind ||
-            "No Information",
-
-        wikipedia: {
-
-            title:
-                "No Information",
-
-            url:
-                null,
-
-            description:
-                "No Information"
-
+        success: true,
+        source: {
+            catalog: "VehiclesDB Open Dataset",
+            information: "Wikipedia"
         },
 
-        image:
-            null,
+        make:
+            make || "No Information",
+
+        model:
+            model || "No Information",
+
+        kind:
+            kind || "No Information",
+
+        wikipedia: {
+            title: "No Information",
+            url: null,
+            description: "No Information"
+        },
+
+        image: null,
 
         specifications:
             createEmptyWikipediaSpecifications(),
 
-        comparisonAvailable:
-            false
-
+        comparisonAvailable: false
     };
 }
 
@@ -3180,19 +2866,14 @@ async function handleDetails(
 ) {
 
     const kind =
-        getRequestedKind(
-            requestUrl
-        );
+        getRequestedKind(requestUrl);
 
     if (!kind) {
 
         return jsonResponse(
             {
-                success:
-                    false,
-
-                error:
-                    "Invalid vehicle kind"
+                success: false,
+                error: "Invalid vehicle kind"
             },
             400,
             60
@@ -3200,83 +2881,52 @@ async function handleDetails(
     }
 
     const make =
-        requestUrl.searchParams.get(
-            "make"
-        );
+        requestUrl.searchParams.get("make");
 
     const model =
-        requestUrl.searchParams.get(
-            "model"
-        );
+        requestUrl.searchParams.get("model");
 
-    if (
-        !make ||
-        !model
-    ) {
+    if (!make || !model) {
 
         return jsonResponse(
             {
-                success:
-                    false,
-
+                success: false,
                 error:
                     "Missing make or model parameter",
-
-                vehicle:
-                    null
+                vehicle: null
             },
             400,
             60
         );
     }
 
-    /*
-     * 1. Verify vehicle against VehiclesDB.
-     */
+    /* 1. Verify the vehicle exists in VehiclesDB. */
 
     const models =
-        getModelsByKind(
-            database,
-            kind
-        );
+        getModelsByKind(database, kind);
 
     const vehicle =
-        findVehicle(
-            models,
-            make,
-            model
-        );
+        findVehicle(models, make, model);
 
     if (!vehicle) {
 
         return jsonResponse(
             {
-                success:
-                    false,
-
+                success: false,
                 error:
                     `No ${kind} found for ${make} ${model}`,
-
-                vehicle:
-                    null,
-
-                wikipedia:
-                    null,
-
-                image:
-                    null
+                vehicle: null,
+                wikipedia: null,
+                image: null
             },
             404,
             300
         );
     }
 
-    /*
-     * 2. Search Wikipedia.
-     */
+    /* 2. Search Wikipedia. */
 
-    let wikipediaTitle =
-        null;
+    let wikipediaTitle = null;
 
     try {
 
@@ -3308,12 +2958,9 @@ async function handleDetails(
         );
     }
 
-    /*
-     * 3. Load Wikipedia page.
-     */
+    /* 3. Load article summary/image. */
 
-    let page =
-        null;
+    let page = null;
 
     try {
 
@@ -3344,9 +2991,8 @@ async function handleDetails(
         );
     }
 
-    /*
-     * 4. Parse real Wikipedia infobox.
-     */
+    /* 4. Parse the real Wikipedia infobox data
+     *    from both wikitext and rendered HTML. */
 
     const specifications =
         await getWikipediaInfobox(
@@ -3358,87 +3004,50 @@ async function handleDetails(
             specifications
         );
 
-    /*
-     * 5. Final response.
-     */
+    /* 5. Return stable frontend response. */
 
     return jsonResponse(
         {
-
-            success:
-                true,
+            success: true,
 
             source: {
-
                 catalog:
                     "VehiclesDB Open Dataset",
-
                 information:
                     "Wikipedia"
-
             },
 
             kind,
 
             vehicle: {
-
-                make:
-                    vehicle.make,
-
-                model:
-                    vehicle.model,
-
-                kind:
-                    vehicle.kind,
-
-                body_type:
-                    vehicle.bodyType,
-
-                body_types:
-                    vehicle.bodyTypes,
-
-                year_start:
-                    vehicle.yearStart,
-
-                year_end:
-                    vehicle.yearEnd,
-
-                global_decile:
-                    vehicle.globalDecile
-
+                make: vehicle.make,
+                model: vehicle.model,
+                kind: vehicle.kind,
+                body_type: vehicle.bodyType,
+                body_types: vehicle.bodyTypes,
+                year_start: vehicle.yearStart,
+                year_end: vehicle.yearEnd,
+                global_decile: vehicle.globalDecile
             },
 
             wikipedia: {
-
-                title:
-                    page.title,
-
-                url:
-                    page.url,
-
+                title: page.title,
+                url: page.url,
                 description:
                     page.description ||
                     "No Information"
-
             },
 
             image:
                 page.image
                     ? {
-
-                        url:
-                            page.image,
-
-                        source_url:
-                            page.url
-
+                        url: page.image,
+                        source_url: page.url
                     }
                     : null,
 
             specifications,
-
             comparisonAvailable
-
         },
         200,
         WIKIPEDIA_CACHE_TTL
@@ -3451,9 +3060,7 @@ async function handleDetails(
  * ============================================================
  */
 
-export async function onRequestGet(
-    context
-) {
+export async function onRequestGet(context) {
 
     try {
 
@@ -3461,101 +3068,71 @@ export async function onRequestGet(
             context.request;
 
         const requestUrl =
-            new URL(
-                request.url
-            );
+            new URL(request.url);
 
         const action =
             (
-                requestUrl.searchParams.get(
-                    "action"
-                ) ||
+                requestUrl.searchParams.get("action") ||
                 "models"
             )
                 .trim()
                 .toLowerCase();
 
-        /*
-         * Load VehiclesDB.
-         */
-
         const database =
             await loadVehiclesDatabase();
-
-        /*
-         * Route action.
-         */
 
         switch (action) {
 
             case "models":
-
                 return handleModels(
                     requestUrl,
                     database
                 );
 
             case "makes":
-
                 return handleMakes(
                     requestUrl,
                     database
                 );
 
             case "vehicle":
-
                 return handleVehicle(
                     requestUrl,
                     database
                 );
 
             case "variants":
-
                 return handleVariants(
                     requestUrl,
                     database
                 );
 
             case "images":
-
                 return handleImages(
                     requestUrl
                 );
 
             case "details":
-
                 return handleDetails(
                     requestUrl,
                     database
                 );
 
             default:
-
                 return jsonResponse(
                     {
-
-                        success:
-                            false,
-
-                        error:
-                            "Invalid action",
-
+                        success: false,
+                        error: "Invalid action",
                         supportedActions: [
-
                             "makes",
                             "models",
                             "variants",
                             "vehicle",
                             "images",
                             "details"
-
                         ],
-
                         supportedKinds:
-                            Array.from(
-                                VALID_KINDS
-                            )
-
+                            Array.from(VALID_KINDS)
                     },
                     400,
                     60
@@ -3571,14 +3148,10 @@ export async function onRequestGet(
 
         return jsonResponse(
             {
-
-                success:
-                    false,
-
+                success: false,
                 error:
                     error?.message ||
                     "Internal server error"
-
             },
             500,
             60
