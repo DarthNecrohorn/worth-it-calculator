@@ -1181,206 +1181,860 @@ async function handleImages(
 
     /*
  * ============================================================
- * WIKIDATA + WIKIMEDIA COMMONS
+ * WIKIPEDIA VEHICLE DETAILS
+ *
+ * Wikipedia is the only supplemental vehicle information
+ * source used by the Cars section.
+ *
+ * VehiclesDB remains the vehicle catalog source.
+ *
+ * Wikipedia API is accessed server-side through Cloudflare.
+ * Results are cached at the Cloudflare edge.
  * ============================================================
  */
 
-const WIKIDATA_API =
-    "https://www.wikidata.org/w/api.php";
+const WIKIPEDIA_API =
+    "https://en.wikipedia.org/w/api.php";
 
-const COMMONS_API =
-    "https://commons.wikimedia.org/w/api.php";
-
-const WIKIMEDIA_HEADERS = {
-    "Accept": "application/json",
-    "User-Agent":
-        "Worth-It/1.0 (https://worth-it-calculator.pages.dev/)"
-};
+const WIKIPEDIA_CACHE_TTL =
+    604800; // 7 days
 
 
 /*
  * ------------------------------------------------------------
- * Small HTML/entity helpers
+ * Wikipedia cached fetch
  * ------------------------------------------------------------
  */
 
-function stripHtml(value) {
-
-    return String(value || "")
-        .replace(/<[^>]*>/g, "")
-        .replace(/&nbsp;/gi, " ")
-        .replace(/&amp;/gi, "&")
-        .replace(/&#39;/gi, "'")
-        .replace(/&quot;/gi, '"')
-        .trim();
-}
-
-
-/*
- * ------------------------------------------------------------
- * Wikidata search
- * ------------------------------------------------------------
- */
-
-async function searchWikidata(
-    make,
-    model
+async function fetchWikipediaCached(
+    url
 ) {
 
-    const searches = [
-        `${make} ${model}`,
-        model
-    ];
+    const cache =
+        caches.default;
 
-    for (const search of searches) {
-
-        const url =
-            new URL(WIKIDATA_API);
-
-        url.searchParams.set(
-            "action",
-            "wbsearchentities"
+    const cacheKey =
+        new Request(
+            url
         );
 
-        url.searchParams.set(
-            "search",
-            search
+    /*
+     * Check Cloudflare edge cache first.
+     */
+
+    const cached =
+        await cache.match(
+            cacheKey
         );
 
-        url.searchParams.set(
-            "language",
-            "en"
+    if (cached) {
+
+        try {
+
+            return await cached.json();
+
+        } catch {
+
+            // Ignore invalid cached response.
+        }
+    }
+
+
+    /*
+     * Request Wikipedia.
+     */
+
+    const response =
+        await fetch(
+            url,
+            {
+                headers: {
+                    "Accept":
+                        "application/json"
+                }
+            }
         );
 
-        url.searchParams.set(
-            "uselang",
-            "en"
+
+    if (!response.ok) {
+
+        throw new Error(
+            `Wikipedia returned ${response.status}`
         );
 
-        url.searchParams.set(
-            "type",
-            "item"
-        );
+    }
 
-        url.searchParams.set(
-            "limit",
-            "10"
-        );
 
-        url.searchParams.set(
-            "format",
-            "json"
-        );
+    const data =
+        await response.json();
 
-        url.searchParams.set(
-            "formatversion",
-            "2"
-        );
 
-        const response =
-            await fetch(
-                url.toString(),
+    /*
+     * Store successful response
+     * at the Cloudflare edge.
+     */
+
+    try {
+
+        const cacheResponse =
+            new Response(
+                JSON.stringify(data),
                 {
-                    headers:
-                        WIKIMEDIA_HEADERS
+                    status: 200,
+
+                    headers: {
+                        "Content-Type":
+                            "application/json; charset=UTF-8",
+
+                        "Cache-Control":
+                            `public, max-age=${WIKIPEDIA_CACHE_TTL}`
+                    }
                 }
             );
 
-        if (!response.ok) {
-            continue;
-        }
+        await cache.put(
+            cacheKey,
+            cacheResponse
+        );
 
-        const data =
-            await response.json();
+    } catch (error) {
 
-        const results =
-            Array.isArray(data?.search)
-                ? data.search
-                : [];
+        console.error(
+            "Wikipedia cache write failed:",
+            error
+        );
 
-        const target =
-            simplifyText(
-                `${make} ${model}`
-            );
-
-        /*
-         * Prefer exact label.
-         */
-
-        const exact =
-            results.find(item =>
-                simplifyText(
-                    item?.label
-                ) === target
-            );
-
-        if (exact) {
-            return exact;
-        }
-
-        /*
-         * Otherwise prefer a result whose
-         * label contains the model name.
-         */
-
-        const modelText =
-            simplifyText(model);
-
-        const related =
-            results.find(item =>
-                simplifyText(
-                    item?.label
-                ).includes(modelText)
-            );
-
-        if (related) {
-            return related;
-        }
     }
 
-    return null;
+
+    return data;
 }
 
 
 /*
  * ------------------------------------------------------------
- * Get Wikidata entity
+ * Wikipedia text normalization
  * ------------------------------------------------------------
  */
 
-async function getWikidataEntity(
-    entityId
+function normalizeWikipediaText(
+    value
 ) {
 
-    if (!entityId) {
-        return null;
+    return String(value || "")
+        .replace(/\s+/g, " ")
+        .trim();
+
+}
+
+
+function normalizeWikipediaLabel(
+    value
+) {
+
+    return normalizeWikipediaText(
+        value
+    )
+        .toLowerCase()
+        .replace(/[:]/g, "")
+        .replace(/[–—-]/g, " ")
+        .replace(/\s+/g, " ");
+
+}
+
+
+/*
+ * ------------------------------------------------------------
+ * Wikipedia specification fields
+ * ------------------------------------------------------------
+ */
+
+const WIKIPEDIA_SPEC_FIELDS = [
+
+    "production",
+    "generation",
+    "bodyType",
+    "engine",
+    "fuel",
+    "transmission",
+    "drivetrain",
+    "horsepower",
+    "torque",
+    "weight",
+    "length",
+    "width",
+    "height",
+    "wheelbase",
+    "topSpeed",
+    "battery",
+    "electricRange",
+    "seating",
+    "doors"
+
+];
+
+
+function createEmptyWikipediaSpecifications() {
+
+    const specifications = {};
+
+    for (
+        const field of WIKIPEDIA_SPEC_FIELDS
+    ) {
+
+        specifications[field] =
+            "No Information";
+
     }
 
+    return specifications;
+
+}
+
+
+/*
+ * ------------------------------------------------------------
+ * Map Wikipedia infobox labels to our fields
+ * ------------------------------------------------------------
+ */
+
+function getWikipediaSpecificationField(
+    label
+) {
+
+    const normalized =
+        normalizeWikipediaLabel(
+            label
+        );
+
+
+    const mappings = {
+
+        "production":
+            "production",
+
+        "years":
+            "production",
+
+        "model years":
+            "production",
+
+        "production years":
+            "production",
+
+        "generation":
+            "generation",
+
+        "generations":
+            "generation",
+
+        "body style":
+            "bodyType",
+
+        "body styles":
+            "bodyType",
+
+        "body type":
+            "bodyType",
+
+        "body types":
+            "bodyType",
+
+        "engine":
+            "engine",
+
+        "engines":
+            "engine",
+
+        "motor":
+            "engine",
+
+        "motors":
+            "engine",
+
+        "fuel":
+            "fuel",
+
+        "fuel type":
+            "fuel",
+
+        "fuel types":
+            "fuel",
+
+        "fuel system":
+            "fuel",
+
+        "transmission":
+            "transmission",
+
+        "transmissions":
+            "transmission",
+
+        "gearbox":
+            "transmission",
+
+        "gearboxes":
+            "transmission",
+
+        "drivetrain":
+            "drivetrain",
+
+        "drive train":
+            "drivetrain",
+
+        "drive type":
+            "drivetrain",
+
+        "drive":
+            "drivetrain",
+
+        "power":
+            "horsepower",
+
+        "power output":
+            "horsepower",
+
+        "engine power":
+            "horsepower",
+
+        "motor power":
+            "horsepower",
+
+        "horsepower":
+            "horsepower",
+
+        "hp":
+            "horsepower",
+
+        "torque":
+            "torque",
+
+        "curb weight":
+            "weight",
+
+        "kerb weight":
+            "weight",
+
+        "curbweight":
+            "weight",
+
+        "weight":
+            "weight",
+
+        "mass":
+            "weight",
+
+        "length":
+            "length",
+
+        "width":
+            "width",
+
+        "height":
+            "height",
+
+        "wheelbase":
+            "wheelbase",
+
+        "top speed":
+            "topSpeed",
+
+        "maximum speed":
+            "topSpeed",
+
+        "battery":
+            "battery",
+
+        "battery capacity":
+            "battery",
+
+        "electric range":
+            "electricRange",
+
+        "range":
+            "electricRange",
+
+        "seating":
+            "seating",
+
+        "seats":
+            "seating",
+
+        "seating capacity":
+            "seating",
+
+        "doors":
+            "doors"
+
+    };
+
+
+    return (
+        mappings[normalized] ||
+        null
+    );
+
+}
+
+
+/*
+ * ------------------------------------------------------------
+ * Parse Wikipedia infobox HTML
+ * ------------------------------------------------------------
+ */
+
+function parseWikipediaInfobox(
+    html
+) {
+
+    const specifications =
+        createEmptyWikipediaSpecifications();
+
+
+    if (
+        !html ||
+        typeof DOMParser === "undefined"
+    ) {
+
+        return specifications;
+
+    }
+
+
+    try {
+
+        const document =
+            new DOMParser()
+                .parseFromString(
+                    html,
+                    "text/html"
+                );
+
+
+        /*
+         * Wikipedia vehicle articles normally
+         * use a table with the "infobox" class.
+         */
+
+        const infobox =
+            document.querySelector(
+                "table.infobox"
+            );
+
+
+        if (!infobox) {
+
+            return specifications;
+
+        }
+
+
+        const rows =
+            infobox.querySelectorAll(
+                "tr"
+            );
+
+
+        rows.forEach(
+            row => {
+
+                const labelElement =
+                    row.querySelector(
+                        "th"
+                    );
+
+                const valueElement =
+                    row.querySelector(
+                        "td"
+                    );
+
+
+                if (
+                    !labelElement ||
+                    !valueElement
+                ) {
+
+                    return;
+
+                }
+
+
+                const label =
+                    normalizeWikipediaText(
+                        labelElement.textContent
+                    );
+
+
+                const value =
+                    normalizeWikipediaText(
+                        valueElement.textContent
+                    );
+
+
+                if (
+                    !label ||
+                    !value
+                ) {
+
+                    return;
+
+                }
+
+
+                const field =
+                    getWikipediaSpecificationField(
+                        label
+                    );
+
+
+                if (!field) {
+
+                    return;
+
+                }
+
+
+                /*
+                 * Remove excessive citation markers
+                 * and whitespace.
+                 */
+
+                const cleanedValue =
+                    value
+                        .replace(
+                            /\[\s*\d+\s*\]/g,
+                            ""
+                        )
+                        .replace(
+                            /\s+/g,
+                            " "
+                        )
+                        .trim();
+
+
+                if (
+                    cleanedValue
+                ) {
+
+                    specifications[field] =
+                        cleanedValue;
+
+                }
+
+            }
+        );
+
+
+    } catch (error) {
+
+        console.error(
+            "Wikipedia infobox parsing error:",
+            error
+        );
+
+    }
+
+
+    return specifications;
+
+}
+
+
+/*
+ * ------------------------------------------------------------
+ * Search Wikipedia
+ * ------------------------------------------------------------
+ */
+
+async function searchWikipediaVehicle(
+    make,
+    model,
+    kind
+) {
+
+    if (!make || !model) {
+
+        return null;
+
+    }
+
+
+    const searches = [
+
+        `${make} ${model}`,
+
+        `${make} ${model} ${kind}`
+
+    ];
+
+
+    for (
+        const search of searches
+    ) {
+
+        try {
+
+            const url =
+                new URL(
+                    WIKIPEDIA_API
+                );
+
+
+            url.searchParams.set(
+                "action",
+                "query"
+            );
+
+            url.searchParams.set(
+                "list",
+                "search"
+            );
+
+            url.searchParams.set(
+                "srsearch",
+                search
+            );
+
+            url.searchParams.set(
+                "srnamespace",
+                "0"
+            );
+
+            url.searchParams.set(
+                "srlimit",
+                "10"
+            );
+
+            url.searchParams.set(
+                "format",
+                "json"
+            );
+
+            url.searchParams.set(
+                "origin",
+                "*"
+            );
+
+
+            const data =
+                await fetchWikipediaCached(
+                    url.toString()
+                );
+
+
+            const results =
+                Array.isArray(
+                    data?.query?.search
+                )
+                    ? data.query.search
+                    : [];
+
+
+            if (!results.length) {
+
+                continue;
+
+            }
+
+
+            const normalizedTarget =
+                simplifyText(
+                    `${make}${model}`
+                );
+
+
+            /*
+             * Prefer exact make + model title.
+             */
+
+            const exact =
+                results.find(
+                    result =>
+                        simplifyText(
+                            result?.title
+                        ) ===
+                        normalizedTarget
+                );
+
+
+            if (exact) {
+
+                return exact.title;
+
+            }
+
+
+            /*
+             * Score search results.
+             */
+
+            const normalizedMake =
+                simplifyText(make);
+
+            const normalizedModel =
+                simplifyText(model);
+
+
+            const scored =
+                results.map(
+                    result => {
+
+                        const title =
+                            String(
+                                result?.title || ""
+                            );
+
+
+                        const simplifiedTitle =
+                            simplifyText(
+                                title
+                            );
+
+
+                        let score = 0;
+
+
+                        if (
+                            simplifiedTitle.includes(
+                                normalizedMake
+                            )
+                        ) {
+
+                            score += 30;
+
+                        }
+
+
+                        if (
+                            simplifiedTitle.includes(
+                                normalizedModel
+                            )
+                        ) {
+
+                            score += 50;
+
+                        }
+
+
+                        if (
+                            simplifiedTitle.includes(
+                                normalizedTarget
+                            )
+                        ) {
+
+                            score += 30;
+
+                        }
+
+
+                        return {
+
+                            title,
+
+                            score
+
+                        };
+
+                    }
+                )
+                .sort(
+                    (a, b) =>
+                        b.score - a.score
+                );
+
+
+            if (
+                scored[0] &&
+                scored[0].score >= 50
+            ) {
+
+                return scored[0].title;
+
+            }
+
+        } catch (error) {
+
+            console.error(
+                "Wikipedia search error:",
+                search,
+                error
+            );
+
+        }
+
+    }
+
+
+    return null;
+
+}
+
+
+/*
+ * ------------------------------------------------------------
+ * Get Wikipedia page
+ * ------------------------------------------------------------
+ */
+
+async function getWikipediaPage(
+    title
+) {
+
+    if (!title) {
+
+        return null;
+
+    }
+
+
     const url =
-        new URL(WIKIDATA_API);
+        new URL(
+            WIKIPEDIA_API
+        );
+
 
     url.searchParams.set(
         "action",
-        "wbgetentities"
+        "query"
     );
 
     url.searchParams.set(
-        "ids",
-        entityId
+        "prop",
+        "extracts|pageimages|info"
     );
 
     url.searchParams.set(
-        "props",
-        "labels|descriptions|claims|sitelinks"
+        "exintro",
+        "1"
     );
 
     url.searchParams.set(
-        "languages",
-        "en"
+        "explaintext",
+        "1"
     );
 
     url.searchParams.set(
-        "languagefallback",
+        "piprop",
+        "thumbnail"
+    );
+
+    url.searchParams.set(
+        "pithumbsize",
+        "1200"
+    );
+
+    url.searchParams.set(
+        "inprop",
+        "url"
+    );
+
+    url.searchParams.set(
+        "titles",
+        title
+    );
+
+    url.searchParams.set(
+        "redirects",
         "1"
     );
 
@@ -1389,954 +2043,231 @@ async function getWikidataEntity(
         "json"
     );
 
-    url.searchParams.set(
-        "formatversion",
-        "2"
-    );
-
-    const response =
-        await fetch(
-            url.toString(),
-            {
-                headers:
-                    WIKIMEDIA_HEADERS
-            }
-        );
-
-    if (!response.ok) {
-        return null;
-    }
 
     const data =
-        await response.json();
+        await fetchWikipediaCached(
+            url.toString()
+        );
 
-    return (
-        data?.entities?.[entityId] ||
-        null
-    );
+
+    const pages =
+        data?.query?.pages;
+
+
+    if (!pages) {
+
+        return null;
+
+    }
+
+
+    const page =
+        Object.values(
+            pages
+        )[0];
+
+
+    if (
+        !page ||
+        page.missing !== undefined
+    ) {
+
+        return null;
+
+    }
+
+
+    return {
+
+        pageId:
+            page.pageid || null,
+
+        title:
+            page.title || title,
+
+        description:
+            normalizeWikipediaText(
+                page.extract || ""
+            ),
+
+        image:
+            page.thumbnail?.source ||
+            null,
+
+        url:
+            page.fullurl ||
+            `https://en.wikipedia.org/wiki/${encodeURIComponent(
+                String(
+                    page.title || title
+                ).replace(
+                    / /g,
+                    "_"
+                )
+            )}`
+
+    };
+
 }
 
 
 /*
  * ------------------------------------------------------------
- * Extract simple Wikidata values
+ * Get Wikipedia infobox
  * ------------------------------------------------------------
  */
 
-function getClaimValue(
-    entity,
-    property
+async function getWikipediaInfobox(
+    title
 ) {
 
-    const claims =
-        entity?.claims?.[property];
+    if (!title) {
 
-    if (
-        !Array.isArray(claims) ||
-        !claims.length
-    ) {
-        return null;
+        return createEmptyWikipediaSpecifications();
+
     }
 
-    const value =
-        claims[0]?.mainsnak?.datavalue?.value;
-
-    if (!value) {
-        return null;
-    }
-
-    if (
-        typeof value === "object" &&
-        value.id
-    ) {
-        return value.id;
-    }
-
-    return value;
-}
-
-
-async function getWikidataImage(
-    entity,
-    make,
-    model
-) {
-
-    const filename =
-        entity?.claims?.P18?.[0]?.mainsnak?.datavalue?.value;
-
-    if (!filename) {
-        return null;
-    }
 
     try {
 
-        const params =
-            new URLSearchParams({
-                action: "query",
-                format: "json",
-                formatversion: "2",
-                titles: `File:${filename}`,
-                prop: "imageinfo",
-                iiprop: "url|size|mime|extmetadata"
-            });
-
-        const response =
-            await fetch(
-                `${COMMONS_API}?${params.toString()}`,
-                {
-                    headers:
-                        WIKIMEDIA_HEADERS
-                }
+        const url =
+            new URL(
+                WIKIPEDIA_API
             );
 
-        if (!response.ok) {
-            return null;
-        }
+
+        url.searchParams.set(
+            "action",
+            "parse"
+        );
+
+        url.searchParams.set(
+            "page",
+            title
+        );
+
+        url.searchParams.set(
+            "prop",
+            "text"
+        );
+
+        url.searchParams.set(
+            "format",
+            "json"
+        );
+
 
         const data =
-            await response.json();
-
-        const pages =
-            data?.query?.pages || [];
-
-        const page =
-            pages[0];
-
-        const info =
-            page?.imageinfo?.[0];
-
-        if (!info) {
-            return null;
-        }
-
-        const metadata =
-            info.extmetadata || {};
-
-        const license =
-            stripHtml(
-                metadata.LicenseShortName?.value ||
-                metadata.License?.value ||
-                ""
+            await fetchWikipediaCached(
+                url.toString()
             );
 
-        const author =
-            stripHtml(
-                metadata.Artist?.value ||
-                metadata.Credit?.value ||
-                ""
-            );
 
-        const licenseUrl =
-            stripHtml(
-                metadata.LicenseUrl?.value ||
-                metadata.LicenseUrl?.url ||
-                ""
-            );
+        const html =
+            typeof data?.parse?.text ===
+                "string"
+                ? data.parse.text
+                : data?.parse?.text?.["*"];
 
-        /*
-         * ----------------------------------------------------
-         * License must be commercially acceptable.
-         * ----------------------------------------------------
-         */
 
-        if (
-            !isAcceptedCommonsLicense(
-                license,
-                licenseUrl
-            )
-        ) {
-            return null;
-        }
-
-        /*
-         * ----------------------------------------------------
-         * Reject obvious non-vehicle imagery.
-         *
-         * This prevents cases such as:
-         * "Musée BMW 259.jpg"
-         * where the model name exists in the filename
-         * but the actual subject is a building/museum.
-         * ----------------------------------------------------
-         */
-
-        const filenameText =
-            `${filename} ${metadata.ObjectName?.value || ""} ${metadata.ImageDescription?.value || ""}`
-                .toLowerCase();
-
-        const rejectedTerms = [
-            "museum",
-            "musée",
-            "musee",
-            "building",
-            "architecture",
-            "facade",
-            "façade",
-            "house",
-            "station",
-            "church",
-            "castle",
-            "palace",
-            "office",
-            "interior",
-            "exterior",
-            "monument",
-            "statue",
-            "sculpture",
-            "exhibition hall",
-            "showroom building"
-        ];
-
-        if (
-            rejectedTerms.some(
-                term =>
-                    filenameText.includes(term)
-            )
-        ) {
-            return null;
-        }
-        
-        
-        /*
-         * ----------------------------------------------------
-         * Basic image validation.
-         * ----------------------------------------------------
-         */
-
-        const width =
-            Number(info.width || 0);
-
-        const height =
-            Number(info.height || 0);
-
-        const mime =
-            String(
-                info.mime || ""
-            ).toLowerCase();
-
-        if (
-            !mime.startsWith("image/")
-        ) {
-            return null;
-        }
-
-        /*
-         * Reject extremely small images.
-         */
-
-        if (
-            width > 0 &&
-            height > 0 &&
-            (
-                width < 250 ||
-                height < 150
-            )
-        ) {
-            return null;
-        }
-
-        return {
-
-            filename,
-
-            url:
-                info.url ||
-                null,
-
-            thumbnail:
-                info.thumburl ||
-                null,
-
-            width:
-                info.width ||
-                null,
-
-            height:
-                info.height ||
-                null,
-
-            mime:
-                info.mime ||
-                null,
-
-            author:
-                author ||
-                null,
-
-            license:
-                license ||
-                null,
-
-            license_url:
-                licenseUrl ||
-                null,
-
-            source_url:
-                `https://commons.wikimedia.org/wiki/File:${encodeURIComponent(filename).replace(/%2F/g, "/")}`
-
-        };
+        return parseWikipediaInfobox(
+            html
+        );
 
     } catch (error) {
 
         console.error(
-            "Wikidata/Commons image lookup failed:",
+            "Wikipedia infobox request failed:",
+            title,
             error
         );
 
-        return null;
+
+        return createEmptyWikipediaSpecifications();
+
     }
+
 }
 
-function calculateCommonsVehicleScore(
-    normalizedMake,
-    normalizedModel,
-    titleText,
-    width,
-    height,
-    metadata
-) {
-    let score = 0;
-
-    if (
-        titleText.includes(
-            simplifyText(normalizedMake)
-        )
-    ) {
-        score += 30;
-    }
-
-    if (
-        titleText.includes(
-            simplifyText(normalizedModel)
-        )
-    ) {
-        score += 40;
-    }
-
-    if (
-        titleText.includes(
-            simplifyText(
-                `${normalizedMake}${normalizedModel}`
-            )
-        )
-    ) {
-        score += 20;
-    }
-
-    if (
-        width >= 1000 &&
-        height >= 600
-    ) {
-        score += 10;
-    } else if (
-        width >= 600 &&
-        height >= 400
-    ) {
-        score += 5;
-    }
-
-    const license =
-        String(
-            metadata.LicenseShortName?.value ||
-            metadata.License?.value ||
-            ""
-        ).toLowerCase();
-
-    if (
-        license.includes("cc0") ||
-        license.includes("public domain")
-    ) {
-        score += 10;
-    } else if (
-        license.includes("cc by-sa")
-    ) {
-        score += 5;
-    } else if (
-        license.includes("cc by")
-    ) {
-        score += 5;
-    }
-
-    return score;
-}
 
 /*
  * ------------------------------------------------------------
- * Wikimedia Commons image search
+ * Check whether useful information exists
  * ------------------------------------------------------------
  */
 
-async function searchCommonsImage(make, model) {
-
-    if (!make || !model) {
-        return null;
-    }
-
-    const normalizedMake =
-        normalizeText(make)
-            .replace(/[-_/]+/g, " ");
-
-    const normalizedModel = normalizeText(model);
-
-    if (!normalizedMake || !normalizedModel) {
-        return null;
-    }
-
-    /*
-     * Extremely strict image matching.
-     *
-     * Principle:
-     * Better no image than a wrong vehicle image.
-     */
-
-    const modelTokens =
-        normalizedModel
-            .split(/\s+/)
-            .filter(Boolean);
-
-    const isPurelyNumericModel =
-        modelTokens.length === 1 &&
-        /^\d+$/.test(modelTokens[0]);
-
-    /*
-     * Numeric-only models are too ambiguous for Commons.
-     *
-     * Examples:
-     * BMW 259
-     * Porsche 911
-     * BMW 3
-     *
-     * We therefore require a very strong structured match.
-     */
-    const minimumScore =
-        isPurelyNumericModel
-            ? 100
-            : 90;
-
-    const searchQueries = [
-        `"${make}" "${model}"`,
-        `${make} ${model}`
-    ];
-
-    const candidates = [];
-
-    for (const searchQuery of searchQueries) {
-
-        try {
-
-            const apiUrl =
-                new URL(COMMONS_API);
-
-            apiUrl.searchParams.set(
-                "action",
-                "query"
-            );
-
-            apiUrl.searchParams.set(
-                "generator",
-                "search"
-            );
-
-            apiUrl.searchParams.set(
-                "gsrsearch",
-                searchQuery
-            );
-
-            apiUrl.searchParams.set(
-                "gsrnamespace",
-                "6"
-            );
-
-            apiUrl.searchParams.set(
-                "gsrlimit",
-                "30"
-            );
-
-            apiUrl.searchParams.set(
-                "prop",
-                "imageinfo"
-            );
-
-            apiUrl.searchParams.set(
-                "iiprop",
-                "url|size|mime|extmetadata"
-            );
-
-            apiUrl.searchParams.set(
-                "iiurlwidth",
-                "1200"
-            );
-
-            apiUrl.searchParams.set(
-                "format",
-                "json"
-            );
-
-            const response =
-                await fetch(
-                    apiUrl.toString(),
-                    {
-                        headers:
-                            WIKIMEDIA_HEADERS
-                    }
-                );
-
-            if (!response.ok) {
-                continue;
-            }
-
-            const data =
-                await response.json();
-
-            const pages =
-                Object.values(
-                    data?.query?.pages || {}
-                );
-
-            for (const page of pages) {
-
-                const imageInfo =
-                    page?.imageinfo?.[0];
-
-                if (!imageInfo) {
-                    continue;
-                }
-
-                const metadata =
-                    imageInfo.extmetadata || {};
-
-                const title =
-                    String(
-                        page.title || ""
-                    );
-
-                const filename =
-                    title.replace(
-                        /^File:/i,
-                        ""
-                    );
-
-                const objectName =
-                    String(
-                        metadata.ObjectName?.value ||
-                        ""
-                    );
-
-                const description =
-                    String(
-                        metadata.ImageDescription?.value ||
-                        ""
-                    );
-
-                const searchableText =
-                    normalizeText(
-                        `${filename} ${objectName} ${description}`
-                    )
-                    .replace(/[-_/]+/g, " ");
-
-                /*
-                 * Reject obvious non-vehicle / irrelevant content.
-                 */
-                const forbiddenTerms = [
-                    "museum",
-                    "musee",
-                    "building",
-                    "architecture",
-                    "facade",
-                    "house",
-                    "station",
-                    "church",
-                    "castle",
-                    "palace",
-                    "office",
-                    "interior",
-                    "exterior",
-                    "monument",
-                    "statue",
-                    "sculpture",
-                    "exhibition hall",
-                    "showroom building",
-                    "logo",
-                    "emblem",
-                    "badge",
-                    "sign",
-                    "poster",
-                    "brochure",
-                    "magazine",
-                    "toy",
-                    "model car",
-                    "diecast",
-                    "miniature"
-                ];
-
-                const hasForbiddenTerm =
-                    forbiddenTerms.some(
-                        term =>
-                            searchableText.includes(
-                                simplifyText(term)
-                            )
-                    );
-
-                if (hasForbiddenTerm) {
-                    continue;
-                }
-
-                /*
-                 * Validate image type and dimensions.
-                 */
-                const mime =
-                    String(
-                        imageInfo.mime || ""
-                    ).toLowerCase();
-
-                if (
-                    !mime.startsWith(
-                        "image/"
-                    )
-                ) {
-                    continue;
-                }
-
-                const width =
-                    Number(
-                        imageInfo.width || 0
-                    );
-
-                const height =
-                    Number(
-                        imageInfo.height || 0
-                    );
-
-                if (
-                    width < 250 ||
-                    height < 150
-                ) {
-                    continue;
-                }
-
-                /*
-                 * Token-based matching.
-                 *
-                 * This prevents:
-                 *
-                 * BMW 259
-                 *
-                 * from matching:
-                 *
-                 * BMW X2 M35i ... (259)
-                 */
-                const textTokens =
-                    new Set(
-                        searchableText
-                            .split(/\s+/)
-                            .filter(Boolean)
-                    );
-
-                const makeMatches =
-                    searchableText.includes(
-                        normalizedMake
-                    ) ||
-                    searchableText.includes(
-                        simplifyText(make)
-                    );
-
-                if (!makeMatches) {
-                    continue;
-                }
-
-                /*
-                 * Full model matching.
-                 */
-                let modelMatches = false;
-
-                if (
-                    !isPurelyNumericModel
-                ) {
-
-                    modelMatches =
-                        modelTokens.every(
-                            token =>
-                                textTokens.has(
-                                    token
-                                )
-                        );
-
-                } else {
-
-                    /*
-                     * Numeric-only model:
-                     *
-                     * Require the number to appear
-                     * as a standalone token AND
-                     * reject filenames where the number
-                     * is clearly only a photo/index number.
-                     */
-                    const modelPattern =
-                        new RegExp(
-                            `(^|[^0-9])${normalizedModel}([^0-9]|$)`
-                        );
-
-                    modelMatches =
-                        modelPattern.test(
-                            searchableText
-                        );
-
-                    if (!modelMatches) {
-                        continue;
-                    }
-
-                    /*
-                     * Numeric-only model names are
-                     * inherently ambiguous on Commons.
-                     *
-                     * Require additional vehicle
-                     * context.
-                     */
-                    const vehicleTerms = [
-                        "motorcycle",
-                        "motorbike",
-                        "bike",
-                        "scooter",
-                        "moped",
-                        "automobile",
-                        "car",
-                        "sedan",
-                        "coupe",
-                        "wagon",
-                        "hatchback",
-                        "suv",
-                        "roadster",
-                        "vehicle",
-                        "touring",
-                        "sportbike",
-                        "supersport",
-                        "enduro",
-                        "naked",
-                        "cruiser"
-                    ];
-
-                    const hasVehicleContext =
-                        vehicleTerms.some(
-                            term =>
-                                searchableText.includes(
-                                    simplifyText(term)
-                                )
-                        );
-
-                    if (
-                        !hasVehicleContext
-                    ) {
-                        continue;
-                    }
-                }
-
-                if (!modelMatches) {
-                    continue;
-                }
-
-                /*
-                 * Reject obvious competing model names.
-                 *
-                 * This is particularly important for
-                 * broad/numeric searches.
-                 */
-                const titleText =
-                    simplifyText(
-                        `${filename} ${objectName}`
-                    );
-
-                const score =
-                    calculateCommonsVehicleScore(
-                        normalizedMake,
-                        normalizedModel,
-                        titleText,
-                        width,
-                        height,
-                        metadata
-                    );
-
-                if (
-                    score < minimumScore
-                ) {
-                    continue;
-                }
-
-                const license =
-                    String(
-                        metadata.LicenseShortName?.value ||
-                        metadata.License?.value ||
-                        ""
-                    );
-
-                const licenseUrl =
-                    String(
-                        metadata.LicenseUrl?.value ||
-                        metadata.LicenseUrl?.url ||
-                        ""
-                    );
-
-                if (
-                    !isAcceptedCommonsLicense(
-                        license,
-                        licenseUrl
-                    )
-                ) {
-                    continue;
-                }
-
-                candidates.push({
-                    score,
-                    title,
-                    url:
-                        imageInfo.url ||
-                        null,
-                    thumbnail:
-                        imageInfo.thumburl ||
-                        imageInfo.url ||
-                        null,
-                    width,
-                    height,
-                    mime,
-                    author:
-                        metadata.Artist?.value ||
-                        metadata.Credit?.value ||
-                        null,
-                    license,
-                    license_url:
-                        licenseUrl ||
-                        null,
-                    source_url:
-                        `https://commons.wikimedia.org/wiki/${encodeURIComponent(title.replace(/ /g, "_"))}`
-                });
-            }
-
-        } catch (error) {
-
-            console.error(
-                "Commons image search failed:",
-                error
-            );
-        }
-    }
-
-    if (!candidates.length) {
-        return null;
-    }
-
-    /*
-     * Remove duplicate files.
-     */
-    const uniqueCandidates =
-        Array.from(
-            new Map(
-                candidates.map(
-                    candidate => [
-                        candidate.url,
-                        candidate
-                    ]
-                )
-            ).values()
-        );
-
-    /*
-     * Highest score wins, but ONLY after
-     * passing all strict validation above.
-     */
-    uniqueCandidates.sort(
-        (a, b) =>
-            b.score - a.score
-    );
-
-    const bestCandidate =
-        uniqueCandidates[0];
-
-    if (
-        !bestCandidate ||
-        bestCandidate.score <
-            minimumScore
-    ) {
-        return null;
-    }
-
-    return bestCandidate;
-}
-
-/*
- * ------------------------------------------------------------
- * Accepted Commons licenses
- * ------------------------------------------------------------
- */
-
-function isAcceptedCommonsLicense(
-    license,
-    licenseUrl
+function hasWikipediaVehicleInformation(
+    specifications
 ) {
 
-    const text =
-        `${license || ""} ${licenseUrl || ""}`
-            .toLowerCase();
+    if (!specifications) {
 
-    if (!text) {
         return false;
+
     }
 
-    /*
-     * CC0 / Public Domain
-     */
 
-    if (
-        text.includes("cc0") ||
-        text.includes("public domain")
-    ) {
-        return true;
-    }
+    return Object.values(
+        specifications
+    ).some(
+        value =>
+            value &&
+            value !== "No Information"
+    );
 
-    /*
-     * Creative Commons Attribution
-     */
-
-    if (
-        text.includes("cc by") &&
-        !text.includes("nc") &&
-        !text.includes("nd")
-    ) {
-        return true;
-    }
-
-    /*
-     * Creative Commons Attribution ShareAlike
-     */
-
-    if (
-        text.includes("cc by-sa") &&
-        !text.includes("nc") &&
-        !text.includes("nd")
-    ) {
-        return true;
-    }
-
-    return false;
 }
 
 
 /*
  * ------------------------------------------------------------
- * Convert Wikidata image filename to Commons URL
+ * Create a complete "No Information" result
  * ------------------------------------------------------------
  */
 
-function createCommonsFileUrl(
-    filename
+function createWikipediaNoInformation(
+    make,
+    model,
+    kind
 ) {
 
-    if (!filename) {
-        return null;
-    }
+    return {
 
-    return (
-        "https://commons.wikimedia.org/wiki/Special:Redirect/file/" +
-        encodeURIComponent(filename)
-    );
+        success: true,
+
+        source: "Wikipedia",
+
+        make:
+            make || "No Information",
+
+        model:
+            model || "No Information",
+
+        kind:
+            kind || "No Information",
+
+        wikipedia: {
+
+            title:
+                "No Information",
+
+            url:
+                null,
+
+            description:
+                "No Information"
+
+        },
+
+        image:
+            null,
+
+        specifications:
+            createEmptyWikipediaSpecifications(),
+
+        comparisonAvailable:
+            false
+
+    };
+
 }
 
 
@@ -2344,18 +2275,18 @@ function createCommonsFileUrl(
  * ------------------------------------------------------------
  * ACTION: DETAILS
  *
- * Example:
- *
  * /api/cars?action=details
  *   &make=BMW
  *   &model=3%20Series
  *   &kind=car
- *   &year=2024
  *
- * Combines:
- *   VehiclesDB
- *   Wikidata
- *   Wikimedia Commons
+ * VehiclesDB:
+ *   catalog / identity
+ *
+ * Wikipedia:
+ *   description
+ *   image
+ *   specifications
  * ------------------------------------------------------------
  */
 
@@ -2365,52 +2296,61 @@ async function handleDetails(
 ) {
 
     const kind =
-        getRequestedKind(requestUrl);
+        getRequestedKind(
+            requestUrl
+        );
+
 
     if (!kind) {
 
         return jsonResponse(
             {
                 success: false,
+
                 error:
                     "Invalid vehicle kind"
             },
             400,
             60
         );
+
     }
+
 
     const make =
         requestUrl.searchParams.get(
             "make"
         );
 
+
     const model =
         requestUrl.searchParams.get(
             "model"
         );
 
-    const year =
-        requestUrl.searchParams.get(
-            "year"
-        );
 
     if (!make || !model) {
 
         return jsonResponse(
             {
                 success: false,
+
                 error:
-                    "Missing make or model parameter"
+                    "Missing make or model parameter",
+
+                vehicle:
+                    null
             },
             400,
             60
         );
+
     }
+
 
     /*
      * --------------------------------------------------------
-     * 1. VehiclesDB
+     * 1. Verify vehicle against VehiclesDB.
      * --------------------------------------------------------
      */
 
@@ -2420,6 +2360,7 @@ async function handleDetails(
             kind
         );
 
+
     const vehicle =
         findVehicle(
             models,
@@ -2427,106 +2368,145 @@ async function handleDetails(
             model
         );
 
+
     if (!vehicle) {
 
         return jsonResponse(
             {
                 success: false,
+
                 error:
                     `No ${kind} found for ${make} ${model}`,
-                vehicle: null,
-                wikidata: null,
-                image: null
+
+                vehicle:
+                    null,
+
+                wikipedia:
+                    null,
+
+                image:
+                    null
             },
             404,
             300
         );
+
     }
 
-    const bestMatch =
-        createBestMatch(
-            vehicle,
-            year
-        );
 
     /*
      * --------------------------------------------------------
-     * 2. Wikidata
+     * 2. Search Wikipedia.
      * --------------------------------------------------------
      */
 
-    let wikidataSearch = null;
-    let wikidataEntity = null;
+    let wikipediaTitle =
+        null;
+
 
     try {
 
-        wikidataSearch =
-            await searchWikidata(
+        wikipediaTitle =
+            await searchWikipediaVehicle(
                 vehicle.make,
-                vehicle.model
-            );
-
-        if (wikidataSearch?.id) {
-
-            wikidataEntity =
-                await getWikidataEntity(
-                    wikidataSearch.id
-                );
-        }
-
-    } catch (error) {
-
-        console.error(
-            "Wikidata lookup failed:",
-            error
-        );
-    }
-
-    /*
-     * --------------------------------------------------------
-     * 3. Commons
-     * --------------------------------------------------------
-     */
-
-    let image = null;
-
-    try {
-
-        image =
-            await searchCommonsImage(
-                vehicle.make,
-                vehicle.model
+                vehicle.model,
+                kind
             );
 
     } catch (error) {
 
         console.error(
-            "Commons lookup failed:",
+            "Wikipedia vehicle search failed:",
             error
         );
+
     }
 
-   /*
- * If Wikidata itself contains an image,
- * verify the Commons license and expose
- * the complete image metadata.
- */
 
-const wikidataImage =
-    await getWikidataImage(
-        wikidataEntity,
-        vehicle.make,
-        vehicle.model
-    );
+    /*
+     * If no Wikipedia article exists,
+     * return explicit No Information.
+     */
 
-   const primaryImage =
-    wikidataImage ||
-    image ||
-    null;
-    
+    if (!wikipediaTitle) {
+
+        return jsonResponse(
+            createWikipediaNoInformation(
+                vehicle.make,
+                vehicle.model,
+                kind
+            ),
+            200,
+            WIKIPEDIA_CACHE_TTL
+        );
+
+    }
+
+
     /*
      * --------------------------------------------------------
-     * Final response
+     * 3. Load Wikipedia page.
+     * --------------------------------------------------------
+     */
+
+    let page =
+        null;
+
+
+    try {
+
+        page =
+            await getWikipediaPage(
+                wikipediaTitle
+            );
+
+    } catch (error) {
+
+        console.error(
+            "Wikipedia page lookup failed:",
+            wikipediaTitle,
+            error
+        );
+
+    }
+
+
+    if (!page) {
+
+        return jsonResponse(
+            createWikipediaNoInformation(
+                vehicle.make,
+                vehicle.model,
+                kind
+            ),
+            200,
+            WIKIPEDIA_CACHE_TTL
+        );
+
+    }
+
+
+    /*
+     * --------------------------------------------------------
+     * 4. Load real Wikipedia infobox.
+     * --------------------------------------------------------
+     */
+
+    const specifications =
+        await getWikipediaInfobox(
+            page.title
+        );
+
+
+    const comparisonAvailable =
+        hasWikipediaVehicleInformation(
+            specifications
+        );
+
+
+    /*
+     * --------------------------------------------------------
+     * 5. Final response.
      * --------------------------------------------------------
      */
 
@@ -2536,61 +2516,79 @@ const wikidataImage =
             success: true,
 
             source: {
+
                 catalog:
                     "VehiclesDB Open Dataset",
-                structured_data:
-                    "Wikidata",
-                media:
-                    "Wikimedia Commons"
+
+                information:
+                    "Wikipedia"
+
             },
 
             kind,
 
-            vehicle:
-                bestMatch,
+            vehicle: {
 
-            wikidata: {
+                make:
+                    vehicle.make,
 
-                id:
-                    wikidataSearch?.id ||
-                    null,
+                model:
+                    vehicle.model,
 
-                label:
-                    wikidataSearch?.label ||
-                    null,
+                kind:
+                    vehicle.kind,
 
-                description:
-                    wikidataSearch?.description ||
-                    null,
+                body_type:
+                    vehicle.bodyType,
 
-                url:
-                    wikidataSearch?.id
-                        ? `https://www.wikidata.org/wiki/${wikidataSearch.id}`
-                        : null,
+                body_types:
+                    vehicle.bodyTypes,
 
-                image:
-                  wikidataImage,
+                year_start:
+                    vehicle.yearStart,
 
-                manufacturer:
-                    getClaimValue(
-                        wikidataEntity,
-                        "P176"
-                    ),
+                year_end:
+                    vehicle.yearEnd,
 
-                inception:
-                    getClaimValue(
-                        wikidataEntity,
-                        "P571"
-                    )
+                global_decile:
+                    vehicle.globalDecile
+
             },
 
-                       image:
-                primaryImage
+            wikipedia: {
+
+                title:
+                    page.title,
+
+                url:
+                    page.url,
+
+                description:
+                    page.description ||
+                    "No Information"
+
+            },
+
+            image:
+                page.image
+                    ? {
+                        url:
+                            page.image,
+
+                        source_url:
+                            page.url
+                    }
+                    : null,
+
+            specifications,
+
+            comparisonAvailable
 
         },
         200,
-        86400
+        WIKIPEDIA_CACHE_TTL
     );
+
 }
 
 /*
