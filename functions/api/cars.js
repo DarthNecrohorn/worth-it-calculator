@@ -3,6 +3,10 @@
  * WORTH IT - VEHICLES API
  * VehiclesDB Open Dataset + Wikipedia supplemental data
  *
+ * Catalog traffic is served directly from VehiclesDB CDN.
+ * This Function is kept lightweight: it does not parse the full
+ * VehiclesDB database for normal catalog requests.
+ *
  * Supports:
  *   car
  *   motorcycle
@@ -22,17 +26,10 @@
 const VEHICLES_DB_URL =
     "https://cdn.jsdelivr.net/gh/vehiclesdb/vehiclesdb@latest/dist/vehicles.json";
 
-const CACHE_TTL =
-    86400;
-
-const WIKIPEDIA_CACHE_TTL =
-    604800;
-
-const MAX_MODELS_PER_KIND =
-    300;
-
-const WIKIPEDIA_CACHE_VERSION =
-    "v13";
+const CACHE_TTL = 86400; // 24 hours
+const WIKIPEDIA_CACHE_TTL = 604800; // 7 days
+const MAX_MODELS_PER_KIND = 300; // Keep the catalog focused on popular vehicles
+const WIKIPEDIA_CACHE_VERSION = "v14";
 
 const WIKIPEDIA_API =
     "https://en.wikipedia.org/w/api.php";
@@ -614,77 +611,33 @@ async function handleModels(
             );
     }
 
-        models = models.filter(vehicle => {
+    models.sort((a, b) => {
 
-    const rawDecile =
-        vehicle.globalDecile;
+        const makeCompare =
+            a.make.localeCompare(
+                b.make,
+                undefined,
+                { sensitivity: "base" }
+            );
 
-    return (
-        rawDecile !== null &&
-        rawDecile !== undefined &&
-        String(rawDecile).trim() !== "" &&
-        Number.isFinite(Number(rawDecile)) &&
-        Number(rawDecile) <= 2
-    );
-});
-    
-models.sort((a, b) => {
+        if (makeCompare !== 0) {
+            return makeCompare;
+        }
 
-    const aRaw = a.globalDecile;
-    const bRaw = b.globalDecile;
-
-    const aDecile =
-        aRaw !== null &&
-        aRaw !== undefined &&
-        String(aRaw).trim() !== "" &&
-        Number.isFinite(Number(aRaw))
-            ? Number(aRaw)
-            : 999;
-
-    const bDecile =
-        bRaw !== null &&
-        bRaw !== undefined &&
-        String(bRaw).trim() !== "" &&
-        Number.isFinite(Number(bRaw))
-            ? Number(bRaw)
-            : 999;
-
-    if (aDecile !== bDecile) {
-        return aDecile - bDecile;
-    }
-
-    const makeCompare =
-        a.make.localeCompare(
-            b.make,
+        return a.model.localeCompare(
+            b.model,
             undefined,
             { sensitivity: "base" }
         );
+    });
 
-    if (makeCompare !== 0) {
-        return makeCompare;
-    }
-
-    return a.model.localeCompare(
-        b.model,
-        undefined,
-        { sensitivity: "base" }
-    );
-});
-
-models =
-    models.slice(
-        0,
-        MAX_MODELS_PER_KIND
-    );
-
-return jsonResponse({
-    success: true,
-    kind,
-    count: models.length,
-    vehicles: models,
-    models
-});
-
+    return jsonResponse({
+        success: true,
+        kind,
+        count: models.length,
+        vehicles: models,
+        models
+    });
 }
 
 /*
@@ -4001,8 +3954,7 @@ function createWikipediaNoInformation(
  */
 
 async function handleDetails(
-    requestUrl,
-    database
+    requestUrl
 ) {
 
     const kind =
@@ -4040,28 +3992,57 @@ async function handleDetails(
         );
     }
 
-    /* 1. Verify the vehicle exists in VehiclesDB. */
+    /*
+     * The frontend already received this vehicle from the
+     * VehiclesDB open catalog. Do not reload and parse the full
+     * VehiclesDB dataset for every Wikipedia detail request.
+     * Cloudflare Workers Free allows only 10 ms CPU per request.
+     */
+    let bodyTypes = [];
 
-    const vehicle =
-        findVehicle(models, make, model);
+    const rawBodyTypes =
+        requestUrl.searchParams.get("body_types");
 
-    if (!vehicle) {
+    if (rawBodyTypes) {
+        try {
+            const parsed = JSON.parse(rawBodyTypes);
 
-        return jsonResponse(
-            {
-                success: false,
-                error:
-                    `No ${kind} found for ${make} ${model}`,
-                vehicle: null,
-                wikipedia: null,
-                image: null
-            },
-            404,
-            300
-        );
+            if (Array.isArray(parsed)) {
+                bodyTypes = parsed;
+            }
+        } catch {
+            bodyTypes = [];
+        }
     }
 
-    /* 2. Search Wikipedia. */
+    const rawGlobalDecile =
+        requestUrl.searchParams.get("global_decile");
+
+    const globalDecile =
+        rawGlobalDecile !== null &&
+        rawGlobalDecile !== "" &&
+        Number.isFinite(Number(rawGlobalDecile))
+            ? Number(rawGlobalDecile)
+            : null;
+
+    const vehicle = {
+        make,
+        model,
+        kind,
+        bodyType:
+            requestUrl.searchParams.get("body_type") ||
+            null,
+        bodyTypes,
+        yearStart:
+            requestUrl.searchParams.get("year_start") ||
+            null,
+        yearEnd:
+            requestUrl.searchParams.get("year_end") ||
+            null,
+        globalDecile
+    };
+
+    /* 1. Search Wikipedia. */
 
     let wikipediaTitle = null;
 
@@ -4322,15 +4303,134 @@ async function handleDetails(
  * ============================================================
  */
 
+/*
+ * ------------------------------------------------------------
+ * Lightweight catalog redirect
+ *
+ * The browser now reads VehiclesDB catalog files directly. These
+ * redirects keep the old /api/cars models/makes URLs usable without
+ * making Cloudflare parse the full 14k+ model database.
+ * ------------------------------------------------------------
+ */
+function redirectToVehiclesDbCatalog(
+    requestUrl,
+    fileName
+) {
+
+    const kind =
+        getRequestedKind(requestUrl);
+
+    if (!kind) {
+
+        return jsonResponse(
+            {
+                success: false,
+                error: "Invalid vehicle kind",
+                supportedKinds:
+                    Array.from(VALID_KINDS)
+            },
+            400,
+            60
+        );
+    }
+
+    const targetUrl =
+        `https://cdn.jsdelivr.net/gh/vehiclesdb/vehiclesdb@latest/catalog/${kind}/${fileName}`;
+
+    return new Response(
+        null,
+        {
+            status: 302,
+            headers: {
+                Location: targetUrl,
+                "Cache-Control":
+                    `public, max-age=${CACHE_TTL}`
+            }
+        }
+    );
+}
+
+/*
+ * ------------------------------------------------------------
+ * Lightweight vehicle response
+ *
+ * Legacy consumers can still request /vehicle or /variants without
+ * forcing Cloudflare to load the complete VehiclesDB database.
+ * The detailed technical data remains the responsibility of the
+ * Wikipedia details endpoint below.
+ * ------------------------------------------------------------
+ */
+function createLightweightVehicleFromRequest(
+    requestUrl
+) {
+
+    const kind =
+        getRequestedKind(requestUrl);
+
+    if (!kind) {
+        return null;
+    }
+
+    const make =
+        requestUrl.searchParams.get("make") ||
+        "";
+
+    const model =
+        requestUrl.searchParams.get("model") ||
+        "";
+
+    const yearRaw =
+        requestUrl.searchParams.get("year");
+
+    let year =
+        yearRaw !== null
+            ? Number(yearRaw)
+            : null;
+
+    if (
+        !Number.isFinite(year) ||
+        year <= 0
+    ) {
+        year = null;
+    }
+
+    return {
+        make,
+        model,
+        name:
+            `${make} ${model}`.trim(),
+        year,
+        kind,
+        body_type: null,
+        body_types: [],
+        base_msrp: null,
+        horsepower: null,
+        drivetrain: null,
+        drive_train: null,
+        fuel_type: null,
+        fuel: null,
+        engine: null,
+        transmission: null,
+        mpg_combined: null,
+        is_electric: false,
+        is_plugin_electric: false
+    };
+}
+
+/*
+ * ============================================================
+ * MAIN REQUEST HANDLER
+ * ============================================================
+ */
+
 export async function onRequestGet(context) {
 
     try {
 
-        const request =
-            context.request;
-
         const requestUrl =
-            new URL(request.url);
+            new URL(
+                context.request.url
+            );
 
         const action =
             (
@@ -4342,29 +4442,83 @@ export async function onRequestGet(context) {
 
         switch (action) {
 
+            /*
+             * Direct redirects avoid parsing the full VehiclesDB
+             * catalog inside the Cloudflare Function.
+             */
             case "models":
-                return handleModels(
+                return redirectToVehiclesDbCatalog(
                     requestUrl,
-                    database
+                    "models.json"
                 );
 
             case "makes":
-                return handleMakes(
+                return redirectToVehiclesDbCatalog(
                     requestUrl,
-                    database
+                    "makes.json"
                 );
 
-            case "vehicle":
-                return handleVehicle(
-                    requestUrl,
-                    database
-                );
+            case "vehicle": {
 
-            case "variants":
-                return handleVariants(
-                    requestUrl,
-                    database
-                );
+                const vehicle =
+                    createLightweightVehicleFromRequest(
+                        requestUrl
+                    );
+
+                if (!vehicle || !vehicle.make || !vehicle.model) {
+
+                    return jsonResponse(
+                        {
+                            success: false,
+                            error:
+                                "Missing make or model parameter",
+                            bestMatch: null
+                        },
+                        400,
+                        60
+                    );
+                }
+
+                return jsonResponse({
+                    success: true,
+                    source:
+                        "VehiclesDB Open Dataset",
+                    kind: vehicle.kind,
+                    bestMatch: vehicle
+                });
+            }
+
+            case "variants": {
+
+                const vehicle =
+                    createLightweightVehicleFromRequest(
+                        requestUrl
+                    );
+
+                if (!vehicle || !vehicle.make || !vehicle.model) {
+
+                    return jsonResponse(
+                        {
+                            success: false,
+                            error:
+                                "Missing make or model parameter",
+                            variants: []
+                        },
+                        400,
+                        60
+                    );
+                }
+
+                return jsonResponse({
+                    success: true,
+                    kind: vehicle.kind,
+                    make: vehicle.make,
+                    model: vehicle.model,
+                    year: vehicle.year,
+                    variants: [],
+                    bestMatch: vehicle
+                });
+            }
 
             case "images":
                 return handleImages(
@@ -4373,8 +4527,7 @@ export async function onRequestGet(context) {
 
             case "details":
                 return handleDetails(
-                    requestUrl,
-                    database
+                    requestUrl
                 );
 
             default:
