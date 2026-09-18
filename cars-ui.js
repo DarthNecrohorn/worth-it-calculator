@@ -111,6 +111,10 @@ const VEHICLE_KIND_INFO = {
 };
 
 
+const VEHICLE_POPULARITY_NOTE =
+    "Vehicle popularity is based on data provided by the VehiclesDB Open Dataset. Because the dataset reflects the countries and sources it covers, the models shown first may not always be the most popular cars worldwide. For a specific make or model, we recommend using the search above.";
+
+
 /*
  * ============================================================
  * STATE / CACHE
@@ -3199,6 +3203,101 @@ function injectVehicleUiStyles() {
             padding: 28px;
         }
 
+        .cars-results-description-with-info {
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            flex-wrap: wrap;
+            position: relative;
+        }
+
+        .cars-results-description-text {
+            display: inline;
+        }
+
+        .cars-popularity-info-wrap {
+            position: relative;
+            display: inline-flex;
+            align-items: center;
+        }
+
+        .cars-popularity-info-button {
+            width: 22px;
+            height: 22px;
+            padding: 0;
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.06);
+            color: inherit;
+            font-size: 0.78rem;
+            font-weight: 800;
+            line-height: 1;
+            cursor: pointer;
+            opacity: 0.78;
+            transition:
+                opacity 0.16s ease,
+                background 0.16s ease,
+                border-color 0.16s ease;
+        }
+
+        .cars-popularity-info-button:hover,
+        .cars-popularity-info-button:focus-visible,
+        .cars-popularity-info-wrap.is-open .cars-popularity-info-button {
+            opacity: 1;
+            background: rgba(255, 255, 255, 0.11);
+            border-color: rgba(255, 255, 255, 0.28);
+            outline: none;
+        }
+
+        .cars-popularity-tooltip {
+            position: absolute;
+            left: 50%;
+            top: calc(100% + 9px);
+            z-index: 10000;
+            display: flex;
+            flex-direction: column;
+            gap: 7px;
+            width: min(360px, calc(100vw - 32px));
+            padding: 12px 14px;
+            border: 1px solid rgba(255, 255, 255, 0.14);
+            border-radius: 11px;
+            background: rgba(17, 19, 24, 0.97);
+            color: #f5f7fa;
+            box-shadow: 0 14px 35px rgba(0, 0, 0, 0.3);
+            transform: translateX(-50%);
+            font-size: 0.78rem;
+            line-height: 1.5;
+            text-align: left;
+        }
+
+        .cars-popularity-tooltip[hidden] {
+            display: none;
+        }
+
+        .cars-popularity-tooltip strong {
+            font-size: 0.8rem;
+        }
+
+        html[data-theme="light"] .cars-popularity-info-button {
+            border-color: rgba(0, 0, 0, 0.14);
+            background: rgba(0, 0, 0, 0.045);
+            color: #16181d;
+        }
+
+        html[data-theme="light"] .cars-popularity-info-button:hover,
+        html[data-theme="light"] .cars-popularity-info-button:focus-visible,
+        html[data-theme="light"] .cars-popularity-info-wrap.is-open .cars-popularity-info-button {
+            background: rgba(0, 0, 0, 0.08);
+            border-color: rgba(0, 0, 0, 0.22);
+        }
+
+        html[data-theme="light"] .cars-popularity-tooltip {
+            border-color: rgba(0, 0, 0, 0.1);
+            background: rgba(255, 255, 255, 0.98);
+            color: #16181d;
+            box-shadow: 0 14px 35px rgba(0, 0, 0, 0.16);
+        }
+
         .worth-it-vehicle-detail-header {
             display: grid;
             grid-template-columns: minmax(260px, 42%) 1fr;
@@ -3559,6 +3658,13 @@ function injectVehicleUiStyles() {
                 padding: 18px;
             }
 
+            .cars-popularity-tooltip {
+                left: auto;
+                right: 0;
+                transform: none;
+                width: min(340px, calc(100vw - 32px));
+            }
+
             .worth-it-vehicle-detail-header {
                 grid-template-columns: 1fr;
                 gap: 16px;
@@ -3738,6 +3844,12 @@ function updateCarsCategoryHeader(
         );
 
 
+    /*
+     * Search mode uses a plain description.
+     * The popularity note is only relevant to
+     * the Popular Vehicles view.
+     */
+
     if (
         mode === "search"
     ) {
@@ -3745,10 +3857,14 @@ function updateCarsCategoryHeader(
         title.textContent =
             `🔍 ${info.plural} Search`;
 
+        description.classList.remove(
+            "cars-results-description-with-info"
+        );
 
-        description.textContent =
-            `Search results from the VehiclesDB ${info.singular.toLowerCase()} catalog.`;
-
+        description.innerHTML =
+            `<span class="cars-results-description-text">${escapeVehicleHtml(
+                `Search results from the VehiclesDB ${info.singular.toLowerCase()} catalog.`
+            )}</span>`;
 
         return;
 
@@ -3759,8 +3875,144 @@ function updateCarsCategoryHeader(
         info.title;
 
 
-    description.textContent =
-        info.description;
+    /*
+     * Put a small information icon directly beside
+     * the Popular Vehicles description. The full note
+     * opens as a small accessible popover so the page
+     * stays visually clean.
+     */
+
+    description.classList.add(
+        "cars-results-description-with-info"
+    );
+
+    description.innerHTML = `
+
+        <span class="cars-results-description-text">
+            ${escapeVehicleHtml(info.description)}
+        </span>
+
+        <span class="cars-popularity-info-wrap">
+
+            <button
+                type="button"
+                class="cars-popularity-info-button"
+                aria-label="Popularity information"
+                aria-expanded="false"
+                aria-controls="carsPopularityTooltip"
+                title="Popularity information"
+            >
+                ⓘ
+            </button>
+
+            <span
+                id="carsPopularityTooltip"
+                class="cars-popularity-tooltip"
+                role="tooltip"
+                hidden
+            >
+                <strong>Popularity note</strong>
+                <span>${escapeVehicleHtml(VEHICLE_POPULARITY_NOTE)}</span>
+            </span>
+
+        </span>
+
+    `;
+
+
+    const infoButton =
+        description.querySelector(
+            ".cars-popularity-info-button"
+        );
+
+
+    const infoWrap =
+        description.querySelector(
+            ".cars-popularity-info-wrap"
+        );
+
+
+    const tooltip =
+        description.querySelector(
+            ".cars-popularity-tooltip"
+        );
+
+
+    if (
+        !infoButton ||
+        !infoWrap ||
+        !tooltip
+    ) {
+
+        return;
+
+    }
+
+
+    infoButton.addEventListener(
+        "click",
+        event => {
+
+            event.stopPropagation();
+
+            const shouldOpen =
+                tooltip.hidden;
+
+            tooltip.hidden =
+                !shouldOpen;
+
+            infoButton.setAttribute(
+                "aria-expanded",
+                shouldOpen
+                    ? "true"
+                    : "false"
+            );
+
+            infoWrap.classList.toggle(
+                "is-open",
+                shouldOpen
+            );
+
+        }
+    );
+
+
+    /*
+     * Close the popover when the user clicks
+     * somewhere else on the page.
+     */
+
+    const closePopularityPopover =
+        event => {
+
+            if (
+                !infoWrap.contains(
+                    event.target
+                )
+            ) {
+
+                tooltip.hidden =
+                    true;
+
+                infoButton.setAttribute(
+                    "aria-expanded",
+                    "false"
+                );
+
+                infoWrap.classList.remove(
+                    "is-open"
+                );
+
+            }
+
+        };
+
+
+    document.addEventListener(
+        "click",
+        closePopularityPopover,
+        { once: true }
+    );
 
 }
 
