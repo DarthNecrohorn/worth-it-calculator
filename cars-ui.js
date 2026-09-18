@@ -882,95 +882,236 @@ async function fetchVehicleCatalog(
 ) {
 
     if (!VEHICLE_KINDS.includes(kind)) {
-
         kind = "car";
-
     }
-
 
     if (
         vehicleCatalogCache.has(kind)
     ) {
-
-        return vehicleCatalogCache.get(
-            kind
-        );
-
+        return vehicleCatalogCache.get(kind);
     }
-
 
     if (
         vehicleCatalogLoading.has(kind)
     ) {
-
-        return vehicleCatalogLoading.get(
-            kind
-        );
-
+        return vehicleCatalogLoading.get(kind);
     }
-
 
     const loadingPromise =
         (async () => {
 
             try {
 
-                const params =
-                    new URLSearchParams({
+                const baseUrl =
+                    `${VEHICLE_CATALOG_BASE_URL}/${kind}`;
 
-                        action: "models",
-
-                        kind: kind
-
-                    });
-
-
-                const response =
-                    await fetch(
-                        `${VEHICLE_API}?${params.toString()}&v=${VEHICLE_API_VERSION}`,
+                const [
+                    modelsResponse,
+                    makesResponse
+                ] = await Promise.all([
+                    fetch(
+                        `${baseUrl}/models.json`,
                         {
                             headers: {
                                 "Accept":
                                     "application/json"
                             }
                         }
-                    );
-
-
-                if (!response.ok) {
-
-                    throw new Error(
-                        `Vehicles API returned ${response.status}`
-                    );
-
-                }
-
-
-                const data =
-                    await response.json();
-
+                    ),
+                    fetch(
+                        `${baseUrl}/makes.json`,
+                        {
+                            headers: {
+                                "Accept":
+                                    "application/json"
+                            }
+                        }
+                    )
+                ]);
 
                 if (
-                    !data ||
-                    !data.success ||
-                    !Array.isArray(data.vehicles)
+                    !modelsResponse.ok ||
+                    !makesResponse.ok
                 ) {
 
                     throw new Error(
-                        "Invalid VehiclesDB response"
+                        `VehiclesDB catalog request failed: models=${modelsResponse.status}, makes=${makesResponse.status}`
                     );
 
                 }
 
+                const [
+                    modelRecords,
+                    makeRecords
+                ] = await Promise.all([
+                    modelsResponse.json(),
+                    makesResponse.json()
+                ]);
+
+                if (
+                    !Array.isArray(modelRecords) ||
+                    !Array.isArray(makeRecords)
+                ) {
+
+                    throw new Error(
+                        "Invalid VehiclesDB catalog response"
+                    );
+
+                }
+
+                const makeMap =
+                    new Map(
+                        makeRecords
+                            .filter(
+                                make =>
+                                    make &&
+                                    make.id
+                            )
+                            .map(
+                                make => [
+                                    String(make.id),
+                                    {
+                                        name:
+                                            make.name ||
+                                            "",
+                                        slug:
+                                            make.slug ||
+                                            ""
+                                    }
+                                ]
+                            )
+                    );
 
                 const vehicles =
-                    data.vehicles
-                        .filter(
-                            vehicle =>
-                                vehicle &&
-                                vehicle.make &&
-                                vehicle.model
+                    modelRecords
+                        .map(
+                            model => {
+
+                                if (
+                                    !model ||
+                                    !model.name
+                                ) {
+                                    return null;
+                                }
+
+                                const make =
+                                    makeMap.get(
+                                        String(
+                                            model.make_id ||
+                                            ""
+                                        )
+                                    ) || {
+                                        name:
+                                            model.make_name ||
+                                            model.make ||
+                                            model.make_id ||
+                                            "",
+
+                                        slug:
+                                            model.make_slug ||
+                                            ""
+                                    };
+
+                                const rawDecile =
+                                    model?.popularity?.global_decile ??
+                                    model?.global_decile ??
+                                    model?.global_popularity_decile ??
+                                    null;
+
+                                const popularityRanks =
+                                    model?.popularity?.by_country
+                                        ? Object.values(
+                                            model.popularity.by_country
+                                        )
+                                            .map(
+                                                entry =>
+                                                    entry?.rank
+                                            )
+                                            .filter(
+                                                rank => {
+
+                                                    const value =
+                                                        Number(rank);
+
+                                                    return (
+                                                        Number.isFinite(
+                                                            value
+                                                        ) &&
+                                                        value > 0
+                                                    );
+
+                                                }
+                                            )
+                                        : [];
+
+                                return {
+
+                                    make:
+                                        make.name,
+
+                                    makeSlug:
+                                        make.slug,
+
+                                    model:
+                                        model.name,
+
+                                    modelSlug:
+                                        model.slug ||
+                                        "",
+
+                                    kind:
+                                        model.kind ||
+                                        kind,
+
+                                    bodyType:
+                                        Array.isArray(
+                                            model.body_types
+                                        ) &&
+                                        model.body_types.length
+                                            ? model.body_types[0]
+                                            : null,
+
+                                    bodyTypes:
+                                        Array.isArray(
+                                            model.body_types
+                                        )
+                                            ? model.body_types
+                                            : [],
+
+                                    popularityRanks,
+
+                                    globalDecile:
+                                        rawDecile,
+
+                                    availability:
+                                        Array.isArray(
+                                            model.availability
+                                        )
+                                            ? model.availability
+                                                .map(
+                                                    item =>
+                                                        typeof item ===
+                                                        "string"
+                                                            ? item
+                                                            : item?.country
+                                                )
+                                                .filter(
+                                                    Boolean
+                                                )
+                                            : [],
+
+                                    yearStart:
+                                        model.year_start ??
+                                        null,
+
+                                    yearEnd:
+                                        model.year_end ??
+                                        null
+                                };
+
+                            }
                         )
+                        .filter(Boolean)
                         .filter(
                             vehicle => {
 
@@ -980,22 +1121,132 @@ async function fetchVehicleCatalog(
                                 return (
                                     rawDecile !== null &&
                                     rawDecile !== undefined &&
-                                    String(rawDecile).trim() !== "" &&
-                                    Number.isFinite(Number(rawDecile)) &&
-                                    Number(rawDecile) <= 2
+                                    String(
+                                        rawDecile
+                                    ).trim() !== "" &&
+                                    Number.isFinite(
+                                        Number(
+                                            rawDecile
+                                        )
+                                    ) &&
+                                    Number(
+                                        rawDecile
+                                    ) <= 2
                                 );
 
                             }
                         );
 
+                vehicles.sort(
+                    (a, b) => {
+
+                        const decileCompare =
+                            getVehiclePopularityValue(a) -
+                            getVehiclePopularityValue(b);
+
+                        if (
+                            decileCompare !== 0
+                        ) {
+
+                            return decileCompare;
+
+                        }
+
+                        const aSecondary =
+                            getVehicleSecondaryPopularityValue(
+                                a
+                            );
+
+                        const bSecondary =
+                            getVehicleSecondaryPopularityValue(
+                                b
+                            );
+
+                        if (
+                            Number.isFinite(
+                                aSecondary
+                            ) &&
+                            Number.isFinite(
+                                bSecondary
+                            ) &&
+                            aSecondary !==
+                                bSecondary
+                        ) {
+
+                            return (
+                                aSecondary -
+                                bSecondary
+                            );
+
+                        }
+
+                        if (
+                            Number.isFinite(
+                                aSecondary
+                            ) !==
+                            Number.isFinite(
+                                bSecondary
+                            )
+                        ) {
+
+                            return Number.isFinite(
+                                aSecondary
+                            )
+                                ? -1
+                                : 1;
+
+                        }
+
+                        const makeCompare =
+                            String(
+                                a.make || ""
+                            ).localeCompare(
+                                String(
+                                    b.make || ""
+                                ),
+                                undefined,
+                                {
+                                    sensitivity:
+                                        "base"
+                                }
+                            );
+
+                        if (
+                            makeCompare !== 0
+                        ) {
+
+                            return makeCompare;
+
+                        }
+
+                        return String(
+                            a.model || ""
+                        ).localeCompare(
+                            String(
+                                b.model || ""
+                            ),
+                            undefined,
+                            {
+                                sensitivity:
+                                    "base"
+                            }
+                        );
+
+                    }
+                );
+
+                const limitedVehicles =
+                    vehicles.slice(
+                        0,
+                        300
+                    );
 
                 vehicleCatalogCache.set(
                     kind,
-                    vehicles
+                    limitedVehicles
                 );
 
-
-                return vehicles;
+                return limitedVehicles;
 
             } catch (error) {
 
@@ -1016,17 +1267,13 @@ async function fetchVehicleCatalog(
 
         })();
 
-
     vehicleCatalogLoading.set(
         kind,
         loadingPromise
     );
 
-
     return loadingPromise;
-
 }
-
 
 /*
  * ============================================================
