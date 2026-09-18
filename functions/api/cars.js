@@ -1812,6 +1812,45 @@ function cleanWikipediaWikitextValue(value) {
  * ------------------------------------------------------------
  */
 
+function normalizeWikipediaSpecificationValue(
+    field,
+    value
+) {
+
+    let text =
+        normalizeWikipediaText(value);
+
+    if (!text) {
+        return "";
+    }
+
+    /* Remove empty list separators produced by Wikipedia markup. */
+    text =
+        text
+            .replace(/:\s*;/g, ": ")
+            .replace(/;\s*;/g, "; ")
+            .replace(/^;\s*/g, "")
+            .replace(/;\s*$/g, "")
+            .replace(/\s+/g, " ")
+            .trim();
+
+    /*
+     * Some Wikipedia dimension/weight values contain a dangling
+     * dash when the second side of a range is intentionally absent.
+     * Remove only that dangling dash; never alter a real range.
+     * Production dates are preserved exactly because an en dash can
+     * legitimately mean "through/present".
+     */
+    if (field !== "production") {
+        text =
+            text
+                .replace(/\s+[–—-]\s*$/u, "")
+                .trim();
+    }
+
+    return text;
+}
+
 function isUsefulWikipediaValue(value) {
 
     const normalized =
@@ -1836,12 +1875,22 @@ function setWikipediaSpecificationIfMissing(
         return;
     }
 
+    const normalizedValue =
+        normalizeWikipediaSpecificationValue(
+            field,
+            value
+        );
+
+    if (!normalizedValue) {
+        return;
+    }
+
     if (
         !specifications[field] ||
         specifications[field] === "No Information"
     ) {
         specifications[field] =
-            normalizeWikipediaText(value);
+            normalizedValue;
     }
 }
 
@@ -1865,76 +1914,50 @@ wikitext
                     ""
                 );
 
-        const infoboxes =
-            findWikipediaInfoboxes(source);
+        /*
+         * Use the page's FIRST vehicle infobox as the family/page
+         * infobox. Do not select a later generation infobox merely
+         * because it contains more fields: doing that can silently
+         * turn a family-level article such as Toyota Prius into a
+         * generation-specific result without saying so.
+         *
+         * Generation-specific data is handled separately by the
+         * explicit Wikipedia generation fallback.
+         */
+        const infobox =
+            findWikipediaInfobox(source);
 
-        if (!infoboxes.length) {
+        if (!infobox) {
             return specifications;
         }
 
-        let best =
-            createEmptyWikipediaSpecifications();
+        const fields =
+            extractWikipediaInfoboxFields(
+                infobox
+            );
 
-        let bestCount = 0;
+        for (const [label, rawValue] of Object.entries(fields)) {
 
-        for (const infobox of infoboxes) {
-
-            const fields =
-                extractWikipediaInfoboxFields(
-                    infobox
+            const field =
+                getWikipediaSpecificationField(
+                    label
                 );
 
-            const candidate =
-                createEmptyWikipediaSpecifications();
-
-            for (const [label, rawValue] of Object.entries(fields)) {
-
-                const field =
-                    getWikipediaSpecificationField(
-                        label
-                    );
-
-                if (!field) {
-                    continue;
-                }
-
-                const value =
-                    cleanWikipediaWikitextValue(
-                        rawValue
-                    );
-
-                if (!isUsefulWikipediaValue(value)) {
-                    continue;
-                }
-
-                setWikipediaSpecificationIfMissing(
-                    candidate,
-                    field,
-                    value
-                );
+            if (!field) {
+                continue;
             }
 
-            const count =
-                WIKIPEDIA_SPEC_FIELDS.reduce(
-                    (total, field) =>
-                        total +
-                        (
-                            isUsefulWikipediaValue(
-                                candidate[field]
-                            )
-                                ? 1
-                                : 0
-                        ),
-                    0
+            const value =
+                cleanWikipediaWikitextValue(
+                    rawValue
                 );
 
-            if (count > bestCount) {
-                best = candidate;
-                bestCount = count;
-            }
+            setWikipediaSpecificationIfMissing(
+                specifications,
+                field,
+                value
+            );
         }
-
-        return best;
 
     } catch (error) {
 
@@ -1946,7 +1969,6 @@ wikitext
 
     return specifications;
 }
-
 
 
 /*
@@ -2360,7 +2382,10 @@ function addAggregatedWikipediaSpecification(
     }
 
     const cleanValue =
-        normalizeWikipediaText(value);
+        normalizeWikipediaSpecificationValue(
+            field,
+            value
+        );
 
     if (!cleanValue) {
         return;
@@ -2434,7 +2459,7 @@ function parseWikipediaTechnicalTables(html) {
 
             const classMatch =
                 openingTag.match(
-                    /\\bclass\\s*=\\s*["']([^"']*)["']/i
+                    /\bclass\s*=\s*["']([^"']*)["']/i
                 );
 
             if (
