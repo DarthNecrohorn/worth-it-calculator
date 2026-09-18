@@ -24,7 +24,7 @@ const VEHICLES_DB_URL =
 
 const CACHE_TTL = 86400; // 24 hours
 const WIKIPEDIA_CACHE_TTL = 604800; // 7 days
-const WIKIPEDIA_CACHE_VERSION = "v8";
+const WIKIPEDIA_CACHE_VERSION = "v9";
 
 const WIKIPEDIA_API =
     "https://en.wikipedia.org/w/api.php";
@@ -2781,7 +2781,67 @@ function extractGenerationSections(html) {
     });
 }
 
-function getGenerationSectionMainArticleTitle(sectionHtml) {
+function isCompatibleGenerationArticleTitle(
+    title,
+    make,
+    model
+) {
+
+    const normalizedTitle =
+        simplifyText(title || "");
+
+    const normalizedMake =
+        simplifyText(make || "");
+
+    const normalizedModel =
+        simplifyText(model || "");
+
+    if (
+        !normalizedTitle ||
+        !normalizedMake ||
+        !normalizedModel
+    ) {
+        return false;
+    }
+
+    if (
+        !normalizedTitle.includes(normalizedMake) ||
+        !normalizedTitle.includes(normalizedModel)
+    ) {
+        return false;
+    }
+
+    /*
+     * When the catalog asks for a base model, do not follow a
+     * separate plug-in/Prime/PHEV/PHV article just because it is
+     * linked from the same generation section. The generation
+     * section itself can still supply the shared/base specifications.
+     */
+    const requestedText =
+        normalizeText(`${make} ${model}`);
+
+    const requestedHasVariantMarker =
+        /plug[- ]?in|prime|phev|phv/i.test(
+            requestedText
+        );
+
+    if (!requestedHasVariantMarker) {
+        const variantMarker =
+            /plug[- ]?in|prime|phev|phv/i;
+
+        if (variantMarker.test(title)) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+function getGenerationSectionMainArticleTitle(
+    sectionHtml,
+    make,
+    model
+) {
 
     const section = String(sectionHtml || "");
 
@@ -2793,6 +2853,7 @@ function getGenerationSectionMainArticleTitle(sectionHtml) {
         /href=["'](\/wiki\/[^"'#]+)["'][^>]*>/gi;
 
     let hrefMatch;
+    const candidates = [];
 
     while ((hrefMatch = hrefRegex.exec(section)) !== null) {
 
@@ -2822,11 +2883,23 @@ function getGenerationSectionMainArticleTitle(sectionHtml) {
             );
 
         if (/Main articles?:/i.test(beforeLink)) {
-            return title;
+            candidates.push(title);
         }
     }
 
-    return null;
+    if (!candidates.length) {
+        return null;
+    }
+
+    return (
+        candidates.find(title =>
+            isCompatibleGenerationArticleTitle(
+                title,
+                make,
+                model
+            )
+        ) || null
+    );
 }
 
 function extractGenerationCandidateArticleTitle(
@@ -2843,7 +2916,11 @@ function extractGenerationCandidateArticleTitle(
     }
 
     const mainArticle =
-        getGenerationSectionMainArticleTitle(section);
+        getGenerationSectionMainArticleTitle(
+            section,
+            make,
+            model
+        );
 
     if (mainArticle) {
         return mainArticle;
@@ -4046,6 +4123,21 @@ async function handleDetails(
 
     inferWikipediaFuel(specifications);
 
+    if (!isUsefulWikipediaValue(specifications.fuel)) {
+        const description =
+            normalizeWikipediaText(
+                page.description
+            );
+
+        if (/battery electric|all-electric|fully electric|electric vehicle/i.test(description)) {
+            specifications.fuel = "Electric";
+        } else if (/plug-in hybrid/i.test(description)) {
+            specifications.fuel = "Plug-in hybrid";
+        } else if (/hybrid drivetrain|hybrid vehicle|hybrid car/i.test(description)) {
+            specifications.fuel = "Hybrid";
+        }
+    }
+
     /*
      * Make the scope explicit when technical values came from a
      * generation-specific Wikipedia article. We do not invent a
@@ -4053,6 +4145,20 @@ async function handleDetails(
      * available, otherwise the exact generation heading from the page.
      */
     if (
+        wikipediaData.latestGenerationLabel &&
+        !isUsefulWikipediaValue(
+            specifications.generation
+        )
+    ) {
+        /*
+         * Always use Wikipedia's generation heading for the displayed
+         * generation. This prevents a variant article title such as
+         * "Toyota Prius Plug-in Hybrid (XW60)" from being reported as
+         * the base Prius generation.
+         */
+        specifications.generation =
+            wikipediaData.latestGenerationLabel;
+    } else if (
         specificationSourceTitle !== page.title &&
         !isUsefulWikipediaValue(
             specifications.generation
@@ -4060,16 +4166,6 @@ async function handleDetails(
     ) {
         specifications.generation =
             specificationSourceTitle;
-    } else if (
-        wikipediaData.latestGenerationTitle &&
-        wikipediaData.latestGenerationTitle === page.title &&
-        wikipediaData.latestGenerationLabel &&
-        !isUsefulWikipediaValue(
-            specifications.generation
-        )
-    ) {
-        specifications.generation =
-            wikipediaData.latestGenerationLabel;
     }
 
     const comparisonAvailable =
