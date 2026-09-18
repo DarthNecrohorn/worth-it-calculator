@@ -24,6 +24,7 @@ const VEHICLES_DB_URL =
 
 const CACHE_TTL = 86400; // 24 hours
 const WIKIPEDIA_CACHE_TTL = 604800; // 7 days
+const MAX_MODELS_PER_KIND = 300; // Keep the catalog focused on popular vehicles
 const WIKIPEDIA_CACHE_VERSION = "v9";
 
 const WIKIPEDIA_API =
@@ -307,7 +308,51 @@ function getModelsByKind(
         }
     }
 
-    return Array.from(unique.values());
+    const result = Array.from(unique.values());
+
+    /*
+     * VehiclesDB globalDecile is a popularity bucket where
+     * lower numbers represent greater popularity. Keep only
+     * the most popular models for the requested vehicle kind.
+     *
+     * This is recalculated whenever the cached VehiclesDB dataset
+     * refreshes, so newer popular models can naturally replace
+     * less-popular models without maintaining a manual list.
+     */
+    result.sort((a, b) => {
+
+        const aPopularity = Number(a.globalDecile);
+        const bPopularity = Number(b.globalDecile);
+
+        const aValid = Number.isFinite(aPopularity);
+        const bValid = Number.isFinite(bPopularity);
+
+        if (aValid && bValid && aPopularity !== bPopularity) {
+            return aPopularity - bPopularity;
+        }
+
+        if (aValid !== bValid) {
+            return aValid ? -1 : 1;
+        }
+
+        const makeCompare = a.make.localeCompare(
+            b.make,
+            undefined,
+            { sensitivity: "base" }
+        );
+
+        if (makeCompare !== 0) {
+            return makeCompare;
+        }
+
+        return a.model.localeCompare(
+            b.model,
+            undefined,
+            { sensitivity: "base" }
+        );
+    });
+
+    return result.slice(0, MAX_MODELS_PER_KIND);
 }
 
 /*
