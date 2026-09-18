@@ -1779,34 +1779,6 @@ async function parseWikipediaInfobox(
 }
 
 
-    try {
-
-        const document =
-            new DOMParser()
-                .parseFromString(
-                    html,
-                    "text/html"
-                );
-
-
-        /*
-         * Wikipedia vehicle articles normally
-         * use a table with the "infobox" class.
-         */
-
-        const infobox =
-            document.querySelector(
-                "table.infobox"
-            );
-
-
-        if (!infobox) {
-
-            return specifications;
-
-        }
-
-
         const rows =
             infobox.querySelectorAll(
                 "tr"
