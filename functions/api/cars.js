@@ -22,10 +22,17 @@
 const VEHICLES_DB_URL =
     "https://cdn.jsdelivr.net/gh/vehiclesdb/vehiclesdb@latest/dist/vehicles.json";
 
-const CACHE_TTL = 86400; // 24 hours
-const WIKIPEDIA_CACHE_TTL = 604800; // 7 days
-const MAX_MODELS_PER_KIND = 300; // Keep the catalog focused on popular vehicles
-const WIKIPEDIA_CACHE_VERSION = "v10";
+const CACHE_TTL =
+    86400;
+
+const WIKIPEDIA_CACHE_TTL =
+    604800;
+
+const MAX_MODELS_PER_KIND =
+    300;
+
+const WIKIPEDIA_CACHE_VERSION =
+    "v13";
 
 const WIKIPEDIA_API =
     "https://en.wikipedia.org/w/api.php";
