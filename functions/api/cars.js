@@ -25,7 +25,7 @@ const VEHICLES_DB_URL =
 const CACHE_TTL = 86400; // 24 hours
 const WIKIPEDIA_CACHE_TTL = 604800; // 7 days
 const MAX_MODELS_PER_KIND = 300; // Keep the catalog focused on popular vehicles
-const WIKIPEDIA_CACHE_VERSION = "v9";
+const WIKIPEDIA_CACHE_VERSION = "v10";
 
 const WIKIPEDIA_API =
     "https://en.wikipedia.org/w/api.php";
