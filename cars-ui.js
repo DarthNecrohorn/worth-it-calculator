@@ -977,20 +977,22 @@ const vehicles =
                 vehicle.make &&
                 vehicle.model
         )
-        .filter(vehicle => {
+        .filter(
+            vehicle => {
+                const rawDecile =
+                    vehicle.globalDecile;
 
-            const rawDecile =
-                vehicle.globalDecile;
-
-            return (
-                rawDecile !== null &&
-                rawDecile !== undefined &&
-                String(rawDecile).trim() !== "" &&
-                Number.isFinite(Number(rawDecile)) &&
-                Number(rawDecile) <= 2
-            );
-        });
-
+                return (
+                    rawDecile !== null &&
+                    rawDecile !== undefined &&
+                    String(rawDecile).trim() !== "" &&
+                    Number.isFinite(
+                        Number(rawDecile)
+                    ) &&
+                    Number(rawDecile) <= 2
+                );
+            }
+        );
                 vehicleCatalogCache.set(
                     kind,
                     vehicles
