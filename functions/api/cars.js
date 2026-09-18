@@ -607,6 +607,20 @@ async function handleModels(
             );
     }
 
+        models = models.filter(vehicle => {
+
+    const rawDecile =
+        vehicle.globalDecile;
+
+    return (
+        rawDecile !== null &&
+        rawDecile !== undefined &&
+        String(rawDecile).trim() !== "" &&
+        Number.isFinite(Number(rawDecile)) &&
+        Number(rawDecile) <= 2
+    );
+});
+    
 models.sort((a, b) => {
 
     const aRaw = a.globalDecile;
