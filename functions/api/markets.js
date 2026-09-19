@@ -1,54 +1,86 @@
 /* =========================================================
-   WORTH IT — MARKETS
-   World Bank Commodity Price Data (Pink Sheet)
+   WORTH IT — MARKETS API
+   World Bank Commodity Price Data (The Pink Sheet)
 
-   Source:
+   Data source:
      World Bank Commodity Markets
-     CMO-Historical-Data-Monthly.xlsx
+     Monthly prices workbook
 
    License:
      Creative Commons Attribution 4.0 (CC BY 4.0)
 
    No API key required.
 
-   IMPORTANT:
-     The World Bank dataset is monthly. This endpoint therefore
-     returns the latest available monthly observation and the
-     percentage change versus the previous month.
+   This version dynamically reads every commodity series that
+   exists in the World Bank "Monthly Prices" worksheet.
 
-   Endpoint:
-     /api/markets
+   It also provides a separate lazy image endpoint:
+
+     /api/markets?action=image&name=Gold&category=precious-metals
+
+   Images are searched on Wikimedia Commons and are accepted only
+   when the file has a commercially reusable free/public-domain
+   license and the image URL itself contains a relevant commodity
+   token. Unknown / ambiguous licenses are rejected.
 ========================================================= */
 
 const WORLD_BANK_MARKETS_PAGE =
     "https://www.worldbank.org/en/research/commodity-markets";
 
+
+/* =========================================================
+   CACHE SETTINGS
+========================================================= */
+
 const CACHE_TTL =
     24 * 60 * 60;
 
-const SOURCE_CACHE_TTL =
+const IMAGE_CACHE_TTL =
+    7 * 24 * 60 * 60;
+
+const IMAGE_NEGATIVE_CACHE_TTL =
     24 * 60 * 60;
+
 
 const CACHE_TIMESTAMP_HEADER =
     "X-Worth-It-Cache-Time";
 
+
 const WORLD_BANK_XLSX_CACHE_KEY =
     "https://worth-it-internal-cache.local/world-bank-cmo-monthly.xlsx";
 
+
 const WORLD_BANK_RESULT_CACHE_KEY =
-    "https://worth-it-internal-cache.local/world-bank-markets-v1.json";
-
-const METRIC_FACTORS = {
-    metricTonToPound:
-        1 / 2204.6226218487757
-};
+    "https://worth-it-internal-cache.local/world-bank-markets-v3.json";
 
 
-/*
- * ---------------------------------------------------------
- * RESPONSE HELPERS
- * ---------------------------------------------------------
- */
+const WORLD_BANK_PAGE_CACHE_KEY =
+    "https://worth-it-internal-cache.local/world-bank-commodity-markets-page-v2";
+
+
+/* =========================================================
+   WIKIMEDIA
+========================================================= */
+
+const WIKIMEDIA_API =
+    "https://commons.wikimedia.org/w/api.php";
+
+
+const WIKIMEDIA_IMAGE_CACHE_PREFIX =
+    "https://worth-it-internal-cache.local/markets-wikimedia-image-v4/";
+
+
+const MAX_IMAGE_SEARCH_CANDIDATES =
+    100;
+
+
+const IMAGE_SEARCH_PAGE_SIZE =
+    20;
+
+
+/* =========================================================
+   RESPONSE HELPERS
+========================================================= */
 
 function jsonResponse(
     data,
@@ -56,32 +88,185 @@ function jsonResponse(
     cacheSeconds = CACHE_TTL
 ) {
 
+    const headers =
+        new Headers({
+            "Content-Type":
+                "application/json; charset=UTF-8"
+        });
+
+
+    if (cacheSeconds > 0) {
+
+        headers.set(
+            "Cache-Control",
+            `public, max-age=${cacheSeconds}, s-maxage=${cacheSeconds}`
+        );
+
+
+        headers.set(
+            "Cloudflare-CDN-Cache-Control",
+            `public, max-age=${cacheSeconds}`
+        );
+
+    }
+    else {
+
+        headers.set(
+            "Cache-Control",
+            "no-store"
+        );
+
+    }
+
+
     return new Response(
         JSON.stringify(data),
         {
             status,
-            headers: {
-                "Content-Type":
-                    "application/json; charset=UTF-8",
-
-                "Cache-Control":
-                    `public, max-age=${cacheSeconds}, s-maxage=${cacheSeconds}`,
-
-                "Cloudflare-CDN-Cache-Control":
-                    `public, max-age=${cacheSeconds}`
-            }
+            headers
         }
     );
 }
 
 
-/*
- * ---------------------------------------------------------
- * BASIC TEXT HELPERS
- * ---------------------------------------------------------
- */
+function responseWithCacheTimestamp(
+    response,
+    cacheSeconds
+) {
 
-function normalizeText(value) {
+    const headers =
+        new Headers(
+            response.headers
+        );
+
+
+    headers.set(
+        CACHE_TIMESTAMP_HEADER,
+        String(Date.now())
+    );
+
+
+    if (cacheSeconds > 0) {
+
+        headers.set(
+            "Cache-Control",
+            `public, max-age=${cacheSeconds}`
+        );
+
+    }
+
+
+    return new Response(
+        response.body,
+        {
+            status:
+                response.status,
+            headers
+        }
+    );
+}
+
+
+function getRequestCacheAgeSeconds(
+    response
+) {
+
+    const cachedAt =
+        Number(
+            response.headers.get(
+                CACHE_TIMESTAMP_HEADER
+            )
+        );
+
+
+    if (
+        !Number.isFinite(cachedAt) ||
+        cachedAt <= 0
+    ) {
+
+        return Infinity;
+
+    }
+
+
+    return (
+        Date.now() -
+        cachedAt
+    ) / 1000;
+}
+
+
+async function getFreshCache(
+    cache,
+    key,
+    maxAgeSeconds
+) {
+
+    const cached =
+        await cache.match(
+            key
+        );
+
+
+    if (!cached) {
+
+        return null;
+
+    }
+
+
+    const age =
+        getRequestCacheAgeSeconds(
+            cached
+        );
+
+
+    if (
+        !Number.isFinite(age) ||
+        age < 0 ||
+        age > maxAgeSeconds
+    ) {
+
+        return null;
+
+    }
+
+
+    return cached;
+}
+
+
+async function putTimestampedCache(
+    cache,
+    key,
+    response,
+    maxAgeSeconds
+) {
+
+    const cachedResponse =
+        responseWithCacheTimestamp(
+            response,
+            maxAgeSeconds
+        );
+
+
+    await cache.put(
+        key,
+        cachedResponse.clone()
+    );
+
+
+    return cachedResponse;
+}
+
+
+/* =========================================================
+   TEXT HELPERS
+========================================================= */
+
+function normalizeText(
+    value
+) {
 
     return String(value || "")
         .replace(/\u00A0/g, " ")
@@ -90,51 +275,161 @@ function normalizeText(value) {
 }
 
 
-function decodeXmlEntities(value) {
+function normalizeSearchText(
+    value
+) {
 
-    return String(value || "")
-        .replace(/&amp;/g, "&")
-        .replace(/&lt;/g, "<")
-        .replace(/&gt;/g, ">")
-        .replace(/&quot;/g, '"')
-        .replace(/&apos;/g, "'")
-        .replace(/&#(\d+);/g, (_, decimal) => {
-
-            const codePoint =
-                Number(decimal);
-
-            return Number.isFinite(codePoint)
-                ? String.fromCodePoint(codePoint)
-                : _;
-
-        })
-        .replace(/&#x([0-9a-f]+);/gi, (_, hex) => {
-
-            const codePoint =
-                Number.parseInt(hex, 16);
-
-            return Number.isFinite(codePoint)
-                ? String.fromCodePoint(codePoint)
-                : _;
-
-        });
+    return normalizeText(
+        value
+    )
+        .toLowerCase()
+        .normalize("NFKD")
+        .replace(
+            /[\u0300-\u036f]/g,
+            ""
+        )
+        .replace(
+            /[^a-z0-9]+/g,
+            " "
+        )
+        .trim();
 }
 
 
-function escapeRegExp(value) {
+function simplifySearchText(
+    value
+) {
 
-    return String(value || "")
-        .replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    return normalizeSearchText(
+        value
+    )
+        .replace(
+            /\s+/g,
+            ""
+        );
 }
 
 
-/*
- * ---------------------------------------------------------
- * BINARY HELPERS
- * ---------------------------------------------------------
- */
+function decodeXmlEntities(
+    value
+) {
 
-function readUInt16(bytes, offset) {
+    return String(value || "")
+        .replace(
+            /&amp;/g,
+            "&"
+        )
+        .replace(
+            /&lt;/g,
+            "<"
+        )
+        .replace(
+            /&gt;/g,
+            ">"
+        )
+        .replace(
+            /&quot;/g,
+            '"'
+        )
+        .replace(
+            /&apos;/g,
+            "'"
+        )
+        .replace(
+            /&#(\d+);/g,
+            (_, decimal) => {
+
+                const codePoint =
+                    Number(decimal);
+
+
+                return Number.isFinite(
+                    codePoint
+                )
+                    ? String.fromCodePoint(
+                        codePoint
+                    )
+                    : _;
+
+            }
+        )
+        .replace(
+            /&#x([0-9a-f]+);/gi,
+            (_, hex) => {
+
+                const codePoint =
+                    Number.parseInt(
+                        hex,
+                        16
+                    );
+
+
+                return Number.isFinite(
+                    codePoint
+                )
+                    ? String.fromCodePoint(
+                        codePoint
+                    )
+                    : _;
+
+            }
+        );
+}
+
+
+function stripHtml(
+    value
+) {
+
+    return normalizeText(
+        String(value || "")
+            .replace(
+                /<[^>]*>/g,
+                " "
+            )
+            .replace(
+                /&nbsp;/gi,
+                " "
+            )
+    );
+}
+
+
+function escapeRegExp(
+    value
+) {
+
+    return String(value || "")
+        .replace(
+            /[.*+?^${}()|[\]\\]/g,
+            "\\$&"
+        );
+}
+
+
+function normalizeUnit(
+    value
+) {
+
+    return normalizeText(
+        value
+    )
+        .toLowerCase()
+        .replace(
+            /\s+/g,
+            ""
+        );
+}
+
+
+/* =========================================================
+   ZIP / XLSX HELPERS
+========================================================= */
+
+function readUInt16(
+    bytes,
+    offset
+) {
 
     return (
         bytes[offset] |
@@ -143,7 +438,10 @@ function readUInt16(bytes, offset) {
 }
 
 
-function readUInt32(bytes, offset) {
+function readUInt32(
+    bytes,
+    offset
+) {
 
     return (
         bytes[offset] |
@@ -154,9 +452,13 @@ function readUInt32(bytes, offset) {
 }
 
 
-function findEndOfCentralDirectory(bytes) {
+function findEndOfCentralDirectory(
+    bytes
+) {
 
-    const signature = 0x06054b50;
+    const signature =
+        0x06054b50;
+
 
     const minimumOffset =
         Math.max(
@@ -164,19 +466,29 @@ function findEndOfCentralDirectory(bytes) {
             bytes.length - 65557
         );
 
+
     for (
-        let offset = bytes.length - 22;
+        let offset =
+            bytes.length - 22;
+
         offset >= minimumOffset;
+
         offset -= 1
     ) {
 
         if (
-            readUInt32(bytes, offset) === signature
+            readUInt32(
+                bytes,
+                offset
+            ) === signature
         ) {
+
             return offset;
+
         }
 
     }
+
 
     throw new Error(
         "Invalid XLSX ZIP: end of central directory not found."
@@ -184,7 +496,9 @@ function findEndOfCentralDirectory(bytes) {
 }
 
 
-async function inflateDeflateRaw(bytes) {
+async function inflateDeflateRaw(
+    bytes
+) {
 
     const stream =
         new Blob([bytes])
@@ -195,34 +509,58 @@ async function inflateDeflateRaw(bytes) {
                 )
             );
 
+
     return new Uint8Array(
-        await new Response(stream).arrayBuffer()
+        await new Response(
+            stream
+        ).arrayBuffer()
     );
 }
 
 
-async function unzipEntries(arrayBuffer) {
+async function unzipEntries(
+    arrayBuffer
+) {
 
     const bytes =
-        new Uint8Array(arrayBuffer);
+        new Uint8Array(
+            arrayBuffer
+        );
+
 
     const endOffset =
-        findEndOfCentralDirectory(bytes);
+        findEndOfCentralDirectory(
+            bytes
+        );
+
 
     const totalEntries =
-        readUInt16(bytes, endOffset + 10);
+        readUInt16(
+            bytes,
+            endOffset + 10
+        );
+
 
     const centralDirectoryOffset =
-        readUInt32(bytes, endOffset + 16);
+        readUInt32(
+            bytes,
+            endOffset + 16
+        );
+
 
     const entries =
         new Map();
 
+
     let cursor =
         centralDirectoryOffset;
 
+
     const decoder =
-        new TextDecoder("utf-8");
+        new TextDecoder(
+            "utf-8"
+        );
+
 
     for (
         let index = 0;
@@ -231,103 +569,150 @@ async function unzipEntries(arrayBuffer) {
     ) {
 
         if (
-            readUInt32(bytes, cursor) !== 0x02014b50
+            readUInt32(
+                bytes,
+                cursor
+            ) !== 0x02014b50
         ) {
 
             throw new Error(
-                "Invalid XLSX ZIP: central directory entry is corrupt."
+                "Invalid XLSX ZIP: corrupt central directory."
             );
 
         }
 
+
         const compressionMethod =
-            readUInt16(bytes, cursor + 10);
+            readUInt16(
+                bytes,
+                cursor + 10
+            );
+
 
         const compressedSize =
-            readUInt32(bytes, cursor + 20);
+            readUInt32(
+                bytes,
+                cursor + 20
+            );
+
 
         const fileNameLength =
-            readUInt16(bytes, cursor + 28);
+            readUInt16(
+                bytes,
+                cursor + 28
+            );
+
 
         const extraLength =
-            readUInt16(bytes, cursor + 30);
+            readUInt16(
+                bytes,
+                cursor + 30
+            );
+
 
         const commentLength =
-            readUInt16(bytes, cursor + 32);
+            readUInt16(
+                bytes,
+                cursor + 32
+            );
+
 
         const localHeaderOffset =
-            readUInt32(bytes, cursor + 42);
+            readUInt32(
+                bytes,
+                cursor + 42
+            );
+
 
         const fileName =
             decoder.decode(
                 bytes.slice(
                     cursor + 46,
-                    cursor + 46 + fileNameLength
+                    cursor +
+                        46 +
+                        fileNameLength
                 )
             );
 
-        const localHeader =
-            localHeaderOffset;
 
         if (
-            readUInt32(bytes, localHeader) !== 0x04034b50
+            readUInt32(
+                bytes,
+                localHeaderOffset
+            ) !== 0x04034b50
         ) {
 
             throw new Error(
-                `Invalid XLSX ZIP: local header missing for ${fileName}.`
+                `Invalid XLSX ZIP: missing local header for ${fileName}.`
             );
 
         }
 
+
         const localFileNameLength =
             readUInt16(
                 bytes,
-                localHeader + 26
+                localHeaderOffset + 26
             );
+
 
         const localExtraLength =
             readUInt16(
                 bytes,
-                localHeader + 28
+                localHeaderOffset + 28
             );
 
+
         const dataStart =
-            localHeader +
+            localHeaderOffset +
             30 +
             localFileNameLength +
             localExtraLength;
 
+
         const compressedData =
             bytes.slice(
                 dataStart,
-                dataStart + compressedSize
+                dataStart +
+                    compressedSize
             );
+
 
         let data;
 
-        if (compressionMethod === 0) {
 
-            data = compressedData;
+        if (
+            compressionMethod === 0
+        ) {
 
-        } else if (compressionMethod === 8) {
+            data =
+                compressedData;
+
+        }
+        else if (
+            compressionMethod === 8
+        ) {
 
             data =
                 await inflateDeflateRaw(
                     compressedData
                 );
 
-        } else {
+        }
+        else {
 
             throw new Error(
-                `Unsupported XLSX compression method ${compressionMethod} for ${fileName}.`
+                `Unsupported XLSX compression method ${compressionMethod}.`
             );
 
         }
+
 
         entries.set(
             fileName,
             data
         );
+
 
         cursor +=
             46 +
@@ -337,42 +722,15 @@ async function unzipEntries(arrayBuffer) {
 
     }
 
+
     return entries;
 }
 
 
-function decodeUtf8(bytes) {
-
-    return new TextDecoder("utf-8").decode(
-        bytes
-    );
-}
-
-
-/*
- * ---------------------------------------------------------
- * XLSX RELATIONSHIPS + SHEET DISCOVERY
- * ---------------------------------------------------------
- */
-
-function resolveWorkbookTarget(target) {
-
-    const cleanTarget =
-        String(target || "")
-            .replace(/^\//, "")
-            .replace(/^\.\//, "");
-
-    if (
-        cleanTarget.startsWith("xl/")
-    ) {
-        return cleanTarget;
-    }
-
-    return `xl/${cleanTarget}`;
-}
-
-
-function getXmlAttribute(tag, attributeName) {
+function getXmlAttribute(
+    tag,
+    attributeName
+) {
 
     const pattern =
         new RegExp(
@@ -380,12 +738,54 @@ function getXmlAttribute(tag, attributeName) {
             "i"
         );
 
+
     const match =
-        String(tag || "").match(pattern);
+        String(tag || "")
+            .match(
+                pattern
+            );
+
 
     return match
-        ? decodeXmlEntities(match[1])
+        ? decodeXmlEntities(
+            match[1]
+        )
         : null;
+}
+
+
+/* =========================================================
+   XLSX WORKBOOK / SHEET
+========================================================= */
+
+function resolveWorkbookTarget(
+    target
+) {
+
+    const cleanTarget =
+        String(target || "")
+            .replace(
+                /^\//,
+                ""
+            )
+            .replace(
+                /^\.\//,
+                ""
+            );
+
+
+    if (
+        cleanTarget.startsWith(
+            "xl/"
+        )
+    ) {
+
+        return cleanTarget;
+
+    }
+
+
+    return `xl/${cleanTarget}`;
 }
 
 
@@ -394,7 +794,10 @@ function findMonthlyPricesSheet(
 ) {
 
     const workbookBytes =
-        entries.get("xl/workbook.xml");
+        entries.get(
+            "xl/workbook.xml"
+        );
+
 
     if (!workbookBytes) {
 
@@ -404,10 +807,12 @@ function findMonthlyPricesSheet(
 
     }
 
+
     const relsBytes =
         entries.get(
             "xl/_rels/workbook.xml.rels"
         );
+
 
     if (!relsBytes) {
 
@@ -417,17 +822,28 @@ function findMonthlyPricesSheet(
 
     }
 
+
     const workbookXml =
-        decodeUtf8(workbookBytes);
+        new TextDecoder("utf-8")
+            .decode(
+                workbookBytes
+            );
+
 
     const relsXml =
-        decodeUtf8(relsBytes);
+        new TextDecoder("utf-8")
+            .decode(
+                relsBytes
+            );
+
 
     const relationshipMap =
         new Map();
 
+
     const relationshipRegex =
         /<Relationship\b[^>]*>/gi;
+
 
     for (
         const match of relsXml.matchAll(
@@ -438,25 +854,41 @@ function findMonthlyPricesSheet(
         const tag =
             match[0];
 
+
         const id =
-            getXmlAttribute(tag, "Id");
+            getXmlAttribute(
+                tag,
+                "Id"
+            );
+
 
         const target =
-            getXmlAttribute(tag, "Target");
+            getXmlAttribute(
+                tag,
+                "Target"
+            );
 
-        if (id && target) {
+
+        if (
+            id &&
+            target
+        ) {
 
             relationshipMap.set(
                 id,
-                resolveWorkbookTarget(target)
+                resolveWorkbookTarget(
+                    target
+                )
             );
 
         }
 
     }
 
+
     const sheetRegex =
         /<sheet\b[^>]*>/gi;
+
 
     for (
         const match of workbookXml.matchAll(
@@ -467,14 +899,25 @@ function findMonthlyPricesSheet(
         const tag =
             match[0];
 
+
         const name =
-            getXmlAttribute(tag, "name");
+            getXmlAttribute(
+                tag,
+                "name"
+            );
+
 
         const relationshipId =
-            getXmlAttribute(tag, "r:id");
+            getXmlAttribute(
+                tag,
+                "r:id"
+            );
+
 
         if (
-            name === "Monthly Prices" &&
+            normalizeText(name)
+                .toLowerCase() ===
+                "monthly prices" &&
             relationshipId
         ) {
 
@@ -483,44 +926,58 @@ function findMonthlyPricesSheet(
                     relationshipId
                 );
 
+
             if (sheetPath) {
+
                 return sheetPath;
+
             }
 
         }
 
     }
 
+
     throw new Error(
-        "XLSX does not contain a Monthly Prices sheet."
+        "XLSX does not contain a Monthly Prices worksheet."
     );
 }
 
 
-/*
- * ---------------------------------------------------------
- * SHARED STRINGS
- * ---------------------------------------------------------
- */
+/* =========================================================
+   SHARED STRINGS / WORKSHEET
+========================================================= */
 
-function parseSharedStrings(entries) {
+function parseSharedStrings(
+    entries
+) {
 
-    const sharedStringsBytes =
+    const bytes =
         entries.get(
             "xl/sharedStrings.xml"
         );
 
-    if (!sharedStringsBytes) {
+
+    if (!bytes) {
+
         return [];
+
     }
 
+
     const xml =
-        decodeUtf8(sharedStringsBytes);
+        new TextDecoder("utf-8")
+            .decode(
+                bytes
+            );
+
 
     const strings = [];
 
+
     const itemRegex =
         /<si\b[^>]*>([\s\S]*?)<\/si>/gi;
+
 
     for (
         const match of xml.matchAll(
@@ -529,12 +986,16 @@ function parseSharedStrings(entries) {
     ) {
 
         const item =
-            match[1] || "";
+            match[1] ||
+            "";
+
 
         const textParts = [];
 
+
         const textRegex =
             /<t\b[^>]*>([\s\S]*?)<\/t>/gi;
+
 
         for (
             const textMatch of item.matchAll(
@@ -550,25 +1011,24 @@ function parseSharedStrings(entries) {
 
         }
 
+
         strings.push(
             textParts.join("")
         );
 
     }
 
+
     return strings;
 }
 
 
-/*
- * ---------------------------------------------------------
- * WORKSHEET PARSER
- * ---------------------------------------------------------
- */
-
-function columnLettersToNumber(columnLetters) {
+function columnLettersToNumber(
+    columnLetters
+) {
 
     let result = 0;
+
 
     for (
         const character of String(
@@ -580,31 +1040,45 @@ function columnLettersToNumber(columnLetters) {
             character.charCodeAt(0) -
             64;
 
+
         if (
             code < 1 ||
             code > 26
         ) {
+
             return -1;
+
         }
 
+
         result =
-            result * 26 + code;
+            result * 26 +
+            code;
 
     }
+
 
     return result - 1;
 }
 
 
-function cellReferenceToColumn(reference) {
+function cellReferenceToColumn(
+    reference
+) {
 
     const match =
         String(reference || "")
-            .match(/^([A-Z]+)\d+$/i);
+            .match(
+                /^([A-Z]+)\d+$/i
+            );
+
 
     if (!match) {
+
         return -1;
+
     }
+
 
     return columnLettersToNumber(
         match[1]
@@ -619,8 +1093,10 @@ function parseWorksheetRows(
 
     const rows = [];
 
+
     const rowRegex =
         /<row\b[^>]*>([\s\S]*?)<\/row>/gi;
+
 
     for (
         const rowMatch of xml.matchAll(
@@ -629,13 +1105,17 @@ function parseWorksheetRows(
     ) {
 
         const rowXml =
-            rowMatch[1] || "";
+            rowMatch[1] ||
+            "";
+
 
         const row =
             new Map();
 
+
         const cellRegex =
             /<c\b([^>]*)>([\s\S]*?)<\/c>/gi;
+
 
         for (
             const cellMatch of rowXml.matchAll(
@@ -644,40 +1124,61 @@ function parseWorksheetRows(
         ) {
 
             const attributes =
-                cellMatch[1] || "";
+                cellMatch[1] ||
+                "";
+
 
             const content =
-                cellMatch[2] || "";
+                cellMatch[2] ||
+                "";
+
+
+            const attributeTag =
+                `<c ${attributes}>`;
+
 
             const reference =
                 getXmlAttribute(
-                    `<c ${attributes}>`,
+                    attributeTag,
                     "r"
                 );
+
 
             const column =
                 cellReferenceToColumn(
                     reference
                 );
 
-            if (column < 0) {
+
+            if (
+                column < 0
+            ) {
+
                 continue;
+
             }
+
 
             const type =
                 getXmlAttribute(
-                    `<c ${attributes}>`,
+                    attributeTag,
                     "t"
                 );
+
 
             const valueMatch =
                 content.match(
                     /<v\b[^>]*>([\s\S]*?)<\/v>/i
                 );
 
-            let value = "";
 
-            if (type === "s") {
+            let value =
+                "";
+
+
+            if (
+                type === "s"
+            ) {
 
                 const sharedIndex =
                     Number.parseInt(
@@ -687,23 +1188,33 @@ function parseWorksheetRows(
                         10
                     );
 
+
                 value =
                     Number.isInteger(
                         sharedIndex
                     ) &&
                     sharedIndex >= 0 &&
-                    sharedIndex < sharedStrings.length
+                    sharedIndex <
+                        sharedStrings.length
+
                         ? sharedStrings[
                             sharedIndex
                         ]
+
                         : "";
 
-            } else if (type === "inlineStr") {
+            }
+            else if (
+                type === "inlineStr"
+            ) {
 
-                const inlineParts = [];
+                const inlineParts =
+                    [];
+
 
                 const inlineTextRegex =
                     /<t\b[^>]*>([\s\S]*?)<\/t>/gi;
+
 
                 for (
                     const inlineMatch of content.matchAll(
@@ -719,69 +1230,97 @@ function parseWorksheetRows(
 
                 }
 
+
                 value =
                     inlineParts.join("");
 
-            } else {
+            }
+            else {
 
                 value =
                     valueMatch
+
                         ? decodeXmlEntities(
                             valueMatch[1]
                         )
+
                         : "";
 
             }
 
+
             row.set(
                 column,
-                normalizeText(value)
+                normalizeText(
+                    value
+                )
             );
 
         }
 
-        if (row.size) {
-            rows.push(row);
+
+        if (
+            row.size
+        ) {
+
+            rows.push(
+                row
+            );
+
         }
 
     }
+
 
     return rows;
 }
 
 
-/*
- * ---------------------------------------------------------
- * HEADER + DATA DISCOVERY
- * ---------------------------------------------------------
- */
-
-function rowValues(row) {
+function rowValues(
+    row
+) {
 
     const values = [];
 
+
     for (
-        const [column, value] of row.entries()
+        const [
+            column,
+            value
+        ] of row.entries()
     ) {
 
-        values[column] = value;
+        values[column] =
+            value;
 
     }
+
 
     return values;
 }
 
 
-function findHeaderRows(rows) {
+function findHeaderRows(
+    rows
+) {
 
     for (
         let index = 0;
-        index < Math.min(rows.length, 20);
+
+        index <
+            Math.min(
+                rows.length,
+                30
+            );
+
         index += 1
     ) {
 
         const values =
-            rowValues(rows[index]);
+            rowValues(
+                rows[index]
+            );
+
 
         const joined =
             values
@@ -789,27 +1328,45 @@ function findHeaderRows(rows) {
                 .join(" | ")
                 .toLowerCase();
 
+
         if (
-            joined.includes("gold") &&
-            joined.includes("silver") &&
-            joined.includes("platinum")
+            joined.includes(
+                "gold"
+            ) &&
+            joined.includes(
+                "silver"
+            ) &&
+            joined.includes(
+                "platinum"
+            ) &&
+            joined.includes(
+                "crude oil"
+            )
         ) {
+
             return {
-                nameRowIndex: index,
+                nameRowIndex:
+                    index,
+
                 unitRowIndex:
-                    index + 1
+                    index + 1,
+
+                possibleCodeRowIndex:
+                    index + 2
             };
+
         }
 
     }
 
+
     throw new Error(
-        "Could not locate the commodity header rows in the World Bank XLSX."
+        "Could not locate World Bank commodity header rows."
     );
 }
 
 
-function buildColumnHeaders(
+function buildHeaderInfo(
     rows,
     headerInfo
 ) {
@@ -818,588 +1375,986 @@ function buildColumnHeaders(
         rowValues(
             rows[
                 headerInfo.nameRowIndex
-            ] || new Map()
+            ] ||
+                new Map()
         );
+
 
     const unitRow =
         rowValues(
             rows[
                 headerInfo.unitRowIndex
-            ] || new Map()
+            ] ||
+                new Map()
         );
 
+
+    const codeRow =
+        headerInfo.codeRowIndex ===
+            null ||
+        headerInfo.codeRowIndex ===
+            undefined
+
+            ? []
+
+            : rowValues(
+                rows[
+                    headerInfo.codeRowIndex
+                ] ||
+                    new Map()
+            );
+
+
     const headers = [];
+
 
     const maximumLength =
         Math.max(
             nameRow.length,
-            unitRow.length
+            unitRow.length,
+            codeRow.length
         );
+
 
     for (
         let column = 0;
-        column < maximumLength;
+
+        column <
+            maximumLength;
+
         column += 1
     ) {
 
-        const name =
-            normalizeText(
-                nameRow[column]
-            );
+        headers[column] = {
 
-        const unit =
-            normalizeText(
-                unitRow[column]
-            );
+            name:
+                normalizeText(
+                    nameRow[column]
+                ),
 
-        headers[column] =
-            [name, unit]
-                .filter(Boolean)
-                .join(" ");
+            unit:
+                normalizeText(
+                    unitRow[column]
+                ),
+
+            code:
+                normalizeText(
+                    codeRow[column]
+                )
+
+        };
 
     }
+
 
     return headers;
 }
 
 
-function findColumn(headers, patterns) {
-
-    for (
-        let column = 0;
-        column < headers.length;
-        column += 1
-    ) {
-
-        const header =
-            String(
-                headers[column] || ""
-            ).toLowerCase();
-
-        if (
-            patterns.some(
-                pattern =>
-                    pattern.test(header)
-            )
-        ) {
-            return column;
-        }
-
-    }
-
-    return -1;
-}
-
-
-function parseNumeric(value) {
+function parseNumeric(
+    value
+) {
 
     const normalized =
         String(value || "")
-            .replace(/,/g, "")
+            .replace(
+                /,/g,
+                ""
+            )
             .trim();
+
 
     if (
         !normalized ||
+        normalized === ".." ||
         normalized === "…" ||
         normalized === "..." ||
-        normalized === ".." ||
-        normalized === "—"
+        normalized === "—" ||
+        normalized === "-"
     ) {
+
         return null;
+
     }
 
-    const number =
-        Number(normalized);
 
-    return Number.isFinite(number)
+    const number =
+        Number(
+            normalized
+        );
+
+
+    return Number.isFinite(
+        number
+    )
         ? number
         : null;
 }
 
 
-function parsePeriod(value) {
+function parsePeriod(
+    value
+) {
 
-    const match =
+    const monthlyMatch =
         String(value || "")
             .trim()
-            .match(/^(\d{4})M(\d{1,2})$/i);
+            .match(
+                /^(\d{4})M(\d{1,2})$/i
+            );
 
-    if (!match) {
-        return null;
-    }
-
-    const year =
-        Number(match[1]);
-
-    const month =
-        Number(match[2]);
 
     if (
-        year < 1900 ||
-        month < 1 ||
-        month > 12
+        monthlyMatch
     ) {
-        return null;
+
+        const year =
+            Number(
+                monthlyMatch[1]
+            );
+
+
+        const month =
+            Number(
+                monthlyMatch[2]
+            );
+
+
+        if (
+            year >= 1900 &&
+            month >= 1 &&
+            month <= 12
+        ) {
+
+            return {
+
+                period:
+                    `${year}M${String(month).padStart(2, "0")}`,
+
+                year,
+
+                month,
+
+                timestamp:
+                    Date.UTC(
+                        year,
+                        month - 1,
+                        1
+                    )
+
+            };
+
+        }
+
     }
 
-    return {
-        period:
-            `${year}M${String(month).padStart(2, "0")}`,
-        year,
-        month,
-        timestamp:
-            Date.UTC(
+
+    const slashMatch =
+        String(value || "")
+            .trim()
+            .match(
+                /^(\d{4})\/(\d{1,2})$/
+            );
+
+
+    if (
+        slashMatch
+    ) {
+
+        const year =
+            Number(
+                slashMatch[1]
+            );
+
+
+        const month =
+            Number(
+                slashMatch[2]
+            );
+
+
+        if (
+            year >= 1900 &&
+            month >= 1 &&
+            month <= 12
+        ) {
+
+            return {
+
+                period:
+                    `${year}M${String(month).padStart(2, "0")}`,
+
                 year,
-                month - 1,
-                1
-            )
-    };
+
+                month,
+
+                timestamp:
+                    Date.UTC(
+                        year,
+                        month - 1,
+                        1
+                    )
+
+            };
+
+        }
+
+    }
+
+
+    return null;
 }
 
 
-function buildCommoditySeries(
+function countNumericObservations(
     rows,
-    headers,
-    column,
-    transform = value => value
+    column
 ) {
 
-    if (column < 0) {
-        return [];
-    }
+    let count = 0;
 
-    const series = [];
 
     for (
         const row of rows
     ) {
 
         const values =
-            rowValues(row);
+            rowValues(
+                row
+            );
+
+
+        if (
+            parsePeriod(
+                values[0]
+            ) &&
+            parseNumeric(
+                values[column]
+            ) !== null
+        ) {
+
+            count += 1;
+
+        }
+
+    }
+
+
+    return count;
+}
+
+
+function buildSeries(
+    rows,
+    column
+) {
+
+    const series = [];
+
+
+    for (
+        const row of rows
+    ) {
+
+        const values =
+            rowValues(
+                row
+            );
+
 
         const period =
             parsePeriod(
                 values[0]
             );
 
+
         if (!period) {
+
             continue;
+
         }
 
-        const rawValue =
+
+        const value =
             parseNumeric(
                 values[column]
             );
 
-        if (rawValue === null) {
-            continue;
-        }
-
-        const value =
-            transform(rawValue);
 
         if (
-            !Number.isFinite(value)
+            value === null
         ) {
+
             continue;
+
         }
 
+
         series.push({
+
             ...period,
+
             value
+
         });
 
     }
 
+
     series.sort(
         (a, b) =>
-            a.timestamp - b.timestamp
+            a.timestamp -
+            b.timestamp
     );
+
 
     return series;
 }
 
 
-function latestAndPrevious(series) {
+function getLatestAndPrevious(
+    series
+) {
 
     if (
-        !Array.isArray(series) ||
         !series.length
     ) {
+
         return {
-            latest: null,
-            previous: null,
-            change: null
+
+            latest:
+                null,
+
+            previous:
+                null,
+
+            change:
+                null
+
         };
+
     }
 
+
     const latest =
-        series[series.length - 1];
+        series[
+            series.length - 1
+        ];
+
 
     const previous =
         series.length > 1
-            ? series[series.length - 2]
+
+            ? series[
+                series.length - 2
+            ]
+
             : null;
+
 
     const change =
         previous &&
-        Number.isFinite(
-            previous.value
-        ) &&
         previous.value !== 0
+
             ? (
-                (latest.value / previous.value) - 1
+                latest.value /
+                previous.value -
+                1
             ) * 100
+
             : null;
 
+
     return {
+
         latest,
+
         previous,
+
         change
+
     };
 }
 
 
-/*
- * ---------------------------------------------------------
- * WORLD BANK CATALOG MAPPING
- * ---------------------------------------------------------
- *
- * These are the series actually present in the Pink Sheet.
- * Palladium and refined petroleum products such as gasoline,
- * diesel, jet fuel and heating oil are NOT part of this dataset.
- * ---------------------------------------------------------
- */
+/* =========================================================
+   CATEGORIES
+========================================================= */
 
-const MARKET_SERIES = [
+function categorizeCommodity(
+    name
+) {
 
-    {
-        code: "GOLD_USD",
-        name: "Gold",
-        sourcePatterns: [
-            /^gold\b/,
-            /gold \(\$\/toz/i
-        ]
-    },
+    const value =
+        normalizeSearchText(
+            name
+        );
 
-    {
-        code: "SILVER_USD",
-        name: "Silver",
-        sourcePatterns: [
-            /^silver\b/,
-            /silver \(\$\/toz/i
-        ]
-    },
 
-    {
-        code: "PLATINUM_USD",
-        name: "Platinum",
-        sourcePatterns: [
-            /^platinum\b/,
-            /platinum \(\$\/toz/i
-        ]
-    },
+    if (
+        /\b(gold|silver|platinum|palladium|rhodium)\b/
+            .test(value)
+    ) {
 
-    {
-        code: "COPPER_USD",
-        name: "Copper",
-        sourcePatterns: [
-            /^copper\b/,
-            /copper \(\$\/mt/i
-        ],
-        transform:
-            value =>
-                value * METRIC_FACTORS.metricTonToPound
-    },
+        return "precious-metals";
 
-    {
-        code: "IRON_ORE_USD",
-        name: "Iron Ore",
-        sourcePatterns: [
-            /^iron ore\b/,
-            /iron ore.*\$\/dmt/i
-        ]
-    },
-
-    {
-        code: "ALUMINUM_USD",
-        name: "Aluminum",
-        sourcePatterns: [
-            /^aluminum\b/,
-            /aluminum \(\$\/mt/i
-        ],
-        transform:
-            value =>
-                value * METRIC_FACTORS.metricTonToPound
-    },
-
-    {
-        code: "WTI_USD",
-        name: "Crude Oil",
-        sourcePatterns: [
-            /^crude oil, wti\b/,
-            /crude oil, wti.*\$\/bbl/i
-        ]
-    },
-
-    {
-        code: "NATURAL_GAS_USD",
-        name: "Natural Gas",
-        sourcePatterns: [
-            /^natural gas, u\.s\.?\b/,
-            /natural gas, u\.s\?.*\$\/mmbtu/i
-        ]
-    },
-
-    {
-        code: "BRENT_CRUDE_USD",
-        name: "Brent Crude",
-        sourcePatterns: [
-            /^crude oil, brent\b/,
-            /crude oil, brent.*\$\/bbl/i
-        ]
-    },
-
-    {
-        code: "COAL_USD",
-        name: "Coal",
-        sourcePatterns: [
-            /^coal, australia\b/,
-            /coal, australia.*\$\/mt/i
-        ]
-    },
-
-    {
-        code: "NICKEL_USD",
-        name: "Nickel",
-        sourcePatterns: [
-            /^nickel\b/,
-            /nickel \(\$\/mt/i
-        ],
-        transform:
-            value =>
-                value * METRIC_FACTORS.metricTonToPound
     }
+
+
+    if (
+        /\b(aluminum|aluminium|copper|lead|nickel|tin|zinc|molybdenum|iron ore|steel|ore)\b/
+            .test(value)
+    ) {
+
+        return "metals-minerals";
+
+    }
+
+
+    if (
+        /\b(crude oil|brent|wti|dubai|natural gas|liquefied natural gas|lng|coal|energy)\b/
+            .test(value)
+    ) {
+
+        return "energy";
+
+    }
+
+
+    if (
+        /\b(urea|dap|tsp|potash|phosphate|fertilizer|fertiliser)\b/
+            .test(value)
+    ) {
+
+        return "fertilizers";
+
+    }
+
+
+    if (
+        /\b(cocoa|coffee|tea|coconut|groundnut|palm|soybean|soy|maize|corn|rice|wheat|barley|sorghum|sugar|banana|orange|grains|food|meat|beef|lamb|poultry|shrimp|fish)\b/
+            .test(value)
+    ) {
+
+        return "agriculture-food";
+
+    }
+
+
+    if (
+        /\b(cotton|rubber|timber|log|logs|sawnwood|plywood|wood|hides|leather)\b/
+            .test(value)
+    ) {
+
+        return "raw-materials";
+
+    }
+
+
+    return "other";
+}
+
+
+const CATEGORY_INFO = {
+
+    all: {
+        label: "All"
+    },
+
+    "precious-metals": {
+        label: "Precious Metals"
+    },
+
+    "metals-minerals": {
+        label: "Metals & Minerals"
+    },
+
+    energy: {
+        label: "Energy"
+    },
+
+    fertilizers: {
+        label: "Fertilizers"
+    },
+
+    "agriculture-food": {
+        label: "Agriculture & Food"
+    },
+
+    "raw-materials": {
+        label: "Raw Materials"
+    },
+
+    other: {
+        label: "Other"
+    }
+
+};
+
+
+function categoryLabel(
+    category
+) {
+
+    return (
+        CATEGORY_INFO[
+            category
+        ] ||
+        CATEGORY_INFO.other
+    ).label;
+}
+
+
+/* =========================================================
+   DISPLAY UNITS
+========================================================= */
+
+function getDisplaySpec(
+    sourceUnit,
+    category
+) {
+
+    const unit =
+        normalizeUnit(
+            sourceUnit
+        );
+
+
+    if (
+        unit.includes(
+            "$/toz"
+        )
+    ) {
+
+        return {
+
+            eurUnit:
+                "g",
+
+            usUnit:
+                "oz",
+
+            conversion:
+                1 / 31.1034768
+
+        };
+
+    }
+
+
+    if (
+        unit.includes(
+            "$/bbl"
+        )
+    ) {
+
+        return {
+
+            eurUnit:
+                "liter",
+
+            usUnit:
+                "barrel",
+
+            conversion:
+                1 / 158.9872949
+
+        };
+
+    }
+
+
+    if (
+        unit.includes(
+            "$/mmbtu"
+        )
+    ) {
+
+        return {
+
+            eurUnit:
+                "MWh",
+
+            usUnit:
+                "MMBtu",
+
+            conversion:
+                3.412141633
+
+        };
+
+    }
+
+
+    if (
+        unit.includes(
+            "$/mt"
+        )
+    ) {
+
+        if (
+            category ===
+            "metals-minerals"
+        ) {
+
+            return {
+
+                eurUnit:
+                    "kg",
+
+                usUnit:
+                    "lb",
+
+                conversion:
+                    2.20462262185
+
+            };
+
+        }
+
+
+        return {
+
+            eurUnit:
+                "metric ton",
+
+            usUnit:
+                "metric ton",
+
+            conversion:
+                1
+
+        };
+
+    }
+
+
+    if (
+        unit.includes(
+            "$/dmt"
+        )
+    ) {
+
+        return {
+
+            eurUnit:
+                "metric ton",
+
+            usUnit:
+                "metric ton",
+
+            conversion:
+                1
+
+        };
+
+    }
+
+
+    if (
+        unit.includes(
+            "$/kg"
+        )
+    ) {
+
+        return {
+
+            eurUnit:
+                "kg",
+
+            usUnit:
+                "kg",
+
+            conversion:
+                1
+
+        };
+
+    }
+
+
+    if (
+        unit.includes(
+            "$/lb"
+        )
+    ) {
+
+        return {
+
+            eurUnit:
+                "kg",
+
+            usUnit:
+                "lb",
+
+            conversion:
+                2.20462262185
+
+        };
+
+    }
+
+
+    const fallbackUnit =
+        sourceUnit
+
+            ? sourceUnit
+                .replace(
+                    /^\(\$\/|\\)$/g,
+                    ""
+                )
+
+            : "unit";
+
+
+    return {
+
+        eurUnit:
+            fallbackUnit,
+
+        usUnit:
+            fallbackUnit,
+
+        conversion:
+            1
+
+    };
+}
+
+
+/* =========================================================
+   PRIORITY ORDER
+========================================================= */
+
+const PRIORITY_NAME_ORDER = [
+
+    "gold",
+
+    "silver",
+
+    "platinum",
+
+    "copper",
+
+    "iron ore",
+
+    "aluminum",
+
+    "aluminium",
+
+    "crude oil, wti",
+
+    "natural gas, u.s.",
+
+    "crude oil, brent",
+
+    "coal",
+
+    "nickel"
+
 ];
 
 
-/*
- * ---------------------------------------------------------
- * DATASET LOADING
- * ---------------------------------------------------------
- */
-
-async function getFreshCachedResponse(
-    cache,
-    cacheKey,
-    maxAgeSeconds
+function getPriorityIndex(
+    name
 ) {
 
-    const cached =
-        await cache.match(
-            cacheKey
+    const normalized =
+        normalizeSearchText(
+            name
         );
 
-    if (!cached) {
-        return null;
-    }
 
-    const cachedAt =
-        Number(
-            cached.headers.get(
-                CACHE_TIMESTAMP_HEADER
-            )
+    const index =
+        PRIORITY_NAME_ORDER.findIndex(
+            value =>
+                normalized === value ||
+                normalized.startsWith(
+                    `${value} `
+                ) ||
+                normalized.startsWith(
+                    `${value},`
+                )
         );
 
-    if (
-        !Number.isFinite(cachedAt) ||
-        cachedAt <= 0
-    ) {
-        return null;
-    }
 
-    const ageSeconds =
-        (Date.now() - cachedAt) / 1000;
-
-    if (
-        !Number.isFinite(ageSeconds) ||
-        ageSeconds < 0 ||
-        ageSeconds > maxAgeSeconds
-    ) {
-        return null;
-    }
-
-    return cached;
+    return index >= 0
+        ? index
+        : 999;
 }
 
 
-function addCacheTimestamp(
-    headers,
-    cacheSeconds
+function sortCommodities(
+    a,
+    b
 ) {
 
-    headers.set(
-        CACHE_TIMESTAMP_HEADER,
-        String(Date.now())
-    );
-
-    headers.set(
-        "Cache-Control",
-        `public, max-age=${cacheSeconds}`
-    );
-
-    return headers;
-}
-
-
-async function fetchWithCache(
-    request,
-    cacheKey,
-    cache,
-    cacheSeconds
-) {
-
-    const cached =
-        await getFreshCachedResponse(
-            cache,
-            cacheKey,
-            cacheSeconds
+    const priorityDifference =
+        getPriorityIndex(
+            a.name
+        ) -
+        getPriorityIndex(
+            b.name
         );
 
-    if (cached) {
-        return cached;
+
+    if (
+        priorityDifference !== 0
+    ) {
+
+        return priorityDifference;
+
     }
 
-    const response =
-        await fetch(
-            request
-        );
 
-    if (!response.ok) {
-        throw new Error(
-            `World Bank request failed with status ${response.status}.`
-        );
-    }
-
-    const headers =
-        new Headers(
-            response.headers
-        );
-
-    headers.set(
-        CACHE_TIMESTAMP_HEADER,
-        String(Date.now())
-    );
-
-    headers.set(
-        "Cache-Control",
-        `public, max-age=${cacheSeconds}`
-    );
-
-    const cachedResponse =
-        new Response(
-            await response.arrayBuffer(),
+    const categoryDifference =
+        categoryLabel(
+            a.category
+        ).localeCompare(
+            categoryLabel(
+                b.category
+            ),
+            undefined,
             {
-                status: 200,
-                headers
+                sensitivity:
+                    "base"
             }
         );
 
-    await cache.put(
-        cacheKey,
-        cachedResponse.clone()
-    );
 
-    return cachedResponse;
+    if (
+        categoryDifference !== 0
+    ) {
+
+        return categoryDifference;
+
+    }
+
+
+    return String(
+        a.name || ""
+    ).localeCompare(
+        String(
+            b.name || ""
+        ),
+        undefined,
+        {
+            sensitivity:
+                "base"
+        }
+    );
 }
 
 
-async function discoverWorldBankMonthlyUrl(cache) {
+/* =========================================================
+   WORLD BANK LOADING
+========================================================= */
 
-    const pageCacheKey =
+async function fetchWorldBankPage(
+    cache
+) {
+
+    const key =
         new Request(
-            "https://worth-it-internal-cache.local/world-bank-commodity-markets-page"
+            WORLD_BANK_PAGE_CACHE_KEY
         );
 
-    const cachedPage =
-        await getFreshCachedResponse(
+
+    const cached =
+        await getFreshCache(
             cache,
-            pageCacheKey,
-            SOURCE_CACHE_TTL
+            key,
+            CACHE_TTL
         );
 
-    if (cachedPage) {
-        return cachedPage;
+
+    if (cached) {
+
+        return cached;
+
     }
+
 
     const response =
         await fetch(
             WORLD_BANK_MARKETS_PAGE,
             {
                 headers: {
+
                     "Accept":
                         "text/html,application/xhtml+xml"
+
                 }
             }
         );
 
+
     if (!response.ok) {
+
         throw new Error(
             `World Bank commodity page request failed with status ${response.status}.`
         );
+
     }
+
+
+    return putTimestampedCache(
+        cache,
+        key,
+        new Response(
+            await response.arrayBuffer(),
+            {
+                status:
+                    response.status,
+
+                headers:
+                    response.headers
+            }
+        ),
+        CACHE_TTL
+    );
+}
+
+
+async function discoverWorldBankMonthlyUrl(
+    cache
+) {
+
+    const response =
+        await fetchWorldBankPage(
+            cache
+        );
+
 
     const html =
         await response.text();
 
-    const matches =
-        [...html.matchAll(
-            /href=["']([^"']*CMO-Historical-Data-Monthly\.xlsx[^"']*)["']/gi
-        )];
 
-    if (!matches.length) {
+    const matches =
+        [
+            ...html.matchAll(
+                /href=["']([^"']*CMO-Historical-Data-Monthly\.xlsx[^"']*)["']/gi
+            )
+        ];
+
+
+    if (
+        !matches.length
+    ) {
+
         throw new Error(
             "Could not find the current World Bank monthly XLSX link."
         );
+
     }
 
-    const href =
+
+    return new URL(
         decodeXmlEntities(
             matches[0][1]
-        );
-
-    const absoluteUrl =
-        new URL(
-            href,
-            WORLD_BANK_MARKETS_PAGE
-        ).href;
-
-    const resultHeaders =
-        addCacheTimestamp(
-            new Headers({
-                "Content-Type":
-                    "application/json; charset=UTF-8"
-            }),
-            SOURCE_CACHE_TTL
-        );
-
-    const result =
-        new Response(
-            JSON.stringify({
-                url: absoluteUrl,
-                discoveredAt: new Date().toISOString()
-            }),
-            {
-                headers: resultHeaders
-            }
-        );
-
-    await cache.put(
-        pageCacheKey,
-        result.clone()
-    );
-
-    return result;
+        ),
+        WORLD_BANK_MARKETS_PAGE
+    ).href;
 }
 
 
@@ -1407,43 +2362,95 @@ async function loadWorldBankWorkbook(
     cache
 ) {
 
-    const discoveryResponse =
+    const url =
         await discoverWorldBankMonthlyUrl(
             cache
         );
 
-    const discoveryData =
-        await discoveryResponse.json();
 
-    if (!discoveryData?.url) {
-        throw new Error(
-            "World Bank monthly dataset URL is missing."
+    const cacheKey =
+        new Request(
+            WORLD_BANK_XLSX_CACHE_KEY
         );
-    }
 
-    const response =
-        await fetchWithCache(
-            discoveryData.url,
-            new Request(
-                WORLD_BANK_XLSX_CACHE_KEY
-            ),
+
+    const cached =
+        await getFreshCache(
             cache,
+            cacheKey,
             CACHE_TTL
         );
 
+
+    if (cached) {
+
+        return {
+
+            url,
+
+            bytes:
+                await cached.arrayBuffer()
+
+        };
+
+    }
+
+
+    const response =
+        await fetch(
+            url,
+            {
+                headers: {
+
+                    "Accept":
+                        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,*/*"
+
+                }
+            }
+        );
+
+
+    if (!response.ok) {
+
+        throw new Error(
+            `World Bank monthly XLSX request failed with status ${response.status}.`
+        );
+
+    }
+
+
+    const cachedResponse =
+        await putTimestampedCache(
+            cache,
+            cacheKey,
+            new Response(
+                await response.arrayBuffer(),
+                {
+                    status:
+                        response.status,
+
+                    headers:
+                        response.headers
+                }
+            ),
+            CACHE_TTL
+        );
+
+
     return {
-        url: discoveryData.url,
+
+        url,
+
         bytes:
-            await response.arrayBuffer()
+            await cachedResponse.arrayBuffer()
+
     };
 }
 
 
-/*
- * ---------------------------------------------------------
- * DATASET PARSING
- * ---------------------------------------------------------
- */
+/* =========================================================
+   PARSE WORLD BANK DATA
+========================================================= */
 
 async function parseWorldBankDataset(
     arrayBuffer
@@ -1454,27 +2461,40 @@ async function parseWorldBankDataset(
             arrayBuffer
         );
 
+
     const sheetPath =
         findMonthlyPricesSheet(
             entries
         );
 
+
     const sheetBytes =
-        entries.get(sheetPath);
+        entries.get(
+            sheetPath
+        );
+
 
     if (!sheetBytes) {
+
         throw new Error(
             `World Bank XLSX is missing ${sheetPath}.`
         );
+
     }
 
+
     const sheetXml =
-        decodeUtf8(sheetBytes);
+        new TextDecoder("utf-8")
+            .decode(
+                sheetBytes
+            );
+
 
     const sharedStrings =
         parseSharedStrings(
             entries
         );
+
 
     const rows =
         parseWorksheetRows(
@@ -1482,208 +2502,1580 @@ async function parseWorldBankDataset(
             sharedStrings
         );
 
+
     const headerInfo =
-        findHeaderRows(rows);
+        findHeaderRows(
+            rows
+        );
+
+
+    const possibleCodeRow =
+        rows[
+            headerInfo.possibleCodeRowIndex
+        ] ||
+        null;
+
+
+    const possibleCodeValues =
+        rowValues(
+            possibleCodeRow ||
+                new Map()
+        )
+            .filter(
+                value =>
+                    normalizeText(value)
+            );
+
+
+    const isLikelyCodeRow =
+        possibleCodeValues.length >= 3 &&
+        !parsePeriod(
+            rowValues(
+                possibleCodeRow ||
+                    new Map()
+            )[0]
+        ) &&
+        possibleCodeValues.filter(
+            value =>
+                /^[A-Z0-9_]{2,40}$/i.test(
+                    String(value || "")
+                )
+        ).length >=
+            Math.max(
+                3,
+                Math.floor(
+                    possibleCodeValues.length *
+                    0.7
+                )
+            );
+
+
+    const effectiveHeaderInfo = {
+
+        ...headerInfo,
+
+        codeRowIndex:
+            isLikelyCodeRow
+
+                ? headerInfo.possibleCodeRowIndex
+
+                : null
+
+    };
+
 
     const headers =
-        buildColumnHeaders(
+        buildHeaderInfo(
             rows,
-            headerInfo
+            effectiveHeaderInfo
         );
+
+
+    const dataStartIndex =
+        isLikelyCodeRow
+
+            ? headerInfo.possibleCodeRowIndex + 1
+
+            : headerInfo.unitRowIndex + 1;
+
 
     const dataRows =
         rows.slice(
-            headerInfo.unitRowIndex + 1
+            dataStartIndex
         );
 
-    const valuesByCode =
-        {};
+
+    const commodities = [];
+
 
     for (
-        const seriesConfig of MARKET_SERIES
+        let column = 1;
+
+        column < headers.length;
+
+        column += 1
     ) {
 
-        const column =
-            findColumn(
-                headers,
-                seriesConfig.sourcePatterns
+        const header =
+            headers[column];
+
+
+        if (!header) {
+
+            continue;
+
+        }
+
+
+        const name =
+            normalizeText(
+                header.name
             );
+
+
+        if (!name) {
+
+            continue;
+
+        }
+
+
+        const normalizedName =
+            name.toLowerCase();
+
+
+        if (
+            normalizedName === "date" ||
+            normalizedName === "month"
+        ) {
+
+            continue;
+
+        }
+
+
+        const numericCount =
+            countNumericObservations(
+                dataRows,
+                column
+            );
+
+
+        if (
+            numericCount < 2
+        ) {
+
+            continue;
+
+        }
+
 
         const series =
-            buildCommoditySeries(
+            buildSeries(
                 dataRows,
-                headers,
-                column,
-                seriesConfig.transform ||
-                    (value => value)
+                column
             );
 
+
         const state =
-            latestAndPrevious(
+            getLatestAndPrevious(
                 series
             );
 
+
         if (!state.latest) {
+
             continue;
+
         }
 
-        valuesByCode[
-            seriesConfig.code
-        ] = {
-            name:
-                seriesConfig.name,
-            sourceHeader:
-                headers[column] || null,
-            latest:
-                state.latest,
-            previous:
-                state.previous,
-            change:
-                state.change
-        };
 
-    }
-
-    if (
-        !Object.keys(valuesByCode).length
-    ) {
-        throw new Error(
-            "World Bank dataset parsing returned no supported market series."
-        );
-    }
-
-    const allLatestTimestamps =
-        Object.values(valuesByCode)
-            .map(item =>
-                item.latest?.timestamp
-            )
-            .filter(Number.isFinite);
-
-    const latestTimestamp =
-        allLatestTimestamps.length
-            ? Math.max(
-                ...allLatestTimestamps
-            )
-            : null;
-
-    const latestDate =
-        Number.isFinite(latestTimestamp)
-            ? new Date(latestTimestamp)
-            : null;
-
-    const updatedMatch =
-        sheetXml.match(
-            /Updated on\s+([A-Za-z]+\s+\d{1,2},\s+\d{4})/i
-        );
-
-    let sourceUpdatedAt = null;
-
-    if (updatedMatch) {
-        const parsedDate =
-            new Date(
-                updatedMatch[1]
+        const category =
+            categorizeCommodity(
+                name
             );
 
-        if (!Number.isNaN(
-            parsedDate.getTime()
-        )) {
-            sourceUpdatedAt =
-                parsedDate.toISOString();
+
+        const displaySpec =
+            getDisplaySpec(
+                header.unit,
+                category
+            );
+
+
+        let code =
+            normalizeText(
+                header.code
+            );
+
+
+        if (
+            !code ||
+            !/^[A-Z0-9_]+$/i.test(
+                code
+            ) ||
+            /^(DATE|MONTH)$/i.test(
+                code
+            )
+        ) {
+
+            code =
+                simplifySearchText(
+                    name
+                )
+                    .replace(
+                        /^\d+/,
+                        ""
+                    )
+                    .slice(
+                        0,
+                        80
+                    ) ||
+                `commodity_${column}`;
+
+
+            code =
+                code.toUpperCase();
+
         }
-    }
 
-    const prices = [];
 
-    for (
-        const seriesConfig of MARKET_SERIES
-    ) {
+        commodities.push({
 
-        const item =
-            valuesByCode[
-                seriesConfig.code
-            ];
+            code,
 
-        if (!item) {
-            continue;
-        }
+            name,
 
-        prices.push({
-            code:
-                seriesConfig.code,
+            category,
+
+            category_label:
+                categoryLabel(
+                    category
+                ),
+
+            source_unit:
+                header.unit ||
+                null,
+
             price:
-                item.latest.value,
+                state.latest.value,
+
+            previous_price:
+                state.previous?.value ??
+                null,
+
             changes: {
+
                 monthly: {
+
                     percent:
-                        item.change
+                        state.change
+
                 }
+
             },
+
             updated_at:
                 new Date(
-                    item.latest.timestamp
+                    state.latest.timestamp
                 ).toISOString(),
+
             data_period:
-                item.latest.period,
+                state.latest.period,
+
             previous_period:
-                item.previous?.period || null,
-            previous_price:
-                item.previous?.value ?? null,
+                state.previous?.period ||
+                null,
+
+            display:
+                displaySpec,
+
             source:
-                "World Bank Commodity Price Data (The Pink Sheet)",
-            source_header:
-                item.sourceHeader
+                "World Bank Commodity Price Data (The Pink Sheet)"
+
         });
 
     }
 
+
+    commodities.sort(
+        sortCommodities
+    );
+
+
+    if (
+        !commodities.length
+    ) {
+
+        throw new Error(
+            "World Bank Monthly Prices contained no usable commodity series."
+        );
+
+    }
+
+
+    const latestTimestamp =
+        Math.max(
+            ...commodities.map(
+                item =>
+                    new Date(
+                        item.updated_at
+                    ).getTime()
+            )
+        );
+
+
+    const latestDate =
+        new Date(
+            latestTimestamp
+        );
+
+
+    const period =
+        `${latestDate.getUTCFullYear()}M${String(
+            latestDate.getUTCMonth() + 1
+        ).padStart(2, "0")}`;
+
+
     return {
-        prices,
+
+        prices:
+            commodities,
+
         latest_period:
-            latestDate
-                ? `${latestDate.getUTCFullYear()}M${String(
-                    latestDate.getUTCMonth() + 1
-                ).padStart(2, "0")}`
-                : null,
-        source_updated_at:
-            sourceUpdatedAt,
+            period,
+
+        commodity_count:
+            commodities.length,
+
+        categories:
+            [
+                ...new Set(
+                    commodities.map(
+                        item =>
+                            item.category
+                    )
+                )
+            ],
+
         source:
             "World Bank Commodity Price Data (The Pink Sheet)",
+
         source_url:
             WORLD_BANK_MARKETS_PAGE,
+
         license:
             "CC BY 4.0"
+
     };
 }
 
 
-/*
- * ---------------------------------------------------------
- * MAIN HANDLER
- * ---------------------------------------------------------
- */
+/* =========================================================
+   WIKIMEDIA IMAGE HELPERS
+========================================================= */
+
+function getImageCacheKey(
+    name
+) {
+
+    const safeName =
+        simplifySearchText(
+            name
+        )
+            .slice(
+                0,
+                120
+            );
+
+
+    return new Request(
+        `${WIKIMEDIA_IMAGE_CACHE_PREFIX}${encodeURIComponent(safeName)}`
+    );
+}
+
+
+function getMetadataValue(
+    extmetadata,
+    key
+) {
+
+    const value =
+        extmetadata?.[key]?.value;
+
+
+    return stripHtml(
+        value
+    );
+}
+
+
+function buildCommoditySearchTokens(
+    name
+) {
+
+    const stopWords =
+        new Set([
+
+            "the",
+
+            "of",
+
+            "and",
+
+            "average",
+
+            "avg",
+
+            "index",
+
+            "price",
+
+            "prices",
+
+            "us",
+
+            "u",
+
+            "s"
+
+        ]);
+
+
+    const tokens =
+        normalizeSearchText(
+            name
+        )
+            .split(" ")
+            .filter(
+                token =>
+                    token.length >= 3 &&
+                    !stopWords.has(
+                        token
+                    )
+            );
+
+
+    if (
+        tokens.includes(
+            "aluminum"
+        )
+    ) {
+
+        tokens.push(
+            "aluminium"
+        );
+
+    }
+
+
+    if (
+        tokens.includes(
+            "aluminium"
+        )
+    ) {
+
+        tokens.push(
+            "aluminum"
+        );
+
+    }
+
+
+    return [
+        ...new Set(
+            tokens
+        )
+    ];
+}
+
+
+function hasRelevantUrlToken(
+    url,
+    tokens
+) {
+
+    const normalizedUrl =
+        simplifySearchText(
+            decodeURIComponent(
+                String(url || "")
+            )
+        );
+
+
+    return tokens.some(
+        token => {
+
+            const simplifiedToken =
+                simplifySearchText(
+                    token
+                );
+
+
+            return (
+                simplifiedToken.length >= 3 &&
+                normalizedUrl.includes(
+                    simplifiedToken
+                )
+            );
+
+        }
+    );
+}
+
+
+function hasRelevantTextMatch(
+    text,
+    tokens
+) {
+
+    const normalizedText =
+        normalizeSearchText(
+            text
+        );
+
+
+    return tokens.some(
+        token =>
+            normalizedText.includes(
+                normalizeSearchText(
+                    token
+                )
+            )
+    );
+}
+
+
+function isDisallowedImageDescription(
+    value
+) {
+
+    const text =
+        normalizeSearchText(
+            value
+        );
+
+
+    return /\b(logo|icon|map|diagram|chart|graph|flag|coat of arms|symbol|screenshot|poster|book cover)\b/
+        .test(text);
+}
+
+
+function getLicenseKind(
+    extmetadata
+) {
+
+    const license =
+        normalizeSearchText(
+
+            getMetadataValue(
+                extmetadata,
+                "LicenseShortName"
+            ) ||
+
+            getMetadataValue(
+                extmetadata,
+                "UsageTerms"
+            ) ||
+
+            getMetadataValue(
+                extmetadata,
+                "License"
+            )
+
+        );
+
+
+    if (!license) {
+
+        return null;
+
+    }
+
+
+    if (
+        /\b(cc by nc|cc-by-nc|creative commons attribution-noncommercial|noncommercial|non-commercial)\b/
+            .test(license) ||
+
+        /\b(cc by nd|cc-by-nd|creative commons attribution-noderivatives|no derivatives|no-derivatives)\b/
+            .test(license)
+    ) {
+
+        return null;
+
+    }
+
+
+    if (
+        /\bcc0\b/.test(license) ||
+        /public domain/.test(license) ||
+        /public-domain/.test(license) ||
+        /\bpd-/.test(license)
+    ) {
+
+        return "Public Domain / CC0";
+
+    }
+
+
+    if (
+        /\bcc by-sa\b/.test(license) ||
+        /\bcc-by-sa\b/.test(license) ||
+        /creative commons attribution-sharealike/.test(license) ||
+        /creative commons attribution-share alike/.test(license)
+    ) {
+
+        return "CC BY-SA";
+
+    }
+
+
+    if (
+        /\bcc by\b/.test(license) ||
+        /\bcc-by\b/.test(license) ||
+        /creative commons attribution\b/.test(license)
+    ) {
+
+        return "CC BY";
+
+    }
+
+
+    return null;
+}
+
+
+function candidateIsUsable(
+    candidate,
+    commodityName,
+    category
+) {
+
+    const title =
+        stripHtml(
+            candidate?.title
+        );
+
+
+    const imageInfo =
+        candidate?.imageinfo?.[0];
+
+
+    const url =
+        String(
+            imageInfo?.url ||
+                ""
+        );
+
+
+    const descriptionUrl =
+        String(
+            imageInfo?.descriptionurl ||
+                ""
+        );
+
+
+    const extmetadata =
+        imageInfo?.extmetadata ||
+        {};
+
+
+    if (
+        !url ||
+        !/^https?:\/\//i.test(
+            url
+        )
+    ) {
+
+        return null;
+
+    }
+
+
+    const mime =
+        String(
+            imageInfo?.mime ||
+                ""
+        ).toLowerCase();
+
+
+    if (
+        !mime.startsWith(
+            "image/"
+        ) ||
+        mime.includes(
+            "svg"
+        )
+    ) {
+
+        return null;
+
+    }
+
+
+    const tokens =
+        buildCommoditySearchTokens(
+            commodityName
+        );
+
+
+    if (!tokens.length) {
+
+        return null;
+
+    }
+
+
+    /*
+     * Important:
+     * At least one relevant commodity token must appear
+     * inside the actual image URL/file path.
+     */
+
+    if (
+        !hasRelevantUrlToken(
+            url,
+            tokens
+        )
+    ) {
+
+        return null;
+
+    }
+
+
+    const searchableText =
+        [
+
+            title,
+
+            getMetadataValue(
+                extmetadata,
+                "ImageDescription"
+            ),
+
+            getMetadataValue(
+                extmetadata,
+                "ObjectName"
+            ),
+
+            getMetadataValue(
+                extmetadata,
+                "Categories"
+            )
+
+        ]
+            .filter(Boolean)
+            .join(" ");
+
+
+    if (
+        !hasRelevantTextMatch(
+            searchableText,
+            tokens
+        )
+    ) {
+
+        return null;
+
+    }
+
+
+    if (
+        isDisallowedImageDescription(
+            `${title} ${searchableText}`
+        )
+    ) {
+
+        return null;
+
+    }
+
+
+    const licenseKind =
+        getLicenseKind(
+            extmetadata
+        );
+
+
+    if (!licenseKind) {
+
+        return null;
+
+    }
+
+
+    const licenseUrl =
+        stripHtml(
+            getMetadataValue(
+                extmetadata,
+                "LicenseUrl"
+            )
+        );
+
+
+    const author =
+        stripHtml(
+
+            getMetadataValue(
+                extmetadata,
+                "Artist"
+            ) ||
+
+            getMetadataValue(
+                extmetadata,
+                "Credit"
+            )
+
+        );
+
+
+    /*
+     * CC BY and CC BY-SA require attribution.
+     * If we cannot reliably identify the author/license,
+     * reject the image rather than using it anyway.
+     */
+
+    if (
+        licenseKind !==
+            "Public Domain / CC0" &&
+
+        (
+            !author ||
+            !licenseUrl
+        )
+    ) {
+
+        return null;
+
+    }
+
+
+    const sourceUrl =
+        descriptionUrl ||
+
+        `https://commons.wikimedia.org/wiki/${
+            encodeURIComponent(
+                title
+                    .replace(
+                        /^File:/i,
+                        ""
+                    )
+                    .replace(
+                        / /g,
+                        "_"
+                    )
+            )
+        }`;
+
+
+    let score =
+        0;
+
+
+    if (
+        hasRelevantUrlToken(
+            url,
+            tokens
+        )
+    ) {
+
+        score +=
+            100;
+
+    }
+
+
+    if (
+        normalizeSearchText(
+            title
+        ).includes(
+            normalizeSearchText(
+                commodityName
+            )
+        )
+    ) {
+
+        score +=
+            35;
+
+    }
+
+
+    if (
+        normalizeSearchText(
+            getMetadataValue(
+                extmetadata,
+                "ImageDescription"
+            )
+        ).includes(
+            normalizeSearchText(
+                commodityName
+            )
+        )
+    ) {
+
+        score +=
+            25;
+
+    }
+
+
+    if (
+        category ===
+            "precious-metals" &&
+
+        /gold|silver|platinum|palladium/i
+            .test(
+                searchableText
+            )
+    ) {
+
+        score +=
+            20;
+
+    }
+
+
+    if (
+        category ===
+            "metals-minerals" &&
+
+        /ore|mineral|metal|aluminum|aluminium|copper|nickel|iron|zinc|lead|tin/i
+            .test(
+                searchableText
+            )
+    ) {
+
+        score +=
+            15;
+
+    }
+
+
+    return {
+
+        score,
+
+        url,
+
+        thumbnailUrl:
+            imageInfo?.thumburl ||
+            url,
+
+        width:
+            Number(
+                imageInfo?.width
+            ) ||
+            null,
+
+        height:
+            Number(
+                imageInfo?.height
+            ) ||
+            null,
+
+        title:
+            title.replace(
+                /^File:/i,
+                ""
+            ),
+
+        author:
+            author ||
+            "Unknown author",
+
+        license:
+            licenseKind,
+
+        license_url:
+            licenseUrl ||
+            null,
+
+        source_url:
+            sourceUrl
+
+    };
+}
+
+
+function buildCommoditySearchQuery(
+    commodityName,
+    category
+) {
+
+    let query =
+        commodityName;
+
+
+    if (
+        category ===
+            "precious-metals" ||
+        category ===
+            "metals-minerals"
+    ) {
+
+        query +=
+            " mineral specimen";
+
+    }
+
+
+    query +=
+        " filetype:bitmap";
+
+
+    return query;
+}
+
+
+async function searchWikimediaImage(
+    commodityName,
+    category
+) {
+
+    let offset =
+        0;
+
+
+    let checked =
+        0;
+
+
+    let bestCandidate =
+        null;
+
+
+    while (
+        checked <
+        MAX_IMAGE_SEARCH_CANDIDATES
+    ) {
+
+        const searchQuery =
+            buildCommoditySearchQuery(
+                commodityName,
+                category
+            );
+
+
+        const url =
+            new URL(
+                WIKIMEDIA_API
+            );
+
+
+        url.searchParams.set(
+            "action",
+            "query"
+        );
+
+
+        url.searchParams.set(
+            "generator",
+            "search"
+        );
+
+
+        url.searchParams.set(
+            "gsrsearch",
+            searchQuery
+        );
+
+
+        url.searchParams.set(
+            "gsrnamespace",
+            "6"
+        );
+
+
+        url.searchParams.set(
+            "gsrlimit",
+            String(
+                IMAGE_SEARCH_PAGE_SIZE
+            )
+        );
+
+
+        if (
+            offset > 0
+        ) {
+
+            url.searchParams.set(
+                "gsroffset",
+                String(
+                    offset
+                )
+            );
+
+        }
+
+
+        url.searchParams.set(
+            "prop",
+            "imageinfo"
+        );
+
+
+        url.searchParams.set(
+            "iiprop",
+            "url|mime|size|extmetadata"
+        );
+
+
+        url.searchParams.set(
+            "iiurlwidth",
+            "900"
+        );
+
+
+        url.searchParams.set(
+            "format",
+            "json"
+        );
+
+
+        url.searchParams.set(
+            "origin",
+            "*"
+        );
+
+
+        const response =
+            await fetch(
+                url.href,
+                {
+                    headers: {
+
+                        "Accept":
+                            "application/json"
+
+                    }
+                }
+            );
+
+
+        if (!response.ok) {
+
+            break;
+
+        }
+
+
+        const data =
+            await response.json();
+
+
+        const pages =
+            Object.values(
+                data?.query?.pages ||
+                    {}
+            );
+
+
+        if (!pages.length) {
+
+            break;
+
+        }
+
+
+        for (
+            const page of pages
+        ) {
+
+            checked +=
+                1;
+
+
+            const candidate =
+                candidateIsUsable(
+                    page,
+                    commodityName,
+                    category
+                );
+
+
+            if (
+                candidate &&
+                (
+                    !bestCandidate ||
+                    candidate.score >
+                        bestCandidate.score
+                )
+            ) {
+
+                bestCandidate =
+                    candidate;
+
+            }
+
+
+            if (
+                checked >=
+                MAX_IMAGE_SEARCH_CANDIDATES
+            ) {
+
+                break;
+
+            }
+
+        }
+
+
+        if (
+            pages.length <
+                IMAGE_SEARCH_PAGE_SIZE ||
+
+            !data?.continue?.gsroffset
+        ) {
+
+            break;
+
+        }
+
+
+        offset =
+            Number(
+                data.continue.gsroffset
+            );
+
+
+        if (
+            !Number.isFinite(
+                offset
+            )
+        ) {
+
+            break;
+
+        }
+
+    }
+
+
+    return bestCandidate;
+}
+
+
+/* =========================================================
+   COMMODITY IMAGE CACHE
+========================================================= */
+
+async function getCommodityImage(
+    cache,
+    commodityName,
+    category
+) {
+
+    const cacheKey =
+        getImageCacheKey(
+            commodityName
+        );
+
+
+    const cached =
+        await cache.match(
+            cacheKey
+        );
+
+
+    if (cached) {
+
+        const age =
+            getRequestCacheAgeSeconds(
+                cached
+            );
+
+
+        if (
+            Number.isFinite(age) &&
+            age >= 0
+        ) {
+
+            try {
+
+                const cachedData =
+                    await cached
+                        .clone()
+                        .json();
+
+
+                const maxAge =
+                    cachedData?.found
+
+                        ? IMAGE_CACHE_TTL
+
+                        : IMAGE_NEGATIVE_CACHE_TTL;
+
+
+                if (
+                    age <=
+                    maxAge
+                ) {
+
+                    return cachedData;
+
+                }
+
+            }
+            catch {
+
+                /*
+                 * Ignore invalid cached image data.
+                 */
+
+            }
+
+        }
+
+    }
+
+
+    const image =
+        await searchWikimediaImage(
+            commodityName,
+            category
+        );
+
+
+    const result = {
+
+        success:
+            true,
+
+        found:
+            Boolean(image),
+
+        image:
+            image ||
+            null,
+
+        source:
+            "Wikimedia Commons",
+
+        note:
+            image
+
+                ? "Image passed the commercial-use license and relevance filters."
+
+                : "No image passed the commercial-use and relevance filters."
+
+    };
+
+
+    const response =
+        new Response(
+            JSON.stringify(
+                result
+            ),
+            {
+                status:
+                    200,
+
+                headers: {
+
+                    "Content-Type":
+                        "application/json; charset=UTF-8"
+
+                }
+            }
+        );
+
+
+    await putTimestampedCache(
+        cache,
+        cacheKey,
+        response,
+        image
+
+            ? IMAGE_CACHE_TTL
+
+            : IMAGE_NEGATIVE_CACHE_TTL
+    );
+
+
+    return result;
+}
+
+
+/* =========================================================
+   IMAGE ACTION
+========================================================= */
+
+async function handleImageAction(
+    context,
+    requestUrl
+) {
+
+    const name =
+        normalizeText(
+            requestUrl.searchParams.get(
+                "name"
+            )
+        );
+
+
+    if (!name) {
+
+        return jsonResponse(
+            {
+
+                success:
+                    false,
+
+                error:
+                    "Missing commodity name.",
+
+                image:
+                    null
+
+            },
+
+            400,
+
+            0
+        );
+
+    }
+
+
+    const category =
+        normalizeText(
+            requestUrl.searchParams.get(
+                "category"
+            )
+        ) ||
+
+        categorizeCommodity(
+            name
+        );
+
+
+    try {
+
+        const result =
+            await getCommodityImage(
+                caches.default,
+                name,
+                category
+            );
+
+
+        return jsonResponse(
+
+            result,
+
+            200,
+
+            result.found
+
+                ? IMAGE_CACHE_TTL
+
+                : IMAGE_NEGATIVE_CACHE_TTL
+
+        );
+
+    }
+    catch (error) {
+
+        console.error(
+            "Wikimedia image search error:",
+            error
+        );
+
+
+        return jsonResponse(
+            {
+
+                success:
+                    false,
+
+                found:
+                    false,
+
+                image:
+                    null,
+
+                error:
+                    "Unable to search Wikimedia Commons."
+
+            },
+
+            200,
+
+            IMAGE_NEGATIVE_CACHE_TTL
+        );
+
+    }
+}
+
+
+/* =========================================================
+   MAIN HANDLER
+========================================================= */
 
 export async function onRequestGet(
     context
 ) {
 
+    const requestUrl =
+        new URL(
+            context.request.url
+        );
+
+
+    const action =
+        String(
+            requestUrl.searchParams.get(
+                "action"
+            ) ||
+            "data"
+        )
+            .trim()
+            .toLowerCase();
+
+
+    if (
+        action ===
+        "image"
+    ) {
+
+        return handleImageAction(
+            context,
+            requestUrl
+        );
+
+    }
+
+
+    if (
+        action !==
+        "data"
+    ) {
+
+        return jsonResponse(
+            {
+
+                success:
+                    false,
+
+                error:
+                    "Unsupported markets action."
+
+            },
+
+            400,
+
+            0
+        );
+
+    }
+
+
     const cache =
         caches.default;
+
 
     const resultCacheKey =
         new Request(
             WORLD_BANK_RESULT_CACHE_KEY
         );
 
+
     const cachedResult =
-        await getFreshCachedResponse(
+        await getFreshCache(
             cache,
             resultCacheKey,
             CACHE_TTL
         );
 
+
     if (cachedResult) {
+
         return cachedResult;
+
     }
+
 
     try {
 
@@ -1692,67 +4084,67 @@ export async function onRequestGet(
                 cache
             );
 
+
         const parsed =
             await parseWorldBankDataset(
                 workbook.bytes
             );
 
-        const responseData = {
-            success: true,
-            data: parsed
-        };
 
         const response =
             jsonResponse(
-                responseData,
+                {
+
+                    success:
+                        true,
+
+                    data:
+                        parsed
+
+                },
+
                 200,
+
                 CACHE_TTL
             );
 
-        const cachedHeaders =
-            addCacheTimestamp(
-                new Headers(
-                    response.headers
-                ),
-                CACHE_TTL
-            );
 
         const cachedResponse =
-            new Response(
-                response.clone().body,
-                {
-                    status: response.status,
-                    headers: cachedHeaders
-                }
+            await putTimestampedCache(
+                cache,
+                resultCacheKey,
+                response,
+                CACHE_TTL
             );
 
-        await cache.put(
-            resultCacheKey,
-            cachedResponse.clone()
-        );
 
-        return response;
+        return cachedResponse;
 
-    } catch (error) {
+    }
+    catch (error) {
 
         console.error(
             "Markets API error:",
             error
         );
 
-        console.error(
-            "Markets API ERROR MESSAGE:",
-            error?.message
-        );
 
         return jsonResponse(
             {
-                success: false,
+
+                success:
+                    false,
+
                 error:
                     "Unable to load World Bank market data."
+
             },
+
             500,
+
             0
         );
+
     }
+
 }
