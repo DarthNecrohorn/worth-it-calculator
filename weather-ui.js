@@ -1000,7 +1000,7 @@ function ensureWeatherLocationMeta(){
 }
 
 
-ffunction renderWeatherLocationMeta({
+function renderWeatherLocationMeta({
 
     city
 
