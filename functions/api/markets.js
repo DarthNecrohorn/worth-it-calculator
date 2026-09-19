@@ -2100,7 +2100,7 @@ function getDisplaySpec(
 
             ? sourceUnit
                 .replace(
-                    /^\(\$\/|\)$/g
+                    /^\(\$\/|\)$/g,
                     ""
                 )
 
