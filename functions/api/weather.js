@@ -50,18 +50,26 @@ const WEATHER_STALE_CACHE_TTL_SECONDS =
  * Coordinates are rounded before becoming part of the
  * cache key.
  *
- * 2 decimal places are sufficient for weather and avoid
- * creating a separate cache entry for tiny GPS changes.
+ * 2 decimal places provide strong cache reuse while still
+ * keeping weather results reasonably location-specific.
  */
 const WEATHER_CACHE_COORDINATE_DECIMALS =
     2;
 
 
 /*
- * Bump this if the response structure changes in the future.
+ * Bump this whenever the response structure changes.
+ *
+ * v4 adds:
+ *
+ *   - precipcover
+ *   - moonphase
+ *
+ * This automatically prevents old v3 cache entries from
+ * being reused after deployment.
  */
 const WEATHER_CACHE_VERSION =
-    "v3";
+    "v4";
 
 
 /* =========================================================
@@ -417,18 +425,18 @@ export async function onRequestGet(context) {
                          * CDN / Cloudflare cache freshness:
                          * 4 hours.
                          */
-                                           "CDN-Cache-Control":
-                        `public, max-age=${WEATHER_CACHE_TTL_SECONDS}`,
+                        "CDN-Cache-Control":
+                            `public, max-age=${WEATHER_CACHE_TTL_SECONDS}`,
 
-                    /*
-                     * Useful for debugging cache behavior.
-                     */
-                    "X-Weather-Cache":
-                        "MISS-ORIGIN"
+                        /*
+                         * Useful for debugging cache behavior.
+                         */
+                        "X-Weather-Cache":
+                            "MISS-ORIGIN"
 
-                }
+                    }
 
-            );
+                );
 
 
             const staleResponse =
@@ -456,6 +464,7 @@ export async function onRequestGet(context) {
              * Store the 4-hour fresh cache.
              */
             context.waitUntil(
+
                 cache.put(
 
                     freshCacheKey,
@@ -651,13 +660,9 @@ async function fetchFreshWeatherData({
                         "datetime",
 
                         /*
-                         * Daily average/current temperature.
+                         * Temperatures.
                          */
                         "temp",
-
-                        /*
-                         * High / low.
-                         */
                         "tempmax",
                         "tempmin",
 
@@ -690,12 +695,15 @@ async function fetchFreshWeatherData({
                          */
                         "precipprob",
                         "precip",
+                        "precipcover",
+                        "preciptype",
 
                         /*
                          * Astronomy.
                          */
                         "sunrise",
                         "sunset",
+                        "moonphase",
 
                         /*
                          * Additional detailed data.
@@ -924,6 +932,16 @@ async function fetchFreshWeatherData({
                                 day.precip
                             ),
 
+                        precipcover:
+                            numberOrNull(
+                                day.precipcover
+                            ),
+
+                        preciptype:
+                            normalizePrecipitationTypes(
+                                day.preciptype
+                            ),
+
                         sunrise:
                             stringOrNull(
                                 day.sunrise
@@ -932,6 +950,11 @@ async function fetchFreshWeatherData({
                         sunset:
                             stringOrNull(
                                 day.sunset
+                            ),
+
+                        moonphase:
+                            numberOrNull(
+                                day.moonphase
                             ),
 
                         cloudcover:
@@ -1156,6 +1179,43 @@ async function fetchFreshWeatherData({
 
 
 /* =========================================================
+   PRECIPITATION TYPES
+========================================================= */
+
+function normalizePrecipitationTypes(
+
+    value
+
+){
+
+    if(
+        !Array.isArray(value)
+    ){
+
+        return [];
+
+    }
+
+
+    return value
+
+        .map(
+
+            item =>
+                String(
+                    item || ""
+                )
+                .trim()
+                .toLowerCase()
+
+        )
+
+        .filter(Boolean);
+
+}
+
+
+/* =========================================================
    CACHE KEY ID
 ========================================================= */
 
@@ -1218,7 +1278,9 @@ function createCacheRequest(
 
     const cacheUrl =
         new URL(
+
             `${original.origin}/__worth_it_weather_cache/${suffix}`
+
         );
 
 
