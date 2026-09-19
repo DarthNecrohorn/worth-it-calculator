@@ -356,6 +356,17 @@ async function loadWeatherInternal(){
         const visualCrossingLanguage =
             getPreferredWeatherLanguage();
 
+        const cachedWeatherLocationName =
+        await resolveWeatherLocationName({
+
+        latitude,
+
+        longitude,
+
+        language:
+            visualCrossingLanguage
+
+    });
 
         /*
          * -------------------------------------------------
