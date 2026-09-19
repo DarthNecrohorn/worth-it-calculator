@@ -2483,76 +2483,93 @@ function getPreferredWeatherLanguage(){
 
 function getLocationDisplayName(
 
-    resolvedAddress
+    resolvedAddress,
+
+    fallbackAddress = ""
 
 ){
 
-    const value =
-        String(
-            resolvedAddress || ""
-        )
-        .trim();
+    const candidates = [
+
+        resolvedAddress,
+
+        fallbackAddress
+
+    ];
 
 
-    if(!value){
-        return "";
-    }
-
-
-    /*
-     * Remove accidental coordinate-only responses.
-     */
-    if(
-        isCoordinateString(value)
+    for(
+        const candidate
+        of candidates
     ){
 
-        return "";
-
-    }
-
-
-    /*
-     * Visual Crossing commonly returns:
-     *
-     * City, Region, Country
-     *
-     * The first component is normally the most useful
-     * locality label.
-     */
-    const parts =
-        value
-            .split(",")
-            .map(
-                part =>
-                    part.trim()
+        const value =
+            String(
+                candidate || ""
             )
-            .filter(Boolean);
+            .trim();
 
 
-    if(parts.length === 0){
-        return value;
+        if(!value){
+            continue;
+        }
+
+
+        /*
+         * Ignore coordinate-only results.
+         */
+        if(
+            isCoordinateString(value)
+        ){
+
+            continue;
+
+        }
+
+
+        /*
+         * Visual Crossing commonly returns:
+         *
+         * City, Region, Country
+         *
+         * The first component is normally
+         * the nearest/useful locality name.
+         */
+        const parts =
+            value
+                .split(",")
+                .map(
+                    part =>
+                        part.trim()
+                )
+                .filter(Boolean);
+
+
+        if(parts.length === 0){
+            continue;
+        }
+
+
+        const firstPart =
+            parts[0];
+
+
+        if(
+            !isCoordinateString(
+                firstPart
+            )
+        ){
+
+            return firstPart;
+
+        }
+
     }
 
 
-    const firstPart =
-        parts[0];
-
-
-    if(
-        !isCoordinateString(
-            firstPart
-        )
-    ){
-
-        return firstPart;
-
-    }
-
-
-    return value;
+    return "";
 
 }
-
 
 /* =========================================================
    COORDINATE STRING DETECTION
