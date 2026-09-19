@@ -14,6 +14,7 @@
      - no emoji in the image area
      - "Image unavailable" when no valid image exists
      - monthly price movement
+     - rectangular responsive cards
 ========================================================= */
 
 
@@ -37,8 +38,13 @@ let marketsImageObserver =
 let marketsImageActiveLoads =
     0;
 
+
+/*
+ * Wikimedia currently recommends keeping automated
+ * requests to 3 or fewer concurrent requests.
+ */
 const marketsImageMaxConcurrentLoads =
-    4;
+    3;
 
 const marketsImageQueue =
     [];
@@ -53,7 +59,175 @@ const marketsImageFailed =
     new Set();
 
 const MARKETS_UI_VERSION =
-    "v5-dynamic-catalog-images";
+    "v6-images-layout";
+
+
+/* =========================================================
+   MARKETS CARD / GRID STYLES
+========================================================= */
+
+function ensureMarketsCardStyles() {
+
+    if (
+        document.getElementById(
+            "worthItMarketsCardStyles"
+        )
+    ) {
+
+        return;
+
+    }
+
+
+    const style =
+        document.createElement(
+            "style"
+        );
+
+
+    style.id =
+        "worthItMarketsCardStyles";
+
+
+    style.textContent = `
+
+        .markets-grid {
+            display:grid !important;
+            grid-template-columns:
+                repeat(
+                    2,
+                    minmax(0, 1fr)
+                ) !important;
+            gap:14px !important;
+            align-items:stretch !important;
+        }
+
+
+        .markets-grid .market-card {
+            display:grid !important;
+            grid-template-columns:
+                140px minmax(0, 1fr) !important;
+            align-items:stretch !important;
+            gap:0 !important;
+            width:100% !important;
+            max-width:none !important;
+            min-width:0 !important;
+            box-sizing:border-box !important;
+            overflow:hidden !important;
+            padding:0 !important;
+        }
+
+
+        .markets-grid
+        .worth-it-market-image-wrap {
+            width:140px !important;
+            min-width:140px !important;
+            height:100% !important;
+            min-height:165px !important;
+            border-radius:12px 0 0 12px !important;
+            overflow:hidden !important;
+            position:relative !important;
+        }
+
+
+        .markets-grid
+        .worth-it-market-image-placeholder {
+            width:100% !important;
+            height:100% !important;
+            min-height:165px !important;
+        }
+
+
+        .markets-grid
+        .worth-it-market-image {
+            width:100% !important;
+            height:100% !important;
+            min-height:165px !important;
+            object-fit:cover !important;
+        }
+
+
+        .worth-it-market-card-content {
+            min-width:0 !important;
+            display:flex !important;
+            flex-direction:column !important;
+            justify-content:space-between !important;
+            gap:12px !important;
+            padding:15px 16px !important;
+            box-sizing:border-box !important;
+        }
+
+
+        .worth-it-market-card-content
+        .market-card-main {
+            min-width:0 !important;
+        }
+
+
+        .worth-it-market-card-content
+        .market-price {
+            min-width:0 !important;
+        }
+
+
+        .worth-it-market-card-content
+        .market-movement {
+            width:100% !important;
+            min-width:0 !important;
+        }
+
+
+        .worth-it-market-image-credit {
+            min-height:16px !important;
+        }
+
+
+        @media (max-width:900px) {
+
+            .markets-grid {
+                grid-template-columns:
+                    1fr !important;
+            }
+
+        }
+
+
+        @media (max-width:560px) {
+
+            .markets-grid {
+                grid-template-columns:
+                    1fr !important;
+                gap:12px !important;
+            }
+
+
+            .markets-grid .market-card {
+                grid-template-columns:
+                    105px minmax(0, 1fr) !important;
+            }
+
+
+            .markets-grid
+            .worth-it-market-image-wrap {
+                width:105px !important;
+                min-width:105px !important;
+            }
+
+
+            .worth-it-market-card-content {
+                padding:13px !important;
+                gap:10px !important;
+            }
+
+        }
+
+    `;
+
+
+    document.head.appendChild(
+        style
+    );
+}
 
 
 /* =========================================================
@@ -120,7 +294,8 @@ function getCategoryMeta(
     const map = {
 
         all: {
-            label: "All"
+            label:
+                "All"
         },
 
         "precious-metals": {
@@ -845,6 +1020,7 @@ function renderMarketCategoryButtons() {
                     </button>
 
                 `;
+
             }
         ).join("");
 
@@ -982,15 +1158,16 @@ function createMarketImagePlaceholder(
             class="worth-it-market-image-placeholder"
             style="
                 width:100%;
-                height:185px;
+                height:100%;
+                min-height:165px;
                 display:flex;
                 align-items:center;
                 justify-content:center;
                 text-align:center;
-                padding:20px;
+                padding:15px;
                 box-sizing:border-box;
                 opacity:.62;
-                font-size:.8rem;
+                font-size:.78rem;
             "
         >
 
@@ -1046,6 +1223,10 @@ function showMarketImageUnavailable(
 }
 
 
+/* =========================================================
+   CLIENT IMAGE VALIDATION
+========================================================= */
+
 function marketImageUrlPassesClientFilter(
     image,
     name
@@ -1060,7 +1241,32 @@ function marketImageUrlPassesClientFilter(
     }
 
 
-    let urlText = "";
+    const normalizedName =
+        normalizeMarketsSearch(
+            name
+        );
+
+
+    const tokens =
+        normalizedName
+            .split(" ")
+            .filter(
+                token =>
+                    token.length >= 3
+            );
+
+
+    if (
+        !tokens.length
+    ) {
+
+        return true;
+
+    }
+
+
+    let urlText =
+        "";
 
 
     try {
@@ -1087,15 +1293,11 @@ function marketImageUrlPassesClientFilter(
     }
 
 
-    const tokens =
+    const titleText =
         normalizeMarketsSearch(
-            name
-        )
-            .split(" ")
-            .filter(
-                token =>
-                    token.length >= 3
-            );
+            image.title ||
+            ""
+        );
 
 
     if (
@@ -1127,6 +1329,9 @@ function marketImageUrlPassesClientFilter(
     return tokens.some(
         token =>
             urlText.includes(
+                token
+            ) ||
+            titleText.includes(
                 token
             )
     );
@@ -1243,16 +1448,31 @@ async function fetchMarketImage(
 
 
         if (
-
             !image ||
+            !image.url
+        ) {
 
-            !image.url ||
+            marketsImageFailed.add(
+                key
+            );
 
+
+            return null;
+
+        }
+
+
+        /*
+         * Backend remains the authoritative relevance/license
+         * filter. The client performs only a secondary sanity
+         * check against the image URL/title.
+         */
+
+        if (
             !marketImageUrlPassesClientFilter(
                 image,
                 name
             )
-
         ) {
 
             marketsImageFailed.add(
@@ -1673,11 +1893,19 @@ async function loadMarketCardImage(
 
 
     imageElement.style.height =
-        "185px";
+        "100%";
 
 
     imageElement.style.objectFit =
         "cover";
+
+
+    imageElement.style.opacity =
+        "0";
+
+
+    imageElement.style.transition =
+        "opacity .2s ease";
 
 
     if (
@@ -1786,6 +2014,10 @@ async function loadMarketCardImage(
                 "block";
 
 
+            imageElement.style.opacity =
+                "1";
+
+
             imageElement.dataset
                 .marketImageState =
                 "loaded";
@@ -1801,8 +2033,7 @@ async function loadMarketCardImage(
 
 
     /*
-     * The handlers are installed BEFORE src is assigned.
-     * This avoids missing very fast cached load/error events.
+     * Handlers are installed BEFORE src is assigned.
      */
 
     imageElement.src =
@@ -1827,14 +2058,6 @@ function initialiseMarketImageObserver() {
 
     }
 
-
-    /*
-     * Observe the visible wrapper rather than the image itself.
-     *
-     * The image starts with display:none while the placeholder
-     * is visible, so observing the hidden image can prevent the
-     * lazy loader from ever firing.
-     */
 
     const wrappers =
         document.querySelectorAll(
@@ -1949,7 +2172,7 @@ function initialiseMarketImageObserver() {
             {
 
                 rootMargin:
-                    "650px 0px"
+                    "500px 0px"
 
             }
 
@@ -2080,9 +2303,13 @@ function renderMarketCard(
     }
 
 
+    const rawName =
+        config.name;
+
+
     const name =
         escapeMarketsHtml(
-            config.name
+            rawName
         );
 
 
@@ -2113,7 +2340,7 @@ function renderMarketCard(
 
     const imageAlt =
         escapeMarketsHtml(
-            config.name
+            rawName
         );
 
 
@@ -2124,24 +2351,10 @@ function renderMarketCard(
             data-market-card="true"
             data-market-name="${name}"
             data-market-category="${category}"
-            style="
-                width:100%;
-                max-width:350px;
-                margin:0 auto;
-                box-sizing:border-box;
-                overflow:hidden;
-            "
         >
 
             <div
                 class="worth-it-market-image-wrap"
-                style="
-                    width:100%;
-                    height:185px;
-                    overflow:hidden;
-                    border-radius:12px 12px 0 0;
-                    position:relative;
-                "
             >
 
                 ${
@@ -2158,7 +2371,7 @@ function renderMarketCard(
                     style="
                         display:none;
                         width:100%;
-                        height:185px;
+                        height:100%;
                         object-fit:cover;
                     "
                 >
@@ -2166,29 +2379,128 @@ function renderMarketCard(
             </div>
 
 
-            <div class="market-card-main">
+            <div
+                class="worth-it-market-card-content"
+            >
 
-                <div>
+                <div class="market-card-main">
 
-                    <strong
-                        style="
-                            display:block;
-                            line-height:1.25;
-                        "
-                    >
-                        ${name}
+                    <div>
+
+                        <strong
+                            style="
+                                display:block;
+                                line-height:1.25;
+                            "
+                        >
+                            ${name}
+                        </strong>
+
+
+                        <small
+                            style="
+                                display:block;
+                                opacity:.62;
+                                margin-top:3px;
+                            "
+                        >
+                            ${symbol}
+                        </small>
+
+
+                        <small
+                            style="
+                                display:block;
+                                opacity:.55;
+                                margin-top:3px;
+                            "
+                        >
+                            ${categoryLabel}
+                        </small>
+
+                    </div>
+
+                </div>
+
+
+                <div class="market-price">
+
+                    <strong class="market-price-eur">
+
+                        €${formattedEurPrice}
+
+                        <small>
+                            /
+                            ${
+                                escapeMarketsHtml(
+                                    config.eurUnit
+                                )
+                            }
+                        </small>
+
                     </strong>
 
 
-                    <small
-                        style="
-                            display:block;
-                            opacity:.62;
-                            margin-top:3px;
-                        "
-                    >
-                        ${symbol}
-                    </small>
+                    <span class="market-price-usd">
+
+                        $${formattedUsdPrice}
+
+                        <small>
+                            /
+                            ${
+                                escapeMarketsHtml(
+                                    config.usUnit
+                                )
+                            }
+                        </small>
+
+                    </span>
+
+                </div>
+
+
+                <div
+                    class="market-movement ${movementClass}"
+                    style="
+                        color:var(--market-movement-color);
+                    "
+                >
+
+                    <div class="movement-scale">
+
+                        <span
+                            class="movement-bar"
+                            style="
+                                width:${width}%;
+
+                                ${
+                                    changeIsUp
+                                        ? "left:50%;"
+                                        : ""
+                                }
+
+                                ${
+                                    changeIsDown
+                                        ? "right:50%;"
+                                        : ""
+                                }
+                            "
+                        ></span>
+
+                    </div>
+
+
+                    <strong>
+
+                        ${arrow}
+
+                        ${
+                            formatMarketChange(
+                                change
+                            )
+                        }
+
+                    </strong>
 
 
                     <small
@@ -2196,120 +2508,25 @@ function renderMarketCard(
                             display:block;
                             opacity:.55;
                             margin-top:3px;
+                            font-size:.72rem;
                         "
                     >
-                        ${categoryLabel}
+                        Monthly
                     </small>
 
                 </div>
 
-            </div>
 
-
-            <div class="market-price">
-
-                <strong class="market-price-eur">
-
-                    €${formattedEurPrice}
-
-                    <small>
-                        /
-                        ${
-                            escapeMarketsHtml(
-                                config.eurUnit
-                            )
-                        }
-                    </small>
-
-                </strong>
-
-
-                <span class="market-price-usd">
-
-                    $${formattedUsdPrice}
-
-                    <small>
-                        /
-                        ${
-                            escapeMarketsHtml(
-                                config.usUnit
-                            )
-                        }
-                    </small>
-
-                </span>
-
-            </div>
-
-
-            <div
-                class="market-movement ${movementClass}"
-                style="
-                    color:var(--market-movement-color);
-                "
-            >
-
-                <div class="movement-scale">
-
-                    <span
-                        class="movement-bar"
-                        style="
-                            width:${width}%;
-
-                            ${
-                                changeIsUp
-                                    ? "left:50%;"
-                                    : ""
-                            }
-
-                            ${
-                                changeIsDown
-                                    ? "right:50%;"
-                                    : ""
-                            }
-                        "
-                    ></span>
-
-                </div>
-
-
-                <strong>
-
-                    ${arrow}
-
-                    ${
-                        formatMarketChange(
-                            change
-                        )
-                    }
-
-                </strong>
-
-
-                <small
+                <div
+                    class="worth-it-market-image-credit"
                     style="
-                        display:block;
-                        opacity:.55;
-                        margin-top:3px;
-                        font-size:.72rem;
+                        font-size:.66rem;
+                        opacity:.58;
+                        line-height:1.35;
+                        min-height:16px;
                     "
-                >
-                    Monthly
-                </small>
+                ></div>
 
-            </div>
-
-
-            <div
-                class="worth-it-market-image-credit"
-                style="
-                    font-size:.68rem;
-                    opacity:.58;
-                    padding:8px 12px 12px;
-                    line-height:1.35;
-                "
-            >
-                Wikimedia Commons image search
             </div>
 
         </div>
@@ -2335,6 +2552,9 @@ function renderMarkets() {
         return;
 
     }
+
+
+    ensureMarketsCardStyles();
 
 
     ensureMarketsToolbar(
