@@ -1000,11 +1000,7 @@ function ensureWeatherLocationMeta(){
 }
 
 
-function renderWeatherLocationMeta({
-
-    latitude,
-
-    longitude,
+ffunction renderWeatherLocationMeta({
 
     city
 
@@ -1019,15 +1015,6 @@ function renderWeatherLocationMeta({
     }
 
 
-    const coordinateText =
-        Number.isFinite(latitude) &&
-        Number.isFinite(longitude)
-
-            ? `📍 ${latitude.toFixed(2)}, ${longitude.toFixed(2)}`
-
-            : "📍 Location coordinates unavailable";
-
-
     const displayCity =
         String(
             city || ""
@@ -1037,10 +1024,6 @@ function renderWeatherLocationMeta({
 
 
     container.innerHTML = `
-
-        <div class="weather-location-coordinates">
-            ${escapeHtml(coordinateText)}
-        </div>
 
         <div class="weather-location-card">
 
