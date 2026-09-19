@@ -47,8 +47,16 @@ const WEATHER_UI_CONFIG = {
 
     /* Weather request timeout. */
     WEATHER_REQUEST_TIMEOUT_MS:
-        20000
+        20000,
 
+    /* Reverse-geocoding request timeout. */
+    WEATHER_LOCATION_NAME_REQUEST_TIMEOUT_MS:
+        8000,
+
+    /* Browser cache for resolved weather location name. */
+    WEATHER_LOCATION_NAME_CACHE_TTL_MS:
+        24 * 60 * 60 * 1000
+   
 };
 
 
