@@ -4390,13 +4390,6 @@ function ensureWeatherUIStyles(){
          * -----------------------------------------------
          */
 
-        .weather-detail-item.weather-moon-phase {
-
-            grid-column:
-                -1;
-
-        }
-
 
         /*
          * -----------------------------------------------
