@@ -4462,15 +4462,6 @@ function ensureWeatherUIStyles(){
 
             }
 
-
-            .weather-detail-item.weather-moon-phase {
-
-                grid-column:
-                    auto;
-
-            }
-
-
             .weather-details-header {
 
                 align-items:
