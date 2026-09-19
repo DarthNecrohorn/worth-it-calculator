@@ -720,23 +720,23 @@ function renderWeatherData({
      */
 
     const displayName =
-        getLocationDisplayName(
-            data.resolvedAddress
-        );
+    getLocationDisplayName(
+        data.resolvedAddress,
+        data.address
+    );
 
 
-    if(location){
+if(location){
 
-        location.textContent =
-            displayName ||
-            (
-                Number.isFinite(latitude) &&
-                Number.isFinite(longitude)
-                    ? `${latitude.toFixed(2)}, ${longitude.toFixed(2)}`
-                    : "Location unavailable"
-            );
+    location.textContent =
+        Number.isFinite(latitude) &&
+        Number.isFinite(longitude)
 
-    }
+            ? `📍 ${latitude.toFixed(2)}, ${longitude.toFixed(2)}`
+
+            : "📍 Location unavailable";
+
+}
 
 
     /*
