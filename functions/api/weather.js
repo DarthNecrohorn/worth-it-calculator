@@ -5,12 +5,14 @@
  *
  * Cloudflare Function
  *
- * Frontend:
+ * Frontend endpoint:
  *   /api/weather?latitude=...&longitude=...
  *
- * Environment Variable:
+ * Environment Secret:
  *   VISUAL_CROSSING_API_KEY
  *
+ * This backend is intentionally matched to the current
+ * weather-ui.js frontend.
  * =========================================================
  */
 
@@ -43,7 +45,7 @@ export async function onRequestGet(context) {
 
 
         /* =================================================
-           VALIDATE LOCATION
+           VALIDATE COORDINATES
         ================================================= */
 
         if (
@@ -108,6 +110,8 @@ export async function onRequestGet(context) {
 
         /* =================================================
            LOCATION
+
+           Visual Crossing accepts latitude,longitude directly.
         ================================================= */
 
         const location =
@@ -116,6 +120,9 @@ export async function onRequestGet(context) {
 
         /* =================================================
            VISUAL CROSSING REQUEST
+
+           This matches the fields consumed by the current
+           weather-ui.js file.
         ================================================= */
 
         const params =
@@ -209,7 +216,7 @@ export async function onRequestGet(context) {
 
 
         /* =================================================
-           VALIDATE RESPONSE
+           VALIDATE UPSTREAM RESPONSE
         ================================================= */
 
         if (
@@ -235,7 +242,7 @@ export async function onRequestGet(context) {
 
 
         /* =================================================
-           CURRENT WEATHER
+           CURRENT CONDITIONS
         ================================================= */
 
         const current =
@@ -244,57 +251,72 @@ export async function onRequestGet(context) {
 
         /* =================================================
            DAILY FORECAST
+
+           Visual Crossing can return the available forecast
+           horizon (up to 15 days on the applicable free plan).
+           We preserve all returned daily records so the frontend
+           can later use 14 days without another API change.
         ================================================= */
 
         const days =
-            data.days.map(
-                day => ({
+            data.days
+                .slice(0, 15)
+                .map(
+                    day => ({
 
-                    datetime:
-                        day.datetime ?? null,
+                        datetime:
+                            day.datetime ?? null,
 
-                    temp:
-                        numberOrNull(day.temp),
+                        temp:
+                            numberOrNull(day.temp),
 
-                    tempmax:
-                        numberOrNull(day.tempmax),
+                        tempmax:
+                            numberOrNull(day.tempmax),
 
-                    tempmin:
-                        numberOrNull(day.tempmin),
+                        tempmin:
+                            numberOrNull(day.tempmin),
 
-                    feelslike:
-                        numberOrNull(day.feelslike),
+                        feelslike:
+                            numberOrNull(day.feelslike),
 
-                    humidity:
-                        numberOrNull(day.humidity),
+                        humidity:
+                            numberOrNull(day.humidity),
 
-                    windspeed:
-                        numberOrNull(day.windspeed),
+                        windspeed:
+                            numberOrNull(day.windspeed),
 
-                    winddir:
-                        numberOrNull(day.winddir),
+                        winddir:
+                            numberOrNull(day.winddir),
 
-                    conditions:
-                        day.conditions ?? "",
+                        conditions:
+                            stringOrEmpty(day.conditions),
 
-                    icon:
-                        day.icon ?? "",
+                        icon:
+                            stringOrEmpty(day.icon),
 
-                    precipprob:
-                        numberOrNull(day.precipprob),
+                        precipprob:
+                            numberOrNull(day.precipprob),
 
-                    sunrise:
-                        day.sunrise ?? null,
+                        sunrise:
+                            stringOrNull(day.sunrise),
 
-                    sunset:
-                        day.sunset ?? null
+                        sunset:
+                            stringOrNull(day.sunset)
 
-                })
-            );
+                    })
+                );
 
 
         /* =================================================
            RESPONSE
+
+           This structure is intentionally aligned with the
+           current weather-ui.js code:
+
+             data.resolvedAddress
+             data.timezone
+             data.currentConditions.*
+             data.days[*].*
         ================================================= */
 
         const result = {
@@ -306,15 +328,15 @@ export async function onRequestGet(context) {
                 numberOrNull(data.longitude),
 
             resolvedAddress:
-                data.resolvedAddress ?? "",
+                stringOrEmpty(data.resolvedAddress),
 
             timezone:
-                data.timezone ?? "",
+                stringOrEmpty(data.timezone),
 
             currentConditions: {
 
                 datetime:
-                    current.datetime ?? null,
+                    stringOrNull(current.datetime),
 
                 temp:
                     numberOrNull(current.temp),
@@ -332,10 +354,10 @@ export async function onRequestGet(context) {
                     numberOrNull(current.winddir),
 
                 conditions:
-                    current.conditions ?? "",
+                    stringOrEmpty(current.conditions),
 
                 icon:
-                    current.icon ?? "",
+                    stringOrEmpty(current.icon),
 
                 precipprob:
                     numberOrNull(current.precipprob)
@@ -344,10 +366,6 @@ export async function onRequestGet(context) {
 
             days,
 
-            /*
-             * Required attribution for Visual Crossing
-             * usage under applicable plans.
-             */
             attribution: {
 
                 text:
@@ -363,6 +381,8 @@ export async function onRequestGet(context) {
 
         /* =================================================
            CACHE
+
+           10 minutes in browsers/CDN caches.
         ================================================= */
 
         return jsonResponse(
@@ -409,6 +429,42 @@ function numberOrNull(value) {
     return Number.isFinite(number)
         ? number
         : null;
+
+}
+
+
+function stringOrNull(value) {
+
+    if (
+        value === null ||
+        value === undefined
+    ) {
+        return null;
+    }
+
+
+    const text =
+        String(value).trim();
+
+
+    return text
+        ? text
+        : null;
+
+}
+
+
+function stringOrEmpty(value) {
+
+    if (
+        value === null ||
+        value === undefined
+    ) {
+        return "";
+    }
+
+
+    return String(value).trim();
 
 }
 
