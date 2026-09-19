@@ -52,9 +52,10 @@ const INITIAL_VISIBLE_ROWS = 3;
  * out of the Popular Vehicles view.
  */
 const POPULAR_CANDIDATE_POOL_SIZE = 1000;
-const POPULAR_QUALITY_BATCH_SIZE = 4;
+const POPULAR_QUALITY_BATCH_SIZE = 8;
 const POPULAR_INITIAL_MAX_CHECKS = 60;
 const POPULAR_SHOW_ALL_MAX_NEW_CHECKS = 300;
+const VEHICLE_DETAILS_REQUEST_TIMEOUT_MS = 15000;
 const POPULAR_MAX_DISPLAY_RESULTS = 300;
 const POPULAR_MIN_SPECIFICATION_FIELDS = 2;
 const POPULAR_MIN_DESCRIPTION_LENGTH = 60;
@@ -96,6 +97,15 @@ const POPULAR_NON_VEHICLE_ENTITY_TERMS = [
     "school", "hospital", "station", "building", "church",
     "film", "movie", "television series", "album", "song",
     "novel", "book", "magazine", "aircraft", "airplane", "helicopter"
+];
+
+const POPULAR_NON_VEHICLE_IMAGE_TERMS = [
+    "map", "maps", "course", "route", "road map", "weather",
+    "forecast", "climate", "airport", "airline", "stadium",
+    "building", "church", "university", "school", "hospital",
+    "station", "portrait", "person", "people", "singer",
+    "actor", "actress", "politician", "athlete", "logo", "flag",
+    "coat of arms", "diagram", "chart", "location", "landmark"
 ];
 
 const VEHICLE_KINDS = [
@@ -609,16 +619,44 @@ async function fetchVehicleDetails(
                 }
 
 
-                const response =
-                    await fetch(
-                        `${VEHICLE_API}?${params.toString()}&v=${VEHICLE_DETAILS_CACHE_VERSION}`,
-                        {
-                            headers: {
-                                "Accept":
-                                    "application/json"
+                const controller =
+                    typeof AbortController !== "undefined"
+                        ? new AbortController()
+                        : null;
+
+                const timeoutId =
+                    controller
+                        ? window.setTimeout(
+                            () => controller.abort(),
+                            VEHICLE_DETAILS_REQUEST_TIMEOUT_MS
+                        )
+                        : null;
+
+                let response;
+
+                try {
+
+                    response =
+                        await fetch(
+                            `${VEHICLE_API}?${params.toString()}&v=${VEHICLE_DETAILS_CACHE_VERSION}`,
+                            {
+                                headers: {
+                                    "Accept":
+                                        "application/json"
+                                },
+                                ...(controller
+                                    ? { signal: controller.signal }
+                                    : {})
                             }
-                        }
-                    );
+                        );
+
+                } finally {
+
+                    if (timeoutId !== null) {
+                        window.clearTimeout(timeoutId);
+                    }
+
+                }
 
 
                 if (!response.ok) {
@@ -908,10 +946,19 @@ async function loadVehicleCardImage(
     const image =
         details?.image;
 
+    const imageIsRelevant =
+        hasPopularVehicleImageRelevance(
+            details,
+            {
+                make,
+                model
+            }
+        );
 
     if (
     !image ||
-    !image.url
+    !image.url ||
+    !imageIsRelevant
 ) {
 
     const parent =
@@ -1330,9 +1377,13 @@ function getPopularVehicleIdentityTokens(
 ) {
 
     const rawTokens = [
-        ...getPopularQualityTokens(vehicle?.make),
-        ...getPopularQualityTokens(vehicle?.model)
-    ];
+        vehicle?.make,
+        vehicle?.model
+    ].flatMap(value =>
+        normalizePopularQualityText(value)
+            .split(/\s+/)
+            .filter(Boolean)
+    );
 
     const stopWords = new Set([
         "and", "the", "series", "class", "model", "type",
@@ -1342,7 +1393,13 @@ function getPopularVehicleIdentityTokens(
 
     return Array.from(
         new Set(
-            rawTokens.filter(token => !stopWords.has(token))
+            rawTokens.filter(token =>
+                (
+                    token.length >= 2 ||
+                    /^\d$/.test(token)
+                ) &&
+                !stopWords.has(token)
+            )
         )
     );
 
@@ -1368,65 +1425,145 @@ function hasPopularVehicleIdentityMatch(
 ) {
 
     const wikipediaTitle =
-        details?.wikipedia?.title || "";
+        normalizePopularQualityText(
+            details?.wikipedia?.title || ""
+        );
 
     const description =
-        details?.wikipedia?.description || "";
-
-    const text =
         normalizePopularQualityText(
-            `${wikipediaTitle} ${description}`
+            details?.wikipedia?.description || ""
         );
+
+    if (!wikipediaTitle && !description) {
+        return false;
+    }
 
     const makeTokens =
         getPopularQualityTokens(vehicle?.make);
 
     const modelText =
-        normalizePopularQualityText(vehicle?.model);
-
-    const modelTokens =
-        getPopularQualityTokens(vehicle?.model)
-            .filter(token =>
-                !new Set([
-                    "and", "the", "series", "class", "model",
-                    "type", "generation", "mk", "mark", "edition",
-                    "version", "trim", "plus", "luxury", "design",
-                    "sport", "limited"
-                ]).has(token)
-            );
-
-    if (
-        modelText &&
-        text.includes(modelText)
-    ) {
-        return true;
-    }
-
-    const makeMatch =
-        makeTokens.some(token =>
-            popularQualityTextContainsToken(text, token)
+        normalizePopularQualityText(
+            vehicle?.model || ""
         );
 
-    const modelMatches =
+    const modelTokens =
+        getPopularVehicleIdentityTokens(vehicle)
+            .filter(token =>
+                !makeTokens.includes(token)
+            );
+
+    if (!modelText || !modelTokens.length) {
+        return false;
+    }
+
+    const makeMatchInTitle =
+        makeTokens.some(token =>
+            popularQualityTextContainsToken(
+                wikipediaTitle,
+                token
+            )
+        );
+
+    const makeMatchInDescription =
+        makeTokens.some(token =>
+            popularQualityTextContainsToken(
+                description,
+                token
+            )
+        );
+
+    const modelPhraseInTitle =
+        modelText.length >= 3 &&
+        wikipediaTitle.includes(modelText);
+
+    const modelPhraseInDescription =
+        modelText.length >= 3 &&
+        description.includes(modelText);
+
+    const modelMatchesInTitle =
         modelTokens.filter(token =>
-            popularQualityTextContainsToken(text, token)
+            popularQualityTextContainsToken(
+                wikipediaTitle,
+                token
+            )
+        );
+
+    const modelMatchesInDescription =
+        modelTokens.filter(token =>
+            popularQualityTextContainsToken(
+                description,
+                token
+            )
         );
 
     /*
-     * Require either the full model phrase, a make + model token,
-     * or two meaningful model tokens. This prevents generic pages
-     * such as airports, biographies, or VIN articles from being
-     * accepted merely because one common word overlaps.
+     * Prefer the Wikipedia title as the strongest identity signal, but
+     * do not trust a model-only title when that model can also be the
+     * name of a sport, place, event, person, or other entity. A make
+     * match in the title, or a make + vehicle-context match in the
+     * description, is required for such ambiguous titles.
      */
+    const descriptionHasVehicleType =
+        VEHICLE_KINDS.some(candidateKind =>
+            POPULAR_VEHICLE_TYPE_TERMS[candidateKind].some(term =>
+                description.includes(
+                    normalizePopularQualityText(term)
+                )
+            )
+        );
+
     if (
-        makeMatch &&
-        modelMatches.length >= 1
+        modelPhraseInTitle &&
+        (
+            makeMatchInTitle ||
+            (
+                makeMatchInDescription &&
+                descriptionHasVehicleType
+            )
+        )
     ) {
         return true;
     }
 
-    return modelMatches.length >= 2;
+    if (
+        makeMatchInTitle &&
+        modelMatchesInTitle.length >= 1
+    ) {
+        return true;
+    }
 
+    if (
+        modelTokens.length >= 2 &&
+        modelMatchesInTitle.length >= 2
+    ) {
+        return true;
+    }
+
+    /*
+     * A description-only match is accepted only when the make and
+     * model are both explicitly present. This prevents generic pages
+     * such as Pikes Peak International Hill Climb from passing a
+     * catalog entry such as "Suzuki Al".
+     */
+    if (
+        modelPhraseInDescription &&
+        makeMatchInDescription
+    ) {
+        return true;
+    }
+
+    if (
+        makeMatchInDescription &&
+        modelMatchesInDescription.length >= 1
+    ) {
+        return true;
+    }
+
+    return (
+        modelTokens.length >= 2 &&
+        modelMatchesInDescription.length >= 2 &&
+        makeMatchInDescription
+    );
 }
 
 
@@ -1513,65 +1650,290 @@ function getPopularVehicleSpecificationCount(
 }
 
 
+function getVehicleImageUrlFilename(
+    imageUrl
+) {
+
+    const url =
+        String(imageUrl || "").trim();
+
+    if (!url) {
+        return "";
+    }
+
+    try {
+
+        const parsed =
+            new URL(url);
+
+        return normalizePopularQualityText(
+            decodeURIComponent(
+                parsed.pathname
+                    .split("/")
+                    .pop() || ""
+            )
+        );
+
+    } catch {
+
+        return normalizePopularQualityText(
+            url
+                .split("/")
+                .pop() || ""
+        );
+
+    }
+}
+
+
+function getVehicleImageHostname(
+    imageUrl
+) {
+
+    try {
+
+        return new URL(
+            String(imageUrl || "").trim()
+        ).hostname.toLowerCase();
+
+    } catch {
+
+        return "";
+
+    }
+}
+
+
+function isAllowedVehicleImageHost(
+    imageUrl
+) {
+
+    const hostname =
+        getVehicleImageHostname(
+            imageUrl
+        );
+
+    return Boolean(
+        hostname &&
+        (
+            hostname === "wikimedia.org" ||
+            hostname.endsWith(".wikimedia.org") ||
+            hostname === "wikipedia.org" ||
+            hostname.endsWith(".wikipedia.org")
+        )
+    );
+}
+
+
+function getVehicleImageIdentityTokens(
+    value
+) {
+
+    const stopWords = new Set([
+        "and", "the", "series", "class", "model", "type",
+        "generation", "mk", "mark", "edition", "version",
+        "trim", "plus", "luxury", "design", "limited"
+    ]);
+
+    return Array.from(
+        new Set(
+            normalizePopularQualityText(value)
+                .split(/\s+/)
+                .filter(token => token && !stopWords.has(token))
+        )
+    );
+}
+
+
+function hasVehicleIdentityInImageFilename(
+    imageFilename,
+    vehicle
+) {
+
+    const filename =
+        normalizePopularQualityText(
+            imageFilename
+        );
+
+    if (!filename) {
+        return false;
+    }
+
+    const makeTokens =
+        getVehicleImageIdentityTokens(
+            vehicle?.make || ""
+        );
+
+    const modelText =
+        normalizePopularQualityText(
+            vehicle?.model || ""
+        );
+
+    const modelTokens =
+        getVehicleImageIdentityTokens(
+            vehicle?.model || ""
+        );
+
+    if (!modelText || !modelTokens.length) {
+        return false;
+    }
+
+    const makeMatch =
+        makeTokens.some(token =>
+            popularQualityTextContainsToken(
+                filename,
+                token
+            )
+        );
+
+    const modelMatches =
+        modelTokens.filter(token =>
+            popularQualityTextContainsToken(
+                filename,
+                token
+            )
+        );
+
+    /*
+     * For short model names, only an explicit make + model match is
+     * trustworthy. This prevents "al" from matching an unrelated word.
+     */
+    if (modelText.length <= 2) {
+        return makeMatch && modelMatches.length >= 1;
+    }
+
+    if (filename.includes(modelText)) {
+        return true;
+    }
+
+    if (makeMatch && modelMatches.length >= 1) {
+        return true;
+    }
+
+    return (
+        modelTokens.length >= 2 &&
+        modelMatches.length >= 2
+    );
+}
+
+
 function hasPopularVehicleImageRelevance(
     details,
     vehicle
 ) {
 
+    const image =
+        details?.image;
+
     const imageUrl =
-        String(details?.image?.url || "").trim();
+        String(image?.url || "").trim();
 
     if (!imageUrl) {
         return false;
     }
 
-    let imageName = "";
-
-    try {
-        const parsed =
-            new URL(imageUrl);
-
-        imageName =
-            decodeURIComponent(
-                parsed.pathname
-                    .split("/")
-                    .pop() || ""
-            );
-    } catch {
-        imageName = imageUrl;
+    /*
+     * Only accept the Wikimedia/Wikipedia image returned by the API.
+     * This prevents unrelated third-party image URLs from entering the
+     * final validated vehicle list.
+     */
+    if (!isAllowedVehicleImageHost(imageUrl)) {
+        return false;
     }
 
-    const normalizedImageName =
-        normalizePopularQualityText(
-            imageName
+    const imageFilename =
+        getVehicleImageUrlFilename(
+            imageUrl
         );
 
-    if (!normalizedImageName) {
-        return true;
+    if (!imageFilename) {
+        return false;
     }
 
     const nonVehicleImageTerms =
-        POPULAR_NON_VEHICLE_ENTITY_TERMS.filter(term =>
-            normalizedImageName.includes(
+        POPULAR_NON_VEHICLE_IMAGE_TERMS.filter(term =>
+            imageFilename.includes(
                 normalizePopularQualityText(term)
             )
         );
 
-    if (!nonVehicleImageTerms.length) {
-        return true;
+    /*
+     * The direct image URL filename is the primary identity check.
+     * A generic source/article URL is not enough to prove that the image
+     * itself belongs to the requested vehicle.
+     */
+    if (
+        nonVehicleImageTerms.length > 0
+    ) {
+        return false;
     }
 
-    const identityTokens =
-        getPopularVehicleIdentityTokens(
-            vehicle
+    return hasVehicleIdentityInImageFilename(
+        imageFilename,
+        vehicle
+    );
+}
+
+
+function hasReliableVehicleWikipediaData(
+    details,
+    vehicle
+) {
+
+    if (!details) {
+        return false;
+    }
+
+    const title =
+        normalizePopularQualityText(
+            details?.wikipedia?.title || ""
         );
 
-    const identityInImage =
-        identityTokens.some(token =>
-            normalizedImageName.includes(token)
+    const description =
+        String(
+            details?.wikipedia?.description || ""
+        ).trim();
+
+    if (!title || !description) {
+        return false;
+    }
+
+    if (
+        normalizePopularQualityText(description).length < 40
+    ) {
+        return false;
+    }
+
+    if (!hasPopularVehicleIdentityMatch(details, vehicle)) {
+        return false;
+    }
+
+    const nonVehicleEntityTermCount =
+        countPopularNonVehicleEntityTerms(
+            details
         );
 
-    return identityInImage;
+    const vehicleTypeTermCount =
+        VEHICLE_KINDS.some(candidateKind =>
+            countPopularVehicleTypeTerms(
+                details,
+                candidateKind
+            ) > 0
+        );
+
+    /*
+     * A matching make/model is required above, but several explicit
+     * non-vehicle entity signals without any vehicle terminology are an
+     * additional reason to reject the page.
+     */
+    if (
+        nonVehicleEntityTermCount >= 2 &&
+        !vehicleTypeTermCount
+    ) {
+        return false;
+    }
+
+    return true;
 }
 
 
@@ -1637,6 +1999,10 @@ function hasUsablePopularVehicleDetails(
         );
 
     if (!identityMatch) {
+        return false;
+    }
+
+    if (!hasReliableVehicleWikipediaData(details, vehicle)) {
         return false;
     }
 
@@ -1737,7 +2103,8 @@ async function ensurePopularVehicleQuality(
     kind,
     catalogVehicles,
     desiredCount,
-    maxNewChecks
+    maxNewChecks,
+    onProgress = null
 ) {
 
     const candidates =
@@ -1875,6 +2242,9 @@ async function ensurePopularVehicleQuality(
                             )
                         );
 
+                    const validCountBeforeBatch =
+                        state.validVehicles.length;
+
                     for (
                         const item of checked
                     ) {
@@ -1908,6 +2278,21 @@ async function ensurePopularVehicleQuality(
                             }
 
                         }
+
+                    }
+
+                    if (
+                        typeof onProgress === "function" &&
+                        state.validVehicles.length > validCountBeforeBatch
+                    ) {
+
+                        await onProgress(
+                            state.validVehicles.slice(
+                                0,
+                                desiredCount
+                            ),
+                            state
+                        );
 
                     }
 
@@ -1950,9 +2335,7 @@ async function loadAndRenderPopularVehicles(
         currentVehicleKind !== kind ||
         currentVehicleMode !== "popular"
     ) {
-
         return;
-
     }
 
     const catalogVehicles =
@@ -1990,12 +2373,45 @@ async function loadAndRenderPopularVehicles(
             ? POPULAR_SHOW_ALL_MAX_NEW_CHECKS
             : POPULAR_INITIAL_MAX_CHECKS;
 
+    const progressHandler =
+        showAll
+            ? async (vehicles) => {
+
+                if (
+                    currentVehicleKind !== kind ||
+                    currentVehicleMode !== "popular"
+                ) {
+                    return;
+                }
+
+                currentVehicleResults =
+                    vehicles;
+
+                currentVehicleShowAll =
+                    vehicles.length >
+                    Math.max(
+                        1,
+                        getInitialVehicleLimit(
+                            vehicles
+                        )
+                    );
+
+                renderVehicleCards(
+                    vehicles,
+                    kind,
+                    true
+                );
+
+            }
+            : null;
+
     const qualityVehicles =
         await ensurePopularVehicleQuality(
             kind,
             catalogVehicles,
             targetCount,
-            maxNewChecks
+            maxNewChecks,
+            progressHandler
         );
 
     if (
@@ -2026,11 +2442,6 @@ async function loadAndRenderPopularVehicles(
         showAll
     );
 
-    /*
-     * The visible list contains only validated vehicles. Keep the
-     * existing Show All control available while more quality-checked
-     * candidates can still be discovered.
-     */
     if (
         !showAll &&
         qualityVehicles.length > 0 &&
@@ -2325,10 +2736,28 @@ function renderVehicleExpandButton(
             currentVehicleShowAll =
                 true;
 
-            await loadAndRenderPopularVehicles(
-                kind,
-                true
-            );
+            try {
+
+                await loadAndRenderPopularVehicles(
+                    kind,
+                    true
+                );
+
+            } catch (error) {
+
+                console.error(
+                    "Show all vehicles error:",
+                    error
+                );
+
+                currentVehicleShowAll =
+                    false;
+
+                button.disabled = false;
+                button.textContent =
+                    `Show all ${info.plural.toLowerCase()} ↓`;
+
+            }
 
         }
     );
@@ -3183,9 +3612,33 @@ async function openVehicleDetailsPanel(
         return;
     }
 
+    if (!hasReliableVehicleWikipediaData(details, vehicle)) {
+
+        body.innerHTML = `
+            <div class="worth-it-vehicle-detail-loading">
+                <div class="worth-it-vehicle-detail-loading-icon">⚠️</div>
+                <strong>Reliable Wikipedia information is unavailable for this vehicle.</strong>
+                <span>The available result did not clearly match this vehicle, so unrelated information is not shown.</span>
+            </div>
+        `;
+
+        return;
+    }
+
+    const safeDetails =
+        hasPopularVehicleImageRelevance(
+            details,
+            vehicle
+        )
+            ? details
+            : {
+                ...details,
+                image: null
+            };
+
     renderVehicleDetailsPanel(
         body,
-        details,
+        safeDetails,
         vehicle,
         kind
     );
