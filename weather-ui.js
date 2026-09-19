@@ -13,6 +13,9 @@
    - Detailed selected-day weather panel
    - Localized weekday/date formatting
    - Location name display
+   - Location coordinates display
+   - Precipitation coverage
+   - Moon phase
    - Hover / selected-card UI
    - Loading / error handling
    - Duplicate request prevention
@@ -347,10 +350,6 @@ async function loadWeatherInternal(){
         /*
          * -------------------------------------------------
          * 3. BROWSER CACHE
-         *
-         * This is an additional layer.
-         *
-         * Main API protection still belongs to weather.js.
          * -------------------------------------------------
          */
 
@@ -692,7 +691,7 @@ function renderWeatherData({
      * FORECAST DATA
      *
      * Visual Crossing can provide up to 15 days.
-     * Worth It Weather UI intentionally displays 14.
+     * Worth It Weather UI displays 14.
      * -------------------------------------------------
      */
 
@@ -720,19 +719,42 @@ function renderWeatherData({
      * -------------------------------------------------
      */
 
+    const displayName =
+        getLocationDisplayName(
+            data.resolvedAddress
+        );
+
+
     if(location){
-
-        const displayName =
-            getLocationDisplayName(
-                data.resolvedAddress
-            );
-
 
         location.textContent =
             displayName ||
-            `${latitude.toFixed(2)}, ${longitude.toFixed(2)}`;
+            (
+                Number.isFinite(latitude) &&
+                Number.isFinite(longitude)
+                    ? `${latitude.toFixed(2)}, ${longitude.toFixed(2)}`
+                    : "Location unavailable"
+            );
 
     }
+
+
+    /*
+     * -------------------------------------------------
+     * LOCATION INFORMATION UNDER THE MAIN LOCATION
+     * -------------------------------------------------
+     */
+
+    renderWeatherLocationMeta({
+
+        latitude,
+
+        longitude,
+
+        city:
+            displayName
+
+    });
 
 
     /*
@@ -886,7 +908,7 @@ function renderWeatherData({
 
     /*
      * -------------------------------------------------
-     * RENDER FORECAST CARDS
+     * FORECAST CARDS
      * -------------------------------------------------
      */
 
@@ -926,6 +948,121 @@ function renderWeatherData({
         hideWeatherStaleNotice();
 
     }
+
+}
+
+
+/* =========================================================
+   LOCATION META
+========================================================= */
+
+function ensureWeatherLocationMeta(){
+
+    let container =
+        $("weatherLocationMeta");
+
+
+    if(container){
+        return container;
+    }
+
+
+    const location =
+        $("weatherLocation");
+
+
+    if(!location){
+        return null;
+    }
+
+
+    container =
+        document.createElement(
+            "div"
+        );
+
+
+    container.id =
+        "weatherLocationMeta";
+
+
+    container.className =
+        "weather-location-meta";
+
+
+    location.insertAdjacentElement(
+
+        "afterend",
+
+        container
+
+    );
+
+
+    return container;
+
+}
+
+
+function renderWeatherLocationMeta({
+
+    latitude,
+
+    longitude,
+
+    city
+
+}){
+
+    const container =
+        ensureWeatherLocationMeta();
+
+
+    if(!container){
+        return;
+    }
+
+
+    const coordinateText =
+        Number.isFinite(latitude) &&
+        Number.isFinite(longitude)
+
+            ? `📍 ${latitude.toFixed(2)}, ${longitude.toFixed(2)}`
+
+            : "📍 Location coordinates unavailable";
+
+
+    const displayCity =
+        String(
+            city || ""
+        )
+        .trim() ||
+        "Location unavailable";
+
+
+    container.innerHTML = `
+
+        <div class="weather-location-coordinates">
+            ${escapeHtml(coordinateText)}
+        </div>
+
+        <div class="weather-location-card">
+
+            <div class="weather-location-card-label">
+                📌 Weather location
+            </div>
+
+            <div class="weather-location-card-city">
+                ${escapeHtml(displayCity)}
+            </div>
+
+        </div>
+
+    `;
+
+
+    container.style.display =
+        "block";
 
 }
 
@@ -1276,7 +1413,9 @@ function renderSelectedDayDetails(
 
     const heading =
         isToday
+
             ? "Today"
+
             : formatForecastDateLong(
                 day.datetime
             );
@@ -1475,6 +1614,24 @@ function renderSelectedDayDetails(
             )}
 
 
+            ${createWeatherDetailItem(
+
+                "Precipitation coverage",
+                formatPercentage(day.precipcover)
+
+            )}
+
+
+            ${createWeatherDetailItem(
+
+                "Moon phase",
+                formatMoonPhase(day.moonphase),
+
+                "weather-moon-phase"
+
+            )}
+
+
         </div>
 
     `;
@@ -1494,13 +1651,15 @@ function createWeatherDetailItem(
 
     label,
 
-    value
+    value,
+
+    extraClass = ""
 
 ){
 
     return `
 
-        <div class="weather-detail-item">
+        <div class="weather-detail-item ${escapeHtml(extraClass)}">
 
             <div class="weather-detail-label">
                 ${escapeHtml(label)}
@@ -1513,6 +1672,118 @@ function createWeatherDetailItem(
         </div>
 
     `;
+
+}
+
+
+/* =========================================================
+   MOON PHASE
+========================================================= */
+
+function formatMoonPhase(
+
+    value
+
+){
+
+    const number =
+        Number(value);
+
+
+    if(
+        !Number.isFinite(number)
+    ){
+
+        return "—";
+
+    }
+
+
+    /*
+     * Visual Crossing moonphase:
+     *
+     * 0.00 = New Moon
+     * 0.25 = First Quarter
+     * 0.50 = Full Moon
+     * 0.75 = Last Quarter
+     * 1.00 = New Moon
+     */
+
+    const normalized =
+        Math.max(
+            0,
+            Math.min(
+                1,
+                number
+            )
+        );
+
+
+    if(
+        normalized < 0.03 ||
+        normalized >= 0.97
+    ){
+
+        return "🌑 New Moon";
+
+    }
+
+
+    if(
+        normalized < 0.22
+    ){
+
+        return "🌒 Waxing Crescent";
+
+    }
+
+
+    if(
+        normalized < 0.28
+    ){
+
+        return "🌓 First Quarter";
+
+    }
+
+
+    if(
+        normalized < 0.47
+    ){
+
+        return "🌔 Waxing Gibbous";
+
+    }
+
+
+    if(
+        normalized < 0.53
+    ){
+
+        return "🌕 Full Moon";
+
+    }
+
+
+    if(
+        normalized < 0.72
+    ){
+
+        return "🌖 Waning Gibbous";
+
+    }
+
+
+    if(
+        normalized < 0.78
+    ){
+
+        return "🌗 Last Quarter";
+
+    }
+
+
+    return "🌘 Waning Crescent";
 
 }
 
@@ -1824,12 +2095,6 @@ function getBrowserLocation(){
 
                 {
 
-                    /*
-                     * False is intentional here.
-                     *
-                     * We want location detection to be
-                     * reliable and reasonably fast on desktop.
-                     */
                     enableHighAccuracy:
                         false,
 
@@ -1997,10 +2262,12 @@ function createWeatherBrowserCacheKey(
 ){
 
     /*
-     * 3 decimal places gives a reasonably precise
-     * weather-location cache while avoiding tiny GPS
-     * changes creating a completely new cache key.
+     * v4 is intentional.
+     *
+     * v3 may contain older weather responses without
+     * precipcover and moonphase.
      */
+
     const lat =
         Number(latitude)
             .toFixed(3);
@@ -2013,7 +2280,7 @@ function createWeatherBrowserCacheKey(
 
     return (
 
-        "worthIt.weather.data.v3." +
+        "worthIt.weather.data.v4." +
         `${lat}.${lon}.` +
         `${String(language || "en")}`
 
@@ -2182,11 +2449,6 @@ function getPreferredWeatherLanguage(){
             .split("-")[0];
 
 
-        /*
-         * Visual Crossing supported language codes.
-         *
-         * Unsupported browser languages fall back to English.
-         */
         const supported = [
 
             "ar",
@@ -2276,7 +2538,7 @@ function getLocationDisplayName(
      * City, Region, Country
      *
      * The first component is normally the most useful
-     * city/locality label for the main card.
+     * locality label.
      */
     const parts =
         value
@@ -3487,6 +3749,18 @@ function showWeatherError(){
     }
 
 
+    const locationMeta =
+        $("weatherLocationMeta");
+
+
+    if(locationMeta){
+
+        locationMeta.style.display =
+            "none";
+
+    }
+
+
     if(icon){
 
         icon.textContent =
@@ -3605,13 +3879,104 @@ function ensureWeatherUIStyles(){
 
         /*
          * -----------------------------------------------
+         * LOCATION META
+         * -----------------------------------------------
+         */
+
+        .weather-location-meta {
+
+            margin-top:
+                10px;
+
+            display:
+                block;
+
+        }
+
+
+        .weather-location-coordinates {
+
+            margin-bottom:
+                9px;
+
+            font-size:
+                0.88rem;
+
+            opacity:
+                0.72;
+
+            line-height:
+                1.4;
+
+        }
+
+
+        .weather-location-card {
+
+            display:
+                inline-flex;
+
+            flex-direction:
+                column;
+
+            gap:
+                3px;
+
+            padding:
+                10px 13px;
+
+            border:
+                1px solid
+                rgba(
+                    105,
+                    105,
+                    200,
+                    0.18
+                );
+
+            border-radius:
+                12px;
+
+            background:
+                rgba(
+                    255,
+                    255,
+                    255,
+                    0.025
+                );
+
+        }
+
+
+        .weather-location-card-label {
+
+            font-size:
+                0.78rem;
+
+            opacity:
+                0.66;
+
+        }
+
+
+        .weather-location-card-city {
+
+            font-weight:
+                700;
+
+        }
+
+
+        /*
+         * -----------------------------------------------
          * FORECAST GRID
          * -----------------------------------------------
          */
 
         #weatherForecast {
 
-            display: grid;
+            display:
+                grid;
 
             grid-template-columns:
                 repeat(
@@ -3637,9 +4002,11 @@ function ensureWeatherUIStyles(){
         #weatherForecast
         .weather-forecast-card {
 
-            position: relative;
+            position:
+                relative;
 
-            cursor: pointer;
+            cursor:
+                pointer;
 
             transform:
                 translateY(0)
@@ -3929,6 +4296,16 @@ function ensureWeatherUIStyles(){
         /*
          * -----------------------------------------------
          * DETAILS GRID
+         *
+         * Six columns on wide screens.
+         *
+         * This puts:
+         *
+         * Solar energy
+         * Precipitation coverage
+         * Moon phase
+         *
+         * directly together at the end.
          * -----------------------------------------------
          */
 
@@ -3939,9 +4316,9 @@ function ensureWeatherUIStyles(){
 
             grid-template-columns:
                 repeat(
-                    auto-fit,
+                    6,
                     minmax(
-                        155px,
+                        0,
                         1fr
                     )
                 );
@@ -3977,6 +4354,9 @@ function ensureWeatherUIStyles(){
                     0.025
                 );
 
+            min-width:
+                0;
+
         }
 
 
@@ -3998,6 +4378,25 @@ function ensureWeatherUIStyles(){
 
             font-weight:
                 600;
+
+            overflow-wrap:
+                anywhere;
+
+        }
+
+
+        /*
+         * -----------------------------------------------
+         * MOON PHASE
+         *
+         * Final card stays in the far-right column.
+         * -----------------------------------------------
+         */
+
+        .weather-detail-item.weather-moon-phase {
+
+            grid-column:
+                -1;
 
         }
 
@@ -4047,6 +4446,32 @@ function ensureWeatherUIStyles(){
 
         /*
          * -----------------------------------------------
+         * MEDIUM SCREENS
+         * -----------------------------------------------
+         */
+
+        @media(
+            max-width: 1100px
+        ){
+
+            .weather-details-grid {
+
+                grid-template-columns:
+                    repeat(
+                        4,
+                        minmax(
+                            0,
+                            1fr
+                        )
+                    );
+
+            }
+
+        }
+
+
+        /*
+         * -----------------------------------------------
          * SMALL SCREENS
          * -----------------------------------------------
          */
@@ -4065,6 +4490,28 @@ function ensureWeatherUIStyles(){
                             1fr
                         )
                     );
+
+            }
+
+
+            .weather-details-grid {
+
+                grid-template-columns:
+                    repeat(
+                        2,
+                        minmax(
+                            0,
+                            1fr
+                        )
+                    );
+
+            }
+
+
+            .weather-detail-item.weather-moon-phase {
+
+                grid-column:
+                    auto;
 
             }
 
@@ -4090,6 +4537,25 @@ function ensureWeatherUIStyles(){
 
                 grid-template-columns:
                     1fr;
+
+            }
+
+
+            .weather-details-grid {
+
+                grid-template-columns:
+                    1fr;
+
+            }
+
+
+            .weather-location-card {
+
+                width:
+                    100%;
+
+                box-sizing:
+                    border-box;
 
             }
 
