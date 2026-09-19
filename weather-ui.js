@@ -2013,7 +2013,7 @@ function createWeatherBrowserCacheKey(
 
     return (
 
-        "worthIt.weather.data.v2." +
+        "worthIt.weather.data.v3." +
         `${lat}.${lon}.` +
         `${String(language || "en")}`
 
