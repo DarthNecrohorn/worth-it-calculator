@@ -1060,16 +1060,31 @@ function marketImageUrlPassesClientFilter(
     }
 
 
-    const urlText =
-        normalizeMarketsSearch(
+    let urlText = "";
 
-            decodeURIComponent(
-                String(
-                    image.url
+
+    try {
+
+        urlText =
+            normalizeMarketsSearch(
+
+                decodeURIComponent(
+                    String(
+                        image.url
+                    )
                 )
-            )
 
-        );
+            );
+
+    }
+    catch {
+
+        urlText =
+            normalizeMarketsSearch(
+                image.url
+            );
+
+    }
 
 
     const tokens =
@@ -1206,6 +1221,15 @@ async function fetchMarketImage(
                 }
 
             );
+
+
+        if (!response.ok) {
+
+            throw new Error(
+                `Market image request failed with status ${response.status}.`
+            );
+
+        }
 
 
         const data =
@@ -1632,10 +1656,6 @@ async function loadMarketCardImage(
         image.url;
 
 
-    imageElement.src =
-        finalUrl;
-
-
     imageElement.alt =
         name;
 
@@ -1648,9 +1668,16 @@ async function loadMarketCardImage(
         "async";
 
 
-    imageElement.dataset
-        .marketImageState =
-        "loaded";
+    imageElement.style.width =
+        "100%";
+
+
+    imageElement.style.height =
+        "185px";
+
+
+    imageElement.style.objectFit =
+        "cover";
 
 
     if (
@@ -1701,22 +1728,6 @@ async function loadMarketCardImage(
         imageElement,
         image
     );
-
-
-    imageElement.style.display =
-        "block";
-
-
-    imageElement.style.width =
-        "100%";
-
-
-    imageElement.style.height =
-        "185px";
-
-
-    imageElement.style.objectFit =
-        "cover";
 
 
     imageElement.onerror =
@@ -1771,6 +1782,15 @@ async function loadMarketCardImage(
     imageElement.onload =
         () => {
 
+            imageElement.style.display =
+                "block";
+
+
+            imageElement.dataset
+                .marketImageState =
+                "loaded";
+
+
             if (placeholder) {
 
                 placeholder.remove();
@@ -1778,6 +1798,15 @@ async function loadMarketCardImage(
             }
 
         };
+
+
+    /*
+     * The handlers are installed BEFORE src is assigned.
+     * This avoids missing very fast cached load/error events.
+     */
+
+    imageElement.src =
+        finalUrl;
 }
 
 
@@ -1797,6 +1826,20 @@ function initialiseMarketImageObserver() {
             null;
 
     }
+
+
+    /*
+     * Observe the visible wrapper rather than the image itself.
+     *
+     * The image starts with display:none while the placeholder
+     * is visible, so observing the hidden image can prevent the
+     * lazy loader from ever firing.
+     */
+
+    const wrappers =
+        document.querySelectorAll(
+            ".worth-it-market-image-wrap"
+        );
 
 
     if (
@@ -1855,8 +1898,26 @@ function initialiseMarketImageObserver() {
                         }
 
 
-                        const image =
+                        const wrapper =
                             entry.target;
+
+
+                        const image =
+                            wrapper.querySelector(
+                                ".worth-it-market-image"
+                            );
+
+
+                        if (!image) {
+
+                            marketsImageObserver?.unobserve(
+                                wrapper
+                            );
+
+
+                            return;
+
+                        }
 
 
                         queueMarketImage(
@@ -1877,7 +1938,7 @@ function initialiseMarketImageObserver() {
 
 
                         marketsImageObserver?.unobserve(
-                            image
+                            wrapper
                         );
 
                     }
@@ -1895,19 +1956,15 @@ function initialiseMarketImageObserver() {
         );
 
 
-    document
-        .querySelectorAll(
-            ".worth-it-market-image"
-        )
-        .forEach(
-            image => {
+    wrappers.forEach(
+        wrapper => {
 
-                marketsImageObserver.observe(
-                    image
-                );
+            marketsImageObserver.observe(
+                wrapper
+            );
 
-            }
-        );
+        }
+    );
 }
 
 
@@ -2067,13 +2124,20 @@ function renderMarketCard(
             data-market-card="true"
             data-market-name="${name}"
             data-market-category="${category}"
+            style="
+                width:100%;
+                max-width:350px;
+                margin:0 auto;
+                box-sizing:border-box;
+                overflow:hidden;
+            "
         >
 
             <div
                 class="worth-it-market-image-wrap"
                 style="
                     width:100%;
-                    min-height:185px;
+                    height:185px;
                     overflow:hidden;
                     border-radius:12px 12px 0 0;
                     position:relative;
@@ -2106,12 +2170,23 @@ function renderMarketCard(
 
                 <div>
 
-                    <strong>
+                    <strong
+                        style="
+                            display:block;
+                            line-height:1.25;
+                        "
+                    >
                         ${name}
                     </strong>
 
 
-                    <small>
+                    <small
+                        style="
+                            display:block;
+                            opacity:.62;
+                            margin-top:3px;
+                        "
+                    >
                         ${symbol}
                     </small>
 
@@ -2564,4 +2639,3 @@ setInterval(
 
     60 * 60 * 1000
 );
-
