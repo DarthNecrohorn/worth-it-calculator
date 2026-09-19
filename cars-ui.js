@@ -4985,7 +4985,7 @@ function injectVehicleUiStyles() {
             border-top: 1px solid rgba(255, 255, 255, 0.08);
         }
 
-                .worth-it-vehicle-compare-button {
+        .worth-it-vehicle-compare-button {
             min-height: 46px;
             padding: 0 20px;
             border: 1px solid rgba(255, 255, 255, 0.14);
@@ -5032,6 +5032,23 @@ function injectVehicleUiStyles() {
             background: rgba(60, 180, 110, 0.12);
             border-color: rgba(50, 160, 95, 0.45);
             color: #176b3a;
+        }
+
+                /* Light theme */
+
+        html[data-theme="light"] .cars-expand-button {
+            border-color: rgba(0, 0, 0, 0.14);
+            background: rgba(255, 255, 255, 0.96);
+            color: #171717;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.12);
+        }
+
+        html[data-theme="light"] .cars-expand-button:hover {
+            background: rgba(255, 255, 255, 1);
+            border-color: rgba(139, 92, 246, 0.75);
+            box-shadow:
+                0 0 0 2px rgba(139, 92, 246, 0.14),
+                0 12px 32px rgba(0, 0, 0, 0.16);
         }
 
         .worth-it-vehicle-source {
