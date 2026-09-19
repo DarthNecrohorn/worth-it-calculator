@@ -29,10 +29,13 @@ const VEHICLES_DB_URL =
 const CACHE_TTL = 86400; // 24 hours
 const WIKIPEDIA_CACHE_TTL = 604800; // 7 days
 const MAX_MODELS_PER_KIND = 300; // Keep the catalog focused on popular vehicles
-const WIKIPEDIA_CACHE_VERSION = "v14";
+const WIKIPEDIA_CACHE_VERSION = "v15";
 
 const WIKIPEDIA_API =
     "https://en.wikipedia.org/w/api.php";
+
+const WIKIMEDIA_COMMONS_API =
+    "https://commons.wikimedia.org/w/api.php";
 
 const VALID_KINDS = new Set([
     "car",
@@ -3556,6 +3559,273 @@ async function searchWikipediaVehicle(
 }
 
 /*
+ * ============================================================
+ * WIKIMEDIA COMMONS COMMERCIAL IMAGE FILTER
+ * ============================================================
+ *
+ * We only accept free licenses that clearly allow commercial use:
+ *   - CC0
+ *   - Public Domain / Public Domain Mark
+ *   - CC BY
+ *   - CC BY-SA
+ *
+ * NonCommercial, No-Derivatives, unknown, missing, or ambiguous
+ * licenses are rejected. The allowlist is intentionally strict.
+ *
+ * This checks the copyright-license metadata supplied by Wikimedia
+ * Commons. It does not remove other possible non-copyright legal
+ * restrictions (for example trademarks or personality/property rights).
+ * ------------------------------------------------------------
+ */
+
+function stripHtmlForMetadata(value) {
+
+    return String(value || "")
+        .replace(/<[^>]*>/g, " ")
+        .replace(/&nbsp;/gi, " ")
+        .replace(/&amp;/gi, "&")
+        .replace(/&quot;/gi, '"')
+        .replace(/&#39;/g, "'")
+        .replace(/&apos;/gi, "'")
+        .replace(/\s+/g, " ")
+        .trim();
+}
+
+function normalizeLicenseMetadata(value) {
+
+    return stripHtmlForMetadata(value)
+        .toLowerCase()
+        .replace(/[–—]/g, "-")
+        .replace(/\s+/g, " ")
+        .trim();
+}
+
+function getCommercialWikimediaLicense(extmetadata) {
+
+    if (!extmetadata || typeof extmetadata !== "object") {
+        return null;
+    }
+
+    const shortName =
+        normalizeLicenseMetadata(
+            extmetadata.LicenseShortName?.value
+        );
+
+    const usageTerms =
+        normalizeLicenseMetadata(
+            extmetadata.UsageTerms?.value
+        );
+
+    const licenseName =
+        normalizeLicenseMetadata(
+            extmetadata.License?.value
+        );
+
+    const licenseUrl =
+        String(
+            extmetadata.LicenseUrl?.value ||
+            ""
+        )
+            .trim()
+            .toLowerCase();
+
+    const combined =
+        [shortName, usageTerms, licenseName, licenseUrl]
+            .filter(Boolean)
+            .join(" ");
+
+    if (!combined) {
+        return null;
+    }
+
+    /* Explicitly reject non-commercial licenses and wording. */
+    if (
+        /non[- ]?commercial/.test(combined) ||
+        /no commercial/.test(combined) ||
+        /\bcc[- ]?by[- ]?nc(?:[- ]?sa|[- ]?nd)?\b/.test(combined) ||
+        /\bby[- ]?nc(?:[- ]?sa|[- ]?nd)?\b/.test(combined)
+    ) {
+        return null;
+    }
+
+    /*
+     * Only accept known commercial-use free licenses.
+     * Commons accepts CC BY / CC BY-SA / CC0 and public-domain
+     * material; the site intentionally does not use ND material.
+     */
+
+    const isCcZero =
+        /\bcc[- ]?zero\b/.test(combined) ||
+        /\bcc0\b/.test(combined) ||
+        licenseUrl.includes("creativecommons.org/publicdomain/zero/");
+
+    if (isCcZero) {
+        return {
+            name: stripHtmlForMetadata(
+                extmetadata.LicenseShortName?.value
+            ) || "CC0",
+            url:
+                String(extmetadata.LicenseUrl?.value || "").trim()
+        };
+    }
+
+    const isPublicDomain =
+        /public domain/.test(combined) ||
+        /public-domain/.test(combined) ||
+        /public domain mark/.test(combined) ||
+        /\bpdm\b/.test(combined) ||
+        licenseUrl.includes("creativecommons.org/publicdomain/");
+
+    if (isPublicDomain) {
+        return {
+            name: stripHtmlForMetadata(
+                extmetadata.LicenseShortName?.value
+            ) || "Public Domain",
+            url:
+                String(extmetadata.LicenseUrl?.value || "").trim()
+        };
+    }
+
+    const hasCcBySa =
+        /\bcc[- ]?by[- ]?sa(?:[- ]?[0-9.]+)?\b/.test(combined) ||
+        licenseUrl.includes("creativecommons.org/licenses/by-sa/");
+
+    if (hasCcBySa) {
+        return {
+            name: stripHtmlForMetadata(
+                extmetadata.LicenseShortName?.value
+            ) || "CC BY-SA",
+            url:
+                String(extmetadata.LicenseUrl?.value || "").trim()
+        };
+    }
+
+    const hasCcBy =
+        /\bcc[- ]?by(?:[- ]?[0-9.]+)?\b/.test(combined) ||
+        licenseUrl.includes("creativecommons.org/licenses/by/");
+
+    if (hasCcBy) {
+        return {
+            name: stripHtmlForMetadata(
+                extmetadata.LicenseShortName?.value
+            ) || "CC BY",
+            url:
+                String(extmetadata.LicenseUrl?.value || "").trim()
+        };
+    }
+
+    /* Unknown/ambiguous license = block. */
+    return null;
+}
+
+async function getCommercialWikimediaImage(imageTitle) {
+
+    if (!imageTitle) {
+        return null;
+    }
+
+    let title =
+        String(imageTitle || "").trim();
+
+    if (!title) {
+        return null;
+    }
+
+    if (!/^file:/i.test(title)) {
+        title = `File:${title}`;
+    }
+
+    try {
+
+        const url =
+            new URL(WIKIMEDIA_COMMONS_API);
+
+        url.searchParams.set("action", "query");
+        url.searchParams.set("prop", "imageinfo");
+        url.searchParams.set("titles", title);
+        url.searchParams.set(
+            "iiprop",
+            "url|extmetadata"
+        );
+        url.searchParams.set(
+            "iiextmetadatafilter",
+            "License|LicenseShortName|UsageTerms|LicenseUrl|Artist|Credit"
+        );
+        url.searchParams.set("iiurlwidth", "1200");
+        url.searchParams.set("iilimit", "1");
+        url.searchParams.set("format", "json");
+        url.searchParams.set("formatversion", "2");
+
+        const data =
+            await fetchWikipediaCached(
+                url.toString()
+            );
+
+        const pages =
+            data?.query?.pages;
+
+        const page =
+            Array.isArray(pages)
+                ? pages[0]
+                : Object.values(pages || {})[0];
+
+        const imageInfo =
+            Array.isArray(page?.imageinfo)
+                ? page.imageinfo[0]
+                : null;
+
+        if (!imageInfo?.url) {
+            return null;
+        }
+
+        const license =
+            getCommercialWikimediaLicense(
+                imageInfo.extmetadata
+            );
+
+        if (!license) {
+            console.info(
+                "Wikimedia image blocked by commercial-license filter:",
+                title
+            );
+            return null;
+        }
+
+        const author =
+            stripHtmlForMetadata(
+                imageInfo.extmetadata?.Artist?.value ||
+                imageInfo.extmetadata?.Credit?.value ||
+                ""
+            );
+
+        return {
+            /* Prefer the 1200px Commons thumbnail for card performance. */
+            url:
+                imageInfo.thumburl ||
+                imageInfo.url,
+            source_url:
+                imageInfo.descriptionurl ||
+                `https://commons.wikimedia.org/wiki/${encodeURIComponent(
+                    title.replace(/ /g, "_")
+                )}`,
+            author: author || null,
+            license: license.name,
+            license_url: license.url || null
+        };
+
+    } catch (error) {
+
+        console.error(
+            "Wikimedia Commons image/license lookup failed:",
+            title,
+            error
+        );
+
+        return null;
+    }
+}
+
+/*
  * ------------------------------------------------------------
  * Get Wikipedia page
  * ------------------------------------------------------------
@@ -3592,7 +3862,14 @@ async function getWikipediaPage(title) {
 
     url.searchParams.set(
         "piprop",
-        "thumbnail"
+        "thumbnail|name"
+    );
+
+    /* Ask Wikipedia PageImages for a free image candidate.
+     * We still verify the actual Commons license ourselves. */
+    url.searchParams.set(
+        "pilicense",
+        "free"
     );
 
     url.searchParams.set(
@@ -3663,6 +3940,10 @@ async function getWikipediaPage(title) {
 
         image:
             page.thumbnail?.source ||
+            null,
+
+        imageTitle:
+            page.pageimage ||
             null,
 
         url:
@@ -4247,6 +4528,31 @@ async function handleDetails(
             specifications
         );
 
+    /*
+     * Image licensing is completely independent from vehicle data.
+     * A vehicle with useful Wikipedia information stays available even
+     * when its image is missing, disallowed, or has an unclear license.
+     * In that case the frontend receives image: null and shows
+     * “Image unavailable”.
+     */
+    let commercialImage = null;
+
+    try {
+
+        commercialImage =
+            await getCommercialWikimediaImage(
+                page.imageTitle
+            );
+
+    } catch (error) {
+
+        console.error(
+            "Commercial Wikimedia image check failed:",
+            page.title,
+            error
+        );
+    }
+
     /* 5. Return stable frontend response. */
 
     return jsonResponse(
@@ -4282,12 +4588,7 @@ async function handleDetails(
             },
 
             image:
-                page.image
-                    ? {
-                        url: page.image,
-                        source_url: page.url
-                    }
-                    : null,
+                commercialImage,
 
             specifications,
             comparisonAvailable
