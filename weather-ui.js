@@ -107,6 +107,16 @@ function openWeather(){
 
 /* =========================================================
    LOAD WEATHER
+
+   External weather data path:
+
+   Browser Geolocation
+          ↓
+   /api/weather
+          ↓
+   Visual Crossing (server-side)
+
+   No direct client-side weather API call is made here.
 ========================================================= */
 
 async function loadWeather(){
@@ -159,6 +169,13 @@ async function loadWeather(){
     }
 
 
+    if(forecastContainer){
+
+        forecastContainer.innerHTML = "";
+
+    }
+
+
     try{
 
         const userLocation =
@@ -175,33 +192,70 @@ async function loadWeather(){
 
 
         const latitude =
-            userLocation.latitude;
+            Number(userLocation.latitude);
 
         const longitude =
-            userLocation.longitude;
-       
+            Number(userLocation.longitude);
+
+
+        if(
+            !Number.isFinite(latitude) ||
+            !Number.isFinite(longitude)
+        ){
+
+            throw new Error(
+                "Invalid location coordinates."
+            );
+
+        }
+
+
         /* =================================================
-           OPEN-METEO CURRENT WEATHER
+           WORTH IT WEATHER API
         ================================================= */
 
         const response =
             await fetch(
-
-                `https://api.open-meteo.com/v1/forecast` +
+                `/api/weather` +
                 `?latitude=${encodeURIComponent(latitude)}` +
-                `&longitude=${encodeURIComponent(longitude)}` +
-                `&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m,wind_direction_10m,cloud_cover` +
-                `&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,sunrise,sunset` +
-                `&forecast_days=7` +
-                `&timezone=auto`
-
+                `&longitude=${encodeURIComponent(longitude)}`,
+                {
+                    headers: {
+                        "Accept":
+                            "application/json"
+                    },
+                    cache: "no-store"
+                }
             );
 
 
         if(!response.ok){
 
+            let serverMessage = "";
+
+
+            try{
+
+                const errorData =
+                    await response.json();
+
+
+                serverMessage =
+                    errorData &&
+                    typeof errorData.error === "string"
+                        ? ` — ${errorData.error}`
+                        : "";
+
+            }
+            catch(errorResponseParsing){
+
+                /* Ignore malformed error bodies. */
+
+            }
+
+
             throw new Error(
-                `Open-Meteo HTTP ${response.status}`
+                `Weather API HTTP ${response.status}${serverMessage}`
             );
 
         }
@@ -212,55 +266,66 @@ async function loadWeather(){
 
 
         const current =
-            data.current;
+            data &&
+            data.currentConditions;
 
-        const daily =
-            data.daily;
+        const forecast =
+            data &&
+            Array.isArray(data.days)
+                ? data.days.slice(0, 7)
+                : [];
 
 
-        /* =================================================
-           SUNRISE
-        ================================================= */
+        if(!current){
 
-        if(
-            sunrise &&
-            daily &&
-            daily.sunrise
-        ){
-
-            sunrise.textContent =
-                new Date(
-                    daily.sunrise[0]
-                ).toLocaleTimeString(
-                    "en-US",
-                    {
-                        hour: "2-digit",
-                        minute: "2-digit"
-                    }
-                );
+            throw new Error(
+                "Current weather data is unavailable."
+            );
 
         }
 
 
         /* =================================================
-           SUNSET
+           LOCATION NAME
+
+           Visual Crossing resolves the coordinates server-side,
+           so no separate reverse-geocoding service is required.
         ================================================= */
 
-        if(
-            sunset &&
-            daily &&
-            daily.sunset
-        ){
+        if(location){
+
+            location.textContent =
+                getLocationDisplayName(
+                    data.resolvedAddress
+                ) ||
+                `${latitude.toFixed(2)}, ${longitude.toFixed(2)}`;
+
+        }
+
+
+        /* =================================================
+           SUNRISE / SUNSET
+        ================================================= */
+
+        const today =
+            forecast[0] || null;
+
+
+        if(sunrise){
+
+            sunrise.textContent =
+                formatWeatherTime(
+                    today && today.sunrise
+                );
+
+        }
+
+
+        if(sunset){
 
             sunset.textContent =
-                new Date(
-                    daily.sunset[0]
-                ).toLocaleTimeString(
-                    "en-US",
-                    {
-                        hour: "2-digit",
-                        minute: "2-digit"
-                    }
+                formatWeatherTime(
+                    today && today.sunset
                 );
 
         }
@@ -273,9 +338,9 @@ async function loadWeather(){
         if(temperature){
 
             temperature.textContent =
-                `${Math.round(
-                    current.temperature_2m
-                )}°C`;
+                formatCelsius(
+                    current.temp
+                );
 
         }
 
@@ -287,9 +352,9 @@ async function loadWeather(){
         if(feelsLike){
 
             feelsLike.textContent =
-                `${Math.round(
-                    current.apparent_temperature
-                )}°C`;
+                formatCelsius(
+                    current.feelslike
+                );
 
         }
 
@@ -301,7 +366,9 @@ async function loadWeather(){
         if(humidity){
 
             humidity.textContent =
-                `${current.relative_humidity_2m}%`;
+                formatPercentage(
+                    current.humidity
+                );
 
         }
 
@@ -313,19 +380,30 @@ async function loadWeather(){
         if(wind){
 
             const windSpeed =
-                Math.round(
-                    current.wind_speed_10m
-                );
+                Number(current.windspeed);
 
             const windDirection =
-                Number(
-                    current.wind_direction_10m
-                );
+                Number(current.winddir);
 
-            wind.textContent =
-                Number.isFinite(windDirection)
-                    ? `${windSpeed} km/h · ${getWindFlowArrow(windDirection)} ${getWindFlowCompass(windDirection)}`
-                    : `${windSpeed} km/h`;
+
+            if(Number.isFinite(windSpeed)){
+
+                const roundedWindSpeed =
+                    Math.round(windSpeed);
+
+
+                wind.textContent =
+                    Number.isFinite(windDirection)
+                        ? `${roundedWindSpeed} km/h · ${getWindFlowArrow(windDirection)} ${getWindFlowCompass(windDirection)}`
+                        : `${roundedWindSpeed} km/h`;
+
+            }
+            else{
+
+                wind.textContent =
+                    "—";
+
+            }
 
         }
 
@@ -336,8 +414,9 @@ async function loadWeather(){
 
         const weather =
             getWeatherDescription(
-                current.weather_code,
-                current.wind_speed_10m
+                current.icon,
+                current.conditions,
+                current.windspeed
             );
 
 
@@ -366,154 +445,89 @@ async function loadWeather(){
             forecastContainer.innerHTML = "";
 
 
-            const forecast =
-                data.daily;
+            forecast.forEach(
+                (forecastDay, index) => {
+
+                    const forecastWeather =
+                        getWeatherDescription(
+                            forecastDay.icon,
+                            forecastDay.conditions,
+                            forecastDay.windspeed
+                        );
 
 
-            for(
-                let i = 0;
-                i < forecast.time.length;
-                i++
-            ){
+                    const day =
+                        getForecastDayName(
+                            forecastDay.datetime,
+                            index
+                        );
 
-                const forecastWeather =
-                    getWeatherDescription(
-                        forecast.weather_code[i]
+
+                    const card =
+                        document.createElement("div");
+
+
+                    card.className =
+                        "weather-forecast-card";
+
+
+                    const maxTemperature =
+                        formatCelsius(
+                            forecastDay.tempmax
+                        );
+
+
+                    const minTemperature =
+                        formatCelsius(
+                            forecastDay.tempmin
+                        );
+
+
+                    const rainProbability =
+                        formatPercentage(
+                            forecastDay.precipprob
+                        );
+
+
+                    card.innerHTML = `
+
+                        <div class="weather-forecast-day">
+                            ${escapeHtml(day)}
+                        </div>
+
+                        <div class="weather-forecast-icon">
+                            ${forecastWeather.icon}
+                        </div>
+
+                        <div class="weather-forecast-description">
+                            ${escapeHtml(forecastWeather.text)}
+                        </div>
+
+                        <div class="weather-forecast-temp">
+
+                            <strong>
+                                ${escapeHtml(maxTemperature)}
+                            </strong>
+
+                            <span>
+                                ${escapeHtml(minTemperature)}
+                            </span>
+
+                        </div>
+
+                        <div class="weather-forecast-rain">
+                            💧 ${escapeHtml(rainProbability)}
+                        </div>
+
+                    `;
+
+
+                    forecastContainer.appendChild(
+                        card
                     );
 
-
-                const date =
-                    new Date(
-                        forecast.time[i] +
-                        "T00:00:00"
-                    );
-
-
-                const day =
-                    date.toLocaleDateString(
-                        "en-US",
-                        {
-                            weekday: "short"
-                        }
-                    );
-
-
-                const card =
-                    document.createElement("div");
-
-
-                card.className =
-                    "weather-forecast-card";
-
-
-                card.innerHTML = `
-
-                    <div class="weather-forecast-day">
-                        ${i === 0 ? "Today" : day}
-                    </div>
-
-                    <div class="weather-forecast-icon">
-                        ${forecastWeather.icon}
-                    </div>
-
-                    <div class="weather-forecast-description">
-                        ${forecastWeather.text}
-                    </div>
-
-                    <div class="weather-forecast-temp">
-
-                        <strong>
-                            ${Math.round(
-                                forecast.temperature_2m_max[i]
-                            )}°C
-                        </strong>
-
-                        <span>
-                            ${Math.round(
-                                forecast.temperature_2m_min[i]
-                            )}°C
-                        </span>
-
-                    </div>
-
-                    <div class="weather-forecast-rain">
-                        💧 ${forecast.precipitation_probability_max[i]}%
-                    </div>
-
-                `;
-
-
-                forecastContainer.appendChild(
-                    card
-                );
-
-            }
-
-        }
-
-
-        /* =================================================
-           LOCATION NAME
-        ================================================= */
-
-        try{
-
-            const locationResponse =
-                await fetch(
-
-                    `https://nominatim.openstreetmap.org/reverse` +
-                    `?format=json` +
-                    `&lat=${encodeURIComponent(latitude)}` +
-                    `&lon=${encodeURIComponent(longitude)}` +
-                    `&zoom=10` +
-                    `&addressdetails=1`,
-
-                    {
-                        headers: {
-                            "Accept":
-                                "application/json"
-                        }
-                    }
-
-                );
-
-
-            if(locationResponse.ok){
-
-                const locationData =
-                    await locationResponse.json();
-
-
-                const address =
-                    locationData.address || {};
-
-
-                location.textContent =
-                    address.city ||
-                    address.town ||
-                    address.village ||
-                    address.municipality ||
-                    `${latitude.toFixed(2)}, ${longitude.toFixed(2)}`;
-
-            }
-            else{
-
-                location.textContent =
-                    `${latitude.toFixed(2)}, ${longitude.toFixed(2)}`;
-
-            }
-
-        }
-        catch(locationError){
-
-            console.warn(
-                "Reverse geocoding unavailable:",
-                locationError
+                }
             );
-
-
-            location.textContent =
-                `${latitude.toFixed(2)}, ${longitude.toFixed(2)}`;
 
         }
 
@@ -534,6 +548,69 @@ async function loadWeather(){
         }
 
 
+        if(icon){
+
+            icon.textContent =
+                "🌤️";
+
+        }
+
+
+        if(temperature){
+
+            temperature.textContent =
+                "—";
+
+        }
+
+
+        if(feelsLike){
+
+            feelsLike.textContent =
+                "—";
+
+        }
+
+
+        if(humidity){
+
+            humidity.textContent =
+                "—";
+
+        }
+
+
+        if(wind){
+
+            wind.textContent =
+                "—";
+
+        }
+
+
+        if(sunrise){
+
+            sunrise.textContent =
+                "—";
+
+        }
+
+
+        if(sunset){
+
+            sunset.textContent =
+                "—";
+
+        }
+
+
+        if(forecastContainer){
+
+            forecastContainer.innerHTML = "";
+
+        }
+
+
         if(description){
 
             description.textContent =
@@ -548,6 +625,10 @@ async function loadWeather(){
 
 /* =========================================================
    GET BROWSER LOCATION
+
+   Browser Geolocation is the only location source used
+   by the client. No IP-location or reverse-geocoding API
+   is called from the frontend.
 ========================================================= */
 
 function getBrowserLocation(){
@@ -622,119 +703,26 @@ function getBrowserLocation(){
 
 
 /* =========================================================
-   IP LOCATION
-========================================================= */
-
-async function getIPLocation(){
-
-    const response =
-        await fetch(
-            "https://ipapi.co/json/"
-        );
-
-
-    if(!response.ok){
-
-        throw new Error(
-            `IP location HTTP ${response.status}`
-        );
-
-    }
-
-
-    const data =
-        await response.json();
-
-
-    const latitude =
-        Number(data.latitude);
-
-
-    const longitude =
-        Number(data.longitude);
-
-
-    if(
-        !Number.isFinite(latitude) ||
-        !Number.isFinite(longitude)
-    ){
-
-        throw new Error(
-            "Invalid IP location response."
-        );
-
-    }
-
-
-    return {
-
-        latitude,
-
-        longitude,
-
-        city:
-            data.city || "",
-
-        region:
-            data.region || "",
-
-        country:
-            data.country_name || "",
-
-        source:
-            "ip"
-
-    };
-
-}
-
-
-/* =========================================================
    WEATHER LOCATION
+
+   Only browser geolocation is used.
+
+   There is intentionally NO IP-location fallback here.
 ========================================================= */
 
 async function getWeatherLocation(){
 
-    try{
-
-        return await getBrowserLocation();
-
-    }
-    catch(browserError){
-
-        console.warn(
-            "Using IP location fallback."
-        );
-
-
-        try{
-
-            return await getIPLocation();
-
-        }
-        catch(ipError){
-
-            console.error(
-                "IP location fallback failed:",
-                ipError
-            );
-
-
-            throw new Error(
-                "Unable to determine location."
-            );
-
-        }
-
-    }
+    return await getBrowserLocation();
 
 }
+
 
 /* =========================================================
    WIND FLOW HELPERS
 
-   Open-Meteo reports the direction the wind comes FROM.
-   The visual arrow and cloud movement show where it flows TO.
+   The API reports the direction the wind comes FROM.
+   The visual arrow and compass direction show where the
+   wind flows TO, preserving the behavior of the old UI.
 ========================================================= */
 
 function getWindFlowDirection(
@@ -803,25 +791,40 @@ function getWindFlowArrow(
 
 }
 
+
 /* =========================================================
    WEATHER DESCRIPTION
+
+   Visual Crossing returns textual icon identifiers rather
+   than numeric provider-specific weather codes.
 ========================================================= */
 
 function getWeatherDescription(
-    code,
+    iconName,
+    conditions = "",
     windSpeed = 0
 ){
 
-    /*
-     * Very strong wind.
-     *
-     * This does NOT claim that it is literally
-     * a hurricane/tornado. It is simply used as
-     * an extreme-weather visual indicator.
-     */
+    const icon =
+        String(iconName || "").toLowerCase();
+
+
+    const conditionText =
+        String(conditions || "").trim();
+
+
+    const numericWindSpeed =
+        Number(windSpeed);
+
+
+    /* =================================================
+       VERY STRONG WIND
+    ================================================= */
+
     if(
-        Number(windSpeed) >= 75 &&
-        Number(code) < 95
+        Number.isFinite(numericWindSpeed) &&
+        numericWindSpeed >= 75 &&
+        !icon.includes("thunder")
     ){
 
         return {
@@ -837,142 +840,14 @@ function getWeatherDescription(
     }
 
 
-    if(code === 0){
+    /* =================================================
+       THUNDERSTORMS
+    ================================================= */
 
-        return {
-
-            icon:
-                "☀️",
-
-            text:
-                "Clear sky"
-
-        };
-
-    }
-
-
-    if(code === 1){
-
-        return {
-
-            icon:
-                "🌤️",
-
-            text:
-                "Mainly clear"
-
-        };
-
-    }
-
-
-    if(code === 2){
-
-        return {
-
-            icon:
-                "🌤️",
-
-            text:
-                "Partly cloudy"
-
-        };
-
-    }
-
-
-    if(code === 3){
-
-        return {
-
-            icon:
-                "☁️",
-
-            text:
-                "Cloudy"
-
-        };
-
-    }
-
-
-    if(code >= 45 && code <= 48){
-
-        return {
-
-            icon:
-                "🌫️",
-
-            text:
-                "Fog"
-
-        };
-
-    }
-
-
-    if(code >= 51 && code <= 57){
-
-        return {
-
-            icon:
-                "🌦️",
-
-            text:
-                "Drizzle"
-
-        };
-
-    }
-
-
-    if(code >= 61 && code <= 67){
-
-        return {
-
-            icon:
-                "🌧️",
-
-            text:
-                "Rain"
-
-        };
-
-    }
-
-
-    if(code >= 71 && code <= 77){
-
-        return {
-
-            icon:
-                "🌨️",
-
-            text:
-                "Snow"
-
-        };
-
-    }
-
-
-    if(code >= 80 && code <= 82){
-
-        return {
-
-            icon:
-                "🌧️",
-
-            text:
-                "Rain showers"
-
-        };
-
-    }
-
-
-    if(code >= 95){
+    if(
+        icon.includes("thunder") ||
+        conditionText.toLowerCase().includes("thunder")
+    ){
 
         return {
 
@@ -987,17 +862,352 @@ function getWeatherDescription(
     }
 
 
+    /* =================================================
+       SNOW
+    ================================================= */
+
+    if(
+        icon.includes("snow") ||
+        conditionText.toLowerCase().includes("snow")
+    ){
+
+        return {
+
+            icon:
+                "🌨️",
+
+            text:
+                "Snow"
+
+        };
+
+    }
+
+
+    /* =================================================
+       RAIN / SHOWERS
+    ================================================= */
+
+    if(
+        icon.includes("rain") ||
+        icon.includes("showers") ||
+        conditionText.toLowerCase().includes("rain") ||
+        conditionText.toLowerCase().includes("drizzle")
+    ){
+
+        return {
+
+            icon:
+                "🌧️",
+
+            text:
+                icon.includes("showers")
+                    ? "Rain showers"
+                    : "Rain"
+
+        };
+
+    }
+
+
+    /* =================================================
+       FOG
+    ================================================= */
+
+    if(
+        icon.includes("fog") ||
+        conditionText.toLowerCase().includes("fog")
+    ){
+
+        return {
+
+            icon:
+                "🌫️",
+
+            text:
+                "Fog"
+
+        };
+
+    }
+
+
+    /* =================================================
+       CLOUDY
+    ================================================= */
+
+    if(
+        icon === "cloudy" ||
+        icon.includes("overcast") ||
+        conditionText.toLowerCase().includes("overcast")
+    ){
+
+        return {
+
+            icon:
+                "☁️",
+
+            text:
+                "Cloudy"
+
+        };
+
+    }
+
+
+    /* =================================================
+       PARTLY CLOUDY
+    ================================================= */
+
+    if(
+        icon.includes("partly-cloudy") ||
+        conditionText.toLowerCase().includes("partly cloudy")
+    ){
+
+        return {
+
+            icon:
+                "🌤️",
+
+            text:
+                "Partly cloudy"
+
+        };
+
+    }
+
+
+    /* =================================================
+       CLEAR
+    ================================================= */
+
+    if(
+        icon.includes("clear") ||
+        conditionText.toLowerCase() === "clear"
+    ){
+
+        return {
+
+            icon:
+                "☀️",
+
+            text:
+                "Clear sky"
+
+        };
+
+    }
+
+
+    /* =================================================
+       WIND
+    ================================================= */
+
+    if(icon === "wind"){
+
+        return {
+
+            icon:
+                "💨",
+
+            text:
+                "Windy"
+
+        };
+
+    }
+
+
+    /* =================================================
+       FALLBACK
+    ================================================= */
+
     return {
 
         icon:
             "🌤️",
 
         text:
-            "Unknown"
+            conditionText || "Unknown"
 
     };
 
 }
+
+
+/* =========================================================
+   LOCATION DISPLAY
+========================================================= */
+
+function getLocationDisplayName(
+    resolvedAddress
+){
+
+    const value =
+        String(resolvedAddress || "").trim();
+
+
+    if(!value){
+        return "";
+    }
+
+
+    return value;
+
+}
+
+
+/* =========================================================
+   FORECAST DAY NAME
+========================================================= */
+
+function getForecastDayName(
+    dateValue,
+    index
+){
+
+    if(index === 0){
+        return "Today";
+    }
+
+
+    const rawDate =
+        String(dateValue || "").slice(0, 10);
+
+
+    if(!/^\d{4}-\d{2}-\d{2}$/.test(rawDate)){
+        return "—";
+    }
+
+
+    const parts =
+        rawDate.split("-").map(Number);
+
+
+    const date =
+        new Date(
+            parts[0],
+            parts[1] - 1,
+            parts[2]
+        );
+
+
+    if(Number.isNaN(date.getTime())){
+        return "—";
+    }
+
+
+    return date.toLocaleDateString(
+        "en-US",
+        {
+            weekday: "short"
+        }
+    );
+
+}
+
+
+/* =========================================================
+   FORMAT HELPERS
+========================================================= */
+
+function formatCelsius(value){
+
+    const number =
+        Number(value);
+
+
+    return Number.isFinite(number)
+        ? `${Math.round(number)}°C`
+        : "—";
+
+}
+
+
+function formatPercentage(value){
+
+    const number =
+        Number(value);
+
+
+    return Number.isFinite(number)
+        ? `${Math.round(number)}%`
+        : "—";
+
+}
+
+
+function formatWeatherTime(value){
+
+    const text =
+        String(value || "").trim();
+
+
+    if(!text){
+        return "—";
+    }
+
+
+    const match =
+        text.match(
+            /^(\d{1,2}):(\d{2})(?::(\d{2}))?$/
+        );
+
+
+    if(!match){
+        return text;
+    }
+
+
+    const hours =
+        Number(match[1]);
+
+    const minutes =
+        Number(match[2]);
+
+
+    if(
+        !Number.isInteger(hours) ||
+        !Number.isInteger(minutes) ||
+        hours < 0 ||
+        hours > 23 ||
+        minutes < 0 ||
+        minutes > 59
+    ){
+        return text;
+    }
+
+
+    const period =
+        hours >= 12 ? "PM" : "AM";
+
+
+    const displayHour =
+        hours % 12 || 12;
+
+
+    return `${displayHour}:${String(minutes).padStart(2, "0")} ${period}`;
+
+}
+
+
+/* =========================================================
+   HTML ESCAPE HELPER
+
+   Keeps API text safe when inserted into forecast cards.
+========================================================= */
+
+function escapeHtml(value){
+
+    return String(value ?? "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+
+}
+
 
 /* =========================================================
    GLOBAL EXPORTS
