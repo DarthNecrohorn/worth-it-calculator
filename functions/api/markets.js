@@ -20,8 +20,9 @@
 
    Images are searched on Wikimedia Commons and are accepted only
    when the file has a commercially reusable free/public-domain
-   license and the image URL itself contains a relevant commodity
-   token. Unknown / ambiguous licenses are rejected.
+   license and the image metadata is relevant to the commodity.
+
+   Unknown / ambiguous licenses are rejected.
 ========================================================= */
 
 const WORLD_BANK_MARKETS_PAGE =
@@ -66,8 +67,14 @@ const WIKIMEDIA_API =
     "https://commons.wikimedia.org/w/api.php";
 
 
+/*
+ * Version intentionally bumped from v4 to v5.
+ *
+ * This invalidates old negative image-cache entries that were
+ * generated before the Wikimedia request / license fixes.
+ */
 const WIKIMEDIA_IMAGE_CACHE_PREFIX =
-    "https://worth-it-internal-cache.local/markets-wikimedia-image-v4/";
+    "https://worth-it-internal-cache.local/markets-wikimedia-image-v5/";
 
 
 const MAX_IMAGE_SEARCH_CANDIDATES =
@@ -76,6 +83,15 @@ const MAX_IMAGE_SEARCH_CANDIDATES =
 
 const IMAGE_SEARCH_PAGE_SIZE =
     20;
+
+
+/*
+ * Wikimedia requires an identifying User-Agent for API requests.
+ *
+ * Keep this descriptive and point to the project URL.
+ */
+const WIKIMEDIA_USER_AGENT =
+    "Worth-It-Markets/1.0 (https://github.com/DarthNecrohorn/worth-it-calculator)";
 
 
 /* =========================================================
@@ -2975,12 +2991,32 @@ function hasRelevantUrlToken(
     tokens
 ) {
 
-    const normalizedUrl =
-        simplifySearchText(
-            decodeURIComponent(
-                String(url || "")
-            )
-        );
+    let normalizedUrl =
+        "";
+
+
+    try {
+
+        normalizedUrl =
+            simplifySearchText(
+                decodeURIComponent(
+                    String(
+                        url || ""
+                    )
+                )
+            );
+
+    }
+    catch {
+
+        normalizedUrl =
+            simplifySearchText(
+                String(
+                    url || ""
+                )
+            );
+
+    }
 
 
     return tokens.some(
@@ -3016,12 +3052,34 @@ function hasRelevantTextMatch(
 
 
     return tokens.some(
-        token =>
-            normalizedText.includes(
+        token => {
+
+            const normalizedToken =
                 normalizeSearchText(
                     token
-                )
-            )
+                );
+
+
+            if (!normalizedToken) {
+
+                return false;
+
+            }
+
+
+            return normalizedText
+                .split(" ")
+                .some(
+                    word =>
+                        word ===
+                        normalizedToken
+                ) ||
+
+                normalizedText.includes(
+                    normalizedToken
+                );
+
+        }
     );
 }
 
@@ -3041,9 +3099,30 @@ function isDisallowedImageDescription(
 }
 
 
+/* =========================================================
+   LICENSE DETECTION
+========================================================= */
+
 function getLicenseKind(
     extmetadata
 ) {
+
+    /*
+     * normalizeSearchText() converts:
+     *
+     *   CC BY-SA
+     * into
+     *   cc by sa
+     *
+     * and:
+     *
+     *   CC BY-NC
+     * into
+     *   cc by nc
+     *
+     * Therefore the license checks below intentionally use
+     * the normalized forms.
+     */
 
     const license =
         normalizeSearchText(
@@ -3073,12 +3152,21 @@ function getLicenseKind(
     }
 
 
-    if (
-        /\b(cc by nc|cc-by-nc|creative commons attribution-noncommercial|noncommercial|non-commercial)\b/
-            .test(license) ||
+    /*
+     * Non-commercial and no-derivatives licenses are not
+     * accepted for the site's commercial use case.
+     */
 
-        /\b(cc by nd|cc-by-nd|creative commons attribution-noderivatives|no derivatives|no-derivatives)\b/
-            .test(license)
+    if (
+        /\bcc by nc\b/.test(license) ||
+        /\bcreative commons attribution noncommercial\b/.test(license) ||
+        /\bnoncommercial\b/.test(license) ||
+        /\bnon commercial\b/.test(license) ||
+
+        /\bcc by nd\b/.test(license) ||
+        /\bcreative commons attribution noderivatives\b/.test(license) ||
+        /\bno derivatives\b/.test(license) ||
+        /\bno derivatives\b/.test(license)
     ) {
 
         return null;
@@ -3088,9 +3176,9 @@ function getLicenseKind(
 
     if (
         /\bcc0\b/.test(license) ||
-        /public domain/.test(license) ||
-        /public-domain/.test(license) ||
-        /\bpd-/.test(license)
+        /\bpublic domain\b/.test(license) ||
+        /\bpublic domain\b/.test(license) ||
+        /\bpd\b/.test(license)
     ) {
 
         return "Public Domain / CC0";
@@ -3099,10 +3187,9 @@ function getLicenseKind(
 
 
     if (
-        /\bcc by-sa\b/.test(license) ||
-        /\bcc-by-sa\b/.test(license) ||
-        /creative commons attribution-sharealike/.test(license) ||
-        /creative commons attribution-share alike/.test(license)
+        /\bcc by sa\b/.test(license) ||
+        /\bcreative commons attribution sharealike\b/.test(license) ||
+        /\bcreative commons attribution share alike\b/.test(license)
     ) {
 
         return "CC BY-SA";
@@ -3112,8 +3199,7 @@ function getLicenseKind(
 
     if (
         /\bcc by\b/.test(license) ||
-        /\bcc-by\b/.test(license) ||
-        /creative commons attribution\b/.test(license)
+        /\bcreative commons attribution\b/.test(license)
     ) {
 
         return "CC BY";
@@ -3124,6 +3210,10 @@ function getLicenseKind(
     return null;
 }
 
+
+/* =========================================================
+   IMAGE CANDIDATE VALIDATION
+========================================================= */
 
 function candidateIsUsable(
     candidate,
@@ -3206,24 +3296,6 @@ function candidateIsUsable(
     }
 
 
-    /*
-     * Important:
-     * At least one relevant commodity token must appear
-     * inside the actual image URL/file path.
-     */
-
-    if (
-        !hasRelevantUrlToken(
-            url,
-            tokens
-        )
-    ) {
-
-        return null;
-
-    }
-
-
     const searchableText =
         [
 
@@ -3248,6 +3320,14 @@ function candidateIsUsable(
             .filter(Boolean)
             .join(" ");
 
+
+    /*
+     * The image metadata itself must contain at least one
+     * relevant commodity token.
+     *
+     * This replaces the previous requirement that the token
+     * had to exist in the actual CDN image URL.
+     */
 
     if (
         !hasRelevantTextMatch(
@@ -3352,6 +3432,11 @@ function candidateIsUsable(
     let score =
         0;
 
+
+    /*
+     * URL relevance is now an additional ranking signal rather
+     * than a hard rejection condition.
+     */
 
     if (
         hasRelevantUrlToken(
@@ -3479,6 +3564,10 @@ function candidateIsUsable(
 }
 
 
+/* =========================================================
+   WIKIMEDIA SEARCH QUERY
+========================================================= */
+
 function buildCommoditySearchQuery(
     commodityName,
     category
@@ -3508,6 +3597,10 @@ function buildCommoditySearchQuery(
     return query;
 }
 
+
+/* =========================================================
+   WIKIMEDIA IMAGE SEARCH
+========================================================= */
 
 async function searchWikimediaImage(
     commodityName,
@@ -3627,7 +3720,10 @@ async function searchWikimediaImage(
                     headers: {
 
                         "Accept":
-                            "application/json"
+                            "application/json",
+
+                        "User-Agent":
+                            WIKIMEDIA_USER_AGENT
 
                     }
                 }
