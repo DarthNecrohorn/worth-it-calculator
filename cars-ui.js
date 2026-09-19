@@ -5276,7 +5276,7 @@ function injectVehicleUiStyles() {
             font-weight: 700;
         }
 
-        .worth-it-vehicle-comparison-difference-dot {
+                .worth-it-vehicle-comparison-difference-dot {
             display: inline-block;
             width: 6px;
             height: 6px;
@@ -5286,36 +5286,85 @@ function injectVehicleUiStyles() {
             opacity: 0.7;
         }
 
+        .cars-expand-button {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 42px;
+            padding: 0 16px;
+            border: 1px solid rgba(255, 255, 255, 0.14);
+            border-radius: 12px;
+            background: rgba(17, 19, 24, 0.95);
+            color: #fff;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.28);
+            font-weight: 800;
+            cursor: pointer;
+            transition:
+                transform 0.2s ease,
+                background 0.2s ease,
+                box-shadow 0.2s ease,
+                opacity 0.2s ease;
+        }
+
+        .cars-expand-button:hover {
+            transform: scale(1.04);
+            background: rgba(25, 28, 35, 0.98);
+            box-shadow: 0 12px 32px rgba(0, 0, 0, 0.34);
+        }
 
         .cars-expand-button:disabled {
             cursor: wait;
             opacity: 0.65;
+            transform: none;
         }
 
-    .worth-it-vehicle-floating-collapse {
-    position: fixed;
-    left: 14px;
-    top: 50%;
-    z-index: 99950;
-    transform: translate(-140%, -50%);
-    transition: transform 0.22s ease, opacity 0.22s ease;
-    opacity: 0;
-    pointer-events: none;
-    min-height: 42px;
-    padding: 0 15px;
-    border: 1px solid rgba(255, 255, 255, 0.14);
-    border-radius: 12px;
-    background: rgba(17, 19, 24, 0.95);
-    color: #fff;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.28);
-    font-weight: 800;
-    cursor: pointer;
-}
+
+        /* Floating Show Less button */
+
+        .worth-it-vehicle-floating-collapse {
+            position: fixed;
+            left: 14px;
+            top: 50%;
+            z-index: 99950;
+            transform: translate(-140%, -50%);
+            transition:
+                transform 0.22s ease,
+                opacity 0.22s ease,
+                background 0.2s ease,
+                box-shadow 0.2s ease;
+            opacity: 0;
+            pointer-events: none;
+
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 42px;
+            padding: 0 16px;
+
+            border: 1px solid rgba(255, 255, 255, 0.14);
+            border-radius: 12px;
+            background: rgba(17, 19, 24, 0.95);
+            color: #fff;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.28);
+
+            font-weight: 800;
+            cursor: pointer;
+        }
+
+        .worth-it-vehicle-floating-collapse:hover {
+            transform: translate(0, -50%) scale(1.04);
+            background: rgba(25, 28, 35, 0.98);
+            box-shadow: 0 12px 32px rgba(0, 0, 0, 0.34);
+        }
 
         .worth-it-vehicle-floating-collapse.is-visible {
             transform: translate(0, -50%);
             opacity: 1;
             pointer-events: auto;
+        }
+
+        .worth-it-vehicle-floating-collapse.is-visible:hover {
+            transform: translate(0, -50%) scale(1.04);
         }
 
         .worth-it-vehicle-compare-notice {
