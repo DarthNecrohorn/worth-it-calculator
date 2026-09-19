@@ -1,5 +1,11 @@
 /* =========================================================
-MARKETS
+   WORTH IT — MARKETS UI
+
+   Market data source:
+     World Bank Commodity Price Data (The Pink Sheet)
+
+   Market prices are monthly.
+   Movement is month-over-month, not 24-hour.
 ========================================================= */
 
 const MARKET_CONFIG = {
@@ -26,15 +32,6 @@ const MARKET_CONFIG = {
         name: "Platinum",
         symbol: "XPT",
         icon: "⚪",
-        eurUnit: "g",
-        usUnit: "oz",
-        conversion: 1 / 31.1034768
-    },
-
-    PALLADIUM_USD: {
-        name: "Palladium",
-        symbol: "XPD",
-        icon: "✨",
         eurUnit: "g",
         usUnit: "oz",
         conversion: 1 / 31.1034768
@@ -94,42 +91,6 @@ const MARKET_CONFIG = {
         conversion: 1 / 158.9872949
     },
 
-    GASOLINE_USD: {
-        name: "Gasoline",
-        symbol: "GASOLINE",
-        icon: "⛽",
-        eurUnit: "liter",
-        usUnit: "gallon",
-        conversion: 1 / 3.785411784
-    },
-
-    DIESEL_USD: {
-        name: "Diesel",
-        symbol: "DIESEL",
-        icon: "⛽",
-        eurUnit: "liter",
-        usUnit: "gallon",
-        conversion: 1 / 3.785411784
-    },
-
-    JET_FUEL_USD: {
-        name: "Jet Fuel",
-        symbol: "JET FUEL",
-        icon: "✈️",
-        eurUnit: "liter",
-        usUnit: "gallon",
-        conversion: 1 / 3.785411784
-    },
-
-    HEATING_OIL_USD: {
-        name: "Heating Oil",
-        symbol: "HEATING OIL",
-        icon: "🌡️",
-        eurUnit: "liter",
-        usUnit: "gallon",
-        conversion: 1 / 3.785411784
-    },
-
     COAL_USD: {
         name: "Coal",
         symbol: "COAL",
@@ -150,6 +111,7 @@ const MARKET_CONFIG = {
 
 };
 
+
 /* =========================================================
 USD → EUR EXCHANGE RATE
 ========================================================= */
@@ -159,8 +121,6 @@ const EUR_RATE_CACHE_KEY =
 
 const EUR_RATE_CACHE_DURATION =
     60 * 60 * 1000; // 1 hour
-
-let usdToEurRate = null;
 
 
 async function getUsdToEurRate() {
@@ -181,8 +141,8 @@ async function getUsdToEurRate() {
                 Number.isFinite(
                     Number(parsed.rate)
                 ) &&
-                Date.now() - Number(parsed.timestamp)
-                    < EUR_RATE_CACHE_DURATION
+                Date.now() - Number(parsed.timestamp) <
+                    EUR_RATE_CACHE_DURATION
             ) {
 
                 return Number(parsed.rate);
@@ -203,15 +163,14 @@ async function getUsdToEurRate() {
 
     try {
 
-          const response =
-               await fetch(
-               "/api/exchange-rate",
-           {
-               method: "GET",
-               cache: "no-store"
-           }
-      );
-
+        const response =
+            await fetch(
+                "/api/exchange-rate",
+                {
+                    method: "GET",
+                    cache: "no-store"
+                }
+            );
 
         if (!response.ok) {
 
@@ -221,16 +180,12 @@ async function getUsdToEurRate() {
 
         }
 
-
         const data =
             await response.json();
 
-
         const rate =
-            Number(
-            data?.rate
-       );
-       
+            Number(data?.rate);
+
         if (
             !Number.isFinite(rate) ||
             rate <= 0
@@ -241,7 +196,6 @@ async function getUsdToEurRate() {
             );
 
         }
-
 
         try {
 
@@ -261,7 +215,6 @@ async function getUsdToEurRate() {
             );
 
         }
-
 
         return rate;
 
@@ -318,6 +271,49 @@ function formatMarketChange(value) {
             : "";
 
     return `${sign}${number.toFixed(2)}%`;
+
+}
+
+
+function formatMarketPeriod(period) {
+
+    const match =
+        String(period || "")
+            .match(/^(\d{4})M(\d{2})$/);
+
+    if (!match) {
+        return "latest available month";
+    }
+
+    const year =
+        Number(match[1]);
+
+    const month =
+        Number(match[2]);
+
+    if (
+        !Number.isInteger(year) ||
+        !Number.isInteger(month) ||
+        month < 1 ||
+        month > 12
+    ) {
+        return "latest available month";
+    }
+
+    return new Date(
+        Date.UTC(
+            year,
+            month - 1,
+            1
+        )
+    ).toLocaleDateString(
+        "en-US",
+        {
+            month: "long",
+            year: "numeric",
+            timeZone: "UTC"
+        }
+    );
 
 }
 
@@ -394,7 +390,7 @@ function renderMarkets(
                         </strong>
 
                         <small>
-                            Unable to load current prices
+                            Unable to load World Bank monthly prices
                         </small>
 
                     </div>
@@ -422,7 +418,7 @@ function renderMarkets(
 
             const change =
                 Number(
-                    item?.changes?.["24h"]?.percent
+                    item?.changes?.monthly?.percent
                 );
 
 
@@ -476,9 +472,9 @@ function renderMarkets(
             ) {
 
                 const eurPrice =
-                usdPrice *
-                exchangeRate *
-                config.conversion;
+                    usdPrice *
+                    exchangeRate *
+                    config.conversion;
 
                 formattedEurPrice =
                     formatMarketPrice(
@@ -514,17 +510,17 @@ function renderMarkets(
 
                     <div class="market-price">
 
-                    <strong class="market-price-eur">
-                    €${formattedEurPrice}
-                    <small>/ ${config.eurUnit}</small>
-            </strong>
+                        <strong class="market-price-eur">
+                            €${formattedEurPrice}
+                            <small>/ ${config.eurUnit}</small>
+                        </strong>
 
-                    <span class="market-price-usd">
-                    $${formattedUsdPrice}
-                    <small>/ ${config.usUnit}</small>
-            </span>
+                        <span class="market-price-usd">
+                            $${formattedUsdPrice}
+                            <small>/ ${config.usUnit}</small>
+                        </span>
 
-           </div>
+                    </div>
 
 
                     <div
@@ -565,46 +561,23 @@ function renderMarkets(
 
 
     /* =====================================================
-    UPDATED TIME
+    UPDATED / SOURCE INFORMATION
     ===================================================== */
-
-    const updated =
-        data?.data?.prices?.reduce(
-            (latest, item) => {
-
-                const time =
-                    new Date(
-                        item.updated_at || 0
-                    ).getTime();
-
-                return time > latest
-                    ? time
-                    : latest;
-
-            },
-            0
-        );
-
 
     const updatedElement =
         document.getElementById(
             "marketsUpdated"
         );
 
+    if (updatedElement) {
 
-    if (
-        updatedElement &&
-        updated
-    ) {
+        const latestPeriod =
+            formatMarketPeriod(
+                data?.data?.latest_period
+            );
 
         updatedElement.textContent =
-            `Updated ${new Date(updated).toLocaleString(
-                "en-US",
-                {
-                    dateStyle: "medium",
-                    timeStyle: "short"
-                }
-            )}`;
+            `Data: ${latestPeriod} · Monthly change · World Bank Pink Sheet · CC BY 4.0`;
 
     }
 
@@ -616,7 +589,7 @@ REFRESH MARKETS
 ========================================================= */
 
 async function refreshMarkets() {
-    
+
     const grid =
         document.getElementById(
             "materialsGrid"
@@ -626,7 +599,7 @@ async function refreshMarkets() {
 
     try {
 
-                const [
+        const [
             marketResponse,
             exchangeRate
         ] = await Promise.all([
@@ -635,6 +608,7 @@ async function refreshMarkets() {
                 "/api/markets",
                 {
                     method: "GET",
+                    cache: "no-store"
                 }
             ),
 
@@ -642,9 +616,11 @@ async function refreshMarkets() {
 
         ]);
 
+
         const data =
             await marketResponse.json();
-   
+
+
         if (!marketResponse.ok) {
 
             throw new Error(
@@ -668,7 +644,6 @@ async function refreshMarkets() {
             error
         );
 
-
         grid.innerHTML = `
             <div class="market-card">
 
@@ -685,7 +660,7 @@ async function refreshMarkets() {
                         </strong>
 
                         <small>
-                            Could not load current market data.
+                            Could not load World Bank market data.
                         </small>
 
                     </div>
@@ -694,8 +669,10 @@ async function refreshMarkets() {
 
             </div>
         `;
+
     }
 }
+
 
 /* =========================================================
 GLOBAL REFRESH
@@ -717,6 +694,15 @@ document.addEventListener(
 
     }
 );
+
+
+/* =========================================================
+HOURLY REFRESH
+
+The commodity dataset itself is monthly, but the EUR conversion
+rate can change more frequently, so the UI continues refreshing
+once per hour.
+========================================================= */
 
 setInterval(
     () => {
