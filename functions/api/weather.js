@@ -417,24 +417,24 @@ export async function onRequestGet(context) {
                          * CDN / Cloudflare cache freshness:
                          * 4 hours.
                          */
-                        "CDN-Cache-Control":
-                            `public, max-age=${WEATHER_CACHE_TTL_SECONDS}`,
+                                           "CDN-Cache-Control":
+                        `public, max-age=${WEATHER_CACHE_TTL_SECONDS}`,
 
-                        /*
-                         * Useful for debugging cache behavior.
-                         */
-                        "X-Weather-Cache":
-                            "MISS-ORIGIN"
+                    /*
+                     * Useful for debugging cache behavior.
+                     */
+                    "X-Weather-Cache":
+                        "MISS-ORIGIN"
 
-                    }
+                }
 
-                );
+            );
 
 
             const staleResponse =
                 cloneResponseWithHeaders(
 
-                    response,
+                    response.clone(),
 
                     {
 
@@ -456,7 +456,6 @@ export async function onRequestGet(context) {
              * Store the 4-hour fresh cache.
              */
             context.waitUntil(
-
                 cache.put(
 
                     freshCacheKey,
