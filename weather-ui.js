@@ -70,6 +70,8 @@ let weatherLastData = null;
 
 let weatherLastCoordinates = null;
 
+let weatherLastLocationName = "";
+
 let weatherSelectedForecastIndex = 0;
 
 
