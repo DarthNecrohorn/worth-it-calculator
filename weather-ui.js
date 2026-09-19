@@ -3889,24 +3889,6 @@ function ensureWeatherUIStyles(){
 
         }
 
-
-        .weather-location-coordinates {
-
-            margin-bottom:
-                9px;
-
-            font-size:
-                0.88rem;
-
-            opacity:
-                0.72;
-
-            line-height:
-                1.4;
-
-        }
-
-
         .weather-location-card {
 
             display:
