@@ -4273,7 +4273,7 @@ function ensureWeatherUIStyles(){
         }
 
 
-        /*
+                /*
          * -----------------------------------------------
          * DETAILS DESCRIPTION
          * -----------------------------------------------
@@ -4297,15 +4297,13 @@ function ensureWeatherUIStyles(){
          * -----------------------------------------------
          * DETAILS GRID
          *
-         * Six columns on wide screens.
+         * 3 columns on desktop.
          *
-         * This puts:
+         * There are currently 18 detail cards,
+         * so 3 columns create 6 complete rows.
          *
-         * Solar energy
-         * Precipitation coverage
-         * Moon phase
-         *
-         * directly together at the end.
+         * This fills the entire large weather card
+         * without unnecessary empty space.
          * -----------------------------------------------
          */
 
@@ -4316,7 +4314,7 @@ function ensureWeatherUIStyles(){
 
             grid-template-columns:
                 repeat(
-                    6,
+                    3,
                     minmax(
                         0,
                         1fr
@@ -4327,7 +4325,6 @@ function ensureWeatherUIStyles(){
                 10px;
 
         }
-
 
         .weather-detail-item {
 
