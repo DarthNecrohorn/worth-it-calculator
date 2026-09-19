@@ -396,14 +396,17 @@ async function loadWeatherInternal(){
 
             renderWeatherData({
 
-                data:
-                    cachedWeather.data,
+            data:
+            cachedWeather.data,
 
-                latitude,
+            latitude,
 
-                longitude
+            longitude,
 
-            });
+            locationName:
+            cachedWeatherLocationName
+
+      });
 
 
             return;
