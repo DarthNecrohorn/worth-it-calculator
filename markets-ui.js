@@ -1,126 +1,399 @@
 /* =========================================================
    WORTH IT — MARKETS UI
 
-   Market data source:
+   Data:
      World Bank Commodity Price Data (The Pink Sheet)
 
-   Market prices are monthly.
-   Movement is month-over-month, not 24-hour.
+   Dynamic features:
+     - every commodity returned by /api/markets
+     - search
+     - dataset-driven categories
+     - original important commodities kept first
+     - lazy Wikimedia Commons image loading
+     - strict image relevance/license checks on backend
+     - no emoji in the image area
+     - "Image unavailable" when no valid image exists
+     - monthly price movement
 ========================================================= */
-
-const MARKET_CONFIG = {
-
-    GOLD_USD: {
-        name: "Gold",
-        symbol: "XAU",
-        icon: "🪙",
-        eurUnit: "g",
-        usUnit: "oz",
-        conversion: 1 / 31.1034768
-    },
-
-    SILVER_USD: {
-        name: "Silver",
-        symbol: "XAG",
-        icon: "🥈",
-        eurUnit: "g",
-        usUnit: "oz",
-        conversion: 1 / 31.1034768
-    },
-
-    PLATINUM_USD: {
-        name: "Platinum",
-        symbol: "XPT",
-        icon: "⚪",
-        eurUnit: "g",
-        usUnit: "oz",
-        conversion: 1 / 31.1034768
-    },
-
-    COPPER_USD: {
-        name: "Copper",
-        symbol: "COPPER",
-        icon: "🥉",
-        eurUnit: "kg",
-        usUnit: "lb",
-        conversion: 2.20462262185
-    },
-
-    IRON_ORE_USD: {
-        name: "Iron Ore",
-        symbol: "IRON",
-        icon: "🪨",
-        eurUnit: "metric ton",
-        usUnit: "metric ton",
-        conversion: 1
-    },
-
-    ALUMINUM_USD: {
-        name: "Aluminum",
-        symbol: "ALUMINUM",
-        icon: "📦",
-        eurUnit: "kg",
-        usUnit: "lb",
-        conversion: 2.20462262185
-    },
-
-    WTI_USD: {
-        name: "Crude Oil",
-        symbol: "WTI",
-        icon: "🛢️",
-        eurUnit: "liter",
-        usUnit: "barrel",
-        conversion: 1 / 158.9872949
-    },
-
-    NATURAL_GAS_USD: {
-        name: "Natural Gas",
-        symbol: "NATGAS",
-        icon: "🔥",
-        eurUnit: "MWh",
-        usUnit: "MMBtu",
-        conversion: 3.412141633
-    },
-
-    BRENT_CRUDE_USD: {
-        name: "Brent Crude",
-        symbol: "BRENT",
-        icon: "🛢️",
-        eurUnit: "liter",
-        usUnit: "barrel",
-        conversion: 1 / 158.9872949
-    },
-
-    COAL_USD: {
-        name: "Coal",
-        symbol: "COAL",
-        icon: "⬛",
-        eurUnit: "metric ton",
-        usUnit: "metric ton",
-        conversion: 1
-    },
-
-    NICKEL_USD: {
-        name: "Nickel",
-        symbol: "NICKEL",
-        icon: "🔘",
-        eurUnit: "kg",
-        usUnit: "lb",
-        conversion: 2.20462262185
-    }
-
-};
 
 
 /* =========================================================
-USD → EUR EXCHANGE RATE
+   MARKET STATE
+========================================================= */
+
+let marketsData = [];
+
+let marketsExchangeRate = null;
+
+let marketsCurrentCategory =
+    "all";
+
+let marketsCurrentSearch =
+    "";
+
+let marketsImageObserver =
+    null;
+
+let marketsImageActiveLoads =
+    0;
+
+const marketsImageMaxConcurrentLoads =
+    4;
+
+const marketsImageQueue =
+    [];
+
+const marketsImageCache =
+    new Map();
+
+const marketsImageLoading =
+    new Set();
+
+const marketsImageFailed =
+    new Set();
+
+const MARKETS_UI_VERSION =
+    "v5-dynamic-catalog-images";
+
+
+/* =========================================================
+   HELPERS
+========================================================= */
+
+function escapeMarketsHtml(
+    value
+) {
+
+    return String(
+        value ?? ""
+    )
+        .replace(
+            /&/g,
+            "&amp;"
+        )
+        .replace(
+            /</g,
+            "&lt;"
+        )
+        .replace(
+            />/g,
+            "&gt;"
+        )
+        .replace(
+            /"/g,
+            "&quot;"
+        )
+        .replace(
+            /'/g,
+            "&#039;"
+        );
+}
+
+
+function normalizeMarketsSearch(
+    value
+) {
+
+    return String(
+        value || ""
+    )
+        .toLowerCase()
+        .normalize(
+            "NFKD"
+        )
+        .replace(
+            /[\u0300-\u036f]/g,
+            ""
+        )
+        .replace(
+            /[^a-z0-9]+/g,
+            " "
+        )
+        .trim();
+}
+
+
+function getCategoryMeta(
+    category
+) {
+
+    const map = {
+
+        all: {
+            label: "All"
+        },
+
+        "precious-metals": {
+            label:
+                "Precious Metals"
+        },
+
+        "metals-minerals": {
+            label:
+                "Metals & Minerals"
+        },
+
+        energy: {
+            label:
+                "Energy"
+        },
+
+        fertilizers: {
+            label:
+                "Fertilizers"
+        },
+
+        "agriculture-food": {
+            label:
+                "Agriculture & Food"
+        },
+
+        "raw-materials": {
+            label:
+                "Raw Materials"
+        },
+
+        other: {
+            label:
+                "Other"
+        }
+
+    };
+
+
+    return (
+        map[
+            category
+        ] ||
+        map.other
+    );
+}
+
+
+function getMarketConfigFallback(
+    item
+) {
+
+    return {
+
+        name:
+            item?.name ||
+            "Commodity",
+
+        symbol:
+            item?.code ||
+            "",
+
+        eurUnit:
+            item?.display?.eurUnit ||
+            "unit",
+
+        usUnit:
+            item?.display?.usUnit ||
+            "unit",
+
+        conversion:
+            Number(
+                item?.display?.conversion
+            ) ||
+            1
+
+    };
+}
+
+
+function formatMarketPrice(
+    value
+) {
+
+    const number =
+        Number(value);
+
+
+    if (
+        !Number.isFinite(
+            number
+        )
+    ) {
+
+        return "—";
+
+    }
+
+
+    return number.toLocaleString(
+        "en-US",
+        {
+
+            minimumFractionDigits:
+                2,
+
+            maximumFractionDigits:
+                2
+
+        }
+    );
+}
+
+
+function formatMarketChange(
+    value
+) {
+
+    const number =
+        Number(value);
+
+
+    if (
+        !Number.isFinite(
+            number
+        )
+    ) {
+
+        return "—";
+
+    }
+
+
+    const sign =
+        number > 0
+            ? "+"
+            : "";
+
+
+    return (
+        `${sign}${number.toFixed(2)}%`
+    );
+}
+
+
+function formatMarketPeriod(
+    period
+) {
+
+    const match =
+        String(
+            period || ""
+        )
+            .match(
+                /^(\d{4})M(\d{2})$/
+            );
+
+
+    if (!match) {
+
+        return "latest available month";
+
+    }
+
+
+    const year =
+        Number(
+            match[1]
+        );
+
+
+    const month =
+        Number(
+            match[2]
+        );
+
+
+    if (
+        !Number.isInteger(
+            year
+        ) ||
+        !Number.isInteger(
+            month
+        ) ||
+        month < 1 ||
+        month > 12
+    ) {
+
+        return "latest available month";
+
+    }
+
+
+    return new Date(
+
+        Date.UTC(
+            year,
+            month - 1,
+            1
+        )
+
+    ).toLocaleDateString(
+        "en-US",
+        {
+
+            month:
+                "long",
+
+            year:
+                "numeric",
+
+            timeZone:
+                "UTC"
+
+        }
+    );
+}
+
+
+function getMarketMovementWidth(
+    value
+) {
+
+    const number =
+        Number(value);
+
+
+    if (
+        !Number.isFinite(
+            number
+        ) ||
+        number === 0
+    ) {
+
+        return 0;
+
+    }
+
+
+    return Math.min(
+        50,
+
+        Math.max(
+            4,
+            Math.abs(
+                number
+            ) * 10
+        )
+    );
+}
+
+
+function getMarketImageCacheKey(
+    name
+) {
+
+    return normalizeMarketsSearch(
+        name
+    );
+}
+
+
+/* =========================================================
+   USD → EUR
 ========================================================= */
 
 const EUR_RATE_CACHE_KEY =
     "worth_it_usd_eur_rate";
 
+
 const EUR_RATE_CACHE_DURATION =
-    60 * 60 * 1000; // 1 hour
+    60 * 60 * 1000;
 
 
 async function getUsdToEurRate() {
@@ -132,26 +405,40 @@ async function getUsdToEurRate() {
                 EUR_RATE_CACHE_KEY
             );
 
+
         if (cached) {
 
             const parsed =
-                JSON.parse(cached);
+                JSON.parse(
+                    cached
+                );
+
 
             if (
                 Number.isFinite(
-                    Number(parsed.rate)
+                    Number(
+                        parsed.rate
+                    )
                 ) &&
-                Date.now() - Number(parsed.timestamp) <
+
+                Date.now() -
+                    Number(
+                        parsed.timestamp
+                    ) <
+
                     EUR_RATE_CACHE_DURATION
             ) {
 
-                return Number(parsed.rate);
+                return Number(
+                    parsed.rate
+                );
 
             }
 
         }
 
-    } catch (error) {
+    }
+    catch (error) {
 
         console.warn(
             "Could not read cached EUR rate:",
@@ -167,10 +454,16 @@ async function getUsdToEurRate() {
             await fetch(
                 "/api/exchange-rate",
                 {
-                    method: "GET",
-                    cache: "no-store"
+
+                    method:
+                        "GET",
+
+                    cache:
+                        "no-store"
+
                 }
             );
+
 
         if (!response.ok) {
 
@@ -180,14 +473,21 @@ async function getUsdToEurRate() {
 
         }
 
+
         const data =
             await response.json();
 
+
         const rate =
-            Number(data?.rate);
+            Number(
+                data?.rate
+            );
+
 
         if (
-            !Number.isFinite(rate) ||
+            !Number.isFinite(
+                rate
+            ) ||
             rate <= 0
         ) {
 
@@ -197,17 +497,25 @@ async function getUsdToEurRate() {
 
         }
 
+
         try {
 
             localStorage.setItem(
                 EUR_RATE_CACHE_KEY,
-                JSON.stringify({
-                    rate,
-                    timestamp: Date.now()
-                })
+                JSON.stringify(
+                    {
+
+                        rate,
+
+                        timestamp:
+                            Date.now()
+
+                    }
+                )
             );
 
-        } catch (error) {
+        }
+        catch (error) {
 
             console.warn(
                 "Could not cache EUR rate:",
@@ -216,181 +524,1781 @@ async function getUsdToEurRate() {
 
         }
 
+
         return rate;
 
-    } catch (error) {
+    }
+    catch (error) {
 
         console.error(
             "USD → EUR exchange rate error:",
             error
         );
 
+
+        return null;
+
+    }
+}
+
+
+/* =========================================================
+   TOOLBAR
+========================================================= */
+
+function ensureMarketsToolbar(
+    grid
+) {
+
+    if (!grid) {
+
         return null;
 
     }
 
+
+    let toolbar =
+        document.getElementById(
+            "worthItMarketsToolbar"
+        );
+
+
+    if (!toolbar) {
+
+        toolbar =
+            document.createElement(
+                "div"
+            );
+
+
+        toolbar.id =
+            "worthItMarketsToolbar";
+
+
+        toolbar.className =
+            "worth-it-markets-toolbar";
+
+
+        toolbar.style.display =
+            "flex";
+
+
+        toolbar.style.flexDirection =
+            "column";
+
+
+        toolbar.style.gap =
+            "12px";
+
+
+        toolbar.style.margin =
+            "0 0 18px";
+
+
+        grid.parentNode?.insertBefore(
+            toolbar,
+            grid
+        );
+
+    }
+
+
+    toolbar.innerHTML = `
+
+        <div
+            class="worth-it-markets-search-wrap"
+            style="
+                display:flex;
+                gap:10px;
+                align-items:center;
+                flex-wrap:wrap;
+            "
+        >
+
+            <input
+                id="worthItMarketsSearch"
+                type="search"
+                autocomplete="off"
+                placeholder="Search commodities..."
+                aria-label="Search commodities"
+                style="
+                    flex:1 1 280px;
+                    min-width:220px;
+                    padding:11px 13px;
+                    border:1px solid var(--border, rgba(128,128,128,.25));
+                    border-radius:12px;
+                    background:var(--surface-soft, rgba(128,128,128,.06));
+                    color:var(--text);
+                    outline:none;
+                    font:inherit;
+                "
+            >
+
+            <span
+                id="worthItMarketsCount"
+                style="
+                    font-size:.82rem;
+                    opacity:.65;
+                    white-space:nowrap;
+                "
+            ></span>
+
+        </div>
+
+
+        <div
+            id="worthItMarketsCategories"
+            class="worth-it-markets-categories"
+            style="
+                display:flex;
+                gap:8px;
+                flex-wrap:wrap;
+            "
+        ></div>
+
+    `;
+
+
+    const searchInput =
+        document.getElementById(
+            "worthItMarketsSearch"
+        );
+
+
+    if (searchInput) {
+
+        searchInput.value =
+            marketsCurrentSearch;
+
+
+        searchInput.addEventListener(
+            "input",
+            () => {
+
+                marketsCurrentSearch =
+                    searchInput.value.trim();
+
+
+                renderMarkets();
+
+            }
+        );
+
+    }
+
+
+    return toolbar;
 }
 
 
-/* =========================================================
-FORMATTING
-========================================================= */
+function renderMarketCategoryButtons() {
 
-function formatMarketPrice(value) {
+    const container =
+        document.getElementById(
+            "worthItMarketsCategories"
+        );
 
-    const number =
-        Number(value);
 
-    if (!Number.isFinite(number)) {
-        return "—";
+    if (!container) {
+
+        return;
+
     }
 
-    return number.toLocaleString(
-        "en-US",
-        {
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2
+
+    const categoryCounts =
+        {};
+
+
+    marketsData.forEach(
+        item => {
+
+            const category =
+                item?.category ||
+                "other";
+
+
+            categoryCounts[
+                category
+            ] =
+                (
+                    categoryCounts[
+                        category
+                    ] ||
+                    0
+                ) + 1;
+
         }
     );
 
-}
+
+    const desiredOrder = [
+
+        "all",
+
+        "precious-metals",
+
+        "metals-minerals",
+
+        "energy",
+
+        "fertilizers",
+
+        "agriculture-food",
+
+        "raw-materials",
+
+        "other"
+
+    ];
 
 
-function formatMarketChange(value) {
+    const available =
+        desiredOrder.filter(
+            category =>
 
-    const number =
-        Number(value);
+                category === "all" ||
 
-    if (!Number.isFinite(number)) {
-        return "—";
-    }
-
-    const sign =
-        number > 0
-            ? "+"
-            : "";
-
-    return `${sign}${number.toFixed(2)}%`;
-
-}
+                categoryCounts[
+                    category
+                ] > 0
+        );
 
 
-function formatMarketPeriod(period) {
+    container.innerHTML =
+        available.map(
+            category => {
 
-    const match =
-        String(period || "")
-            .match(/^(\d{4})M(\d{2})$/);
+                const meta =
+                    getCategoryMeta(
+                        category
+                    );
 
-    if (!match) {
-        return "latest available month";
-    }
 
-    const year =
-        Number(match[1]);
+                const count =
+                    category === "all"
 
-    const month =
-        Number(match[2]);
+                        ? marketsData.length
 
-    if (
-        !Number.isInteger(year) ||
-        !Number.isInteger(month) ||
-        month < 1 ||
-        month > 12
-    ) {
-        return "latest available month";
-    }
+                        : categoryCounts[
+                            category
+                        ] ||
+                        0;
 
-    return new Date(
-        Date.UTC(
-            year,
-            month - 1,
-            1
+
+                const active =
+                    marketsCurrentCategory ===
+                    category;
+
+
+                return `
+
+                    <button
+                        type="button"
+                        class="worth-it-market-category-button${
+                            active
+                                ? " active"
+                                : ""
+                        }"
+                        data-market-category="${
+                            escapeMarketsHtml(
+                                category
+                            )
+                        }"
+                        style="
+                            padding:8px 12px;
+                            border:1px solid var(--border, rgba(128,128,128,.25));
+                            border-radius:999px;
+                            background:${
+                                active
+                                    ? "var(--surface-soft, rgba(128,128,128,.12))"
+                                    : "transparent"
+                            };
+                            color:var(--text);
+                            cursor:pointer;
+                            font:inherit;
+                            font-size:.82rem;
+                            font-weight:${
+                                active
+                                    ? "800"
+                                    : "700"
+                            };
+                        "
+                    >
+
+                        ${
+                            escapeMarketsHtml(
+                                meta.label
+                            )
+                        }
+
+                        <span
+                            style="
+                                opacity:.6;
+                                font-size:.78em;
+                                margin-left:4px;
+                            "
+                        >
+                            ${count}
+                        </span>
+
+                    </button>
+
+                `;
+            }
+        ).join("");
+
+
+    container
+        .querySelectorAll(
+            "[data-market-category]"
         )
-    ).toLocaleDateString(
-        "en-US",
-        {
-            month: "long",
-            year: "numeric",
-            timeZone: "UTC"
-        }
-    );
+        .forEach(
+            button => {
 
+                button.addEventListener(
+                    "click",
+                    () => {
+
+                        marketsCurrentCategory =
+                            button.dataset.marketCategory ||
+                            "all";
+
+
+                        renderMarkets();
+
+                    }
+                );
+
+            }
+        );
 }
 
 
-/* =========================================================
-MOVEMENT BAR
-========================================================= */
-
-function getMarketMovementWidth(value) {
-
-    const number =
-        Number(value);
-
-    if (
-        !Number.isFinite(number) ||
-        number === 0
-    ) {
-
-        return 0;
-
-    }
-
-    return Math.min(
-        50,
-        Math.max(
-            4,
-            Math.abs(number) * 10
-        )
-    );
-
-}
-
-
-/* =========================================================
-RENDER MARKETS
-========================================================= */
-
-function renderMarkets(
-    data,
-    exchangeRate = null
+function updateMarketsCount(
+    visibleCount,
+    totalCount
 ) {
+
+    const countElement =
+        document.getElementById(
+            "worthItMarketsCount"
+        );
+
+
+    if (!countElement) {
+
+        return;
+
+    }
+
+
+    if (
+        visibleCount ===
+        totalCount
+    ) {
+
+        countElement.textContent =
+            `${totalCount} commodities`;
+
+    }
+    else {
+
+        countElement.textContent =
+            `${visibleCount} of ${totalCount} commodities`;
+
+    }
+}
+
+
+/* =========================================================
+   FILTERING
+========================================================= */
+
+function getFilteredMarkets() {
+
+    const normalizedSearch =
+        normalizeMarketsSearch(
+            marketsCurrentSearch
+        );
+
+
+    return marketsData.filter(
+        item => {
+
+            const categoryMatch =
+                marketsCurrentCategory ===
+                    "all" ||
+
+                item.category ===
+                    marketsCurrentCategory;
+
+
+            if (!categoryMatch) {
+
+                return false;
+
+            }
+
+
+            if (!normalizedSearch) {
+
+                return true;
+
+            }
+
+
+            const haystack =
+                normalizeMarketsSearch(
+
+                    `${item.name} ${item.code} ${
+                        item.category_label || ""
+                    }`
+
+                );
+
+
+            return haystack.includes(
+                normalizedSearch
+            );
+
+        }
+    );
+}
+
+
+/* =========================================================
+   IMAGE PLACEHOLDER
+========================================================= */
+
+function createMarketImagePlaceholder(
+    message =
+        "Loading image..."
+) {
+
+    return `
+
+        <div
+            class="worth-it-market-image-placeholder"
+            style="
+                width:100%;
+                height:185px;
+                display:flex;
+                align-items:center;
+                justify-content:center;
+                text-align:center;
+                padding:20px;
+                box-sizing:border-box;
+                opacity:.62;
+                font-size:.8rem;
+            "
+        >
+
+            ${
+                escapeMarketsHtml(
+                    message
+                )
+            }
+
+        </div>
+
+    `;
+}
+
+
+function showMarketImageUnavailable(
+    imageElement
+) {
+
+    if (!imageElement) {
+
+        return;
+
+    }
+
+
+    const parent =
+        imageElement.parentNode;
+
+
+    if (!parent) {
+
+        return;
+
+    }
+
+
+    imageElement.remove();
+
+
+    const placeholder =
+        parent.querySelector(
+            ".worth-it-market-image-placeholder"
+        );
+
+
+    if (placeholder) {
+
+        placeholder.textContent =
+            "Image unavailable";
+
+    }
+}
+
+
+function marketImageUrlPassesClientFilter(
+    image,
+    name
+) {
+
+    if (
+        !image?.url
+    ) {
+
+        return false;
+
+    }
+
+
+    const urlText =
+        normalizeMarketsSearch(
+
+            decodeURIComponent(
+                String(
+                    image.url
+                )
+            )
+
+        );
+
+
+    const tokens =
+        normalizeMarketsSearch(
+            name
+        )
+            .split(" ")
+            .filter(
+                token =>
+                    token.length >= 3
+            );
+
+
+    if (
+        tokens.includes(
+            "aluminum"
+        )
+    ) {
+
+        tokens.push(
+            "aluminium"
+        );
+
+    }
+
+
+    if (
+        tokens.includes(
+            "aluminium"
+        )
+    ) {
+
+        tokens.push(
+            "aluminum"
+        );
+
+    }
+
+
+    return tokens.some(
+        token =>
+            urlText.includes(
+                token
+            )
+    );
+}
+
+
+/* =========================================================
+   FETCH MARKET IMAGE
+========================================================= */
+
+async function fetchMarketImage(
+    name,
+    category
+) {
+
+    const key =
+        getMarketImageCacheKey(
+            name
+        );
+
+
+    if (
+        marketsImageCache.has(
+            key
+        )
+    ) {
+
+        return marketsImageCache.get(
+            key
+        );
+
+    }
+
+
+    if (
+        marketsImageFailed.has(
+            key
+        )
+    ) {
+
+        return null;
+
+    }
+
+
+    if (
+        marketsImageLoading.has(
+            key
+        )
+    ) {
+
+        return null;
+
+    }
+
+
+    marketsImageLoading.add(
+        key
+    );
+
+
+    try {
+
+        const params =
+            new URLSearchParams(
+                {
+
+                    action:
+                        "image",
+
+                    name,
+
+                    category
+
+                }
+            );
+
+
+        const response =
+            await fetch(
+
+                `/api/markets?${params.toString()}`,
+
+                {
+
+                    method:
+                        "GET",
+
+                    cache:
+                        "force-cache"
+
+                }
+
+            );
+
+
+        const data =
+            await response.json();
+
+
+        const image =
+            data?.found
+                ? data.image
+                : null;
+
+
+        if (
+
+            !image ||
+
+            !image.url ||
+
+            !marketImageUrlPassesClientFilter(
+                image,
+                name
+            )
+
+        ) {
+
+            marketsImageFailed.add(
+                key
+            );
+
+
+            return null;
+
+        }
+
+
+        marketsImageCache.set(
+            key,
+            image
+        );
+
+
+        return image;
+
+    }
+    catch (error) {
+
+        console.warn(
+            `Market image search failed for ${name}:`,
+            error
+        );
+
+
+        marketsImageFailed.add(
+            key
+        );
+
+
+        return null;
+
+    }
+    finally {
+
+        marketsImageLoading.delete(
+            key
+        );
+
+    }
+}
+
+
+/* =========================================================
+   IMAGE QUEUE
+========================================================= */
+
+function queueMarketImage(
+    imageElement,
+    name,
+    category
+) {
+
+    if (
+
+        !imageElement ||
+
+        !imageElement.isConnected
+
+    ) {
+
+        return;
+
+    }
+
+
+    if (
+        imageElement.dataset
+            .marketImageQueued ===
+        "true"
+    ) {
+
+        return;
+
+    }
+
+
+    imageElement.dataset
+        .marketImageQueued =
+        "true";
+
+
+    marketsImageQueue.push(
+        {
+
+            imageElement,
+
+            name,
+
+            category
+
+        }
+    );
+
+
+    processMarketImageQueue();
+}
+
+
+async function processMarketImageQueue() {
+
+    while (
+
+        marketsImageActiveLoads <
+            marketsImageMaxConcurrentLoads &&
+
+        marketsImageQueue.length
+
+    ) {
+
+        const job =
+            marketsImageQueue.shift();
+
+
+        if (
+            !job?.imageElement?.isConnected
+        ) {
+
+            continue;
+
+        }
+
+
+        marketsImageActiveLoads +=
+            1;
+
+
+        loadMarketCardImage(
+
+            job.imageElement,
+
+            job.name,
+
+            job.category
+
+        )
+            .catch(
+                error => {
+
+                    console.warn(
+                        "Market card image error:",
+                        error
+                    );
+
+                }
+            )
+            .finally(
+                () => {
+
+                    marketsImageActiveLoads -=
+                        1;
+
+
+                    processMarketImageQueue();
+
+                }
+            );
+
+    }
+}
+
+
+/* =========================================================
+   IMAGE CREDIT
+========================================================= */
+
+function updateMarketImageCredit(
+    imageElement,
+    image
+) {
+
+    const card =
+        imageElement?.closest(
+            "[data-market-card=\"true\"]"
+        );
+
+
+    if (!card) {
+
+        return;
+
+    }
+
+
+    const credit =
+        card.querySelector(
+            ".worth-it-market-image-credit"
+        );
+
+
+    if (!credit) {
+
+        return;
+
+    }
+
+
+    credit.innerHTML =
+        "";
+
+
+    if (
+        image?.source_url
+    ) {
+
+        const sourceLink =
+            document.createElement(
+                "a"
+            );
+
+
+        sourceLink.href =
+            image.source_url;
+
+
+        sourceLink.target =
+            "_blank";
+
+
+        sourceLink.rel =
+            "noopener noreferrer";
+
+
+        sourceLink.textContent =
+            "Wikimedia Commons";
+
+
+        credit.appendChild(
+            sourceLink
+        );
+
+    }
+    else {
+
+        credit.appendChild(
+            document.createTextNode(
+                "Wikimedia Commons"
+            )
+        );
+
+    }
+
+
+    if (
+        image?.license_url
+    ) {
+
+        credit.appendChild(
+            document.createTextNode(
+                " · "
+            )
+        );
+
+
+        const licenseLink =
+            document.createElement(
+                "a"
+            );
+
+
+        licenseLink.href =
+            image.license_url;
+
+
+        licenseLink.target =
+            "_blank";
+
+
+        licenseLink.rel =
+            "noopener noreferrer";
+
+
+        licenseLink.textContent =
+            image.license ||
+            "License";
+
+
+        credit.appendChild(
+            licenseLink
+        );
+
+    }
+    else if (
+        image?.license
+    ) {
+
+        credit.appendChild(
+            document.createTextNode(
+                ` · ${image.license}`
+            )
+        );
+
+    }
+
+
+    if (
+
+        image?.author &&
+
+        image.author !==
+            "Unknown author"
+
+    ) {
+
+        credit.appendChild(
+            document.createTextNode(
+                ` · ${image.author}`
+            )
+        );
+
+    }
+}
+
+
+/* =========================================================
+   LOAD CARD IMAGE
+========================================================= */
+
+async function loadMarketCardImage(
+    imageElement,
+    name,
+    category
+) {
+
+    if (
+        !imageElement?.isConnected
+    ) {
+
+        return;
+
+    }
+
+
+    imageElement.dataset
+        .marketImageState =
+        "loading";
+
+
+    const image =
+        await fetchMarketImage(
+            name,
+            category
+        );
+
+
+    if (
+        !imageElement.isConnected
+    ) {
+
+        return;
+
+    }
+
+
+    const parent =
+        imageElement.parentNode;
+
+
+    if (!parent) {
+
+        return;
+
+    }
+
+
+    const placeholder =
+        parent.querySelector(
+            ".worth-it-market-image-placeholder"
+        );
+
+
+    if (!image) {
+
+        imageElement.dataset
+            .marketImageState =
+            "unavailable";
+
+
+        imageElement.remove();
+
+
+        if (placeholder) {
+
+            placeholder.textContent =
+                "Image unavailable";
+
+        }
+
+
+        return;
+
+    }
+
+
+    const finalUrl =
+        image.thumbnailUrl ||
+        image.url;
+
+
+    imageElement.src =
+        finalUrl;
+
+
+    imageElement.alt =
+        name;
+
+
+    imageElement.loading =
+        "lazy";
+
+
+    imageElement.decoding =
+        "async";
+
+
+    imageElement.dataset
+        .marketImageState =
+        "loaded";
+
+
+    if (
+        image.author
+    ) {
+
+        imageElement.dataset
+            .imageAuthor =
+            image.author;
+
+    }
+
+
+    if (
+        image.license
+    ) {
+
+        imageElement.dataset
+            .imageLicense =
+            image.license;
+
+    }
+
+
+    if (
+        image.license_url
+    ) {
+
+        imageElement.dataset
+            .imageLicenseUrl =
+            image.license_url;
+
+    }
+
+
+    if (
+        image.source_url
+    ) {
+
+        imageElement.dataset
+            .imageSourceUrl =
+            image.source_url;
+
+    }
+
+
+    updateMarketImageCredit(
+        imageElement,
+        image
+    );
+
+
+    imageElement.style.display =
+        "block";
+
+
+    imageElement.style.width =
+        "100%";
+
+
+    imageElement.style.height =
+        "185px";
+
+
+    imageElement.style.objectFit =
+        "cover";
+
+
+    imageElement.onerror =
+        () => {
+
+            if (
+                imageElement.dataset
+                    .marketImageFallback ===
+                "used"
+            ) {
+
+                showMarketImageUnavailable(
+                    imageElement
+                );
+
+
+                return;
+
+            }
+
+
+            imageElement.dataset
+                .marketImageFallback =
+                "used";
+
+
+            if (
+
+                image.url &&
+
+                imageElement.src !==
+                    image.url
+
+            ) {
+
+                imageElement.src =
+                    image.url;
+
+
+                return;
+
+            }
+
+
+            showMarketImageUnavailable(
+                imageElement
+            );
+
+        };
+
+
+    imageElement.onload =
+        () => {
+
+            if (placeholder) {
+
+                placeholder.remove();
+
+            }
+
+        };
+}
+
+
+/* =========================================================
+   IMAGE OBSERVER
+========================================================= */
+
+function initialiseMarketImageObserver() {
+
+    if (
+        marketsImageObserver
+    ) {
+
+        marketsImageObserver.disconnect();
+
+        marketsImageObserver =
+            null;
+
+    }
+
+
+    if (
+        !(
+            "IntersectionObserver"
+            in window
+        )
+    ) {
+
+        document
+            .querySelectorAll(
+                ".worth-it-market-image"
+            )
+            .forEach(
+                image => {
+
+                    queueMarketImage(
+
+                        image,
+
+                        image.dataset
+                            .marketName ||
+
+                            "",
+
+                        image.dataset
+                            .marketCategory ||
+
+                            "other"
+
+                    );
+
+                }
+            );
+
+
+        return;
+
+    }
+
+
+    marketsImageObserver =
+        new IntersectionObserver(
+
+            entries => {
+
+                entries.forEach(
+                    entry => {
+
+                        if (
+                            !entry.isIntersecting
+                        ) {
+
+                            return;
+
+                        }
+
+
+                        const image =
+                            entry.target;
+
+
+                        queueMarketImage(
+
+                            image,
+
+                            image.dataset
+                                .marketName ||
+
+                                "",
+
+                            image.dataset
+                                .marketCategory ||
+
+                                "other"
+
+                        );
+
+
+                        marketsImageObserver?.unobserve(
+                            image
+                        );
+
+                    }
+                );
+
+            },
+
+            {
+
+                rootMargin:
+                    "650px 0px"
+
+            }
+
+        );
+
+
+    document
+        .querySelectorAll(
+            ".worth-it-market-image"
+        )
+        .forEach(
+            image => {
+
+                marketsImageObserver.observe(
+                    image
+                );
+
+            }
+        );
+}
+
+
+/* =========================================================
+   CARD
+========================================================= */
+
+function renderMarketCard(
+    item
+) {
+
+    const config =
+        getMarketConfigFallback(
+            item
+        );
+
+
+    const change =
+        Number(
+            item?.changes?.monthly?.percent
+        );
+
+
+    const changeIsUp =
+        change > 0;
+
+
+    const changeIsDown =
+        change < 0;
+
+
+    const movementClass =
+        changeIsUp
+
+            ? "market-up"
+
+            : changeIsDown
+
+                ? "market-down"
+
+                : "market-flat";
+
+
+    const arrow =
+        changeIsUp
+
+            ? "▲"
+
+            : changeIsDown
+
+                ? "▼"
+
+                : "—";
+
+
+    const width =
+        getMarketMovementWidth(
+            change
+        );
+
+
+    const usdPrice =
+        Number(
+            item.price
+        );
+
+
+    const formattedUsdPrice =
+        formatMarketPrice(
+            usdPrice
+        );
+
+
+    let formattedEurPrice =
+        "—";
+
+
+    const conversion =
+        Number(
+            item?.display?.conversion
+        );
+
+
+    if (
+
+        Number.isFinite(
+            usdPrice
+        ) &&
+
+        Number.isFinite(
+            marketsExchangeRate
+        ) &&
+
+        marketsExchangeRate > 0 &&
+
+        Number.isFinite(
+            conversion
+        )
+
+    ) {
+
+        const eurPrice =
+            usdPrice *
+            marketsExchangeRate *
+            conversion;
+
+
+        formattedEurPrice =
+            formatMarketPrice(
+                eurPrice
+            );
+
+    }
+
+
+    const name =
+        escapeMarketsHtml(
+            config.name
+        );
+
+
+    const symbol =
+        escapeMarketsHtml(
+            config.symbol
+        );
+
+
+    const category =
+        escapeMarketsHtml(
+            item.category ||
+                "other"
+        );
+
+
+    const categoryLabel =
+        escapeMarketsHtml(
+
+            item.category_label ||
+
+            getCategoryMeta(
+                item.category
+            ).label
+
+        );
+
+
+    const imageAlt =
+        escapeMarketsHtml(
+            config.name
+        );
+
+
+    return `
+
+        <div
+            class="market-card"
+            data-market-card="true"
+            data-market-name="${name}"
+            data-market-category="${category}"
+        >
+
+            <div
+                class="worth-it-market-image-wrap"
+                style="
+                    width:100%;
+                    min-height:185px;
+                    overflow:hidden;
+                    border-radius:12px 12px 0 0;
+                    position:relative;
+                "
+            >
+
+                ${
+                    createMarketImagePlaceholder()
+                }
+
+
+                <img
+                    class="worth-it-market-image"
+                    data-market-name="${name}"
+                    data-market-category="${category}"
+                    alt="${imageAlt}"
+                    aria-hidden="false"
+                    style="
+                        display:none;
+                        width:100%;
+                        height:185px;
+                        object-fit:cover;
+                    "
+                >
+
+            </div>
+
+
+            <div class="market-card-main">
+
+                <div>
+
+                    <strong>
+                        ${name}
+                    </strong>
+
+
+                    <small>
+                        ${symbol}
+                    </small>
+
+
+                    <small
+                        style="
+                            display:block;
+                            opacity:.55;
+                            margin-top:3px;
+                        "
+                    >
+                        ${categoryLabel}
+                    </small>
+
+                </div>
+
+            </div>
+
+
+            <div class="market-price">
+
+                <strong class="market-price-eur">
+
+                    €${formattedEurPrice}
+
+                    <small>
+                        /
+                        ${
+                            escapeMarketsHtml(
+                                config.eurUnit
+                            )
+                        }
+                    </small>
+
+                </strong>
+
+
+                <span class="market-price-usd">
+
+                    $${formattedUsdPrice}
+
+                    <small>
+                        /
+                        ${
+                            escapeMarketsHtml(
+                                config.usUnit
+                            )
+                        }
+                    </small>
+
+                </span>
+
+            </div>
+
+
+            <div
+                class="market-movement ${movementClass}"
+                style="
+                    color:var(--market-movement-color);
+                "
+            >
+
+                <div class="movement-scale">
+
+                    <span
+                        class="movement-bar"
+                        style="
+                            width:${width}%;
+
+                            ${
+                                changeIsUp
+                                    ? "left:50%;"
+                                    : ""
+                            }
+
+                            ${
+                                changeIsDown
+                                    ? "right:50%;"
+                                    : ""
+                            }
+                        "
+                    ></span>
+
+                </div>
+
+
+                <strong>
+
+                    ${arrow}
+
+                    ${
+                        formatMarketChange(
+                            change
+                        )
+                    }
+
+                </strong>
+
+
+                <small
+                    style="
+                        display:block;
+                        opacity:.55;
+                        margin-top:3px;
+                        font-size:.72rem;
+                    "
+                >
+                    Monthly
+                </small>
+
+            </div>
+
+
+            <div
+                class="worth-it-market-image-credit"
+                style="
+                    font-size:.68rem;
+                    opacity:.58;
+                    padding:8px 12px 12px;
+                    line-height:1.35;
+                "
+            >
+                Wikimedia Commons image search
+            </div>
+
+        </div>
+
+    `;
+}
+
+
+/* =========================================================
+   RENDER
+========================================================= */
+
+function renderMarkets() {
 
     const grid =
         document.getElementById(
             "materialsGrid"
         );
 
-    if (!grid) return;
+
+    if (!grid) {
+
+        return;
+
+    }
 
 
-    const prices =
-        Array.isArray(
-            data?.data?.prices
-        )
-            ? data.data.prices
-            : [];
+    ensureMarketsToolbar(
+        grid
+    );
 
 
-    if (!prices.length) {
+    renderMarketCategoryButtons();
+
+
+    const filtered =
+        getFilteredMarkets();
+
+
+    updateMarketsCount(
+        filtered.length,
+        marketsData.length
+    );
+
+
+    if (
+        !filtered.length
+    ) {
 
         grid.innerHTML = `
+
             <div class="market-card">
 
                 <div class="market-card-main">
 
-                    <div class="market-icon">
-                        ⚠️
-                    </div>
-
                     <div>
 
                         <strong>
-                            No market data
+                            No commodities found
                         </strong>
 
+
                         <small>
-                            Unable to load World Bank monthly prices
+                            Try another search or category.
                         </small>
 
                     </div>
@@ -398,7 +2306,9 @@ function renderMarkets(
                 </div>
 
             </div>
+
         `;
+
 
         return;
 
@@ -406,186 +2316,77 @@ function renderMarkets(
 
 
     grid.innerHTML =
-        prices.map(item => {
-
-            const config =
-                MARKET_CONFIG[item.code];
-
-            if (!config) {
-                return "";
-            }
+        filtered
+            .map(
+                renderMarketCard
+            )
+            .join("");
 
 
-            const change =
-                Number(
-                    item?.changes?.monthly?.percent
-                );
-
-
-            const changeIsUp =
-                change > 0;
-
-            const changeIsDown =
-                change < 0;
-
-
-            const movementClass =
-                changeIsUp
-                    ? "market-up"
-                    : changeIsDown
-                        ? "market-down"
-                        : "market-flat";
-
-
-            const arrow =
-                changeIsUp
-                    ? "▲"
-                    : changeIsDown
-                        ? "▼"
-                        : "—";
-
-
-            const width =
-                getMarketMovementWidth(
-                    change
-                );
-
-
-            const usdPrice =
-                Number(item.price);
-
-
-            const formattedUsdPrice =
-                formatMarketPrice(
-                    usdPrice
-                );
-
-
-            let formattedEurPrice =
-                "—";
-
-
-            if (
-                Number.isFinite(usdPrice) &&
-                Number.isFinite(exchangeRate) &&
-                exchangeRate > 0
-            ) {
-
-                const eurPrice =
-                    usdPrice *
-                    exchangeRate *
-                    config.conversion;
-
-                formattedEurPrice =
-                    formatMarketPrice(
-                        eurPrice
-                    );
-
-            }
-
-
-            return `
-                <div class="market-card">
-
-                    <div class="market-card-main">
-
-                        <div class="market-icon">
-                            ${config.icon}
-                        </div>
-
-                        <div>
-
-                            <strong>
-                                ${config.name}
-                            </strong>
-
-                            <small>
-                                ${config.symbol}
-                            </small>
-
-                        </div>
-
-                    </div>
-
-
-                    <div class="market-price">
-
-                        <strong class="market-price-eur">
-                            €${formattedEurPrice}
-                            <small>/ ${config.eurUnit}</small>
-                        </strong>
-
-                        <span class="market-price-usd">
-                            $${formattedUsdPrice}
-                            <small>/ ${config.usUnit}</small>
-                        </span>
-
-                    </div>
-
-
-                    <div
-                        class="market-movement ${movementClass}"
-                        style="color:var(--market-movement-color);"
-                    >
-
-                        <div class="movement-scale">
-
-                            <span
-                                class="movement-bar"
-                                style="
-                                    width:${width}%;
-
-                                    ${changeIsUp
-                                        ? "left:50%;"
-                                        : ""}
-
-                                    ${changeIsDown
-                                        ? "right:50%;"
-                                        : ""}
-                                "
-                            ></span>
-
-                        </div>
-
-                        <strong>
-                            ${arrow}
-                            ${formatMarketChange(change)}
-                        </strong>
-
-                    </div>
-
-                </div>
-            `;
-
-        }).join("");
-
-
-    /* =====================================================
-    UPDATED / SOURCE INFORMATION
-    ===================================================== */
-
-    const updatedElement =
-        document.getElementById(
-            "marketsUpdated"
-        );
-
-    if (updatedElement) {
-
-        const latestPeriod =
-            formatMarketPeriod(
-                data?.data?.latest_period
-            );
-
-        updatedElement.textContent =
-            `Data: ${latestPeriod} · Monthly change · World Bank Pink Sheet · CC BY 4.0`;
-
-    }
-
+    initialiseMarketImageObserver();
 }
 
 
 /* =========================================================
-REFRESH MARKETS
+   ERROR
+========================================================= */
+
+function renderMarketsError(
+    message
+) {
+
+    const grid =
+        document.getElementById(
+            "materialsGrid"
+        );
+
+
+    if (!grid) {
+
+        return;
+
+    }
+
+
+    ensureMarketsToolbar(
+        grid
+    );
+
+
+    grid.innerHTML = `
+
+        <div class="market-card">
+
+            <div class="market-card-main">
+
+                <div>
+
+                    <strong>
+                        Markets unavailable
+                    </strong>
+
+
+                    <small>
+                        ${
+                            escapeMarketsHtml(
+                                message ||
+                                "Could not load World Bank market data."
+                            )
+                        }
+                    </small>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    `;
+}
+
+
+/* =========================================================
+   REFRESH
 ========================================================= */
 
 async function refreshMarkets() {
@@ -595,20 +2396,34 @@ async function refreshMarkets() {
             "materialsGrid"
         );
 
-    if (!grid) return;
+
+    if (!grid) {
+
+        return;
+
+    }
+
 
     try {
 
         const [
+
             marketResponse,
+
             exchangeRate
+
         ] = await Promise.all([
 
             fetch(
-                "/api/markets",
+                `/api/markets?v=${MARKETS_UI_VERSION}`,
                 {
-                    method: "GET",
-                    cache: "no-store"
+
+                    method:
+                        "GET",
+
+                    cache:
+                        "no-store"
+
                 }
             ),
 
@@ -621,7 +2436,9 @@ async function refreshMarkets() {
             await marketResponse.json();
 
 
-        if (!marketResponse.ok) {
+        if (
+            !marketResponse.ok
+        ) {
 
             throw new Error(
                 data?.error ||
@@ -631,51 +2448,86 @@ async function refreshMarkets() {
         }
 
 
-        renderMarkets(
-            data,
-            exchangeRate
-        );
+        marketsData =
+            Array.isArray(
+                data?.data?.prices
+            )
+
+                ? data.data.prices
+
+                : [];
 
 
-    } catch (error) {
+        marketsExchangeRate =
+            exchangeRate;
+
+
+        if (
+            !marketsData.length
+        ) {
+
+            renderMarketsError(
+                "No commodity data was returned by the World Bank dataset."
+            );
+
+
+            return;
+
+        }
+
+
+        renderMarkets();
+
+
+        const updatedElement =
+            document.getElementById(
+                "marketsUpdated"
+            );
+
+
+        if (
+            updatedElement
+        ) {
+
+            const latestPeriod =
+                formatMarketPeriod(
+                    data?.data?.latest_period
+                );
+
+
+            const count =
+                Number(
+                    data?.data?.commodity_count
+                ) ||
+
+                marketsData.length;
+
+
+            updatedElement.textContent =
+
+                `Data: ${latestPeriod} · ${count} commodities · Monthly change · World Bank Pink Sheet · CC BY 4.0`;
+
+        }
+
+    }
+    catch (error) {
 
         console.error(
             "Markets frontend error:",
             error
         );
 
-        grid.innerHTML = `
-            <div class="market-card">
 
-                <div class="market-card-main">
-
-                    <div class="market-icon">
-                        ⚠️
-                    </div>
-
-                    <div>
-
-                        <strong>
-                            Markets unavailable
-                        </strong>
-
-                        <small>
-                            Could not load World Bank market data.
-                        </small>
-
-                    </div>
-
-                </div>
-
-            </div>
-        `;
+        renderMarketsError(
+            "Could not load World Bank market data."
+        );
 
     }
 }
 
 
 /* =========================================================
-GLOBAL REFRESH
+   GLOBAL
 ========================================================= */
 
 window.refreshMarkets =
@@ -683,7 +2535,7 @@ window.refreshMarkets =
 
 
 /* =========================================================
-INITIAL LOAD
+   INITIAL LOAD
 ========================================================= */
 
 document.addEventListener(
@@ -697,16 +2549,18 @@ document.addEventListener(
 
 
 /* =========================================================
-HOURLY REFRESH
+   HOURLY REFRESH
 
-The commodity dataset itself is monthly, but the EUR conversion
-rate can change more frequently, so the UI continues refreshing
-once per hour.
+   The commodity dataset is monthly.
+   The hourly refresh mainly keeps the EUR conversion fresh.
 ========================================================= */
 
 setInterval(
     () => {
+
         refreshMarkets();
+
     },
+
     60 * 60 * 1000
 );
