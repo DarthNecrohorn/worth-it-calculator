@@ -5355,12 +5355,15 @@ function injectVehicleUiStyles() {
             cursor: pointer;
         }
 
-        .worth-it-vehicle-floating-collapse:hover {
+            .worth-it-vehicle-floating-collapse:hover {
             transform: translate(0, -50%) scale(1.04);
             background: rgba(25, 28, 35, 0.98);
-            box-shadow: 0 12px 32px rgba(0, 0, 0, 0.34);
+            border-color: rgba(139, 92, 246, 0.75);
+            box-shadow:
+                0 0 0 2px rgba(139, 92, 246, 0.18),
+                0 12px 32px rgba(0, 0, 0, 0.34);
         }
-
+       
         .worth-it-vehicle-floating-collapse.is-visible {
             transform: translate(0, -50%);
             opacity: 1;
