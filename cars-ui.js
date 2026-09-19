@@ -5286,11 +5286,12 @@ function injectVehicleUiStyles() {
             opacity: 0.7;
         }
 
-        .cars-expand-button {
+                .cars-expand-button {
             display: inline-flex;
             align-items: center;
             justify-content: center;
             min-height: 42px;
+            margin-top: 12px;
             padding: 0 16px;
             border: 1px solid rgba(255, 255, 255, 0.14);
             border-radius: 12px;
@@ -5309,7 +5310,10 @@ function injectVehicleUiStyles() {
         .cars-expand-button:hover {
             transform: scale(1.04);
             background: rgba(25, 28, 35, 0.98);
-            box-shadow: 0 12px 32px rgba(0, 0, 0, 0.34);
+            border-color: rgba(139, 92, 246, 0.75);
+            box-shadow:
+                0 0 0 2px rgba(139, 92, 246, 0.18),
+                0 12px 32px rgba(0, 0, 0, 0.34);
         }
 
         .cars-expand-button:disabled {
