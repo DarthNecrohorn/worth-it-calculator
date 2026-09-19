@@ -747,14 +747,10 @@ if(location){
 
     renderWeatherLocationMeta({
 
-        latitude,
+    city:
+        displayName
 
-        longitude,
-
-        city:
-            displayName
-
-    });
+});
 
 
     /*
