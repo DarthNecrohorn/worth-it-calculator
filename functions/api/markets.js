@@ -74,7 +74,7 @@ const WIKIMEDIA_API =
  * generated before the Wikimedia request / license fixes.
  */
 const WIKIMEDIA_IMAGE_CACHE_PREFIX =
-    "https://worth-it-internal-cache.local/markets-wikimedia-image-v6/";
+    "https://worth-it-internal-cache.local/markets-wikimedia-image-v8/";
 
 
 const MAX_IMAGE_SEARCH_CANDIDATES =
