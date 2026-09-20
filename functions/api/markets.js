@@ -74,7 +74,7 @@ const WIKIMEDIA_API =
  * generated before the Wikimedia request / license fixes.
  */
 const WIKIMEDIA_IMAGE_CACHE_PREFIX =
-    "https://worth-it-internal-cache.local/markets-wikimedia-image-v5/";
+    "https://worth-it-internal-cache.local/markets-wikimedia-image-v6/";
 
 
 const MAX_IMAGE_SEARCH_CANDIDATES =
@@ -3215,6 +3215,67 @@ function getLicenseKind(
    IMAGE CANDIDATE VALIDATION
 ========================================================= */
 
+function buildKnownLicenseUrl(
+    licenseKind,
+    normalizedLicense
+) {
+
+    const versionMatch =
+        String(
+            normalizedLicense || ""
+        )
+            .match(
+                /(?:cc by(?: sa)?|creative commons attribution(?: sharealike)?)[ ]+(\d+)[ ]+(\d+)/i
+            );
+
+
+    if (
+        versionMatch
+    ) {
+
+        const version =
+            `${versionMatch[1]}.${versionMatch[2]}`;
+
+
+        if (
+            licenseKind ===
+            "CC BY-SA"
+        ) {
+
+            return `https://creativecommons.org/licenses/by-sa/${version}/`;
+
+        }
+
+
+        if (
+            licenseKind ===
+            "CC BY"
+        ) {
+
+            return `https://creativecommons.org/licenses/by/${version}/`;
+
+        }
+
+    }
+
+
+    if (
+        licenseKind ===
+        "Public Domain / CC0" &&
+        /\bcc0\b/.test(
+            normalizedLicense
+        )
+    ) {
+
+        return "https://creativecommons.org/publicdomain/zero/1.0/";
+
+    }
+
+
+    return null;
+}
+
+
 function candidateIsUsable(
     candidate,
     commodityName,
@@ -3365,12 +3426,42 @@ function candidateIsUsable(
     }
 
 
-    const licenseUrl =
+    const rawLicense =
+        normalizeSearchText(
+
+            getMetadataValue(
+                extmetadata,
+                "LicenseShortName"
+            ) ||
+
+            getMetadataValue(
+                extmetadata,
+                "UsageTerms"
+            ) ||
+
+            getMetadataValue(
+                extmetadata,
+                "License"
+            )
+
+        );
+
+
+    const explicitLicenseUrl =
         stripHtml(
             getMetadataValue(
                 extmetadata,
                 "LicenseUrl"
             )
+        );
+
+
+    const licenseUrl =
+        explicitLicenseUrl ||
+
+        buildKnownLicenseUrl(
+            licenseKind,
+            rawLicense
         );
 
 
@@ -3568,15 +3659,267 @@ function candidateIsUsable(
    WIKIMEDIA SEARCH QUERY
 ========================================================= */
 
-function buildCommoditySearchQuery(
+function buildCommoditySearchQueries(
     commodityName,
     category
 ) {
 
-    let query =
-        commodityName;
+    const normalizedName =
+        normalizeText(
+            commodityName
+        );
 
 
+    if (!normalizedName) {
+
+        return [];
+
+    }
+
+
+    /*
+     * Many World Bank series have market/location qualifiers
+     * after a comma, for example:
+     *
+     *   "Coal, Australian"
+     *   "Wheat, US HRW"
+     *   "Tea, Colombo"
+     *
+     * Wikimedia often has a useful representative image under
+     * the base commodity name instead of the exact market series.
+     */
+    const baseName =
+        normalizeText(
+            normalizedName.split(",")[0]
+        );
+
+
+    const queries = [];
+
+
+    /*
+     * First try the exact commodity name.
+     */
+    queries.push(
+        `"${normalizedName}"`
+    );
+
+
+    /*
+     * Add a small set of representative search terms for
+     * common World Bank commodity series. These are only search
+     * fallbacks; the candidate validator still requires metadata
+     * relevance to the actual commodity tokens.
+     */
+    const normalizedBase =
+        normalizeSearchText(
+            baseName || normalizedName
+        );
+
+
+    const searchHints = [];
+
+
+    if (
+        /\bgold\b/.test(
+            normalizedBase
+        )
+    ) {
+
+        searchHints.push(
+            "gold mineral"
+        );
+
+    }
+
+
+    if (
+        /\bsilver\b/.test(
+            normalizedBase
+        )
+    ) {
+
+        searchHints.push(
+            "silver mineral"
+        );
+
+    }
+
+
+    if (
+        /\bplatinum\b/.test(
+            normalizedBase
+        )
+    ) {
+
+        searchHints.push(
+            "platinum mineral"
+        );
+
+    }
+
+
+    if (
+        /\bcopper\b/.test(
+            normalizedBase
+        )
+    ) {
+
+        searchHints.push(
+            "copper mineral"
+        );
+
+    }
+
+
+    if (
+        /\biron ore\b/.test(
+            normalizedBase
+        )
+    ) {
+
+        searchHints.push(
+            "iron ore"
+        );
+
+    }
+
+
+    if (
+        /\bcoal\b/.test(
+            normalizedBase
+        )
+    ) {
+
+        searchHints.push(
+            "coal"
+        );
+
+    }
+
+
+    if (
+        /\bcoffee\b/.test(
+            normalizedBase
+        )
+    ) {
+
+        searchHints.push(
+            "coffee beans"
+        );
+
+    }
+
+
+    if (
+        /\bbanana\b/.test(
+            normalizedBase
+        )
+    ) {
+
+        searchHints.push(
+            "banana fruit"
+        );
+
+    }
+
+
+    if (
+        /\btea\b/.test(
+            normalizedBase
+        )
+    ) {
+
+        searchHints.push(
+            "tea leaves"
+        );
+
+    }
+
+
+    if (
+        /\bwheat\b/.test(
+            normalizedBase
+        )
+    ) {
+
+        searchHints.push(
+            "wheat grain"
+        );
+
+    }
+
+
+    if (
+        /\brice\b/.test(
+            normalizedBase
+        )
+    ) {
+
+        searchHints.push(
+            "rice grain"
+        );
+
+    }
+
+
+    if (
+        /\bsoybean\b/.test(
+            normalizedBase
+        )
+    ) {
+
+        searchHints.push(
+            "soybean"
+        );
+
+    }
+
+
+    searchHints.forEach(
+        hint => {
+
+            queries.push(
+                hint
+            );
+
+        }
+    );
+
+
+    /*
+     * Then try the normal unquoted search.
+     */
+    queries.push(
+        normalizedName
+    );
+
+
+    /*
+     * Then use the base commodity name when it differs.
+     */
+    if (
+        baseName &&
+        normalizeSearchText(baseName) !==
+            normalizeSearchText(normalizedName)
+    ) {
+
+        queries.push(
+            `"${baseName}"`
+        );
+
+
+        queries.push(
+            baseName
+        );
+
+    }
+
+
+    /*
+     * Precious metals and industrial minerals benefit from
+     * a specimen/mineral hint, but this is only a fallback.
+     */
     if (
         category ===
             "precious-metals" ||
@@ -3584,17 +3927,32 @@ function buildCommoditySearchQuery(
             "metals-minerals"
     ) {
 
-        query +=
-            " mineral specimen";
+        queries.push(
+            `${baseName || normalizedName} mineral specimen`
+        );
+
+        queries.push(
+            `${baseName || normalizedName} mineral`
+        );
 
     }
 
 
-    query +=
-        " filetype:bitmap";
-
-
-    return query;
+    /*
+     * Deduplicate while preserving the preferred order.
+     */
+    return [
+        ...new Set(
+            queries
+                .map(
+                    query =>
+                        normalizeText(
+                            query
+                        )
+                )
+                .filter(Boolean)
+        )
+    ];
 }
 
 
@@ -3607,8 +3965,11 @@ async function searchWikimediaImage(
     category
 ) {
 
-    let offset =
-        0;
+    const searchQueries =
+        buildCommoditySearchQueries(
+            commodityName,
+            category
+        );
 
 
     let checked =
@@ -3619,210 +3980,316 @@ async function searchWikimediaImage(
         null;
 
 
-    while (
-        checked <
-        MAX_IMAGE_SEARCH_CANDIDATES
+    const seenTitles =
+        new Set();
+
+
+    /*
+     * Try multiple search formulations because Wikimedia search
+     * results for market-series names are often sparse.
+     *
+     * The candidate validator remains the authoritative
+     * relevance/license gate.
+     */
+    for (
+        const searchQuery of searchQueries
     ) {
 
-        const searchQuery =
-            buildCommoditySearchQuery(
-                commodityName,
-                category
-            );
-
-
-        const url =
-            new URL(
-                WIKIMEDIA_API
-            );
-
-
-        url.searchParams.set(
-            "action",
-            "query"
-        );
-
-
-        url.searchParams.set(
-            "generator",
-            "search"
-        );
-
-
-        url.searchParams.set(
-            "gsrsearch",
-            searchQuery
-        );
-
-
-        url.searchParams.set(
-            "gsrnamespace",
-            "6"
-        );
-
-
-        url.searchParams.set(
-            "gsrlimit",
-            String(
-                IMAGE_SEARCH_PAGE_SIZE
-            )
-        );
-
-
         if (
-            offset > 0
+            checked >=
+            MAX_IMAGE_SEARCH_CANDIDATES
         ) {
-
-            url.searchParams.set(
-                "gsroffset",
-                String(
-                    offset
-                )
-            );
-
-        }
-
-
-        url.searchParams.set(
-            "prop",
-            "imageinfo"
-        );
-
-
-        url.searchParams.set(
-            "iiprop",
-            "url|mime|size|extmetadata"
-        );
-
-
-        url.searchParams.set(
-            "iiurlwidth",
-            "900"
-        );
-
-
-        url.searchParams.set(
-            "format",
-            "json"
-        );
-
-
-        url.searchParams.set(
-            "origin",
-            "*"
-        );
-
-
-        const response =
-            await fetch(
-                url.href,
-                {
-                    headers: {
-
-                        "Accept":
-                            "application/json",
-
-                        "User-Agent":
-                            WIKIMEDIA_USER_AGENT
-
-                    }
-                }
-            );
-
-
-        if (!response.ok) {
 
             break;
 
         }
 
 
-        const data =
-            await response.json();
+        let offset =
+            0;
 
 
-        const pages =
-            Object.values(
-                data?.query?.pages ||
-                    {}
-            );
+        let queryHasMore =
+            true;
 
 
-        if (!pages.length) {
-
-            break;
-
-        }
-
-
-        for (
-            const page of pages
+        while (
+            queryHasMore &&
+            checked <
+                MAX_IMAGE_SEARCH_CANDIDATES
         ) {
 
-            checked +=
-                1;
-
-
-            const candidate =
-                candidateIsUsable(
-                    page,
-                    commodityName,
-                    category
+            const url =
+                new URL(
+                    WIKIMEDIA_API
                 );
 
 
-            if (
-                candidate &&
-                (
-                    !bestCandidate ||
-                    candidate.score >
-                        bestCandidate.score
+            url.searchParams.set(
+                "action",
+                "query"
+            );
+
+
+            url.searchParams.set(
+                "generator",
+                "search"
+            );
+
+
+            url.searchParams.set(
+                "gsrsearch",
+                searchQuery
+            );
+
+
+            url.searchParams.set(
+                "gsrnamespace",
+                "6"
+            );
+
+
+            url.searchParams.set(
+                "gsrlimit",
+                String(
+                    IMAGE_SEARCH_PAGE_SIZE
                 )
+            );
+
+
+            url.searchParams.set(
+                "gsrsort",
+                "relevance"
+            );
+
+
+            if (
+                offset > 0
             ) {
 
-                bestCandidate =
-                    candidate;
+                url.searchParams.set(
+                    "gsroffset",
+                    String(
+                        offset
+                    )
+                );
 
             }
 
 
-            if (
-                checked >=
-                MAX_IMAGE_SEARCH_CANDIDATES
-            ) {
+            url.searchParams.set(
+                "prop",
+                "imageinfo"
+            );
+
+
+            url.searchParams.set(
+                "iiprop",
+                "url|mime|size|extmetadata"
+            );
+
+
+            url.searchParams.set(
+                "iiurlwidth",
+                "900"
+            );
+
+
+            url.searchParams.set(
+                "format",
+                "json"
+            );
+
+
+            url.searchParams.set(
+                "origin",
+                "*"
+            );
+
+
+            url.searchParams.set(
+                "maxlag",
+                "5"
+            );
+
+
+            let response;
+
+
+            try {
+
+                response =
+                    await fetch(
+                        url.href,
+                        {
+                            headers: {
+
+                                "Accept":
+                                    "application/json",
+
+                                "User-Agent":
+                                    WIKIMEDIA_USER_AGENT
+
+                            }
+                        }
+                    );
+
+            }
+            catch (error) {
+
+                console.error(
+                    "Wikimedia API request failed:",
+                    error
+                );
+
 
                 break;
 
             }
 
-        }
+
+            if (!response.ok) {
+
+                console.warn(
+                    `Wikimedia API returned HTTP ${response.status} for "${searchQuery}".`
+                );
 
 
-        if (
-            pages.length <
-                IMAGE_SEARCH_PAGE_SIZE ||
+                break;
 
-            !data?.continue?.gsroffset
-        ) {
-
-            break;
-
-        }
+            }
 
 
-        offset =
-            Number(
-                data.continue.gsroffset
-            );
+            const data =
+                await response.json();
 
 
-        if (
-            !Number.isFinite(
-                offset
-            )
-        ) {
+            if (
+                data?.error
+            ) {
 
-            break;
+                console.warn(
+                    "Wikimedia API returned an error:",
+                    data.error
+                );
+
+
+                break;
+
+            }
+
+
+            const pages =
+                Object.values(
+                    data?.query?.pages ||
+                        {}
+                );
+
+
+            if (!pages.length) {
+
+                break;
+
+            }
+
+
+            for (
+                const page of pages
+            ) {
+
+                if (
+                    checked >=
+                    MAX_IMAGE_SEARCH_CANDIDATES
+                ) {
+
+                    break;
+
+                }
+
+
+                const title =
+                    String(
+                        page?.title ||
+                            ""
+                    ).trim();
+
+
+                if (
+                    title &&
+                    seenTitles.has(
+                        title
+                    )
+                ) {
+
+                    continue;
+
+                }
+
+
+                if (title) {
+
+                    seenTitles.add(
+                        title
+                    );
+
+                }
+
+
+                checked +=
+                    1;
+
+
+                const candidate =
+                    candidateIsUsable(
+                        page,
+                        commodityName,
+                        category
+                    );
+
+
+                if (
+                    candidate &&
+                    (
+                        !bestCandidate ||
+                        candidate.score >
+                            bestCandidate.score
+                    )
+                ) {
+
+                    bestCandidate =
+                        candidate;
+
+                }
+
+            }
+
+
+            const nextOffset =
+                Number(
+                    data?.continue?.gsroffset
+                );
+
+
+            queryHasMore =
+                pages.length >=
+                    IMAGE_SEARCH_PAGE_SIZE &&
+
+                Number.isFinite(
+                    nextOffset
+                ) &&
+
+                nextOffset >
+                    offset;
+
+
+            if (
+                queryHasMore
+            ) {
+
+                offset =
+                    nextOffset;
+
+            }
 
         }
 
