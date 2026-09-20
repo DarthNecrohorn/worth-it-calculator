@@ -94,15 +94,14 @@ function ensureMarketsCardStyles() {
 
     style.textContent = `
 
-/* ================================
+        /* ================================
    GRID
 ================================= */
 
 .markets-grid {
     display:grid !important;
     grid-template-columns:
-        repeat(2, minmax(0, 390px)) !important;
-    justify-content:space-between !important;
+        repeat(2, minmax(0, 1fr)) !important;
     gap:16px !important;
     align-items:stretch !important;
     width:100% !important;
@@ -119,7 +118,7 @@ function ensureMarketsCardStyles() {
     align-items:stretch !important;
     gap:0 !important;
     width:100% !important;
-    max-width:390px !important;
+    max-width:none !important;
     min-width:0 !important;
     min-height:165px !important;
     box-sizing:border-box !important;
@@ -2474,9 +2473,9 @@ function renderMarketCard(
                     alt="${imageAlt}"
                     aria-hidden="false"
                     style="
-                        width:100%;
-                        height:100%;
-                        object-fit:cover;
+                         width:100%;
+                         height:100%;
+                         object-fit:cover;
                     "
                 >
 
@@ -2529,30 +2528,6 @@ function renderMarketCard(
                 </div>
 
 
-                <div class="movement-scale">
-
-                    <span
-                        class="movement-bar"
-                        style="
-                            width:${width}%;
-
-                            ${
-                                changeIsUp
-                                    ? "left:50%;"
-                                    : ""
-                            }
-
-                            ${
-                                changeIsDown
-                                    ? "right:50%;"
-                                    : ""
-                            }
-                        "
-                    ></span>
-
-                </div>
-
-
                 <div class="market-price">
 
                     <strong class="market-price-eur">
@@ -2595,6 +2570,30 @@ function renderMarketCard(
                         color:var(--market-movement-color);
                     "
                 >
+
+                    <div class="movement-scale">
+
+                        <span
+                            class="movement-bar"
+                            style="
+                                width:${width}%;
+
+                                ${
+                                    changeIsUp
+                                        ? "left:50%;"
+                                        : ""
+                                }
+
+                                ${
+                                    changeIsDown
+                                        ? "right:50%;"
+                                        : ""
+                                }
+                            "
+                        ></span>
+
+                    </div>
+
 
                     <strong>
 
