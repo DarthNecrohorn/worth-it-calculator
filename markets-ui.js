@@ -65,8 +65,22 @@ const marketsImageLoading =
 const marketsImageFailed =
     new Set();
 
+/*
+ * Share the same in-flight request when the same commodity is
+ * encountered more than once during image validation/loading.
+ */
+const marketsImagePromiseCache =
+    new Map();
+
+/*
+ * Prevent an older asynchronous render from replacing a newer
+ * search/category selection after image validation completes.
+ */
+let marketsRenderRequestId =
+    0;
+
 const MARKETS_UI_VERSION =
-    "v9-modern-cards";
+    "v10-image-skip";
 
 
 /* =========================================================
@@ -1228,11 +1242,13 @@ function getMarketMovementWidth(
 
 
 function getMarketImageCacheKey(
-    name
+    name,
+    category = ""
 ) {
 
-    return normalizeMarketsSearch(
-        name
+    return (
+        `${normalizeMarketsSearch(name)}::` +
+        `${normalizeMarketsSearch(category)}`
     );
 }
 
@@ -1726,7 +1742,8 @@ function renderMarketCategoryButtons() {
 
 function updateMarketsCount(
     visibleCount,
-    totalCount
+    totalCount,
+    isResolving = false
 ) {
 
     const countElement =
@@ -1736,6 +1753,18 @@ function updateMarketsCount(
 
 
     if (!countElement) {
+
+        return;
+
+    }
+
+
+    if (
+        isResolving
+    ) {
+
+        countElement.textContent =
+            "Checking images…";
 
         return;
 
@@ -1979,11 +2008,15 @@ function showMarketImageUnavailable(
     }
 
 
-    const parent =
-        imageElement.parentNode;
+    const card =
+        imageElement.closest(
+            "[data-market-card=\"true\"]"
+        );
 
 
-    if (!parent) {
+    if (card) {
+
+        card.remove();
 
         return;
 
@@ -1991,20 +2024,6 @@ function showMarketImageUnavailable(
 
 
     imageElement.remove();
-
-
-    const placeholder =
-        parent.querySelector(
-            ".worth-it-market-image-placeholder"
-        );
-
-
-    if (placeholder) {
-
-        placeholder.textContent =
-            "Image unavailable";
-
-    }
 }
 
 
@@ -2025,7 +2044,8 @@ async function fetchMarketImage(
 
     const key =
         getMarketImageCacheKey(
-            cleanName
+            cleanName,
+            category
         );
 
 
@@ -2054,9 +2074,290 @@ async function fetchMarketImage(
 
 
     if (
-        marketsImageLoading.has(
+        marketsImagePromiseCache.has(
             key
         )
+    ) {
+
+        return marketsImagePromiseCache.get(
+            key
+        );
+
+    }
+
+
+    const requestPromise =
+        (async () => {
+
+            marketsImageLoading.add(
+                key
+            );
+
+
+            try {
+
+                const params =
+                    new URLSearchParams(
+                        {
+
+                            action:
+                                "image",
+
+                            name:
+                                cleanName,
+
+                            category:
+                                category ||
+                                "other"
+
+                        }
+                    );
+
+
+                params.set(
+                    "v",
+                    MARKETS_UI_VERSION
+                );
+
+
+                const response =
+                    await fetch(
+                        `/api/markets?${params.toString()}`,
+                        {
+
+                            method:
+                                "GET",
+
+                            cache:
+                                "no-store"
+
+                        }
+                    );
+
+
+                if (!response.ok) {
+
+                    throw new Error(
+                        `Market image request failed with status ${response.status}.`
+                    );
+
+                }
+
+
+                const data =
+                    await response.json();
+
+
+                const image =
+                    data?.found &&
+                    data?.image &&
+                    (
+                        data.image.url ||
+                        data.image.thumbnailUrl
+                    )
+                        ? data.image
+                        : null;
+
+
+                /*
+                 * Cache negative results too. A commodity that the
+                 * backend explicitly rejects should not be requested
+                 * again on every search/category render.
+                 */
+                marketsImageCache.set(
+                    key,
+                    image
+                );
+
+
+                if (!image) {
+
+                    marketsImageFailed.add(
+                        key
+                    );
+
+                }
+
+
+                return image;
+
+            }
+            catch (error) {
+
+                console.warn(
+                    `Market image search failed for ${cleanName}:`,
+                    error
+                );
+
+
+                /*
+                 * Do not permanently cache transport/API errors as a
+                 * negative image result. A later render can retry them.
+                 */
+                return null;
+
+            }
+            finally {
+
+                marketsImageLoading.delete(
+                    key
+                );
+
+
+                marketsImagePromiseCache.delete(
+                    key
+                );
+
+            }
+
+        })();
+
+
+    marketsImagePromiseCache.set(
+        key,
+        requestPromise
+    );
+
+
+    return requestPromise;
+}
+
+function hasValidMarketImage(
+    image
+) {
+
+    return Boolean(
+        image &&
+        (
+            image.url ||
+            image.thumbnailUrl
+        )
+    );
+}
+
+
+/* =========================================================
+   FILTER COMMODITIES BY VALID IMAGE
+
+   The backend is the authority for Wikimedia relevance and
+   licensing. We validate candidates before rendering cards so
+   commodities without an accepted image never create a visible
+   "Image unavailable" card.
+========================================================= */
+
+async function resolveMarketsWithValidImages(
+    items,
+    requestId
+) {
+
+    const result =
+        [];
+
+    let nextIndex =
+        0;
+
+
+    async function worker() {
+
+        while (true) {
+
+            if (
+                requestId !==
+                marketsRenderRequestId
+            ) {
+
+                return;
+
+            }
+
+
+            const index =
+                nextIndex++;
+
+
+            if (
+                index >=
+                items.length
+            ) {
+
+                return;
+
+            }
+
+
+            const item =
+                items[index];
+
+
+            const image =
+                await fetchMarketImage(
+                    item?.name ||
+                        "Commodity",
+                    item?.category ||
+                        "other"
+                );
+
+
+            if (
+                requestId !==
+                marketsRenderRequestId
+            ) {
+
+                return;
+
+            }
+
+
+            if (
+                hasValidMarketImage(
+                    image
+                )
+            ) {
+
+                result[index] =
+                    {
+
+                        item,
+
+                        image
+
+                    };
+
+            }
+
+        }
+
+    }
+
+
+    const workerCount =
+        Math.min(
+            marketsImageMaxConcurrentLoads,
+            items.length
+        );
+
+
+    if (
+        workerCount > 0
+    ) {
+
+        await Promise.all(
+            Array.from(
+                {
+                    length:
+                        workerCount
+                },
+                () =>
+                    worker()
+            )
+        );
+
+    }
+
+
+    if (
+        requestId !==
+        marketsRenderRequestId
     ) {
 
         return null;
@@ -2064,117 +2365,10 @@ async function fetchMarketImage(
     }
 
 
-    marketsImageLoading.add(
-        key
+    return result.filter(
+        Boolean
     );
-
-
-    try {
-
-        const params =
-            new URLSearchParams(
-                {
-
-                    action:
-                        "image",
-
-                    name:
-                        cleanName,
-
-                    category
-
-                }
-            );
-
-
-        params.set(
-            "v",
-            MARKETS_UI_VERSION
-        );
-
-
-        const response =
-            await fetch(
-                `/api/markets?${params.toString()}`,
-                {
-
-                    method:
-                        "GET",
-
-                    cache:
-                        "no-store"
-
-                }
-            );
-
-
-        if (!response.ok) {
-
-            throw new Error(
-                `Market image request failed with status ${response.status}.`
-            );
-
-        }
-
-
-        const data =
-            await response.json();
-
-
-        const image =
-            data?.found
-                ? data.image
-                : null;
-
-
-        if (
-            !image ||
-            !image.url
-        ) {
-
-            marketsImageFailed.add(
-                key
-            );
-
-            return null;
-
-        }
-
-
-        marketsImageCache.set(
-            key,
-            image
-        );
-
-
-        return image;
-
-    }
-    catch (error) {
-
-        console.warn(
-            `Market image search failed for ${cleanName}:`,
-            error
-        );
-
-
-        marketsImageFailed.add(
-            key
-        );
-
-
-        return null;
-
-    }
-    finally {
-
-        marketsImageLoading.delete(
-            key
-        );
-
-    }
 }
-
 
 /* =========================================================
    IMAGE QUEUE
@@ -2183,7 +2377,8 @@ async function fetchMarketImage(
 function queueMarketImage(
     imageElement,
     name,
-    category
+    category,
+    imageData = null
 ) {
 
     if (
@@ -2219,7 +2414,9 @@ function queueMarketImage(
 
             name,
 
-            category
+            category,
+
+            imageData
 
         }
     );
@@ -2257,7 +2454,8 @@ async function processMarketImageQueue() {
         loadMarketCardImage(
             job.imageElement,
             job.name,
-            job.category
+            job.category,
+            job.imageData
         )
             .catch(
                 error => {
@@ -2435,7 +2633,8 @@ function updateMarketImageCredit(
 async function loadMarketCardImage(
     imageElement,
     name,
-    category
+    category,
+    preloadedImage = null
 ) {
 
     if (
@@ -2453,6 +2652,7 @@ async function loadMarketCardImage(
 
 
     const image =
+        preloadedImage ||
         await fetchMarketImage(
             name,
             category
@@ -2485,22 +2685,16 @@ async function loadMarketCardImage(
         );
 
 
-    if (!image) {
+    if (!image || !hasValidMarketImage(image)) {
 
         imageElement.dataset
             .marketImageState =
             "unavailable";
 
 
-        imageElement.remove();
-
-
-        if (placeholder) {
-
-            placeholder.textContent =
-                "Image unavailable";
-
-        }
+        showMarketImageUnavailable(
+            imageElement
+        );
 
 
         return;
@@ -2513,9 +2707,7 @@ async function loadMarketCardImage(
         image.url;
 
 
-    if (
-        !finalUrl
-    ) {
+    if (!finalUrl) {
 
         showMarketImageUnavailable(
             imageElement
@@ -2737,7 +2929,9 @@ function initialiseMarketImageObserver() {
                             "",
                         image.dataset
                             .marketCategory ||
-                            "other"
+                            "other",
+                        image.__marketImageData ||
+                            null
                     );
 
                 }
@@ -2793,7 +2987,9 @@ function initialiseMarketImageObserver() {
                                 "",
                             image.dataset
                                 .marketCategory ||
-                                "other"
+                                "other",
+                            image.__marketImageData ||
+                                null
                         );
 
 
@@ -2833,8 +3029,16 @@ function initialiseMarketImageObserver() {
 ========================================================= */
 
 function renderMarketCard(
-    item
+    resolved
 ) {
+
+    const item =
+        resolved?.item ||
+        {};
+
+    const image =
+        resolved?.image ||
+        null;
 
     const config =
         getMarketConfigFallback(
@@ -2961,7 +3165,7 @@ function renderMarketCard(
         );
 
 
-    return `
+    const cardHtml = `
 
         <div
             class="market-card"
@@ -3128,6 +3332,15 @@ function renderMarketCard(
         </div>
 
     `;
+
+
+    return {
+
+        cardHtml,
+
+        image
+
+    };
 }
 
 
@@ -3135,7 +3348,7 @@ function renderMarketCard(
    RENDER
 ========================================================= */
 
-function renderMarkets() {
+async function renderMarkets() {
 
     const grid =
         document.getElementById(
@@ -3148,6 +3361,10 @@ function renderMarkets() {
         return;
 
     }
+
+
+    const requestId =
+        ++marketsRenderRequestId;
 
 
     ensureMarketsCardStyles();
@@ -3167,13 +3384,32 @@ function renderMarkets() {
 
     updateMarketsCount(
         filtered.length,
-        marketsData.length
+        marketsData.length,
+        true
     );
 
 
-    if (
-        !filtered.length
-    ) {
+    marketsImageQueue.length =
+        0;
+
+
+    if (marketsImageObserver) {
+
+        marketsImageObserver.disconnect();
+
+        marketsImageObserver =
+            null;
+
+    }
+
+
+    if (!filtered.length) {
+
+        updateMarketsCount(
+            0,
+            marketsData.length
+        );
+
 
         grid.innerHTML = `
 
@@ -3207,24 +3443,106 @@ function renderMarkets() {
 
 
     /*
-     * Reset the old image queue before replacing the grid.
-     * The image cache itself stays intact.
+     * Resolve image validity BEFORE creating cards.
+     * A commodity without an accepted Wikimedia image is simply
+     * omitted, so the next valid commodity takes its place.
      */
-    marketsImageQueue.length =
-        0;
+    const resolved =
+        await resolveMarketsWithValidImages(
+            filtered,
+            requestId
+        );
+
+
+    if (
+        requestId !==
+            marketsRenderRequestId ||
+        !resolved
+    ) {
+
+        return;
+
+    }
+
+
+    updateMarketsCount(
+        resolved.length,
+        marketsData.length
+    );
+
+
+    if (!resolved.length) {
+
+        grid.innerHTML = `
+
+            <div
+                class="market-card worth-it-markets-empty-state"
+            >
+
+                <div
+                    class="worth-it-markets-state-content"
+                >
+
+                    <strong>
+                        No commodities with valid images found
+                    </strong>
+
+
+                    <small>
+                        The selected commodities currently have no validated Wikimedia Commons image.
+                    </small>
+
+                </div>
+
+            </div>
+
+        `;
+
+
+        return;
+
+    }
+
+
+    const rendered =
+        resolved.map(
+            renderMarketCard
+        );
 
 
     grid.innerHTML =
-        filtered
+        rendered
             .map(
-                renderMarketCard
+                item =>
+                    item.cardHtml
             )
             .join("");
 
 
+    /*
+     * Attach the already-validated image object directly to each
+     * image element. The lazy image loader can therefore start from
+     * the validated result without sending the same API request again.
+     */
+    const images =
+        grid.querySelectorAll(
+            ".worth-it-market-image"
+        );
+
+
+    images.forEach(
+        (imageElement, index) => {
+
+            imageElement.__marketImageData =
+                rendered[index]?.image ||
+                null;
+
+        }
+    );
+
+
     initialiseMarketImageObserver();
 }
-
 
 /* =========================================================
    ERROR
@@ -3243,6 +3561,24 @@ function renderMarketsError(
     if (!grid) {
 
         return;
+
+    }
+
+
+    marketsRenderRequestId +=
+        1;
+
+
+    marketsImageQueue.length =
+        0;
+
+
+    if (marketsImageObserver) {
+
+        marketsImageObserver.disconnect();
+
+        marketsImageObserver =
+            null;
 
     }
 
@@ -3376,7 +3712,7 @@ async function refreshMarkets() {
         }
 
 
-        renderMarkets();
+        await renderMarkets();
 
 
         const updatedElement =
