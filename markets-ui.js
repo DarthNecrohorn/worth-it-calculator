@@ -95,8 +95,8 @@ function ensureMarketsCardStyles() {
     style.textContent = `
 
         /* ================================
-           GRID
-        ================================= */
+   GRID
+================================= */
 
 .markets-grid {
     display:grid !important;
@@ -111,105 +111,123 @@ function ensureMarketsCardStyles() {
 }
 
 
-        .markets-grid .market-card {
-            display:grid !important;
-            grid-template-columns:
-                125px minmax(0, 1fr) !important;
-            align-items:stretch !important;
-            gap:0 !important;
-            width:100% !important;
-            max-width:none !important;
-            min-width:0 !important;
-            min-height:165px !important;
-            box-sizing:border-box !important;
-            overflow:hidden !important;
-            padding:0 !important;
-        }
+.markets-grid .market-card {
+    display:grid !important;
+    grid-template-columns:
+        125px minmax(0, 1fr) !important;
+    align-items:stretch !important;
+    gap:0 !important;
+    width:100% !important;
+    max-width:none !important;
+    min-width:0 !important;
+    min-height:165px !important;
+    box-sizing:border-box !important;
+    overflow:hidden !important;
+    padding:0 !important;
+
+    border:1px solid var(--border, rgba(128,128,128,.20)) !important;
+    border-radius:16px !important;
+    background:var(--surface, rgba(128,128,128,.04)) !important;
+    box-shadow:0 4px 14px rgba(0,0,0,.06) !important;
+    transition:
+        transform .18s ease,
+        box-shadow .18s ease,
+        border-color .18s ease !important;
+}
 
 
-        .markets-grid
-        .worth-it-market-image-wrap {
-            width:125px !important;
-            min-width:125px !important;
-            height:100% !important;
-            min-height:165px !important;
-            border-radius:12px 0 0 12px !important;
-            overflow:hidden !important;
-            position:relative !important;
-        }
-
-       .markets-grid
-            .worth-it-market-image-wrap {
-            display:grid !important;
-            place-items:stretch !important;
-        }
-
-       .markets-grid
-           .worth-it-market-image-placeholder {
-           width:100% !important;
-           height:100% !important;
-           min-height:165px !important;
-           box-sizing:border-box !important;
-           grid-area:1 / 1 !important;
-           z-index:1 !important;
-        }
+.markets-grid .market-card:hover {
+    transform:translateY(-2px) !important;
+    box-shadow:0 8px 22px rgba(0,0,0,.10) !important;
+    border-color:var(--border, rgba(128,128,128,.32)) !important;
+}
 
 
-      .markets-grid
-          .worth-it-market-image {
-          width:100% !important;
-          height:100% !important;
-          min-height:165px !important;
-          object-fit:cover !important;
-          display:block !important;
-          grid-area:1 / 1 !important;
-          z-index:2 !important;
-       }
+.markets-grid
+.worth-it-market-image-wrap {
+    width:125px !important;
+    min-width:125px !important;
+    height:100% !important;
+    min-height:165px !important;
+    border-radius:12px 0 0 12px !important;
+    overflow:hidden !important;
+    position:relative !important;
+}
 
 
-        .worth-it-market-card-content {
-            min-width:0 !important;
-            min-height:165px !important;
-            display:flex !important;
-            flex-direction:column !important;
-            justify-content:space-between !important;
-            gap:11px !important;
-            padding:14px 15px !important;
-            box-sizing:border-box !important;
-        }
+.markets-grid
+.worth-it-market-image-wrap {
+    display:grid !important;
+    place-items:stretch !important;
+}
 
 
-        .worth-it-market-card-content
-        .market-card-main {
-            min-width:0 !important;
-        }
+.markets-grid
+.worth-it-market-image-placeholder {
+    width:100% !important;
+    height:100% !important;
+    min-height:165px !important;
+    box-sizing:border-box !important;
+    grid-area:1 / 1 !important;
+    z-index:1 !important;
+}
 
 
-        .worth-it-market-card-content
-        .market-price {
-            min-width:0 !important;
-        }
+.markets-grid
+.worth-it-market-image {
+    width:100% !important;
+    height:100% !important;
+    min-height:165px !important;
+    object-fit:cover !important;
+    display:block !important;
+    grid-area:1 / 1 !important;
+    z-index:2 !important;
+}
 
 
-        .worth-it-market-card-content
-        .market-price-eur,
-        .worth-it-market-card-content
-        .market-price-usd {
-            overflow-wrap:anywhere !important;
-        }
+.worth-it-market-card-content {
+    min-width:0 !important;
+    min-height:165px !important;
+    display:flex !important;
+    flex-direction:column !important;
+    justify-content:space-between !important;
+    gap:11px !important;
+    padding:14px 15px !important;
+    box-sizing:border-box !important;
+}
 
 
-        .worth-it-market-card-content
-        .market-movement {
-            width:100% !important;
-            min-width:0 !important;
-        }
+.worth-it-market-card-content
+.market-card-main {
+    min-width:0 !important;
+}
 
 
-        .worth-it-market-image-credit {
-            min-height:16px !important;
-            overflow-wrap:anywhere !important;
-        }
+.worth-it-market-card-content
+.market-price {
+    min-width:0 !important;
+}
+
+
+.worth-it-market-card-content
+.market-price-eur,
+.worth-it-market-card-content
+.market-price-usd {
+    overflow-wrap:anywhere !important;
+}
+
+
+.worth-it-market-card-content
+.market-movement {
+    width:100% !important;
+    min-width:0 !important;
+}
+
+
+.worth-it-market-image-credit {
+    min-height:16px !important;
+    overflow-wrap:anywhere !important;
+}
 
 
         /* ================================
