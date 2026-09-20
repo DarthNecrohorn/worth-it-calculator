@@ -1973,10 +1973,11 @@ async function loadMarketCardImage(
 
 
     const finalUrl =
-    image.url ||
-    image.thumbnailUrl;
+    image.thumbnailUrl ||
+    image.url;
 
-    if (
+
+if (
     !finalUrl
 ) {
 
@@ -1988,12 +1989,13 @@ async function loadMarketCardImage(
 
 }
 
-    imageElement.alt =
-        name;
+
+imageElement.alt =
+    name;
 
 
-    imageElement.loading =
-        "eager";
+imageElement.loading =
+    "eager";
 
 
     imageElement.style.display =
