@@ -15,7 +15,7 @@
      - "Image unavailable" when no valid image exists
      - monthly price movement
      - rectangular responsive cards
-     - desktop 3-column / tablet 2-column / mobile 1-column layout
+     - desktop 2-column / tablet 2-column / mobile 1-column layout
      - toolbar categories aligned to the search field width
      - search input preserved while filtering
 ========================================================= */
