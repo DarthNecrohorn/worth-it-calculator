@@ -2474,9 +2474,9 @@ function renderMarketCard(
                     alt="${imageAlt}"
                     aria-hidden="false"
                     style="
-                         width:100%;
-                         height:100%;
-                         object-fit:cover;
+                        width:100%;
+                        height:100%;
+                        object-fit:cover;
                     "
                 >
 
@@ -2529,6 +2529,30 @@ function renderMarketCard(
                 </div>
 
 
+                <div class="movement-scale">
+
+                    <span
+                        class="movement-bar"
+                        style="
+                            width:${width}%;
+
+                            ${
+                                changeIsUp
+                                    ? "left:50%;"
+                                    : ""
+                            }
+
+                            ${
+                                changeIsDown
+                                    ? "right:50%;"
+                                    : ""
+                            }
+                        "
+                    ></span>
+
+                </div>
+
+
                 <div class="market-price">
 
                     <strong class="market-price-eur">
@@ -2571,30 +2595,6 @@ function renderMarketCard(
                         color:var(--market-movement-color);
                     "
                 >
-
-                    <div class="movement-scale">
-
-                        <span
-                            class="movement-bar"
-                            style="
-                                width:${width}%;
-
-                                ${
-                                    changeIsUp
-                                        ? "left:50%;"
-                                        : ""
-                                }
-
-                                ${
-                                    changeIsDown
-                                        ? "right:50%;"
-                                        : ""
-                                }
-                            "
-                        ></span>
-
-                    </div>
-
 
                     <strong>
 
