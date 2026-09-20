@@ -261,7 +261,7 @@ function ensureMarketsCardStyles() {
     flex-direction:column !important;
     gap:2px !important;
     position:relative !important;
-    top:-6px !important;
+    top:-15px !important;
     left:5px !important;
     z-index:3 !important;
 }
