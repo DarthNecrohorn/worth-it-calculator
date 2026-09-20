@@ -74,7 +74,7 @@ const WIKIMEDIA_API =
  * generated before the Wikimedia request / license fixes.
  */
 const WIKIMEDIA_IMAGE_CACHE_PREFIX =
-    "https://worth-it-internal-cache.local/markets-wikimedia-image-v8/";
+    "https://worth-it-internal-cache.local/markets-wikimedia-image-v9/";
 
 
 const MAX_IMAGE_SEARCH_CANDIDATES =
@@ -3073,14 +3073,215 @@ function hasRelevantTextMatch(
                     word =>
                         word ===
                         normalizedToken
-                ) ||
-
-                normalizedText.includes(
-                    normalizedToken
                 );
 
         }
     );
+}
+
+
+/*
+ * Extract the original Wikimedia filename from the original
+ * image URL.  The query string is intentionally ignored.
+ *
+ * Example:
+ *   https://upload.wikimedia.org/.../Lamb.jpg?utm_source=...
+ *
+ * becomes:
+ *   Lamb.jpg
+ */
+function getWikimediaImageFileName(
+    url
+) {
+
+    try {
+
+        const parsed =
+            new URL(
+                String(url || "")
+            );
+
+
+        const parts =
+            parsed.pathname
+                .split("/")
+                .filter(Boolean);
+
+
+        if (!parts.length) {
+
+            return "";
+
+        }
+
+
+        return decodeURIComponent(
+            parts[
+                parts.length - 1
+            ]
+        );
+
+    }
+    catch {
+
+        try {
+
+            const cleanUrl =
+                String(url || "")
+                    .split("?")[0]
+                    .split("#")[0];
+
+
+            const parts =
+                cleanUrl
+                    .split("/")
+                    .filter(Boolean);
+
+
+            return decodeURIComponent(
+                parts[
+                    parts.length - 1
+                ] || ""
+            );
+
+        }
+        catch {
+
+            return "";
+
+        }
+    }
+}
+
+
+function getWikimediaImageFileStem(
+    url
+) {
+
+    const fileName =
+        getWikimediaImageFileName(
+            url
+        );
+
+
+    if (!fileName) {
+
+        return "";
+
+    }
+
+
+    return fileName
+        .replace(
+            /\.[a-z0-9]{2,5}$/i,
+            ""
+        );
+}
+
+
+/*
+ * Build the exact commodity phrase used for strict filename
+ * validation.  World Bank series frequently contain market or
+ * location qualifiers after a comma, so the base commodity before
+ * the comma is used for the image filename.
+ *
+ * Examples:
+ *   "Lamb"                 -> "lamb"
+ *   "Gold"                 -> "gold"
+ *   "Iron Ore, CFR Spot"   -> "iron ore"
+ *   "Coal, South African"  -> "coal"
+ */
+function getStrictCommodityImageName(
+    commodityName
+) {
+
+    const normalized =
+        normalizeText(
+            commodityName
+        );
+
+
+    if (!normalized) {
+
+        return "";
+
+    }
+
+
+    const baseName =
+        normalizeText(
+            normalized
+                .split(",")[0]
+        );
+
+
+    return normalizeSearchText(
+        baseName
+    );
+}
+
+
+/*
+ * STRICT IMAGE FILENAME RULE
+ *
+ * The Wikimedia original filename must match the commodity base
+ * name exactly after normalizing spaces, underscores, hyphens and
+ * punctuation.  Additional descriptive/person/location words are
+ * rejected.
+ *
+ * Therefore:
+ *   Lamb.jpg                       -> ACCEPT as a filename match
+ *   lamb.jpeg                      -> ACCEPT as a filename match
+ *   Lamb_meat.jpg                 -> REJECT
+ *   John_K._Lamb_Los_Alamos_ID.png -> REJECT
+ *   Gold-crystals.jpg             -> REJECT for Gold
+ *   Iron_Ore.jpg                  -> ACCEPT for Iron Ore
+ */
+function hasStrictCommodityImageFileName(
+    url,
+    commodityName
+) {
+
+    const fileStem =
+        normalizeSearchText(
+            getWikimediaImageFileStem(
+                url
+            )
+        );
+
+
+    const expectedName =
+        getStrictCommodityImageName(
+            commodityName
+        );
+
+
+    if (
+        !fileStem ||
+        !expectedName
+    ) {
+
+        return false;
+
+    }
+
+
+    return fileStem ===
+        expectedName;
+}
+
+
+function hasPersonOrBiographicalContext(
+    text
+) {
+
+    const normalizedText =
+        normalizeSearchText(
+            text
+        );
+
+
+    return /\b(portrait|headshot|biography|biographical|person|people|man|woman|boy|girl|actor|actress|singer|musician|politician|professor|historian|journalist|photographer|author|writer|born|died)\b/.test(normalizedText);
 }
 
 
@@ -3357,6 +3558,22 @@ function candidateIsUsable(
     }
 
 
+    /*
+     * The original Wikimedia filename is now a HARD relevance
+     * gate.  A match inside a longer filename is not enough.
+     */
+    if (
+        !hasStrictCommodityImageFileName(
+            url,
+            commodityName
+        )
+    ) {
+
+        return null;
+
+    }
+
+
     const searchableText =
         [
 
@@ -3402,9 +3619,24 @@ function candidateIsUsable(
     }
 
 
+    const fullSearchableText =
+        `${title} ${searchableText}`;
+
+
     if (
         isDisallowedImageDescription(
-            `${title} ${searchableText}`
+            fullSearchableText
+        )
+    ) {
+
+        return null;
+
+    }
+
+
+    if (
+        hasPersonOrBiographicalContext(
+            fullSearchableText
         )
     ) {
 
@@ -3525,8 +3757,9 @@ function candidateIsUsable(
 
 
     /*
-     * URL relevance is now an additional ranking signal rather
-     * than a hard rejection condition.
+     * The strict filename rule above is the hard gate.  Keep the
+     * URL token check only as a small ranking confirmation for
+     * unusual but valid URL forms.
      */
 
     if (
