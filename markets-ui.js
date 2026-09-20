@@ -98,14 +98,18 @@ function ensureMarketsCardStyles() {
            GRID
         ================================= */
 
-        .markets-grid {
-            display:grid !important;
-            grid-template-columns:
-                repeat(3, minmax(0, 1fr)) !important;
-            gap:14px !important;
-            align-items:stretch !important;
-            width:100% !important;
-        }
+.markets-grid {
+    display:grid !important;
+    grid-template-columns:
+        repeat(3, minmax(0, 350px)) !important;
+    justify-content:center !important;
+    gap:16px !important;
+    align-items:stretch !important;
+    width:100% !important;
+    max-width:1082px !important;
+    margin-left:auto !important;
+    margin-right:auto !important;
+}
 
 
         .markets-grid .market-card {
