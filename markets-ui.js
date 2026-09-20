@@ -152,7 +152,7 @@ function ensureMarketsCardStyles() {
            min-height:165px !important;
            box-sizing:border-box !important;
            grid-area:1 / 1 !important;
-           z-index:2 !important;
+           z-index:1 !important;
         }
 
 
