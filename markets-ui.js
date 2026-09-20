@@ -101,12 +101,12 @@ function ensureMarketsCardStyles() {
 .markets-grid {
     display:grid !important;
     grid-template-columns:
-        repeat(3, minmax(0, 350px)) !important;
+        repeat(2, minmax(0, 420px)) !important;
     justify-content:center !important;
     gap:16px !important;
     align-items:stretch !important;
     width:100% !important;
-    max-width:1082px !important;
+    max-width:856px !important;
     margin-left:auto !important;
     margin-right:auto !important;
 }
