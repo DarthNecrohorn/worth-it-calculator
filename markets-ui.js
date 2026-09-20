@@ -1972,7 +1972,11 @@ async function loadMarketCardImage(
 
 
     imageElement.loading =
-        "lazy";
+        "eager";
+
+
+    imageElement.style.display =
+        "block";
 
 
     imageElement.decoding =
