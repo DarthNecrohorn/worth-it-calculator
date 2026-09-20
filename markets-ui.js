@@ -1515,33 +1515,39 @@ async function fetchMarketImage(
     try {
 
         const params =
-            new URLSearchParams(
-                {
+    new URLSearchParams(
+        {
 
-                    action:
-                        "image",
+            action:
+                "image",
 
-                    name,
+            name,
 
-                    category
+            category
 
-                }
-            );
+        }
+    );
 
 
-        const response =
-            await fetch(
-                `/api/markets?${params.toString()}`,
-                {
+params.set(
+    "v",
+    MARKETS_UI_VERSION
+);
 
-                    method:
-                        "GET",
 
-                    cache:
-                        "force-cache"
+const response =
+    await fetch(
+        `/api/markets?${params.toString()}`,
+        {
 
-                }
-            );
+            method:
+                "GET",
+
+            cache:
+                "no-store"
+
+        }
+    );
 
 
         if (!response.ok) {
