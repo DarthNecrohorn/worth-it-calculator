@@ -145,12 +145,14 @@ function ensureMarketsCardStyles() {
             place-items:stretch !important;
         }
 
-        .markets-grid
-        .worth-it-market-image-placeholder {
-            width:100% !important;
-            height:100% !important;
-            min-height:165px !important;
-            box-sizing:border-box !important;
+       .markets-grid
+           .worth-it-market-image-placeholder {
+           width:100% !important;
+           height:100% !important;
+           min-height:165px !important;
+           box-sizing:border-box !important;
+           grid-area:1 / 1 !important;
+           z-index:2 !important;
         }
 
 
