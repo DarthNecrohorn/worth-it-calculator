@@ -95,8 +95,8 @@ function ensureMarketsCardStyles() {
     style.textContent = `
 
         /* ================================
-   GRID
-================================= */
+           GRID
+        ================================= */
 
 .markets-grid {
     display:grid !important;
@@ -120,7 +120,7 @@ function ensureMarketsCardStyles() {
     width:100% !important;
     max-width:none !important;
     min-width:0 !important;
-    min-height:165px !important;
+    min-height:135px !important;
     box-sizing:border-box !important;
     overflow:hidden !important;
     padding:0 !important;
@@ -148,7 +148,7 @@ function ensureMarketsCardStyles() {
     width:125px !important;
     min-width:125px !important;
     height:100% !important;
-    min-height:165px !important;
+    min-height:135px !important;
     border-radius:12px 0 0 12px !important;
     overflow:hidden !important;
     position:relative !important;
@@ -166,7 +166,7 @@ function ensureMarketsCardStyles() {
 .worth-it-market-image-placeholder {
     width:100% !important;
     height:100% !important;
-    min-height:165px !important;
+    min-height:135px !important;
     box-sizing:border-box !important;
     grid-area:1 / 1 !important;
     z-index:1 !important;
@@ -177,7 +177,7 @@ function ensureMarketsCardStyles() {
 .worth-it-market-image {
     width:100% !important;
     height:100% !important;
-    min-height:165px !important;
+    min-height:135px !important;
     object-fit:cover !important;
     display:block !important;
     grid-area:1 / 1 !important;
@@ -187,7 +187,7 @@ function ensureMarketsCardStyles() {
 
 .worth-it-market-card-content {
     min-width:0 !important;
-    min-height:165px !important;
+    min-height:135px !important;
     display:flex !important;
     flex-direction:column !important;
     justify-content:space-between !important;
@@ -230,263 +230,263 @@ function ensureMarketsCardStyles() {
 }
 
 
-        /* ================================
-           TOOLBAR
-        ================================= */
-
-        .worth-it-markets-toolbar {
-            width:100% !important;
-            margin:0 0 18px !important;
-            box-sizing:border-box !important;
-        }
-
-
-        .worth-it-markets-search-row {
-            display:grid !important;
-            grid-template-columns:
-                minmax(0, 1fr) auto !important;
-            gap:10px !important;
-            align-items:center !important;
-            width:100% !important;
-            box-sizing:border-box !important;
-        }
-
-
-        .worth-it-markets-search-wrap {
-            min-width:0 !important;
-            width:100% !important;
-        }
-
-
-        #worthItMarketsSearch {
-            display:block !important;
-            width:100% !important;
-            min-width:0 !important;
-            box-sizing:border-box !important;
-            padding:11px 13px !important;
-            border:1px solid var(--border, rgba(128,128,128,.25)) !important;
-            border-radius:12px !important;
-            background:var(--surface-soft, rgba(128,128,128,.06)) !important;
-            color:var(--text) !important;
-            outline:none !important;
-            font:inherit !important;
-        }
-
-
-        #worthItMarketsSearch::placeholder {
-            color:var(--text) !important;
-            opacity:.52 !important;
-        }
-
-
-        #worthItMarketsSearch:focus {
-            border-color:var(--accent, currentColor) !important;
-            box-shadow:0 0 0 3px rgba(127,127,127,.12) !important;
-        }
-
-
-        .worth-it-markets-count {
-            display:block !important;
-            font-size:.82rem !important;
-            opacity:.65 !important;
-            white-space:nowrap !important;
-            text-align:right !important;
-        }
-
-
-        .worth-it-markets-categories {
-            display:grid !important;
-            grid-template-columns:
-                repeat(8, minmax(0, 1fr)) !important;
-            gap:8px !important;
-            width:100% !important;
-            margin-top:8px !important;
-            box-sizing:border-box !important;
-        }
-
-
-        .worth-it-markets-categories
-        .worth-it-market-category-button {
-            width:100% !important;
-            min-width:0 !important;
-            min-height:38px !important;
-            padding:8px 9px !important;
-            border:1px solid var(--border, rgba(128,128,128,.25)) !important;
-            border-radius:10px !important;
-            background:transparent !important;
-            color:var(--text) !important;
-            cursor:pointer !important;
-            font:inherit !important;
-            font-size:.80rem !important;
-            font-weight:700 !important;
-            line-height:1.15 !important;
-            text-align:center !important;
-            display:flex !important;
-            align-items:center !important;
-            justify-content:center !important;
-            gap:3px !important;
-            box-sizing:border-box !important;
-            overflow:hidden !important;
-        }
-
-
-        .worth-it-markets-categories
-        .worth-it-market-category-button:hover {
-            background:var(--surface-soft, rgba(128,128,128,.07)) !important;
-        }
+/* ================================
+   TOOLBAR
+================================= */
+
+.worth-it-markets-toolbar {
+    width:100% !important;
+    margin:0 0 18px !important;
+    box-sizing:border-box !important;
+}
+
+
+.worth-it-markets-search-row {
+    display:grid !important;
+    grid-template-columns:
+        minmax(0, 1fr) auto !important;
+    gap:10px !important;
+    align-items:center !important;
+    width:100% !important;
+    box-sizing:border-box !important;
+}
+
+
+.worth-it-markets-search-wrap {
+    min-width:0 !important;
+    width:100% !important;
+}
+
+
+#worthItMarketsSearch {
+    display:block !important;
+    width:100% !important;
+    min-width:0 !important;
+    box-sizing:border-box !important;
+    padding:11px 13px !important;
+    border:1px solid var(--border, rgba(128,128,128,.25)) !important;
+    border-radius:12px !important;
+    background:var(--surface-soft, rgba(128,128,128,.06)) !important;
+    color:var(--text) !important;
+    outline:none !important;
+    font:inherit !important;
+}
+
+
+#worthItMarketsSearch::placeholder {
+    color:var(--text) !important;
+    opacity:.52 !important;
+}
+
+
+#worthItMarketsSearch:focus {
+    border-color:var(--accent, currentColor) !important;
+    box-shadow:0 0 0 3px rgba(127,127,127,.12) !important;
+}
+
+
+.worth-it-markets-count {
+    display:block !important;
+    font-size:.82rem !important;
+    opacity:.65 !important;
+    white-space:nowrap !important;
+    text-align:right !important;
+}
+
+
+.worth-it-markets-categories {
+    display:grid !important;
+    grid-template-columns:
+        repeat(8, minmax(0, 1fr)) !important;
+    gap:8px !important;
+    width:100% !important;
+    margin-top:8px !important;
+    box-sizing:border-box !important;
+}
+
+
+.worth-it-markets-categories
+.worth-it-market-category-button {
+    width:100% !important;
+    min-width:0 !important;
+    min-height:38px !important;
+    padding:8px 9px !important;
+    border:1px solid var(--border, rgba(128,128,128,.25)) !important;
+    border-radius:10px !important;
+    background:transparent !important;
+    color:var(--text) !important;
+    cursor:pointer !important;
+    font:inherit !important;
+    font-size:.80rem !important;
+    font-weight:700 !important;
+    line-height:1.15 !important;
+    text-align:center !important;
+    display:flex !important;
+    align-items:center !important;
+    justify-content:center !important;
+    gap:3px !important;
+    box-sizing:border-box !important;
+    overflow:hidden !important;
+}
+
+
+.worth-it-markets-categories
+.worth-it-market-category-button:hover {
+    background:var(--surface-soft, rgba(128,128,128,.07)) !important;
+}
 
 
-        .worth-it-markets-categories
-        .worth-it-market-category-button.active {
-            background:var(--surface-soft, rgba(128,128,128,.12)) !important;
-            font-weight:800 !important;
-        }
+.worth-it-markets-categories
+.worth-it-market-category-button.active {
+    background:var(--surface-soft, rgba(128,128,128,.12)) !important;
+    font-weight:800 !important;
+}
 
 
-        .worth-it-market-category-label {
-            min-width:0 !important;
-            overflow:hidden !important;
-            text-overflow:ellipsis !important;
-            white-space:nowrap !important;
-        }
+.worth-it-market-category-label {
+    min-width:0 !important;
+    overflow:hidden !important;
+    text-overflow:ellipsis !important;
+    white-space:nowrap !important;
+}
 
 
-        .worth-it-market-category-count {
-            flex:0 0 auto !important;
-            opacity:.6 !important;
-            font-size:.78em !important;
-        }
+.worth-it-market-category-count {
+    flex:0 0 auto !important;
+    opacity:.6 !important;
+    font-size:.78em !important;
+}
 
 
-        /* ================================
-           EMPTY / ERROR STATE
-        ================================= */
+/* ================================
+   EMPTY / ERROR STATE
+================================= */
 
-        .markets-grid .worth-it-markets-empty-state,
-        .markets-grid .worth-it-markets-error-state {
-            grid-column:1 / -1 !important;
-            width:100% !important;
-            box-sizing:border-box !important;
-        }
+.markets-grid .worth-it-markets-empty-state,
+.markets-grid .worth-it-markets-error-state {
+    grid-column:1 / -1 !important;
+    width:100% !important;
+    box-sizing:border-box !important;
+}
 
 
-        .worth-it-markets-empty-state,
-        .worth-it-markets-error-state {
-            padding:20px !important;
-            min-height:120px !important;
-            display:flex !important;
-            align-items:center !important;
-            justify-content:center !important;
-            text-align:center !important;
-        }
+.worth-it-markets-empty-state,
+.worth-it-markets-error-state {
+    padding:20px !important;
+    min-height:120px !important;
+    display:flex !important;
+    align-items:center !important;
+    justify-content:center !important;
+    text-align:center !important;
+}
 
 
-        .worth-it-markets-state-content {
-            min-width:0 !important;
-        }
+.worth-it-markets-state-content {
+    min-width:0 !important;
+}
 
 
-        .worth-it-markets-state-content strong,
-        .worth-it-markets-state-content small {
-            display:block !important;
-        }
+.worth-it-markets-state-content strong,
+.worth-it-markets-state-content small {
+    display:block !important;
+}
 
 
-        .worth-it-markets-state-content small {
-            margin-top:5px !important;
-            opacity:.65 !important;
-        }
+.worth-it-markets-state-content small {
+    margin-top:5px !important;
+    opacity:.65 !important;
+}
 
 
-        /* ================================
-           TABLET
-        ================================= */
+/* ================================
+   TABLET
+================================= */
 
-        @media (max-width:1024px) {
+@media (max-width:1024px) {
 
-            .markets-grid {
-               grid-template-columns:
-                  repeat(2, minmax(0, 350px)) !important;
-                      max-width:856px !important;
-              }
+    .markets-grid {
+        grid-template-columns:
+            repeat(2, minmax(0, 350px)) !important;
+        max-width:856px !important;
+    }
 
 
-            .worth-it-markets-categories {
-                grid-template-columns:
-                    repeat(4, minmax(0, 1fr)) !important;
-            }
+    .worth-it-markets-categories {
+        grid-template-columns:
+            repeat(4, minmax(0, 1fr)) !important;
+    }
 
-        }
+}
 
 
-        /* ================================
-           MOBILE
-        ================================= */
+/* ================================
+   MOBILE
+================================= */
 
-        @media (max-width:700px) {
+@media (max-width:700px) {
 
-            .markets-grid {
-                grid-template-columns:
-                     minmax(0, 1fr) !important;
-                         gap:12px !important;
-                             max-width:350px !important;
-                  }
+    .markets-grid {
+        grid-template-columns:
+            minmax(0, 1fr) !important;
+        gap:12px !important;
+        max-width:350px !important;
+    }
 
 
-            .markets-grid .market-card {
-                grid-template-columns:
-                    105px minmax(0, 1fr) !important;
-            }
+    .markets-grid .market-card {
+        grid-template-columns:
+            105px minmax(0, 1fr) !important;
+    }
 
 
-            .markets-grid
-            .worth-it-market-image-wrap {
-                width:105px !important;
-                min-width:105px !important;
-            }
+    .markets-grid
+    .worth-it-market-image-wrap {
+        width:105px !important;
+        min-width:105px !important;
+    }
 
 
-            .worth-it-market-card-content {
-                padding:13px !important;
-                gap:10px !important;
-            }
+    .worth-it-market-card-content {
+        padding:13px !important;
+        gap:10px !important;
+    }
 
 
-            .worth-it-markets-search-row {
-                grid-template-columns:
-                    minmax(0, 1fr) auto !important;
-            }
+    .worth-it-markets-search-row {
+        grid-template-columns:
+            minmax(0, 1fr) auto !important;
+    }
 
 
-            .worth-it-markets-categories {
-                grid-template-columns:
-                    repeat(2, minmax(0, 1fr)) !important;
-                gap:7px !important;
-            }
+    .worth-it-markets-categories {
+        grid-template-columns:
+            repeat(2, minmax(0, 1fr)) !important;
+        gap:7px !important;
+    }
 
 
-            .worth-it-markets-categories
-            .worth-it-market-category-button {
-                min-height:40px !important;
-                font-size:.79rem !important;
-            }
+    .worth-it-markets-categories
+    .worth-it-market-category-button {
+        min-height:40px !important;
+        font-size:.79rem !important;
+    }
 
-        }
+}
 
 
-        @media (max-width:420px) {
+@media (max-width:420px) {
 
-            .worth-it-markets-search-row {
-                grid-template-columns:1fr !important;
-                gap:7px !important;
-            }
+    .worth-it-markets-search-row {
+        grid-template-columns:1fr !important;
+        gap:7px !important;
+    }
 
 
-            .worth-it-markets-count {
-                text-align:left !important;
-            }
+    .worth-it-markets-count {
+        text-align:left !important;
+    }
 
-        }
+}
 
     `;
 
@@ -1234,7 +1234,7 @@ function renderMarketCategoryButtons() {
 
                     <button
                         type="button"
-                        class="worth-it-market-category-button$${
+                        class="worth-it-market-category-button${
                             active
                                 ? " active"
                                 : ""
@@ -1426,7 +1426,7 @@ function createMarketImagePlaceholder(
             style="
                 width:100%;
                 height:100%;
-                min-height:165px;
+                min-height:135px;
                 display:flex;
                 align-items:center;
                 justify-content:center;
@@ -1548,39 +1548,39 @@ async function fetchMarketImage(
     try {
 
         const params =
-    new URLSearchParams(
-        {
+            new URLSearchParams(
+                {
 
-            action:
-                "image",
+                    action:
+                        "image",
 
-            name,
+                    name,
 
-            category
+                    category
 
-        }
-    );
-
-
-params.set(
-    "v",
-    MARKETS_UI_VERSION
-);
+                }
+            );
 
 
-const response =
-    await fetch(
-        `/api/markets?${params.toString()}`,
-        {
+        params.set(
+            "v",
+            MARKETS_UI_VERSION
+        );
 
-            method:
-                "GET",
 
-            cache:
-                "no-store"
+        const response =
+            await fetch(
+                `/api/markets?${params.toString()}`,
+                {
 
-        }
-    );
+                    method:
+                        "GET",
+
+                    cache:
+                        "no-store"
+
+                }
+            );
 
 
         if (!response.ok) {
@@ -1615,6 +1615,7 @@ const response =
             return null;
 
         }
+
 
         marketsImageCache.set(
             key,
@@ -1990,29 +1991,30 @@ async function loadMarketCardImage(
 
 
     const finalUrl =
-    image.thumbnailUrl ||
-    image.url;
+        image.thumbnailUrl ||
+        image.url;
 
 
-if (
-    !finalUrl
-) {
+    if (
+        !finalUrl
+    ) {
 
-    showMarketImageUnavailable(
-        imageElement
-    );
-
-    return;
-
-}
+        showMarketImageUnavailable(
+            imageElement
+        );
 
 
-imageElement.alt =
-    name;
+        return;
+
+    }
 
 
-imageElement.loading =
-    "eager";
+    imageElement.alt =
+        name;
+
+
+    imageElement.loading =
+        "eager";
 
 
     imageElement.style.display =
@@ -2473,9 +2475,9 @@ function renderMarketCard(
                     alt="${imageAlt}"
                     aria-hidden="false"
                     style="
-                         width:100%;
-                         height:100%;
-                         object-fit:cover;
+                        width:100%;
+                        height:100%;
+                        object-fit:cover;
                     "
                 >
 
