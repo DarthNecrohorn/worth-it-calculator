@@ -1973,8 +1973,8 @@ async function loadMarketCardImage(
 
 
     const finalUrl =
-        image.thumbnailUrl ||
-        image.url;
+    image.url ||
+    image.thumbnailUrl;
 
 
     imageElement.alt =
