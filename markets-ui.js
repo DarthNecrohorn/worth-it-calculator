@@ -1976,6 +1976,17 @@ async function loadMarketCardImage(
     image.url ||
     image.thumbnailUrl;
 
+    if (
+    !finalUrl
+) {
+
+    showMarketImageUnavailable(
+        imageElement
+    );
+
+    return;
+
+}
 
     imageElement.alt =
         name;
