@@ -260,6 +260,10 @@ function ensureMarketsCardStyles() {
     display:flex !important;
     flex-direction:column !important;
     gap:2px !important;
+    position:relative !important;
+    top:-6px !important;
+    left:5px !important;
+    z-index:3 !important;
 }
 
 
