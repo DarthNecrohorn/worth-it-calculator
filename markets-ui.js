@@ -261,8 +261,8 @@ function ensureMarketsCardStyles() {
     flex-direction:column !important;
     gap:2px !important;
     position:relative !important;
-    top:-15px !important;
-    left:5px !important;
+    top:-28px !important;
+    left:8px !important;
     z-index:3 !important;
 }
 
@@ -271,8 +271,12 @@ function ensureMarketsCardStyles() {
 .market-price-eur,
 .worth-it-market-card-content
 .market-price-usd {
+    display:block !important;
     overflow-wrap:anywhere !important;
     white-space:normal !important;
+    font-size:.84rem !important;
+    font-weight:800 !important;
+    line-height:1.18 !important;
 }
 
 
@@ -1262,6 +1266,112 @@ function getMarketImageCacheKey(
         `${normalizeMarketsSearch(name)}::` +
         `${normalizeMarketsSearch(category)}`
     );
+}
+
+
+/* =========================================================
+   MARKET DISPLAY UNITS
+
+   EUR uses metric / European display units.
+   USD uses US customary display units where a reliable
+   commodity-wide conversion exists. Future commodities
+   inherit the same conversion rules automatically.
+========================================================= */
+
+function normalizeMarketUnitLabel(
+    value
+) {
+
+    return String(
+        value ??
+        "unit"
+    )
+        .replace(
+            /^[\s(]+|[\s)]+$/g,
+            ""
+        )
+        .trim() ||
+        "unit";
+}
+
+
+function getMarketDisplaySpec(
+    item
+) {
+
+    const base =
+        getMarketConfigFallback(
+            item
+        );
+
+    const eurUnit =
+        normalizeMarketUnitLabel(
+            base.eurUnit
+        );
+
+    const currentUsUnit =
+        normalizeMarketUnitLabel(
+            base.usUnit
+        );
+
+    let usUnit =
+        currentUsUnit;
+
+    let usConversion =
+        1;
+
+    /*
+     * Metric-ton source prices are presented in short tons for
+     * the US line. 1 metric ton = 1.1023113109244 short tons.
+     */
+    if (
+        currentUsUnit.toLowerCase() ===
+        "metric ton"
+    ) {
+
+        usUnit =
+            "short ton";
+
+        usConversion =
+            0.90718474;
+
+    }
+
+    /*
+     * Kilogram source prices are presented in pounds for the
+     * US line. 1 lb = 0.45359237 kg.
+     */
+    else if (
+        currentUsUnit.toLowerCase() ===
+        "kg"
+    ) {
+
+        usUnit =
+            "lb";
+
+        usConversion =
+            0.45359237;
+
+    }
+
+    return {
+
+        eurUnit,
+
+        usUnit,
+
+        eurConversion:
+            Number(
+                base.conversion
+            ) > 0
+                ? Number(
+                    base.conversion
+                )
+                : 1,
+
+        usConversion
+
+    };
 }
 
 
@@ -3058,6 +3168,12 @@ function renderMarketCard(
         );
 
 
+    const displaySpec =
+        getMarketDisplaySpec(
+            item
+        );
+
+
     const change =
         Number(
             item?.changes?.monthly?.percent
@@ -3100,20 +3216,8 @@ function renderMarketCard(
         );
 
 
-    const formattedUsdPrice =
-        formatMarketPrice(
-            usdPrice
-        );
-
-
     let formattedEurPrice =
         "—";
-
-
-    const conversion =
-        Number(
-            item?.display?.conversion
-        );
 
 
     if (
@@ -3125,14 +3229,14 @@ function renderMarketCard(
         ) &&
         marketsExchangeRate > 0 &&
         Number.isFinite(
-            conversion
+            displaySpec.eurConversion
         )
     ) {
 
         const eurPrice =
             usdPrice *
             marketsExchangeRate *
-            conversion;
+            displaySpec.eurConversion;
 
 
         formattedEurPrice =
@@ -3141,6 +3245,17 @@ function renderMarketCard(
             );
 
     }
+
+
+    const formattedUsdDisplayPrice =
+        Number.isFinite(
+            usdPrice
+        )
+            ? formatMarketPrice(
+                usdPrice *
+                displaySpec.usConversion
+            )
+            : "—";
 
 
     const rawName =
@@ -3302,7 +3417,7 @@ function renderMarketCard(
                             /
                             ${
                                 escapeMarketsHtml(
-                                    config.eurUnit
+                                    displaySpec.eurUnit
                                 )
                             }
                         </small>
@@ -3310,20 +3425,20 @@ function renderMarketCard(
                     </strong>
 
 
-                    <span class="market-price-usd">
+                    <strong class="market-price-usd">
 
-                        $${formattedUsdPrice}
+                        $${formattedUsdDisplayPrice}
 
                         <small>
                             /
                             ${
                                 escapeMarketsHtml(
-                                    config.usUnit
+                                    displaySpec.usUnit
                                 )
                             }
                         </small>
 
-                    </span>
+                    </strong>
 
                 </div>
 
