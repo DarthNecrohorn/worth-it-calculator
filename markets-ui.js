@@ -142,10 +142,13 @@ function ensureMarketsCardStyles() {
     width:100% !important;
     max-width:none !important;
     min-width:0 !important;
+    height:120px !important;
     min-height:120px !important;
+    max-height:120px !important;
     box-sizing:border-box !important;
     overflow:hidden !important;
     padding:0 !important;
+    align-self:start !important;
 
     border:1px solid transparent !important;
     border-radius:15px !important;
@@ -232,13 +235,16 @@ function ensureMarketsCardStyles() {
 
 .worth-it-market-card-content {
     min-width:0 !important;
+    height:120px !important;
     min-height:120px !important;
+    max-height:120px !important;
     display:flex !important;
     flex-direction:column !important;
     justify-content:flex-start !important;
     gap:6px !important;
     padding:10px 13px !important;
     box-sizing:border-box !important;
+    overflow:hidden !important;
 }
 
 
@@ -729,7 +735,9 @@ function ensureMarketsCardStyles() {
 
     .markets-grid .market-card,
     .worth-it-market-card-content {
+        height:116px !important;
         min-height:116px !important;
+        max-height:116px !important;
     }
 
 
