@@ -94,14 +94,15 @@ function ensureMarketsCardStyles() {
 
     style.textContent = `
 
-        /* ================================
+/* ================================
    GRID
 ================================= */
 
 .markets-grid {
     display:grid !important;
     grid-template-columns:
-        repeat(2, minmax(0, 1fr)) !important;
+        repeat(2, minmax(0, 390px)) !important;
+    justify-content:space-between !important;
     gap:16px !important;
     align-items:stretch !important;
     width:100% !important;
@@ -118,7 +119,7 @@ function ensureMarketsCardStyles() {
     align-items:stretch !important;
     gap:0 !important;
     width:100% !important;
-    max-width:none !important;
+    max-width:390px !important;
     min-width:0 !important;
     min-height:165px !important;
     box-sizing:border-box !important;
