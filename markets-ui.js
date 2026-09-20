@@ -1583,30 +1583,6 @@ const response =
 
         }
 
-
-        /*
-         * Backend remains the authoritative relevance/license
-         * filter. The client performs only a secondary sanity
-         * check against the image URL/title.
-         */
-
-        if (
-            !marketImageUrlPassesClientFilter(
-                image,
-                name
-            )
-        ) {
-
-            marketsImageFailed.add(
-                key
-            );
-
-
-            return null;
-
-        }
-
-
         marketsImageCache.set(
             key,
             image
