@@ -119,7 +119,7 @@ function ensureMarketsCardStyles() {
             align-items:stretch !important;
             gap:0 !important;
             width:100% !important;
-            max-width:none !important;
+            max-width:350px !important;
             min-width:0 !important;
             min-height:165px !important;
             box-sizing:border-box !important;
