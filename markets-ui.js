@@ -519,15 +519,15 @@ function ensureMarketsCardStyles() {
 
 .worth-it-markets-back-up {
     position:fixed !important;
-    right:max(14px, calc((100vw - 1180px) / 2 - 54px)) !important;
+    right:max(8px, calc((100vw - 1180px) / 2 - 140px)) !important;
     top:50% !important;
     z-index:9999 !important;
 
-    min-height:40px !important;
-    padding:9px 13px !important;
+    min-height:46px !important;
+    padding:10px 16px !important;
 
     border:1px solid transparent !important;
-    border-radius:11px !important;
+    border-radius:12px !important;
 
     background:
         linear-gradient(
@@ -542,9 +542,10 @@ function ensureMarketsCardStyles() {
 
     color:var(--text) !important;
     font:inherit !important;
-    font-size:.76rem !important;
+    font-size:.82rem !important;
     font-weight:800 !important;
     cursor:pointer !important;
+    white-space:nowrap !important;
 
     box-shadow:
         0 7px 20px rgba(0,0,0,.12) !important;
@@ -578,12 +579,12 @@ function ensureMarketsCardStyles() {
 .worth-it-markets-back-up:hover {
     transform:
         translateY(-50%)
-        scale(1.025) !important;
+        scale(1.045) !important;
 
     background:
         linear-gradient(
-            var(--surface, rgba(20,20,30,.92)),
-            var(--surface, rgba(20,20,30,.92))
+            rgba(124,58,237,.11),
+            rgba(37,99,235,.07)
         ) padding-box,
         linear-gradient(
             120deg,
@@ -592,8 +593,8 @@ function ensureMarketsCardStyles() {
         ) border-box !important;
 
     box-shadow:
-        0 8px 24px rgba(37,99,235,.13),
-        0 3px 11px rgba(124,58,237,.10) !important;
+        0 8px 24px rgba(37,99,235,.15),
+        0 3px 11px rgba(124,58,237,.13) !important;
 }
 
 
@@ -634,6 +635,19 @@ function ensureMarketsCardStyles() {
 .worth-it-markets-state-content small {
     margin-top:5px !important;
     opacity:.65 !important;
+}
+
+
+/* ================================
+   TABLET
+================================= */
+
+@media (max-width:1400px) and (min-width:701px) {
+
+    .worth-it-markets-back-up {
+        right:8px !important;
+    }
+
 }
 
 
@@ -732,8 +746,11 @@ function ensureMarketsCardStyles() {
 
 
     .worth-it-markets-back-up {
-        right:10px !important;
+        right:8px !important;
         top:50% !important;
+        min-height:44px !important;
+        padding:10px 14px !important;
+        font-size:.80rem !important;
     }
 
 }
