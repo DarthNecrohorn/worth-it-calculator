@@ -101,14 +101,13 @@ function ensureMarketsCardStyles() {
 .markets-grid {
     display:grid !important;
     grid-template-columns:
-        repeat(2, minmax(0, 420px)) !important;
-    justify-content:center !important;
+        repeat(2, minmax(0, 1fr)) !important;
     gap:16px !important;
     align-items:stretch !important;
     width:100% !important;
-    max-width:856px !important;
-    margin-left:auto !important;
-    margin-right:auto !important;
+    max-width:none !important;
+    margin-left:0 !important;
+    margin-right:0 !important;
 }
 
 
@@ -119,7 +118,7 @@ function ensureMarketsCardStyles() {
             align-items:stretch !important;
             gap:0 !important;
             width:100% !important;
-            max-width:420px !important;
+            max-width:none !important;
             min-width:0 !important;
             min-height:165px !important;
             box-sizing:border-box !important;
