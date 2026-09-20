@@ -139,6 +139,11 @@ function ensureMarketsCardStyles() {
             position:relative !important;
         }
 
+       .markets-grid
+            .worth-it-market-image-wrap {
+            display:grid !important;
+            place-items:stretch !important;
+        }
 
         .markets-grid
         .worth-it-market-image-placeholder {
