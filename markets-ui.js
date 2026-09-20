@@ -378,9 +378,10 @@ function ensureMarketsCardStyles() {
         @media (max-width:1024px) {
 
             .markets-grid {
-                grid-template-columns:
-                    repeat(2, minmax(0, 1fr)) !important;
-            }
+               grid-template-columns:
+                  repeat(2, minmax(0, 350px)) !important;
+                      max-width:716px !important;
+              }
 
 
             .worth-it-markets-categories {
@@ -399,9 +400,10 @@ function ensureMarketsCardStyles() {
 
             .markets-grid {
                 grid-template-columns:
-                    1fr !important;
-                gap:12px !important;
-            }
+                     minmax(0, 1fr) !important;
+                         gap:12px !important;
+                             max-width:350px !important;
+                  }
 
 
             .markets-grid .market-card {
