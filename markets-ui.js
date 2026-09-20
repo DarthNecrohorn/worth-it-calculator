@@ -62,7 +62,7 @@ const marketsImageFailed =
     new Set();
 
 const MARKETS_UI_VERSION =
-    "v7-layout-images";
+    "v8-image-cache";
 
 
 /* =========================================================
