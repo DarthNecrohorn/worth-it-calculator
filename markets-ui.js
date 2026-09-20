@@ -380,7 +380,7 @@ function ensureMarketsCardStyles() {
             .markets-grid {
                grid-template-columns:
                   repeat(2, minmax(0, 350px)) !important;
-                      max-width:716px !important;
+                      max-width:856px !important;
               }
 
 
