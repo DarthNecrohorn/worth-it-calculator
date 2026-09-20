@@ -156,13 +156,16 @@ function ensureMarketsCardStyles() {
         }
 
 
-        .markets-grid
-        .worth-it-market-image {
-            width:100% !important;
-            height:100% !important;
-            min-height:165px !important;
-            object-fit:cover !important;
-        }
+      .markets-grid
+          .worth-it-market-image {
+          width:100% !important;
+          height:100% !important;
+          min-height:165px !important;
+          object-fit:cover !important;
+          display:block !important;
+          grid-area:1 / 1 !important;
+          z-index:1 !important;
+       }
 
 
         .worth-it-market-card-content {
