@@ -164,7 +164,7 @@ function ensureMarketsCardStyles() {
           object-fit:cover !important;
           display:block !important;
           grid-area:1 / 1 !important;
-          z-index:1 !important;
+          z-index:2 !important;
        }
 
 
