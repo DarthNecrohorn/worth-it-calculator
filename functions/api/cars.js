@@ -29,7 +29,7 @@ const VEHICLES_DB_URL =
 const CACHE_TTL = 86400; // 24 hours
 const WIKIPEDIA_CACHE_TTL = 604800; // 7 days
 const MAX_MODELS_PER_KIND = 300; // Keep the catalog focused on popular vehicles
-const WIKIPEDIA_CACHE_VERSION = "v18";
+const WIKIPEDIA_CACHE_VERSION = "v19";
 
 const WIKIPEDIA_API =
     "https://en.wikipedia.org/w/api.php";
@@ -3561,6 +3561,61 @@ function hasWikipediaKindEvidence(
     );
 }
 
+/*
+ * Wikipedia summaries for commercial vehicles and two-wheelers often
+ * omit the exact category word from the short search snippet. Do not
+ * reject a real make/model page solely for that reason.
+ *
+ * A category conflict becomes a hard rejection only when the page has
+ * no positive evidence for the requested kind and contains multiple
+ * explicit signals for another vehicle kind.
+ */
+function hasStrongWikipediaKindContradiction(
+    title,
+    snippet,
+    kind
+) {
+
+    if (
+        !kind ||
+        kind === "car"
+    ) {
+        return false;
+    }
+
+    const text =
+        normalizeWikipediaSearchText(
+            `${title || ""} ${snippet || ""}`
+        );
+
+    const positiveTerms =
+        WIKIPEDIA_KIND_SEARCH_TERMS[kind] ||
+        [];
+
+    const contradictionTerms =
+        WIKIPEDIA_KIND_CONTRADICTION_TERMS[kind] ||
+        [];
+
+    const positiveCount =
+        positiveTerms.filter(term =>
+            text.includes(
+                normalizeWikipediaSearchText(term)
+            )
+        ).length;
+
+    const contradictionCount =
+        contradictionTerms.filter(term =>
+            text.includes(
+                normalizeWikipediaSearchText(term)
+            )
+        ).length;
+
+    return (
+        positiveCount === 0 &&
+        contradictionCount >= 2
+    );
+}
+
 
 async function searchWikipediaVehicle(
     make,
@@ -3722,13 +3777,13 @@ async function searchWikipediaVehicle(
 
                         if (
                             kind !== "car" &&
-                            !hasWikipediaKindEvidence(
+                            hasStrongWikipediaKindContradiction(
                                 title,
                                 snippet,
                                 kind
                             )
                         ) {
-                            score -= 150;
+                            score -= 180;
                         }
 
                         return {
@@ -3747,7 +3802,7 @@ async function searchWikipediaVehicle(
 
                 if (
                     kind !== "car" &&
-                    !hasWikipediaKindEvidence(
+                    hasStrongWikipediaKindContradiction(
                         candidate.title,
                         candidate.snippet,
                         kind
@@ -4726,9 +4781,17 @@ async function handleDetails(
      * at the detail stage so a cached/redirected page from another
      * vehicle kind can never be presented as the requested type.
      */
+    /*
+     * Do not reject a real vehicle article just because the short
+     * Wikipedia summary does not contain a category keyword. The
+     * VehiclesDB catalog already selected the vehicle kind; technical
+     * data + make/model identity are validated by the frontend.
+     *
+     * Only an obvious strong category contradiction is rejected here.
+     */
     if (
         kind !== "car" &&
-        !hasWikipediaKindEvidence(
+        hasStrongWikipediaKindContradiction(
             page.title,
             page.description,
             kind
