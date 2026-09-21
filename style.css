@@ -7610,3 +7610,64 @@ html[data-ui-scale="xl"] .profile-nav-btn .auth-avatar-fallback{
         max-height:calc(100vh - 16px) !important;
     }
 }
+
+
+/* =========================================================
+   MOBILE — FINAL AUTH / UTILITY POLISH
+   Phone only. Desktop/tablet is intentionally untouched.
+   ========================================================= */
+
+@media (max-width:700px){
+
+    /* The previous compact-header rule used !important on display,
+       which could keep Sign out visible after Supabase signed out.
+       Let the profile state be the source of truth. */
+    .nav-actions .signout-nav-btn{
+        display:none !important;
+    }
+
+    .nav-actions:has(.profile-nav-btn[style*="inline-flex"]) .signout-nav-btn{
+        display:inline-flex !important;
+    }
+
+    /* A+ / A++: keep these utility icons visually compact.
+       The page-level accessibility zoom still enlarges their contents,
+       but their physical header footprint no longer grows too tall. */
+    html[data-ui-scale="large"] .nav-actions .feedback-nav-btn,
+    html[data-ui-scale="large"] .nav-actions .admin-panel-nav-btn,
+    html[data-ui-scale="large"] .nav-actions .settings-btn,
+    html[data-ui-scale="large"] .nav-actions .ai-chat-nav-btn{
+        width:24px !important;
+        min-width:24px !important;
+        max-width:24px !important;
+        height:24px !important;
+        min-height:24px !important;
+        max-height:24px !important;
+        flex-basis:24px !important;
+        padding:1px !important;
+        font-size:12px !important;
+        border-radius:7px !important;
+    }
+
+    html[data-ui-scale="xl"] .nav-actions .feedback-nav-btn,
+    html[data-ui-scale="xl"] .nav-actions .admin-panel-nav-btn,
+    html[data-ui-scale="xl"] .nav-actions .settings-btn,
+    html[data-ui-scale="xl"] .nav-actions .ai-chat-nav-btn{
+        width:22px !important;
+        min-width:22px !important;
+        max-width:22px !important;
+        height:22px !important;
+        min-height:22px !important;
+        max-height:22px !important;
+        flex-basis:22px !important;
+        padding:1px !important;
+        font-size:11px !important;
+        border-radius:6px !important;
+    }
+
+    /* The profile dropdown is positioned from JS using the actual
+       profile button, so it stays directly under the icon even at A++. */
+    .account-panel{
+        transform:none !important;
+    }
+}
