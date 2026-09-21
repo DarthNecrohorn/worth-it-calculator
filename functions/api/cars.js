@@ -3637,6 +3637,17 @@ async function searchWikipediaVehicle(
         exactName
     ];
 
+    const normalizedTarget =
+        simplifyText(
+            exactName
+        );
+
+    const normalizedMake =
+        simplifyText(make);
+
+    const normalizedModel =
+        simplifyText(model);
+
     /*
      * FAST PATH: try the exact make + model title first.
      *
@@ -3701,17 +3712,6 @@ async function searchWikipediaVehicle(
         );
 
     }
-
-    const normalizedTarget =
-        simplifyText(
-            exactName
-        );
-
-    const normalizedMake =
-        simplifyText(make);
-
-    const normalizedModel =
-        simplifyText(model);
 
     for (const search of searches) {
 
