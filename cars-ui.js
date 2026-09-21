@@ -3,10 +3,9 @@
  * WORTH IT - VEHICLES UI
  * VehiclesDB + Wikipedia + Wikimedia Commons
  *
- * Supported vehicle categories:
+ * Public vehicle categories:
  *   Cars
- *   Motorcycles
- *   Mopeds
+ *   Motorcycles (includes mopeds)
  *   Vans
  *   Trucks
  *   Buses
@@ -37,7 +36,7 @@ const VEHICLE_API_VERSION = "v13";
 const VEHICLE_CATALOG_BASE_URL =
     "https://cdn.jsdelivr.net/gh/vehiclesdb/vehiclesdb@latest/catalog";
 
-const VEHICLE_DETAILS_CACHE_VERSION = "v20";
+const VEHICLE_DETAILS_CACHE_VERSION = "v19";
 
 const MAX_VEHICLES_PER_CATEGORY = 300;
 
@@ -344,7 +343,7 @@ function getPopularMaxNewChecks(kind) {
  * Persistent browser cache version for account-scoped vehicle
  * metadata/images.
  */
-const VEHICLE_PERSISTENT_CACHE_VERSION = "v4";
+const VEHICLE_PERSISTENT_CACHE_VERSION = "v3";
 
 let vehicleAccountCacheOwnerPromise =
     null;
