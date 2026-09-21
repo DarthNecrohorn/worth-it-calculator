@@ -4639,13 +4639,14 @@ function updateVehicleFloatingCollapseButton() {
 
     }
 
-    const sectionTop =
-        window.scrollY +
-        carsSection.getBoundingClientRect().top;
+    const carsVisible =
+        window.getComputedStyle(
+            carsSection
+        ).display !== "none";
 
     const shouldShow =
-        window.scrollY >
-        sectionTop + 180;
+        carsVisible &&
+        window.scrollY > 280;
 
     button.classList.toggle(
         "is-visible",
@@ -5367,54 +5368,115 @@ function injectVehicleUiStyles() {
 
 
         /* Floating Show Less button */
-
+        /*
+         * Intentionally matches the Markets "Go back up" control:
+         * same fixed position, dimensions, animation and visibility
+         * behavior. Only the text/action is different.
+         */
         .worth-it-vehicle-floating-collapse {
-            position: fixed;
-            left: 14px;
-            top: 50%;
-            z-index: 99950;
-            transform: translate(-140%, -50%);
-            transition:
-                transform 0.22s ease,
-                opacity 0.22s ease,
-                background 0.2s ease,
-                box-shadow 0.2s ease;
-            opacity: 0;
-            pointer-events: none;
+            position: fixed !important;
+            right: max(8px, calc((100vw - 1180px) / 2 - 140px)) !important;
+            top: 50% !important;
+            z-index: 9999 !important;
 
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            min-height: 42px;
-            padding: 0 16px;
+            min-height: 46px !important;
+            padding: 10px 16px !important;
 
-            border: 1px solid rgba(255, 255, 255, 0.14);
-            border-radius: 12px;
-            background: rgba(17, 19, 24, 0.95);
-            color: #fff;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.28);
+            border: 1px solid transparent !important;
+            border-radius: 12px !important;
 
-            font-weight: 800;
-            cursor: pointer;
-        }
+            background:
+                linear-gradient(
+                    var(--surface, rgba(20,20,30,.92)),
+                    var(--surface, rgba(20,20,30,.92))
+                ) padding-box,
+                linear-gradient(
+                    120deg,
+                    rgba(128,128,128,.30),
+                    rgba(128,128,128,.24)
+                ) border-box !important;
 
-            .worth-it-vehicle-floating-collapse:hover {
-            transform: translate(0, -50%) scale(1.04);
-            background: rgba(25, 28, 35, 0.98);
-            border-color: rgba(139, 92, 246, 0.75);
+            color: var(--text) !important;
+            font: inherit !important;
+            font-size: .82rem !important;
+            font-weight: 800 !important;
+            cursor: pointer !important;
+            white-space: nowrap !important;
+
             box-shadow:
-                0 0 0 2px rgba(139, 92, 246, 0.18),
-                0 12px 32px rgba(0, 0, 0, 0.34);
+                0 7px 20px rgba(0,0,0,.12) !important;
+
+            opacity: 0 !important;
+            visibility: hidden !important;
+            pointer-events: none !important;
+            transform:
+                translateY(-40%)
+                scale(.94) !important;
+
+            transition:
+                opacity .18s ease,
+                visibility .18s ease,
+                transform .18s ease,
+                box-shadow .18s ease,
+                background .18s ease !important;
         }
-       
+
         .worth-it-vehicle-floating-collapse.is-visible {
-            transform: translate(0, -50%);
-            opacity: 1;
-            pointer-events: auto;
+            opacity: 1 !important;
+            visibility: visible !important;
+            pointer-events: auto !important;
+            transform:
+                translateY(-50%)
+                scale(1) !important;
+        }
+
+        .worth-it-vehicle-floating-collapse:hover {
+            transform:
+                translateY(-50%)
+                scale(1.045) !important;
+
+            background:
+                linear-gradient(
+                    rgba(124,58,237,.11),
+                    rgba(37,99,235,.07)
+                ) padding-box,
+                linear-gradient(
+                    120deg,
+                    #7c3aed,
+                    #2563eb
+                ) border-box !important;
+
+            box-shadow:
+                0 8px 24px rgba(37,99,235,.15),
+                0 3px 11px rgba(124,58,237,.13) !important;
         }
 
         .worth-it-vehicle-floating-collapse.is-visible:hover {
-            transform: translate(0, -50%) scale(1.04);
+            transform:
+                translateY(-50%)
+                scale(1.045) !important;
+        }
+
+        @media (max-width: 1400px) and (min-width: 701px) {
+            .worth-it-vehicle-floating-collapse {
+                right: 8px !important;
+            }
+        }
+
+        @media (max-width: 1024px) {
+            .worth-it-vehicle-floating-collapse {
+                right: 14px !important;
+            }
+        }
+
+        @media (max-width: 700px) {
+            .worth-it-vehicle-floating-collapse {
+                right: 8px !important;
+                top: 50% !important;
+                min-height: 44px !important;
+                padding: 10px 14px !important;
+                font-size: .80rem !important;
+            }
         }
 
         .worth-it-vehicle-compare-notice {
@@ -6155,39 +6217,36 @@ function handleVehicleSearch(
 
 async function openCars() {
 
-    const homePage =
+    /*
+     * Cars is a standalone top-level section. Hide everything else
+     * inside <main> before doing any asynchronous catalog work.
+     * This prevents the section we came from from remaining visible
+     * above/below Cars while its data is loading.
+     */
+    const carsSection =
         document.getElementById(
-            "homePage"
+            "carsSection"
         );
 
-
-    if (homePage) {
-
-        homePage.style.display =
-            "none";
-
+    if (!carsSection) {
+        return;
     }
 
-
     document
-        .querySelectorAll(".app")
+        .querySelectorAll("main > *")
         .forEach(
-            x => {
+            element => {
 
-                x.classList.remove(
-                    "active"
-                );
-
-                x.style.display =
-                    "none";
+                element.style.display =
+                    element === carsSection
+                        ? "block"
+                        : "none";
 
             }
         );
 
-
     /*
-     * Cars is a standalone section. Hide every other page section
-     * so Cars can never remain underneath another section.
+     * Keep the existing safety rule for nested sections as well.
      */
     document
         .querySelectorAll(".section")
@@ -6195,40 +6254,59 @@ async function openCars() {
             section => {
 
                 section.style.display =
-                    section.id === "carsSection"
+                    section === carsSection
                         ? "block"
                         : "none";
 
             }
         );
 
+    document
+        .querySelectorAll(".app")
+        .forEach(
+            app => {
+
+                app.classList.remove(
+                    "active"
+                );
+
+                app.style.display =
+                    "none";
+
+            }
+        );
+
+    const homePage =
+        document.getElementById(
+            "homePage"
+        );
+
+    if (homePage) {
+        homePage.style.display =
+            "none";
+    }
 
     const settingsPanel =
         document.getElementById(
             "settingsPanel"
         );
 
-
     if (settingsPanel) {
-
         settingsPanel.style.display =
             "none";
-
     }
 
+    /*
+     * Start Cars at the top immediately, before waiting for any API
+     * requests. This is important when Cars was opened from a page
+     * where the user was already scrolled far down.
+     */
+    window.scrollTo({
+        top: 0,
+        behavior: "auto"
+    });
 
-    const carsSection =
-        document.getElementById(
-            "carsSection"
-        );
-
-
-    if (carsSection) {
-
-        carsSection.style.display =
-            "block";
-
-    }
+    hideVehicleFloatingCollapseButton();
 
 
     /*
