@@ -318,7 +318,7 @@ export async function onRequestGet(
 
         await db
             .prepare(
-                "CREATE TABLE IF NOT EXISTS admin_api_usage_totals (" +
+                "CREATE TABLE IF NOT EXISTS admin_api_usage_totals_v2 (" +
                 "api_key TEXT PRIMARY KEY, " +
                 "provider TEXT NOT NULL, " +
                 "total_requests INTEGER NOT NULL DEFAULT 0, " +
@@ -330,7 +330,7 @@ export async function onRequestGet(
 
         await db
             .prepare(
-                "CREATE TABLE IF NOT EXISTS admin_api_usage_daily (" +
+                "CREATE TABLE IF NOT EXISTS admin_api_usage_daily_v2 (" +
                 "api_key TEXT NOT NULL, " +
                 "provider TEXT NOT NULL, " +
                 "usage_date TEXT NOT NULL, " +
@@ -344,7 +344,7 @@ export async function onRequestGet(
             await db
                 .prepare(
                     "SELECT api_key, provider, total_requests, first_seen_at, last_seen_at " +
-                    "FROM admin_api_usage_totals " +
+                    "FROM admin_api_usage_totals_v2 " +
                     "ORDER BY total_requests DESC"
                 )
                 .all();
@@ -353,7 +353,7 @@ export async function onRequestGet(
             await db
                 .prepare(
                     "SELECT api_key, usage_date, requests " +
-                    "FROM admin_api_usage_daily " +
+                    "FROM admin_api_usage_daily_v2 " +
                     "WHERE usage_date >= ? " +
                     "ORDER BY usage_date DESC"
                 )
@@ -566,9 +566,9 @@ export async function onRequestGet(
                 generatedAt:
                     now.toISOString(),
                 tracking:
-                    "Worth It backend requests",
+                    "Worth It upstream/API requests",
                 note:
-                    "Counts begin with this tracking system. Provider dashboards may show different usage because caching can reduce upstream requests.",
+                    "Remaining values use the current provider quota rules and the upstream requests tracked by Worth It since the current tracker was enabled. Provider dashboards may differ when provider-side usage existed before tracking began or when a provider uses model/token-based limits.",
                 apis
             },
             200
