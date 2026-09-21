@@ -20,8 +20,9 @@
    NOTE:
      Final strict Wikimedia relevance filtering, including the
      strongest URL/title/metadata checks, is completed in
-     markets.js. This UI is prepared to consume only images
-     returned by that validated backend endpoint.
+     markets.js. This UI consumes images returned by that
+     validated backend endpoint, but an image is NOT required
+     for a commodity card to exist.
 ========================================================= */
 
 
@@ -67,20 +68,28 @@ const marketsImageFailed =
 
 /*
  * Share the same in-flight request when the same commodity is
- * encountered more than once during image validation/loading.
+ * encountered more than once during image loading.
  */
 const marketsImagePromiseCache =
     new Map();
 
 /*
  * Prevent an older asynchronous render from replacing a newer
- * search/category selection after image validation completes.
+ * search/category selection.
  */
 let marketsRenderRequestId =
     0;
 
+
+/*
+ * Frontend version used to invalidate older image request URLs.
+ *
+ * The actual commodity limit is controlled by markets.js.
+ * This UI has no separate commodity limit and will render every
+ * commodity returned by the backend.
+ */
 const MARKETS_UI_VERSION =
-    "v10-image-skip";
+    "v11-all-commodities";
 
 
 /* =========================================================
@@ -1354,6 +1363,7 @@ function getMarketDisplaySpec(
 
     }
 
+
     return {
 
         eurUnit,
@@ -1886,7 +1896,7 @@ function updateMarketsCount(
     ) {
 
         countElement.textContent =
-            "Checking images…";
+            "Loading commodities…";
 
         return;
 
@@ -1963,9 +1973,11 @@ function ensureMarketsGoBackUpButton() {
             window.scrollTo(
                 {
 
-                    top:0,
+                    top:
+                        0,
 
-                    behavior:"smooth"
+                    behavior:
+                        "smooth"
 
                 }
             );
@@ -2136,9 +2148,39 @@ function showMarketImageUnavailable(
         );
 
 
+    /*
+     * IMPORTANT:
+     * A missing Wikimedia image must NOT remove the commodity card.
+     *
+     * The commodity data comes from World Bank and remains useful
+     * even when Wikimedia has no acceptable image.
+     */
     if (card) {
 
-        card.remove();
+        const placeholder =
+            card.querySelector(
+                ".worth-it-market-image-placeholder"
+            );
+
+
+        if (placeholder) {
+
+            placeholder.textContent =
+                "Image unavailable";
+
+
+            placeholder.style.display =
+                "flex";
+
+        }
+
+
+        imageElement.dataset
+            .marketImageState =
+            "unavailable";
+
+
+        imageElement.remove();
 
         return;
 
@@ -2344,6 +2386,7 @@ async function fetchMarketImage(
     return requestPromise;
 }
 
+
 function hasValidMarketImage(
     image
 ) {
@@ -2359,123 +2402,22 @@ function hasValidMarketImage(
 
 
 /* =========================================================
-   FILTER COMMODITIES BY VALID IMAGE
+   COMMODITY RESOLUTION
+   =========================================================
 
-   The backend is the authority for Wikimedia relevance and
-   licensing. We validate candidates before rendering cards so
-   commodities without an accepted image never create a visible
-   "Image unavailable" card.
+   IMPORTANT:
+   Every commodity returned by the World Bank backend is kept.
+
+   Wikimedia image availability is optional. Images are loaded
+   lazily by the image observer below and therefore cannot remove
+   the commodity itself from the Markets dataset.
+
 ========================================================= */
 
 async function resolveMarketsWithValidImages(
     items,
     requestId
 ) {
-
-    const result =
-        [];
-
-    let nextIndex =
-        0;
-
-
-    async function worker() {
-
-        while (true) {
-
-            if (
-                requestId !==
-                marketsRenderRequestId
-            ) {
-
-                return;
-
-            }
-
-
-            const index =
-                nextIndex++;
-
-
-            if (
-                index >=
-                items.length
-            ) {
-
-                return;
-
-            }
-
-
-            const item =
-                items[index];
-
-
-            const image =
-                await fetchMarketImage(
-                    item?.name ||
-                        "Commodity",
-                    item?.category ||
-                        "other"
-                );
-
-
-            if (
-                requestId !==
-                marketsRenderRequestId
-            ) {
-
-                return;
-
-            }
-
-
-            if (
-                hasValidMarketImage(
-                    image
-                )
-            ) {
-
-                result[index] =
-                    {
-
-                        item,
-
-                        image
-
-                    };
-
-            }
-
-        }
-
-    }
-
-
-    const workerCount =
-        Math.min(
-            marketsImageMaxConcurrentLoads,
-            items.length
-        );
-
-
-    if (
-        workerCount > 0
-    ) {
-
-        await Promise.all(
-            Array.from(
-                {
-                    length:
-                        workerCount
-                },
-                () =>
-                    worker()
-            )
-        );
-
-    }
-
 
     if (
         requestId !==
@@ -2487,10 +2429,27 @@ async function resolveMarketsWithValidImages(
     }
 
 
-    return result.filter(
-        Boolean
+    /*
+     * Keep every commodity.
+     *
+     * The image field starts as null and is filled by the existing
+     * lazy image loading system when the card enters the viewport.
+     *
+     * This preserves the World Bank dataset independently from
+     * Wikimedia image availability.
+     */
+    return items.map(
+        item => ({
+
+            item,
+
+            image:
+                null
+
+        })
     );
 }
+
 
 /* =========================================================
    IMAGE QUEUE
@@ -2807,7 +2766,10 @@ async function loadMarketCardImage(
         );
 
 
-    if (!image || !hasValidMarketImage(image)) {
+    if (
+        !image ||
+        !hasValidMarketImage(image)
+    ) {
 
         imageElement.dataset
             .marketImageState =
@@ -3292,6 +3254,12 @@ function renderMarketCard(
         );
 
 
+    const imageDisplay =
+        image
+            ? "block"
+            : "none";
+
+
     const cardHtml = `
 
         <div
@@ -3306,7 +3274,11 @@ function renderMarketCard(
             >
 
                 ${
-                    createMarketImagePlaceholder()
+                    createMarketImagePlaceholder(
+                        image
+                            ? "Loading image..."
+                            : "Loading image..."
+                    )
                 }
 
 
@@ -3320,6 +3292,7 @@ function renderMarketCard(
                         width:100%;
                         height:100%;
                         object-fit:cover;
+                        display:${imageDisplay};
                     "
                 >
 
@@ -3570,9 +3543,11 @@ async function renderMarkets() {
 
 
     /*
-     * Resolve image validity BEFORE creating cards.
-     * A commodity without an accepted Wikimedia image is simply
-     * omitted, so the next valid commodity takes its place.
+     * Keep ALL filtered commodities.
+     *
+     * The image field is optional and starts as null.
+     * Wikimedia images are loaded lazily afterwards by the
+     * existing IntersectionObserver / queue system.
      */
     const resolved =
         await resolveMarketsWithValidImages(
@@ -3611,12 +3586,12 @@ async function renderMarkets() {
                 >
 
                     <strong>
-                        No commodities with valid images found
+                        No commodities found
                     </strong>
 
 
                     <small>
-                        The selected commodities currently have no validated Wikimedia Commons image.
+                        Try another search or category.
                     </small>
 
                 </div>
@@ -3647,9 +3622,9 @@ async function renderMarkets() {
 
 
     /*
-     * Attach the already-validated image object directly to each
-     * image element. The lazy image loader can therefore start from
-     * the validated result without sending the same API request again.
+     * Attach any already-available image object directly to the
+     * image element. Normally images are loaded lazily and start
+     * with null here.
      */
     const images =
         grid.querySelectorAll(
@@ -3670,6 +3645,7 @@ async function renderMarkets() {
 
     initialiseMarketImageObserver();
 }
+
 
 /* =========================================================
    ERROR
@@ -3904,7 +3880,9 @@ document.addEventListener(
     () => {
 
         ensureMarketsCardStyles();
+
         ensureMarketsGoBackUpButton();
+
 
         window.addEventListener(
             "scroll",
@@ -3912,7 +3890,9 @@ document.addEventListener(
             { passive:true }
         );
 
+
         updateMarketsGoBackUpButton();
+
 
         refreshMarkets();
 
