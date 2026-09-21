@@ -9430,23 +9430,16 @@ function injectVehicleUiStyles() {
         }
 
 
-        .cars-results-title-row {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 14px;
-            width: 100%;
-        }
-
-        .cars-results-title-row h3 {
-            margin: 0;
-        }
-
         .cars-results-actions {
             display: inline-flex;
             align-items: center;
             gap: 7px;
             flex: 0 0 auto;
+            margin-left: auto;
+        }
+
+        .cars-block-header {
+            position: relative;
         }
 
         .cars-refresh-button {
@@ -9541,10 +9534,6 @@ function injectVehicleUiStyles() {
         }
 
         @media (max-width: 760px) {
-            .cars-results-title-row {
-                align-items: flex-start;
-            }
-
             .cars-results-actions {
                 gap: 5px;
             }
@@ -9913,40 +9902,39 @@ function handleVehicleScroll() {
  * ============================================================
  */
 
-function ensureCarsResultsTitleRow(
-    title,
-    description
+function ensureCarsResultsHeaderActions(
+    header
 ) {
 
-    const header = title?.parentElement;
+    if (!header) return null;
 
-    if (!header || !description) return null;
+    let actions = header.querySelector(".cars-results-actions");
 
-    let row = header.querySelector(".cars-results-title-row");
+    const duplicates = header.querySelectorAll(".cars-results-actions");
+    duplicates.forEach((element, index) => {
+        if (index > 0) element.remove();
+    });
 
-    if (!row) {
-        row = document.createElement("div");
-        row.className = "cars-results-title-row";
-        header.insertBefore(row, title);
-        row.appendChild(title);
+    if (!actions) {
+        actions = document.createElement("div");
+        actions.className = "cars-results-actions";
+        header.appendChild(actions);
     }
 
-    return row;
+    actions.innerHTML = "";
+    return actions;
 }
 
 
 function renderPopularRefreshControls(
-    row,
+    header,
     kind
 ) {
 
-    if (!row) return;
+    if (!header) return;
 
-    const oldControls = row.querySelector(".cars-results-actions");
-    if (oldControls) oldControls.remove();
-
-    const actions = document.createElement("div");
-    actions.className = "cars-results-actions";
+    const actions = ensureCarsResultsHeaderActions(header);
+    if (!actions) return;
 
     const refreshButton = document.createElement("button");
     refreshButton.type = "button";
@@ -9974,40 +9962,36 @@ function renderPopularRefreshControls(
     tooltip.hidden = true;
     tooltip.innerHTML =
         "<strong>Refresh</strong>" +
-        "<span>Reloads the popular vehicles for this category. " +
-        "The first 8 cards appear as soon as reliable vehicle information " +
-        "is available; images load separately and never block the cards. " +
-        "Saved vehicle information may make repeated refreshes even faster.</span>";
+        "<span>Refreshes the currently selected vehicle category. " +
+        "The first 8 cards are shown as soon as reliable information " +
+        "is available. Images load separately and never block the cards, " +
+        "and existing cached information is reused when possible.</span>";
 
     infoWrap.appendChild(infoButton);
     infoWrap.appendChild(tooltip);
     actions.appendChild(refreshButton);
     actions.appendChild(infoWrap);
-    row.appendChild(actions);
 
     infoButton.addEventListener("click", event => {
+        event.preventDefault();
         event.stopPropagation();
+
         const shouldOpen = tooltip.hidden;
         tooltip.hidden = !shouldOpen;
         infoButton.setAttribute("aria-expanded", shouldOpen ? "true" : "false");
         infoWrap.classList.toggle("is-open", shouldOpen);
     });
 
-    const closeRefreshPopover = event => {
-        if (!infoWrap.contains(event.target)) {
-            tooltip.hidden = true;
-            infoButton.setAttribute("aria-expanded", "false");
-            infoWrap.classList.remove("is-open");
-        }
-    };
-
-    document.addEventListener("click", closeRefreshPopover, { once: true });
-
     refreshButton.addEventListener("click", event => {
         event.preventDefault();
         event.stopPropagation();
+
         if (refreshButton.disabled) return;
-        void refreshPopularVehicleCategory(kind, refreshButton);
+
+        void refreshPopularVehicleCategory(
+            currentVehicleKind,
+            refreshButton
+        );
     });
 }
 
@@ -10022,11 +10006,13 @@ function updateCarsCategoryHeader(
 
     if (!title || !description) return;
 
-    const row = ensureCarsResultsTitleRow(title, description);
+    const header = title.parentElement;
+    if (!header) return;
+
     const info = getVehicleKindInfo(kind);
 
-    const oldControls = row?.querySelector(".cars-results-actions");
-    if (oldControls) oldControls.remove();
+    const existingActions = header.querySelectorAll(".cars-results-actions");
+    existingActions.forEach(element => element.remove());
 
     if (mode === "search") {
         title.textContent = "🔍 " + info.plural + " Search";
@@ -10043,8 +10029,7 @@ function updateCarsCategoryHeader(
     }
 
     title.textContent = info.title;
-
-    renderPopularRefreshControls(row, kind);
+    renderPopularRefreshControls(header, kind);
 
     description.classList.add("cars-results-description-with-info");
     description.innerHTML =
@@ -10073,23 +10058,22 @@ function updateCarsCategoryHeader(
     if (!infoButton || !infoWrap || !tooltip) return;
 
     infoButton.addEventListener("click", event => {
+        event.preventDefault();
         event.stopPropagation();
+
         const shouldOpen = tooltip.hidden;
         tooltip.hidden = !shouldOpen;
         infoButton.setAttribute("aria-expanded", shouldOpen ? "true" : "false");
         infoWrap.classList.toggle("is-open", shouldOpen);
     });
 
-    const closePopularityPopover = event => {
+    document.addEventListener("click", event => {
         if (!infoWrap.contains(event.target)) {
             tooltip.hidden = true;
             infoButton.setAttribute("aria-expanded", "false");
             infoWrap.classList.remove("is-open");
         }
-    };
-
-    document.addEventListener("click", closePopularityPopover, { once: true });
-
+    }, { once: true });
 }
 
 /*
