@@ -597,8 +597,7 @@ async function handleModels(
         models =
             models.filter(vehicle =>
                 normalizeText(vehicle.make) === targetMake ||
-                simplifyText(vehicle.make) === simplifiedMake
-            );
+                simplifyText(vehicle.make) === simplifiedMake            );
     }
 
     if (search) {
@@ -1197,8 +1196,7 @@ const WIKIPEDIA_FIELD_ALIASES = {
     "all-electric range": "electricRange",
     "driving range": "electricRange",
     "epa range": "electricRange",
-    "wltp range": "electricRange",
-    range: "electricRange",
+    "wltp range": "electricRange",    range: "electricRange",
 
     seating: "seating",
     seats: "seating",
@@ -1797,8 +1795,7 @@ function cleanWikipediaWikitextValue(value) {
 
     /* External links. */
 
-    text =
-        text.replace(
+    text =        text.replace(
             /\[(?:https?:\/\/|\/\/)[^\s\]]+\s+([^\]]+)\]/gi,
             "$1"
         );
@@ -2397,7 +2394,6 @@ function parseWikipediaInfoboxHtml(html) {
         }
 
     } catch (error) {
-
         console.error(
             "Wikipedia rendered HTML infobox parsing error:",
             error
@@ -2997,7 +2993,6 @@ function extractGenerationCandidateArticleTitle(
         /href=["'](\/wiki\/[^"'#]+)["'][^>]*>/gi;
 
     let hrefMatch;
-
     while ((hrefMatch = hrefRegex.exec(section)) !== null) {
 
         const title =
@@ -3597,8 +3592,7 @@ function normalizeLicenseMetadata(value) {
         .toLowerCase()
         .replace(/[–—]/g, "-")
         .replace(/\s+/g, " ")
-        .trim();
-}
+        .trim();}
 
 function getCommercialWikimediaLicense(extmetadata) {
 
@@ -3794,11 +3788,7 @@ function isVehicleImageUrlMatchingName(
     const escapedVehicleName =
         vehicleName.replace(
             /[.*+?^\${}()|[\]\\]/g,
-            "\\async function getCommercialWikimediaImage(
-    imageTitle,
-    make,
-    model
-) {"
+            "\$&"
         );
 
     const pattern =
@@ -3819,7 +3809,11 @@ function isVehicleImageUrlMatchingName(
  * ------------------------------------------------------------
  */
 
-async function getCommercialWikimediaImage(imageTitle) {
+async function getCommercialWikimediaImage(
+    imageTitle,
+    make,
+    model
+) {
 
     if (!imageTitle) {
         return null;
@@ -4197,8 +4191,7 @@ async function getWikipediaInfoboxData(
                 createEmptyWikipediaSpecifications()
         };
 
-        if (
-            vehicleContext &&
+        if (            vehicleContext &&
             generationSections.length
         ) {
             latestGeneration =
@@ -4797,7 +4790,6 @@ function createLightweightVehicleFromRequest(
     if (!kind) {
         return null;
     }
-
     const make =
         requestUrl.searchParams.get("make") ||
         "";
