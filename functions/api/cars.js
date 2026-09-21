@@ -3462,12 +3462,31 @@ const WIKIPEDIA_KIND_SEARCH_TERMS = {
 };
 
 const WIKIPEDIA_KIND_CONTRADICTION_TERMS = {
-    motorcycle: ["bus", "coach", "truck", "lorry"],
-    moped: ["bus", "coach", "truck", "lorry"],
-    van: ["bus", "coach", "truck", "lorry", "sedan", "hatchback", "coupe", "roadster"],
-    truck: ["bus", "coach", "sedan", "hatchback", "coupe", "roadster"],
-    bus: ["truck", "lorry", "sedan", "hatchback", "coupe", "roadster"],
-    car: ["bus", "coach", "truck", "lorry", "motorcycle", "moped"]
+    motorcycle: [
+        "bus", "coach", "truck", "lorry", "van", "sedan",
+        "hatchback", "coupe", "suv", "sport utility vehicle"
+    ],
+    moped: [
+        "bus", "coach", "truck", "lorry", "van", "sedan",
+        "hatchback", "coupe", "suv", "sport utility vehicle"
+    ],
+    van: [
+        "bus", "coach", "truck", "lorry", "sedan", "hatchback",
+        "coupe", "roadster", "suv", "sport utility vehicle",
+        "crossover", "convertible", "wagon", "pickup",
+        "motorcycle", "moped"
+    ],
+    truck: [
+        "bus", "coach", "sedan", "hatchback", "coupe", "roadster",
+        "suv", "sport utility vehicle", "motorcycle", "moped", "van"
+    ],
+    bus: [
+        "truck", "lorry", "sedan", "hatchback", "coupe", "roadster",
+        "suv", "sport utility vehicle", "motorcycle", "moped", "van"
+    ],
+    car: [
+        "bus", "coach", "truck", "lorry", "motorcycle", "moped"
+    ]
 };
 
 function normalizeWikipediaSearchText(
