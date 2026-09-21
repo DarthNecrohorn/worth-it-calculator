@@ -5,58 +5,84 @@ const API_REGISTRY = [
     {
         key: "weather",
         name: "Weather",
+        emoji: "🌤️",
         provider: "Visual Crossing",
         endpoint: "/api/weather",
-        category: "Weather"
+        category: "Weather",
+        quotaType: "daily",
+        quotaLimit: 1000,
+        quotaLabel: "1,000 records/day"
     },
     {
         key: "news",
         name: "News",
+        emoji: "📰",
         provider: "NewsData.io",
         endpoint: "/api/news",
-        category: "News"
+        category: "News",
+        quotaType: "daily",
+        quotaLimit: 200,
+        quotaLabel: "200 credits/day"
     },
     {
         key: "currencies",
         name: "Currencies",
+        emoji: "💱",
         provider: "Frankfurter",
         endpoint: "/api/currencies",
-        category: "Currencies"
+        category: "Currencies",
+        quotaType: "none",
+        quotaLabel: "No monthly/daily quota"
     },
     {
         key: "exchange-rate",
         name: "Exchange Rate",
+        emoji: "💱",
         provider: "Frankfurter",
         endpoint: "/api/exchange-rate",
-        category: "Shared"
+        category: "Shared",
+        quotaType: "none",
+        quotaLabel: "No monthly/daily quota"
     },
     {
         key: "cars",
         name: "Cars",
+        emoji: "🚗",
         provider: "VehiclesDB + Wikidata + DBpedia + Wikipedia + Wikimedia",
         endpoint: "/api/cars",
-        category: "Cars"
+        category: "Cars",
+        quotaType: "none",
+        quotaLabel: "No fixed provider quota"
     },
     {
         key: "markets",
         name: "Markets",
+        emoji: "📈",
         provider: "World Bank + USGS + EIA + USDA NASS + Voltlas + Wikimedia",
         endpoint: "/api/markets",
-        category: "Markets"
+        category: "Markets",
+        quotaType: "none",
+        quotaLabel: "No fixed provider quota"
     },
     {
         key: "ai-chat",
         name: "AI Chat",
+        emoji: "🤖",
         provider: "Gemini / Groq",
         endpoint: "/api/ai-chat",
-        category: "AI"
+        category: "AI",
+        quotaType: "dynamic",
+        quotaLabel: "Model/plan dependent"
     },
     {
         key: "feedback",
         name: "Feedback",
+        emoji: "🐞",
         provider: "Supabase",
         endpoint: "/api/feedback",
-        category: "Site"
+        category: "Site",
+        quotaType: "dynamic",
+        quotaLabel: "Provider dependent"
     }
 ];
 
@@ -268,6 +294,17 @@ export async function onRequestGet(
                 8
             ) + "01";
 
+        const yesterdayStart =
+            new Date(
+                now.getTime() -
+                24 * 60 * 60 * 1000
+            )
+                .toISOString()
+                .slice(
+                    0,
+                    10
+                );
+
         const last30Start =
             new Date(
                 now.getTime() -
@@ -345,8 +382,9 @@ export async function onRequestGet(
 
             const current =
                 byKey.get(key) || {
-                    last30Days: 0,
-                    month: 0
+                    today: 0,
+                    month: 0,
+                    last30Days: 0
                 };
 
             const requests =
@@ -354,16 +392,27 @@ export async function onRequestGet(
                     row?.requests
                 ) || 0;
 
+            const usageDate =
+                String(
+                    row?.usage_date || ""
+                );
+
             current.last30Days +=
                 requests;
 
             if (
-                String(
-                    row?.usage_date || ""
-                ) >=
+                usageDate >=
                 monthStart
             ) {
                 current.month +=
+                    requests;
+            }
+
+            if (
+                usageDate ===
+                today
+            ) {
+                current.today +=
                     requests;
             }
 
@@ -392,8 +441,64 @@ export async function onRequestGet(
                 )
             );
 
+        const registeredKeys =
+            new Set(
+                API_REGISTRY.map(
+                    api =>
+                        api.key
+                )
+            );
+
+        const discoveredApis =
+            totals
+                .filter(
+                    row =>
+                        row?.api_key &&
+                        !registeredKeys.has(
+                            String(
+                                row.api_key
+                            )
+                        )
+                )
+                .map(
+                    row => ({
+                        key:
+                            String(
+                                row.api_key
+                            ),
+                        name:
+                            String(
+                                row.api_key
+                            ),
+                        emoji:
+                            getApiEmoji(
+                                String(
+                                    row.api_key
+                                )
+                            ),
+                        provider:
+                            String(
+                                row.provider ||
+                                "Unknown provider"
+                            ),
+                        endpoint:
+                            "—",
+                        category:
+                            "Other",
+                        quotaType:
+                            "dynamic",
+                        quotaLabel:
+                            "Not configured"
+                    })
+                );
+
+        const allApiDefinitions =
+            API_REGISTRY.concat(
+                discoveredApis
+            );
+
         const apis =
-            API_REGISTRY.map(api => {
+            allApiDefinitions.map(api => {
                 const row =
                     usageMap.get(
                         api.key
@@ -403,9 +508,28 @@ export async function onRequestGet(
                     byKey.get(
                         api.key
                     ) || {
-                        last30Days: 0,
-                        month: 0
+                        today: 0,
+                        month: 0,
+                        last30Days: 0
                     };
+
+                const todayRemaining =
+                    api.quotaType === "daily"
+                        ? Math.max(
+                            0,
+                            Number(api.quotaLimit) -
+                            periods.today
+                        )
+                        : null;
+
+                const monthRemaining =
+                    api.key === "weather"
+                        ? Math.max(
+                            0,
+                            30000 -
+                            periods.month
+                        )
+                        : null;
 
                 return {
                     ...api,
@@ -418,10 +542,14 @@ export async function onRequestGet(
                         Number(
                             row?.total_requests
                         ) || 0,
+                    todayRequests:
+                        periods.today,
                     monthRequests:
                         periods.month,
                     last30DaysRequests:
                         periods.last30Days,
+                    todayRemaining,
+                    monthRemaining,
                     firstSeenAt:
                         row?.first_seen_at ||
                         null,
@@ -460,6 +588,27 @@ export async function onRequestGet(
             500
         );
     }
+}
+
+function getApiEmoji(
+    apiKey
+) {
+    const key =
+        String(
+            apiKey || ""
+        )
+            .toLowerCase();
+
+    if(key.includes("weather")) return "🌤️";
+    if(key.includes("news")) return "📰";
+    if(key.includes("currenc") || key.includes("exchange")) return "💱";
+    if(key.includes("car") || key.includes("vehicle")) return "🚗";
+    if(key.includes("market") || key.includes("commodity")) return "📈";
+    if(key.includes("ai") || key.includes("gemini") || key.includes("groq")) return "🤖";
+    if(key.includes("feedback") || key.includes("bug") || key.includes("suggest")) return "🐞";
+    if(key.includes("shop") || key.includes("product")) return "🛒";
+
+    return "🔌";
 }
 
 function isApiConfigured(
