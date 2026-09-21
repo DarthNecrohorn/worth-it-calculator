@@ -52,7 +52,7 @@ const WORLD_BANK_XLSX_CACHE_KEY =
 
 
 const WORLD_BANK_RESULT_CACHE_KEY =
-    "https://worth-it-internal-cache.local/world-bank-markets-v3.json";
+    "https://worth-it-internal-cache.local/world-bank-markets-v4.json";
 
 
 const WORLD_BANK_PAGE_CACHE_KEY =
