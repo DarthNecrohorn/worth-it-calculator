@@ -896,6 +896,104 @@ function showVehicleImagePlaceholder(
 }
 
 
+function updateVehicleCardInformationPreview(
+    imageElement,
+    details
+) {
+
+    const card =
+        imageElement?.closest(
+            ".car-card"
+        );
+
+    if (!card || !details) {
+        return;
+    }
+
+    const content =
+        card.querySelector(
+            ".car-card-content"
+        );
+
+    if (!content) {
+        return;
+    }
+
+    let preview =
+        content.querySelector(
+            ".car-card-info-preview"
+        );
+
+    if (!preview) {
+
+        preview =
+            document.createElement(
+                "small"
+            );
+
+        preview.className =
+            "car-card-info-preview";
+
+        content.appendChild(
+            preview
+        );
+    }
+
+    const specifications =
+        details?.specifications ||
+        {};
+
+    const candidates = [
+        ["fuel", specifications.fuel],
+        ["power", specifications.horsepower],
+        ["engine", specifications.engine],
+        ["battery", specifications.battery],
+        ["range", specifications.electricRange],
+        ["payload", specifications.payload],
+        ["cargo", specifications.cargoCapacity],
+        ["seats", specifications.seating],
+        ["economy", specifications.fuelEconomy]
+    ];
+
+    const values =
+        candidates
+            .filter(([, value]) =>
+                isUsefulVehicleDetailValue(value)
+            )
+            .slice(0, 3)
+            .map(([, value]) =>
+                String(value).trim()
+            );
+
+    const description =
+        String(
+            details?.wikipedia?.description ||
+            ""
+        ).trim();
+
+    if (values.length) {
+        preview.textContent =
+            values.join(" • ");
+        preview.removeAttribute("title");
+        return;
+    }
+
+    if (description && !/^no information$/i.test(description)) {
+        preview.textContent =
+            description.length > 110
+                ? `${description.slice(0, 107).trimEnd()}…`
+                : description;
+        preview.title =
+            description;
+        return;
+    }
+
+    preview.textContent =
+        "No Information";
+    preview.removeAttribute("title");
+
+}
+
 async function loadVehicleCardImage(
     imageElement,
     make,
@@ -927,6 +1025,16 @@ async function loadVehicleCardImage(
             model,
             kind
         );
+
+    /*
+     * Information and image availability are independent. Update the
+     * textual card preview as soon as Wikipedia data is available,
+     * even when the image is later rejected by the strict image filter.
+     */
+    updateVehicleCardInformationPreview(
+        imageElement,
+        details
+    );
 
 
     /*
@@ -5520,6 +5628,17 @@ function injectVehicleUiStyles() {
             background: rgba(255, 255, 255, 0.98);
             color: #16181d;
             box-shadow: 0 14px 35px rgba(0, 0, 0, 0.16);
+        }
+
+        .car-card-info-preview {
+            display: block;
+            margin-top: 5px;
+            overflow: hidden;
+            color: var(--muted);
+            font-size: 0.72rem;
+            line-height: 1.35;
+            text-overflow: ellipsis;
+            white-space: nowrap;
         }
 
         .worth-it-vehicle-detail-header {
