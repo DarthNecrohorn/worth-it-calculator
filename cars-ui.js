@@ -68,11 +68,11 @@ const POPULAR_VEHICLE_TYPE_TERMS = {
     ],
     motorcycle: [
         "motorcycle", "motorbike", "scooter", "motorcycle model",
-        "motorcycle series", "two-wheeler"
+        "motorcycle series", "two-wheeler", "underbone"
     ],
     moped: [
         "moped", "scooter", "motorized bicycle", "motorised bicycle",
-        "motor scooter", "motorcycle"
+        "motor scooter"
     ],
     van: [
         "van", "minivan", "panel van", "cargo van", "microvan",
@@ -1582,6 +1582,108 @@ function hasPopularVehicleIdentityMatch(
 }
 
 
+function hasExpectedPopularVehicleKindEvidence(
+    details,
+    vehicle,
+    kind
+) {
+
+    if (!kind) {
+        return true;
+    }
+
+    const title =
+        normalizePopularQualityText(
+            details?.wikipedia?.title || ""
+        );
+
+    const description =
+        normalizePopularQualityText(
+            details?.wikipedia?.description || ""
+        );
+
+    const combinedText =
+        `${title} ${description}`.trim();
+
+    const bodyTypes = [
+        ...(Array.isArray(details?.vehicle?.body_types)
+            ? details.vehicle.body_types
+            : []),
+        ...(Array.isArray(vehicle?.bodyTypes)
+            ? vehicle.bodyTypes
+            : [])
+    ]
+        .map(value =>
+            normalizePopularQualityText(value)
+        )
+        .filter(Boolean);
+
+    const expectedTerms =
+        POPULAR_VEHICLE_TYPE_TERMS[kind] ||
+        [];
+
+    const hasExpectedText =
+        expectedTerms.some(term =>
+            combinedText.includes(
+                normalizePopularQualityText(term)
+            )
+        );
+
+    if (hasExpectedText) {
+        return true;
+    }
+
+    const bodyTypeText =
+        bodyTypes.join(" ");
+
+    const hasExpectedBodyType =
+        expectedTerms.some(term =>
+            bodyTypeText.includes(
+                normalizePopularQualityText(term)
+            )
+        );
+
+    if (hasExpectedBodyType) {
+        return true;
+    }
+
+    /*
+     * An exact Wikipedia title match is a useful last-resort identity
+     * signal for records whose summary omits the vehicle type. Only use
+     * it when there is no strong contradiction from another vehicle kind.
+     */
+    const targetTitle =
+        normalizePopularQualityText(
+            `${vehicle?.make || ""} ${vehicle?.model || ""}`
+        );
+
+    const exactTitle =
+        title === targetTitle;
+
+    if (!exactTitle) {
+        return false;
+    }
+
+    const contradictionTerms = {
+        motorcycle: ["bus", "truck", "van", "lorry"],
+        moped: ["bus", "truck", "van", "lorry", "sedan", "hatchback", "coupe"],
+        van: ["bus", "truck", "sedan", "hatchback", "coupe", "roadster"],
+        truck: ["bus", "coach", "sedan", "hatchback", "coupe"],
+        bus: ["truck", "lorry", "sedan", "hatchback", "coupe"],
+        car: ["bus", "coach", "truck", "lorry", "motorcycle", "moped"]
+    };
+
+    const contradictions =
+        contradictionTerms[kind] || [];
+
+    return !contradictions.some(term =>
+        combinedText.includes(
+            normalizePopularQualityText(term)
+        )
+    );
+}
+
+
 function countPopularVehicleTypeTerms(
     details,
     kind
@@ -1889,7 +1991,8 @@ function hasPopularVehicleImageRelevance(
 
 function hasReliableVehicleWikipediaData(
     details,
-    vehicle
+    vehicle,
+    kind = null
 ) {
 
     if (!details) {
@@ -1917,6 +2020,17 @@ function hasReliableVehicleWikipediaData(
     }
 
     if (!hasPopularVehicleIdentityMatch(details, vehicle)) {
+        return false;
+    }
+
+    if (
+        kind &&
+        !hasExpectedPopularVehicleKindEvidence(
+            details,
+            vehicle,
+            kind
+        )
+    ) {
         return false;
     }
 
@@ -1967,9 +2081,6 @@ function hasUsablePopularVehicleDetails(
     if (details.comparisonAvailable === false) {
         return false;
     }
-
-    const imageUrl =
-        details?.image?.url;
 
     const wikipediaUrl =
         details?.wikipedia?.url;
@@ -2047,15 +2158,11 @@ function hasUsablePopularVehicleDetails(
         return false;
     }
 
-    if (
-        !hasPopularVehicleImageRelevance(
-            details,
-            vehicle
-        )
-    ) {
-        return false;
-    }
-
+    /*
+     * Image availability is intentionally NOT part of vehicle quality.
+     * A missing or blocked Wikimedia image must never discard otherwise
+     * reliable Wikipedia data.
+     */
     return true;
 }
 
@@ -3669,7 +3776,8 @@ async function openVehicleDetailsPanel(
     const hasReliableData =
         hasReliableVehicleWikipediaData(
             details,
-            vehicle
+            vehicle,
+            kind
         ) &&
         details.comparisonAvailable !== false;
 
