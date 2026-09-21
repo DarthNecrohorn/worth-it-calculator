@@ -6459,11 +6459,26 @@ button[disabled],
         filter .20s ease;
 }
 
+/* The icon holder is a fixed square so the Google image has one exact center. */
+.profile-nav-btn > #profileNavIcon{
+    width:36px;
+    height:36px;
+    flex:0 0 36px;
+    margin:0;
+    padding:0;
+    display:grid;
+    place-items:center;
+    align-self:center;
+    overflow:hidden;
+    line-height:0;
+}
+
 .profile-nav-btn .auth-avatar,
 .profile-nav-btn .auth-avatar-fallback{
     width:36px;
     height:36px;
     margin:0;
+    padding:0;
     border-radius:50%;
     flex:0 0 36px;
     box-sizing:border-box;
@@ -6477,7 +6492,7 @@ button[disabled],
 .profile-nav-btn .auth-avatar{
     display:block;
     object-fit:cover;
-    object-position:center center;
+    object-position:50% 50%;
     vertical-align:middle;
 }
 
