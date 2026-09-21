@@ -39,7 +39,7 @@ body{
      * Width compensation keeps the scaled page aligned with the viewport.
      */
     zoom:var(--ui-scale,1);
-    width:calc(100% / var(--ui-scale,1));
+    width:100%;
 }
 
 button,input,select{font:inherit}
@@ -1117,8 +1117,8 @@ footer{
 
 /* ================= FINAL UI / ACCESSIBILITY UPGRADES ================= */
 :root{--ui-scale:1;--surface-soft:rgba(255,255,255,.025);--focus-ring:0 0 0 4px rgba(124,92,255,.14)}
-html{font-size:calc(16px * var(--ui-scale))}
-body{overflow-x:hidden;transition:background .25s ease,color .25s ease}
+html{font-size:16px}
+body{overflow-x:hidden;width:100%;transition:background .25s ease,color .25s ease}
 .nav,.settings-panel,.panel,.stat,.calc-card,.metric,.chart-card,.score-card,.faq-item,.toast{transition:background .25s ease,border-color .25s ease,color .25s ease,box-shadow .25s ease}
 html[data-theme="light"]{color-scheme:light;--bg:#f5f7fb;--bg2:#eaf0f8;--card:rgba(255,255,255,.92);--card-solid:#fff;--card2:#f8fafc;--border:rgba(15,23,42,.11);--text:#0f172a;--muted:#64748b;--muted2:#94a3b8;--shadow:0 20px 60px rgba(15,23,42,.12);--surface-soft:rgba(15,23,42,.035);--focus-ring:0 0 0 3px rgba(124,92,255,.16)}
 html[data-theme="light"] body{background:radial-gradient(circle at 10% 0%,rgba(124,92,255,.10),transparent 30%),radial-gradient(circle at 90% 10%,rgba(56,189,248,.08),transparent 28%),linear-gradient(135deg,var(--bg),var(--bg2))}
@@ -4709,3 +4709,30 @@ html[data-theme="light"] .news-card{
  *   var(--bg), var(--card), var(--card-solid), var(--border),
  *   var(--text), var(--muted), var(--surface-soft), var(--shadow).
  */
+
+/* =========================================================
+   UI SCALE NAVIGATION SAFETY
+   ========================================================= */
+
+/*
+ * At the largest accessibility size the full desktop navigation can
+ * legitimately become wider than the available viewport. Switch to
+ * the existing compact menu instead of allowing utility buttons to
+ * overlap or leave the screen.
+ */
+html[data-ui-scale="xl"] .nav-links{
+    display:none;
+}
+
+html[data-ui-scale="xl"] .menu-btn{
+    display:block;
+}
+
+html[data-ui-scale="xl"] .nav-inner{
+    gap:8px;
+}
+
+html[data-ui-scale="xl"] .nav-actions{
+    margin-left:auto;
+}
+
