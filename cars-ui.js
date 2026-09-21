@@ -43,7 +43,7 @@ const MAX_VEHICLES_PER_CATEGORY = 300;
 
 const MAX_SEARCH_RESULTS = MAX_VEHICLES_PER_CATEGORY;
 
-const INITIAL_VISIBLE_ROWS = 3;
+const INITIAL_VISIBLE_ROWS = 2;
 
 /*
  * Popular Vehicles quality selection.
@@ -3184,7 +3184,7 @@ async function ensurePopularVehicleQuality(
         );
     }
 
-    const loadingPromise =
+    state.loadingPromise =
         (async () => {
 
             let newChecks = 0;
@@ -3217,186 +3217,146 @@ async function ensurePopularVehicleQuality(
                         batch.length;
 
                     /*
-                     * Start the complete batch at once, but consume results
-                     * in completion order. This lets the first valid vehicle
-                     * render immediately instead of waiting for the slowest
-                     * request in the batch.
+                     * Finish the whole batch before touching the DOM.
+                     * This is what keeps the first two rows stable.
                      */
-                    const pending =
-                        batch.map(
-                            vehicle => {
+                    const results =
+                        await Promise.all(
+                            batch.map(
+                                async vehicle => {
 
-                                const promise =
-                                    (async () => {
-
-                                        const key =
-                                            getPopularVehicleQualityKey(
-                                                vehicle,
-                                                kind
-                                            );
-
-                                        if (
-                                            popularVehicleQualityCache.has(
-                                                key
-                                            )
-                                        ) {
-
-                                            return {
-                                                vehicle,
-                                                usable:
-                                                    popularVehicleQualityCache.get(
-                                                        key
-                                                    )
-                                            };
-
-                                        }
-
-                                        const details =
-                                            await fetchVehicleDetails(
-                                                vehicle.make,
-                                                vehicle.model,
-                                                kind
-                                            );
-
-                                        if (!details) {
-
-                                            /*
-                                             * A failed request is treated as
-                                             * transient. Do not cache it as
-                                             * unusable so a future attempt may retry.
-                                             */
-                                            return {
-                                                vehicle,
-                                                usable: null
-                                            };
-
-                                        }
-
-                                        const usable =
-                                            hasUsablePopularVehicleDetails(
-                                                details,
-                                                vehicle,
-                                                kind
-                                            );
-
-                                        popularVehicleQualityCache.set(
-                                            key,
-                                            usable
+                                    const key =
+                                        getPopularVehicleQualityKey(
+                                            vehicle,
+                                            kind
                                         );
+
+                                    if (
+                                        popularVehicleQualityCache.has(
+                                            key
+                                        )
+                                    ) {
 
                                         return {
                                             vehicle,
-                                            usable
+                                            usable:
+                                                popularVehicleQualityCache.get(
+                                                    key
+                                                )
                                         };
 
-                                    })().catch(
-                                        error => {
+                                    }
 
-                                            console.error(
-                                                "Popular vehicle quality request failed:",
-                                                vehicle.make,
-                                                vehicle.model,
-                                                kind,
-                                                error
-                                            );
+                                    const details =
+                                        await fetchVehicleDetails(
+                                            vehicle.make,
+                                            vehicle.model,
+                                            kind
+                                        );
 
-                                            return {
-                                                vehicle,
-                                                usable: null
-                                            };
+                                    if (!details) {
 
-                                        }
+                                        /*
+                                         * A network failure is transient.
+                                         * Do not cache it as a permanent
+                                         * quality failure.
+                                         */
+                                        return {
+                                            vehicle,
+                                            usable: null
+                                        };
+
+                                    }
+
+                                    const usable =
+                                        hasUsablePopularVehicleDetails(
+                                            details,
+                                            vehicle,
+                                            kind
+                                        );
+
+                                    popularVehicleQualityCache.set(
+                                        key,
+                                        usable
                                     );
 
-                                return {
-                                    vehicle,
-                                    promise
-                                };
+                                    return {
+                                        vehicle,
+                                        usable
+                                    };
 
-                            }
+                                }
+                            )
                         );
 
-                    while (
-                        pending.length &&
-                        state.validVehicles.length < desiredCount
-                    ) {
-
-                        const resolved =
-                            await Promise.race(
-                                pending.map(
-                                    entry =>
-                                        entry.promise.then(
-                                            item => ({
-                                                entry,
-                                                item
-                                            })
-                                        )
-                                )
-                            );
-
-                        const pendingIndex =
-                            pending.indexOf(
-                                resolved.entry
-                            );
+                    for (const result of results) {
 
                         if (
-                            pendingIndex >= 0
+                            result.usable !== true
                         ) {
-                            pending.splice(
-                                pendingIndex,
-                                1
-                            );
+                            continue;
                         }
 
-                        const item =
-                            resolved.item;
+                        const key =
+                            getPopularVehicleQualityKey(
+                                result.vehicle,
+                                kind
+                            );
 
                         if (
-                            item.usable === true &&
                             !state.validVehicles.some(
-                                vehicle =>
+                                existing =>
                                     getPopularVehicleQualityKey(
-                                        vehicle,
+                                        existing,
                                         kind
-                                    ) ===
-                                    getPopularVehicleQualityKey(
-                                        item.vehicle,
-                                        kind
-                                    )
+                                    ) === key
                             )
                         ) {
 
                             state.validVehicles.push(
-                                item.vehicle
+                                result.vehicle
                             );
-
-                            /*
-                             * Render as soon as a valid vehicle is available.
-                             * This is the main improvement to first-card load time.
-                             */
-                            if (
-                                typeof onProgress === "function"
-                            ) {
-
-                                await onProgress(
-                                    state.validVehicles.slice(
-                                        0,
-                                        desiredCount
-                                    ),
-                                    state
-                                );
-
-                            }
 
                         }
 
                     }
 
                     /*
-                     * Remaining requests from this batch were already started.
-                     * Their results are intentionally ignored once enough valid
-                     * vehicles have been collected for the current render target.
+                     * Always restore VehiclesDB popularity order. The order
+                     * of network responses must never decide card names/slots.
                      */
+                    const validKeys =
+                        new Set(
+                            state.validVehicles.map(
+                                vehicle =>
+                                    getPopularVehicleQualityKey(
+                                        vehicle,
+                                        kind
+                                    )
+                            )
+                        );
+
+                    state.validVehicles =
+                        state.candidates.filter(
+                            vehicle =>
+                                validKeys.has(
+                                    getPopularVehicleQualityKey(
+                                        vehicle,
+                                        kind
+                                    )
+                                )
+                        );
+
+                    if (
+                        typeof onProgress === "function"
+                    ) {
+
+                        await onProgress(
+                            state.validVehicles.slice(),
+                            state
+                        );
+
+                    }
 
                 }
 
@@ -3416,10 +3376,7 @@ async function ensurePopularVehicleQuality(
 
         })();
 
-    state.loadingPromise =
-        loadingPromise;
-
-    await loadingPromise;
+    await state.loadingPromise;
 
     return state.validVehicles.slice(
         0,
@@ -3428,392 +3385,31 @@ async function ensurePopularVehicleQuality(
 }
 
 
-function getPopularVehicleCardElement(
-    state,
-    vehicle
+/*
+ * ============================================================
+ * STABLE POPULAR DISPLAY
+ *
+ * Validate vehicle information first. Only validated vehicles are
+ * turned into cards. The first two rows are therefore immutable while
+ * details/images continue loading.
+ * ============================================================
+ */
+
+function getStablePopularDisplayState(
+    kind
 ) {
 
-    return (
-        state.cardByKey.get(
-            getPopularVehicleQualityKey(
-                vehicle,
-                state.kind
-            )
-        ) || null
-    );
+    return popularVehicleHydrationState.get(
+        `stable-display:${kind}`
+    ) || null;
 
 }
 
-function refreshPopularVehicleResults(
-    state
-) {
 
-    currentVehicleResults =
-        state.candidates.filter(
-            vehicle =>
-                state.displayedKeys.has(
-                    getPopularVehicleQualityKey(
-                        vehicle,
-                        state.kind
-                    )
-                )
-        );
-
-}
-
-function removePopularVehicleCard(
-    state,
-    vehicle
-) {
-
-    const key =
-        getPopularVehicleQualityKey(
-            vehicle,
-            state.kind
-        );
-
-    const card =
-        state.cardByKey.get(
-            key
-        );
-
-    if (!card) {
-        return null;
-    }
-
-    const parent =
-        card.parentNode;
-
-    const nextSibling =
-        card.nextSibling;
-
-    state.displayedKeys.delete(
-        key
-    );
-
-    state.cardByKey.delete(
-        key
-    );
-
-    card.remove();
-
-    return {
-        parent,
-        nextSibling
-    };
-
-}
-
-function appendPopularVehicleReplacement(
-    state,
-    replacement,
-    insertContext
-) {
-
-    const key =
-        getPopularVehicleQualityKey(
-            replacement,
-            state.kind
-        );
-
-    if (
-        state.displayedKeys.has(key)
-    ) {
-        return null;
-    }
-
-    const card =
-        createVehicleCard(
-            replacement,
-            state.kind
-        );
-
-    state.displayedKeys.add(
-        key
-    );
-
-    state.cardByKey.set(
-        key,
-        card
-    );
-
-    const parent =
-        insertContext?.parent &&
-        insertContext.parent.isConnected
-            ? insertContext.parent
-            : document.getElementById(
-                "popularCarsGrid"
-            );
-
-    const nextSibling =
-        insertContext?.nextSibling &&
-        insertContext.nextSibling.isConnected &&
-        insertContext.nextSibling.parentNode === parent
-            ? insertContext.nextSibling
-            : null;
-
-    if (parent) {
-
-        if (nextSibling) {
-            parent.insertBefore(
-                card,
-                nextSibling
-            );
-        } else {
-            parent.appendChild(
-                card
-            );
-        }
-
-    }
-
-    return card;
-
-}
-
-async function hydratePopularVehicleCandidate(
-    state,
-    vehicle
-) {
-
-    const key =
-        getPopularVehicleQualityKey(
-            vehicle,
-            state.kind
-        );
-
-    const details =
-        await fetchVehicleDetails(
-            vehicle.make,
-            vehicle.model,
-            state.kind
-        );
-
-    if (
-        state.cancelled
-    ) {
-        return;
-    }
-
-    /*
-     * Transient request failure: leave the card visible and retry once.
-     * A network failure is not evidence that the vehicle lacks data.
-     */
-    if (!details) {
-
-        if (
-            !state.retryKeys.has(key)
-        ) {
-
-            state.retryKeys.add(
-                key
-            );
-
-            await new Promise(
-                resolve =>
-                    window.setTimeout(
-                        resolve,
-                        500
-                    )
-            );
-
-            if (
-                !state.cancelled
-            ) {
-
-                state.queue.push(
-                    vehicle
-                );
-
-            }
-
-        }
-
-        return;
-
-    }
-
-    const usable =
-        hasUsablePopularVehicleDetails(
-            details,
-            vehicle,
-            state.kind
-        );
-
-    const card =
-        getPopularVehicleCardElement(
-            state,
-            vehicle
-        );
-
-    if (
-        usable
-    ) {
-
-        /*
-         * Information and image are independent. The card stays even if
-         * Wikimedia cannot provide a usable commercial image.
-         */
-        if (card) {
-
-            const imageElement =
-                card.querySelector(
-                    ".car-card-image"
-                );
-
-            if (imageElement) {
-
-                updateVehicleCardInformationPreview(
-                    imageElement,
-                    details
-                );
-
-            }
-
-            card.dataset.vehicleInfoReady =
-                "true";
-
-        }
-
-        return;
-
-    }
-
-    /*
-     * Popular mode never keeps a record with no reliable Wikipedia
-     * technical information. Search mode can still display that record.
-     */
-    const insertionContext =
-        removePopularVehicleCard(
-            state,
-            vehicle
-        );
-
-    if (
-        state.nextCandidateIndex <
-        state.candidates.length
-    ) {
-
-        const replacement =
-            state.candidates[
-                state.nextCandidateIndex++
-            ];
-
-        const replacementCard =
-            appendPopularVehicleReplacement(
-                state,
-                replacement,
-                insertionContext
-            );
-
-        if (replacementCard) {
-
-            state.queue.push(
-                replacement
-            );
-
-        }
-
-    }
-
-    refreshPopularVehicleResults(
-        state
-    );
-
-}
-
-async function processPopularVehicleHydration(
-    state
-) {
-
-    const worker =
-        async () => {
-
-            while (
-                !state.cancelled
-            ) {
-
-                const vehicle =
-                    state.queue.shift();
-
-                if (!vehicle) {
-                    return;
-                }
-
-                try {
-
-                    await hydratePopularVehicleCandidate(
-                        state,
-                        vehicle
-                    );
-
-                } catch (error) {
-
-                    console.error(
-                        "Popular vehicle hydration error:",
-                        vehicle.make,
-                        vehicle.model,
-                        state.kind,
-                        error
-                    );
-
-                }
-
-            }
-
-        };
-
-    await Promise.all(
-        Array.from(
-            {
-                length:
-                    Math.min(
-                        POPULAR_DETAILS_CONCURRENCY,
-                        Math.max(
-                            1,
-                            state.queue.length
-                        )
-                    )
-            },
-            worker
-        ).map(
-            task =>
-                task
-        )
-    );
-
-    if (
-        !state.cancelled
-    ) {
-
-        refreshPopularVehicleResults(
-            state
-        );
-
-    }
-
-}
-
-function startPopularVehicleHydration(
+function hideOrShowStablePopularCards(
     kind,
-    candidates,
-    visibleCount,
-    showAll
+    showAll = false
 ) {
-
-    const previousState =
-        popularVehicleHydrationState.get(
-            kind
-        );
-
-    if (
-        previousState
-    ) {
-
-        previousState.cancelled =
-            true;
-
-    }
 
     const grid =
         document.getElementById(
@@ -3824,152 +3420,280 @@ function startPopularVehicleHydration(
         return;
     }
 
-    const initialCandidates =
-        candidates.slice(
-            0,
-            visibleCount
+    const cards =
+        Array.from(
+            grid.querySelectorAll(
+                ".car-card[data-popular-stable-card=\"true\"]"
+            )
         );
 
-    const state = {
+    const visibleLimit =
+        Math.max(
+            1,
+            getVehiclesPerRow() *
+            INITIAL_VISIBLE_ROWS
+        );
 
-        kind,
+    cards.forEach(
+        (card, index) => {
 
-        candidates,
+            const shouldShow =
+                showAll ||
+                index < visibleLimit;
 
-        displayedKeys:
-            new Set(),
+            card.style.display =
+                shouldShow
+                    ? ""
+                    : "none";
 
-        cardByKey:
-            new Map(),
-
-        queue:
-            initialCandidates.slice(),
-
-        nextCandidateIndex:
-            initialCandidates.length,
-
-        retryKeys:
-            new Set(),
-
-        cancelled:
-            false,
-
-        showAll,
-
-        targetCount:
-            visibleCount
-
-    };
-
-    initialCandidates.forEach(
-        vehicle => {
-
-            const key =
-                getPopularVehicleQualityKey(
-                    vehicle,
-                    kind
-                );
-
-            const cards =
-                Array.from(
-                    grid.querySelectorAll(
-                        ".car-card"
-                    )
-                );
-
-            const card =
-                cards.find(
-                    candidateCard =>
-                        candidateCard.dataset.vehicleMake ===
-                            (vehicle.make || "") &&
-                        candidateCard.dataset.vehicleModel ===
-                            (vehicle.model || "")
-                ) || null;
-
-            if (card) {
-
-                state.displayedKeys.add(
-                    key
-                );
-
-                state.cardByKey.set(
-                    key,
-                    card
-                );
-
-            }
+            card.dataset.popularDeferred =
+                shouldShow
+                    ? "false"
+                    : "true";
 
         }
     );
 
-    /*
-     * Fallback mapping if CSS.escape is unavailable or the data attribute
-     * contains an unusual value.
-     */
-    if (
-        state.displayedKeys.size !==
-        initialCandidates.length
-    ) {
+}
 
-        const cards =
-            Array.from(
-                grid.querySelectorAll(
-                    ".car-card"
-                )
-            ).slice(
-                0,
-                initialCandidates.length
+
+function appendStablePopularVehicleCards(
+    kind,
+    vehicles,
+    showAll = false
+) {
+
+    const grid =
+        document.getElementById(
+            "popularCarsGrid"
+        );
+
+    if (
+        !grid ||
+        currentVehicleKind !== kind ||
+        currentVehicleMode !== "popular"
+    ) {
+        return;
+    }
+
+    const displayState =
+        getStablePopularDisplayState(
+            kind
+        );
+
+    if (!displayState) {
+        return;
+    }
+
+    displayState.showAll =
+        Boolean(showAll);
+
+    const existingCards =
+        grid.querySelectorAll(
+            ".car-card[data-popular-stable-card=\"true\"]"
+        ).length;
+
+    const visibleLimit =
+        Math.max(
+            1,
+            getVehiclesPerRow() *
+            INITIAL_VISIBLE_ROWS
+        );
+
+    const fragment =
+        document.createDocumentFragment();
+
+    let appendedCount = 0;
+
+    for (const vehicle of vehicles) {
+
+        const key =
+            getPopularVehicleQualityKey(
+                vehicle,
+                kind
             );
 
-        state.displayedKeys.clear();
-        state.cardByKey.clear();
+        if (
+            displayState.renderedKeys.has(key)
+        ) {
+            continue;
+        }
 
-        initialCandidates.forEach(
-            (vehicle, index) => {
+        const card =
+            createVehicleCard(
+                vehicle,
+                kind
+            );
 
-                const card =
-                    cards[index];
+        card.dataset.popularStableCard =
+            "true";
 
-                if (!card) {
-                    return;
-                }
+        displayState.renderedKeys.add(
+            key
+        );
 
-                const key =
+        const shouldShow =
+            showAll ||
+            (
+                existingCards +
+                appendedCount
+            ) < visibleLimit;
+
+        card.style.display =
+            shouldShow
+                ? ""
+                : "none";
+
+        card.dataset.popularDeferred =
+            shouldShow
+                ? "false"
+                : "true";
+
+        fragment.appendChild(
+            card
+        );
+
+        appendedCount++;
+    }
+
+    if (fragment.childNodes.length) {
+        grid.appendChild(
+            fragment
+        );
+    }
+
+    refreshStablePopularResults(
+        kind
+    );
+
+    hideOrShowStablePopularCards(
+        kind,
+        showAll
+    );
+
+}
+
+
+function refreshStablePopularResults(
+    kind
+) {
+
+    const displayState =
+        getStablePopularDisplayState(
+            kind
+        );
+
+    const qualityState =
+        popularVehicleQualityState.get(
+            kind
+        );
+
+    if (
+        !displayState ||
+        !qualityState
+    ) {
+        currentVehicleResults = [];
+        return;
+    }
+
+    currentVehicleResults =
+        qualityState.validVehicles.filter(
+            vehicle =>
+                displayState.renderedKeys.has(
                     getPopularVehicleQualityKey(
                         vehicle,
                         kind
+                    )
+                )
+        );
+
+}
+
+
+async function continueStablePopularVehicleLoading(
+    kind,
+    candidates
+) {
+
+    try {
+
+        await ensurePopularVehicleQuality(
+            kind,
+            candidates,
+            MAX_VEHICLES_PER_CATEGORY,
+            POPULAR_SHOW_ALL_MAX_NEW_CHECKS,
+            async validVehicles => {
+
+                if (
+                    currentVehicleKind !== kind ||
+                    currentVehicleMode !== "popular"
+                ) {
+                    return;
+                }
+
+                const currentDisplayState =
+                    getStablePopularDisplayState(
+                        kind
                     );
 
-                state.displayedKeys.add(
-                    key
-                );
+                if (!currentDisplayState) {
+                    return;
+                }
 
-                state.cardByKey.set(
-                    key,
-                    card
+                appendStablePopularVehicleCards(
+                    kind,
+                    validVehicles,
+                    currentDisplayState.showAll
                 );
 
             }
         );
 
+    } catch (error) {
+
+        console.error(
+            "Background popular vehicle loading failed:",
+            kind,
+            error
+        );
+
     }
-
-    popularVehicleHydrationState.set(
-        kind,
-        state
-    );
-
-    refreshPopularVehicleResults(
-        state
-    );
-
-    void processPopularVehicleHydration(
-        state
-    );
 
 }
 
-function loadAndRenderPopularVehicles(
+
+function startStablePopularVehicleDisplay(
+    kind,
+    showAll = false
+) {
+
+    const previous =
+        getStablePopularDisplayState(
+            kind
+        );
+
+    if (previous) {
+        previous.cancelled = true;
+    }
+
+    const state = {
+        kind,
+        renderedKeys: new Set(),
+        showAll: Boolean(showAll),
+        cancelled: false
+    };
+
+    popularVehicleHydrationState.set(
+        `stable-display:${kind}`,
+        state
+    );
+
+    return state;
+
+}
+
+
+async function loadAndRenderPopularVehicles(
     kind,
     showAll = false
 ) {
@@ -3986,11 +3710,6 @@ function loadAndRenderPopularVehicles(
             ? currentVehicleCatalog
             : [];
 
-    /*
-     * Keep a larger candidate pool than the 300-card display limit.
-     * This allows a model with missing Wikipedia data to be replaced by
-     * the next popular vehicle automatically.
-     */
     const candidates =
         getPopularVehicles(
             catalogVehicles
@@ -3998,6 +3717,15 @@ function loadAndRenderPopularVehicles(
             0,
             POPULAR_CANDIDATE_POOL_SIZE
         );
+
+    const grid =
+        document.getElementById(
+            "popularCarsGrid"
+        );
+
+    if (!grid) {
+        return;
+    }
 
     if (!candidates.length) {
 
@@ -4010,54 +3738,206 @@ function loadAndRenderPopularVehicles(
         return;
     }
 
-    const visibleCount =
+    /*
+     * Show All from a populated category: keep already validated cards
+     * on screen, reveal them immediately, and finish the background scan.
+     */
+    const existingDisplayState =
+        getStablePopularDisplayState(
+            kind
+        );
+
+    if (
+        showAll &&
+        existingDisplayState &&
+        !existingDisplayState.cancelled
+    ) {
+
+        currentVehicleShowAll = true;
+        existingDisplayState.showAll = true;
+
+        hideOrShowStablePopularCards(
+            kind,
+            true
+        );
+
+        const allValidVehicles =
+            await ensurePopularVehicleQuality(
+                kind,
+                candidates,
+                Math.min(
+                    MAX_VEHICLES_PER_CATEGORY,
+                    candidates.length
+                ),
+                POPULAR_SHOW_ALL_MAX_NEW_CHECKS,
+                async validVehicles => {
+
+                    if (
+                        currentVehicleKind !== kind ||
+                        currentVehicleMode !== "popular"
+                    ) {
+                        return;
+                    }
+
+                    appendStablePopularVehicleCards(
+                        kind,
+                        validVehicles,
+                        true
+                    );
+
+                }
+            );
+
+        if (
+            currentVehicleKind !== kind ||
+            currentVehicleMode !== "popular" ||
+            existingDisplayState.cancelled
+        ) {
+            return;
+        }
+
+        appendStablePopularVehicleCards(
+            kind,
+            allValidVehicles,
+            true
+        );
+
+        hideOrShowStablePopularCards(
+            kind,
+            true
+        );
+
+        refreshStablePopularResults(
+            kind
+        );
+
+        renderVehicleCollapseButton(
+            kind
+        );
+
+        return;
+
+    }
+
+    const displayState =
+        startStablePopularVehicleDisplay(
+            kind,
+            showAll
+        );
+
+    grid.innerHTML = "";
+
+    const initialCount =
+        Math.min(
+            MAX_VEHICLES_PER_CATEGORY,
+            Math.max(
+                1,
+                getVehiclesPerRow() *
+                INITIAL_VISIBLE_ROWS
+            )
+        );
+
+    const targetCount =
         showAll
             ? Math.min(
                 MAX_VEHICLES_PER_CATEGORY,
                 candidates.length
             )
-            : Math.min(
-                candidates.length,
-                Math.max(
-                    1,
-                    getInitialVehicleLimit(
-                        candidates
-                    )
-                )
-            );
+            : initialCount;
 
     /*
-     * IMPORTANT: render the catalog cards immediately. No Wikipedia
-     * request is awaited here. Technical data and images are hydrated
-     * after the cards are already visible.
+     * Validate before creating cards. The names in the first two rows
+     * therefore cannot change because of later image/detail requests.
      */
+    const validVehicles =
+        await ensurePopularVehicleQuality(
+            kind,
+            candidates,
+            targetCount,
+            POPULAR_SHOW_ALL_MAX_NEW_CHECKS
+        );
+
+    if (
+        currentVehicleKind !== kind ||
+        currentVehicleMode !== "popular" ||
+        displayState.cancelled
+    ) {
+        return;
+    }
+
+    if (!validVehicles.length) {
+
+        grid.innerHTML = `
+            <div class="cars-empty-state">
+                <div class="cars-empty-icon">
+                    ${getVehicleKindInfo(kind).icon}
+                </div>
+                <strong>
+                    No vehicle information available
+                </strong>
+                <p>
+                    No reliable Wikipedia specifications were found in the current VehiclesDB candidates.
+                </p>
+            </div>
+        `;
+
+        currentVehicleResults = [];
+        return;
+
+    }
+
     currentVehicleShowAll =
         Boolean(showAll);
 
-    renderVehicleCards(
-        showAll
-            ? candidates.slice(
-                0,
-                visibleCount
-            )
-            : candidates,
+    displayState.showAll =
+        Boolean(showAll);
+
+    appendStablePopularVehicleCards(
         kind,
+        validVehicles,
         showAll
     );
 
-    /*
-     * The actual DOM count is the current initial target.
-     */
-    startPopularVehicleHydration(
-        kind,
-        candidates,
-        visibleCount,
-        showAll
-    );
+    if (!showAll) {
+
+        /*
+         * Show All remains available immediately; the rest of the category
+         * is validated and appended invisibly below the first two rows.
+         */
+        renderVehicleExpandButton(
+            validVehicles,
+            validVehicles.slice(
+                0,
+                initialCount
+            ),
+            kind,
+            true
+        );
+
+        hideOrShowStablePopularCards(
+            kind,
+            false
+        );
+
+        void continueStablePopularVehicleLoading(
+            kind,
+            candidates
+        );
+
+    } else {
+
+        hideOrShowStablePopularCards(
+            kind,
+            true
+        );
+
+        renderVehicleCollapseButton(
+            kind
+        );
+
+    }
 
 }
-
-
 
 
 function stateHasMorePopularVehicleCandidates(
@@ -4264,7 +4144,8 @@ function getInitialVehicleLimit(
 function renderVehicleExpandButton(
     totalVehicles,
     visibleVehicles,
-    kind
+    kind,
+    hasMore = false
 ) {
 
     const existing =
@@ -4282,8 +4163,11 @@ function renderVehicleExpandButton(
 
     if (
         !Array.isArray(totalVehicles) ||
-        totalVehicles.length <=
-            visibleVehicles.length
+        (
+            totalVehicles.length <=
+            visibleVehicles.length &&
+            !hasMore
+        )
     ) {
 
         return;
@@ -4455,6 +4339,47 @@ function renderVehicleCollapseButton(
             currentVehicleShowAll =
                 false;
 
+            const stableDisplayState =
+                getStablePopularDisplayState(
+                    kind
+                );
+
+            if (
+                stableDisplayState
+            ) {
+
+                stableDisplayState.showAll =
+                    false;
+
+                hideOrShowStablePopularCards(
+                    kind,
+                    false
+                );
+
+                renderVehicleExpandButton(
+                    currentVehicleResults,
+                    currentVehicleResults.slice(
+                        0,
+                        Math.max(
+                            1,
+                            getVehiclesPerRow() *
+                            INITIAL_VISIBLE_ROWS
+                        )
+                    ),
+                    kind,
+                    Boolean(
+                        popularVehicleQualityState.get(
+                            kind
+                        ) &&
+                        !popularVehicleQualityState.get(
+                            kind
+                        ).exhausted
+                    )
+                );
+
+                hideVehicleFloatingCollapseButton();
+                return;
+            }
 
             renderVehicleCards(
                 currentVehicleResults,
