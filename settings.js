@@ -47,11 +47,24 @@ window.openSettings = openSettings;
     /* Global website scale. Every section inherits this setting. */
     const SCALE = {small:.82, normal:1, large:1.16, xl:1.32};
 
+    function notifySettingsChange(){
+        window.dispatchEvent(new CustomEvent("worthitsettingschange", {
+            detail: {
+                theme: document.documentElement.dataset.theme || "dark",
+                scale: Number.parseFloat(
+                    getComputedStyle(document.documentElement)
+                        .getPropertyValue("--ui-scale")
+                ) || 1
+            }
+        }));
+    }
+
     function setTheme(theme){
         const value = theme === "light" ? "light" : "dark";
         document.documentElement.dataset.theme = value;
         localStorage.setItem(THEME_KEY, value);
         updateSettingsUI();
+        notifySettingsChange();
     }
 
     function setUIScale(size){
@@ -80,6 +93,7 @@ window.openSettings = openSettings;
         );
 
         updateSettingsUI();
+        notifySettingsChange();
     }
 
     function updateSettingsUI(){
