@@ -52,8 +52,8 @@ const INITIAL_VISIBLE_ROWS = 3;
  * out of the Popular Vehicles view.
  */
 const POPULAR_CANDIDATE_POOL_SIZE = 1000;
-const POPULAR_QUALITY_BATCH_SIZE = 8;
-const POPULAR_INITIAL_MAX_CHECKS = 60;
+const POPULAR_QUALITY_BATCH_SIZE = 4;
+const POPULAR_INITIAL_MAX_CHECKS = 24;
 const POPULAR_SHOW_ALL_MAX_NEW_CHECKS = 300;
 const VEHICLE_DETAILS_REQUEST_TIMEOUT_MS = 15000;
 const POPULAR_MAX_DISPLAY_RESULTS = 300;
@@ -2705,22 +2705,32 @@ async function loadAndRenderPopularVehicles(
             ? POPULAR_SHOW_ALL_MAX_NEW_CHECKS
             : POPULAR_INITIAL_MAX_CHECKS;
 
+    /*
+     * Render valid vehicles progressively instead of waiting for the
+     * entire initial quality scan to finish. This makes the first
+     * cards appear much sooner while keeping the Wikipedia quality
+     * filter intact.
+     */
     const progressHandler =
-        showAll
-            ? async (vehicles) => {
+        async (vehicles) => {
 
-                if (
-                    currentVehicleKind !== kind ||
-                    currentVehicleMode !== "popular"
-                ) {
-                    return;
-                }
+            if (
+                currentVehicleKind !== kind ||
+                currentVehicleMode !== "popular"
+            ) {
+                return;
+            }
 
-                currentVehicleResults =
-                    vehicles;
+            if (!vehicles.length) {
+                return;
+            }
 
-                currentVehicleShowAll =
-                    vehicles.length >
+            currentVehicleResults =
+                vehicles;
+
+            currentVehicleShowAll =
+                showAll ||
+                vehicles.length >
                     Math.max(
                         1,
                         getInitialVehicleLimit(
@@ -2728,14 +2738,13 @@ async function loadAndRenderPopularVehicles(
                         )
                     );
 
-                renderVehicleCards(
-                    vehicles,
-                    kind,
-                    true
-                );
+            renderVehicleCards(
+                vehicles,
+                kind,
+                showAll
+            );
 
-            }
-            : null;
+        };
 
     const qualityVehicles =
         await ensurePopularVehicleQuality(
