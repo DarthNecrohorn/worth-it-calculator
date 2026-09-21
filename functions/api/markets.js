@@ -1,69 +1,99 @@
 /* =========================================================
    WORTH IT — MARKETS API
-   Voltlas Open Data
+   Multi-Source Open Commodity Data
 
-   Primary data source:
-     Voltlas Open Data
-     https://voltlas.com/data/latest.json
+   Primary public commodity sources:
 
-   Voltlas publishes the same commodity data used by its site
-   as plain JSON.
+     1. World Bank Commodity Prices / Pink Sheet
+        https://www.worldbank.org/en/research/commodity-markets
+        License: CC BY 4.0
 
-   No API key required.
-   No sign-up required.
-   No rate limit stated by Voltlas.
+     2. U.S. Geological Survey — Mineral Commodity Summaries
+        https://www.usgs.gov/centers/national-minerals-information-center/data
+        License: CC0 1.0
 
-   License:
-     Creative Commons Attribution 4.0 (CC BY 4.0)
+     3. U.S. Energy Information Administration (EIA)
+        https://www.eia.gov/opendata/
+        Public-domain U.S. government data.
+        API key is optional for Worth It; EIA source is enabled when
+        EIA_API_KEY exists in Cloudflare environment secrets.
 
-   Required attribution:
-     Data: Voltlas (https://voltlas.com), CC BY 4.0
+     4. USDA National Agricultural Statistics Service (NASS)
+        https://www.nass.usda.gov/Quick_Stats/
+        Public-domain NASS information may be freely reproduced with
+        appropriate USDA-NASS acknowledgment.
+        API key is optional for Worth It; NASS source is enabled when
+        USDA_NASS_API_KEY exists in Cloudflare environment secrets.
 
-   Current commodity endpoint:
+     5. Voltlas Open Data
+        https://voltlas.com/data
+        License: CC BY 4.0
+
+   Important design rules:
+
+     - Only sources with terms permitting public/commercial reuse are
+       used for the relevant commodity data.
+     - Sources are combined, not duplicated.
+     - The same commodity from multiple sources is collapsed into a
+       single Worth It commodity record.
+     - Regional/benchmark variants remain separate when they are
+       materially different commodities or benchmarks.
+     - MAX_COMMODITIES is a ceiling, never a fake padding target.
+     - No commodity is invented just to reach 300 cards.
+     - Wikimedia image validation remains completely separate from the
+       commodity-data filter. A missing image NEVER removes a commodity.
+     - Wikimedia images are accepted only when their own metadata proves
+       a commercially reusable license and the relevance filters pass.
+     - Source data are cached independently and the merged result is
+       refreshed automatically.
+
+   Frontend data endpoint:
      /api/markets
 
    Lazy Wikimedia image endpoint:
      /api/markets?action=image&name=Gold&category=precious-metals
 
-   The commodity dataset is intentionally capped at 300 items
-   for the Worth It Markets response. The source itself remains
-   dynamic and every usable Voltlas COMMODITIES[] entry is read
-   before the final output limit is applied.
-
-   Voltlas commodity fields:
-     name
-     cat
-     price
-     unit
-     chg
-     source
-     period
+   Environment secrets (optional):
+     EIA_API_KEY
+     USDA_NASS_API_KEY
 ========================================================= */
 
+const WORLD_BANK_MARKETS_PAGE =
+    "https://www.worldbank.org/en/research/commodity-markets";
 
-/* =========================================================
-   VOLTLAS
-========================================================= */
+const WORLD_BANK_LICENSE_URL =
+    "https://creativecommons.org/licenses/by/4.0/";
+
+const USGS_DATA_PAGE =
+    "https://www.usgs.gov/centers/national-minerals-information-center/data";
+
+const USGS_LICENSE_URL =
+    "https://creativecommons.org/publicdomain/zero/1.0/";
+
+const USGS_SCIENCEBASE_FILE_PREFIX =
+    "https://www.sciencebase.gov/catalog/file/get/";
 
 const VOLTLAS_DATA_URL =
     "https://voltlas.com/data/latest.json";
 
-
 const VOLTLAS_DATA_PAGE =
     "https://voltlas.com/data";
-
 
 const VOLTLAS_LICENSE_URL =
     "https://creativecommons.org/licenses/by/4.0/";
 
+const EIA_API_BASE =
+    "https://api.eia.gov/v2/seriesid/";
 
-/*
- * Maximum number of commodity series returned by Worth It.
- *
- * This is intentionally set to 300 so the Markets frontend can
- * display a much larger dataset when the Voltlas source provides
- * that many usable commodity series.
- */
+const EIA_DATA_PAGE =
+    "https://www.eia.gov/opendata/";
+
+const USDA_NASS_API_URL =
+    "https://quickstats.nass.usda.gov/api/api_GET/";
+
+const USDA_NASS_DATA_PAGE =
+    "https://www.nass.usda.gov/Quick_Stats/";
+
 const MAX_COMMODITIES =
     300;
 
@@ -75,27 +105,115 @@ const MAX_COMMODITIES =
 const CACHE_TTL =
     24 * 60 * 60;
 
+const RESULT_CACHE_TTL =
+    6 * 60 * 60;
+
+const WORLD_BANK_CACHE_TTL =
+    24 * 60 * 60;
+
+const USGS_CACHE_TTL =
+    7 * 24 * 60 * 60;
+
+const VOLTLAS_CACHE_TTL =
+    6 * 60 * 60;
+
+const EIA_CACHE_TTL =
+    2 * 60 * 60;
+
+const USDA_NASS_CACHE_TTL =
+    12 * 60 * 60;
+
 const IMAGE_CACHE_TTL =
     7 * 24 * 60 * 60;
 
 const IMAGE_NEGATIVE_CACHE_TTL =
     24 * 60 * 60;
 
-
 const CACHE_TIMESTAMP_HEADER =
     "X-Worth-It-Cache-Time";
 
+const WORLD_BANK_XLSX_CACHE_KEY =
+    "https://worth-it-internal-cache.local/markets-world-bank-monthly-v4.xlsx";
 
-/*
- * New cache keys intentionally replace the old World Bank cache.
- */
+const WORLD_BANK_RESULT_CACHE_KEY =
+    "https://worth-it-internal-cache.local/markets-world-bank-v4.json";
+
+const WORLD_BANK_PAGE_CACHE_KEY =
+    "https://worth-it-internal-cache.local/markets-world-bank-page-v3";
+
 const VOLTLAS_SOURCE_CACHE_KEY =
-    "https://worth-it-internal-cache.local/voltlas-commodities-latest-v1.json";
+    "https://worth-it-internal-cache.local/markets-voltlas-v3.json";
+
+const USGS_SOURCE_CACHE_KEY =
+    "https://worth-it-internal-cache.local/markets-usgs-mcs-v2.json";
+
+const USGS_DISCOVERY_CACHE_KEY =
+    "https://worth-it-internal-cache.local/markets-usgs-discovery-v2.json";
+
+const EIA_SOURCE_CACHE_PREFIX =
+    "https://worth-it-internal-cache.local/markets-eia-series-v3/";
+
+const USDA_NASS_SOURCE_CACHE_KEY =
+    "https://worth-it-internal-cache.local/markets-usda-nass-v3.json";
+
+const MARKETS_RESULT_CACHE_KEY =
+    "https://worth-it-internal-cache.local/markets-multisource-v5.json";
 
 
-const VOLTLAS_RESULT_CACHE_KEY =
-    "https://worth-it-internal-cache.local/voltlas-markets-v1.json";
+/* =========================================================
+   CATEGORY SOURCE MAP
 
+   A source is used only where it actually publishes a suitable
+   commodity price/market series. We do not force every source into
+   every category when the source does not cover that category.
+========================================================= */
+
+const CATEGORY_SOURCE_MAP = {
+
+    "precious-metals": [
+        "World Bank Commodity Prices",
+        "U.S. Geological Survey, Mineral Commodity Summaries",
+        "Voltlas Open Data"
+    ],
+
+    "metals-minerals": [
+        "World Bank Commodity Prices",
+        "U.S. Geological Survey, Mineral Commodity Summaries",
+        "Voltlas Open Data"
+    ],
+
+    "energy": [
+        "World Bank Commodity Prices",
+        "U.S. Energy Information Administration",
+        "Voltlas Open Data"
+    ],
+
+    "fertilizers": [
+        "World Bank Commodity Prices",
+        "Voltlas Open Data"
+    ],
+
+    "agriculture-food": [
+        "World Bank Commodity Prices",
+        "USDA National Agricultural Statistics Service",
+        "Voltlas Open Data"
+    ],
+
+    "raw-materials": [
+        "World Bank Commodity Prices",
+        "USDA National Agricultural Statistics Service",
+        "Voltlas Open Data"
+    ],
+
+    "other": [
+        "World Bank Commodity Prices",
+        "U.S. Geological Survey, Mineral Commodity Summaries",
+        "U.S. Energy Information Administration",
+        "USDA National Agricultural Statistics Service",
+        "Voltlas Open Data"
+    ]
+
+};
 
 /* =========================================================
    WIKIMEDIA
@@ -104,44 +222,24 @@ const VOLTLAS_RESULT_CACHE_KEY =
 const WIKIMEDIA_API =
     "https://commons.wikimedia.org/w/api.php";
 
-
-/*
- * Bumped for the current Markets image filtering logic.
- *
- * This invalidates older negative image-cache results generated
- * under previous market-data configurations.
- */
 const WIKIMEDIA_IMAGE_CACHE_PREFIX =
-    "https://worth-it-internal-cache.local/markets-wikimedia-image-v11/";
-
+    "https://worth-it-internal-cache.local/markets-wikimedia-image-v13/";
 
 const MAX_IMAGE_SEARCH_CANDIDATES =
     100;
 
-
 const IMAGE_SEARCH_PAGE_SIZE =
     20;
 
-
-/*
- * Minimum practical image quality for the market cards.
- * Tiny icons/scans and extremely narrow banners are rejected.
- */
 const MIN_IMAGE_WIDTH =
     500;
-
 
 const MIN_IMAGE_HEIGHT =
     250;
 
-
 const MIN_IMAGE_PIXELS =
     150000;
 
-
-/*
- * Wikimedia requires an identifying User-Agent for API requests.
- */
 const WIKIMEDIA_USER_AGENT =
     "Worth-It-Markets/1.0 (https://github.com/DarthNecrohorn/worth-it-calculator)";
 
@@ -163,9 +261,7 @@ function jsonResponse(
         });
 
 
-    if (
-        cacheSeconds > 0
-    ) {
+    if (cacheSeconds > 0) {
 
         headers.set(
             "Cache-Control",
@@ -216,9 +312,7 @@ function responseWithCacheTimestamp(
     );
 
 
-    if (
-        cacheSeconds > 0
-    ) {
+    if (cacheSeconds > 0) {
 
         headers.set(
             "Cache-Control",
@@ -333,7 +427,7 @@ async function putTimestampedCache(
 
 
 /* =========================================================
-   TEXT / NUMBER HELPERS
+   TEXT HELPERS
 ========================================================= */
 
 function normalizeText(
@@ -341,14 +435,8 @@ function normalizeText(
 ) {
 
     return String(value || "")
-        .replace(
-            /\u00A0/g,
-            " "
-        )
-        .replace(
-            /\s+/g,
-            " "
-        )
+        .replace(/\u00A0/g, " ")
+        .replace(/\s+/g, " ")
         .trim();
 }
 
@@ -361,9 +449,7 @@ function normalizeSearchText(
         value
     )
         .toLowerCase()
-        .normalize(
-            "NFKD"
-        )
+        .normalize("NFKD")
         .replace(
             /[\u0300-\u036f]/g,
             ""
@@ -390,6 +476,103 @@ function simplifySearchText(
 }
 
 
+function decodeXmlEntities(
+    value
+) {
+
+    return String(value || "")
+        .replace(
+            /&amp;/g,
+            "&"
+        )
+        .replace(
+            /&lt;/g,
+            "<"
+        )
+        .replace(
+            /&gt;/g,
+            ">"
+        )
+        .replace(
+            /&quot;/g,
+            '"'
+        )
+        .replace(
+            /&apos;/g,
+            "'"
+        )
+        .replace(
+            /&#(\d+);/g,
+            (_, decimal) => {
+
+                const codePoint =
+                    Number(decimal);
+
+
+                return Number.isFinite(
+                    codePoint
+                )
+                    ? String.fromCodePoint(
+                        codePoint
+                    )
+                    : _;
+
+            }
+        )
+        .replace(
+            /&#x([0-9a-f]+);/gi,
+            (_, hex) => {
+
+                const codePoint =
+                    Number.parseInt(
+                        hex,
+                        16
+                    );
+
+
+                return Number.isFinite(
+                    codePoint
+                )
+                    ? String.fromCodePoint(
+                        codePoint
+                    )
+                    : _;
+
+            }
+        );
+}
+
+
+function stripHtml(
+    value
+) {
+
+    return normalizeText(
+        String(value || "")
+            .replace(
+                /<[^>]*>/g,
+                " "
+            )
+            .replace(
+                /&nbsp;/gi,
+                " "
+            )
+    );
+}
+
+
+function escapeRegExp(
+    value
+) {
+
+    return String(value || "")
+        .replace(
+            /[.*+?^${}()|[\]\\]/g,
+            "\\$&"
+        );
+}
+
+
 function normalizeUnit(
     value
 ) {
@@ -405,34 +588,1043 @@ function normalizeUnit(
 }
 
 
-function parseNumber(
-    value
+/* =========================================================
+   ZIP / XLSX HELPERS
+========================================================= */
+
+function readUInt16(
+    bytes,
+    offset
 ) {
 
-    if (
-        typeof value ===
-        "number"
+    return (
+        bytes[offset] |
+        (bytes[offset + 1] << 8)
+    ) >>> 0;
+}
+
+
+function readUInt32(
+    bytes,
+    offset
+) {
+
+    return (
+        bytes[offset] |
+        (bytes[offset + 1] << 8) |
+        (bytes[offset + 2] << 16) |
+        (bytes[offset + 3] << 24)
+    ) >>> 0;
+}
+
+
+function findEndOfCentralDirectory(
+    bytes
+) {
+
+    const signature =
+        0x06054b50;
+
+
+    const minimumOffset =
+        Math.max(
+            0,
+            bytes.length - 65557
+        );
+
+
+    for (
+        let offset =
+            bytes.length - 22;
+
+        offset >= minimumOffset;
+
+        offset -= 1
     ) {
 
-        return Number.isFinite(
-            value
-        )
-            ? value
-            : null;
+        if (
+            readUInt32(
+                bytes,
+                offset
+            ) === signature
+        ) {
+
+            return offset;
+
+        }
 
     }
 
 
-    const normalized =
-        String(
-            value ?? ""
+    throw new Error(
+        "Invalid XLSX ZIP: end of central directory not found."
+    );
+}
+
+
+async function inflateDeflateRaw(
+    bytes
+) {
+
+    const stream =
+        new Blob([bytes])
+            .stream()
+            .pipeThrough(
+                new DecompressionStream(
+                    "deflate-raw"
+                )
+            );
+
+
+    return new Uint8Array(
+        await new Response(
+            stream
+        ).arrayBuffer()
+    );
+}
+
+
+async function unzipEntries(
+    arrayBuffer
+) {
+
+    const bytes =
+        new Uint8Array(
+            arrayBuffer
+        );
+
+
+    const endOffset =
+        findEndOfCentralDirectory(
+            bytes
+        );
+
+
+    const totalEntries =
+        readUInt16(
+            bytes,
+            endOffset + 10
+        );
+
+
+    const centralDirectoryOffset =
+        readUInt32(
+            bytes,
+            endOffset + 16
+        );
+
+
+    const entries =
+        new Map();
+
+
+    let cursor =
+        centralDirectoryOffset;
+
+
+    const decoder =
+        new TextDecoder(
+            "utf-8"
+        );
+
+
+    for (
+        let index = 0;
+        index < totalEntries;
+        index += 1
+    ) {
+
+        if (
+            readUInt32(
+                bytes,
+                cursor
+            ) !== 0x02014b50
+        ) {
+
+            throw new Error(
+                "Invalid XLSX ZIP: corrupt central directory."
+            );
+
+        }
+
+
+        const compressionMethod =
+            readUInt16(
+                bytes,
+                cursor + 10
+            );
+
+
+        const compressedSize =
+            readUInt32(
+                bytes,
+                cursor + 20
+            );
+
+
+        const fileNameLength =
+            readUInt16(
+                bytes,
+                cursor + 28
+            );
+
+
+        const extraLength =
+            readUInt16(
+                bytes,
+                cursor + 30
+            );
+
+
+        const commentLength =
+            readUInt16(
+                bytes,
+                cursor + 32
+            );
+
+
+        const localHeaderOffset =
+            readUInt32(
+                bytes,
+                cursor + 42
+            );
+
+
+        const fileName =
+            decoder.decode(
+                bytes.slice(
+                    cursor + 46,
+                    cursor +
+                        46 +
+                        fileNameLength
+                )
+            );
+
+
+        if (
+            readUInt32(
+                bytes,
+                localHeaderOffset
+            ) !== 0x04034b50
+        ) {
+
+            throw new Error(
+                `Invalid XLSX ZIP: missing local header for ${fileName}.`
+            );
+
+        }
+
+
+        const localFileNameLength =
+            readUInt16(
+                bytes,
+                localHeaderOffset + 26
+            );
+
+
+        const localExtraLength =
+            readUInt16(
+                bytes,
+                localHeaderOffset + 28
+            );
+
+
+        const dataStart =
+            localHeaderOffset +
+            30 +
+            localFileNameLength +
+            localExtraLength;
+
+
+        const compressedData =
+            bytes.slice(
+                dataStart,
+                dataStart +
+                    compressedSize
+            );
+
+
+        let data;
+
+
+        if (
+            compressionMethod === 0
+        ) {
+
+            data =
+                compressedData;
+
+        }
+        else if (
+            compressionMethod === 8
+        ) {
+
+            data =
+                await inflateDeflateRaw(
+                    compressedData
+                );
+
+        }
+        else {
+
+            throw new Error(
+                `Unsupported XLSX compression method ${compressionMethod}.`
+            );
+
+        }
+
+
+        entries.set(
+            fileName,
+            data
+        );
+
+
+        cursor +=
+            46 +
+            fileNameLength +
+            extraLength +
+            commentLength;
+
+    }
+
+
+    return entries;
+}
+
+
+function getXmlAttribute(
+    tag,
+    attributeName
+) {
+
+    const pattern =
+        new RegExp(
+            `${escapeRegExp(attributeName)}=["']([^"']*)["']`,
+            "i"
+        );
+
+
+    const match =
+        String(tag || "")
+            .match(
+                pattern
+            );
+
+
+    return match
+        ? decodeXmlEntities(
+            match[1]
         )
+        : null;
+}
+
+
+/* =========================================================
+   XLSX WORKBOOK / SHEET
+========================================================= */
+
+function resolveWorkbookTarget(
+    target
+) {
+
+    const cleanTarget =
+        String(target || "")
             .replace(
-                /,/g,
+                /^\//,
                 ""
             )
             .replace(
-                /[$€£]/g,
+                /^\.\//,
+                ""
+            );
+
+
+    if (
+        cleanTarget.startsWith(
+            "xl/"
+        )
+    ) {
+
+        return cleanTarget;
+
+    }
+
+
+    return `xl/${cleanTarget}`;
+}
+
+
+function findMonthlyPricesSheet(
+    entries
+) {
+
+    const workbookBytes =
+        entries.get(
+            "xl/workbook.xml"
+        );
+
+
+    if (!workbookBytes) {
+
+        throw new Error(
+            "XLSX is missing xl/workbook.xml."
+        );
+
+    }
+
+
+    const relsBytes =
+        entries.get(
+            "xl/_rels/workbook.xml.rels"
+        );
+
+
+    if (!relsBytes) {
+
+        throw new Error(
+            "XLSX is missing workbook relationships."
+        );
+
+    }
+
+
+    const workbookXml =
+        new TextDecoder("utf-8")
+            .decode(
+                workbookBytes
+            );
+
+
+    const relsXml =
+        new TextDecoder("utf-8")
+            .decode(
+                relsBytes
+            );
+
+
+    const relationshipMap =
+        new Map();
+
+
+    const relationshipRegex =
+        /<Relationship\b[^>]*>/gi;
+
+
+    for (
+        const match of relsXml.matchAll(
+            relationshipRegex
+        )
+    ) {
+
+        const tag =
+            match[0];
+
+
+        const id =
+            getXmlAttribute(
+                tag,
+                "Id"
+            );
+
+
+        const target =
+            getXmlAttribute(
+                tag,
+                "Target"
+            );
+
+
+        if (
+            id &&
+            target
+        ) {
+
+            relationshipMap.set(
+                id,
+                resolveWorkbookTarget(
+                    target
+                )
+            );
+
+        }
+
+    }
+
+
+    const sheetRegex =
+        /<sheet\b[^>]*>/gi;
+
+
+    for (
+        const match of workbookXml.matchAll(
+            sheetRegex
+        )
+    ) {
+
+        const tag =
+            match[0];
+
+
+        const name =
+            getXmlAttribute(
+                tag,
+                "name"
+            );
+
+
+        const relationshipId =
+            getXmlAttribute(
+                tag,
+                "r:id"
+            );
+
+
+        if (
+            normalizeText(name)
+                .toLowerCase() ===
+                "monthly prices" &&
+            relationshipId
+        ) {
+
+            const sheetPath =
+                relationshipMap.get(
+                    relationshipId
+                );
+
+
+            if (sheetPath) {
+
+                return sheetPath;
+
+            }
+
+        }
+
+    }
+
+
+    throw new Error(
+        "XLSX does not contain a Monthly Prices worksheet."
+    );
+}
+
+
+/* =========================================================
+   SHARED STRINGS / WORKSHEET
+========================================================= */
+
+function parseSharedStrings(
+    entries
+) {
+
+    const bytes =
+        entries.get(
+            "xl/sharedStrings.xml"
+        );
+
+
+    if (!bytes) {
+
+        return [];
+
+    }
+
+
+    const xml =
+        new TextDecoder("utf-8")
+            .decode(
+                bytes
+            );
+
+
+    const strings = [];
+
+
+    const itemRegex =
+        /<si\b[^>]*>([\s\S]*?)<\/si>/gi;
+
+
+    for (
+        const match of xml.matchAll(
+            itemRegex
+        )
+    ) {
+
+        const item =
+            match[1] ||
+            "";
+
+
+        const textParts = [];
+
+
+        const textRegex =
+            /<t\b[^>]*>([\s\S]*?)<\/t>/gi;
+
+
+        for (
+            const textMatch of item.matchAll(
+                textRegex
+            )
+        ) {
+
+            textParts.push(
+                decodeXmlEntities(
+                    textMatch[1]
+                )
+            );
+
+        }
+
+
+        strings.push(
+            textParts.join("")
+        );
+
+    }
+
+
+    return strings;
+}
+
+
+function columnLettersToNumber(
+    columnLetters
+) {
+
+    let result = 0;
+
+
+    for (
+        const character of String(
+            columnLetters || ""
+        ).toUpperCase()
+    ) {
+
+        const code =
+            character.charCodeAt(0) -
+            64;
+
+
+        if (
+            code < 1 ||
+            code > 26
+        ) {
+
+            return -1;
+
+        }
+
+
+        result =
+            result * 26 +
+            code;
+
+    }
+
+
+    return result - 1;
+}
+
+
+function cellReferenceToColumn(
+    reference
+) {
+
+    const match =
+        String(reference || "")
+            .match(
+                /^([A-Z]+)\d+$/i
+            );
+
+
+    if (!match) {
+
+        return -1;
+
+    }
+
+
+    return columnLettersToNumber(
+        match[1]
+    );
+}
+
+
+function parseWorksheetRows(
+    xml,
+    sharedStrings
+) {
+
+    const rows = [];
+
+
+    const rowRegex =
+        /<row\b[^>]*>([\s\S]*?)<\/row>/gi;
+
+
+    for (
+        const rowMatch of xml.matchAll(
+            rowRegex
+        )
+    ) {
+
+        const rowXml =
+            rowMatch[1] ||
+            "";
+
+
+        const row =
+            new Map();
+
+
+        const cellRegex =
+            /<c\b([^>]*)>([\s\S]*?)<\/c>/gi;
+
+
+        for (
+            const cellMatch of rowXml.matchAll(
+                cellRegex
+            )
+        ) {
+
+            const attributes =
+                cellMatch[1] ||
+                "";
+
+
+            const content =
+                cellMatch[2] ||
+                "";
+
+
+            const attributeTag =
+                `<c ${attributes}>`;
+
+
+            const reference =
+                getXmlAttribute(
+                    attributeTag,
+                    "r"
+                );
+
+
+            const column =
+                cellReferenceToColumn(
+                    reference
+                );
+
+
+            if (
+                column < 0
+            ) {
+
+                continue;
+
+            }
+
+
+            const type =
+                getXmlAttribute(
+                    attributeTag,
+                    "t"
+                );
+
+
+            const valueMatch =
+                content.match(
+                    /<v\b[^>]*>([\s\S]*?)<\/v>/i
+                );
+
+
+            let value =
+                "";
+
+
+            if (
+                type === "s"
+            ) {
+
+                const sharedIndex =
+                    Number.parseInt(
+                        valueMatch
+                            ? valueMatch[1]
+                            : "",
+                        10
+                    );
+
+
+                value =
+                    Number.isInteger(
+                        sharedIndex
+                    ) &&
+                    sharedIndex >= 0 &&
+                    sharedIndex <
+                        sharedStrings.length
+
+                        ? sharedStrings[
+                            sharedIndex
+                        ]
+
+                        : "";
+
+            }
+            else if (
+                type === "inlineStr"
+            ) {
+
+                const inlineParts =
+                    [];
+
+
+                const inlineTextRegex =
+                    /<t\b[^>]*>([\s\S]*?)<\/t>/gi;
+
+
+                for (
+                    const inlineMatch of content.matchAll(
+                        inlineTextRegex
+                    )
+                ) {
+
+                    inlineParts.push(
+                        decodeXmlEntities(
+                            inlineMatch[1]
+                        )
+                    );
+
+                }
+
+
+                value =
+                    inlineParts.join("");
+
+            }
+            else {
+
+                value =
+                    valueMatch
+
+                        ? decodeXmlEntities(
+                            valueMatch[1]
+                        )
+
+                        : "";
+
+            }
+
+
+            row.set(
+                column,
+                normalizeText(
+                    value
+                )
+            );
+
+        }
+
+
+        if (
+            row.size
+        ) {
+
+            rows.push(
+                row
+            );
+
+        }
+
+    }
+
+
+    return rows;
+}
+
+
+function rowValues(
+    row
+) {
+
+    const values = [];
+
+
+    for (
+        const [
+            column,
+            value
+        ] of row.entries()
+    ) {
+
+        values[column] =
+            value;
+
+    }
+
+
+    return values;
+}
+
+
+function findHeaderRows(
+    rows
+) {
+
+    for (
+        let index = 0;
+
+        index <
+            Math.min(
+                rows.length,
+                30
+            );
+
+        index += 1
+    ) {
+
+        const values =
+            rowValues(
+                rows[index]
+            );
+
+
+        const joined =
+            values
+                .filter(Boolean)
+                .join(" | ")
+                .toLowerCase();
+
+
+        if (
+            joined.includes(
+                "gold"
+            ) &&
+            joined.includes(
+                "silver"
+            ) &&
+            joined.includes(
+                "platinum"
+            ) &&
+            joined.includes(
+                "crude oil"
+            )
+        ) {
+
+            return {
+                nameRowIndex:
+                    index,
+
+                unitRowIndex:
+                    index + 1,
+
+                possibleCodeRowIndex:
+                    index + 2
+            };
+
+        }
+
+    }
+
+
+    throw new Error(
+        "Could not locate World Bank commodity header rows."
+    );
+}
+
+
+function buildHeaderInfo(
+    rows,
+    headerInfo
+) {
+
+    const nameRow =
+        rowValues(
+            rows[
+                headerInfo.nameRowIndex
+            ] ||
+                new Map()
+        );
+
+
+    const unitRow =
+        rowValues(
+            rows[
+                headerInfo.unitRowIndex
+            ] ||
+                new Map()
+        );
+
+
+    const codeRow =
+        headerInfo.codeRowIndex ===
+            null ||
+        headerInfo.codeRowIndex ===
+            undefined
+
+            ? []
+
+            : rowValues(
+                rows[
+                    headerInfo.codeRowIndex
+                ] ||
+                    new Map()
+            );
+
+
+    const headers = [];
+
+
+    const maximumLength =
+        Math.max(
+            nameRow.length,
+            unitRow.length,
+            codeRow.length
+        );
+
+
+    for (
+        let column = 0;
+
+        column <
+            maximumLength;
+
+        column += 1
+    ) {
+
+        headers[column] = {
+
+            name:
+                normalizeText(
+                    nameRow[column]
+                ),
+
+            unit:
+                normalizeText(
+                    unitRow[column]
+                ),
+
+            code:
+                normalizeText(
+                    codeRow[column]
+                )
+
+        };
+
+    }
+
+
+    return headers;
+}
+
+
+function parseNumeric(
+    value
+) {
+
+    const normalized =
+        String(value || "")
+            .replace(
+                /,/g,
                 ""
             )
             .trim();
@@ -440,16 +1632,11 @@ function parseNumber(
 
     if (
         !normalized ||
-        normalized ===
-            ".." ||
-        normalized ===
-            "…" ||
-        normalized ===
-            "..." ||
-        normalized ===
-            "—" ||
-        normalized ===
-            "-"
+        normalized === ".." ||
+        normalized === "…" ||
+        normalized === "..." ||
+        normalized === "—" ||
+        normalized === "-"
     ) {
 
         return null;
@@ -471,100 +1658,31 @@ function parseNumber(
 }
 
 
-function parsePercent(
+function parsePeriod(
     value
 ) {
 
-    if (
-        typeof value ===
-        "number"
-    ) {
-
-        return Number.isFinite(
-            value
-        )
-            ? value
-            : null;
-
-    }
-
-
-    const normalized =
-        String(
-            value ?? ""
-        )
-            .replace(
-                /,/g,
-                ""
-            )
-            .replace(
-                /%/g,
-                ""
-            )
-            .trim();
-
-
-    if (!normalized) {
-
-        return null;
-
-    }
-
-
-    const number =
-        Number(
-            normalized
-        );
-
-
-    return Number.isFinite(
-        number
-    )
-        ? number
-        : null;
-}
-
-
-/* =========================================================
-   PERIOD HELPERS
-========================================================= */
-
-function normalizeCommodityPeriod(
-    value
-) {
-
-    const text =
-        normalizeText(
-            value
-        );
-
-
-    if (!text) {
-
-        return null;
-
-    }
-
-
-    let match =
-        text.match(
-            /^(\d{4})M(\d{1,2})$/i
-        );
+    const monthlyMatch =
+        String(value || "")
+            .trim()
+            .match(
+                /^(\d{4})M(\d{1,2})$/i
+            );
 
 
     if (
-        match
+        monthlyMatch
     ) {
 
         const year =
             Number(
-                match[1]
+                monthlyMatch[1]
             );
 
 
         const month =
             Number(
-                match[2]
+                monthlyMatch[2]
             );
 
 
@@ -575,6 +1693,7 @@ function normalizeCommodityPeriod(
         ) {
 
             return {
+
                 period:
                     `${year}M${String(month).padStart(2, "0")}`,
 
@@ -588,6 +1707,7 @@ function normalizeCommodityPeriod(
                         month - 1,
                         1
                     )
+
             };
 
         }
@@ -595,25 +1715,27 @@ function normalizeCommodityPeriod(
     }
 
 
-    match =
-        text.match(
-            /^(\d{4})-(\d{1,2})$/
-        );
+    const slashMatch =
+        String(value || "")
+            .trim()
+            .match(
+                /^(\d{4})\/(\d{1,2})$/
+            );
 
 
     if (
-        match
+        slashMatch
     ) {
 
         const year =
             Number(
-                match[1]
+                slashMatch[1]
             );
 
 
         const month =
             Number(
-                match[2]
+                slashMatch[2]
             );
 
 
@@ -624,6 +1746,7 @@ function normalizeCommodityPeriod(
         ) {
 
             return {
+
                 period:
                     `${year}M${String(month).padStart(2, "0")}`,
 
@@ -637,55 +1760,7 @@ function normalizeCommodityPeriod(
                         month - 1,
                         1
                     )
-            };
 
-        }
-
-    }
-
-
-    match =
-        text.match(
-            /^(\d{4})\/(\d{1,2})$/
-        );
-
-
-    if (
-        match
-    ) {
-
-        const year =
-            Number(
-                match[1]
-            );
-
-
-        const month =
-            Number(
-                match[2]
-            );
-
-
-        if (
-            year >= 1900 &&
-            month >= 1 &&
-            month <= 12
-        ) {
-
-            return {
-                period:
-                    `${year}M${String(month).padStart(2, "0")}`,
-
-                year,
-
-                month,
-
-                timestamp:
-                    Date.UTC(
-                        year,
-                        month - 1,
-                        1
-                    )
             };
 
         }
@@ -694,6 +1769,177 @@ function normalizeCommodityPeriod(
 
 
     return null;
+}
+
+
+function countNumericObservations(
+    rows,
+    column
+) {
+
+    let count = 0;
+
+
+    for (
+        const row of rows
+    ) {
+
+        const values =
+            rowValues(
+                row
+            );
+
+
+        if (
+            parsePeriod(
+                values[0]
+            ) &&
+            parseNumeric(
+                values[column]
+            ) !== null
+        ) {
+
+            count += 1;
+
+        }
+
+    }
+
+
+    return count;
+}
+
+
+function buildSeries(
+    rows,
+    column
+) {
+
+    const series = [];
+
+
+    for (
+        const row of rows
+    ) {
+
+        const values =
+            rowValues(
+                row
+            );
+
+
+        const period =
+            parsePeriod(
+                values[0]
+            );
+
+
+        if (!period) {
+
+            continue;
+
+        }
+
+
+        const value =
+            parseNumeric(
+                values[column]
+            );
+
+
+        if (
+            value === null
+        ) {
+
+            continue;
+
+        }
+
+
+        series.push({
+
+            ...period,
+
+            value
+
+        });
+
+    }
+
+
+    series.sort(
+        (a, b) =>
+            a.timestamp -
+            b.timestamp
+    );
+
+
+    return series;
+}
+
+
+function getLatestAndPrevious(
+    series
+) {
+
+    if (
+        !series.length
+    ) {
+
+        return {
+
+            latest:
+                null,
+
+            previous:
+                null,
+
+            change:
+                null
+
+        };
+
+    }
+
+
+    const latest =
+        series[
+            series.length - 1
+        ];
+
+
+    const previous =
+        series.length > 1
+
+            ? series[
+                series.length - 2
+            ]
+
+            : null;
+
+
+    const change =
+        previous &&
+        previous.value !== 0
+
+            ? (
+                latest.value /
+                previous.value -
+                1
+            ) * 100
+
+            : null;
+
+
+    return {
+
+        latest,
+
+        previous,
+
+        change
+
+    };
 }
 
 
@@ -712,10 +1958,8 @@ function categorizeCommodity(
 
 
     if (
-        /\b(gold|silver|platinum|palladium|rhodium|iridium|osmium)\b/
-            .test(
-                value
-            )
+        /\b(gold|silver|platinum|palladium|rhodium)\b/
+            .test(value)
     ) {
 
         return "precious-metals";
@@ -724,10 +1968,8 @@ function categorizeCommodity(
 
 
     if (
-        /\b(aluminum|aluminium|copper|lead|nickel|tin|zinc|cobalt|lithium|molybdenum|iron ore|steel|ore|uranium|chromium|manganese)\b/
-            .test(
-                value
-            )
+        /\b(aluminum|aluminium|copper|lead|nickel|tin|zinc|molybdenum|iron ore|steel|ore)\b/
+            .test(value)
     ) {
 
         return "metals-minerals";
@@ -736,10 +1978,8 @@ function categorizeCommodity(
 
 
     if (
-        /\b(crude oil|brent|wti|dubai|natural gas|liquefied natural gas|lng|coal|energy|gasoline|petrol|diesel|heating oil|jet fuel|kerosene)\b/
-            .test(
-                value
-            )
+        /\b(crude oil|brent|wti|dubai|natural gas|liquefied natural gas|lng|coal|energy)\b/
+            .test(value)
     ) {
 
         return "energy";
@@ -748,10 +1988,8 @@ function categorizeCommodity(
 
 
     if (
-        /\b(urea|dap|tsp|potash|phosphate|fertilizer|fertiliser|ammonia)\b/
-            .test(
-                value
-            )
+        /\b(urea|dap|tsp|potash|phosphate|fertilizer|fertiliser)\b/
+            .test(value)
     ) {
 
         return "fertilizers";
@@ -760,10 +1998,8 @@ function categorizeCommodity(
 
 
     if (
-        /\b(cocoa|coffee|tea|coconut|groundnut|palm|soybean|soy|maize|corn|rice|wheat|barley|sorghum|sugar|banana|orange|grains|food|meat|beef|lamb|poultry|shrimp|fish|milk|dairy)\b/
-            .test(
-                value
-            )
+        /\b(cocoa|coffee|tea|coconut|groundnut|palm|soybean|soy|maize|corn|rice|wheat|barley|sorghum|sugar|banana|orange|grains|food|meat|beef|lamb|poultry|shrimp|fish)\b/
+            .test(value)
     ) {
 
         return "agriculture-food";
@@ -773,9 +2009,7 @@ function categorizeCommodity(
 
     if (
         /\b(cotton|rubber|timber|log|logs|sawnwood|plywood|wood|hides|leather)\b/
-            .test(
-                value
-            )
+            .test(value)
     ) {
 
         return "raw-materials";
@@ -787,137 +2021,38 @@ function categorizeCommodity(
 }
 
 
-/*
- * Voltlas itself supplies these compact category identifiers:
- *
- *   energy
- *   base
- *   precious
- *   ag
- *
- * Worth It keeps its existing richer category system.
- */
-function mapVoltlasCategory(
-    item
-) {
-
-    const sourceCategory =
-        normalizeSearchText(
-            item?.cat
-        );
-
-
-    const name =
-        normalizeText(
-            item?.name
-        );
-
-
-    const nameCategory =
-        categorizeCommodity(
-            name
-        );
-
-
-    /*
-     * Name-based classification wins when it provides a more
-     * specific Worth It category such as fertilizers or raw
-     * materials.
-     */
-    if (
-        nameCategory !==
-        "other"
-    ) {
-
-        return nameCategory;
-
-    }
-
-
-    if (
-        sourceCategory ===
-            "energy"
-    ) {
-
-        return "energy";
-
-    }
-
-
-    if (
-        sourceCategory ===
-            "base"
-    ) {
-
-        return "metals-minerals";
-
-    }
-
-
-    if (
-        sourceCategory ===
-            "precious"
-    ) {
-
-        return "precious-metals";
-
-    }
-
-
-    if (
-        sourceCategory ===
-            "ag"
-    ) {
-
-        return "agriculture-food";
-
-    }
-
-
-    return "other";
-}
-
-
 const CATEGORY_INFO = {
 
     all: {
-        label:
-            "All"
+        label: "All"
     },
 
     "precious-metals": {
-        label:
-            "Precious Metals"
+        label: "Precious Metals"
     },
 
     "metals-minerals": {
-        label:
-            "Metals & Minerals"
+        label: "Metals & Minerals"
     },
 
     energy: {
-        label:
-            "Energy"
+        label: "Energy"
     },
 
     fertilizers: {
-        label:
-            "Fertilizers"
+        label: "Fertilizers"
     },
 
     "agriculture-food": {
-        label:
-            "Agriculture & Food"
+        label: "Agriculture & Food"
     },
 
     "raw-materials": {
-        label:
-            "Raw Materials"
+        label: "Raw Materials"
     },
 
     other: {
-        label:
-            "Other"
+        label: "Other"
     }
 
 };
@@ -951,22 +2086,7 @@ function getDisplaySpec(
         );
 
 
-    /*
-     * $/troy oz
-     *
-     * Source:
-     *   USD per troy ounce
-     *
-     * EUR:
-     *   EUR per gram
-     *
-     * USD:
-     *   USD per troy ounce
-     */
     if (
-        unit.includes(
-            "$/troyoz"
-        ) ||
         unit.includes(
             "$/toz"
         )
@@ -978,7 +2098,7 @@ function getDisplaySpec(
                 "g",
 
             usUnit:
-                "troy oz",
+                "oz",
 
             conversion:
                 1 / 31.1034768
@@ -988,9 +2108,6 @@ function getDisplaySpec(
     }
 
 
-    /*
-     * $/bbl
-     */
     if (
         unit.includes(
             "$/bbl"
@@ -1013,9 +2130,6 @@ function getDisplaySpec(
     }
 
 
-    /*
-     * $/mmbtu
-     */
     if (
         unit.includes(
             "$/mmbtu"
@@ -1038,23 +2152,32 @@ function getDisplaySpec(
     }
 
 
-    /*
-     * $/mt
-     *
-     * Keep the existing Worth It presentation style:
-     * EUR uses metric ton and USD uses short ton.
-     *
-     * The frontend uses the backend-provided display unit and
-     * therefore does not apply its extra kg/lb conversion here.
-     */
     if (
         unit.includes(
             "$/mt"
-        ) ||
-        unit.includes(
-            "$/metricton"
         )
     ) {
+
+        if (
+            category ===
+            "metals-minerals"
+        ) {
+
+            return {
+
+                eurUnit:
+                    "kg",
+
+                usUnit:
+                    "lb",
+
+                conversion:
+                    2.20462262185
+
+            };
+
+        }
+
 
         return {
 
@@ -1062,7 +2185,7 @@ function getDisplaySpec(
                 "metric ton",
 
             usUnit:
-                "short ton",
+                "metric ton",
 
             conversion:
                 1
@@ -1072,9 +2195,6 @@ function getDisplaySpec(
     }
 
 
-    /*
-     * $/dmt
-     */
     if (
         unit.includes(
             "$/dmt"
@@ -1087,7 +2207,7 @@ function getDisplaySpec(
                 "metric ton",
 
             usUnit:
-                "short ton",
+                "metric ton",
 
             conversion:
                 1
@@ -1097,12 +2217,6 @@ function getDisplaySpec(
     }
 
 
-    /*
-     * $/kg
-     *
-     * EUR: kg
-     * USD: lb
-     */
     if (
         unit.includes(
             "$/kg"
@@ -1115,7 +2229,7 @@ function getDisplaySpec(
                 "kg",
 
             usUnit:
-                "lb",
+                "kg",
 
             conversion:
                 1
@@ -1125,9 +2239,6 @@ function getDisplaySpec(
     }
 
 
-    /*
-     * $/lb
-     */
     if (
         unit.includes(
             "$/lb"
@@ -1150,25 +2261,19 @@ function getDisplaySpec(
     }
 
 
-    /*
-     * $/liter
-     */
     if (
         unit.includes(
-            "$/liter"
-        ) ||
-        unit.includes(
-            "$/l"
+            "$/gallon"
         )
     ) {
 
         return {
 
             eurUnit:
-                "liter",
+                "gallon",
 
             usUnit:
-                "liter",
+                "gallon",
 
             conversion:
                 1
@@ -1178,22 +2283,19 @@ function getDisplaySpec(
     }
 
 
-    /*
-     * $/g
-     */
     if (
         unit.includes(
-            "$/g"
+            "$/bushel"
         )
     ) {
 
         return {
 
             eurUnit:
-                "g",
+                "bushel",
 
             usUnit:
-                "g",
+                "bushel",
 
             conversion:
                 1
@@ -1206,18 +2308,11 @@ function getDisplaySpec(
     const fallbackUnit =
         sourceUnit
 
-            ? String(
-                sourceUnit
-            )
+            ? sourceUnit
                 .replace(
                     /^\(\$\/|\)$/g,
                     ""
                 )
-                .replace(
-                    /^\$\/?/,
-                    ""
-                )
-                .trim()
 
             : "unit";
 
@@ -1249,8 +2344,6 @@ const PRIORITY_NAME_ORDER = [
 
     "platinum",
 
-    "palladium",
-
     "copper",
 
     "iron ore",
@@ -1259,17 +2352,11 @@ const PRIORITY_NAME_ORDER = [
 
     "aluminium",
 
-    "brent crude oil",
-
-    "crude oil, brent",
-
-    "wti crude oil",
-
     "crude oil, wti",
 
-    "natural gas",
-
     "natural gas, u.s.",
+
+    "crude oil, brent",
 
     "coal",
 
@@ -1290,28 +2377,14 @@ function getPriorityIndex(
 
     const index =
         PRIORITY_NAME_ORDER.findIndex(
-            value => {
-
-                const normalizedValue =
-                    normalizeSearchText(
-                        value
-                    );
-
-
-                return (
-                    normalized ===
-                        normalizedValue ||
-
-                    normalized.startsWith(
-                        `${normalizedValue} `
-                    ) ||
-
-                    normalized.startsWith(
-                        `${normalizedValue},`
-                    )
-                );
-
-            }
+            value =>
+                normalized === value ||
+                normalized.startsWith(
+                    `${value} `
+                ) ||
+                normalized.startsWith(
+                    `${value},`
+                )
         );
 
 
@@ -1336,8 +2409,7 @@ function sortCommodities(
 
 
     if (
-        priorityDifference !==
-        0
+        priorityDifference !== 0
     ) {
 
         return priorityDifference;
@@ -1361,8 +2433,7 @@ function sortCommodities(
 
 
     if (
-        categoryDifference !==
-        0
+        categoryDifference !== 0
     ) {
 
         return categoryDifference;
@@ -1386,8 +2457,1288 @@ function sortCommodities(
 
 
 /* =========================================================
-   VOLTLAS LOADING
+   WORLD BANK LOADING
 ========================================================= */
+
+async function fetchWorldBankPage(
+    cache
+) {
+
+    const key =
+        new Request(
+            WORLD_BANK_PAGE_CACHE_KEY
+        );
+
+
+    const cached =
+        await getFreshCache(
+            cache,
+            key,
+            CACHE_TTL
+        );
+
+
+    if (cached) {
+
+        return cached;
+
+    }
+
+
+    const response =
+        await fetch(
+            WORLD_BANK_MARKETS_PAGE,
+            {
+                headers: {
+
+                    "Accept":
+                        "text/html,application/xhtml+xml"
+
+                }
+            }
+        );
+
+
+    if (!response.ok) {
+
+        throw new Error(
+            `World Bank commodity page request failed with status ${response.status}.`
+        );
+
+    }
+
+
+    return putTimestampedCache(
+        cache,
+        key,
+        new Response(
+            await response.arrayBuffer(),
+            {
+                status:
+                    response.status,
+
+                headers:
+                    response.headers
+            }
+        ),
+        CACHE_TTL
+    );
+}
+
+
+async function discoverWorldBankMonthlyUrl(
+    cache
+) {
+
+    const response =
+        await fetchWorldBankPage(
+            cache
+        );
+
+
+    const html =
+        await response.text();
+
+
+    const matches =
+        [
+            ...html.matchAll(
+                /href=["']([^"']*CMO-Historical-Data-Monthly\.xlsx[^"']*)["']/gi
+            )
+        ];
+
+
+    if (
+        !matches.length
+    ) {
+
+        throw new Error(
+            "Could not find the current World Bank monthly XLSX link."
+        );
+
+    }
+
+
+    return new URL(
+        decodeXmlEntities(
+            matches[0][1]
+        ),
+        WORLD_BANK_MARKETS_PAGE
+    ).href;
+}
+
+
+async function loadWorldBankWorkbook(
+    cache
+) {
+
+    const url =
+        await discoverWorldBankMonthlyUrl(
+            cache
+        );
+
+
+    const cacheKey =
+        new Request(
+            WORLD_BANK_XLSX_CACHE_KEY
+        );
+
+
+    const cached =
+        await getFreshCache(
+            cache,
+            cacheKey,
+            CACHE_TTL
+        );
+
+
+    if (cached) {
+
+        return {
+
+            url,
+
+            bytes:
+                await cached.arrayBuffer()
+
+        };
+
+    }
+
+
+    const response =
+        await fetch(
+            url,
+            {
+                headers: {
+
+                    "Accept":
+                        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,*/*"
+
+                }
+            }
+        );
+
+
+    if (!response.ok) {
+
+        throw new Error(
+            `World Bank monthly XLSX request failed with status ${response.status}.`
+        );
+
+    }
+
+
+    const cachedResponse =
+        await putTimestampedCache(
+            cache,
+            cacheKey,
+            new Response(
+                await response.arrayBuffer(),
+                {
+                    status:
+                        response.status,
+
+                    headers:
+                        response.headers
+                }
+            ),
+            CACHE_TTL
+        );
+
+
+    return {
+
+        url,
+
+        bytes:
+            await cachedResponse.arrayBuffer()
+
+    };
+}
+
+
+/* =========================================================
+   PARSE WORLD BANK DATA
+========================================================= */
+
+async function parseWorldBankDataset(
+    arrayBuffer
+) {
+
+    const entries =
+        await unzipEntries(
+            arrayBuffer
+        );
+
+
+    const sheetPath =
+        findMonthlyPricesSheet(
+            entries
+        );
+
+
+    const sheetBytes =
+        entries.get(
+            sheetPath
+        );
+
+
+    if (!sheetBytes) {
+
+        throw new Error(
+            `World Bank XLSX is missing ${sheetPath}.`
+        );
+
+    }
+
+
+    const sheetXml =
+        new TextDecoder("utf-8")
+            .decode(
+                sheetBytes
+            );
+
+
+    const sharedStrings =
+        parseSharedStrings(
+            entries
+        );
+
+
+    const rows =
+        parseWorksheetRows(
+            sheetXml,
+            sharedStrings
+        );
+
+
+    const headerInfo =
+        findHeaderRows(
+            rows
+        );
+
+
+    const possibleCodeRow =
+        rows[
+            headerInfo.possibleCodeRowIndex
+        ] ||
+        null;
+
+
+    const possibleCodeValues =
+        rowValues(
+            possibleCodeRow ||
+                new Map()
+        )
+            .filter(
+                value =>
+                    normalizeText(value)
+            );
+
+
+    const isLikelyCodeRow =
+        possibleCodeValues.length >= 3 &&
+        !parsePeriod(
+            rowValues(
+                possibleCodeRow ||
+                    new Map()
+            )[0]
+        ) &&
+        possibleCodeValues.filter(
+            value =>
+                /^[A-Z0-9_]{2,40}$/i.test(
+                    String(value || "")
+                )
+        ).length >=
+            Math.max(
+                3,
+                Math.floor(
+                    possibleCodeValues.length *
+                    0.7
+                )
+            );
+
+
+    const effectiveHeaderInfo = {
+
+        ...headerInfo,
+
+        codeRowIndex:
+            isLikelyCodeRow
+
+                ? headerInfo.possibleCodeRowIndex
+
+                : null
+
+    };
+
+
+    const headers =
+        buildHeaderInfo(
+            rows,
+            effectiveHeaderInfo
+        );
+
+
+    const dataStartIndex =
+        isLikelyCodeRow
+
+            ? headerInfo.possibleCodeRowIndex + 1
+
+            : headerInfo.unitRowIndex + 1;
+
+
+    const dataRows =
+        rows.slice(
+            dataStartIndex
+        );
+
+
+    const commodities = [];
+
+
+    for (
+        let column = 1;
+
+        column < headers.length;
+
+        column += 1
+    ) {
+
+        const header =
+            headers[column];
+
+
+        if (!header) {
+
+            continue;
+
+        }
+
+
+        const name =
+            normalizeText(
+                header.name
+            );
+
+
+        if (!name) {
+
+            continue;
+
+        }
+
+
+        const normalizedName =
+            name.toLowerCase();
+
+
+        if (
+            normalizedName === "date" ||
+            normalizedName === "month"
+        ) {
+
+            continue;
+
+        }
+
+
+        const numericCount =
+            countNumericObservations(
+                dataRows,
+                column
+            );
+
+
+        if (
+            numericCount < 2
+        ) {
+
+            continue;
+
+        }
+
+
+        const series =
+            buildSeries(
+                dataRows,
+                column
+            );
+
+
+        const state =
+            getLatestAndPrevious(
+                series
+            );
+
+
+        if (!state.latest) {
+
+            continue;
+
+        }
+
+
+        const category =
+            categorizeCommodity(
+                name
+            );
+
+
+        const displaySpec =
+            getDisplaySpec(
+                header.unit,
+                category
+            );
+
+
+        let code =
+            normalizeText(
+                header.code
+            );
+
+
+        if (
+            !code ||
+            !/^[A-Z0-9_]+$/i.test(
+                code
+            ) ||
+            /^(DATE|MONTH)$/i.test(
+                code
+            )
+        ) {
+
+            code =
+                simplifySearchText(
+                    name
+                )
+                    .replace(
+                        /^\d+/,
+                        ""
+                    )
+                    .slice(
+                        0,
+                        80
+                    ) ||
+                `commodity_${column}`;
+
+
+            code =
+                code.toUpperCase();
+
+        }
+
+
+        commodities.push({
+
+            code,
+
+            name,
+
+            category,
+
+            category_label:
+                categoryLabel(
+                    category
+                ),
+
+            source_unit:
+                header.unit ||
+                null,
+
+            price:
+                state.latest.value,
+
+            previous_price:
+                state.previous?.value ??
+                null,
+
+            changes: {
+
+                monthly: {
+
+                    percent:
+                        state.change
+
+                }
+
+            },
+
+            updated_at:
+                new Date(
+                    state.latest.timestamp
+                ).toISOString(),
+
+            data_period:
+                state.latest.period,
+
+            previous_period:
+                state.previous?.period ||
+                null,
+
+            display:
+                displaySpec,
+
+            source:
+                "World Bank Commodity Price Data (The Pink Sheet)"
+
+        });
+
+    }
+
+
+    commodities.sort(
+        sortCommodities
+    );
+
+
+    if (
+        !commodities.length
+    ) {
+
+        throw new Error(
+            "World Bank Monthly Prices contained no usable commodity series."
+        );
+
+    }
+
+
+    const latestTimestamp =
+        Math.max(
+            ...commodities.map(
+                item =>
+                    new Date(
+                        item.updated_at
+                    ).getTime()
+            )
+        );
+
+
+    const latestDate =
+        new Date(
+            latestTimestamp
+        );
+
+
+    const period =
+        `${latestDate.getUTCFullYear()}M${String(
+            latestDate.getUTCMonth() + 1
+        ).padStart(2, "0")}`;
+
+
+    return {
+
+        prices:
+            commodities,
+
+        latest_period:
+            period,
+
+        commodity_count:
+            commodities.length,
+
+        categories:
+            [
+                ...new Set(
+                    commodities.map(
+                        item =>
+                            item.category
+                    )
+                )
+            ],
+
+        source:
+            "World Bank Commodity Price Data (The Pink Sheet)",
+
+        source_url:
+            WORLD_BANK_MARKETS_PAGE,
+
+        license:
+            "CC BY 4.0"
+
+    };
+}
+
+
+
+/* =========================================================
+   MULTI-SOURCE DATA HELPERS
+========================================================= */
+
+function parseDataNumber(
+    value
+) {
+
+    if (
+        typeof value ===
+        "number"
+    ) {
+
+        return Number.isFinite(
+            value
+        )
+            ? value
+            : null;
+
+    }
+
+
+    const normalized =
+        String(
+            value ??
+            ""
+        )
+            .replace(
+                /,/g,
+                ""
+            )
+            .replace(
+                /[$€£]/g,
+                ""
+            )
+            .replace(
+                /\(([^)]+)\)/g,
+                "$1"
+            )
+            .trim();
+
+
+    if (
+        !normalized ||
+        normalized === ".." ||
+        normalized === "…" ||
+        normalized === "..." ||
+        normalized === "—" ||
+        normalized === "-" ||
+        /^(d|na|n\/a)$/i.test(normalized)
+    ) {
+
+        return null;
+
+    }
+
+
+    const number =
+        Number(
+            normalized
+        );
+
+
+    return Number.isFinite(
+        number
+    )
+        ? number
+        : null;
+}
+
+
+function normalizePriceUnit(
+    value
+) {
+
+    return normalizeText(
+        value
+    )
+        .replace(
+            /\s+/g,
+            " "
+        )
+        .replace(
+            /^dollars?\s*per\s*barrel$/i,
+            "$/bbl"
+        )
+        .replace(
+            /^dollars?\s*per\s*mmbtu$/i,
+            "$/MMBtu"
+        )
+        .replace(
+            /^dollars?\s*per\s*troy\s*ounce$/i,
+            "$/troy oz"
+        )
+        .replace(
+            /^dollars?\s*per\s*metric\s*ton$/i,
+            "$/mt"
+        )
+        .replace(
+            /^dollars?\s*per\s*dry\s*metric\s*ton$/i,
+            "$/dmt"
+        )
+        .replace(
+            /^dollars?\s*per\s*kilogram$/i,
+            "$/kg"
+        )
+        .replace(
+            /^dollars?\s*per\s*pound$/i,
+            "$/lb"
+        )
+        .replace(
+            /^dollars?\s*per\s*liter$/i,
+            "$/liter"
+        )
+        .replace(
+            /^dollars?\s*per\s*gallon$/i,
+            "$/gallon"
+        )
+        .replace(
+            /^dollars?\s*per\s*bushel$/i,
+            "$/bushel"
+        )
+        .trim();
+}
+
+
+function periodToDate(
+    value
+) {
+
+    const text =
+        normalizeText(
+            value
+        );
+
+
+    const isoDailyPeriod =
+        text.match(
+            /^(\d{4})[-\/](\d{1,2})[-\/](\d{1,2})$/
+        );
+
+
+    if (
+        isoDailyPeriod
+    ) {
+
+        const year =
+            Number(
+                isoDailyPeriod[1]
+            );
+
+        const month =
+            Number(
+                isoDailyPeriod[2]
+            );
+
+        const day =
+            Number(
+                isoDailyPeriod[3]
+            );
+
+
+        if (
+            year >= 1900 &&
+            month >= 1 &&
+            month <= 12 &&
+            day >= 1 &&
+            day <= 31
+        ) {
+
+            const timestamp =
+                Date.UTC(
+                    year,
+                    month - 1,
+                    day
+                );
+
+            return {
+
+                period:
+                    `${year}M${String(month).padStart(2, "0")}`,
+
+                timestamp
+
+            };
+
+        }
+
+    }
+
+
+    const monthPeriod =
+        text.match(
+            /^(\d{4})[-\/]?(\d{1,2})$/
+        );
+
+
+    if (
+        monthPeriod
+    ) {
+
+        const year =
+            Number(
+                monthPeriod[1]
+            );
+
+        const month =
+            Number(
+                monthPeriod[2]
+            );
+
+
+        if (
+            year >= 1900 &&
+            month >= 1 &&
+            month <= 12
+        ) {
+
+            return {
+                period:
+                    `${year}M${String(month).padStart(2, "0")}`,
+                timestamp:
+                    Date.UTC(
+                        year,
+                        month - 1,
+                        1
+                    )
+            };
+
+        }
+
+    }
+
+
+    const yearPeriod =
+        text.match(
+            /^(\d{4})$/
+        );
+
+
+    if (
+        yearPeriod
+    ) {
+
+        const year =
+            Number(
+                yearPeriod[1]
+            );
+
+
+        if (
+            year >= 1900
+        ) {
+
+            return {
+                period:
+                    String(year),
+                timestamp:
+                    Date.UTC(
+                        year,
+                        11,
+                        31
+                    )
+            };
+
+        }
+
+    }
+
+
+    const dailyPeriod =
+        text.match(
+            /^(\d{4})(\d{2})(\d{2})$/
+        );
+
+
+    if (
+        dailyPeriod
+    ) {
+
+        const year =
+            Number(
+                dailyPeriod[1]
+            );
+
+        const month =
+            Number(
+                dailyPeriod[2]
+            );
+
+        const day =
+            Number(
+                dailyPeriod[3]
+            );
+
+
+        if (
+            year >= 1900 &&
+            month >= 1 &&
+            month <= 12 &&
+            day >= 1 &&
+            day <= 31
+        ) {
+
+            return {
+                period:
+                    `${year}M${String(month).padStart(2, "0")}`,
+                timestamp:
+                    Date.UTC(
+                        year,
+                        month - 1,
+                        day
+                    )
+            };
+
+        }
+
+    }
+
+
+    return null;
+}
+
+
+function getNassPeriodInfo(
+    yearValue,
+    referencePeriod
+) {
+
+    const year =
+        Number(
+            yearValue
+        );
+
+    if (
+        !Number.isFinite(year) ||
+        year < 1900
+    ) {
+        return null;
+    }
+
+    const text =
+        normalizeSearchText(
+            referencePeriod
+        );
+
+    const monthMap = {
+        jan: 1,
+        january: 1,
+        feb: 2,
+        february: 2,
+        mar: 3,
+        march: 3,
+        apr: 4,
+        april: 4,
+        may: 5,
+        jun: 6,
+        june: 6,
+        jul: 7,
+        july: 7,
+        aug: 8,
+        august: 8,
+        sep: 9,
+        september: 9,
+        oct: 10,
+        october: 10,
+        nov: 11,
+        november: 11,
+        dec: 12,
+        december: 12
+    };
+
+    const monthKey = Object.keys(monthMap).find(
+        key => new RegExp(`\\b${key}\\b`).test(text)
+    );
+
+    if (monthKey) {
+        const month = monthMap[monthKey];
+        return {
+            period:
+                `${year}M${String(month).padStart(2, "0")}`,
+            timestamp:
+                Date.UTC(
+                    year,
+                    month - 1,
+                    1
+                )
+        };
+    }
+
+    return {
+        period:
+            String(year),
+        timestamp:
+            Date.UTC(
+                year,
+                11,
+                31
+            )
+    };
+}
+
+
+function getCanonicalDisplayName(
+    name
+) {
+
+    return normalizeText(
+        name
+    )
+        .replace(
+            /\s+/g,
+            " "
+        )
+        .trim();
+}
+
+
+function makeCommodityRecord(
+    {
+        codePrefix,
+        name,
+        category,
+        sourceUnit,
+        price,
+        previousPrice,
+        change,
+        period,
+        source,
+        sourceUrl,
+        license,
+        licenseUrl,
+        attribution,
+        extra = {}
+    }
+) {
+
+    const displayUnit =
+        normalizePriceUnit(
+            sourceUnit
+        );
+
+
+    const parsedPeriod =
+        period?.timestamp
+            ? period
+            : periodToDate(
+                period?.period ||
+                period
+            );
+
+
+    if (
+        !name ||
+        !displayUnit ||
+        !Number.isFinite(
+            Number(price)
+        )
+    ) {
+
+        return null;
+
+    }
+
+
+    const safeName =
+        getCanonicalDisplayName(
+            name
+        );
+
+
+    return {
+
+        code:
+            `${codePrefix}_${simplifySearchText(safeName).slice(0, 70).toUpperCase()}`,
+
+        name:
+            safeName,
+
+        category,
+
+        category_label:
+            categoryLabel(
+                category
+            ),
+
+        source_unit:
+            displayUnit,
+
+        price:
+            Number(
+                price
+            ),
+
+        previous_price:
+            Number.isFinite(
+                Number(previousPrice)
+            )
+                ? Number(previousPrice)
+                : null,
+
+        changes: {
+
+            monthly: {
+
+                percent:
+                    Number.isFinite(
+                        Number(change)
+                    )
+                        ? Number(change)
+                        : null
+
+            }
+
+        },
+
+        updated_at:
+            parsedPeriod
+                ? new Date(
+                    parsedPeriod.timestamp
+                ).toISOString()
+                : null,
+
+        data_period:
+            parsedPeriod
+                ? parsedPeriod.period
+                : null,
+
+        previous_period:
+            null,
+
+        display:
+            getDisplaySpec(
+                displayUnit,
+                category
+            ),
+
+        source,
+
+        source_url:
+            sourceUrl,
+
+        license:
+            license ||
+            null,
+
+        license_url:
+            licenseUrl ||
+            null,
+
+        attribution:
+            attribution ||
+            null,
+
+        ...extra
+
+    };
+}
+
+
+/* =========================================================
+   WORLD BANK WRAPPER
+
+   The original World Bank XLSX discovery/parser remains intact.
+========================================================= */
+
+async function loadWorldBankMultiSourceDataset(
+    cache
+) {
+
+    const workbook =
+        await loadWorldBankWorkbook(
+            cache
+        );
+
+
+    const dataset =
+        await parseWorldBankDataset(
+            workbook.bytes
+        );
+
+
+    return {
+
+        ...dataset,
+
+        license:
+            dataset.license ||
+            "CC BY 4.0",
+
+        license_url:
+            dataset.license_url ||
+            WORLD_BANK_LICENSE_URL,
+
+        attribution:
+            dataset.attribution ||
+            "Data: World Bank Commodity Markets, CC BY 4.0",
+
+        configured:
+            true
+
+    };
+}
+
+
+/* =========================================================
+   VOLTLAS
+========================================================= */
+
+function mapVoltlasCategory(
+    item
+) {
+
+    const sourceCategory =
+        normalizeSearchText(
+            item?.cat
+        );
+
+    const name =
+        normalizeText(
+            item?.name
+        );
+
+    const nameCategory =
+        categorizeCommodity(
+            name
+        );
+
+
+    if (
+        nameCategory !==
+        "other"
+    ) {
+
+        return nameCategory;
+
+    }
+
+    if (
+        sourceCategory ===
+        "energy"
+    ) {
+
+        return "energy";
+
+    }
+
+    if (
+        sourceCategory ===
+        "base"
+    ) {
+
+        return "metals-minerals";
+
+    }
+
+    if (
+        sourceCategory ===
+        "precious"
+    ) {
+
+        return "precious-metals";
+
+    }
+
+    if (
+        sourceCategory ===
+        "ag"
+    ) {
+
+        return "agriculture-food";
+
+    }
+
+    return "other";
+}
+
 
 async function fetchVoltlasSource(
     cache
@@ -1403,7 +3754,7 @@ async function fetchVoltlasSource(
         await getFreshCache(
             cache,
             key,
-            CACHE_TTL
+            VOLTLAS_CACHE_TTL
         );
 
 
@@ -1426,7 +3777,7 @@ async function fetchVoltlasSource(
                         "application/json",
 
                     "User-Agent":
-                        "Worth-It-Markets/1.0 (https://github.com/DarthNecrohorn/worth-it-calculator)"
+                        WIKIMEDIA_USER_AGENT
 
                 }
             }
@@ -1444,22 +3795,6 @@ async function fetchVoltlasSource(
     }
 
 
-    const contentType =
-        String(
-            response.headers.get(
-                "Content-Type"
-            ) ||
-            ""
-        );
-
-
-    /*
-     * Do not fail solely because the upstream server does not
-     * provide application/json. The body itself is authoritative.
-     */
-    void contentType;
-
-
     return putTimestampedCache(
         cache,
         key,
@@ -1468,377 +3803,14 @@ async function fetchVoltlasSource(
             {
                 status:
                     response.status,
-
                 headers:
                     response.headers
             }
         ),
-        CACHE_TTL
+        VOLTLAS_CACHE_TTL
     );
 }
 
-
-function normalizeVoltlasCommodity(
-    item
-) {
-
-    if (
-        !item ||
-        typeof item !==
-            "object"
-    ) {
-
-        return null;
-
-    }
-
-
-    const name =
-        normalizeText(
-            item.name
-        );
-
-
-    if (
-        !name
-    ) {
-
-        return null;
-
-    }
-
-
-    const price =
-        parseNumber(
-            item.price
-        );
-
-
-    if (
-        price === null
-    ) {
-
-        return null;
-
-    }
-
-
-    const sourceUnit =
-        normalizeText(
-            item.unit
-        );
-
-
-    if (
-        !sourceUnit
-    ) {
-
-        return null;
-
-    }
-
-
-    const periodInfo =
-        normalizeCommodityPeriod(
-            item.period
-        );
-
-
-    const category =
-        mapVoltlasCategory(
-            item
-        );
-
-
-    const displaySpec =
-        getDisplaySpec(
-            sourceUnit,
-            category
-        );
-
-
-    const change =
-        parsePercent(
-            item.chg
-        );
-
-
-    const code =
-        (
-            simplifySearchText(
-                name
-            )
-                .slice(
-                    0,
-                    80
-                ) ||
-            `commodity_${Math.random()}`
-        )
-            .toUpperCase();
-
-
-    return {
-
-        code,
-
-        name,
-
-        category,
-
-        category_label:
-            categoryLabel(
-                category
-            ),
-
-        source_unit:
-            sourceUnit,
-
-        price,
-
-        previous_price:
-            null,
-
-        changes: {
-
-            monthly: {
-
-                percent:
-                    change
-
-            }
-
-        },
-
-        updated_at:
-            periodInfo
-                ? new Date(
-                    periodInfo.timestamp
-                ).toISOString()
-                : null,
-
-        data_period:
-            periodInfo
-                ? periodInfo.period
-                : normalizeText(
-                    item.period
-                ) || null,
-
-        previous_period:
-            null,
-
-        display:
-            displaySpec,
-
-        source:
-            normalizeText(
-                item.source
-            ) ||
-            "Voltlas",
-
-        voltlas_category:
-            normalizeText(
-                item.cat
-            ) ||
-            null
-
-    };
-}
-
-
-async function parseVoltlasDataset(
-    payload
-) {
-
-    const sourceItems =
-        Array.isArray(
-            payload?.COMMODITIES
-        )
-            ? payload.COMMODITIES
-            : [];
-
-
-    if (
-        !sourceItems.length
-    ) {
-
-        throw new Error(
-            "Voltlas latest.json contains no COMMODITIES array."
-        );
-
-    }
-
-
-    const seenNames =
-        new Set();
-
-
-    const commodities =
-        [];
-
-
-    for (
-        const item of sourceItems
-    ) {
-
-        const normalized =
-            normalizeVoltlasCommodity(
-                item
-            );
-
-
-        if (
-            !normalized
-        ) {
-
-            continue;
-
-        }
-
-
-        const nameKey =
-            normalizeSearchText(
-                normalized.name
-            );
-
-
-        if (
-            !nameKey ||
-            seenNames.has(
-                nameKey
-            )
-        ) {
-
-            continue;
-
-        }
-
-
-        seenNames.add(
-            nameKey
-        );
-
-
-        commodities.push(
-            normalized
-        );
-
-    }
-
-
-    if (
-        !commodities.length
-    ) {
-
-        throw new Error(
-            "Voltlas latest.json contained no usable commodity series."
-        );
-
-    }
-
-
-    commodities.sort(
-        sortCommodities
-    );
-
-
-    /*
-     * Read the full usable source first, then apply the Worth It
-     * output limit.
-     */
-    const sourceCommodityCount =
-        commodities.length;
-
-
-    const limitedCommodities =
-        commodities.slice(
-            0,
-            MAX_COMMODITIES
-        );
-
-
-    const periodCandidates =
-        limitedCommodities
-            .map(
-                item =>
-                    normalizeCommodityPeriod(
-                        item.data_period
-                    )
-            )
-            .filter(Boolean);
-
-
-    let latestPeriod =
-        null;
-
-
-    if (
-        periodCandidates.length
-    ) {
-
-        periodCandidates.sort(
-            (a, b) =>
-                a.timestamp -
-                b.timestamp
-        );
-
-
-        latestPeriod =
-            periodCandidates[
-                periodCandidates.length - 1
-            ].period;
-
-    }
-
-
-    return {
-
-        prices:
-            limitedCommodities,
-
-        latest_period:
-            latestPeriod,
-
-        commodity_count:
-            limitedCommodities.length,
-
-        source_commodity_count:
-            sourceCommodityCount,
-
-        categories:
-            [
-                ...new Set(
-                    limitedCommodities.map(
-                        item =>
-                            item.category
-                    )
-                )
-            ],
-
-        source:
-            "Voltlas Open Data",
-
-        source_url:
-            VOLTLAS_DATA_PAGE,
-
-        data_url:
-            VOLTLAS_DATA_URL,
-
-        license:
-            "CC BY 4.0",
-
-        license_url:
-            VOLTLAS_LICENSE_URL,
-
-        attribution:
-            "Data: Voltlas (https://voltlas.com), CC BY 4.0"
-
-    };
-}
-
-
-/* =========================================================
-   VOLTLAS RESULT LOADER
-========================================================= */
 
 async function loadVoltlasDataset(
     cache
@@ -1854,9 +3826,2697 @@ async function loadVoltlasDataset(
         await response.json();
 
 
-    return parseVoltlasDataset(
-        payload
+    const sourceItems =
+        Array.isArray(
+            payload?.COMMODITIES
+        )
+            ? payload.COMMODITIES
+            : [];
+
+
+    const prices = [];
+
+    const seen = new Set();
+
+
+    for (
+        const item of sourceItems
+    ) {
+
+        const name =
+            normalizeText(
+                item?.name
+            );
+
+        const price =
+            parseDataNumber(
+                item?.price
+            );
+
+        const unit =
+            normalizePriceUnit(
+                item?.unit
+            );
+
+        const period =
+            periodToDate(
+                item?.period
+            );
+
+
+        if (
+            !name ||
+            price === null ||
+            !unit
+        ) {
+            continue;
+        }
+
+
+        const key =
+            canonicalCommodityKey(
+                name
+            );
+
+
+        if (
+            !key ||
+            seen.has(key)
+        ) {
+            continue;
+        }
+
+
+        seen.add(key);
+
+
+        const category =
+            mapVoltlasCategory(
+                item
+            );
+
+
+        const change =
+            parseDataNumber(
+                item?.chg
+            );
+
+
+        const record =
+            makeCommodityRecord({
+
+                codePrefix:
+                    "VOLT",
+
+                name,
+
+                category,
+
+                sourceUnit:
+                    unit,
+
+                price,
+
+                previousPrice:
+                    null,
+
+                change,
+
+                period,
+
+                source:
+                    "Voltlas Open Data",
+
+                sourceUrl:
+                    VOLTLAS_DATA_PAGE,
+
+                license:
+                    "CC BY 4.0",
+
+                licenseUrl:
+                    VOLTLAS_LICENSE_URL,
+
+                attribution:
+                    "Data: Voltlas (https://voltlas.com), CC BY 4.0",
+
+                extra: {
+
+                    voltlas_category:
+                        normalizeText(
+                            item?.cat
+                        ) ||
+                        null
+
+                }
+
+            });
+
+
+        if (
+            record
+        ) {
+
+            prices.push(
+                record
+            );
+
+        }
+
+    }
+
+
+    if (
+        !prices.length
+    ) {
+
+        throw new Error(
+            "Voltlas latest.json contained no usable commodity series."
+        );
+
+    }
+
+
+    return {
+
+        prices,
+
+        source:
+            "Voltlas Open Data",
+
+        source_url:
+            VOLTLAS_DATA_PAGE,
+
+        license:
+            "CC BY 4.0",
+
+        license_url:
+            VOLTLAS_LICENSE_URL,
+
+        attribution:
+            "Data: Voltlas (https://voltlas.com), CC BY 4.0"
+
+    };
+}
+
+
+/* =========================================================
+   USGS — CURRENT RELEASE DISCOVERY
+========================================================= */
+
+async function getUSGSReleaseInfoMultiSource(
+    cache
+) {
+
+    const key =
+        new Request(
+            USGS_DISCOVERY_CACHE_KEY
+        );
+
+
+    const cached =
+        await getFreshCache(
+            cache,
+            key,
+            USGS_CACHE_TTL
+        );
+
+
+    if (
+        cached
+    ) {
+
+        return cached.json();
+
+    }
+
+
+    const pageResponse =
+        await fetch(
+            USGS_DATA_PAGE,
+            {
+                headers: {
+                    "Accept":
+                        "text/html,application/xhtml+xml",
+                    "User-Agent":
+                        WIKIMEDIA_USER_AGENT
+                }
+            }
+        );
+
+
+    if (
+        !pageResponse.ok
+    ) {
+
+        throw new Error(
+            `USGS NMIC data page failed with status ${pageResponse.status}.`
+        );
+
+    }
+
+
+    const html =
+        await pageResponse.text();
+
+
+    const releaseMatch =
+        html.match(
+            /Mineral Commodity Summaries\s+(\d{4})\s+Data Release/i
+        );
+
+
+    if (
+        !releaseMatch
+    ) {
+
+        throw new Error(
+            "Unable to discover current USGS MCS release year."
+        );
+
+    }
+
+
+    const year =
+        Number(
+            releaseMatch[1]
+        );
+
+
+    const releasePage =
+        `https://www.usgs.gov/data/mineral-commodity-summaries-${year}-data-release`;
+
+
+    const releaseResponse =
+        await fetch(
+            releasePage,
+            {
+                headers: {
+                    "Accept":
+                        "text/html,application/xhtml+xml",
+                    "User-Agent":
+                        WIKIMEDIA_USER_AGENT
+                }
+            }
+        );
+
+
+    if (
+        !releaseResponse.ok
+    ) {
+
+        throw new Error(
+            `USGS release page failed with status ${releaseResponse.status}.`
+        );
+
+    }
+
+
+    const releaseHtml =
+        await releaseResponse.text();
+
+
+    const doiMatch =
+        releaseHtml.match(
+            /https:\/\/doi\.org\/(10\.5066\/[A-Z0-9]+)/i
+        );
+
+
+    const doi =
+        doiMatch?.[1] ||
+        null;
+
+
+    let scienceBaseItemId =
+        null;
+
+
+    const directScienceBaseMatch =
+        releaseHtml.match(
+            /sciencebase\.gov\/catalog\/(?:item|file)\/(?:get\/)?([a-f0-9]{24})/i
+        );
+
+
+    scienceBaseItemId =
+        directScienceBaseMatch?.[1] ||
+        null;
+
+
+    try {
+
+        if (
+            doi
+        ) {
+
+            const doiResponse =
+                await fetch(
+                    `https://doi.org/${doi}`,
+                    {
+                        redirect:
+                            "follow",
+                        headers: {
+                            "Accept":
+                                "text/html,application/xhtml+xml",
+                            "User-Agent":
+                                WIKIMEDIA_USER_AGENT
+                        }
+                    }
+                );
+
+
+            const finalUrl =
+                doiResponse.url ||
+                "";
+
+            const finalHtml =
+                await doiResponse.text();
+
+
+            const itemIdMatch =
+                `${finalUrl}\n${finalHtml}`.match(
+                    /sciencebase\.gov\/catalog\/(?:item|file)\/([a-f0-9]{24})/i
+                );
+
+
+            scienceBaseItemId =
+                itemIdMatch?.[1] ||
+                null;
+
+        }
+
+    }
+    catch (error) {
+
+        console.warn(
+            "USGS ScienceBase item discovery failed:",
+            error
+        );
+
+    }
+
+
+    if (
+        !scienceBaseItemId &&
+        year === 2026
+    ) {
+
+        scienceBaseItemId =
+            "696a75d5d4be0228872d3bf8";
+
+    }
+
+
+    if (
+        !scienceBaseItemId
+    ) {
+
+        throw new Error(
+            "Unable to discover current USGS ScienceBase item ID."
+        );
+
+    }
+
+
+    const fileName =
+        `MCS${year}_Commodities_Data.csv`;
+
+
+    const fileUrl =
+        `${USGS_SCIENCEBASE_FILE_PREFIX}${scienceBaseItemId}?name=${encodeURIComponent(fileName)}`;
+
+
+    const result = {
+
+        year,
+
+        doi,
+
+        releasePage,
+
+        scienceBaseItemId,
+
+        fileName,
+
+        fileUrl,
+
+        source:
+            `U.S. Geological Survey, Mineral Commodity Summaries`,
+
+        license:
+            "CC0 1.0",
+
+        license_url:
+            USGS_LICENSE_URL,
+
+        attribution:
+            `Data: U.S. Geological Survey, Mineral Commodity Summaries ${year}, CC0 1.0`
+
+    };
+
+
+    await putTimestampedCache(
+        cache,
+        key,
+        new Response(
+            JSON.stringify(
+                result
+            ),
+            {
+                status:
+                    200,
+                headers: {
+                    "Content-Type":
+                        "application/json"
+                }
+            }
+        ),
+        USGS_CACHE_TTL
     );
+
+
+    return result;
+}
+
+
+function parseCSVText(
+    text
+) {
+
+    const rows = [];
+    let row = [];
+    let field = "";
+    let inQuotes = false;
+
+
+    for (
+        let i = 0;
+        i < text.length;
+        i += 1
+    ) {
+
+        const char =
+            text[i];
+
+
+        if (
+            inQuotes
+        ) {
+
+            if (
+                char === '"'
+            ) {
+
+                if (
+                    text[i + 1] === '"'
+                ) {
+
+                    field += '"';
+                    i += 1;
+
+                }
+                else {
+
+                    inQuotes =
+                        false;
+
+                }
+
+            }
+            else {
+
+                field +=
+                    char;
+
+            }
+
+            continue;
+
+        }
+
+
+        if (
+            char === '"'
+        ) {
+
+            inQuotes =
+                true;
+
+        }
+        else if (
+            char === ","
+        ) {
+
+            row.push(
+                field
+            );
+            field =
+                "";
+
+        }
+        else if (
+            char === "\n"
+        ) {
+
+            row.push(
+                field.replace(
+                    /\r$/,
+                    ""
+                )
+            );
+
+            rows.push(
+                row
+            );
+
+            row = [];
+            field =
+                "";
+
+        }
+        else {
+
+            field +=
+                char;
+
+        }
+
+    }
+
+
+    if (
+        field.length ||
+        row.length
+    ) {
+
+        row.push(
+            field.replace(
+                /\r$/,
+                ""
+            )
+        );
+
+        rows.push(
+            row
+        );
+
+    }
+
+
+    return rows;
+}
+
+
+async function fetchUSGSMultiSourceCSV(
+    cache,
+    release
+) {
+
+    const key =
+        new Request(
+            USGS_SOURCE_CACHE_KEY
+        );
+
+
+    const cached =
+        await getFreshCache(
+            cache,
+            key,
+            USGS_CACHE_TTL
+        );
+
+
+    if (
+        cached
+    ) {
+
+        return cached;
+
+    }
+
+
+    const response =
+        await fetch(
+            release.fileUrl,
+            {
+                headers: {
+                    "Accept":
+                        "text/csv,text/plain,*/*",
+                    "User-Agent":
+                        WIKIMEDIA_USER_AGENT
+                }
+            }
+        );
+
+
+    if (
+        !response.ok
+    ) {
+
+        throw new Error(
+            `USGS commodity CSV failed with status ${response.status}.`
+        );
+
+    }
+
+
+    return putTimestampedCache(
+        cache,
+        key,
+        new Response(
+            await response.arrayBuffer(),
+            {
+                status:
+                    response.status,
+                headers:
+                    response.headers
+            }
+        ),
+        USGS_CACHE_TTL
+    );
+}
+
+
+async function loadUSGSDatasetMultiSource(
+    cache
+) {
+
+    const release =
+        await getUSGSReleaseInfoMultiSource(
+            cache
+        );
+
+
+    const response =
+        await fetchUSGSMultiSourceCSV(
+            cache,
+            release
+        );
+
+
+    const buffer =
+        await response.arrayBuffer();
+
+
+    const text =
+        new TextDecoder(
+            "windows-1252"
+        ).decode(
+            buffer
+        );
+
+
+    const rows =
+        parseCSVText(
+            text
+        );
+
+
+    if (
+        rows.length < 2
+    ) {
+
+        throw new Error(
+            "USGS commodity CSV is empty."
+        );
+
+    }
+
+
+    const headers =
+        rows[0].map(
+            value =>
+                normalizeSearchText(
+                    value
+                )
+        );
+
+
+    const headerMap = {
+        commodity:
+            headers.findIndex(
+                value =>
+                    value ===
+                    "commodity"
+            ),
+        country:
+            headers.findIndex(
+                value =>
+                    value ===
+                    "country"
+            ),
+        statistics:
+            headers.findIndex(
+                value =>
+                    value ===
+                    "statistics"
+            ),
+        statisticsDetail:
+            headers.findIndex(
+                value =>
+                    value ===
+                    "statistics detail"
+            ),
+        unit:
+            headers.findIndex(
+                value =>
+                    value ===
+                    "unit"
+            ),
+        year:
+            headers.findIndex(
+                value =>
+                    value ===
+                    "year"
+            ),
+        value:
+            headers.findIndex(
+                value =>
+                    value ===
+                    "value"
+            ),
+        notes:
+            headers.findIndex(
+                value =>
+                    value ===
+                    "notes"
+            )
+    };
+
+
+    if (
+        headerMap.commodity < 0 ||
+        headerMap.statistics < 0 ||
+        headerMap.year < 0 ||
+        headerMap.value < 0 ||
+        headerMap.unit < 0
+    ) {
+
+        throw new Error(
+            "USGS CSV header layout is not recognized."
+        );
+
+    }
+
+
+    const candidateMap =
+        new Map();
+
+
+    for (
+        let i = 1;
+        i < rows.length;
+        i += 1
+    ) {
+
+        const row =
+            rows[i];
+
+        const commodity =
+            normalizeText(
+                row[
+                    headerMap.commodity
+                ]
+            );
+
+        const statistics =
+            normalizeText(
+                row[
+                    headerMap.statistics
+                ]
+            );
+
+        const statisticsDetail =
+            normalizeText(
+                row[
+                    headerMap.statisticsDetail
+                ]
+            );
+
+        const unit =
+            normalizeText(
+                row[
+                    headerMap.unit
+                ]
+            );
+
+        const year =
+            Number(
+                normalizeText(
+                    row[
+                        headerMap.year
+                    ]
+                )
+            );
+
+        const value =
+            parseDataNumber(
+                row[
+                    headerMap.value
+                ]
+            );
+
+        const country =
+            headerMap.country >= 0
+                ? normalizeText(
+                    row[
+                        headerMap.country
+                    ]
+                )
+                : "";
+
+        const notes =
+            headerMap.notes >= 0
+                ? normalizeText(
+                    row[
+                        headerMap.notes
+                    ]
+                )
+                : "";
+
+
+        if (
+            !commodity ||
+            value === null ||
+            !Number.isFinite(year) ||
+            !/price/i.test(
+                `${statistics} ${statisticsDetail}`
+            )
+        ) {
+            continue;
+        }
+
+
+        const normalizedUnit =
+            normalizePriceUnit(
+                unit
+            );
+
+
+        if (
+            !normalizedUnit ||
+            !/\$|dollar|cent|pound|kilogram|metric ton|ounce|barrel|carat|liter|cubic/i.test(
+                normalizedUnit
+            )
+        ) {
+            continue;
+        }
+
+
+        const key =
+            canonicalCommodityKey(
+                commodity
+            );
+
+
+        if (
+            !key
+        ) {
+            continue;
+        }
+
+
+        const previous =
+            candidateMap.get(
+                key
+            );
+
+
+        const candidate = {
+            commodity,
+            unit: normalizedUnit,
+            value,
+            year,
+            country,
+            notes,
+            statistics,
+            statisticsDetail
+        };
+
+
+        if (
+            !previous ||
+            year > previous.year ||
+            (
+                year === previous.year &&
+                /\bunited states\b/i.test(country) &&
+                !/\bunited states\b/i.test(previous.country || "")
+            )
+        ) {
+
+            candidateMap.set(
+                key,
+                candidate
+            );
+
+        }
+
+    }
+
+
+    const prices = [];
+
+
+    for (
+        const candidate of
+            candidateMap.values()
+    ) {
+
+        const category =
+            categorizeCommodity(
+                candidate.commodity
+            );
+
+
+        const record =
+            makeCommodityRecord({
+
+                codePrefix:
+                    "USGS",
+
+                name:
+                    candidate.commodity,
+
+                category,
+
+                sourceUnit:
+                    candidate.unit,
+
+                price:
+                    candidate.value,
+
+                previousPrice:
+                    null,
+
+                change:
+                    null,
+
+                period:
+                    periodToDate(
+                        String(
+                            candidate.year
+                        )
+                    ),
+
+                source:
+                    `U.S. Geological Survey, Mineral Commodity Summaries`,
+
+                sourceUrl:
+                    release.releasePage,
+
+                license:
+                    "CC0 1.0",
+
+                licenseUrl:
+                    USGS_LICENSE_URL,
+
+                attribution:
+                    release.attribution,
+
+                extra: {
+                    usgs_country:
+                        candidate.country || null,
+                    usgs_statistics:
+                        candidate.statistics || null,
+                    usgs_statistics_detail:
+                        candidate.statisticsDetail || null,
+                    usgs_notes:
+                        candidate.notes || null,
+                    usgs_release_year:
+                        release.year
+                }
+
+            });
+
+
+        if (
+            record
+        ) {
+
+            prices.push(
+                record
+            );
+
+        }
+
+    }
+
+
+    if (
+        !prices.length
+    ) {
+
+        throw new Error(
+            "USGS MCS contained no usable mineral price series."
+        );
+
+    }
+
+
+    return {
+
+        prices,
+
+        source:
+            "U.S. Geological Survey, Mineral Commodity Summaries",
+
+        source_url:
+            release.releasePage,
+
+        license:
+            "CC0 1.0",
+
+        license_url:
+            USGS_LICENSE_URL,
+
+        attribution:
+            release.attribution,
+
+        release_year:
+            release.year,
+
+        release_doi:
+            release.doi
+
+    };
+}
+
+
+/* =========================================================
+   EIA
+
+   EIA's current API requires a user API key. Worth It reads only
+   a small set of energy price series, keeping calls low and the
+   key server-side in Cloudflare.
+========================================================= */
+
+const EIA_PRICE_SERIES = [
+
+    {
+        id:
+            "PET.RWTC.D",
+        name:
+            "WTI Crude Oil",
+        unit:
+            "$/bbl"
+    },
+
+    {
+        id:
+            "PET.RBRTE.D",
+        name:
+            "Brent Crude Oil",
+        unit:
+            "$/bbl"
+    },
+
+    {
+        id:
+            "NG.RNGWHHD.D",
+        name:
+            "Natural Gas, U.S. Henry Hub",
+        unit:
+            "$/MMBtu"
+    },
+
+    {
+        id:
+            "PET.EMM_EPM0_PTE_NUS_DPG.W",
+        name:
+            "Gasoline, U.S. All Grades",
+        unit:
+            "$/gallon"
+    },
+
+    {
+        id:
+            "PET.EMD_EPD2D_PTE_NUS_DPG.W",
+        name:
+            "Diesel, U.S. No. 2",
+        unit:
+            "$/gallon"
+    },
+
+    {
+        id:
+            "PET.EMD_EPD2DXL0_PTE_NUS_DPG.W",
+        name:
+            "Diesel, U.S. Ultra Low Sulfur",
+        unit:
+            "$/gallon"
+    }
+
+];
+
+
+async function loadEIASeries(
+    cache,
+    env,
+    seriesInfo
+) {
+
+    const key =
+        new Request(
+            `${EIA_SOURCE_CACHE_PREFIX}${encodeURIComponent(seriesInfo.id)}.json`
+        );
+
+
+    const cached =
+        await getFreshCache(
+            cache,
+            key,
+            EIA_CACHE_TTL
+        );
+
+
+    if (
+        cached
+    ) {
+
+        return cached.json();
+
+    }
+
+
+    const apiKey =
+        String(
+            env?.EIA_API_KEY ||
+            ""
+        ).trim();
+
+
+    if (
+        !apiKey
+    ) {
+
+        return {
+            configured:
+                false,
+            series:
+                seriesInfo,
+            data:
+                []
+        };
+
+    }
+
+
+    const url =
+        new URL(
+            `${EIA_API_BASE}${encodeURIComponent(seriesInfo.id)}`
+        );
+
+
+    url.searchParams.set(
+        "api_key",
+        apiKey
+    );
+
+    url.searchParams.set(
+        "length",
+        "2"
+    );
+
+
+    const response =
+        await fetch(
+            url.href,
+            {
+                headers: {
+                    "Accept":
+                        "application/json",
+                    "User-Agent":
+                        WIKIMEDIA_USER_AGENT
+                }
+            }
+        );
+
+
+    if (
+        !response.ok
+    ) {
+
+        throw new Error(
+            `EIA series ${seriesInfo.id} failed with status ${response.status}.`
+        );
+
+    }
+
+
+    const payload =
+        await response.json();
+
+    const root =
+        payload?.response ||
+        payload;
+
+    const rows =
+        Array.isArray(
+            root?.data
+        )
+            ? root.data
+            : [];
+
+
+    const result = {
+        configured:
+            true,
+        series:
+            seriesInfo,
+        data:
+            rows
+    };
+
+
+    await putTimestampedCache(
+        cache,
+        key,
+        new Response(
+            JSON.stringify(
+                result
+            ),
+            {
+                status:
+                    200,
+                headers: {
+                    "Content-Type":
+                        "application/json"
+                }
+            }
+        ),
+        EIA_CACHE_TTL
+    );
+
+
+    return result;
+}
+
+
+async function loadEIADataset(
+    cache,
+    env
+) {
+
+    const apiKey =
+        String(
+            env?.EIA_API_KEY ||
+            ""
+        ).trim();
+
+
+    if (
+        !apiKey
+    ) {
+
+        return {
+
+            prices: [],
+
+            source:
+                "U.S. Energy Information Administration",
+
+            source_url:
+                EIA_DATA_PAGE,
+
+            license:
+                "Public domain",
+
+            license_url:
+                "https://www.eia.gov/about/copyrights_reuse.php",
+
+            attribution:
+                "Source: U.S. Energy Information Administration",
+
+            configured:
+                false
+
+        };
+
+    }
+
+
+    const results =
+        await Promise.all(
+            EIA_PRICE_SERIES.map(
+                seriesInfo =>
+                    loadEIASeries(
+                        cache,
+                        env,
+                        seriesInfo
+                    )
+            )
+        );
+
+
+    const prices = [];
+
+
+    for (
+        const result of
+            results
+    ) {
+
+        const rows =
+            Array.isArray(
+                result?.data
+            )
+                ? result.data
+                : [];
+
+
+        if (
+            !rows.length
+        ) {
+            continue;
+        }
+
+
+        const sorted =
+            [...rows].sort(
+                (a, b) =>
+                    String(
+                        a?.period ||
+                        ""
+                    ).localeCompare(
+                        String(
+                            b?.period ||
+                            ""
+                        )
+                    )
+            );
+
+
+        const latest =
+            sorted[
+                sorted.length - 1
+            ];
+
+        const previous =
+            sorted.length > 1
+                ? sorted[
+                    sorted.length - 2
+                ]
+                : null;
+
+        const price =
+            parseDataNumber(
+                latest?.value
+            );
+
+        const previousPrice =
+            parseDataNumber(
+                previous?.value
+            );
+
+
+        if (
+            price === null
+        ) {
+            continue;
+        }
+
+
+        const parsedPeriod =
+            periodToDate(
+                latest?.period
+            );
+
+
+        const previousParsedPeriod =
+            periodToDate(
+                previous?.period
+            );
+
+
+        const change =
+            previousPrice !== null &&
+            previousPrice !== 0
+                ? (
+                    (price - previousPrice) /
+                    previousPrice
+                ) * 100
+                : null;
+
+
+        const record =
+            makeCommodityRecord({
+
+                codePrefix:
+                    "EIA",
+
+                name:
+                    result.series.name,
+
+                category:
+                    "energy",
+
+                sourceUnit:
+                    result.series.unit,
+
+                price,
+
+                previousPrice,
+
+                change,
+
+                period:
+                    parsedPeriod,
+
+                source:
+                    "U.S. Energy Information Administration",
+
+                sourceUrl:
+                    EIA_DATA_PAGE,
+
+                license:
+                    "Public domain",
+
+                licenseUrl:
+                    "https://www.eia.gov/about/copyrights_reuse.php",
+
+                attribution:
+                    "Source: U.S. Energy Information Administration",
+
+                extra: {
+                    eia_series_id:
+                        result.series.id,
+                    eia_previous_period:
+                        previousParsedPeriod
+                            ? previousParsedPeriod.period
+                            : null
+                }
+
+            });
+
+
+        if (
+            record
+        ) {
+
+            prices.push(
+                record
+            );
+
+        }
+
+    }
+
+
+    return {
+
+        prices,
+
+        source:
+            "U.S. Energy Information Administration",
+
+        source_url:
+            EIA_DATA_PAGE,
+
+        license:
+            "Public domain",
+
+        license_url:
+            "https://www.eia.gov/about/copyrights_reuse.php",
+
+        attribution:
+            "Source: U.S. Energy Information Administration",
+
+        configured:
+            true
+
+    };
+}
+
+
+/* =========================================================
+   USDA NASS
+
+   Quick Stats contains price-received observations for agriculture.
+   The API is called only server-side and only when
+   USDA_NASS_API_KEY is configured.
+========================================================= */
+
+async function loadUSDANASSDataset(
+    cache,
+    env
+) {
+
+    const apiKey =
+        String(
+            env?.USDA_NASS_API_KEY ||
+            ""
+        ).trim();
+
+
+    if (
+        !apiKey
+    ) {
+
+        return {
+
+            prices: [],
+
+            source:
+                "USDA National Agricultural Statistics Service",
+
+            source_url:
+                USDA_NASS_DATA_PAGE,
+
+            license:
+                "Public domain",
+
+            license_url:
+                USDA_NASS_DATA_PAGE,
+
+            attribution:
+                "Source: USDA National Agricultural Statistics Service (NASS)",
+
+            configured:
+                false
+
+        };
+
+    }
+
+
+    const key =
+        new Request(
+            USDA_NASS_SOURCE_CACHE_KEY
+        );
+
+
+    const cached =
+        await getFreshCache(
+            cache,
+            key,
+            USDA_NASS_CACHE_TTL
+        );
+
+
+    if (
+        cached
+    ) {
+
+        return cached.json();
+
+    }
+
+
+    const url =
+        new URL(
+            USDA_NASS_API_URL
+        );
+
+
+    const params = {
+
+        key:
+            apiKey,
+
+        source_desc:
+            "SURVEY",
+
+        sector_desc:
+            "ECONOMICS",
+
+        statisticcat_desc:
+            "PRICE RECEIVED",
+
+        agg_level_desc:
+            "NATIONAL",
+
+        year__GE:
+            String(
+                new Date().getUTCFullYear() - 2
+            ),
+
+        format:
+            "JSON"
+
+    };
+
+
+    for (
+        const [name, value] of
+            Object.entries(
+                params
+            )
+    ) {
+
+        url.searchParams.set(
+            name,
+            value
+        );
+
+    }
+
+
+    const response =
+        await fetch(
+            url.href,
+            {
+                headers: {
+                    "Accept":
+                        "application/json",
+                    "User-Agent":
+                        WIKIMEDIA_USER_AGENT
+                }
+            }
+        );
+
+
+    if (
+        !response.ok
+    ) {
+
+        throw new Error(
+            `USDA NASS Quick Stats request failed with status ${response.status}.`
+        );
+
+    }
+
+
+    const payload =
+        await response.json();
+
+
+    const rows =
+        Array.isArray(
+            payload?.data
+        )
+            ? payload.data
+            : [];
+
+
+    if (
+        !rows.length
+    ) {
+
+        return {
+
+            prices: [],
+
+            source:
+                "USDA National Agricultural Statistics Service",
+
+            source_url:
+                USDA_NASS_DATA_PAGE,
+
+            license:
+                "Public domain",
+
+            license_url:
+                USDA_NASS_DATA_PAGE,
+
+            attribution:
+                "Source: USDA National Agricultural Statistics Service (NASS)",
+
+            configured:
+                true
+
+        };
+
+    }
+
+
+    const seriesMap =
+        new Map();
+
+
+    for (
+        const row of
+            rows
+    ) {
+
+        const commodity =
+            normalizeText(
+                row?.commodity_desc
+            );
+
+        const classDesc =
+            normalizeText(
+                row?.class_desc
+            );
+
+        const unit =
+            normalizePriceUnit(
+                row?.unit_desc
+            );
+
+        const value =
+            parseDataNumber(
+                row?.value
+            );
+
+        const period =
+            getNassPeriodInfo(
+                row?.year,
+                row?.reference_period_desc
+            );
+
+
+        if (
+            !commodity ||
+            value === null ||
+            !unit ||
+            !period
+        ) {
+            continue;
+        }
+
+
+        if (
+            !/price received/i.test(
+                normalizeText(
+                    row?.statisticcat_desc
+                )
+            )
+        ) {
+            continue;
+        }
+
+
+        if (
+            !/\$|dollar|cent/i.test(
+                unit
+            )
+        ) {
+            continue;
+        }
+
+
+        let name =
+            commodity;
+
+
+        if (
+            classDesc &&
+            !/^all\s*classes?$/i.test(
+                classDesc
+            ) &&
+            !/^all$/i.test(
+                classDesc
+            )
+        ) {
+
+            name =
+                `${commodity} — ${classDesc}`;
+
+        }
+
+
+        const keyName =
+            canonicalCommodityKey(
+                commodity
+            );
+
+        const seriesKey =
+            `${keyName}|${normalizeSearchText(classDesc)}|${unit}`;
+
+
+        const existing =
+            seriesMap.get(
+                seriesKey
+            );
+
+
+        const candidate = {
+            name,
+            commodity,
+            unit,
+            value,
+            period,
+            classDesc,
+            row
+        };
+
+
+        if (
+            !existing ||
+            candidate.period.timestamp >
+                existing.period.timestamp
+        ) {
+
+            seriesMap.set(
+                seriesKey,
+                candidate
+            );
+
+        }
+
+    }
+
+
+    const byCommodity =
+        new Map();
+
+
+    for (
+        const candidate of
+            seriesMap.values()
+    ) {
+
+        const commodityKey =
+            canonicalCommodityKey(
+                candidate.commodity
+            );
+
+        const existing =
+            byCommodity.get(
+                commodityKey
+            );
+
+
+        if (
+            !existing ||
+            candidate.period.timestamp >
+                existing.period.timestamp
+        ) {
+
+            byCommodity.set(
+                commodityKey,
+                candidate
+            );
+
+        }
+
+    }
+
+
+    const prices = [];
+
+
+    for (
+        const candidate of
+            byCommodity.values()
+    ) {
+
+        const category =
+            categorizeCommodity(
+                candidate.name
+            );
+
+
+        const record =
+            makeCommodityRecord({
+
+                codePrefix:
+                    "NASS",
+
+                name:
+                    candidate.name,
+
+                category,
+
+                sourceUnit:
+                    candidate.unit,
+
+                price:
+                    candidate.value,
+
+                previousPrice:
+                    null,
+
+                change:
+                    null,
+
+                period:
+                    candidate.period,
+
+                source:
+                    "USDA National Agricultural Statistics Service",
+
+                sourceUrl:
+                    USDA_NASS_DATA_PAGE,
+
+                license:
+                    "Public domain",
+
+                licenseUrl:
+                    USDA_NASS_DATA_PAGE,
+
+                attribution:
+                    "Source: USDA National Agricultural Statistics Service (NASS)",
+
+                extra: {
+                    usda_class:
+                        candidate.classDesc || null
+                }
+
+            });
+
+
+        if (
+            record
+        ) {
+
+            prices.push(
+                record
+            );
+
+        }
+
+    }
+
+
+    const result = {
+
+        prices,
+
+        source:
+            "USDA National Agricultural Statistics Service",
+
+        source_url:
+            USDA_NASS_DATA_PAGE,
+
+        license:
+            "Public domain",
+
+        license_url:
+            USDA_NASS_DATA_PAGE,
+
+        attribution:
+            "Source: USDA National Agricultural Statistics Service (NASS)",
+
+        configured:
+            true
+
+    };
+
+
+    await putTimestampedCache(
+        cache,
+        key,
+        new Response(
+            JSON.stringify(
+                result
+            ),
+            {
+                status:
+                    200,
+                headers: {
+                    "Content-Type":
+                        "application/json"
+                }
+            }
+        ),
+        USDA_NASS_CACHE_TTL
+    );
+
+
+    return result;
+}
+
+
+/* =========================================================
+   COMMODITY DEDUPLICATION
+========================================================= */
+
+const COMMODITY_ALIASES = new Map([
+
+    [
+        "aluminium",
+        "aluminum"
+    ],
+
+    [
+        "maize",
+        "corn"
+    ],
+
+    [
+        "corn maize",
+        "corn"
+    ],
+
+    [
+        "soy bean",
+        "soybean"
+    ],
+
+    [
+        "soy beans",
+        "soybeans"
+    ],
+
+    [
+        "brent crude",
+        "crude oil brent"
+    ],
+
+    [
+        "brent crude oil",
+        "crude oil brent"
+    ],
+
+    [
+        "wti crude",
+        "crude oil wti"
+    ],
+
+    [
+        "wti crude oil",
+        "crude oil wti"
+    ],
+
+    [
+        "iron ore cfr spot",
+        "iron ore"
+    ],
+
+    [
+        "gold london",
+        "gold"
+    ],
+
+    [
+        "gold uk",
+        "gold"
+    ],
+
+    [
+        "natural gas us",
+        "natural gas u s"
+    ],
+
+    [
+        "natural gas u s",
+        "natural gas u s"
+    ]
+
+]);
+
+
+function canonicalCommodityKey(
+    name
+) {
+
+    let value =
+        normalizeSearchText(
+            name
+        )
+            .replace(
+                /\bcommodity\b/g,
+                ""
+            )
+            .replace(
+                /\bprice(s)?\b/g,
+                ""
+            )
+            .replace(
+                /\s+/g,
+                " "
+            )
+            .trim();
+
+
+    if (
+        !value
+    ) {
+
+        return "";
+
+    }
+
+
+    value =
+        COMMODITY_ALIASES.get(
+            value
+        ) ||
+        value;
+
+
+    if (
+        /^crude oil brent\b/.test(
+            value
+        ) ||
+        /^brent crude oil\b/.test(
+            value
+        )
+    ) {
+
+        value =
+            "crude oil brent";
+
+    }
+
+
+    if (
+        /^crude oil wti\b/.test(
+            value
+        ) ||
+        /^wti crude oil\b/.test(
+            value
+        )
+    ) {
+
+        value =
+            "crude oil wti";
+
+    }
+
+
+    return value;
+}
+
+
+function getRecordPeriodTimestamp(
+    record
+) {
+
+    const period =
+        periodToDate(
+            record?.data_period
+        );
+
+
+    return period?.timestamp ||
+        (
+            record?.updated_at
+                ? Date.parse(
+                    record.updated_at
+                )
+                : 0
+        ) ||
+        0;
+}
+
+
+function sourcePriority(
+    source
+) {
+
+    const value =
+        normalizeSearchText(
+            source
+        );
+
+
+    if (
+        value.includes(
+            "energy information administration"
+        )
+    ) {
+
+        return 500;
+
+    }
+
+
+    if (
+        value.includes(
+            "national agricultural statistics service"
+        )
+    ) {
+
+        return 450;
+
+    }
+
+
+    if (
+        value.includes(
+            "world bank"
+        )
+    ) {
+
+        return 400;
+
+    }
+
+
+    if (
+        value.includes(
+            "geological survey"
+        ) ||
+        value.includes(
+            "usgs"
+        )
+    ) {
+
+        return 350;
+
+    }
+
+
+    if (
+        value.includes(
+            "voltlas"
+        )
+    ) {
+
+        return 300;
+
+    }
+
+
+    return 100;
+}
+
+
+function recordsShouldReplace(
+    existing,
+    candidate
+) {
+
+    const existingTimestamp =
+        getRecordPeriodTimestamp(
+            existing
+        );
+
+
+    const candidateTimestamp =
+        getRecordPeriodTimestamp(
+            candidate
+        );
+
+
+    if (
+        candidateTimestamp !==
+        existingTimestamp
+    ) {
+
+        return candidateTimestamp >
+            existingTimestamp;
+
+    }
+
+
+    const candidateSourcePriority =
+        sourcePriority(
+            candidate.source
+        );
+
+
+    const existingSourcePriority =
+        sourcePriority(
+            existing.source
+        );
+
+
+    if (
+        candidateSourcePriority !==
+        existingSourcePriority
+    ) {
+
+        return candidateSourcePriority >
+            existingSourcePriority;
+
+    }
+
+
+    const candidateChange =
+        Number(
+            candidate?.changes?.monthly?.percent
+        );
+
+
+    const existingChange =
+        Number(
+            existing?.changes?.monthly?.percent
+        );
+
+
+    if (
+        Number.isFinite(
+            candidateChange
+        ) &&
+        !Number.isFinite(
+            existingChange
+        )
+    ) {
+
+        return true;
+
+    }
+
+
+    return false;
+}
+
+
+function deduplicateCommodityRecords(
+    records
+) {
+
+    const map =
+        new Map();
+
+
+    for (
+        const record of
+            records
+    ) {
+
+        const key =
+            canonicalCommodityKey(
+                record?.name
+            );
+
+
+        if (
+            !key
+        ) {
+            continue;
+        }
+
+
+        const existing =
+            map.get(
+                key
+            );
+
+
+        if (
+            !existing ||
+            recordsShouldReplace(
+                existing,
+                record
+            )
+        ) {
+
+            map.set(
+                key,
+                record
+            );
+
+        }
+
+    }
+
+
+    return [
+        ...map.values()
+    ];
+}
+
+
+/* =========================================================
+   FINAL MULTI-SOURCE DATASET
+========================================================= */
+
+async function buildCombinedMarketsDataset(
+    context
+) {
+
+    const cache =
+        caches.default;
+
+    const sourceTasks = [
+
+        {
+            name:
+                "World Bank Commodity Prices",
+            promise:
+                loadWorldBankMultiSourceDataset(
+                    cache
+                )
+        },
+
+        {
+            name:
+                "U.S. Geological Survey, Mineral Commodity Summaries",
+            promise:
+                loadUSGSDatasetMultiSource(
+                    cache
+                )
+        },
+
+        {
+            name:
+                "U.S. Energy Information Administration",
+            promise:
+                loadEIADataset(
+                    cache,
+                    context?.env || {}
+                )
+        },
+
+        {
+            name:
+                "USDA National Agricultural Statistics Service",
+            promise:
+                loadUSDANASSDataset(
+                    cache,
+                    context?.env || {}
+                )
+        },
+
+        {
+            name:
+                "Voltlas Open Data",
+            promise:
+                loadVoltlasDataset(
+                    cache
+                )
+        }
+
+    ];
+
+
+    const settled =
+        await Promise.allSettled(
+            sourceTasks.map(
+                source =>
+                    source.promise
+            )
+        );
+
+
+    const datasets = [];
+    const status = [];
+    const errors = [];
+
+
+    for (
+        let i = 0;
+        i < settled.length;
+        i += 1
+    ) {
+
+        const result =
+            settled[i];
+
+        const task =
+            sourceTasks[i];
+
+
+        if (
+            result.status ===
+            "fulfilled"
+        ) {
+
+            datasets.push(
+                result.value
+            );
+
+            status.push({
+                source:
+                    task.name,
+                ok:
+                    true,
+                configured:
+                    result.value?.configured !== false,
+                count:
+                    Array.isArray(
+                        result.value?.prices
+                    )
+                        ? result.value.prices.length
+                        : 0,
+                error:
+                    null
+            });
+
+        }
+        else {
+
+            const message =
+                result.reason?.message ||
+                String(
+                    result.reason
+                );
+
+            errors.push(
+                `${task.name}: ${message}`
+            );
+
+            status.push({
+                source:
+                    task.name,
+                ok:
+                    false,
+                configured:
+                    true,
+                count:
+                    0,
+                error:
+                    message
+            });
+
+        }
+
+    }
+
+
+    const rawRecords =
+        datasets.flatMap(
+            dataset =>
+                Array.isArray(
+                    dataset?.prices
+                )
+                    ? dataset.prices
+                    : []
+        );
+
+
+    if (
+        !rawRecords.length
+    ) {
+
+        throw new Error(
+            "No commodity source returned usable price records."
+        );
+
+    }
+
+
+    const mergedRecords =
+        deduplicateCommodityRecords(
+            rawRecords
+        );
+
+
+    mergedRecords.sort(
+        sortCommodities
+    );
+
+
+    const limited =
+        mergedRecords.slice(
+            0,
+            MAX_COMMODITIES
+        );
+
+
+    const periodCandidates =
+        limited
+            .map(
+                item =>
+                    periodToDate(
+                        item?.data_period
+                    )
+            )
+            .filter(Boolean)
+            .sort(
+                (a, b) =>
+                    a.timestamp -
+                    b.timestamp
+            );
+
+
+    const latestPeriod =
+        periodCandidates.length
+            ? periodCandidates[
+                periodCandidates.length - 1
+            ].period
+            : null;
+
+
+    const sourceCounts = {};
+
+    for (
+        const item of
+            limited
+    ) {
+
+        sourceCounts[item.source] =
+            (
+                sourceCounts[item.source] ||
+                0
+            ) +
+            1;
+
+    }
+
+
+    const categorySources = {};
+
+    for (
+        const category of
+            Object.keys(
+                CATEGORY_INFO
+            )
+    ) {
+
+        if (
+            category ===
+            "all"
+        ) {
+            continue;
+        }
+
+        categorySources[category] =
+            CATEGORY_SOURCE_MAP[
+                category
+            ] || [];
+
+    }
+
+
+    return {
+
+        prices:
+            limited,
+
+        latest_period:
+            latestPeriod,
+
+        commodity_count:
+            limited.length,
+
+        source_commodity_count:
+            mergedRecords.length,
+
+        raw_source_record_count:
+            rawRecords.length,
+
+        source_counts:
+            sourceCounts,
+
+        source_status:
+            status,
+
+        errors,
+
+        category_sources:
+            categorySources,
+
+        max_commodities:
+            MAX_COMMODITIES,
+
+        source:
+            "Worth It Multi-Source Commodity Data",
+
+        sources:
+            datasets.map(
+                dataset => ({
+
+                    source:
+                        dataset.source,
+
+                    source_url:
+                        dataset.source_url,
+
+                    license:
+                        dataset.license,
+
+                    license_url:
+                        dataset.license_url,
+
+                    attribution:
+                        dataset.attribution,
+
+                    configured:
+                        dataset.configured !== false
+
+                })
+            ),
+
+        license_notes: [
+
+            "World Bank Commodity Prices: CC BY 4.0.",
+
+            "USGS Mineral Commodity Summaries: CC0 1.0.",
+
+            "EIA U.S. government data used here: public domain, subject to EIA reuse policy and attribution.",
+
+            "USDA NASS public-domain information is freely reproducible with appropriate USDA-NASS acknowledgment.",
+
+            "Voltlas Open Data: CC BY 4.0.",
+
+            "Wikimedia Commons images are independently filtered by each file's own license metadata."
+
+        ]
+
+    };
 }
 
 
@@ -1893,14 +6553,8 @@ function getMetadataValue(
         extmetadata?.[key]?.value;
 
 
-    return normalizeText(
-        String(
-            value || ""
-        )
-            .replace(
-                /<[^>]*>/g,
-                " "
-            )
+    return stripHtml(
+        value
     );
 }
 
@@ -1932,11 +6586,7 @@ function buildCommoditySearchTokens(
 
             "u",
 
-            "s",
-
-            "crude",
-
-            "oil"
+            "s"
 
         ]);
 
@@ -1986,233 +6636,6 @@ function buildCommoditySearchTokens(
             tokens
         )
     ];
-}
-
-
-function getCommodityBaseName(
-    commodityName
-) {
-
-    return normalizeText(
-        String(
-            commodityName ||
-                ""
-        )
-            .split(",")[0]
-    );
-}
-
-
-function getCommodityCoreTokens(
-    commodityName
-) {
-
-    const stopWords =
-        new Set([
-
-            "the",
-
-            "of",
-
-            "and",
-
-            "average",
-
-            "avg",
-
-            "index",
-
-            "price",
-
-            "prices",
-
-            "us",
-
-            "u",
-
-            "s",
-
-            "uk",
-
-            "eu",
-
-            "europe",
-
-            "crude",
-
-            "oil"
-
-        ]);
-
-
-    const tokens =
-        normalizeSearchText(
-            getCommodityBaseName(
-                commodityName
-            )
-        )
-            .split(" ")
-            .filter(
-                token =>
-                    token.length >= 3 &&
-                    !stopWords.has(
-                        token
-                    )
-            );
-
-
-    return [
-        ...new Set(
-            tokens
-        )
-    ];
-}
-
-
-function hasCompoundCommodityMatch(
-    text,
-    commodityName
-) {
-
-    const coreTokens =
-        getCommodityCoreTokens(
-            commodityName
-        );
-
-
-    if (
-        !coreTokens.length
-    ) {
-
-        return false;
-
-    }
-
-
-    const normalizedWords =
-        normalizeSearchText(
-            text
-        )
-            .split(" ")
-            .filter(Boolean);
-
-
-    return coreTokens.every(
-        token => {
-
-            if (
-                token ===
-                    "aluminum" ||
-                token ===
-                    "aluminium"
-            ) {
-
-                return (
-                    normalizedWords.includes(
-                        "aluminum"
-                    ) ||
-                    normalizedWords.includes(
-                        "aluminium"
-                    )
-                );
-
-            }
-
-
-            return normalizedWords.includes(
-                token
-            );
-
-        }
-    );
-}
-
-
-function hasPersonOrBiographicalContext(
-    text
-) {
-
-    const normalizedText =
-        normalizeSearchText(
-            text
-        );
-
-
-    return /\b(portrait|headshot|biography|biographical|person|people|man|woman|boy|girl|actor|actress|singer|musician|politician|professor|historian|journalist|photographer|author|writer|born|died)\b/
-        .test(
-            normalizedText
-        );
-}
-
-
-function hasContextConflict(
-    searchableText,
-    commodityName
-) {
-
-    const text =
-        normalizeSearchText(
-            searchableText
-        );
-
-
-    const baseName =
-        normalizeSearchText(
-            getCommodityBaseName(
-                commodityName
-            )
-        );
-
-
-    const conflictRules = [
-
-        {
-            commodity:
-                /\bcoffee\b/,
-            conflict:
-                /\b(coffee machine|coffee maker|espresso machine|coffee grinder)\b/
-        },
-
-        {
-            commodity:
-                /\btea\b/,
-            conflict:
-                /\b(teacup|tea cup|tea set|tea service)\b/
-        },
-
-        {
-            commodity:
-                /\bpalm oil\b/,
-            conflict:
-                /\bpalm tree(s)?\b/
-        },
-
-        {
-            commodity:
-                /\bcotton\b/,
-            conflict:
-                /\b(cotton swab|cotton bud|t shirt|tshirt|shirt|clothing|garment)\b/
-        },
-
-        {
-            commodity:
-                /\bcocoa\b/,
-            conflict:
-                /\b(chocolate bar|candy bar|wrapper|confectionery)\b/
-        }
-
-    ];
-
-
-    return conflictRules.some(
-        rule =>
-            rule.commodity.test(
-                baseName
-            ) &&
-            rule.conflict.test(
-                text
-            )
-    );
 }
 
 
@@ -2290,28 +6713,24 @@ function hasRelevantTextMatch(
                 );
 
 
-            if (
-                !normalizedToken
-            ) {
+            if (!normalizedToken) {
 
                 return false;
 
             }
 
 
-            return (
-                normalizedText
-                    .split(" ")
-                    .some(
-                        word =>
-                            word ===
-                            normalizedToken
-                    ) ||
+            return normalizedText
+                .split(" ")
+                .some(
+                    word =>
+                        word ===
+                        normalizedToken
+                ) ||
 
                 normalizedText.includes(
                     normalizedToken
-                )
-            );
+                );
 
         }
     );
@@ -2329,9 +6748,7 @@ function isDisallowedImageDescription(
 
 
     return /\b(logo|icon|map|diagram|chart|graph|flag|coat of arms|symbol|screenshot|poster|book cover)\b/
-        .test(
-            text
-        );
+        .test(text);
 }
 
 
@@ -2342,6 +6759,23 @@ function isDisallowedImageDescription(
 function getLicenseKind(
     extmetadata
 ) {
+
+    /*
+     * normalizeSearchText() converts:
+     *
+     *   CC BY-SA
+     * into
+     *   cc by sa
+     *
+     * and:
+     *
+     *   CC BY-NC
+     * into
+     *   cc by nc
+     *
+     * Therefore the license checks below intentionally use
+     * the normalized forms.
+     */
 
     const license =
         normalizeSearchText(
@@ -2364,8 +6798,28 @@ function getLicenseKind(
         );
 
 
+    if (!license) {
+
+        return null;
+
+    }
+
+
+    /*
+     * Non-commercial and no-derivatives licenses are not
+     * accepted for the site's commercial use case.
+     */
+
     if (
-        !license
+        /\bcc by nc\b/.test(license) ||
+        /\bcreative commons attribution noncommercial\b/.test(license) ||
+        /\bnoncommercial\b/.test(license) ||
+        /\bnon commercial\b/.test(license) ||
+
+        /\bcc by nd\b/.test(license) ||
+        /\bcreative commons attribution noderivatives\b/.test(license) ||
+        /\bno derivatives\b/.test(license) ||
+        /\bno derivatives\b/.test(license)
     ) {
 
         return null;
@@ -2374,54 +6828,10 @@ function getLicenseKind(
 
 
     if (
-        /\bcc by nc\b/.test(
-            license
-        ) ||
-
-        /\bcreative commons attribution noncommercial\b/
-            .test(
-                license
-            ) ||
-
-        /\bnoncommercial\b/.test(
-            license
-        ) ||
-
-        /\bnon commercial\b/.test(
-            license
-        ) ||
-
-        /\bcc by nd\b/.test(
-            license
-        ) ||
-
-        /\bcreative commons attribution noderivatives\b/
-            .test(
-                license
-            ) ||
-
-        /\bno derivatives\b/.test(
-            license
-        )
-    ) {
-
-        return null;
-
-    }
-
-
-    if (
-        /\bcc0\b/.test(
-            license
-        ) ||
-
-        /\bpublic domain\b/.test(
-            license
-        ) ||
-
-        /\bpd\b/.test(
-            license
-        )
+        /\bcc0\b/.test(license) ||
+        /\bpublic domain\b/.test(license) ||
+        /\bpublic domain\b/.test(license) ||
+        /\bpd\b/.test(license)
     ) {
 
         return "Public Domain / CC0";
@@ -2430,19 +6840,9 @@ function getLicenseKind(
 
 
     if (
-        /\bcc by sa\b/.test(
-            license
-        ) ||
-
-        /\bcreative commons attribution sharealike\b/
-            .test(
-                license
-            ) ||
-
-        /\bcreative commons attribution share alike\b/
-            .test(
-                license
-            )
+        /\bcc by sa\b/.test(license) ||
+        /\bcreative commons attribution sharealike\b/.test(license) ||
+        /\bcreative commons attribution share alike\b/.test(license)
     ) {
 
         return "CC BY-SA";
@@ -2451,13 +6851,8 @@ function getLicenseKind(
 
 
     if (
-        /\bcc by\b/.test(
-            license
-        ) ||
-
-        /\bcreative commons attribution\b/.test(
-            license
-        )
+        /\bcc by\b/.test(license) ||
+        /\bcreative commons attribution\b/.test(license)
     ) {
 
         return "CC BY";
@@ -2466,117 +6861,6 @@ function getLicenseKind(
 
 
     return null;
-}
-
-
-function hasCommodityFilenameMatch(
-    url,
-    commodityName
-) {
-
-    const fileName =
-        (() => {
-
-            try {
-
-                const parsed =
-                    new URL(
-                        String(
-                            url ||
-                                ""
-                        )
-                    );
-
-
-                const parts =
-                    parsed.pathname
-                        .split("/")
-                        .filter(Boolean);
-
-
-                return parts.length
-                    ? decodeURIComponent(
-                        parts[
-                            parts.length - 1
-                        ]
-                    )
-                    : "";
-
-            }
-            catch {
-
-                return String(
-                    url ||
-                        ""
-                )
-                    .split("?")[0]
-                    .split("#")[0]
-                    .split("/")
-                    .filter(Boolean)
-                    .pop() ||
-                    "";
-
-            }
-
-        })();
-
-
-    const fileStem =
-        normalizeSearchText(
-            fileName
-                .replace(
-                    /\.[a-z0-9]{2,5}$/i,
-                    ""
-                )
-        );
-
-
-    const coreTokens =
-        getCommodityCoreTokens(
-            commodityName
-        );
-
-
-    if (
-        !fileStem ||
-        !coreTokens.length
-    ) {
-
-        return false;
-
-    }
-
-
-    return coreTokens.every(
-        token => {
-
-            if (
-                token ===
-                    "aluminum" ||
-                token ===
-                    "aluminium"
-            ) {
-
-                return (
-                    fileStem.includes(
-                        "aluminum"
-                    ) ||
-                    fileStem.includes(
-                        "aluminium"
-                    )
-                );
-
-            }
-
-
-            return fileStem.includes(
-                simplifySearchText(
-                    token
-                )
-            );
-
-        }
-    );
 }
 
 
@@ -2630,7 +6914,7 @@ function buildKnownLicenseUrl(
 
     if (
         licenseKind ===
-            "Public Domain / CC0" &&
+        "Public Domain / CC0" &&
         /\bcc0\b/.test(
             normalizedLicense
         )
@@ -2652,7 +6936,7 @@ function candidateIsUsable(
 ) {
 
     const title =
-        normalizeText(
+        stripHtml(
             candidate?.title
         );
 
@@ -2713,66 +6997,13 @@ function candidateIsUsable(
     }
 
 
-    const width =
-        Number(
-            imageInfo?.width
-        ) ||
-        0;
-
-
-    const height =
-        Number(
-            imageInfo?.height
-        ) ||
-        0;
-
-
-    const pixelCount =
-        width *
-        height;
-
-
-    if (
-        width <
-            MIN_IMAGE_WIDTH ||
-        height <
-            MIN_IMAGE_HEIGHT ||
-        pixelCount <
-            MIN_IMAGE_PIXELS
-    ) {
-
-        return null;
-
-    }
-
-
-    const aspectRatio =
-        height > 0
-            ? width / height
-            : 0;
-
-
-    if (
-        aspectRatio >
-            4.5 ||
-        aspectRatio <
-            (1 / 4.5)
-    ) {
-
-        return null;
-
-    }
-
-
     const tokens =
         buildCommoditySearchTokens(
             commodityName
         );
 
 
-    if (
-        !tokens.length
-    ) {
+    if (!tokens.length) {
 
         return null;
 
@@ -2804,45 +7035,18 @@ function candidateIsUsable(
             .join(" ");
 
 
+    /*
+     * The image metadata itself must contain at least one
+     * relevant commodity token.
+     *
+     * This replaces the previous requirement that the token
+     * had to exist in the actual CDN image URL.
+     */
+
     if (
         !hasRelevantTextMatch(
             searchableText,
             tokens
-        )
-    ) {
-
-        return null;
-
-    }
-
-
-    if (
-        !hasCompoundCommodityMatch(
-            searchableText,
-            commodityName
-        )
-    ) {
-
-        return null;
-
-    }
-
-
-    if (
-        hasContextConflict(
-            `${title} ${searchableText}`,
-            commodityName
-        )
-    ) {
-
-        return null;
-
-    }
-
-
-    if (
-        hasPersonOrBiographicalContext(
-            `${title} ${searchableText}`
         )
     ) {
 
@@ -2868,9 +7072,7 @@ function candidateIsUsable(
         );
 
 
-    if (
-        !licenseKind
-    ) {
+    if (!licenseKind) {
 
         return null;
 
@@ -2899,7 +7101,7 @@ function candidateIsUsable(
 
 
     const explicitLicenseUrl =
-        normalizeText(
+        stripHtml(
             getMetadataValue(
                 extmetadata,
                 "LicenseUrl"
@@ -2917,7 +7119,7 @@ function candidateIsUsable(
 
 
     const author =
-        normalizeText(
+        stripHtml(
 
             getMetadataValue(
                 extmetadata,
@@ -2932,9 +7134,16 @@ function candidateIsUsable(
         );
 
 
+    /*
+     * CC BY and CC BY-SA require attribution.
+     * If we cannot reliably identify the author/license,
+     * reject the image rather than using it anyway.
+     */
+
     if (
         licenseKind !==
             "Public Domain / CC0" &&
+
         (
             !author ||
             !licenseUrl
@@ -2968,6 +7177,11 @@ function candidateIsUsable(
         0;
 
 
+    /*
+     * URL relevance is now an additional ranking signal rather
+     * than a hard rejection condition.
+     */
+
     if (
         hasRelevantUrlToken(
             url,
@@ -2977,19 +7191,6 @@ function candidateIsUsable(
 
         score +=
             100;
-
-    }
-
-
-    if (
-        hasCommodityFilenameMatch(
-            url,
-            commodityName
-        )
-    ) {
-
-        score +=
-            30;
 
     }
 
@@ -3032,6 +7233,7 @@ function candidateIsUsable(
     if (
         category ===
             "precious-metals" &&
+
         /gold|silver|platinum|palladium/i
             .test(
                 searchableText
@@ -3047,7 +7249,8 @@ function candidateIsUsable(
     if (
         category ===
             "metals-minerals" &&
-        /ore|mineral|metal|aluminum|aluminium|copper|nickel|iron|zinc|lead|tin|cobalt|lithium/i
+
+        /ore|mineral|metal|aluminum|aluminium|copper|nickel|iron|zinc|lead|tin/i
             .test(
                 searchableText
             )
@@ -3070,11 +7273,15 @@ function candidateIsUsable(
             url,
 
         width:
-            width ||
+            Number(
+                imageInfo?.width
+            ) ||
             null,
 
         height:
-            height ||
+            Number(
+                imageInfo?.height
+            ) ||
             null,
 
         title:
@@ -3116,26 +7323,27 @@ function buildCommoditySearchQueries(
         );
 
 
-    if (
-        !normalizedName
-    ) {
+    if (!normalizedName) {
 
         return [];
 
     }
 
 
+    /*
+     * Many World Bank series have market/location qualifiers
+     * after a comma, for example:
+     *
+     *   "Coal, Australian"
+     *   "Wheat, US HRW"
+     *   "Tea, Colombo"
+     *
+     * Wikimedia often has a useful representative image under
+     * the base commodity name instead of the exact market series.
+     */
     const baseName =
         normalizeText(
-            normalizedName
-                .split(",")[0]
-        );
-
-
-    const normalizedBase =
-        normalizeSearchText(
-            baseName ||
-            normalizedName
+            normalizedName.split(",")[0]
         );
 
 
@@ -3143,7 +7351,7 @@ function buildCommoditySearchQueries(
 
 
     /*
-     * Exact commodity name first.
+     * First try the exact commodity name.
      */
     queries.push(
         `"${normalizedName}"`
@@ -3151,7 +7359,189 @@ function buildCommoditySearchQueries(
 
 
     /*
-     * Standard unquoted search.
+     * Add a small set of representative search terms for
+     * common World Bank commodity series. These are only search
+     * fallbacks; the candidate validator still requires metadata
+     * relevance to the actual commodity tokens.
+     */
+    const normalizedBase =
+        normalizeSearchText(
+            baseName || normalizedName
+        );
+
+
+    const searchHints = [];
+
+
+    if (
+        /\bgold\b/.test(
+            normalizedBase
+        )
+    ) {
+
+        searchHints.push(
+            "gold mineral"
+        );
+
+    }
+
+
+    if (
+        /\bsilver\b/.test(
+            normalizedBase
+        )
+    ) {
+
+        searchHints.push(
+            "silver mineral"
+        );
+
+    }
+
+
+    if (
+        /\bplatinum\b/.test(
+            normalizedBase
+        )
+    ) {
+
+        searchHints.push(
+            "platinum mineral"
+        );
+
+    }
+
+
+    if (
+        /\bcopper\b/.test(
+            normalizedBase
+        )
+    ) {
+
+        searchHints.push(
+            "copper mineral"
+        );
+
+    }
+
+
+    if (
+        /\biron ore\b/.test(
+            normalizedBase
+        )
+    ) {
+
+        searchHints.push(
+            "iron ore"
+        );
+
+    }
+
+
+    if (
+        /\bcoal\b/.test(
+            normalizedBase
+        )
+    ) {
+
+        searchHints.push(
+            "coal"
+        );
+
+    }
+
+
+    if (
+        /\bcoffee\b/.test(
+            normalizedBase
+        )
+    ) {
+
+        searchHints.push(
+            "coffee beans"
+        );
+
+    }
+
+
+    if (
+        /\bbanana\b/.test(
+            normalizedBase
+        )
+    ) {
+
+        searchHints.push(
+            "banana fruit"
+        );
+
+    }
+
+
+    if (
+        /\btea\b/.test(
+            normalizedBase
+        )
+    ) {
+
+        searchHints.push(
+            "tea leaves"
+        );
+
+    }
+
+
+    if (
+        /\bwheat\b/.test(
+            normalizedBase
+        )
+    ) {
+
+        searchHints.push(
+            "wheat grain"
+        );
+
+    }
+
+
+    if (
+        /\brice\b/.test(
+            normalizedBase
+        )
+    ) {
+
+        searchHints.push(
+            "rice grain"
+        );
+
+    }
+
+
+    if (
+        /\bsoybean\b/.test(
+            normalizedBase
+        )
+    ) {
+
+        searchHints.push(
+            "soybean"
+        );
+
+    }
+
+
+    searchHints.forEach(
+        hint => {
+
+            queries.push(
+                hint
+            );
+
+        }
+    );
+
+
+    /*
+     * Then try the normal unquoted search.
      */
     queries.push(
         normalizedName
@@ -3159,16 +7549,12 @@ function buildCommoditySearchQueries(
 
 
     /*
-     * Base commodity when a regional / market qualifier exists.
+     * Then use the base commodity name when it differs.
      */
     if (
         baseName &&
-        normalizeSearchText(
-            baseName
-        ) !==
-        normalizeSearchText(
-            normalizedName
-        )
+        normalizeSearchText(baseName) !==
+            normalizeSearchText(normalizedName)
     ) {
 
         queries.push(
@@ -3184,166 +7570,8 @@ function buildCommoditySearchQueries(
 
 
     /*
-     * Useful representative queries.
-     */
-    if (
-        /\bgold\b/.test(
-            normalizedBase
-        )
-    ) {
-
-        queries.push(
-            "gold mineral"
-        );
-
-    }
-
-
-    if (
-        /\bsilver\b/.test(
-            normalizedBase
-        )
-    ) {
-
-        queries.push(
-            "silver mineral"
-        );
-
-    }
-
-
-    if (
-        /\bplatinum\b/.test(
-            normalizedBase
-        )
-    ) {
-
-        queries.push(
-            "platinum mineral"
-        );
-
-    }
-
-
-    if (
-        /\bcopper\b/.test(
-            normalizedBase
-        )
-    ) {
-
-        queries.push(
-            "copper mineral"
-        );
-
-    }
-
-
-    if (
-        /\biron ore\b/.test(
-            normalizedBase
-        )
-    ) {
-
-        queries.push(
-            "iron ore"
-        );
-
-    }
-
-
-    if (
-        /\bcoal\b/.test(
-            normalizedBase
-        )
-    ) {
-
-        queries.push(
-            "coal"
-        );
-
-    }
-
-
-    if (
-        /\bcoffee\b/.test(
-            normalizedBase
-        )
-    ) {
-
-        queries.push(
-            "coffee beans"
-        );
-
-    }
-
-
-    if (
-        /\bbanana\b/.test(
-            normalizedBase
-        )
-    ) {
-
-        queries.push(
-            "banana fruit"
-        );
-
-    }
-
-
-    if (
-        /\btea\b/.test(
-            normalizedBase
-        )
-    ) {
-
-        queries.push(
-            "tea leaves"
-        );
-
-    }
-
-
-    if (
-        /\bwheat\b/.test(
-            normalizedBase
-        )
-    ) {
-
-        queries.push(
-            "wheat grain"
-        );
-
-    }
-
-
-    if (
-        /\brice\b/.test(
-            normalizedBase
-        )
-    ) {
-
-        queries.push(
-            "rice grain"
-        );
-
-    }
-
-
-    if (
-        /\bsoybean\b/.test(
-            normalizedBase
-        )
-    ) {
-
-        queries.push(
-            "soybean"
-        );
-
-    }
-
-
-    /*
-     * Metals and precious metals get a mineral fallback.
+     * Precious metals and industrial minerals benefit from
+     * a specimen/mineral hint, but this is only a fallback.
      */
     if (
         category ===
@@ -3356,7 +7584,6 @@ function buildCommoditySearchQueries(
             `${baseName || normalizedName} mineral specimen`
         );
 
-
         queries.push(
             `${baseName || normalizedName} mineral`
         );
@@ -3365,20 +7592,8 @@ function buildCommoditySearchQueries(
 
 
     /*
-     * Energy fallback.
+     * Deduplicate while preserving the preferred order.
      */
-    if (
-        category ===
-        "energy"
-    ) {
-
-        queries.push(
-            `${baseName || normalizedName} fuel`
-        );
-
-    }
-
-
     return [
         ...new Set(
             queries
@@ -3422,9 +7637,15 @@ async function searchWikimediaImage(
         new Set();
 
 
+    /*
+     * Try multiple search formulations because Wikimedia search
+     * results for market-series names are often sparse.
+     *
+     * The candidate validator remains the authoritative
+     * relevance/license gate.
+     */
     for (
-        const searchQuery of
-            searchQueries
+        const searchQuery of searchQueries
     ) {
 
         if (
@@ -3580,9 +7801,7 @@ async function searchWikimediaImage(
             }
 
 
-            if (
-                !response.ok
-            ) {
+            if (!response.ok) {
 
                 console.warn(
                     `Wikimedia API returned HTTP ${response.status} for "${searchQuery}".`
@@ -3620,9 +7839,7 @@ async function searchWikimediaImage(
                 );
 
 
-            if (
-                !pages.length
-            ) {
+            if (!pages.length) {
 
                 break;
 
@@ -3662,9 +7879,7 @@ async function searchWikimediaImage(
                 }
 
 
-                if (
-                    title
-                ) {
+                if (title) {
 
                     seenTitles.add(
                         title
@@ -3760,9 +7975,7 @@ async function getCommodityImage(
         );
 
 
-    if (
-        cached
-    ) {
+    if (cached) {
 
         const age =
             getRequestCacheAgeSeconds(
@@ -3771,9 +7984,7 @@ async function getCommodityImage(
 
 
         if (
-            Number.isFinite(
-                age
-            ) &&
+            Number.isFinite(age) &&
             age >= 0
         ) {
 
@@ -3787,7 +7998,9 @@ async function getCommodityImage(
 
                 const maxAge =
                     cachedData?.found
+
                         ? IMAGE_CACHE_TTL
+
                         : IMAGE_NEGATIVE_CACHE_TTL;
 
 
@@ -3827,9 +8040,7 @@ async function getCommodityImage(
             true,
 
         found:
-            Boolean(
-                image
-            ),
+            Boolean(image),
 
         image:
             image ||
@@ -3872,7 +8083,9 @@ async function getCommodityImage(
         cacheKey,
         response,
         image
+
             ? IMAGE_CACHE_TTL
+
             : IMAGE_NEGATIVE_CACHE_TTL
     );
 
@@ -3898,9 +8111,7 @@ async function handleImageAction(
         );
 
 
-    if (
-        !name
-    ) {
+    if (!name) {
 
         return jsonResponse(
             {
@@ -3953,7 +8164,9 @@ async function handleImageAction(
             200,
 
             result.found
+
                 ? IMAGE_CACHE_TTL
+
                 : IMAGE_NEGATIVE_CACHE_TTL
 
         );
@@ -4069,7 +8282,7 @@ export async function onRequestGet(
 
     const resultCacheKey =
         new Request(
-            VOLTLAS_RESULT_CACHE_KEY
+            MARKETS_RESULT_CACHE_KEY
         );
 
 
@@ -4077,7 +8290,7 @@ export async function onRequestGet(
         await getFreshCache(
             cache,
             resultCacheKey,
-            CACHE_TTL
+            RESULT_CACHE_TTL
         );
 
 
@@ -4093,8 +8306,8 @@ export async function onRequestGet(
     try {
 
         const parsed =
-            await loadVoltlasDataset(
-                cache
+            await buildCombinedMarketsDataset(
+                context
             );
 
 
@@ -4112,7 +8325,7 @@ export async function onRequestGet(
 
                 200,
 
-                CACHE_TTL
+                RESULT_CACHE_TTL
             );
 
 
@@ -4121,7 +8334,7 @@ export async function onRequestGet(
                 cache,
                 resultCacheKey,
                 response,
-                CACHE_TTL
+                RESULT_CACHE_TTL
             );
 
 
@@ -4143,7 +8356,7 @@ export async function onRequestGet(
                     false,
 
                 error:
-                    "Unable to load Voltlas commodity data."
+                    "Unable to load multi-source commodity data."
 
             },
 
@@ -4155,3 +8368,4 @@ export async function onRequestGet(
     }
 
 }
+
