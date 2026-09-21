@@ -7671,3 +7671,95 @@ html[data-ui-scale="xl"] .profile-nav-btn .auth-avatar-fallback{
         transform:none !important;
     }
 }
+
+
+/* =========================================================
+   MOBILE — FINAL DIALOG FIT
+   Phone only. Keeps Settings, Bugs, Admin and AI dialogs
+   fully inside the visible phone viewport at every UI scale.
+   ========================================================= */
+
+@media (max-width:700px){
+
+    .settings-panel{
+        top:50% !important;
+        right:auto !important;
+        left:50% !important;
+        width:calc(100vw - 24px) !important;
+        max-width:340px !important;
+        max-height:calc((100vh - 24px) / var(--ui-scale, 1)) !important;
+        overflow:auto !important;
+        transform:translate(-50%, -50%) !important;
+        box-sizing:border-box;
+        padding:14px !important;
+    }
+
+    .feedback-overlay,
+    .admin-panel-overlay,
+    .ai-chat-overlay{
+        padding:8px !important;
+        align-items:center !important;
+        justify-content:center !important;
+        overflow:hidden !important;
+    }
+
+    .feedback-modal-card{
+        width:calc(100vw - 16px) !important;
+        max-width:560px !important;
+        max-height:calc((100vh - 16px) / var(--ui-scale, 1)) !important;
+        padding:14px !important;
+        border-radius:18px !important;
+        box-sizing:border-box;
+    }
+
+    .admin-panel-card{
+        width:calc(100vw - 16px) !important;
+        max-width:1040px !important;
+        max-height:calc((100vh - 16px) / var(--ui-scale, 1)) !important;
+        padding:14px !important;
+        border-radius:18px !important;
+        box-sizing:border-box;
+    }
+
+    .ai-chat-card{
+        width:calc(100vw - 16px) !important;
+        max-width:720px !important;
+        height:calc((100vh - 16px) / var(--ui-scale, 1)) !important;
+        max-height:calc((100vh - 16px) / var(--ui-scale, 1)) !important;
+        border-radius:18px !important;
+        box-sizing:border-box;
+    }
+
+    /* A+ / A++: give the dialog a little more breathing room from
+       both the top and bottom screen edges. */
+    html[data-ui-scale="large"] .settings-panel,
+    html[data-ui-scale="xl"] .settings-panel{
+        width:calc(100vw - 20px) !important;
+        max-width:330px !important;
+        max-height:calc((100vh - 20px) / var(--ui-scale, 1)) !important;
+        padding:11px !important;
+    }
+
+    html[data-ui-scale="large"] .feedback-modal-card,
+    html[data-ui-scale="xl"] .feedback-modal-card,
+    html[data-ui-scale="large"] .admin-panel-card,
+    html[data-ui-scale="xl"] .admin-panel-card{
+        max-height:calc((100vh - 14px) / var(--ui-scale, 1)) !important;
+        padding:11px !important;
+    }
+
+    html[data-ui-scale="large"] .ai-chat-card,
+    html[data-ui-scale="xl"] .ai-chat-card{
+        width:calc(100vw - 14px) !important;
+        height:calc((100vh - 14px) / var(--ui-scale, 1)) !important;
+        max-height:calc((100vh - 14px) / var(--ui-scale, 1)) !important;
+        border-radius:16px !important;
+    }
+
+    /* A++ only: keep the profile dropdown just slightly to the
+       right of the exact profile-button center. JS clamps it to
+       the viewport, so it can never be cut off. */
+    html[data-ui-scale="xl"] .account-panel{
+        transform:none !important;
+    }
+}
