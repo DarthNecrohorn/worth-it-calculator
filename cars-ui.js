@@ -3921,6 +3921,103 @@ async function loadAndRenderPopularVehicles(
 
     if (!validVehicles.length) {
 
+        /*
+         * A first Wikipedia/Cloudflare wave can fail transiently, especially
+         * when this is the first category opened after a cold page load.
+         * Reset only this category's quality state and retry a small fresh
+         * window before ever telling the user that the category is empty.
+         */
+        const retryKey =
+            `quality-retry:${kind}`;
+
+        const alreadyRetried =
+            popularVehicleHydrationState.get(
+                retryKey
+            );
+
+        if (!alreadyRetried) {
+
+            popularVehicleHydrationState.set(
+                retryKey,
+                true
+            );
+
+            await new Promise(
+                resolve =>
+                    window.setTimeout(
+                        resolve,
+                        900
+                    )
+            );
+
+            const refreshedCandidates =
+                getPopularVehicles(
+                    catalogVehicles
+                ).slice(
+                    0,
+                    POPULAR_CANDIDATE_POOL_SIZE
+                );
+
+            popularVehicleQualityState.delete(
+                kind
+            );
+
+            const retryVehicles =
+                await ensurePopularVehicleQuality(
+                    kind,
+                    refreshedCandidates,
+                    initialCount,
+                    80
+                );
+
+            if (
+                currentVehicleKind === kind &&
+                currentVehicleMode === "popular" &&
+                !displayState.cancelled &&
+                retryVehicles.length
+            ) {
+
+                currentVehicleShowAll =
+                    false;
+
+                displayState.showAll =
+                    false;
+
+                appendStablePopularVehicleCards(
+                    kind,
+                    retryVehicles,
+                    false
+                );
+
+                renderVehicleExpandButton(
+                    retryVehicles,
+                    retryVehicles.slice(
+                        0,
+                        initialCount
+                    ),
+                    kind,
+                    stablePopularHasMoreVehicles(
+                        kind,
+                        initialCount
+                    )
+                );
+
+                hideOrShowStablePopularCards(
+                    kind,
+                    false
+                );
+
+                void continueStablePopularVehicleLoading(
+                    kind,
+                    refreshedCandidates
+                );
+
+                return;
+
+            }
+
+        }
+
         grid.innerHTML = `
             <div class="cars-empty-state">
                 <div class="cars-empty-icon">
@@ -8442,16 +8539,70 @@ function updateCarsCategoryHeader(
 let vehicleCatalogPreloadPromise =
     null;
 
+let vehicleCategoryInformationPreloadPromise =
+    null;
+
+async function preloadVehicleInformationForCategory(
+    kind
+) {
+
+    const catalog =
+        vehicleCatalogCache.get(kind) || [];
+
+    if (!catalog.length) {
+        return;
+    }
+
+    const candidates =
+        getPopularVehicles(
+            catalog
+        );
+
+    if (!candidates.length) {
+        return;
+    }
+
+    const initialCount =
+        Math.min(
+            8,
+            candidates.length
+        );
+
+    try {
+
+        /*
+         * Warm exactly the amount needed for the first two rows.
+         * ensurePopularVehicleQuality shares its in-flight promise with
+         * the active category, so a click during this preload waits for
+         * the same requests rather than starting duplicates.
+         */
+        await ensurePopularVehicleQuality(
+            kind,
+            candidates,
+            initialCount,
+            48
+        );
+
+    } catch (error) {
+
+        console.warn(
+            `Background vehicle information preload failed for ${kind}:`,
+            error
+        );
+
+    }
+
+}
+
+
 function preloadVehicleCategoryCatalogs(
     excludeKind = null
 ) {
 
     if (
-        vehicleCatalogPreloadPromise
+        vehicleCategoryInformationPreloadPromise
     ) {
-
-        return vehicleCatalogPreloadPromise;
-
+        return vehicleCategoryInformationPreloadPromise;
     }
 
     const kindsToPreload =
@@ -8461,47 +8612,86 @@ function preloadVehicleCategoryCatalogs(
                 !vehicleCatalogCache.has(kind)
         );
 
-    if (
-        !kindsToPreload.length
-    ) {
-
+    if (!kindsToPreload.length) {
         return Promise.resolve();
-
     }
 
-    vehicleCatalogPreloadPromise =
-        Promise.all(
-            kindsToPreload.map(
-                kind =>
-                    fetchVehicleCatalog(
-                        kind
-                    ).catch(
-                        error => {
+    vehicleCategoryInformationPreloadPromise =
+        (async () => {
 
-                            console.warn(
-                                `Background catalog preload failed for ${kind}:`,
-                                error
-                            );
+            /*
+             * Load all five lightweight catalogs first. Then warm the first
+             * two rows of information with a small number of categories in
+             * parallel so the initial Cars view itself is not overwhelmed.
+             */
+            await Promise.all(
+                kindsToPreload.map(
+                    kind =>
+                        fetchVehicleCatalog(
+                            kind
+                        ).catch(
+                            error => {
 
-                            return [];
+                                console.warn(
+                                    `Background catalog preload failed for ${kind}:`,
+                                    error
+                                );
 
+                                return [];
+
+                            }
+                        )
+                )
+            );
+
+            const categoryQueue =
+                kindsToPreload.slice();
+
+            const worker =
+                async () => {
+
+                    while (
+                        categoryQueue.length
+                    ) {
+
+                        const kind =
+                            categoryQueue.shift();
+
+                        if (!kind) {
+                            return;
                         }
-                    )
-            )
-        ).then(
+
+                        await preloadVehicleInformationForCategory(
+                            kind
+                        );
+
+                    }
+
+                };
+
+            /*
+             * Only two categories perform Wikipedia warm-up concurrently.
+             * This reduces first-open rate limiting while still warming all
+             * categories before the user reaches them.
+             */
+            await Promise.all([
+                worker(),
+                worker()
+            ]);
+
+        })().finally(
             () => {
-                vehicleCatalogPreloadPromise =
+
+                vehicleCategoryInformationPreloadPromise =
                     null;
-            },
-            () => {
-                vehicleCatalogPreloadPromise =
-                    null;
+
             }
         );
 
-    return vehicleCatalogPreloadPromise;
+    return vehicleCategoryInformationPreloadPromise;
 
 }
+
 
 
 /*
@@ -8624,6 +8814,10 @@ async function filterCarsByCategory(
 
     currentVehicleMode =
         "popular";
+
+    popularVehicleHydrationState.delete(
+        `quality-retry:${kind}`
+    );
 
     closeVehicleDetailsPanel(false);
     hideVehicleFloatingCollapseButton();
