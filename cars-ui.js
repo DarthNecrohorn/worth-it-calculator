@@ -39,7 +39,7 @@ const VEHICLE_CATALOG_BASE_URL =
 
 const VEHICLE_DETAILS_CACHE_VERSION = "v17";
 
-const MAX_SEARCH_RESULTS = 300;
+const MAX_SEARCH_RESULTS = 500;
 
 const INITIAL_VISIBLE_ROWS = 3;
 
@@ -51,13 +51,13 @@ const INITIAL_VISIBLE_ROWS = 3;
  * at a time to keep cards with missing Wikipedia/Wikimedia data
  * out of the Popular Vehicles view.
  */
-const POPULAR_CANDIDATE_POOL_SIZE = 1000;
-const POPULAR_QUALITY_BATCH_SIZE = 4;
-const POPULAR_INITIAL_MAX_CHECKS = 24;
-const POPULAR_SHOW_ALL_MAX_NEW_CHECKS = 300;
+const POPULAR_CANDIDATE_POOL_SIZE = 1500;
+const POPULAR_QUALITY_BATCH_SIZE = 8;
+const POPULAR_INITIAL_MAX_CHECKS = 32;
+const POPULAR_SHOW_ALL_MAX_NEW_CHECKS = 1500;
 const VEHICLE_DETAILS_REQUEST_TIMEOUT_MS = 15000;
-const POPULAR_MAX_DISPLAY_RESULTS = 300;
-const POPULAR_MIN_SPECIFICATION_FIELDS = 0;
+const POPULAR_MAX_DISPLAY_RESULTS = 500;
+const POPULAR_MIN_SPECIFICATION_FIELDS = 2;
 const POPULAR_MIN_DESCRIPTION_LENGTH = 60;
 
 const POPULAR_VEHICLE_TYPE_TERMS = {
@@ -2505,81 +2505,140 @@ async function ensurePopularVehicleQuality(
                     state.checkedCount +=
                         batch.length;
 
-                    const checked =
-                        await Promise.all(
-                            batch.map(
-                                async vehicle => {
+                    /*
+                     * Start the complete batch at once, but consume results
+                     * in completion order. This lets the first valid vehicle
+                     * render immediately instead of waiting for the slowest
+                     * request in the batch.
+                     */
+                    const pending =
+                        batch.map(
+                            vehicle => {
 
-                                    const key =
-                                        getPopularVehicleQualityKey(
-                                            vehicle,
-                                            kind
+                                const promise =
+                                    (async () => {
+
+                                        const key =
+                                            getPopularVehicleQualityKey(
+                                                vehicle,
+                                                kind
+                                            );
+
+                                        if (
+                                            popularVehicleQualityCache.has(
+                                                key
+                                            )
+                                        ) {
+
+                                            return {
+                                                vehicle,
+                                                usable:
+                                                    popularVehicleQualityCache.get(
+                                                        key
+                                                    )
+                                            };
+
+                                        }
+
+                                        const details =
+                                            await fetchVehicleDetails(
+                                                vehicle.make,
+                                                vehicle.model,
+                                                kind
+                                            );
+
+                                        if (!details) {
+
+                                            /*
+                                             * A failed request is treated as
+                                             * transient. Do not cache it as
+                                             * unusable so a future attempt may retry.
+                                             */
+                                            return {
+                                                vehicle,
+                                                usable: null
+                                            };
+
+                                        }
+
+                                        const usable =
+                                            hasUsablePopularVehicleDetails(
+                                                details,
+                                                vehicle,
+                                                kind
+                                            );
+
+                                        popularVehicleQualityCache.set(
+                                            key,
+                                            usable
                                         );
-
-                                    if (
-                                        popularVehicleQualityCache.has(
-                                            key
-                                        )
-                                    ) {
 
                                         return {
                                             vehicle,
-                                            usable:
-                                                popularVehicleQualityCache.get(
-                                                    key
-                                                )
+                                            usable
                                         };
 
-                                    }
+                                    })().catch(
+                                        error => {
 
-                                    const details =
-                                        await fetchVehicleDetails(
-                                            vehicle.make,
-                                            vehicle.model,
-                                            kind
-                                        );
+                                            console.error(
+                                                "Popular vehicle quality request failed:",
+                                                vehicle.make,
+                                                vehicle.model,
+                                                kind,
+                                                error
+                                            );
 
-                                    if (!details) {
+                                            return {
+                                                vehicle,
+                                                usable: null
+                                            };
 
-                                        /*
-                                         * A failed request is treated as transient.
-                                         * Do not cache it as unusable so a future
-                                         * attempt can retry.
-                                         */
-                                        return {
-                                            vehicle,
-                                            usable: null
-                                        };
-
-                                    }
-
-                                    const usable =
-                                        hasUsablePopularVehicleDetails(
-                                            details,
-                                            vehicle,
-                                            kind
-                                        );
-
-                                    popularVehicleQualityCache.set(
-                                        key,
-                                        usable
+                                        }
                                     );
 
-                                    return {
-                                        vehicle,
-                                        usable
-                                    };
+                                return {
+                                    vehicle,
+                                    promise
+                                };
 
-                                }
-                            )
+                            }
                         );
 
-                    const validCountBeforeBatch =
-                        state.validVehicles.length;
-
-                    for (
-                        const item of checked
+                    while (
+                        pending.length &&
+                        state.validVehicles.length < desiredCount
                     ) {
+
+                        const resolved =
+                            await Promise.race(
+                                pending.map(
+                                    entry =>
+                                        entry.promise.then(
+                                            item => ({
+                                                entry,
+                                                item
+                                            })
+                                        )
+                                )
+                            );
+
+                        const pendingIndex =
+                            pending.indexOf(
+                                resolved.entry
+                            );
+
+                        if (
+                            pendingIndex >= 0
+                        ) {
+                            pending.splice(
+                                pendingIndex,
+                                1
+                            );
+                        }
+
+                        const item =
+                            resolved.item;
 
                         if (
                             item.usable === true &&
@@ -2600,12 +2659,21 @@ async function ensurePopularVehicleQuality(
                                 item.vehicle
                             );
 
+                            /*
+                             * Render as soon as a valid vehicle is available.
+                             * This is the main improvement to first-card load time.
+                             */
                             if (
-                                state.validVehicles.length >=
-                                desiredCount
+                                typeof onProgress === "function"
                             ) {
 
-                                break;
+                                await onProgress(
+                                    state.validVehicles.slice(
+                                        0,
+                                        desiredCount
+                                    ),
+                                    state
+                                );
 
                             }
 
@@ -2613,20 +2681,11 @@ async function ensurePopularVehicleQuality(
 
                     }
 
-                    if (
-                        typeof onProgress === "function" &&
-                        state.validVehicles.length > validCountBeforeBatch
-                    ) {
-
-                        await onProgress(
-                            state.validVehicles.slice(
-                                0,
-                                desiredCount
-                            ),
-                            state
-                        );
-
-                    }
+                    /*
+                     * Remaining requests from this batch were already started.
+                     * Their results are intentionally ignored once enough valid
+                     * vehicles have been collected for the current render target.
+                     */
 
                 }
 
@@ -2734,7 +2793,7 @@ async function loadAndRenderPopularVehicles(
                     Math.max(
                         1,
                         getInitialVehicleLimit(
-                            vehicles
+                            candidates
                         )
                     );
 
@@ -3487,6 +3546,30 @@ function createVehicleCard(
     card.appendChild(
         textContainer
     );
+
+    /*
+     * The quality scan normally fetched Wikipedia details before the
+     * card was created. Reuse that cached response immediately so cards
+     * with "Image unavailable" still show useful technical information
+     * without waiting for the image observer.
+     */
+    const cachedDetails =
+        vehicleDetailsCache.get(
+            getVehicleDetailsCacheKey(
+                vehicle.make,
+                vehicle.model,
+                kind
+            )
+        );
+
+    if (cachedDetails) {
+
+        updateVehicleCardInformationPreview(
+            image,
+            cachedDetails
+        );
+
+    }
 
 
     /*
