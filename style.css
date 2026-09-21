@@ -5624,3 +5624,34 @@ html[data-theme="light"] .nav-overflow-item{
 html[data-theme="light"] .nav-overflow-item:hover{
     background:rgba(15,23,42,.055);
 }
+
+/* Keep Calculator locked at the bottom of the scrollable menu.
+   The menu itself may scroll, but this primary action stays visible. */
+@media(max-width:1000px){
+    .nav-links.open > button:last-of-type{
+        position:sticky;
+        bottom:0;
+        z-index:10;
+        width:100%;
+        margin-top:3px;
+        padding-top:11px;
+        padding-bottom:11px;
+        background:var(--card-solid,var(--card));
+        border-top:1px solid var(--border);
+        box-shadow:0 -8px 18px rgba(0,0,0,.10);
+    }
+}
+
+html[data-ui-scale="large"] .nav-links.open > button:last-of-type,
+html[data-ui-scale="xl"] .nav-links.open > button:last-of-type{
+    position:sticky;
+    bottom:0;
+    z-index:10;
+    width:100%;
+    margin-top:3px;
+    padding-top:11px;
+    padding-bottom:11px;
+    background:var(--card-solid,var(--card));
+    border-top:1px solid var(--border);
+    box-shadow:0 -8px 18px rgba(0,0,0,.10);
+}
