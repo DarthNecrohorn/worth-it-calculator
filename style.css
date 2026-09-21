@@ -6475,6 +6475,9 @@ button[disabled],
 
 .profile-nav-btn .auth-avatar,
 .profile-nav-btn .auth-avatar-fallback{
+    display:block;
+    object-fit:cover;
+    object-position:center center;
     width:36px;
     height:36px;
     margin:0;
