@@ -316,6 +316,10 @@ const POPULAR_NONCAR_DETAILS_CONCURRENCY = 12;
 const POPULAR_NONCAR_QUALITY_BATCH_SIZE = 12;
 const POPULAR_NONCAR_INITIAL_MAX_CHECKS = 72;
 
+const POPULAR_REFRESH_CARD_COUNT = 8;
+const POPULAR_REFRESH_MAX_CHECKS = 96;
+const POPULAR_REFRESH_CONCURRENCY = 12;
+
 function getPopularDetailsConcurrency(kind) {
     return kind === "car"
         ? POPULAR_DETAILS_CONCURRENCY
@@ -3958,6 +3962,125 @@ async function runPopularVehicleQualityBatch(
 
     return results;
 
+}
+
+
+async function collectFastPopularVehicleInformation(
+    kind,
+    candidates,
+    desiredCount = POPULAR_REFRESH_CARD_COUNT,
+    maxChecks = POPULAR_REFRESH_MAX_CHECKS
+) {
+
+    const safeCandidates =
+        Array.isArray(candidates)
+            ? candidates.slice(
+                0,
+                Math.max(
+                    desiredCount,
+                    Number(maxChecks) || POPULAR_REFRESH_MAX_CHECKS
+                )
+            )
+            : [];
+
+    if (!safeCandidates.length) {
+        return [];
+    }
+
+    const targetCount = Math.min(desiredCount, safeCandidates.length);
+    const validKeys = new Set();
+    let cursor = 0;
+    let resolved = false;
+    let resolveEarly;
+    let rejectEarly;
+
+    const earlyPromise = new Promise((resolve, reject) => {
+        resolveEarly = resolve;
+        rejectEarly = reject;
+    });
+
+    const finish = () => {
+        if (resolved) return;
+        resolved = true;
+        resolveEarly(
+            safeCandidates
+                .filter(vehicle =>
+                    validKeys.has(getPopularVehicleQualityKey(vehicle, kind))
+                )
+                .slice(0, targetCount)
+        );
+    };
+
+    const worker = async () => {
+        while (!resolved) {
+            const index = cursor++;
+            if (index >= safeCandidates.length) break;
+
+            const vehicle = safeCandidates[index];
+            try {
+                const result = await evaluatePopularVehicleCandidate(vehicle, kind);
+                if (result?.usable === true) {
+                    validKeys.add(getPopularVehicleQualityKey(result.vehicle, kind));
+                    if (validKeys.size >= targetCount) finish();
+                }
+            } catch (error) {
+                console.warn(
+                    "Fast popular vehicle refresh request failed:",
+                    vehicle?.make, vehicle?.model, kind, error
+                );
+            }
+        }
+    };
+
+    const workerCount = Math.min(POPULAR_REFRESH_CONCURRENCY, safeCandidates.length);
+
+    void Promise.all(
+        Array.from({ length: workerCount }, () => worker())
+    ).then(() => {
+        if (!resolved) finish();
+    }).catch(error => {
+        if (!resolved) {
+            resolved = true;
+            rejectEarly(error);
+        }
+    });
+
+    return earlyPromise;
+}
+
+
+function mergePopularValidVehiclesIntoState(
+    kind,
+    candidates,
+    vehicles
+) {
+
+    if (!Array.isArray(vehicles) || !vehicles.length) return;
+
+    const state = getPopularVehicleQualityState(kind, candidates);
+    const existingKeys = new Set(
+        state.validVehicles.map(vehicle =>
+            getPopularVehicleQualityKey(vehicle, kind)
+        )
+    );
+
+    for (const vehicle of vehicles) {
+        const key = getPopularVehicleQualityKey(vehicle, kind);
+        if (!existingKeys.has(key)) {
+            state.validVehicles.push(vehicle);
+            existingKeys.add(key);
+        }
+    }
+
+    const validKeys = new Set(
+        state.validVehicles.map(vehicle =>
+            getPopularVehicleQualityKey(vehicle, kind)
+        )
+    );
+
+    state.validVehicles = state.candidates.filter(vehicle =>
+        validKeys.has(getPopularVehicleQualityKey(vehicle, kind))
+    );
 }
 
 
