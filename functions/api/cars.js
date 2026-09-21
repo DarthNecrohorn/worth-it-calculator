@@ -4715,6 +4715,31 @@ async function handleDetails(
         );
     }
 
+    /*
+     * The Wikipedia search is already type-aware. Keep the same guard
+     * at the detail stage so a cached/redirected page from another
+     * vehicle kind can never be presented as the requested type.
+     */
+    if (
+        kind !== "car" &&
+        !hasWikipediaKindEvidence(
+            page.title,
+            page.description,
+            kind
+        )
+    ) {
+
+        return jsonResponse(
+            createWikipediaNoInformation(
+                vehicle.make,
+                vehicle.model,
+                kind
+            ),
+            200,
+            WIKIPEDIA_CACHE_TTL
+        );
+    }
+
     /* 4. Parse the real Wikipedia infobox data
      *    from both wikitext and rendered HTML. */
 
