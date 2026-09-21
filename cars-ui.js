@@ -1797,7 +1797,7 @@ async function fetchVehicleCatalogSource(
                         makeSlug: make.slug,
                         model: model.name,
                         modelSlug: model.slug || "",
-                        kind: kind || sourceKind,
+                        kind: sourceKind,
                         sourceKind,
                         bodyType:
                             Array.isArray(model.body_types) && model.body_types.length
@@ -1949,7 +1949,8 @@ function getVehiclePopularityValue(
 const VEHICLE_KIND_BODY_TYPE_TERMS = {
     motorcycle: [
         "motorcycle", "motorbike", "scooter", "underbone",
-        "trike", "two-wheeler"
+        "moped", "motor scooter", "motorized bicycle",
+        "motorised bicycle", "trike", "two-wheeler"
     ],
     moped: [
         "moped", "scooter", "motor scooter",
