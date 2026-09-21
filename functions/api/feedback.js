@@ -1,3 +1,5 @@
+import { recordAdminApiUsage } from "../lib/admin-usage.js";
+
 const SITE_ORIGIN = "https://worth-it-calculator.pages.dev";
 
 function responseJson(data, status) {
@@ -71,6 +73,11 @@ export async function onRequestOptions() {
 }
 
 export async function onRequestPost(context) {
+
+    recordAdminApiUsage(context, {
+        apiKey: "feedback",
+        provider: "Supabase"
+    });
     const request = context.request;
     const env = context.env;
 
