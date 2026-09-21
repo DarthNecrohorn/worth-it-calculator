@@ -876,6 +876,59 @@ function getVehicleDetailsCacheKey(
 }
 
 
+async function fetchVehicleDetailsWithRetry(
+    make,
+    model,
+    kind,
+    attempts = 2
+) {
+
+    const maxAttempts =
+        Math.max(
+            1,
+            Number(attempts) || 1
+        );
+
+    let lastResult = null;
+
+    for (
+        let attempt = 1;
+        attempt <= maxAttempts;
+        attempt++
+    ) {
+
+        lastResult =
+            await fetchVehicleDetails(
+                make,
+                model,
+                kind
+            );
+
+        if (lastResult) {
+            return lastResult;
+        }
+
+        if (
+            attempt < maxAttempts
+        ) {
+
+            await new Promise(
+                resolve =>
+                    window.setTimeout(
+                        resolve,
+                        650
+                    )
+            );
+
+        }
+
+    }
+
+    return lastResult;
+
+}
+
+
 async function fetchVehicleDetails(
     make,
     model,
@@ -3248,10 +3301,11 @@ async function ensurePopularVehicleQuality(
                                     }
 
                                     const details =
-                                        await fetchVehicleDetails(
+                                        await fetchVehicleDetailsWithRetry(
                                             vehicle.make,
                                             vehicle.model,
-                                            kind
+                                            kind,
+                                            2
                                         );
 
                                     if (!details) {
