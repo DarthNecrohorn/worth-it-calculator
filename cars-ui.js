@@ -53,7 +53,7 @@ const INITIAL_VISIBLE_ROWS = 3;
  * at a time to keep cards with missing Wikipedia/Wikimedia data
  * out of the Popular Vehicles view.
  */
-const POPULAR_CANDIDATE_POOL_SIZE = MAX_VEHICLES_PER_CATEGORY;
+const POPULAR_CANDIDATE_POOL_SIZE = 1000;
 const POPULAR_QUALITY_BATCH_SIZE = 8;
 const POPULAR_INITIAL_MAX_CHECKS = 32;
 const POPULAR_SHOW_ALL_MAX_NEW_CHECKS = 1500;
@@ -1855,55 +1855,17 @@ async function fetchVehicleCatalog(
                         .filter(Boolean);
 
                 /*
-                 * Keep a maximum of 300 vehicles per category.
-                 * Rank by VehiclesDB popularity first so the limited
-                 * catalog contains the strongest category candidates.
+                 * Keep the complete category catalog in memory.
+                 * Popular/Search display limits are applied later so a
+                 * vehicle with missing Wikipedia data can be replaced by
+                 * the next less-popular candidate automatically.
                  */
-                vehicles.sort(
-                    (a, b) => {
-
-                        const popularityDifference =
-                            getVehiclePopularityValue(a) -
-                            getVehiclePopularityValue(b);
-
-                        if (
-                            popularityDifference !== 0
-                        ) {
-                            return popularityDifference;
-                        }
-
-                        const makeDifference =
-                            String(a?.make || "").localeCompare(
-                                String(b?.make || ""),
-                                undefined,
-                                { sensitivity: "base" }
-                            );
-
-                        if (makeDifference !== 0) {
-                            return makeDifference;
-                        }
-
-                        return String(a?.model || "").localeCompare(
-                            String(b?.model || ""),
-                            undefined,
-                            { sensitivity: "base" }
-                        );
-
-                    }
-                );
-
-                const limitedVehicles =
-                    vehicles.slice(
-                        0,
-                        MAX_VEHICLES_PER_CATEGORY
-                    );
-
                 vehicleCatalogCache.set(
                     kind,
-                    limitedVehicles
+                    vehicles
                 );
 
-                return limitedVehicles;
+                return vehicles;
 
             } catch (error) {
 
@@ -2055,22 +2017,16 @@ async function fetchVehicleCatalog(
                             getVehiclePopularityValue(b)
                     );
 
-                    const limitedRetryVehicles =
-                        retryVehicles.slice(
-                            0,
-                            MAX_VEHICLES_PER_CATEGORY
-                        );
-
-                    if (limitedRetryVehicles.length) {
+                    if (retryVehicles.length) {
 
                         vehicleCatalogCache.set(
                             kind,
-                            limitedRetryVehicles
+                            retryVehicles
                         );
 
                     }
 
-                    return limitedRetryVehicles;
+                    return retryVehicles;
 
                 } catch (retryError) {
 
@@ -9001,6 +8957,27 @@ document.addEventListener(
             handleVehicleScroll,
             { passive: true }
         );
+
+        /*
+         * The browser cache is namespaced by the authenticated
+         * Supabase user. Reset the cached owner key when account
+         * state changes so another Google account never reuses the
+         * previous account's image/details cache.
+         */
+        if (
+            window.supabaseClient?.auth
+        ) {
+
+            window.supabaseClient.auth.onAuthStateChange(
+                () => {
+
+                    vehicleAccountCacheOwnerPromise =
+                        null;
+
+                }
+            );
+
+        }
 
         /*
          * Create the six vehicle categories.
