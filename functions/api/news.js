@@ -1,4 +1,11 @@
+import { recordAdminApiUsage } from "../lib/admin-usage.js";
+
 export async function onRequestGet(context) {
+
+    recordAdminApiUsage(context, {
+        apiKey: "news",
+        provider: "NewsData.io"
+    });
 
     const apiKey =
         context.env.NEWSDATA_API_KEY;
