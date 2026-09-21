@@ -9431,15 +9431,18 @@ function injectVehicleUiStyles() {
 
 
         .cars-results-actions {
+            position: absolute;
+            top: 0;
+            right: 0;
             display: inline-flex;
             align-items: center;
             gap: 7px;
-            flex: 0 0 auto;
-            margin-left: auto;
+            z-index: 2;
         }
 
         .cars-block-header {
             position: relative;
+            padding-right: 100px;
         }
 
         .cars-refresh-button {
@@ -9534,6 +9537,10 @@ function injectVehicleUiStyles() {
         }
 
         @media (max-width: 760px) {
+            .cars-block-header {
+                padding-right: 92px;
+            }
+
             .cars-results-actions {
                 gap: 5px;
             }
