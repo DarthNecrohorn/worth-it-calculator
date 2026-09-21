@@ -1350,6 +1350,13 @@ function openMarkets() {
 
     hideCarsNavigationUi();
 
+    const carsSection =
+        document.getElementById("carsSection");
+
+    if (carsSection) {
+        carsSection.style.display = "none";
+    }
+
     const homePage =
         document.getElementById("homePage");
 
@@ -1425,6 +1432,13 @@ window.openMarkets = openMarkets;
 function openMoney() {
 
     hideCarsNavigationUi();
+
+    const carsSection =
+        document.getElementById("carsSection");
+
+    if (carsSection) {
+        carsSection.style.display = "none";
+    }
 
     const homePage =
         document.getElementById("homePage");
