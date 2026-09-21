@@ -1,3 +1,5 @@
+import { recordAdminApiUsage } from "../lib/admin-usage.js";
+
 /* =========================================================
    CURRENCIES API - Frankfurter v2
    Production version with 1-hour Cloudflare caching
@@ -355,6 +357,11 @@ function normalizeCurrencies(data) {
 ========================================================= */
 
 export async function onRequest(context) {
+
+    recordAdminApiUsage(context, {
+        apiKey: "currencies",
+        provider: "Frankfurter"
+    });
 
     const corsHeaders = {
         "Access-Control-Allow-Origin": "*",
