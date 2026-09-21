@@ -1,3 +1,5 @@
+import { recordAdminApiUsage } from "../lib/admin-usage.js";
+
 /*
  * =========================================================
  * WORTH IT — WEATHER API
@@ -129,6 +131,11 @@ const inFlightWeatherRequests =
 ========================================================= */
 
 export async function onRequestGet(context) {
+
+    recordAdminApiUsage(context, {
+        apiKey: "weather",
+        provider: "Visual Crossing"
+    });
 
     try {
 
