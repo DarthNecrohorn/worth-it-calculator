@@ -597,8 +597,7 @@ async function handleModels(
         models =
             models.filter(vehicle =>
                 normalizeText(vehicle.make) === targetMake ||
-                simplifyText(vehicle.make) === simplifiedMake            );
-    }
+                simplifyText(vehicle.make) === simplifiedMake            );    }
 
     if (search) {
 
@@ -1197,7 +1196,6 @@ const WIKIPEDIA_FIELD_ALIASES = {
     "driving range": "electricRange",
     "epa range": "electricRange",
     "wltp range": "electricRange",    range: "electricRange",
-
     seating: "seating",
     seats: "seating",
     "seating capacity": "seating",
@@ -1797,8 +1795,7 @@ function cleanWikipediaWikitextValue(value) {
 
     text =        text.replace(
             /\[(?:https?:\/\/|\/\/)[^\s\]]+\s+([^\]]+)\]/gi,
-            "$1"
-        );
+            "$1"        );
 
     /* Formatting markup. */
 
@@ -2397,8 +2394,7 @@ function parseWikipediaInfoboxHtml(html) {
         console.error(
             "Wikipedia rendered HTML infobox parsing error:",
             error
-        );
-    }
+        );    }
 
     return specifications;
 }
@@ -2997,8 +2993,7 @@ function extractGenerationCandidateArticleTitle(
 
         const title =
             extractWikipediaArticleTitleFromHref(
-                hrefMatch[1]
-            );
+                hrefMatch[1]            );
 
         if (!title) {
             continue;
@@ -3597,8 +3592,7 @@ function normalizeLicenseMetadata(value) {
 function getCommercialWikimediaLicense(extmetadata) {
 
     if (!extmetadata || typeof extmetadata !== "object") {
-        return null;
-    }
+        return null;    }
 
     const shortName =
         normalizeLicenseMetadata(
@@ -3788,7 +3782,7 @@ function isVehicleImageUrlMatchingName(
     const escapedVehicleName =
         vehicleName.replace(
             /[.*+?^\${}()|[\]\\]/g,
-            "\$&"
+            "\\$&"
         );
 
     const pattern =
@@ -4197,8 +4191,7 @@ async function getWikipediaInfoboxData(
             latestGeneration =
                 await resolveLatestGenerationData(
                     html,
-                    vehicleContext.make,
-                    vehicleContext.model,
+                    vehicleContext.make,                    vehicleContext.model,
                     vehicleContext.kind
                 );
         }
@@ -4797,7 +4790,6 @@ function createLightweightVehicleFromRequest(
     const model =
         requestUrl.searchParams.get("model") ||
         "";
-
     const yearRaw =
         requestUrl.searchParams.get("year");
 
