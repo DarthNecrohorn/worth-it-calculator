@@ -43,16 +43,27 @@ const IMAGE_NEGATIVE_CACHE_TTL =
     24 * 60 * 60;
 
 
+/*
+ * Maximum number of commodity series returned by the API.
+ *
+ * The parser remains dynamic and reads every usable series
+ * from the World Bank worksheet first. This is only a final
+ * safety/output limit.
+ */
+const MAX_COMMODITIES =
+    100;
+
+
 const CACHE_TIMESTAMP_HEADER =
     "X-Worth-It-Cache-Time";
 
 
 const WORLD_BANK_XLSX_CACHE_KEY =
-    "https://worth-it-internal-cache.local/world-bank-cmo-monthly.xlsx";
+    "https://worth-it-internal-cache.local/world-bank-cmo-monthly-v2.xlsx";
 
 
 const WORLD_BANK_RESULT_CACHE_KEY =
-    "https://worth-it-internal-cache.local/world-bank-markets-v4.json";
+    "https://worth-it-internal-cache.local/world-bank-markets-v5.json";
 
 
 const WORLD_BANK_PAGE_CACHE_KEY =
@@ -2815,8 +2826,20 @@ async function parseWorldBankDataset(
     );
 
 
+    /*
+     * The World Bank parser remains fully dynamic.
+     * Every usable commodity is collected first.
+     * Only the final API response is limited to MAX_COMMODITIES.
+     */
+    const limitedCommodities =
+        commodities.slice(
+            0,
+            MAX_COMMODITIES
+        );
+
+
     if (
-        !commodities.length
+        !limitedCommodities.length
     ) {
 
         throw new Error(
@@ -2828,7 +2851,7 @@ async function parseWorldBankDataset(
 
     const latestTimestamp =
         Math.max(
-            ...commodities.map(
+            ...limitedCommodities.map(
                 item =>
                     new Date(
                         item.updated_at
@@ -2852,18 +2875,18 @@ async function parseWorldBankDataset(
     return {
 
         prices:
-            commodities,
+            limitedCommodities,
 
         latest_period:
             period,
 
         commodity_count:
-            commodities.length,
+            limitedCommodities.length,
 
         categories:
             [
                 ...new Set(
-                    commodities.map(
+                    limitedCommodities.map(
                         item =>
                             item.category
                     )
