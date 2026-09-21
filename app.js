@@ -134,45 +134,60 @@ function positionAccountPanelForMobile() {
         return;
     }
 
-    /* The panel is an absolute child of .auth-wrap. Calculate its
-       position from the actual profile button so A+ / A++ zoom cannot
-       introduce a horizontal drift. */
+    /* Use viewport coordinates directly. This avoids the CSS zoom
+       mismatch that can push the dropdown to the wrong side on A++. */
+    panel.style.position = "fixed";
     panel.style.right = "auto";
     panel.style.transform = "none";
 
-    const authWrap = $("authWrap");
+    const profileRect = profileBtn.getBoundingClientRect();
 
-    if (!authWrap) return;
+    const panelWidth = panel.getBoundingClientRect().width;
+    const panelHeight = panel.getBoundingClientRect().height;
 
-    const panelWidth = panel.offsetWidth;
-    const desiredLeft =
-        profileBtn.offsetLeft +
-        (profileBtn.offsetWidth / 2) -
-        (panelWidth / 2) +
-        (document.documentElement.dataset.uiScale === "xl" ? 12 :
-         document.documentElement.dataset.uiScale === "large" ? 8 : 0);
+    const uiScale =
+        document.documentElement.dataset.uiScale === "xl" ? 1.12 :
+        document.documentElement.dataset.uiScale === "large" ? 1.06 : 1;
 
-    const viewportWidth =
-        document.documentElement.clientWidth;
+    let left =
+        profileRect.left +
+        (profileRect.width / 2) -
+        (panelWidth / 2);
 
-    const wrapLeft =
-        authWrap.getBoundingClientRect().left;
+    /* A++ gets only a very small rightward correction. */
+    if (document.documentElement.dataset.uiScale === "xl") {
+        left += 8;
+    } else if (document.documentElement.dataset.uiScale === "large") {
+        left += 4;
+    }
 
-    const zoom =
-        parseFloat(getComputedStyle(document.body).zoom) || 1;
+    const margin = 8;
 
-    const minLeft =
-        (10 / zoom) - (wrapLeft / zoom);
+    left =
+        Math.max(
+            margin,
+            Math.min(
+                left,
+                window.innerWidth - panelWidth - margin
+            )
+        );
 
-    const maxLeft =
-        (viewportWidth / zoom) -
-        (10 / zoom) -
-        panelWidth;
+    const preferredTop =
+        profileRect.bottom + 8;
 
-    panel.style.left =
-        Math.max(minLeft, Math.min(desiredLeft, maxLeft)) + "px";
+    const maxTop =
+        window.innerHeight - panelHeight - margin;
+
+    let top =
+        Math.min(preferredTop, maxTop);
+
+    if (top < margin) {
+        top = margin;
+    }
+
+    panel.style.left = left + "px";
+    panel.style.top = top + "px";
 }
-
 
 function toggleAccountPanel() {
 
