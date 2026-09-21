@@ -4840,6 +4840,94 @@ function startStablePopularVehicleDisplay(
 
 
 
+async function refreshPopularVehicleCategory(
+    kind,
+    refreshButton = null
+) {
+
+    if (currentVehicleKind !== kind || currentVehicleMode !== "popular") return;
+
+    const grid = document.getElementById("popularCarsGrid");
+    if (!grid) return;
+
+    const candidates = getPopularVehicles(currentVehicleCatalog);
+    if (!candidates.length) return;
+
+    if (refreshButton) {
+        refreshButton.disabled = true;
+        refreshButton.classList.add("is-loading");
+    }
+
+    currentVehicleShowAll = false;
+
+    const previousDisplayState = getStablePopularDisplayState(kind);
+    if (previousDisplayState) previousDisplayState.cancelled = true;
+
+    const displayState = startStablePopularVehicleDisplay(kind, false);
+    grid.innerHTML = "";
+
+    try {
+        const fastVehicles = await collectFastPopularVehicleInformation(
+            kind,
+            candidates,
+            POPULAR_REFRESH_CARD_COUNT,
+            POPULAR_REFRESH_MAX_CHECKS
+        );
+
+        if (currentVehicleKind !== kind || currentVehicleMode !== "popular" || displayState.cancelled) {
+            return;
+        }
+
+        if (fastVehicles.length) {
+            mergePopularValidVehiclesIntoState(kind, candidates, fastVehicles);
+
+            currentVehicleShowAll = false;
+            displayState.showAll = false;
+
+            appendStablePopularVehicleCards(kind, fastVehicles, false);
+
+            const initialCount = Math.min(
+                POPULAR_REFRESH_CARD_COUNT,
+                Math.max(1, getVehiclesPerRow() * INITIAL_VISIBLE_ROWS)
+            );
+
+            renderVehicleExpandButton(
+                fastVehicles,
+                fastVehicles.slice(0, initialCount),
+                kind,
+                stablePopularHasMoreVehicles(kind, POPULAR_REFRESH_CARD_COUNT)
+            );
+
+            hideOrShowStablePopularCards(kind, false);
+
+            void continueStablePopularVehicleLoading(kind, candidates);
+            void enrichVehicleCategoryWithSupplementalSources(kind);
+        } else {
+            grid.innerHTML =
+                '<div class="cars-empty-state">' +
+                    '<div class="cars-empty-icon">' +
+                        getVehicleKindInfo(kind).icon +
+                    '</div>' +
+                    '<strong>Still checking ' +
+                        escapeVehicleHtml(getVehicleKindInfo(kind).plural.toLowerCase()) +
+                        '...</strong>' +
+                    '<p>Checking Wikipedia for reliable vehicle information.</p>' +
+                '</div>';
+
+            void continueStablePopularVehicleLoading(kind, candidates);
+        }
+
+    } catch (error) {
+        console.error("Popular vehicle refresh failed:", kind, error);
+    } finally {
+        if (refreshButton) {
+            refreshButton.disabled = false;
+            refreshButton.classList.remove("is-loading");
+        }
+    }
+}
+
+
 async function loadAndRenderNonCarPopularVehicles(
     kind,
     showAll = false
