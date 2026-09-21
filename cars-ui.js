@@ -5330,7 +5330,21 @@ function injectVehicleUiStyles() {
             opacity: 0.7;
         }
 
-                .cars-expand-button {
+                /*
+         * Keep the normal Show All / Show Less control aligned to
+         * the right edge of the Cars results area, matching the side
+         * where users normally scroll.
+         */
+        .cars-expand-wrapper {
+            width: 100%;
+            display: flex;
+            justify-content: flex-end;
+            align-items: center;
+            margin-top: 0;
+            box-sizing: border-box;
+        }
+
+        .cars-expand-button {
             display: inline-flex;
             align-items: center;
             justify-content: center;
