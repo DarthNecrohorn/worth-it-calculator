@@ -134,52 +134,54 @@ function positionAccountPanelForMobile() {
         return;
     }
 
-    /* Use viewport coordinates directly. This avoids the CSS zoom
-       mismatch that can push the dropdown to the wrong side on A++. */
+    /* Mobile uses viewport coordinates so the menu follows the
+       actual profile icon at every accessibility scale. */
     panel.style.position = "fixed";
     panel.style.right = "auto";
     panel.style.transform = "none";
 
     const profileRect = profileBtn.getBoundingClientRect();
-
-    const panelWidth = panel.getBoundingClientRect().width;
-    const panelHeight = panel.getBoundingClientRect().height;
-
-    const uiScale =
-        document.documentElement.dataset.uiScale === "xl" ? 1.12 :
-        document.documentElement.dataset.uiScale === "large" ? 1.06 : 1;
-
-    let left =
-        profileRect.left +
-        (profileRect.width / 2) -
-        (panelWidth / 2);
-
-    /* A++ gets only a very small rightward correction. */
-    if (document.documentElement.dataset.uiScale === "xl") {
-        left += 8;
-    } else if (document.documentElement.dataset.uiScale === "large") {
-        left += 4;
-    }
+    const viewportWidth =
+        window.visualViewport?.width || document.documentElement.clientWidth || window.innerWidth;
 
     const margin = 8;
+    const profileCenter = profileRect.left + (profileRect.width / 2);
 
-    left =
-        Math.max(
-            margin,
-            Math.min(
-                left,
-                window.innerWidth - panelWidth - margin
-            )
-        );
+    /* First use the natural compact width. If that width would be
+       cut off while centered under the icon, reduce the panel width
+       just enough to keep the whole panel visible. */
+    const naturalWidth = Math.min(290, Math.max(180, viewportWidth - 20));
+    const maxCenteredWidth = Math.max(
+        160,
+        2 * Math.min(
+            profileCenter - margin,
+            viewportWidth - profileCenter - margin
+        )
+    );
 
-    const preferredTop =
-        profileRect.bottom + 8;
+    const panelWidth = Math.min(naturalWidth, maxCenteredWidth);
 
-    const maxTop =
-        window.innerHeight - panelHeight - margin;
+    panel.style.width = panelWidth + "px";
+    panel.style.maxWidth = panelWidth + "px";
+    panel.style.boxSizing = "border-box";
 
-    let top =
-        Math.min(preferredTop, maxTop);
+    /* Re-measure after the width has been applied. */
+    const actualWidth = panel.getBoundingClientRect().width;
+    const panelHeight = panel.getBoundingClientRect().height;
+
+    let left = profileCenter - (actualWidth / 2);
+
+    /* Keep the centered position whenever possible. The clamp is only
+       a final safety net for unusual very narrow phone viewports. */
+    left = Math.max(
+        margin,
+        Math.min(left, viewportWidth - actualWidth - margin)
+    );
+
+    const preferredTop = profileRect.bottom + 8;
+    const maxTop = window.innerHeight - panelHeight - margin;
+
+    let top = Math.min(preferredTop, maxTop);
 
     if (top < margin) {
         top = margin;
