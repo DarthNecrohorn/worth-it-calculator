@@ -6929,6 +6929,13 @@ async function openCars() {
 
     hideVehicleFloatingCollapseButton();
 
+    /*
+     * Restore the live Compare UI when returning to Cars.
+     * The selected vehicles are intentionally preserved across
+     * section navigation.
+     */
+    renderVehicleCompareBar();
+
 
     /*
      * Build the six vehicle categories.
