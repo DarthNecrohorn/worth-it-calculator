@@ -6466,15 +6466,19 @@ button[disabled],
     margin:0;
     border-radius:50%;
     flex:0 0 36px;
+    box-sizing:border-box;
     border:2px solid rgba(255,255,255,.72);
     box-shadow:
         0 2px 8px rgba(15,23,42,.20),
         inset 0 0 0 1px rgba(0,0,0,.08);
+    align-self:center;
 }
 
 .profile-nav-btn .auth-avatar{
     display:block;
     object-fit:cover;
+    object-position:center center;
+    vertical-align:middle;
 }
 
 .profile-nav-btn .auth-avatar-fallback{
