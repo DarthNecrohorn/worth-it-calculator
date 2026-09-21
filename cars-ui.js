@@ -2824,42 +2824,13 @@ async function loadAndRenderPopularVehicles(
     }
 
     /*
-     * If Wikipedia quality filtering leaves the category empty, keep
-     * the category usable by showing the most popular catalog records.
-     * Their detail panel will display “No Information” and they remain
-     * non-comparable until reliable Wikipedia data exists.
+     * Only display vehicles that passed the Wikipedia quality check.
+     * This guarantees that every visible vehicle has usable technical
+     * specification data, even when its commercial Wikimedia image
+     * is unavailable.
      */
     let displayVehicles =
         qualityVehicles;
-
-    if (
-        !displayVehicles.length &&
-        Array.isArray(catalogVehicles) &&
-        catalogVehicles.length
-    ) {
-
-        displayVehicles =
-            candidates.length
-                ? candidates.slice(
-                    0,
-                    Math.max(
-                        3,
-                        getInitialVehicleLimit(
-                            candidates
-                        )
-                    )
-                )
-                : catalogVehicles.slice(
-                    0,
-                    Math.max(
-                        3,
-                        getInitialVehicleLimit(
-                            catalogVehicles
-                        )
-                    )
-                );
-
-    }
 
     currentVehicleResults =
         displayVehicles;
