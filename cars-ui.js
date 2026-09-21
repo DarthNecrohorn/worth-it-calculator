@@ -9671,6 +9671,22 @@ function injectVehicleUiStyles() {
          * same fixed position, dimensions, animation and visibility
          * behavior. Only the text/action is different.
          */
+        @media (max-width: 700px) {
+            /* Keep Show Less accessible without covering the middle of the page. */
+            .worth-it-vehicle-floating-collapse {
+                right: 10px !important;
+                left: auto !important;
+                top: auto !important;
+                bottom: 14px !important;
+                max-width: calc(100vw - 20px) !important;
+                min-height: 40px !important;
+                padding: 8px 12px !important;
+                border-radius: 10px !important;
+                font-size: .74rem !important;
+                line-height: 1.2 !important;
+            }
+        }
+
         .worth-it-vehicle-floating-collapse {
             position: fixed !important;
             right: max(8px, calc((100vw - 1180px) / 2 - 140px)) !important;
