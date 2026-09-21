@@ -5032,25 +5032,39 @@ async function handleDetails(
         globalDecile
     };
 
-    /* 1. Search Wikipedia. */
+    /*
+     * 1. Resolve Wikipedia.
+     *
+     * Wikidata supplemental candidates already include an exact English
+     * Wikipedia sitelink, so use it directly when available. VehiclesDB
+     * candidates continue through the normal fast Wikipedia resolver.
+     */
+    let wikipediaTitle =
+        String(
+            requestUrl.searchParams.get("wikipedia_title") ||
+            ""
+        ).trim() ||
+        null;
 
-    let wikipediaTitle = null;
+    if (!wikipediaTitle) {
 
-    try {
+        try {
 
-        wikipediaTitle =
-            await searchWikipediaVehicle(
-                vehicle.make,
-                vehicle.model,
-                kind
+            wikipediaTitle =
+                await searchWikipediaVehicle(
+                    vehicle.make,
+                    vehicle.model,
+                    kind
+                );
+
+        } catch (error) {
+
+            console.error(
+                "Wikipedia vehicle search failed:",
+                error
             );
+        }
 
-    } catch (error) {
-
-        console.error(
-            "Wikipedia vehicle search failed:",
-            error
-        );
     }
 
     if (!wikipediaTitle) {
