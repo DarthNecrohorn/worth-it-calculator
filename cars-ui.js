@@ -37,7 +37,7 @@ const VEHICLE_API_VERSION = "v13";
 const VEHICLE_CATALOG_BASE_URL =
     "https://cdn.jsdelivr.net/gh/vehiclesdb/vehiclesdb@latest/catalog";
 
-const VEHICLE_DETAILS_CACHE_VERSION = "v17";
+const VEHICLE_DETAILS_CACHE_VERSION = "v18";
 
 const MAX_VEHICLES_PER_CATEGORY = 300;
 
@@ -243,7 +243,7 @@ const popularVehicleQualityCache =
 
 let vehicleImageObserver = null;
 
-const MAX_CONCURRENT_IMAGE_REQUESTS = 3;
+const MAX_CONCURRENT_IMAGE_REQUESTS = 4;
 
 let activeVehicleImageRequests = 0;
 
@@ -2955,132 +2955,94 @@ async function loadAndRenderPopularVehicles(
     const candidates =
         getPopularVehicles(
             catalogVehicles
-        )
-            .slice(
-                0,
-                MAX_VEHICLES_PER_CATEGORY
-            );
-
-    if (!candidates.length) {
-
-        renderVehicleCards(
-            [],
-            kind,
-            showAll
+        ).slice(
+            0,
+            MAX_VEHICLES_PER_CATEGORY
         );
 
+    if (!candidates.length) {
+        renderVehicleCards([], kind, showAll);
         return;
-
     }
 
     /*
-     * Render catalog cards immediately. Wikipedia/Wikimedia data is
-     * loaded independently afterwards, so a slow or unavailable detail
-     * request can never block the category from appearing.
-     *
-     * The category itself is capped at MAX_VEHICLES_PER_CATEGORY.
+     * Popular view is data-first: only vehicles with reliable Wikipedia
+     * information and at least two technical specification fields are
+     * allowed through. Wikimedia image availability is independent.
      */
-    const targetCount =
+    const desiredCount =
         showAll
             ? candidates.length
             : Math.min(
                 candidates.length,
                 Math.max(
                     1,
-                    getInitialVehicleLimit(
-                        candidates
-                    )
+                    getInitialVehicleLimit(candidates)
                 )
             );
 
-    const vehiclesToDisplay =
-        candidates.slice(
-            0,
-            targetCount
+    const maxNewChecks =
+        showAll
+            ? candidates.length
+            : Math.min(
+                candidates.length,
+                Math.max(
+                    POPULAR_INITIAL_MAX_CHECKS,
+                    desiredCount * 4
+                )
+            );
+
+    const progressHandler =
+        async (vehicles) => {
+
+            if (
+                currentVehicleKind !== kind ||
+                currentVehicleMode !== "popular" ||
+                !Array.isArray(vehicles) ||
+                !vehicles.length
+            ) {
+                return;
+            }
+
+            currentVehicleResults = vehicles;
+            currentVehicleShowAll = Boolean(showAll);
+
+            renderVehicleCards(
+                vehicles,
+                kind,
+                showAll
+            );
+
+        };
+
+    const qualityVehicles =
+        await ensurePopularVehicleQuality(
+            kind,
+            catalogVehicles,
+            desiredCount,
+            maxNewChecks,
+            progressHandler
         );
 
-    currentVehicleResults =
-        vehiclesToDisplay;
+    if (
+        currentVehicleKind !== kind ||
+        currentVehicleMode !== "popular"
+    ) {
+        return;
+    }
 
-    currentVehicleShowAll =
-        Boolean(showAll);
+    currentVehicleResults = qualityVehicles;
+
+    if (!qualityVehicles.length) {
+        renderVehicleCards([], kind, showAll);
+        return;
+    }
 
     renderVehicleCards(
-        vehiclesToDisplay,
+        qualityVehicles,
         kind,
         showAll
     );
-
-    /*
-     * Continue loading Wikipedia data in the background. This warms the
-     * details cache so "Image unavailable" cards still get their useful
-     * specification preview without waiting for an image request.
-     */
-    const warmupVehicles =
-        showAll
-            ? vehiclesToDisplay.slice(
-                0,
-                Math.min(
-                    24,
-                    vehiclesToDisplay.length
-                )
-            )
-            : vehiclesToDisplay;
-
-    void Promise.allSettled(
-        warmupVehicles.map(
-            vehicle =>
-                fetchVehicleDetails(
-                    vehicle.make,
-                    vehicle.model,
-                    kind
-                )
-        )
-    );
-
-    /*
-     * Show All is the complete category, so no extra expansion cycle is
-     * needed. The existing Show Less control remains available.
-     */
-    if (
-        showAll
-    ) {
-
-        if (
-            vehiclesToDisplay.length >
-            Math.max(
-                1,
-                getInitialVehicleLimit(
-                    candidates
-                )
-            )
-        ) {
-            renderVehicleCollapseButton(
-                kind
-            );
-            updateVehicleFloatingCollapseButton();
-        }
-
-        return;
-
-    }
-
-    /*
-     * There are more catalog vehicles in this category than the initial
-     * three-row view, so offer Show all.
-     */
-    if (
-        candidates.length >
-        vehiclesToDisplay.length
-    ) {
-
-        renderVehicleExpandButton(
-            candidates,
-            vehiclesToDisplay,
-            kind
-        );
-
-    }
 
 }
 
