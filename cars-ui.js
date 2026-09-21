@@ -39,7 +39,9 @@ const VEHICLE_CATALOG_BASE_URL =
 
 const VEHICLE_DETAILS_CACHE_VERSION = "v17";
 
-const MAX_SEARCH_RESULTS = 500;
+const MAX_VEHICLES_PER_CATEGORY = 300;
+
+const MAX_SEARCH_RESULTS = MAX_VEHICLES_PER_CATEGORY;
 
 const INITIAL_VISIBLE_ROWS = 3;
 
@@ -51,12 +53,12 @@ const INITIAL_VISIBLE_ROWS = 3;
  * at a time to keep cards with missing Wikipedia/Wikimedia data
  * out of the Popular Vehicles view.
  */
-const POPULAR_CANDIDATE_POOL_SIZE = 1500;
+const POPULAR_CANDIDATE_POOL_SIZE = MAX_VEHICLES_PER_CATEGORY;
 const POPULAR_QUALITY_BATCH_SIZE = 8;
 const POPULAR_INITIAL_MAX_CHECKS = 32;
 const POPULAR_SHOW_ALL_MAX_NEW_CHECKS = 1500;
 const VEHICLE_DETAILS_REQUEST_TIMEOUT_MS = 15000;
-const POPULAR_MAX_DISPLAY_RESULTS = 500;
+const POPULAR_MAX_DISPLAY_RESULTS = MAX_VEHICLES_PER_CATEGORY;
 const POPULAR_MIN_SPECIFICATION_FIELDS = 2;
 const POPULAR_MIN_DESCRIPTION_LENGTH = 60;
 
@@ -906,7 +908,7 @@ function updateVehicleCardInformationPreview(
             ".car-card"
         );
 
-    if (!card || !details) {
+    if (!card) {
         return;
     }
 
@@ -937,6 +939,16 @@ function updateVehicleCardInformationPreview(
         content.appendChild(
             preview
         );
+    }
+
+    if (!details) {
+
+        preview.textContent =
+            "No Information";
+        preview.removeAttribute("title");
+
+        return;
+
     }
 
     const specifications =
@@ -1326,18 +1338,55 @@ async function fetchVehicleCatalog(
                         .filter(Boolean);
 
                 /*
-                 * Keep the full category catalog in browser memory.
-                 * Popular Vehicles are selected separately below, so
-                 * Search can find specific models outside the popular
-                 * candidate pool (for example newer or less-popular
-                 * vehicles).
+                 * Keep a maximum of 300 vehicles per category.
+                 * Rank by VehiclesDB popularity first so the limited
+                 * catalog contains the strongest category candidates.
                  */
-                vehicleCatalogCache.set(
-                    kind,
-                    vehicles
+                vehicles.sort(
+                    (a, b) => {
+
+                        const popularityDifference =
+                            getVehiclePopularityValue(a) -
+                            getVehiclePopularityValue(b);
+
+                        if (
+                            popularityDifference !== 0
+                        ) {
+                            return popularityDifference;
+                        }
+
+                        const makeDifference =
+                            String(a?.make || "").localeCompare(
+                                String(b?.make || ""),
+                                undefined,
+                                { sensitivity: "base" }
+                            );
+
+                        if (makeDifference !== 0) {
+                            return makeDifference;
+                        }
+
+                        return String(a?.model || "").localeCompare(
+                            String(b?.model || ""),
+                            undefined,
+                            { sensitivity: "base" }
+                        );
+
+                    }
                 );
 
-                return vehicles;
+                const limitedVehicles =
+                    vehicles.slice(
+                        0,
+                        MAX_VEHICLES_PER_CATEGORY
+                    );
+
+                vehicleCatalogCache.set(
+                    kind,
+                    limitedVehicles
+                );
+
+                return limitedVehicles;
 
             } catch (error) {
 
@@ -1346,7 +1395,176 @@ async function fetchVehicleCatalog(
                     error
                 );
 
-                return [];
+                /*
+                 * A transient CDN/network failure should not make a
+                 * category permanently appear as unavailable. Retry once
+                 * after a short delay, while still avoiding an empty cache.
+                 */
+                try {
+
+                    await new Promise(
+                        resolve =>
+                            window.setTimeout(
+                                resolve,
+                                350
+                            )
+                    );
+
+                    const retryBaseUrl =
+                        `${VEHICLE_CATALOG_BASE_URL}/${kind}`;
+
+                    const [
+                        retryModelsResponse,
+                        retryMakesResponse
+                    ] = await Promise.all([
+                        fetch(
+                            `${retryBaseUrl}/models.json`,
+                            {
+                                headers: {
+                                    "Accept": "application/json"
+                                }
+                            }
+                        ),
+                        fetch(
+                            `${retryBaseUrl}/makes.json`,
+                            {
+                                headers: {
+                                    "Accept": "application/json"
+                                }
+                            }
+                        )
+                    ]);
+
+                    if (
+                        !retryModelsResponse.ok ||
+                        !retryMakesResponse.ok
+                    ) {
+                        return [];
+                    }
+
+                    const [
+                        retryModelRecords,
+                        retryMakeRecords
+                    ] = await Promise.all([
+                        retryModelsResponse.json(),
+                        retryMakesResponse.json()
+                    ]);
+
+                    if (
+                        !Array.isArray(retryModelRecords) ||
+                        !Array.isArray(retryMakeRecords)
+                    ) {
+                        return [];
+                    }
+
+                    const retryMakeMap =
+                        new Map(
+                            retryMakeRecords
+                                .filter(make => make && make.id)
+                                .map(make => [
+                                    String(make.id),
+                                    {
+                                        name: make.name || "",
+                                        slug: make.slug || ""
+                                    }
+                                ])
+                        );
+
+                    const retryVehicles =
+                        retryModelRecords
+                            .map(model => {
+
+                                if (!model || !model.name) {
+                                    return null;
+                                }
+
+                                const make =
+                                    retryMakeMap.get(
+                                        String(model.make_id || "")
+                                    ) || {
+                                        name:
+                                            model.make_name ||
+                                            model.make ||
+                                            model.make_id ||
+                                            "",
+                                        slug:
+                                            model.make_slug ||
+                                            ""
+                                    };
+
+                                const rawDecile =
+                                    model?.popularity?.global_decile ??
+                                    model?.global_decile ??
+                                    model?.global_popularity_decile ??
+                                    null;
+
+                                return {
+                                    make: make.name,
+                                    makeSlug: make.slug,
+                                    model: model.name,
+                                    modelSlug: model.slug || "",
+                                    kind: model.kind || kind,
+                                    bodyType:
+                                        Array.isArray(model.body_types) &&
+                                        model.body_types.length
+                                            ? model.body_types[0]
+                                            : null,
+                                    bodyTypes:
+                                        Array.isArray(model.body_types)
+                                            ? model.body_types
+                                            : [],
+                                    popularityRanks: [],
+                                    globalDecile: rawDecile,
+                                    availability:
+                                        Array.isArray(model.availability)
+                                            ? model.availability.map(item =>
+                                                typeof item === "string"
+                                                    ? item
+                                                    : item?.country
+                                            ).filter(Boolean)
+                                            : [],
+                                    yearStart:
+                                        model.year_start ?? null,
+                                    yearEnd:
+                                        model.year_end ?? null
+                                };
+
+                            })
+                            .filter(Boolean);
+
+                    retryVehicles.sort(
+                        (a, b) =>
+                            getVehiclePopularityValue(a) -
+                            getVehiclePopularityValue(b)
+                    );
+
+                    const limitedRetryVehicles =
+                        retryVehicles.slice(
+                            0,
+                            MAX_VEHICLES_PER_CATEGORY
+                        );
+
+                    if (limitedRetryVehicles.length) {
+
+                        vehicleCatalogCache.set(
+                            kind,
+                            limitedRetryVehicles
+                        );
+
+                    }
+
+                    return limitedRetryVehicles;
+
+                } catch (retryError) {
+
+                    console.error(
+                        `VehiclesDB catalog retry error for ${kind}:`,
+                        retryError
+                    );
+
+                    return [];
+
+                }
 
             } finally {
 
@@ -2730,12 +2948,18 @@ async function loadAndRenderPopularVehicles(
     }
 
     const catalogVehicles =
-        currentVehicleCatalog;
+        Array.isArray(currentVehicleCatalog)
+            ? currentVehicleCatalog
+            : [];
 
     const candidates =
         getPopularVehicles(
             catalogVehicles
-        );
+        )
+            .slice(
+                0,
+                MAX_VEHICLES_PER_CATEGORY
+            );
 
     if (!candidates.length) {
 
@@ -2749,119 +2973,115 @@ async function loadAndRenderPopularVehicles(
 
     }
 
+    /*
+     * Render catalog cards immediately. Wikipedia/Wikimedia data is
+     * loaded independently afterwards, so a slow or unavailable detail
+     * request can never block the category from appearing.
+     *
+     * The category itself is capped at MAX_VEHICLES_PER_CATEGORY.
+     */
     const targetCount =
         showAll
-            ? POPULAR_MAX_DISPLAY_RESULTS
-            : Math.max(
+            ? candidates.length
+            : Math.min(
+                candidates.length,
+                Math.max(
+                    1,
+                    getInitialVehicleLimit(
+                        candidates
+                    )
+                )
+            );
+
+    const vehiclesToDisplay =
+        candidates.slice(
+            0,
+            targetCount
+        );
+
+    currentVehicleResults =
+        vehiclesToDisplay;
+
+    currentVehicleShowAll =
+        Boolean(showAll);
+
+    renderVehicleCards(
+        vehiclesToDisplay,
+        kind,
+        showAll
+    );
+
+    /*
+     * Continue loading Wikipedia data in the background. This warms the
+     * details cache so "Image unavailable" cards still get their useful
+     * specification preview without waiting for an image request.
+     */
+    const warmupVehicles =
+        showAll
+            ? vehiclesToDisplay.slice(
+                0,
+                Math.min(
+                    24,
+                    vehiclesToDisplay.length
+                )
+            )
+            : vehiclesToDisplay;
+
+    void Promise.allSettled(
+        warmupVehicles.map(
+            vehicle =>
+                fetchVehicleDetails(
+                    vehicle.make,
+                    vehicle.model,
+                    kind
+                )
+        )
+    );
+
+    /*
+     * Show All is the complete category, so no extra expansion cycle is
+     * needed. The existing Show Less control remains available.
+     */
+    if (
+        showAll
+    ) {
+
+        if (
+            vehiclesToDisplay.length >
+            Math.max(
                 1,
                 getInitialVehicleLimit(
                     candidates
                 )
+            )
+        ) {
+            renderVehicleCollapseButton(
+                kind
             );
-
-    const maxNewChecks =
-        showAll
-            ? POPULAR_SHOW_ALL_MAX_NEW_CHECKS
-            : POPULAR_INITIAL_MAX_CHECKS;
-
-    /*
-     * Render valid vehicles progressively instead of waiting for the
-     * entire initial quality scan to finish. This makes the first
-     * cards appear much sooner while keeping the Wikipedia quality
-     * filter intact.
-     */
-    const progressHandler =
-        async (vehicles) => {
-
-            if (
-                currentVehicleKind !== kind ||
-                currentVehicleMode !== "popular"
-            ) {
-                return;
-            }
-
-            if (!vehicles.length) {
-                return;
-            }
-
-            currentVehicleResults =
-                vehicles;
-
-            currentVehicleShowAll =
-                showAll ||
-                vehicles.length >
-                    Math.max(
-                        1,
-                        getInitialVehicleLimit(
-                            candidates
-                        )
-                    );
-
-            renderVehicleCards(
-                vehicles,
-                kind,
-                showAll
-            );
-
-        };
-
-    const qualityVehicles =
-        await ensurePopularVehicleQuality(
-            kind,
-            catalogVehicles,
-            targetCount,
-            maxNewChecks,
-            progressHandler
-        );
-
-    if (
-        currentVehicleKind !== kind ||
-        currentVehicleMode !== "popular"
-    ) {
+            updateVehicleFloatingCollapseButton();
+        }
 
         return;
 
     }
 
     /*
-     * Only display vehicles that passed the Wikipedia quality check.
-     * This guarantees that every visible vehicle has usable technical
-     * specification data, even when its commercial Wikimedia image
-     * is unavailable.
+     * There are more catalog vehicles in this category than the initial
+     * three-row view, so offer Show all.
      */
-    let displayVehicles =
-        qualityVehicles;
-
-    currentVehicleResults =
-        displayVehicles;
-
-    currentVehicleShowAll =
-        showAll &&
-        displayVehicles.length >
-            Math.max(
-                1,
-                getInitialVehicleLimit(
-                    displayVehicles
-                )
-            );
-
-    renderVehicleCards(
-        displayVehicles,
-        kind,
-        showAll
-    );
-
     if (
-        !showAll &&
-        qualityVehicles.length > 0 &&
-        stateHasMorePopularVehicleCandidates(kind)
+        candidates.length >
+        vehiclesToDisplay.length
     ) {
+
         renderVehicleExpandButton(
             candidates,
-            qualityVehicles,
+            vehiclesToDisplay,
             kind
         );
+
     }
+
 }
 
 
