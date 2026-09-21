@@ -843,11 +843,7 @@ document.addEventListener(
 );
 
 
-/* =========================================================
-CALCULATOR NAVIGATION
-========================================================= */
-
-function openCalculator(type) {
+function hideCarsNavigationUi() {
 
     const carsSection =
         document.getElementById("carsSection");
@@ -855,6 +851,40 @@ function openCalculator(type) {
     if (carsSection) {
         carsSection.style.display = "none";
     }
+
+    const compareBar =
+        document.getElementById(
+            "worthItVehicleCompareBar"
+        );
+
+    if (compareBar) {
+        compareBar.remove();
+    }
+
+    const floatingCollapse =
+        document.getElementById(
+            "worthItVehicleFloatingCollapse"
+        );
+
+    if (floatingCollapse) {
+        floatingCollapse.classList.remove(
+            "is-visible"
+        );
+    }
+
+}
+
+window.hideCarsNavigationUi =
+    hideCarsNavigationUi;
+
+
+/* =========================================================
+CALCULATOR NAVIGATION
+========================================================= */
+
+function openCalculator(type) {
+
+    hideCarsNavigationUi();
 
     const homePage =
         document.getElementById("homePage");
@@ -1062,12 +1092,7 @@ window.openCalculator =
 
 function showHome() {
 
-    const carsSection =
-        document.getElementById("carsSection");
-
-    if (carsSection) {
-        carsSection.style.display = "none";
-    }
+    hideCarsNavigationUi();
     const homePage = document.getElementById("homePage");
     const weatherSection = document.getElementById("weatherSection");
     const newsSection = document.getElementById("newsSection");
@@ -1311,12 +1336,7 @@ window.openMoneyFromMenu = openMoneyFromMenu;
 
 function openMarkets() {
 
-    const carsSection =
-        document.getElementById("carsSection");
-
-    if (carsSection) {
-        carsSection.style.display = "none";
-    }
+    hideCarsNavigationUi();
 
     const homePage =
         document.getElementById("homePage");
@@ -1392,12 +1412,7 @@ window.openMarkets = openMarkets;
 
 function openMoney() {
 
-    const carsSection =
-        document.getElementById("carsSection");
-
-    if (carsSection) {
-        carsSection.style.display = "none";
-    }
+    hideCarsNavigationUi();
 
     const homePage =
         document.getElementById("homePage");
