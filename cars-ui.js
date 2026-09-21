@@ -241,6 +241,23 @@ const popularVehicleQualityState =
 const popularVehicleQualityCache =
     new Map();
 
+const supplementalVehicleCatalogCache =
+    new Map();
+
+const supplementalVehicleCatalogLoading =
+    new Map();
+
+const WIKIDATA_SUPPLEMENTAL_LIMIT =
+    300;
+
+const VEHICLE_SUPPLEMENTAL_CATEGORIES = [
+    "car",
+    "motorcycle",
+    "van",
+    "truck",
+    "bus"
+];
+
 /*
  * Per-category progressive display/hydration state.
  * Cards are rendered from the catalog immediately. Wikipedia data is
@@ -1046,6 +1063,13 @@ async function fetchVehicleDetails(
                     });
 
                 if (catalogVehicle) {
+
+                    if (catalogVehicle.wikipediaTitle) {
+                        params.set(
+                            "wikipedia_title",
+                            catalogVehicle.wikipediaTitle
+                        );
+                    }
 
                     if (catalogVehicle.bodyType) {
                         params.set(
@@ -1908,6 +1932,166 @@ async function fetchVehicleCatalog(
 
 }
 
+
+/*
+ * ============================================================
+ * SUPPLEMENTAL WIKIDATA CANDIDATES
+ * ============================================================
+ */
+
+async function fetchSupplementalVehicleCatalog(
+    kind
+) {
+
+    if (!VEHICLE_SUPPLEMENTAL_CATEGORIES.includes(kind)) {
+        return [];
+    }
+
+    if (supplementalVehicleCatalogCache.has(kind)) {
+        return supplementalVehicleCatalogCache.get(kind);
+    }
+
+    if (supplementalVehicleCatalogLoading.has(kind)) {
+        return supplementalVehicleCatalogLoading.get(kind);
+    }
+
+    const loadingPromise =
+        (async () => {
+
+            try {
+
+                const params =
+                    new URLSearchParams({
+                        action: "wikidata",
+                        kind
+                    });
+
+                const response =
+                    await fetch(
+                        VEHICLE_API + "?" + params.toString(),
+                        {
+                            headers: {
+                                "Accept": "application/json"
+                            }
+                        }
+                    );
+
+                if (!response.ok) {
+                    return [];
+                }
+
+                const data =
+                    await response.json();
+
+                const vehicles =
+                    Array.isArray(data?.vehicles)
+                        ? data.vehicles
+                        : [];
+
+                supplementalVehicleCatalogCache.set(kind, vehicles);
+                return vehicles;
+
+            } catch (error) {
+
+                console.warn(
+                    "Supplemental Wikidata catalog failed for " + kind + ":",
+                    error
+                );
+
+                return [];
+
+            } finally {
+                supplementalVehicleCatalogLoading.delete(kind);
+            }
+
+        })();
+
+    supplementalVehicleCatalogLoading.set(kind, loadingPromise);
+    return loadingPromise;
+
+}
+
+function mergeSupplementalVehicleCatalog(
+    kind,
+    supplementalVehicles
+) {
+
+    const baseVehicles =
+        Array.isArray(vehicleCatalogCache.get(kind))
+            ? vehicleCatalogCache.get(kind)
+            : [];
+
+    const merged = new Map();
+
+    for (const vehicle of [...baseVehicles, ...(supplementalVehicles || [])]) {
+
+        if (!vehicle?.make || !vehicle?.model) continue;
+
+        const key =
+            normalizeVehicleText(vehicle.make) +
+            "|" +
+            normalizeVehicleText(vehicle.model);
+
+        if (!merged.has(key)) {
+
+            merged.set(key, {
+                ...vehicle,
+                kind,
+                sourceKind: vehicle.sourceKind || kind,
+                globalDecile:
+                    vehicle.globalDecile ??
+                    999
+            });
+
+        }
+    }
+
+    const mergedVehicles = Array.from(merged.values());
+
+    mergedVehicles.sort(
+        (a, b) =>
+            getVehiclePopularityValue(a) -
+            getVehiclePopularityValue(b)
+    );
+
+    vehicleCatalogCache.set(kind, mergedVehicles);
+
+    return mergedVehicles;
+
+}
+
+async function enrichVehicleCategoryWithWikidata(
+    kind
+) {
+
+    const supplemental =
+        await fetchSupplementalVehicleCatalog(kind);
+
+    if (!supplemental.length) {
+        return;
+    }
+
+    const mergedCatalog =
+        mergeSupplementalVehicleCatalog(
+            kind,
+            supplemental.slice(0, WIKIDATA_SUPPLEMENTAL_LIMIT)
+        );
+
+    if (
+        currentVehicleKind === kind &&
+        currentVehicleMode === "popular"
+    ) {
+
+        currentVehicleCatalog = mergedCatalog;
+
+        void continueStablePopularVehicleLoading(
+            kind,
+            mergedCatalog
+        );
+
+    }
+
+}
 
 /*
  * ============================================================
@@ -2986,34 +3170,75 @@ function getPopularVehicleQualityState(
     candidates
 ) {
 
-    const existing =
-        popularVehicleQualityState.get(kind);
-
-    if (
-        existing &&
-        existing.candidateSignature === candidates
+    const signature =
+        candidates
             .map(vehicle =>
                 getPopularVehicleQualityKey(
                     vehicle,
                     kind
                 )
             )
-            .join("||")
-    ) {
+            .join("||");
 
+    const existing =
+        popularVehicleQualityState.get(kind);
+
+    if (existing && existing.candidateSignature === signature) {
         return existing;
+    }
+
+    if (existing) {
+
+        const existingValidKeys =
+            new Set(
+                existing.validVehicles.map(vehicle =>
+                    getPopularVehicleQualityKey(vehicle, kind)
+                )
+            );
+
+        const processedKeys =
+            new Set(
+                existing.candidates
+                    .slice(0, existing.nextIndex)
+                    .map(vehicle =>
+                        getPopularVehicleQualityKey(vehicle, kind)
+                    )
+            );
+
+        const preservedValidVehicles =
+            candidates.filter(vehicle =>
+                existingValidKeys.has(
+                    getPopularVehicleQualityKey(vehicle, kind)
+                )
+            );
+
+        const nextIndex =
+            candidates.findIndex(vehicle =>
+                !processedKeys.has(
+                    getPopularVehicleQualityKey(vehicle, kind)
+                )
+            );
+
+        const state = {
+            candidateSignature: signature,
+            candidates,
+            nextIndex:
+                nextIndex >= 0
+                    ? nextIndex
+                    : candidates.length,
+            validVehicles: preservedValidVehicles,
+            checkedCount: existing.checkedCount,
+            exhausted: false,
+            loadingPromise: null
+        };
+
+        popularVehicleQualityState.set(kind, state);
+        return state;
 
     }
 
     const state = {
-        candidateSignature: candidates
-            .map(vehicle =>
-                getPopularVehicleQualityKey(
-                    vehicle,
-                    kind
-                )
-            )
-            .join("||"),
+        candidateSignature: signature,
         candidates,
         nextIndex: 0,
         validVehicles: [],
@@ -3022,11 +3247,7 @@ function getPopularVehicleQualityState(
         loadingPromise: null
     };
 
-    popularVehicleQualityState.set(
-        kind,
-        state
-    );
-
+    popularVehicleQualityState.set(kind, state);
     return state;
 }
 
@@ -3919,6 +4140,15 @@ async function loadAndRenderPopularVehicles(
         void continueStablePopularVehicleLoading(
             kind,
             candidates
+        );
+
+        /*
+         * Expand the searchable/popular candidate pool in the background.
+         * Existing VehiclesDB cards stay unchanged while Wikidata fills
+         * additional candidates at the end of the catalogue.
+         */
+        void enrichVehicleCategoryWithWikidata(
+            kind
         );
 
     } else {
