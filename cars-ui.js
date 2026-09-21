@@ -2230,7 +2230,7 @@ function hasUsablePopularVehicleDetails(
         return false;
     }
 
-    if (!hasReliableVehicleWikipediaData(details, vehicle)) {
+    if (!hasReliableVehicleWikipediaData(details, vehicle, kind)) {
         return false;
     }
 
