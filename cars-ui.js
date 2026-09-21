@@ -234,6 +234,383 @@ const popularVehicleQualityState =
 const popularVehicleQualityCache =
     new Map();
 
+/*
+ * Per-category progressive display/hydration state.
+ * Cards are rendered from the catalog immediately. Wikipedia data is
+ * verified in the background, and invalid/no-information records are
+ * replaced by the next catalog candidate.
+ */
+const popularVehicleHydrationState =
+    new Map();
+
+const POPULAR_DETAILS_CONCURRENCY = 6;
+
+/*
+ * Persistent browser cache version for account-scoped vehicle
+ * metadata/images.
+ */
+const VEHICLE_PERSISTENT_CACHE_VERSION = "v2";
+
+let vehicleAccountCacheOwnerPromise =
+    null;
+
+function hashVehicleCacheOwner(
+    value
+) {
+
+    const text =
+        String(value || "guest");
+
+    let hash = 2166136261;
+
+    for (
+        let i = 0;
+        i < text.length;
+        i++
+    ) {
+
+        hash ^=
+            text.charCodeAt(i);
+
+        hash =
+            Math.imul(
+                hash,
+                16777619
+            );
+
+    }
+
+    return (
+        hash >>> 0
+    ).toString(16);
+
+}
+
+async function getVehicleAccountCacheOwner() {
+
+    if (
+        vehicleAccountCacheOwnerPromise
+    ) {
+
+        return vehicleAccountCacheOwnerPromise;
+
+    }
+
+    vehicleAccountCacheOwnerPromise =
+        (async () => {
+
+            try {
+
+                if (
+                    !window.supabaseClient?.auth
+                ) {
+
+                    return "guest";
+
+                }
+
+                const {
+                    data
+                } =
+                    await window.supabaseClient.auth.getSession();
+
+                return hashVehicleCacheOwner(
+                    data?.session?.user?.id ||
+                    "guest"
+                );
+
+            } catch {
+
+                return "guest";
+
+            }
+
+        })();
+
+    return vehicleAccountCacheOwnerPromise;
+
+}
+
+function getVehiclePersistentDetailsKey(
+    owner,
+    make,
+    model,
+    kind
+) {
+
+    return [
+        "worthItVehicleDetails",
+        VEHICLE_PERSISTENT_CACHE_VERSION,
+        owner,
+        normalizeVehicleText(kind),
+        normalizeVehicleText(make),
+        normalizeVehicleText(model)
+    ].join(":");
+
+}
+
+function readPersistentVehicleDetails(
+    owner,
+    make,
+    model,
+    kind
+) {
+
+    try {
+
+        const raw =
+            localStorage.getItem(
+                getVehiclePersistentDetailsKey(
+                    owner,
+                    make,
+                    model,
+                    kind
+                )
+            );
+
+        if (!raw) {
+            return null;
+        }
+
+        const parsed =
+            JSON.parse(raw);
+
+        if (
+            !parsed ||
+            !parsed.specifications
+        ) {
+            return null;
+        }
+
+        return parsed;
+
+    } catch {
+
+        return null;
+
+    }
+
+}
+
+function writePersistentVehicleDetails(
+    owner,
+    details
+) {
+
+    try {
+
+        const make =
+            details?.vehicle?.make ||
+            details?.make ||
+            "";
+
+        const model =
+            details?.vehicle?.model ||
+            details?.model ||
+            "";
+
+        const kind =
+            details?.vehicle?.kind ||
+            details?.kind ||
+            "";
+
+        if (
+            !make ||
+            !model ||
+            !kind
+        ) {
+            return;
+        }
+
+        /*
+         * Keep enough metadata for fast card rendering and image reuse,
+         * while avoiding storing unnecessarily large raw API responses.
+         */
+        const compact = {
+            success:
+                true,
+
+            kind,
+
+            vehicle: {
+                make,
+                model,
+                kind
+            },
+
+            wikipedia: {
+                title:
+                    details?.wikipedia?.title ||
+                    "No Information",
+
+                url:
+                    details?.wikipedia?.url ||
+                    null,
+
+                description:
+                    String(
+                        details?.wikipedia?.description ||
+                        "No Information"
+                    ).slice(
+                        0,
+                        2500
+                    )
+            },
+
+            image:
+                details?.image ||
+                null,
+
+            specifications:
+                details?.specifications ||
+                {},
+
+            comparisonAvailable:
+                Boolean(
+                    details?.comparisonAvailable
+                )
+        };
+
+        localStorage.setItem(
+            getVehiclePersistentDetailsKey(
+                owner,
+                make,
+                model,
+                kind
+            ),
+            JSON.stringify(
+                compact
+            )
+        );
+
+    } catch (error) {
+
+        /*
+         * localStorage quota or serialization problems must never
+         * interrupt Cars rendering.
+         */
+        console.warn(
+            "Vehicle persistent cache write skipped:",
+            error
+        );
+
+    }
+
+}
+
+async function getCachedVehicleImageObjectUrl(
+    imageUrl
+) {
+
+    const url =
+        String(imageUrl || "").trim();
+
+    if (!url) {
+        return null;
+    }
+
+    try {
+
+        const owner =
+            await getVehicleAccountCacheOwner();
+
+        const cache =
+            await caches.open(
+                `worth-it-cars-images-${VEHICLE_PERSISTENT_CACHE_VERSION}-${owner}`
+            );
+
+        const cached =
+            await cache.match(
+                url
+            );
+
+        if (!cached) {
+            return null;
+        }
+
+        const blob =
+            await cached.blob();
+
+        if (!blob || !blob.size) {
+            return null;
+        }
+
+        return URL.createObjectURL(
+            blob
+        );
+
+    } catch {
+
+        return null;
+
+    }
+
+}
+
+async function cacheVehicleImageResponse(
+    imageUrl
+) {
+
+    const url =
+        String(imageUrl || "").trim();
+
+    if (!url) {
+        return;
+    }
+
+    try {
+
+        const owner =
+            await getVehicleAccountCacheOwner();
+
+        const cache =
+            await caches.open(
+                `worth-it-cars-images-${VEHICLE_PERSISTENT_CACHE_VERSION}-${owner}`
+            );
+
+        if (
+            await cache.match(url)
+        ) {
+
+            return;
+
+        }
+
+        const response =
+            await fetch(
+                url,
+                {
+                    mode: "cors",
+                    credentials: "omit",
+                    cache: "force-cache"
+                }
+            );
+
+        if (
+            !response.ok
+        ) {
+
+            return;
+
+        }
+
+        await cache.put(
+            url,
+            response.clone()
+        );
+
+    } catch {
+
+        /*
+         * Some image hosts may disallow programmatic cross-origin
+         * fetching even though normal <img> loading works. Native image
+         * loading remains the fallback.
+         */
+
+    }
+
+}
+
 
 /*
  * ============================================================
@@ -527,6 +904,33 @@ async function fetchVehicleDetails(
 
     }
 
+    /*
+     * Persistent account-scoped browser cache.
+     * This lets a returning user restore vehicle information without
+     * requesting Wikipedia again on every visit.
+     */
+    const persistentOwner =
+        await getVehicleAccountCacheOwner();
+
+    const persistentDetails =
+        readPersistentVehicleDetails(
+            persistentOwner,
+            make,
+            model,
+            kind
+        );
+
+    if (persistentDetails) {
+
+        vehicleDetailsCache.set(
+            cacheKey,
+            persistentDetails
+        );
+
+        return persistentDetails;
+
+    }
+
 
     /*
      * Prevent duplicate requests for
@@ -687,11 +1091,20 @@ async function fetchVehicleDetails(
 
 
                 vehicleDetailsCache.set(
-                cacheKey,
-                data
-            );
+                    cacheKey,
+                    data
+                );
 
-                   return data;
+                void getVehicleAccountCacheOwner()
+                    .then(
+                        owner =>
+                            writePersistentVehicleDetails(
+                                owner,
+                                data
+                            )
+                    );
+
+                return data;
 
             } catch (error) {
 
@@ -1013,23 +1426,17 @@ async function loadVehicleCardImage(
     kind
 ) {
 
-    /*
-     * Do not load the image twice.
-     */
-
     if (
         imageElement.dataset.loaded === "true"
     ) {
-
         return;
-
     }
 
     imageElement.dataset.loaded =
         "loading";
 
     imageElement.dataset.queued =
-    "false";
+        "false";
 
     const details =
         await fetchVehicleDetails(
@@ -1038,30 +1445,16 @@ async function loadVehicleCardImage(
             kind
         );
 
-    /*
-     * Information and image availability are independent. Update the
-     * textual card preview as soon as Wikipedia data is available,
-     * even when the image is later rejected by the strict image filter.
-     */
     updateVehicleCardInformationPreview(
         imageElement,
         details
     );
 
-
-    /*
-     * The card may have been removed
-     * while the request was running.
-     */
-
     if (
         !imageElement.isConnected
     ) {
-
         return;
-
     }
-
 
     const image =
         details?.image;
@@ -1076,51 +1469,189 @@ async function loadVehicleCardImage(
         );
 
     if (
-    !image ||
-    !image.url ||
-    !imageIsRelevant
-) {
+        !image ||
+        !image.url ||
+        !imageIsRelevant
+    ) {
 
-    const parent =
-    imageElement.parentNode;
+        const parent =
+            imageElement.parentNode;
 
-if (parent) {
+        if (parent) {
 
-    const existingPlaceholder =
-        parent.querySelector(
-            ".car-card-image-placeholder"
-        );
+            const existingPlaceholder =
+                parent.querySelector(
+                    ".car-card-image-placeholder"
+                );
 
-    if (existingPlaceholder) {
+            if (existingPlaceholder) {
 
-        existingPlaceholder.innerHTML = `
-            <div style="font-size:2.2rem;opacity:0.75;">
-                ${getVehicleKindInfo(kind).icon}
-            </div>
+                existingPlaceholder.innerHTML = `
+                    <div style="font-size:2.2rem;opacity:0.75;">
+                        ${getVehicleKindInfo(kind).icon}
+                    </div>
 
-            <small
-                class="car-image-loading-text"
-                style="font-size:0.75rem;opacity:0.55;"
-            >
-                Image unavailable
-            </small>
-        `;
+                    <small
+                        class="car-image-loading-text"
+                        style="font-size:0.75rem;opacity:0.55;"
+                    >
+                        Image unavailable
+                    </small>
+                `;
+
+            }
+
+            imageElement.remove();
+
+        }
+
+        return;
 
     }
 
-    imageElement.remove();
+    /*
+     * First try the account-scoped persistent image cache.
+     */
+    const cachedObjectUrl =
+        await getCachedVehicleImageObjectUrl(
+            image.url
+        );
 
-}
+    if (
+        cachedObjectUrl &&
+        imageElement.isConnected
+    ) {
 
-return;
+        imageElement.src =
+            cachedObjectUrl;
 
-}
+        imageElement.dataset.loaded =
+            "true";
 
+        imageElement.dataset.cached =
+            "true";
+
+        imageElement.addEventListener(
+            "load",
+            () => {
+
+                try {
+                    URL.revokeObjectURL(
+                        cachedObjectUrl
+                    );
+                } catch {}
+
+            },
+            {
+                once: true
+            }
+        );
+
+        return;
+
+    }
 
     /*
-     * Use the direct Wikimedia Commons
-     * upload URL returned by our API.
+     * Try a programmatic fetch once so the downloaded image can be
+     * stored in the account-scoped Cache Storage. If Wikimedia blocks
+     * CORS, fall back to the normal browser image request.
      */
+    try {
+
+        const response =
+            await fetch(
+                image.url,
+                {
+                    mode: "cors",
+                    credentials: "omit",
+                    cache: "force-cache"
+                }
+            );
+
+        if (
+            response.ok
+        ) {
+
+            const clone =
+                response.clone();
+
+            const blob =
+                await response.blob();
+
+            if (
+                blob &&
+                blob.size &&
+                imageElement.isConnected
+            ) {
+
+                void (async () => {
+
+                    try {
+
+                        const owner =
+                            await getVehicleAccountCacheOwner();
+
+                        const cache =
+                            await caches.open(
+                                `worth-it-cars-images-${VEHICLE_PERSISTENT_CACHE_VERSION}-${owner}`
+                            );
+
+                        await cache.put(
+                            image.url,
+                            clone
+                        );
+
+                    } catch {}
+
+                })();
+
+                const objectUrl =
+                    URL.createObjectURL(
+                        blob
+                    );
+
+                imageElement.src =
+                    objectUrl;
+
+                imageElement.dataset.loaded =
+                    "true";
+
+                imageElement.dataset.cached =
+                    "true";
+
+                imageElement.addEventListener(
+                    "load",
+                    () => {
+
+                        try {
+                            URL.revokeObjectURL(
+                                objectUrl
+                            );
+                        } catch {}
+
+                    },
+                    {
+                        once: true
+                    }
+                );
+
+                return;
+
+            }
+
+        }
+
+    } catch {
+        /*
+         * Native <img> fallback below.
+         */
+    }
+
+    if (
+        !imageElement.isConnected
+    ) {
+        return;
+    }
 
     imageElement.src =
         image.url;
@@ -1128,39 +1659,25 @@ return;
     imageElement.dataset.loaded =
         "true";
 
-
-    /*
-     * Keep useful licensing metadata
-     * directly on the image element.
-     */
-
     if (image.author) {
-
         imageElement.dataset.imageAuthor =
             image.author;
-
     }
 
     if (image.license) {
-
         imageElement.dataset.imageLicense =
             image.license;
-
     }
 
-   if (image.license_url) {
+    if (image.license_url) {
+        imageElement.dataset.imageLicenseUrl =
+            image.license_url;
+    }
 
-    imageElement.dataset.imageLicenseUrl =
-        image.license_url;
-
-}
-
-if (image.source_url) {
-
-    imageElement.dataset.imageSourceUrl =
-        image.source_url;
-
-}
+    if (image.source_url) {
+        imageElement.dataset.imageSourceUrl =
+            image.source_url;
+    }
 
 }
 
@@ -2935,7 +3452,548 @@ async function ensurePopularVehicleQuality(
 }
 
 
-async function loadAndRenderPopularVehicles(
+function getPopularVehicleCardElement(
+    state,
+    vehicle
+) {
+
+    return (
+        state.cardByKey.get(
+            getPopularVehicleQualityKey(
+                vehicle,
+                state.kind
+            )
+        ) || null
+    );
+
+}
+
+function refreshPopularVehicleResults(
+    state
+) {
+
+    currentVehicleResults =
+        state.candidates.filter(
+            vehicle =>
+                state.displayedKeys.has(
+                    getPopularVehicleQualityKey(
+                        vehicle,
+                        state.kind
+                    )
+                )
+        );
+
+}
+
+function removePopularVehicleCard(
+    state,
+    vehicle
+) {
+
+    const key =
+        getPopularVehicleQualityKey(
+            vehicle,
+            state.kind
+        );
+
+    const card =
+        state.cardByKey.get(
+            key
+        );
+
+    if (!card) {
+        return null;
+    }
+
+    const parent =
+        card.parentNode;
+
+    const nextSibling =
+        card.nextSibling;
+
+    state.displayedKeys.delete(
+        key
+    );
+
+    state.cardByKey.delete(
+        key
+    );
+
+    card.remove();
+
+    return {
+        parent,
+        nextSibling
+    };
+
+}
+
+function appendPopularVehicleReplacement(
+    state,
+    replacement,
+    insertContext
+) {
+
+    const key =
+        getPopularVehicleQualityKey(
+            replacement,
+            state.kind
+        );
+
+    if (
+        state.displayedKeys.has(key)
+    ) {
+        return null;
+    }
+
+    const card =
+        createVehicleCard(
+            replacement,
+            state.kind
+        );
+
+    state.displayedKeys.add(
+        key
+    );
+
+    state.cardByKey.set(
+        key,
+        card
+    );
+
+    const parent =
+        insertContext?.parent &&
+        insertContext.parent.isConnected
+            ? insertContext.parent
+            : document.getElementById(
+                "popularCarsGrid"
+            );
+
+    const nextSibling =
+        insertContext?.nextSibling &&
+        insertContext.nextSibling.isConnected &&
+        insertContext.nextSibling.parentNode === parent
+            ? insertContext.nextSibling
+            : null;
+
+    if (parent) {
+
+        if (nextSibling) {
+            parent.insertBefore(
+                card,
+                nextSibling
+            );
+        } else {
+            parent.appendChild(
+                card
+            );
+        }
+
+    }
+
+    return card;
+
+}
+
+async function hydratePopularVehicleCandidate(
+    state,
+    vehicle
+) {
+
+    const key =
+        getPopularVehicleQualityKey(
+            vehicle,
+            state.kind
+        );
+
+    const details =
+        await fetchVehicleDetails(
+            vehicle.make,
+            vehicle.model,
+            state.kind
+        );
+
+    if (
+        state.cancelled
+    ) {
+        return;
+    }
+
+    /*
+     * Transient request failure: leave the card visible and retry once.
+     * A network failure is not evidence that the vehicle lacks data.
+     */
+    if (!details) {
+
+        if (
+            !state.retryKeys.has(key)
+        ) {
+
+            state.retryKeys.add(
+                key
+            );
+
+            await new Promise(
+                resolve =>
+                    window.setTimeout(
+                        resolve,
+                        500
+                    )
+            );
+
+            if (
+                !state.cancelled
+            ) {
+
+                state.queue.push(
+                    vehicle
+                );
+
+            }
+
+        }
+
+        return;
+
+    }
+
+    const usable =
+        hasUsablePopularVehicleDetails(
+            details,
+            vehicle,
+            state.kind
+        );
+
+    const card =
+        getPopularVehicleCardElement(
+            state,
+            vehicle
+        );
+
+    if (
+        usable
+    ) {
+
+        /*
+         * Information and image are independent. The card stays even if
+         * Wikimedia cannot provide a usable commercial image.
+         */
+        if (card) {
+
+            const imageElement =
+                card.querySelector(
+                    ".car-card-image"
+                );
+
+            if (imageElement) {
+
+                updateVehicleCardInformationPreview(
+                    imageElement,
+                    details
+                );
+
+            }
+
+            card.dataset.vehicleInfoReady =
+                "true";
+
+        }
+
+        return;
+
+    }
+
+    /*
+     * Popular mode never keeps a record with no reliable Wikipedia
+     * technical information. Search mode can still display that record.
+     */
+    const insertionContext =
+        removePopularVehicleCard(
+            state,
+            vehicle
+        );
+
+    if (
+        state.nextCandidateIndex <
+        state.candidates.length
+    ) {
+
+        const replacement =
+            state.candidates[
+                state.nextCandidateIndex++
+            ];
+
+        const replacementCard =
+            appendPopularVehicleReplacement(
+                state,
+                replacement,
+                insertionContext
+            );
+
+        if (replacementCard) {
+
+            state.queue.push(
+                replacement
+            );
+
+        }
+
+    }
+
+    refreshPopularVehicleResults(
+        state
+    );
+
+}
+
+async function processPopularVehicleHydration(
+    state
+) {
+
+    const worker =
+        async () => {
+
+            while (
+                !state.cancelled
+            ) {
+
+                const vehicle =
+                    state.queue.shift();
+
+                if (!vehicle) {
+                    return;
+                }
+
+                try {
+
+                    await hydratePopularVehicleCandidate(
+                        state,
+                        vehicle
+                    );
+
+                } catch (error) {
+
+                    console.error(
+                        "Popular vehicle hydration error:",
+                        vehicle.make,
+                        vehicle.model,
+                        state.kind,
+                        error
+                    );
+
+                }
+
+            }
+
+        };
+
+    await Promise.all(
+        Array.from(
+            {
+                length:
+                    Math.min(
+                        POPULAR_DETAILS_CONCURRENCY,
+                        Math.max(
+                            1,
+                            state.queue.length
+                        )
+                    )
+            },
+            worker
+        ).map(
+            task =>
+                task
+        )
+    );
+
+    if (
+        !state.cancelled
+    ) {
+
+        refreshPopularVehicleResults(
+            state
+        );
+
+    }
+
+}
+
+function startPopularVehicleHydration(
+    kind,
+    candidates,
+    visibleCount,
+    showAll
+) {
+
+    const previousState =
+        popularVehicleHydrationState.get(
+            kind
+        );
+
+    if (
+        previousState
+    ) {
+
+        previousState.cancelled =
+            true;
+
+    }
+
+    const grid =
+        document.getElementById(
+            "popularCarsGrid"
+        );
+
+    if (!grid) {
+        return;
+    }
+
+    const initialCandidates =
+        candidates.slice(
+            0,
+            visibleCount
+        );
+
+    const state = {
+
+        kind,
+
+        candidates,
+
+        displayedKeys:
+            new Set(),
+
+        cardByKey:
+            new Map(),
+
+        queue:
+            initialCandidates.slice(),
+
+        nextCandidateIndex:
+            initialCandidates.length,
+
+        retryKeys:
+            new Set(),
+
+        cancelled:
+            false,
+
+        showAll,
+
+        targetCount:
+            visibleCount
+
+    };
+
+    initialCandidates.forEach(
+        vehicle => {
+
+            const key =
+                getPopularVehicleQualityKey(
+                    vehicle,
+                    kind
+                );
+
+            const cards =
+                Array.from(
+                    grid.querySelectorAll(
+                        ".car-card"
+                    )
+                );
+
+            const card =
+                cards.find(
+                    candidateCard =>
+                        candidateCard.dataset.vehicleMake ===
+                            (vehicle.make || "") &&
+                        candidateCard.dataset.vehicleModel ===
+                            (vehicle.model || "")
+                ) || null;
+
+            if (card) {
+
+                state.displayedKeys.add(
+                    key
+                );
+
+                state.cardByKey.set(
+                    key,
+                    card
+                );
+
+            }
+
+        }
+    );
+
+    /*
+     * Fallback mapping if CSS.escape is unavailable or the data attribute
+     * contains an unusual value.
+     */
+    if (
+        state.displayedKeys.size !==
+        initialCandidates.length
+    ) {
+
+        const cards =
+            Array.from(
+                grid.querySelectorAll(
+                    ".car-card"
+                )
+            ).slice(
+                0,
+                initialCandidates.length
+            );
+
+        state.displayedKeys.clear();
+        state.cardByKey.clear();
+
+        initialCandidates.forEach(
+            (vehicle, index) => {
+
+                const card =
+                    cards[index];
+
+                if (!card) {
+                    return;
+                }
+
+                const key =
+                    getPopularVehicleQualityKey(
+                        vehicle,
+                        kind
+                    );
+
+                state.displayedKeys.add(
+                    key
+                );
+
+                state.cardByKey.set(
+                    key,
+                    card
+                );
+
+            }
+        );
+
+    }
+
+    popularVehicleHydrationState.set(
+        kind,
+        state
+    );
+
+    refreshPopularVehicleResults(
+        state
+    );
+
+    void processPopularVehicleHydration(
+        state
+    );
+
+}
+
+function loadAndRenderPopularVehicles(
     kind,
     showAll = false
 ) {
@@ -2952,117 +4010,73 @@ async function loadAndRenderPopularVehicles(
             ? currentVehicleCatalog
             : [];
 
+    /*
+     * Keep a larger candidate pool than the 300-card display limit.
+     * This allows a model with missing Wikipedia data to be replaced by
+     * the next popular vehicle automatically.
+     */
     const candidates =
         getPopularVehicles(
             catalogVehicles
         ).slice(
             0,
-            MAX_VEHICLES_PER_CATEGORY
+            POPULAR_CANDIDATE_POOL_SIZE
         );
 
     if (!candidates.length) {
-        renderVehicleCards([], kind, showAll);
+
+        renderVehicleCards(
+            [],
+            kind,
+            showAll
+        );
+
         return;
     }
 
-    /*
-     * Popular view is data-first: only vehicles with reliable Wikipedia
-     * information and at least two technical specification fields are
-     * allowed through. Wikimedia image availability is independent.
-     */
-    const desiredCount =
+    const visibleCount =
         showAll
-            ? candidates.length
+            ? Math.min(
+                MAX_VEHICLES_PER_CATEGORY,
+                candidates.length
+            )
             : Math.min(
                 candidates.length,
                 Math.max(
                     1,
-                    getInitialVehicleLimit(candidates)
+                    getInitialVehicleLimit(
+                        candidates
+                    )
                 )
             );
 
-    const maxNewChecks =
-        showAll
-            ? candidates.length
-            : Math.min(
-                candidates.length,
-                Math.max(
-                    POPULAR_INITIAL_MAX_CHECKS,
-                    desiredCount * 4
-                )
-            );
-
-    let nextQualityRenderCount = 1;
-
-    const progressHandler =
-        async (vehicles) => {
-
-            if (
-                currentVehicleKind !== kind ||
-                currentVehicleMode !== "popular" ||
-                !Array.isArray(vehicles) ||
-                !vehicles.length
-            ) {
-                return;
-            }
-
-            currentVehicleResults = vehicles;
-            currentVehicleShowAll = Boolean(showAll);
-
-            /*
-             * Show the first valid vehicle immediately. Then refresh the
-             * grid in small groups so Show All does not rebuild the DOM
-             * hundreds of times.
-             */
-            if (
-                vehicles.length >= nextQualityRenderCount ||
-                vehicles.length >= desiredCount
-            ) {
-
-                renderVehicleCards(
-                    vehicles,
-                    kind,
-                    showAll
-                );
-
-                nextQualityRenderCount =
-                    vehicles.length +
-                    (showAll ? 8 : 1);
-
-            }
-
-        };
-
-    const qualityVehicles =
-        await ensurePopularVehicleQuality(
-            kind,
-            catalogVehicles,
-            desiredCount,
-            maxNewChecks,
-            progressHandler
-        );
-
-    if (
-        currentVehicleKind !== kind ||
-        currentVehicleMode !== "popular"
-    ) {
-        return;
-    }
-
-    currentVehicleResults = qualityVehicles;
-
-    if (!qualityVehicles.length) {
-        renderVehicleCards([], kind, showAll);
-        return;
-    }
+    /*
+     * IMPORTANT: render the catalog cards immediately. No Wikipedia
+     * request is awaited here. Technical data and images are hydrated
+     * after the cards are already visible.
+     */
+    currentVehicleShowAll =
+        Boolean(showAll);
 
     renderVehicleCards(
-        qualityVehicles,
+        candidates,
         kind,
         showAll
     );
 
+    /*
+     * The actual DOM count is the current initial target.
+     */
+    startPopularVehicleHydration(
+        kind,
+        candidates,
+        visibleCount,
+        showAll
+    );
+
 }
+
+
 
 
 function stateHasMorePopularVehicleCandidates(
