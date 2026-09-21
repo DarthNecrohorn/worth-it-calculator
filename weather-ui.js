@@ -89,6 +89,12 @@ function $(id){
 
 function openWeather(){
 
+    const carsSection = $("carsSection");
+
+    if(carsSection){
+        carsSection.style.display = "none";
+    }
+
     const homePage = $("homePage");
 
     if(homePage){
