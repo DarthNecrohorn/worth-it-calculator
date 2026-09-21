@@ -7763,3 +7763,53 @@ html[data-ui-scale="xl"] .profile-nav-btn .auth-avatar-fallback{
         transform:none !important;
     }
 }
+
+
+/* =========================================================
+   MOBILE — DIALOG SPACING REFINEMENT
+   Phone only. Keeps more visible space above/below dialogs
+   and makes Settings noticeably narrower.
+   ========================================================= */
+
+@media (max-width:700px){
+
+    /* AI Chat — more breathing room from both phone edges. */
+    .ai-chat-card{
+        height:calc((100vh - 32px) / var(--ui-scale, 1)) !important;
+        max-height:calc((100vh - 32px) / var(--ui-scale, 1)) !important;
+    }
+
+    /* Bugs & Suggestions — slightly shorter vertically. */
+    .feedback-modal-card{
+        max-height:calc((100vh - 28px) / var(--ui-scale, 1)) !important;
+    }
+
+    /* Settings — narrower from both left and right, with a little
+       more space above and below. */
+    .settings-panel{
+        width:calc(100vw - 72px) !important;
+        max-width:280px !important;
+        max-height:calc((100vh - 32px) / var(--ui-scale, 1)) !important;
+        padding:13px !important;
+    }
+
+    html[data-ui-scale="large"] .ai-chat-card,
+    html[data-ui-scale="xl"] .ai-chat-card{
+        width:calc(100vw - 20px) !important;
+        height:calc((100vh - 38px) / var(--ui-scale, 1)) !important;
+        max-height:calc((100vh - 38px) / var(--ui-scale, 1)) !important;
+    }
+
+    html[data-ui-scale="large"] .feedback-modal-card,
+    html[data-ui-scale="xl"] .feedback-modal-card{
+        max-height:calc((100vh - 34px) / var(--ui-scale, 1)) !important;
+    }
+
+    html[data-ui-scale="large"] .settings-panel,
+    html[data-ui-scale="xl"] .settings-panel{
+        width:calc(100vw - 84px) !important;
+        max-width:270px !important;
+        max-height:calc((100vh - 38px) / var(--ui-scale, 1)) !important;
+        padding:10px !important;
+    }
+}
