@@ -7975,7 +7975,7 @@ function buildCommoditySearchQueries(
 
 
     if (
-        /\\bdap\\b/.test(
+        /\bdap\b/.test(
             normalizedBase
         )
     ) {
@@ -7989,7 +7989,7 @@ function buildCommoditySearchQueries(
 
 
     if (
-        /\\btsp\\b/.test(
+        /\btsp\b/.test(
             normalizedBase
         )
     ) {
@@ -8003,7 +8003,7 @@ function buildCommoditySearchQueries(
 
 
     if (
-        /\\bpotash\\b/.test(
+        /\bpotash\b/.test(
             normalizedBase
         )
     ) {
@@ -8017,7 +8017,7 @@ function buildCommoditySearchQueries(
 
 
     if (
-        /\\blng\\b/.test(
+        /\blng\b/.test(
             normalizedBase
         )
     ) {
@@ -8031,7 +8031,7 @@ function buildCommoditySearchQueries(
 
 
     if (
-        /\\bnatural gas\\b/.test(
+        /\bnatural gas\b/.test(
             normalizedBase
         )
     ) {
