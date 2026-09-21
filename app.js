@@ -1268,11 +1268,42 @@ function decimal(value) {
 window.decimal = decimal;
 
 function toggleMenu() {
-    const navLinks = document.getElementById("navLinks");
+    const navLinks =
+        document.getElementById("navLinks");
 
     if (!navLinks) return;
 
-    navLinks.classList.toggle("open");
+    const isOpen =
+        navLinks.classList.toggle("open");
+
+    navLinks.setAttribute(
+        "aria-hidden",
+        String(!isOpen)
+    );
+
+    const menuButton =
+        document.querySelector(".menu-btn");
+
+    if (menuButton) {
+        menuButton.setAttribute(
+            "aria-expanded",
+            String(isOpen)
+        );
+    }
+
+    /*
+     * The mobile and A+/A++ navigation is one unified menu.
+     * The legacy More panel remains available only for A-/A
+     * desktop, so never leave both navigation layers open.
+     */
+    if (isOpen) {
+        closeMoreMenu();
+    }
+
+    document
+        .documentElement
+        .style
+        .setProperty("--nav-scroll-lock", isOpen ? "1" : "0");
 }
 
 window.toggleMenu = toggleMenu;
