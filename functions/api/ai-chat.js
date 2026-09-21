@@ -580,10 +580,10 @@ export async function onRequestOptions() {
 
 export async function onRequestPost(context) {
 
-    recordAdminApiUsage(context, [
-        { apiKey: "ai-chat", provider: "Gemini" },
-        { apiKey: "ai-chat", provider: "Groq" }
-    ]);
+    recordAdminApiUsage(context, {
+        apiKey: "ai-chat",
+        provider: "Gemini / Groq"
+    });
     const request = context.request;
     const env = context.env;
 
