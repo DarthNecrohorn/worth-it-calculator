@@ -31,6 +31,51 @@
     <button onclick="openWeather()">🌤️ Weather</button>
     <button onclick="openNews()">📰 News</button>
     <button onclick="openDiscounts()">🛒 Shop</button>
+
+    <!--
+        MOBILE / A+ / A++ navigation extensions.
+        Any future discovery-style section that should appear in
+        the scrollable navigation can add another .nav-overflow-item
+        button here. This container is automatically shown in the
+        mobile and accessibility menus and hidden on A- / A desktop.
+    -->
+    <div class="nav-overflow-items" id="navOverflowItems">
+        <button
+            type="button"
+            class="nav-overflow-item"
+            onclick="openCarsFromMenu()"
+        >
+            <span>🚗</span>
+            <span>
+                <strong>Compare New &amp; Used Cars</strong>
+                <small>Explore, discover &amp; compare cars</small>
+            </span>
+        </button>
+
+        <button
+            type="button"
+            class="nav-overflow-item"
+            onclick="openMarketsFromMenu()"
+        >
+            <span>📊</span>
+            <span>
+                <strong>Markets</strong>
+                <small>Materials &amp; currency movement</small>
+            </span>
+        </button>
+
+        <button
+            type="button"
+            class="nav-overflow-item"
+            onclick="openMoneyFromMenu()"
+        >
+            <span>💱</span>
+            <span>
+                <strong>Currencies</strong>
+                <small>Popular currencies &amp; exchange rates</small>
+            </span>
+        </button>
+    </div>
     
     <button
     type="button"
