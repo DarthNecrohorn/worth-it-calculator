@@ -44,7 +44,8 @@ window.openSettings = openSettings;
     const UI_SCALE_KEY = "worthItUIScale";
     let feedbackType = "bug";
 
-    const SCALE = {small:.90, normal:1, large:1.10, xl:1.20};
+    /* Global website scale. Every section inherits this setting. */
+    const SCALE = {small:.82, normal:1, large:1.16, xl:1.32};
 
     function setTheme(theme){
         const value = theme === "light" ? "light" : "dark";
@@ -55,8 +56,29 @@ window.openSettings = openSettings;
 
     function setUIScale(size){
         const value = SCALE[size] ? size : "normal";
-        document.documentElement.style.setProperty("--ui-scale", SCALE[value]);
-        localStorage.setItem(UI_SCALE_KEY, value);
+        const scale = SCALE[value];
+
+        document.documentElement.style.setProperty(
+            "--ui-scale",
+            scale
+        );
+
+        document.documentElement.dataset.uiScale =
+            value;
+
+        document.body.style.zoom =
+            String(scale);
+
+        document.body.style.width =
+            scale === 1
+                ? "100%"
+                : `calc(100% / ${scale})`;
+
+        localStorage.setItem(
+            UI_SCALE_KEY,
+            value
+        );
+
         updateSettingsUI();
     }
 
