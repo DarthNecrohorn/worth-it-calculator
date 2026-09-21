@@ -7421,3 +7421,192 @@ html[data-ui-scale="xl"] .profile-nav-btn .auth-avatar-fallback{
         flex-basis:21px !important;
     }
 }
+
+/* =========================================================
+   MOBILE — ACCOUNT / UTILITY CONTROLS FINAL ALIGNMENT
+   Phone only. Desktop/tablet is intentionally untouched.
+   ========================================================= */
+
+@media (max-width:700px){
+
+    /* When signed in, the old Google sign-in lock must not remain
+       beside the profile avatar. */
+    .auth-wrap:has(.profile-nav-btn[style*="inline-flex"]) .auth-btn{
+        display:none !important;
+    }
+
+    /* Keep the profile popover centered on the profile/auth group,
+       rather than drifting left as accessibility scale increases. */
+    .auth-wrap{
+        position:relative;
+    }
+
+    .account-panel{
+        left:50% !important;
+        right:auto !important;
+        top:calc(100% + 8px) !important;
+        transform:translateX(-50%);
+        width:min(290px,calc(100vw - 20px)) !important;
+        max-width:calc(100vw - 20px) !important;
+        box-sizing:border-box;
+        max-height:calc(100vh - 82px);
+        overflow:auto;
+        transform-origin:top center;
+    }
+
+    /* Keep the profile page dialog comfortably inside the phone. */
+    .account-page-overlay{
+        padding:12px !important;
+        align-items:center;
+    }
+
+    .account-page-card{
+        width:100% !important;
+        max-width:calc(100vw - 24px) !important;
+        max-height:calc(100vh - 24px) !important;
+        box-sizing:border-box;
+        overflow:auto;
+        padding:18px !important;
+        border-radius:20px;
+    }
+
+    .account-page-head{
+        gap:10px;
+        margin-bottom:14px;
+    }
+
+    .account-page-title{
+        font-size:20px;
+        line-height:1.15;
+    }
+
+    .account-page-avatar,
+    .account-page-avatar-fallback{
+        width:48px;
+        height:48px;
+        flex-basis:48px;
+    }
+
+    .account-page-stats{
+        grid-template-columns:repeat(3,1fr) !important;
+        gap:7px;
+        margin-bottom:14px;
+    }
+
+    .account-page-stat{
+        padding:10px 5px;
+    }
+
+    .account-page-stat strong{
+        font-size:17px;
+    }
+
+    .account-page-empty{
+        padding:20px 12px;
+    }
+}
+
+/* A+ / A++ — reduce vertical growth of account/profile dialogs.
+   Accessibility text remains larger, while the container itself
+   does not become excessively tall. */
+@media (max-width:700px){
+    html[data-ui-scale="large"] .account-panel,
+    html[data-ui-scale="xl"] .account-panel{
+        width:min(275px,calc(100vw - 20px)) !important;
+        max-width:calc(100vw - 20px) !important;
+        padding:11px !important;
+        border-radius:14px;
+    }
+
+    html[data-ui-scale="large"] .account-panel .account-head,
+    html[data-ui-scale="xl"] .account-panel .account-head{
+        gap:8px;
+        padding:6px 6px 9px;
+        margin-bottom:8px;
+    }
+
+    html[data-ui-scale="large"] .account-panel .social-preview,
+    html[data-ui-scale="xl"] .account-panel .social-preview{
+        gap:4px;
+        margin:7px 0 1px;
+    }
+
+    html[data-ui-scale="large"] .account-panel .social-preview-item,
+    html[data-ui-scale="xl"] .account-panel .social-preview-item{
+        padding:6px 3px;
+    }
+
+    html[data-ui-scale="large"] .account-panel .account-section-title,
+    html[data-ui-scale="xl"] .account-panel .account-section-title{
+        margin-top:8px;
+        margin-bottom:4px;
+    }
+
+    html[data-ui-scale="large"] .account-panel .account-action,
+    html[data-ui-scale="xl"] .account-panel .account-action{
+        padding:7px 8px;
+        gap:7px;
+    }
+
+    html[data-ui-scale="large"] .account-page-card,
+    html[data-ui-scale="xl"] .account-page-card{
+        max-width:calc(100vw - 20px) !important;
+        max-height:calc(100vh - 20px) !important;
+        padding:14px !important;
+        border-radius:18px;
+    }
+
+    html[data-ui-scale="large"] .account-page-head,
+    html[data-ui-scale="xl"] .account-page-head{
+        margin-bottom:10px;
+        gap:8px;
+    }
+
+    html[data-ui-scale="large"] .account-page-avatar,
+    html[data-ui-scale="large"] .account-page-avatar-fallback,
+    html[data-ui-scale="xl"] .account-page-avatar,
+    html[data-ui-scale="xl"] .account-page-avatar-fallback{
+        width:42px;
+        height:42px;
+        flex-basis:42px;
+    }
+
+    html[data-ui-scale="large"] .account-page-title,
+    html[data-ui-scale="xl"] .account-page-title{
+        font-size:18px;
+        line-height:1.12;
+    }
+
+    html[data-ui-scale="large"] .account-page-stats,
+    html[data-ui-scale="xl"] .account-page-stats{
+        gap:5px;
+        margin-bottom:10px;
+    }
+
+    html[data-ui-scale="large"] .account-page-stat,
+    html[data-ui-scale="xl"] .account-page-stat{
+        padding:7px 4px;
+    }
+
+    html[data-ui-scale="large"] .account-page-stat strong,
+    html[data-ui-scale="xl"] .account-page-stat strong{
+        font-size:15px;
+    }
+
+    html[data-ui-scale="large"] .account-page-empty,
+    html[data-ui-scale="xl"] .account-page-empty{
+        padding:14px 10px;
+    }
+}
+
+/* A- / A / A+ / A++ — never let the account panel exceed the
+   visible phone height. */
+@media (max-width:700px) and (max-height:700px){
+    .account-panel{
+        max-height:calc(100vh - 74px);
+    }
+
+    .account-page-card{
+        max-height:calc(100vh - 16px) !important;
+    }
+}
