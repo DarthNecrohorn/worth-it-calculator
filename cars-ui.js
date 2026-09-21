@@ -318,7 +318,7 @@ const POPULAR_NONCAR_INITIAL_MAX_CHECKS = 72;
 
 function getPopularDetailsConcurrency(kind) {
     return kind === "car"
-        ? POPULAR_QUALITY_BATCH_SIZE
+        ? POPULAR_DETAILS_CONCURRENCY
         : POPULAR_NONCAR_DETAILS_CONCURRENCY;
 }
 
