@@ -89,10 +89,14 @@ function $(id){
 
 function openWeather(){
 
-    const carsSection = $("carsSection");
+    if(typeof window.hideCarsNavigationUi === "function"){
+        window.hideCarsNavigationUi();
+    } else {
+        const carsSection = $("carsSection");
 
-    if(carsSection){
-        carsSection.style.display = "none";
+        if(carsSection){
+            carsSection.style.display = "none";
+        }
     }
 
     const homePage = $("homePage");
