@@ -6963,7 +6963,7 @@ function buildCommoditySearchTokens(
         };
 
 
-    if (/\\bdap\\b/.test(normalizedName)) {
+    if (/\bdap\b/.test(normalizedName)) {
         addAliases([
             "diammonium phosphate",
             "phosphate",
@@ -6972,7 +6972,7 @@ function buildCommoditySearchTokens(
     }
 
 
-    if (/\\btsp\\b/.test(normalizedName)) {
+    if (/\btsp\b/.test(normalizedName)) {
         addAliases([
             "triple superphosphate",
             "superphosphate",
@@ -6982,7 +6982,7 @@ function buildCommoditySearchTokens(
     }
 
 
-    if (/\\bpotash\\b/.test(normalizedName)) {
+    if (/\bpotash\b/.test(normalizedName)) {
         addAliases([
             "potassium chloride",
             "potassium",
@@ -6991,7 +6991,7 @@ function buildCommoditySearchTokens(
     }
 
 
-    if (/\\blng\\b/.test(normalizedName)) {
+    if (/\blng\b/.test(normalizedName)) {
         addAliases([
             "liquefied natural gas",
             "natural gas"
@@ -6999,7 +6999,7 @@ function buildCommoditySearchTokens(
     }
 
 
-    if (/\\blpg\\b/.test(normalizedName)) {
+    if (/\blpg\b/.test(normalizedName)) {
         addAliases([
             "liquefied petroleum gas",
             "petroleum gas"
@@ -7007,14 +7007,14 @@ function buildCommoditySearchTokens(
     }
 
 
-    if (/\\bnatural gas\\b/.test(normalizedName)) {
+    if (/\bnatural gas\b/.test(normalizedName)) {
         addAliases([
             "gas"
         ]);
     }
 
 
-    if (/\\b(all )?beef cattle\\b|\\bsteers (and|&) heifers\\b/.test(normalizedName)) {
+    if (/\b(all )?beef cattle\b|\bsteers (and|&) heifers\b/.test(normalizedName)) {
         addAliases([
             "cattle",
             "cow",
@@ -7023,7 +7023,7 @@ function buildCommoditySearchTokens(
     }
 
 
-    if (/\\bbroilers?\\b/.test(normalizedName)) {
+    if (/\bbroilers?\b/.test(normalizedName)) {
         addAliases([
             "chicken",
             "chickens"
@@ -7031,7 +7031,7 @@ function buildCommoditySearchTokens(
     }
 
 
-    if (/\\bhogs?\\b/.test(normalizedName)) {
+    if (/\bhogs?\b/.test(normalizedName)) {
         addAliases([
             "pig",
             "pigs",
@@ -7040,7 +7040,7 @@ function buildCommoditySearchTokens(
     }
 
 
-    if (/\\bcalves?\\b/.test(normalizedName)) {
+    if (/\bcalves?\b/.test(normalizedName)) {
         addAliases([
             "calf",
             "cattle"
@@ -7048,14 +7048,14 @@ function buildCommoditySearchTokens(
     }
 
 
-    if (/\\blamb\\b/.test(normalizedName)) {
+    if (/\blamb\b/.test(normalizedName)) {
         addAliases([
             "sheep"
         ]);
     }
 
 
-    if (/\\bgroundnuts?\\b/.test(normalizedName)) {
+    if (/\bgroundnuts?\b/.test(normalizedName)) {
         addAliases([
             "peanut",
             "peanuts"
@@ -7063,21 +7063,21 @@ function buildCommoditySearchTokens(
     }
 
 
-    if (/\\bgroundnut oil\\b/.test(normalizedName)) {
+    if (/\bgroundnut oil\b/.test(normalizedName)) {
         addAliases([
             "peanut oil"
         ]);
     }
 
 
-    if (/\\bsoybean oil\\b/.test(normalizedName)) {
+    if (/\bsoybean oil\b/.test(normalizedName)) {
         addAliases([
             "soybean"
         ]);
     }
 
 
-    if (/\\brapeseed oil\\b/.test(normalizedName)) {
+    if (/\brapeseed oil\b/.test(normalizedName)) {
         addAliases([
             "rapeseed",
             "canola"
@@ -7085,28 +7085,28 @@ function buildCommoditySearchTokens(
     }
 
 
-    if (/\\bsunflower oil\\b/.test(normalizedName)) {
+    if (/\bsunflower oil\b/.test(normalizedName)) {
         addAliases([
             "sunflower"
         ]);
     }
 
 
-    if (/\\bcoconut oil\\b/.test(normalizedName)) {
+    if (/\bcoconut oil\b/.test(normalizedName)) {
         addAliases([
             "coconut"
         ]);
     }
 
 
-    if (/\\bpalm kernel oil\\b/.test(normalizedName)) {
+    if (/\bpalm kernel oil\b/.test(normalizedName)) {
         addAliases([
             "palm kernel"
         ]);
     }
 
 
-    if (/\\b(sawnwood|logs)\\b/.test(normalizedName)) {
+    if (/\b(sawnwood|logs)\b/.test(normalizedName)) {
         addAliases([
             "wood",
             "timber",
