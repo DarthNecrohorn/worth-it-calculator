@@ -1153,6 +1153,18 @@ if (moneySection) {
     // Prikaži početnu stranicu
     if (homePage) {
         homePage.style.display = "block";
+
+        /*
+         * Home contains its calculators, how-it-works content and FAQ
+         * as nested sections. Cars navigation previously hid all
+         * .section elements globally, so explicitly restore Home's
+         * own nested sections whenever returning here.
+         */
+        homePage
+            .querySelectorAll(".section")
+            .forEach(section => {
+                section.style.display = "";
+            });
     }
 
     window.scrollTo({
