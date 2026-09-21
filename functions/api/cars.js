@@ -3637,6 +3637,71 @@ async function searchWikipediaVehicle(
         exactName
     ];
 
+    /*
+     * FAST PATH: try the exact make + model title first.
+     *
+     * Most real VehiclesDB records map directly to an English Wikipedia
+     * article. This avoids a separate Wikipedia search request and lets the
+     * normal cached page lookup handle redirects/disambiguation.
+     */
+    try {
+
+        const exactPage =
+            await getWikipediaPage(
+                exactName
+            );
+
+        if (
+            exactPage?.title
+        ) {
+
+            const exactTitleKey =
+                simplifyText(
+                    exactPage.title
+                );
+
+            const hasMake =
+                normalizedTarget.includes(
+                    normalizedMake
+                ) &&
+                exactTitleKey.includes(
+                    normalizedMake
+                );
+
+            const hasModel =
+                normalizedTarget.includes(
+                    normalizedModel
+                ) &&
+                exactTitleKey.includes(
+                    normalizedModel
+                );
+
+            if (
+                hasMake &&
+                hasModel &&
+                !hasStrongWikipediaKindContradiction(
+                    exactPage.title,
+                    exactPage.description,
+                    kind
+                )
+            ) {
+
+                return exactPage.title;
+
+            }
+
+        }
+
+    } catch (error) {
+
+        console.warn(
+            "Wikipedia exact-title fast path failed:",
+            exactName,
+            error
+        );
+
+    }
+
     const normalizedTarget =
         simplifyText(
             exactName
@@ -3677,7 +3742,7 @@ async function searchWikipediaVehicle(
 
             url.searchParams.set(
                 "srlimit",
-                "20"
+                "8"
             );
 
             url.searchParams.set(
