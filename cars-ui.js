@@ -9696,211 +9696,184 @@ function handleVehicleScroll() {
  * ============================================================
  */
 
+function ensureCarsResultsTitleRow(
+    title,
+    description
+) {
+
+    const header = title?.parentElement;
+
+    if (!header || !description) return null;
+
+    let row = header.querySelector(".cars-results-title-row");
+
+    if (!row) {
+        row = document.createElement("div");
+        row.className = "cars-results-title-row";
+        header.insertBefore(row, title);
+        row.appendChild(title);
+    }
+
+    return row;
+}
+
+
+function renderPopularRefreshControls(
+    row,
+    kind
+) {
+
+    if (!row) return;
+
+    const oldControls = row.querySelector(".cars-results-actions");
+    if (oldControls) oldControls.remove();
+
+    const actions = document.createElement("div");
+    actions.className = "cars-results-actions";
+
+    const refreshButton = document.createElement("button");
+    refreshButton.type = "button";
+    refreshButton.className = "cars-refresh-button";
+    refreshButton.setAttribute("aria-label", "Refresh popular vehicles");
+    refreshButton.title = "Refresh popular vehicles";
+    refreshButton.textContent = "↻";
+
+    const infoWrap = document.createElement("span");
+    infoWrap.className = "cars-refresh-info-wrap";
+
+    const infoButton = document.createElement("button");
+    infoButton.type = "button";
+    infoButton.className = "cars-popularity-info-button cars-refresh-info-button";
+    infoButton.setAttribute("aria-label", "Refresh information");
+    infoButton.setAttribute("aria-expanded", "false");
+    infoButton.setAttribute("aria-controls", "carsRefreshTooltip");
+    infoButton.title = "What does Refresh do?";
+    infoButton.textContent = "ⓘ";
+
+    const tooltip = document.createElement("span");
+    tooltip.id = "carsRefreshTooltip";
+    tooltip.className = "cars-refresh-tooltip";
+    tooltip.setAttribute("role", "tooltip");
+    tooltip.hidden = true;
+    tooltip.innerHTML =
+        "<strong>Refresh</strong>" +
+        "<span>Reloads the popular vehicles for this category. " +
+        "The first 8 cards appear as soon as reliable vehicle information " +
+        "is available; images load separately and never block the cards. " +
+        "Saved vehicle information may make repeated refreshes even faster.</span>";
+
+    infoWrap.appendChild(infoButton);
+    infoWrap.appendChild(tooltip);
+    actions.appendChild(refreshButton);
+    actions.appendChild(infoWrap);
+    row.appendChild(actions);
+
+    infoButton.addEventListener("click", event => {
+        event.stopPropagation();
+        const shouldOpen = tooltip.hidden;
+        tooltip.hidden = !shouldOpen;
+        infoButton.setAttribute("aria-expanded", shouldOpen ? "true" : "false");
+        infoWrap.classList.toggle("is-open", shouldOpen);
+    });
+
+    const closeRefreshPopover = event => {
+        if (!infoWrap.contains(event.target)) {
+            tooltip.hidden = true;
+            infoButton.setAttribute("aria-expanded", "false");
+            infoWrap.classList.remove("is-open");
+        }
+    };
+
+    document.addEventListener("click", closeRefreshPopover, { once: true });
+
+    refreshButton.addEventListener("click", event => {
+        event.preventDefault();
+        event.stopPropagation();
+        if (refreshButton.disabled) return;
+        void refreshPopularVehicleCategory(kind, refreshButton);
+    });
+}
+
+
 function updateCarsCategoryHeader(
     mode = "popular",
     kind = currentVehicleKind
 ) {
 
-    const title =
-        document.getElementById(
-            "carsResultsTitle"
-        );
+    const title = document.getElementById("carsResultsTitle");
+    const description = document.getElementById("carsResultsDescription");
 
+    if (!title || !description) return;
 
-    const description =
-        document.getElementById(
-            "carsResultsDescription"
-        );
+    const row = ensureCarsResultsTitleRow(title, description);
+    const info = getVehicleKindInfo(kind);
 
+    const oldControls = row?.querySelector(".cars-results-actions");
+    if (oldControls) oldControls.remove();
 
-    if (
-        !title ||
-        !description
-    ) {
-
-        return;
-
-    }
-
-
-    const info =
-        getVehicleKindInfo(
-            kind
-        );
-
-
-    /*
-     * Search mode uses a plain description.
-     * The popularity note is only relevant to
-     * the Popular Vehicles view.
-     */
-
-    if (
-        mode === "search"
-    ) {
-
-        title.textContent =
-            `🔍 ${info.plural} Search`;
-
-        description.classList.remove(
-            "cars-results-description-with-info"
-        );
-
+    if (mode === "search") {
+        title.textContent = "🔍 " + info.plural + " Search";
+        description.classList.remove("cars-results-description-with-info");
         description.innerHTML =
-            `<span class="cars-results-description-text">${escapeVehicleHtml(
-                `Search results from the VehiclesDB ${info.singular.toLowerCase()} catalog.`
-            )}</span>`;
-
+            '<span class="cars-results-description-text">' +
+            escapeVehicleHtml(
+                "Search results from the VehiclesDB " +
+                info.singular.toLowerCase() +
+                " catalog."
+            ) +
+            "</span>";
         return;
-
     }
 
+    title.textContent = info.title;
 
-    title.textContent =
-        info.title;
+    renderPopularRefreshControls(row, kind);
 
+    description.classList.add("cars-results-description-with-info");
+    description.innerHTML =
+        '<span class="cars-results-description-text">' +
+        escapeVehicleHtml(info.description) +
+        '</span>' +
+        '<span class="cars-popularity-info-wrap">' +
+            '<button type="button" class="cars-popularity-info-button"' +
+                ' aria-label="Popularity information"' +
+                ' aria-expanded="false"' +
+                ' aria-controls="carsPopularityTooltip"' +
+                ' title="Popularity information">' +
+                'ⓘ' +
+            '</button>' +
+            '<span id="carsPopularityTooltip" class="cars-popularity-tooltip"' +
+                ' role="tooltip" hidden>' +
+                '<strong>Popularity note</strong>' +
+                '<span>' + escapeVehicleHtml(VEHICLE_POPULARITY_NOTE) + '</span>' +
+            '</span>' +
+        '</span>';
 
-    /*
-     * Put a small information icon directly beside
-     * the Popular Vehicles description. The full note
-     * opens as a small accessible popover so the page
-     * stays visually clean.
-     */
+    const infoButton = description.querySelector(".cars-popularity-info-button");
+    const infoWrap = description.querySelector(".cars-popularity-info-wrap");
+    const tooltip = description.querySelector(".cars-popularity-tooltip");
 
-    description.classList.add(
-        "cars-results-description-with-info"
-    );
+    if (!infoButton || !infoWrap || !tooltip) return;
 
-    description.innerHTML = `
+    infoButton.addEventListener("click", event => {
+        event.stopPropagation();
+        const shouldOpen = tooltip.hidden;
+        tooltip.hidden = !shouldOpen;
+        infoButton.setAttribute("aria-expanded", shouldOpen ? "true" : "false");
+        infoWrap.classList.toggle("is-open", shouldOpen);
+    });
 
-        <span class="cars-results-description-text">
-            ${escapeVehicleHtml(info.description)}
-        </span>
-
-        <span class="cars-popularity-info-wrap">
-
-            <button
-                type="button"
-                class="cars-popularity-info-button"
-                aria-label="Popularity information"
-                aria-expanded="false"
-                aria-controls="carsPopularityTooltip"
-                title="Popularity information"
-            >
-                ⓘ
-            </button>
-
-            <span
-                id="carsPopularityTooltip"
-                class="cars-popularity-tooltip"
-                role="tooltip"
-                hidden
-            >
-                <strong>Popularity note</strong>
-                <span>${escapeVehicleHtml(VEHICLE_POPULARITY_NOTE)}</span>
-            </span>
-
-        </span>
-
-    `;
-
-
-    const infoButton =
-        description.querySelector(
-            ".cars-popularity-info-button"
-        );
-
-
-    const infoWrap =
-        description.querySelector(
-            ".cars-popularity-info-wrap"
-        );
-
-
-    const tooltip =
-        description.querySelector(
-            ".cars-popularity-tooltip"
-        );
-
-
-    if (
-        !infoButton ||
-        !infoWrap ||
-        !tooltip
-    ) {
-
-        return;
-
-    }
-
-
-    infoButton.addEventListener(
-        "click",
-        event => {
-
-            event.stopPropagation();
-
-            const shouldOpen =
-                tooltip.hidden;
-
-            tooltip.hidden =
-                !shouldOpen;
-
-            infoButton.setAttribute(
-                "aria-expanded",
-                shouldOpen
-                    ? "true"
-                    : "false"
-            );
-
-            infoWrap.classList.toggle(
-                "is-open",
-                shouldOpen
-            );
-
+    const closePopularityPopover = event => {
+        if (!infoWrap.contains(event.target)) {
+            tooltip.hidden = true;
+            infoButton.setAttribute("aria-expanded", "false");
+            infoWrap.classList.remove("is-open");
         }
-    );
+    };
 
-
-    /*
-     * Close the popover when the user clicks
-     * somewhere else on the page.
-     */
-
-    const closePopularityPopover =
-        event => {
-
-            if (
-                !infoWrap.contains(
-                    event.target
-                )
-            ) {
-
-                tooltip.hidden =
-                    true;
-
-                infoButton.setAttribute(
-                    "aria-expanded",
-                    "false"
-                );
-
-                infoWrap.classList.remove(
-                    "is-open"
-                );
-
-            }
-
-        };
-
-
-    document.addEventListener(
-        "click",
-        closePopularityPopover,
-        { once: true }
-    );
+    document.addEventListener("click", closePopularityPopover, { once: true });
 
 }
-
 
 /*
  * ============================================================
