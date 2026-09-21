@@ -8866,14 +8866,10 @@ export async function onRequestGet(
     context
 ) {
 
-    recordAdminApiUsage(context, [
-        { apiKey: "markets", provider: "World Bank" },
-        { apiKey: "markets", provider: "USGS" },
-        { apiKey: "markets", provider: "EIA" },
-        { apiKey: "markets", provider: "USDA NASS" },
-        { apiKey: "markets", provider: "Voltlas" },
-        { apiKey: "markets", provider: "Wikimedia Commons" }
-    ]);
+    recordAdminApiUsage(context, {
+        apiKey: "markets",
+        provider: "World Bank + USGS + EIA + USDA NASS + Voltlas + Wikimedia Commons"
+    });
 
     const requestUrl =
         new URL(
