@@ -313,7 +313,8 @@ const popularVehicleHydrationState =
 const POPULAR_DETAILS_CONCURRENCY = 6;
 
 const POPULAR_NONCAR_DETAILS_CONCURRENCY = 12;
-const POPULAR_NONCAR_QUALITY_BATCH_SIZE = 18;
+const POPULAR_NONCAR_QUALITY_BATCH_SIZE = 12;
+const POPULAR_NONCAR_INITIAL_MAX_CHECKS = 72;
 
 function getPopularDetailsConcurrency(kind) {
     return kind === "car"
@@ -330,7 +331,7 @@ function getPopularQualityBatchSize(kind) {
 function getPopularInitialCheckLimit(kind) {
     return kind === "car"
         ? POPULAR_SHOW_ALL_MAX_NEW_CHECKS
-        : 200;
+        : POPULAR_NONCAR_INITIAL_MAX_CHECKS;
 }
 
 function getPopularMaxNewChecks(kind) {
@@ -3844,15 +3845,23 @@ async function evaluatePopularVehicleCandidate(
         vehicle?.sourceKind ||
         kind;
 
+    /*
+     * Non-Car initial loads use a single attempt. Failed requests are not
+     * cached as permanent failures and will be retried by the background
+     * loader, so one slow/failing request does not hold up the first cards.
+     * Cars retain the existing two-attempt behavior.
+     */
     const details =
         await fetchVehicleDetailsWithRetry(
             vehicle.make,
             vehicle.model,
             detailKind,
-            2,
+            kind === "car"
+                ? 2
+                : 1,
             kind === "car"
                 ? 650
-                : 300
+                : 250
         );
 
     if (!details) {
@@ -4725,7 +4734,7 @@ async function loadAndRenderNonCarPopularVehicles(
             ? currentVehicleCatalog
             : [];
 
-    const candidates =
+    let candidates =
         getPopularVehicles(
             catalogVehicles
         );
@@ -4748,16 +4757,31 @@ async function loadAndRenderNonCarPopularVehicles(
                 getVehicleKindInfo(kind).icon
             ) +
             '</div>' +
-            '<strong>Still checking ' +
+            '<strong>Loading ' +
             escapeVehicleHtml(
                 getVehicleKindInfo(kind).plural.toLowerCase()
             ) +
             '...</strong>' +
-            '<p>Loading additional open vehicle datasets.</p>' +
+            '<p>Preparing vehicle data.</p>' +
             '</div>';
 
         void enrichVehicleCategoryWithSupplementalSources(
             kind
+        ).then(
+            () => {
+                if (
+                    currentVehicleKind === kind &&
+                    currentVehicleMode === "popular"
+                ) {
+                    currentVehicleCatalog =
+                        vehicleCatalogCache.get(kind) || [];
+
+                    void loadAndRenderNonCarPopularVehicles(
+                        kind,
+                        false
+                    );
+                }
+            }
         );
 
         return;
@@ -4767,6 +4791,12 @@ async function loadAndRenderNonCarPopularVehicles(
         kind,
         candidates
     );
+
+    candidates =
+        getPopularVehicles(
+            vehicleCatalogCache.get(kind) ||
+            catalogVehicles
+        );
 
     const existingState =
         getStablePopularDisplayState(
