@@ -74,7 +74,7 @@ const WIKIMEDIA_API =
  * generated before the Wikimedia request / license fixes.
  */
 const WIKIMEDIA_IMAGE_CACHE_PREFIX =
-    "https://worth-it-internal-cache.local/markets-wikimedia-image-v9/";
+    "https://worth-it-internal-cache.local/markets-wikimedia-image-v10/";
 
 
 const MAX_IMAGE_SEARCH_CANDIDATES =
@@ -83,6 +83,22 @@ const MAX_IMAGE_SEARCH_CANDIDATES =
 
 const IMAGE_SEARCH_PAGE_SIZE =
     20;
+
+
+/*
+ * Minimum practical image quality for the market cards.
+ * Tiny icons/scans and extremely narrow banners are rejected.
+ */
+const MIN_IMAGE_WIDTH =
+    500;
+
+
+const MIN_IMAGE_HEIGHT =
+    250;
+
+
+const MIN_IMAGE_PIXELS =
+    150000;
 
 
 /*
@@ -2986,6 +3002,232 @@ function buildCommoditySearchTokens(
 }
 
 
+function getCommodityBaseName(
+    commodityName
+) {
+
+    return normalizeText(
+        String(
+            commodityName ||
+                ""
+        ).split(",")[0]
+    );
+}
+
+
+function getCommodityCoreTokens(
+    commodityName
+) {
+
+    const stopWords =
+        new Set([
+
+            "the",
+
+            "of",
+
+            "and",
+
+            "average",
+
+            "avg",
+
+            "index",
+
+            "price",
+
+            "prices",
+
+            "us",
+
+            "u",
+
+            "s",
+
+            "uk",
+
+            "eu",
+
+            "europe"
+
+        ]);
+
+
+    const tokens =
+        normalizeSearchText(
+            getCommodityBaseName(
+                commodityName
+            )
+        )
+            .split(" ")
+            .filter(
+                token =>
+                    token.length >= 3 &&
+                    !stopWords.has(
+                        token
+                    )
+            );
+
+
+    return [
+        ...new Set(
+            tokens
+        )
+    ];
+}
+
+
+function hasCompoundCommodityMatch(
+    text,
+    commodityName
+) {
+
+    const coreTokens =
+        getCommodityCoreTokens(
+            commodityName
+        );
+
+
+    if (!coreTokens.length) {
+
+        return false;
+
+    }
+
+
+    const normalizedWords =
+        normalizeSearchText(
+            text
+        )
+            .split(" ")
+            .filter(Boolean);
+
+
+    /*
+     * Single-word commodities need their commodity term.
+     * Multi-word commodities require every meaningful core word.
+     * This avoids matching a generic “iron” image to “iron ore”,
+     * or a generic “sunflower” image to “sunflower oil”.
+     */
+    return coreTokens.every(
+        token => {
+
+            if (
+                token ===
+                    "aluminum" ||
+                token ===
+                    "aluminium"
+            ) {
+
+                return (
+                    normalizedWords.includes(
+                        "aluminum"
+                    ) ||
+                    normalizedWords.includes(
+                        "aluminium"
+                    )
+                );
+
+            }
+
+
+            return normalizedWords.includes(
+                token
+            );
+
+        }
+    );
+}
+
+
+function hasPersonOrBiographicalContext(
+    text
+) {
+
+    const normalizedText =
+        normalizeSearchText(
+            text
+        );
+
+
+    return /\b(portrait|headshot|biography|biographical|person|people|man|woman|boy|girl|actor|actress|singer|musician|politician|professor|historian|journalist|photographer|author|writer|born|died)\b/
+        .test(
+            normalizedText
+        );
+}
+
+
+function hasContextConflict(
+    searchableText,
+    commodityName
+) {
+
+    const text =
+        normalizeSearchText(
+            searchableText
+        );
+
+
+    const baseName =
+        normalizeSearchText(
+            getCommodityBaseName(
+                commodityName
+            )
+        );
+
+
+    const conflictRules = [
+
+        {
+            commodity:
+                /\bcoffee\b/,
+            conflict:
+                /\b(coffee machine|coffee maker|espresso machine|coffee grinder)\b/
+        },
+
+        {
+            commodity:
+                /\btea\b/,
+            conflict:
+                /\b(teacup|tea cup|tea set|tea service)\b/
+        },
+
+        {
+            commodity:
+                /\bpalm oil\b/,
+            conflict:
+                /\bpalm tree(s)?\b/
+        },
+
+        {
+            commodity:
+                /\bcotton\b/,
+            conflict:
+                /\b(cotton swab|cotton bud|t shirt|tshirt|shirt|clothing|garment)\b/
+        },
+
+        {
+            commodity:
+                /\bcocoa\b/,
+            conflict:
+                /\b(chocolate bar|candy bar|wrapper|confectionery)\b/
+        }
+
+    ];
+
+
+    return conflictRules.some(
+        rule =>
+            rule.commodity.test(
+                baseName
+            ) &&
+            rule.conflict.test(
+                text
+            )
+    );
+}
+
+
 function hasRelevantUrlToken(
     url,
     tokens
@@ -3073,215 +3315,14 @@ function hasRelevantTextMatch(
                     word =>
                         word ===
                         normalizedToken
+                ) ||
+
+                normalizedText.includes(
+                    normalizedToken
                 );
 
         }
     );
-}
-
-
-/*
- * Extract the original Wikimedia filename from the original
- * image URL.  The query string is intentionally ignored.
- *
- * Example:
- *   https://upload.wikimedia.org/.../Lamb.jpg?utm_source=...
- *
- * becomes:
- *   Lamb.jpg
- */
-function getWikimediaImageFileName(
-    url
-) {
-
-    try {
-
-        const parsed =
-            new URL(
-                String(url || "")
-            );
-
-
-        const parts =
-            parsed.pathname
-                .split("/")
-                .filter(Boolean);
-
-
-        if (!parts.length) {
-
-            return "";
-
-        }
-
-
-        return decodeURIComponent(
-            parts[
-                parts.length - 1
-            ]
-        );
-
-    }
-    catch {
-
-        try {
-
-            const cleanUrl =
-                String(url || "")
-                    .split("?")[0]
-                    .split("#")[0];
-
-
-            const parts =
-                cleanUrl
-                    .split("/")
-                    .filter(Boolean);
-
-
-            return decodeURIComponent(
-                parts[
-                    parts.length - 1
-                ] || ""
-            );
-
-        }
-        catch {
-
-            return "";
-
-        }
-    }
-}
-
-
-function getWikimediaImageFileStem(
-    url
-) {
-
-    const fileName =
-        getWikimediaImageFileName(
-            url
-        );
-
-
-    if (!fileName) {
-
-        return "";
-
-    }
-
-
-    return fileName
-        .replace(
-            /\.[a-z0-9]{2,5}$/i,
-            ""
-        );
-}
-
-
-/*
- * Build the exact commodity phrase used for strict filename
- * validation.  World Bank series frequently contain market or
- * location qualifiers after a comma, so the base commodity before
- * the comma is used for the image filename.
- *
- * Examples:
- *   "Lamb"                 -> "lamb"
- *   "Gold"                 -> "gold"
- *   "Iron Ore, CFR Spot"   -> "iron ore"
- *   "Coal, South African"  -> "coal"
- */
-function getStrictCommodityImageName(
-    commodityName
-) {
-
-    const normalized =
-        normalizeText(
-            commodityName
-        );
-
-
-    if (!normalized) {
-
-        return "";
-
-    }
-
-
-    const baseName =
-        normalizeText(
-            normalized
-                .split(",")[0]
-        );
-
-
-    return normalizeSearchText(
-        baseName
-    );
-}
-
-
-/*
- * STRICT IMAGE FILENAME RULE
- *
- * The Wikimedia original filename must match the commodity base
- * name exactly after normalizing spaces, underscores, hyphens and
- * punctuation.  Additional descriptive/person/location words are
- * rejected.
- *
- * Therefore:
- *   Lamb.jpg                       -> ACCEPT as a filename match
- *   lamb.jpeg                      -> ACCEPT as a filename match
- *   Lamb_meat.jpg                 -> REJECT
- *   John_K._Lamb_Los_Alamos_ID.png -> REJECT
- *   Gold-crystals.jpg             -> REJECT for Gold
- *   Iron_Ore.jpg                  -> ACCEPT for Iron Ore
- */
-function hasStrictCommodityImageFileName(
-    url,
-    commodityName
-) {
-
-    const fileStem =
-        normalizeSearchText(
-            getWikimediaImageFileStem(
-                url
-            )
-        );
-
-
-    const expectedName =
-        getStrictCommodityImageName(
-            commodityName
-        );
-
-
-    if (
-        !fileStem ||
-        !expectedName
-    ) {
-
-        return false;
-
-    }
-
-
-    return fileStem ===
-        expectedName;
-}
-
-
-function hasPersonOrBiographicalContext(
-    text
-) {
-
-    const normalizedText =
-        normalizeSearchText(
-            text
-        );
-
-
-    return /\b(portrait|headshot|biography|biographical|person|people|man|woman|boy|girl|actor|actress|singer|musician|politician|professor|historian|journalist|photographer|author|writer|born|died)\b/.test(normalizedText);
 }
 
 
@@ -3409,6 +3450,117 @@ function getLicenseKind(
 
 
     return null;
+}
+
+
+function hasCommodityFilenameMatch(
+    url,
+    commodityName
+) {
+
+    const fileName =
+        (() => {
+
+            try {
+
+                const parsed =
+                    new URL(
+                        String(
+                            url ||
+                                ""
+                        )
+                    );
+
+
+                const parts =
+                    parsed.pathname
+                        .split("/")
+                        .filter(Boolean);
+
+
+                return parts.length
+                    ? decodeURIComponent(
+                        parts[
+                            parts.length - 1
+                        ]
+                    )
+                    : "";
+
+            }
+            catch {
+
+                return String(
+                    url ||
+                        ""
+                )
+                    .split("?")[0]
+                    .split("#")[0]
+                    .split("/")
+                    .filter(Boolean)
+                    .pop() ||
+                    "";
+
+            }
+
+        })();
+
+
+    const fileStem =
+        normalizeSearchText(
+            fileName
+                .replace(
+                    /\.[a-z0-9]{2,5}$/i,
+                    ""
+                )
+        );
+
+
+    const coreTokens =
+        getCommodityCoreTokens(
+            commodityName
+        );
+
+
+    if (
+        !fileStem ||
+        !coreTokens.length
+    ) {
+
+        return false;
+
+    }
+
+
+    return coreTokens.every(
+        token => {
+
+            if (
+                token ===
+                    "aluminum" ||
+                token ===
+                    "aluminium"
+            ) {
+
+                return (
+                    fileStem.includes(
+                        "aluminum"
+                    ) ||
+                    fileStem.includes(
+                        "aluminium"
+                    )
+                );
+
+            }
+
+
+            return fileStem.includes(
+                simplifySearchText(
+                    token
+                )
+            );
+
+        }
+    );
 }
 
 
@@ -3545,6 +3697,51 @@ function candidateIsUsable(
     }
 
 
+    const width =
+        Number(
+            imageInfo?.width
+        ) ||
+        0;
+
+
+    const height =
+        Number(
+            imageInfo?.height
+        ) ||
+        0;
+
+
+    const pixelCount =
+        width * height;
+
+
+    if (
+        width < MIN_IMAGE_WIDTH ||
+        height < MIN_IMAGE_HEIGHT ||
+        pixelCount < MIN_IMAGE_PIXELS
+    ) {
+
+        return null;
+
+    }
+
+
+    const aspectRatio =
+        height > 0
+            ? width / height
+            : 0;
+
+
+    if (
+        aspectRatio > 4.5 ||
+        aspectRatio < (1 / 4.5)
+    ) {
+
+        return null;
+
+    }
+
+
     const tokens =
         buildCommoditySearchTokens(
             commodityName
@@ -3552,22 +3749,6 @@ function candidateIsUsable(
 
 
     if (!tokens.length) {
-
-        return null;
-
-    }
-
-
-    /*
-     * The original Wikimedia filename is now a HARD relevance
-     * gate.  A match inside a longer filename is not enough.
-     */
-    if (
-        !hasStrictCommodityImageFileName(
-            url,
-            commodityName
-        )
-    ) {
 
         return null;
 
@@ -3619,13 +3800,22 @@ function candidateIsUsable(
     }
 
 
-    const fullSearchableText =
-        `${title} ${searchableText}`;
+    if (
+        !hasCompoundCommodityMatch(
+            searchableText,
+            commodityName
+        )
+    ) {
+
+        return null;
+
+    }
 
 
     if (
-        isDisallowedImageDescription(
-            fullSearchableText
+        hasContextConflict(
+            `${title} ${searchableText}`,
+            commodityName
         )
     ) {
 
@@ -3636,7 +3826,18 @@ function candidateIsUsable(
 
     if (
         hasPersonOrBiographicalContext(
-            fullSearchableText
+            `${title} ${searchableText}`
+        )
+    ) {
+
+        return null;
+
+    }
+
+
+    if (
+        isDisallowedImageDescription(
+            `${title} ${searchableText}`
         )
     ) {
 
@@ -3757,9 +3958,8 @@ function candidateIsUsable(
 
 
     /*
-     * The strict filename rule above is the hard gate.  Keep the
-     * URL token check only as a small ranking confirmation for
-     * unusual but valid URL forms.
+     * URL relevance is now an additional ranking signal rather
+     * than a hard rejection condition.
      */
 
     if (
@@ -3771,6 +3971,19 @@ function candidateIsUsable(
 
         score +=
             100;
+
+    }
+
+
+    if (
+        hasCommodityFilenameMatch(
+            url,
+            commodityName
+        )
+    ) {
+
+        score +=
+            30;
 
     }
 
@@ -3853,15 +4066,11 @@ function candidateIsUsable(
             url,
 
         width:
-            Number(
-                imageInfo?.width
-            ) ||
+            width ||
             null,
 
         height:
-            Number(
-                imageInfo?.height
-            ) ||
+            height ||
             null,
 
         title:
