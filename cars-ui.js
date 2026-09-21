@@ -54,8 +54,8 @@ const INITIAL_VISIBLE_ROWS = 2;
  * out of the Popular Vehicles view.
  */
 const POPULAR_CANDIDATE_POOL_SIZE = 1000;
-const POPULAR_QUALITY_BATCH_SIZE = 8;
-const POPULAR_INITIAL_MAX_CHECKS = 32;
+const POPULAR_QUALITY_BATCH_SIZE = 10;
+const POPULAR_INITIAL_MAX_CHECKS = 40;
 const POPULAR_SHOW_ALL_MAX_NEW_CHECKS = 1500;
 const VEHICLE_DETAILS_REQUEST_TIMEOUT_MS = 15000;
 const POPULAR_MAX_DISPLAY_RESULTS = MAX_VEHICLES_PER_CATEGORY;
@@ -620,7 +620,7 @@ async function cacheVehicleImageResponse(
 
 let vehicleImageObserver = null;
 
-const MAX_CONCURRENT_IMAGE_REQUESTS = 4;
+const MAX_CONCURRENT_IMAGE_REQUESTS = 8;
 
 let activeVehicleImageRequests = 0;
 
@@ -1563,7 +1563,8 @@ async function loadVehicleCardImage(
     }
 
     /*
-     * First try the account-scoped persistent image cache.
+     * The account-scoped cache is still preferred. When an image is already
+     * cached we can use it immediately.
      */
     const cachedObjectUrl =
         await getCachedVehicleImageObjectUrl(
@@ -1605,101 +1606,12 @@ async function loadVehicleCardImage(
     }
 
     /*
-     * Try a programmatic fetch once so the downloaded image can be
-     * stored in the account-scoped Cache Storage. If Wikimedia blocks
-     * CORS, fall back to the normal browser image request.
+     * First-load fast path:
+     *
+     * Give the browser the Wikimedia URL immediately. Do not wait for a
+     * second CORS fetch/blob conversion just to populate the local cache.
+     * The browser's native image loader is substantially faster here.
      */
-    try {
-
-        const response =
-            await fetch(
-                image.url,
-                {
-                    mode: "cors",
-                    credentials: "omit",
-                    cache: "force-cache"
-                }
-            );
-
-        if (
-            response.ok
-        ) {
-
-            const clone =
-                response.clone();
-
-            const blob =
-                await response.blob();
-
-            if (
-                blob &&
-                blob.size &&
-                imageElement.isConnected
-            ) {
-
-                void (async () => {
-
-                    try {
-
-                        const owner =
-                            await getVehicleAccountCacheOwner();
-
-                        const cache =
-                            await caches.open(
-                                `worth-it-cars-images-${VEHICLE_PERSISTENT_CACHE_VERSION}-${owner}`
-                            );
-
-                        await cache.put(
-                            image.url,
-                            clone
-                        );
-
-                    } catch {}
-
-                })();
-
-                const objectUrl =
-                    URL.createObjectURL(
-                        blob
-                    );
-
-                imageElement.src =
-                    objectUrl;
-
-                imageElement.dataset.loaded =
-                    "true";
-
-                imageElement.dataset.cached =
-                    "true";
-
-                imageElement.addEventListener(
-                    "load",
-                    () => {
-
-                        try {
-                            URL.revokeObjectURL(
-                                objectUrl
-                            );
-                        } catch {}
-
-                    },
-                    {
-                        once: true
-                    }
-                );
-
-                return;
-
-            }
-
-        }
-
-    } catch {
-        /*
-         * Native <img> fallback below.
-         */
-    }
-
     if (
         !imageElement.isConnected
     ) {
@@ -1731,6 +1643,14 @@ async function loadVehicleCardImage(
         imageElement.dataset.imageSourceUrl =
             image.source_url;
     }
+
+    /*
+     * Cache the same URL separately in the background. A CORS failure here
+     * must never delay or break the visible image.
+     */
+    void cacheVehicleImageResponse(
+        image.url
+    );
 
 }
 
@@ -3908,7 +3828,10 @@ async function loadAndRenderPopularVehicles(
             kind,
             candidates,
             targetCount,
-            POPULAR_SHOW_ALL_MAX_NEW_CHECKS
+            Math.max(
+                POPULAR_SHOW_ALL_MAX_NEW_CHECKS,
+                48
+            )
         );
 
     if (
@@ -8595,14 +8518,17 @@ async function preloadVehicleInformationForCategory(
 }
 
 
+let vehicleCategoryPreloadPromise =
+    null;
+
 function preloadVehicleCategoryCatalogs(
     excludeKind = null
 ) {
 
     if (
-        vehicleCategoryInformationPreloadPromise
+        vehicleCategoryPreloadPromise
     ) {
-        return vehicleCategoryInformationPreloadPromise;
+        return vehicleCategoryPreloadPromise;
     }
 
     const kindsToPreload =
@@ -8616,13 +8542,11 @@ function preloadVehicleCategoryCatalogs(
         return Promise.resolve();
     }
 
-    vehicleCategoryInformationPreloadPromise =
+    vehicleCategoryPreloadPromise =
         (async () => {
 
             /*
-             * Load all five lightweight catalogs first. Then warm the first
-             * two rows of information with a small number of categories in
-             * parallel so the initial Cars view itself is not overwhelmed.
+             * Stage 1: fetch all lightweight VehiclesDB catalogs together.
              */
             await Promise.all(
                 kindsToPreload.map(
@@ -8644,51 +8568,100 @@ function preloadVehicleCategoryCatalogs(
                 )
             );
 
-            const categoryQueue =
+            /*
+             * Stage 2: warm the first two rows of vehicle information.
+             * Limit this to three categories at once so the active Cars
+             * category and visible images are not starved of bandwidth.
+             */
+            const queue =
                 kindsToPreload.slice();
 
             const worker =
                 async () => {
 
                     while (
-                        categoryQueue.length
+                        queue.length
                     ) {
 
                         const kind =
-                            categoryQueue.shift();
+                            queue.shift();
 
                         if (!kind) {
                             return;
                         }
 
-                        await preloadVehicleInformationForCategory(
-                            kind
-                        );
+                        const catalog =
+                            vehicleCatalogCache.get(
+                                kind
+                            ) || [];
+
+                        if (!catalog.length) {
+                            continue;
+                        }
+
+                        const candidates =
+                            getPopularVehicles(
+                                catalog
+                            );
+
+                        if (!candidates.length) {
+                            continue;
+                        }
+
+                        const warmCount =
+                            Math.min(
+                                8,
+                                candidates.length
+                            );
+
+                        try {
+
+                            await ensurePopularVehicleQuality(
+                                kind,
+                                candidates,
+                                warmCount,
+                                24
+                            );
+
+                        } catch (error) {
+
+                            console.warn(
+                                `Background vehicle information preload failed for ${kind}:`,
+                                error
+                            );
+
+                        }
 
                     }
 
                 };
 
-            /*
-             * Only two categories perform Wikipedia warm-up concurrently.
-             * This reduces first-open rate limiting while still warming all
-             * categories before the user reaches them.
-             */
-            await Promise.all([
-                worker(),
-                worker()
-            ]);
+            await Promise.all(
+                Array.from(
+                    {
+                        length:
+                            Math.min(
+                                3,
+                                queue.length
+                            )
+                    },
+                    worker
+                ).map(
+                    task =>
+                        task
+                )
+            );
 
         })().finally(
             () => {
 
-                vehicleCategoryInformationPreloadPromise =
+                vehicleCategoryPreloadPromise =
                     null;
 
             }
         );
 
-    return vehicleCategoryInformationPreloadPromise;
+    return vehicleCategoryPreloadPromise;
 
 }
 
@@ -9222,18 +9195,17 @@ async function openCars() {
     currentVehicleCatalog =
         vehicles;
 
-    /*
-     * While the Cars cards are being hydrated, warm the other vehicle
-     * category catalogs in the background. This makes the next category
-     * switch use an already available catalog whenever possible.
-     */
-    void preloadVehicleCategoryCatalogs(
-        "car"
-    );
-
     await loadAndRenderPopularVehicles(
         "car",
         false
+    );
+
+    /*
+     * After the visible Cars rows are ready, warm the other categories
+     * without competing with the active category's initial requests.
+     */
+    void preloadVehicleCategoryCatalogs(
+        "car"
     );
 
 
