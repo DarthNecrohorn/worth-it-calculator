@@ -57,7 +57,7 @@ const POPULAR_INITIAL_MAX_CHECKS = 60;
 const POPULAR_SHOW_ALL_MAX_NEW_CHECKS = 300;
 const VEHICLE_DETAILS_REQUEST_TIMEOUT_MS = 15000;
 const POPULAR_MAX_DISPLAY_RESULTS = 300;
-const POPULAR_MIN_SPECIFICATION_FIELDS = 2;
+const POPULAR_MIN_SPECIFICATION_FIELDS = 0;
 const POPULAR_MIN_DESCRIPTION_LENGTH = 60;
 
 const POPULAR_VEHICLE_TYPE_TERMS = {
@@ -2076,15 +2076,6 @@ function hasUsablePopularVehicleDetails(
 ) {
 
     if (!details) {
-        return false;
-    }
-
-    /*
-     * The backend marks whether enough useful Wikipedia technical
-     * information exists for comparison. A false value is therefore
-     * never suitable for the Popular Vehicles section.
-     */
-    if (details.comparisonAvailable === false) {
         return false;
     }
 
