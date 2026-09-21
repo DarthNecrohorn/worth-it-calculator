@@ -2833,10 +2833,7 @@ function getPopularVehicles(
                 )
         );
 
-    if (
-        !hasSupplemental ||
-        currentVehicleKind === "car"
-    ) {
+    if (!hasSupplemental) {
 
         return rankedVehicles.slice(
             0,
@@ -4639,7 +4636,7 @@ async function continueStablePopularVehicleLoading(
             kind,
             candidates,
             MAX_VEHICLES_PER_CATEGORY,
-            POPULAR_SHOW_ALL_MAX_NEW_CHECKS,
+            getPopularMaxNewChecks(kind),
             async validVehicles => {
 
                 if (
