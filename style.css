@@ -4285,6 +4285,9 @@ html[data-theme="light"] .currency-card:hover{
     display: flex;
     flex-direction: column;
     gap: 24px;
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
 }
 
 .cars-search {
@@ -4319,6 +4322,10 @@ html[data-theme="light"] .currency-card:hover{
 /* CAR SECTIONS */
 
 .cars-section-block {
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+    overflow: hidden;
     background: var(--card);
     border: 1px solid var(--border);
     border-radius: var(--radius);
@@ -4347,12 +4354,21 @@ html[data-theme="light"] .currency-card:hover{
 
 .cars-grid {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 14px;
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+    align-items: stretch;
 }
 
 .car-card {
     display: flex;
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    box-sizing: border-box;
+    overflow: hidden;
     flex-direction: column;
     align-items: flex-start;
     text-align: left;
@@ -4547,8 +4563,34 @@ html[data-theme="light"] .cars-compare-placeholder {
 .car-card-image {
     width: 100%;
     height: 180px;
+    max-width: 100%;
     object-fit: contain;
     display: block;
+    box-sizing: border-box;
+}
+
+.car-card-image-container {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    box-sizing: border-box;
+}
+
+.car-card-content {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    box-sizing: border-box;
+    overflow: hidden;
+}
+
+.car-card-content strong,
+.car-card-content span,
+.car-card-info-preview {
+    min-width: 0;
+    max-width: 100%;
+    overflow-wrap: anywhere;
+    word-break: break-word;
 }
 
 .cars-empty-state {
