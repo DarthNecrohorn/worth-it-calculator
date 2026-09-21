@@ -37,7 +37,7 @@ const VEHICLE_API_VERSION = "v13";
 const VEHICLE_CATALOG_BASE_URL =
     "https://cdn.jsdelivr.net/gh/vehiclesdb/vehiclesdb@latest/catalog";
 
-const VEHICLE_DETAILS_CACHE_VERSION = "v19";
+const VEHICLE_DETAILS_CACHE_VERSION = "v20";
 
 const MAX_VEHICLES_PER_CATEGORY = 300;
 
@@ -87,6 +87,29 @@ const POPULAR_VEHICLE_TYPE_TERMS = {
     bus: [
         "bus", "coach", "transit bus", "city bus", "double-decker",
         "shuttle bus", "school bus", "minibus"
+    ]
+};
+
+const POPULAR_VEHICLE_KIND_CONTRADICTION_TERMS = {
+    motorcycle: [
+        "car", "sedan", "hatchback", "coupe", "suv",
+        "sport utility", "van", "truck", "bus", "coach"
+    ],
+    van: [
+        "suv", "sport utility", "crossover", "sedan",
+        "hatchback", "coupe", "roadster", "convertible",
+        "wagon", "pickup", "motorcycle", "moped",
+        "truck", "bus", "coach"
+    ],
+    truck: [
+        "bus", "coach", "sedan", "hatchback", "coupe",
+        "roadster", "suv", "sport utility", "motorcycle",
+        "moped", "van"
+    ],
+    bus: [
+        "truck", "lorry", "sedan", "hatchback", "coupe",
+        "roadster", "suv", "sport utility", "motorcycle",
+        "moped", "van"
     ]
 };
 
@@ -247,8 +270,29 @@ const supplementalVehicleCatalogCache =
 const supplementalVehicleCatalogLoading =
     new Map();
 
+const dbpediaVehicleCatalogCache =
+    new Map();
+
+const dbpediaVehicleCatalogLoading =
+    new Map();
+
 const WIKIDATA_SUPPLEMENTAL_LIMIT =
-    300;
+    600;
+
+const DBPEDIA_SUPPLEMENTAL_LIMIT =
+    600;
+
+const VEHICLE_PERSISTENT_CATALOG_VERSION =
+    "v2";
+
+const VEHICLE_PERSISTENT_POPULAR_VERSION =
+    "v2";
+
+const VEHICLE_PERSISTENT_CATEGORY_TTL_MS =
+    7 * 24 * 60 * 60 * 1000;
+
+const VEHICLE_PERSISTENT_CATALOG_LIMIT =
+    1200;
 
 const VEHICLE_SUPPLEMENTAL_CATEGORIES = [
     "car",
@@ -269,11 +313,38 @@ const popularVehicleHydrationState =
 
 const POPULAR_DETAILS_CONCURRENCY = 6;
 
+const POPULAR_NONCAR_DETAILS_CONCURRENCY = 12;
+const POPULAR_NONCAR_QUALITY_BATCH_SIZE = 18;
+
+function getPopularDetailsConcurrency(kind) {
+    return kind === "car"
+        ? POPULAR_DETAILS_CONCURRENCY
+        : POPULAR_NONCAR_DETAILS_CONCURRENCY;
+}
+
+function getPopularQualityBatchSize(kind) {
+    return kind === "car"
+        ? POPULAR_QUALITY_BATCH_SIZE
+        : POPULAR_NONCAR_QUALITY_BATCH_SIZE;
+}
+
+function getPopularInitialCheckLimit(kind) {
+    return kind === "car"
+        ? POPULAR_SHOW_ALL_MAX_NEW_CHECKS
+        : 200;
+}
+
+function getPopularMaxNewChecks(kind) {
+    return kind === "car"
+        ? POPULAR_SHOW_ALL_MAX_NEW_CHECKS
+        : 2600;
+}
+
 /*
  * Persistent browser cache version for account-scoped vehicle
  * metadata/images.
  */
-const VEHICLE_PERSISTENT_CACHE_VERSION = "v3";
+const VEHICLE_PERSISTENT_CACHE_VERSION = "v4";
 
 let vehicleAccountCacheOwnerPromise =
     null;
@@ -352,6 +423,175 @@ async function getVehicleAccountCacheOwner() {
         })();
 
     return vehicleAccountCacheOwnerPromise;
+
+}
+
+
+async function readPersistentVehicleCatalog(
+    kind
+) {
+
+    if (kind === "car") {
+        return null;
+    }
+
+    try {
+
+        const cache =
+            await caches.open(
+                "worth-it-cars-catalog-" +
+                VEHICLE_PERSISTENT_CATALOG_VERSION
+            );
+
+        const response =
+            await cache.match(
+                "https://worth-it-cars-cache.local/catalog/" +
+                kind
+            );
+
+        if (!response) {
+            return null;
+        }
+
+        const payload =
+            await response.json();
+
+        const savedAt =
+            Number(payload?.savedAt || 0);
+
+        if (
+            payload?.version !==
+                VEHICLE_PERSISTENT_CATALOG_VERSION ||
+            !Array.isArray(payload?.vehicles) ||
+            !payload.vehicles.length ||
+            !Number.isFinite(savedAt) ||
+            Date.now() - savedAt >
+                VEHICLE_PERSISTENT_CATEGORY_TTL_MS
+        ) {
+            return null;
+        }
+
+        return payload.vehicles;
+
+    } catch (error) {
+
+        console.warn(
+            "Persistent vehicle catalog read skipped:",
+            kind,
+            error
+        );
+
+        return null;
+
+    }
+
+}
+
+async function writePersistentVehicleCatalog(
+    kind,
+    vehicles
+) {
+
+    if (
+        kind === "car" ||
+        !Array.isArray(vehicles) ||
+        !vehicles.length
+    ) {
+        return;
+    }
+
+    try {
+
+        const compactVehicles =
+            vehicles
+                .slice(
+                    0,
+                    VEHICLE_PERSISTENT_CATALOG_LIMIT
+                )
+                .map(vehicle => ({
+                    make: vehicle?.make || "",
+                    makeSlug: vehicle?.makeSlug || "",
+                    model: vehicle?.model || "",
+                    modelSlug: vehicle?.modelSlug || "",
+                    kind: vehicle?.kind || kind,
+                    sourceKind:
+                        vehicle?.sourceKind ||
+                        vehicle?.kind ||
+                        kind,
+                    supplementalSource:
+                        vehicle?.supplementalSource ||
+                        null,
+                    wikipediaTitle:
+                        vehicle?.wikipediaTitle ||
+                        null,
+                    bodyType:
+                        vehicle?.bodyType ||
+                        null,
+                    bodyTypes:
+                        Array.isArray(vehicle?.bodyTypes)
+                            ? vehicle.bodyTypes
+                            : [],
+                    popularityRanks:
+                        Array.isArray(vehicle?.popularityRanks)
+                            ? vehicle.popularityRanks
+                            : [],
+                    globalDecile:
+                        vehicle?.globalDecile ??
+                        null,
+                    availability:
+                        Array.isArray(vehicle?.availability)
+                            ? vehicle.availability
+                            : [],
+                    yearStart:
+                        vehicle?.yearStart ??
+                        null,
+                    yearEnd:
+                        vehicle?.yearEnd ??
+                        null
+                }))
+                .filter(
+                    vehicle =>
+                        vehicle.make &&
+                        vehicle.model
+                );
+
+        const cache =
+            await caches.open(
+                "worth-it-cars-catalog-" +
+                VEHICLE_PERSISTENT_CATALOG_VERSION
+            );
+
+        await cache.put(
+            "https://worth-it-cars-cache.local/catalog/" +
+            kind,
+            new Response(
+                JSON.stringify({
+                    version:
+                        VEHICLE_PERSISTENT_CATALOG_VERSION,
+                    savedAt:
+                        Date.now(),
+                    vehicles:
+                        compactVehicles
+                }),
+                {
+                    status: 200,
+                    headers: {
+                        "Content-Type":
+                            "application/json; charset=UTF-8"
+                    }
+                }
+            )
+        );
+
+    } catch (error) {
+
+        console.warn(
+            "Persistent vehicle catalog write skipped:",
+            kind,
+            error
+        );
+
+    }
 
 }
 
@@ -908,7 +1148,8 @@ async function fetchVehicleDetailsWithRetry(
     make,
     model,
     kind,
-    attempts = 2
+    attempts = 2,
+    retryDelayMs = 650
 ) {
 
     const maxAttempts =
@@ -944,7 +1185,7 @@ async function fetchVehicleDetailsWithRetry(
                 resolve =>
                     window.setTimeout(
                         resolve,
-                        650
+                        retryDelayMs
                     )
             );
 
@@ -1865,6 +2106,129 @@ async function fetchVehicleCatalogSource(
 
 }
 
+async function fetchFreshVehicleCatalog(
+    kind
+) {
+
+    const sourceKinds =
+        VEHICLE_CATALOG_SOURCE_KINDS[kind] ||
+        [kind];
+
+    const sourceCatalogs =
+        await Promise.all(
+            sourceKinds.map(
+                sourceKind =>
+                    fetchVehicleCatalogSource(
+                        sourceKind
+                    )
+            )
+        );
+
+    const merged =
+        new Map();
+
+    for (
+        const vehicle
+        of sourceCatalogs.flat()
+    ) {
+
+        const key =
+            normalizeVehicleText(
+                vehicle.make
+            ) +
+            "|" +
+            normalizeVehicleText(
+                vehicle.model
+            );
+
+        if (!merged.has(key)) {
+
+            merged.set(
+                key,
+                {
+                    ...vehicle,
+                    kind,
+                    sourceKind:
+                        vehicle.sourceKind ||
+                        kind
+                }
+            );
+
+        }
+
+    }
+
+    const vehicles =
+        Array.from(
+            merged.values()
+        );
+
+    vehicles.sort(
+        (a, b) =>
+            getVehiclePopularityValue(a) -
+            getVehiclePopularityValue(b)
+    );
+
+    return vehicles;
+
+}
+
+async function refreshVehicleCatalogInBackground(
+    kind
+) {
+
+    if (kind === "car") {
+        return;
+    }
+
+    try {
+
+        const freshVehicles =
+            await fetchFreshVehicleCatalog(
+                kind
+            );
+
+        if (!freshVehicles.length) {
+            return;
+        }
+
+        vehicleCatalogCache.set(
+            kind,
+            freshVehicles
+        );
+
+        void writePersistentVehicleCatalog(
+            kind,
+            freshVehicles
+        );
+
+        if (
+            currentVehicleKind === kind &&
+            currentVehicleMode === "popular"
+        ) {
+
+            currentVehicleCatalog =
+                freshVehicles;
+
+            void continueStablePopularVehicleLoading(
+                kind,
+                freshVehicles
+            );
+
+        }
+
+    } catch (error) {
+
+        console.warn(
+            "Background vehicle catalog refresh failed:",
+            kind,
+            error
+        );
+
+    }
+
+}
+
 async function fetchVehicleCatalog(
     kind = "car"
 ) {
@@ -1884,54 +2248,68 @@ async function fetchVehicleCatalog(
     const loadingPromise =
         (async () => {
 
-            const sourceKinds =
-                VEHICLE_CATALOG_SOURCE_KINDS[kind] || [kind];
+            if (kind !== "car") {
 
-            const sourceCatalogs =
-                await Promise.all(
-                    sourceKinds.map(sourceKind =>
-                        fetchVehicleCatalogSource(sourceKind)
-                    )
-                );
+                const savedCatalog =
+                    await readPersistentVehicleCatalog(
+                        kind
+                    );
 
-            const merged = new Map();
+                if (
+                    Array.isArray(savedCatalog) &&
+                    savedCatalog.length
+                ) {
 
-            for (const vehicle of sourceCatalogs.flat()) {
-
-                const key =
-                    normalizeVehicleText(vehicle.make) +
-                    "|" +
-                    normalizeVehicleText(vehicle.model);
-
-                if (!merged.has(key)) {
-                    merged.set(key, {
-                        ...vehicle,
+                    vehicleCatalogCache.set(
                         kind,
-                        sourceKind: vehicle.sourceKind || kind
-                    });
+                        savedCatalog
+                    );
+
+                    void refreshVehicleCatalogInBackground(
+                        kind
+                    );
+
+                    return savedCatalog;
+
                 }
+
             }
 
-            const vehicles = Array.from(merged.values());
+            const vehicles =
+                await fetchFreshVehicleCatalog(
+                    kind
+                );
 
-            vehicles.sort(
-                (a, b) =>
-                    getVehiclePopularityValue(a) -
-                    getVehiclePopularityValue(b)
-            );
+            if (
+                kind !== "car" &&
+                vehicles.length
+            ) {
 
-            vehicleCatalogCache.set(kind, vehicles);
+                void writePersistentVehicleCatalog(
+                    kind,
+                    vehicles
+                );
+
+            }
+
             return vehicles;
 
-        })().finally(() => {
-            vehicleCatalogLoading.delete(kind);
-        });
+        })().finally(
+            () => {
+                vehicleCatalogLoading.delete(
+                    kind
+                );
+            }
+        );
 
-    vehicleCatalogLoading.set(kind, loadingPromise);
+    vehicleCatalogLoading.set(
+        kind,
+        loadingPromise
+    );
+
     return loadingPromise;
 
 }
-
 
 /*
  * ============================================================
@@ -2011,6 +2389,99 @@ async function fetchSupplementalVehicleCatalog(
 
 }
 
+
+async function fetchDbpediaVehicleCatalog(
+    kind
+) {
+
+    if (
+        !VEHICLE_SUPPLEMENTAL_CATEGORIES.includes(
+            kind
+        )
+    ) {
+        return [];
+    }
+
+    if (dbpediaVehicleCatalogCache.has(kind)) {
+        return dbpediaVehicleCatalogCache.get(kind);
+    }
+
+    if (dbpediaVehicleCatalogLoading.has(kind)) {
+        return dbpediaVehicleCatalogLoading.get(kind);
+    }
+
+    const loadingPromise =
+        (async () => {
+
+            try {
+
+                const params =
+                    new URLSearchParams({
+                        action: "dbpedia",
+                        kind
+                    });
+
+                const response =
+                    await fetch(
+                        VEHICLE_API +
+                        "?" +
+                        params.toString(),
+                        {
+                            headers: {
+                                "Accept":
+                                    "application/json"
+                            }
+                        }
+                    );
+
+                if (!response.ok) {
+                    return [];
+                }
+
+                const data =
+                    await response.json();
+
+                const vehicles =
+                    Array.isArray(data?.vehicles)
+                        ? data.vehicles
+                        : [];
+
+                dbpediaVehicleCatalogCache.set(
+                    kind,
+                    vehicles
+                );
+
+                return vehicles;
+
+            } catch (error) {
+
+                console.warn(
+                    "Supplemental DBpedia catalog failed:",
+                    kind,
+                    error
+                );
+
+                return [];
+
+            } finally {
+
+                dbpediaVehicleCatalogLoading.delete(
+                    kind
+                );
+
+            }
+
+        })();
+
+    dbpediaVehicleCatalogLoading.set(
+        kind,
+        loadingPromise
+    );
+
+    return loadingPromise;
+
+}
+
 function mergeSupplementalVehicleCatalog(
     kind,
     supplementalVehicles
@@ -2060,12 +2531,38 @@ function mergeSupplementalVehicleCatalog(
 
 }
 
-async function enrichVehicleCategoryWithWikidata(
+async function enrichVehicleCategoryWithSupplementalSources(
     kind
 ) {
 
+    const [
+        wikidata,
+        dbpedia
+    ] =
+        await Promise.all([
+            fetchSupplementalVehicleCatalog(
+                kind
+            ),
+            fetchDbpediaVehicleCatalog(
+                kind
+            )
+        ]);
+
     const supplemental =
-        await fetchSupplementalVehicleCatalog(kind);
+        [
+            ...(Array.isArray(wikidata)
+                ? wikidata.slice(
+                    0,
+                    WIKIDATA_SUPPLEMENTAL_LIMIT
+                )
+                : []),
+            ...(Array.isArray(dbpedia)
+                ? dbpedia.slice(
+                    0,
+                    DBPEDIA_SUPPLEMENTAL_LIMIT
+                )
+                : [])
+        ];
 
     if (!supplemental.length) {
         return;
@@ -2074,15 +2571,21 @@ async function enrichVehicleCategoryWithWikidata(
     const mergedCatalog =
         mergeSupplementalVehicleCatalog(
             kind,
-            supplemental.slice(0, WIKIDATA_SUPPLEMENTAL_LIMIT)
+            supplemental
         );
+
+    void writePersistentVehicleCatalog(
+        kind,
+        mergedCatalog
+    );
 
     if (
         currentVehicleKind === kind &&
         currentVehicleMode === "popular"
     ) {
 
-        currentVehicleCatalog = mergedCatalog;
+        currentVehicleCatalog =
+            mergedCatalog;
 
         void continueStablePopularVehicleLoading(
             kind,
@@ -2293,10 +2796,6 @@ function getPopularVehicles(
         return [];
     }
 
-    /*
-     * The catalog kind is authoritative. When body_types exists, use
-     * it as a second signal to keep Vans focused on actual van bodies.
-     */
     const rankedVehicles =
         vehicles
             .filter(
@@ -2314,9 +2813,7 @@ function getPopularVehicles(
                         getCatalogVehicleKindPriority(a) -
                         getCatalogVehicleKindPriority(b);
 
-                    if (
-                        kindPriorityDifference !== 0
-                    ) {
+                    if (kindPriorityDifference !== 0) {
                         return kindPriorityDifference;
                     }
 
@@ -2324,15 +2821,56 @@ function getPopularVehicles(
                         getVehiclePopularityValue(a) -
                         getVehiclePopularityValue(b)
                     );
+
                 }
             );
 
-    return rankedVehicles.slice(
-        0,
-        POPULAR_CANDIDATE_POOL_SIZE
-    );
-}
+    const hasSupplemental =
+        rankedVehicles.some(
+            vehicle =>
+                Boolean(
+                    vehicle?.supplementalSource
+                )
+        );
 
+    if (
+        !hasSupplemental ||
+        currentVehicleKind === "car"
+    ) {
+
+        return rankedVehicles.slice(
+            0,
+            POPULAR_CANDIDATE_POOL_SIZE
+        );
+
+    }
+
+    const baseVehicles =
+        rankedVehicles.filter(
+            vehicle =>
+                !vehicle?.supplementalSource
+        );
+
+    const supplementalVehicles =
+        rankedVehicles.filter(
+            vehicle =>
+                Boolean(
+                    vehicle?.supplementalSource
+                )
+        );
+
+    return [
+        ...baseVehicles.slice(
+            0,
+            900
+        ),
+        ...supplementalVehicles.slice(
+            0,
+            1200
+        )
+    ];
+
+}
 
 function getPopularVehicleQualityKey(
     vehicle,
@@ -2585,6 +3123,39 @@ function hasExpectedPopularVehicleKindEvidence(
 
     const combinedText =
         `${title} ${description}`.trim();
+
+    if (kind !== "car") {
+
+        const expectedTerms =
+            POPULAR_VEHICLE_TYPE_TERMS[kind] ||
+            [];
+
+        const contradictionTerms =
+            POPULAR_VEHICLE_KIND_CONTRADICTION_TERMS[kind] ||
+            [];
+
+        const hasExpectedText =
+            expectedTerms.some(term =>
+                combinedText.includes(
+                    normalizePopularQualityText(term)
+                )
+            );
+
+        const contradictionCount =
+            contradictionTerms.filter(term =>
+                combinedText.includes(
+                    normalizePopularQualityText(term)
+                )
+            ).length;
+
+        if (
+            !hasExpectedText &&
+            contradictionCount >= 1
+        ) {
+            return false;
+        }
+
+    }
 
     const bodyTypes = [
         ...(Array.isArray(details?.vehicle?.body_types)
@@ -3252,6 +3823,380 @@ function getPopularVehicleQualityState(
 }
 
 
+async function evaluatePopularVehicleCandidate(
+    vehicle,
+    kind
+) {
+
+    const key =
+        getPopularVehicleQualityKey(
+            vehicle,
+            kind
+        );
+
+    if (popularVehicleQualityCache.has(key)) {
+
+        return {
+            vehicle,
+            usable:
+                popularVehicleQualityCache.get(key)
+        };
+
+    }
+
+    const detailKind =
+        vehicle?.sourceKind ||
+        kind;
+
+    const details =
+        await fetchVehicleDetailsWithRetry(
+            vehicle.make,
+            vehicle.model,
+            detailKind,
+            2,
+            kind === "car"
+                ? 650
+                : 300
+        );
+
+    if (!details) {
+
+        return {
+            vehicle,
+            usable: null
+        };
+
+    }
+
+    const usable =
+        hasUsablePopularVehicleDetails(
+            details,
+            vehicle,
+            detailKind
+        );
+
+    popularVehicleQualityCache.set(
+        key,
+        usable
+    );
+
+    return {
+        vehicle,
+        usable
+    };
+
+}
+
+async function runPopularVehicleQualityBatch(
+    batch,
+    kind
+) {
+
+    const results =
+        new Array(batch.length);
+
+    let cursor = 0;
+
+    const workerCount =
+        Math.min(
+            getPopularDetailsConcurrency(kind),
+            batch.length
+        );
+
+    const worker =
+        async () => {
+
+            while (
+                cursor <
+                batch.length
+            ) {
+
+                const index =
+                    cursor++;
+
+                try {
+
+                    results[index] =
+                        await evaluatePopularVehicleCandidate(
+                            batch[index],
+                            kind
+                        );
+
+                } catch (error) {
+
+                    console.warn(
+                        "Vehicle quality request failed:",
+                        batch[index]?.make,
+                        batch[index]?.model,
+                        kind,
+                        error
+                    );
+
+                    results[index] = {
+                        vehicle:
+                            batch[index],
+                        usable: null
+                    };
+
+                }
+
+            }
+
+        };
+
+    await Promise.all(
+        Array.from(
+            { length: workerCount },
+            () => worker()
+        )
+    );
+
+    return results;
+
+}
+
+
+async function readPersistentPopularVehicles(
+    kind
+) {
+
+    if (kind === "car") {
+        return [];
+    }
+
+    try {
+
+        const cache =
+            await caches.open(
+                "worth-it-cars-popular-" +
+                VEHICLE_PERSISTENT_POPULAR_VERSION
+            );
+
+        const response =
+            await cache.match(
+                "https://worth-it-cars-cache.local/popular/" +
+                kind
+            );
+
+        if (!response) {
+            return [];
+        }
+
+        const payload =
+            await response.json();
+
+        const savedAt =
+            Number(payload?.savedAt || 0);
+
+        if (
+            payload?.version !==
+                VEHICLE_PERSISTENT_POPULAR_VERSION ||
+            !Array.isArray(payload?.vehicles) ||
+            !Number.isFinite(savedAt) ||
+            Date.now() - savedAt >
+                VEHICLE_PERSISTENT_CATEGORY_TTL_MS
+        ) {
+            return [];
+        }
+
+        return payload.vehicles;
+
+    } catch (error) {
+
+        console.warn(
+            "Persistent popular vehicle cache read skipped:",
+            kind,
+            error
+        );
+
+        return [];
+
+    }
+
+}
+
+async function writePersistentPopularVehicles(
+    kind,
+    vehicles
+) {
+
+    if (
+        kind === "car" ||
+        !Array.isArray(vehicles) ||
+        !vehicles.length
+    ) {
+        return;
+    }
+
+    try {
+
+        const compactVehicles =
+            vehicles
+                .slice(
+                    0,
+                    MAX_VEHICLES_PER_CATEGORY
+                )
+                .map(vehicle => ({
+                    make:
+                        vehicle?.make || "",
+                    model:
+                        vehicle?.model || "",
+                    kind:
+                        vehicle?.kind || kind,
+                    sourceKind:
+                        vehicle?.sourceKind ||
+                        vehicle?.kind ||
+                        kind,
+                    supplementalSource:
+                        vehicle?.supplementalSource ||
+                        null,
+                    wikipediaTitle:
+                        vehicle?.wikipediaTitle ||
+                        null,
+                    bodyType:
+                        vehicle?.bodyType ||
+                        null,
+                    bodyTypes:
+                        Array.isArray(vehicle?.bodyTypes)
+                            ? vehicle.bodyTypes
+                            : [],
+                    globalDecile:
+                        vehicle?.globalDecile ??
+                        null,
+                    availability:
+                        Array.isArray(vehicle?.availability)
+                            ? vehicle.availability
+                            : [],
+                    yearStart:
+                        vehicle?.yearStart ??
+                        null,
+                    yearEnd:
+                        vehicle?.yearEnd ??
+                        null
+                }))
+                .filter(
+                    vehicle =>
+                        vehicle.make &&
+                        vehicle.model
+                );
+
+        const cache =
+            await caches.open(
+                "worth-it-cars-popular-" +
+                VEHICLE_PERSISTENT_POPULAR_VERSION
+            );
+
+        await cache.put(
+            "https://worth-it-cars-cache.local/popular/" +
+            kind,
+            new Response(
+                JSON.stringify({
+                    version:
+                        VEHICLE_PERSISTENT_POPULAR_VERSION,
+                    savedAt:
+                        Date.now(),
+                    vehicles:
+                        compactVehicles
+                }),
+                {
+                    status: 200,
+                    headers: {
+                        "Content-Type":
+                            "application/json; charset=UTF-8"
+                    }
+                }
+            )
+        );
+
+    } catch (error) {
+
+        console.warn(
+            "Persistent popular vehicle cache write skipped:",
+            kind,
+            error
+        );
+
+    }
+
+}
+
+async function restorePersistentPopularVehicles(
+    kind,
+    candidates
+) {
+
+    if (
+        kind === "car" ||
+        !Array.isArray(candidates) ||
+        !candidates.length
+    ) {
+        return 0;
+    }
+
+    const stored =
+        await readPersistentPopularVehicles(
+            kind
+        );
+
+    if (!stored.length) {
+        return 0;
+    }
+
+    const state =
+        getPopularVehicleQualityState(
+            kind,
+            candidates
+        );
+
+    const candidateKeys =
+        new Set(
+            candidates.map(
+                vehicle =>
+                    getPopularVehicleQualityKey(
+                        vehicle,
+                        kind
+                    )
+            )
+        );
+
+    const restoredKeys =
+        new Set(
+            stored
+                .map(
+                    vehicle =>
+                        getPopularVehicleQualityKey(
+                            vehicle,
+                            kind
+                        )
+                )
+                .filter(
+                    key =>
+                        candidateKeys.has(key)
+                )
+        );
+
+    for (const key of restoredKeys) {
+        popularVehicleQualityCache.set(
+            key,
+            true
+        );
+    }
+
+    state.validVehicles =
+        candidates.filter(
+            vehicle =>
+                restoredKeys.has(
+                    getPopularVehicleQualityKey(
+                        vehicle,
+                        kind
+                    )
+                )
+        );
+
+    return state.validVehicles.length;
+
+}
+
 async function ensurePopularVehicleQuality(
     kind,
     catalogVehicles,
@@ -3279,19 +4224,33 @@ async function ensurePopularVehicleQuality(
         state.validVehicles.length >= desiredCount ||
         state.exhausted
     ) {
+
+        if (
+            kind !== "car" &&
+            state.validVehicles.length
+        ) {
+            void writePersistentPopularVehicles(
+                kind,
+                state.validVehicles
+            );
+        }
+
         return state.validVehicles.slice(
             0,
             desiredCount
         );
+
     }
 
     if (state.loadingPromise) {
+
         await state.loadingPromise;
 
         return state.validVehicles.slice(
             0,
             desiredCount
         );
+
     }
 
     state.loadingPromise =
@@ -3302,9 +4261,12 @@ async function ensurePopularVehicleQuality(
             try {
 
                 while (
-                    state.nextIndex < state.candidates.length &&
-                    state.validVehicles.length < desiredCount &&
-                    newChecks < maxNewChecks
+                    state.nextIndex <
+                        state.candidates.length &&
+                    state.validVehicles.length <
+                        desiredCount &&
+                    newChecks <
+                        maxNewChecks
                 ) {
 
                     const batch =
@@ -3312,7 +4274,9 @@ async function ensurePopularVehicleQuality(
                             state.nextIndex,
                             Math.min(
                                 state.nextIndex +
-                                    POPULAR_QUALITY_BATCH_SIZE,
+                                    getPopularQualityBatchSize(
+                                        kind
+                                    ),
                                 state.candidates.length
                             )
                         );
@@ -3326,85 +4290,16 @@ async function ensurePopularVehicleQuality(
                     state.checkedCount +=
                         batch.length;
 
-                    /*
-                     * Finish the whole batch before touching the DOM.
-                     * This is what keeps the first two rows stable.
-                     */
                     const results =
-                        await Promise.all(
-                            batch.map(
-                                async vehicle => {
-
-                                    const key =
-                                        getPopularVehicleQualityKey(
-                                            vehicle,
-                                            kind
-                                        );
-
-                                    if (
-                                        popularVehicleQualityCache.has(
-                                            key
-                                        )
-                                    ) {
-
-                                        return {
-                                            vehicle,
-                                            usable:
-                                                popularVehicleQualityCache.get(
-                                                    key
-                                                )
-                                        };
-
-                                    }
-
-                                    const detailKind =
-                                        vehicle?.sourceKind ||
-                                        kind;
-
-                                    const details =
-                                        await fetchVehicleDetailsWithRetry(
-                                            vehicle.make,
-                                            vehicle.model,
-                                            detailKind,
-                                            2
-                                        );
-
-                                    if (!details) {
-
-                                        /*
-                                         * A network failure is transient.
-                                         * Do not cache it as a permanent
-                                         * quality failure.
-                                         */
-                                        return {
-                                            vehicle,
-                                            usable: null
-                                        };
-
-                                    }
-
-                                    const usable =
-                                        hasUsablePopularVehicleDetails(
-                                            details,
-                                            vehicle,
-                                            detailKind
-                                        );
-
-                                    popularVehicleQualityCache.set(
-                                        key,
-                                        usable
-                                    );
-
-                                    return {
-                                        vehicle,
-                                        usable
-                                    };
-
-                                }
-                            )
+                        await runPopularVehicleQualityBatch(
+                            batch,
+                            kind
                         );
 
-                    for (const result of results) {
+                    for (
+                        const result
+                        of results
+                    ) {
 
                         if (
                             result.usable !== true
@@ -3436,10 +4331,6 @@ async function ensurePopularVehicleQuality(
 
                     }
 
-                    /*
-                     * Always restore VehiclesDB popularity order. The order
-                     * of network responses must never decide card names/slots.
-                     */
                     const validKeys =
                         new Set(
                             state.validVehicles.map(
@@ -3493,12 +4384,24 @@ async function ensurePopularVehicleQuality(
 
     await state.loadingPromise;
 
+    if (
+        kind !== "car" &&
+        state.validVehicles.length
+    ) {
+
+        void writePersistentPopularVehicles(
+            kind,
+            state.validVehicles
+        );
+
+    }
+
     return state.validVehicles.slice(
         0,
         desiredCount
     );
-}
 
+}
 
 /*
  * ============================================================
@@ -3808,10 +4711,253 @@ function startStablePopularVehicleDisplay(
 }
 
 
+
+async function loadAndRenderNonCarPopularVehicles(
+    kind,
+    showAll = false
+) {
+
+    if (
+        currentVehicleKind !== kind ||
+        currentVehicleMode !== "popular"
+    ) {
+        return;
+    }
+
+    const catalogVehicles =
+        Array.isArray(currentVehicleCatalog)
+            ? currentVehicleCatalog
+            : [];
+
+    const candidates =
+        getPopularVehicles(
+            catalogVehicles
+        );
+
+    const grid =
+        document.getElementById(
+            "popularCarsGrid"
+        );
+
+    if (!grid) {
+        return;
+    }
+
+    if (!candidates.length) {
+
+        grid.innerHTML =
+            '<div class="cars-empty-state">' +
+            '<div class="cars-empty-icon">' +
+            escapeVehicleHtml(
+                getVehicleKindInfo(kind).icon
+            ) +
+            '</div>' +
+            '<strong>Still checking ' +
+            escapeVehicleHtml(
+                getVehicleKindInfo(kind).plural.toLowerCase()
+            ) +
+            '...</strong>' +
+            '<p>Loading additional open vehicle datasets.</p>' +
+            '</div>';
+
+        void enrichVehicleCategoryWithSupplementalSources(
+            kind
+        );
+
+        return;
+    }
+
+    await restorePersistentPopularVehicles(
+        kind,
+        candidates
+    );
+
+    const existingState =
+        getStablePopularDisplayState(
+            kind
+        );
+
+    if (
+        showAll &&
+        existingState &&
+        !existingState.cancelled
+    ) {
+
+        existingState.showAll = true;
+
+        hideOrShowStablePopularCards(
+            kind,
+            true
+        );
+
+        const allValid =
+            await ensurePopularVehicleQuality(
+                kind,
+                candidates,
+                MAX_VEHICLES_PER_CATEGORY,
+                getPopularMaxNewChecks(kind)
+            );
+
+        if (
+            currentVehicleKind !== kind ||
+            currentVehicleMode !== "popular" ||
+            existingState.cancelled
+        ) {
+            return;
+        }
+
+        appendStablePopularVehicleCards(
+            kind,
+            allValid,
+            true
+        );
+
+        renderVehicleCollapseButton(
+            kind
+        );
+
+        return;
+
+    }
+
+    const displayState =
+        startStablePopularVehicleDisplay(
+            kind,
+            showAll
+        );
+
+    grid.innerHTML = "";
+
+    const initialCount =
+        Math.max(
+            1,
+            getVehiclesPerRow() *
+            INITIAL_VISIBLE_ROWS
+        );
+
+    const targetCount =
+        showAll
+            ? MAX_VEHICLES_PER_CATEGORY
+            : initialCount;
+
+    const validVehicles =
+        await ensurePopularVehicleQuality(
+            kind,
+            candidates,
+            targetCount,
+            showAll
+                ? getPopularMaxNewChecks(kind)
+                : getPopularInitialCheckLimit(kind)
+        );
+
+    if (
+        currentVehicleKind !== kind ||
+        currentVehicleMode !== "popular" ||
+        displayState.cancelled
+    ) {
+        return;
+    }
+
+    if (!validVehicles.length) {
+
+        grid.innerHTML =
+            '<div class="cars-empty-state">' +
+            '<div class="cars-empty-icon">' +
+            escapeVehicleHtml(
+                getVehicleKindInfo(kind).icon
+            ) +
+            '</div>' +
+            '<strong>Still checking ' +
+            escapeVehicleHtml(
+                getVehicleKindInfo(kind).plural.toLowerCase()
+            ) +
+            '...</strong>' +
+            '<p>Checking Wikipedia and additional open vehicle datasets for reliable information.</p>' +
+            '</div>';
+
+        void continueStablePopularVehicleLoading(
+            kind,
+            candidates
+        );
+
+        void enrichVehicleCategoryWithSupplementalSources(
+            kind
+        );
+
+        return;
+    }
+
+    currentVehicleShowAll =
+        Boolean(showAll);
+
+    displayState.showAll =
+        Boolean(showAll);
+
+    appendStablePopularVehicleCards(
+        kind,
+        validVehicles,
+        showAll
+    );
+
+    void writePersistentPopularVehicles(
+        kind,
+        validVehicles
+    );
+
+    if (!showAll) {
+
+        renderVehicleExpandButton(
+            validVehicles,
+            validVehicles.slice(
+                0,
+                initialCount
+            ),
+            kind,
+            stateHasMorePopularVehicleCandidates(
+                kind
+            )
+        );
+
+        hideOrShowStablePopularCards(
+            kind,
+            false
+        );
+
+        void continueStablePopularVehicleLoading(
+            kind,
+            candidates
+        );
+
+        void enrichVehicleCategoryWithSupplementalSources(
+            kind
+        );
+
+    } else {
+
+        hideOrShowStablePopularCards(
+            kind,
+            true
+        );
+
+        renderVehicleCollapseButton(
+            kind
+        );
+
+    }
+
+}
+
 async function loadAndRenderPopularVehicles(
     kind,
     showAll = false
 ) {
+
+    if (kind !== "car") {
+        return loadAndRenderNonCarPopularVehicles(
+            kind,
+            showAll
+        );
+    }
 
     if (
         currentVehicleKind !== kind ||
@@ -4147,7 +5293,7 @@ async function loadAndRenderPopularVehicles(
          * Existing VehiclesDB cards stay unchanged while Wikidata fills
          * additional candidates at the end of the catalogue.
          */
-        void enrichVehicleCategoryWithWikidata(
+        void enrichVehicleCategoryWithSupplementalSources(
             kind
         );
 
@@ -8771,11 +9917,26 @@ function preloadVehicleCategoryCatalogs(
 
                         try {
 
+                            await enrichVehicleCategoryWithSupplementalSources(
+                                kind
+                            );
+
+                            const refreshedCatalog =
+                                vehicleCatalogCache.get(
+                                    kind
+                                ) ||
+                                catalog;
+
+                            const refreshedCandidates =
+                                getPopularVehicles(
+                                    refreshedCatalog
+                                );
+
                             await ensurePopularVehicleQuality(
                                 kind,
-                                candidates,
+                                refreshedCandidates,
                                 warmCount,
-                                24
+                                getPopularInitialCheckLimit(kind)
                             );
 
                         } catch (error) {
@@ -9236,7 +10397,7 @@ async function openCars() {
 
 
     /*
-     * Build the six vehicle categories.
+     * Build the five public vehicle categories.
      */
 
     renderVehicleCategoryButtons();
@@ -9459,6 +10620,15 @@ function ensureVehiclesDBAttribution() {
             Wikidata
         </a>
         · CC0
+        · Additional candidates from
+        <a
+            href="https://www.dbpedia.org/"
+            target="_blank"
+            rel="noopener noreferrer"
+        >
+            DBpedia
+        </a>
+        · CC BY-SA
 
     `;
 
@@ -9547,7 +10717,7 @@ document.addEventListener(
         }
 
         /*
-         * Create the six vehicle categories.
+         * Create the five public vehicle categories.
          */
 
         renderVehicleCategoryButtons();
