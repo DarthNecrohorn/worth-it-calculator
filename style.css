@@ -7112,3 +7112,312 @@ html[data-ui-scale="xl"] .profile-nav-btn .auth-avatar-fallback{
         flex-basis:30px;
     }
 }
+
+/* =========================================================
+   MOBILE — HEADER / PROFILE ACTIONS FINAL FIT
+   Phone only. Desktop/tablet layout is intentionally untouched.
+   ========================================================= */
+
+@media (max-width:700px){
+
+    /* Keep every header control inside the phone viewport. */
+    .nav,
+    .nav > .container,
+    .nav-inner{
+        width:100%;
+        max-width:100%;
+        min-width:0;
+        overflow:visible;
+    }
+
+    .nav-inner{
+        display:flex;
+        align-items:center;
+        justify-content:flex-start;
+        gap:4px;
+        flex-wrap:nowrap;
+    }
+
+    .logo{
+        flex:0 0 auto;
+        min-width:0;
+    }
+
+    .menu-btn{
+        flex:0 0 auto;
+    }
+
+    .nav-actions{
+        display:flex;
+        align-items:center;
+        justify-content:flex-end;
+        flex:1 1 auto;
+        min-width:0;
+        width:auto;
+        max-width:none;
+        gap:2px;
+        margin-left:auto;
+        overflow:visible;
+        flex-wrap:nowrap;
+    }
+
+    .nav-actions > *{
+        flex:0 0 auto !important;
+        min-width:0;
+        max-width:none;
+        white-space:nowrap;
+    }
+
+    /* Never allow text labels to enlarge the phone header. */
+    .nav-actions .auth-label,
+    .nav-actions .feedback-nav-btn span,
+    .nav-actions .admin-panel-nav-btn span,
+    .nav-actions .signout-nav-btn span,
+    .nav-actions .ai-chat-nav-btn span{
+        display:none !important;
+        width:0 !important;
+        max-width:0 !important;
+        overflow:hidden !important;
+    }
+
+    /* Compact, complete icon buttons. */
+    .nav-actions .auth-btn,
+    .nav-actions .feedback-nav-btn,
+    .nav-actions .admin-panel-nav-btn,
+    .nav-actions .signout-nav-btn,
+    .nav-actions .settings-btn,
+    .nav-actions .ai-chat-nav-btn{
+        width:32px !important;
+        min-width:32px !important;
+        max-width:32px !important;
+        height:32px !important;
+        min-height:32px !important;
+        max-height:32px !important;
+        flex:0 0 32px !important;
+        padding:3px !important;
+        margin:0 !important;
+        display:inline-flex !important;
+        align-items:center;
+        justify-content:center;
+        overflow:hidden;
+        line-height:1;
+        font-size:15px !important;
+    }
+
+    .nav-actions .profile-nav-btn{
+        width:34px !important;
+        min-width:34px !important;
+        max-width:34px !important;
+        height:34px !important;
+        min-height:34px !important;
+        max-height:34px !important;
+        flex:0 0 34px !important;
+        margin:0 !important;
+        padding:2px !important;
+        overflow:hidden;
+    }
+
+    .nav-actions .profile-nav-btn > #profileNavIcon{
+        width:28px !important;
+        height:28px !important;
+        flex:0 0 28px !important;
+    }
+
+    .nav-actions .profile-nav-btn .auth-avatar,
+    .nav-actions .profile-nav-btn .auth-avatar-fallback{
+        width:28px !important;
+        height:28px !important;
+        flex:0 0 28px !important;
+        max-width:28px !important;
+        max-height:28px !important;
+    }
+
+    /* Prevent the profile dropdown itself from being clipped. */
+    .account-panel{
+        position:absolute;
+        right:0;
+        left:auto;
+        width:min(275px,calc(100vw - 20px));
+        max-width:calc(100vw - 20px);
+    }
+}
+
+/* A+ / A++: slightly tighter physical header so the complete
+   utility icon row still fits after the accessibility zoom. */
+@media (max-width:700px){
+    html[data-ui-scale="large"] .nav-inner,
+    html[data-ui-scale="xl"] .nav-inner{
+        gap:2px;
+    }
+
+    html[data-ui-scale="large"] .nav-actions,
+    html[data-ui-scale="xl"] .nav-actions{
+        gap:1px;
+    }
+
+    html[data-ui-scale="large"] .nav-actions .auth-btn,
+    html[data-ui-scale="large"] .nav-actions .feedback-nav-btn,
+    html[data-ui-scale="large"] .nav-actions .admin-panel-nav-btn,
+    html[data-ui-scale="large"] .nav-actions .signout-nav-btn,
+    html[data-ui-scale="large"] .nav-actions .settings-btn,
+    html[data-ui-scale="large"] .nav-actions .ai-chat-nav-btn,
+    html[data-ui-scale="xl"] .nav-actions .auth-btn,
+    html[data-ui-scale="xl"] .nav-actions .feedback-nav-btn,
+    html[data-ui-scale="xl"] .nav-actions .admin-panel-nav-btn,
+    html[data-ui-scale="xl"] .nav-actions .signout-nav-btn,
+    html[data-ui-scale="xl"] .nav-actions .settings-btn,
+    html[data-ui-scale="xl"] .nav-actions .ai-chat-nav-btn{
+        width:28px !important;
+        min-width:28px !important;
+        max-width:28px !important;
+        height:28px !important;
+        min-height:28px !important;
+        max-height:28px !important;
+        flex-basis:28px !important;
+        padding:2px !important;
+        font-size:14px !important;
+    }
+
+    html[data-ui-scale="large"] .nav-actions .profile-nav-btn,
+    html[data-ui-scale="xl"] .nav-actions .profile-nav-btn{
+        width:30px !important;
+        min-width:30px !important;
+        max-width:30px !important;
+        height:30px !important;
+        min-height:30px !important;
+        max-height:30px !important;
+        flex-basis:30px !important;
+    }
+
+    html[data-ui-scale="large"] .nav-actions .profile-nav-btn > #profileNavIcon,
+    html[data-ui-scale="xl"] .nav-actions .profile-nav-btn > #profileNavIcon{
+        width:24px !important;
+        height:24px !important;
+        flex-basis:24px !important;
+    }
+
+    html[data-ui-scale="large"] .nav-actions .profile-nav-btn .auth-avatar,
+    html[data-ui-scale="large"] .nav-actions .profile-nav-btn .auth-avatar-fallback,
+    html[data-ui-scale="xl"] .nav-actions .profile-nav-btn .auth-avatar,
+    html[data-ui-scale="xl"] .nav-actions .profile-nav-btn .auth-avatar-fallback{
+        width:24px !important;
+        height:24px !important;
+        flex-basis:24px !important;
+    }
+}
+
+/* Very narrow phones: preserve all controls without horizontal clipping. */
+@media (max-width:360px){
+    .nav-inner{
+        gap:2px;
+    }
+
+    .nav-actions{
+        gap:1px;
+    }
+
+    .logo-mark{
+        width:27px !important;
+        height:27px !important;
+        flex-basis:27px !important;
+    }
+
+    .menu-btn{
+        width:28px !important;
+        min-width:28px !important;
+        height:28px !important;
+        min-height:28px !important;
+        flex-basis:28px !important;
+        padding:3px !important;
+    }
+
+    .nav-actions .auth-btn,
+    .nav-actions .feedback-nav-btn,
+    .nav-actions .admin-panel-nav-btn,
+    .nav-actions .signout-nav-btn,
+    .nav-actions .settings-btn,
+    .nav-actions .ai-chat-nav-btn{
+        width:27px !important;
+        min-width:27px !important;
+        max-width:27px !important;
+        height:27px !important;
+        min-height:27px !important;
+        max-height:27px !important;
+        flex-basis:27px !important;
+        padding:2px !important;
+        font-size:13px !important;
+    }
+
+    .nav-actions .profile-nav-btn{
+        width:29px !important;
+        min-width:29px !important;
+        max-width:29px !important;
+        height:29px !important;
+        min-height:29px !important;
+        max-height:29px !important;
+        flex-basis:29px !important;
+    }
+
+    .nav-actions .profile-nav-btn > #profileNavIcon{
+        width:23px !important;
+        height:23px !important;
+        flex-basis:23px !important;
+    }
+
+    .nav-actions .profile-nav-btn .auth-avatar,
+    .nav-actions .profile-nav-btn .auth-avatar-fallback{
+        width:23px !important;
+        height:23px !important;
+        flex-basis:23px !important;
+    }
+
+    html[data-ui-scale="large"] .nav-actions .auth-btn,
+    html[data-ui-scale="large"] .nav-actions .feedback-nav-btn,
+    html[data-ui-scale="large"] .nav-actions .admin-panel-nav-btn,
+    html[data-ui-scale="large"] .nav-actions .signout-nav-btn,
+    html[data-ui-scale="large"] .nav-actions .settings-btn,
+    html[data-ui-scale="large"] .nav-actions .ai-chat-nav-btn,
+    html[data-ui-scale="xl"] .nav-actions .auth-btn,
+    html[data-ui-scale="xl"] .nav-actions .feedback-nav-btn,
+    html[data-ui-scale="xl"] .nav-actions .admin-panel-nav-btn,
+    html[data-ui-scale="xl"] .nav-actions .signout-nav-btn,
+    html[data-ui-scale="xl"] .settings-btn,
+    html[data-ui-scale="xl"] .nav-actions .ai-chat-nav-btn{
+        width:25px !important;
+        min-width:25px !important;
+        max-width:25px !important;
+        height:25px !important;
+        min-height:25px !important;
+        max-height:25px !important;
+        flex-basis:25px !important;
+        padding:2px !important;
+        font-size:12px !important;
+    }
+
+    html[data-ui-scale="large"] .nav-actions .profile-nav-btn,
+    html[data-ui-scale="xl"] .nav-actions .profile-nav-btn{
+        width:27px !important;
+        min-width:27px !important;
+        max-width:27px !important;
+        height:27px !important;
+        min-height:27px !important;
+        max-height:27px !important;
+        flex-basis:27px !important;
+    }
+
+    html[data-ui-scale="large"] .nav-actions .profile-nav-btn > #profileNavIcon,
+    html[data-ui-scale="xl"] .nav-actions .profile-nav-btn > #profileNavIcon{
+        width:21px !important;
+        height:21px !important;
+        flex-basis:21px !important;
+    }
+
+    html[data-ui-scale="large"] .nav-actions .profile-nav-btn .auth-avatar,
+    html[data-ui-scale="large"] .nav-actions .profile-nav-btn .auth-avatar-fallback,
+    html[data-ui-scale="xl"] .nav-actions .profile-nav-btn .auth-avatar,
+    html[data-ui-scale="xl"] .nav-actions .profile-nav-btn .auth-avatar-fallback{
+        width:21px !important;
+        height:21px !important;
+        flex-basis:21px !important;
+    }
+}
