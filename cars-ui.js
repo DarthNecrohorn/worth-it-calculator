@@ -37,7 +37,7 @@ const VEHICLE_API_VERSION = "v13";
 const VEHICLE_CATALOG_BASE_URL =
     "https://cdn.jsdelivr.net/gh/vehiclesdb/vehiclesdb@latest/catalog";
 
-const VEHICLE_DETAILS_CACHE_VERSION = "v18";
+const VEHICLE_DETAILS_CACHE_VERSION = "v19";
 
 const MAX_VEHICLES_PER_CATEGORY = 300;
 
@@ -2564,6 +2564,26 @@ function hasExpectedPopularVehicleKindEvidence(
         normalizePopularQualityText(
             `${vehicle?.make || ""} ${vehicle?.model || ""}`
         );
+
+    /*
+     * VehiclesDB already provides the authoritative category. Some
+     * Wikipedia summaries (especially for buses, trucks, vans, mopeds
+     * and motorcycles) do not explicitly repeat the vehicle type even
+     * though the article contains a real vehicle infobox. In that case,
+     * two or more technical specification fields are enough to accept
+     * the page once the make/model identity has already matched.
+     */
+    const technicalSpecificationCount =
+        getPopularVehicleSpecificationCount(
+            details
+        );
+
+    if (
+        technicalSpecificationCount >=
+        POPULAR_MIN_SPECIFICATION_FIELDS
+    ) {
+        return true;
+    }
 
     const exactTitle =
         title === targetTitle;
