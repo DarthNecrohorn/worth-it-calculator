@@ -1305,14 +1305,25 @@ function getPopularVehicles(
     }
 
     /*
-     * Popular Vehicles are the strongest candidates from
-     * VehiclesDB's documented global popularity deciles.
-     * We keep a larger internal candidate pool than the visible
-     * list so low-quality records can be skipped and replaced by
-     * the next suitable popular model.
+     * Prefer VehiclesDB's strongest global popularity deciles.
+     *
+     * Some vehicle types have much thinner popularity coverage than
+     * passenger cars. When that happens, keep the popular candidates
+     * first but continue with the remaining catalog in popularity
+     * order so motorcycles, mopeds, vans, trucks and buses do not
+     * incorrectly appear as an empty category.
      */
-    return vehicles
-        .filter(vehicle => {
+    const rankedVehicles =
+        vehicles
+            .filter(vehicle => vehicle && vehicle.model)
+            .sort(
+                (a, b) =>
+                    getVehiclePopularityValue(a) -
+                    getVehiclePopularityValue(b)
+            );
+
+    const stronglyPopular =
+        rankedVehicles.filter(vehicle => {
 
             const rawDecile =
                 vehicle?.globalDecile;
@@ -1325,16 +1336,20 @@ function getPopularVehicles(
                 Number(rawDecile) <= 2
             );
 
-        })
-        .sort(
-            (a, b) =>
-                getVehiclePopularityValue(a) -
-                getVehiclePopularityValue(b)
-        )
-        .slice(
-            0,
-            POPULAR_CANDIDATE_POOL_SIZE
+        });
+
+    const fallbackVehicles =
+        rankedVehicles.filter(vehicle =>
+            !stronglyPopular.includes(vehicle)
         );
+
+    return [
+        ...stronglyPopular,
+        ...fallbackVehicles
+    ].slice(
+        0,
+        POPULAR_CANDIDATE_POOL_SIZE
+    );
 }
 
 
@@ -1963,7 +1978,6 @@ function hasUsablePopularVehicleDetails(
         details?.wikipedia?.description;
 
     if (
-        !String(imageUrl || "").trim() ||
         !String(wikipediaUrl || "").trim() ||
         !isUsefulVehicleDetailValue(description)
     ) {
@@ -2420,21 +2434,59 @@ async function loadAndRenderPopularVehicles(
 
     }
 
-    currentVehicleResults =
+    /*
+     * If Wikipedia quality filtering leaves the category empty, keep
+     * the category usable by showing the most popular catalog records.
+     * Their detail panel will display “No Information” and they remain
+     * non-comparable until reliable Wikipedia data exists.
+     */
+    let displayVehicles =
         qualityVehicles;
+
+    if (
+        !displayVehicles.length &&
+        Array.isArray(catalogVehicles) &&
+        catalogVehicles.length
+    ) {
+
+        displayVehicles =
+            candidates.length
+                ? candidates.slice(
+                    0,
+                    Math.max(
+                        3,
+                        getInitialVehicleLimit(
+                            candidates
+                        )
+                    )
+                )
+                : catalogVehicles.slice(
+                    0,
+                    Math.max(
+                        3,
+                        getInitialVehicleLimit(
+                            catalogVehicles
+                        )
+                    )
+                );
+
+    }
+
+    currentVehicleResults =
+        displayVehicles;
 
     currentVehicleShowAll =
         showAll &&
-        qualityVehicles.length >
+        displayVehicles.length >
             Math.max(
                 1,
                 getInitialVehicleLimit(
-                    qualityVehicles
+                    displayVehicles
                 )
             );
 
     renderVehicleCards(
-        qualityVehicles,
+        displayVehicles,
         kind,
         showAll
     );
@@ -4048,15 +4100,57 @@ function renderVehicleCompareSection() {
         panel.innerHTML = `
             <div class="cars-compare-live-empty">
                 <div class="cars-compare-live-icon">⚖️</div>
-                <div>
+
+                <div class="cars-compare-live-empty-copy">
                     <strong>Choose cars to compare</strong>
                     <p>
                         Select up to 3 vehicles and compare their available
                         specifications in one place.
                     </p>
                 </div>
+
+                <div class="cars-compare-live-empty-action">
+                    <button
+                        type="button"
+                        class="cars-compare-live-add"
+                        data-compare-live-add
+                    >
+                        Add vehicle
+                    </button>
+                    <small>
+                        Select a vehicle from the list above
+                    </small>
+                </div>
             </div>
         `;
+
+        const addButton =
+            panel.querySelector(
+                "[data-compare-live-add]"
+            );
+
+        if (addButton) {
+
+            addButton.addEventListener(
+                "click",
+                () => {
+
+                    const grid =
+                        document.getElementById(
+                            "popularCarsGrid"
+                        );
+
+                    if (grid) {
+                        grid.scrollIntoView({
+                            behavior: "smooth",
+                            block: "center"
+                        });
+                    }
+
+                }
+            );
+
+        }
 
         return;
     }
@@ -6869,19 +6963,6 @@ async function openCars() {
     /*
      * Keep the existing safety rule for nested sections as well.
      */
-    document
-        .querySelectorAll(".section")
-        .forEach(
-            section => {
-
-                section.style.display =
-                    section === carsSection
-                        ? "block"
-                        : "none";
-
-            }
-        );
-
     document
         .querySelectorAll(".app")
         .forEach(
