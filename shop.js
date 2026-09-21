@@ -284,13 +284,16 @@
             });
 
 
+        if (typeof window.hideCarsNavigationUi === "function") {
+            window.hideCarsNavigationUi();
+        }
+
         const sectionsToHide = [
             "weatherSection",
             "newsSection",
             "settingsPanel",
             "marketsSection",
-            "moneySection",
-            "carsSection"
+            "moneySection"
         ];
 
 
