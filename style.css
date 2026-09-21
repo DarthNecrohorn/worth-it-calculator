@@ -7846,3 +7846,36 @@ html[data-ui-scale="xl"] .profile-nav-btn .auth-avatar-fallback{
         max-height:calc((100vh - 38px) / var(--ui-scale, 1)) !important;
     }
 }
+
+
+/* =========================================================
+   DESKTOP — PROFILE MENU ALIGNMENT
+   Desktop only. The account menu opens directly below the
+   profile icon, with the profile identity centered inside it.
+   ========================================================= */
+@media (min-width:701px){
+    .auth-wrap .account-panel{
+        left:50%;
+        right:auto;
+        transform:translateX(-50%);
+        transform-origin:top center;
+    }
+
+    .auth-wrap .account-head{
+        flex-direction:column;
+        align-items:center;
+        justify-content:center;
+        text-align:center;
+        gap:8px;
+        padding:10px 8px 12px;
+    }
+
+    .auth-wrap .account-head > div:last-child{
+        width:100%;
+        min-width:0;
+    }
+
+    .auth-wrap .account-email{
+        text-align:center;
+    }
+}
