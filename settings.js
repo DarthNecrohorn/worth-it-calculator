@@ -66,13 +66,13 @@ window.openSettings = openSettings;
         document.documentElement.dataset.uiScale =
             value;
 
+        /*
+         * The CSS zoom is applied globally to the body. Do not change
+         * the body's width here: width compensation makes the page
+         * overflow at small sizes and pushes right-side controls off-screen.
+         */
         document.body.style.zoom =
             String(scale);
-
-        document.body.style.width =
-            scale === 1
-                ? "100%"
-                : `calc(100% / ${scale})`;
 
         localStorage.setItem(
             UI_SCALE_KEY,
