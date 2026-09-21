@@ -37,6 +37,22 @@ const WIKIPEDIA_API =
 const WIKIMEDIA_COMMONS_API =
     "https://commons.wikimedia.org/w/api.php";
 
+const WIKIDATA_SPARQL_API =
+    "https://query.wikidata.org/sparql";
+
+const WIKIDATA_CACHE_TTL =
+    604800;
+
+const WIKIDATA_CLASS_BY_KIND = {
+    car: "Q1420",
+    motorcycle: "Q34493",
+    van: "Q2666883",
+    truck: "Q43193",
+    bus: "Q5638"
+};
+
+const WIKIDATA_CANDIDATE_LIMIT = 300;
+
 const VALID_KINDS = new Set([
     "car",
     "motorcycle",
@@ -547,6 +563,229 @@ function getRequestedKind(requestUrl) {
     return isValidKind(kind)
         ? kind
         : null;
+}
+
+/*
+ * ------------------------------------------------------------
+ * WIKIDATA SUPPLEMENTAL CANDIDATES
+ * ------------------------------------------------------------
+ * Wikidata is used only to find additional vehicle/model candidates.
+ * Technical information still comes from Wikipedia and all candidates
+ * pass the same frontend quality checks before becoming Popular cards.
+ */
+
+async function fetchWikidataCached(
+    url
+) {
+
+    const cache =
+        caches.default;
+
+    const cacheKey =
+        new Request(
+            "https://worth-it-internal-cache.local/wikidata/" +
+            url
+        );
+
+    const cached =
+        await cache.match(cacheKey);
+
+    if (cached) {
+        try {
+            return await cached.json();
+        } catch {}
+    }
+
+    const response =
+        await fetch(
+            url,
+            {
+                headers: {
+                    "Accept": "application/sparql-results+json",
+                    "User-Agent":
+                        "Worth It Cars/1.0 (https://worth-it-calculator.pages.dev/)"
+                }
+            }
+        );
+
+    if (!response.ok) {
+        throw new Error(
+            "Wikidata returned " + response.status
+        );
+    }
+
+    const data = await response.json();
+
+    try {
+        await cache.put(
+            cacheKey,
+            new Response(
+                JSON.stringify(data),
+                {
+                    status: 200,
+                    headers: {
+                        "Content-Type":
+                            "application/json; charset=UTF-8",
+                        "Cache-Control":
+                            "public, max-age=" + WIKIDATA_CACHE_TTL
+                    }
+                }
+            )
+        );
+    } catch (error) {
+        console.error("Wikidata cache write failed:", error);
+    }
+
+    return data;
+}
+
+function getWikidataWikipediaTitle(articleUrl) {
+
+    const raw = String(articleUrl || "").trim();
+
+    if (!raw) return null;
+
+    const match = raw.match(/\/wiki\/([^#?]+)$/i);
+
+    if (!match) return null;
+
+    try {
+        return decodeURIComponent(match[1]).replace(/_/g, " ");
+    } catch {
+        return match[1].replace(/_/g, " ");
+    }
+}
+
+async function handleWikidataCandidates(
+    requestUrl
+) {
+
+    const kind =
+        getRequestedKind(requestUrl);
+
+    if (!kind) {
+        return jsonResponse(
+            {
+                success: false,
+                error: "Invalid vehicle kind",
+                vehicles: []
+            },
+            400,
+            60
+        );
+    }
+
+    const classId =
+        WIKIDATA_CLASS_BY_KIND[kind];
+
+    if (!classId) {
+        return jsonResponse({
+            success: true,
+            kind,
+            source: "Wikidata",
+            count: 0,
+            vehicles: []
+        });
+    }
+
+    const query =
+        "SELECT ?item ?itemLabel ?manufacturerLabel ?article ?description WHERE {" +
+        " ?item wdt:P31/wdt:P279* wd:" + classId + "." +
+        " ?item wdt:P176 ?manufacturer." +
+        " ?article schema:about ?item;" +
+        " schema:isPartOf <https://en.wikipedia.org/>." +
+        " OPTIONAL { ?item schema:description ?description." +
+        " FILTER(LANG(?description)=\"en\") }" +
+        " SERVICE wikibase:label { bd:serviceParam wikibase:language \"en\". }" +
+        "} LIMIT " + WIKIDATA_CANDIDATE_LIMIT;
+
+    const url =
+        new URL(WIKIDATA_SPARQL_API);
+
+    url.searchParams.set("query", query);
+    url.searchParams.set("format", "json");
+
+    try {
+
+        const data =
+            await fetchWikidataCached(
+                url.toString()
+            );
+
+        const bindings =
+            Array.isArray(data?.results?.bindings)
+                ? data.results.bindings
+                : [];
+
+        const seen = new Set();
+        const vehicles = [];
+
+        for (const binding of bindings) {
+
+            const make =
+                String(binding?.manufacturerLabel?.value || "").trim();
+            const model =
+                String(binding?.itemLabel?.value || "").trim();
+            const wikipediaTitle =
+                getWikidataWikipediaTitle(
+                    binding?.article?.value
+                );
+
+            if (!make || !model || !wikipediaTitle) continue;
+
+            const key =
+                make.toLowerCase() + "|" + model.toLowerCase();
+
+            if (seen.has(key)) continue;
+            seen.add(key);
+
+            vehicles.push({
+                make,
+                model,
+                kind,
+                sourceKind: kind,
+                supplementalSource: "wikidata",
+                wikipediaTitle,
+                bodyType: null,
+                bodyTypes: [],
+                popularityRanks: [],
+                globalDecile: 999,
+                availability: [],
+                yearStart: null,
+                yearEnd: null
+            });
+
+            if (vehicles.length >= WIKIDATA_CANDIDATE_LIMIT) {
+                break;
+            }
+        }
+
+        return jsonResponse(
+            {
+                success: true,
+                kind,
+                source: "Wikidata",
+                count: vehicles.length,
+                vehicles
+            },
+            200,
+            WIKIDATA_CACHE_TTL
+        );
+
+    } catch (error) {
+
+        console.error("Wikidata candidate lookup failed:", kind, error);
+
+        return jsonResponse(
+            {
+                success: false,
+                error: "Wikidata candidate lookup failed",
+                vehicles: []
+            },
+            200,
+            300
+        );
+    }
 }
 
 /*
@@ -5335,6 +5574,11 @@ export async function onRequestGet(context) {
                 });
             }
 
+            case "wikidata":
+                return handleWikidataCandidates(
+                    requestUrl
+                );
+
             case "images":
                 return handleImages(
                     requestUrl
@@ -5356,7 +5600,8 @@ export async function onRequestGet(context) {
                             "variants",
                             "vehicle",
                             "images",
-                            "details"
+                            "details",
+                            "wikidata"
                         ],
                         supportedKinds:
                             Array.from(VALID_KINDS)
