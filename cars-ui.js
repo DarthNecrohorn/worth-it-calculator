@@ -1296,6 +1296,123 @@ function getVehiclePopularityValue(
 }
 
 
+const VEHICLE_KIND_BODY_TYPE_TERMS = {
+    motorcycle: [
+        "motorcycle", "motorbike", "scooter", "underbone",
+        "trike", "two-wheeler"
+    ],
+    moped: [
+        "moped", "scooter", "motor scooter",
+        "motorized bicycle", "motorised bicycle"
+    ],
+    van: [
+        "van", "minivan", "panel van", "cargo van",
+        "microvan", "people carrier"
+    ],
+    truck: [
+        "truck", "lorry", "pickup", "heavy truck",
+        "tractor unit", "tractor-trailer"
+    ],
+    bus: [
+        "bus", "coach", "transit bus", "city bus",
+        "double-decker", "minibus", "shuttle bus"
+    ]
+};
+
+function normalizeCatalogBodyType(
+    value
+) {
+
+    return normalizePopularQualityText(
+        value
+    );
+}
+
+function getCatalogVehicleBodyTypes(
+    vehicle
+) {
+
+    return [
+        ...(Array.isArray(vehicle?.bodyTypes)
+            ? vehicle.bodyTypes
+            : []),
+        ...(vehicle?.bodyType
+            ? [vehicle.bodyType]
+            : [])
+    ]
+        .map(normalizeCatalogBodyType)
+        .filter(Boolean);
+}
+
+function isCatalogVehicleKindCompatible(
+    vehicle
+) {
+
+    const kind =
+        normalizeVehicleText(
+            vehicle?.kind
+        );
+
+    if (!kind || kind === "car") {
+        return true;
+    }
+
+    const bodyTypes =
+        getCatalogVehicleBodyTypes(
+            vehicle
+        );
+
+    /* VehiclesDB may omit body_types; in that case trust the first-class kind. */
+    if (!bodyTypes.length) {
+        return true;
+    }
+
+    const expectedTerms =
+        VEHICLE_KIND_BODY_TYPE_TERMS[kind] ||
+        [];
+
+    return expectedTerms.some(term =>
+        bodyTypes.some(bodyType =>
+            bodyType.includes(
+                normalizeCatalogBodyType(term)
+            )
+        )
+    );
+}
+
+function getCatalogVehicleKindPriority(
+    vehicle
+) {
+
+    const kind =
+        normalizeVehicleText(
+            vehicle?.kind
+        );
+
+    const bodyTypes =
+        getCatalogVehicleBodyTypes(
+            vehicle
+        );
+
+    if (!bodyTypes.length) {
+        return 1;
+    }
+
+    const expectedTerms =
+        VEHICLE_KIND_BODY_TYPE_TERMS[kind] ||
+        [];
+
+    return expectedTerms.some(term =>
+        bodyTypes.some(bodyType =>
+            bodyType.includes(
+                normalizeCatalogBodyType(term)
+            )
+        )
+    )
+        ? 0
+        : 2;
+}
+
 function getPopularVehicles(
     vehicles
 ) {
@@ -1305,48 +1422,40 @@ function getPopularVehicles(
     }
 
     /*
-     * Prefer VehiclesDB's strongest global popularity deciles.
-     *
-     * Some vehicle types have much thinner popularity coverage than
-     * passenger cars. When that happens, keep the popular candidates
-     * first but continue with the remaining catalog in popularity
-     * order so motorcycles, mopeds, vans, trucks and buses do not
-     * incorrectly appear as an empty category.
+     * The catalog kind is authoritative. When body_types exists, use
+     * it as a second signal to keep Vans focused on actual van bodies.
      */
     const rankedVehicles =
         vehicles
-            .filter(vehicle => vehicle && vehicle.model)
+            .filter(
+                vehicle =>
+                    vehicle &&
+                    vehicle.model &&
+                    isCatalogVehicleKindCompatible(
+                        vehicle
+                    )
+            )
             .sort(
-                (a, b) =>
-                    getVehiclePopularityValue(a) -
-                    getVehiclePopularityValue(b)
+                (a, b) => {
+
+                    const kindPriorityDifference =
+                        getCatalogVehicleKindPriority(a) -
+                        getCatalogVehicleKindPriority(b);
+
+                    if (
+                        kindPriorityDifference !== 0
+                    ) {
+                        return kindPriorityDifference;
+                    }
+
+                    return (
+                        getVehiclePopularityValue(a) -
+                        getVehiclePopularityValue(b)
+                    );
+                }
             );
 
-    const stronglyPopular =
-        rankedVehicles.filter(vehicle => {
-
-            const rawDecile =
-                vehicle?.globalDecile;
-
-            return (
-                rawDecile !== null &&
-                rawDecile !== undefined &&
-                String(rawDecile).trim() !== "" &&
-                Number.isFinite(Number(rawDecile)) &&
-                Number(rawDecile) <= 2
-            );
-
-        });
-
-    const fallbackVehicles =
-        rankedVehicles.filter(vehicle =>
-            !stronglyPopular.includes(vehicle)
-        );
-
-    return [
-        ...stronglyPopular,
-        ...fallbackVehicles
-    ].slice(
+    return rankedVehicles.slice(
         0,
         POPULAR_CANDIDATE_POOL_SIZE
     );
