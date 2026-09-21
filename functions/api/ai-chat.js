@@ -1,3 +1,5 @@
+import { recordAdminApiUsage } from "../lib/admin-usage.js";
+
 const SITE_ORIGIN = "https://worth-it-calculator.pages.dev";
 
 const GEMINI_MODEL = "gemini-3.7-flash";
@@ -577,6 +579,11 @@ export async function onRequestOptions() {
 }
 
 export async function onRequestPost(context) {
+
+    recordAdminApiUsage(context, [
+        { apiKey: "ai-chat", provider: "Gemini" },
+        { apiKey: "ai-chat", provider: "Groq" }
+    ]);
     const request = context.request;
     const env = context.env;
 
