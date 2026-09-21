@@ -113,11 +113,27 @@ const POPULAR_NON_VEHICLE_IMAGE_TERMS = [
 const VEHICLE_KINDS = [
     "car",
     "motorcycle",
+    "van",
+    "truck",
+    "bus"
+];
+
+const VEHICLE_DATA_KINDS = [
+    "car",
+    "motorcycle",
     "moped",
     "van",
     "truck",
     "bus"
 ];
+
+const VEHICLE_CATALOG_SOURCE_KINDS = {
+    car: ["car"],
+    motorcycle: ["motorcycle", "moped"],
+    van: ["van"],
+    truck: ["truck"],
+    bus: ["bus"]
+};
 
 const VEHICLE_KIND_INFO = {
 
@@ -137,15 +153,6 @@ const VEHICLE_KIND_INFO = {
         title: "🏍️ Popular Motorcycles",
         description:
             "Discover some of the most popular motorcycle models."
-    },
-
-    moped: {
-        icon: "🛵",
-        singular: "Moped",
-        plural: "Mopeds",
-        title: "🛵 Popular Mopeds",
-        description:
-            "Discover some of the most popular moped models."
     },
 
     van: {
@@ -772,6 +779,10 @@ function getVehicleImageObserver() {
                         const kind =
                             imageElement.dataset.vehicleKind;
 
+                        const sourceKind =
+                            imageElement.dataset.vehicleSourceKind ||
+                            kind;
+
 
                         if (
                             make &&
@@ -783,7 +794,7 @@ function getVehicleImageObserver() {
                                 imageElement,
                                 make,
                                 model,
-                                kind
+                                sourceKind
                             );
 
                         }
@@ -1012,7 +1023,13 @@ async function fetchVehicleDetails(
                             normalizeVehicleText(vehicle?.make) ===
                                 normalizeVehicleText(make) &&
                             normalizeVehicleText(vehicle?.model) ===
-                                normalizeVehicleText(model)
+                                normalizeVehicleText(model) &&
+                            normalizeVehicleText(
+                                vehicle?.sourceKind ||
+                                vehicle?.kind ||
+                                kind
+                            ) ===
+                                normalizeVehicleText(kind)
                     ) || null;
 
                 const params =
@@ -1231,6 +1248,10 @@ function createVehicleImageElement(
         vehicle.model || "";
 
     image.dataset.vehicleKind =
+        kind;
+
+    image.dataset.vehicleSourceKind =
+        vehicle.sourceKind ||
         kind;
 
     image.style.width =
@@ -1686,6 +1707,140 @@ async function loadVehicleCardImage(
  * ============================================================
  */
 
+async function fetchVehicleCatalogSource(
+    sourceKind
+) {
+
+    const baseUrl =
+        VEHICLE_CATALOG_BASE_URL +
+        "/" +
+        sourceKind;
+
+    for (let attempt = 1; attempt <= 2; attempt++) {
+
+        try {
+
+            const [modelsResponse, makesResponse] = await Promise.all([
+                fetch(
+                    baseUrl + "/models.json",
+                    { headers: { "Accept": "application/json" } }
+                ),
+                fetch(
+                    baseUrl + "/makes.json",
+                    { headers: { "Accept": "application/json" } }
+                )
+            ]);
+
+            if (!modelsResponse.ok || !makesResponse.ok) {
+                throw new Error(
+                    "VehiclesDB catalog request failed for " + sourceKind
+                );
+            }
+
+            const [modelRecords, makeRecords] = await Promise.all([
+                modelsResponse.json(),
+                makesResponse.json()
+            ]);
+
+            if (!Array.isArray(modelRecords) || !Array.isArray(makeRecords)) {
+                throw new Error("Invalid VehiclesDB catalog response");
+            }
+
+            const makeMap = new Map(
+                makeRecords
+                    .filter(make => make && make.id)
+                    .map(make => [
+                        String(make.id),
+                        {
+                            name: make.name || "",
+                            slug: make.slug || ""
+                        }
+                    ])
+            );
+
+            return modelRecords
+                .map(model => {
+                    if (!model || !model.name) {
+                        return null;
+                    }
+
+                    const make =
+                        makeMap.get(String(model.make_id || "")) || {
+                            name:
+                                model.make_name ||
+                                model.make ||
+                                model.make_id ||
+                                "",
+                            slug:
+                                model.make_slug ||
+                                ""
+                        };
+
+                    const rawDecile =
+                        model?.popularity?.global_decile ??
+                        model?.global_decile ??
+                        model?.global_popularity_decile ??
+                        null;
+
+                    const popularityRanks =
+                        model?.popularity?.by_country
+                            ? Object.values(model.popularity.by_country)
+                                .map(entry => entry?.rank)
+                                .filter(rank =>
+                                    Number.isFinite(Number(rank)) &&
+                                    Number(rank) > 0
+                                )
+                            : [];
+
+                    return {
+                        make: make.name,
+                        makeSlug: make.slug,
+                        model: model.name,
+                        modelSlug: model.slug || "",
+                        kind: kind || sourceKind,
+                        sourceKind,
+                        bodyType:
+                            Array.isArray(model.body_types) && model.body_types.length
+                                ? model.body_types[0]
+                                : null,
+                        bodyTypes: Array.isArray(model.body_types) ? model.body_types : [],
+                        popularityRanks,
+                        globalDecile: rawDecile,
+                        availability:
+                            Array.isArray(model.availability)
+                                ? model.availability
+                                    .map(item =>
+                                        typeof item === "string" ? item : item?.country
+                                    )
+                                    .filter(Boolean)
+                                : [],
+                        yearStart: model.year_start ?? null,
+                        yearEnd: model.year_end ?? null
+                    };
+                })
+                .filter(Boolean);
+
+        } catch (error) {
+
+            if (attempt === 2) {
+                console.error(
+                    "VehiclesDB source catalog failed for " + sourceKind + ":",
+                    error
+                );
+                return [];
+            }
+
+            await new Promise(
+                resolve => window.setTimeout(resolve, 250)
+            );
+
+        }
+    }
+
+    return [];
+
+}
+
 async function fetchVehicleCatalog(
     kind = "car"
 ) {
@@ -1694,365 +1849,63 @@ async function fetchVehicleCatalog(
         kind = "car";
     }
 
-    if (
-        vehicleCatalogCache.has(kind)
-    ) {
+    if (vehicleCatalogCache.has(kind)) {
         return vehicleCatalogCache.get(kind);
     }
 
-    if (
-        vehicleCatalogLoading.has(kind)
-    ) {
+    if (vehicleCatalogLoading.has(kind)) {
         return vehicleCatalogLoading.get(kind);
     }
 
     const loadingPromise =
         (async () => {
 
-            try {
+            const sourceKinds =
+                VEHICLE_CATALOG_SOURCE_KINDS[kind] || [kind];
 
-                const baseUrl =
-                    `${VEHICLE_CATALOG_BASE_URL}/${kind}`;
-
-                const [
-                    modelsResponse,
-                    makesResponse
-                ] = await Promise.all([
-                    fetch(
-                        `${baseUrl}/models.json`,
-                        {
-                            headers: {
-                                "Accept": "application/json"
-                            }
-                        }
-                    ),
-                    fetch(
-                        `${baseUrl}/makes.json`,
-                        {
-                            headers: {
-                                "Accept": "application/json"
-                            }
-                        }
+            const sourceCatalogs =
+                await Promise.all(
+                    sourceKinds.map(sourceKind =>
+                        fetchVehicleCatalogSource(sourceKind)
                     )
-                ]);
-
-                if (
-                    !modelsResponse.ok ||
-                    !makesResponse.ok
-                ) {
-                    throw new Error(
-                        `VehiclesDB catalog request failed: models=${modelsResponse.status}, makes=${makesResponse.status}`
-                    );
-                }
-
-                const [
-                    modelRecords,
-                    makeRecords
-                ] = await Promise.all([
-                    modelsResponse.json(),
-                    makesResponse.json()
-                ]);
-
-                if (
-                    !Array.isArray(modelRecords) ||
-                    !Array.isArray(makeRecords)
-                ) {
-                    throw new Error(
-                        "Invalid VehiclesDB catalog response"
-                    );
-                }
-
-                const makeMap =
-                    new Map(
-                        makeRecords
-                            .filter(make => make && make.id)
-                            .map(make => [
-                                String(make.id),
-                                {
-                                    name: make.name || "",
-                                    slug: make.slug || ""
-                                }
-                            ])
-                    );
-
-                const vehicles =
-                    modelRecords
-                        .map(model => {
-
-                            if (!model || !model.name) {
-                                return null;
-                            }
-
-                            const make =
-                                makeMap.get(
-                                    String(model.make_id || "")
-                                ) || {
-                                    name:
-                                        model.make_name ||
-                                        model.make ||
-                                        model.make_id ||
-                                        "",
-                                    slug:
-                                        model.make_slug ||
-                                        ""
-                                };
-
-                            const rawDecile =
-                                model?.popularity?.global_decile ??
-                                model?.global_decile ??
-                                model?.global_popularity_decile ??
-                                null;
-
-                            const popularityRanks =
-                                model?.popularity?.by_country
-                                    ? Object.values(
-                                        model.popularity.by_country
-                                    )
-                                        .map(entry => entry?.rank)
-                                        .filter(rank => {
-                                            const value = Number(rank);
-                                            return (
-                                                Number.isFinite(value) &&
-                                                value > 0
-                                            );
-                                        })
-                                    : [];
-
-                            return {
-                                make: make.name,
-                                makeSlug: make.slug,
-                                model: model.name,
-                                modelSlug: model.slug || "",
-                                kind: model.kind || kind,
-                                bodyType:
-                                    Array.isArray(model.body_types) &&
-                                    model.body_types.length
-                                        ? model.body_types[0]
-                                        : null,
-                                bodyTypes:
-                                    Array.isArray(model.body_types)
-                                        ? model.body_types
-                                        : [],
-                                popularityRanks,
-                                globalDecile:
-                                    rawDecile,
-                                availability:
-                                    Array.isArray(model.availability)
-                                        ? model.availability.map(item =>
-                                            typeof item === "string"
-                                                ? item
-                                                : item?.country
-                                        ).filter(Boolean)
-                                        : [],
-                                yearStart:
-                                    model.year_start ?? null,
-                                yearEnd:
-                                    model.year_end ?? null
-                            };
-                        })
-                        .filter(Boolean);
-
-                /*
-                 * Keep the complete category catalog in memory.
-                 * Popular/Search display limits are applied later so a
-                 * vehicle with missing Wikipedia data can be replaced by
-                 * the next less-popular candidate automatically.
-                 */
-                vehicleCatalogCache.set(
-                    kind,
-                    vehicles
                 );
 
-                return vehicles;
+            const merged = new Map();
 
-            } catch (error) {
+            for (const vehicle of sourceCatalogs.flat()) {
 
-                console.error(
-                    `VehiclesDB catalog error for ${kind}:`,
-                    error
-                );
+                const key =
+                    normalizeVehicleText(vehicle.make) +
+                    "|" +
+                    normalizeVehicleText(vehicle.model);
 
-                /*
-                 * A transient CDN/network failure should not make a
-                 * category permanently appear as unavailable. Retry once
-                 * after a short delay, while still avoiding an empty cache.
-                 */
-                try {
-
-                    await new Promise(
-                        resolve =>
-                            window.setTimeout(
-                                resolve,
-                                350
-                            )
-                    );
-
-                    const retryBaseUrl =
-                        `${VEHICLE_CATALOG_BASE_URL}/${kind}`;
-
-                    const [
-                        retryModelsResponse,
-                        retryMakesResponse
-                    ] = await Promise.all([
-                        fetch(
-                            `${retryBaseUrl}/models.json`,
-                            {
-                                headers: {
-                                    "Accept": "application/json"
-                                }
-                            }
-                        ),
-                        fetch(
-                            `${retryBaseUrl}/makes.json`,
-                            {
-                                headers: {
-                                    "Accept": "application/json"
-                                }
-                            }
-                        )
-                    ]);
-
-                    if (
-                        !retryModelsResponse.ok ||
-                        !retryMakesResponse.ok
-                    ) {
-                        return [];
-                    }
-
-                    const [
-                        retryModelRecords,
-                        retryMakeRecords
-                    ] = await Promise.all([
-                        retryModelsResponse.json(),
-                        retryMakesResponse.json()
-                    ]);
-
-                    if (
-                        !Array.isArray(retryModelRecords) ||
-                        !Array.isArray(retryMakeRecords)
-                    ) {
-                        return [];
-                    }
-
-                    const retryMakeMap =
-                        new Map(
-                            retryMakeRecords
-                                .filter(make => make && make.id)
-                                .map(make => [
-                                    String(make.id),
-                                    {
-                                        name: make.name || "",
-                                        slug: make.slug || ""
-                                    }
-                                ])
-                        );
-
-                    const retryVehicles =
-                        retryModelRecords
-                            .map(model => {
-
-                                if (!model || !model.name) {
-                                    return null;
-                                }
-
-                                const make =
-                                    retryMakeMap.get(
-                                        String(model.make_id || "")
-                                    ) || {
-                                        name:
-                                            model.make_name ||
-                                            model.make ||
-                                            model.make_id ||
-                                            "",
-                                        slug:
-                                            model.make_slug ||
-                                            ""
-                                    };
-
-                                const rawDecile =
-                                    model?.popularity?.global_decile ??
-                                    model?.global_decile ??
-                                    model?.global_popularity_decile ??
-                                    null;
-
-                                return {
-                                    make: make.name,
-                                    makeSlug: make.slug,
-                                    model: model.name,
-                                    modelSlug: model.slug || "",
-                                    kind: model.kind || kind,
-                                    bodyType:
-                                        Array.isArray(model.body_types) &&
-                                        model.body_types.length
-                                            ? model.body_types[0]
-                                            : null,
-                                    bodyTypes:
-                                        Array.isArray(model.body_types)
-                                            ? model.body_types
-                                            : [],
-                                    popularityRanks: [],
-                                    globalDecile: rawDecile,
-                                    availability:
-                                        Array.isArray(model.availability)
-                                            ? model.availability.map(item =>
-                                                typeof item === "string"
-                                                    ? item
-                                                    : item?.country
-                                            ).filter(Boolean)
-                                            : [],
-                                    yearStart:
-                                        model.year_start ?? null,
-                                    yearEnd:
-                                        model.year_end ?? null
-                                };
-
-                            })
-                            .filter(Boolean);
-
-                    retryVehicles.sort(
-                        (a, b) =>
-                            getVehiclePopularityValue(a) -
-                            getVehiclePopularityValue(b)
-                    );
-
-                    if (retryVehicles.length) {
-
-                        vehicleCatalogCache.set(
-                            kind,
-                            retryVehicles
-                        );
-
-                    }
-
-                    return retryVehicles;
-
-                } catch (retryError) {
-
-                    console.error(
-                        `VehiclesDB catalog retry error for ${kind}:`,
-                        retryError
-                    );
-
-                    return [];
-
+                if (!merged.has(key)) {
+                    merged.set(key, {
+                        ...vehicle,
+                        kind,
+                        sourceKind: vehicle.sourceKind || kind
+                    });
                 }
-
-            } finally {
-
-                vehicleCatalogLoading.delete(
-                    kind
-                );
-
             }
 
-        })();
+            const vehicles = Array.from(merged.values());
 
-    vehicleCatalogLoading.set(
-        kind,
-        loadingPromise
-    );
+            vehicles.sort(
+                (a, b) =>
+                    getVehiclePopularityValue(a) -
+                    getVehiclePopularityValue(b)
+            );
 
+            vehicleCatalogCache.set(kind, vehicles);
+            return vehicles;
+
+        })().finally(() => {
+            vehicleCatalogLoading.delete(kind);
+        });
+
+    vehicleCatalogLoading.set(kind, loadingPromise);
     return loadingPromise;
+
 }
 
 
@@ -2141,6 +1994,28 @@ function getCatalogVehicleBodyTypes(
         .filter(Boolean);
 }
 
+const VEHICLE_KIND_BODY_TYPE_CONTRADICTIONS = {
+    motorcycle: [
+        "car", "sedan", "hatchback", "coupe", "suv",
+        "sport utility", "van", "truck", "bus"
+    ],
+    van: [
+        "suv", "sport utility", "crossover", "sedan",
+        "hatchback", "coupe", "roadster", "convertible",
+        "wagon", "pickup", "motorcycle", "moped", "truck", "bus"
+    ],
+    truck: [
+        "suv", "sport utility", "sedan", "hatchback",
+        "coupe", "roadster", "convertible", "wagon",
+        "motorcycle", "moped", "bus", "van"
+    ],
+    bus: [
+        "suv", "sport utility", "sedan", "hatchback",
+        "coupe", "roadster", "convertible", "wagon",
+        "motorcycle", "moped", "truck", "van"
+    ]
+};
+
 function isCatalogVehicleKindCompatible(
     vehicle
 ) {
@@ -2159,9 +2034,24 @@ function isCatalogVehicleKindCompatible(
             vehicle
         );
 
-    /* VehiclesDB may omit body_types; in that case trust the first-class kind. */
     if (!bodyTypes.length) {
         return true;
+    }
+
+    const contradictions =
+        VEHICLE_KIND_BODY_TYPE_CONTRADICTIONS[kind] ||
+        [];
+
+    if (
+        contradictions.some(term =>
+            bodyTypes.some(bodyType =>
+                bodyType.includes(
+                    normalizeCatalogBodyType(term)
+                )
+            )
+        )
+    ) {
+        return false;
     }
 
     const expectedTerms =
@@ -2425,7 +2315,7 @@ function hasPopularVehicleIdentityMatch(
      * description, is required for such ambiguous titles.
      */
     const descriptionHasVehicleType =
-        VEHICLE_KINDS.some(candidateKind =>
+        VEHICLE_DATA_KINDS.some(candidateKind =>
             POPULAR_VEHICLE_TYPE_TERMS[candidateKind].some(term =>
                 description.includes(
                     normalizePopularQualityText(term)
@@ -3245,11 +3135,15 @@ async function ensurePopularVehicleQuality(
 
                                     }
 
+                                    const detailKind =
+                                        vehicle?.sourceKind ||
+                                        kind;
+
                                     const details =
                                         await fetchVehicleDetailsWithRetry(
                                             vehicle.make,
                                             vehicle.model,
-                                            kind,
+                                            detailKind,
                                             2
                                         );
 
@@ -3271,7 +3165,7 @@ async function ensurePopularVehicleQuality(
                                         hasUsablePopularVehicleDetails(
                                             details,
                                             vehicle,
-                                            kind
+                                            detailKind
                                         );
 
                                     popularVehicleQualityCache.set(
@@ -4781,7 +4675,7 @@ function createVehicleCard(
             getVehicleDetailsCacheKey(
                 vehicle.make,
                 vehicle.model,
-                kind
+                vehicle.sourceKind || kind
             )
         );
 
@@ -4801,6 +4695,10 @@ function createVehicleCard(
      */
 
     card.dataset.vehicleKind =
+        kind;
+
+    card.dataset.vehicleSourceKind =
+        vehicle.sourceKind ||
         kind;
 
 
