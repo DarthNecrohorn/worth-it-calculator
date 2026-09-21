@@ -5944,13 +5944,10 @@ function createLightweightVehicleFromRequest(
 
 export async function onRequestGet(context) {
 
-    recordAdminApiUsage(context, [
-        { apiKey: "cars", provider: "VehiclesDB" },
-        { apiKey: "cars", provider: "Wikidata" },
-        { apiKey: "cars", provider: "DBpedia" },
-        { apiKey: "cars", provider: "Wikipedia" },
-        { apiKey: "cars", provider: "Wikimedia Commons" }
-    ]);
+    recordAdminApiUsage(context, {
+        apiKey: "cars",
+        provider: "VehiclesDB + Wikidata + DBpedia + Wikipedia + Wikimedia Commons"
+    });
 
     try {
 
