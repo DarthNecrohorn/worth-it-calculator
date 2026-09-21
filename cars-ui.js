@@ -2992,6 +2992,8 @@ async function loadAndRenderPopularVehicles(
                 )
             );
 
+    let nextQualityRenderCount = 1;
+
     const progressHandler =
         async (vehicles) => {
 
@@ -3007,11 +3009,27 @@ async function loadAndRenderPopularVehicles(
             currentVehicleResults = vehicles;
             currentVehicleShowAll = Boolean(showAll);
 
-            renderVehicleCards(
-                vehicles,
-                kind,
-                showAll
-            );
+            /*
+             * Show the first valid vehicle immediately. Then refresh the
+             * grid in small groups so Show All does not rebuild the DOM
+             * hundreds of times.
+             */
+            if (
+                vehicles.length >= nextQualityRenderCount ||
+                vehicles.length >= desiredCount
+            ) {
+
+                renderVehicleCards(
+                    vehicles,
+                    kind,
+                    showAll
+                );
+
+                nextQualityRenderCount =
+                    vehicles.length +
+                    (showAll ? 8 : 1);
+
+            }
 
         };
 
