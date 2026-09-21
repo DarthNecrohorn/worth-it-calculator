@@ -8340,6 +8340,82 @@ function updateCarsCategoryHeader(
 
 /*
  * ============================================================
+ * BACKGROUND VEHICLE CATALOG PRELOAD
+ * ============================================================
+ */
+
+/*
+ * Keep category switching fast. The catalog requests contain only
+ * vehicle metadata; Wikipedia/Wikimedia detail/image requests are
+ * still started only for the active category.
+ */
+let vehicleCatalogPreloadPromise =
+    null;
+
+function preloadVehicleCategoryCatalogs(
+    excludeKind = null
+) {
+
+    if (
+        vehicleCatalogPreloadPromise
+    ) {
+
+        return vehicleCatalogPreloadPromise;
+
+    }
+
+    const kindsToPreload =
+        VEHICLE_KINDS.filter(
+            kind =>
+                kind !== excludeKind &&
+                !vehicleCatalogCache.has(kind)
+        );
+
+    if (
+        !kindsToPreload.length
+    ) {
+
+        return Promise.resolve();
+
+    }
+
+    vehicleCatalogPreloadPromise =
+        Promise.all(
+            kindsToPreload.map(
+                kind =>
+                    fetchVehicleCatalog(
+                        kind
+                    ).catch(
+                        error => {
+
+                            console.warn(
+                                `Background catalog preload failed for ${kind}:`,
+                                error
+                            );
+
+                            return [];
+
+                        }
+                    )
+            )
+        ).then(
+            () => {
+                vehicleCatalogPreloadPromise =
+                    null;
+            },
+            () => {
+                vehicleCatalogPreloadPromise =
+                    null;
+            }
+        );
+
+    return vehicleCatalogPreloadPromise;
+
+}
+
+
+/*
+ * ============================================================
  * VEHICLE CATEGORY NAVIGATION
  * ============================================================
  */
@@ -8519,15 +8595,17 @@ async function filterCarsByCategory(
     }
 
 
+    /*
+     * Usually this resolves from the background-preloaded catalog
+     * immediately, matching the behaviour of the Cars category.
+     */
     const vehicles =
         await fetchVehicleCatalog(
             kind
         );
 
-
     currentVehicleCatalog =
         vehicles;
-
 
     await loadAndRenderPopularVehicles(
         kind,
@@ -8804,6 +8882,14 @@ async function openCars() {
     currentVehicleCatalog =
         vehicles;
 
+    /*
+     * While the Cars cards are being hydrated, warm the other vehicle
+     * category catalogs in the background. This makes the next category
+     * switch use an already available catalog whenever possible.
+     */
+    void preloadVehicleCategoryCatalogs(
+        "car"
+    );
 
     await loadAndRenderPopularVehicles(
         "car",
