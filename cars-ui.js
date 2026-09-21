@@ -37,7 +37,7 @@ const VEHICLE_API_VERSION = "v13";
 const VEHICLE_CATALOG_BASE_URL =
     "https://cdn.jsdelivr.net/gh/vehiclesdb/vehiclesdb@latest/catalog";
 
-const VEHICLE_DETAILS_CACHE_VERSION = "v15";
+const VEHICLE_DETAILS_CACHE_VERSION = "v16";
 
 const MAX_SEARCH_RESULTS = 300;
 
@@ -1745,75 +1745,72 @@ function getVehicleImageIdentityTokens(
 }
 
 
+function normalizeVehicleImageMatchText(
+    value
+) {
+
+    return String(value || "")
+        .normalize("NFKD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, " ")
+        .replace(/\s+/g, " ")
+        .trim();
+
+}
+
+
 function hasVehicleIdentityInImageFilename(
     imageFilename,
     vehicle
 ) {
 
     const filename =
-        normalizePopularQualityText(
+        normalizeVehicleImageMatchText(
             imageFilename
         );
 
-    if (!filename) {
+    const vehicleName =
+        normalizeVehicleImageMatchText(
+            `${vehicle?.make || ""} ${vehicle?.model || ""}`
+        );
+
+    if (
+        !filename ||
+        !vehicleName
+    ) {
         return false;
     }
-
-    const makeTokens =
-        getVehicleImageIdentityTokens(
-            vehicle?.make || ""
-        );
-
-    const modelText =
-        normalizePopularQualityText(
-            vehicle?.model || ""
-        );
-
-    const modelTokens =
-        getVehicleImageIdentityTokens(
-            vehicle?.model || ""
-        );
-
-    if (!modelText || !modelTokens.length) {
-        return false;
-    }
-
-    const makeMatch =
-        makeTokens.some(token =>
-            popularQualityTextContainsToken(
-                filename,
-                token
-            )
-        );
-
-    const modelMatches =
-        modelTokens.filter(token =>
-            popularQualityTextContainsToken(
-                filename,
-                token
-            )
-        );
 
     /*
-     * For short model names, only an explicit make + model match is
-     * trustworthy. This prevents "al" from matching an unrelated word.
+     * Require the complete make + model name as one contiguous
+     * normalized phrase in the image filename.
+     *
+     * Separators such as spaces, underscores, hyphens and other
+     * punctuation are normalized to spaces, so names such as:
+     *
+     *   BMW 3 Series
+     *   BMW_3_Series_2019
+     *   BMW-3-Series-Touring
+     *
+     * all match the same vehicle name.
+     *
+     * Additional text after the exact vehicle name is allowed.
+     * Partial make/model token matches are not accepted.
      */
-    if (modelText.length <= 2) {
-        return makeMatch && modelMatches.length >= 1;
-    }
+    const escapedVehicleName =
+        vehicleName.replace(
+            /[.*+?^${}()|[\]\\]/g,
+            "\\$&"
+        );
 
-    if (filename.includes(modelText)) {
-        return true;
-    }
+    const pattern =
+        new RegExp(
+            `(?:^|\\s)${escapedVehicleName}`,
+            "i"
+        );
 
-    if (makeMatch && modelMatches.length >= 1) {
-        return true;
-    }
-
-    return (
-        modelTokens.length >= 2 &&
-        modelMatches.length >= 2
-    );
+    return pattern.test(filename);
 }
 
 
@@ -6188,35 +6185,22 @@ async function openCars() {
         );
 
 
-    const sectionsToHide = [
+    /*
+     * Cars is a standalone section. Hide every other page section
+     * so Cars can never remain underneath another section.
+     */
+    document
+        .querySelectorAll(".section")
+        .forEach(
+            section => {
 
-        "weatherSection",
-        "newsSection",
-        "discountsSection",
-        "marketsSection",
-        "moneySection"
-
-    ];
-
-
-    sectionsToHide.forEach(
-        id => {
-
-            const element =
-                document.getElementById(
-                    id
-                );
-
-
-            if (element) {
-
-                element.style.display =
-                    "none";
+                section.style.display =
+                    section.id === "carsSection"
+                        ? "block"
+                        : "none";
 
             }
-
-        }
-    );
+        );
 
 
     const settingsPanel =
