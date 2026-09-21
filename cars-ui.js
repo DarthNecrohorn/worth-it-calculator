@@ -3911,7 +3911,10 @@ async function loadAndRenderPopularVehicles(
                 initialCount
             ),
             kind,
-            true
+            stablePopularHasMoreVehicles(
+                kind,
+                initialCount
+            )
         );
 
         hideOrShowStablePopularCards(
@@ -4141,6 +4144,36 @@ function getInitialVehicleLimit(
  * ============================================================
  */
 
+function stablePopularHasMoreVehicles(
+    kind,
+    visibleCount
+) {
+
+    const qualityState =
+        popularVehicleQualityState.get(
+            kind
+        );
+
+    if (!qualityState) {
+        return false;
+    }
+
+    if (
+        qualityState.validVehicles.length >
+        visibleCount
+    ) {
+        return true;
+    }
+
+    return Boolean(
+        !qualityState.exhausted &&
+        qualityState.nextIndex <
+        qualityState.candidates.length
+    );
+
+}
+
+
 function renderVehicleExpandButton(
     totalVehicles,
     visibleVehicles,
@@ -4367,13 +4400,13 @@ function renderVehicleCollapseButton(
                         )
                     ),
                     kind,
-                    Boolean(
-                        popularVehicleQualityState.get(
-                            kind
-                        ) &&
-                        !popularVehicleQualityState.get(
-                            kind
-                        ).exhausted
+                    stablePopularHasMoreVehicles(
+                        kind,
+                        Math.max(
+                            1,
+                            getVehiclesPerRow() *
+                            INITIAL_VISIBLE_ROWS
+                        )
                     )
                 );
 
@@ -6574,13 +6607,13 @@ function ensureVehicleFloatingCollapseButton() {
                         )
                     ),
                     currentVehicleKind,
-                    Boolean(
-                        popularVehicleQualityState.get(
-                            currentVehicleKind
-                        ) &&
-                        !popularVehicleQualityState.get(
-                            currentVehicleKind
-                        ).exhausted
+                    stablePopularHasMoreVehicles(
+                        currentVehicleKind,
+                        Math.max(
+                            1,
+                            getVehiclesPerRow() *
+                            INITIAL_VISIBLE_ROWS
+                        )
                     )
                 );
 
@@ -6631,6 +6664,21 @@ function updateVehicleFloatingCollapseButton() {
 
     const button =
         ensureVehicleFloatingCollapseButton();
+
+    if (button) {
+
+        const label =
+            `Show less ${getVehicleKindInfo(currentVehicleKind).plural.toLowerCase()}`;
+
+        button.textContent =
+            label;
+
+        button.setAttribute(
+            "aria-label",
+            label
+        );
+
+    }
 
     const carsSection =
         document.getElementById(
