@@ -161,14 +161,169 @@
     }
 
     function renderUsageCard(api){
-        const configured = Boolean(api?.configured);
+        const configured =
+            Boolean(
+                api?.configured
+            );
+
+        const quotaType =
+            String(
+                api?.quotaType || "dynamic"
+            );
+
+        const remainingValue =
+            api?.todayRemaining !== null &&
+            api?.todayRemaining !== undefined
+                ? formatNumber(
+                    api.todayRemaining
+                )
+                : null;
+
+        const remainingLabel =
+            api?.todayRemaining !== null &&
+            api?.todayRemaining !== undefined
+                ? "Remaining today"
+                : quotaType === "none"
+                    ? "Remaining"
+                    : "Remaining";
+
+        const remainingDetail =
+            api?.todayRemaining !== null &&
+            api?.todayRemaining !== undefined
+                ? (
+                    api?.quotaLabel ||
+                    "Daily limit"
+                )
+                : (
+                    api?.quotaLabel ||
+                    "Provider dependent"
+                );
+
+        const secondaryRemaining =
+            api?.monthRemaining !== null &&
+            api?.monthRemaining !== undefined
+                ? formatNumber(
+                    api.monthRemaining
+                )
+                : null;
+
         return [
             '<article class="admin-usage-card">',
-                '<div class="admin-usage-card-top"><div><span class="admin-usage-category">' + escapeHtml(api?.category || 'API') + '</span><h5>' + escapeHtml(api?.name || 'API') + '</h5></div><span class="admin-usage-status ' + (configured ? 'is-configured' : 'is-missing') + '"><i></i>' + (configured ? 'Configured' : 'Missing key') + '</span></div>',
-                '<p class="admin-usage-provider">' + escapeHtml(api?.provider || 'Unknown provider') + '</p>',
-                '<div class="admin-usage-main-number"><strong>' + formatNumber(api?.totalRequests) + '</strong><span>total requests</span></div>',
-                '<div class="admin-usage-metrics"><div><span>This month</span><strong>' + formatNumber(api?.monthRequests) + '</strong></div><div><span>Last 30 days</span><strong>' + formatNumber(api?.last30DaysRequests) + '</strong></div></div>',
-                '<div class="admin-usage-meta"><div><span>Endpoint</span><code>' + escapeHtml(api?.endpoint || '—') + '</code></div><div><span>Last tracked</span><strong>' + escapeHtml(formatDateTime(api?.lastSeenAt)) + '</strong></div></div>',
+                '<div class="admin-usage-card-top">',
+                    '<div>',
+                        '<span class="admin-usage-category">' +
+                            escapeHtml(
+                                api?.category ||
+                                "API"
+                            ) +
+                        '</span>',
+                        '<h5>' +
+                            escapeHtml(
+                                api?.emoji ||
+                                "🔌"
+                            ) +
+                            ' ' +
+                            escapeHtml(
+                                api?.name ||
+                                "API"
+                            ) +
+                        '</h5>',
+                    '</div>',
+                    '<span class="admin-usage-status ' +
+                        (
+                            configured
+                                ? "is-configured"
+                                : "is-missing"
+                        ) +
+                    '"><i></i>' +
+                        (
+                            configured
+                                ? "Configured"
+                                : "Missing key"
+                        ) +
+                    '</span>',
+                '</div>',
+                '<p class="admin-usage-provider">' +
+                    escapeHtml(
+                        api?.provider ||
+                        "Unknown provider"
+                    ) +
+                '</p>',
+                '<div class="admin-usage-main-number">',
+                    '<strong>' +
+                        (
+                            remainingValue !== null
+                                ? remainingValue
+                                : (
+                                    quotaType === "none"
+                                        ? "∞"
+                                        : "—"
+                                )
+                        ) +
+                    '</strong>',
+                    '<span>' +
+                        escapeHtml(
+                            remainingLabel
+                        ) +
+                    '</span>',
+                '</div>',
+                '<div class="admin-usage-remaining-detail">' +
+                    escapeHtml(
+                        secondaryRemaining !== null
+                            ? (
+                                "This month: " +
+                                secondaryRemaining
+                            )
+                            : remainingDetail
+                    ) +
+                '</div>',
+                '<div class="admin-usage-metrics">',
+                    '<div>',
+                        '<span>Used today</span>',
+                        '<strong>' +
+                            formatNumber(
+                                api?.todayRequests
+                            ) +
+                        '</strong>',
+                    '</div>',
+                    '<div>',
+                        '<span>This month</span>',
+                        '<strong>' +
+                            formatNumber(
+                                api?.monthRequests
+                            ) +
+                        '</strong>',
+                    '</div>',
+                    '<div>',
+                        '<span>Last 30 days</span>',
+                        '<strong>' +
+                            formatNumber(
+                                api?.last30DaysRequests
+                            ) +
+                        '</strong>',
+                    '</div>',
+                '</div>',
+                '<div class="admin-usage-meta">',
+                    '<div>',
+                        '<span>Quota</span>',
+                        '<strong>' +
+                            escapeHtml(
+                                api?.quotaLabel ||
+                                "Provider dependent"
+                            ) +
+                        '</strong>',
+                    '</div>',
+                    '<div>',
+                        '<span>Last tracked</span>',
+                        '<strong>' +
+                            escapeHtml(
+                                formatDateTime(
+                                    api?.lastSeenAt
+                                )
+                            ) +
+                        '</strong>',
+                    '</div>',
+                '</div>',
             '</article>'
         ].join('');
     }
