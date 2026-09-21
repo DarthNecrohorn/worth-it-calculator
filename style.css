@@ -6607,3 +6607,476 @@ html[data-ui-scale="xl"] .profile-nav-btn .auth-avatar-fallback{
         flex-basis:30px;
     }
 }
+
+
+/* =========================================================
+   MOBILE-FIRST LAYOUT OPTIMIZATION
+   ========================================================= */
+
+/*
+ * Phone-first navigation and layout.
+ * Accessibility zoom remains active for content, while the header
+ * gets a compact physical layout so right-side controls never
+ * disappear off the viewport at A / A+ / A++.
+ */
+@media(max-width:700px){
+    html,
+    body{
+        max-width:100%;
+        overflow-x:hidden;
+    }
+
+    .nav{
+        width:100%;
+        max-width:100%;
+    }
+
+    .nav > .container{
+        width:100%;
+        max-width:none;
+        padding-left:8px;
+        padding-right:8px;
+    }
+
+    .nav-inner{
+        width:100%;
+        min-width:0;
+        height:60px;
+        gap:5px;
+    }
+
+    .logo{
+        min-width:0;
+        flex:0 1 auto;
+        gap:6px;
+        font-size:16px;
+    }
+
+    .logo-mark{
+        width:34px;
+        height:34px;
+        flex:0 0 34px;
+        border-radius:10px;
+    }
+
+    .logo > span:not(.logo-mark){
+        display:none;
+    }
+
+    .menu-btn{
+        width:34px;
+        height:34px;
+        min-width:34px;
+        padding:5px;
+        display:grid;
+        place-items:center;
+        flex:0 0 34px;
+        font-size:17px;
+    }
+
+    .nav-calculator-spacer{
+        display:none;
+    }
+
+    .nav-actions{
+        min-width:0;
+        flex:1 1 auto;
+        margin-left:auto;
+        gap:3px;
+        overflow:visible;
+    }
+
+    .nav-actions > *{
+        flex:0 0 auto;
+        min-width:0;
+    }
+
+    .auth-wrap{
+        gap:3px;
+    }
+
+    .auth-btn,
+    .feedback-nav-btn,
+    .admin-panel-nav-btn,
+    .signout-nav-btn,
+    .settings-btn,
+    .ai-chat-nav-btn{
+        width:32px;
+        height:32px;
+        min-width:32px;
+        min-height:32px;
+        padding:4px !important;
+        border-radius:9px;
+        display:inline-flex;
+        align-items:center;
+        justify-content:center;
+        font-size:15px !important;
+        line-height:1;
+        flex:0 0 32px !important;
+    }
+
+    .auth-btn .auth-label,
+    .feedback-nav-btn span,
+    .admin-panel-nav-btn span,
+    .signout-nav-btn span,
+    .ai-chat-nav-btn span{
+        display:none !important;
+    }
+
+    .profile-nav-btn{
+        width:34px;
+        height:34px;
+        min-width:34px;
+        flex:0 0 34px;
+        padding:2px;
+    }
+
+    .profile-nav-btn > #profileNavIcon{
+        width:28px;
+        height:28px;
+        flex-basis:28px;
+    }
+
+    .profile-nav-btn .auth-avatar,
+    .profile-nav-btn .auth-avatar-fallback{
+        width:28px;
+        height:28px;
+        flex-basis:28px;
+        border-width:2px;
+    }
+
+    .settings-btn{
+        font-size:16px !important;
+    }
+
+    .account-panel{
+        right:-4px;
+        width:min(275px,calc(100vw - 20px));
+    }
+
+    /* Keep the page itself inside the phone viewport. */
+    main,
+    section,
+    .app,
+    .section,
+    .container{
+        min-width:0;
+        max-width:100%;
+    }
+
+    .container{
+        width:calc(100% - 20px);
+        margin-left:auto;
+        margin-right:auto;
+    }
+
+    .section{
+        padding:25px 0 55px;
+    }
+
+    .section-header{
+        width:100%;
+        text-align:center;
+        margin-left:auto;
+        margin-right:auto;
+    }
+
+    .section-header h2{
+        font-size:27px;
+        line-height:1.15;
+    }
+
+    .section-header p{
+        font-size:13px;
+    }
+
+    .app{
+        padding:25px 0 60px;
+    }
+
+    .app-header{
+        align-items:center;
+        flex-direction:column;
+        text-align:center;
+        gap:12px;
+    }
+
+    .app-title{
+        justify-content:center;
+        text-align:center;
+    }
+
+    .app-title h2{
+        font-size:25px;
+    }
+
+    .app-title p{
+        font-size:13px;
+    }
+
+    .panel{
+        width:100%;
+        max-width:100%;
+        margin-left:auto;
+        margin-right:auto;
+        padding:17px;
+        overflow-x:hidden;
+    }
+
+    .calculator-grid,
+    .form-grid,
+    .result-top,
+    .result-grid,
+    .calculator-toolbar,
+    .stats{
+        width:100%;
+        grid-template-columns:1fr !important;
+    }
+
+    .calc-card,
+    .metric,
+    .stat{
+        width:100%;
+        min-width:0;
+    }
+
+    .hero{
+        padding:55px 0 35px;
+    }
+
+    .hero h1{
+        font-size:clamp(36px,11vw,58px);
+        letter-spacing:-2px;
+    }
+
+    .hero p{
+        font-size:15px;
+    }
+
+    .hero-actions{
+        flex-direction:column;
+        align-items:stretch;
+    }
+
+    .hero-actions .btn{
+        width:100%;
+    }
+
+    .table-wrap{
+        max-width:100%;
+    }
+
+    input,
+    select,
+    textarea{
+        font-size:16px;
+    }
+
+    .weather-card{
+        width:100%;
+        margin-left:auto;
+        margin-right:auto;
+    }
+
+    .weather-main{
+        flex-wrap:wrap;
+        text-align:center;
+    }
+
+    .weather-details{
+        grid-template-columns:1fr !important;
+    }
+
+    .weather-forecast-grid{
+        grid-template-columns:1fr 1fr !important;
+    }
+
+    .news-category,
+    .shop-section,
+    .markets-section,
+    .money-section{
+        width:calc(100% - 20px);
+        max-width:100%;
+        margin-left:auto;
+        margin-right:auto;
+    }
+
+    .news-grid,
+    .shop-grid,
+    .cars-grid,
+    .cars-category-grid,
+    .money-grid{
+        grid-template-columns:1fr !important;
+    }
+
+    .news-category-nav{
+        width:100%;
+        max-width:100%;
+        margin-left:auto;
+        margin-right:auto;
+    }
+
+    .market-card,
+    .money-card{
+        width:100%;
+        min-width:0;
+    }
+
+    .more-menu{
+        max-width:calc(100vw - 20px);
+    }
+}
+
+/*
+ * A / A+ / A++ on narrow phones: compact the header even further.
+ * This is intentionally independent of the scaled content below it.
+ */
+@media(max-width:700px){
+    html[data-ui-scale="large"] .nav-inner,
+    html[data-ui-scale="xl"] .nav-inner{
+        height:56px;
+        gap:3px;
+    }
+
+    html[data-ui-scale="large"] .nav > .container,
+    html[data-ui-scale="xl"] .nav > .container{
+        padding-left:6px;
+        padding-right:6px;
+    }
+
+    html[data-ui-scale="large"] .logo-mark,
+    html[data-ui-scale="xl"] .logo-mark{
+        width:30px;
+        height:30px;
+        flex-basis:30px;
+    }
+
+    html[data-ui-scale="large"] .menu-btn,
+    html[data-ui-scale="xl"] .menu-btn{
+        width:30px;
+        min-width:30px;
+        height:30px;
+        min-height:30px;
+        flex-basis:30px;
+        padding:4px;
+        font-size:15px;
+    }
+
+    html[data-ui-scale="large"] .nav-actions,
+    html[data-ui-scale="xl"] .nav-actions{
+        gap:2px;
+        margin-left:auto;
+    }
+
+    html[data-ui-scale="large"] .auth-btn,
+    html[data-ui-scale="large"] .feedback-nav-btn,
+    html[data-ui-scale="large"] .admin-panel-nav-btn,
+    html[data-ui-scale="large"] .signout-nav-btn,
+    html[data-ui-scale="large"] .settings-btn,
+    html[data-ui-scale="large"] .ai-chat-nav-btn,
+    html[data-ui-scale="xl"] .auth-btn,
+    html[data-ui-scale="xl"] .feedback-nav-btn,
+    html[data-ui-scale="xl"] .admin-panel-nav-btn,
+    html[data-ui-scale="xl"] .signout-nav-btn,
+    html[data-ui-scale="xl"] .settings-btn,
+    html[data-ui-scale="xl"] .ai-chat-nav-btn{
+        width:29px;
+        min-width:29px;
+        height:29px;
+        min-height:29px;
+        flex-basis:29px !important;
+        padding:3px !important;
+        font-size:14px !important;
+        border-radius:8px;
+    }
+
+    html[data-ui-scale="large"] .profile-nav-btn,
+    html[data-ui-scale="xl"] .profile-nav-btn{
+        width:31px;
+        min-width:31px;
+        height:31px;
+        flex-basis:31px;
+        padding:2px;
+    }
+
+    html[data-ui-scale="large"] .profile-nav-btn > #profileNavIcon,
+    html[data-ui-scale="xl"] .profile-nav-btn > #profileNavIcon{
+        width:25px;
+        height:25px;
+        flex-basis:25px;
+    }
+
+    html[data-ui-scale="large"] .profile-nav-btn .auth-avatar,
+    html[data-ui-scale="large"] .profile-nav-btn .auth-avatar-fallback,
+    html[data-ui-scale="xl"] .profile-nav-btn .auth-avatar,
+    html[data-ui-scale="xl"] .profile-nav-btn .auth-avatar-fallback{
+        width:25px;
+        height:25px;
+        flex-basis:25px;
+    }
+
+    html[data-ui-scale="large"] .section-header,
+    html[data-ui-scale="xl"] .section-header,
+    html[data-ui-scale="large"] .app-header,
+    html[data-ui-scale="xl"] .app-header{
+        text-align:center;
+        justify-content:center;
+    }
+
+    html[data-ui-scale="large"] .app-title,
+    html[data-ui-scale="xl"] .app-title{
+        justify-content:center;
+    }
+
+    html[data-ui-scale="large"] .panel,
+    html[data-ui-scale="xl"] .panel{
+        width:100%;
+        margin-left:auto;
+        margin-right:auto;
+    }
+}
+
+/* Very narrow phones: preserve touch targets without allowing the header
+   to push utility buttons outside the viewport. */
+@media(max-width:360px){
+    .nav-inner{
+        gap:2px;
+    }
+
+    .nav-actions{
+        gap:2px;
+    }
+
+    .logo-mark{
+        width:28px;
+        height:28px;
+        flex-basis:28px;
+    }
+
+    .menu-btn{
+        width:29px;
+        min-width:29px;
+        height:29px;
+        flex-basis:29px;
+    }
+
+    .auth-btn,
+    .feedback-nav-btn,
+    .admin-panel-nav-btn,
+    .signout-nav-btn,
+    .settings-btn,
+    .ai-chat-nav-btn{
+        width:28px;
+        min-width:28px;
+        height:28px;
+        min-height:28px;
+        flex-basis:28px !important;
+    }
+
+    .profile-nav-btn{
+        width:30px;
+        min-width:30px;
+        height:30px;
+        flex-basis:30px;
+    }
+}
