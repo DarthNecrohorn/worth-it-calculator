@@ -29,7 +29,7 @@ const VEHICLES_DB_URL =
 const CACHE_TTL = 86400; // 24 hours
 const WIKIPEDIA_CACHE_TTL = 604800; // 7 days
 const MAX_MODELS_PER_KIND = 300; // Keep the catalog focused on popular vehicles
-const WIKIPEDIA_CACHE_VERSION = "v16";
+const WIKIPEDIA_CACHE_VERSION = "v17";
 
 const WIKIPEDIA_API =
     "https://en.wikipedia.org/w/api.php";
@@ -3396,6 +3396,136 @@ function inferWikipediaFuel(
  * ------------------------------------------------------------
  */
 
+const WIKIPEDIA_KIND_SEARCH_TERMS = {
+    car: [
+        "car", "automobile", "sedan", "hatchback", "coupe",
+        "convertible", "wagon", "estate", "suv", "crossover",
+        "mpv", "pickup"
+    ],
+    motorcycle: [
+        "motorcycle", "motorbike", "scooter", "underbone",
+        "two-wheeler"
+    ],
+    moped: [
+        "moped", "scooter", "motorized bicycle",
+        "motorised bicycle", "motor scooter"
+    ],
+    van: [
+        "van", "minivan", "panel van", "cargo van",
+        "microvan", "people carrier", "light commercial vehicle"
+    ],
+    truck: [
+        "truck", "lorry", "pickup truck", "heavy truck",
+        "heavy goods vehicle", "tractor unit"
+    ],
+    bus: [
+        "bus", "coach", "transit bus", "city bus",
+        "double-decker", "shuttle bus", "school bus",
+        "minibus"
+    ]
+};
+
+const WIKIPEDIA_KIND_CONTRADICTION_TERMS = {
+    motorcycle: ["bus", "coach", "truck", "lorry"],
+    moped: ["bus", "coach", "truck", "lorry"],
+    van: ["bus", "coach", "truck", "lorry", "sedan", "hatchback", "coupe", "roadster"],
+    truck: ["bus", "coach", "sedan", "hatchback", "coupe", "roadster"],
+    bus: ["truck", "lorry", "sedan", "hatchback", "coupe", "roadster"],
+    car: ["bus", "coach", "truck", "lorry", "motorcycle", "moped"]
+};
+
+function normalizeWikipediaSearchText(
+    value
+) {
+
+    return String(value || "")
+        .replace(/<[^>]*>/g, " ")
+        .replace(/&nbsp;/gi, " ")
+        .replace(/&amp;/gi, "&")
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, " ")
+        .replace(/\s+/g, " ")
+        .trim();
+}
+
+function getWikipediaKindEvidenceScore(
+    title,
+    snippet,
+    kind
+) {
+
+    const text =
+        normalizeWikipediaSearchText(
+            `${title || ""} ${snippet || ""}`
+        );
+
+    const terms =
+        WIKIPEDIA_KIND_SEARCH_TERMS[kind] ||
+        [];
+
+    const contradictions =
+        WIKIPEDIA_KIND_CONTRADICTION_TERMS[kind] ||
+        [];
+
+    let positive = 0;
+    let negative = 0;
+
+    for (const term of terms) {
+        if (
+            text.includes(
+                normalizeWikipediaSearchText(term)
+            )
+        ) {
+            positive++;
+        }
+    }
+
+    for (const term of contradictions) {
+        if (
+            text.includes(
+                normalizeWikipediaSearchText(term)
+            )
+        ) {
+            negative++;
+        }
+    }
+
+    return {
+        positive,
+        negative,
+        score:
+            positive * 45 -
+            negative * 30
+    };
+}
+
+function hasWikipediaKindEvidence(
+    title,
+    snippet,
+    kind
+) {
+
+    if (
+        !kind ||
+        kind === "car"
+    ) {
+        return true;
+    }
+
+    const evidence =
+        getWikipediaKindEvidenceScore(
+            title,
+            snippet,
+            kind
+        );
+
+    return (
+        evidence.positive > 0 &&
+        evidence.score > 0
+    );
+}
+
+
 async function searchWikipediaVehicle(
     make,
     model,
@@ -3406,10 +3536,26 @@ async function searchWikipediaVehicle(
         return null;
     }
 
+    const exactName =
+        `${make} ${model}`.trim();
+
     const searches = [
-        `${make} ${model} ${kind}`,
-        `${make} ${model}`
+        `"${exactName}" ${kind}`,
+        `${exactName} ${kind}`,
+        `"${exactName}" vehicle`,
+        exactName
     ];
+
+    const normalizedTarget =
+        simplifyText(
+            exactName
+        );
+
+    const normalizedMake =
+        simplifyText(make);
+
+    const normalizedModel =
+        simplifyText(model);
 
     for (const search of searches) {
 
@@ -3440,7 +3586,7 @@ async function searchWikipediaVehicle(
 
             url.searchParams.set(
                 "srlimit",
-                "10"
+                "20"
             );
 
             url.searchParams.set(
@@ -3467,82 +3613,118 @@ async function searchWikipediaVehicle(
                 continue;
             }
 
-            const normalizedTarget =
-                simplifyText(
-                    `${make}${model}`
-                );
-
-            const exact =
-                results.find(result =>
-                    simplifyText(result?.title) ===
-                    normalizedTarget
-                );
-
-            if (exact) {
-                return exact.title;
-            }
-
-            const normalizedMake =
-                simplifyText(make);
-
-            const normalizedModel =
-                simplifyText(model);
-
-            const scored =
+            const candidates =
                 results
                     .map(result => {
 
                         const title =
-                            String(result?.title || "");
+                            String(
+                                result?.title || ""
+                            ).trim();
+
+                        const snippet =
+                            String(
+                                result?.snippet || ""
+                            );
 
                         const simplifiedTitle =
-                            simplifyText(title);
+                            simplifyText(
+                                title
+                            );
 
                         let score = 0;
 
                         if (
+                            simplifiedTitle ===
+                            normalizedTarget
+                        ) {
+                            score += 180;
+                        }
+
+                        if (
+                            normalizedTarget &&
+                            simplifiedTitle.includes(
+                                normalizedTarget
+                            )
+                        ) {
+                            score += 90;
+                        }
+
+                        if (
                             normalizedMake &&
-                            simplifiedTitle.includes(normalizedMake)
+                            simplifiedTitle.includes(
+                                normalizedMake
+                            )
                         ) {
                             score += 30;
                         }
 
                         if (
                             normalizedModel &&
-                            simplifiedTitle.includes(normalizedModel)
+                            simplifiedTitle.includes(
+                                normalizedModel
+                            )
                         ) {
-                            score += 50;
+                            score += 55;
                         }
 
-                        if (
-                            normalizedTarget &&
-                            simplifiedTitle.includes(normalizedTarget)
-                        ) {
-                            score += 30;
-                        }
+                        const kindEvidence =
+                            getWikipediaKindEvidenceScore(
+                                title,
+                                snippet,
+                                kind
+                            );
 
-                        /* Prefer normal article titles over disambiguation pages. */
+                        score +=
+                            kindEvidence.score;
 
                         if (
                             /\s+\(.*\)$/i.test(title)
                         ) {
-                            score -= 15;
+                            score -= 20;
+                        }
+
+                        if (
+                            kind !== "car" &&
+                            !hasWikipediaKindEvidence(
+                                title,
+                                snippet,
+                                kind
+                            )
+                        ) {
+                            score -= 150;
                         }
 
                         return {
                             title,
-                            score
+                            snippet,
+                            score,
+                            kindEvidence
                         };
                     })
                     .sort(
-                        (a, b) => b.score - a.score
+                        (a, b) =>
+                            b.score - a.score
                     );
 
-            if (
-                scored[0] &&
-                scored[0].score >= 50
-            ) {
-                return scored[0].title;
+            for (const candidate of candidates) {
+
+                if (
+                    kind !== "car" &&
+                    !hasWikipediaKindEvidence(
+                        candidate.title,
+                        candidate.snippet,
+                        kind
+                    )
+                ) {
+                    continue;
+                }
+
+                if (
+                    candidate.score >= 75
+                ) {
+                    return candidate.title;
+                }
             }
 
         } catch (error) {
@@ -3557,6 +3739,7 @@ async function searchWikipediaVehicle(
 
     return null;
 }
+
 
 /*
  * ============================================================
