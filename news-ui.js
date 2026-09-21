@@ -639,11 +639,15 @@ async function loadNews() {
 
 function openNews() {
 
-    const carsSection =
-        document.getElementById("carsSection");
+    if (typeof window.hideCarsNavigationUi === "function") {
+        window.hideCarsNavigationUi();
+    } else {
+        const carsSection =
+            document.getElementById("carsSection");
 
-    if (carsSection) {
-        carsSection.style.display = "none";
+        if (carsSection) {
+            carsSection.style.display = "none";
+        }
     }
 
     $("homePage").style.display =
