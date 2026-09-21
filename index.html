@@ -130,12 +130,12 @@
             🐞 <span>Bugs &amp; Suggestions</span>
         </button>
 
-        <button class="admin-feedback-nav-btn"
-        id="adminFeedbackNavBtn"
-        onclick="openAdminFeedback()"
-        title="Admin Feedback"
+        <button class="admin-panel-nav-btn"
+        id="adminPanelNavBtn"
+        onclick="openAdminPanel()"
+        title="Admin Panel"
         style="display:none;">
-    🛠️ <span>Admin Feedback</span>
+    🛠️ <span>Admin Panel</span>
        </button>
         
         <button class="signout-nav-btn" id="signOutNavBtn" onclick="signOutUser()" title="Sign out">
@@ -1747,30 +1747,36 @@
 
 <div class="toast" id="toast">Copied!</div>
 
-<div class="admin-feedback-overlay" id="adminFeedbackOverlay" role="dialog" aria-modal="true" aria-labelledby="adminFeedbackTitle">
+<div class="admin-panel-overlay"
+     id="adminPanelOverlay"
+     role="dialog"
+     aria-modal="true"
+     aria-labelledby="adminPanelTitle">
 
-    <div class="admin-feedback-card">
+    <div class="admin-panel-card">
 
-        <div class="admin-feedback-head">
+        <div class="admin-panel-head">
 
-            <div>
-                <h3 id="adminFeedbackTitle">Bugs &amp; Suggestions</h3>
-                <p>Admin feedback panel</p>
+            <div class="admin-panel-head-copy">
+                <span class="admin-panel-eyebrow">PRIVATE</span>
+                <h3 id="adminPanelTitle">Admin Panel</h3>
+                <p>Worth It private control center</p>
             </div>
 
-            <button type="button" onclick="closeAdminFeedback()">✕</button>
+            <button
+                type="button"
+                class="admin-panel-close"
+                onclick="closeAdminPanel()"
+                aria-label="Close Admin Panel"
+            >✕</button>
 
         </div>
 
-        <div class="admin-feedback-toolbar">
+        <div class="admin-panel-divider"></div>
 
-            <button type="button" class="btn btn-secondary" onclick="loadAdminFeedback()">↻ Refresh</button>
+        <div id="adminPanelContent" class="admin-panel-content"></div>
 
-        </div>
-
-        <div id="adminFeedbackStatus" class="feedback-status"></div>
-
-        <div id="adminFeedbackList" class="admin-feedback-list"></div>
+        <div id="adminPanelStatus" class="admin-panel-status"></div>
 
     </div>
 
@@ -1801,6 +1807,7 @@ try{
 <script src="shop-affiliates.js"></script>
 <script src="shop.js"></script>
 <script src="settings.js"></script>
+<script src="admin-panel.js"></script>
 <script src="markets-ui.js?v=2"></script>
 <script src="currencies-ui.js?v=2"></script>
 <script>
