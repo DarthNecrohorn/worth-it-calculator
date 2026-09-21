@@ -37,7 +37,7 @@ const VEHICLE_API_VERSION = "v13";
 const VEHICLE_CATALOG_BASE_URL =
     "https://cdn.jsdelivr.net/gh/vehiclesdb/vehiclesdb@latest/catalog";
 
-const VEHICLE_DETAILS_CACHE_VERSION = "v16";
+const VEHICLE_DETAILS_CACHE_VERSION = "v17";
 
 const MAX_SEARCH_RESULTS = 300;
 
@@ -1734,16 +1734,22 @@ function getPopularVehicleSpecificationCount(
 
     const technicalKeys = [
         "engine",
+        "engineDisplacement",
         "fuel",
+        "fuelEconomy",
+        "fuelTank",
         "transmission",
         "drivetrain",
         "horsepower",
         "torque",
         "weight",
+        "payload",
+        "cargoCapacity",
         "length",
         "width",
         "height",
         "wheelbase",
+        "groundClearance",
         "topSpeed",
         "battery",
         "electricRange",
@@ -3106,6 +3112,32 @@ function createVehicleCard(
 
     }
 
+    const yearStart =
+        vehicle.yearStart !== null &&
+        vehicle.yearStart !== undefined
+            ? String(vehicle.yearStart)
+            : "";
+
+    const yearEnd =
+        vehicle.yearEnd !== null &&
+        vehicle.yearEnd !== undefined
+            ? String(vehicle.yearEnd)
+            : "";
+
+    if (yearStart || yearEnd) {
+
+        const yearText =
+            yearStart &&
+            yearEnd &&
+            yearStart !== yearEnd
+                ? `${yearStart}–${yearEnd}`
+                : yearStart || yearEnd;
+
+        secondaryText +=
+            ` • ${escapeVehicleHtml(yearText)}`;
+
+    }
+
 
     /*
      * Image area.
@@ -3523,16 +3555,22 @@ function getVehicleSpecificationEntries(
         ["generation", "Generation"],
         ["bodyType", "Body type"],
         ["engine", "Engine"],
+        ["engineDisplacement", "Engine displacement"],
         ["fuel", "Fuel"],
+        ["fuelEconomy", "Fuel economy"],
+        ["fuelTank", "Fuel tank"],
         ["transmission", "Transmission"],
         ["drivetrain", "Drivetrain"],
         ["horsepower", "Power"],
         ["torque", "Torque"],
         ["weight", "Weight"],
+        ["payload", "Payload"],
+        ["cargoCapacity", "Cargo capacity"],
         ["length", "Length"],
         ["width", "Width"],
         ["height", "Height"],
         ["wheelbase", "Wheelbase"],
+        ["groundClearance", "Ground clearance"],
         ["topSpeed", "Top speed"],
         ["battery", "Battery"],
         ["electricRange", "Electric range"],
@@ -4676,7 +4714,10 @@ function getVehicleComparisonSections() {
             title: "Engine & Performance",
             rows: [
                 ["engine", "Engine"],
+                ["engineDisplacement", "Engine displacement"],
                 ["fuel", "Fuel"],
+                ["fuelEconomy", "Fuel economy"],
+                ["fuelTank", "Fuel tank"],
                 ["transmission", "Transmission"],
                 ["drivetrain", "Drivetrain"],
                 ["horsepower", "Power"],
@@ -4689,10 +4730,13 @@ function getVehicleComparisonSections() {
             title: "Dimensions & Weight",
             rows: [
                 ["weight", "Weight"],
+                ["payload", "Payload"],
+                ["cargoCapacity", "Cargo capacity"],
                 ["length", "Length"],
                 ["width", "Width"],
                 ["height", "Height"],
-                ["wheelbase", "Wheelbase"]
+                ["wheelbase", "Wheelbase"],
+                ["groundClearance", "Ground clearance"]
             ]
         },
 
