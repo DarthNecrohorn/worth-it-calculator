@@ -3923,6 +3923,8 @@ function renderVehicleCompareBar() {
             bar.remove();
         }
 
+        renderVehicleCompareSection();
+
         return;
     }
 
@@ -4012,6 +4014,302 @@ function renderVehicleCompareBar() {
     if (openButton) {
 
         openButton.addEventListener(
+            "click",
+            () => {
+                openVehicleComparisonPanel();
+            }
+        );
+
+    }
+
+    renderVehicleCompareSection();
+
+}
+
+
+function renderVehicleCompareSection() {
+
+    const panel =
+        document.getElementById(
+            "carsComparePanel"
+        );
+
+    if (!panel) {
+        return;
+    }
+
+    const selections =
+        Array.from(
+            vehicleCompareSelection.values()
+        );
+
+    if (!selections.length) {
+
+        panel.innerHTML = `
+            <div class="cars-compare-live-empty">
+                <div class="cars-compare-live-icon">⚖️</div>
+                <div>
+                    <strong>Choose cars to compare</strong>
+                    <p>
+                        Select up to 3 vehicles and compare their available
+                        specifications in one place.
+                    </p>
+                </div>
+            </div>
+        `;
+
+        return;
+    }
+
+    const slots = [];
+
+    for (
+        let index = 0;
+        index < MAX_COMPARE_VEHICLES;
+        index++
+    ) {
+
+        const item =
+            selections[index];
+
+        if (item) {
+
+            const title =
+                `${item.vehicle.make || ""} ${item.vehicle.model || ""}`.trim();
+
+            const info =
+                getVehicleKindInfo(
+                    item.kind
+                );
+
+            const imageUrl =
+                item.details?.image?.url || "";
+
+            slots.push(`
+                <div
+                    class="cars-compare-live-card"
+                    data-compare-live-item="${escapeVehicleHtml(item.key)}"
+                >
+                    <div class="cars-compare-live-card-image">
+                        ${imageUrl
+                            ? `
+                                <img
+                                    src="${escapeVehicleHtml(imageUrl)}"
+                                    alt="${escapeVehicleHtml(title)}"
+                                    loading="lazy"
+                                    decoding="async"
+                                >
+                            `
+                            : `
+                                <span aria-hidden="true">${info.icon}</span>
+                            `
+                        }
+                    </div>
+
+                    <div class="cars-compare-live-card-body">
+                        <small>
+                            ${escapeVehicleHtml(info.singular)}
+                        </small>
+                        <strong>
+                            ${escapeVehicleHtml(title)}
+                        </strong>
+                        <button
+                            type="button"
+                            class="cars-compare-live-details"
+                            data-compare-live-details="${escapeVehicleHtml(item.key)}"
+                        >
+                            View details →
+                        </button>
+                    </div>
+
+                    <button
+                        type="button"
+                        class="cars-compare-live-remove"
+                        aria-label="Remove ${escapeVehicleHtml(title)} from compare"
+                        title="Remove"
+                        data-compare-live-remove="${escapeVehicleHtml(item.key)}"
+                    >
+                        ×
+                    </button>
+                </div>
+            `);
+
+        } else {
+
+            slots.push(`
+                <button
+                    type="button"
+                    class="cars-compare-live-card cars-compare-live-empty-slot"
+                    data-compare-live-add
+                >
+                    <span
+                        class="cars-compare-live-empty-plus"
+                        aria-hidden="true"
+                    >
+                        +
+                    </span>
+                    <strong>Add another vehicle</strong>
+                    <small>
+                        Select a vehicle from the list above
+                    </small>
+                </button>
+            `);
+
+        }
+
+    }
+
+    panel.innerHTML = `
+        <div class="cars-compare-live">
+            <div class="cars-compare-live-header">
+                <div>
+                    <span class="cars-compare-live-kicker">
+                        ⚖️ Your comparison
+                    </span>
+                    <strong>
+                        ${selections.length}/${MAX_COMPARE_VEHICLES} selected
+                    </strong>
+                </div>
+
+                <button
+                    type="button"
+                    class="cars-compare-live-clear"
+                    data-compare-live-clear
+                >
+                    Clear all
+                </button>
+            </div>
+
+            <div class="cars-compare-live-grid">
+                ${slots.join("")}
+            </div>
+
+            <div class="cars-compare-live-footer">
+                <span>
+                    ${selections.length < 2
+                        ? "Add at least one more vehicle to start comparing."
+                        : "Your selected vehicles are ready for a full specification comparison."
+                    }
+                </span>
+
+                <button
+                    type="button"
+                    class="cars-compare-live-open"
+                    data-compare-live-open
+                    ${selections.length < 2 ? "disabled" : ""}
+                >
+                    ⚖️ Compare vehicles
+                </button>
+            </div>
+        </div>
+    `;
+
+    panel.querySelectorAll(
+        "[data-compare-live-remove]"
+    ).forEach(button => {
+
+        button.addEventListener(
+            "click",
+            event => {
+
+                event.stopPropagation();
+
+                vehicleCompareSelection.delete(
+                    button.dataset.compareLiveRemove
+                );
+
+                renderVehicleCompareBar();
+
+                refreshVehicleDetailsCompareButton();
+
+            }
+        );
+
+    });
+
+    panel.querySelectorAll(
+        "[data-compare-live-details]"
+    ).forEach(button => {
+
+        button.addEventListener(
+            "click",
+            event => {
+
+                event.stopPropagation();
+
+                const key =
+                    button.dataset.compareLiveDetails;
+
+                const item =
+                    vehicleCompareSelection.get(key);
+
+                if (item) {
+                    openVehicleDetailsPanel(
+                        item.vehicle,
+                        item.kind
+                    );
+                }
+
+            }
+        );
+
+    });
+
+    panel.querySelectorAll(
+        "[data-compare-live-add]"
+    ).forEach(button => {
+
+        button.addEventListener(
+            "click",
+            () => {
+
+                const grid =
+                    document.getElementById(
+                        "popularCarsGrid"
+                    );
+
+                if (grid) {
+                    grid.scrollIntoView({
+                        behavior: "smooth",
+                        block: "center"
+                    });
+                }
+
+            }
+        );
+
+    });
+
+    const clearButton =
+        panel.querySelector(
+            "[data-compare-live-clear]"
+        );
+
+    if (clearButton) {
+
+        clearButton.addEventListener(
+            "click",
+            () => {
+
+                vehicleCompareSelection.clear();
+
+                renderVehicleCompareBar();
+
+                refreshVehicleDetailsCompareButton();
+
+            }
+        );
+
+    }
+
+    const compareButton =
+        panel.querySelector(
+            "[data-compare-live-open]"
+        );
+
+    if (compareButton) {
+
+        compareButton.addEventListener(
             "click",
             () => {
                 openVehicleComparisonPanel();
@@ -5056,6 +5354,315 @@ function injectVehicleUiStyles() {
 
         .worth-it-vehicle-source a {
             color: inherit;
+        }
+
+        .cars-compare-placeholder {
+            padding: 0;
+            border: 0;
+            background: transparent;
+            color: inherit;
+        }
+
+        .cars-compare-live {
+            display: flex;
+            flex-direction: column;
+            gap: 18px;
+            padding: 18px;
+            border: 1px solid rgba(255, 255, 255, 0.10);
+            border-radius: 18px;
+            background:
+                linear-gradient(
+                    180deg,
+                    rgba(255, 255, 255, 0.055),
+                    rgba(255, 255, 255, 0.025)
+                );
+            box-shadow: 0 14px 38px rgba(0, 0, 0, 0.10);
+        }
+
+        .cars-compare-live-empty {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            padding: 20px;
+            border: 1px dashed rgba(255, 255, 255, 0.14);
+            border-radius: 16px;
+            background: rgba(255, 255, 255, 0.025);
+            text-align: left;
+        }
+
+        .cars-compare-live-icon {
+            display: grid;
+            place-items: center;
+            flex: 0 0 48px;
+            width: 48px;
+            height: 48px;
+            border-radius: 14px;
+            background: rgba(124, 58, 237, 0.12);
+            font-size: 1.45rem;
+        }
+
+        .cars-compare-live-empty strong,
+        .cars-compare-live-empty p {
+            margin: 0;
+        }
+
+        .cars-compare-live-empty p {
+            margin-top: 5px;
+            color: var(--muted);
+            line-height: 1.5;
+        }
+
+        .cars-compare-live-header,
+        .cars-compare-live-footer {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 14px;
+        }
+
+        .cars-compare-live-header > div {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .cars-compare-live-kicker {
+            font-size: 0.78rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            opacity: 0.68;
+        }
+
+        .cars-compare-live-grid {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 12px;
+        }
+
+        .cars-compare-live-card {
+            position: relative;
+            min-width: 0;
+            overflow: hidden;
+            border: 1px solid rgba(255, 255, 255, 0.09);
+            border-radius: 15px;
+            background: rgba(255, 255, 255, 0.035);
+            color: inherit;
+            text-align: left;
+        }
+
+        .cars-compare-live-card:not(.cars-compare-live-empty-slot) {
+            display: grid;
+            grid-template-columns: 92px minmax(0, 1fr);
+            min-height: 108px;
+        }
+
+        .cars-compare-live-card-image {
+            display: grid;
+            place-items: center;
+            min-height: 108px;
+            overflow: hidden;
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .cars-compare-live-card-image img {
+            display: block;
+            width: 100%;
+            height: 100%;
+            min-height: 108px;
+            object-fit: cover;
+        }
+
+        .cars-compare-live-card-image span {
+            font-size: 2rem;
+            opacity: 0.75;
+        }
+
+        .cars-compare-live-card-body {
+            display: flex;
+            min-width: 0;
+            flex-direction: column;
+            justify-content: center;
+            gap: 4px;
+            padding: 13px 34px 13px 13px;
+        }
+
+        .cars-compare-live-card-body small {
+            font-size: 0.72rem;
+            opacity: 0.6;
+        }
+
+        .cars-compare-live-card-body strong {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .cars-compare-live-details,
+        .cars-compare-live-clear,
+        .cars-compare-live-open {
+            border: 0;
+            cursor: pointer;
+            font: inherit;
+            font-weight: 800;
+        }
+
+        .cars-compare-live-details {
+            align-self: flex-start;
+            padding: 0;
+            background: transparent;
+            color: inherit;
+            opacity: 0.68;
+            font-size: 0.76rem;
+        }
+
+        .cars-compare-live-details:hover {
+            opacity: 1;
+        }
+
+        .cars-compare-live-remove {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            display: grid;
+            place-items: center;
+            width: 24px;
+            height: 24px;
+            padding: 0;
+            border: 0;
+            border-radius: 50%;
+            background: rgba(0, 0, 0, 0.42);
+            color: #fff;
+            font-size: 17px;
+            line-height: 1;
+            cursor: pointer;
+            z-index: 2;
+        }
+
+        .cars-compare-live-remove:hover {
+            background: rgba(255, 255, 255, 0.16);
+        }
+
+        .cars-compare-live-empty-slot {
+            display: flex;
+            min-height: 108px;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+            padding: 16px;
+            border-style: dashed;
+            background: rgba(255, 255, 255, 0.02);
+            color: inherit;
+            cursor: pointer;
+        }
+
+        .cars-compare-live-empty-slot:hover {
+            border-color: rgba(124, 58, 237, 0.6);
+            background: rgba(124, 58, 237, 0.06);
+        }
+
+        .cars-compare-live-empty-plus {
+            display: grid;
+            place-items: center;
+            width: 34px;
+            height: 34px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.07);
+            font-size: 1.3rem;
+        }
+
+        .cars-compare-live-empty-slot small {
+            color: var(--muted);
+            text-align: center;
+        }
+
+        .cars-compare-live-clear {
+            padding: 7px 10px;
+            border-radius: 9px;
+            background: rgba(255, 255, 255, 0.06);
+            color: inherit;
+            font-size: 0.78rem;
+        }
+
+        .cars-compare-live-clear:hover {
+            background: rgba(255, 255, 255, 0.11);
+        }
+
+        .cars-compare-live-footer {
+            padding-top: 2px;
+        }
+
+        .cars-compare-live-footer > span {
+            min-width: 0;
+            color: var(--muted);
+            font-size: 0.82rem;
+            line-height: 1.45;
+        }
+
+        .cars-compare-live-open {
+            flex: 0 0 auto;
+            min-height: 42px;
+            padding: 9px 14px;
+            border: 1px solid rgba(124, 58, 237, 0.34);
+            border-radius: 10px;
+            background: linear-gradient(
+                135deg,
+                rgba(124, 58, 237, 0.17),
+                rgba(37, 99, 235, 0.14)
+            );
+            color: inherit;
+        }
+
+        .cars-compare-live-open:hover:not(:disabled) {
+            border-color: rgba(124, 58, 237, 0.7);
+            transform: translateY(-1px);
+        }
+
+        .cars-compare-live-open:disabled {
+            opacity: 0.45;
+            cursor: not-allowed;
+        }
+
+        html[data-theme="light"] .cars-compare-live,
+        html[data-theme="light"] .cars-compare-live-card {
+            border-color: rgba(0, 0, 0, 0.09);
+            background: rgba(0, 0, 0, 0.025);
+        }
+
+        html[data-theme="light"] .cars-compare-live-empty {
+            border-color: rgba(0, 0, 0, 0.14);
+            background: rgba(0, 0, 0, 0.018);
+        }
+
+        html[data-theme="light"] .cars-compare-live-remove {
+            background: rgba(255, 255, 255, 0.78);
+            color: #171717;
+        }
+
+        html[data-theme="light"] .cars-compare-live-clear {
+            background: rgba(0, 0, 0, 0.05);
+            color: #171717;
+        }
+
+        @media (max-width: 760px) {
+            .cars-compare-live-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .cars-compare-live-header,
+            .cars-compare-live-footer {
+                align-items: flex-start;
+                flex-direction: column;
+            }
+
+            .cars-compare-live-open {
+                width: 100%;
+            }
+
+            .cars-compare-live-card:not(.cars-compare-live-empty-slot) {
+                grid-template-columns: 82px minmax(0, 1fr);
+            }
         }
 
         .worth-it-vehicle-compare-bar {
