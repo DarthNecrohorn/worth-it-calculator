@@ -5661,17 +5661,13 @@ html[data-ui-scale="xl"] .nav-links.open > button:last-of-type{
 ========================================================= */
 
 /*
- * Shared interaction language across every section:
- * - gentle lift + scale on hover
- * - purple/blue accent border
- * - soft layered glow
- * - pressed state on click
+ * Shared interaction language across the site.
  *
- * Existing section-specific backgrounds, sizes and functionality
- * are intentionally preserved.
+ * Markets keeps its dedicated interaction styling from
+ * markets-ui.js completely untouched.
  */
 
-button,
+button:not(.worth-it-market-category-button),
 a.btn,
 a[class*="-button"],
 a[class*="button-"],
@@ -5685,7 +5681,7 @@ a[class*="button-"],
         opacity .18s ease;
 }
 
-button:not([disabled]):hover,
+button:not([disabled]):not(.worth-it-market-category-button):hover,
 a.btn:hover,
 a[class*="-button"]:hover,
 a[class*="button-"]:hover,
@@ -5702,7 +5698,7 @@ a[class*="button-"]:hover,
         0 3px 10px rgba(124,58,237,.10) !important;
 }
 
-button:not([disabled]):active,
+button:not([disabled]):not(.worth-it-market-category-button):active,
 a.btn:active,
 a[class*="-button"]:active,
 a[class*="button-"]:active,
@@ -5713,9 +5709,8 @@ a[class*="button-"]:active,
 }
 
 
-/* Shared card hover treatment.
-   Markets already has a more specific implementation, so its
-   existing visual treatment remains intact. */
+/* Shared card hover treatment for non-Markets sections.
+   Markets keeps its existing dedicated styling unchanged. */
 :is(
     .calc-card,
     .stat,
@@ -5727,7 +5722,6 @@ a[class*="button-"]:active,
     .weather-forecast-card,
     .news-card,
     .shop-card,
-    .market-card,
     .money-card,
     .currency-card,
     .car-card,
@@ -5751,7 +5745,6 @@ a[class*="button-"]:active,
     .weather-forecast-card,
     .news-card,
     .shop-card,
-    .market-card,
     .money-card,
     .currency-card,
     .car-card,
@@ -5776,5 +5769,3 @@ button[disabled],
     transform:none !important;
     box-shadow:none !important;
 }
-
-\n
