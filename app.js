@@ -123,6 +123,55 @@ function closeAccountPanel() {
 }
 
 
+function positionAccountPanelForMobile() {
+
+    const panel = $("accountPanel");
+    const profileBtn = $("profileNavBtn");
+
+    if (!panel || !profileBtn) return;
+
+    if (window.innerWidth > 700 || !panel.classList.contains("open")) {
+        return;
+    }
+
+    /* The panel is an absolute child of .auth-wrap. Calculate its
+       position from the actual profile button so A+ / A++ zoom cannot
+       introduce a horizontal drift. */
+    panel.style.right = "auto";
+    panel.style.transform = "none";
+
+    const authWrap = $("authWrap");
+
+    if (!authWrap) return;
+
+    const panelWidth = panel.offsetWidth;
+    const desiredLeft =
+        profileBtn.offsetLeft +
+        (profileBtn.offsetWidth / 2) -
+        (panelWidth / 2);
+
+    const viewportWidth =
+        document.documentElement.clientWidth;
+
+    const wrapLeft =
+        authWrap.getBoundingClientRect().left;
+
+    const zoom =
+        parseFloat(getComputedStyle(document.body).zoom) || 1;
+
+    const minLeft =
+        (10 / zoom) - (wrapLeft / zoom);
+
+    const maxLeft =
+        (viewportWidth / zoom) -
+        (10 / zoom) -
+        panelWidth;
+
+    panel.style.left =
+        Math.max(minLeft, Math.min(desiredLeft, maxLeft)) + "px";
+}
+
+
 function toggleAccountPanel() {
 
     if (!currentAuthUser) return;
@@ -139,6 +188,10 @@ function toggleAccountPanel() {
         "aria-hidden",
         String(!open)
     );
+
+    if (open) {
+        requestAnimationFrame(positionAccountPanelForMobile);
+    }
 }
 
 
