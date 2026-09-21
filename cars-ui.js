@@ -4015,7 +4015,12 @@ function loadAndRenderPopularVehicles(
         Boolean(showAll);
 
     renderVehicleCards(
-        candidates,
+        showAll
+            ? candidates.slice(
+                0,
+                visibleCount
+            )
+            : candidates,
         kind,
         showAll
     );
