@@ -7813,3 +7813,36 @@ html[data-ui-scale="xl"] .profile-nav-btn .auth-avatar-fallback{
         padding:10px !important;
     }
 }
+
+
+/* =========================================================
+   MOBILE — MATCH UTILITY DIALOG SIZES
+   Phone only. AI Chat and Bugs & Suggestions now use the
+   same compact footprint as Settings.
+   ========================================================= */
+
+@media (max-width:700px){
+
+    .ai-chat-card,
+    .feedback-modal-card{
+        width:calc(100vw - 72px) !important;
+        max-width:280px !important;
+        height:auto !important;
+        max-height:calc((100vh - 32px) / var(--ui-scale, 1)) !important;
+    }
+
+    /* AI Chat keeps its internal flex layout, but the outer
+       card is now the same compact size as Settings. */
+    .ai-chat-card{
+        min-height:0 !important;
+    }
+
+    html[data-ui-scale="large"] .ai-chat-card,
+    html[data-ui-scale="large"] .feedback-modal-card,
+    html[data-ui-scale="xl"] .ai-chat-card,
+    html[data-ui-scale="xl"] .feedback-modal-card{
+        width:calc(100vw - 84px) !important;
+        max-width:270px !important;
+        max-height:calc((100vh - 38px) / var(--ui-scale, 1)) !important;
+    }
+}
