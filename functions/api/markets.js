@@ -1,3 +1,5 @@
+import { recordAdminApiUsage } from "../lib/admin-usage.js";
+
 /* =========================================================
    WORTH IT — MARKETS API
    Multi-Source Open Commodity Data
@@ -8863,6 +8865,15 @@ async function handleImageAction(
 export async function onRequestGet(
     context
 ) {
+
+    recordAdminApiUsage(context, [
+        { apiKey: "markets", provider: "World Bank" },
+        { apiKey: "markets", provider: "USGS" },
+        { apiKey: "markets", provider: "EIA" },
+        { apiKey: "markets", provider: "USDA NASS" },
+        { apiKey: "markets", provider: "Voltlas" },
+        { apiKey: "markets", provider: "Wikimedia Commons" }
+    ]);
 
     const requestUrl =
         new URL(
