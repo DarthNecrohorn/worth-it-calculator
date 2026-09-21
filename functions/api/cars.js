@@ -4746,11 +4746,12 @@ async function handleDetails(
         );
     }
 
-    /* 4. Parse the real Wikipedia infobox data
-     *    from both wikitext and rendered HTML. */
-
-    const wikipediaData =
-        await getWikipediaInfoboxData(
+    /*
+     * 4. Load technical Wikipedia data and the Wikimedia image/license
+     *    check in parallel. The two operations are independent.
+     */
+    const wikipediaDataPromise =
+        getWikipediaInfoboxData(
             page.title,
             {
                 make: vehicle.make,
@@ -4758,6 +4759,33 @@ async function handleDetails(
                 kind
             }
         );
+
+    const commercialImagePromise =
+        getCommercialWikimediaImage(
+            page.imageTitle,
+            vehicle.make,
+            vehicle.model
+        ).catch(
+            error => {
+
+                console.error(
+                    "Commercial Wikimedia image check failed:",
+                    page.title,
+                    error
+                );
+
+                return null;
+
+            }
+        );
+
+    const [
+        wikipediaData,
+        initialCommercialImage
+    ] = await Promise.all([
+        wikipediaDataPromise,
+        commercialImagePromise
+    ]);
 
     let specifications =
         wikipediaData.specifications;
@@ -4886,30 +4914,11 @@ async function handleDetails(
 
     /*
      * Image licensing is completely independent from vehicle data.
-     * A vehicle with useful Wikipedia information stays available even
-     * when its image is missing, disallowed, or has an unclear license.
-     * In that case the frontend receives image: null and shows
-     * “Image unavailable”.
+     * A missing/disallowed image never removes a vehicle with useful
+     * Wikipedia technical information from Popular.
      */
-    let commercialImage = null;
-
-    try {
-
-        commercialImage =
-            await getCommercialWikimediaImage(
-                page.imageTitle,
-                vehicle.make,
-                vehicle.model
-            );
-
-    } catch (error) {
-
-        console.error(
-            "Commercial Wikimedia image check failed:",
-            page.title,
-            error
-        );
-    }
+    const commercialImage =
+        initialCommercialImage;
 
     /* 5. Return stable frontend response. */
 
