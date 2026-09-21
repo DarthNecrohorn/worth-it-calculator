@@ -148,7 +148,9 @@ function positionAccountPanelForMobile() {
     const desiredLeft =
         profileBtn.offsetLeft +
         (profileBtn.offsetWidth / 2) -
-        (panelWidth / 2);
+        (panelWidth / 2) +
+        (document.documentElement.dataset.uiScale === "xl" ? 12 :
+         document.documentElement.dataset.uiScale === "large" ? 8 : 0);
 
     const viewportWidth =
         document.documentElement.clientWidth;
