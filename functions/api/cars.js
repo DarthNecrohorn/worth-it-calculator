@@ -62,6 +62,17 @@ const DBPEDIA_CACHE_TTL =
 const DBPEDIA_CANDIDATE_LIMIT =
     600;
 
+const DBPEDIA_KIND_TEXT_FILTERS = {
+    motorcycle:
+        "motorcycle|motorbike|scooter|moped",
+    van:
+        "van|minivan|light commercial vehicle|panel van|people carrier",
+    truck:
+        "truck|lorry|heavy goods vehicle|tractor unit|pickup truck",
+    bus:
+        "bus|coach|minibus|transit bus|double[- ]decker"
+};
+
 const VALID_KINDS = new Set([
     "car",
     "motorcycle",
