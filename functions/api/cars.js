@@ -29,7 +29,7 @@ const VEHICLES_DB_URL =
 const CACHE_TTL = 86400; // 24 hours
 const WIKIPEDIA_CACHE_TTL = 604800; // 7 days
 const MAX_MODELS_PER_KIND = 300; // Keep the catalog focused on popular vehicles
-const WIKIPEDIA_CACHE_VERSION = "v15";
+const WIKIPEDIA_CACHE_VERSION = "v16";
 
 const WIKIPEDIA_API =
     "https://en.wikipedia.org/w/api.php";
@@ -3718,6 +3718,107 @@ function getCommercialWikimediaLicense(extmetadata) {
     return null;
 }
 
+function normalizeVehicleImageMatchText(
+    value
+) {
+
+    return String(value || "")
+        .normalize("NFKD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, " ")
+        .replace(/\s+/g, " ")
+        .trim();
+}
+
+
+function isVehicleImageUrlMatchingName(
+    imageUrl,
+    make,
+    model
+) {
+
+    const urlValue =
+        String(imageUrl || "").trim();
+
+    const vehicleName =
+        normalizeVehicleImageMatchText(
+            `${make || ""} ${model || ""}`
+        );
+
+    if (
+        !urlValue ||
+        !vehicleName
+    ) {
+        return false;
+    }
+
+    let pathname = "";
+
+    try {
+
+        pathname =
+            decodeURIComponent(
+                new URL(urlValue).pathname
+            );
+
+    } catch {
+
+        pathname =
+            urlValue.split("?")[0];
+
+    }
+
+    const normalizedPath =
+        normalizeVehicleImageMatchText(
+            pathname
+        );
+
+    if (
+        !normalizedPath
+    ) {
+        return false;
+    }
+
+    /*
+     * Require the complete make + model phrase in the URL path.
+     * URL separators are normalized, while extra descriptive text
+     * after the exact vehicle name is allowed.
+     *
+     * Example:
+     *   BMW_3_Series_2019.jpg
+     *   BMW-3-Series-Touring.jpg
+     *
+     * Partial matches such as only "BMW" or "BMW 3" are rejected.
+     */
+    const escapedVehicleName =
+        vehicleName.replace(
+            /[.*+?^\${}()|[\]\\]/g,
+            "\\async function getCommercialWikimediaImage(
+    imageTitle,
+    make,
+    model
+) {"
+        );
+
+    const pattern =
+        new RegExp(
+            `(?:^|\\s)${escapedVehicleName}`,
+            "i"
+        );
+
+    return pattern.test(
+        normalizedPath
+    );
+}
+
+
+/*
+ * ------------------------------------------------------------
+ * Wikimedia image lookup
+ * ------------------------------------------------------------
+ */
+
 async function getCommercialWikimediaImage(imageTitle) {
 
     if (!imageTitle) {
@@ -3775,6 +3876,29 @@ async function getCommercialWikimediaImage(imageTitle) {
                 : null;
 
         if (!imageInfo?.url) {
+            return null;
+        }
+
+        /*
+         * The actual Wikimedia source URL must contain the complete
+         * vehicle make + model name after normalization. This blocks
+         * generic or only-partially-matching vehicle images even when
+         * their license is otherwise acceptable.
+         */
+        if (
+            !isVehicleImageUrlMatchingName(
+                imageInfo.url,
+                make,
+                model
+            )
+        ) {
+            console.info(
+                "Wikimedia image blocked by vehicle-name URL filter:",
+                title,
+                make,
+                model,
+                imageInfo.url
+            );
             return null;
         }
 
@@ -4541,7 +4665,9 @@ async function handleDetails(
 
         commercialImage =
             await getCommercialWikimediaImage(
-                page.imageTitle
+                page.imageTitle,
+                vehicle.make,
+                vehicle.model
             );
 
     } catch (error) {
