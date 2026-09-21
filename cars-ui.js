@@ -3661,15 +3661,40 @@ async function openVehicleDetailsPanel(
         return;
     }
 
-    if (!hasReliableVehicleWikipediaData(details, vehicle)) {
+    /*
+     * Vehicles without reliable Wikipedia information stay visible
+     * in the catalog, but clearly show "No Information" and cannot
+     * be added to comparison.
+     */
+    const hasReliableData =
+        hasReliableVehicleWikipediaData(
+            details,
+            vehicle
+        ) &&
+        details.comparisonAvailable !== false;
 
-        body.innerHTML = `
-            <div class="worth-it-vehicle-detail-loading">
-                <div class="worth-it-vehicle-detail-loading-icon">⚠️</div>
-                <strong>Reliable Wikipedia information is unavailable for this vehicle.</strong>
-                <span>The available result did not clearly match this vehicle, so unrelated information is not shown.</span>
-            </div>
-        `;
+    if (!hasReliableData) {
+
+        const noInformationDetails = {
+            ...details,
+            wikipedia: {
+                ...(details.wikipedia || {}),
+                title: title,
+                description: "No Information",
+                url: ""
+            },
+            specifications: {},
+            image: null,
+            comparisonAvailable: false
+        };
+
+        renderVehicleDetailsPanel(
+            body,
+            noInformationDetails,
+            vehicle,
+            kind,
+            false
+        );
 
         return;
     }
@@ -3689,7 +3714,8 @@ async function openVehicleDetailsPanel(
         body,
         safeDetails,
         vehicle,
-        kind
+        kind,
+        true
     );
 
 }
@@ -3699,7 +3725,8 @@ function renderVehicleDetailsPanel(
     body,
     details,
     catalogVehicle,
-    kind
+    kind,
+    allowCompare = true
 ) {
 
     const info =
@@ -3815,11 +3842,16 @@ function renderVehicleDetailsPanel(
         <div class="worth-it-vehicle-detail-actions">
             <button
                 type="button"
-                class="worth-it-vehicle-compare-button${alreadyCompared ? " is-added" : ""}"
+                class="worth-it-vehicle-compare-button${alreadyCompared ? " is-added" : ""}${!allowCompare ? " is-disabled" : ""}"
                 data-vehicle-compare
                 data-vehicle-key="${escapeVehicleHtml(compareKey)}"
+                ${allowCompare ? "" : "disabled"}
             >
-                ${alreadyCompared ? "✓ Added to compare" : "Add to compare"}
+                ${alreadyCompared
+                    ? "✓ Added to compare"
+                    : allowCompare
+                        ? "Add to compare"
+                        : "Not available for comparison"}
             </button>
 
             <div class="worth-it-vehicle-source">
@@ -5504,6 +5536,61 @@ function injectVehicleUiStyles() {
             margin-top: 5px;
             color: var(--muted);
             line-height: 1.5;
+        }
+
+        .cars-compare-live-empty-copy {
+            min-width: 0;
+        }
+
+        .cars-compare-live-empty-action {
+            display: flex;
+            flex: 0 0 auto;
+            min-width: 150px;
+            margin-left: auto;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 6px;
+            text-align: right;
+        }
+
+        .cars-compare-live-empty-action small {
+            color: var(--muted);
+            font-size: 0.72rem;
+        }
+
+        .cars-compare-live-add {
+            min-height: 40px;
+            padding: 8px 14px;
+            border: 1px solid rgba(124, 58, 237, 0.34);
+            border-radius: 10px;
+            background: linear-gradient(
+                135deg,
+                rgba(124, 58, 237, 0.17),
+                rgba(37, 99, 235, 0.14)
+            );
+            color: inherit;
+            font: inherit;
+            font-weight: 800;
+            cursor: pointer;
+        }
+
+        .cars-compare-live-add:hover {
+            border-color: rgba(124, 58, 237, 0.7);
+            transform: translateY(-1px);
+        }
+
+        .worth-it-vehicle-compare-button.is-disabled,
+        .worth-it-vehicle-compare-button:disabled {
+            opacity: 0.48;
+            cursor: not-allowed;
+        }
+
+        .worth-it-vehicle-compare-button.is-disabled:hover,
+        .worth-it-vehicle-compare-button:disabled:hover {
+            background: rgba(255, 255, 255, 0.08);
+            border-color: rgba(255, 255, 255, 0.14);
+            box-shadow: none;
+            transform: none;
         }
 
         .cars-compare-live-header,
