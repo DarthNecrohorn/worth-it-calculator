@@ -8081,6 +8081,103 @@ function buildCommoditySearchQueries(
 
     }
 
+    if (
+        /\blead\b/.test(
+            normalizedBase
+        )
+    ) {
+
+        searchHints.push(
+            "lead metal",
+            "lead mineral"
+        );
+
+    }
+
+
+    if (
+        /\btin\b/.test(
+            normalizedBase
+        )
+    ) {
+
+        searchHints.push(
+            "tin metal",
+            "tin mineral"
+        );
+
+    }
+
+
+    if (
+        /\bzinc\b/.test(
+            normalizedBase
+        )
+    ) {
+
+        searchHints.push(
+            "zinc metal",
+            "zinc mineral"
+        );
+
+    }
+
+
+    if (
+        /\bcotton\b/.test(
+            normalizedBase
+        )
+    ) {
+
+        searchHints.push(
+            "cotton fiber",
+            "cotton plant"
+        );
+
+    }
+
+
+    if (
+        /\b(logs|sawnwood)\b/.test(
+            normalizedBase
+        )
+    ) {
+
+        searchHints.push(
+            "wood logs",
+            "lumber wood"
+        );
+
+    }
+
+
+    if (
+        /\bplywood\b/.test(
+            normalizedBase
+        )
+    ) {
+
+        searchHints.push(
+            "plywood sheet"
+        );
+
+    }
+
+
+    if (
+        /\brubber\b/.test(
+            normalizedBase
+        )
+    ) {
+
+        searchHints.push(
+            "rubber latex",
+            "natural rubber"
+        );
+
+    }
+
+
 
     searchHints.forEach(
         hint => {
