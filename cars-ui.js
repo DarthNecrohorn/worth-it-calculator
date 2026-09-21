@@ -10765,6 +10765,25 @@ async function openCars() {
         return;
     }
 
+    /*
+     * Markets and Currencies live outside <main>, so the generic
+     * main-children hide below cannot hide them. Explicitly close
+     * those sections before showing Cars.
+     */
+    const marketsSection =
+        document.getElementById("marketsSection");
+
+    if (marketsSection) {
+        marketsSection.style.display = "none";
+    }
+
+    const moneySection =
+        document.getElementById("moneySection");
+
+    if (moneySection) {
+        moneySection.style.display = "none";
+    }
+
     document
         .querySelectorAll("main > *")
         .forEach(
