@@ -318,7 +318,7 @@ const POPULAR_NONCAR_QUALITY_BATCH_SIZE = 18;
 
 function getPopularDetailsConcurrency(kind) {
     return kind === "car"
-        ? POPULAR_DETAILS_CONCURRENCY
+        ? POPULAR_QUALITY_BATCH_SIZE
         : POPULAR_NONCAR_DETAILS_CONCURRENCY;
 }
 
