@@ -4974,3 +4974,596 @@ html[data-ui-scale="xl"] textarea{
     max-width:100%;
 }
 
+/* =========================================================
+   UNIFIED MOBILE / A+ / A++ NAVIGATION
+   ========================================================= */
+
+/*
+ * On phones and accessibility sizes A+/A++, the main hamburger
+ * opens one scrollable navigation containing every primary link,
+ * followed immediately by the secondary sections below Shop.
+ *
+ * Future sections:
+ * add another .nav-overflow-item inside #navOverflowItems in
+ * index.html. The same menu, scrolling and accessibility rules
+ * will apply automatically.
+ */
+.nav-overflow-items{
+    display:none;
+}
+
+.nav-overflow-item{
+    width:100%;
+    display:flex;
+    align-items:center;
+    gap:12px;
+    padding:11px 12px;
+    border:1px solid var(--border);
+    border-radius:12px;
+    background:var(--surface-soft);
+    color:var(--text);
+    text-align:left;
+    flex:0 0 auto;
+}
+
+.nav-overflow-item:hover{
+    background:rgba(124,92,255,.08);
+    border-color:rgba(124,92,255,.35);
+}
+
+.nav-overflow-item > span:first-child{
+    width:36px;
+    height:36px;
+    display:grid;
+    place-items:center;
+    flex:0 0 36px;
+    border-radius:10px;
+    background:rgba(124,92,255,.12);
+    font-size:19px;
+}
+
+.nav-overflow-item > span:last-child{
+    min-width:0;
+}
+
+.nav-overflow-item strong{
+    display:block;
+    font-size:14px;
+    line-height:1.2;
+}
+
+.nav-overflow-item small{
+    display:block;
+    margin-top:3px;
+    color:var(--muted);
+    font-size:11px;
+    line-height:1.35;
+}
+
+html[data-ui-scale="large"] .nav-links.open,
+html[data-ui-scale="xl"] .nav-links.open{
+    position:fixed;
+    left:calc(8px / var(--ui-scale,1));
+    right:calc(8px / var(--ui-scale,1));
+    top:calc(72px / var(--ui-scale,1));
+    width:auto;
+    max-height:calc((100vh - 84px) / var(--ui-scale,1));
+    display:flex;
+    flex-direction:column;
+    align-items:stretch;
+    justify-content:flex-start;
+    gap:5px;
+    padding:10px;
+    overflow-y:auto;
+    overflow-x:hidden;
+    overscroll-behavior:contain;
+    -webkit-overflow-scrolling:touch;
+    background:var(--card-solid,var(--card));
+    border:1px solid var(--border);
+    border-radius:14px;
+    box-shadow:var(--shadow);
+    z-index:1001;
+}
+
+html[data-ui-scale="large"] .nav-overflow-items,
+html[data-ui-scale="xl"] .nav-overflow-items{
+    display:flex;
+    flex-direction:column;
+    gap:5px;
+    width:100%;
+}
+
+html[data-ui-scale="large"] .more-menu-btn,
+html[data-ui-scale="xl"] .more-menu-btn{
+    display:none !important;
+}
+
+html[data-ui-scale="large"] .nav-links.open > button,
+html[data-ui-scale="xl"] .nav-links.open > button,
+html[data-ui-scale="large"] .nav-links.open > .nav-overflow-items,
+html[data-ui-scale="xl"] .nav-links.open > .nav-overflow-items{
+    width:100%;
+    flex:0 0 auto;
+}
+
+html[data-ui-scale="large"] .nav-links.open .nav-calculator-spacer,
+html[data-ui-scale="xl"] .nav-links.open .nav-calculator-spacer{
+    display:none;
+}
+
+@media(max-width:1000px){
+    .nav-links.open{
+        position:fixed;
+        left:8px;
+        right:8px;
+        top:64px;
+        width:auto;
+        max-height:calc(100vh - 76px);
+        display:flex;
+        flex-direction:column;
+        align-items:stretch;
+        justify-content:flex-start;
+        gap:5px;
+        padding:10px;
+        overflow-y:auto;
+        overflow-x:hidden;
+        overscroll-behavior:contain;
+        -webkit-overflow-scrolling:touch;
+        background:var(--card-solid,var(--card));
+        border:1px solid var(--border);
+        border-radius:14px;
+        box-shadow:var(--shadow);
+        z-index:1001;
+    }
+
+    .nav-overflow-items{
+        display:flex;
+        flex-direction:column;
+        gap:5px;
+        width:100%;
+    }
+
+    .more-menu-btn{
+        display:none !important;
+    }
+
+    .nav-links.open > button,
+    .nav-links.open > .nav-overflow-items{
+        width:100%;
+        flex:0 0 auto;
+    }
+
+    .nav-links.open .nav-calculator-spacer{
+        display:none;
+    }
+
+    .nav-links.open > button{
+        text-align:left;
+    }
+}
+
+/* =========================================================
+   MOBILE-FIRST LAYOUT / TOUCH OPTIMIZATION
+   ========================================================= */
+
+@media(max-width:700px){
+    html{
+        overflow-x:hidden;
+    }
+
+    body{
+        min-width:0;
+        overflow-x:hidden;
+        -webkit-text-size-adjust:100%;
+        text-size-adjust:100%;
+    }
+
+    .nav{
+        z-index:1000;
+    }
+
+    .nav > .container{
+        padding-left:10px;
+        padding-right:10px;
+    }
+
+    .nav-inner{
+        height:64px;
+        gap:6px;
+    }
+
+    .logo{
+        min-width:0;
+        gap:7px;
+        font-size:17px;
+    }
+
+    .logo-mark{
+        width:34px;
+        height:34px;
+        flex:0 0 34px;
+    }
+
+    .nav-actions{
+        gap:4px;
+        margin-left:auto;
+    }
+
+    .nav-actions > *{
+        flex:0 0 auto;
+    }
+
+    .menu-btn{
+        flex:0 0 auto;
+        min-width:38px;
+        min-height:38px;
+        padding:7px 9px;
+    }
+
+    .auth-btn,
+    .feedback-nav-btn,
+    .signout-nav-btn,
+    .settings-btn,
+    .ai-chat-nav-btn,
+    .admin-feedback-nav-btn{
+        min-height:38px;
+        padding:7px 9px;
+    }
+
+    .profile-nav-btn{
+        width:38px;
+        height:38px;
+        flex:0 0 38px;
+    }
+
+    .section,
+    .app{
+        padding-top:25px;
+        padding-bottom:60px;
+    }
+
+    .section-header{
+        margin-bottom:20px;
+    }
+
+    .section-header h2{
+        font-size:28px;
+        letter-spacing:-.7px;
+    }
+
+    .section-header p{
+        font-size:13px;
+        line-height:1.5;
+    }
+
+    .app-header{
+        gap:14px;
+        margin-bottom:18px;
+    }
+
+    .app-title{
+        width:100%;
+        align-items:flex-start;
+        gap:10px;
+    }
+
+    .app-title-icon{
+        width:46px;
+        height:46px;
+        flex:0 0 46px;
+        border-radius:13px;
+        font-size:23px;
+    }
+
+    .app-title h2{
+        font-size:25px;
+        line-height:1.15;
+    }
+
+    .app-title p{
+        font-size:13px;
+        line-height:1.45;
+        margin-top:4px;
+    }
+
+    .close-btn{
+        width:100%;
+        min-height:42px;
+        padding:10px 13px;
+    }
+
+    .panel{
+        padding:18px;
+        border-radius:17px;
+    }
+
+    .form-grid{
+        grid-template-columns:1fr;
+        gap:16px;
+    }
+
+    .form-group{
+        gap:6px;
+    }
+
+    input,
+    select,
+    textarea{
+        min-height:44px;
+    }
+
+    .form-actions{
+        margin-top:18px;
+    }
+
+    .form-actions .btn{
+        width:100%;
+    }
+
+    .result-top{
+        grid-template-columns:1fr;
+    }
+
+    .result-grid{
+        grid-template-columns:1fr;
+        gap:10px;
+    }
+
+    .result-hero,
+    .score-card,
+    .metric,
+    .chart-card{
+        min-width:0;
+    }
+
+    .chart-card{
+        padding:16px;
+        border-radius:17px;
+    }
+
+    .chart{
+        min-width:0;
+        height:230px;
+        overflow-x:auto;
+        padding:8px 4px;
+    }
+
+    .bar{
+        width:20px;
+    }
+
+    .bar-label{
+        font-size:12px;
+    }
+
+    .table-wrap{
+        max-width:100%;
+        overflow-x:auto;
+        -webkit-overflow-scrolling:touch;
+    }
+
+    table{
+        min-width:560px;
+    }
+
+    .calculator-mode-tabs{
+        width:100%;
+        justify-content:flex-start;
+        overflow-x:auto;
+        padding:2px 1px 5px;
+        scrollbar-width:none;
+        -webkit-overflow-scrolling:touch;
+    }
+
+    .calculator-mode-tabs::-webkit-scrollbar{
+        display:none;
+    }
+
+    .calculator-mode-btn{
+        flex:0 0 auto;
+        min-width:104px;
+        min-height:44px;
+        padding:10px 13px;
+    }
+
+    .calculator-panel{
+        width:100%;
+        max-width:none;
+        padding:12px;
+    }
+
+    .calculator-display{
+        min-height:62px;
+        padding:12px 14px;
+        margin-bottom:10px;
+        font-size:clamp(22px,7vw,30px);
+    }
+
+    .calculator-keypad{
+        gap:8px;
+    }
+
+    .calculator-key{
+        min-height:52px;
+        border-radius:11px;
+    }
+
+    .calculator-toolbar{
+        grid-template-columns:1fr;
+        gap:8px;
+        padding:11px;
+    }
+
+    .filter-clear{
+        width:100%;
+    }
+
+    .weather-main{
+        flex-wrap:wrap;
+        gap:14px;
+    }
+
+    .weather-details{
+        grid-template-columns:1fr 1fr;
+    }
+
+    .weather-forecast-grid{
+        grid-template-columns:repeat(2,minmax(0,1fr));
+    }
+
+    .news-category,
+    .shop-section,
+    .markets-section,
+    .money-section{
+        width:min(calc(100% - 22px),1180px);
+    }
+
+    .news-category-nav{
+        width:100%;
+        margin-left:0;
+        margin-right:0;
+    }
+
+    .news-grid,
+    .shop-grid,
+    .money-grid,
+    .markets-grid{
+        grid-template-columns:1fr;
+    }
+
+    .market-card{
+        grid-template-columns:1fr;
+    }
+
+    .money-card{
+        grid-template-columns:1fr;
+        gap:13px;
+    }
+
+    .money-price,
+    .money-movement{
+        padding-left:0;
+    }
+
+    .money-movement{
+        width:100%;
+    }
+
+    .cars-grid{
+        grid-template-columns:1fr;
+    }
+
+    .cars-category-grid{
+        grid-template-columns:1fr;
+    }
+
+    .cars-section-block{
+        padding:18px;
+    }
+
+    .feedback-modal-card,
+    .translate-modal-card,
+    .ai-chat-card,
+    .account-page-card{
+        max-width:100%;
+    }
+
+    .feedback-modal-card,
+    .translate-modal-card,
+    .account-page-card{
+        padding:18px;
+    }
+
+    .ai-chat-card{
+        height:calc(100vh - 20px);
+        border-radius:18px;
+    }
+
+    .ai-chat-head{
+        padding:16px;
+    }
+
+    .ai-chat-messages{
+        padding:16px;
+    }
+
+    .ai-chat-composer{
+        padding:10px;
+    }
+
+    .settings-panel{
+        top:72px;
+        left:10px;
+        right:10px;
+        width:auto;
+        max-height:calc(100vh - 82px);
+        overflow-y:auto;
+        -webkit-overflow-scrolling:touch;
+    }
+}
+
+/* Large accessibility size on a phone:
+   keep the body readable while letting every navigation/content
+   layer scroll rather than overflow sideways. */
+@media(max-width:700px){
+    html[data-ui-scale="large"] .nav-links.open,
+    html[data-ui-scale="xl"] .nav-links.open{
+        left:calc(8px / var(--ui-scale,1));
+        right:calc(8px / var(--ui-scale,1));
+        top:calc(64px / var(--ui-scale,1));
+        max-height:calc((100vh - 76px) / var(--ui-scale,1));
+    }
+
+    html[data-ui-scale="large"] .nav-inner,
+    html[data-ui-scale="xl"] .nav-inner{
+        gap:4px;
+    }
+
+    html[data-ui-scale="large"] .nav-actions,
+    html[data-ui-scale="xl"] .nav-actions{
+        gap:2px;
+    }
+
+    html[data-ui-scale="large"] .nav-actions > *,
+    html[data-ui-scale="xl"] .nav-actions > *{
+        min-width:0;
+    }
+
+    html[data-ui-scale="large"] .profile-nav-btn,
+    html[data-ui-scale="xl"] .profile-nav-btn{
+        width:34px;
+        height:34px;
+        flex-basis:34px;
+    }
+
+    html[data-ui-scale="large"] .auth-btn,
+    html[data-ui-scale="large"] .feedback-nav-btn,
+    html[data-ui-scale="large"] .signout-nav-btn,
+    html[data-ui-scale="large"] .settings-btn,
+    html[data-ui-scale="large"] .ai-chat-nav-btn,
+    html[data-ui-scale="large"] .admin-feedback-nav-btn,
+    html[data-ui-scale="xl"] .auth-btn,
+    html[data-ui-scale="xl"] .feedback-nav-btn,
+    html[data-ui-scale="xl"] .signout-nav-btn,
+    html[data-ui-scale="xl"] .settings-btn,
+    html[data-ui-scale="xl"] .ai-chat-nav-btn,
+    html[data-ui-scale="xl"] .admin-feedback-nav-btn{
+        min-height:34px;
+        padding:5px 7px;
+    }
+
+    html[data-ui-scale="large"] .menu-btn,
+    html[data-ui-scale="xl"] .menu-btn{
+        min-width:34px;
+        min-height:34px;
+        padding:5px 7px;
+    }
+}
+
+html[data-theme="light"] .nav-overflow-item{
+    background:rgba(15,23,42,.025);
+}
+
+html[data-theme="light"] .nav-overflow-item:hover{
+    background:rgba(15,23,42,.055);
+}
