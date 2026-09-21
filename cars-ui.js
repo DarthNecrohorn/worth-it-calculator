@@ -4902,6 +4902,8 @@ async function refreshPopularVehicleCategory(
             const cachedWikidata = supplementalVehicleCatalogCache.get(kind) || [];
             const cachedDbpedia = dbpediaVehicleCatalogCache.get(kind) || [];
 
+            vehicleCatalogCache.set(kind, refreshedCatalog);
+
             if (kind !== "car" && (cachedWikidata.length || cachedDbpedia.length)) {
                 refreshedCatalog = mergeSupplementalVehicleCatalog(
                     kind,
@@ -4910,8 +4912,6 @@ async function refreshPopularVehicleCategory(
                         ...cachedDbpedia.slice(0, DBPEDIA_SUPPLEMENTAL_LIMIT)
                     ]
                 );
-            } else {
-                vehicleCatalogCache.set(kind, refreshedCatalog);
             }
 
             currentVehicleCatalog = refreshedCatalog;
