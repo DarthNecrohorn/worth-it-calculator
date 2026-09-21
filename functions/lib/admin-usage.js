@@ -1,5 +1,5 @@
-const TOTALS_TABLE = "admin_api_usage_totals";
-const DAILY_TABLE = "admin_api_usage_daily";
+const TOTALS_TABLE = "admin_api_usage_totals_v2";
+const DAILY_TABLE = "admin_api_usage_daily_v2";
 
 const CREATE_TOTALS_SQL =
     "CREATE TABLE IF NOT EXISTS " +
