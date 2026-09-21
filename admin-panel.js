@@ -43,13 +43,6 @@
         const content = $('adminPanelContent');
         if(!content) return;
         content.innerHTML = [
-            '<div class="admin-panel-welcome">',
-                '<div class="admin-panel-welcome-icon">🛠️</div>',
-                '<div class="admin-panel-welcome-copy">',
-                    '<strong>Private Admin Panel</strong>',
-                    '<span>Choose a section below to manage Worth It privately.</span>',
-                '</div>',
-            '</div>',
             '<div class="admin-panel-section-grid">',
                 '<button type="button" class="admin-panel-section-button" data-admin-section="feedback" onclick="showAdminSection(\'feedback\')">',
                     '<span class="admin-panel-section-icon">🐞</span>',
