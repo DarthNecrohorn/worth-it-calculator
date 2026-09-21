@@ -523,8 +523,8 @@ function renderWeatherData({
 
         location.textContent =
             Number.isFinite(latitude) && Number.isFinite(longitude)
-                ? `📍 ${latitude.toFixed(2)}, ${longitude.toFixed(2)}`
-                : "📍 Location unavailable";
+                ? `${latitude.toFixed(2)}, ${longitude.toFixed(2)}`
+                : "Location unavailable";
 
     }
 
@@ -2587,10 +2587,40 @@ function ensureWeatherUIStyles(){
 
     style.textContent = `
 
+
+        .weather-location {
+            display:
+                flex;
+
+            align-items:
+                center;
+
+            flex-wrap:
+                wrap;
+
+            gap:
+                8px;
+
+            margin-bottom:
+                24px;
+
+            font-size:
+                15px;
+
+            opacity:
+                0.85;
+        }
+
         .weather-location-meta {
 
             margin-top:
                 10px;
+
+            margin-left:
+                0;
+
+            flex-basis:
+                100%;
 
             display:
                 block;
