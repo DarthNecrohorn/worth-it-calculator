@@ -1563,55 +1563,15 @@ async function loadVehicleCardImage(
     }
 
     /*
-     * The account-scoped cache is still preferred. When an image is already
-     * cached we can use it immediately.
+     * Start the persistent-cache lookup and the native image request in
+     * parallel. The browser does not wait for Cache Storage before starting
+     * the image, which is much faster on a cold page.
      */
-    const cachedObjectUrl =
-        await getCachedVehicleImageObjectUrl(
+    const cachedObjectUrlPromise =
+        getCachedVehicleImageObjectUrl(
             image.url
         );
 
-    if (
-        cachedObjectUrl &&
-        imageElement.isConnected
-    ) {
-
-        imageElement.src =
-            cachedObjectUrl;
-
-        imageElement.dataset.loaded =
-            "true";
-
-        imageElement.dataset.cached =
-            "true";
-
-        imageElement.addEventListener(
-            "load",
-            () => {
-
-                try {
-                    URL.revokeObjectURL(
-                        cachedObjectUrl
-                    );
-                } catch {}
-
-            },
-            {
-                once: true
-            }
-        );
-
-        return;
-
-    }
-
-    /*
-     * First-load fast path:
-     *
-     * Give the browser the Wikimedia URL immediately. Do not wait for a
-     * second CORS fetch/blob conversion just to populate the local cache.
-     * The browser's native image loader is substantially faster here.
-     */
     if (
         !imageElement.isConnected
     ) {
@@ -1623,6 +1583,71 @@ async function loadVehicleCardImage(
 
     imageElement.dataset.loaded =
         "true";
+
+    void cachedObjectUrlPromise
+        .then(
+            cachedObjectUrl => {
+
+                if (!cachedObjectUrl) {
+                    return;
+                }
+
+                if (
+                    !imageElement.isConnected
+                ) {
+
+                    try {
+                        URL.revokeObjectURL(
+                            cachedObjectUrl
+                        );
+                    } catch {}
+
+                    return;
+                }
+
+                /*
+                 * If the native request already produced the image, keep it.
+                 * Otherwise the account-scoped cached object URL can avoid a
+                 * second network transfer.
+                 */
+                if (
+                    imageElement.complete &&
+                    imageElement.naturalWidth > 0
+                ) {
+
+                    try {
+                        URL.revokeObjectURL(
+                            cachedObjectUrl
+                        );
+                    } catch {}
+
+                    return;
+                }
+
+                imageElement.src =
+                    cachedObjectUrl;
+
+                imageElement.dataset.cached =
+                    "true";
+
+                imageElement.addEventListener(
+                    "load",
+                    () => {
+
+                        try {
+                            URL.revokeObjectURL(
+                                cachedObjectUrl
+                            );
+                        } catch {}
+
+                    },
+                    {
+                        once: true
+                    }
+                );
+
+            }
+        );
 
     if (image.author) {
         imageElement.dataset.imageAuthor =
@@ -8459,11 +8484,7 @@ function updateCarsCategoryHeader(
  * vehicle metadata; Wikipedia/Wikimedia detail/image requests are
  * still started only for the active category.
  */
-let vehicleCatalogPreloadPromise =
-    null;
 
-let vehicleCategoryInformationPreloadPromise =
-    null;
 
 async function preloadVehicleInformationForCategory(
     kind
