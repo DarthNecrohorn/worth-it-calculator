@@ -249,7 +249,7 @@ const POPULAR_DETAILS_CONCURRENCY = 6;
  * Persistent browser cache version for account-scoped vehicle
  * metadata/images.
  */
-const VEHICLE_PERSISTENT_CACHE_VERSION = "v2";
+const VEHICLE_PERSISTENT_CACHE_VERSION = "v3";
 
 let vehicleAccountCacheOwnerPromise =
     null;
