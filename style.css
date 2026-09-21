@@ -4711,28 +4711,266 @@ html[data-theme="light"] .news-card{
  */
 
 /* =========================================================
-   UI SCALE NAVIGATION SAFETY
+   ACCESSIBILITY SCALE SYSTEM
    ========================================================= */
 
 /*
- * At the largest accessibility size the full desktop navigation can
- * legitimately become wider than the available viewport. Switch to
- * the existing compact menu instead of allowing utility buttons to
- * overlap or leave the screen.
+ * The settings scale is applied globally on <body>. These layout
+ * helpers compensate for zoom so the usable content width remains
+ * inside the viewport at every accessibility level.
+ *
+ * Future sections should use .container when possible. Standalone
+ * sections can use var(--ui-content-max) for their outer width.
  */
+:root{
+    --ui-content-max:min(
+        1180px,
+        calc((100vw - 32px) / var(--ui-scale, 1))
+    );
+}
+
+.container{
+    width:var(--ui-content-max);
+    max-width:1180px;
+    min-width:0;
+}
+
+.nav > .container{
+    width:100%;
+    max-width:none;
+}
+
+main,
+main > .section,
+main > .app,
+section,
+.app,
+.panel,
+.calculator-grid,
+.form-grid,
+.result-top,
+.result-grid,
+.calculator-toolbar{
+    min-width:0;
+}
+
+/* Keep the larger standalone dashboards inside the scaled viewport. */
+.news-category,
+.shop-section,
+.markets-section,
+.money-section{
+    width:var(--ui-content-max);
+    max-width:1180px;
+    min-width:0;
+}
+
+/*
+ * A+ and A++ intentionally use the existing hamburger menu.
+ * This prevents Calculator / profile / feedback / settings / AI
+ * controls from ever overlapping.
+ */
+html[data-ui-scale="large"] .nav-links,
 html[data-ui-scale="xl"] .nav-links{
     display:none;
 }
 
+html[data-ui-scale="large"] .menu-btn,
 html[data-ui-scale="xl"] .menu-btn{
     display:block;
 }
 
+html[data-ui-scale="large"] .nav-links.open,
+html[data-ui-scale="xl"] .nav-links.open{
+    position:absolute;
+    left:10px;
+    right:10px;
+    top:68px;
+    display:flex;
+    flex-direction:column;
+    align-items:stretch;
+    gap:5px;
+    padding:10px;
+    background:var(--card-solid,var(--card));
+    border:1px solid var(--border);
+    border-radius:14px;
+    box-shadow:var(--shadow);
+    z-index:500;
+}
+
+html[data-ui-scale="large"] .nav-links.open button,
+html[data-ui-scale="xl"] .nav-links.open button{
+    width:100%;
+    text-align:left;
+}
+
+html[data-ui-scale="large"] .nav-actions,
+html[data-ui-scale="xl"] .nav-actions{
+    margin-left:auto;
+}
+
+html[data-ui-scale="large"] .nav-inner,
 html[data-ui-scale="xl"] .nav-inner{
     gap:8px;
 }
 
-html[data-ui-scale="xl"] .nav-actions{
-    margin-left:auto;
+/* Scale-aware content density. */
+html[data-ui-scale="large"] .calculator-grid,
+html[data-ui-scale="xl"] .calculator-grid{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+}
+
+html[data-ui-scale="xl"] .form-grid{
+    grid-template-columns:1fr;
+}
+
+html[data-ui-scale="xl"] .result-grid{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+}
+
+html[data-ui-scale="large"] .news-grid{
+    grid-template-columns:repeat(3,minmax(0,1fr));
+}
+
+html[data-ui-scale="xl"] .news-grid{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+}
+
+html[data-ui-scale="large"] .shop-grid{
+    grid-template-columns:repeat(3,minmax(0,1fr));
+}
+
+html[data-ui-scale="xl"] .shop-grid{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+}
+
+html[data-ui-scale="large"] .cars-grid{
+    grid-template-columns:repeat(3,minmax(0,1fr));
+}
+
+html[data-ui-scale="xl"] .cars-grid{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+}
+
+html[data-ui-scale="large"] .cars-category-grid{
+    grid-template-columns:repeat(4,minmax(0,1fr));
+}
+
+html[data-ui-scale="xl"] .cars-category-grid{
+    grid-template-columns:repeat(3,minmax(0,1fr));
+}
+
+html[data-ui-scale="large"] .weather-forecast-grid{
+    grid-template-columns:repeat(5,minmax(0,1fr));
+}
+
+html[data-ui-scale="xl"] .weather-forecast-grid{
+    grid-template-columns:repeat(4,minmax(0,1fr));
+}
+
+html[data-ui-scale="xl"] .market-card{
+    grid-template-columns:1fr;
+}
+
+html[data-ui-scale="xl"] .money-grid{
+    grid-template-columns:1fr;
+}
+
+html[data-ui-scale="xl"] .money-card{
+    grid-template-columns:1fr;
+    gap:14px;
+}
+
+html[data-ui-scale="xl"] .money-price,
+html[data-ui-scale="xl"] .money-movement{
+    padding-left:61px;
+}
+
+html[data-ui-scale="xl"] .calculator-toolbar{
+    grid-template-columns:1fr;
+}
+
+/* Standard calculator stays comfortably readable at every scale. */
+html[data-ui-scale="xl"] .calculator-panel{
+    width:min(520px,100%);
+}
+
+html[data-ui-scale="xl"] .calculator-display{
+    font-size:28px;
+    overflow:auto;
+    white-space:normal;
+}
+
+/* =========================================================
+   LIGHT THEME — CALCULATORS & ADMIN FEEDBACK
+   ========================================================= */
+
+html[data-theme="light"] .result-hero{
+    background:
+        linear-gradient(
+            135deg,
+            rgba(16,185,129,.08),
+            rgba(124,92,255,.055)
+        );
+}
+
+html[data-theme="light"] .big-result{
+    background:
+        linear-gradient(
+            135deg,
+            rgba(124,92,255,.07),
+            rgba(56,189,248,.055)
+        );
+}
+
+html[data-theme="light"] .calculator-display{
+    background:var(--card2);
+    border-color:var(--border);
+}
+
+html[data-theme="light"] .calculator-key,
+html[data-theme="light"] .calculator-mode-btn{
+    background:var(--surface-soft);
+    border-color:var(--border);
+    color:var(--text);
+}
+
+html[data-theme="light"] .calculator-key.operator{
+    background:rgba(124,92,255,.08);
+}
+
+html[data-theme="light"] .calculator-key.function,
+html[data-theme="light"] .calculator-key.constant{
+    background:rgba(15,23,42,.045);
+}
+
+html[data-theme="light"] .admin-feedback-card{
+    background:var(--card-solid);
+    border-color:var(--border);
+    color:var(--text);
+}
+
+html[data-theme="light"] .admin-feedback-item{
+    background:var(--surface-soft);
+    border-color:var(--border);
+}
+
+html[data-theme="light"] .admin-feedback-head > button{
+    color:var(--text);
+}
+
+/* A little extra breathing room for large accessibility settings. */
+html[data-ui-scale="large"] .panel,
+html[data-ui-scale="xl"] .panel{
+    overflow-x:auto;
+}
+
+html[data-ui-scale="large"] input,
+html[data-ui-scale="large"] select,
+html[data-ui-scale="large"] textarea,
+html[data-ui-scale="xl"] input,
+html[data-ui-scale="xl"] select,
+html[data-ui-scale="xl"] textarea{
+    min-width:0;
+    max-width:100%;
 }
 
