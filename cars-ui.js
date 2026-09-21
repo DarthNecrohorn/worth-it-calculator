@@ -4850,9 +4850,6 @@ async function refreshPopularVehicleCategory(
     const grid = document.getElementById("popularCarsGrid");
     if (!grid) return;
 
-    const candidates = getPopularVehicles(currentVehicleCatalog);
-    if (!candidates.length) return;
-
     if (refreshButton) {
         refreshButton.disabled = true;
         refreshButton.classList.add("is-loading");
@@ -4860,65 +4857,179 @@ async function refreshPopularVehicleCategory(
 
     currentVehicleShowAll = false;
 
-    const previousDisplayState = getStablePopularDisplayState(kind);
-    if (previousDisplayState) previousDisplayState.cancelled = true;
+    const oldQualityState = popularVehicleQualityState.get(kind);
+    const oldValidVehicles = Array.isArray(oldQualityState?.validVehicles)
+        ? oldQualityState.validVehicles.slice()
+        : [];
+
+    const oldDisplayState = getStablePopularDisplayState(kind);
+    if (oldDisplayState) oldDisplayState.cancelled = true;
 
     const displayState = startStablePopularVehicleDisplay(kind, false);
-    grid.innerHTML = "";
 
-    try {
-        const fastVehicles = await collectFastPopularVehicleInformation(
+    /*
+     * Refresh must never blank a category while new requests are running.
+     * Reuse already validated vehicles immediately, then refresh the
+     * catalog/details in the background. This is especially important for
+     * smaller categories such as Buses and Trucks.
+     */
+    const immediateVehicles = oldValidVehicles.slice(
+        0,
+        POPULAR_REFRESH_CARD_COUNT
+    );
+
+    if (immediateVehicles.length) {
+        grid.innerHTML = "";
+        appendStablePopularVehicleCards(
             kind,
-            candidates,
-            POPULAR_REFRESH_CARD_COUNT,
-            POPULAR_REFRESH_MAX_CHECKS
+            immediateVehicles,
+            false
         );
 
-        if (currentVehicleKind !== kind || currentVehicleMode !== "popular" || displayState.cancelled) {
+        hideOrShowStablePopularCards(kind, false);
+    }
+
+    try {
+        /*
+         * Fetch a fresh lightweight catalog. Existing Cards behavior is
+         * unchanged; this is only the explicit user-triggered refresh.
+         */
+        const freshCatalog = await fetchFreshVehicleCatalog(kind);
+
+        if (freshCatalog.length) {
+            let refreshedCatalog = freshCatalog;
+
+            const cachedWikidata = supplementalVehicleCatalogCache.get(kind) || [];
+            const cachedDbpedia = dbpediaVehicleCatalogCache.get(kind) || [];
+
+            if (kind !== "car" && (cachedWikidata.length || cachedDbpedia.length)) {
+                refreshedCatalog = mergeSupplementalVehicleCatalog(
+                    kind,
+                    [
+                        ...cachedWikidata.slice(0, WIKIDATA_SUPPLEMENTAL_LIMIT),
+                        ...cachedDbpedia.slice(0, DBPEDIA_SUPPLEMENTAL_LIMIT)
+                    ]
+                );
+            } else {
+                vehicleCatalogCache.set(kind, refreshedCatalog);
+            }
+
+            currentVehicleCatalog = refreshedCatalog;
+        }
+
+        const candidates = getPopularVehicles(currentVehicleCatalog);
+
+        if (!candidates.length) {
+            if (!immediateVehicles.length) {
+                grid.innerHTML =
+                    '<div class="cars-empty-state">' +
+                        '<div class="cars-empty-icon">' +
+                            getVehicleKindInfo(kind).icon +
+                        '</div>' +
+                        '<strong>No vehicle information available</strong>' +
+                        '<p>No reliable vehicle information is currently available.</p>' +
+                    '</div>';
+            }
             return;
         }
 
-        if (fastVehicles.length) {
-            mergePopularValidVehiclesIntoState(kind, candidates, fastVehicles);
+        const targetCount = Math.min(
+            POPULAR_REFRESH_CARD_COUNT,
+            Math.max(
+                1,
+                getVehiclesPerRow() * INITIAL_VISIBLE_ROWS
+            ),
+            candidates.length
+        );
 
-            currentVehicleShowAll = false;
-            displayState.showAll = false;
+        const validVehicles = await ensurePopularVehicleQuality(
+            kind,
+            candidates,
+            targetCount,
+            kind === "car"
+                ? Math.max(POPULAR_SHOW_ALL_MAX_NEW_CHECKS, 48)
+                : POPULAR_REFRESH_MAX_CHECKS,
+            async nextValidVehicles => {
+                if (
+                    currentVehicleKind !== kind ||
+                    currentVehicleMode !== "popular" ||
+                    displayState.cancelled
+                ) return;
 
-            appendStablePopularVehicleCards(kind, fastVehicles, false);
+                const firstEight = nextValidVehicles.slice(
+                    0,
+                    POPULAR_REFRESH_CARD_COUNT
+                );
 
-            const initialCount = Math.min(
+                if (!firstEight.length) return;
+
+                if (!grid.querySelector('.car-card[data-popular-stable-card="true"]')) {
+                    grid.innerHTML = "";
+                    appendStablePopularVehicleCards(kind, firstEight, false);
+                } else {
+                    appendStablePopularVehicleCards(kind, firstEight, false);
+                }
+
+                hideOrShowStablePopularCards(kind, false);
+            }
+        );
+
+        if (
+            currentVehicleKind !== kind ||
+            currentVehicleMode !== "popular" ||
+            displayState.cancelled
+        ) return;
+
+        const firstEight = validVehicles.slice(
+            0,
+            POPULAR_REFRESH_CARD_COUNT
+        );
+
+        if (firstEight.length) {
+            if (!grid.querySelector('.car-card[data-popular-stable-card="true"]')) {
+                grid.innerHTML = "";
+            }
+
+            appendStablePopularVehicleCards(kind, firstEight, false);
+
+            const visibleCount = Math.min(
                 POPULAR_REFRESH_CARD_COUNT,
                 Math.max(1, getVehiclesPerRow() * INITIAL_VISIBLE_ROWS)
             );
 
             renderVehicleExpandButton(
-                fastVehicles,
-                fastVehicles.slice(0, initialCount),
+                firstEight,
+                firstEight.slice(0, visibleCount),
                 kind,
-                stablePopularHasMoreVehicles(kind, POPULAR_REFRESH_CARD_COUNT)
+                stablePopularHasMoreVehicles(kind, visibleCount)
             );
 
             hideOrShowStablePopularCards(kind, false);
 
             void continueStablePopularVehicleLoading(kind, candidates);
             void enrichVehicleCategoryWithSupplementalSources(kind);
-        } else {
-            grid.innerHTML =
-                '<div class="cars-empty-state">' +
-                    '<div class="cars-empty-icon">' +
-                        getVehicleKindInfo(kind).icon +
-                    '</div>' +
-                    '<strong>Still checking ' +
-                        escapeVehicleHtml(getVehicleKindInfo(kind).plural.toLowerCase()) +
-                        '...</strong>' +
-                    '<p>Checking Wikipedia for reliable vehicle information.</p>' +
-                '</div>';
-
-            void continueStablePopularVehicleLoading(kind, candidates);
         }
 
     } catch (error) {
         console.error("Popular vehicle refresh failed:", kind, error);
+
+        /*
+         * Keep already validated cards on screen when a refresh request
+         * fails. A refresh must not turn a working category into an empty
+         * state because of a temporary network/API problem.
+         */
+        if (
+            !grid.querySelector('.car-card[data-popular-stable-card="true"]') &&
+            immediateVehicles.length
+        ) {
+            appendStablePopularVehicleCards(
+                kind,
+                immediateVehicles,
+                false
+            );
+            hideOrShowStablePopularCards(kind, false);
+        }
+
     } finally {
         if (refreshButton) {
             refreshButton.disabled = false;
@@ -4926,7 +5037,6 @@ async function refreshPopularVehicleCategory(
         }
     }
 }
-
 
 async function loadAndRenderNonCarPopularVehicles(
     kind,
