@@ -36,7 +36,7 @@ body{
     /*
      * Global accessibility scaling. The settings panel changes
      * --ui-scale and therefore scales all current and future UI.
-     * Width compensation keeps the scaled page aligned with the viewport.
+     * Content containers compensate for the scale so the page stays within the viewport.
      */
     zoom:var(--ui-scale,1);
     width:100%;
@@ -4725,7 +4725,7 @@ html[data-theme="light"] .news-card{
 :root{
     --ui-content-max:min(
         1180px,
-        calc((100vw - 32px) / var(--ui-scale, 1))
+        calc((100% - 32px) / var(--ui-scale, 1))
     );
 }
 
