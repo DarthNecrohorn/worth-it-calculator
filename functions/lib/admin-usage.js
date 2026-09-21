@@ -87,7 +87,7 @@ export function recordAdminApiUsage(
                 "VALUES (?, ?, ?, ?, ?) " +
                 "ON CONFLICT(api_key) DO UPDATE SET " +
                 "provider = excluded.provider, " +
-                "total_requests = " + TOTALS_TABLE + ".total_requests + excluded.total_requests, " +
+                "total_requests = total_requests + excluded.total_requests, " +
                 "last_seen_at = excluded.last_seen_at"
             ).bind(
                 entry.apiKey,
@@ -106,7 +106,7 @@ export function recordAdminApiUsage(
                 "VALUES (?, ?, ?, ?) " +
                 "ON CONFLICT(api_key, usage_date) DO UPDATE SET " +
                 "provider = excluded.provider, " +
-                "requests = " + DAILY_TABLE + ".requests + excluded.requests"
+                "requests = requests + excluded.requests"
             ).bind(
                 entry.apiKey,
                 entry.provider,
