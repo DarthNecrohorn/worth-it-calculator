@@ -5655,3 +5655,126 @@ html[data-ui-scale="xl"] .nav-links.open > button:last-of-type{
     border-top:1px solid var(--border);
     box-shadow:0 -8px 18px rgba(0,0,0,.10);
 }
+
+/* =========================================================
+   WORTH IT — GLOBAL MODERN UI HOVER THEME
+========================================================= */
+
+/*
+ * Shared interaction language across every section:
+ * - gentle lift + scale on hover
+ * - purple/blue accent border
+ * - soft layered glow
+ * - pressed state on click
+ *
+ * Existing section-specific backgrounds, sizes and functionality
+ * are intentionally preserved.
+ */
+
+button,
+a.btn,
+a[class*="-button"],
+a[class*="button-"],
+[role="button"]{
+    transition:
+        transform .18s ease,
+        box-shadow .18s ease,
+        border-color .18s ease,
+        background-color .18s ease,
+        color .18s ease,
+        opacity .18s ease;
+}
+
+button:not([disabled]):hover,
+a.btn:hover,
+a[class*="-button"]:hover,
+a[class*="button-"]:hover,
+[role="button"]:hover{
+    transform:
+        translateY(-2px)
+        scale(1.015);
+
+    border-color:
+        rgba(124,58,237,.55) !important;
+
+    box-shadow:
+        0 8px 20px rgba(37,99,235,.12),
+        0 3px 10px rgba(124,58,237,.10) !important;
+}
+
+button:not([disabled]):active,
+a.btn:active,
+a[class*="-button"]:active,
+a[class*="button-"]:active,
+[role="button"]:active{
+    transform:
+        translateY(0)
+        scale(.995);
+}
+
+
+/* Shared card hover treatment.
+   Markets already has a more specific implementation, so its
+   existing visual treatment remains intact. */
+:is(
+    .calc-card,
+    .stat,
+    .score-card,
+    .metric,
+    .chart-card,
+    .faq-item,
+    .weather-card,
+    .weather-forecast-card,
+    .news-card,
+    .shop-card,
+    .market-card,
+    .money-card,
+    .currency-card,
+    .car-card,
+    .cars-category-card
+){
+    transition:
+        transform .20s ease,
+        box-shadow .20s ease,
+        border-color .20s ease,
+        background .20s ease;
+}
+
+:is(
+    .calc-card,
+    .stat,
+    .score-card,
+    .metric,
+    .chart-card,
+    .faq-item,
+    .weather-card,
+    .weather-forecast-card,
+    .news-card,
+    .shop-card,
+    .market-card,
+    .money-card,
+    .currency-card,
+    .car-card,
+    .cars-category-card
+):hover{
+    transform:
+        translateY(-3px)
+        scale(1.006);
+
+    border-color:
+        rgba(124,58,237,.48) !important;
+
+    box-shadow:
+        0 10px 26px rgba(37,99,235,.11),
+        0 4px 14px rgba(124,58,237,.09);
+}
+
+
+/* Keep disabled controls completely static. */
+button[disabled],
+[aria-disabled="true"]{
+    transform:none !important;
+    box-shadow:none !important;
+}
+
+\n
