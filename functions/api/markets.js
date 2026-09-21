@@ -22,8 +22,8 @@
         https://www.nass.usda.gov/Quick_Stats/
         Public-domain NASS information may be freely reproduced with
         appropriate USDA-NASS acknowledgment.
-        API key is optional for Worth It; NASS source is enabled when
-        USDA_NASS_API_KEY exists in Cloudflare environment secrets.
+        Worth It uses NASS public chart data files, so no USDA
+        API key is required.
 
      5. Voltlas Open Data
         https://voltlas.com/data
@@ -53,9 +53,8 @@
    Lazy Wikimedia image endpoint:
      /api/markets?action=image&name=Gold&category=precious-metals
 
-   Environment secrets (optional):
+   Environment secret:
      EIA_API_KEY
-     USDA_NASS_API_KEY
 ========================================================= */
 
 const WORLD_BANK_MARKETS_PAGE =
@@ -88,11 +87,11 @@ const EIA_API_BASE =
 const EIA_DATA_PAGE =
     "https://www.eia.gov/opendata/";
 
-const USDA_NASS_API_URL =
-    "https://quickstats.nass.usda.gov/api/api_GET/";
-
 const USDA_NASS_DATA_PAGE =
     "https://www.nass.usda.gov/Quick_Stats/";
+
+const USDA_NASS_PRICE_CHART_BASE =
+    "https://www.nass.usda.gov/Charts_and_Maps/graphics/data/";
 
 const MAX_COMMODITIES =
     300;
@@ -154,7 +153,10 @@ const EIA_SOURCE_CACHE_PREFIX =
     "https://worth-it-internal-cache.local/markets-eia-series-v3/";
 
 const USDA_NASS_SOURCE_CACHE_KEY =
-    "https://worth-it-internal-cache.local/markets-usda-nass-v3.json";
+    "https://worth-it-internal-cache.local/markets-usda-nass-v4.json";
+
+const USDA_NASS_PRICE_FILE_CACHE_PREFIX =
+    "https://worth-it-internal-cache.local/markets-usda-nass-price-file-v2/";
 
 const MARKETS_RESULT_CACHE_KEY =
     "https://worth-it-internal-cache.local/markets-multisource-v5.json";
@@ -5329,57 +5331,440 @@ async function loadEIADataset(
 /* =========================================================
    USDA NASS
 
-   Quick Stats contains price-received observations for agriculture.
-   The API is called only server-side and only when
-   USDA_NASS_API_KEY is configured.
+   Public NASS chart data files
+
+   NASS states that most information on its site is public domain
+   and may be freely downloaded and reproduced with appropriate
+   USDA-NASS acknowledgment.
+
+   The public Quick Stats page also exposes downloadable Quick Stats
+   files and public chart data. Worth It uses the small public text
+   data files behind the official Prices Received charts rather than
+   the Quick Stats API, so no USDA API key is required.
+
+   Current public files used here:
+
+     /Charts_and_Maps/graphics/data/pricecn.txt  -> Corn
+     /Charts_and_Maps/graphics/data/pricect.txt  -> Upland Cotton
+     /Charts_and_Maps/graphics/data/pricehg.txt  -> Hogs
+     /Charts_and_Maps/graphics/data/pricemk.txt  -> Milk
+     /Charts_and_Maps/graphics/data/pricesb.txt  -> Soybeans
+     /Charts_and_Maps/graphics/data/pricewh.txt  -> Wheat
+     /Charts_and_Maps/graphics/data/priceca.txt  -> Cattle group
+     /Charts_and_Maps/graphics/data/pricetb.txt  -> Broilers/Turkeys
+
+   These files are intentionally small and public. Each file is
+   fetched independently, cached, and parsed into the same normalized
+   Worth It commodity record used by the other sources.
 ========================================================= */
 
-async function loadUSDANASSDataset(
-    cache,
-    env
+const USDA_NASS_PUBLIC_PRICE_FILES = [
+
+    {
+        file:
+            "pricecn.txt",
+
+        name:
+            "Corn",
+
+        pageUrl:
+            "https://www.nass.usda.gov/Charts_and_Maps/Agricultural_Prices/pricecn.php",
+
+        unit:
+            "$/bushel",
+
+        category:
+            "agriculture-food"
+    },
+
+    {
+        file:
+            "pricect.txt",
+
+        name:
+            "Upland Cotton",
+
+        pageUrl:
+            "https://www.nass.usda.gov/Charts_and_Maps/Agricultural_Prices/pricect.php",
+
+        unit:
+            "$/lb",
+
+        category:
+            "agriculture-food"
+    },
+
+    {
+        file:
+            "pricehg.txt",
+
+        name:
+            "Hogs",
+
+        pageUrl:
+            "https://www.nass.usda.gov/Charts_and_Maps/Agricultural_Prices/pricehg.php",
+
+        unit:
+            "$/cwt",
+
+        category:
+            "agriculture-food"
+    },
+
+    {
+        file:
+            "pricemk.txt",
+
+        name:
+            "Milk",
+
+        pageUrl:
+            "https://www.nass.usda.gov/Charts_and_Maps/Agricultural_Prices/pricemk.php",
+
+        unit:
+            "$/cwt",
+
+        category:
+            "agriculture-food"
+    },
+
+    {
+        file:
+            "pricesb.txt",
+
+        name:
+            "Soybeans",
+
+        pageUrl:
+            "https://www.nass.usda.gov/Charts_and_Maps/Agricultural_Prices/pricesb.php",
+
+        unit:
+            "$/bushel",
+
+        category:
+            "agriculture-food"
+    },
+
+    {
+        file:
+            "pricewh.txt",
+
+        name:
+            "All Wheat",
+
+        pageUrl:
+            "https://www.nass.usda.gov/Charts_and_Maps/Agricultural_Prices/pricewh.php",
+
+        unit:
+            "$/bushel",
+
+        category:
+            "agriculture-food"
+    },
+
+    {
+        file:
+            "priceca.txt",
+
+        names:
+            [
+                "All Beef Cattle",
+                "Calves",
+                "Cows",
+                "Steers & Heifers"
+            ],
+
+        pageUrl:
+            "https://www.nass.usda.gov/Charts_and_Maps/Agricultural_Prices/priceca.php",
+
+        unit:
+            "$/cwt",
+
+        category:
+            "agriculture-food"
+    },
+
+    {
+        file:
+            "pricetb.txt",
+
+        names:
+            [
+                "Broilers",
+                "Turkeys"
+            ],
+
+        pageUrl:
+            "https://www.nass.usda.gov/Charts_and_Maps/Agricultural_Prices/pricetb.php",
+
+        unit:
+            "$/lb",
+
+        category:
+            "agriculture-food"
+    }
+];
+
+
+const USDA_NASS_MONTHS = {
+
+    january:
+        1,
+
+    february:
+        2,
+
+    march:
+        3,
+
+    april:
+        4,
+
+    may:
+        5,
+
+    june:
+        6,
+
+    july:
+        7,
+
+    august:
+        8,
+
+    september:
+        9,
+
+    october:
+        10,
+
+    november:
+        11,
+
+    december:
+        12
+};
+
+
+function getNassMonthNumber(
+    monthName
 ) {
 
-    const apiKey =
-        String(
-            env?.USDA_NASS_API_KEY ||
-            ""
-        ).trim();
+    return (
+        USDA_NASS_MONTHS[
+            normalizeSearchText(
+                monthName
+            )
+        ] ||
+        null
+    );
+}
+
+
+function getNassChartPeriod(
+    year,
+    monthName
+) {
+
+    const numericYear =
+        Number(
+            year
+        );
+
+    const month =
+        getNassMonthNumber(
+            monthName
+        );
 
 
     if (
-        !apiKey
+        !Number.isInteger(
+            numericYear
+        ) ||
+        numericYear < 1900 ||
+        !month
     ) {
 
-        return {
-
-            prices: [],
-
-            source:
-                "USDA National Agricultural Statistics Service",
-
-            source_url:
-                USDA_NASS_DATA_PAGE,
-
-            license:
-                "Public domain",
-
-            license_url:
-                USDA_NASS_DATA_PAGE,
-
-            attribution:
-                "Source: USDA National Agricultural Statistics Service (NASS)",
-
-            configured:
-                false
-
-        };
+        return null;
 
     }
 
 
+    const timestamp =
+        Date.UTC(
+            numericYear,
+            month - 1,
+            1
+        );
+
+
+    return {
+
+        period:
+            `${numericYear}M${String(month).padStart(2, "0")}`,
+
+        year:
+            numericYear,
+
+        month,
+
+        timestamp
+    };
+}
+
+
+function parseNassChartRows(
+    text,
+    columnCount
+) {
+
+    const rows =
+        String(
+            text ||
+            ""
+        )
+            .split(/\r?\n/);
+
+
+    const observations = [];
+
+    let currentYear =
+        null;
+
+
+    for (
+        const rawLine of
+            rows
+    ) {
+
+        const line =
+            String(
+                rawLine ||
+                ""
+            );
+
+
+        const match =
+            line.match(
+                /^\s*(?:(\d{4})\s+)?([A-Za-z]+)\s+[^:]*:\s*(.*)$/
+            );
+
+
+        if (
+            !match
+        ) {
+
+            continue;
+
+        }
+
+
+        if (
+            match[1]
+        ) {
+
+            currentYear =
+                Number(
+                    match[1]
+                );
+
+        }
+
+
+        if (
+            !currentYear
+        ) {
+
+            continue;
+
+        }
+
+
+        const period =
+            getNassChartPeriod(
+                currentYear,
+                match[2]
+            );
+
+
+        if (
+            !period
+        ) {
+
+            continue;
+
+        }
+
+
+        const valueTokens =
+            String(
+                match[3] ||
+                ""
+            )
+                .trim()
+                .split(/\s+/)
+                .filter(Boolean)
+                .slice(
+                    0,
+                    Math.max(
+                        1,
+                        columnCount
+                    )
+                );
+
+
+        const values =
+            valueTokens.map(
+                token =>
+                    parseDataNumber(
+                        token
+                    )
+            );
+
+
+        while (
+            values.length <
+            columnCount
+        ) {
+
+            values.push(
+                null
+            );
+
+        }
+
+
+        observations.push({
+
+            period,
+
+            values
+        });
+
+    }
+
+
+    return observations
+        .sort(
+            (a, b) =>
+                a.period.timestamp -
+                b.period.timestamp
+        );
+}
+
+
+async function fetchNassPublicPriceFile(
+    cache,
+    definition
+) {
+
+    const url =
+        `${USDA_NASS_PRICE_CHART_BASE}${encodeURIComponent(definition.file)}`;
+
+
     const key =
         new Request(
-            USDA_NASS_SOURCE_CACHE_KEY
+            `${USDA_NASS_PRICE_FILE_CACHE_PREFIX}${encodeURIComponent(definition.file)}`
         );
 
 
@@ -5395,67 +5780,20 @@ async function loadUSDANASSDataset(
         cached
     ) {
 
-        return cached.json();
-
-    }
-
-
-    const url =
-        new URL(
-            USDA_NASS_API_URL
-        );
-
-
-    const params = {
-
-        key:
-            apiKey,
-
-        source_desc:
-            "SURVEY",
-
-        sector_desc:
-            "ECONOMICS",
-
-        statisticcat_desc:
-            "PRICE RECEIVED",
-
-        agg_level_desc:
-            "NATIONAL",
-
-        year__GE:
-            String(
-                new Date().getUTCFullYear() - 2
-            ),
-
-        format:
-            "JSON"
-
-    };
-
-
-    for (
-        const [name, value] of
-            Object.entries(
-                params
-            )
-    ) {
-
-        url.searchParams.set(
-            name,
-            value
-        );
+        return cached.text();
 
     }
 
 
     const response =
         await fetch(
-            url.href,
+            url,
             {
                 headers: {
+
                     "Accept":
-                        "application/json",
+                        "text/plain,text/*;q=0.9,*/*;q=0.8",
+
                     "User-Agent":
                         WIKIMEDIA_USER_AGENT
                 }
@@ -5468,296 +5806,272 @@ async function loadUSDANASSDataset(
     ) {
 
         throw new Error(
-            `USDA NASS Quick Stats request failed with status ${response.status}.`
+            `NASS public price file ${definition.file} failed with status ${response.status}.`
         );
 
     }
 
 
-    const payload =
-        await response.json();
+    const text =
+        await response.text();
 
 
-    const rows =
-        Array.isArray(
-            payload?.data
-        )
-            ? payload.data
-            : [];
+    await putTimestampedCache(
+        cache,
+        key,
+        new Response(
+            text,
+            {
+                status:
+                    200,
+
+                headers: {
+
+                    "Content-Type":
+                        "text/plain; charset=UTF-8"
+                }
+            }
+        ),
+        USDA_NASS_CACHE_TTL
+    );
 
 
-    if (
-        !rows.length
-    ) {
-
-        return {
-
-            prices: [],
-
-            source:
-                "USDA National Agricultural Statistics Service",
-
-            source_url:
-                USDA_NASS_DATA_PAGE,
-
-            license:
-                "Public domain",
-
-            license_url:
-                USDA_NASS_DATA_PAGE,
-
-            attribution:
-                "Source: USDA National Agricultural Statistics Service (NASS)",
-
-            configured:
-                true
-
-        };
-
-    }
+    return text;
+}
 
 
-    const seriesMap =
-        new Map();
-
-
-    for (
-        const row of
-            rows
-    ) {
-
-        const commodity =
-            normalizeText(
-                row?.commodity_desc
-            );
-
-        const classDesc =
-            normalizeText(
-                row?.class_desc
-            );
-
-        const unit =
-            normalizePriceUnit(
-                row?.unit_desc
-            );
-
-        const value =
-            parseDataNumber(
-                row?.value
-            );
-
-        const period =
-            getNassPeriodInfo(
-                row?.year,
-                row?.reference_period_desc
-            );
-
-
-        if (
-            !commodity ||
-            value === null ||
-            !unit ||
-            !period
-        ) {
-            continue;
-        }
-
-
-        if (
-            !/price received/i.test(
-                normalizeText(
-                    row?.statisticcat_desc
-                )
-            )
-        ) {
-            continue;
-        }
-
-
-        if (
-            !/\$|dollar|cent/i.test(
-                unit
-            )
-        ) {
-            continue;
-        }
-
-
-        let name =
-            commodity;
-
-
-        if (
-            classDesc &&
-            !/^all\s*classes?$/i.test(
-                classDesc
-            ) &&
-            !/^all$/i.test(
-                classDesc
-            )
-        ) {
-
-            name =
-                `${commodity} — ${classDesc}`;
-
-        }
-
-
-        const keyName =
-            canonicalCommodityKey(
-                commodity
-            );
-
-        const seriesKey =
-            `${keyName}|${normalizeSearchText(classDesc)}|${unit}`;
-
-
-        const existing =
-            seriesMap.get(
-                seriesKey
-            );
-
-
-        const candidate = {
-            name,
-            commodity,
-            unit,
-            value,
-            period,
-            classDesc,
-            row
-        };
-
-
-        if (
-            !existing ||
-            candidate.period.timestamp >
-                existing.period.timestamp
-        ) {
-
-            seriesMap.set(
-                seriesKey,
-                candidate
-            );
-
-        }
-
-    }
-
-
-    const byCommodity =
-        new Map();
-
-
-    for (
-        const candidate of
-            seriesMap.values()
-    ) {
-
-        const commodityKey =
-            canonicalCommodityKey(
-                candidate.commodity
-            );
-
-        const existing =
-            byCommodity.get(
-                commodityKey
-            );
-
-
-        if (
-            !existing ||
-            candidate.period.timestamp >
-                existing.period.timestamp
-        ) {
-
-            byCommodity.set(
-                commodityKey,
-                candidate
-            );
-
-        }
-
-    }
-
+async function loadUSDANASSDataset(
+    cache
+) {
 
     const prices = [];
+    const errors = [];
+    const files = [];
+
+
+    const results =
+        await Promise.allSettled(
+            USDA_NASS_PUBLIC_PRICE_FILES.map(
+                definition =>
+                    fetchNassPublicPriceFile(
+                        cache,
+                        definition
+                    )
+                        .then(
+                            text => ({
+
+                                definition,
+
+                                text
+                            })
+                        )
+            )
+        );
 
 
     for (
-        const candidate of
-            byCommodity.values()
+        const result of
+            results
     ) {
 
-        const category =
-            categorizeCommodity(
-                candidate.name
+        if (
+            result.status !==
+            "fulfilled"
+        ) {
+
+            errors.push(
+                result.reason?.message ||
+                String(
+                    result.reason
+                )
             );
 
+            continue;
 
-        const record =
-            makeCommodityRecord({
+        }
 
-                codePrefix:
-                    "NASS",
 
-                name:
-                    candidate.name,
+        const definition =
+            result.value.definition;
 
-                category,
+        const text =
+            result.value.text;
 
-                sourceUnit:
-                    candidate.unit,
+        const seriesNames =
+            Array.isArray(
+                definition.names
+            )
+                ? definition.names
+                : [
+                    definition.name
+                ];
 
-                price:
-                    candidate.value,
-
-                previousPrice:
-                    null,
-
-                change:
-                    null,
-
-                period:
-                    candidate.period,
-
-                source:
-                    "USDA National Agricultural Statistics Service",
-
-                sourceUrl:
-                    USDA_NASS_DATA_PAGE,
-
-                license:
-                    "Public domain",
-
-                licenseUrl:
-                    USDA_NASS_DATA_PAGE,
-
-                attribution:
-                    "Source: USDA National Agricultural Statistics Service (NASS)",
-
-                extra: {
-                    usda_class:
-                        candidate.classDesc || null
-                }
-
-            });
+        const observations =
+            parseNassChartRows(
+                text,
+                seriesNames.length
+            );
 
 
         if (
-            record
+            !observations.length
         ) {
 
-            prices.push(
-                record
+            errors.push(
+                `NASS public price file ${definition.file} contained no recognizable monthly observations.`
             );
+
+            continue;
+
+        }
+
+
+        files.push({
+
+            file:
+                definition.file,
+
+            page_url:
+                definition.pageUrl,
+
+            data_url:
+                `${USDA_NASS_PRICE_CHART_BASE}${definition.file}`,
+
+            latest_period:
+                observations[
+                    observations.length - 1
+                ].period.period
+        });
+
+
+        for (
+            let columnIndex = 0;
+            columnIndex <
+                seriesNames.length;
+            columnIndex += 1
+        ) {
+
+            const series =
+                observations
+                    .filter(
+                        observation =>
+                            observation.values[
+                                columnIndex
+                            ] !== null
+                    );
+
+
+            if (
+                !series.length
+            ) {
+
+                continue;
+
+            }
+
+
+            const latest =
+                series[
+                    series.length - 1
+                ];
+
+            const previous =
+                series.length > 1
+                    ? series[
+                        series.length - 2
+                    ]
+                    : null;
+
+            const price =
+                latest.values[
+                    columnIndex
+                ];
+
+            const previousPrice =
+                previous
+                    ? previous.values[
+                        columnIndex
+                    ]
+                    : null;
+
+
+            const change =
+                previousPrice !== null &&
+                previousPrice !== 0
+                    ? (
+                        (price - previousPrice) /
+                        previousPrice
+                    ) * 100
+                    : null;
+
+            const record =
+                makeCommodityRecord({
+
+                    codePrefix:
+                        "NASS",
+
+                    name:
+                        seriesNames[
+                            columnIndex
+                        ],
+
+                    category:
+                        definition.category,
+
+                    sourceUnit:
+                        definition.unit,
+
+                    price,
+
+                    previousPrice,
+
+                    change,
+
+                    period:
+                        latest.period,
+
+                    source:
+                        "USDA National Agricultural Statistics Service",
+
+                    sourceUrl:
+                        definition.pageUrl,
+
+                    license:
+                        "Public domain",
+
+                    licenseUrl:
+                        "https://www.nass.usda.gov/Data_and_Statistics/Citation_Request/",
+
+                    attribution:
+                        "Source: USDA National Agricultural Statistics Service (NASS)",
+
+                    extra: {
+
+                        usda_data_file:
+                            `${USDA_NASS_PRICE_CHART_BASE}${definition.file}`,
+
+                        usda_chart:
+                            definition.pageUrl
+                    }
+                });
+
+
+            if (
+                record
+            ) {
+
+                prices.push(
+                    record
+                );
+
+            }
 
         }
 
     }
 
 
-    const result = {
+    return {
 
         prices,
 
@@ -5771,38 +6085,19 @@ async function loadUSDANASSDataset(
             "Public domain",
 
         license_url:
-            USDA_NASS_DATA_PAGE,
+            "https://www.nass.usda.gov/Data_and_Statistics/Citation_Request/",
 
         attribution:
             "Source: USDA National Agricultural Statistics Service (NASS)",
 
         configured:
-            true
+            true,
 
+        public_files:
+            files,
+
+        errors
     };
-
-
-    await putTimestampedCache(
-        cache,
-        key,
-        new Response(
-            JSON.stringify(
-                result
-            ),
-            {
-                status:
-                    200,
-                headers: {
-                    "Content-Type":
-                        "application/json"
-                }
-            }
-        ),
-        USDA_NASS_CACHE_TTL
-    );
-
-
-    return result;
 }
 
 
@@ -6235,8 +6530,7 @@ async function buildCombinedMarketsDataset(
                 "USDA National Agricultural Statistics Service",
             promise:
                 loadUSDANASSDataset(
-                    cache,
-                    context?.env || {}
+                    cache
                 )
         },
 
@@ -6508,7 +6802,7 @@ async function buildCombinedMarketsDataset(
 
             "EIA U.S. government data used here: public domain, subject to EIA reuse policy and attribution.",
 
-            "USDA NASS public-domain information is freely reproducible with appropriate USDA-NASS acknowledgment.",
+            "USDA NASS public chart price data used here are public-domain NASS information reproduced with USDA-NASS acknowledgment.",
 
             "Voltlas Open Data: CC BY 4.0.",
 
