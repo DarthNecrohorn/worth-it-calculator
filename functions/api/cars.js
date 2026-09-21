@@ -597,7 +597,9 @@ async function handleModels(
         models =
             models.filter(vehicle =>
                 normalizeText(vehicle.make) === targetMake ||
-                simplifyText(vehicle.make) === simplifiedMake            );    }
+                simplifyText(vehicle.make) === simplifiedMake
+            );
+    }
 
     if (search) {
 
@@ -1195,7 +1197,9 @@ const WIKIPEDIA_FIELD_ALIASES = {
     "all-electric range": "electricRange",
     "driving range": "electricRange",
     "epa range": "electricRange",
-    "wltp range": "electricRange",    range: "electricRange",
+    "wltp range": "electricRange",
+    range: "electricRange",
+
     seating: "seating",
     seats: "seating",
     "seating capacity": "seating",
@@ -1793,9 +1797,11 @@ function cleanWikipediaWikitextValue(value) {
 
     /* External links. */
 
-    text =        text.replace(
+    text =
+        text.replace(
             /\[(?:https?:\/\/|\/\/)[^\s\]]+\s+([^\]]+)\]/gi,
-            "$1"        );
+            "$1"
+        );
 
     /* Formatting markup. */
 
@@ -2391,10 +2397,12 @@ function parseWikipediaInfoboxHtml(html) {
         }
 
     } catch (error) {
+
         console.error(
             "Wikipedia rendered HTML infobox parsing error:",
             error
-        );    }
+        );
+    }
 
     return specifications;
 }
@@ -2989,11 +2997,13 @@ function extractGenerationCandidateArticleTitle(
         /href=["'](\/wiki\/[^"'#]+)["'][^>]*>/gi;
 
     let hrefMatch;
+
     while ((hrefMatch = hrefRegex.exec(section)) !== null) {
 
         const title =
             extractWikipediaArticleTitleFromHref(
-                hrefMatch[1]            );
+                hrefMatch[1]
+            );
 
         if (!title) {
             continue;
@@ -3587,12 +3597,14 @@ function normalizeLicenseMetadata(value) {
         .toLowerCase()
         .replace(/[–—]/g, "-")
         .replace(/\s+/g, " ")
-        .trim();}
+        .trim();
+}
 
 function getCommercialWikimediaLicense(extmetadata) {
 
     if (!extmetadata || typeof extmetadata !== "object") {
-        return null;    }
+        return null;
+    }
 
     const shortName =
         normalizeLicenseMetadata(
@@ -3768,26 +3780,15 @@ function isVehicleImageUrlMatchingName(
         return false;
     }
 
-    /*
-     * Require the complete make + model phrase in the URL path.
-     * URL separators are normalized, while extra descriptive text
-     * after the exact vehicle name is allowed.
-     *
-     * Example:
-     *   BMW_3_Series_2019.jpg
-     *   BMW-3-Series-Touring.jpg
-     *
-     * Partial matches such as only "BMW" or "BMW 3" are rejected.
-     */
     const escapedVehicleName =
         vehicleName.replace(
             /[.*+?^\${}()|[\]\\]/g,
-            "\\$&"
+            "\\async function getCommercialWikimediaImage(imageTitle) {"
         );
 
     const pattern =
         new RegExp(
-            `(?:^|\\s)${escapedVehicleName}`,
+            `(?:^|\s)${escapedVehicleName}`,
             "i"
         );
 
@@ -3795,13 +3796,6 @@ function isVehicleImageUrlMatchingName(
         normalizedPath
     );
 }
-
-
-/*
- * ------------------------------------------------------------
- * Wikimedia image lookup
- * ------------------------------------------------------------
- */
 
 async function getCommercialWikimediaImage(
     imageTitle,
@@ -3868,8 +3862,8 @@ async function getCommercialWikimediaImage(
         }
 
         /*
-         * The actual Wikimedia source URL must contain the complete
-         * vehicle make + model name after normalization. This blocks
+         * Require the complete make + model phrase in the actual
+         * Wikimedia source URL after normalization. This blocks
          * generic or only-partially-matching vehicle images even when
          * their license is otherwise acceptable.
          */
@@ -4185,13 +4179,15 @@ async function getWikipediaInfoboxData(
                 createEmptyWikipediaSpecifications()
         };
 
-        if (            vehicleContext &&
+        if (
+            vehicleContext &&
             generationSections.length
         ) {
             latestGeneration =
                 await resolveLatestGenerationData(
                     html,
-                    vehicleContext.make,                    vehicleContext.model,
+                    vehicleContext.make,
+                    vehicleContext.model,
                     vehicleContext.kind
                 );
         }
@@ -4783,6 +4779,7 @@ function createLightweightVehicleFromRequest(
     if (!kind) {
         return null;
     }
+
     const make =
         requestUrl.searchParams.get("make") ||
         "";
@@ -4790,6 +4787,7 @@ function createLightweightVehicleFromRequest(
     const model =
         requestUrl.searchParams.get("model") ||
         "";
+
     const yearRaw =
         requestUrl.searchParams.get("year");
 
@@ -4981,4 +4979,3 @@ export async function onRequestGet(context) {
         );
     }
 }
-    
