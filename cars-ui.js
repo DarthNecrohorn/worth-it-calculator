@@ -9430,6 +9430,135 @@ function injectVehicleUiStyles() {
         }
 
 
+        .cars-results-title-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 14px;
+            width: 100%;
+        }
+
+        .cars-results-title-row h3 {
+            margin: 0;
+        }
+
+        .cars-results-actions {
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            flex: 0 0 auto;
+        }
+
+        .cars-refresh-button {
+            width: 40px;
+            height: 40px;
+            padding: 0;
+            border: 1px solid rgba(255, 255, 255, 0.14);
+            border-radius: 12px;
+            background: rgba(255, 255, 255, 0.06);
+            color: inherit;
+            font-size: 1.28rem;
+            font-weight: 800;
+            line-height: 1;
+            cursor: pointer;
+            transition:
+                transform 0.16s ease,
+                background 0.16s ease,
+                border-color 0.16s ease,
+                opacity 0.16s ease;
+        }
+
+        .cars-refresh-button:hover,
+        .cars-refresh-button:focus-visible {
+            transform: rotate(-12deg) scale(1.04);
+            background: rgba(255, 255, 255, 0.11);
+            border-color: rgba(139, 92, 246, 0.65);
+            outline: none;
+        }
+
+        .cars-refresh-button:disabled {
+            cursor: wait;
+            opacity: 0.62;
+        }
+
+        .cars-refresh-button.is-loading {
+            animation: carsRefreshSpin 0.75s linear infinite;
+        }
+
+        .cars-refresh-info-wrap {
+            position: relative;
+            display: inline-flex;
+            align-items: center;
+        }
+
+        .cars-refresh-info-button {
+            flex: 0 0 22px;
+        }
+
+        .cars-refresh-tooltip {
+            position: absolute;
+            top: calc(100% + 9px);
+            right: 0;
+            z-index: 10000;
+            display: flex;
+            flex-direction: column;
+            gap: 7px;
+            width: min(390px, calc(100vw - 32px));
+            padding: 12px 14px;
+            border: 1px solid rgba(255, 255, 255, 0.14);
+            border-radius: 11px;
+            background: rgba(17, 19, 24, 0.97);
+            color: #f5f7fa;
+            box-shadow: 0 14px 35px rgba(0, 0, 0, 0.3);
+            font-size: 0.78rem;
+            line-height: 1.5;
+            text-align: left;
+        }
+
+        .cars-refresh-tooltip[hidden] {
+            display: none;
+        }
+
+        .cars-refresh-tooltip strong {
+            font-size: 0.8rem;
+        }
+
+        @keyframes carsRefreshSpin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        html[data-theme="light"] .cars-refresh-button {
+            border-color: rgba(0, 0, 0, 0.14);
+            background: rgba(0, 0, 0, 0.045);
+            color: #16181d;
+        }
+
+        html[data-theme="light"] .cars-refresh-button:hover,
+        html[data-theme="light"] .cars-refresh-button:focus-visible {
+            background: rgba(0, 0, 0, 0.08);
+            border-color: rgba(124, 58, 237, 0.55);
+        }
+
+        @media (max-width: 760px) {
+            .cars-results-title-row {
+                align-items: flex-start;
+            }
+
+            .cars-results-actions {
+                gap: 5px;
+            }
+
+            .cars-refresh-button {
+                width: 38px;
+                height: 38px;
+            }
+
+            .cars-refresh-tooltip {
+                right: -2px;
+            }
+        }
+
         /* Floating Show Less button */
         /*
          * Intentionally matches the Markets "Go back up" control:
