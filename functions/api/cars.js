@@ -1,7 +1,7 @@
 /*
  * ============================================================
  * WORTH IT - VEHICLES API
- * VehiclesDB Open Dataset + Wikipedia supplemental data
+ * VehiclesDB Open Dataset + Wikidata + DBpedia supplemental data
  *
  * Catalog traffic is served directly from VehiclesDB CDN.
  * This Function is kept lightweight: it does not parse the full
@@ -29,7 +29,7 @@ const VEHICLES_DB_URL =
 const CACHE_TTL = 86400; // 24 hours
 const WIKIPEDIA_CACHE_TTL = 604800; // 7 days
 const MAX_MODELS_PER_KIND = 300; // Keep the catalog focused on popular vehicles
-const WIKIPEDIA_CACHE_VERSION = "v19";
+const WIKIPEDIA_CACHE_VERSION = "v20";
 
 const WIKIPEDIA_API =
     "https://en.wikipedia.org/w/api.php";
@@ -51,7 +51,16 @@ const WIKIDATA_CLASS_BY_KIND = {
     bus: "Q5638"
 };
 
-const WIKIDATA_CANDIDATE_LIMIT = 300;
+const WIKIDATA_CANDIDATE_LIMIT = 600;
+
+const DBPEDIA_SPARQL_API =
+    "https://dbpedia.org/sparql";
+
+const DBPEDIA_CACHE_TTL =
+    604800;
+
+const DBPEDIA_CANDIDATE_LIMIT =
+    600;
 
 const VALID_KINDS = new Set([
     "car",
@@ -780,6 +789,373 @@ async function handleWikidataCandidates(
             {
                 success: false,
                 error: "Wikidata candidate lookup failed",
+                vehicles: []
+            },
+            200,
+            300
+        );
+    }
+}
+
+
+/*
+ * ------------------------------------------------------------
+ * DBPEDIA SUPPLEMENTAL CANDIDATES
+ * ------------------------------------------------------------
+ * DBpedia is used only as another candidate-discovery source.
+ * Technical information remains Wikipedia-based and every candidate
+ * is checked by the same frontend quality/category validation.
+ */
+
+async function fetchDbpediaCached(
+    url
+) {
+
+    const cache =
+        caches.default;
+
+    const cacheKey =
+        new Request(
+            "https://worth-it-internal-cache.local/dbpedia/" +
+            url
+        );
+
+    const cached =
+        await cache.match(cacheKey);
+
+    if (cached) {
+
+        try {
+            return await cached.json();
+        } catch {}
+    }
+
+    const response =
+        await fetch(
+            url,
+            {
+                headers: {
+                    "Accept":
+                        "application/sparql-results+json",
+                    "User-Agent":
+                        "Worth It Cars/1.0 (https://worth-it-calculator.pages.dev/)"
+                }
+            }
+        );
+
+    if (!response.ok) {
+        throw new Error(
+            "DBpedia returned " + response.status
+        );
+    }
+
+    const data =
+        await response.json();
+
+    try {
+        await cache.put(
+            cacheKey,
+            new Response(
+                JSON.stringify(data),
+                {
+                    status: 200,
+                    headers: {
+                        "Content-Type":
+                            "application/sparql-results+json; charset=UTF-8",
+                        "Cache-Control":
+                            "public, max-age=" +
+                            DBPEDIA_CACHE_TTL
+                    }
+                }
+            )
+        );
+    } catch (error) {
+        console.error(
+            "DBpedia cache write failed:",
+            error
+        );
+    }
+
+    return data;
+}
+
+function getDbpediaWikipediaTitle(resourceUrl) {
+
+    const raw =
+        String(resourceUrl || "").trim();
+
+    const match =
+        raw.match(
+            /\/resource\/([^#?]+)$/i
+        );
+
+    if (!match) {
+        return null;
+    }
+
+    try {
+        return decodeURIComponent(
+            match[1]
+        )
+            .replace(/_/g, " ")
+            .trim();
+    } catch {
+        return match[1]
+            .replace(/_/g, " ")
+            .trim();
+    }
+}
+
+function splitDbpediaVehicleTitle(title) {
+
+    const cleanTitle =
+        String(title || "")
+            .replace(
+                /\s+\((?:motorcycle|motorbike|scooter|moped|van|truck|lorry|bus|coach|vehicle)\)$/i,
+                ""
+            )
+            .trim();
+
+    const words =
+        cleanTitle
+            .split(/\s+/)
+            .filter(Boolean);
+
+    if (words.length < 2) {
+        return {
+            make: words[0] || "",
+            model: ""
+        };
+    }
+
+    const twoWordMakeHints = [
+        "royal enfield",
+        "land rover",
+        "aston martin",
+        "alfa romeo",
+        "rolls royce",
+        "harley davidson",
+        "harley-davidson",
+        "general motors",
+        "tata motors",
+        "ashok leyland",
+        "daewoo motors",
+        "freightliner trucks",
+        "mercedes benz",
+        "mercedes-benz"
+    ];
+
+    const normalizedTitle =
+        cleanTitle
+            .toLowerCase()
+            .replace(/[^a-z0-9-]+/g, " ")
+            .replace(/\s+/g, " ")
+            .trim();
+
+    const hintedMake =
+        twoWordMakeHints.find(
+            hint =>
+                normalizedTitle === hint ||
+                normalizedTitle.startsWith(
+                    hint + " "
+                )
+        );
+
+    const makeWordCount =
+        hintedMake
+            ? 2
+            : 1;
+
+    return {
+        make:
+            words.slice(
+                0,
+                makeWordCount
+            ).join(" "),
+        model:
+            words
+                .slice(makeWordCount)
+                .join(" ")
+    };
+}
+
+async function handleDbpediaCandidates(
+    requestUrl
+) {
+
+    const kind =
+        getRequestedKind(requestUrl);
+
+    if (!kind || kind === "car") {
+
+        return jsonResponse(
+            {
+                success: true,
+                kind,
+                source: "DBpedia",
+                count: 0,
+                vehicles: []
+            },
+            200,
+            DBPEDIA_CACHE_TTL
+        );
+    }
+
+    const textFilter =
+        DBPEDIA_KIND_TEXT_FILTERS[kind];
+
+    if (textFilter === undefined) {
+
+        return jsonResponse(
+            {
+                success: false,
+                error:
+                    "DBpedia does not provide this vehicle kind",
+                vehicles: []
+            },
+            400,
+            60
+        );
+    }
+
+    const typeClause =
+        kind === "motorcycle"
+            ? "?item a dbo:Motorcycle."
+            : "?item a dbo:MeanOfTransportation.";
+
+    const abstractFilter =
+        textFilter
+            ? " FILTER(REGEX(LCASE(STR(?abstract)), \"" +
+              textFilter +
+              "\"))"
+            : "";
+
+    const query =
+        "SELECT ?item ?itemLabel ?manufacturerLabel WHERE {" +
+        " " + typeClause +
+        " ?item dbo:manufacturer ?manufacturer." +
+        " ?item rdfs:label ?itemLabel." +
+        " ?item dbo:abstract ?abstract." +
+        " ?manufacturer rdfs:label ?manufacturerLabel." +
+        " FILTER(LANG(?itemLabel)=\"en\")" +
+        " FILTER(LANG(?abstract)=\"en\")" +
+        " FILTER(LANG(?manufacturerLabel)=\"en\")" +
+        abstractFilter +
+        "} ORDER BY LCASE(STR(?itemLabel))" +
+        " LIMIT " +
+        DBPEDIA_CANDIDATE_LIMIT;
+
+    const url =
+        new URL(DBPEDIA_SPARQL_API);
+
+    url.searchParams.set("query", query);
+    url.searchParams.set("format", "json");
+
+    try {
+
+        const data =
+            await fetchDbpediaCached(
+                url.toString()
+            );
+
+        const bindings =
+            Array.isArray(data?.results?.bindings)
+                ? data.results.bindings
+                : [];
+
+        const seen =
+            new Set();
+
+        const vehicles = [];
+
+        for (const binding of bindings) {
+
+            const wikipediaTitle =
+                getDbpediaWikipediaTitle(
+                    binding?.item?.value
+                );
+
+            if (!wikipediaTitle) {
+                continue;
+            }
+
+            const splitTitle =
+                splitDbpediaVehicleTitle(
+                    wikipediaTitle
+                );
+
+            if (
+                !splitTitle.make ||
+                !splitTitle.model
+            ) {
+                continue;
+            }
+
+            const key =
+                splitTitle.make.toLowerCase() +
+                "|" +
+                splitTitle.model.toLowerCase();
+
+            if (seen.has(key)) {
+                continue;
+            }
+
+            seen.add(key);
+
+            vehicles.push({
+                make: splitTitle.make,
+                model: splitTitle.model,
+                kind,
+                sourceKind: kind,
+                supplementalSource: "dbpedia",
+                wikipediaTitle,
+                dbpediaManufacturer:
+                    String(
+                        binding?.manufacturerLabel?.value ||
+                        ""
+                    ).trim() || null,
+                bodyType: null,
+                bodyTypes: [],
+                popularityRanks: [],
+                globalDecile: 998,
+                availability: [],
+                yearStart: null,
+                yearEnd: null
+            });
+
+            if (
+                vehicles.length >=
+                DBPEDIA_CANDIDATE_LIMIT
+            ) {
+                break;
+            }
+        }
+
+        return jsonResponse(
+            {
+                success: true,
+                kind,
+                source: "DBpedia",
+                count: vehicles.length,
+                vehicles
+            },
+            200,
+            DBPEDIA_CACHE_TTL
+        );
+
+    } catch (error) {
+
+        console.error(
+            "DBpedia candidate lookup failed:",
+            kind,
+            error
+        );
+
+        return jsonResponse(
+            {
+                success: false,
+                error:
+                    "DBpedia candidate lookup failed",
                 vehicles: []
             },
             200,
@@ -3870,7 +4246,7 @@ function hasStrongWikipediaKindContradiction(
 
     return (
         positiveCount === 0 &&
-        contradictionCount >= 2
+        contradictionCount >= 1
     );
 }
 
@@ -5260,6 +5636,68 @@ async function handleDetails(
         }
     }
 
+
+    /*
+     * A source/catalog can occasionally mislabel a vehicle class.
+     * Wikipedia body-style information is authoritative enough to
+     * stop obvious cross-category leaks such as a truck shown as a bus.
+     */
+    if (kind !== "car") {
+
+        const bodyTypeText =
+            normalizeWikipediaSearchText(
+                specifications?.bodyType || ""
+            );
+
+        const kindBodyTypeContradictions = {
+            motorcycle: [
+                "car", "sedan", "hatchback", "coupe", "suv",
+                "sport utility", "van", "truck", "bus"
+            ],
+            van: [
+                "suv", "sport utility", "crossover", "sedan",
+                "hatchback", "coupe", "roadster", "convertible",
+                "wagon", "pickup", "motorcycle", "moped",
+                "truck", "bus"
+            ],
+            truck: [
+                "suv", "sport utility", "sedan", "hatchback",
+                "coupe", "roadster", "convertible", "wagon",
+                "motorcycle", "moped", "bus", "van"
+            ],
+            bus: [
+                "suv", "sport utility", "sedan", "hatchback",
+                "coupe", "roadster", "convertible", "wagon",
+                "motorcycle", "moped", "truck", "van"
+            ]
+        };
+
+        const contradictions =
+            kindBodyTypeContradictions[kind] ||
+            [];
+
+        if (
+            bodyTypeText &&
+            contradictions.some(
+                term =>
+                    bodyTypeText.includes(
+                        normalizeWikipediaSearchText(term)
+                    )
+            )
+        ) {
+
+            return jsonResponse(
+                createWikipediaNoInformation(
+                    vehicle.make,
+                    vehicle.model,
+                    kind
+                ),
+                200,
+                WIKIPEDIA_CACHE_TTL
+            );
+        }
+    }
+
     inferWikipediaFuel(specifications);
 
     if (!isUsefulWikipediaValue(specifications.fuel)) {
@@ -5593,6 +6031,11 @@ export async function onRequestGet(context) {
                     requestUrl
                 );
 
+            case "dbpedia":
+                return handleDbpediaCandidates(
+                    requestUrl
+                );
+
             case "images":
                 return handleImages(
                     requestUrl
@@ -5615,7 +6058,8 @@ export async function onRequestGet(context) {
                             "vehicle",
                             "images",
                             "details",
-                            "wikidata"
+                            "wikidata",
+                            "dbpedia"
                         ],
                         supportedKinds:
                             Array.from(VALID_KINDS)
