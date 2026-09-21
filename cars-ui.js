@@ -6532,11 +6532,11 @@ function ensureVehicleFloatingCollapseButton() {
         "worth-it-vehicle-floating-collapse";
 
     button.textContent =
-        "Show less cars";
+        `Show less ${getVehicleKindInfo(currentVehicleKind).plural.toLowerCase()}`;
 
     button.setAttribute(
         "aria-label",
-        "Show less cars"
+        `Show less ${getVehicleKindInfo(currentVehicleKind).plural.toLowerCase()}`
     );
 
     button.addEventListener(
@@ -6545,6 +6545,49 @@ function ensureVehicleFloatingCollapseButton() {
 
             currentVehicleShowAll =
                 false;
+
+            const stableDisplayState =
+                getStablePopularDisplayState(
+                    currentVehicleKind
+                );
+
+            if (
+                stableDisplayState
+            ) {
+
+                stableDisplayState.showAll =
+                    false;
+
+                hideOrShowStablePopularCards(
+                    currentVehicleKind,
+                    false
+                );
+
+                renderVehicleExpandButton(
+                    currentVehicleResults,
+                    currentVehicleResults.slice(
+                        0,
+                        Math.max(
+                            1,
+                            getVehiclesPerRow() *
+                            INITIAL_VISIBLE_ROWS
+                        )
+                    ),
+                    currentVehicleKind,
+                    Boolean(
+                        popularVehicleQualityState.get(
+                            currentVehicleKind
+                        ) &&
+                        !popularVehicleQualityState.get(
+                            currentVehicleKind
+                        ).exhausted
+                    )
+                );
+
+                hideVehicleFloatingCollapseButton();
+                return;
+
+            }
 
             renderVehicleCards(
                 currentVehicleResults,
@@ -8544,10 +8587,41 @@ async function filterCarsByCategory(
      * Usually this resolves from the background-preloaded catalog
      * immediately, matching the behaviour of the Cars category.
      */
-    const vehicles =
+    let vehicles =
         await fetchVehicleCatalog(
             kind
         );
+
+    /*
+     * A temporary CDN failure can return an empty result without meaning
+     * that the category is actually empty. Try the catalog once more before
+     * presenting the user with an empty category.
+     */
+    if (
+        !vehicles.length
+    ) {
+
+        await new Promise(
+            resolve =>
+                window.setTimeout(
+                    resolve,
+                    350
+                )
+        );
+
+        if (
+            currentVehicleKind !== kind ||
+            currentVehicleMode !== "popular"
+        ) {
+            return;
+        }
+
+        vehicles =
+            await fetchVehicleCatalog(
+                kind
+            );
+
+    }
 
     currentVehicleCatalog =
         vehicles;
@@ -8818,11 +8892,36 @@ async function openCars() {
      * Load Cars catalog.
      */
 
-    const vehicles =
+    let vehicles =
         await fetchVehicleCatalog(
             "car"
         );
 
+    if (
+        !vehicles.length
+    ) {
+
+        await new Promise(
+            resolve =>
+                window.setTimeout(
+                    resolve,
+                    350
+                )
+        );
+
+        if (
+            currentVehicleKind !== "car" ||
+            currentVehicleMode !== "popular"
+        ) {
+            return;
+        }
+
+        vehicles =
+            await fetchVehicleCatalog(
+                "car"
+            );
+
+    }
 
     currentVehicleCatalog =
         vehicles;
