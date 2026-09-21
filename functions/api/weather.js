@@ -132,11 +132,6 @@ const inFlightWeatherRequests =
 
 export async function onRequestGet(context) {
 
-    recordAdminApiUsage(context, {
-        apiKey: "weather",
-        provider: "Visual Crossing"
-    });
-
     try {
 
         const url =
@@ -362,6 +357,11 @@ export async function onRequestGet(context) {
 
         }
         else {
+
+            recordAdminApiUsage(context, {
+                apiKey: "weather",
+                provider: "Visual Crossing"
+            });
 
             const requestPromise =
                 fetchFreshWeatherData({
