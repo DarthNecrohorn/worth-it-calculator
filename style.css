@@ -1995,7 +1995,7 @@ html[data-theme="light"] .ai-chat-nav-btn{color:#0f172a;background:rgba(15,23,42
 
 .admin-usage-metrics{
     display:grid;
-    grid-template-columns:1fr 1fr;
+    grid-template-columns:repeat(3,minmax(0,1fr));
     gap:8px;
     margin-top:12px;
 }
@@ -2144,6 +2144,10 @@ html[data-theme="light"] .admin-usage-metrics > div{
 }
 
 @media(max-width:480px){
+    .admin-usage-metrics{
+        grid-template-columns:1fr;
+    }
+
     .admin-panel-card{
         padding:14px;
     }
