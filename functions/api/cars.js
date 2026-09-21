@@ -3783,12 +3783,12 @@ function isVehicleImageUrlMatchingName(
     const escapedVehicleName =
         vehicleName.replace(
             /[.*+?^\${}()|[\]\\]/g,
-            "\\async function getCommercialWikimediaImage(imageTitle) {"
+            "\\$&"
         );
 
     const pattern =
         new RegExp(
-            `(?:^|\s)${escapedVehicleName}`,
+            `(?:^|\\s)${escapedVehicleName}`,
             "i"
         );
 
