@@ -4978,7 +4978,7 @@ function createVehicleCard(
         image,
         vehicle.make || "",
         vehicle.model || "",
-        kind
+        vehicle.sourceKind || kind
     );
 
 }
@@ -5432,11 +5432,16 @@ async function openVehicleDetailsPanel(
         </div>
     `;
 
+    const detailKind =
+        vehicle.sourceKind ||
+        kind;
+
     const details =
-        await fetchVehicleDetails(
+        await fetchVehicleDetailsWithRetry(
             vehicle.make,
             vehicle.model,
-            kind
+            detailKind,
+            2
         );
 
     if (
@@ -5467,7 +5472,7 @@ async function openVehicleDetailsPanel(
         hasReliableVehicleWikipediaData(
             details,
             vehicle,
-            kind
+            detailKind
         ) &&
         details.comparisonAvailable !== false;
 
@@ -9445,6 +9450,15 @@ function ensureVehiclesDBAttribution() {
         </a>
 
         · CC BY 4.0
+        · Supplemental vehicle candidates from
+        <a
+            href="https://www.wikidata.org/"
+            target="_blank"
+            rel="noopener noreferrer"
+        >
+            Wikidata
+        </a>
+        · CC0
 
     `;
 
