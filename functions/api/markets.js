@@ -1,32 +1,71 @@
 /* =========================================================
    WORTH IT — MARKETS API
-   World Bank Commodity Price Data (The Pink Sheet)
+   Voltlas Open Data
 
-   Data source:
-     World Bank Commodity Markets
-     Monthly prices workbook
+   Primary data source:
+     Voltlas Open Data
+     https://voltlas.com/data/latest.json
+
+   Voltlas publishes the same commodity data used by its site
+   as plain JSON.
+
+   No API key required.
+   No sign-up required.
+   No rate limit stated by Voltlas.
 
    License:
      Creative Commons Attribution 4.0 (CC BY 4.0)
 
-   No API key required.
+   Required attribution:
+     Data: Voltlas (https://voltlas.com), CC BY 4.0
 
-   This version dynamically reads every commodity series that
-   exists in the World Bank "Monthly Prices" worksheet.
+   Current commodity endpoint:
+     /api/markets
 
-   It also provides a separate lazy image endpoint:
-
+   Lazy Wikimedia image endpoint:
      /api/markets?action=image&name=Gold&category=precious-metals
 
-   Images are searched on Wikimedia Commons and are accepted only
-   when the file has a commercially reusable free/public-domain
-   license and the image metadata is relevant to the commodity.
+   The commodity dataset is intentionally capped at 300 items
+   for the Worth It Markets response. The source itself remains
+   dynamic and every usable Voltlas COMMODITIES[] entry is read
+   before the final output limit is applied.
 
-   Unknown / ambiguous licenses are rejected.
+   Voltlas commodity fields:
+     name
+     cat
+     price
+     unit
+     chg
+     source
+     period
 ========================================================= */
 
-const WORLD_BANK_MARKETS_PAGE =
-    "https://www.worldbank.org/en/research/commodity-markets";
+
+/* =========================================================
+   VOLTLAS
+========================================================= */
+
+const VOLTLAS_DATA_URL =
+    "https://voltlas.com/data/latest.json";
+
+
+const VOLTLAS_DATA_PAGE =
+    "https://voltlas.com/data";
+
+
+const VOLTLAS_LICENSE_URL =
+    "https://creativecommons.org/licenses/by/4.0/";
+
+
+/*
+ * Maximum number of commodity series returned by Worth It.
+ *
+ * This is intentionally set to 300 so the Markets frontend can
+ * display a much larger dataset when the Voltlas source provides
+ * that many usable commodity series.
+ */
+const MAX_COMMODITIES =
+    300;
 
 
 /* =========================================================
@@ -43,31 +82,19 @@ const IMAGE_NEGATIVE_CACHE_TTL =
     24 * 60 * 60;
 
 
-/*
- * Maximum number of commodity series returned by the API.
- *
- * The parser remains dynamic and reads every usable series
- * from the World Bank worksheet first. This is only a final
- * safety/output limit.
- */
-const MAX_COMMODITIES =
-    100;
-
-
 const CACHE_TIMESTAMP_HEADER =
     "X-Worth-It-Cache-Time";
 
 
-const WORLD_BANK_XLSX_CACHE_KEY =
-    "https://worth-it-internal-cache.local/world-bank-cmo-monthly-v2.xlsx";
+/*
+ * New cache keys intentionally replace the old World Bank cache.
+ */
+const VOLTLAS_SOURCE_CACHE_KEY =
+    "https://worth-it-internal-cache.local/voltlas-commodities-latest-v1.json";
 
 
-const WORLD_BANK_RESULT_CACHE_KEY =
-    "https://worth-it-internal-cache.local/world-bank-markets-v5.json";
-
-
-const WORLD_BANK_PAGE_CACHE_KEY =
-    "https://worth-it-internal-cache.local/world-bank-commodity-markets-page-v2";
+const VOLTLAS_RESULT_CACHE_KEY =
+    "https://worth-it-internal-cache.local/voltlas-markets-v1.json";
 
 
 /* =========================================================
@@ -79,13 +106,13 @@ const WIKIMEDIA_API =
 
 
 /*
- * Version intentionally bumped from v4 to v5.
+ * Bumped for the current Markets image filtering logic.
  *
- * This invalidates old negative image-cache entries that were
- * generated before the Wikimedia request / license fixes.
+ * This invalidates older negative image-cache results generated
+ * under previous market-data configurations.
  */
 const WIKIMEDIA_IMAGE_CACHE_PREFIX =
-    "https://worth-it-internal-cache.local/markets-wikimedia-image-v10/";
+    "https://worth-it-internal-cache.local/markets-wikimedia-image-v11/";
 
 
 const MAX_IMAGE_SEARCH_CANDIDATES =
@@ -114,8 +141,6 @@ const MIN_IMAGE_PIXELS =
 
 /*
  * Wikimedia requires an identifying User-Agent for API requests.
- *
- * Keep this descriptive and point to the project URL.
  */
 const WIKIMEDIA_USER_AGENT =
     "Worth-It-Markets/1.0 (https://github.com/DarthNecrohorn/worth-it-calculator)";
@@ -138,7 +163,9 @@ function jsonResponse(
         });
 
 
-    if (cacheSeconds > 0) {
+    if (
+        cacheSeconds > 0
+    ) {
 
         headers.set(
             "Cache-Control",
@@ -189,7 +216,9 @@ function responseWithCacheTimestamp(
     );
 
 
-    if (cacheSeconds > 0) {
+    if (
+        cacheSeconds > 0
+    ) {
 
         headers.set(
             "Cache-Control",
@@ -304,7 +333,7 @@ async function putTimestampedCache(
 
 
 /* =========================================================
-   TEXT HELPERS
+   TEXT / NUMBER HELPERS
 ========================================================= */
 
 function normalizeText(
@@ -312,8 +341,14 @@ function normalizeText(
 ) {
 
     return String(value || "")
-        .replace(/\u00A0/g, " ")
-        .replace(/\s+/g, " ")
+        .replace(
+            /\u00A0/g,
+            " "
+        )
+        .replace(
+            /\s+/g,
+            " "
+        )
         .trim();
 }
 
@@ -326,7 +361,9 @@ function normalizeSearchText(
         value
     )
         .toLowerCase()
-        .normalize("NFKD")
+        .normalize(
+            "NFKD"
+        )
         .replace(
             /[\u0300-\u036f]/g,
             ""
@@ -353,103 +390,6 @@ function simplifySearchText(
 }
 
 
-function decodeXmlEntities(
-    value
-) {
-
-    return String(value || "")
-        .replace(
-            /&amp;/g,
-            "&"
-        )
-        .replace(
-            /&lt;/g,
-            "<"
-        )
-        .replace(
-            /&gt;/g,
-            ">"
-        )
-        .replace(
-            /&quot;/g,
-            '"'
-        )
-        .replace(
-            /&apos;/g,
-            "'"
-        )
-        .replace(
-            /&#(\d+);/g,
-            (_, decimal) => {
-
-                const codePoint =
-                    Number(decimal);
-
-
-                return Number.isFinite(
-                    codePoint
-                )
-                    ? String.fromCodePoint(
-                        codePoint
-                    )
-                    : _;
-
-            }
-        )
-        .replace(
-            /&#x([0-9a-f]+);/gi,
-            (_, hex) => {
-
-                const codePoint =
-                    Number.parseInt(
-                        hex,
-                        16
-                    );
-
-
-                return Number.isFinite(
-                    codePoint
-                )
-                    ? String.fromCodePoint(
-                        codePoint
-                    )
-                    : _;
-
-            }
-        );
-}
-
-
-function stripHtml(
-    value
-) {
-
-    return normalizeText(
-        String(value || "")
-            .replace(
-                /<[^>]*>/g,
-                " "
-            )
-            .replace(
-                /&nbsp;/gi,
-                " "
-            )
-    );
-}
-
-
-function escapeRegExp(
-    value
-) {
-
-    return String(value || "")
-        .replace(
-            /[.*+?^${}()|[\]\\]/g,
-            "\\$&"
-        );
-}
-
-
 function normalizeUnit(
     value
 ) {
@@ -465,1043 +405,34 @@ function normalizeUnit(
 }
 
 
-/* =========================================================
-   ZIP / XLSX HELPERS
-========================================================= */
-
-function readUInt16(
-    bytes,
-    offset
-) {
-
-    return (
-        bytes[offset] |
-        (bytes[offset + 1] << 8)
-    ) >>> 0;
-}
-
-
-function readUInt32(
-    bytes,
-    offset
-) {
-
-    return (
-        bytes[offset] |
-        (bytes[offset + 1] << 8) |
-        (bytes[offset + 2] << 16) |
-        (bytes[offset + 3] << 24)
-    ) >>> 0;
-}
-
-
-function findEndOfCentralDirectory(
-    bytes
-) {
-
-    const signature =
-        0x06054b50;
-
-
-    const minimumOffset =
-        Math.max(
-            0,
-            bytes.length - 65557
-        );
-
-
-    for (
-        let offset =
-            bytes.length - 22;
-
-        offset >= minimumOffset;
-
-        offset -= 1
-    ) {
-
-        if (
-            readUInt32(
-                bytes,
-                offset
-            ) === signature
-        ) {
-
-            return offset;
-
-        }
-
-    }
-
-
-    throw new Error(
-        "Invalid XLSX ZIP: end of central directory not found."
-    );
-}
-
-
-async function inflateDeflateRaw(
-    bytes
-) {
-
-    const stream =
-        new Blob([bytes])
-            .stream()
-            .pipeThrough(
-                new DecompressionStream(
-                    "deflate-raw"
-                )
-            );
-
-
-    return new Uint8Array(
-        await new Response(
-            stream
-        ).arrayBuffer()
-    );
-}
-
-
-async function unzipEntries(
-    arrayBuffer
-) {
-
-    const bytes =
-        new Uint8Array(
-            arrayBuffer
-        );
-
-
-    const endOffset =
-        findEndOfCentralDirectory(
-            bytes
-        );
-
-
-    const totalEntries =
-        readUInt16(
-            bytes,
-            endOffset + 10
-        );
-
-
-    const centralDirectoryOffset =
-        readUInt32(
-            bytes,
-            endOffset + 16
-        );
-
-
-    const entries =
-        new Map();
-
-
-    let cursor =
-        centralDirectoryOffset;
-
-
-    const decoder =
-        new TextDecoder(
-            "utf-8"
-        );
-
-
-    for (
-        let index = 0;
-        index < totalEntries;
-        index += 1
-    ) {
-
-        if (
-            readUInt32(
-                bytes,
-                cursor
-            ) !== 0x02014b50
-        ) {
-
-            throw new Error(
-                "Invalid XLSX ZIP: corrupt central directory."
-            );
-
-        }
-
-
-        const compressionMethod =
-            readUInt16(
-                bytes,
-                cursor + 10
-            );
-
-
-        const compressedSize =
-            readUInt32(
-                bytes,
-                cursor + 20
-            );
-
-
-        const fileNameLength =
-            readUInt16(
-                bytes,
-                cursor + 28
-            );
-
-
-        const extraLength =
-            readUInt16(
-                bytes,
-                cursor + 30
-            );
-
-
-        const commentLength =
-            readUInt16(
-                bytes,
-                cursor + 32
-            );
-
-
-        const localHeaderOffset =
-            readUInt32(
-                bytes,
-                cursor + 42
-            );
-
-
-        const fileName =
-            decoder.decode(
-                bytes.slice(
-                    cursor + 46,
-                    cursor +
-                        46 +
-                        fileNameLength
-                )
-            );
-
-
-        if (
-            readUInt32(
-                bytes,
-                localHeaderOffset
-            ) !== 0x04034b50
-        ) {
-
-            throw new Error(
-                `Invalid XLSX ZIP: missing local header for ${fileName}.`
-            );
-
-        }
-
-
-        const localFileNameLength =
-            readUInt16(
-                bytes,
-                localHeaderOffset + 26
-            );
-
-
-        const localExtraLength =
-            readUInt16(
-                bytes,
-                localHeaderOffset + 28
-            );
-
-
-        const dataStart =
-            localHeaderOffset +
-            30 +
-            localFileNameLength +
-            localExtraLength;
-
-
-        const compressedData =
-            bytes.slice(
-                dataStart,
-                dataStart +
-                    compressedSize
-            );
-
-
-        let data;
-
-
-        if (
-            compressionMethod === 0
-        ) {
-
-            data =
-                compressedData;
-
-        }
-        else if (
-            compressionMethod === 8
-        ) {
-
-            data =
-                await inflateDeflateRaw(
-                    compressedData
-                );
-
-        }
-        else {
-
-            throw new Error(
-                `Unsupported XLSX compression method ${compressionMethod}.`
-            );
-
-        }
-
-
-        entries.set(
-            fileName,
-            data
-        );
-
-
-        cursor +=
-            46 +
-            fileNameLength +
-            extraLength +
-            commentLength;
-
-    }
-
-
-    return entries;
-}
-
-
-function getXmlAttribute(
-    tag,
-    attributeName
-) {
-
-    const pattern =
-        new RegExp(
-            `${escapeRegExp(attributeName)}=["']([^"']*)["']`,
-            "i"
-        );
-
-
-    const match =
-        String(tag || "")
-            .match(
-                pattern
-            );
-
-
-    return match
-        ? decodeXmlEntities(
-            match[1]
-        )
-        : null;
-}
-
-
-/* =========================================================
-   XLSX WORKBOOK / SHEET
-========================================================= */
-
-function resolveWorkbookTarget(
-    target
-) {
-
-    const cleanTarget =
-        String(target || "")
-            .replace(
-                /^\//,
-                ""
-            )
-            .replace(
-                /^\.\//,
-                ""
-            );
-
-
-    if (
-        cleanTarget.startsWith(
-            "xl/"
-        )
-    ) {
-
-        return cleanTarget;
-
-    }
-
-
-    return `xl/${cleanTarget}`;
-}
-
-
-function findMonthlyPricesSheet(
-    entries
-) {
-
-    const workbookBytes =
-        entries.get(
-            "xl/workbook.xml"
-        );
-
-
-    if (!workbookBytes) {
-
-        throw new Error(
-            "XLSX is missing xl/workbook.xml."
-        );
-
-    }
-
-
-    const relsBytes =
-        entries.get(
-            "xl/_rels/workbook.xml.rels"
-        );
-
-
-    if (!relsBytes) {
-
-        throw new Error(
-            "XLSX is missing workbook relationships."
-        );
-
-    }
-
-
-    const workbookXml =
-        new TextDecoder("utf-8")
-            .decode(
-                workbookBytes
-            );
-
-
-    const relsXml =
-        new TextDecoder("utf-8")
-            .decode(
-                relsBytes
-            );
-
-
-    const relationshipMap =
-        new Map();
-
-
-    const relationshipRegex =
-        /<Relationship\b[^>]*>/gi;
-
-
-    for (
-        const match of relsXml.matchAll(
-            relationshipRegex
-        )
-    ) {
-
-        const tag =
-            match[0];
-
-
-        const id =
-            getXmlAttribute(
-                tag,
-                "Id"
-            );
-
-
-        const target =
-            getXmlAttribute(
-                tag,
-                "Target"
-            );
-
-
-        if (
-            id &&
-            target
-        ) {
-
-            relationshipMap.set(
-                id,
-                resolveWorkbookTarget(
-                    target
-                )
-            );
-
-        }
-
-    }
-
-
-    const sheetRegex =
-        /<sheet\b[^>]*>/gi;
-
-
-    for (
-        const match of workbookXml.matchAll(
-            sheetRegex
-        )
-    ) {
-
-        const tag =
-            match[0];
-
-
-        const name =
-            getXmlAttribute(
-                tag,
-                "name"
-            );
-
-
-        const relationshipId =
-            getXmlAttribute(
-                tag,
-                "r:id"
-            );
-
-
-        if (
-            normalizeText(name)
-                .toLowerCase() ===
-                "monthly prices" &&
-            relationshipId
-        ) {
-
-            const sheetPath =
-                relationshipMap.get(
-                    relationshipId
-                );
-
-
-            if (sheetPath) {
-
-                return sheetPath;
-
-            }
-
-        }
-
-    }
-
-
-    throw new Error(
-        "XLSX does not contain a Monthly Prices worksheet."
-    );
-}
-
-
-/* =========================================================
-   SHARED STRINGS / WORKSHEET
-========================================================= */
-
-function parseSharedStrings(
-    entries
-) {
-
-    const bytes =
-        entries.get(
-            "xl/sharedStrings.xml"
-        );
-
-
-    if (!bytes) {
-
-        return [];
-
-    }
-
-
-    const xml =
-        new TextDecoder("utf-8")
-            .decode(
-                bytes
-            );
-
-
-    const strings = [];
-
-
-    const itemRegex =
-        /<si\b[^>]*>([\s\S]*?)<\/si>/gi;
-
-
-    for (
-        const match of xml.matchAll(
-            itemRegex
-        )
-    ) {
-
-        const item =
-            match[1] ||
-            "";
-
-
-        const textParts = [];
-
-
-        const textRegex =
-            /<t\b[^>]*>([\s\S]*?)<\/t>/gi;
-
-
-        for (
-            const textMatch of item.matchAll(
-                textRegex
-            )
-        ) {
-
-            textParts.push(
-                decodeXmlEntities(
-                    textMatch[1]
-                )
-            );
-
-        }
-
-
-        strings.push(
-            textParts.join("")
-        );
-
-    }
-
-
-    return strings;
-}
-
-
-function columnLettersToNumber(
-    columnLetters
-) {
-
-    let result = 0;
-
-
-    for (
-        const character of String(
-            columnLetters || ""
-        ).toUpperCase()
-    ) {
-
-        const code =
-            character.charCodeAt(0) -
-            64;
-
-
-        if (
-            code < 1 ||
-            code > 26
-        ) {
-
-            return -1;
-
-        }
-
-
-        result =
-            result * 26 +
-            code;
-
-    }
-
-
-    return result - 1;
-}
-
-
-function cellReferenceToColumn(
-    reference
-) {
-
-    const match =
-        String(reference || "")
-            .match(
-                /^([A-Z]+)\d+$/i
-            );
-
-
-    if (!match) {
-
-        return -1;
-
-    }
-
-
-    return columnLettersToNumber(
-        match[1]
-    );
-}
-
-
-function parseWorksheetRows(
-    xml,
-    sharedStrings
-) {
-
-    const rows = [];
-
-
-    const rowRegex =
-        /<row\b[^>]*>([\s\S]*?)<\/row>/gi;
-
-
-    for (
-        const rowMatch of xml.matchAll(
-            rowRegex
-        )
-    ) {
-
-        const rowXml =
-            rowMatch[1] ||
-            "";
-
-
-        const row =
-            new Map();
-
-
-        const cellRegex =
-            /<c\b([^>]*)>([\s\S]*?)<\/c>/gi;
-
-
-        for (
-            const cellMatch of rowXml.matchAll(
-                cellRegex
-            )
-        ) {
-
-            const attributes =
-                cellMatch[1] ||
-                "";
-
-
-            const content =
-                cellMatch[2] ||
-                "";
-
-
-            const attributeTag =
-                `<c ${attributes}>`;
-
-
-            const reference =
-                getXmlAttribute(
-                    attributeTag,
-                    "r"
-                );
-
-
-            const column =
-                cellReferenceToColumn(
-                    reference
-                );
-
-
-            if (
-                column < 0
-            ) {
-
-                continue;
-
-            }
-
-
-            const type =
-                getXmlAttribute(
-                    attributeTag,
-                    "t"
-                );
-
-
-            const valueMatch =
-                content.match(
-                    /<v\b[^>]*>([\s\S]*?)<\/v>/i
-                );
-
-
-            let value =
-                "";
-
-
-            if (
-                type === "s"
-            ) {
-
-                const sharedIndex =
-                    Number.parseInt(
-                        valueMatch
-                            ? valueMatch[1]
-                            : "",
-                        10
-                    );
-
-
-                value =
-                    Number.isInteger(
-                        sharedIndex
-                    ) &&
-                    sharedIndex >= 0 &&
-                    sharedIndex <
-                        sharedStrings.length
-
-                        ? sharedStrings[
-                            sharedIndex
-                        ]
-
-                        : "";
-
-            }
-            else if (
-                type === "inlineStr"
-            ) {
-
-                const inlineParts =
-                    [];
-
-
-                const inlineTextRegex =
-                    /<t\b[^>]*>([\s\S]*?)<\/t>/gi;
-
-
-                for (
-                    const inlineMatch of content.matchAll(
-                        inlineTextRegex
-                    )
-                ) {
-
-                    inlineParts.push(
-                        decodeXmlEntities(
-                            inlineMatch[1]
-                        )
-                    );
-
-                }
-
-
-                value =
-                    inlineParts.join("");
-
-            }
-            else {
-
-                value =
-                    valueMatch
-
-                        ? decodeXmlEntities(
-                            valueMatch[1]
-                        )
-
-                        : "";
-
-            }
-
-
-            row.set(
-                column,
-                normalizeText(
-                    value
-                )
-            );
-
-        }
-
-
-        if (
-            row.size
-        ) {
-
-            rows.push(
-                row
-            );
-
-        }
-
-    }
-
-
-    return rows;
-}
-
-
-function rowValues(
-    row
-) {
-
-    const values = [];
-
-
-    for (
-        const [
-            column,
-            value
-        ] of row.entries()
-    ) {
-
-        values[column] =
-            value;
-
-    }
-
-
-    return values;
-}
-
-
-function findHeaderRows(
-    rows
-) {
-
-    for (
-        let index = 0;
-
-        index <
-            Math.min(
-                rows.length,
-                30
-            );
-
-        index += 1
-    ) {
-
-        const values =
-            rowValues(
-                rows[index]
-            );
-
-
-        const joined =
-            values
-                .filter(Boolean)
-                .join(" | ")
-                .toLowerCase();
-
-
-        if (
-            joined.includes(
-                "gold"
-            ) &&
-            joined.includes(
-                "silver"
-            ) &&
-            joined.includes(
-                "platinum"
-            ) &&
-            joined.includes(
-                "crude oil"
-            )
-        ) {
-
-            return {
-                nameRowIndex:
-                    index,
-
-                unitRowIndex:
-                    index + 1,
-
-                possibleCodeRowIndex:
-                    index + 2
-            };
-
-        }
-
-    }
-
-
-    throw new Error(
-        "Could not locate World Bank commodity header rows."
-    );
-}
-
-
-function buildHeaderInfo(
-    rows,
-    headerInfo
-) {
-
-    const nameRow =
-        rowValues(
-            rows[
-                headerInfo.nameRowIndex
-            ] ||
-                new Map()
-        );
-
-
-    const unitRow =
-        rowValues(
-            rows[
-                headerInfo.unitRowIndex
-            ] ||
-                new Map()
-        );
-
-
-    const codeRow =
-        headerInfo.codeRowIndex ===
-            null ||
-        headerInfo.codeRowIndex ===
-            undefined
-
-            ? []
-
-            : rowValues(
-                rows[
-                    headerInfo.codeRowIndex
-                ] ||
-                    new Map()
-            );
-
-
-    const headers = [];
-
-
-    const maximumLength =
-        Math.max(
-            nameRow.length,
-            unitRow.length,
-            codeRow.length
-        );
-
-
-    for (
-        let column = 0;
-
-        column <
-            maximumLength;
-
-        column += 1
-    ) {
-
-        headers[column] = {
-
-            name:
-                normalizeText(
-                    nameRow[column]
-                ),
-
-            unit:
-                normalizeText(
-                    unitRow[column]
-                ),
-
-            code:
-                normalizeText(
-                    codeRow[column]
-                )
-
-        };
-
-    }
-
-
-    return headers;
-}
-
-
-function parseNumeric(
+function parseNumber(
     value
 ) {
 
+    if (
+        typeof value ===
+        "number"
+    ) {
+
+        return Number.isFinite(
+            value
+        )
+            ? value
+            : null;
+
+    }
+
+
     const normalized =
-        String(value || "")
+        String(
+            value ?? ""
+        )
             .replace(
                 /,/g,
+                ""
+            )
+            .replace(
+                /[$€£]/g,
                 ""
             )
             .trim();
@@ -1509,11 +440,16 @@ function parseNumeric(
 
     if (
         !normalized ||
-        normalized === ".." ||
-        normalized === "…" ||
-        normalized === "..." ||
-        normalized === "—" ||
-        normalized === "-"
+        normalized ===
+            ".." ||
+        normalized ===
+            "…" ||
+        normalized ===
+            "..." ||
+        normalized ===
+            "—" ||
+        normalized ===
+            "-"
     ) {
 
         return null;
@@ -1535,31 +471,100 @@ function parseNumeric(
 }
 
 
-function parsePeriod(
+function parsePercent(
     value
 ) {
 
-    const monthlyMatch =
-        String(value || "")
-            .trim()
-            .match(
-                /^(\d{4})M(\d{1,2})$/i
-            );
+    if (
+        typeof value ===
+        "number"
+    ) {
+
+        return Number.isFinite(
+            value
+        )
+            ? value
+            : null;
+
+    }
+
+
+    const normalized =
+        String(
+            value ?? ""
+        )
+            .replace(
+                /,/g,
+                ""
+            )
+            .replace(
+                /%/g,
+                ""
+            )
+            .trim();
+
+
+    if (!normalized) {
+
+        return null;
+
+    }
+
+
+    const number =
+        Number(
+            normalized
+        );
+
+
+    return Number.isFinite(
+        number
+    )
+        ? number
+        : null;
+}
+
+
+/* =========================================================
+   PERIOD HELPERS
+========================================================= */
+
+function normalizeCommodityPeriod(
+    value
+) {
+
+    const text =
+        normalizeText(
+            value
+        );
+
+
+    if (!text) {
+
+        return null;
+
+    }
+
+
+    let match =
+        text.match(
+            /^(\d{4})M(\d{1,2})$/i
+        );
 
 
     if (
-        monthlyMatch
+        match
     ) {
 
         const year =
             Number(
-                monthlyMatch[1]
+                match[1]
             );
 
 
         const month =
             Number(
-                monthlyMatch[2]
+                match[2]
             );
 
 
@@ -1570,7 +575,6 @@ function parsePeriod(
         ) {
 
             return {
-
                 period:
                     `${year}M${String(month).padStart(2, "0")}`,
 
@@ -1584,7 +588,6 @@ function parsePeriod(
                         month - 1,
                         1
                     )
-
             };
 
         }
@@ -1592,27 +595,25 @@ function parsePeriod(
     }
 
 
-    const slashMatch =
-        String(value || "")
-            .trim()
-            .match(
-                /^(\d{4})\/(\d{1,2})$/
-            );
+    match =
+        text.match(
+            /^(\d{4})-(\d{1,2})$/
+        );
 
 
     if (
-        slashMatch
+        match
     ) {
 
         const year =
             Number(
-                slashMatch[1]
+                match[1]
             );
 
 
         const month =
             Number(
-                slashMatch[2]
+                match[2]
             );
 
 
@@ -1623,7 +624,6 @@ function parsePeriod(
         ) {
 
             return {
-
                 period:
                     `${year}M${String(month).padStart(2, "0")}`,
 
@@ -1637,7 +637,55 @@ function parsePeriod(
                         month - 1,
                         1
                     )
+            };
 
+        }
+
+    }
+
+
+    match =
+        text.match(
+            /^(\d{4})\/(\d{1,2})$/
+        );
+
+
+    if (
+        match
+    ) {
+
+        const year =
+            Number(
+                match[1]
+            );
+
+
+        const month =
+            Number(
+                match[2]
+            );
+
+
+        if (
+            year >= 1900 &&
+            month >= 1 &&
+            month <= 12
+        ) {
+
+            return {
+                period:
+                    `${year}M${String(month).padStart(2, "0")}`,
+
+                year,
+
+                month,
+
+                timestamp:
+                    Date.UTC(
+                        year,
+                        month - 1,
+                        1
+                    )
             };
 
         }
@@ -1646,177 +694,6 @@ function parsePeriod(
 
 
     return null;
-}
-
-
-function countNumericObservations(
-    rows,
-    column
-) {
-
-    let count = 0;
-
-
-    for (
-        const row of rows
-    ) {
-
-        const values =
-            rowValues(
-                row
-            );
-
-
-        if (
-            parsePeriod(
-                values[0]
-            ) &&
-            parseNumeric(
-                values[column]
-            ) !== null
-        ) {
-
-            count += 1;
-
-        }
-
-    }
-
-
-    return count;
-}
-
-
-function buildSeries(
-    rows,
-    column
-) {
-
-    const series = [];
-
-
-    for (
-        const row of rows
-    ) {
-
-        const values =
-            rowValues(
-                row
-            );
-
-
-        const period =
-            parsePeriod(
-                values[0]
-            );
-
-
-        if (!period) {
-
-            continue;
-
-        }
-
-
-        const value =
-            parseNumeric(
-                values[column]
-            );
-
-
-        if (
-            value === null
-        ) {
-
-            continue;
-
-        }
-
-
-        series.push({
-
-            ...period,
-
-            value
-
-        });
-
-    }
-
-
-    series.sort(
-        (a, b) =>
-            a.timestamp -
-            b.timestamp
-    );
-
-
-    return series;
-}
-
-
-function getLatestAndPrevious(
-    series
-) {
-
-    if (
-        !series.length
-    ) {
-
-        return {
-
-            latest:
-                null,
-
-            previous:
-                null,
-
-            change:
-                null
-
-        };
-
-    }
-
-
-    const latest =
-        series[
-            series.length - 1
-        ];
-
-
-    const previous =
-        series.length > 1
-
-            ? series[
-                series.length - 2
-            ]
-
-            : null;
-
-
-    const change =
-        previous &&
-        previous.value !== 0
-
-            ? (
-                latest.value /
-                previous.value -
-                1
-            ) * 100
-
-            : null;
-
-
-    return {
-
-        latest,
-
-        previous,
-
-        change
-
-    };
 }
 
 
@@ -1835,8 +712,10 @@ function categorizeCommodity(
 
 
     if (
-        /\b(gold|silver|platinum|palladium|rhodium)\b/
-            .test(value)
+        /\b(gold|silver|platinum|palladium|rhodium|iridium|osmium)\b/
+            .test(
+                value
+            )
     ) {
 
         return "precious-metals";
@@ -1845,8 +724,10 @@ function categorizeCommodity(
 
 
     if (
-        /\b(aluminum|aluminium|copper|lead|nickel|tin|zinc|molybdenum|iron ore|steel|ore)\b/
-            .test(value)
+        /\b(aluminum|aluminium|copper|lead|nickel|tin|zinc|cobalt|lithium|molybdenum|iron ore|steel|ore|uranium|chromium|manganese)\b/
+            .test(
+                value
+            )
     ) {
 
         return "metals-minerals";
@@ -1855,8 +736,10 @@ function categorizeCommodity(
 
 
     if (
-        /\b(crude oil|brent|wti|dubai|natural gas|liquefied natural gas|lng|coal|energy)\b/
-            .test(value)
+        /\b(crude oil|brent|wti|dubai|natural gas|liquefied natural gas|lng|coal|energy|gasoline|petrol|diesel|heating oil|jet fuel|kerosene)\b/
+            .test(
+                value
+            )
     ) {
 
         return "energy";
@@ -1865,8 +748,10 @@ function categorizeCommodity(
 
 
     if (
-        /\b(urea|dap|tsp|potash|phosphate|fertilizer|fertiliser)\b/
-            .test(value)
+        /\b(urea|dap|tsp|potash|phosphate|fertilizer|fertiliser|ammonia)\b/
+            .test(
+                value
+            )
     ) {
 
         return "fertilizers";
@@ -1875,8 +760,10 @@ function categorizeCommodity(
 
 
     if (
-        /\b(cocoa|coffee|tea|coconut|groundnut|palm|soybean|soy|maize|corn|rice|wheat|barley|sorghum|sugar|banana|orange|grains|food|meat|beef|lamb|poultry|shrimp|fish)\b/
-            .test(value)
+        /\b(cocoa|coffee|tea|coconut|groundnut|palm|soybean|soy|maize|corn|rice|wheat|barley|sorghum|sugar|banana|orange|grains|food|meat|beef|lamb|poultry|shrimp|fish|milk|dairy)\b/
+            .test(
+                value
+            )
     ) {
 
         return "agriculture-food";
@@ -1886,7 +773,9 @@ function categorizeCommodity(
 
     if (
         /\b(cotton|rubber|timber|log|logs|sawnwood|plywood|wood|hides|leather)\b/
-            .test(value)
+            .test(
+                value
+            )
     ) {
 
         return "raw-materials";
@@ -1898,38 +787,137 @@ function categorizeCommodity(
 }
 
 
+/*
+ * Voltlas itself supplies these compact category identifiers:
+ *
+ *   energy
+ *   base
+ *   precious
+ *   ag
+ *
+ * Worth It keeps its existing richer category system.
+ */
+function mapVoltlasCategory(
+    item
+) {
+
+    const sourceCategory =
+        normalizeSearchText(
+            item?.cat
+        );
+
+
+    const name =
+        normalizeText(
+            item?.name
+        );
+
+
+    const nameCategory =
+        categorizeCommodity(
+            name
+        );
+
+
+    /*
+     * Name-based classification wins when it provides a more
+     * specific Worth It category such as fertilizers or raw
+     * materials.
+     */
+    if (
+        nameCategory !==
+        "other"
+    ) {
+
+        return nameCategory;
+
+    }
+
+
+    if (
+        sourceCategory ===
+            "energy"
+    ) {
+
+        return "energy";
+
+    }
+
+
+    if (
+        sourceCategory ===
+            "base"
+    ) {
+
+        return "metals-minerals";
+
+    }
+
+
+    if (
+        sourceCategory ===
+            "precious"
+    ) {
+
+        return "precious-metals";
+
+    }
+
+
+    if (
+        sourceCategory ===
+            "ag"
+    ) {
+
+        return "agriculture-food";
+
+    }
+
+
+    return "other";
+}
+
+
 const CATEGORY_INFO = {
 
     all: {
-        label: "All"
+        label:
+            "All"
     },
 
     "precious-metals": {
-        label: "Precious Metals"
+        label:
+            "Precious Metals"
     },
 
     "metals-minerals": {
-        label: "Metals & Minerals"
+        label:
+            "Metals & Minerals"
     },
 
     energy: {
-        label: "Energy"
+        label:
+            "Energy"
     },
 
     fertilizers: {
-        label: "Fertilizers"
+        label:
+            "Fertilizers"
     },
 
     "agriculture-food": {
-        label: "Agriculture & Food"
+        label:
+            "Agriculture & Food"
     },
 
     "raw-materials": {
-        label: "Raw Materials"
+        label:
+            "Raw Materials"
     },
 
     other: {
-        label: "Other"
+        label:
+            "Other"
     }
 
 };
@@ -1963,7 +951,22 @@ function getDisplaySpec(
         );
 
 
+    /*
+     * $/troy oz
+     *
+     * Source:
+     *   USD per troy ounce
+     *
+     * EUR:
+     *   EUR per gram
+     *
+     * USD:
+     *   USD per troy ounce
+     */
     if (
+        unit.includes(
+            "$/troyoz"
+        ) ||
         unit.includes(
             "$/toz"
         )
@@ -1975,7 +978,7 @@ function getDisplaySpec(
                 "g",
 
             usUnit:
-                "oz",
+                "troy oz",
 
             conversion:
                 1 / 31.1034768
@@ -1985,6 +988,9 @@ function getDisplaySpec(
     }
 
 
+    /*
+     * $/bbl
+     */
     if (
         unit.includes(
             "$/bbl"
@@ -2007,6 +1013,9 @@ function getDisplaySpec(
     }
 
 
+    /*
+     * $/mmbtu
+     */
     if (
         unit.includes(
             "$/mmbtu"
@@ -2029,32 +1038,23 @@ function getDisplaySpec(
     }
 
 
+    /*
+     * $/mt
+     *
+     * Keep the existing Worth It presentation style:
+     * EUR uses metric ton and USD uses short ton.
+     *
+     * The frontend uses the backend-provided display unit and
+     * therefore does not apply its extra kg/lb conversion here.
+     */
     if (
         unit.includes(
             "$/mt"
+        ) ||
+        unit.includes(
+            "$/metricton"
         )
     ) {
-
-        if (
-            category ===
-            "metals-minerals"
-        ) {
-
-            return {
-
-                eurUnit:
-                    "kg",
-
-                usUnit:
-                    "lb",
-
-                conversion:
-                    2.20462262185
-
-            };
-
-        }
-
 
         return {
 
@@ -2062,7 +1062,7 @@ function getDisplaySpec(
                 "metric ton",
 
             usUnit:
-                "metric ton",
+                "short ton",
 
             conversion:
                 1
@@ -2072,6 +1072,9 @@ function getDisplaySpec(
     }
 
 
+    /*
+     * $/dmt
+     */
     if (
         unit.includes(
             "$/dmt"
@@ -2084,7 +1087,7 @@ function getDisplaySpec(
                 "metric ton",
 
             usUnit:
-                "metric ton",
+                "short ton",
 
             conversion:
                 1
@@ -2094,6 +1097,12 @@ function getDisplaySpec(
     }
 
 
+    /*
+     * $/kg
+     *
+     * EUR: kg
+     * USD: lb
+     */
     if (
         unit.includes(
             "$/kg"
@@ -2106,7 +1115,7 @@ function getDisplaySpec(
                 "kg",
 
             usUnit:
-                "kg",
+                "lb",
 
             conversion:
                 1
@@ -2116,6 +1125,9 @@ function getDisplaySpec(
     }
 
 
+    /*
+     * $/lb
+     */
     if (
         unit.includes(
             "$/lb"
@@ -2138,14 +1150,74 @@ function getDisplaySpec(
     }
 
 
+    /*
+     * $/liter
+     */
+    if (
+        unit.includes(
+            "$/liter"
+        ) ||
+        unit.includes(
+            "$/l"
+        )
+    ) {
+
+        return {
+
+            eurUnit:
+                "liter",
+
+            usUnit:
+                "liter",
+
+            conversion:
+                1
+
+        };
+
+    }
+
+
+    /*
+     * $/g
+     */
+    if (
+        unit.includes(
+            "$/g"
+        )
+    ) {
+
+        return {
+
+            eurUnit:
+                "g",
+
+            usUnit:
+                "g",
+
+            conversion:
+                1
+
+        };
+
+    }
+
+
     const fallbackUnit =
         sourceUnit
 
-            ? sourceUnit
+            ? String(
+                sourceUnit
+            )
                 .replace(
                     /^\(\$\/|\)$/g,
                     ""
                 )
+                .replace(
+                    /^\$\/?/,
+                    ""
+                )
+                .trim()
 
             : "unit";
 
@@ -2177,6 +1249,8 @@ const PRIORITY_NAME_ORDER = [
 
     "platinum",
 
+    "palladium",
+
     "copper",
 
     "iron ore",
@@ -2185,11 +1259,17 @@ const PRIORITY_NAME_ORDER = [
 
     "aluminium",
 
-    "crude oil, wti",
-
-    "natural gas, u.s.",
+    "brent crude oil",
 
     "crude oil, brent",
+
+    "wti crude oil",
+
+    "crude oil, wti",
+
+    "natural gas",
+
+    "natural gas, u.s.",
 
     "coal",
 
@@ -2210,14 +1290,28 @@ function getPriorityIndex(
 
     const index =
         PRIORITY_NAME_ORDER.findIndex(
-            value =>
-                normalized === value ||
-                normalized.startsWith(
-                    `${value} `
-                ) ||
-                normalized.startsWith(
-                    `${value},`
-                )
+            value => {
+
+                const normalizedValue =
+                    normalizeSearchText(
+                        value
+                    );
+
+
+                return (
+                    normalized ===
+                        normalizedValue ||
+
+                    normalized.startsWith(
+                        `${normalizedValue} `
+                    ) ||
+
+                    normalized.startsWith(
+                        `${normalizedValue},`
+                    )
+                );
+
+            }
         );
 
 
@@ -2242,7 +1336,8 @@ function sortCommodities(
 
 
     if (
-        priorityDifference !== 0
+        priorityDifference !==
+        0
     ) {
 
         return priorityDifference;
@@ -2266,7 +1361,8 @@ function sortCommodities(
 
 
     if (
-        categoryDifference !== 0
+        categoryDifference !==
+        0
     ) {
 
         return categoryDifference;
@@ -2290,16 +1386,16 @@ function sortCommodities(
 
 
 /* =========================================================
-   WORLD BANK LOADING
+   VOLTLAS LOADING
 ========================================================= */
 
-async function fetchWorldBankPage(
+async function fetchVoltlasSource(
     cache
 ) {
 
     const key =
         new Request(
-            WORLD_BANK_PAGE_CACHE_KEY
+            VOLTLAS_SOURCE_CACHE_KEY
         );
 
 
@@ -2311,7 +1407,9 @@ async function fetchWorldBankPage(
         );
 
 
-    if (cached) {
+    if (
+        cached
+    ) {
 
         return cached;
 
@@ -2320,25 +1418,46 @@ async function fetchWorldBankPage(
 
     const response =
         await fetch(
-            WORLD_BANK_MARKETS_PAGE,
+            VOLTLAS_DATA_URL,
             {
                 headers: {
 
                     "Accept":
-                        "text/html,application/xhtml+xml"
+                        "application/json",
+
+                    "User-Agent":
+                        "Worth-It-Markets/1.0 (https://github.com/DarthNecrohorn/worth-it-calculator)"
 
                 }
             }
         );
 
 
-    if (!response.ok) {
+    if (
+        !response.ok
+    ) {
 
         throw new Error(
-            `World Bank commodity page request failed with status ${response.status}.`
+            `Voltlas latest.json request failed with status ${response.status}.`
         );
 
     }
+
+
+    const contentType =
+        String(
+            response.headers.get(
+                "Content-Type"
+            ) ||
+            ""
+        );
+
+
+    /*
+     * Do not fail solely because the upstream server does not
+     * provide application/json. The body itself is authoritative.
+     */
+    void contentType;
 
 
     return putTimestampedCache(
@@ -2359,317 +1478,216 @@ async function fetchWorldBankPage(
 }
 
 
-async function discoverWorldBankMonthlyUrl(
-    cache
+function normalizeVoltlasCommodity(
+    item
 ) {
 
-    const response =
-        await fetchWorldBankPage(
-            cache
+    if (
+        !item ||
+        typeof item !==
+            "object"
+    ) {
+
+        return null;
+
+    }
+
+
+    const name =
+        normalizeText(
+            item.name
         );
-
-
-    const html =
-        await response.text();
-
-
-    const matches =
-        [
-            ...html.matchAll(
-                /href=["']([^"']*CMO-Historical-Data-Monthly\.xlsx[^"']*)["']/gi
-            )
-        ];
 
 
     if (
-        !matches.length
+        !name
     ) {
 
-        throw new Error(
-            "Could not find the current World Bank monthly XLSX link."
-        );
+        return null;
 
     }
 
 
-    return new URL(
-        decodeXmlEntities(
-            matches[0][1]
-        ),
-        WORLD_BANK_MARKETS_PAGE
-    ).href;
-}
-
-
-async function loadWorldBankWorkbook(
-    cache
-) {
-
-    const url =
-        await discoverWorldBankMonthlyUrl(
-            cache
+    const price =
+        parseNumber(
+            item.price
         );
 
 
-    const cacheKey =
-        new Request(
-            WORLD_BANK_XLSX_CACHE_KEY
-        );
+    if (
+        price === null
+    ) {
 
-
-    const cached =
-        await getFreshCache(
-            cache,
-            cacheKey,
-            CACHE_TTL
-        );
-
-
-    if (cached) {
-
-        return {
-
-            url,
-
-            bytes:
-                await cached.arrayBuffer()
-
-        };
+        return null;
 
     }
 
 
-    const response =
-        await fetch(
-            url,
-            {
-                headers: {
-
-                    "Accept":
-                        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,*/*"
-
-                }
-            }
+    const sourceUnit =
+        normalizeText(
+            item.unit
         );
 
 
-    if (!response.ok) {
+    if (
+        !sourceUnit
+    ) {
 
-        throw new Error(
-            `World Bank monthly XLSX request failed with status ${response.status}.`
-        );
+        return null;
 
     }
 
 
-    const cachedResponse =
-        await putTimestampedCache(
-            cache,
-            cacheKey,
-            new Response(
-                await response.arrayBuffer(),
-                {
-                    status:
-                        response.status,
-
-                    headers:
-                        response.headers
-                }
-            ),
-            CACHE_TTL
+    const periodInfo =
+        normalizeCommodityPeriod(
+            item.period
         );
+
+
+    const category =
+        mapVoltlasCategory(
+            item
+        );
+
+
+    const displaySpec =
+        getDisplaySpec(
+            sourceUnit,
+            category
+        );
+
+
+    const change =
+        parsePercent(
+            item.chg
+        );
+
+
+    const code =
+        (
+            simplifySearchText(
+                name
+            )
+                .slice(
+                    0,
+                    80
+                ) ||
+            `commodity_${Math.random()}`
+        )
+            .toUpperCase();
 
 
     return {
 
-        url,
+        code,
 
-        bytes:
-            await cachedResponse.arrayBuffer()
+        name,
+
+        category,
+
+        category_label:
+            categoryLabel(
+                category
+            ),
+
+        source_unit:
+            sourceUnit,
+
+        price,
+
+        previous_price:
+            null,
+
+        changes: {
+
+            monthly: {
+
+                percent:
+                    change
+
+            }
+
+        },
+
+        updated_at:
+            periodInfo
+                ? new Date(
+                    periodInfo.timestamp
+                ).toISOString()
+                : null,
+
+        data_period:
+            periodInfo
+                ? periodInfo.period
+                : normalizeText(
+                    item.period
+                ) || null,
+
+        previous_period:
+            null,
+
+        display:
+            displaySpec,
+
+        source:
+            normalizeText(
+                item.source
+            ) ||
+            "Voltlas",
+
+        voltlas_category:
+            normalizeText(
+                item.cat
+            ) ||
+            null
 
     };
 }
 
 
-/* =========================================================
-   PARSE WORLD BANK DATA
-========================================================= */
-
-async function parseWorldBankDataset(
-    arrayBuffer
+async function parseVoltlasDataset(
+    payload
 ) {
 
-    const entries =
-        await unzipEntries(
-            arrayBuffer
-        );
+    const sourceItems =
+        Array.isArray(
+            payload?.COMMODITIES
+        )
+            ? payload.COMMODITIES
+            : [];
 
 
-    const sheetPath =
-        findMonthlyPricesSheet(
-            entries
-        );
-
-
-    const sheetBytes =
-        entries.get(
-            sheetPath
-        );
-
-
-    if (!sheetBytes) {
+    if (
+        !sourceItems.length
+    ) {
 
         throw new Error(
-            `World Bank XLSX is missing ${sheetPath}.`
+            "Voltlas latest.json contains no COMMODITIES array."
         );
 
     }
 
 
-    const sheetXml =
-        new TextDecoder("utf-8")
-            .decode(
-                sheetBytes
-            );
+    const seenNames =
+        new Set();
 
 
-    const sharedStrings =
-        parseSharedStrings(
-            entries
-        );
-
-
-    const rows =
-        parseWorksheetRows(
-            sheetXml,
-            sharedStrings
-        );
-
-
-    const headerInfo =
-        findHeaderRows(
-            rows
-        );
-
-
-    const possibleCodeRow =
-        rows[
-            headerInfo.possibleCodeRowIndex
-        ] ||
-        null;
-
-
-    const possibleCodeValues =
-        rowValues(
-            possibleCodeRow ||
-                new Map()
-        )
-            .filter(
-                value =>
-                    normalizeText(value)
-            );
-
-
-    const isLikelyCodeRow =
-        possibleCodeValues.length >= 3 &&
-        !parsePeriod(
-            rowValues(
-                possibleCodeRow ||
-                    new Map()
-            )[0]
-        ) &&
-        possibleCodeValues.filter(
-            value =>
-                /^[A-Z0-9_]{2,40}$/i.test(
-                    String(value || "")
-                )
-        ).length >=
-            Math.max(
-                3,
-                Math.floor(
-                    possibleCodeValues.length *
-                    0.7
-                )
-            );
-
-
-    const effectiveHeaderInfo = {
-
-        ...headerInfo,
-
-        codeRowIndex:
-            isLikelyCodeRow
-
-                ? headerInfo.possibleCodeRowIndex
-
-                : null
-
-    };
-
-
-    const headers =
-        buildHeaderInfo(
-            rows,
-            effectiveHeaderInfo
-        );
-
-
-    const dataStartIndex =
-        isLikelyCodeRow
-
-            ? headerInfo.possibleCodeRowIndex + 1
-
-            : headerInfo.unitRowIndex + 1;
-
-
-    const dataRows =
-        rows.slice(
-            dataStartIndex
-        );
-
-
-    const commodities = [];
+    const commodities =
+        [];
 
 
     for (
-        let column = 1;
-
-        column < headers.length;
-
-        column += 1
+        const item of sourceItems
     ) {
 
-        const header =
-            headers[column];
-
-
-        if (!header) {
-
-            continue;
-
-        }
-
-
-        const name =
-            normalizeText(
-                header.name
+        const normalized =
+            normalizeVoltlasCommodity(
+                item
             );
 
 
-        if (!name) {
-
-            continue;
-
-        }
-
-
-        const normalizedName =
-            name.toLowerCase();
-
-
         if (
-            normalizedName === "date" ||
-            normalizedName === "month"
+            !normalized
         ) {
 
             continue;
@@ -2677,146 +1695,43 @@ async function parseWorldBankDataset(
         }
 
 
-        const numericCount =
-            countNumericObservations(
-                dataRows,
-                column
+        const nameKey =
+            normalizeSearchText(
+                normalized.name
             );
 
 
         if (
-            numericCount < 2
-        ) {
-
-            continue;
-
-        }
-
-
-        const series =
-            buildSeries(
-                dataRows,
-                column
-            );
-
-
-        const state =
-            getLatestAndPrevious(
-                series
-            );
-
-
-        if (!state.latest) {
-
-            continue;
-
-        }
-
-
-        const category =
-            categorizeCommodity(
-                name
-            );
-
-
-        const displaySpec =
-            getDisplaySpec(
-                header.unit,
-                category
-            );
-
-
-        let code =
-            normalizeText(
-                header.code
-            );
-
-
-        if (
-            !code ||
-            !/^[A-Z0-9_]+$/i.test(
-                code
-            ) ||
-            /^(DATE|MONTH)$/i.test(
-                code
+            !nameKey ||
+            seenNames.has(
+                nameKey
             )
         ) {
 
-            code =
-                simplifySearchText(
-                    name
-                )
-                    .replace(
-                        /^\d+/,
-                        ""
-                    )
-                    .slice(
-                        0,
-                        80
-                    ) ||
-                `commodity_${column}`;
-
-
-            code =
-                code.toUpperCase();
+            continue;
 
         }
 
 
-        commodities.push({
+        seenNames.add(
+            nameKey
+        );
 
-            code,
 
-            name,
+        commodities.push(
+            normalized
+        );
 
-            category,
+    }
 
-            category_label:
-                categoryLabel(
-                    category
-                ),
 
-            source_unit:
-                header.unit ||
-                null,
+    if (
+        !commodities.length
+    ) {
 
-            price:
-                state.latest.value,
-
-            previous_price:
-                state.previous?.value ??
-                null,
-
-            changes: {
-
-                monthly: {
-
-                    percent:
-                        state.change
-
-                }
-
-            },
-
-            updated_at:
-                new Date(
-                    state.latest.timestamp
-                ).toISOString(),
-
-            data_period:
-                state.latest.period,
-
-            previous_period:
-                state.previous?.period ||
-                null,
-
-            display:
-                displaySpec,
-
-            source:
-                "World Bank Commodity Price Data (The Pink Sheet)"
-
-        });
+        throw new Error(
+            "Voltlas latest.json contained no usable commodity series."
+        );
 
     }
 
@@ -2827,10 +1742,13 @@ async function parseWorldBankDataset(
 
 
     /*
-     * The World Bank parser remains fully dynamic.
-     * Every usable commodity is collected first.
-     * Only the final API response is limited to MAX_COMMODITIES.
+     * Read the full usable source first, then apply the Worth It
+     * output limit.
      */
+    const sourceCommodityCount =
+        commodities.length;
+
+
     const limitedCommodities =
         commodities.slice(
             0,
@@ -2838,38 +1756,38 @@ async function parseWorldBankDataset(
         );
 
 
+    const periodCandidates =
+        limitedCommodities
+            .map(
+                item =>
+                    normalizeCommodityPeriod(
+                        item.data_period
+                    )
+            )
+            .filter(Boolean);
+
+
+    let latestPeriod =
+        null;
+
+
     if (
-        !limitedCommodities.length
+        periodCandidates.length
     ) {
 
-        throw new Error(
-            "World Bank Monthly Prices contained no usable commodity series."
+        periodCandidates.sort(
+            (a, b) =>
+                a.timestamp -
+                b.timestamp
         );
+
+
+        latestPeriod =
+            periodCandidates[
+                periodCandidates.length - 1
+            ].period;
 
     }
-
-
-    const latestTimestamp =
-        Math.max(
-            ...limitedCommodities.map(
-                item =>
-                    new Date(
-                        item.updated_at
-                    ).getTime()
-            )
-        );
-
-
-    const latestDate =
-        new Date(
-            latestTimestamp
-        );
-
-
-    const period =
-        `${latestDate.getUTCFullYear()}M${String(
-            latestDate.getUTCMonth() + 1
-        ).padStart(2, "0")}`;
 
 
     return {
@@ -2878,10 +1796,13 @@ async function parseWorldBankDataset(
             limitedCommodities,
 
         latest_period:
-            period,
+            latestPeriod,
 
         commodity_count:
             limitedCommodities.length,
+
+        source_commodity_count:
+            sourceCommodityCount,
 
         categories:
             [
@@ -2894,15 +1815,48 @@ async function parseWorldBankDataset(
             ],
 
         source:
-            "World Bank Commodity Price Data (The Pink Sheet)",
+            "Voltlas Open Data",
 
         source_url:
-            WORLD_BANK_MARKETS_PAGE,
+            VOLTLAS_DATA_PAGE,
+
+        data_url:
+            VOLTLAS_DATA_URL,
 
         license:
-            "CC BY 4.0"
+            "CC BY 4.0",
+
+        license_url:
+            VOLTLAS_LICENSE_URL,
+
+        attribution:
+            "Data: Voltlas (https://voltlas.com), CC BY 4.0"
 
     };
+}
+
+
+/* =========================================================
+   VOLTLAS RESULT LOADER
+========================================================= */
+
+async function loadVoltlasDataset(
+    cache
+) {
+
+    const response =
+        await fetchVoltlasSource(
+            cache
+        );
+
+
+    const payload =
+        await response.json();
+
+
+    return parseVoltlasDataset(
+        payload
+    );
 }
 
 
@@ -2939,8 +1893,14 @@ function getMetadataValue(
         extmetadata?.[key]?.value;
 
 
-    return stripHtml(
-        value
+    return normalizeText(
+        String(
+            value || ""
+        )
+            .replace(
+                /<[^>]*>/g,
+                " "
+            )
     );
 }
 
@@ -2972,7 +1932,11 @@ function buildCommoditySearchTokens(
 
             "u",
 
-            "s"
+            "s",
+
+            "crude",
+
+            "oil"
 
         ]);
 
@@ -3033,7 +1997,8 @@ function getCommodityBaseName(
         String(
             commodityName ||
                 ""
-        ).split(",")[0]
+        )
+            .split(",")[0]
     );
 }
 
@@ -3071,7 +2036,11 @@ function getCommodityCoreTokens(
 
             "eu",
 
-            "europe"
+            "europe",
+
+            "crude",
+
+            "oil"
 
         ]);
 
@@ -3111,7 +2080,9 @@ function hasCompoundCommodityMatch(
         );
 
 
-    if (!coreTokens.length) {
+    if (
+        !coreTokens.length
+    ) {
 
         return false;
 
@@ -3126,12 +2097,6 @@ function hasCompoundCommodityMatch(
             .filter(Boolean);
 
 
-    /*
-     * Single-word commodities need their commodity term.
-     * Multi-word commodities require every meaningful core word.
-     * This avoids matching a generic “iron” image to “iron ore”,
-     * or a generic “sunflower” image to “sunflower oil”.
-     */
     return coreTokens.every(
         token => {
 
@@ -3325,24 +2290,28 @@ function hasRelevantTextMatch(
                 );
 
 
-            if (!normalizedToken) {
+            if (
+                !normalizedToken
+            ) {
 
                 return false;
 
             }
 
 
-            return normalizedText
-                .split(" ")
-                .some(
-                    word =>
-                        word ===
-                        normalizedToken
-                ) ||
+            return (
+                normalizedText
+                    .split(" ")
+                    .some(
+                        word =>
+                            word ===
+                            normalizedToken
+                    ) ||
 
                 normalizedText.includes(
                     normalizedToken
-                );
+                )
+            );
 
         }
     );
@@ -3360,7 +2329,9 @@ function isDisallowedImageDescription(
 
 
     return /\b(logo|icon|map|diagram|chart|graph|flag|coat of arms|symbol|screenshot|poster|book cover)\b/
-        .test(text);
+        .test(
+            text
+        );
 }
 
 
@@ -3371,23 +2342,6 @@ function isDisallowedImageDescription(
 function getLicenseKind(
     extmetadata
 ) {
-
-    /*
-     * normalizeSearchText() converts:
-     *
-     *   CC BY-SA
-     * into
-     *   cc by sa
-     *
-     * and:
-     *
-     *   CC BY-NC
-     * into
-     *   cc by nc
-     *
-     * Therefore the license checks below intentionally use
-     * the normalized forms.
-     */
 
     const license =
         normalizeSearchText(
@@ -3410,28 +2364,8 @@ function getLicenseKind(
         );
 
 
-    if (!license) {
-
-        return null;
-
-    }
-
-
-    /*
-     * Non-commercial and no-derivatives licenses are not
-     * accepted for the site's commercial use case.
-     */
-
     if (
-        /\bcc by nc\b/.test(license) ||
-        /\bcreative commons attribution noncommercial\b/.test(license) ||
-        /\bnoncommercial\b/.test(license) ||
-        /\bnon commercial\b/.test(license) ||
-
-        /\bcc by nd\b/.test(license) ||
-        /\bcreative commons attribution noderivatives\b/.test(license) ||
-        /\bno derivatives\b/.test(license) ||
-        /\bno derivatives\b/.test(license)
+        !license
     ) {
 
         return null;
@@ -3440,10 +2374,54 @@ function getLicenseKind(
 
 
     if (
-        /\bcc0\b/.test(license) ||
-        /\bpublic domain\b/.test(license) ||
-        /\bpublic domain\b/.test(license) ||
-        /\bpd\b/.test(license)
+        /\bcc by nc\b/.test(
+            license
+        ) ||
+
+        /\bcreative commons attribution noncommercial\b/
+            .test(
+                license
+            ) ||
+
+        /\bnoncommercial\b/.test(
+            license
+        ) ||
+
+        /\bnon commercial\b/.test(
+            license
+        ) ||
+
+        /\bcc by nd\b/.test(
+            license
+        ) ||
+
+        /\bcreative commons attribution noderivatives\b/
+            .test(
+                license
+            ) ||
+
+        /\bno derivatives\b/.test(
+            license
+        )
+    ) {
+
+        return null;
+
+    }
+
+
+    if (
+        /\bcc0\b/.test(
+            license
+        ) ||
+
+        /\bpublic domain\b/.test(
+            license
+        ) ||
+
+        /\bpd\b/.test(
+            license
+        )
     ) {
 
         return "Public Domain / CC0";
@@ -3452,9 +2430,19 @@ function getLicenseKind(
 
 
     if (
-        /\bcc by sa\b/.test(license) ||
-        /\bcreative commons attribution sharealike\b/.test(license) ||
-        /\bcreative commons attribution share alike\b/.test(license)
+        /\bcc by sa\b/.test(
+            license
+        ) ||
+
+        /\bcreative commons attribution sharealike\b/
+            .test(
+                license
+            ) ||
+
+        /\bcreative commons attribution share alike\b/
+            .test(
+                license
+            )
     ) {
 
         return "CC BY-SA";
@@ -3463,8 +2451,13 @@ function getLicenseKind(
 
 
     if (
-        /\bcc by\b/.test(license) ||
-        /\bcreative commons attribution\b/.test(license)
+        /\bcc by\b/.test(
+            license
+        ) ||
+
+        /\bcreative commons attribution\b/.test(
+            license
+        )
     ) {
 
         return "CC BY";
@@ -3637,7 +2630,7 @@ function buildKnownLicenseUrl(
 
     if (
         licenseKind ===
-        "Public Domain / CC0" &&
+            "Public Domain / CC0" &&
         /\bcc0\b/.test(
             normalizedLicense
         )
@@ -3659,7 +2652,7 @@ function candidateIsUsable(
 ) {
 
     const title =
-        stripHtml(
+        normalizeText(
             candidate?.title
         );
 
@@ -3735,13 +2728,17 @@ function candidateIsUsable(
 
 
     const pixelCount =
-        width * height;
+        width *
+        height;
 
 
     if (
-        width < MIN_IMAGE_WIDTH ||
-        height < MIN_IMAGE_HEIGHT ||
-        pixelCount < MIN_IMAGE_PIXELS
+        width <
+            MIN_IMAGE_WIDTH ||
+        height <
+            MIN_IMAGE_HEIGHT ||
+        pixelCount <
+            MIN_IMAGE_PIXELS
     ) {
 
         return null;
@@ -3756,8 +2753,10 @@ function candidateIsUsable(
 
 
     if (
-        aspectRatio > 4.5 ||
-        aspectRatio < (1 / 4.5)
+        aspectRatio >
+            4.5 ||
+        aspectRatio <
+            (1 / 4.5)
     ) {
 
         return null;
@@ -3771,7 +2770,9 @@ function candidateIsUsable(
         );
 
 
-    if (!tokens.length) {
+    if (
+        !tokens.length
+    ) {
 
         return null;
 
@@ -3802,14 +2803,6 @@ function candidateIsUsable(
             .filter(Boolean)
             .join(" ");
 
-
-    /*
-     * The image metadata itself must contain at least one
-     * relevant commodity token.
-     *
-     * This replaces the previous requirement that the token
-     * had to exist in the actual CDN image URL.
-     */
 
     if (
         !hasRelevantTextMatch(
@@ -3875,7 +2868,9 @@ function candidateIsUsable(
         );
 
 
-    if (!licenseKind) {
+    if (
+        !licenseKind
+    ) {
 
         return null;
 
@@ -3904,7 +2899,7 @@ function candidateIsUsable(
 
 
     const explicitLicenseUrl =
-        stripHtml(
+        normalizeText(
             getMetadataValue(
                 extmetadata,
                 "LicenseUrl"
@@ -3922,7 +2917,7 @@ function candidateIsUsable(
 
 
     const author =
-        stripHtml(
+        normalizeText(
 
             getMetadataValue(
                 extmetadata,
@@ -3937,16 +2932,9 @@ function candidateIsUsable(
         );
 
 
-    /*
-     * CC BY and CC BY-SA require attribution.
-     * If we cannot reliably identify the author/license,
-     * reject the image rather than using it anyway.
-     */
-
     if (
         licenseKind !==
             "Public Domain / CC0" &&
-
         (
             !author ||
             !licenseUrl
@@ -3979,11 +2967,6 @@ function candidateIsUsable(
     let score =
         0;
 
-
-    /*
-     * URL relevance is now an additional ranking signal rather
-     * than a hard rejection condition.
-     */
 
     if (
         hasRelevantUrlToken(
@@ -4049,7 +3032,6 @@ function candidateIsUsable(
     if (
         category ===
             "precious-metals" &&
-
         /gold|silver|platinum|palladium/i
             .test(
                 searchableText
@@ -4065,8 +3047,7 @@ function candidateIsUsable(
     if (
         category ===
             "metals-minerals" &&
-
-        /ore|mineral|metal|aluminum|aluminium|copper|nickel|iron|zinc|lead|tin/i
+        /ore|mineral|metal|aluminum|aluminium|copper|nickel|iron|zinc|lead|tin|cobalt|lithium/i
             .test(
                 searchableText
             )
@@ -4135,27 +3116,26 @@ function buildCommoditySearchQueries(
         );
 
 
-    if (!normalizedName) {
+    if (
+        !normalizedName
+    ) {
 
         return [];
 
     }
 
 
-    /*
-     * Many World Bank series have market/location qualifiers
-     * after a comma, for example:
-     *
-     *   "Coal, Australian"
-     *   "Wheat, US HRW"
-     *   "Tea, Colombo"
-     *
-     * Wikimedia often has a useful representative image under
-     * the base commodity name instead of the exact market series.
-     */
     const baseName =
         normalizeText(
-            normalizedName.split(",")[0]
+            normalizedName
+                .split(",")[0]
+        );
+
+
+    const normalizedBase =
+        normalizeSearchText(
+            baseName ||
+            normalizedName
         );
 
 
@@ -4163,7 +3143,7 @@ function buildCommoditySearchQueries(
 
 
     /*
-     * First try the exact commodity name.
+     * Exact commodity name first.
      */
     queries.push(
         `"${normalizedName}"`
@@ -4171,189 +3151,7 @@ function buildCommoditySearchQueries(
 
 
     /*
-     * Add a small set of representative search terms for
-     * common World Bank commodity series. These are only search
-     * fallbacks; the candidate validator still requires metadata
-     * relevance to the actual commodity tokens.
-     */
-    const normalizedBase =
-        normalizeSearchText(
-            baseName || normalizedName
-        );
-
-
-    const searchHints = [];
-
-
-    if (
-        /\bgold\b/.test(
-            normalizedBase
-        )
-    ) {
-
-        searchHints.push(
-            "gold mineral"
-        );
-
-    }
-
-
-    if (
-        /\bsilver\b/.test(
-            normalizedBase
-        )
-    ) {
-
-        searchHints.push(
-            "silver mineral"
-        );
-
-    }
-
-
-    if (
-        /\bplatinum\b/.test(
-            normalizedBase
-        )
-    ) {
-
-        searchHints.push(
-            "platinum mineral"
-        );
-
-    }
-
-
-    if (
-        /\bcopper\b/.test(
-            normalizedBase
-        )
-    ) {
-
-        searchHints.push(
-            "copper mineral"
-        );
-
-    }
-
-
-    if (
-        /\biron ore\b/.test(
-            normalizedBase
-        )
-    ) {
-
-        searchHints.push(
-            "iron ore"
-        );
-
-    }
-
-
-    if (
-        /\bcoal\b/.test(
-            normalizedBase
-        )
-    ) {
-
-        searchHints.push(
-            "coal"
-        );
-
-    }
-
-
-    if (
-        /\bcoffee\b/.test(
-            normalizedBase
-        )
-    ) {
-
-        searchHints.push(
-            "coffee beans"
-        );
-
-    }
-
-
-    if (
-        /\bbanana\b/.test(
-            normalizedBase
-        )
-    ) {
-
-        searchHints.push(
-            "banana fruit"
-        );
-
-    }
-
-
-    if (
-        /\btea\b/.test(
-            normalizedBase
-        )
-    ) {
-
-        searchHints.push(
-            "tea leaves"
-        );
-
-    }
-
-
-    if (
-        /\bwheat\b/.test(
-            normalizedBase
-        )
-    ) {
-
-        searchHints.push(
-            "wheat grain"
-        );
-
-    }
-
-
-    if (
-        /\brice\b/.test(
-            normalizedBase
-        )
-    ) {
-
-        searchHints.push(
-            "rice grain"
-        );
-
-    }
-
-
-    if (
-        /\bsoybean\b/.test(
-            normalizedBase
-        )
-    ) {
-
-        searchHints.push(
-            "soybean"
-        );
-
-    }
-
-
-    searchHints.forEach(
-        hint => {
-
-            queries.push(
-                hint
-            );
-
-        }
-    );
-
-
-    /*
-     * Then try the normal unquoted search.
+     * Standard unquoted search.
      */
     queries.push(
         normalizedName
@@ -4361,12 +3159,16 @@ function buildCommoditySearchQueries(
 
 
     /*
-     * Then use the base commodity name when it differs.
+     * Base commodity when a regional / market qualifier exists.
      */
     if (
         baseName &&
-        normalizeSearchText(baseName) !==
-            normalizeSearchText(normalizedName)
+        normalizeSearchText(
+            baseName
+        ) !==
+        normalizeSearchText(
+            normalizedName
+        )
     ) {
 
         queries.push(
@@ -4382,8 +3184,166 @@ function buildCommoditySearchQueries(
 
 
     /*
-     * Precious metals and industrial minerals benefit from
-     * a specimen/mineral hint, but this is only a fallback.
+     * Useful representative queries.
+     */
+    if (
+        /\bgold\b/.test(
+            normalizedBase
+        )
+    ) {
+
+        queries.push(
+            "gold mineral"
+        );
+
+    }
+
+
+    if (
+        /\bsilver\b/.test(
+            normalizedBase
+        )
+    ) {
+
+        queries.push(
+            "silver mineral"
+        );
+
+    }
+
+
+    if (
+        /\bplatinum\b/.test(
+            normalizedBase
+        )
+    ) {
+
+        queries.push(
+            "platinum mineral"
+        );
+
+    }
+
+
+    if (
+        /\bcopper\b/.test(
+            normalizedBase
+        )
+    ) {
+
+        queries.push(
+            "copper mineral"
+        );
+
+    }
+
+
+    if (
+        /\biron ore\b/.test(
+            normalizedBase
+        )
+    ) {
+
+        queries.push(
+            "iron ore"
+        );
+
+    }
+
+
+    if (
+        /\bcoal\b/.test(
+            normalizedBase
+        )
+    ) {
+
+        queries.push(
+            "coal"
+        );
+
+    }
+
+
+    if (
+        /\bcoffee\b/.test(
+            normalizedBase
+        )
+    ) {
+
+        queries.push(
+            "coffee beans"
+        );
+
+    }
+
+
+    if (
+        /\bbanana\b/.test(
+            normalizedBase
+        )
+    ) {
+
+        queries.push(
+            "banana fruit"
+        );
+
+    }
+
+
+    if (
+        /\btea\b/.test(
+            normalizedBase
+        )
+    ) {
+
+        queries.push(
+            "tea leaves"
+        );
+
+    }
+
+
+    if (
+        /\bwheat\b/.test(
+            normalizedBase
+        )
+    ) {
+
+        queries.push(
+            "wheat grain"
+        );
+
+    }
+
+
+    if (
+        /\brice\b/.test(
+            normalizedBase
+        )
+    ) {
+
+        queries.push(
+            "rice grain"
+        );
+
+    }
+
+
+    if (
+        /\bsoybean\b/.test(
+            normalizedBase
+        )
+    ) {
+
+        queries.push(
+            "soybean"
+        );
+
+    }
+
+
+    /*
+     * Metals and precious metals get a mineral fallback.
      */
     if (
         category ===
@@ -4396,6 +3356,7 @@ function buildCommoditySearchQueries(
             `${baseName || normalizedName} mineral specimen`
         );
 
+
         queries.push(
             `${baseName || normalizedName} mineral`
         );
@@ -4404,8 +3365,20 @@ function buildCommoditySearchQueries(
 
 
     /*
-     * Deduplicate while preserving the preferred order.
+     * Energy fallback.
      */
+    if (
+        category ===
+        "energy"
+    ) {
+
+        queries.push(
+            `${baseName || normalizedName} fuel`
+        );
+
+    }
+
+
     return [
         ...new Set(
             queries
@@ -4449,15 +3422,9 @@ async function searchWikimediaImage(
         new Set();
 
 
-    /*
-     * Try multiple search formulations because Wikimedia search
-     * results for market-series names are often sparse.
-     *
-     * The candidate validator remains the authoritative
-     * relevance/license gate.
-     */
     for (
-        const searchQuery of searchQueries
+        const searchQuery of
+            searchQueries
     ) {
 
         if (
@@ -4613,7 +3580,9 @@ async function searchWikimediaImage(
             }
 
 
-            if (!response.ok) {
+            if (
+                !response.ok
+            ) {
 
                 console.warn(
                     `Wikimedia API returned HTTP ${response.status} for "${searchQuery}".`
@@ -4651,7 +3620,9 @@ async function searchWikimediaImage(
                 );
 
 
-            if (!pages.length) {
+            if (
+                !pages.length
+            ) {
 
                 break;
 
@@ -4691,7 +3662,9 @@ async function searchWikimediaImage(
                 }
 
 
-                if (title) {
+                if (
+                    title
+                ) {
 
                     seenTitles.add(
                         title
@@ -4787,7 +3760,9 @@ async function getCommodityImage(
         );
 
 
-    if (cached) {
+    if (
+        cached
+    ) {
 
         const age =
             getRequestCacheAgeSeconds(
@@ -4796,7 +3771,9 @@ async function getCommodityImage(
 
 
         if (
-            Number.isFinite(age) &&
+            Number.isFinite(
+                age
+            ) &&
             age >= 0
         ) {
 
@@ -4810,9 +3787,7 @@ async function getCommodityImage(
 
                 const maxAge =
                     cachedData?.found
-
                         ? IMAGE_CACHE_TTL
-
                         : IMAGE_NEGATIVE_CACHE_TTL;
 
 
@@ -4852,7 +3827,9 @@ async function getCommodityImage(
             true,
 
         found:
-            Boolean(image),
+            Boolean(
+                image
+            ),
 
         image:
             image ||
@@ -4895,9 +3872,7 @@ async function getCommodityImage(
         cacheKey,
         response,
         image
-
             ? IMAGE_CACHE_TTL
-
             : IMAGE_NEGATIVE_CACHE_TTL
     );
 
@@ -4923,7 +3898,9 @@ async function handleImageAction(
         );
 
 
-    if (!name) {
+    if (
+        !name
+    ) {
 
         return jsonResponse(
             {
@@ -4976,9 +3953,7 @@ async function handleImageAction(
             200,
 
             result.found
-
                 ? IMAGE_CACHE_TTL
-
                 : IMAGE_NEGATIVE_CACHE_TTL
 
         );
@@ -5043,6 +4018,10 @@ export async function onRequestGet(
             .toLowerCase();
 
 
+    /* ---------------------------------------------------------
+       WIKIMEDIA IMAGE ACTION
+    --------------------------------------------------------- */
+
     if (
         action ===
         "image"
@@ -5055,6 +4034,10 @@ export async function onRequestGet(
 
     }
 
+
+    /* ---------------------------------------------------------
+       DATA ACTION
+    --------------------------------------------------------- */
 
     if (
         action !==
@@ -5086,7 +4069,7 @@ export async function onRequestGet(
 
     const resultCacheKey =
         new Request(
-            WORLD_BANK_RESULT_CACHE_KEY
+            VOLTLAS_RESULT_CACHE_KEY
         );
 
 
@@ -5098,7 +4081,9 @@ export async function onRequestGet(
         );
 
 
-    if (cachedResult) {
+    if (
+        cachedResult
+    ) {
 
         return cachedResult;
 
@@ -5107,15 +4092,9 @@ export async function onRequestGet(
 
     try {
 
-        const workbook =
-            await loadWorldBankWorkbook(
-                cache
-            );
-
-
         const parsed =
-            await parseWorldBankDataset(
-                workbook.bytes
+            await loadVoltlasDataset(
+                cache
             );
 
 
@@ -5164,7 +4143,7 @@ export async function onRequestGet(
                     false,
 
                 error:
-                    "Unable to load World Bank market data."
+                    "Unable to load Voltlas commodity data."
 
             },
 
