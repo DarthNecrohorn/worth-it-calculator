@@ -225,7 +225,7 @@ const WIKIMEDIA_API =
     "https://commons.wikimedia.org/w/api.php";
 
 const WIKIMEDIA_IMAGE_CACHE_PREFIX =
-    "https://worth-it-internal-cache.local/markets-wikimedia-image-v13/";
+    "https://worth-it-internal-cache.local/markets-wikimedia-image-v14/";
 
 const MAX_IMAGE_SEARCH_CANDIDATES =
     100;
@@ -6925,6 +6925,196 @@ function buildCommoditySearchTokens(
     }
 
 
+    /*
+     * Wikimedia often uses standard scientific/common names
+     * instead of the exact market-series label. Add well-defined
+     * aliases so valid representative images are not rejected
+     * purely because the wording differs.
+     */
+    const normalizedName =
+        normalizeSearchText(
+            name
+        );
+
+
+    const addAliases =
+        aliases => {
+
+            aliases.forEach(
+                alias => {
+
+                    const normalizedAlias =
+                        normalizeSearchText(alias);
+
+                    if (
+                        normalizedAlias &&
+                        !tokens.includes(normalizedAlias)
+                    ) {
+
+                        tokens.push(
+                            normalizedAlias
+                        );
+
+                    }
+
+                }
+            );
+
+        };
+
+
+    if (/\\bdap\\b/.test(normalizedName)) {
+        addAliases([
+            "diammonium phosphate",
+            "phosphate",
+            "fertilizer"
+        ]);
+    }
+
+
+    if (/\\btsp\\b/.test(normalizedName)) {
+        addAliases([
+            "triple superphosphate",
+            "superphosphate",
+            "phosphate",
+            "fertilizer"
+        ]);
+    }
+
+
+    if (/\\bpotash\\b/.test(normalizedName)) {
+        addAliases([
+            "potassium chloride",
+            "potassium",
+            "fertilizer"
+        ]);
+    }
+
+
+    if (/\\blng\\b/.test(normalizedName)) {
+        addAliases([
+            "liquefied natural gas",
+            "natural gas"
+        ]);
+    }
+
+
+    if (/\\blpg\\b/.test(normalizedName)) {
+        addAliases([
+            "liquefied petroleum gas",
+            "petroleum gas"
+        ]);
+    }
+
+
+    if (/\\bnatural gas\\b/.test(normalizedName)) {
+        addAliases([
+            "gas"
+        ]);
+    }
+
+
+    if (/\\b(all )?beef cattle\\b|\\bsteers (and|&) heifers\\b/.test(normalizedName)) {
+        addAliases([
+            "cattle",
+            "cow",
+            "cows"
+        ]);
+    }
+
+
+    if (/\\bbroilers?\\b/.test(normalizedName)) {
+        addAliases([
+            "chicken",
+            "chickens"
+        ]);
+    }
+
+
+    if (/\\bhogs?\\b/.test(normalizedName)) {
+        addAliases([
+            "pig",
+            "pigs",
+            "swine"
+        ]);
+    }
+
+
+    if (/\\bcalves?\\b/.test(normalizedName)) {
+        addAliases([
+            "calf",
+            "cattle"
+        ]);
+    }
+
+
+    if (/\\blamb\\b/.test(normalizedName)) {
+        addAliases([
+            "sheep"
+        ]);
+    }
+
+
+    if (/\\bgroundnuts?\\b/.test(normalizedName)) {
+        addAliases([
+            "peanut",
+            "peanuts"
+        ]);
+    }
+
+
+    if (/\\bgroundnut oil\\b/.test(normalizedName)) {
+        addAliases([
+            "peanut oil"
+        ]);
+    }
+
+
+    if (/\\bsoybean oil\\b/.test(normalizedName)) {
+        addAliases([
+            "soybean"
+        ]);
+    }
+
+
+    if (/\\brapeseed oil\\b/.test(normalizedName)) {
+        addAliases([
+            "rapeseed",
+            "canola"
+        ]);
+    }
+
+
+    if (/\\bsunflower oil\\b/.test(normalizedName)) {
+        addAliases([
+            "sunflower"
+        ]);
+    }
+
+
+    if (/\\bcoconut oil\\b/.test(normalizedName)) {
+        addAliases([
+            "coconut"
+        ]);
+    }
+
+
+    if (/\\bpalm kernel oil\\b/.test(normalizedName)) {
+        addAliases([
+            "palm kernel"
+        ]);
+    }
+
+
+    if (/\\b(sawnwood|logs)\\b/.test(normalizedName)) {
+        addAliases([
+            "wood",
+            "timber",
+            "lumber"
+        ]);
+    }
+
+
     return [
         ...new Set(
             tokens
@@ -7779,6 +7969,75 @@ function buildCommoditySearchQueries(
 
         searchHints.push(
             "tea leaves"
+        );
+
+    }
+
+
+    if (
+        /\\bdap\\b/.test(
+            normalizedBase
+        )
+    ) {
+
+        searchHints.push(
+            "diammonium phosphate",
+            "dap fertilizer"
+        );
+
+    }
+
+
+    if (
+        /\\btsp\\b/.test(
+            normalizedBase
+        )
+    ) {
+
+        searchHints.push(
+            "triple superphosphate",
+            "tsp fertilizer"
+        );
+
+    }
+
+
+    if (
+        /\\bpotash\\b/.test(
+            normalizedBase
+        )
+    ) {
+
+        searchHints.push(
+            "potash fertilizer",
+            "potassium chloride"
+        );
+
+    }
+
+
+    if (
+        /\\blng\\b/.test(
+            normalizedBase
+        )
+    ) {
+
+        searchHints.push(
+            "liquefied natural gas",
+            "natural gas"
+        );
+
+    }
+
+
+    if (
+        /\\bnatural gas\\b/.test(
+            normalizedBase
+        )
+    ) {
+
+        searchHints.push(
+            "natural gas"
         );
 
     }
