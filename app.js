@@ -849,6 +849,13 @@ CALCULATOR NAVIGATION
 
 function openCalculator(type) {
 
+    const carsSection =
+        document.getElementById("carsSection");
+
+    if (carsSection) {
+        carsSection.style.display = "none";
+    }
+
     const homePage =
         document.getElementById("homePage");
 
@@ -1054,6 +1061,13 @@ window.openCalculator =
     openCalculator;
 
 function showHome() {
+
+    const carsSection =
+        document.getElementById("carsSection");
+
+    if (carsSection) {
+        carsSection.style.display = "none";
+    }
     const homePage = document.getElementById("homePage");
     const weatherSection = document.getElementById("weatherSection");
     const newsSection = document.getElementById("newsSection");
@@ -1297,6 +1311,13 @@ window.openMoneyFromMenu = openMoneyFromMenu;
 
 function openMarkets() {
 
+    const carsSection =
+        document.getElementById("carsSection");
+
+    if (carsSection) {
+        carsSection.style.display = "none";
+    }
+
     const homePage =
         document.getElementById("homePage");
 
@@ -1370,6 +1391,13 @@ if (moneySection) {
 window.openMarkets = openMarkets;
 
 function openMoney() {
+
+    const carsSection =
+        document.getElementById("carsSection");
+
+    if (carsSection) {
+        carsSection.style.display = "none";
+    }
 
     const homePage =
         document.getElementById("homePage");
