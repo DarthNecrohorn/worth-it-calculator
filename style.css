@@ -6620,6 +6620,31 @@ html[data-ui-scale="xl"] .profile-nav-btn .auth-avatar-fallback{
  * disappear off the viewport at A / A+ / A++.
  */
 @media(max-width:700px){
+    /* Keep the Home hero mathematically centered at every mobile text scale. */
+    .hero > .container{
+        width:calc(100% - 20px);
+        max-width:680px;
+        margin-left:auto;
+        margin-right:auto;
+        display:flex;
+        flex-direction:column;
+        align-items:center;
+        text-align:center;
+    }
+
+    .hero .badge,
+    .hero h1,
+    .hero p,
+    .hero .hero-actions{
+        margin-left:auto;
+        margin-right:auto;
+    }
+
+    html[data-ui-scale="small"] .hero > .container{
+        width:calc(100% - 20px);
+        max-width:680px;
+    }
+
     html,
     body{
         max-width:100%;
