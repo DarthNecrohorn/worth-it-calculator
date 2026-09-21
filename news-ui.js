@@ -639,6 +639,13 @@ async function loadNews() {
 
 function openNews() {
 
+    const carsSection =
+        document.getElementById("carsSection");
+
+    if (carsSection) {
+        carsSection.style.display = "none";
+    }
+
     $("homePage").style.display =
         "none";
 
