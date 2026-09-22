@@ -259,6 +259,22 @@ function toggleAccountPanel() {
 
     if (!panel) return;
 
+    /*
+     * On phones, portal the panel BEFORE the click event reaches the
+     * document-level outside-click handler. This prevents the handler
+     * from immediately closing the newly opened panel after it is moved
+     * outside #authWrap.
+     */
+    if (
+        window.innerWidth <= 700 &&
+        !panel._worthItOriginalParent
+    ) {
+        panel._worthItOriginalParent = panel.parentNode;
+        panel._worthItOriginalNextSibling = panel.nextSibling;
+        document.documentElement.appendChild(panel);
+        panel.classList.add("mobile-account-portal");
+    }
+
     const open =
         panel.classList.toggle("open");
 
@@ -268,7 +284,9 @@ function toggleAccountPanel() {
     );
 
     if (open) {
-        requestAnimationFrame(positionAccountPanelForMobile);
+        positionAccountPanelForMobile();
+    } else {
+        closeAccountPanel();
     }
 }
 
