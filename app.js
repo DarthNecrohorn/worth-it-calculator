@@ -134,61 +134,27 @@ function positionAccountPanelForMobile() {
         return;
     }
 
-    /* Mobile uses viewport coordinates so the menu follows the
-       actual profile icon at every accessibility scale. */
-    panel.style.position = "fixed";
+    /*
+     * Mobile profile menu:
+     *
+     * The page uses CSS zoom for A- / A / A+ / A++.
+     * Positioning the panel with viewport coordinates from
+     * getBoundingClientRect() therefore becomes unreliable at
+     * the larger UI scales and can push the menu outside the phone.
+     *
+     * Keep the panel in the auth-wrap coordinate system instead.
+     * CSS centers it on the profile control and accounts for
+     * --ui-scale in its width. This is phone-only; desktop keeps
+     * its existing positioning.
+     */
+    panel.style.position = "absolute";
+    panel.style.left = "50%";
     panel.style.right = "auto";
-    panel.style.transform = "none";
-
-    const profileRect = profileBtn.getBoundingClientRect();
-    const viewportWidth =
-        window.visualViewport?.width || document.documentElement.clientWidth || window.innerWidth;
-
-    const margin = 8;
-    const profileCenter = profileRect.left + (profileRect.width / 2);
-
-    /* First use the natural compact width. If that width would be
-       cut off while centered under the icon, reduce the panel width
-       just enough to keep the whole panel visible. */
-    const naturalWidth = Math.min(290, Math.max(180, viewportWidth - 20));
-    const maxCenteredWidth = Math.max(
-        160,
-        2 * Math.min(
-            profileCenter - margin,
-            viewportWidth - profileCenter - margin
-        )
-    );
-
-    const panelWidth = Math.min(naturalWidth, maxCenteredWidth);
-
-    panel.style.width = panelWidth + "px";
-    panel.style.maxWidth = panelWidth + "px";
+    panel.style.top = "calc(100% + 8px)";
+    panel.style.transform = "translateX(-50%)";
+    panel.style.width = "";
+    panel.style.maxWidth = "";
     panel.style.boxSizing = "border-box";
-
-    /* Re-measure after the width has been applied. */
-    const actualWidth = panel.getBoundingClientRect().width;
-    const panelHeight = panel.getBoundingClientRect().height;
-
-    let left = profileCenter - (actualWidth / 2);
-
-    /* Keep the centered position whenever possible. The clamp is only
-       a final safety net for unusual very narrow phone viewports. */
-    left = Math.max(
-        margin,
-        Math.min(left, viewportWidth - actualWidth - margin)
-    );
-
-    const preferredTop = profileRect.bottom + 8;
-    const maxTop = window.innerHeight - panelHeight - margin;
-
-    let top = Math.min(preferredTop, maxTop);
-
-    if (top < margin) {
-        top = margin;
-    }
-
-    panel.style.left = left + "px";
-    panel.style.top = top + "px";
 }
 
 function toggleAccountPanel() {
