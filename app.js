@@ -928,9 +928,26 @@ document.addEventListener(
             $("authWrap");
 
 
+        const panel =
+            $("accountPanel");
+
+        /*
+         * On phones the account panel is temporarily portalled
+         * outside #authWrap so it can escape the zoomed body.
+         * Treat clicks inside that panel as internal clicks too.
+         */
+        const clickedInsideWrap =
+            wrap &&
+            wrap.contains(event.target);
+
+        const clickedInsidePanel =
+            panel &&
+            panel.contains(event.target);
+
         if (
             wrap &&
-            !wrap.contains(event.target)
+            !clickedInsideWrap &&
+            !clickedInsidePanel
         ) {
 
             closeAccountPanel();
