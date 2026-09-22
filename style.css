@@ -7879,3 +7879,39 @@ html[data-ui-scale="xl"] .profile-nav-btn .auth-avatar-fallback{
         text-align:center;
     }
 }
+
+
+
+/* =========================================================
+   MOBILE — PROFILE DROPDOWN FINAL VIEWPORT FIT
+   Phone only. Desktop/tablet are intentionally untouched.
+
+   The site uses body zoom for A- / A / A+ / A++.
+   The profile menu must therefore compensate its CSS width
+   and remain centered on the profile control at every scale.
+   ========================================================= */
+@media (max-width:700px){
+
+    .auth-wrap{
+        position:relative !important;
+    }
+
+    .auth-wrap .account-panel{
+        position:absolute !important;
+        left:50% !important;
+        right:auto !important;
+        top:calc(100% + 8px) !important;
+        transform:translateX(-50%) !important;
+
+        width:min(
+            calc(290px / var(--ui-scale, 1)),
+            calc((100vw - 20px) / var(--ui-scale, 1))
+        ) !important;
+        max-width:calc((100vw - 20px) / var(--ui-scale, 1)) !important;
+
+        box-sizing:border-box !important;
+        max-height:calc((100vh - 82px) / var(--ui-scale, 1)) !important;
+        overflow:auto !important;
+        transform-origin:top center !important;
+    }
+}
