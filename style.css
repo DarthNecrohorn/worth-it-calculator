@@ -7915,3 +7915,39 @@ html[data-ui-scale="xl"] .profile-nav-btn .auth-avatar-fallback{
         transform-origin:top center !important;
     }
 }
+
+
+/* =========================================================
+   MOBILE — PROFILE ACCOUNT PORTAL
+   Keeps the signed-in profile dropdown above the zoomed page.
+   ========================================================= */
+@media (max-width:700px){
+
+    .mobile-account-portal-root{
+        position:fixed !important;
+        inset:0 !important;
+        width:100vw !important;
+        height:100vh !important;
+        margin:0 !important;
+        padding:0 !important;
+        overflow:visible !important;
+        z-index:2147483647 !important;
+        pointer-events:none !important;
+        box-sizing:border-box !important;
+    }
+
+    .mobile-account-portal{
+        display:block !important;
+        visibility:visible !important;
+        opacity:1 !important;
+        pointer-events:auto !important;
+    }
+
+    /*
+     * Touch browsers can keep :hover active after a tap. Do not make
+     * the profile button appear stuck in its hover/enlarged state.
+     */
+    .profile-nav-btn:hover{
+        transform:none !important;
+    }
+}
