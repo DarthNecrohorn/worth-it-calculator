@@ -7668,7 +7668,7 @@ html[data-ui-scale="xl"] .profile-nav-btn .auth-avatar-fallback{
     /* The profile dropdown is positioned from JS using the actual
        profile button, so it stays directly under the icon even at A++. */
     .account-panel{
-        transform:none !important;
+        transform:translateX(-50%) !important;
     }
 }
 
@@ -7760,7 +7760,7 @@ html[data-ui-scale="xl"] .profile-nav-btn .auth-avatar-fallback{
        right of the exact profile-button center. JS clamps it to
        the viewport, so it can never be cut off. */
     html[data-ui-scale="xl"] .account-panel{
-        transform:none !important;
+        transform:translateX(-50%) !important;
     }
 }
 
