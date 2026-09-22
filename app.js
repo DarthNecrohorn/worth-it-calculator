@@ -119,281 +119,45 @@ function closeAccountPanel() {
         "aria-hidden",
         "true"
     );
+}
 
-    /*
-     * Phones use a dedicated portal outside the zoomed <body>.
-     * Restore the panel to its original place when it closes.
-     */
-    const originalParent =
-        panel._worthItOriginalParent;
 
-    const originalNextSibling =
-        panel._worthItOriginalNextSibling;
+/*
+ * The account dropdown stays inside #authWrap on phones.
+ * The mobile CSS positions it from the profile control and keeps
+ * it inside the phone viewport while respecting the UI scale.
+ */
+function positionAccountPanelForMobile() {
 
-    if (originalParent) {
+    const panel = $("accountPanel");
 
-        if (
-            originalNextSibling &&
-            originalNextSibling.parentNode === originalParent
-        ) {
-            originalParent.insertBefore(
-                panel,
-                originalNextSibling
-            );
-        } else {
-            originalParent.appendChild(panel);
-        }
+    if (!panel) return;
 
+    if (
+        window.innerWidth > 700 ||
+        !panel.classList.contains("open")
+    ) {
+        return;
     }
-
-    if (panel._worthItMobilePortalHost) {
-
-        panel._worthItMobilePortalHost.remove();
-
-    }
-
-    panel._worthItOriginalParent = null;
-    panel._worthItOriginalNextSibling = null;
-    panel._worthItMobilePortalHost = null;
-
-    panel.classList.remove(
-        "mobile-account-portal"
-    );
-
-    panel.style.position = "";
-    panel.style.left = "";
-    panel.style.right = "";
-    panel.style.top = "";
-    panel.style.width = "";
-    panel.style.maxWidth = "";
-    panel.style.maxHeight = "";
-    panel.style.transform = "";
-    panel.style.zoom = "";
 
     panel.style.removeProperty("display");
     panel.style.removeProperty("visibility");
     panel.style.removeProperty("opacity");
     panel.style.removeProperty("pointer-events");
+    panel.style.removeProperty("position");
+    panel.style.removeProperty("left");
+    panel.style.removeProperty("right");
+    panel.style.removeProperty("top");
+    panel.style.removeProperty("width");
+    panel.style.removeProperty("max-width");
+    panel.style.removeProperty("max-height");
+    panel.style.removeProperty("transform");
+    panel.style.removeProperty("zoom");
     panel.style.removeProperty("z-index");
-    panel.style.removeProperty("box-sizing");
-    panel.style.removeProperty("font-family");
-    panel.style.removeProperty("color");
 }
 
 
-function createMobileAccountPortal(panel) {
-
-    if (
-        !panel ||
-        panel._worthItMobilePortalHost
-    ) {
-        return;
-    }
-
-    const originalParent =
-        panel.parentNode;
-
-    if (!originalParent) {
-        return;
-    }
-
-    panel._worthItOriginalParent =
-        originalParent;
-
-    panel._worthItOriginalNextSibling =
-        panel.nextSibling;
-
-    const host =
-        document.createElement("div");
-
-    host.className =
-        "mobile-account-portal-root";
-
-    host.setAttribute(
-        "aria-hidden",
-        "false"
-    );
-
-    host.style.position = "fixed";
-    host.style.inset = "0";
-    host.style.width = "100vw";
-    host.style.height = "100vh";
-    host.style.margin = "0";
-    host.style.padding = "0";
-    host.style.zIndex = "2147483647";
-    host.style.pointerEvents = "none";
-    host.style.boxSizing = "border-box";
-
-    document.documentElement.appendChild(
-        host
-    );
-
-    host.appendChild(panel);
-
-    panel._worthItMobilePortalHost =
-        host;
-
-    panel.classList.add(
-        "mobile-account-portal"
-    );
-}
-
-
-function positionAccountPanelForMobile() {
-
-    const panel = $("accountPanel");
-    const profileBtn = $("profileNavBtn");
-
-    if (!panel || !profileBtn) return;
-
-    /*
-     * Desktop/tablet stays exactly as before.
-     */
-    if (window.innerWidth > 700) {
-        return;
-    }
-
-    if (!panel.classList.contains("open")) {
-        return;
-    }
-
-    /*
-     * The page <body> is zoomed for accessibility scaling.
-     * The mobile portal is deliberately outside that zoomed body,
-     * so this dropdown can use real viewport coordinates.
-     */
-    if (!panel._worthItMobilePortalHost) {
-
-        createMobileAccountPortal(
-            panel
-        );
-
-    }
-
-    const scale =
-        Number.parseFloat(
-            getComputedStyle(document.documentElement)
-                .getPropertyValue("--ui-scale")
-        ) || 1;
-
-    const viewport =
-        window.visualViewport;
-
-    const viewportWidth =
-        viewport?.width ||
-        document.documentElement.clientWidth ||
-        window.innerWidth;
-
-    const viewportLeft =
-        viewport?.offsetLeft || 0;
-
-    const profileRect =
-        profileBtn.getBoundingClientRect();
-
-    const margin = 10;
-    const desiredPhysicalWidth = 380;
-
-    const physicalWidth =
-        Math.max(
-            180,
-            Math.min(
-                desiredPhysicalWidth,
-                viewportWidth - (margin * 2)
-            )
-        );
-
-    const top =
-        Math.max(
-            8,
-            profileRect.bottom + 8
-        );
-
-    panel.style.position =
-        "absolute";
-
-    panel.style.left =
-        (
-            viewportLeft +
-            (viewportWidth / 2)
-        ) + "px";
-
-    panel.style.right =
-        "auto";
-
-    panel.style.top =
-        top + "px";
-
-    panel.style.transform =
-        "translateX(-50%)";
-
-    panel.style.boxSizing =
-        "border-box";
-
-    panel.style.width =
-        (physicalWidth / scale) + "px";
-
-    panel.style.maxWidth =
-        (physicalWidth / scale) + "px";
-
-    panel.style.zoom =
-        String(scale);
-
-    panel.style.setProperty(
-        "display",
-        "block",
-        "important"
-    );
-
-    panel.style.setProperty(
-        "visibility",
-        "visible",
-        "important"
-    );
-
-    panel.style.setProperty(
-        "opacity",
-        "1",
-        "important"
-    );
-
-    panel.style.setProperty(
-        "pointer-events",
-        "auto",
-        "important"
-    );
-
-    panel.style.setProperty(
-        "z-index",
-        "2147483647",
-        "important"
-    );
-
-    panel.style.fontFamily =
-        'Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif';
-
-    panel.style.color =
-        "var(--text)";
-
-    /*
-     * Keep enough room below the menu. The menu itself scrolls when
-     * necessary instead of disappearing outside the phone.
-     */
-    const bottomMargin = 10;
-
-    const availableHeight =
-        Math.max(
-            180,
-            window.innerHeight -
-            top -
-            bottomMargin
-        );
-
-    panel.style.maxHeight =
-        (availableHeight / scale) + "px";
-}
-
-
-function toggleAccountPanel() {
+function toggleAccountPanel(event) {
 
     if (!currentAuthUser) return;
 
@@ -402,18 +166,13 @@ function toggleAccountPanel() {
 
     if (!panel) return;
 
-    const isMobile =
-        window.innerWidth <= 700;
-
-    if (
-        isMobile &&
-        !panel._worthItMobilePortalHost
-    ) {
-
-        createMobileAccountPortal(
-            panel
-        );
-
+    /*
+     * IMPORTANT:
+     * Stop this profile click from reaching the document-level
+     * outside-click handler. The panel stays inside #authWrap.
+     */
+    if (event?.stopPropagation) {
+        event.stopPropagation();
     }
 
     const open =
@@ -425,13 +184,7 @@ function toggleAccountPanel() {
     );
 
     if (open) {
-
         positionAccountPanelForMobile();
-
-    } else {
-
-        closeAccountPanel();
-
     }
 }
 
