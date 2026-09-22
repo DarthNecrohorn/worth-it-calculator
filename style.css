@@ -8011,213 +8011,82 @@ html[data-ui-scale="xl"] .profile-nav-btn .auth-avatar-fallback{
 }
 
 /* =========================================================
-   HAMBURGER MENU — FINAL SCROLL / STICKY CALCULATOR
-   The menu scrolls through all navigation items while Calculator
-   remains fixed at the bottom of the menu.
+   HAMBURGER MENU — FINAL VIEWPORT / STICKY CALCULATOR
+   The existing menu structure stays unchanged. The menu itself is the
+   scroll container and Calculator remains the last sticky row.
    ========================================================= */
 
-/* Phones and compact screens: always give the open menu a real
-   viewport-sized scrolling area. */
-@media (max-width:1000px){
-
-    .nav-links.open{
-        height:calc(100vh - 76px) !important;
-        max-height:calc(100vh - 76px) !important;
-        overflow-y:auto !important;
-        overflow-x:hidden !important;
-        overscroll-behavior-y:contain !important;
-        -webkit-overflow-scrolling:touch !important;
-        touch-action:pan-y !important;
-        scrollbar-gutter:stable;
-    }
-
-    .nav-links.open > button:last-of-type{
-        position:sticky !important;
-        bottom:0 !important;
-        z-index:50 !important;
-        flex:0 0 auto !important;
-        background:var(--card-solid,var(--card)) !important;
-        box-shadow:0 -10px 20px rgba(0,0,0,.14) !important;
-    }
-}
-
-/* A+ / A++ on computers: compensate for the page zoom while keeping
-   the hamburger panel fully inside the viewport. */
-html[data-ui-scale="large"] .nav-links.open,
-html[data-ui-scale="xl"] .nav-links.open{
-    height:calc((100vh - 84px) / var(--ui-scale, 1)) !important;
-    max-height:none !important;
-    overflow-y:auto !important;
-    overflow-x:hidden !important;
-    overscroll-behavior-y:contain !important;
-    -webkit-overflow-scrolling:touch !important;
-    touch-action:pan-y !important;
-    scrollbar-gutter:stable;
-}
-
-html[data-ui-scale="large"] .nav-links.open > button:last-of-type,
-html[data-ui-scale="xl"] .nav-links.open > button:last-of-type{
-    position:sticky !important;
-    bottom:0 !important;
-    z-index:50 !important;
-    flex:0 0 auto !important;
-    background:var(--card-solid,var(--card)) !important;
-    box-shadow:0 -10px 20px rgba(0,0,0,.14) !important;
-}
-
-/* A+ / A++ phones: use the actual phone header position and leave the
-   Calculator row visible at all times. */
-@media (max-width:700px){
-
-    .nav-links.open{
-        top:64px !important;
-        height:calc((100vh - 76px) / var(--ui-scale, 1)) !important;
-        max-height:none !important;
-        overflow-y:auto !important;
-        overflow-x:hidden !important;
-        overscroll-behavior-y:contain !important;
-        -webkit-overflow-scrolling:touch !important;
-        touch-action:pan-y !important;
-    }
-
-    .nav-links.open > button:last-of-type{
-        position:sticky !important;
-        bottom:0 !important;
-        z-index:50 !important;
-    }
-}
-
-/* =========================================================
-   FINAL HAMBURGER LAYOUT — SCROLL CONTENT + FIXED CALCULATOR
-   The navigation content scrolls in its own area. Calculator is a
-   separate flex item and therefore never scrolls underneath itself.
-   ========================================================= */
-
-.nav-scroll-content{
-    display:contents;
-}
-
-/* A+ / A++ computers. */
+/* A+ / A++ on computers. Keep the top exactly where the current
+   accessibility menu places it, but give it a real bottom boundary. */
 html[data-ui-scale="large"] .nav-links.open,
 html[data-ui-scale="xl"] .nav-links.open{
     top:calc(72px / var(--ui-scale, 1)) !important;
     bottom:calc(10px / var(--ui-scale, 1)) !important;
     height:auto !important;
     max-height:none !important;
-    overflow:hidden !important;
-    box-sizing:border-box !important;
-    display:flex !important;
-    flex-direction:column !important;
-    min-height:0 !important;
-}
-
-html[data-ui-scale="large"] .nav-scroll-content,
-html[data-ui-scale="xl"] .nav-scroll-content{
-    display:flex !important;
-    flex:1 1 auto !important;
-    min-height:0 !important;
-    width:100% !important;
-    flex-direction:column !important;
-    gap:5px !important;
     overflow-y:auto !important;
     overflow-x:hidden !important;
     overscroll-behavior:contain !important;
     -webkit-overflow-scrolling:touch !important;
     touch-action:pan-y !important;
+    box-sizing:border-box !important;
     scrollbar-gutter:stable;
+    isolation:isolate;
 }
 
-html[data-ui-scale="large"] .nav-links.open .more-menu-btn,
-html[data-ui-scale="xl"] .nav-links.open .more-menu-btn,
-html[data-ui-scale="large"] .nav-links.open .nav-calculator-spacer,
-html[data-ui-scale="xl"] .nav-links.open .nav-calculator-spacer{
-    display:none !important;
-}
-
-html[data-ui-scale="large"] .nav-scroll-content > button,
-html[data-ui-scale="xl"] .nav-scroll-content > button,
-html[data-ui-scale="large"] .nav-scroll-content > .nav-overflow-items,
-html[data-ui-scale="xl"] .nav-scroll-content > .nav-overflow-items{
-    width:100% !important;
-    flex:0 0 auto !important;
-}
-
-/* Keep Calculator visible and physically above the scroll area. */
+/* The last button is Calculator. Its opaque background and high stacking
+   order make every preceding navigation item disappear underneath it
+   instead of remaining visible below/through it while scrolling. */
 html[data-ui-scale="large"] .nav-links.open > button:last-child,
 html[data-ui-scale="xl"] .nav-links.open > button:last-child{
-    position:relative !important;
-    bottom:auto !important;
-    z-index:60 !important;
+    position:sticky !important;
+    bottom:0 !important;
+    z-index:100 !important;
     flex:0 0 auto !important;
     width:100% !important;
     margin-top:5px !important;
     background:var(--card-solid,var(--card)) !important;
     border-top:1px solid var(--border) !important;
-    box-shadow:0 -10px 20px rgba(0,0,0,.14) !important;
+    box-shadow:0 -10px 20px rgba(0,0,0,.16) !important;
 }
 
-/* Phones, including A- / A / A+ / A++. */
-@media (max-width:1000px){
+/* Phones: preserve the existing top area and shorten the panel from the
+   bottom so the complete Calculator row is always inside the screen. */
+@media (max-width:700px){
 
     .nav-links.open{
         top:64px !important;
         bottom:8px !important;
         height:auto !important;
         max-height:none !important;
-        overflow:hidden !important;
-        box-sizing:border-box !important;
-        display:flex !important;
-        flex-direction:column !important;
-        min-height:0 !important;
-    }
-
-    .nav-scroll-content{
-        display:flex !important;
-        flex:1 1 auto !important;
-        min-height:0 !important;
-        width:100% !important;
-        flex-direction:column !important;
-        gap:5px !important;
         overflow-y:auto !important;
         overflow-x:hidden !important;
         overscroll-behavior:contain !important;
         -webkit-overflow-scrolling:touch !important;
         touch-action:pan-y !important;
+        box-sizing:border-box !important;
         scrollbar-gutter:stable;
-    }
-
-    .nav-links.open .more-menu-btn,
-    .nav-links.open .nav-calculator-spacer{
-        display:none !important;
-    }
-
-    .nav-scroll-content > button,
-    .nav-scroll-content > .nav-overflow-items{
-        width:100% !important;
-        flex:0 0 auto !important;
+        isolation:isolate;
     }
 
     .nav-links.open > button:last-child{
-        position:relative !important;
-        bottom:auto !important;
-        z-index:60 !important;
+        position:sticky !important;
+        bottom:0 !important;
+        z-index:100 !important;
         flex:0 0 auto !important;
         width:100% !important;
         margin-top:5px !important;
         background:var(--card-solid,var(--card)) !important;
         border-top:1px solid var(--border) !important;
-        box-shadow:0 -10px 20px rgba(0,0,0,.14) !important;
+        box-shadow:0 -10px 20px rgba(0,0,0,.16) !important;
     }
-}
 
-/* A+ / A++ phones: same fixed-bottom boundary, with the scaled header
-   spacing already used elsewhere in the mobile layout. */
-@media (max-width:700px){
-
+    /* A+ / A++ phones use the scaled header geometry already defined
+       earlier; only the lower boundary is adjusted here. */
     html[data-ui-scale="large"] .nav-links.open,
     html[data-ui-scale="xl"] .nav-links.open{
-        top:64px !important;
-        bottom:8px !important;
+        top:calc(64px / var(--ui-scale, 1)) !important;
+        bottom:calc(8px / var(--ui-scale, 1)) !important;
         height:auto !important;
         max-height:none !important;
     }
