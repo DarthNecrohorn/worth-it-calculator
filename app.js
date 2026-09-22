@@ -109,8 +109,7 @@ ACCOUNT PANEL
 
 function closeAccountPanel() {
 
-    const panel =
-        $("accountPanel");
+    const panel = $("accountPanel");
 
     if (!panel) return;
 
@@ -120,6 +119,37 @@ function closeAccountPanel() {
         "aria-hidden",
         "true"
     );
+
+    /*
+     * The mobile panel is temporarily moved outside the zoomed body.
+     * Put it back into its original place when it closes so desktop
+     * and normal document structure remain unchanged.
+     */
+    if (panel._worthItOriginalParent) {
+        const parent = panel._worthItOriginalParent;
+        const next = panel._worthItOriginalNextSibling;
+
+        if (next && next.parentNode === parent) {
+            parent.insertBefore(panel, next);
+        } else {
+            parent.appendChild(panel);
+        }
+
+        panel._worthItOriginalParent = null;
+        panel._worthItOriginalNextSibling = null;
+    }
+
+    panel.classList.remove("mobile-account-portal");
+
+    panel.style.position = "";
+    panel.style.left = "";
+    panel.style.right = "";
+    panel.style.top = "";
+    panel.style.width = "";
+    panel.style.maxWidth = "";
+    panel.style.maxHeight = "";
+    panel.style.transform = "";
+    panel.style.zoom = "";
 }
 
 
@@ -130,31 +160,43 @@ function positionAccountPanelForMobile() {
 
     if (!panel || !profileBtn) return;
 
-    if (window.innerWidth > 700 || !panel.classList.contains("open")) {
+    /*
+     * Desktop/tablet: leave the existing account panel completely
+     * untouched.
+     */
+    if (window.innerWidth > 700) {
+        return;
+    }
+
+    if (!panel.classList.contains("open")) {
         return;
     }
 
     /*
-     * PHONE ONLY:
-     * The whole body uses CSS zoom for A- / A / A+ / A++.
-     * The account panel must be sized in unzoomed CSS pixels,
-     * otherwise the zoom can make the panel physically wider
-     * than the phone viewport.
+     * IMPORTANT:
      *
-     * We deliberately keep the panel right-aligned on phones.
-     * This guarantees that its right edge can never disappear
-     * beyond the screen, including at A- and A++.
+     * The whole <body> is zoomed for A- / A / A+ / A++.
+     * A positioned child inside that zoomed body cannot reliably
+     * use viewport coordinates on Android Chrome.
+     *
+     * For phones we therefore portal ONLY this dropdown to <html>,
+     * which is outside the zoomed body. We then apply the selected
+     * UI scale directly to the panel itself.
+     *
+     * Result:
+     *   - the panel remains the same visual scale as the rest of UI
+     *   - its physical width is constrained to the phone
+     *   - it is horizontally centered
+     *   - A- and A++ no longer push it off-screen
      */
-    panel.style.position = "fixed";
-    panel.style.left = "auto";
-    panel.style.right = "auto";
-    panel.style.transform = "none";
-    panel.style.boxSizing = "border-box";
+    if (!panel._worthItOriginalParent) {
+        panel._worthItOriginalParent = panel.parentNode;
+        panel._worthItOriginalNextSibling = panel.nextSibling;
 
-    const viewport =
-        window.visualViewport?.width ||
-        document.documentElement.clientWidth ||
-        window.innerWidth;
+        document.documentElement.appendChild(panel);
+    }
+
+    panel.classList.add("mobile-account-portal");
 
     const scale =
         Number.parseFloat(
@@ -162,41 +204,51 @@ function positionAccountPanelForMobile() {
                 .getPropertyValue("--ui-scale")
         ) || 1;
 
-    const physicalMargin = 10;
-    const maxPhysicalWidth = 290;
+    const viewportWidth =
+        window.visualViewport?.width ||
+        document.documentElement.clientWidth ||
+        window.innerWidth;
 
-    /* Convert the desired physical phone width back into
-       unzoomed CSS pixels because body is globally zoomed. */
-    const panelWidth = Math.min(
-        maxPhysicalWidth / scale,
-        Math.max(180 / scale, (viewport - (physicalMargin * 2)) / scale)
+    const profileRect =
+        profileBtn.getBoundingClientRect();
+
+    const margin = 10;
+    const desiredPhysicalWidth = 380;
+
+    const physicalWidth = Math.min(
+        desiredPhysicalWidth,
+        Math.max(220, viewportWidth - (margin * 2))
     );
 
-    panel.style.width = panelWidth + "px";
-    panel.style.maxWidth = panelWidth + "px";
-
-    const profileRect = profileBtn.getBoundingClientRect();
+    /*
+     * The portal itself is unzoomed. Compensate the panel's CSS
+     * dimensions by its own zoom so the final rendered width is
+     * exactly the desired physical width.
+     */
+    panel.style.position = "fixed";
+    panel.style.left = "50vw";
+    panel.style.right = "auto";
+    panel.style.top = (profileRect.bottom + 8) + "px";
+    panel.style.transform = "translateX(-50%)";
+    panel.style.boxSizing = "border-box";
+    panel.style.width = (physicalWidth / scale) + "px";
+    panel.style.maxWidth = (physicalWidth / scale) + "px";
+    panel.style.zoom = String(scale);
 
     /*
-     * getBoundingClientRect() already includes CSS zoom, so convert
-     * the desired physical top/right margins back through the same
-     * scale before assigning them to the zoomed body.
+     * Keep the menu inside the visible vertical area as much as
+     * possible. The panel itself scrolls if its contents are taller.
      */
-    const right = physicalMargin / scale;
-    const top =
-        (profileRect.bottom + (8 / scale));
+    const top = profileRect.bottom + 8;
+    const bottomMargin = 10;
+    const availableHeight =
+        Math.max(180, window.innerHeight - top - bottomMargin);
 
-    panel.style.right = right + "px";
-    panel.style.top = top + "px";
-
-    const maxHeight =
-        Math.max(
-            160,
-            (window.innerHeight - profileRect.bottom - (18 / scale))
-        );
-
-    panel.style.maxHeight = maxHeight + "px";
+    panel.style.maxHeight =
+        (availableHeight / scale) + "px";
 }
+
+
 
 function toggleAccountPanel() {
 
