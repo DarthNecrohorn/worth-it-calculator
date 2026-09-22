@@ -7918,25 +7918,40 @@ html[data-ui-scale="xl"] .profile-nav-btn .auth-avatar-fallback{
 
 
 /* =========================================================
-   MOBILE — PROFILE ACCOUNT PORTAL
-   Keeps the signed-in profile dropdown above the zoomed page.
+   MOBILE — PROFILE DROPDOWN FINAL
+   The dropdown remains inside #authWrap; only its mobile geometry
+   is overridden here. Other header controls keep their behavior.
    ========================================================= */
 @media (max-width:700px){
 
-    .mobile-account-portal-root{
-        position:fixed !important;
-        inset:0 !important;
-        width:100vw !important;
-        height:100vh !important;
-        margin:0 !important;
-        padding:0 !important;
-        overflow:visible !important;
-        z-index:2147483647 !important;
-        pointer-events:none !important;
+    .auth-wrap{
+        position:relative !important;
+        z-index:20;
+    }
+
+    .account-panel{
+        position:absolute !important;
+        left:50% !important;
+        right:auto !important;
+        top:calc(100% + 8px) !important;
+        transform:translateX(-50%) !important;
+        z-index:2147483646 !important;
+        display:none;
+        width:min(
+            290px,
+            calc((100vw - 20px) / var(--ui-scale, 1))
+        ) !important;
+        max-width:calc(
+            (100vw - 20px) / var(--ui-scale, 1)
+        ) !important;
+        max-height:calc(
+            (100vh - 28px) / var(--ui-scale, 1)
+        ) !important;
+        overflow:auto !important;
         box-sizing:border-box !important;
     }
 
-    .mobile-account-portal{
+    .account-panel.open{
         display:block !important;
         visibility:visible !important;
         opacity:1 !important;
@@ -7944,10 +7959,34 @@ html[data-ui-scale="xl"] .profile-nav-btn .auth-avatar-fallback{
     }
 
     /*
-     * Touch browsers can keep :hover active after a tap. Do not make
-     * the profile button appear stuck in its hover/enlarged state.
+     * Keep every signed-in utility control visible in the phone header.
+     * Admin Panel remains governed by admin-panel.js through its inline
+     * display state.
      */
+    .nav-actions .feedback-nav-btn,
+    .nav-actions .settings-btn,
+    .nav-actions .ai-chat-nav-btn{
+        display:inline-flex !important;
+        visibility:visible !important;
+    }
+
+    .nav-actions .signout-nav-btn{
+        display:none !important;
+    }
+
+    .nav-actions:has(.profile-nav-btn[style*="inline-flex"]) .signout-nav-btn{
+        display:inline-flex !important;
+        visibility:visible !important;
+    }
+
+    .nav-actions .admin-panel-nav-btn{
+        visibility:visible;
+    }
+}
+
+/* Re-enable the normal profile hover enlargement on devices that support hover. */
+@media (hover:hover) and (max-width:700px){
     .profile-nav-btn:hover{
-        transform:none !important;
+        transform:translateY(-2px) scale(1.045);
     }
 }
