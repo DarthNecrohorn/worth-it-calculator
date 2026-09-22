@@ -7990,3 +7990,9 @@ html[data-ui-scale="xl"] .profile-nav-btn .auth-avatar-fallback{
         transform:translateY(-2px) scale(1.045);
     }
 }
+
+@media (max-width:700px){
+    .profile-nav-btn:active{
+        transform:translateY(-2px) scale(1.045) !important;
+    }
+}
