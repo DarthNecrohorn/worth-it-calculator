@@ -135,26 +135,67 @@ function positionAccountPanelForMobile() {
     }
 
     /*
-     * Mobile profile menu:
+     * PHONE ONLY:
+     * The whole body uses CSS zoom for A- / A / A+ / A++.
+     * The account panel must be sized in unzoomed CSS pixels,
+     * otherwise the zoom can make the panel physically wider
+     * than the phone viewport.
      *
-     * The page uses CSS zoom for A- / A / A+ / A++.
-     * Positioning the panel with viewport coordinates from
-     * getBoundingClientRect() therefore becomes unreliable at
-     * the larger UI scales and can push the menu outside the phone.
-     *
-     * Keep the panel in the auth-wrap coordinate system instead.
-     * CSS centers it on the profile control and accounts for
-     * --ui-scale in its width. This is phone-only; desktop keeps
-     * its existing positioning.
+     * We deliberately keep the panel right-aligned on phones.
+     * This guarantees that its right edge can never disappear
+     * beyond the screen, including at A- and A++.
      */
-    panel.style.position = "absolute";
-    panel.style.left = "50%";
+    panel.style.position = "fixed";
+    panel.style.left = "auto";
     panel.style.right = "auto";
-    panel.style.top = "calc(100% + 8px)";
-    panel.style.transform = "translateX(-50%)";
-    panel.style.width = "";
-    panel.style.maxWidth = "";
+    panel.style.transform = "none";
     panel.style.boxSizing = "border-box";
+
+    const viewport =
+        window.visualViewport?.width ||
+        document.documentElement.clientWidth ||
+        window.innerWidth;
+
+    const scale =
+        Number.parseFloat(
+            getComputedStyle(document.documentElement)
+                .getPropertyValue("--ui-scale")
+        ) || 1;
+
+    const physicalMargin = 10;
+    const maxPhysicalWidth = 290;
+
+    /* Convert the desired physical phone width back into
+       unzoomed CSS pixels because body is globally zoomed. */
+    const panelWidth = Math.min(
+        maxPhysicalWidth / scale,
+        Math.max(180 / scale, (viewport - (physicalMargin * 2)) / scale)
+    );
+
+    panel.style.width = panelWidth + "px";
+    panel.style.maxWidth = panelWidth + "px";
+
+    const profileRect = profileBtn.getBoundingClientRect();
+
+    /*
+     * getBoundingClientRect() already includes CSS zoom, so convert
+     * the desired physical top/right margins back through the same
+     * scale before assigning them to the zoomed body.
+     */
+    const right = physicalMargin / scale;
+    const top =
+        (profileRect.bottom + (8 / scale));
+
+    panel.style.right = right + "px";
+    panel.style.top = top + "px";
+
+    const maxHeight =
+        Math.max(
+            160,
+            (window.innerHeight - profileRect.bottom - (18 / scale))
+        );
+
+    panel.style.maxHeight = maxHeight + "px";
 }
 
 function toggleAccountPanel() {
