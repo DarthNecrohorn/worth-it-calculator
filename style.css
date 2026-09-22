@@ -8009,3 +8009,80 @@ html[data-ui-scale="xl"] .profile-nav-btn .auth-avatar-fallback{
         ) !important;
     }
 }
+
+/* =========================================================
+   HAMBURGER MENU — FINAL SCROLL / STICKY CALCULATOR
+   The menu scrolls through all navigation items while Calculator
+   remains fixed at the bottom of the menu.
+   ========================================================= */
+
+/* Phones and compact screens: always give the open menu a real
+   viewport-sized scrolling area. */
+@media (max-width:1000px){
+
+    .nav-links.open{
+        height:calc(100vh - 76px) !important;
+        max-height:calc(100vh - 76px) !important;
+        overflow-y:auto !important;
+        overflow-x:hidden !important;
+        overscroll-behavior-y:contain !important;
+        -webkit-overflow-scrolling:touch !important;
+        touch-action:pan-y !important;
+        scrollbar-gutter:stable;
+    }
+
+    .nav-links.open > button:last-of-type{
+        position:sticky !important;
+        bottom:0 !important;
+        z-index:50 !important;
+        flex:0 0 auto !important;
+        background:var(--card-solid,var(--card)) !important;
+        box-shadow:0 -10px 20px rgba(0,0,0,.14) !important;
+    }
+}
+
+/* A+ / A++ on computers: compensate for the page zoom while keeping
+   the hamburger panel fully inside the viewport. */
+html[data-ui-scale="large"] .nav-links.open,
+html[data-ui-scale="xl"] .nav-links.open{
+    height:calc((100vh - 84px) / var(--ui-scale, 1)) !important;
+    max-height:none !important;
+    overflow-y:auto !important;
+    overflow-x:hidden !important;
+    overscroll-behavior-y:contain !important;
+    -webkit-overflow-scrolling:touch !important;
+    touch-action:pan-y !important;
+    scrollbar-gutter:stable;
+}
+
+html[data-ui-scale="large"] .nav-links.open > button:last-of-type,
+html[data-ui-scale="xl"] .nav-links.open > button:last-of-type{
+    position:sticky !important;
+    bottom:0 !important;
+    z-index:50 !important;
+    flex:0 0 auto !important;
+    background:var(--card-solid,var(--card)) !important;
+    box-shadow:0 -10px 20px rgba(0,0,0,.14) !important;
+}
+
+/* A+ / A++ phones: use the actual phone header position and leave the
+   Calculator row visible at all times. */
+@media (max-width:700px){
+
+    .nav-links.open{
+        top:64px !important;
+        height:calc((100vh - 76px) / var(--ui-scale, 1)) !important;
+        max-height:none !important;
+        overflow-y:auto !important;
+        overflow-x:hidden !important;
+        overscroll-behavior-y:contain !important;
+        -webkit-overflow-scrolling:touch !important;
+        touch-action:pan-y !important;
+    }
+
+    .nav-links.open > button:last-of-type{
+        position:sticky !important;
+        bottom:0 !important;
+        z-index:50 !important;
+    }
+}
