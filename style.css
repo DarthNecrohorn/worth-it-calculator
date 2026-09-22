@@ -8086,3 +8086,139 @@ html[data-ui-scale="xl"] .nav-links.open > button:last-of-type{
         z-index:50 !important;
     }
 }
+
+/* =========================================================
+   FINAL HAMBURGER LAYOUT — SCROLL CONTENT + FIXED CALCULATOR
+   The navigation content scrolls in its own area. Calculator is a
+   separate flex item and therefore never scrolls underneath itself.
+   ========================================================= */
+
+.nav-scroll-content{
+    display:contents;
+}
+
+/* A+ / A++ computers. */
+html[data-ui-scale="large"] .nav-links.open,
+html[data-ui-scale="xl"] .nav-links.open{
+    top:calc(72px / var(--ui-scale, 1)) !important;
+    bottom:calc(10px / var(--ui-scale, 1)) !important;
+    height:auto !important;
+    max-height:none !important;
+    overflow:hidden !important;
+    box-sizing:border-box !important;
+    display:flex !important;
+    flex-direction:column !important;
+    min-height:0 !important;
+}
+
+html[data-ui-scale="large"] .nav-scroll-content,
+html[data-ui-scale="xl"] .nav-scroll-content{
+    display:flex !important;
+    flex:1 1 auto !important;
+    min-height:0 !important;
+    width:100% !important;
+    flex-direction:column !important;
+    gap:5px !important;
+    overflow-y:auto !important;
+    overflow-x:hidden !important;
+    overscroll-behavior:contain !important;
+    -webkit-overflow-scrolling:touch !important;
+    touch-action:pan-y !important;
+    scrollbar-gutter:stable;
+}
+
+html[data-ui-scale="large"] .nav-links.open .more-menu-btn,
+html[data-ui-scale="xl"] .nav-links.open .more-menu-btn,
+html[data-ui-scale="large"] .nav-links.open .nav-calculator-spacer,
+html[data-ui-scale="xl"] .nav-links.open .nav-calculator-spacer{
+    display:none !important;
+}
+
+html[data-ui-scale="large"] .nav-scroll-content > button,
+html[data-ui-scale="xl"] .nav-scroll-content > button,
+html[data-ui-scale="large"] .nav-scroll-content > .nav-overflow-items,
+html[data-ui-scale="xl"] .nav-scroll-content > .nav-overflow-items{
+    width:100% !important;
+    flex:0 0 auto !important;
+}
+
+/* Keep Calculator visible and physically above the scroll area. */
+html[data-ui-scale="large"] .nav-links.open > button:last-child,
+html[data-ui-scale="xl"] .nav-links.open > button:last-child{
+    position:relative !important;
+    bottom:auto !important;
+    z-index:60 !important;
+    flex:0 0 auto !important;
+    width:100% !important;
+    margin-top:5px !important;
+    background:var(--card-solid,var(--card)) !important;
+    border-top:1px solid var(--border) !important;
+    box-shadow:0 -10px 20px rgba(0,0,0,.14) !important;
+}
+
+/* Phones, including A- / A / A+ / A++. */
+@media (max-width:1000px){
+
+    .nav-links.open{
+        top:64px !important;
+        bottom:8px !important;
+        height:auto !important;
+        max-height:none !important;
+        overflow:hidden !important;
+        box-sizing:border-box !important;
+        display:flex !important;
+        flex-direction:column !important;
+        min-height:0 !important;
+    }
+
+    .nav-scroll-content{
+        display:flex !important;
+        flex:1 1 auto !important;
+        min-height:0 !important;
+        width:100% !important;
+        flex-direction:column !important;
+        gap:5px !important;
+        overflow-y:auto !important;
+        overflow-x:hidden !important;
+        overscroll-behavior:contain !important;
+        -webkit-overflow-scrolling:touch !important;
+        touch-action:pan-y !important;
+        scrollbar-gutter:stable;
+    }
+
+    .nav-links.open .more-menu-btn,
+    .nav-links.open .nav-calculator-spacer{
+        display:none !important;
+    }
+
+    .nav-scroll-content > button,
+    .nav-scroll-content > .nav-overflow-items{
+        width:100% !important;
+        flex:0 0 auto !important;
+    }
+
+    .nav-links.open > button:last-child{
+        position:relative !important;
+        bottom:auto !important;
+        z-index:60 !important;
+        flex:0 0 auto !important;
+        width:100% !important;
+        margin-top:5px !important;
+        background:var(--card-solid,var(--card)) !important;
+        border-top:1px solid var(--border) !important;
+        box-shadow:0 -10px 20px rgba(0,0,0,.14) !important;
+    }
+}
+
+/* A+ / A++ phones: same fixed-bottom boundary, with the scaled header
+   spacing already used elsewhere in the mobile layout. */
+@media (max-width:700px){
+
+    html[data-ui-scale="large"] .nav-links.open,
+    html[data-ui-scale="xl"] .nav-links.open{
+        top:64px !important;
+        bottom:8px !important;
+        height:auto !important;
+        max-height:none !important;
+    }
+}
