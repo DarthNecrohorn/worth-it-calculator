@@ -8185,3 +8185,67 @@ html[data-theme="light"] .nav-links.open{
 html:not([data-theme="light"]) .nav-links.open{
     background:var(--card-solid,var(--card)) !important;
 }
+
+/* =========================================================
+   CALCULATOR — A+ / A++ PHONE WIDTH FIX
+   Keep the complete Calculator and all three mode buttons inside
+   the visual phone viewport while preserving the existing scale.
+   Desktop and smaller accessibility sizes remain unchanged.
+   ========================================================= */
+
+@media(max-width:700px){
+    html[data-ui-scale="large"] #calculatorApp > .container,
+    html[data-ui-scale="xl"] #calculatorApp > .container{
+        width:calc((100vw - 22px) / var(--ui-scale,1)) !important;
+        max-width:none !important;
+        min-width:0 !important;
+        margin-left:auto !important;
+        margin-right:auto !important;
+    }
+
+    html[data-ui-scale="large"] #calculatorApp .calculator-mode-tabs,
+    html[data-ui-scale="xl"] #calculatorApp .calculator-mode-tabs{
+        width:100% !important;
+        max-width:100% !important;
+        min-width:0 !important;
+        overflow:hidden !important;
+        box-sizing:border-box !important;
+    }
+
+    html[data-ui-scale="large"] #calculatorApp .calculator-mode-btn,
+    html[data-ui-scale="xl"] #calculatorApp .calculator-mode-btn{
+        min-width:0 !important;
+        max-width:100% !important;
+        flex:1 1 0 !important;
+        padding-left:4px !important;
+        padding-right:4px !important;
+        white-space:nowrap !important;
+    }
+
+    html[data-ui-scale="large"] #calculatorApp .calculator-panel,
+    html[data-ui-scale="xl"] #calculatorApp .calculator-panel{
+        width:100% !important;
+        max-width:none !important;
+        min-width:0 !important;
+        margin-left:0 !important;
+        margin-right:0 !important;
+        padding:12px !important;
+        overflow:hidden !important;
+        box-sizing:border-box !important;
+    }
+
+    html[data-ui-scale="large"] #calculatorApp .calculator-display,
+    html[data-ui-scale="xl"] #calculatorApp .calculator-display,
+    html[data-ui-scale="large"] #calculatorApp .calculator-keypad,
+    html[data-ui-scale="xl"] #calculatorApp .calculator-keypad{
+        width:100% !important;
+        min-width:0 !important;
+        max-width:100% !important;
+    }
+
+    html[data-ui-scale="large"] #calculatorApp .calculator-key,
+    html[data-ui-scale="xl"] #calculatorApp .calculator-key{
+        min-width:0 !important;
+        max-width:100% !important;
+    }
+}
