@@ -121,25 +121,44 @@ function closeAccountPanel() {
     );
 
     /*
-     * The mobile panel is temporarily moved outside the zoomed body.
-     * Put it back into its original place when it closes so desktop
-     * and normal document structure remain unchanged.
+     * Phones use a dedicated portal outside the zoomed <body>.
+     * Restore the panel to its original place when it closes.
      */
-    if (panel._worthItOriginalParent) {
-        const parent = panel._worthItOriginalParent;
-        const next = panel._worthItOriginalNextSibling;
+    const originalParent =
+        panel._worthItOriginalParent;
 
-        if (next && next.parentNode === parent) {
-            parent.insertBefore(panel, next);
+    const originalNextSibling =
+        panel._worthItOriginalNextSibling;
+
+    if (originalParent) {
+
+        if (
+            originalNextSibling &&
+            originalNextSibling.parentNode === originalParent
+        ) {
+            originalParent.insertBefore(
+                panel,
+                originalNextSibling
+            );
         } else {
-            parent.appendChild(panel);
+            originalParent.appendChild(panel);
         }
 
-        panel._worthItOriginalParent = null;
-        panel._worthItOriginalNextSibling = null;
     }
 
-    panel.classList.remove("mobile-account-portal");
+    if (panel._worthItMobilePortalHost) {
+
+        panel._worthItMobilePortalHost.remove();
+
+    }
+
+    panel._worthItOriginalParent = null;
+    panel._worthItOriginalNextSibling = null;
+    panel._worthItMobilePortalHost = null;
+
+    panel.classList.remove(
+        "mobile-account-portal"
+    );
 
     panel.style.position = "";
     panel.style.left = "";
@@ -150,6 +169,73 @@ function closeAccountPanel() {
     panel.style.maxHeight = "";
     panel.style.transform = "";
     panel.style.zoom = "";
+
+    panel.style.removeProperty("display");
+    panel.style.removeProperty("visibility");
+    panel.style.removeProperty("opacity");
+    panel.style.removeProperty("pointer-events");
+    panel.style.removeProperty("z-index");
+    panel.style.removeProperty("box-sizing");
+    panel.style.removeProperty("font-family");
+    panel.style.removeProperty("color");
+}
+
+
+function createMobileAccountPortal(panel) {
+
+    if (
+        !panel ||
+        panel._worthItMobilePortalHost
+    ) {
+        return;
+    }
+
+    const originalParent =
+        panel.parentNode;
+
+    if (!originalParent) {
+        return;
+    }
+
+    panel._worthItOriginalParent =
+        originalParent;
+
+    panel._worthItOriginalNextSibling =
+        panel.nextSibling;
+
+    const host =
+        document.createElement("div");
+
+    host.className =
+        "mobile-account-portal-root";
+
+    host.setAttribute(
+        "aria-hidden",
+        "false"
+    );
+
+    host.style.position = "fixed";
+    host.style.inset = "0";
+    host.style.width = "100vw";
+    host.style.height = "100vh";
+    host.style.margin = "0";
+    host.style.padding = "0";
+    host.style.zIndex = "2147483647";
+    host.style.pointerEvents = "none";
+    host.style.boxSizing = "border-box";
+
+    document.documentElement.appendChild(
+        host
+    );
+
+    host.appendChild(panel);
+
+    panel._worthItMobilePortalHost =
+        host;
+
+    panel.classList.add(
+        "mobile-account-portal"
+    );
 }
 
 
@@ -161,8 +247,7 @@ function positionAccountPanelForMobile() {
     if (!panel || !profileBtn) return;
 
     /*
-     * Desktop/tablet: leave the existing account panel completely
-     * untouched.
+     * Desktop/tablet stays exactly as before.
      */
     if (window.innerWidth > 700) {
         return;
@@ -173,30 +258,17 @@ function positionAccountPanelForMobile() {
     }
 
     /*
-     * IMPORTANT:
-     *
-     * The whole <body> is zoomed for A- / A / A+ / A++.
-     * A positioned child inside that zoomed body cannot reliably
-     * use viewport coordinates on Android Chrome.
-     *
-     * For phones we therefore portal ONLY this dropdown to <html>,
-     * which is outside the zoomed body. We then apply the selected
-     * UI scale directly to the panel itself.
-     *
-     * Result:
-     *   - the panel remains the same visual scale as the rest of UI
-     *   - its physical width is constrained to the phone
-     *   - it is horizontally centered
-     *   - A- and A++ no longer push it off-screen
+     * The page <body> is zoomed for accessibility scaling.
+     * The mobile portal is deliberately outside that zoomed body,
+     * so this dropdown can use real viewport coordinates.
      */
-    if (!panel._worthItOriginalParent) {
-        panel._worthItOriginalParent = panel.parentNode;
-        panel._worthItOriginalNextSibling = panel.nextSibling;
+    if (!panel._worthItMobilePortalHost) {
 
-        document.documentElement.appendChild(panel);
+        createMobileAccountPortal(
+            panel
+        );
+
     }
-
-    panel.classList.add("mobile-account-portal");
 
     const scale =
         Number.parseFloat(
@@ -204,10 +276,16 @@ function positionAccountPanelForMobile() {
                 .getPropertyValue("--ui-scale")
         ) || 1;
 
+    const viewport =
+        window.visualViewport;
+
     const viewportWidth =
-        window.visualViewport?.width ||
+        viewport?.width ||
         document.documentElement.clientWidth ||
         window.innerWidth;
+
+    const viewportLeft =
+        viewport?.offsetLeft || 0;
 
     const profileRect =
         profileBtn.getBoundingClientRect();
@@ -215,39 +293,104 @@ function positionAccountPanelForMobile() {
     const margin = 10;
     const desiredPhysicalWidth = 380;
 
-    const physicalWidth = Math.min(
-        desiredPhysicalWidth,
-        Math.max(220, viewportWidth - (margin * 2))
+    const physicalWidth =
+        Math.max(
+            180,
+            Math.min(
+                desiredPhysicalWidth,
+                viewportWidth - (margin * 2)
+            )
+        );
+
+    const top =
+        Math.max(
+            8,
+            profileRect.bottom + 8
+        );
+
+    panel.style.position =
+        "absolute";
+
+    panel.style.left =
+        (
+            viewportLeft +
+            (viewportWidth / 2)
+        ) + "px";
+
+    panel.style.right =
+        "auto";
+
+    panel.style.top =
+        top + "px";
+
+    panel.style.transform =
+        "translateX(-50%)";
+
+    panel.style.boxSizing =
+        "border-box";
+
+    panel.style.width =
+        (physicalWidth / scale) + "px";
+
+    panel.style.maxWidth =
+        (physicalWidth / scale) + "px";
+
+    panel.style.zoom =
+        String(scale);
+
+    panel.style.setProperty(
+        "display",
+        "block",
+        "important"
     );
 
-    /*
-     * The portal itself is unzoomed. Compensate the panel's CSS
-     * dimensions by its own zoom so the final rendered width is
-     * exactly the desired physical width.
-     */
-    panel.style.position = "fixed";
-    panel.style.left = "50vw";
-    panel.style.right = "auto";
-    panel.style.top = (profileRect.bottom + 8) + "px";
-    panel.style.transform = "translateX(-50%)";
-    panel.style.boxSizing = "border-box";
-    panel.style.width = (physicalWidth / scale) + "px";
-    panel.style.maxWidth = (physicalWidth / scale) + "px";
-    panel.style.zoom = String(scale);
+    panel.style.setProperty(
+        "visibility",
+        "visible",
+        "important"
+    );
+
+    panel.style.setProperty(
+        "opacity",
+        "1",
+        "important"
+    );
+
+    panel.style.setProperty(
+        "pointer-events",
+        "auto",
+        "important"
+    );
+
+    panel.style.setProperty(
+        "z-index",
+        "2147483647",
+        "important"
+    );
+
+    panel.style.fontFamily =
+        'Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif';
+
+    panel.style.color =
+        "var(--text)";
 
     /*
-     * Keep the menu inside the visible vertical area as much as
-     * possible. The panel itself scrolls if its contents are taller.
+     * Keep enough room below the menu. The menu itself scrolls when
+     * necessary instead of disappearing outside the phone.
      */
-    const top = profileRect.bottom + 8;
     const bottomMargin = 10;
+
     const availableHeight =
-        Math.max(180, window.innerHeight - top - bottomMargin);
+        Math.max(
+            180,
+            window.innerHeight -
+            top -
+            bottomMargin
+        );
 
     panel.style.maxHeight =
         (availableHeight / scale) + "px";
 }
-
 
 
 function toggleAccountPanel() {
@@ -259,20 +402,18 @@ function toggleAccountPanel() {
 
     if (!panel) return;
 
-    /*
-     * On phones, portal the panel BEFORE the click event reaches the
-     * document-level outside-click handler. This prevents the handler
-     * from immediately closing the newly opened panel after it is moved
-     * outside #authWrap.
-     */
+    const isMobile =
+        window.innerWidth <= 700;
+
     if (
-        window.innerWidth <= 700 &&
-        !panel._worthItOriginalParent
+        isMobile &&
+        !panel._worthItMobilePortalHost
     ) {
-        panel._worthItOriginalParent = panel.parentNode;
-        panel._worthItOriginalNextSibling = panel.nextSibling;
-        document.documentElement.appendChild(panel);
-        panel.classList.add("mobile-account-portal");
+
+        createMobileAccountPortal(
+            panel
+        );
+
     }
 
     const open =
@@ -284,9 +425,13 @@ function toggleAccountPanel() {
     );
 
     if (open) {
+
         positionAccountPanelForMobile();
+
     } else {
+
         closeAccountPanel();
+
     }
 }
 
