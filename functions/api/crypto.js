@@ -49,36 +49,212 @@ async function cachedFetch(request, seconds) {
 
 async function cmc(path, env, cacheSeconds = MARKET_CACHE_SECONDS) {
   const key = env && env.COINMARKETCAP_API_KEY;
-  if (!key) return { ok:false, status:503, error:"COINMARKETCAP_API_KEY is not configured." };
-  const request = new Request(CMC_BASE + path, { headers:{ "X-CMC_PRO_API_KEY":key, "Accept":"application/json" } });
-  const response = await cachedFetch(request, cacheSeconds);
-  const body = await response.text();
-  if (!response.ok) return { ok:false, status:response.status, error:"CoinMarketCap request failed.", details:body.slice(0,400) };
-  try { return { ok:true, data:JSON.parse(body) }; } catch(e) { return { ok:false, status:502, error:"Invalid CoinMarketCap response." }; }
+
+  if (key) {
+    const request = new Request(CMC_BASE + path, {
+      headers:{
+        "X-CMC_PRO_API_KEY":key,
+        "Accept":"application/json"
+      }
+    });
+
+    const response = await cachedFetch(request, cacheSeconds);
+    const body = await response.text();
+
+    if (response.ok) {
+      try {
+        return {
+          ok:true,
+          data:JSON.parse(body)
+        };
+      } catch(e) {
+        return {
+          ok:false,
+          status:502,
+          error:"Invalid CoinMarketCap response."
+        };
+      }
+    }
+
+    /*
+     * If the configured Pro key is unavailable, expired, rate-limited,
+     * or otherwise rejected, fall through to CMC's public API instead
+     * of taking the whole Crypto section offline.
+     */
+    console.warn(
+      "CoinMarketCap keyed request failed; trying public API:",
+      response.status
+    );
+  }
+
+  const publicRequest =
+    new Request(
+      CMC_BASE + "/public-api" + path,
+      {
+        headers:{
+          "Accept":"application/json"
+        }
+      }
+    );
+
+  const publicResponse =
+    await cachedFetch(
+      publicRequest,
+      cacheSeconds
+    );
+
+  const publicBody =
+    await publicResponse.text();
+
+  if (!publicResponse.ok) {
+    return {
+      ok:false,
+      status:publicResponse.status,
+      error:"CoinMarketCap request failed.",
+      details:publicBody.slice(0,400)
+    };
+  }
+
+  try {
+    return {
+      ok:true,
+      data:JSON.parse(publicBody)
+    };
+  } catch(e) {
+    return {
+      ok:false,
+      status:502,
+      error:"Invalid CoinMarketCap response."
+    };
+  }
+}
+
+function getQuote(item, symbol) {
+  const quote =
+    item &&
+    item.quote;
+
+  if (Array.isArray(quote)) {
+    return (
+      quote.find(
+        entry =>
+          String(entry && entry.symbol || "").toUpperCase() ===
+          String(symbol || "").toUpperCase()
+      ) ||
+      quote[0] ||
+      {}
+    );
+  }
+
+  return quote && quote[symbol] || quote || {};
 }
 
 function coin(item) {
-  const q = item && item.quote && item.quote.USD || {};
+  const q = getQuote(item, "USD");
+  const eur = getQuote(item, "EUR");
   const text = norm((item.name || "") + " " + (item.symbol || ""));
+
   return {
-    id:item.id, name:item.name, symbol:item.symbol, slug:item.slug, rank:Number(item.cmc_rank)||null,
-    price:Number(q.price)||null, priceEUR:Number(item.quote && item.quote.EUR && item.quote.EUR.price)||null, marketCap:Number(q.market_cap)||null, volume24h:Number(q.volume_24h)||null,
-    change24h:Number(q.percent_change_24h)||null, circulatingSupply:Number(item.circulating_supply)||null,
+    id:item.id,
+    name:item.name,
+    symbol:item.symbol,
+    slug:item.slug,
+    rank:Number(item.cmc_rank)||null,
+    price:Number(q.price)||null,
+    priceEUR:Number(eur.price)||null,
+    marketCap:Number(q.market_cap)||null,
+    volume24h:Number(q.volume_24h)||null,
+    change24h:Number(q.percent_change_24h)||null,
+    circulatingSupply:Number(item.circulating_supply)||null,
     maxSupply:Number(item.max_supply)||null,
     stablecoin:/tether|usd coin|usdc|usdt|dai|trueusd|first digital usd|paypal usd|usde|usdd|frax|pax dollar|gemini dollar|binance usd/.test(text)
   };
 }
 
 async function market(env) {
-  const list = await cmc("/cryptocurrency/listings/latest?start=1&limit=500&convert=USD,EUR", env);
-  if (!list.ok) return json({error:list.error, details:list.details || null}, list.status, {"cache-control":"no-store"});
-  const global = await cmc("/global-metrics/quotes/latest?convert=USD", env);
-  const gd = global.ok ? global.data && global.data.data : null;
+  /*
+   * Use the current CMC v3 listings endpoint. The public API fallback
+   * keeps the section working even if the optional Pro API key fails.
+   */
+  const list =
+    await cmc(
+      "/v3/cryptocurrency/listings/latest?start=1&limit=500&convert=USD,EUR",
+      env
+    );
+
+  if (!list.ok) {
+    return json(
+      {
+        error:list.error,
+        details:list.details || null
+      },
+      list.status,
+      {"cache-control":"no-store"}
+    );
+  }
+
+  const global =
+    await cmc(
+      "/v1/global-metrics/quotes/latest?convert=USD",
+      env
+    );
+
+  const gd =
+    global.ok
+      ? global.data && global.data.data
+      : null;
+
+  const listStatus =
+    list.data && list.data.status;
+
   return json({
-    updatedAt:new Date().toISOString(),
-    source:{name:"CoinMarketCap", url:"https://coinmarketcap.com/api/"},
-    global:gd ? { totalMarketCap:Number(gd.quote && gd.quote.USD && gd.quote.USD.total_market_cap)||null, totalVolume24h:Number(gd.quote && gd.quote.USD && gd.quote.USD.total_volume_24h)||null, btcDominance:Number(gd.btc_dominance)||null, ethDominance:Number(gd.eth_dominance)||null, activeCryptocurrencies:Number(gd.active_cryptocurrencies)||null, activeMarkets:Number(gd.active_market_pairs)||null } : null,
-    coins:Array.isArray(list.data && list.data.data) ? list.data.data.map(coin) : []
+    updatedAt:
+      listStatus && listStatus.timestamp
+        ? listStatus.timestamp
+        : new Date().toISOString(),
+
+    source:{
+      name:"CoinMarketCap",
+      url:"https://coinmarketcap.com/api/"
+    },
+
+    global:
+      gd
+        ? {
+            totalMarketCap:
+              Number(
+                gd.quote &&
+                gd.quote.USD &&
+                gd.quote.USD.total_market_cap
+              ) || null,
+
+            totalVolume24h:
+              Number(
+                gd.quote &&
+                gd.quote.USD &&
+                gd.quote.USD.total_volume_24h
+              ) || null,
+
+            btcDominance:
+              Number(gd.btc_dominance) || null,
+
+            ethDominance:
+              Number(gd.eth_dominance) || null,
+
+            activeCryptocurrencies:
+              Number(gd.active_cryptocurrencies) || null,
+
+            activeMarkets:
+              Number(gd.active_market_pairs) || null
+          }
+        : null,
+
+    coins:
+      Array.isArray(
+        list.data && list.data.data
+      )
+        ? list.data.data.map(coin)
+        : []
   });
 }
 
