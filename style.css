@@ -8912,3 +8912,108 @@ html[data-theme="light"] .crypto-detail-card{background:#fff}
     .crypto-detail-metrics{grid-template-columns:1fr 1fr}
     .crypto-performance-row{grid-template-columns:42px 1fr 67px}
 }
+
+
+.crypto-chart-controls{
+    display:flex;
+    flex-wrap:wrap;
+    gap:7px;
+    margin-bottom:14px;
+}
+
+.crypto-chart-controls button{
+    border:1px solid var(--border);
+    border-radius:9px;
+    padding:7px 10px;
+    background:var(--surface-soft);
+    color:var(--muted);
+    font-size:10px;
+    font-weight:900;
+    transition:.2s;
+}
+
+.crypto-chart-controls button:hover,
+.crypto-chart-controls button.active{
+    color:var(--text);
+    border-color:rgba(124,92,255,.6);
+    background:rgba(124,92,255,.1);
+}
+
+.crypto-chart-summary{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:10px;
+    margin-bottom:6px;
+    color:var(--muted);
+    font-size:11px;
+    font-weight:800;
+}
+
+.crypto-chart-summary .positive{color:#34d399}
+.crypto-chart-summary .negative{color:#fb7185}
+
+.crypto-history-svg{
+    display:block;
+    width:100%;
+    height:300px;
+    overflow:visible;
+}
+
+.crypto-chart-grid{
+    stroke:rgba(148,163,184,.12);
+    stroke-width:1;
+}
+
+.crypto-chart-label{
+    fill:var(--muted2);
+    font-size:10px;
+}
+
+.crypto-chart-area{
+    fill:rgba(124,92,255,.09);
+}
+
+.crypto-chart-line{
+    fill:none;
+    stroke:var(--primary2);
+    stroke-width:3;
+    stroke-linecap:round;
+    stroke-linejoin:round;
+    vector-effect:non-scaling-stroke;
+}
+
+.crypto-chart-point{
+    fill:var(--primary);
+    stroke:var(--card-solid,var(--card));
+    stroke-width:1.5;
+}
+
+.crypto-chart-range{
+    display:flex;
+    justify-content:space-between;
+    margin-top:3px;
+    color:var(--muted2);
+    font-size:9px;
+}
+
+@media(max-width:700px){
+    .crypto-chart-controls{
+        overflow-x:auto;
+        flex-wrap:nowrap;
+        padding-bottom:3px;
+        scrollbar-width:none;
+    }
+
+    .crypto-chart-controls::-webkit-scrollbar{
+        display:none;
+    }
+
+    .crypto-chart-controls button{
+        flex:0 0 auto;
+    }
+
+    .crypto-history-svg{
+        height:245px;
+    }
+}
