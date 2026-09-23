@@ -828,15 +828,15 @@ function ensureMarketsCardStyles() {
     ========================================================= */
 
     .worth-it-markets-back-up {
-        min-height:52px !important;
-        padding:11px 15px !important;
+        min-height:56px !important;
+        padding:12px 16px !important;
         font-size:.90rem !important;
     }
 
     html[data-ui-scale="small"] .worth-it-markets-back-up {
-        min-height:58px !important;
-        padding:12px 17px !important;
-        font-size:.95rem !important;
+        min-height:62px !important;
+        padding:13px 18px !important;
+        font-size:1rem !important;
     }
 
     html[data-ui-scale="large"] .worth-it-markets-back-up,
@@ -2025,6 +2025,23 @@ function ensureMarketsGoBackUpButton() {
 }
 
 
+function positionMarketsBackUpButton(button, anchor) {
+    if (!button || !anchor) return;
+
+    const anchorRect = anchor.getBoundingClientRect();
+    const buttonRect = button.getBoundingClientRect();
+    const gap = 12;
+
+    let left = anchorRect.right + gap;
+    const maxLeft = window.innerWidth - buttonRect.width - gap;
+
+    if (left > maxLeft) left = maxLeft;
+    left = Math.max(8, left);
+
+    button.style.setProperty("left", left + "px", "important");
+    button.style.setProperty("right", "auto", "important");
+}
+
 function updateMarketsGoBackUpButton() {
 
     const button =
@@ -2057,6 +2074,13 @@ function updateMarketsGoBackUpButton() {
         marketsVisible &&
         window.scrollY > 280;
 
+    if (shouldShow) {
+        positionMarketsBackUpButton(
+            button,
+            document.getElementById("materialsGrid") ||
+            marketsSection
+        );
+    }
 
     button.classList.toggle(
         "is-visible",
@@ -3921,6 +3945,17 @@ document.addEventListener(
             "scroll",
             updateMarketsGoBackUpButton,
             { passive:true }
+        );
+
+        window.addEventListener(
+            "resize",
+            updateMarketsGoBackUpButton,
+            { passive:true }
+        );
+
+        window.addEventListener(
+            "worthitsettingschange",
+            updateMarketsGoBackUpButton
         );
 
 
