@@ -8690,8 +8690,8 @@ html[data-theme="light"] .crypto-floating-show-less{
     .crypto-floating-show-less{
         right:8px;
         top:50%;
-        min-height:52px;
-        padding:11px 15px;
+        min-height:56px;
+        padding:12px 16px;
         border-radius:14px;
         font-size:.90rem;
     }
