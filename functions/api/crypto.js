@@ -767,8 +767,9 @@ async function detail(url, env) {
 
   /*
    * Use the same current CMC v2 metadata endpoint through the shared
-   * keyed/public fallback. CMC metadata includes the supplied
-   * description, links, tags and category when available.
+   * keyed/public fallback. CMC remains the source for market-adjacent
+   * metadata such as links, tags and category. Wikipedia is preferred
+   * for the human-readable description below.
    */
   const metadataResult = await cmc(
     "/v2/cryptocurrency/info?id=" +
@@ -795,21 +796,24 @@ async function detail(url, env) {
 
   let wikipediaDescription = null;
 
-  if (!meta.description) {
-    try {
-      wikipediaDescription =
-        await getWikipediaCryptoDescription(
-          meta.name || null,
-          meta.symbol || null
-        );
-    }
-    catch (error) {
-      console.warn(
-        "Wikipedia crypto description lookup failed:",
-        id,
-        error
+  /*
+   * Wikipedia is the preferred descriptive source. CoinMarketCap
+   * remains the fallback when no suitably matching Wikipedia article
+   * can be found.
+   */
+  try {
+    wikipediaDescription =
+      await getWikipediaCryptoDescription(
+        meta.name || null,
+        meta.symbol || null
       );
-    }
+  }
+  catch (error) {
+    console.warn(
+      "Wikipedia crypto description lookup failed:",
+      id,
+      error
+    );
   }
 
   let performanceData = null;
