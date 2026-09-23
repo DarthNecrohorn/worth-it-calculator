@@ -337,9 +337,17 @@
         <div class="crypto-performance-section">
             <div class="crypto-detail-section-head">
                 <div>
-                    <strong>Performance</strong>
-                    <span>Recent and longer-term price performance.</span>
+                    <strong>Price history</strong>
+                    <span>Historical Binance USDT candles from the Speirsy CC0 dataset when available.</span>
                 </div>
+            </div>
+            <div class="crypto-chart-controls" id="cryptoChartControls">
+                <button type="button" data-crypto-period="1D">1D</button>
+                <button type="button" data-crypto-period="7D">7D</button>
+                <button type="button" data-crypto-period="1M">1M</button>
+                <button type="button" data-crypto-period="3M">3M</button>
+                <button type="button" data-crypto-period="1Y">1Y</button>
+                <button type="button" data-crypto-period="MAX" class="active">MAX</button>
             </div>
             <div class="crypto-performance-chart" id="cryptoPerformanceChart"></div>
         </div>
