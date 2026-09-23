@@ -9667,9 +9667,8 @@ function injectVehicleUiStyles() {
 
         /* Floating Show Less button */
         /*
-         * Intentionally matches the Markets "Go back up" control:
-         * same fixed position, dimensions, animation and visibility
-         * behavior. Only the text/action is different.
+         * Uses the simple Worth It floating-control style and shares
+         * the same position/visibility behavior as the other sections.
          */
         .worth-it-vehicle-floating-collapse {
             position: fixed !important;
@@ -9750,10 +9749,16 @@ function injectVehicleUiStyles() {
 
         html[data-ui-scale="large"] .worth-it-vehicle-floating-collapse {
             right: 4px !important;
+            min-height: 46px !important;
+            padding: 10px 16px !important;
+            font-size: .82rem !important;
         }
 
         html[data-ui-scale="xl"] .worth-it-vehicle-floating-collapse {
             right: 0 !important;
+            min-height: 46px !important;
+            padding: 10px 16px !important;
+            font-size: .82rem !important;
         }
 
         .worth-it-vehicle-compare-notice {
