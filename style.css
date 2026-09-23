@@ -9130,3 +9130,34 @@ body{
         padding-top:56px;
     }
 }
+
+/* =========================================================
+   SECTION CONTROLS — SETTINGS VISIBILITY
+   Floating section controls must never remain visible through
+   the Settings panel. Settings is a UI overlay, not another
+   section, so its open state temporarily hides these controls.
+========================================================= */
+html.settings-open #worthItVehicleFloatingCollapse,
+html.settings-open #worthItMarketsBackUp,
+html.settings-open #cryptoFloatingShowLess{
+    opacity:0 !important;
+    visibility:hidden !important;
+    pointer-events:none !important;
+}
+
+/* Keep the floating Crypto control in exactly the same viewport
+   position while hovering; only its size changes. */
+.crypto-floating-show-less:hover{
+    transform:translateY(-50%) scale(1.018) !important;
+}
+
+/* Same position-preserving hover behavior for the Cars floating
+   control, avoiding accidental vertical movement from global rules. */
+.worth-it-vehicle-floating-collapse:hover{
+    transform:translateY(-50%) scale(1.018) !important;
+}
+
+/* Same principle for Markets. */
+.worth-it-markets-back-up:hover{
+    transform:translateY(-50%) scale(1.018) !important;
+}
