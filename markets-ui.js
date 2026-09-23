@@ -635,6 +635,25 @@ function ensureMarketsCardStyles() {
 }
 
 
+/* =========================================================
+   ACCESSIBILITY / POSITIONING FOR FLOATING MARKETS CONTROL
+   Markets keeps its modern visual style. Only size/position change.
+========================================================= */
+
+html[data-ui-scale="small"] .worth-it-markets-back-up {
+    min-height:58px !important;
+    padding:12px 17px !important;
+    font-size:.95rem !important;
+}
+
+html[data-ui-scale="large"] .worth-it-markets-back-up {
+    right:4px !important;
+}
+
+html[data-ui-scale="xl"] .worth-it-markets-back-up {
+    right:0 !important;
+}
+
 /* ================================
    EMPTY / ERROR STATE
 ================================= */
