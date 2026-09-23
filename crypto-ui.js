@@ -10,6 +10,8 @@
   const esc=v=>String(v==null?"":v).replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;");
   function money(v){const n=Number(v);if(!Number.isFinite(n))return "—";const a=Math.abs(n),d=a>=1e12?1e12:a>=1e9?1e9:a>=1e6?1e6:a>=1e3?1e3:1,s=a>=1e12?"T":a>=1e9?"B":a>=1e6?"M":a>=1e3?"K":"";return "$"+(n/d).toFixed(s?1:2)+s;}
   function price(v){const n=Number(v);if(!Number.isFinite(n))return "—";if(n>=1000)return new Intl.NumberFormat("en-US",{style:"currency",currency:"USD",maximumFractionDigits:2}).format(n);if(n>=1)return new Intl.NumberFormat("en-US",{style:"currency",currency:"USD",maximumFractionDigits:4}).format(n);return "$"+n.toLocaleString("en-US",{maximumFractionDigits:10});}
+  function priceEUR(v){const n=Number(v);if(!Number.isFinite(n))return "—";return new Intl.NumberFormat("en-US",{style:"currency",currency:"EUR",maximumFractionDigits:n>=1000?2:n>=1?4:10}).format(n);}
+  function formatUpdatedAt(v){if(!v)return "—";const d=new Date(v);return Number.isNaN(d.getTime())?"—":d.toLocaleString("en-GB",{year:"numeric",month:"short",day:"numeric",hour:"2-digit",minute:"2-digit"});}
   function pct(v){const n=Number(v);return Number.isFinite(n)?(n>=0?"+":"")+n.toFixed(2)+"%":"—";}
   function filtered(){let a=state.coins.slice();if(state.filter==="gainers")a=a.filter(x=>Number(x.change24h)>0);if(state.filter==="losers")a=a.filter(x=>Number(x.change24h)<0);if(state.filter==="stablecoins")a=a.filter(x=>x.stablecoin);if(state.search){const q=state.search.toLowerCase();a=a.filter(x=>String(x.name).toLowerCase().includes(q)||String(x.symbol).toLowerCase().includes(q));}const key=state.sort;if(key==="gainers")return a.sort((x,y)=>(y.change24h||-Infinity)-(x.change24h||-Infinity));if(key==="losers")return a.sort((x,y)=>(x.change24h||Infinity)-(y.change24h||Infinity));if(key==="volume")return a.sort((x,y)=>(y.volume24h||0)-(x.volume24h||0));if(key==="marketCap")return a.sort((x,y)=>(y.marketCap||0)-(x.marketCap||0));return a.sort((x,y)=>(x.rank||Infinity)-(y.rank||Infinity));}
   function renderGlobal(){const h=$("cryptoGlobalStats"),g=state.global||{};if(!h)return;h.innerHTML=[["Market Cap",money(g.totalMarketCap)],["24h Volume",money(g.totalVolume24h)],["BTC Dominance",Number.isFinite(g.btcDominance)?g.btcDominance.toFixed(2)+"%":"—"],["ETH Dominance",Number.isFinite(g.ethDominance)?g.ethDominance.toFixed(2)+"%":"—"],["Active Coins",Number(g.activeCryptocurrencies||0).toLocaleString("en-US")]].map(x=>"<div class=\"crypto-stat-card\"><span>"+esc(x[0])+"</span><strong>"+esc(x[1])+"</strong></div>").join("");}
@@ -416,6 +418,9 @@
   function applyData(data){
     state.coins=Array.isArray(data&&data.coins)?data.coins:[];
     state.global=data&&data.global||null;
+    state.updatedAt=data&&data.updatedAt||null;
+    const updateEl=$("cryptoLastUpdated");
+    if(updateEl) updateEl.textContent="Last updated: "+formatUpdatedAt(state.updatedAt)+" · Updates about every 10 minutes";
     state.loaded=true;
     renderGlobal();
     renderFilters();
