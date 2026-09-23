@@ -13,10 +13,17 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Worth It
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
+        with:
+          lfs: false
+
+      - name: Pull required Speirsy LFS data
+        run: |
+          git lfs install --local
+          git lfs pull --include="data/interval_id=1d/**,data/interval_id=1h/**"
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         with:
           python-version: "3.12"
 
