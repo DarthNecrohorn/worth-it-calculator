@@ -9674,101 +9674,52 @@ function injectVehicleUiStyles() {
         @media (max-width: 700px) {
             /* Keep Show Less accessible without covering the middle of the page. */
             .worth-it-vehicle-floating-collapse {
-                right: 10px !important;
-                left: auto !important;
-                top: auto !important;
-                bottom: 14px !important;
-                max-width: calc(100vw - 20px) !important;
-                min-height: 40px !important;
-                padding: 8px 12px !important;
-                border-radius: 10px !important;
-                font-size: .74rem !important;
-                line-height: 1.2 !important;
-            }
-        }
-
-        .worth-it-vehicle-floating-collapse {
             position: fixed !important;
             right: max(8px, calc((100vw - 1180px) / 2 - 140px)) !important;
             top: 50% !important;
             z-index: 9999 !important;
 
-            min-height: 46px !important;
-            padding: 10px 16px !important;
+            min-height: 52px !important;
+            padding: 11px 15px !important;
 
-            border: 1px solid transparent !important;
-            border-radius: 12px !important;
+            border: 1px solid var(--border) !important;
+            border-radius: 14px !important;
 
-            background:
-                linear-gradient(
-                    var(--surface, rgba(20,20,30,.92)),
-                    var(--surface, rgba(20,20,30,.92))
-                ) padding-box,
-                linear-gradient(
-                    120deg,
-                    rgba(128,128,128,.30),
-                    rgba(128,128,128,.24)
-                ) border-box !important;
-
+            background: var(--surface-soft) !important;
             color: var(--text) !important;
             font: inherit !important;
-            font-size: .82rem !important;
-            font-weight: 800 !important;
+            font-size: .90rem !important;
+            font-weight: 900 !important;
             cursor: pointer !important;
             white-space: nowrap !important;
 
-            box-shadow:
-                0 7px 20px rgba(0,0,0,.12) !important;
+            box-shadow: 0 12px 32px rgba(0,0,0,.22) !important;
 
             opacity: 0 !important;
             visibility: hidden !important;
             pointer-events: none !important;
-            transform:
-                translateY(-40%)
-                scale(.94) !important;
+
+            transform: translateY(-40%) !important;
 
             transition:
-                opacity .18s ease,
-                visibility .18s ease,
-                transform .18s ease,
-                box-shadow .18s ease,
-                background .18s ease !important;
+                opacity .20s ease,
+                visibility .20s ease,
+                transform .20s ease,
+                border-color .20s ease,
+                background .20s ease !important;
         }
 
         .worth-it-vehicle-floating-collapse.is-visible {
             opacity: 1 !important;
             visibility: visible !important;
             pointer-events: auto !important;
-            transform:
-                translateY(-50%)
-                scale(1) !important;
+            transform: translateY(-50%) !important;
         }
 
         .worth-it-vehicle-floating-collapse:hover {
-            transform:
-                translateY(-50%)
-                scale(1.045) !important;
-
-            background:
-                linear-gradient(
-                    rgba(124,58,237,.11),
-                    rgba(37,99,235,.07)
-                ) padding-box,
-                linear-gradient(
-                    120deg,
-                    #7c3aed,
-                    #2563eb
-                ) border-box !important;
-
-            box-shadow:
-                0 8px 24px rgba(37,99,235,.15),
-                0 3px 11px rgba(124,58,237,.13) !important;
-        }
-
-        .worth-it-vehicle-floating-collapse.is-visible:hover {
-            transform:
-                translateY(-50%)
-                scale(1.045) !important;
+            border-color: rgba(124,92,255,.65) !important;
+            background: rgba(124,92,255,.10) !important;
+            transform: translateY(-50%) !important;
         }
 
         @media (max-width: 1400px) and (min-width: 701px) {
@@ -9787,10 +9738,24 @@ function injectVehicleUiStyles() {
             .worth-it-vehicle-floating-collapse {
                 right: 8px !important;
                 top: 50% !important;
-                min-height: 44px !important;
-                padding: 10px 14px !important;
-                font-size: .80rem !important;
+                min-height: 52px !important;
+                padding: 11px 15px !important;
+                font-size: .90rem !important;
             }
+        }
+
+        html[data-ui-scale="small"] .worth-it-vehicle-floating-collapse {
+            min-height: 58px !important;
+            padding: 12px 17px !important;
+            font-size: .95rem !important;
+        }
+
+        html[data-ui-scale="large"] .worth-it-vehicle-floating-collapse {
+            right: 4px !important;
+        }
+
+        html[data-ui-scale="xl"] .worth-it-vehicle-floating-collapse {
+            right: 0 !important;
         }
 
         .worth-it-vehicle-compare-notice {
