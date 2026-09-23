@@ -1,7 +1,7 @@
 /* WORTH IT — CRYPTO CURRENCIES UI */
 (() => {
   "use strict";
-  const state={loaded:false,loading:false,coins:[],global:null,filter:"popular",search:"",sort:"rank",queue:[],active:0,max:3};
+  const state={loaded:false,loading:false,coins:[],global:null,filter:"popular",search:"",sort:"rank",queue:[],active:0,max:3,showAll:false};
   const CACHE_KEY="worthit.crypto.market.v1";
   const BROWSER_FRESH_MS=5*60*1000;
   const BROWSER_STALE_MS=30*60*1000;
@@ -13,7 +13,39 @@
   function filtered(){let a=state.coins.slice();if(state.filter==="gainers")a=a.filter(x=>Number(x.change24h)>0);if(state.filter==="losers")a=a.filter(x=>Number(x.change24h)<0);if(state.filter==="stablecoins")a=a.filter(x=>x.stablecoin);if(state.search){const q=state.search.toLowerCase();a=a.filter(x=>String(x.name).toLowerCase().includes(q)||String(x.symbol).toLowerCase().includes(q));}const key=state.sort;if(key==="gainers")return a.sort((x,y)=>(y.change24h||-Infinity)-(x.change24h||-Infinity));if(key==="losers")return a.sort((x,y)=>(x.change24h||Infinity)-(y.change24h||Infinity));if(key==="volume")return a.sort((x,y)=>(y.volume24h||0)-(x.volume24h||0));if(key==="marketCap")return a.sort((x,y)=>(y.marketCap||0)-(x.marketCap||0));return a.sort((x,y)=>(x.rank||Infinity)-(y.rank||Infinity));}
   function renderGlobal(){const h=$("cryptoGlobalStats"),g=state.global||{};if(!h)return;h.innerHTML=[["Market Cap",money(g.totalMarketCap)],["24h Volume",money(g.totalVolume24h)],["BTC Dominance",Number.isFinite(g.btcDominance)?g.btcDominance.toFixed(2)+"%":"—"],["ETH Dominance",Number.isFinite(g.ethDominance)?g.ethDominance.toFixed(2)+"%":"—"],["Active Coins",Number(g.activeCryptocurrencies||0).toLocaleString("en-US")]].map(x=>"<div class=\"crypto-stat-card\"><span>"+esc(x[0])+"</span><strong>"+esc(x[1])+"</strong></div>").join("");}
   function renderFilters(){const h=$("cryptoFilters");if(!h)return;h.querySelectorAll("button[data-crypto-filter]").forEach(b=>b.classList.toggle("active",b.dataset.cryptoFilter===state.filter));}
-  function render(){const g=$("cryptoGrid"),c=$("cryptoResultsCount"),a=filtered(),v=a.slice(0,20);if(c)c.textContent=state.search?v.length+" result"+(v.length===1?"":"s"):"Showing "+v.length+" of "+a.length;if(!g)return;if(!v.length){g.innerHTML="<div class=\"crypto-empty\"><strong>No cryptocurrencies found</strong><span>Try another search or filter.</span></div>";return;}g.innerHTML=v.map((x,i)=>"<article class=\"crypto-card\"><div class=\"crypto-card-top\"><div class=\"crypto-image-wrap\"><div class=\"crypto-image-placeholder\">🪙</div><img class=\"crypto-image\" loading=\"lazy\" decoding=\"async\" data-image-index=\""+i+"\" data-coin-name=\""+esc(x.name)+"\" data-coin-symbol=\""+esc(x.symbol)+"\"></div><div class=\"crypto-card-name\"><strong>"+esc(x.name)+"</strong><span>"+esc(x.symbol)+" · #"+esc(x.rank||"—")+"</span></div></div><div class=\"crypto-price-row\"><strong>"+esc(price(x.price))+"</strong><span class=\"crypto-change "+(Number(x.change24h)>=0?"positive":"negative")+"\">"+esc(pct(x.change24h))+"</span></div><div class=\"crypto-metrics\"><div><span>Market Cap</span><strong>"+esc(money(x.marketCap))+"</strong></div><div><span>24h Volume</span><strong>"+esc(money(x.volume24h))+"</strong></div></div></article>").join("");observeImages();}
+  function render(){
+    const g=$("cryptoGrid"),c=$("cryptoResultsCount"),a=filtered();
+    const v=a.slice(0,state.showAll?500:20);
+    const oldPager=$("cryptoPager");
+    if(oldPager)oldPager.remove();
+
+    if(c)c.textContent=state.search
+      ?"Showing "+v.length+" of "+a.length+" results"
+      :"Showing "+v.length+" of "+a.length;
+
+    if(!g)return;
+
+    if(!v.length){
+      g.innerHTML="<div class=\"crypto-empty\"><strong>No cryptocurrencies found</strong><span>Try another search or filter.</span></div>";
+      return;
+    }
+
+    g.innerHTML=v.map((x,i)=>"<article class=\"crypto-card\"><div class=\"crypto-card-top\"><div class=\"crypto-image-wrap\"><div class=\"crypto-image-placeholder\">🪙</div><img class=\"crypto-image\" loading=\"lazy\" decoding=\"async\" aria-hidden=\"true\" alt=\"\" data-image-index=\""+i+"\" data-coin-name=\""+esc(x.name)+"\" data-coin-symbol=\""+esc(x.symbol)+"\"></div><div class=\"crypto-card-name\"><strong>"+esc(x.name)+"</strong><span>"+esc(x.symbol)+" · #"+esc(x.rank||"—")+"</span></div></div><div class=\"crypto-price-row\"><strong>"+esc(price(x.price))+"</strong><span class=\"crypto-change "+(Number(x.change24h)>=0?"positive":"negative")+"\">"+esc(pct(x.change24h))+"</span></div><div class=\"crypto-metrics\"><div><span>Market Cap</span><strong>"+esc(money(x.marketCap))+"</strong></div><div><span>24h Volume</span><strong>"+esc(money(x.volume24h))+"</strong></div></div></article>").join("");
+
+    observeImages();
+
+    if(a.length>20){
+      const pager=document.createElement("div");
+      pager.id="cryptoPager";
+      pager.className="crypto-pager";
+      pager.innerHTML="<button type=\"button\" class=\"crypto-show-btn\">"+(state.showAll?"Show Less":"Show All ("+a.length+")")+" <span>→</span></button>";
+      pager.querySelector("button").addEventListener("click",()=>{
+        state.showAll=!state.showAll;
+        render();
+      });
+      g.after(pager);
+    }
+  }
   async function loadImage(img){try{const r=await fetch("/api/crypto?action=image&name="+encodeURIComponent(img.dataset.coinName)+"&symbol="+encodeURIComponent(img.dataset.coinSymbol),{cache:"force-cache"});if(!r.ok)return;const d=await r.json();if(d.image&&d.image.url){img.src=d.image.url;img.alt=img.dataset.coinName+" logo";img.onload=()=>img.classList.add("loaded");}}catch(e){console.warn("Crypto image load failed",e);}}
   function runQueue(){while(state.active<state.max&&state.queue.length){const img=state.queue.shift();if(!img||img.dataset.queued==="1")continue;img.dataset.queued="1";state.active++;loadImage(img).finally(()=>{state.active--;runQueue();});}}
   function observeImages(){state.queue=[];const imgs=[...document.querySelectorAll("#cryptoGrid .crypto-image")];if(!imgs.length)return;if(!("IntersectionObserver"in window)){state.queue=imgs;runQueue();return;}const o=new IntersectionObserver(es=>{es.forEach(e=>{if(e.isIntersecting){o.unobserve(e.target);if(e.target.dataset.queued!=="1")state.queue.push(e.target);}});runQueue();},{rootMargin:"500px 0px"});imgs.forEach(i=>o.observe(i));}
