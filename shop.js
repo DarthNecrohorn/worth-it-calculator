@@ -293,7 +293,8 @@
             "newsSection",
             "settingsPanel",
             "marketsSection",
-            "moneySection"
+            "moneySection",
+            "cryptoSection"
         ];
 
 
