@@ -5,6 +5,7 @@ import json
 import os
 import subprocess
 import urllib.request
+import urllib.error
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -63,9 +64,13 @@ def fetch_month(symbol, interval, year, month):
         table = pq.read_table(io.BytesIO(payload), columns=["timestamp", "open", "high", "low", "close", "volume"])
         rows = table.to_pylist()
         return symbol, interval, rows
-    except Exception as exc:
-        # Missing future/current partition is normal; keep the sync alive.
-        return symbol, interval, []
+    except urllib.error.HTTPError as exc:
+        # A missing future/current partition is normal.
+        if exc.code == 404:
+            return symbol, interval, []
+        raise
+    except Exception:
+        raise
 
 
 def normalize_row(row):
