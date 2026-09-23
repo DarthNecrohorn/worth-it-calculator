@@ -8481,17 +8481,26 @@ html:not([data-theme="light"]) .nav-links.open{
     margin-top:2px;
 }
 
-.crypto-price-row{
+.crypto-fiat-prices{
+    display:flex;
+    flex-direction:column;
+    gap:3px;
+    margin:17px 0 13px;
+}
+
+.crypto-fiat-row{
     display:flex;
     align-items:center;
     justify-content:space-between;
     gap:8px;
-    margin:17px 0 13px;
+    min-height:28px;
 }
 
-.crypto-price-row > strong{
+.crypto-fiat-row > strong{
     font-size:21px;
+    line-height:1.2;
     letter-spacing:-.4px;
+    font-weight:700;
 }
 
 .crypto-change{
@@ -9174,13 +9183,7 @@ html.settings-open #cryptoFloatingShowLess{
     font-weight:600;
 }
 
-.crypto-eur-price{
-    margin-top:-2px;
-    margin-bottom:8px;
-    font-size:.78rem;
-    font-weight:700;
-    opacity:.72;
-}
+.crypto-eur-price{display:none;}
 
 .crypto-detail-eur-price{
     display:inline-block;
