@@ -9544,3 +9544,338 @@ html.settings-open #cryptoFloatingShowLess{
         line-height:1.3 !important;
     }
 }
+
+
+/* =========================================================
+   CRYPTOCURRENCIES — MOBILE POLISH
+   Phone-only layout. Desktop Crypto styling stays untouched.
+   ========================================================= */
+
+@media(max-width:700px){
+
+    .crypto-section{
+        width:calc(100% - 18px) !important;
+        max-width:none !important;
+        padding:22px 0 52px !important;
+        overflow:visible;
+    }
+
+    .crypto-header{
+        align-items:stretch !important;
+        gap:12px !important;
+        margin-bottom:16px !important;
+    }
+
+    .crypto-header > div{
+        min-width:0;
+    }
+
+    .crypto-badge{
+        margin-bottom:8px !important;
+        padding:6px 10px !important;
+        font-size:11px !important;
+    }
+
+    .crypto-header h2{
+        font-size:clamp(24px,7vw,31px) !important;
+        line-height:1.08 !important;
+        letter-spacing:-.7px !important;
+        margin-bottom:5px !important;
+    }
+
+    .crypto-header p{
+        font-size:13px !important;
+        line-height:1.45 !important;
+    }
+
+    .crypto-last-updated{
+        margin-top:5px !important;
+        font-size:10px !important;
+        line-height:1.4 !important;
+    }
+
+    .crypto-refresh{
+        align-self:flex-start;
+        min-height:40px !important;
+        padding:8px 11px !important;
+        border-radius:11px !important;
+        font-size:12px !important;
+    }
+
+    .crypto-global-stats{
+        grid-template-columns:repeat(2,minmax(0,1fr)) !important;
+        gap:8px !important;
+        margin-bottom:14px !important;
+    }
+
+    .crypto-stat-card{
+        min-width:0;
+        border-radius:13px !important;
+        padding:10px !important;
+    }
+
+    .crypto-stat-card span{
+        font-size:9px !important;
+        margin-bottom:3px !important;
+    }
+
+    .crypto-stat-card strong{
+        display:block;
+        font-size:15px !important;
+        line-height:1.2 !important;
+        overflow:hidden;
+        text-overflow:ellipsis;
+        white-space:nowrap;
+    }
+
+    .crypto-toolbar{
+        align-items:stretch !important;
+        flex-direction:column !important;
+        gap:9px !important;
+        margin-bottom:11px !important;
+    }
+
+    .crypto-filters{
+        display:flex !important;
+        flex-wrap:nowrap !important;
+        gap:6px !important;
+        width:100%;
+        overflow-x:auto !important;
+        overflow-y:hidden !important;
+        padding:1px 1px 4px !important;
+        scrollbar-width:none;
+        -webkit-overflow-scrolling:touch;
+        scroll-snap-type:x proximity;
+    }
+
+    .crypto-filters::-webkit-scrollbar{
+        display:none;
+    }
+
+    .crypto-filters button{
+        flex:0 0 auto !important;
+        min-height:38px !important;
+        padding:8px 10px !important;
+        border-radius:10px !important;
+        font-size:11px !important;
+        white-space:nowrap;
+        scroll-snap-align:start;
+        touch-action:manipulation;
+    }
+
+    .crypto-search-wrap{
+        width:100% !important;
+        min-height:42px !important;
+        padding:0 11px !important;
+        border-radius:11px !important;
+    }
+
+    .crypto-search-wrap input{
+        min-width:0;
+        min-height:40px;
+        padding:9px 0 !important;
+        font-size:16px !important;
+    }
+
+    .crypto-results-row{
+        font-size:10px !important;
+        margin:5px 2px 9px !important;
+    }
+
+    .crypto-grid{
+        grid-template-columns:1fr !important;
+        gap:10px !important;
+    }
+
+    .crypto-card{
+        width:100%;
+        border-radius:15px !important;
+        padding:13px !important;
+        touch-action:manipulation;
+    }
+
+    .crypto-card-top{
+        gap:10px !important;
+    }
+
+    .crypto-image-wrap{
+        width:44px !important;
+        height:44px !important;
+        flex-basis:44px !important;
+        border-radius:13px !important;
+    }
+
+    .crypto-image-placeholder{
+        font-size:20px !important;
+    }
+
+    .crypto-image{
+        padding:6px !important;
+    }
+
+    .crypto-card-name strong{
+        font-size:14px !important;
+    }
+
+    .crypto-card-name span{
+        font-size:10px !important;
+        margin-top:1px !important;
+    }
+
+    .crypto-fiat-prices{
+        gap:2px !important;
+        margin:13px 0 10px !important;
+    }
+
+    .crypto-fiat-row{
+        min-height:26px !important;
+        gap:7px !important;
+    }
+
+    .crypto-fiat-row > strong{
+        font-size:19px !important;
+        letter-spacing:-.3px !important;
+    }
+
+    .crypto-change{
+        padding:4px 7px !important;
+        font-size:10px !important;
+    }
+
+    .crypto-metrics{
+        gap:7px !important;
+    }
+
+    .crypto-metrics > div{
+        border-radius:10px !important;
+        padding:8px !important;
+    }
+
+    .crypto-metrics span{
+        font-size:8px !important;
+    }
+
+    .crypto-metrics strong{
+        font-size:11px !important;
+        margin-top:2px !important;
+    }
+
+    .crypto-attribution{
+        margin-top:14px !important;
+        font-size:9px !important;
+        line-height:1.5 !important;
+    }
+
+    .crypto-pager{
+        margin-top:12px !important;
+    }
+
+    .crypto-show-btn{
+        min-height:40px !important;
+        padding:9px 13px !important;
+        border-radius:10px !important;
+        font-size:11px !important;
+    }
+
+    .crypto-floating-show-less{
+        top:auto !important;
+        right:10px !important;
+        bottom:12px !important;
+        min-height:44px !important;
+        padding:9px 12px !important;
+        border-radius:12px !important;
+        font-size:.78rem !important;
+        transform:none !important;
+    }
+
+    .crypto-floating-show-less.visible{
+        transform:none !important;
+    }
+
+    .crypto-floating-show-less:hover{
+        transform:scale(1.018) !important;
+    }
+}
+
+@media(max-width:380px){
+
+    .crypto-section{
+        width:calc(100% - 14px) !important;
+    }
+
+    .crypto-global-stats{
+        gap:7px !important;
+    }
+
+    .crypto-stat-card{
+        padding:9px !important;
+    }
+
+    .crypto-stat-card strong{
+        font-size:14px !important;
+    }
+
+    .crypto-card{
+        padding:12px !important;
+    }
+
+    .crypto-fiat-row > strong{
+        font-size:18px !important;
+    }
+}
+
+/* Keep A+ / A++ phone scaling readable without changing
+   the desktop-only Crypto detail fit rules. */
+@media(max-width:700px){
+
+    html[data-ui-scale="large"] .crypto-section,
+    html[data-ui-scale="xl"] .crypto-section{
+        padding-top:18px !important;
+        padding-bottom:46px !important;
+    }
+
+    html[data-ui-scale="large"] .crypto-header h2{
+        font-size:25px !important;
+    }
+
+    html[data-ui-scale="xl"] .crypto-header h2{
+        font-size:23px !important;
+    }
+
+    html[data-ui-scale="large"] .crypto-header p,
+    html[data-ui-scale="xl"] .crypto-header p{
+        font-size:12px !important;
+    }
+
+    html[data-ui-scale="large"] .crypto-refresh,
+    html[data-ui-scale="xl"] .crypto-refresh{
+        min-height:38px !important;
+        font-size:11px !important;
+    }
+
+    html[data-ui-scale="large"] .crypto-stat-card,
+    html[data-ui-scale="xl"] .crypto-stat-card{
+        padding:8px !important;
+    }
+
+    html[data-ui-scale="large"] .crypto-stat-card strong{
+        font-size:14px !important;
+    }
+
+    html[data-ui-scale="xl"] .crypto-stat-card strong{
+        font-size:13px !important;
+    }
+
+    html[data-ui-scale="large"] .crypto-card,
+    html[data-ui-scale="xl"] .crypto-card{
+        padding:11px !important;
+    }
+
+    html[data-ui-scale="large"] .crypto-fiat-row > strong{
+        font-size:18px !important;
+    }
+
+    html[data-ui-scale="xl"] .crypto-fiat-row > strong{
+        font-size:17px !important;
+    }
+}
