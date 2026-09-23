@@ -36,6 +36,9 @@ const VEHICLE_API_VERSION = "v13";
 const VEHICLE_CATALOG_BASE_URL =
     "https://cdn.jsdelivr.net/gh/vehiclesdb/vehiclesdb@latest/catalog";
 
+const VEHICLE_DATASET_MANIFEST_URL =
+    "https://cdn.jsdelivr.net/gh/vehiclesdb/vehiclesdb@latest/manifest.json";
+
 const VEHICLE_DETAILS_CACHE_VERSION = "v19";
 
 const MAX_VEHICLES_PER_CATEGORY = 300;
@@ -246,6 +249,127 @@ let currentVehicleMode =
 
 const vehicleLastUpdatedAt = new Map();
 
+let vehicleDatasetMetaPromise = null;
+let vehicleDatasetMeta = null;
+
+function formatVehicleDatasetBuiltAt(value) {
+    if (!value) return "Date unavailable";
+
+    const date = new Date(value);
+
+    if (Number.isNaN(date.getTime())) {
+        return "Date unavailable";
+    }
+
+    return date.toLocaleDateString(
+        "en-GB",
+        {
+            year: "numeric",
+            month: "short",
+            day: "numeric"
+        }
+    );
+}
+
+function updateCarsDatasetStatus() {
+    const element =
+        document.getElementById("carsLastUpdated");
+
+    if (!element) return;
+
+    if (vehicleDatasetMeta?.builtAt) {
+        const version =
+            vehicleDatasetMeta.version
+                ? " " + vehicleDatasetMeta.version
+                : "";
+
+        element.textContent =
+            "Dataset updated: " +
+            formatVehicleDatasetBuiltAt(
+                vehicleDatasetMeta.builtAt
+            ) +
+            " · VehiclesDB" +
+            version +
+            " · Updates monthly when new data is released.";
+
+        return;
+    }
+
+    element.textContent =
+        "Dataset update: checking latest VehiclesDB release…";
+}
+
+async function fetchVehicleDatasetMetadata(
+    force = false
+) {
+    if (force) {
+        vehicleDatasetMetaPromise = null;
+    }
+
+    if (vehicleDatasetMetaPromise) {
+        return vehicleDatasetMetaPromise;
+    }
+
+    vehicleDatasetMetaPromise =
+        (async () => {
+            try {
+                const response =
+                    await fetch(
+                        VEHICLE_DATASET_MANIFEST_URL,
+                        {
+                            cache: "no-store",
+                            headers: {
+                                "Accept":
+                                    "application/json"
+                            }
+                        }
+                    );
+
+                if (!response.ok) {
+                    throw new Error(
+                        "VehiclesDB manifest request failed"
+                    );
+                }
+
+                const manifest =
+                    await response.json();
+
+                if (
+                    !manifest ||
+                    !manifest.version ||
+                    !manifest.built_at
+                ) {
+                    throw new Error(
+                        "Invalid VehiclesDB manifest"
+                    );
+                }
+
+                vehicleDatasetMeta = {
+                    version:
+                        String(manifest.version),
+                    builtAt:
+                        String(manifest.built_at)
+                };
+
+                updateCarsDatasetStatus();
+
+                return vehicleDatasetMeta;
+
+            } catch (error) {
+                console.warn(
+                    "VehiclesDB dataset metadata lookup failed:",
+                    error
+                );
+
+                updateCarsDatasetStatus();
+
+                return null;
+            }
+        })();
+
+    return vehicleDatasetMetaPromise;
+}
+
 function setVehicleLastUpdated(kind, value = Date.now()) {
     const timestamp = Number(value);
     if (!Number.isFinite(timestamp)) return;
@@ -274,12 +398,7 @@ function formatVehicleUpdatedAt(value) {
 }
 
 function updateCarsLastUpdated(kind = currentVehicleKind) {
-    const element = document.getElementById("carsLastUpdated");
-    if (!element) return;
-    element.textContent =
-        "Last checked: " +
-        formatVehicleUpdatedAt(getVehicleLastUpdated(kind)) +
-        " · Updates when the category is refreshed.";
+    updateCarsDatasetStatus();
 }
 
 const MAX_COMPARE_VEHICLES =
@@ -2151,6 +2270,13 @@ async function fetchVehicleCatalogSource(
 async function fetchFreshVehicleCatalog(
     kind
 ) {
+
+    /*
+     * VehiclesDB publishes a versioned manifest alongside the rolling
+     * @latest catalog. The manifest build date is the dataset update
+     * date we display to users; it is not the time our browser fetched it.
+     */
+    await fetchVehicleDatasetMetadata();
 
     const sourceKinds =
         VEHICLE_CATALOG_SOURCE_KINDS[kind] ||
