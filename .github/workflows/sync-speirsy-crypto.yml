@@ -30,6 +30,8 @@ jobs:
           test -s metadata/manifest.json
           test -f data/interval_id=1d/symbol_id=BTCUSDT/year=2026/month=09/BTCUSDT-1d-2026-09.parquet
           test -f data/interval_id=1h/symbol_id=BTCUSDT/year=2026/month=09/BTCUSDT-1h-2026-09.parquet
+          test "$(stat -c%s data/interval_id=1d/symbol_id=BTCUSDT/year=2026/month=09/BTCUSDT-1d-2026-09.parquet)" -gt 1024
+          test "$(stat -c%s data/interval_id=1h/symbol_id=BTCUSDT/year=2026/month=09/BTCUSDT-1h-2026-09.parquet)" -gt 1024
 
       - name: Set up Python
         uses: actions/setup-python@v7
