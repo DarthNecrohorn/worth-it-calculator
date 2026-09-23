@@ -65,6 +65,16 @@ const API_REGISTRY = [
         quotaLabel: "No fixed provider quota"
     },
     {
+        key: "crypto",
+        name: "Crypto Currencies",
+        emoji: "🪙",
+        provider: "CoinMarketCap",
+        endpoint: "/api/crypto",
+        category: "Crypto",
+        quotaType: "dynamic",
+        quotaLabel: "15,000 call credits/month · 50 requests/min"
+    },
+    {
         key: "ai-chat",
         name: "AI Chat",
         emoji: "🤖",
@@ -604,6 +614,7 @@ function getApiEmoji(
     if(key.includes("currenc") || key.includes("exchange")) return "💱";
     if(key.includes("car") || key.includes("vehicle")) return "🚗";
     if(key.includes("market") || key.includes("commodity")) return "📈";
+    if(key.includes("crypto") || key.includes("coinmarketcap")) return "🪙";
     if(key.includes("ai") || key.includes("gemini") || key.includes("groq")) return "🤖";
     if(key.includes("feedback") || key.includes("bug") || key.includes("suggest")) return "🐞";
     if(key.includes("shop") || key.includes("product")) return "🛒";
@@ -642,6 +653,7 @@ function isApiConfigured(
             );
 
         case "markets":
+        case "crypto":
         case "cars":
         case "currencies":
         case "exchange-rate":
