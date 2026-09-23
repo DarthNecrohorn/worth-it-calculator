@@ -1,6 +1,6 @@
 /* WORTH IT — CRYPTO CURRENCIES API */
 const CMC_BASE = "https://pro-api.coinmarketcap.com/v1";
-const MARKET_CACHE_SECONDS = 120;
+const MARKET_CACHE_SECONDS = 300;
 const IMAGE_CACHE_SECONDS = 604800;
 
 function json(data, status, headers) {
