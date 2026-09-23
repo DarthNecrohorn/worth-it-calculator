@@ -5,6 +5,9 @@ const MARKET_CACHE_SECONDS = 600;
 const IMAGE_CACHE_SECONDS = 604800;
 const DETAIL_METADATA_CACHE_SECONDS = 86400;
 const DETAIL_PERFORMANCE_CACHE_SECONDS = 1800;
+const GLOBAL_CACHE_SECONDS = 3600;
+const FX_CACHE_SECONDS = 3600;
+const USD_FIAT_ID = 2781;
 
 function json(data, status, headers) {
   return new Response(JSON.stringify(data), {
@@ -47,6 +50,60 @@ async function cachedFetch(request, seconds) {
   return response;
 }
 
+function parseCmcBody(body, httpStatus) {
+  let data;
+
+  try {
+    data = JSON.parse(body);
+  } catch(e) {
+    return {
+      ok:false,
+      status:502,
+      error:"Invalid CoinMarketCap response."
+    };
+  }
+
+  const status = data && data.status;
+  const errorCode =
+    status && status.error_code != null
+      ? String(status.error_code)
+      : "0";
+
+  if (httpStatus < 200 || httpStatus >= 300) {
+    return {
+      ok:false,
+      status:httpStatus,
+      error:"CoinMarketCap request failed.",
+      details:
+        status && status.error_message
+          ? String(status.error_message)
+          : body.slice(0,400)
+    };
+  }
+
+  /*
+   * CMC can return an HTTP 200 response with a non-zero structured
+   * error code. Treat that as a failed upstream request so the
+   * keyless fallback can still be attempted.
+   */
+  if (errorCode !== "0") {
+    return {
+      ok:false,
+      status:502,
+      error:"CoinMarketCap request failed.",
+      details:
+        status && status.error_message
+          ? String(status.error_message)
+          : "CoinMarketCap error code " + errorCode + "."
+    };
+  }
+
+  return {
+    ok:true,
+    data:data
+  };
+}
+
 async function cmc(path, env, cacheSeconds = MARKET_CACHE_SECONDS) {
   const key = env && env.COINMARKETCAP_API_KEY;
 
@@ -60,42 +117,32 @@ async function cmc(path, env, cacheSeconds = MARKET_CACHE_SECONDS) {
 
     const response = await cachedFetch(request, cacheSeconds);
     const body = await response.text();
+    const parsed = parseCmcBody(body, response.status);
 
-    if (response.ok) {
-      try {
-        return {
-          ok:true,
-          data:JSON.parse(body)
-        };
-      } catch(e) {
-        return {
-          ok:false,
-          status:502,
-          error:"Invalid CoinMarketCap response."
-        };
-      }
+    if (parsed.ok) {
+      return parsed;
     }
 
     /*
      * If the configured Pro key is unavailable, expired, rate-limited,
-     * or otherwise rejected, fall through to CMC's public API instead
-     * of taking the whole Crypto section offline.
+     * not authorized for an endpoint, or otherwise rejected, fall
+     * through to CMC's public API instead of taking Crypto offline.
      */
     console.warn(
       "CoinMarketCap keyed request failed; trying public API:",
-      response.status
+      parsed.status,
+      parsed.details || parsed.error || ""
     );
   }
 
-  const publicRequest =
-    new Request(
-      CMC_BASE + "/public-api" + path,
-      {
-        headers:{
-          "Accept":"application/json"
-        }
+  const publicRequest = new Request(
+    CMC_BASE + "/public-api" + path,
+    {
+      headers:{
+        "Accept":"application/json"
       }
-    );
+    }
+  );
 
   const publicResponse =
     await cachedFetch(
@@ -106,27 +153,10 @@ async function cmc(path, env, cacheSeconds = MARKET_CACHE_SECONDS) {
   const publicBody =
     await publicResponse.text();
 
-  if (!publicResponse.ok) {
-    return {
-      ok:false,
-      status:publicResponse.status,
-      error:"CoinMarketCap request failed.",
-      details:publicBody.slice(0,400)
-    };
-  }
-
-  try {
-    return {
-      ok:true,
-      data:JSON.parse(publicBody)
-    };
-  } catch(e) {
-    return {
-      ok:false,
-      status:502,
-      error:"Invalid CoinMarketCap response."
-    };
-  }
+  return parseCmcBody(
+    publicBody,
+    publicResponse.status
+  );
 }
 
 function getQuote(item, symbol) {
@@ -149,9 +179,15 @@ function getQuote(item, symbol) {
   return quote && quote[symbol] || quote || {};
 }
 
-function coin(item) {
+function coin(item, usdToEurRate) {
   const q = getQuote(item, "USD");
-  const eur = getQuote(item, "EUR");
+  const usdPrice = Number(q.price);
+  const eurPrice =
+    Number.isFinite(usdPrice) &&
+    Number.isFinite(usdToEurRate) &&
+    usdToEurRate > 0
+      ? usdPrice * usdToEurRate
+      : null;
   const text = norm((item.name || "") + " " + (item.symbol || ""));
 
   return {
@@ -160,8 +196,8 @@ function coin(item) {
     symbol:item.symbol,
     slug:item.slug,
     rank:Number(item.cmc_rank)||null,
-    price:Number(q.price)||null,
-    priceEUR:Number(eur.price)||null,
+    price:Number.isFinite(usdPrice) ? usdPrice : null,
+    priceEUR:eurPrice,
     marketCap:Number(q.market_cap)||null,
     volume24h:Number(q.volume_24h)||null,
     change24h:Number(q.percent_change_24h)||null,
@@ -171,14 +207,58 @@ function coin(item) {
   };
 }
 
+async function getUsdToEurRate(env) {
+  const result = await cmc(
+    "/v2/tools/price-conversion?amount=1&id=" +
+      USD_FIAT_ID +
+      "&convert=EUR",
+    env,
+    FX_CACHE_SECONDS
+  );
+
+  if (!result.ok) {
+    console.warn(
+      "CoinMarketCap USD→EUR conversion failed:",
+      result.status,
+      result.details || result.error || ""
+    );
+    return null;
+  }
+
+  const data = result.data && result.data.data;
+  const quote = data && data.quote;
+
+  let eur = null;
+
+  if (Array.isArray(quote)) {
+    eur =
+      quote.find(
+        entry =>
+          String(entry && entry.symbol || "").toUpperCase() === "EUR"
+      ) || null;
+  } else if (quote && quote.EUR) {
+    eur = quote.EUR;
+  }
+
+  const rate =
+    eur && typeof eur === "object"
+      ? Number(eur.price)
+      : Number(eur);
+
+  return Number.isFinite(rate) && rate > 0
+    ? rate
+    : null;
+}
+
 async function market(env) {
   /*
-   * Use the current CMC v3 listings endpoint. The public API fallback
-   * keeps the section working even if the optional Pro API key fails.
+   * Use one conversion only on the main listings request.
+   * CMC Basic currently allows one currency conversion per call.
+   * EUR prices are derived from a separately cached USD→EUR rate.
    */
   const list =
     await cmc(
-      "/v3/cryptocurrency/listings/latest?start=1&limit=500&convert=USD,EUR",
+      "/v3/cryptocurrency/listings/latest?start=1&limit=500&convert=USD",
       env
     );
 
@@ -193,11 +273,15 @@ async function market(env) {
     );
   }
 
-  const global =
-    await cmc(
-      "/v1/global-metrics/quotes/latest?convert=USD",
-      env
-    );
+  const [usdToEurRate, global] =
+    await Promise.all([
+      getUsdToEurRate(env),
+      cmc(
+        "/v1/global-metrics/quotes/latest?convert=USD",
+        env,
+        GLOBAL_CACHE_SECONDS
+      )
+    ]);
 
   const gd =
     global.ok
@@ -253,7 +337,7 @@ async function market(env) {
       Array.isArray(
         list.data && list.data.data
       )
-        ? list.data.data.map(coin)
+        ? list.data.data.map(item => coin(item, usdToEurRate))
         : []
   });
 }
