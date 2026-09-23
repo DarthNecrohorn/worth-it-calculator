@@ -1,0 +1,39 @@
+name: Sync Speirsy Crypto History
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "30 3 * * *"
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Worth It
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Parquet reader
+        run: python -m pip install --disable-pip-version-check pyarrow
+
+      - name: Sync Speirsy CC0 history
+        run: python scripts/sync-speirsy-crypto.py
+
+      - name: Commit updated history
+        run: |
+          git config user.name "Worth It Bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if git diff --quiet -- data/crypto-history; then
+            echo "No Speirsy updates."
+            exit 0
+          fi
+          git add data/crypto-history
+          git commit -m "Update Speirsy crypto history"
+          git push
