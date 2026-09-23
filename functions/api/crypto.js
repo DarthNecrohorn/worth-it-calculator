@@ -1,5 +1,5 @@
 /* WORTH IT — CRYPTO CURRENCIES API */
-const CMC_BASE = "https://pro-api.coinmarketcap.com/v1";
+const CMC_BASE = "https://pro-api.coinmarketcap.com";
 const MARKET_UPDATE_INTERVAL_TEXT = "about every 10 minutes";
 const MARKET_CACHE_SECONDS = 600;
 const IMAGE_CACHE_SECONDS = 604800;
