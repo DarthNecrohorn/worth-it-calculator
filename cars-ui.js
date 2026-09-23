@@ -8386,6 +8386,26 @@ function ensureVehicleFloatingCollapseButton() {
 }
 
 
+function positionVehicleFloatingCollapseButton(button, anchor) {
+    if (!button || !anchor) return;
+
+    const anchorRect = anchor.getBoundingClientRect();
+    const buttonRect = button.getBoundingClientRect();
+    const gap = 12;
+
+    let left = anchorRect.right + gap;
+    const maxLeft = window.innerWidth - buttonRect.width - gap;
+
+    if (left > maxLeft) {
+        left = maxLeft;
+    }
+
+    left = Math.max(8, left);
+
+    button.style.setProperty("left", left + "px", "important");
+    button.style.setProperty("right", "auto", "important");
+}
+
 function updateVehicleFloatingCollapseButton() {
 
     const button =
@@ -8431,6 +8451,15 @@ function updateVehicleFloatingCollapseButton() {
     const shouldShow =
         carsVisible &&
         window.scrollY > 280;
+
+    if (shouldShow) {
+        const anchor =
+            document.getElementById("popularCarsGrid") ||
+            document.getElementById("carsContent") ||
+            carsSection;
+
+        positionVehicleFloatingCollapseButton(button, anchor);
+    }
 
     button.classList.toggle(
         "is-visible",
@@ -10157,7 +10186,19 @@ function updateCarsCategoryHeader(
         infoWrap.classList.toggle("is-open", shouldOpen);
     });
 
-    document.addEventListener("click", event => {
+    
+        window.addEventListener(
+            "resize",
+            updateVehicleFloatingCollapseButton,
+            { passive: true }
+        );
+
+        window.addEventListener(
+            "worthitsettingschange",
+            updateVehicleFloatingCollapseButton
+        );
+
+document.addEventListener("click", event => {
         if (!infoWrap.contains(event.target)) {
             tooltip.hidden = true;
             infoButton.setAttribute("aria-expanded", "false");
