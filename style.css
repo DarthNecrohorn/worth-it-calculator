@@ -8662,7 +8662,7 @@ html[data-theme="light"] .crypto-card{
 .crypto-floating-show-less:hover{
     border-color:rgba(124,92,255,.65);
     background:rgba(124,92,255,.1);
-    transform:translateY(calc(-50% - 2px));
+    transform:translateY(calc(-50% - 2px)) scale(1.018);
 }
 
 .crypto-floating-show-less span{
