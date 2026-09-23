@@ -616,7 +616,8 @@ function ensureMarketsCardStyles() {
 .worth-it-markets-back-up:hover {
     transform:
         translateY(-50%)
-        scale(1.045) !important;
+        scale(1.018) !important;
+    transform-origin: 50% 50% !important;
 
     background:
         linear-gradient(
