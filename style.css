@@ -9161,3 +9161,31 @@ html.settings-open #cryptoFloatingShowLess{
 .worth-it-markets-back-up:hover{
     transform:translateY(-50%) scale(1.018) !important;
 }
+
+
+/* Crypto / Cars data freshness labels */
+.crypto-last-updated,
+.cars-last-updated{
+    display:block;
+    margin-top:6px;
+    font-size:.78rem;
+    line-height:1.45;
+    opacity:.72;
+    font-weight:600;
+}
+
+.crypto-eur-price{
+    margin-top:-2px;
+    margin-bottom:8px;
+    font-size:.78rem;
+    font-weight:700;
+    opacity:.72;
+}
+
+.crypto-detail-eur-price{
+    display:inline-block;
+    margin-left:8px;
+    font-size:.72em;
+    font-weight:700;
+    opacity:.72;
+}
