@@ -2,6 +2,8 @@
 const CMC_BASE = "https://pro-api.coinmarketcap.com/v1";
 const MARKET_CACHE_SECONDS = 600;
 const IMAGE_CACHE_SECONDS = 604800;
+const DETAIL_METADATA_CACHE_SECONDS = 86400;
+const DETAIL_PERFORMANCE_CACHE_SECONDS = 1800;
 
 function json(data, status, headers) {
   return new Response(JSON.stringify(data), {
@@ -79,6 +81,85 @@ async function market(env) {
   });
 }
 
+async function detail(url, env) {
+  const id = url.searchParams.get("id");
+  if (!id || !/^\d+$/.test(id)) return json({error:"Invalid cryptocurrency id."},400);
+
+  const metadataUrl =
+    "https://pro-api.coinmarketcap.com/public-api/v2/cryptocurrency/info?id=" +
+    encodeURIComponent(id) + "&aux=description,urls,date_added,tags,category";
+  const metadataResponse = await cachedFetch(
+    new Request(metadataUrl),
+    DETAIL_METADATA_CACHE_SECONDS
+  );
+
+  let metadataPayload = null;
+  if (metadataResponse.ok) {
+    try { metadataPayload = await metadataResponse.json(); } catch (e) {}
+  }
+
+  const performance = await cmc(
+    "/v2/cryptocurrency/price-performance-stats/latest?id=" +
+    encodeURIComponent(id) +
+    "&time_period=1h,24h,7d,30d,90d,365d",
+    env
+  );
+
+  const raw = metadataPayload && metadataPayload.data;
+  const meta = raw && (raw[id] || Object.values(raw)[0]) || {};
+
+  let performanceData = null;
+  if (performance.ok) {
+    const p = performance.data && performance.data.data;
+    performanceData = p && (p[id] || Object.values(p)[0]) || null;
+  }
+
+  const periods = performanceData && performanceData.periods;
+  const usd = periods && periods.USD ? periods.USD : {};
+
+  const normalizePeriod = name => {
+    const q = usd[name] && usd[name].quote && usd[name].quote.USD;
+    if (!q) return null;
+    return {
+      open: Number(q.open) || null,
+      high: Number(q.high) || null,
+      low: Number(q.low) || null,
+      close: Number(q.close) || null,
+      percentChange: Number(q.percent_change) || null,
+      priceChange: Number(q.price_change) || null
+    };
+  };
+
+  return json({
+    id:Number(id),
+    metadata:{
+      name:meta.name || null,
+      symbol:meta.symbol || null,
+      category:meta.category || null,
+      description:meta.description || null,
+      dateAdded:meta.date_added || null,
+      tags:Array.isArray(meta.tags) ? meta.tags.slice(0,12) : [],
+      website:Array.isArray(meta.urls && meta.urls.website) ? meta.urls.website[0] || null : null,
+      whitepaper:Array.isArray(meta.urls && meta.urls.technical_doc) ? meta.urls.technical_doc[0] || null : null,
+      explorer:Array.isArray(meta.urls && meta.urls.explorer) ? meta.urls.explorer[0] || null : null
+    },
+    performance:{
+      "1h":normalizePeriod("1h"),
+      "24h":normalizePeriod("24h"),
+      "7d":normalizePeriod("7d"),
+      "30d":normalizePeriod("30d"),
+      "90d":normalizePeriod("90d"),
+      "365d":normalizePeriod("365d")
+    },
+    source:{
+      metadata:"CoinMarketCap keyless public metadata",
+      performance:"CoinMarketCap API"
+    }
+  },200,{
+    "cache-control":"public, max-age=1800, s-maxage=1800"
+  });
+}
+
 async function image(url) {
   const name = url.searchParams.get("name");
   const symbol = url.searchParams.get("symbol") || "";
@@ -101,6 +182,7 @@ async function image(url) {
 export async function onRequestGet({request, env}) {
   const url = new URL(request.url);
   try {
+    if (url.searchParams.get("action") === "detail") return await detail(url, env);
     if (url.searchParams.get("action") === "image") return await image(url);
     if (!url.searchParams.get("action") || url.searchParams.get("action") === "market") return await market(env);
     return json({error:"Unknown action.", availableActions:["market","image"]},400);
