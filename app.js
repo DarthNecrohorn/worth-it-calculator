@@ -948,6 +948,8 @@ CALCULATOR NAVIGATION
 
 function openCalculator(type) {
 
+    document.documentElement.classList.remove("settings-open");
+
     hideCarsNavigationUi();
 
     const homePage =
@@ -979,6 +981,13 @@ function openCalculator(type) {
 
     const discountsSection =
         document.getElementById("discountsSection");
+
+    const cryptoSection =
+        document.getElementById("cryptoSection");
+
+    if (cryptoSection) {
+        cryptoSection.style.display = "none";
+    }
 
     const marketsSection =
         document.getElementById("marketsSection");
@@ -1163,6 +1172,8 @@ window.openCalculator =
 
 function showHome() {
 
+    document.documentElement.classList.remove("settings-open");
+
     hideCarsNavigationUi();
     const homePage = document.getElementById("homePage");
     const weatherSection = document.getElementById("weatherSection");
@@ -1317,6 +1328,17 @@ function toggleSettings() {
 
     settingsPanel.style.display =
         isHidden ? "block" : "none";
+
+    document.documentElement.classList.toggle(
+        "settings-open",
+        isHidden
+    );
+
+    window.dispatchEvent(
+        new CustomEvent("worthitsettingspanelchange", {
+            detail: { open: isHidden }
+        })
+    );
 }
 
 window.toggleSettings = toggleSettings;
@@ -1455,6 +1477,8 @@ function openCryptoFromMenu() {
 window.openCryptoFromMenu = openCryptoFromMenu;
 
 function openCrypto() {
+
+    document.documentElement.classList.remove("settings-open");
     hideCarsNavigationUi();
 
     const homePage = document.getElementById("homePage");
@@ -1472,7 +1496,15 @@ function openCrypto() {
     if (discountsSection) discountsSection.style.display = "none";
     if (marketsSection) marketsSection.style.display = "none";
     if (moneySection) moneySection.style.display = "none";
+
+    const carsSection =
+        document.getElementById("carsSection");
+
+    if (carsSection) carsSection.style.display = "none";
+
     if (settingsPanel) settingsPanel.style.display = "none";
+
+    document.documentElement.classList.remove("settings-open");
 
     document.querySelectorAll(".app").forEach(x => {
         x.classList.remove("active");
@@ -1507,6 +1539,8 @@ function openMoneyFromMenu() {
 window.openMoneyFromMenu = openMoneyFromMenu;
 
 function openMarkets() {
+
+    document.documentElement.classList.remove("settings-open");
 
     hideCarsNavigationUi();
 
@@ -1590,6 +1624,8 @@ if (moneySection) {
 window.openMarkets = openMarkets;
 
 function openMoney() {
+
+    document.documentElement.classList.remove("settings-open");
 
     hideCarsNavigationUi();
 
