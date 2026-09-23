@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import json
+import os
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -8,7 +9,9 @@ from pathlib import Path
 import pyarrow.parquet as pq
 
 
-DATA_ROOT = Path("data")
+SPEIRSY_ROOT = Path(os.environ.get("SPEIRSY_ROOT", "../crypto-dataset")).resolve()
+DATA_ROOT = SPEIRSY_ROOT / "data"
+METADATA_ROOT = SPEIRSY_ROOT / "metadata"
 OUTPUT_DIR = Path("data/crypto-history")
 SYMBOLS = ["BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT", "XRPUSDT",
            "TRXUSDT", "DOGEUSDT", "ZECUSDT", "ADAUSDT", "BCHUSDT"]
@@ -37,7 +40,7 @@ def month_range(start_dt, end_dt):
 
 
 def read_manifest():
-    path = DATA_ROOT.parent / "metadata" / "manifest.json"
+    path = METADATA_ROOT / "manifest.json"
     if not path.exists():
         raise FileNotFoundError(f"Speirsy manifest not found: {path}")
 
