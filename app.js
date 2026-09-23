@@ -1479,6 +1479,9 @@ window.openCryptoFromMenu = openCryptoFromMenu;
 function openCrypto() {
 
     document.documentElement.classList.remove("settings-open");
+
+    const carsSection = document.getElementById("carsSection");
+    if (carsSection) carsSection.style.display = "none";
     hideCarsNavigationUi();
 
     const homePage = document.getElementById("homePage");
@@ -1626,6 +1629,9 @@ window.openMarkets = openMarkets;
 function openMoney() {
 
     document.documentElement.classList.remove("settings-open");
+
+    const cryptoSection = document.getElementById("cryptoSection");
+    if (cryptoSection) cryptoSection.style.display = "none";
 
     hideCarsNavigationUi();
 
