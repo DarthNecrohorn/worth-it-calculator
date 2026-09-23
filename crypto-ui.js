@@ -2,6 +2,9 @@
 (() => {
   "use strict";
   const state={loaded:false,loading:false,coins:[],global:null,filter:"popular",search:"",sort:"rank",queue:[],active:0,max:3};
+  const CACHE_KEY="worthit.crypto.market.v1";
+  const BROWSER_FRESH_MS=5*60*1000;
+  const BROWSER_STALE_MS=30*60*1000;
   const $=id=>document.getElementById(id);
   const esc=v=>String(v==null?"":v).replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;");
   function money(v){const n=Number(v);if(!Number.isFinite(n))return "—";const a=Math.abs(n),d=a>=1e12?1e12:a>=1e9?1e9:a>=1e6?1e6:a>=1e3?1e3:1,s=a>=1e12?"T":a>=1e9?"B":a>=1e6?"M":a>=1e3?"K":"";return "$"+(n/d).toFixed(s?1:2)+s;}
@@ -14,7 +17,87 @@
   async function loadImage(img){try{const r=await fetch("/api/crypto?action=image&name="+encodeURIComponent(img.dataset.coinName)+"&symbol="+encodeURIComponent(img.dataset.coinSymbol),{cache:"force-cache"});if(!r.ok)return;const d=await r.json();if(d.image&&d.image.url){img.src=d.image.url;img.alt=img.dataset.coinName+" logo";img.onload=()=>img.classList.add("loaded");}}catch(e){console.warn("Crypto image load failed",e);}}
   function runQueue(){while(state.active<state.max&&state.queue.length){const img=state.queue.shift();if(!img||img.dataset.queued==="1")continue;img.dataset.queued="1";state.active++;loadImage(img).finally(()=>{state.active--;runQueue();});}}
   function observeImages(){state.queue=[];const imgs=[...document.querySelectorAll("#cryptoGrid .crypto-image")];if(!imgs.length)return;if(!("IntersectionObserver"in window)){state.queue=imgs;runQueue();return;}const o=new IntersectionObserver(es=>{es.forEach(e=>{if(e.isIntersecting){o.unobserve(e.target);if(e.target.dataset.queued!=="1")state.queue.push(e.target);}});runQueue();},{rootMargin:"500px 0px"});imgs.forEach(i=>o.observe(i));}
-  async function load(){if(state.loading)return;state.loading=true;const g=$("cryptoGrid");if(g)g.innerHTML="<div class=\"crypto-loading\"><span>🪙</span><strong>Loading cryptocurrencies…</strong></div>";try{const r=await fetch("/api/crypto?action=market",{cache:"no-store"});if(!r.ok)throw new Error("Crypto API request failed");const d=await r.json();state.coins=Array.isArray(d.coins)?d.coins:[];state.global=d.global||null;state.loaded=true;renderGlobal();renderFilters();render();}catch(e){console.error(e);if(g)g.innerHTML="<div class=\"crypto-empty\"><strong>Crypto data is temporarily unavailable.</strong><span>Please try again later.</span></div>";}finally{state.loading=false;}}
-  function bind(){const s=$("cryptoSection");if(!s||s.dataset.cryptoBound==="1")return;s.dataset.cryptoBound="1";$("cryptoFilters")?.addEventListener("click",e=>{const b=e.target.closest("button[data-crypto-filter]");if(!b)return;state.filter=b.dataset.cryptoFilter;state.sort=state.filter==="gainers"?"gainers":state.filter==="losers"?"losers":state.filter==="volume"?"volume":state.filter==="marketCap"?"marketCap":"rank";renderFilters();render();});$("cryptoSearch")?.addEventListener("input",e=>{state.search=e.target.value.trim();render();});$("cryptoRefresh")?.addEventListener("click",()=>{state.loaded=false;load();});}
+  function readBrowserCache(allowStale){
+    try{
+      const raw=localStorage.getItem(CACHE_KEY);
+      if(!raw)return null;
+      const cached=JSON.parse(raw);
+      if(!cached||!cached.savedAt||!cached.data)return null;
+      const age=Date.now()-Number(cached.savedAt);
+      const limit=allowStale?BROWSER_STALE_MS:BROWSER_FRESH_MS;
+      if(age<0||age>limit)return null;
+      return {data:cached.data,age:age};
+    }catch(e){return null;}
+  }
+
+  function applyData(data){
+    state.coins=Array.isArray(data&&data.coins)?data.coins:[];
+    state.global=data&&data.global||null;
+    state.loaded=true;
+    renderGlobal();
+    renderFilters();
+    render();
+  }
+
+  function saveBrowserCache(data){
+    try{
+      localStorage.setItem(CACHE_KEY,JSON.stringify({
+        savedAt:Date.now(),
+        data:data
+      }));
+    }catch(e){}
+  }
+
+  async function fetchFresh(){
+    const r=await fetch("/api/crypto?action=market",{cache:"no-store"});
+    if(!r.ok)throw new Error("Crypto API request failed");
+    const d=await r.json();
+    saveBrowserCache(d);
+    applyData(d);
+    return d;
+  }
+
+  async function load(force){
+    if(state.loading)return;
+
+    if(!force){
+      const fresh=readBrowserCache(false);
+      if(fresh){
+        applyData(fresh.data);
+        return;
+      }
+
+      const stale=readBrowserCache(true);
+      if(stale){
+        applyData(stale.data);
+        fetchFresh().catch(e=>console.warn("Crypto background refresh failed",e));
+        return;
+      }
+    }
+
+    state.loading=true;
+    const g=$("cryptoGrid");
+    if(g&&!state.loaded){
+      g.innerHTML="<div class=\"crypto-loading\"><span>🪙</span><strong>Loading cryptocurrencies…</strong></div>";
+    }
+
+    try{
+      await fetchFresh();
+    }catch(e){
+      console.error(e);
+
+      const fallback=readBrowserCache(true);
+      if(fallback){
+        applyData(fallback.data);
+        return;
+      }
+
+      if(g)g.innerHTML="<div class=\"crypto-empty\"><strong>Crypto data is temporarily unavailable.</strong><span>Please try again later.</span></div>";
+    }finally{
+      state.loading=false;
+    }
+  }
+
+  function bind(){const s=$("cryptoSection");if(!s||s.dataset.cryptoBound==="1")return;s.dataset.cryptoBound="1";$("cryptoFilters")?.addEventListener("click",e=>{const b=e.target.closest("button[data-crypto-filter]");if(!b)return;state.filter=b.dataset.cryptoFilter;state.sort=state.filter==="gainers"?"gainers":state.filter==="losers"?"losers":state.filter==="volume"?"volume":state.filter==="marketCap"?"marketCap":"rank";renderFilters();render();});$("cryptoSearch")?.addEventListener("input",e=>{state.search=e.target.value.trim();render();});$("cryptoRefresh")?.addEventListener("click",()=>{state.loaded=false;load(true);});}
   window.initCryptoUI=()=>{bind();if(!state.loaded)load();else{renderGlobal();renderFilters();render();}};
 })();
