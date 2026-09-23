@@ -4840,6 +4840,126 @@ function startStablePopularVehicleDisplay(
 
 
 
+async function refreshCurrentVehicleCategory(
+    kind,
+    refreshButton = null
+) {
+    if (currentVehicleKind !== kind) return;
+
+    if (currentVehicleMode === "search") {
+        const searchInput = document.getElementById("carsSearchInput");
+        const query = searchInput ? searchInput.value.trim() : "";
+
+        if (!query) {
+            await refreshPopularVehicleCategory(kind, refreshButton);
+            return;
+        }
+
+        if (refreshButton) {
+            refreshButton.disabled = true;
+            refreshButton.classList.add("is-loading");
+        }
+
+        try {
+            const freshCatalog = await fetchFreshVehicleCatalog(kind);
+
+            if (freshCatalog.length) {
+                let refreshedCatalog = freshCatalog;
+
+                const cachedWikidata =
+                    supplementalVehicleCatalogCache.get(kind) || [];
+                const cachedDbpedia =
+                    dbpediaVehicleCatalogCache.get(kind) || [];
+
+                if (
+                    kind !== "car" &&
+                    (cachedWikidata.length || cachedDbpedia.length)
+                ) {
+                    refreshedCatalog = mergeSupplementalVehicleCatalog(
+                        kind,
+                        [
+                            ...cachedWikidata.slice(0, WIKIDATA_SUPPLEMENTAL_LIMIT),
+                            ...cachedDbpedia.slice(0, DBPEDIA_SUPPLEMENTAL_LIMIT)
+                        ]
+                    );
+                }
+
+                vehicleCatalogCache.set(
+                    kind,
+                    refreshedCatalog
+                );
+
+                currentVehicleCatalog =
+                    refreshedCatalog;
+            }
+
+            /*
+             * Search mode intentionally renders every matching row.
+             * Refresh therefore rebuilds the entire current search result,
+             * rather than only refreshing the first popular cards.
+             */
+            const refreshedResults =
+                searchVehicleCatalog(
+                    currentVehicleCatalog,
+                    query
+                );
+
+            if (
+                currentVehicleKind === kind &&
+                currentVehicleMode === "search"
+            ) {
+                renderVehicleCards(
+                    refreshedResults,
+                    kind,
+                    true
+                );
+            }
+
+        } catch (error) {
+            console.error(
+                "Vehicle search refresh failed:",
+                kind,
+                error
+            );
+
+            /*
+             * Keep the existing search results visible if a refresh
+             * request fails.
+             */
+            if (
+                currentVehicleKind === kind &&
+                currentVehicleMode === "search"
+            ) {
+                const currentResults =
+                    searchVehicleCatalog(
+                        currentVehicleCatalog,
+                        query
+                    );
+
+                renderVehicleCards(
+                    currentResults,
+                    kind,
+                    true
+                );
+            }
+
+        } finally {
+            if (refreshButton) {
+                refreshButton.disabled = false;
+                refreshButton.classList.remove("is-loading");
+            }
+        }
+
+        return;
+    }
+
+    await refreshPopularVehicleCategory(
+        kind,
+        refreshButton
+    );
+}
+
+
 async function refreshPopularVehicleCategory(
     kind,
     refreshButton = null
@@ -10132,7 +10252,7 @@ function renderPopularRefreshControls(
 
         if (refreshButton.disabled) return;
 
-        void refreshPopularVehicleCategory(
+        void refreshCurrentVehicleCategory(
             currentVehicleKind,
             refreshButton
         );
@@ -10160,6 +10280,7 @@ function updateCarsCategoryHeader(
 
     if (mode === "search") {
         title.textContent = "🔍 " + info.plural + " Search";
+        renderPopularRefreshControls(header, kind);
         description.classList.remove("cars-results-description-with-info");
         description.innerHTML =
             '<span class="cars-results-description-text">' +
