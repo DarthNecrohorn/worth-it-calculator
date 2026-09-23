@@ -5,7 +5,7 @@
   const CACHE_KEY="worthit.crypto.market.v1";
   const BROWSER_FRESH_MS=5*60*1000;
   const BROWSER_STALE_MS=30*60*1000;
-  const DETAIL_BROWSER_CACHE="worthit.crypto.detail.v5.";
+  const DETAIL_BROWSER_CACHE="worthit.crypto.detail.v6.";
   const $=id=>document.getElementById(id);
   const esc=v=>String(v==null?"":v).replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;");
   function money(v){const n=Number(v);if(!Number.isFinite(n))return "—";const a=Math.abs(n),d=a>=1e12?1e12:a>=1e9?1e9:a>=1e6?1e6:a>=1e3?1e3:1,s=a>=1e12?"T":a>=1e9?"B":a>=1e6?"M":a>=1e3?"K":"";return "$"+(n/d).toFixed(s?1:2)+s;}
@@ -289,7 +289,7 @@
     $("cryptoPerformanceChart").innerHTML='<div class="crypto-detail-loading">Loading performance…</div>';
 
     try{
-      const response=await fetch("/api/crypto?action=detail&id="+encodeURIComponent(coin.id)+"&name="+encodeURIComponent(coin.name||"")+"&symbol="+encodeURIComponent(coin.symbol||"")+"&v=2",{cache:"force-cache"});
+      const response=await fetch("/api/crypto?action=detail&id="+encodeURIComponent(coin.id)+"&name="+encodeURIComponent(coin.name||"")+"&symbol="+encodeURIComponent(coin.symbol||"")+"&v=3",{cache:"force-cache"});
       if(!response.ok)throw new Error("Detail request failed");
       const detail=await response.json();
       try{localStorage.setItem(key,JSON.stringify({savedAt:Date.now(),data:detail}));}catch(e){}
