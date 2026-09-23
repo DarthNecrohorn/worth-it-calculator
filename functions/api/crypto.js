@@ -1,3 +1,5 @@
+import { recordAdminApiUsage } from "../lib/admin-usage.js";
+
 /* WORTH IT — CRYPTO CURRENCIES API */
 const CMC_BASE = "https://pro-api.coinmarketcap.com";
 const MARKET_UPDATE_INTERVAL_TEXT = "about every 10 minutes";
@@ -353,8 +355,7 @@ async function detail(url, env) {
    */
   const metadataResult = await cmc(
     "/v2/cryptocurrency/info?id=" +
-      encodeURIComponent(id) +
-      "&aux=description,urls,date_added,tags,category",
+      encodeURIComponent(id),
     env,
     DETAIL_METADATA_CACHE_SECONDS
   );
@@ -446,15 +447,40 @@ async function image(url) {
   return json({image:null}, 200, {"cache-control":"public, max-age=604800, s-maxage=604800"});
 }
 
-export async function onRequestGet({request, env}) {
+export async function onRequestGet(context) {
+  const { request, env } = context;
   const url = new URL(request.url);
   try {
-    if (url.searchParams.get("action") === "detail") return await detail(url, env);
-    if (url.searchParams.get("action") === "image") return await image(url);
-    if (!url.searchParams.get("action") || url.searchParams.get("action") === "market") return await market(env);
-    return json({error:"Unknown action.", availableActions:["market","detail","image"]},400);
+    if (url.searchParams.get("action") === "detail") {
+      recordAdminApiUsage(context, {
+        apiKey: "crypto",
+        provider: "CoinMarketCap"
+      });
+      return await detail(url, env);
+    }
+
+    if (url.searchParams.get("action") === "image") {
+      return await image(url);
+    }
+
+    if (!url.searchParams.get("action") || url.searchParams.get("action") === "market") {
+      recordAdminApiUsage(context, {
+        apiKey: "crypto",
+        provider: "CoinMarketCap"
+      });
+      return await market(env);
+    }
+
+    return json(
+      {error:"Unknown action.", availableActions:["market","detail","image"]},
+      400
+    );
   } catch (e) {
     console.error("Crypto API error:", e);
-    return json({error:"Crypto service temporarily unavailable."},502,{"cache-control":"no-store"});
+    return json(
+      {error:"Crypto service temporarily unavailable."},
+      502,
+      {"cache-control":"no-store"}
+    );
   }
 }
