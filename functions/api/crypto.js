@@ -1,5 +1,6 @@
 /* WORTH IT — CRYPTO CURRENCIES API */
 const CMC_BASE = "https://pro-api.coinmarketcap.com/v1";
+const MARKET_UPDATE_INTERVAL_TEXT = "about every 10 minutes";
 const MARKET_CACHE_SECONDS = 600;
 const IMAGE_CACHE_SECONDS = 604800;
 const DETAIL_METADATA_CACHE_SECONDS = 86400;
@@ -61,7 +62,7 @@ function coin(item) {
   const text = norm((item.name || "") + " " + (item.symbol || ""));
   return {
     id:item.id, name:item.name, symbol:item.symbol, slug:item.slug, rank:Number(item.cmc_rank)||null,
-    price:Number(q.price)||null, marketCap:Number(q.market_cap)||null, volume24h:Number(q.volume_24h)||null,
+    price:Number(q.price)||null, priceEUR:Number(item.quote && item.quote.EUR && item.quote.EUR.price)||null, marketCap:Number(q.market_cap)||null, volume24h:Number(q.volume_24h)||null,
     change24h:Number(q.percent_change_24h)||null, circulatingSupply:Number(item.circulating_supply)||null,
     maxSupply:Number(item.max_supply)||null,
     stablecoin:/tether|usd coin|usdc|usdt|dai|trueusd|first digital usd|paypal usd|usde|usdd|frax|pax dollar|gemini dollar|binance usd/.test(text)
@@ -69,7 +70,7 @@ function coin(item) {
 }
 
 async function market(env) {
-  const list = await cmc("/cryptocurrency/listings/latest?start=1&limit=500&convert=USD", env);
+  const list = await cmc("/cryptocurrency/listings/latest?start=1&limit=500&convert=USD,EUR", env);
   if (!list.ok) return json({error:list.error, details:list.details || null}, list.status, {"cache-control":"no-store"});
   const global = await cmc("/global-metrics/quotes/latest?convert=USD", env);
   const gd = global.ok ? global.data && global.data.data : null;
