@@ -111,6 +111,11 @@ function openWeather(){
         discountsSection.style.display = "none";
     }
 
+    const cryptoSection = $("cryptoSection");
+    if(cryptoSection){
+        cryptoSection.style.display = "none";
+    }
+
     const marketsSection = $("marketsSection");
 
     if(marketsSection){
