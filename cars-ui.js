@@ -9890,7 +9890,8 @@ function injectVehicleUiStyles() {
         .worth-it-vehicle-floating-collapse:hover {
             border-color: rgba(124,92,255,.65) !important;
             background: rgba(124,92,255,.10) !important;
-            transform: translateY(calc(-50% - 2px)) scale(1.035) !important;
+            transform: translateY(-50%) scale(1.018) !important;
+            transform-origin: 50% 50% !important;
         }
 
         @media (max-width: 1400px) and (min-width: 701px) {
