@@ -8391,19 +8391,33 @@ function positionVehicleFloatingCollapseButton(button, anchor) {
 
     const anchorRect = anchor.getBoundingClientRect();
     const buttonRect = button.getBoundingClientRect();
+    const scale =
+        Number(
+            getComputedStyle(document.documentElement)
+                .getPropertyValue("--ui-scale")
+        ) || 1;
     const gap = 12;
 
-    let left = anchorRect.right + gap;
-    const maxLeft = window.innerWidth - buttonRect.width - gap;
+    let left = (anchorRect.right + gap) / scale;
+    const maxLeft =
+        (window.innerWidth - buttonRect.width - gap) / scale;
 
     if (left > maxLeft) {
         left = maxLeft;
     }
 
-    left = Math.max(8, left);
+    left = Math.max(8 / scale, left);
 
-    button.style.setProperty("left", left + "px", "important");
-    button.style.setProperty("right", "auto", "important");
+    button.style.setProperty(
+        "left",
+        left + "px",
+        "important"
+    );
+    button.style.setProperty(
+        "right",
+        "auto",
+        "important"
+    );
 }
 
 function updateVehicleFloatingCollapseButton() {
