@@ -87,6 +87,8 @@ function $(id){
    OPEN WEATHER
 ========================================================= */
 
+    document.documentElement.classList.remove("settings-open");
+
 function openWeather(){
 
     if(typeof window.hideCarsNavigationUi === "function"){
