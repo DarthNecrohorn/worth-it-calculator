@@ -1,7 +1,7 @@
 /* WORTH IT — CRYPTOCURRENCIES UI */
 (() => {
   "use strict";
-  const state={loaded:false,loading:false,coins:[],global:null,filter:"popular",search:"",sort:"rank",queue:[],active:0,max:3,showAll:false,chartPeriod:"MAX",detailCoin:null,history:null};
+  const state={loaded:false,loading:false,coins:[],global:null,filter:"popular",search:"",sort:"rank",queue:[],active:0,max:5,showAll:false,chartPeriod:"MAX",detailCoin:null,history:null};
   const CACHE_KEY="worthit.crypto.market.v1";
   const BROWSER_FRESH_MS=5*60*1000;
   const BROWSER_STALE_MS=30*60*1000;
