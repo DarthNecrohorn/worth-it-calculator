@@ -1,7 +1,7 @@
 /* WORTH IT — CRYPTO CURRENCIES UI */
 (() => {
   "use strict";
-  const state={loaded:false,loading:false,coins:[],global:null,filter:"popular",search:"",sort:"rank",queue:[],active:0,max:3,showAll:false};
+  const state={loaded:false,loading:false,coins:[],global:null,filter:"popular",search:"",sort:"rank",queue:[],active:0,max:3,showAll:false,chartPeriod:"MAX",detailCoin:null,history:null};
   const CACHE_KEY="worthit.crypto.market.v1";
   const BROWSER_FRESH_MS=5*60*1000;
   const BROWSER_STALE_MS=30*60*1000;
@@ -24,6 +24,162 @@
     if(!v)return "—";
     const d=new Date(v);
     return Number.isNaN(d.getTime())?String(v):d.toLocaleDateString("en-US",{year:"numeric",month:"short",day:"numeric"});
+  }
+
+  const SPEIRSY_SYMBOLS=new Set(["BTC","ETH","SOL","BNB","XRP","TRX","DOGE","ZEC","ADA","BCH"]);
+
+  function historyUrl(coin){
+    const symbol=String(coin&&coin.symbol||"").toUpperCase();
+    return SPEIRSY_SYMBOLS.has(symbol)
+      ? "/data/crypto-history/"+symbol+"USDT.json"
+      : null;
+  }
+
+  function historyCacheKey(coin){
+    return "worthit.crypto.history.v1."+String(coin.id);
+  }
+
+  function historyFromCache(coin){
+    try{
+      const raw=localStorage.getItem(historyCacheKey(coin));
+      if(!raw)return null;
+      const cached=JSON.parse(raw);
+      if(!cached||!cached.savedAt||!cached.data)return null;
+      if(Date.now()-Number(cached.savedAt)>24*60*60*1000)return null;
+      return cached.data;
+    }catch(e){return null;}
+  }
+
+  function saveHistoryCache(coin,data){
+    try{
+      localStorage.setItem(historyCacheKey(coin),JSON.stringify({
+        savedAt:Date.now(),
+        data:data
+      }));
+    }catch(e){}
+  }
+
+  function downsample(rows,maxPoints){
+    if(rows.length<=maxPoints)return rows;
+    const result=[];
+    const step=(rows.length-1)/(maxPoints-1);
+    for(let i=0;i<maxPoints;i++){
+      result.push(rows[Math.round(i*step)]);
+    }
+    return result;
+  }
+
+  function historyRowsForPeriod(data,period){
+    if(!data)return [];
+    const now=Math.max(
+      Number(data.daily&&data.daily.length?data.daily[data.daily.length-1].t:0),
+      Number(data.hourly&&data.hourly.length?data.hourly[data.hourly.length-1].t:0)
+    );
+    const day=24*60*60*1000;
+    let rows=[];
+    if(period==="1D"){
+      const source=Array.isArray(data.hourly)?data.hourly:[];
+      rows=source.filter(x=>Number(x.t)>=now-day);
+    }else if(period==="7D"){
+      const source=Array.isArray(data.hourly)?data.hourly:[];
+      rows=source.filter(x=>Number(x.t)>=now-day*7);
+    }else if(period==="1M"){
+      rows=(data.daily||[]).filter(x=>Number(x.t)>=now-day*31);
+    }else if(period==="3M"){
+      rows=(data.daily||[]).filter(x=>Number(x.t)>=now-day*93);
+    }else if(period==="1Y"){
+      rows=(data.daily||[]).filter(x=>Number(x.t)>=now-day*366);
+    }else{
+      rows=Array.isArray(data.daily)?data.daily:[];
+    }
+    if(rows.length<2 && Array.isArray(data.daily)){
+      rows=data.daily.slice(-Math.min(30,data.daily.length));
+    }
+    return downsample(rows,360);
+  }
+
+  function chartDate(ts,period){
+    const date=new Date(Number(ts));
+    if(period==="1D"||period==="7D"){
+      return date.toLocaleString("en-US",{month:"short",day:"numeric",hour:"2-digit",minute:"2-digit"});
+    }
+    return date.toLocaleDateString("en-US",{month:"short",year:"numeric"});
+  }
+
+  function renderSpeirsyChart(data,period){
+    const holder=$("cryptoPerformanceChart");
+    if(!holder)return;
+    const rows=historyRowsForPeriod(data,period);
+    if(rows.length<2){
+      holder.innerHTML='<div class="crypto-detail-no-chart">Historical price data is not available yet for this cryptocurrency.</div>';
+      return;
+    }
+
+    const prices=rows.map(x=>Number(x.c)).filter(Number.isFinite);
+    if(prices.length<2)return;
+    let min=Math.min(...prices),max=Math.max(...prices);
+    if(min===max){min*=0.999;max*=1.001;}
+    const W=760,H=300,L=52,R=18,T=20,B=36;
+    const iw=W-L-R,ih=H-T-B;
+    const xAt=i=>L+(i/(rows.length-1))*iw;
+    const yAt=v=>T+(1-(v-min)/(max-min))*ih;
+    const points=rows.map((row,i)=>xAt(i).toFixed(2)+","+yAt(Number(row.c)).toFixed(2)).join(" ");
+    const area=points+" "+xAt(rows.length-1).toFixed(2)+","+(H-B)+" "+xAt(0).toFixed(2)+","+(H-B);
+
+    const first=Number(rows[0].c),last=Number(rows[rows.length-1].c);
+    const change=first?((last-first)/first)*100:0;
+
+    const labels=[0,Math.floor((rows.length-1)/2),rows.length-1];
+    const yLabels=[0,.5,1].map(r=>min+(max-min)*(1-r));
+    const grid=yLabels.map(v=>'<line x1="'+L+'" x2="'+(W-R)+'" y1="'+yAt(v)+'" y2="'+yAt(v)+'" class="crypto-chart-grid"></line>').join("");
+    const xLabels=labels.map(i=>'<text x="'+xAt(i)+'" y="'+(H-11)+'" class="crypto-chart-label" text-anchor="middle">'+esc(chartDate(rows[i].t,period))+'</text>').join("");
+    const yTicks=yLabels.map(v=>'<text x="'+(L-8)+'" y="'+(yAt(v)+4)+'" class="crypto-chart-label" text-anchor="end">'+esc(price(v))+'</text>').join("");
+    const circles=rows.length<=120?rows.map((row,i)=>'<circle cx="'+xAt(i)+'" cy="'+yAt(Number(row.c))+'" r="2.2" class="crypto-chart-point"><title>'+esc(chartDate(row.t,period)+" · "+price(row.c))+'</title></circle>').join(""):"";
+
+    holder.innerHTML=
+      '<div class="crypto-chart-summary"><span>'+esc(period)+' price history</span><strong class="'+(change>=0?"positive":"negative")+'">'+esc(pct(change))+'</strong></div>'+
+      '<svg class="crypto-history-svg" viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="none" role="img" aria-label="'+esc(period+" price history")+'">'+
+        grid+yTicks+
+        '<polygon points="'+area+'" class="crypto-chart-area"></polygon>'+
+        '<polyline points="'+points+'" class="crypto-chart-line"></polyline>'+
+        circles+xLabels+
+      '</svg>'+
+      '<div class="crypto-chart-range"><span>'+esc(chartDate(rows[0].t,period))+'</span><span>'+esc(chartDate(rows[rows.length-1].t,period))+'</span></div>';
+  }
+
+  async function loadSpeirsyHistory(coin,performance){
+    const holder=$("cryptoPerformanceChart");
+    if(!holder)return;
+    state.detailCoin=coin;
+    state.history=null;
+    const url=historyUrl(coin);
+
+    if(!url){
+      renderPerformance(performance);
+      return;
+    }
+
+    const cached=historyFromCache(coin);
+    if(cached){
+      state.history=cached;
+      renderSpeirsyChart(cached,state.chartPeriod);
+      return;
+    }
+
+    holder.innerHTML='<div class="crypto-detail-loading">Loading historical price data…</div>';
+
+    try{
+      const response=await fetch(url,{cache:"force-cache"});
+      if(!response.ok)throw new Error("Speirsy history request failed");
+      const data=await response.json();
+      if(!data||(!Array.isArray(data.daily)&&!Array.isArray(data.hourly)))throw new Error("Invalid Speirsy dataset");
+      saveHistoryCache(coin,data);
+      state.history=data;
+      renderSpeirsyChart(data,state.chartPeriod);
+    }catch(e){
+      console.warn("Speirsy history unavailable",e);
+      renderPerformance(performance);
+    }
   }
 
   function renderPerformance(performance){
@@ -81,7 +237,7 @@
       ? '<strong>Tags</strong>'+md.tags.map(t=>'<span>'+esc(t)+'</span>').join("")
       : "";
 
-    renderPerformance(detail&&detail.performance);
+    loadSpeirsyHistory(coin,detail&&detail.performance);
     $("cryptoDetailSource").textContent="Market data and metadata by CoinMarketCap. Detail data is cached.";
     overlay.classList.add("open");
     overlay.setAttribute("aria-hidden","false");
@@ -263,6 +419,20 @@
   }
 
   function bind(){
+    $("cryptoChartControls")?.addEventListener("click",e=>{
+      const button=e.target.closest("button[data-crypto-period]");
+      if(!button)return;
+      state.chartPeriod=button.dataset.cryptoPeriod;
+      $("cryptoChartControls").querySelectorAll("button[data-crypto-period]").forEach(b=>{
+        b.classList.toggle("active",b===button);
+      });
+      if(state.history){
+        renderSpeirsyChart(state.history,state.chartPeriod);
+      }else if(state.detailCoin){
+        renderPerformance(null);
+      }
+    });
+
     document.addEventListener("click",e=>{if(e.target.closest(".nav,.more-menu"))closeDetail();},true);
 
     $("cryptoDetailClose")?.addEventListener("click",closeDetail);
