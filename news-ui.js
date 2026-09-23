@@ -637,6 +637,8 @@ async function loadNews() {
    NEWS
 ========================================================= */
 
+    document.documentElement.classList.remove("settings-open");
+
 function openNews() {
 
     if (typeof window.hideCarsNavigationUi === "function") {
