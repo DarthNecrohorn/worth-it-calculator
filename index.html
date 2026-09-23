@@ -80,6 +80,7 @@
         <button
             type="button"
             class="nav-overflow-item"
+            onclick="openCryptoFromMenu()"
         >
             <span>🪙</span>
             <span>
@@ -237,6 +238,7 @@
       <button
     type="button"
     class="more-menu-item"
+    onclick="openCryptoFromMenu()"
 >
     <span>🪙</span>
     <span>
@@ -269,6 +271,47 @@
         
     </div>
 </div>
+
+<!-- CRYPTO CURRENCIES -->
+<section class="crypto-section" id="cryptoSection" style="display:none;">
+    <div class="crypto-header">
+        <div>
+            <span class="crypto-badge">🪙 Crypto Currencies</span>
+            <h2>Explore &amp; compare cryptocurrencies</h2>
+            <p>Live market data, market statistics and cryptocurrency discovery.</p>
+        </div>
+        <button type="button" class="crypto-refresh" id="cryptoRefresh" title="Refresh crypto data">↻ Refresh</button>
+    </div>
+
+    <div class="crypto-global-stats" id="cryptoGlobalStats"></div>
+
+    <div class="crypto-toolbar">
+        <div class="crypto-filters" id="cryptoFilters">
+            <button type="button" data-crypto-filter="popular" class="active">🔥 Popular</button>
+            <button type="button" data-crypto-filter="gainers">📈 Top Gainers</button>
+            <button type="button" data-crypto-filter="losers">📉 Top Losers</button>
+            <button type="button" data-crypto-filter="marketCap">💰 Market Cap</button>
+            <button type="button" data-crypto-filter="volume">📊 Volume</button>
+            <button type="button" data-crypto-filter="stablecoins">💎 Stablecoins</button>
+        </div>
+        <label class="crypto-search-wrap">
+            <span>🔎</span>
+            <input id="cryptoSearch" type="search" placeholder="Search cryptocurrencies..." autocomplete="off">
+        </label>
+    </div>
+
+    <div class="crypto-results-row">
+        <span id="cryptoResultsCount">Loading…</span>
+    </div>
+
+    <div class="crypto-grid" id="cryptoGrid"></div>
+
+    <div class="crypto-attribution">
+        Market data by <a href="https://coinmarketcap.com/api/" target="_blank" rel="noopener noreferrer">CoinMarketCap</a>.
+        Cryptocurrency images are selected from <a href="https://commons.wikimedia.org/" target="_blank" rel="noopener noreferrer">Wikimedia Commons</a>
+        only when a compatible reuse license is detected.
+    </div>
+</section>
 
 <section class="markets-section" id="marketsSection" style="display:none;">
 
@@ -1877,6 +1920,7 @@ try{
 <script src="settings.js"></script>
 <script src="admin-panel.js"></script>
 <script src="markets-ui.js?v=2"></script>
+<script src="crypto-ui.js"></script>
 <script src="currencies-ui.js?v=2"></script>
 <script>
 
