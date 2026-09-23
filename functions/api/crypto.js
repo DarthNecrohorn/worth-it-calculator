@@ -46,11 +46,11 @@ async function cachedFetch(request, seconds) {
   return response;
 }
 
-async function cmc(path, env) {
+async function cmc(path, env, cacheSeconds = MARKET_CACHE_SECONDS) {
   const key = env && env.COINMARKETCAP_API_KEY;
   if (!key) return { ok:false, status:503, error:"COINMARKETCAP_API_KEY is not configured." };
   const request = new Request(CMC_BASE + path, { headers:{ "X-CMC_PRO_API_KEY":key, "Accept":"application/json" } });
-  const response = await cachedFetch(request, MARKET_CACHE_SECONDS);
+  const response = await cachedFetch(request, cacheSeconds);
   const body = await response.text();
   if (!response.ok) return { ok:false, status:response.status, error:"CoinMarketCap request failed.", details:body.slice(0,400) };
   try { return { ok:true, data:JSON.parse(body) }; } catch(e) { return { ok:false, status:502, error:"Invalid CoinMarketCap response." }; }
@@ -69,7 +69,7 @@ function coin(item) {
 }
 
 async function market(env) {
-  const list = await cmc("/cryptocurrency/listings/latest?start=1&limit=100&convert=USD", env);
+  const list = await cmc("/cryptocurrency/listings/latest?start=1&limit=500&convert=USD", env);
   if (!list.ok) return json({error:list.error, details:list.details || null}, list.status, {"cache-control":"no-store"});
   const global = await cmc("/global-metrics/quotes/latest?convert=USD", env);
   const gd = global.ok ? global.data && global.data.data : null;
@@ -102,7 +102,8 @@ async function detail(url, env) {
     "/v2/cryptocurrency/price-performance-stats/latest?id=" +
     encodeURIComponent(id) +
     "&time_period=1h,24h,7d,30d,90d,365d",
-    env
+    env,
+    DETAIL_PERFORMANCE_CACHE_SECONDS
   );
 
   const raw = metadataPayload && metadataPayload.data;
