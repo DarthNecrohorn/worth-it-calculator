@@ -8630,23 +8630,24 @@ html[data-theme="light"] .crypto-card{
 }
 .crypto-floating-show-less{
     position:fixed;
-    right:18px;
-    top:55%;
+    right:max(8px, calc((100vw - 1180px) / 2 - 140px));
+    top:50%;
     z-index:2150;
     display:flex;
     align-items:center;
     gap:8px;
     border:1px solid var(--border);
     color:var(--text);
-    background:var(--card-solid,var(--card));
+    background:var(--surface-soft);
     border-radius:14px;
-    padding:11px 14px;
-    font-size:12px;
+    padding:11px 15px;
+    min-height:52px;
+    font-size:.90rem;
     font-weight:900;
     box-shadow:0 12px 32px rgba(0,0,0,.22);
     opacity:0;
     visibility:hidden;
-    transform:translateX(18px);
+    transform:translateY(-40%);
     pointer-events:none;
     transition:opacity .2s ease,transform .2s ease,border-color .2s ease,background .2s ease;
 }
@@ -8654,14 +8655,14 @@ html[data-theme="light"] .crypto-card{
 .crypto-floating-show-less.visible{
     opacity:1;
     visibility:visible;
-    transform:translateX(0);
+    transform:translateY(-50%);
     pointer-events:auto;
 }
 
 .crypto-floating-show-less:hover{
     border-color:rgba(124,92,255,.65);
     background:rgba(124,92,255,.1);
-    transform:translateX(0) translateY(-2px);
+    transform:translateY(-50%);
 }
 
 .crypto-floating-show-less span{
@@ -8673,14 +8674,41 @@ html[data-theme="light"] .crypto-floating-show-less{
     background:#fff;
 }
 
+@media (max-width:1400px) and (min-width:701px){
+    .crypto-floating-show-less{
+        right:8px;
+    }
+}
+
+@media (max-width:1024px){
+    .crypto-floating-show-less{
+        right:14px;
+    }
+}
+
 @media(max-width:700px){
     .crypto-floating-show-less{
-        right:10px;
-        top:auto;
-        bottom:84px;
-        padding:10px 12px;
-        border-radius:12px;
+        right:8px;
+        top:50%;
+        min-height:52px;
+        padding:11px 15px;
+        border-radius:14px;
+        font-size:.90rem;
     }
+}
+
+html[data-ui-scale="small"] .crypto-floating-show-less{
+    min-height:58px;
+    padding:12px 17px;
+    font-size:.95rem;
+}
+
+html[data-ui-scale="large"] .crypto-floating-show-less{
+    right:4px;
+}
+
+html[data-ui-scale="xl"] .crypto-floating-show-less{
+    right:0;
 }
 
 .crypto-show-btn{
