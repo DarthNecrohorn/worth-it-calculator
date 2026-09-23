@@ -986,6 +986,9 @@ function openCalculator(type) {
     const moneySection =
         document.getElementById("moneySection");
 
+    const cryptoSection =
+        document.getElementById("cryptoSection");
+
     if (homePage) {
 
         homePage.style.display =
@@ -1032,6 +1035,10 @@ function openCalculator(type) {
 if (moneySection) {
     moneySection.style.display = "none";
 
+}
+
+if (cryptoSection) {
+    cryptoSection.style.display = "none";
 }
 
     document
@@ -1430,6 +1437,57 @@ function openCarsFromMenu() {
 window.openCarsFromMenu = openCarsFromMenu;
 
 window.openMarketsFromMenu = openMarketsFromMenu;
+
+function openCryptoFromMenu() {
+    closeMoreMenu();
+    if (typeof window.openCrypto === "function") {
+        window.openCrypto();
+    }
+}
+
+window.openCryptoFromMenu = openCryptoFromMenu;
+
+function openCrypto() {
+    hideCarsNavigationUi();
+
+    const homePage = document.getElementById("homePage");
+    const weatherSection = document.getElementById("weatherSection");
+    const newsSection = document.getElementById("newsSection");
+    const discountsSection = document.getElementById("discountsSection");
+    const marketsSection = document.getElementById("marketsSection");
+    const moneySection = document.getElementById("moneySection");
+    const settingsPanel = document.getElementById("settingsPanel");
+    const cryptoSection = document.getElementById("cryptoSection");
+
+    if (homePage) homePage.style.display = "none";
+    if (weatherSection) weatherSection.style.display = "none";
+    if (newsSection) newsSection.style.display = "none";
+    if (discountsSection) discountsSection.style.display = "none";
+    if (marketsSection) marketsSection.style.display = "none";
+    if (moneySection) moneySection.style.display = "none";
+    if (settingsPanel) settingsPanel.style.display = "none";
+
+    document.querySelectorAll(".app").forEach(x => {
+        x.classList.remove("active");
+        x.style.display = "none";
+    });
+
+    if (cryptoSection) cryptoSection.style.display = "block";
+
+    const navLinks = document.getElementById("navLinks");
+    if (navLinks) navLinks.classList.remove("open");
+
+    document.documentElement.style.overflowY = "auto";
+    document.body.style.overflowY = "auto";
+
+    if (typeof initCryptoUI === "function") {
+        initCryptoUI();
+    }
+
+    window.scrollTo({ top: 0, behavior: "auto" });
+}
+
+window.openCrypto = openCrypto;
 
 function openMoneyFromMenu() {
     closeMoreMenu();
