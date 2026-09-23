@@ -8622,3 +8622,27 @@ html[data-theme="light"] .crypto-stat-card,
 html[data-theme="light"] .crypto-card{
     background:#fff;
 }
+
+.crypto-pager{
+    display:flex;
+    justify-content:center;
+    margin-top:18px;
+}
+.crypto-show-btn{
+    border:1px solid var(--border);
+    color:var(--text);
+    background:var(--surface-soft);
+    border-radius:12px;
+    padding:10px 15px;
+    font-size:12px;
+    font-weight:800;
+    transition:.2s;
+}
+.crypto-show-btn:hover{
+    border-color:rgba(124,92,255,.65);
+    background:rgba(124,92,255,.1);
+    transform:translateY(-2px);
+}
+html[data-theme="light"] .crypto-show-btn{
+    background:#fff;
+}
