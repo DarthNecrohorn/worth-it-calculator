@@ -766,6 +766,17 @@ async function detail(url, env) {
   if (!id || !/^\d+$/.test(id)) return json({error:"Invalid cryptocurrency id."},400);
 
   /*
+   * Use the coin name/symbol from the market listing as the primary
+   * Wikipedia lookup input. This keeps the description lookup working
+   * even when CMC's separate metadata endpoint is unavailable.
+   */
+  const requestedName =
+    String(url.searchParams.get("name") || "").trim() || null;
+
+  const requestedSymbol =
+    String(url.searchParams.get("symbol") || "").trim() || null;
+
+  /*
    * Use the same current CMC v2 metadata endpoint through the shared
    * keyed/public fallback. CMC remains the source for market-adjacent
    * metadata such as links, tags and category. Wikipedia is preferred
@@ -804,8 +815,8 @@ async function detail(url, env) {
   try {
     wikipediaDescription =
       await getWikipediaCryptoDescription(
-        meta.name || null,
-        meta.symbol || null
+        requestedName || meta.name || null,
+        requestedSymbol || meta.symbol || null
       );
   }
   catch (error) {
