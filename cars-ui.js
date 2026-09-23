@@ -273,6 +273,15 @@ function formatVehicleUpdatedAt(value) {
     return date.toLocaleString("en-GB", {year:"numeric",month:"short",day:"numeric",hour:"2-digit",minute:"2-digit"});
 }
 
+function updateCarsLastUpdated(kind = currentVehicleKind) {
+    const element = document.getElementById("carsLastUpdated");
+    if (!element) return;
+    element.textContent =
+        "Last checked: " +
+        formatVehicleUpdatedAt(getVehicleLastUpdated(kind)) +
+        " · Updates when the category is refreshed.";
+}
+
 const MAX_COMPARE_VEHICLES =
     3;
 
@@ -2232,6 +2241,10 @@ async function refreshVehicleCatalogInBackground(
 
         setVehicleLastUpdated(kind);
 
+        if (currentVehicleKind === kind) {
+            updateCarsLastUpdated(kind);
+        }
+
         void writePersistentVehicleCatalog(
             kind,
             freshVehicles
@@ -2317,6 +2330,9 @@ async function fetchVehicleCatalog(
 
             if (vehicles.length) {
                 setVehicleLastUpdated(kind);
+                if (currentVehicleKind === kind) {
+                    updateCarsLastUpdated(kind);
+                }
             }
 
             if (
@@ -4926,6 +4942,8 @@ async function refreshCurrentVehicleCategory(
 
                 currentVehicleCatalog =
                     refreshedCatalog;
+
+                updateCarsLastUpdated(kind);
             }
 
             /*
@@ -10325,10 +10343,8 @@ function updateCarsCategoryHeader(
                 info.singular.toLowerCase() +
                 " catalog."
             ) +
-            '</span>' +
-            '<span class="cars-last-updated">Last checked: ' +
-            escapeVehicleHtml(formatVehicleUpdatedAt(getVehicleLastUpdated(kind))) +
-            ' · Updates when the category is refreshed.</span>';
+            '</span>';
+        updateCarsLastUpdated(kind);
         return;
     }
 
@@ -10353,10 +10369,9 @@ function updateCarsCategoryHeader(
                 '<strong>Popularity note</strong>' +
                 '<span>' + escapeVehicleHtml(VEHICLE_POPULARITY_NOTE) + '</span>' +
             '</span>' +
-        '</span>' +
-        '<span class="cars-last-updated">Last checked: ' +
-        escapeVehicleHtml(formatVehicleUpdatedAt(getVehicleLastUpdated(kind))) +
-        ' · Updates when the category is refreshed.</span>';
+        '</span>';
+
+    updateCarsLastUpdated(kind);
 
     const infoButton = description.querySelector(".cars-popularity-info-button");
     const infoWrap = description.querySelector(".cars-popularity-info-wrap");
@@ -10842,6 +10857,8 @@ async function filterCarsByCategory(
     currentVehicleCatalog =
         vehicles;
 
+    updateCarsLastUpdated(kind);
+
     await loadAndRenderPopularVehicles(
         kind,
         false
@@ -11167,6 +11184,8 @@ async function openCars() {
 
     currentVehicleCatalog =
         vehicles;
+
+    updateCarsLastUpdated(kind);
 
     await loadAndRenderPopularVehicles(
         "car",
