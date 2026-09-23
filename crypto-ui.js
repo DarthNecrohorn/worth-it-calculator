@@ -336,6 +336,8 @@
       ?"Showing "+v.length+" of "+a.length+" results"
       :"Showing "+v.length+" of "+a.length;
 
+    syncFloatingShowLess();
+
     if(!g)return;
 
     if(!v.length){
@@ -364,7 +366,6 @@
       });
       g.after(pager);
     }
-    syncFloatingShowLess();
   }
   async function loadImage(img){try{const r=await fetch("/api/crypto?action=image&name="+encodeURIComponent(img.dataset.coinName)+"&symbol="+encodeURIComponent(img.dataset.coinSymbol),{cache:"force-cache"});if(!r.ok)return;const d=await r.json();if(d.image&&d.image.url){img.src=d.image.url;img.alt=img.dataset.coinName+" logo";img.onload=()=>img.classList.add("loaded");}}catch(e){console.warn("Crypto image load failed",e);}}
   function runQueue(){while(state.active<state.max&&state.queue.length){const img=state.queue.shift();if(!img||img.dataset.queued==="1")continue;img.dataset.queued="1";state.active++;loadImage(img).finally(()=>{state.active--;runQueue();});}}
