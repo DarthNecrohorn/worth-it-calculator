@@ -10325,7 +10325,10 @@ function updateCarsCategoryHeader(
                 info.singular.toLowerCase() +
                 " catalog."
             ) +
-            "</span>";
+            '</span>' +
+            '<span class="cars-last-updated">Last checked: ' +
+            escapeVehicleHtml(formatVehicleUpdatedAt(getVehicleLastUpdated(kind))) +
+            ' · Updates when the category is refreshed.</span>';
         return;
     }
 
