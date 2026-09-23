@@ -156,7 +156,7 @@ async function detail(url, env) {
       performance:"CoinMarketCap API"
     }
   },200,{
-    "cache-control":"public, max-age=1800, s-maxage=1800"
+    "cache-control":"public, max-age=" + DETAIL_PERFORMANCE_CACHE_SECONDS + ", s-maxage=" + DETAIL_PERFORMANCE_CACHE_SECONDS
   });
 }
 
@@ -185,7 +185,7 @@ export async function onRequestGet({request, env}) {
     if (url.searchParams.get("action") === "detail") return await detail(url, env);
     if (url.searchParams.get("action") === "image") return await image(url);
     if (!url.searchParams.get("action") || url.searchParams.get("action") === "market") return await market(env);
-    return json({error:"Unknown action.", availableActions:["market","image"]},400);
+    return json({error:"Unknown action.", availableActions:["market","detail","image"]},400);
   } catch (e) {
     console.error("Crypto API error:", e);
     return json({error:"Crypto service temporarily unavailable."},502,{"cache-control":"no-store"});
