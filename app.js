@@ -1589,6 +1589,13 @@ function openMarkets() {
     const marketsSection =
         document.getElementById("marketsSection");
 
+    const cryptoSection =
+        document.getElementById("cryptoSection");
+
+    if (cryptoSection) {
+        cryptoSection.style.display = "none";
+    }
+
     const moneySection =
     document.getElementById("moneySection");
 
