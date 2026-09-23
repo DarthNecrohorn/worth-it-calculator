@@ -9705,8 +9705,8 @@ function injectVehicleUiStyles() {
             top: 50% !important;
             z-index: 9999 !important;
 
-            min-height: 52px !important;
-            padding: 11px 15px !important;
+            min-height: 56px !important;
+            padding: 12px 16px !important;
 
             border: 1px solid var(--border) !important;
             border-radius: 14px !important;
@@ -9745,7 +9745,7 @@ function injectVehicleUiStyles() {
         .worth-it-vehicle-floating-collapse:hover {
             border-color: rgba(124,92,255,.65) !important;
             background: rgba(124,92,255,.10) !important;
-            transform: translateY(-50%) !important;
+            transform: translateY(calc(-50% - 2px)) scale(1.035) !important;
         }
 
         @media (max-width: 1400px) and (min-width: 701px) {
@@ -9764,16 +9764,16 @@ function injectVehicleUiStyles() {
             .worth-it-vehicle-floating-collapse {
                 right: 8px !important;
                 top: 50% !important;
-                min-height: 52px !important;
-                padding: 11px 15px !important;
+                min-height: 56px !important;
+                padding: 12px 16px !important;
                 font-size: .90rem !important;
             }
         }
 
         html[data-ui-scale="small"] .worth-it-vehicle-floating-collapse {
-            min-height: 58px !important;
-            padding: 12px 17px !important;
-            font-size: .95rem !important;
+            min-height: 62px !important;
+            padding: 13px 18px !important;
+            font-size: 1rem !important;
         }
 
         html[data-ui-scale="large"] .worth-it-vehicle-floating-collapse {
@@ -10186,17 +10186,6 @@ function updateCarsCategoryHeader(
         infoWrap.classList.toggle("is-open", shouldOpen);
     });
 
-    
-        window.addEventListener(
-            "resize",
-            updateVehicleFloatingCollapseButton,
-            { passive: true }
-        );
-
-        window.addEventListener(
-            "worthitsettingschange",
-            updateVehicleFloatingCollapseButton
-        );
 
 document.addEventListener("click", event => {
         if (!infoWrap.contains(event.target)) {
@@ -11166,6 +11155,17 @@ document.addEventListener(
             "scroll",
             handleVehicleScroll,
             { passive: true }
+        );
+
+        window.addEventListener(
+            "resize",
+            updateVehicleFloatingCollapseButton,
+            { passive: true }
+        );
+
+        window.addEventListener(
+            "worthitsettingschange",
+            updateVehicleFloatingCollapseButton
         );
 
         /*
