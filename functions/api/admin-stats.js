@@ -66,7 +66,7 @@ const API_REGISTRY = [
     },
     {
         key: "crypto",
-        name: "Crypto Currencies",
+        name: "Cryptocurrencies",
         emoji: "🪙",
         provider: "CoinMarketCap",
         endpoint: "/api/crypto",
