@@ -244,6 +244,35 @@ let currentVehicleShowAll =
 let currentVehicleMode =
     "popular";
 
+const vehicleLastUpdatedAt = new Map();
+
+function setVehicleLastUpdated(kind, value = Date.now()) {
+    const timestamp = Number(value);
+    if (!Number.isFinite(timestamp)) return;
+    vehicleLastUpdatedAt.set(kind, timestamp);
+    try { localStorage.setItem("worthit.cars.lastUpdated."+kind, String(timestamp)); } catch {}
+}
+
+function getVehicleLastUpdated(kind) {
+    const live = vehicleLastUpdatedAt.get(kind);
+    if (Number.isFinite(live)) return live;
+    try {
+        const saved = Number(localStorage.getItem("worthit.cars.lastUpdated."+kind));
+        if (Number.isFinite(saved) && saved > 0) {
+            vehicleLastUpdatedAt.set(kind, saved);
+            return saved;
+        }
+    } catch {}
+    return null;
+}
+
+function formatVehicleUpdatedAt(value) {
+    if (!value) return "Not checked yet";
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return "Not checked yet";
+    return date.toLocaleString("en-GB", {year:"numeric",month:"short",day:"numeric",hour:"2-digit",minute:"2-digit"});
+}
+
 const MAX_COMPARE_VEHICLES =
     3;
 
@@ -2201,6 +2230,8 @@ async function refreshVehicleCatalogInBackground(
             freshVehicles
         );
 
+        setVehicleLastUpdated(kind);
+
         void writePersistentVehicleCatalog(
             kind,
             freshVehicles
@@ -2283,6 +2314,10 @@ async function fetchVehicleCatalog(
                 await fetchFreshVehicleCatalog(
                     kind
                 );
+
+            if (vehicles.length) {
+                setVehicleLastUpdated(kind);
+            }
 
             if (
                 kind !== "car" &&
@@ -10315,7 +10350,10 @@ function updateCarsCategoryHeader(
                 '<strong>Popularity note</strong>' +
                 '<span>' + escapeVehicleHtml(VEHICLE_POPULARITY_NOTE) + '</span>' +
             '</span>' +
-        '</span>';
+        '</span>' +
+        '<span class="cars-last-updated">Last checked: ' +
+        escapeVehicleHtml(formatVehicleUpdatedAt(getVehicleLastUpdated(kind))) +
+        ' · Updates when the category is refreshed.</span>';
 
     const infoButton = description.querySelector(".cars-popularity-info-button");
     const infoWrap = description.querySelector(".cars-popularity-info-wrap");
