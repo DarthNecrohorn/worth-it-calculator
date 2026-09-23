@@ -7,9 +7,14 @@ const MARKET_CACHE_SECONDS = 600;
 const IMAGE_CACHE_SECONDS = 604800;
 const DETAIL_METADATA_CACHE_SECONDS = 86400;
 const DETAIL_PERFORMANCE_CACHE_SECONDS = 1800;
+const WIKIPEDIA_CACHE_SECONDS = 604800;
+const WIKIPEDIA_CACHE_VERSION = "v1";
 const GLOBAL_CACHE_SECONDS = 3600;
 const FX_CACHE_SECONDS = 3600;
 const USD_FIAT_ID = 2781;
+const WIKIPEDIA_API = "https://en.wikipedia.org/w/api.php";
+const WIKIPEDIA_CRYPTO_KEYWORDS =
+  /cryptocurrency|cryptoasset|digital currency|digital asset|blockchain|token|coin|decentralized finance|defi/i;
 
 function json(data, status, headers) {
   return new Response(JSON.stringify(data), {
@@ -179,6 +184,418 @@ function getQuote(item, symbol) {
   }
 
   return quote && quote[symbol] || quote || {};
+}
+
+
+function normalizeWikipediaText(value) {
+  return String(value || "")
+    .replace(/\\s+/g, " ")
+    .trim();
+}
+
+function normalizeWikipediaTitle(value) {
+  return normalizeWikipediaText(value)
+    .toLowerCase()
+    .replace(/[_]/g, " ")
+    .replace(/[:]/g, "")
+    .replace(/[–—-]/g, " ")
+    .replace(/\\s+/g, " ");
+}
+
+async function wikipediaJson(url) {
+  const request = new Request(url, {
+    headers: {
+      "Accept": "application/json",
+      "User-Agent":
+        "Worth It Crypto/1.0 (https://github.com/DarthNecrohorn/worth-it-calculator)"
+    }
+  });
+
+  const response =
+    await cachedFetch(
+      request,
+      WIKIPEDIA_CACHE_SECONDS
+    );
+
+  if (!response.ok) {
+    throw new Error(
+      "Wikipedia returned " + response.status
+    );
+  }
+
+  const data = await response.json();
+
+  if (data && data.error) {
+    throw new Error(
+      data.error.info ||
+      "Wikipedia API error"
+    );
+  }
+
+  return data;
+}
+
+function wikipediaPageFromResponse(data) {
+  const pages =
+    data &&
+    data.query &&
+    data.query.pages;
+
+  if (!pages) {
+    return null;
+  }
+
+  const page =
+    Array.isArray(pages)
+      ? pages[0]
+      : Object.values(pages)[0];
+
+  if (!page || page.missing === true) {
+    return null;
+  }
+
+  const description =
+    normalizeWikipediaText(
+      page.extract || ""
+    );
+
+  if (!description) {
+    return null;
+  }
+
+  return {
+    title:
+      page.title || null,
+    description,
+    url:
+      page.fullurl ||
+      ("https://en.wikipedia.org/wiki/" +
+        encodeURIComponent(
+          String(page.title || "")
+            .replace(/ /g, "_")
+        ))
+  };
+}
+
+function wikipediaCryptoRelevance(
+  page,
+  name,
+  symbol
+) {
+  if (!page || !page.description) {
+    return -Infinity;
+  }
+
+  const title =
+    normalizeWikipediaTitle(
+      page.title
+    );
+
+  const description =
+    normalizeWikipediaText(
+      page.description
+    );
+
+  const wantedName =
+    normalizeWikipediaTitle(
+      name
+    );
+
+  const wantedSymbol =
+    normalizeWikipediaTitle(
+      symbol
+    );
+
+  let score = 0;
+
+  if (
+    title === wantedName
+  ) {
+    score += 100;
+  }
+
+  if (
+    title === wantedName + " cryptocurrency"
+  ) {
+    score += 125;
+  }
+
+  if (
+    title.includes(wantedName)
+  ) {
+    score += 50;
+  }
+
+  if (
+    wantedSymbol &&
+    wantedSymbol.length >= 2 &&
+    (" " + normalizeWikipediaText(description).toLowerCase() + " ")
+      .includes(" " + wantedSymbol.toLowerCase() + " ")
+  ) {
+    score += 12;
+  }
+
+  if (
+    WIKIPEDIA_CRYPTO_KEYWORDS.test(
+      description
+    )
+  ) {
+    score += 80;
+  }
+  else {
+    return -Infinity;
+  }
+
+  return score;
+}
+
+async function getWikipediaCryptoDescription(
+  name,
+  symbol
+) {
+  if (!name) {
+    return null;
+  }
+
+  const directUrl =
+    new URL(WIKIPEDIA_API);
+
+  directUrl.searchParams.set(
+    "action",
+    "query"
+  );
+  directUrl.searchParams.set(
+    "prop",
+    "extracts|info"
+  );
+  directUrl.searchParams.set(
+    "exintro",
+    "1"
+  );
+  directUrl.searchParams.set(
+    "explaintext",
+    "1"
+  );
+  directUrl.searchParams.set(
+    "exchars",
+    "1200"
+  );
+  directUrl.searchParams.set(
+    "inprop",
+    "url"
+  );
+  directUrl.searchParams.set(
+    "titles",
+    name
+  );
+  directUrl.searchParams.set(
+    "redirects",
+    "1"
+  );
+  directUrl.searchParams.set(
+    "format",
+    "json"
+  );
+  directUrl.searchParams.set(
+    "formatversion",
+    "2"
+  );
+
+  const candidates = [];
+
+  try {
+    const direct =
+      wikipediaPageFromResponse(
+        await wikipediaJson(
+          directUrl.toString()
+        )
+      );
+
+    if (direct) {
+      candidates.push(direct);
+    }
+  }
+  catch (error) {
+    console.warn(
+      "Wikipedia direct crypto lookup failed:",
+      name,
+      error
+    );
+  }
+
+  /*
+   * Search Wikipedia when the exact page is missing or is clearly
+   * about another subject (for example a common English word).
+   */
+  const searchUrl =
+    new URL(WIKIPEDIA_API);
+
+  searchUrl.searchParams.set(
+    "action",
+    "query"
+  );
+  searchUrl.searchParams.set(
+    "list",
+    "search"
+  );
+  searchUrl.searchParams.set(
+    "srnamespace",
+    "0"
+  );
+  searchUrl.searchParams.set(
+    "srsearch",
+    '"' + name + '" cryptocurrency'
+  );
+  searchUrl.searchParams.set(
+    "srlimit",
+    "6"
+  );
+  searchUrl.searchParams.set(
+    "format",
+    "json"
+  );
+  searchUrl.searchParams.set(
+    "formatversion",
+    "2"
+  );
+
+  try {
+    const searchData =
+      await wikipediaJson(
+        searchUrl.toString()
+      );
+
+    const results =
+      Array.isArray(
+        searchData &&
+        searchData.query &&
+        searchData.query.search
+      )
+        ? searchData.query.search
+        : [];
+
+    for (
+      const result of results.slice(0, 5)
+    ) {
+      const title =
+        String(
+          result && result.title || ""
+        ).trim();
+
+      if (!title) {
+        continue;
+      }
+
+      const pageUrl =
+        new URL(WIKIPEDIA_API);
+
+      pageUrl.searchParams.set(
+        "action",
+        "query"
+      );
+      pageUrl.searchParams.set(
+        "prop",
+        "extracts|info"
+      );
+      pageUrl.searchParams.set(
+        "exintro",
+        "1"
+      );
+      pageUrl.searchParams.set(
+        "explaintext",
+        "1"
+      );
+      pageUrl.searchParams.set(
+        "exchars",
+        "1200"
+      );
+      pageUrl.searchParams.set(
+        "inprop",
+        "url"
+      );
+      pageUrl.searchParams.set(
+        "titles",
+        title
+      );
+      pageUrl.searchParams.set(
+        "redirects",
+        "1"
+      );
+      pageUrl.searchParams.set(
+        "format",
+        "json"
+      );
+      pageUrl.searchParams.set(
+        "formatversion",
+        "2"
+      );
+
+      try {
+        const page =
+          wikipediaPageFromResponse(
+            await wikipediaJson(
+              pageUrl.toString()
+            )
+          );
+
+        if (page) {
+          candidates.push(page);
+        }
+      }
+      catch (error) {
+        console.warn(
+          "Wikipedia crypto candidate lookup failed:",
+          title,
+          error
+        );
+      }
+    }
+  }
+  catch (error) {
+    console.warn(
+      "Wikipedia crypto search failed:",
+      name,
+      error
+    );
+  }
+
+  const unique =
+    new Map();
+
+  for (const candidate of candidates) {
+    if (!candidate.title) continue;
+    unique.set(
+      normalizeWikipediaTitle(
+        candidate.title
+      ),
+      candidate
+    );
+  }
+
+  const ranked =
+    Array.from(unique.values())
+      .map(page => ({
+        page,
+        score:
+          wikipediaCryptoRelevance(
+            page,
+            name,
+            symbol
+          )
+      }))
+      .filter(item =>
+        Number.isFinite(item.score)
+      )
+      .sort((a,b) =>
+        b.score - a.score
+      );
+
+  return ranked.length
+    ? {
+        ...ranked[0].page,
+        source: "Wikipedia"
+      }
+    : null;
 }
 
 function coin(item, usdToEurRate) {
@@ -376,6 +793,25 @@ async function detail(url, env) {
   const raw = metadataPayload && metadataPayload.data;
   const meta = raw && (raw[id] || Object.values(raw)[0]) || {};
 
+  let wikipediaDescription = null;
+
+  if (!meta.description) {
+    try {
+      wikipediaDescription =
+        await getWikipediaCryptoDescription(
+          meta.name || null,
+          meta.symbol || null
+        );
+    }
+    catch (error) {
+      console.warn(
+        "Wikipedia crypto description lookup failed:",
+        id,
+        error
+      );
+    }
+  }
+
   let performanceData = null;
   if (performance.ok) {
     const p = performance.data && performance.data.data;
@@ -404,7 +840,24 @@ async function detail(url, env) {
       name:meta.name || null,
       symbol:meta.symbol || null,
       category:meta.category || null,
-      description:meta.description || null,
+      description:
+        wikipediaDescription && wikipediaDescription.description
+          ? wikipediaDescription.description
+          : meta.description || null,
+      descriptionSource:
+        wikipediaDescription && wikipediaDescription.description
+          ? "Wikipedia"
+          : meta.description
+            ? "CoinMarketCap"
+            : null,
+      wikipediaTitle:
+        wikipediaDescription && wikipediaDescription.title
+          ? wikipediaDescription.title
+          : null,
+      wikipediaUrl:
+        wikipediaDescription && wikipediaDescription.url
+          ? wikipediaDescription.url
+          : null,
       dateAdded:meta.date_added || null,
       tags:Array.isArray(meta.tags) ? meta.tags.slice(0,12) : [],
       website:Array.isArray(meta.urls && meta.urls.website) ? meta.urls.website[0] || null : null,
@@ -420,7 +873,10 @@ async function detail(url, env) {
       "365d":normalizePeriod("365d")
     },
     source:{
-      metadata:"CoinMarketCap keyless public metadata",
+      metadata:
+        wikipediaDescription && wikipediaDescription.description
+          ? "Wikipedia"
+          : "CoinMarketCap",
       performance:"CoinMarketCap API"
     }
   },200,{
