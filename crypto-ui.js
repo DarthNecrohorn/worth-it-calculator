@@ -209,7 +209,7 @@
     $("cryptoDetailTitle").textContent=md.name||coin.name;
     $("cryptoDetailSymbol").textContent=md.symbol||coin.symbol;
     $("cryptoDetailRank").textContent=coin.rank?"Rank #"+coin.rank:"";
-    $("cryptoDetailPrice").textContent=price(coin.price);
+    $("cryptoDetailPrice").innerHTML=esc(price(coin.price))+" <span class=\"crypto-detail-eur-price\">≈ "+esc(priceEUR(coin.priceEUR))+"</span>";
 
     const change=$("cryptoDetailChange");
     change.textContent=pct(coin.change24h);
