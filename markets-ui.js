@@ -558,7 +558,7 @@ function ensureMarketsCardStyles() {
     position:fixed !important;
     right:max(8px, calc((100vw - 1180px) / 2 - 140px)) !important;
     top:50% !important;
-    z-index:9999 !important;
+    z-index:10050 !important;
 
     min-height:46px !important;
     padding:10px 16px !important;
