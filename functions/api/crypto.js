@@ -346,18 +346,23 @@ async function detail(url, env) {
   const id = url.searchParams.get("id");
   if (!id || !/^\d+$/.test(id)) return json({error:"Invalid cryptocurrency id."},400);
 
-  const metadataUrl =
-    "https://pro-api.coinmarketcap.com/public-api/v2/cryptocurrency/info?id=" +
-    encodeURIComponent(id) + "&aux=description,urls,date_added,tags,category";
-  const metadataResponse = await cachedFetch(
-    new Request(metadataUrl),
+  /*
+   * Use the same current CMC v2 metadata endpoint through the shared
+   * keyed/public fallback. CMC metadata includes the supplied
+   * description, links, tags and category when available.
+   */
+  const metadataResult = await cmc(
+    "/v2/cryptocurrency/info?id=" +
+      encodeURIComponent(id) +
+      "&aux=description,urls,date_added,tags,category",
+    env,
     DETAIL_METADATA_CACHE_SECONDS
   );
 
-  let metadataPayload = null;
-  if (metadataResponse.ok) {
-    try { metadataPayload = await metadataResponse.json(); } catch (e) {}
-  }
+  const metadataPayload =
+    metadataResult.ok
+      ? metadataResult.data
+      : null;
 
   const performance = await cmc(
     "/v2/cryptocurrency/price-performance-stats/latest?id=" +
