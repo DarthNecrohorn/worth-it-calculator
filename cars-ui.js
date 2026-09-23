@@ -9671,9 +9671,7 @@ function injectVehicleUiStyles() {
          * same fixed position, dimensions, animation and visibility
          * behavior. Only the text/action is different.
          */
-        @media (max-width: 700px) {
-            /* Keep Show Less accessible without covering the middle of the page. */
-            .worth-it-vehicle-floating-collapse {
+        .worth-it-vehicle-floating-collapse {
             position: fixed !important;
             right: max(8px, calc((100vw - 1180px) / 2 - 140px)) !important;
             top: 50% !important;
@@ -9856,17 +9854,6 @@ function injectVehicleUiStyles() {
 
             .worth-it-vehicle-comparison-meta {
                 margin-top: 12px;
-            }
-
-            .worth-it-vehicle-floating-collapse {
-                left: 8px;
-                top: auto;
-                bottom: 92px;
-                transform: translateX(-140%);
-            }
-
-            .worth-it-vehicle-floating-collapse.is-visible {
-                transform: translateX(0);
             }
 
             .worth-it-vehicle-compare-notice {
