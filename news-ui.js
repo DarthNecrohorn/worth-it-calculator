@@ -668,6 +668,13 @@ function openNews() {
     }
 
 
+    const cryptoSection =
+        document.getElementById("cryptoSection");
+
+    if (cryptoSection) {
+        cryptoSection.style.display = "none";
+    }
+
     const marketsSection =
         document.getElementById(
             "marketsSection"
