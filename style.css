@@ -8705,10 +8705,16 @@ html[data-ui-scale="small"] .crypto-floating-show-less{
 
 html[data-ui-scale="large"] .crypto-floating-show-less{
     right:4px;
+    min-height:46px;
+    padding:10px 16px;
+    font-size:.82rem;
 }
 
 html[data-ui-scale="xl"] .crypto-floating-show-less{
     right:0;
+    min-height:46px;
+    padding:10px 16px;
+    font-size:.82rem;
 }
 
 .crypto-show-btn{
