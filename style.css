@@ -8641,7 +8641,7 @@ html[data-theme="light"] .crypto-card{
     background:var(--surface-soft);
     border-radius:14px;
     padding:11px 15px;
-    min-height:52px;
+    min-height:56px;
     font-size:.90rem;
     font-weight:900;
     box-shadow:0 12px 32px rgba(0,0,0,.22);
@@ -8662,7 +8662,7 @@ html[data-theme="light"] .crypto-card{
 .crypto-floating-show-less:hover{
     border-color:rgba(124,92,255,.65);
     background:rgba(124,92,255,.1);
-    transform:translateY(-50%);
+    transform:translateY(calc(-50% - 2px)) scale(1.035);
 }
 
 .crypto-floating-show-less span{
@@ -8698,20 +8698,13 @@ html[data-theme="light"] .crypto-floating-show-less{
 }
 
 html[data-ui-scale="small"] .crypto-floating-show-less{
-    min-height:58px;
-    padding:12px 17px;
-    font-size:.95rem;
+    min-height:62px;
+    padding:13px 18px;
+    font-size:1rem;
 }
 
-html[data-ui-scale="large"] .crypto-floating-show-less{
-    right:4px;
-    min-height:46px;
-    padding:10px 16px;
-    font-size:.82rem;
-}
-
+html[data-ui-scale="large"] .crypto-floating-show-less,
 html[data-ui-scale="xl"] .crypto-floating-show-less{
-    right:0;
     min-height:46px;
     padding:10px 16px;
     font-size:.82rem;
