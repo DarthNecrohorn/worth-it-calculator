@@ -8628,6 +8628,61 @@ html[data-theme="light"] .crypto-card{
     justify-content:center;
     margin-top:18px;
 }
+.crypto-floating-show-less{
+    position:fixed;
+    right:18px;
+    top:55%;
+    z-index:2150;
+    display:flex;
+    align-items:center;
+    gap:8px;
+    border:1px solid var(--border);
+    color:var(--text);
+    background:var(--card-solid,var(--card));
+    border-radius:14px;
+    padding:11px 14px;
+    font-size:12px;
+    font-weight:900;
+    box-shadow:0 12px 32px rgba(0,0,0,.22);
+    opacity:0;
+    visibility:hidden;
+    transform:translateX(18px);
+    pointer-events:none;
+    transition:opacity .2s ease,transform .2s ease,border-color .2s ease,background .2s ease;
+}
+
+.crypto-floating-show-less.visible{
+    opacity:1;
+    visibility:visible;
+    transform:translateX(0);
+    pointer-events:auto;
+}
+
+.crypto-floating-show-less:hover{
+    border-color:rgba(124,92,255,.65);
+    background:rgba(124,92,255,.1);
+    transform:translateX(0) translateY(-2px);
+}
+
+.crypto-floating-show-less span{
+    font-size:14px;
+    line-height:1;
+}
+
+html[data-theme="light"] .crypto-floating-show-less{
+    background:#fff;
+}
+
+@media(max-width:700px){
+    .crypto-floating-show-less{
+        right:10px;
+        top:auto;
+        bottom:84px;
+        padding:10px 12px;
+        border-radius:12px;
+    }
+}
+
 .crypto-show-btn{
     border:1px solid var(--border);
     color:var(--text);
