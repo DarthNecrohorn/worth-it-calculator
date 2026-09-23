@@ -295,6 +295,37 @@
     document.body.style.overflow="";
   }
 
+  function syncFloatingShowLess(){
+    const a=filtered();
+    let button=$("cryptoFloatingShowLess");
+
+    if(!state.showAll || a.length<=20){
+      if(button)button.remove();
+      return;
+    }
+
+    if(!button){
+      button=document.createElement("button");
+      button.type="button";
+      button.id="cryptoFloatingShowLess";
+      button.className="crypto-floating-show-less";
+      button.innerHTML='Show Less <span>↑</span>';
+      button.addEventListener("click",()=>{
+        state.showAll=false;
+        render();
+        const section=$("cryptoSection");
+        if(section){
+          window.requestAnimationFrame(()=>{
+            section.scrollIntoView({behavior:"smooth",block:"start"});
+          });
+        }
+      });
+      document.body.appendChild(button);
+    }
+
+    button.classList.toggle("visible",window.scrollY>180);
+  }
+
   function render(){
     const g=$("cryptoGrid"),c=$("cryptoResultsCount"),a=filtered();
     const v=a.slice(0,state.showAll?500:20);
@@ -333,6 +364,7 @@
       });
       g.after(pager);
     }
+    syncFloatingShowLess();
   }
   async function loadImage(img){try{const r=await fetch("/api/crypto?action=image&name="+encodeURIComponent(img.dataset.coinName)+"&symbol="+encodeURIComponent(img.dataset.coinSymbol),{cache:"force-cache"});if(!r.ok)return;const d=await r.json();if(d.image&&d.image.url){img.src=d.image.url;img.alt=img.dataset.coinName+" logo";img.onload=()=>img.classList.add("loaded");}}catch(e){console.warn("Crypto image load failed",e);}}
   function runQueue(){while(state.active<state.max&&state.queue.length){const img=state.queue.shift();if(!img||img.dataset.queued==="1")continue;img.dataset.queued="1";state.active++;loadImage(img).finally(()=>{state.active--;runQueue();});}}
@@ -419,6 +451,10 @@
   }
 
   function bind(){
+    if(!window.__worthitCryptoScrollBound){
+      window.__worthitCryptoScrollBound=true;
+      window.addEventListener("scroll",syncFloatingShowLess,{passive:true});
+    }
     $("cryptoChartControls")?.addEventListener("click",e=>{
       const button=e.target.closest("button[data-crypto-period]");
       if(!button)return;
