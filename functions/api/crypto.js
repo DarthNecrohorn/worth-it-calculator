@@ -4,6 +4,9 @@ import { recordAdminApiUsage } from "../lib/admin-usage.js";
 const CMC_BASE = "https://pro-api.coinmarketcap.com";
 const MARKET_UPDATE_INTERVAL_TEXT = "about every 10 minutes";
 const MARKET_CACHE_SECONDS = 600;
+const MARKET_RESULT_CACHE_SECONDS = 600;
+const MARKET_RESULT_CACHE_KEY =
+  "https://worth-it-internal-cache.local/crypto-market-result-v2.json";
 const IMAGE_CACHE_SECONDS = 604800;
 const DETAIL_METADATA_CACHE_SECONDS = 86400;
 const DETAIL_PERFORMANCE_CACHE_SECONDS = 1800;
@@ -664,6 +667,35 @@ async function getUsdToEurRate(env) {
 }
 
 async function market(env) {
+  const resultCache =
+    caches.default;
+
+  const resultCacheKey =
+    new Request(MARKET_RESULT_CACHE_KEY);
+
+  const cachedResult =
+    await resultCache.match(
+      resultCacheKey
+    );
+
+  if (cachedResult) {
+    const response =
+      new Response(
+        cachedResult.body,
+        cachedResult
+      );
+
+    response.headers.set(
+      "Cache-Control",
+      "public, max-age=" +
+        MARKET_RESULT_CACHE_SECONDS +
+        ", s-maxage=" +
+        MARKET_RESULT_CACHE_SECONDS
+    );
+
+    return response;
+  }
+
   /*
    * Use one conversion only on the main listings request.
    * CMC Basic currently allows one currency conversion per call.
@@ -704,11 +736,12 @@ async function market(env) {
   const listStatus =
     list.data && list.data.status;
 
-  return json({
-    updatedAt:
-      listStatus && listStatus.timestamp
-        ? listStatus.timestamp
-        : new Date().toISOString(),
+  const resultResponse =
+    json({
+      updatedAt:
+        listStatus && listStatus.timestamp
+          ? listStatus.timestamp
+          : new Date().toISOString(),
 
     source:{
       name:"CoinMarketCap",
@@ -747,12 +780,19 @@ async function market(env) {
         : null,
 
     coins:
-      Array.isArray(
-        list.data && list.data.data
-      )
-        ? list.data.data.map(item => coin(item, usdToEurRate))
-        : []
-  });
+        Array.isArray(
+          list.data && list.data.data
+        )
+          ? list.data.data.map(item => coin(item, usdToEurRate))
+          : []
+    });
+
+  await resultCache.put(
+    resultCacheKey,
+    resultResponse.clone()
+  );
+
+  return resultResponse;
 }
 
 async function detail(url, env) {
