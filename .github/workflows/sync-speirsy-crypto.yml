@@ -50,7 +50,7 @@ jobs:
         run: |
           git config user.name "Worth It Bot"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          if git diff --quiet -- data/crypto-history; then
+          if [ -z "$(git status --porcelain -- data/crypto-history)" ]; then
             echo "No Speirsy updates."
             exit 0
           fi
