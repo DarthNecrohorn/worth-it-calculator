@@ -260,7 +260,9 @@
         OPEN SHOP
     ================================================ */
 
-    window.openShop = function(){
+        document.documentElement.classList.remove("settings-open");
+
+window.openShop = function(){
 
         const homePage =
             document.getElementById(
