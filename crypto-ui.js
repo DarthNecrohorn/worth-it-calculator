@@ -1,4 +1,4 @@
-/* WORTH IT — CRYPTO CURRENCIES UI */
+/* WORTH IT — CRYPTOCURRENCIES UI */
 (() => {
   "use strict";
   const state={loaded:false,loading:false,coins:[],global:null,filter:"popular",search:"",sort:"rank",queue:[],active:0,max:3,showAll:false,chartPeriod:"MAX",detailCoin:null,history:null};
