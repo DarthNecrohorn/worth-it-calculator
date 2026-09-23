@@ -13,6 +13,7 @@ const GLOBAL_CACHE_SECONDS = 3600;
 const FX_CACHE_SECONDS = 3600;
 const USD_FIAT_ID = 2781;
 const WIKIPEDIA_API = "https://en.wikipedia.org/w/api.php";
+const WIKIPEDIA_REST_API = "https://en.wikipedia.org/api/rest_v1/page/summary/";
 const WIKIPEDIA_CRYPTO_KEYWORDS =
   /cryptocurrency|cryptoasset|digital currency|digital asset|blockchain|token|coin|decentralized finance|defi/i;
 
@@ -189,7 +190,7 @@ function getQuote(item, symbol) {
 
 function normalizeWikipediaText(value) {
   return String(value || "")
-    .replace(/\\s+/g, " ")
+    .replace(/\s+/g, " ")
     .trim();
 }
 
@@ -199,7 +200,7 @@ function normalizeWikipediaTitle(value) {
     .replace(/[_]/g, " ")
     .replace(/[:]/g, "")
     .replace(/[–—-]/g, " ")
-    .replace(/\\s+/g, " ");
+    .replace(/\s+/g, " ");
 }
 
 async function wikipediaJson(url) {
@@ -233,6 +234,34 @@ async function wikipediaJson(url) {
   }
 
   return data;
+}
+
+function wikipediaSummaryFromResponse(data, fallbackTitle) {
+  if (!data || !data.extract) {
+    return null;
+  }
+
+  const title =
+    data.title ||
+    fallbackTitle ||
+    null;
+
+  return {
+    title,
+    description:
+      normalizeWikipediaText(data.extract),
+    url:
+      data.content_urls &&
+      data.content_urls.desktop &&
+      data.content_urls.desktop.page
+        ? data.content_urls.desktop.page
+        : title
+          ? "https://en.wikipedia.org/wiki/" +
+            encodeURIComponent(
+              String(title).replace(/ /g, "_")
+            )
+          : null
+  };
 }
 
 function wikipediaPageFromResponse(data) {
@@ -357,58 +386,23 @@ async function getWikipediaCryptoDescription(
     return null;
   }
 
-  const directUrl =
-    new URL(WIKIPEDIA_API);
-
-  directUrl.searchParams.set(
-    "action",
-    "query"
-  );
-  directUrl.searchParams.set(
-    "prop",
-    "extracts|info"
-  );
-  directUrl.searchParams.set(
-    "exintro",
-    "1"
-  );
-  directUrl.searchParams.set(
-    "explaintext",
-    "1"
-  );
-  directUrl.searchParams.set(
-    "exchars",
-    "1200"
-  );
-  directUrl.searchParams.set(
-    "inprop",
-    "url"
-  );
-  directUrl.searchParams.set(
-    "titles",
-    name
-  );
-  directUrl.searchParams.set(
-    "redirects",
-    "1"
-  );
-  directUrl.searchParams.set(
-    "format",
-    "json"
-  );
-  directUrl.searchParams.set(
-    "formatversion",
-    "2"
-  );
-
-  const candidates = [];
-
+  /*
+   * First use Wikimedia's stable page-summary endpoint. It returns
+   * the page's first plain-text paragraphs directly.
+   */
   try {
+    const directUrl =
+      WIKIPEDIA_REST_API +
+      encodeURIComponent(
+        String(name).replace(/ /g, "_")
+      );
+
     const direct =
-      wikipediaPageFromResponse(
+      wikipediaSummaryFromResponse(
         await wikipediaJson(
-          directUrl.toString()
-        )
+          directUrl
+        ),
+        name
       );
 
     if (direct) {
@@ -417,7 +411,7 @@ async function getWikipediaCryptoDescription(
   }
   catch (error) {
     console.warn(
-      "Wikipedia direct crypto lookup failed:",
+      "Wikipedia REST crypto lookup failed:",
       name,
       error
     );
