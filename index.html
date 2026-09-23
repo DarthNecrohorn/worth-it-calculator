@@ -313,6 +313,49 @@
     </div>
 </section>
 
+<div class="crypto-detail-overlay" id="cryptoDetailOverlay" aria-hidden="true">
+    <div class="crypto-detail-card" role="dialog" aria-modal="true" aria-labelledby="cryptoDetailTitle">
+        <div class="crypto-detail-head">
+            <div class="crypto-detail-title-wrap">
+                <div class="crypto-detail-image" id="cryptoDetailImage">🪙</div>
+                <div>
+                    <span class="crypto-detail-symbol" id="cryptoDetailSymbol"></span>
+                    <h2 id="cryptoDetailTitle">Cryptocurrency</h2>
+                    <span class="crypto-detail-rank" id="cryptoDetailRank"></span>
+                </div>
+            </div>
+            <button type="button" class="crypto-detail-close" id="cryptoDetailClose" aria-label="Close">✕</button>
+        </div>
+
+        <div class="crypto-detail-price-row">
+            <strong id="cryptoDetailPrice">—</strong>
+            <span id="cryptoDetailChange">—</span>
+        </div>
+
+        <div class="crypto-detail-metrics" id="cryptoDetailMetrics"></div>
+
+        <div class="crypto-performance-section">
+            <div class="crypto-detail-section-head">
+                <div>
+                    <strong>Performance</strong>
+                    <span>Recent and longer-term price performance.</span>
+                </div>
+            </div>
+            <div class="crypto-performance-chart" id="cryptoPerformanceChart"></div>
+        </div>
+
+        <div class="crypto-detail-description" id="cryptoDetailDescription"></div>
+
+        <div class="crypto-detail-links" id="cryptoDetailLinks"></div>
+
+        <div class="crypto-detail-tags" id="cryptoDetailTags"></div>
+
+        <div class="crypto-detail-source" id="cryptoDetailSource">
+            Data supplied by CoinMarketCap.
+        </div>
+    </div>
+</div>
+
 <section class="markets-section" id="marketsSection" style="display:none;">
 
     <div class="markets-header">
