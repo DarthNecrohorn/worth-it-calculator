@@ -1177,6 +1177,9 @@ function showHome() {
 
     const moneySection =
     document.getElementById("moneySection");
+
+    const cryptoSection =
+        document.getElementById("cryptoSection");
     
     // Sakrij sve aplikacije
     document.querySelectorAll(".app").forEach(app => {
@@ -1207,6 +1210,10 @@ function showHome() {
 
 if (moneySection) {
     moneySection.style.display = "none";
+}
+
+if (cryptoSection) {
+    cryptoSection.style.display = "none";
 }
     
     // Vrati sve calculator kartice
