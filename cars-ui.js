@@ -8396,7 +8396,14 @@ function positionVehicleFloatingCollapseButton(button, anchor) {
             getComputedStyle(document.documentElement)
                 .getPropertyValue("--ui-scale")
         ) || 1;
-    const gap = 22;
+    const uiScale =
+        document.documentElement.getAttribute("data-ui-scale") ||
+        "normal";
+
+    const gap =
+        uiScale === "large" || uiScale === "xl"
+            ? 42
+            : 30;
 
     let left = (anchorRect.right + gap) / scale;
     const maxLeft =
