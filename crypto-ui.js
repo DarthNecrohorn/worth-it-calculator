@@ -295,6 +295,23 @@
     document.body.style.overflow="";
   }
 
+  function positionCryptoFloatingShowLess(button, anchor){
+    if(!button || !anchor)return;
+
+    const anchorRect=anchor.getBoundingClientRect();
+    const buttonRect=button.getBoundingClientRect();
+    const gap=12;
+
+    let left=anchorRect.right+gap;
+    const maxLeft=window.innerWidth-buttonRect.width-gap;
+
+    if(left>maxLeft)left=maxLeft;
+    left=Math.max(8,left);
+
+    button.style.setProperty("left",left+"px","important");
+    button.style.setProperty("right","auto","important");
+  }
+
   function syncFloatingShowLess(){
     const a=filtered();
     let button=$("cryptoFloatingShowLess");
@@ -323,7 +340,14 @@
       document.body.appendChild(button);
     }
 
-    button.classList.toggle("visible",window.scrollY>180);
+    const shouldShow=window.scrollY>180;
+    if(shouldShow){
+      positionCryptoFloatingShowLess(
+        button,
+        $("cryptoGrid") || $("cryptoSection")
+      );
+    }
+    button.classList.toggle("visible",shouldShow);
   }
 
   function render(){
@@ -455,6 +479,8 @@
     if(!window.__worthitCryptoScrollBound){
       window.__worthitCryptoScrollBound=true;
       window.addEventListener("scroll",syncFloatingShowLess,{passive:true});
+      window.addEventListener("resize",syncFloatingShowLess,{passive:true});
+      window.addEventListener("worthitsettingschange",syncFloatingShowLess);
     }
     $("cryptoChartControls")?.addEventListener("click",e=>{
       const button=e.target.closest("button[data-crypto-period]");
