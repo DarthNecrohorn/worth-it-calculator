@@ -995,9 +995,6 @@ function openCalculator(type) {
     const moneySection =
         document.getElementById("moneySection");
 
-    const cryptoSection =
-        document.getElementById("cryptoSection");
-
     if (homePage) {
 
         homePage.style.display =
@@ -1499,11 +1496,6 @@ function openCrypto() {
     if (discountsSection) discountsSection.style.display = "none";
     if (marketsSection) marketsSection.style.display = "none";
     if (moneySection) moneySection.style.display = "none";
-
-    const carsSection =
-        document.getElementById("carsSection");
-
-    if (carsSection) carsSection.style.display = "none";
 
     if (settingsPanel) settingsPanel.style.display = "none";
 
