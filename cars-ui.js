@@ -9728,7 +9728,7 @@ function injectVehicleUiStyles() {
             position: fixed !important;
             right: max(8px, calc((100vw - 1180px) / 2 - 140px)) !important;
             top: 50% !important;
-            z-index: 9999 !important;
+            z-index:10050 !important;
 
             min-height: 56px !important;
             padding: 12px 16px !important;
