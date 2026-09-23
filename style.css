@@ -9005,6 +9005,101 @@ html[data-theme="light"] .crypto-detail-card{background:#fff}
     .crypto-performance-row{grid-template-columns:42px 1fr 67px}
 }
 
+/* A+ / A++ — keep the Crypto detail dialog compact on phones.
+   The accessibility scale remains active, but the dialog no longer
+   grows disproportionately and the About text stays easy to read. */
+@media(max-width:700px){
+    html[data-ui-scale="large"] .crypto-detail-overlay,
+    html[data-ui-scale="xl"] .crypto-detail-overlay{
+        padding:8px !important;
+        align-items:center !important;
+        justify-content:center !important;
+        overflow:hidden !important;
+    }
+
+    html[data-ui-scale="large"] .crypto-detail-card{
+        width:calc(100vw - 24px) !important;
+        max-width:325px !important;
+        max-height:calc((100vh - 24px) / var(--ui-scale,1)) !important;
+        padding:13px !important;
+        border-radius:17px !important;
+    }
+
+    html[data-ui-scale="xl"] .crypto-detail-card{
+        width:calc(100vw - 20px) !important;
+        max-width:305px !important;
+        max-height:calc((100vh - 20px) / var(--ui-scale,1)) !important;
+        padding:11px !important;
+        border-radius:16px !important;
+    }
+
+    html[data-ui-scale="large"] .crypto-detail-title-wrap,
+    html[data-ui-scale="xl"] .crypto-detail-title-wrap{
+        gap:9px;
+    }
+
+    html[data-ui-scale="large"] .crypto-detail-image,
+    html[data-ui-scale="xl"] .crypto-detail-image{
+        width:44px;
+        height:44px;
+        flex-basis:44px;
+        border-radius:13px;
+        font-size:22px;
+    }
+
+    html[data-ui-scale="large"] .crypto-detail-card h2,
+    html[data-ui-scale="xl"] .crypto-detail-card h2{
+        font-size:20px;
+    }
+
+    html[data-ui-scale="large"] .crypto-detail-price-row,
+    html[data-ui-scale="xl"] .crypto-detail-price-row{
+        margin:14px 0 10px;
+        gap:7px;
+    }
+
+    html[data-ui-scale="large"] .crypto-detail-price-row > strong{
+        font-size:23px;
+    }
+
+    html[data-ui-scale="xl"] .crypto-detail-price-row > strong{
+        font-size:21px;
+    }
+
+    html[data-ui-scale="large"] .crypto-detail-metrics,
+    html[data-ui-scale="xl"] .crypto-detail-metrics{
+        gap:6px;
+    }
+
+    html[data-ui-scale="large"] .crypto-detail-metrics > div,
+    html[data-ui-scale="xl"] .crypto-detail-metrics > div{
+        padding:8px;
+    }
+
+    html[data-ui-scale="large"] .crypto-performance-section,
+    html[data-ui-scale="xl"] .crypto-performance-section{
+        margin-top:12px;
+        padding:11px;
+    }
+
+    html[data-ui-scale="large"] .crypto-detail-description,
+    html[data-ui-scale="xl"] .crypto-detail-description{
+        margin-top:12px;
+        padding-top:12px;
+    }
+
+    html[data-ui-scale="large"] .crypto-detail-description p,
+    html[data-ui-scale="xl"] .crypto-detail-description p{
+        font-size:11px;
+        line-height:1.45;
+    }
+
+    html[data-ui-scale="large"] .crypto-detail-source,
+    html[data-ui-scale="xl"] .crypto-detail-source{
+        margin-top:11px;
+    }
+}
+
 
 .crypto-chart-controls{
     display:flex;
