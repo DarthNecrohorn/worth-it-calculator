@@ -263,6 +263,8 @@
   }
 
   function bind(){
+    document.addEventListener("click",e=>{if(e.target.closest(".nav,.more-menu"))closeDetail();},true);
+
     $("cryptoDetailClose")?.addEventListener("click",closeDetail);
     $("cryptoDetailOverlay")?.addEventListener("click",e=>{if(e.target===e.currentTarget)closeDetail();});
     document.addEventListener("keydown",e=>{if(e.key==="Escape")closeDetail();});
