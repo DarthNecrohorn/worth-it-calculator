@@ -27,7 +27,6 @@ window.supabaseClient =
                 persistSession: true,
                 autoRefreshToken: true,
                 detectSessionInUrl: true,
-                flowType: "implicit",
                 storage: window.localStorage
             }
         }
@@ -35,115 +34,6 @@ window.supabaseClient =
 
 
 let currentAuthUser = null;
-
-/*
- * Register the auth listener immediately after creating the Supabase
- * client. Supabase starts auth initialization during client creation,
- * so registering it here prevents the OAuth/session event from being
- * missed during page restoration.
- */
-window.supabaseClient.auth.onAuthStateChange(
-    (event, session) => {
-
-        updateAuthUI(
-            session?.user || null
-        );
-
-        if (
-            typeof updateAIChatView ===
-            "function"
-        ) {
-            updateAIChatView();
-        }
-    }
-);
-
-
-/* =========================================================
-AUTH SESSION RECOVERY
-========================================================= */
-
-/*
- * The Supabase client persists the real session in localStorage.
- * currentAuthUser is only a UI mirror of that session, so never
- * treat a temporary null value here as proof that the user is signed
- * out. This helper re-reads the persisted session before protected
- * menu actions and after page restoration.
- */
-async function syncAuthSession() {
-
-    if (!window.supabaseClient) {
-        return null;
-    }
-
-    try {
-
-        const {
-            data,
-            error
-        } =
-            await window.supabaseClient.auth
-                .getSession();
-
-        if (error) {
-
-            console.error(
-                "Supabase session recovery error:",
-                error
-            );
-
-            return null;
-        }
-
-        let user =
-            data?.session?.user ||
-            null;
-
-        /*
-         * If the local session is momentarily unavailable while the
-         * browser finishes OAuth restoration, ask Supabase for the
-         * authenticated user directly before treating the visitor as
-         * signed out.
-         */
-        if (!user) {
-
-            try {
-
-                const userResult =
-                    await window.supabaseClient.auth
-                        .getUser();
-
-                user =
-                    userResult?.data?.user ||
-                    null;
-
-            } catch (userError) {
-
-                console.warn(
-                    "Supabase user recovery fallback failed:",
-                    userError
-                );
-
-            }
-
-        }
-
-        updateAuthUI(user);
-
-        return user;
-
-    } catch (error) {
-
-        console.error(
-            "Supabase session recovery failed:",
-            error
-        );
-
-        return null;
-    }
-}
-
-window.syncAuthSession = syncAuthSession;
 
 
 /* =========================================================
@@ -483,22 +373,6 @@ SIGN IN
 
 async function handleAuthButton() {
 
-    /*
-     * Restore any already-persisted session before starting Google login.
-     */
-    if (!currentAuthUser) {
-
-        const recoveredUser =
-            await syncAuthSession();
-
-        if (recoveredUser) {
-
-            toggleAccountPanel();
-
-            return;
-        }
-    }
-
     if (currentAuthUser) {
 
         toggleAccountPanel();
@@ -506,13 +380,9 @@ async function handleAuthButton() {
         return;
     }
 
+
     try {
 
-        /*
-         * Browser SPA OAuth flow.
-         * Supabase returns the session in the URL hash and restores it
-         * automatically when detectSessionInUrl is enabled.
-         */
         const { error } =
             await window.supabaseClient.auth
                 .signInWithOAuth({
@@ -528,12 +398,14 @@ async function handleAuthButton() {
 
                 });
 
+
         if (error) {
 
             console.error(
                 "Supabase Google sign-in error:",
                 error
             );
+
 
             if (
                 typeof showToast ===
@@ -548,12 +420,14 @@ async function handleAuthButton() {
 
         }
 
+
     } catch (error) {
 
         console.error(
             "Supabase Google sign-in error:",
             error
         );
+
 
         if (
             typeof showToast ===
@@ -885,14 +759,34 @@ window.updateAuthUI =
 
 
 /* =========================================================
-INITIALIZE AUTH UI
+SUPABASE AUTH STATE
 ========================================================= */
 
-/*
- * The auth listener above receives the signed-in session after the
- * OAuth callback. We also read the persisted session once on normal
- * page loads so an existing login immediately restores the UI.
- */
+window.supabaseClient.auth.onAuthStateChange(
+    (event, session) => {
+
+        updateAuthUI(
+            session?.user || null
+        );
+
+
+        if (
+            typeof updateAIChatView ===
+            "function"
+        ) {
+
+            updateAIChatView();
+
+        }
+
+    }
+);
+
+
+/* =========================================================
+INITIALIZE SUPABASE AUTH
+========================================================= */
+
 (async function initializeSupabaseAuth() {
 
     try {
@@ -904,6 +798,7 @@ INITIALIZE AUTH UI
             await window.supabaseClient.auth
                 .getSession();
 
+
         if (error) {
 
             console.error(
@@ -911,22 +806,17 @@ INITIALIZE AUTH UI
                 error
             );
 
+
             updateAuthUI(null);
 
             return;
         }
 
-        if (data?.session?.user) {
 
-            updateAuthUI(
-                data.session.user
-            );
+        updateAuthUI(
+            data.session?.user || null
+        );
 
-        } else if (!window.location.hash) {
-
-            updateAuthUI(null);
-
-        }
 
     } catch (error) {
 
@@ -934,6 +824,7 @@ INITIALIZE AUTH UI
             "Supabase initialization error:",
             error
         );
+
 
         updateAuthUI(null);
 
@@ -945,14 +836,6 @@ INITIALIZE AUTH UI
 /* =========================================================
 ACCOUNT EVENTS
 ========================================================= */
-
-window.addEventListener(
-    "pageshow",
-    () => {
-        syncAuthSession();
-    }
-);
-
 
 document.addEventListener(
     "click",
