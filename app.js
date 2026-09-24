@@ -35,6 +35,7 @@ window.supabaseClient =
 
 
 let currentAuthUser = null;
+let authRedirectInProgress = false;
 
 /*
  * Register the auth listener immediately after creating the Supabase
@@ -484,9 +485,9 @@ SIGN IN
 async function handleAuthButton() {
 
     /*
-     * Re-check the real persisted Supabase session first.
-     * This prevents a stale UI null from starting Google sign-in
-     * when the user is already authenticated.
+     * First restore the real persisted session. This keeps a stale
+     * UI state from launching Google login when the user is already
+     * authenticated.
      */
     if (!currentAuthUser) {
 
@@ -507,6 +508,17 @@ async function handleAuthButton() {
 
         return;
     }
+
+    /*
+     * Never allow two OAuth redirects to start from the same click
+     * sequence. A second redirect can overwrite browser auth state
+     * while the first flow is still completing.
+     */
+    if (authRedirectInProgress) {
+        return;
+    }
+
+    authRedirectInProgress = true;
 
 
     try {
@@ -529,6 +541,8 @@ async function handleAuthButton() {
 
         if (error) {
 
+            authRedirectInProgress = false;
+
             console.error(
                 "Supabase Google sign-in error:",
                 error
@@ -550,6 +564,8 @@ async function handleAuthButton() {
 
 
     } catch (error) {
+
+        authRedirectInProgress = false;
 
         console.error(
             "Supabase Google sign-in error:",
@@ -1538,25 +1554,12 @@ function closeMoreMenu() {
     menu.setAttribute("aria-hidden", "true");
 }
 
-async function toggleMoreMenu() {
+function toggleMoreMenu() {
 
     /*
-     * Re-check the persisted Supabase session before deciding that
-     * this is a guest. This is especially important immediately
-     * after an OAuth redirect or browser/tab restoration.
+     * More is a normal navigation menu. Opening it must never
+     * start Google authentication or depend on auth state.
      */
-    if (!currentAuthUser) {
-
-        const recoveredUser =
-            await syncAuthSession();
-
-        if (!recoveredUser) {
-
-            await handleAuthButton();
-            return;
-        }
-    }
-
     const menu = document.getElementById("moreMenu");
     if (!menu) return;
 
