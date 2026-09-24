@@ -480,12 +480,18 @@ html[data-theme="light"] .account-panel{background:rgba(255,255,255,.98)}
     line-height:1;
     cursor:pointer;
     box-sizing:border-box;
-    transition:none;
+    transition:transform .18s ease;
     outline:none;
     box-shadow:none;
+    appearance:none;
+    -webkit-appearance:none;
+    -webkit-tap-highlight-color:transparent;
 }
 
-.auth-password-toggle:hover,
+.auth-password-toggle:hover{
+    transform:translateY(-50%) scale(1.08);
+}
+
 .auth-password-toggle:active,
 .auth-password-toggle:focus,
 .auth-password-toggle:focus-visible{
