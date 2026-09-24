@@ -27,6 +27,7 @@ window.supabaseClient =
                 persistSession: true,
                 autoRefreshToken: true,
                 detectSessionInUrl: true,
+                flowType: "implicit",
                 storage: window.localStorage
             }
         }
@@ -34,6 +35,64 @@ window.supabaseClient =
 
 
 let currentAuthUser = null;
+
+
+/* =========================================================
+AUTH SESSION RECOVERY
+========================================================= */
+
+/*
+ * The Supabase client persists the real session in localStorage.
+ * currentAuthUser is only a UI mirror of that session, so never
+ * treat a temporary null value here as proof that the user is signed
+ * out. This helper re-reads the persisted session before protected
+ * menu actions and after page restoration.
+ */
+async function syncAuthSession() {
+
+    if (!window.supabaseClient) {
+        return null;
+    }
+
+    try {
+
+        const {
+            data,
+            error
+        } =
+            await window.supabaseClient.auth
+                .getSession();
+
+        if (error) {
+
+            console.error(
+                "Supabase session recovery error:",
+                error
+            );
+
+            return null;
+        }
+
+        const user =
+            data?.session?.user ||
+            null;
+
+        updateAuthUI(user);
+
+        return user;
+
+    } catch (error) {
+
+        console.error(
+            "Supabase session recovery failed:",
+            error
+        );
+
+        return null;
+    }
+}
+
+window.syncAuthSession = syncAuthSession;
 
 
 /* =========================================================
@@ -372,6 +431,24 @@ SIGN IN
 ========================================================= */
 
 async function handleAuthButton() {
+
+    /*
+     * Re-check the real persisted Supabase session first.
+     * This prevents a stale UI null from starting Google sign-in
+     * when the user is already authenticated.
+     */
+    if (!currentAuthUser) {
+
+        const recoveredUser =
+            await syncAuthSession();
+
+        if (recoveredUser) {
+
+            toggleAccountPanel();
+
+            return;
+        }
+    }
 
     if (currentAuthUser) {
 
@@ -817,6 +894,19 @@ INITIALIZE SUPABASE AUTH
             data.session?.user || null
         );
 
+        /*
+         * Give the client one extra recovery pass after OAuth/page
+         * restoration. This is harmless for guests and helps when
+         * browser storage becomes available just after construction.
+         */
+        if (!data.session?.user) {
+
+            setTimeout(() => {
+                syncAuthSession();
+            }, 250);
+
+        }
+
 
     } catch (error) {
 
@@ -836,6 +926,14 @@ INITIALIZE SUPABASE AUTH
 /* =========================================================
 ACCOUNT EVENTS
 ========================================================= */
+
+window.addEventListener(
+    "pageshow",
+    () => {
+        syncAuthSession();
+    }
+);
+
 
 document.addEventListener(
     "click",
@@ -1414,11 +1512,23 @@ function closeMoreMenu() {
     menu.setAttribute("aria-hidden", "true");
 }
 
-function toggleMoreMenu() {
-    // Guest → Google login
+async function toggleMoreMenu() {
+
+    /*
+     * Re-check the persisted Supabase session before deciding that
+     * this is a guest. This is especially important immediately
+     * after an OAuth redirect or browser/tab restoration.
+     */
     if (!currentAuthUser) {
-        handleAuthButton();
-        return;
+
+        const recoveredUser =
+            await syncAuthSession();
+
+        if (!recoveredUser) {
+
+            await handleAuthButton();
+            return;
+        }
     }
 
     const menu = document.getElementById("moreMenu");
