@@ -415,6 +415,153 @@ EMAIL / PASSWORD AUTH
 
 let authModalMode = "signin";
 
+const SUPABASE_TURNSTILE_SITE_KEY =
+    "PASTE_CLOUDFLARE_TURNSTILE_SITE_KEY_HERE";
+
+let authTurnstileWidgetId = null;
+let authTurnstileToken = "";
+let authModalOpenedAt = 0;
+
+function isTurnstileConfigured() {
+    return Boolean(
+        SUPABASE_TURNSTILE_SITE_KEY &&
+        SUPABASE_TURNSTILE_SITE_KEY !==
+            "PASTE_CLOUDFLARE_TURNSTILE_SITE_KEY_HERE"
+    );
+}
+
+function getAuthTurnstileToken() {
+    const field =
+        document.querySelector(
+            '#authTurnstile input[name="cf-turnstile-response"]'
+        );
+
+    return (
+        authTurnstileToken ||
+        field?.value ||
+        ""
+    );
+}
+
+function resetAuthTurnstile() {
+    authTurnstileToken = "";
+
+    if (
+        window.turnstile &&
+        authTurnstileWidgetId !== null
+    ) {
+        try {
+            window.turnstile.reset(
+                authTurnstileWidgetId
+            );
+        } catch (error) {
+            console.warn(
+                "Worth It Turnstile reset failed:",
+                error
+            );
+        }
+    }
+}
+
+function renderAuthTurnstile() {
+    const holder = $("authTurnstile");
+
+    if (
+        !holder ||
+        !isTurnstileConfigured()
+    ) {
+        return;
+    }
+
+    if (!window.turnstile) {
+        setTimeout(
+            renderAuthTurnstile,
+            150
+        );
+        return;
+    }
+
+    if (authTurnstileWidgetId === null) {
+        authTurnstileWidgetId =
+            window.turnstile.render(
+                holder,
+                {
+                    sitekey:
+                        SUPABASE_TURNSTILE_SITE_KEY,
+                    theme: "auto",
+                    action: "auth",
+                    callback: (token) => {
+                        authTurnstileToken =
+                            token || "";
+                    },
+                    "expired-callback": () => {
+                        authTurnstileToken = "";
+                    },
+                    "error-callback": () => {
+                        authTurnstileToken = "";
+
+                        setAuthStatus(
+                            "Security check failed. Please try again.",
+                            "error"
+                        );
+                    }
+                }
+            );
+    } else {
+        resetAuthTurnstile();
+    }
+}
+
+function getAuthHoneypotValue() {
+    return (
+        $("authWebsite")?.value ||
+        ""
+    ).trim();
+}
+
+function authPassedBasicBotChecks() {
+    if (getAuthHoneypotValue()) {
+        setAuthStatus(
+            "Security check failed. Please try again.",
+            "error"
+        );
+
+        return false;
+    }
+
+    const minimumTime =
+        authModalMode === "signup"
+            ? 1200
+            : 500;
+
+    if (
+        authModalOpenedAt &&
+        Date.now() - authModalOpenedAt <
+            minimumTime
+    ) {
+        setAuthStatus(
+            "Please take a moment and try again.",
+            "error"
+        );
+
+        return false;
+    }
+
+    if (
+        isTurnstileConfigured() &&
+        !getAuthTurnstileToken()
+    ) {
+        setAuthStatus(
+            "Please complete the security check.",
+            "error"
+        );
+
+        return false;
+    }
+
+    return true;
+}
+
 
 function setAuthStatus(message = "", type = "") {
 
@@ -454,7 +601,14 @@ function openAuthModal(mode = "signin") {
         "false"
     );
 
+    authModalOpenedAt =
+        Date.now();
+
     setAuthStatus("");
+
+    setTimeout(() => {
+        renderAuthTurnstile();
+    }, 0);
 
     setTimeout(() => {
         if (authModalMode === "signup") {
@@ -468,6 +622,8 @@ function openAuthModal(mode = "signin") {
 
 
 function closeAuthModal() {
+
+    resetAuthTurnstile();
 
     const overlay =
         $("authModalOverlay");
@@ -487,6 +643,8 @@ function closeAuthModal() {
 
 
 function switchAuthMode(mode) {
+
+    resetAuthTurnstile();
 
     const password = $("authPassword");
 
@@ -833,6 +991,8 @@ async function submitAuthForm(event) {
                         email,
                         password,
                         options: {
+                            captchaToken:
+                                getAuthTurnstileToken() || undefined,
                             data: {
                                 username,
                                 full_name: username
@@ -900,7 +1060,11 @@ async function submitAuthForm(event) {
                 await window.supabaseClient.auth
                     .signInWithPassword({
                         email,
-                        password
+                        password,
+                        options: {
+                            captchaToken:
+                                getAuthTurnstileToken() || undefined
+                        }
                     });
 
 
@@ -956,6 +1120,8 @@ async function submitAuthForm(event) {
 
     } finally {
 
+        resetAuthTurnstile();
+
         if (submit) {
             submit.disabled = false;
         }
@@ -995,7 +1161,9 @@ async function requestPasswordReset() {
                     email,
                     {
                         redirectTo:
-                            window.location.origin + "/"
+                            window.location.origin + "/",
+                        captchaToken:
+                            getAuthTurnstileToken() || undefined
                     }
                 );
 
