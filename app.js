@@ -416,7 +416,7 @@ EMAIL / PASSWORD AUTH
 let authModalMode = "signin";
 
 const SUPABASE_TURNSTILE_SITE_KEY =
-    "PASTE_CLOUDFLARE_TURNSTILE_SITE_KEY_HERE";
+    "0x4AAAAAAFCI9dgWOsaff0q-";
 
 let authTurnstileWidgetId = null;
 let authTurnstileToken = "";
