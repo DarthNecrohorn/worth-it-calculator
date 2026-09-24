@@ -27,6 +27,7 @@ window.supabaseClient =
                 persistSession: true,
                 autoRefreshToken: true,
                 detectSessionInUrl: true,
+                flowType: "implicit",
                 storage: window.localStorage
             }
         }
@@ -387,14 +388,7 @@ async function handleAuthButton() {
             await window.supabaseClient.auth
                 .signInWithOAuth({
 
-                    provider: "google",
-
-                    options: {
-
-                        redirectTo:
-                            `${window.location.origin}/`
-
-                    }
+                    provider: "google"
 
                 });
 
