@@ -27,7 +27,7 @@ window.supabaseClient =
                 persistSession: true,
                 autoRefreshToken: true,
                 detectSessionInUrl: true,
-                flowType: "implicit",
+                flowType: "pkce",
                 storage: window.localStorage
             }
         }
@@ -35,6 +35,28 @@ window.supabaseClient =
 
 
 let currentAuthUser = null;
+
+/*
+ * Register the auth listener immediately after creating the Supabase
+ * client. Supabase starts auth initialization during client creation,
+ * so registering it here prevents the OAuth/session event from being
+ * missed during page restoration.
+ */
+window.supabaseClient.auth.onAuthStateChange(
+    (event, session) => {
+
+        updateAuthUI(
+            session?.user || null
+        );
+
+        if (
+            typeof updateAIChatView ===
+            "function"
+        ) {
+            updateAIChatView();
+        }
+    }
+);
 
 
 /* =========================================================
@@ -836,31 +858,6 @@ window.updateAuthUI =
 
 
 /* =========================================================
-SUPABASE AUTH STATE
-========================================================= */
-
-window.supabaseClient.auth.onAuthStateChange(
-    (event, session) => {
-
-        updateAuthUI(
-            session?.user || null
-        );
-
-
-        if (
-            typeof updateAIChatView ===
-            "function"
-        ) {
-
-            updateAIChatView();
-
-        }
-
-    }
-);
-
-
-/* =========================================================
 INITIALIZE SUPABASE AUTH
 ========================================================= */
 
@@ -895,15 +892,15 @@ INITIALIZE SUPABASE AUTH
         );
 
         /*
-         * Give the client one extra recovery pass after OAuth/page
-         * restoration. This is harmless for guests and helps when
-         * browser storage becomes available just after construction.
+         * A short recovery pass handles browsers where the OAuth
+         * callback finishes session initialization just after the
+         * first getSession() completes.
          */
         if (!data.session?.user) {
 
             setTimeout(() => {
                 syncAuthSession();
-            }, 250);
+            }, 500);
 
         }
 
