@@ -502,10 +502,198 @@ html[data-theme="light"] .account-panel{background:rgba(255,255,255,.98)}
     outline:none;
     box-shadow:none;
 }
-@media(max-width:520px){
-    .auth-modal-overlay{padding:12px}
-    .auth-modal-card{padding:20px;border-radius:18px}
-    .auth-modal-head h2{font-size:21px}
+@media(max-width:700px){
+    /* Compact mobile auth modal across A-, A, A+ and A++. */
+    .auth-modal-overlay{
+        padding:8px !important;
+        align-items:center !important;
+    }
+
+    .auth-modal-card{
+        width:min(430px,100%) !important;
+        max-height:calc((100dvh - 16px) / var(--ui-scale,1)) !important;
+        overflow-y:auto !important;
+        padding:14px !important;
+        border-radius:16px !important;
+    }
+
+    .auth-modal-head{
+        gap:10px !important;
+        margin-bottom:12px !important;
+    }
+
+    .auth-modal-head h2{
+        font-size:19px !important;
+        line-height:1.15 !important;
+    }
+
+    .auth-modal-head p{
+        margin-top:4px !important;
+        font-size:11px !important;
+        line-height:1.35 !important;
+    }
+
+    .auth-modal-close{
+        width:32px !important;
+        height:32px !important;
+        font-size:16px !important;
+    }
+
+    .auth-field{
+        margin-bottom:9px !important;
+    }
+
+    .auth-field>label{
+        margin-bottom:4px !important;
+        font-size:11px !important;
+    }
+
+    .auth-field input{
+        min-height:38px !important;
+        padding:8px 11px !important;
+        border-radius:10px !important;
+        font-size:14px !important;
+    }
+
+    .auth-password-input-wrap input{
+        padding-right:44px !important;
+    }
+
+    .auth-password-toggle{
+        width:32px !important;
+        height:32px !important;
+        right:6px !important;
+        font-size:21px !important;
+    }
+
+    .auth-username-availability{
+        min-height:14px !important;
+        margin-top:3px !important;
+        font-size:10px !important;
+    }
+
+    .auth-turnstile-wrap{
+        margin:5px 0 8px !important;
+    }
+
+    .auth-modal-submit{
+        min-height:38px !important;
+        margin-top:2px !important;
+        padding:8px 12px !important;
+        border-radius:10px !important;
+        font-size:12px !important;
+    }
+
+    .auth-modal-status{
+        min-height:16px !important;
+        margin-top:7px !important;
+        font-size:10px !important;
+    }
+
+    .auth-modal-mode{
+        margin-top:8px !important;
+        font-size:10px !important;
+    }
+
+    .auth-forgot-link{
+        font-size:10px !important;
+    }
+}
+
+@media(max-width:700px){
+    /* Extra compression for A+ and A++ phone settings. */
+    html[data-ui-scale="large"] .auth-modal-card,
+    html[data-ui-scale="xl"] .auth-modal-card{
+        padding:11px !important;
+        border-radius:14px !important;
+    }
+
+    html[data-ui-scale="large"] .auth-modal-head,
+    html[data-ui-scale="xl"] .auth-modal-head{
+        margin-bottom:9px !important;
+    }
+
+    html[data-ui-scale="large"] .auth-modal-head h2{
+        font-size:17px !important;
+    }
+
+    html[data-ui-scale="xl"] .auth-modal-head h2{
+        font-size:16px !important;
+    }
+
+    html[data-ui-scale="large"] .auth-modal-head p,
+    html[data-ui-scale="xl"] .auth-modal-head p{
+        font-size:10px !important;
+        line-height:1.25 !important;
+    }
+
+    html[data-ui-scale="large"] .auth-field,
+    html[data-ui-scale="xl"] .auth-field{
+        margin-bottom:7px !important;
+    }
+
+    html[data-ui-scale="large"] .auth-field>label,
+    html[data-ui-scale="xl"] .auth-field>label{
+        margin-bottom:3px !important;
+        font-size:10px !important;
+    }
+
+    html[data-ui-scale="large"] .auth-field input,
+    html[data-ui-scale="xl"] .auth-field input{
+        min-height:34px !important;
+        padding:6px 9px !important;
+        font-size:13px !important;
+    }
+
+    html[data-ui-scale="large"] .auth-password-input-wrap input,
+    html[data-ui-scale="xl"] .auth-password-input-wrap input{
+        padding-right:40px !important;
+    }
+
+    html[data-ui-scale="large"] .auth-password-toggle,
+    html[data-ui-scale="xl"] .auth-password-toggle{
+        width:29px !important;
+        height:29px !important;
+        right:5px !important;
+        font-size:19px !important;
+    }
+
+    html[data-ui-scale="large"] .auth-username-availability,
+    html[data-ui-scale="xl"] .auth-username-availability{
+        min-height:12px !important;
+        margin-top:2px !important;
+        font-size:9px !important;
+    }
+
+    html[data-ui-scale="large"] .auth-turnstile-wrap,
+    html[data-ui-scale="xl"] .auth-turnstile-wrap{
+        margin:4px 0 6px !important;
+    }
+
+    html[data-ui-scale="large"] .auth-modal-submit,
+    html[data-ui-scale="xl"] .auth-modal-submit{
+        min-height:34px !important;
+        padding:6px 10px !important;
+        font-size:11px !important;
+    }
+
+    html[data-ui-scale="large"] .auth-modal-status,
+    html[data-ui-scale="xl"] .auth-modal-status{
+        min-height:13px !important;
+        margin-top:5px !important;
+        font-size:9px !important;
+    }
+
+    html[data-ui-scale="large"] .auth-modal-mode,
+    html[data-ui-scale="xl"] .auth-modal-mode{
+        margin-top:6px !important;
+        font-size:9px !important;
+    }
+
+    html[data-ui-scale="large"] .auth-forgot-link,
+    html[data-ui-scale="xl"] .auth-forgot-link{
+        font-size:9px !important;
+    }
 }
 
 .settings-panel{
