@@ -64,6 +64,10 @@ window.supabaseClient.auth.onAuthStateChange(
 
         }
 
+        if (event === "SIGNED_IN") {
+            closeAuthModal();
+        }
+
 
         if (
             typeof updateAIChatView ===
@@ -563,6 +567,52 @@ function authPassedBasicBotChecks() {
 }
 
 
+async function signInWithGoogle() {
+
+    if (getAuthHoneypotValue()) {
+        setAuthStatus(
+            "Security check failed. Please try again.",
+            "error"
+        );
+        return;
+    }
+
+    try {
+
+        const {
+            error
+        } =
+            await window.supabaseClient.auth
+                .signInWithOAuth({
+                    provider: "google",
+                    options: {
+                        redirectTo:
+                            window.location.origin + "/"
+                    }
+                });
+
+        if (error) {
+            throw error;
+        }
+
+    } catch (error) {
+
+        console.error(
+            "Worth It Google authentication error:",
+            error
+        );
+
+        setAuthStatus(
+            error?.message ||
+            "Could not start Google sign in.",
+            "error"
+        );
+
+    }
+
+}
+
+
 function setAuthStatus(message = "", type = "") {
 
     const status =
@@ -715,6 +765,12 @@ function renderAuthModal() {
     const forgot =
         $("authForgotPassword");
 
+    const googleWrap =
+        $("authGoogleWrap");
+
+    const googleButton =
+        $("authGoogleBtn");
+
     if (
         !title ||
         !subtitle ||
@@ -777,6 +833,11 @@ function renderAuthModal() {
         forgot.style.display =
             "none";
 
+        if (googleWrap) {
+            googleWrap.style.display =
+                "block";
+        }
+
 
     } else if (authModalMode === "reset") {
 
@@ -822,6 +883,11 @@ function renderAuthModal() {
         forgot.style.display =
             "none";
 
+        if (googleWrap) {
+            googleWrap.style.display =
+                "none";
+        }
+
 
     } else {
 
@@ -866,6 +932,11 @@ function renderAuthModal() {
 
         forgot.style.display =
             "inline-flex";
+
+        if (googleWrap) {
+            googleWrap.style.display =
+                "block";
+        }
 
     }
 
