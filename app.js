@@ -571,12 +571,81 @@ function handleUsernameInput(input) {
 
     if (!input) return;
 
-    input.value =
-        input.value
-            .replace(/[^A-Za-z0-9_]/g, "")
-            .slice(0, 40);
+    input.value = input.value.slice(0, 20);
+    updateUsernameAvailabilityMessage(input);
 }
 
+
+async function checkUsernameAvailability(username) {
+    const response = await fetch(
+        "/api/auth-username-availability?username=" + encodeURIComponent(username),
+        { method: "GET", cache: "no-store" }
+    );
+
+    let payload = null;
+    try { payload = await response.json(); } catch (error) {}
+
+    if (!response.ok) {
+        throw new Error(payload?.error || "Could not check username availability.");
+    }
+
+    return {
+        available: payload?.available === true,
+        valid: payload?.valid !== false
+    };
+}
+
+function updateUsernameAvailabilityMessage(input) {
+    const message = $("authUsernameAvailability");
+    if (!message || authModalMode !== "signup") return;
+
+    const username = input?.value?.trim() || "";
+    const pattern = /^(?=.*[A-Za-z0-9])[A-Za-z0-9_]{3,20}$/;
+
+    if (!username) {
+        message.textContent = "";
+        message.className = "auth-username-availability";
+        return;
+    }
+
+    if (!/^[A-Za-z0-9_]*$/.test(username)) {
+        message.textContent = "Symbols other than _ are not allowed.";
+        message.className = "auth-username-availability error";
+        return;
+    }
+
+    if (username.length < 3 || username.length > 20) {
+        message.textContent = "Username must be between 3 and 20 characters.";
+        message.className = "auth-username-availability error";
+        return;
+    }
+
+    if (!pattern.test(username)) {
+        message.textContent = "Username must contain at least one letter or number.";
+        message.className = "auth-username-availability error";
+        return;
+    }
+
+    message.textContent = "Checking...";
+    message.className = "auth-username-availability checking";
+
+    clearTimeout(updateUsernameAvailabilityMessage.timer);
+    updateUsernameAvailabilityMessage.timer = setTimeout(async () => {
+        try {
+            const result = await checkUsernameAvailability(username);
+            if (input.value.trim() !== username || authModalMode !== "signup") return;
+            message.textContent = result.available
+                ? "✓ Username is available"
+                : "This username isn't available";
+            message.className = "auth-username-availability " +
+                (result.available ? "success" : "error");
+        } catch (error) {
+            if (input.value.trim() !== username) return;
+            message.textContent = "Could not check username availability.";
+            message.className = "auth-username-availability error";
+        }
+    }, 350);
+}
 
 function togglePasswordVisibility(inputId) {
 
@@ -1041,7 +1110,7 @@ async function submitAuthForm(event) {
     }
 
     const usernamePattern =
-        /^[A-Za-z0-9_]{3,40}$/;
+        /^(?=.*[A-Za-z0-9])[A-Za-z0-9_]{3,20}$/;
 
     if (
         (authModalMode === "signin" || authModalMode === "signup") &&
@@ -1049,7 +1118,7 @@ async function submitAuthForm(event) {
     ) {
 
         setAuthStatus(
-            "Username must be 3–40 characters and can contain only letters, numbers, and _.",
+            "Username must be 3–20 characters, use only letters, numbers, and _, and contain at least one letter or number.",
             "error"
         );
 
@@ -1125,6 +1194,17 @@ async function submitAuthForm(event) {
     try {
 
         if (authModalMode === "signup") {
+
+            const usernameAvailability =
+                await checkUsernameAvailability(username);
+
+            if (!usernameAvailability.available) {
+                setAuthStatus(
+                    "This username isn't available",
+                    "error"
+                );
+                return;
+            }
 
             const {
                 data,
