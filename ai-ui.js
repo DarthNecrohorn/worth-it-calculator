@@ -40,31 +40,31 @@ if(currentAuthUser){
 }
 
 async function signInForAIChat(){
+try{
+const { error } = await supabaseClient.auth.signInWithOAuth({
+provider: "google",
+options: {
+redirectTo: `${window.location.origin}/`
+}
+});
 
-    try{
-
-        if (typeof signInWithGoogle === "function") {
-
-            await signInWithGoogle();
-
-            return;
-
-        }
-
-        throw new Error("Google sign-in function is unavailable.");
-
-    }catch(error){
-
+    if(error){
         console.error(
-            "AI Chat sign-in error:",
+            "AI Chat Google sign-in error:",
             error
         );
 
-        if (typeof showToast === "function") {
-            showToast("Could not start Google sign-in.");
-        }
-
+        showToast("Could not start Google sign-in.");
     }
+
+}catch(error){
+    console.error(
+        "AI Chat sign-in error:",
+        error
+    );
+
+    showToast("Could not start Google sign-in.");
+}
 
 }
 
