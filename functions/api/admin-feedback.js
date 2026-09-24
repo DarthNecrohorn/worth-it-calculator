@@ -1,5 +1,5 @@
 const SITE_ORIGIN = "https://worth-it-calculator.pages.dev";
-const ADMIN_USER_ID = "c3560d70-8b68-49f0-b3f1-9e248673553c";
+const ADMIN_EMAIL = "pedjasebez3545@gmail.com";
 
 function responseJson(data, status) {
     return new Response(JSON.stringify(data), {
@@ -103,7 +103,7 @@ export async function onRequestGet(context) {
             );
         }
 
-        if (user.id !== ADMIN_USER_ID) {
+        if (String(user.email || '').trim().toLowerCase() !== ADMIN_EMAIL) {
             return responseJson(
                 { error: "Forbidden." },
                 403
