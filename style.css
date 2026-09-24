@@ -9885,3 +9885,13 @@ html.settings-open #cryptoFloatingShowLess{
         font-size:17px !important;
     }
 }
+
+/* CRYPTO SEARCH — prevent global focus styling from creating a second inner field */
+.crypto-search-wrap input,
+.crypto-search-wrap input:focus,
+.crypto-search-wrap input:focus-visible{
+    border:0 !important;
+    outline:0 !important;
+    box-shadow:none !important;
+    background:transparent !important;
+}
