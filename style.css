@@ -399,6 +399,32 @@ html[data-theme="light"] .account-panel{background:rgba(255,255,255,.98)}
     color:var(--muted);
     font-size:12px;
 }
+
+.auth-turnstile-wrap{
+    min-height:0;
+    margin:8px 0 14px;
+}
+
+.auth-turnstile-wrap:empty{
+    display:none;
+}
+
+.auth-honeypot{
+    position:absolute !important;
+    width:1px !important;
+    height:1px !important;
+    padding:0 !important;
+    margin:-1px !important;
+    overflow:hidden !important;
+    clip:rect(0,0,0,0) !important;
+    white-space:nowrap !important;
+    border:0 !important;
+}
+
+.auth-honeypot input{
+    position:absolute !important;
+    left:-10000px !important;
+}
 .auth-modal-link{
     border:0;
     padding:0;
