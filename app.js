@@ -388,7 +388,12 @@ async function handleAuthButton() {
             await window.supabaseClient.auth
                 .signInWithOAuth({
 
-                    provider: "google"
+                    provider: "google",
+
+                    options: {
+                        redirectTo:
+                            `${window.location.origin}/`
+                    }
 
                 });
 
@@ -736,8 +741,8 @@ GLOBAL AUTH FUNCTIONS
 window.closeAccountPage =
     closeAccountPage;
 
-window.signInWithGoogle =
-    signInWithGoogle;
+window.handleAuthButton =
+    handleAuthButton;
 
 window.signOutUser =
     signOutUser;
