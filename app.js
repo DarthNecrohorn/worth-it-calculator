@@ -627,7 +627,10 @@ async function submitAuthForm(event) {
         $("authName")?.value.trim() || "";
 
 
-    if (!email) {
+    if (
+        !email &&
+        authModalMode !== "reset"
+    ) {
 
         setAuthStatus(
             "Enter your email address.",
