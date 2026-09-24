@@ -201,13 +201,13 @@ function updateAuthUI(user) {
 
 
     const btn =
-        $("googleSignInBtn");
+        $("authBtn");
 
     const icon =
-        $("googleSignInIcon");
+        $("authIcon");
 
     const label =
-        $("googleSignInLabel");
+        $("authLabel");
 
     const profileBtn =
         $("profileNavBtn");
@@ -309,7 +309,7 @@ function updateAuthUI(user) {
 
 
         btn.onclick =
-            signInWithGoogle;
+            handleAuthButton;
 
 
         btn.title =
@@ -371,7 +371,7 @@ function updateAuthUI(user) {
 SIGN IN
 ========================================================= */
 
-async function signInWithGoogle() {
+async function handleAuthButton() {
 
     if (currentAuthUser) {
 
