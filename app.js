@@ -27,7 +27,9 @@ window.supabaseClient =
                 persistSession: true,
                 autoRefreshToken: true,
                 detectSessionInUrl: true,
-                storage: window.localStorage
+                flowType: "implicit",
+                storage: window.localStorage,
+                storageKey: "worth-it-auth"
             }
         }
     );
@@ -383,7 +385,10 @@ async function handleAuthButton() {
 
     try {
 
-        const { error } =
+        const {
+            data,
+            error
+        } =
             await window.supabaseClient.auth
                 .signInWithOAuth({
 
@@ -392,7 +397,10 @@ async function handleAuthButton() {
                     options: {
 
                         redirectTo:
-                            `${window.location.origin}/`
+                            `${window.location.origin}/`,
+
+                        skipBrowserRedirect:
+                            true
 
                     }
 
@@ -406,19 +414,29 @@ async function handleAuthButton() {
                 error
             );
 
-
-            if (
-                typeof showToast ===
-                "function"
-            ) {
-
-                showToast(
-                    "Could not start Google sign-in."
-                );
-
+            if (typeof showToast === "function") {
+                showToast("Could not start Google sign-in.");
             }
 
+            return;
         }
+
+
+        if (!data?.url) {
+
+            console.error(
+                "Supabase Google sign-in did not return an OAuth URL."
+            );
+
+            if (typeof showToast === "function") {
+                showToast("Could not start Google sign-in.");
+            }
+
+            return;
+        }
+
+
+        window.location.assign(data.url);
 
 
     } catch (error) {
@@ -428,16 +446,8 @@ async function handleAuthButton() {
             error
         );
 
-
-        if (
-            typeof showToast ===
-            "function"
-        ) {
-
-            showToast(
-                "Could not start Google sign-in."
-            );
-
+        if (typeof showToast === "function") {
+            showToast("Could not start Google sign-in.");
         }
 
     }
@@ -735,180 +745,7 @@ function openAccountInfo(
 }
 
 
-/* =========================================================
-GLOBAL AUTH FUNCTIONS
-========================================================= */
-
-window.closeAccountPage =
-    closeAccountPage;
-
-window.handleAuthButton =
-    handleAuthButton;
-
-window.signOutUser =
-    signOutUser;
-
-window.openAccountInfo =
-    openAccountInfo;
-
-window.toggleAccountPanel =
-    toggleAccountPanel;
-
-window.updateAuthUI =
-    updateAuthUI;
-
-
-/* =========================================================
-SUPABASE AUTH STATE
-========================================================= */
-
-window.supabaseClient.auth.onAuthStateChange(
-    (event, session) => {
-
-        updateAuthUI(
-            session?.user || null
-        );
-
-
-        if (
-            typeof updateAIChatView ===
-            "function"
-        ) {
-
-            updateAIChatView();
-
-        }
-
-    }
-);
-
-
-/* =========================================================
-INITIALIZE SUPABASE AUTH
-========================================================= */
-
-(async function initializeSupabaseAuth() {
-
-    try {
-
-        const {
-            data,
-            error
-        } =
-            await window.supabaseClient.auth
-                .getSession();
-
-
-        if (error) {
-
-            console.error(
-                "Supabase session error:",
-                error
-            );
-
-
-            updateAuthUI(null);
-
-            return;
-        }
-
-
-        updateAuthUI(
-            data.session?.user || null
-        );
-
-
-    } catch (error) {
-
-        console.error(
-            "Supabase initialization error:",
-            error
-        );
-
-
-        updateAuthUI(null);
-
-    }
-
-})();
-
-
-/* =========================================================
-ACCOUNT EVENTS
-========================================================= */
-
-document.addEventListener(
-    "click",
-    event => {
-
-        const wrap =
-            $("authWrap");
-
-
-        const panel =
-            $("accountPanel");
-
-        /*
-         * On phones the account panel is temporarily portalled
-         * outside #authWrap so it can escape the zoomed body.
-         * Treat clicks inside that panel as internal clicks too.
-         */
-        const clickedInsideWrap =
-            wrap &&
-            wrap.contains(event.target);
-
-        const clickedInsidePanel =
-            panel &&
-            panel.contains(event.target);
-
-        if (
-            wrap &&
-            !clickedInsideWrap &&
-            !clickedInsidePanel
-        ) {
-
-            closeAccountPanel();
-
-        }
-
-    }
-);
-
-
-$("accountPageOverlay")
-    ?.addEventListener(
-        "click",
-        event => {
-
-            if (
-                event.target ===
-                event.currentTarget
-            ) {
-
-                closeAccountPage();
-
-            }
-
-        }
-    );
-
-
-document.addEventListener(
-    "keydown",
-    event => {
-
-        if (event.key === "Escape") {
-
-            closeAccountPage();
-            closeAccountPanel();
-
-        }
-
-    }
-);
-
-
-function hideCarsNavigationUi() {
+/* =========================================================,GLOBAL AUTH FUNCTIONS,========================================================= */,,window.closeAccountPage =,    closeAccountPage;,,window.handleAuthButton =,    handleAuthButton;,,window.signOutUser =,    signOutUser;,,window.openAccountInfo =,    openAccountInfo;,,window.toggleAccountPanel =,    toggleAccountPanel;,,window.updateAuthUI =,    updateAuthUI;,,window.syncAuthSession =,    async function syncAuthSession() {,,        try {,,            const {,                data,,                error,            } =,                await window.supabaseClient.auth.getSession();,,            if (error) {,                console.error("Supabase session recovery error:", error);,                return null;,            },,            const user =,                data?.session?.user ||,                null;,,            updateAuthUI(user);,            return user;,,        } catch (error) {,,            console.error("Supabase session recovery failed:", error);,            return null;,,        },,    };,,,/* =========================================================,AUTH STATE — SINGLE SOURCE OF TRUTH,========================================================= */,,window.supabaseClient.auth.onAuthStateChange(,    (event, session) => {,,        console.log(,            "[Worth It Auth]",,            event,,            session?.user?.email || "(no user)",        );,,        updateAuthUI(,            session?.user || null,        );,,        if (typeof updateAIChatView === "function") {,            updateAIChatView();,        },    },);,,,/*, * Supabase initializes the browser auth client automatically., * The listener above receives INITIAL_SESSION and SIGNED_IN., * No competing getSession initialization is run here., */,updateAuthUI(null);,,function hideCarsNavigationUi() {
 
     const carsSection =
         document.getElementById("carsSection");
@@ -1416,10 +1253,7 @@ function closeMoreMenu() {
 
 function toggleMoreMenu() {
 
-    /*
-     * More is a normal navigation menu. Opening it must never
-     * start Google authentication or depend on auth state.
-     */
+    /* More is a normal navigation menu. */
     const menu = document.getElementById("moreMenu");
     if (!menu) return;
 
@@ -1432,7 +1266,6 @@ function toggleMoreMenu() {
         menu.setAttribute("aria-hidden", "false");
     }
 }
-
 function openDiscountsFromMenu() {
     closeMoreMenu();
 
