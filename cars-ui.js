@@ -11511,7 +11511,7 @@ document.addEventListener(
         /*
          * The browser cache is namespaced by the authenticated
          * Supabase user. Reset the cached owner key when account
-         * state changes so another Google account never reuses the
+         * state changes so another signed-in account never reuses the
          * previous account's image/details cache.
          */
         if (
