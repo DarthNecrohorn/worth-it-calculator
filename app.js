@@ -27,7 +27,6 @@ window.supabaseClient =
                 persistSession: true,
                 autoRefreshToken: true,
                 detectSessionInUrl: true,
-                flowType: "implicit",
                 storage: window.localStorage
             }
         }
@@ -788,16 +787,6 @@ window.supabaseClient.auth.onAuthStateChange(
 INITIALIZE SUPABASE AUTH
 ========================================================= */
 
-/*
- * The Supabase client initializes browser auth automatically.
- * We read the persisted session once for normal page loads and also
- * provide a defensive fallback for implicit OAuth callbacks.
- *
- * In the implicit flow the provider returns access/refresh tokens in
- * the URL hash. Supabase normally processes that automatically because
- * detectSessionInUrl is enabled. If that automatic step has not
- * completed yet, the fallback below restores the session explicitly.
- */
 (async function initializeSupabaseAuth() {
 
     try {
@@ -817,99 +806,16 @@ INITIALIZE SUPABASE AUTH
                 error
             );
 
+
             updateAuthUI(null);
 
             return;
         }
 
 
-        let session =
-            data?.session ||
-            null;
-
-
-        /*
-         * Defensive implicit-flow callback recovery.
-         */
-        if (
-            !session &&
-            window.location.hash
-        ) {
-
-            const hash =
-                new URLSearchParams(
-                    window.location.hash.slice(1)
-                );
-
-            const accessToken =
-                hash.get("access_token");
-
-            const refreshToken =
-                hash.get("refresh_token");
-
-
-            if (
-                accessToken &&
-                refreshToken
-            ) {
-
-                const sessionResult =
-                    await window.supabaseClient.auth
-                        .setSession({
-                            access_token:
-                                accessToken,
-                            refresh_token:
-                                refreshToken
-                        });
-
-
-                if (sessionResult.error) {
-
-                    console.error(
-                        "Supabase implicit callback session error:",
-                        sessionResult.error
-                    );
-
-                } else {
-
-                    session =
-                        sessionResult.data?.session ||
-                        null;
-
-                }
-
-            }
-
-        }
-
-
-        if (session?.user) {
-
-            updateAuthUI(
-                session.user
-            );
-
-
-            /*
-             * OAuth tokens have now been handed to Supabase storage.
-             * Remove the fragment from the visible URL.
-             */
-            if (window.location.hash) {
-
-                window.history.replaceState(
-                    {},
-                    document.title,
-                    window.location.pathname +
-                    window.location.search
-                );
-
-            }
-
-        } else {
-
-            updateAuthUI(null);
-
-        }
+        updateAuthUI(
+            data.session?.user || null
+        );
 
 
     } catch (error) {
@@ -918,6 +824,7 @@ INITIALIZE SUPABASE AUTH
             "Supabase initialization error:",
             error
         );
+
 
         updateAuthUI(null);
 
