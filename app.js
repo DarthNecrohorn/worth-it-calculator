@@ -95,9 +95,38 @@ async function syncAuthSession() {
             return null;
         }
 
-        const user =
+        let user =
             data?.session?.user ||
             null;
+
+        /*
+         * If the local session is momentarily unavailable while the
+         * browser finishes OAuth restoration, ask Supabase for the
+         * authenticated user directly before treating the visitor as
+         * signed out.
+         */
+        if (!user) {
+
+            try {
+
+                const userResult =
+                    await window.supabaseClient.auth
+                        .getUser();
+
+                user =
+                    userResult?.data?.user ||
+                    null;
+
+            } catch (userError) {
+
+                console.warn(
+                    "Supabase user recovery fallback failed:",
+                    userError
+                );
+
+            }
+
+        }
 
         updateAuthUI(user);
 
