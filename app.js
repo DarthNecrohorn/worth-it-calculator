@@ -26,8 +26,8 @@ window.supabaseClient =
             auth: {
                 persistSession: true,
                 autoRefreshToken: true,
-                detectSessionInUrl: false,
-                flowType: "pkce",
+                detectSessionInUrl: true,
+                flowType: "implicit",
                 storage: window.localStorage
             }
         }
@@ -400,6 +400,504 @@ function updateAuthUI(user) {
 
 
 /* =========================================================
+EMAIL / PASSWORD AUTH
+========================================================= */
+
+let authModalMode = "signin";
+
+
+function setAuthStatus(message = "", type = "") {
+
+    const status =
+        $("authModalStatus");
+
+    if (!status) return;
+
+    status.textContent =
+        message;
+
+    status.className =
+        "auth-modal-status" +
+        (type ? " " + type : "");
+
+}
+
+
+function openAuthModal(mode = "signin") {
+
+    const overlay =
+        $("authModalOverlay");
+
+    if (!overlay) return;
+
+    authModalMode =
+        ["signin", "signup", "reset"].includes(mode)
+            ? mode
+            : "signin";
+
+    renderAuthModal();
+
+    overlay.classList.add("open");
+
+    overlay.setAttribute(
+        "aria-hidden",
+        "false"
+    );
+
+    setAuthStatus("");
+
+    setTimeout(() => {
+        $("authEmail")?.focus();
+    }, 40);
+
+}
+
+
+function closeAuthModal() {
+
+    const overlay =
+        $("authModalOverlay");
+
+    if (!overlay) return;
+
+    overlay.classList.remove("open");
+
+    overlay.setAttribute(
+        "aria-hidden",
+        "true"
+    );
+
+    setAuthStatus("");
+
+}
+
+
+function switchAuthMode(mode) {
+
+    renderAuthModalMode(mode);
+
+}
+
+
+function renderAuthModalMode(mode) {
+
+    authModalMode =
+        ["signin", "signup", "reset"].includes(mode)
+            ? mode
+            : "signin";
+
+    renderAuthModal();
+
+}
+
+
+function renderAuthModal() {
+
+    const title =
+        $("authModalTitle");
+
+    const subtitle =
+        $("authModalSubtitle");
+
+    const nameWrap =
+        $("authNameWrap");
+
+    const passwordLabel =
+        $("authPasswordLabel");
+
+    const submit =
+        $("authSubmitBtn");
+
+    const toggle =
+        $("authModeToggle");
+
+    const forgot =
+        $("authForgotPassword");
+
+    if (
+        !title ||
+        !subtitle ||
+        !nameWrap ||
+        !passwordLabel ||
+        !submit ||
+        !toggle ||
+        !forgot
+    ) {
+        return;
+    }
+
+
+    if (authModalMode === "signup") {
+
+        title.textContent =
+            "Create your Worth It account";
+
+        subtitle.textContent =
+            "Create an account with your email and password.";
+
+        nameWrap.style.display =
+            "block";
+
+        passwordLabel.textContent =
+            "Password";
+
+        submit.textContent =
+            "Create account";
+
+        toggle.innerHTML =
+            'Already have an account? <button type="button" class="auth-modal-link" onclick="switchAuthMode(&quot;signin&quot;)">Sign in</button>';
+
+        forgot.style.display =
+            "none";
+
+
+    } else if (authModalMode === "reset") {
+
+        title.textContent =
+            "Set a new password";
+
+        subtitle.textContent =
+            "Choose a new password for your Worth It account.";
+
+        nameWrap.style.display =
+            "none";
+
+        passwordLabel.textContent =
+            "New password";
+
+        submit.textContent =
+            "Update password";
+
+        toggle.innerHTML =
+            '<button type="button" class="auth-modal-link" onclick="switchAuthMode(&quot;signin&quot;)">Back to sign in</button>';
+
+        forgot.style.display =
+            "none";
+
+
+    } else {
+
+        title.textContent =
+            "Sign in to Worth It";
+
+        subtitle.textContent =
+            "Use your Worth It email and password.";
+
+        nameWrap.style.display =
+            "none";
+
+        passwordLabel.textContent =
+            "Password";
+
+        submit.textContent =
+            "Sign in";
+
+        toggle.innerHTML =
+            'Don&#39;t have an account? <button type="button" class="auth-modal-link" onclick="switchAuthMode(&quot;signup&quot;)">Create account</button>';
+
+        forgot.style.display =
+            "inline-flex";
+
+    }
+
+}
+
+
+async function submitAuthForm(event) {
+
+    event?.preventDefault();
+
+    const email =
+        $("authEmail")?.value.trim() || "";
+
+    const password =
+        $("authPassword")?.value || "";
+
+    const name =
+        $("authName")?.value.trim() || "";
+
+
+    if (!email) {
+
+        setAuthStatus(
+            "Enter your email address.",
+            "error"
+        );
+
+        return;
+
+    }
+
+
+    if (!password) {
+
+        setAuthStatus(
+            "Enter your password.",
+            "error"
+        );
+
+        return;
+
+    }
+
+
+    if (
+        authModalMode === "signup" &&
+        password.length < 6
+    ) {
+
+        setAuthStatus(
+            "Password must be at least 6 characters.",
+            "error"
+        );
+
+        return;
+
+    }
+
+
+    if (
+        authModalMode === "signup" &&
+        !name
+    ) {
+
+        setAuthStatus(
+            "Enter your name.",
+            "error"
+        );
+
+        return;
+
+    }
+
+
+    const submit =
+        $("authSubmitBtn");
+
+    if (submit) {
+        submit.disabled = true;
+    }
+
+
+    setAuthStatus(
+        authModalMode === "signup"
+            ? "Creating account..."
+            : authModalMode === "reset"
+                ? "Updating password..."
+                : "Signing in..."
+    );
+
+
+    try {
+
+        if (authModalMode === "signup") {
+
+            const {
+                data,
+                error
+            } =
+                await window.supabaseClient.auth
+                    .signUp({
+                        email,
+                        password,
+                        options: {
+                            data: {
+                                full_name: name
+                            },
+                            emailRedirectTo:
+                                window.location.origin + "/"
+                        }
+                    });
+
+
+            if (error) {
+                throw error;
+            }
+
+
+            if (data?.session?.user) {
+
+                closeAuthModal();
+
+                return;
+
+            }
+
+
+            setAuthStatus(
+                "Account created. Check your email to confirm your account.",
+                "success"
+            );
+
+
+        } else if (authModalMode === "reset") {
+
+            const {
+                error
+            } =
+                await window.supabaseClient.auth
+                    .updateUser({
+                        password
+                    });
+
+
+            if (error) {
+                throw error;
+            }
+
+
+            await window.supabaseClient.auth
+                .signOut();
+
+
+            openAuthModal("signin");
+
+            setAuthStatus(
+                "Your password has been updated. Sign in with your new password.",
+                "success"
+            );
+
+
+        } else {
+
+            const {
+                data,
+                error
+            } =
+                await window.supabaseClient.auth
+                    .signInWithPassword({
+                        email,
+                        password
+                    });
+
+
+            if (error) {
+                throw error;
+            }
+
+
+            if (data?.user) {
+
+                closeAuthModal();
+
+            }
+
+        }
+
+
+    } catch (error) {
+
+        console.error(
+            "Worth It email authentication error:",
+            error
+        );
+
+
+        let message =
+            error?.message ||
+            "Authentication failed.";
+
+
+        if (
+            /email not confirmed/i.test(message)
+        ) {
+
+            message =
+                "Please confirm your email address before signing in.";
+
+        } else if (
+            /invalid login credentials/i.test(message)
+        ) {
+
+            message =
+                "Incorrect email or password.";
+
+        }
+
+
+        setAuthStatus(
+            message,
+            "error"
+        );
+
+
+    } finally {
+
+        if (submit) {
+            submit.disabled = false;
+        }
+
+    }
+
+}
+
+
+async function requestPasswordReset() {
+
+    const email =
+        $("authEmail")?.value.trim() || "";
+
+
+    if (!email) {
+
+        setAuthStatus(
+            "Enter your email address first.",
+            "error"
+        );
+
+        $("authEmail")?.focus();
+
+        return;
+
+    }
+
+
+    try {
+
+        const {
+            error
+        } =
+            await window.supabaseClient.auth
+                .resetPasswordForEmail(
+                    email,
+                    {
+                        redirectTo:
+                            window.location.origin + "/"
+                    }
+                );
+
+
+        if (error) {
+            throw error;
+        }
+
+
+        setAuthStatus(
+            "If an account exists for that email, a password reset link has been sent.",
+            "success"
+        );
+
+
+    } catch (error) {
+
+        console.error(
+            "Worth It password reset error:",
+            error
+        );
+
+
+        setAuthStatus(
+            error?.message ||
+            "Could not send the password reset email.",
+            "error"
+        );
+
+    }
+
+}
+
+
+/* =========================================================
 SIGN IN
 ========================================================= */
 
@@ -410,67 +908,11 @@ async function handleAuthButton() {
         toggleAccountPanel();
 
         return;
-    }
-
-
-    try {
-
-        const { error } =
-            await window.supabaseClient.auth
-                .signInWithOAuth({
-
-                    provider: "google",
-
-                    options: {
-                        redirectTo:
-                            `${window.location.origin}/`
-                    }
-
-                });
-
-
-        if (error) {
-
-            console.error(
-                "Supabase Google sign-in error:",
-                error
-            );
-
-
-            if (
-                typeof showToast ===
-                "function"
-            ) {
-
-                showToast(
-                    "Could not start Google sign-in."
-                );
-
-            }
-
-        }
-
-
-    } catch (error) {
-
-        console.error(
-            "Supabase Google sign-in error:",
-            error
-        );
-
-
-        if (
-            typeof showToast ===
-            "function"
-        ) {
-
-            showToast(
-                "Could not start Google sign-in."
-            );
-
-        }
 
     }
+
+
+    openAuthModal("signin");
 
 }
 
@@ -775,6 +1217,21 @@ window.closeAccountPage =
 window.handleAuthButton =
     handleAuthButton;
 
+window.openAuthModal =
+    openAuthModal;
+
+window.closeAuthModal =
+    closeAuthModal;
+
+window.switchAuthMode =
+    switchAuthMode;
+
+window.submitAuthForm =
+    submitAuthForm;
+
+window.requestPasswordReset =
+    requestPasswordReset;
+
 window.signOutUser =
     signOutUser;
 
@@ -789,81 +1246,12 @@ window.updateAuthUI =
 
 
 /* =========================================================
-OAUTH CALLBACK + INITIAL SESSION
+INITIAL SESSION
 ========================================================= */
 
-/*
- * This site is a static Cloudflare Pages app, so the OAuth callback
- * is handled directly in the browser.
- *
- * The login flow uses PKCE:
- *   Google -> ?code=... -> exchangeCodeForSession(code)
- *
- * We keep detectSessionInUrl disabled and perform the exchange
- * ourselves so the callback path is deterministic and easy to audit.
- */
 (async function initializeSupabaseAuth() {
 
     try {
-
-        const params =
-            new URLSearchParams(
-                window.location.search
-            );
-
-        const code =
-            params.get("code");
-
-
-        if (code) {
-
-            const {
-                data,
-                error
-            } =
-                await window.supabaseClient.auth
-                    .exchangeCodeForSession(code);
-
-
-            if (error) {
-
-                console.error(
-                    "Supabase OAuth callback error:",
-                    error
-                );
-
-
-                updateAuthUI(null);
-
-                return;
-            }
-
-
-            updateAuthUI(
-                data?.session?.user || null
-            );
-
-
-            /*
-             * Remove the one-time auth code from the address bar
-             * after a successful exchange.
-             */
-            const cleanUrl =
-                window.location.origin +
-                window.location.pathname;
-
-
-            window.history.replaceState(
-                {},
-                document.title,
-                cleanUrl
-            );
-
-
-            return;
-
-        }
-
 
         const {
             data,
@@ -880,10 +1268,10 @@ OAUTH CALLBACK + INITIAL SESSION
                 error
             );
 
-
             updateAuthUI(null);
 
             return;
+
         }
 
 
@@ -899,12 +1287,12 @@ OAUTH CALLBACK + INITIAL SESSION
             error
         );
 
-
         updateAuthUI(null);
 
     }
 
 })();
+
 
 
 /* =========================================================
