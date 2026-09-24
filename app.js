@@ -484,6 +484,22 @@ function closeAuthModal() {
 
 function switchAuthMode(mode) {
 
+    const email = $("authEmail");
+
+    const password = $("authPassword");
+
+    const passwordConfirm = $("authPasswordConfirm");
+
+    if (passwordConfirm) {
+        passwordConfirm.value = "";
+    }
+
+    if (password && mode !== "signin") {
+        password.autocomplete = "new-password";
+    } else if (password) {
+        password.autocomplete = "current-password";
+    }
+
     renderAuthModalMode(mode);
 
 }
@@ -509,8 +525,11 @@ function renderAuthModal() {
     const subtitle =
         $("authModalSubtitle");
 
-    const nameWrap =
-        $("authNameWrap");
+    const usernameWrap =
+        $("authUsernameWrap");
+
+    const confirmWrap =
+        $("authPasswordConfirmWrap");
 
     const passwordLabel =
         $("authPasswordLabel");
@@ -527,7 +546,8 @@ function renderAuthModal() {
     if (
         !title ||
         !subtitle ||
-        !nameWrap ||
+        !usernameWrap ||
+        !confirmWrap ||
         !passwordLabel ||
         !submit ||
         !toggle ||
@@ -545,7 +565,10 @@ function renderAuthModal() {
         subtitle.textContent =
             "Create an account with your email and password.";
 
-        nameWrap.style.display =
+        usernameWrap.style.display =
+            "block";
+
+        confirmWrap.style.display =
             "block";
 
         passwordLabel.textContent =
@@ -569,7 +592,10 @@ function renderAuthModal() {
         subtitle.textContent =
             "Choose a new password for your Worth It account.";
 
-        nameWrap.style.display =
+        usernameWrap.style.display =
+            "none";
+
+        confirmWrap.style.display =
             "none";
 
         passwordLabel.textContent =
@@ -593,7 +619,10 @@ function renderAuthModal() {
         subtitle.textContent =
             "Use your Worth It email and password.";
 
-        nameWrap.style.display =
+        usernameWrap.style.display =
+            "none";
+
+        confirmWrap.style.display =
             "none";
 
         passwordLabel.textContent =
@@ -623,8 +652,11 @@ async function submitAuthForm(event) {
     const password =
         $("authPassword")?.value || "";
 
-    const name =
-        $("authName")?.value.trim() || "";
+    const username =
+        $("authUsername")?.value.trim() || "";
+
+    const passwordConfirm =
+        $("authPasswordConfirm")?.value || "";
 
 
     if (
@@ -671,11 +703,26 @@ async function submitAuthForm(event) {
 
     if (
         authModalMode === "signup" &&
-        !name
+        !username
     ) {
 
         setAuthStatus(
-            "Enter your name.",
+            "Enter your username.",
+            "error"
+        );
+
+        return;
+
+    }
+
+
+    if (
+        authModalMode === "signup" &&
+        password !== passwordConfirm
+    ) {
+
+        setAuthStatus(
+            "The two passwords do not match.",
             "error"
         );
 
@@ -715,7 +762,8 @@ async function submitAuthForm(event) {
                         password,
                         options: {
                             data: {
-                                full_name: name
+                                username,
+                                full_name: username
                             },
                             emailRedirectTo:
                                 window.location.origin + "/"
