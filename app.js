@@ -457,7 +457,11 @@ function openAuthModal(mode = "signin") {
     setAuthStatus("");
 
     setTimeout(() => {
-        $("authEmail")?.focus();
+        if (authModalMode === "signup") {
+            $("authUsername")?.focus();
+        } else {
+            $("authEmail")?.focus();
+        }
     }, 40);
 
 }
@@ -483,8 +487,6 @@ function closeAuthModal() {
 
 
 function switchAuthMode(mode) {
-
-    const email = $("authEmail");
 
     const password = $("authPassword");
 
@@ -531,6 +533,18 @@ function renderAuthModal() {
     const confirmWrap =
         $("authPasswordConfirmWrap");
 
+    const usernameInput =
+        $("authUsername");
+
+    const emailInput =
+        $("authEmail");
+
+    const passwordInput =
+        $("authPassword");
+
+    const confirmInput =
+        $("authPasswordConfirm");
+
     const passwordLabel =
         $("authPasswordLabel");
 
@@ -548,6 +562,10 @@ function renderAuthModal() {
         !subtitle ||
         !usernameWrap ||
         !confirmWrap ||
+        !usernameInput ||
+        !emailInput ||
+        !passwordInput ||
+        !confirmInput ||
         !passwordLabel ||
         !submit ||
         !toggle ||
@@ -570,6 +588,24 @@ function renderAuthModal() {
 
         confirmWrap.style.display =
             "block";
+
+        usernameInput.required =
+            true;
+
+        emailInput.required =
+            true;
+
+        passwordInput.required =
+            true;
+
+        confirmInput.required =
+            true;
+
+        passwordInput.autocomplete =
+            "new-password";
+
+        confirmInput.autocomplete =
+            "new-password";
 
         passwordLabel.textContent =
             "Password";
@@ -598,6 +634,24 @@ function renderAuthModal() {
         confirmWrap.style.display =
             "none";
 
+        usernameInput.required =
+            false;
+
+        emailInput.required =
+            false;
+
+        passwordInput.required =
+            true;
+
+        confirmInput.required =
+            false;
+
+        passwordInput.autocomplete =
+            "new-password";
+
+        confirmInput.autocomplete =
+            "new-password";
+
         passwordLabel.textContent =
             "New password";
 
@@ -624,6 +678,24 @@ function renderAuthModal() {
 
         confirmWrap.style.display =
             "none";
+
+        usernameInput.required =
+            false;
+
+        emailInput.required =
+            true;
+
+        passwordInput.required =
+            true;
+
+        confirmInput.required =
+            false;
+
+        passwordInput.autocomplete =
+            "current-password";
+
+        confirmInput.autocomplete =
+            "new-password";
 
         passwordLabel.textContent =
             "Password";
