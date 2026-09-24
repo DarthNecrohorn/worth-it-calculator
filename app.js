@@ -55,6 +55,17 @@ window.supabaseClient.auth.onAuthStateChange(
         );
 
 
+        if (event === "PASSWORD_RECOVERY") {
+
+            setTimeout(() => {
+                openAuthModal("reset");
+            }, 0);
+
+            return;
+
+        }
+
+
         if (
             typeof updateAIChatView ===
             "function"
@@ -345,7 +356,7 @@ function updateAuthUI(user) {
 
 
         btn.title =
-            "Sign in with Google";
+            "Sign in or create a Worth It account";
 
 
         icon.textContent =
