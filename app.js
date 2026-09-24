@@ -567,47 +567,43 @@ function authPassedBasicBotChecks() {
 }
 
 
-async function signInWithGoogle() {
+function togglePasswordVisibility(inputId) {
 
-    if (getAuthHoneypotValue()) {
-        setAuthStatus(
-            "Security check failed. Please try again.",
-            "error"
-        );
+    const input =
+        $(inputId);
+
+    if (!input) {
         return;
     }
 
-    try {
+    const button =
+        $(inputId + "Toggle");
 
-        const {
-            error
-        } =
-            await window.supabaseClient.auth
-                .signInWithOAuth({
-                    provider: "google",
-                    options: {
-                        redirectTo:
-                            window.location.origin + "/"
-                    }
-                });
+    const visible =
+        input.type === "text";
 
-        if (error) {
-            throw error;
-        }
+    input.type =
+        visible
+            ? "password"
+            : "text";
 
-    } catch (error) {
+    if (button) {
+        button.textContent =
+            visible
+                ? "👁"
+                : "🙈";
 
-        console.error(
-            "Worth It Google authentication error:",
-            error
+        button.title =
+            visible
+                ? "Show password"
+                : "Hide password";
+
+        button.setAttribute(
+            "aria-label",
+            visible
+                ? "Show password"
+                : "Hide password"
         );
-
-        setAuthStatus(
-            error?.message ||
-            "Could not start Google sign in.",
-            "error"
-        );
-
     }
 
 }
@@ -753,6 +749,9 @@ function renderAuthModal() {
     const confirmInput =
         $("authPasswordConfirm");
 
+    const emailWrap =
+        $("authEmailWrap");
+
     const passwordLabel =
         $("authPasswordLabel");
 
@@ -765,12 +764,6 @@ function renderAuthModal() {
     const forgot =
         $("authForgotPassword");
 
-    const googleWrap =
-        $("authGoogleWrap");
-
-    const googleButton =
-        $("authGoogleBtn");
-
     if (
         !title ||
         !subtitle ||
@@ -780,6 +773,7 @@ function renderAuthModal() {
         !emailInput ||
         !passwordInput ||
         !confirmInput ||
+        !emailWrap ||
         !passwordLabel ||
         !submit ||
         !toggle ||
@@ -798,6 +792,9 @@ function renderAuthModal() {
             "Create an account with your email and password.";
 
         usernameWrap.style.display =
+            "block";
+
+        emailWrap.style.display =
             "block";
 
         confirmWrap.style.display =
@@ -833,12 +830,6 @@ function renderAuthModal() {
         forgot.style.display =
             "none";
 
-        if (googleWrap) {
-            googleWrap.style.display =
-                "none";
-        }
-
-
     } else if (authModalMode === "reset") {
 
         title.textContent =
@@ -850,6 +841,9 @@ function renderAuthModal() {
         usernameWrap.style.display =
             "none";
 
+        emailWrap.style.display =
+            "block";
+
         confirmWrap.style.display =
             "none";
 
@@ -857,7 +851,7 @@ function renderAuthModal() {
             false;
 
         emailInput.required =
-            false;
+            true;
 
         passwordInput.required =
             true;
@@ -883,12 +877,6 @@ function renderAuthModal() {
         forgot.style.display =
             "none";
 
-        if (googleWrap) {
-            googleWrap.style.display =
-                "none";
-        }
-
-
     } else {
 
         title.textContent =
@@ -898,16 +886,19 @@ function renderAuthModal() {
             "Use your Worth It email and password.";
 
         usernameWrap.style.display =
+            "block";
+
+        emailWrap.style.display =
             "none";
 
         confirmWrap.style.display =
             "none";
 
         usernameInput.required =
-            false;
+            true;
 
         emailInput.required =
-            true;
+            false;
 
         passwordInput.required =
             true;
@@ -932,11 +923,6 @@ function renderAuthModal() {
 
         forgot.style.display =
             "inline-flex";
-
-        if (googleWrap) {
-            googleWrap.style.display =
-                "block";
-        }
 
     }
 
@@ -966,12 +952,43 @@ async function submitAuthForm(event) {
 
 
     if (
-        !email &&
-        authModalMode !== "reset"
+        (authModalMode === "signup" || authModalMode === "reset") &&
+        !email
     ) {
 
         setAuthStatus(
             "Enter your email address.",
+            "error"
+        );
+
+        return;
+
+    }
+
+    if (
+        (authModalMode === "signin" || authModalMode === "signup") &&
+        !username
+    ) {
+
+        setAuthStatus(
+            "Enter your username.",
+            "error"
+        );
+
+        return;
+
+    }
+
+    const usernamePattern =
+        /^[A-Za-z0-9_]{3,40}$/;
+
+    if (
+        (authModalMode === "signin" || authModalMode === "signup") &&
+        !usernamePattern.test(username)
+    ) {
+
+        setAuthStatus(
+            "Username must be 3–40 characters and can contain only letters, numbers, and _.",
             "error"
         );
 
@@ -999,21 +1016,6 @@ async function submitAuthForm(event) {
 
         setAuthStatus(
             "Password must be at least 6 characters.",
-            "error"
-        );
-
-        return;
-
-    }
-
-
-    if (
-        authModalMode === "signup" &&
-        !username
-    ) {
-
-        setAuthStatus(
-            "Enter your username.",
             "error"
         );
 
@@ -1129,31 +1131,71 @@ async function submitAuthForm(event) {
 
         } else {
 
+            const response =
+                await fetch(
+                    "/api/auth-username-login",
+                    {
+                        method: "POST",
+                        headers: {
+                            "Content-Type":
+                                "application/json"
+                        },
+                        body: JSON.stringify({
+                            username,
+                            password,
+                            captchaToken:
+                                getAuthTurnstileToken() || undefined
+                        })
+                    }
+                );
+
+            let payload = null;
+
+            try {
+                payload =
+                    await response.json();
+            } catch (error) {
+                payload = null;
+            }
+
+            if (!response.ok) {
+                const authError =
+                    new Error(
+                        payload?.error ||
+                        "Incorrect username or password."
+                    );
+
+                authError.status =
+                    response.status;
+
+                throw authError;
+            }
+
+            if (
+                !payload?.access_token ||
+                !payload?.refresh_token
+            ) {
+                throw new Error(
+                    "Authentication response was incomplete."
+                );
+            }
+
             const {
-                data,
                 error
             } =
                 await window.supabaseClient.auth
-                    .signInWithPassword({
-                        email,
-                        password,
-                        options: {
-                            captchaToken:
-                                getAuthTurnstileToken() || undefined
-                        }
+                    .setSession({
+                        access_token:
+                            payload.access_token,
+                        refresh_token:
+                            payload.refresh_token
                     });
-
 
             if (error) {
                 throw error;
             }
 
-
-            if (data?.user) {
-
-                closeAuthModal();
-
-            }
+            closeAuthModal();
 
         }
 
