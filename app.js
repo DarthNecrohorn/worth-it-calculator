@@ -567,6 +567,17 @@ function authPassedBasicBotChecks() {
 }
 
 
+function handleUsernameInput(input) {
+
+    if (!input) return;
+
+    input.value =
+        input.value
+            .replace(/[^A-Za-z0-9_]/g, "")
+            .slice(0, 40);
+}
+
+
 function togglePasswordVisibility(inputId) {
 
     const input =
@@ -657,7 +668,10 @@ function openAuthModal(mode = "signin") {
     }, 0);
 
     setTimeout(() => {
-        if (authModalMode === "signup") {
+        if (
+            authModalMode === "signup" ||
+            authModalMode === "signin"
+        ) {
             $("authUsername")?.focus();
         } else {
             $("authEmail")?.focus();
@@ -714,7 +728,7 @@ function switchAuthMode(mode) {
 function renderAuthModalMode(mode) {
 
     authModalMode =
-        ["signin", "signup", "reset"].includes(mode)
+        ["signin", "signup", "reset", "forgot"].includes(mode)
             ? mode
             : "signin";
 
@@ -928,7 +942,7 @@ function renderAuthModal() {
             "Sign in to Worth It";
 
         subtitle.textContent =
-            "Use your Worth It email and password.";
+            "Use your Worth It username and password.";
 
         usernameWrap.style.display =
             "block";
