@@ -620,6 +620,12 @@ function updateUsernameAvailabilityMessage(input) {
         return;
     }
 
+    if ((username.match(/_/g) || []).length > 1) {
+        message.textContent = "Username can contain only one _."; 
+        message.className = "auth-username-availability error";
+        return;
+    }
+
     if (!pattern.test(username)) {
         message.textContent = "Username must contain at least one letter or number.";
         message.className = "auth-username-availability error";
@@ -1111,6 +1117,11 @@ async function submitAuthForm(event) {
 
     const usernamePattern =
         /^(?=.*[A-Za-z0-9])[A-Za-z0-9_]{3,20}$/;
+
+    if ((username.match(/_/g) || []).length > 1) {
+        setAuthStatus("Username can contain only one _.", "error");
+        return;
+    }
 
     if (
         (authModalMode === "signin" || authModalMode === "signup") &&
