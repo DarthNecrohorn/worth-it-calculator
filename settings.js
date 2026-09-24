@@ -214,7 +214,7 @@ window.openSettings = openSettings;
 
     try{
         const { data: sessionData } =
-            await supabaseClient.auth.getSession();
+            await window.supabaseClient.auth.getSession();
 
         const session = sessionData?.session;
 
