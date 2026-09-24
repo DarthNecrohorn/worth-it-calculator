@@ -133,9 +133,9 @@
         <div class="nav-actions">
 
         <div class="auth-wrap" id="authWrap">
-            <button class="auth-btn" id="authBtn" onclick="handleAuthButton()" title="Sign in with Google">
-                <span id="authIcon">🔐</span>
-                <span class="auth-label" id="authLabel">Sign in</span>
+            <button class="auth-btn" id="googleSignInBtn" type="button" onclick="signInWithGoogle()" title="Sign in with Google" aria-label="Sign in with Google">
+                <span id="googleSignInIcon">🔐</span>
+                <span class="auth-label" id="googleSignInLabel">Sign in</span>
             </button>
             <button class="profile-nav-btn" id="profileNavBtn" onclick="toggleAccountPanel(event)" title="Open profile" aria-label="Open profile">
                 <span id="profileNavIcon" class="auth-avatar-fallback">👤</span>
