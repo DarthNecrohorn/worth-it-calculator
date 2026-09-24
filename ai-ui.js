@@ -41,7 +41,7 @@ if(currentAuthUser){
 
 async function signInForAIChat(){
 try{
-const { error } = await supabaseClient.auth.signInWithOAuth({
+const { error } = await window.supabaseClient.auth.signInWithOAuth({
 provider: "google",
 options: {
 redirectTo: `${window.location.origin}/`
@@ -601,7 +601,7 @@ try{
     const {
         data,
         error
-    } = await supabaseClient.auth.getSession();
+    } = await window.supabaseClient.auth.getSession();
 
     if(
         error ||
