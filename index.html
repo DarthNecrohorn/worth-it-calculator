@@ -1982,7 +1982,7 @@ try{
                         <input id="authUsername" type="text" autocomplete="username" maxlength="40" placeholder="Choose a username">
                     </div>
 
-                    <div class="auth-field">
+                    <div class="auth-field" id="authEmailWrap">
                         <label for="authEmail">Email</label>
                         <input id="authEmail" type="email" autocomplete="email" maxlength="254" placeholder="you@example.com" required>
                     </div>
@@ -1992,12 +1992,18 @@ try{
                             <label id="authPasswordLabel" for="authPassword">Password</label>
                             <button type="button" class="auth-modal-link auth-forgot-link" id="authForgotPassword" onclick="requestPasswordReset()">Forgot password?</button>
                         </div>
-                        <input id="authPassword" type="password" autocomplete="current-password" minlength="6" placeholder="At least 6 characters" required>
+                        <div class="auth-password-input-wrap">
+                            <input id="authPassword" type="password" autocomplete="current-password" minlength="6" placeholder="At least 6 characters" required>
+                            <button type="button" class="auth-password-toggle" id="authPasswordToggle" onclick="togglePasswordVisibility('authPassword')" aria-label="Show password" title="Show password">👁</button>
+                        </div>
                     </div>
 
                     <div class="auth-field" id="authPasswordConfirmWrap" style="display:none;">
                         <label for="authPasswordConfirm">Confirm password</label>
-                        <input id="authPasswordConfirm" type="password" autocomplete="new-password" minlength="6" placeholder="Enter your password again">
+                        <div class="auth-password-input-wrap">
+                            <input id="authPasswordConfirm" type="password" autocomplete="new-password" minlength="6" placeholder="Enter your password again">
+                            <button type="button" class="auth-password-toggle" id="authPasswordConfirmToggle" onclick="togglePasswordVisibility('authPasswordConfirm')" aria-label="Show password" title="Show password">👁</button>
+                        </div>
                     </div>
 
 
@@ -2016,18 +2022,6 @@ try{
 
                     <button type="submit" class="auth-modal-submit" id="authSubmitBtn">Sign in</button>
 
-                    <div class="auth-google-wrap" id="authGoogleWrap">
-                        <div class="auth-divider" aria-hidden="true">
-                            <span></span>
-                            <em>or</em>
-                            <span></span>
-                        </div>
-                        <button type="button" class="auth-google-btn" id="authGoogleBtn" onclick="signInWithGoogle()">
-                            <span class="auth-google-mark" aria-hidden="true">G</span>
-                            <span>Continue with Google</span>
-                        </button>
-                    </div>
-
                     <div class="auth-modal-status" id="authModalStatus" aria-live="polite"></div>
                     <div class="auth-modal-mode" id="authModeToggle"></div>
                 </form>
@@ -2037,7 +2031,7 @@ try{
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.1"></script>
 <script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit"></script>
 
-<script src="app.js?v=auth33"></script>
+<script src="app.js?v=auth34"></script>
 <script src="ai-ui.js"></script>
 <script src="calculators.js"></script>
 <script src="cars-ui.js?v=13"></script>
