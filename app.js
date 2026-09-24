@@ -27,7 +27,7 @@ window.supabaseClient =
                 persistSession: true,
                 autoRefreshToken: true,
                 detectSessionInUrl: true,
-                flowType: "pkce",
+                flowType: "implicit",
                 storage: window.localStorage
             }
         }
@@ -35,7 +35,6 @@ window.supabaseClient =
 
 
 let currentAuthUser = null;
-let authRedirectInProgress = false;
 
 /*
  * Register the auth listener immediately after creating the Supabase
@@ -485,9 +484,7 @@ SIGN IN
 async function handleAuthButton() {
 
     /*
-     * First restore the real persisted session. This keeps a stale
-     * UI state from launching Google login when the user is already
-     * authenticated.
+     * Restore any already-persisted session before starting Google login.
      */
     if (!currentAuthUser) {
 
@@ -509,20 +506,13 @@ async function handleAuthButton() {
         return;
     }
 
-    /*
-     * Never allow two OAuth redirects to start from the same click
-     * sequence. A second redirect can overwrite browser auth state
-     * while the first flow is still completing.
-     */
-    if (authRedirectInProgress) {
-        return;
-    }
-
-    authRedirectInProgress = true;
-
-
     try {
 
+        /*
+         * Browser SPA OAuth flow.
+         * Supabase returns the session in the URL hash and restores it
+         * automatically when detectSessionInUrl is enabled.
+         */
         const { error } =
             await window.supabaseClient.auth
                 .signInWithOAuth({
@@ -538,16 +528,12 @@ async function handleAuthButton() {
 
                 });
 
-
         if (error) {
-
-            authRedirectInProgress = false;
 
             console.error(
                 "Supabase Google sign-in error:",
                 error
             );
-
 
             if (
                 typeof showToast ===
@@ -562,16 +548,12 @@ async function handleAuthButton() {
 
         }
 
-
     } catch (error) {
-
-        authRedirectInProgress = false;
 
         console.error(
             "Supabase Google sign-in error:",
             error
         );
-
 
         if (
             typeof showToast ===
@@ -903,20 +885,61 @@ window.updateAuthUI =
 
 
 /* =========================================================
-INITIAL AUTH UI
+INITIALIZE AUTH UI
 ========================================================= */
 
 /*
- * Supabase automatically initializes the browser auth client and
- * detects the OAuth callback URL. The auth listener above is the
- * single source of truth for the UI, including post-login redirects.
- *
- * We intentionally do not call getSession() here because a second
- * manual initialization pass can briefly report null while the
- * OAuth callback is still being processed and overwrite the signed-in
- * UI state.
+ * The auth listener above receives the signed-in session after the
+ * OAuth callback. We also read the persisted session once on normal
+ * page loads so an existing login immediately restores the UI.
  */
-updateAuthUI(null);
+(async function initializeSupabaseAuth() {
+
+    try {
+
+        const {
+            data,
+            error
+        } =
+            await window.supabaseClient.auth
+                .getSession();
+
+        if (error) {
+
+            console.error(
+                "Supabase session error:",
+                error
+            );
+
+            updateAuthUI(null);
+
+            return;
+        }
+
+        if (data?.session?.user) {
+
+            updateAuthUI(
+                data.session.user
+            );
+
+        } else if (!window.location.hash) {
+
+            updateAuthUI(null);
+
+        }
+
+    } catch (error) {
+
+        console.error(
+            "Supabase initialization error:",
+            error
+        );
+
+        updateAuthUI(null);
+
+    }
+
+})();
 
 
 /* =========================================================
