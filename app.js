@@ -27,7 +27,6 @@ window.supabaseClient =
                 persistSession: true,
                 autoRefreshToken: true,
                 detectSessionInUrl: true,
-                flowType: "implicit",
                 storage: window.localStorage,
                 storageKey: "worth-it-auth"
             }
@@ -383,27 +382,30 @@ async function signInWithGoogle() {
     }
 
 
-    const redirectTo =
-        "https://worth-it-calculator.pages.dev/";
-
-
     try {
 
         /*
-         * Start Google OAuth directly through Supabase Auth.
-         * This deliberately avoids creating a PKCE code verifier.
-         * A client-only implicit callback returns the session in
-         * the URL fragment, which Supabase stores in localStorage.
+         * Start Google OAuth via standard Supabase SDK method.
+         * This handles PKCE token verification and session persistence correctly.
          */
 
-        const authUrl =
-            SUPABASE_URL +
-            "/auth/v1/authorize?provider=google" +
-            "&flow_type=implicit" +
-            "&redirect_to=" +
-            encodeURIComponent(redirectTo);
+        const { error } = await window.supabaseClient.auth.signInWithOAuth({
+            provider: "google",
+            options: {
+                redirectTo: "https://worth-it-calculator.pages.dev/"
+            }
+        });
 
-        window.location.assign(authUrl);
+        if (error) {
+            console.error(
+                "Supabase Google sign-in error:",
+                error
+            );
+
+            if (typeof showToast === "function") {
+                showToast("Could not start Google sign-in.");
+            }
+        }
 
     } catch (error) {
 
