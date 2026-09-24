@@ -27,7 +27,7 @@ window.supabaseClient =
                 persistSession: true,
                 autoRefreshToken: true,
                 detectSessionInUrl: true,
-                flowType: "pkce",
+                flowType: "implicit",
                 storage: window.localStorage
             }
         }
