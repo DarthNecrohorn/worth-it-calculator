@@ -27,8 +27,7 @@ window.supabaseClient =
                 persistSession: true,
                 autoRefreshToken: true,
                 detectSessionInUrl: true,
-                storage: window.localStorage,
-                storageKey: "worth-it-auth"
+                storage: window.localStorage
             }
         }
     );
@@ -384,28 +383,43 @@ async function signInWithGoogle() {
 
     try {
 
-        /*
-         * Start Google OAuth via standard Supabase SDK method.
-         * This handles PKCE token verification and session persistence correctly.
-         */
+        const { error } =
+            await window.supabaseClient.auth
+                .signInWithOAuth({
 
-        const { error } = await window.supabaseClient.auth.signInWithOAuth({
-            provider: "google",
-            options: {
-                redirectTo: "https://worth-it-calculator.pages.dev/"
-            }
-        });
+                    provider: "google",
+
+                    options: {
+
+                        redirectTo:
+                            `${window.location.origin}/`
+
+                    }
+
+                });
+
 
         if (error) {
+
             console.error(
                 "Supabase Google sign-in error:",
                 error
             );
 
-            if (typeof showToast === "function") {
-                showToast("Could not start Google sign-in.");
+
+            if (
+                typeof showToast ===
+                "function"
+            ) {
+
+                showToast(
+                    "Could not start Google sign-in."
+                );
+
             }
+
         }
+
 
     } catch (error) {
 
@@ -414,8 +428,16 @@ async function signInWithGoogle() {
             error
         );
 
-        if (typeof showToast === "function") {
-            showToast("Could not start Google sign-in.");
+
+        if (
+            typeof showToast ===
+            "function"
+        ) {
+
+            showToast(
+                "Could not start Google sign-in."
+            );
+
         }
 
     }
@@ -735,67 +757,26 @@ window.toggleAccountPanel =
 window.updateAuthUI =
     updateAuthUI;
 
-window.syncAuthSession =
-    async function syncAuthSession() {
-
-        try {
-
-            const {
-                data,
-                error
-            } =
-                await window.supabaseClient.auth.getSession();
-
-            if (error) {
-
-                console.error(
-                    "Supabase session recovery error:",
-                    error
-                );
-
-                return null;
-            }
-
-            const user =
-                data?.session?.user || null;
-
-            updateAuthUI(user);
-
-            return user;
-
-        } catch (error) {
-
-            console.error(
-                "Supabase session recovery failed:",
-                error
-            );
-
-            return null;
-
-        }
-
-    };
-
 
 /* =========================================================
-AUTH STATE — SINGLE SOURCE OF TRUTH
+SUPABASE AUTH STATE
 ========================================================= */
 
 window.supabaseClient.auth.onAuthStateChange(
     (event, session) => {
 
-        console.log(
-            "[Worth It Auth]",
-            event,
-            session?.user?.email || "(no user)"
-        );
-
         updateAuthUI(
             session?.user || null
         );
 
-        if (typeof updateAIChatView === "function") {
+
+        if (
+            typeof updateAIChatView ===
+            "function"
+        ) {
+
             updateAIChatView();
+
         }
 
     }
@@ -803,79 +784,128 @@ window.supabaseClient.auth.onAuthStateChange(
 
 
 /* =========================================================
-AUTH STARTUP
+INITIALIZE SUPABASE AUTH
 ========================================================= */
 
-/*
- * Supabase Auth initializes automatically during createClient().
- * We explicitly await that same initialization promise here so the
- * UI cannot miss the post-redirect session or be overwritten by a
- * premature updateAuthUI(null).
- */
+(async function initializeSupabaseAuth() {
 
-(async function initializeWorthItAuth(){
-
-    try{
-
-        const initialization =
-            await window.supabaseClient.auth.initialize();
-
-        if (initialization?.error) {
-
-            console.error(
-                "Supabase auth initialization error:",
-                initialization.error
-            );
-
-        }
-
-    }catch(error){
-
-        console.error(
-            "Supabase auth initialization failed:",
-            error
-        );
-
-    }
-
-
-    try{
+    try {
 
         const {
             data,
             error
         } =
-            await window.supabaseClient.auth.getSession();
+            await window.supabaseClient.auth
+                .getSession();
+
 
         if (error) {
 
             console.error(
-                "Supabase session read error:",
+                "Supabase session error:",
                 error
             );
+
 
             updateAuthUI(null);
 
             return;
-
         }
 
+
         updateAuthUI(
-            data?.session?.user || null
+            data.session?.user || null
         );
 
-    }catch(error){
+
+    } catch (error) {
 
         console.error(
-            "Supabase session read failed:",
+            "Supabase initialization error:",
             error
         );
+
 
         updateAuthUI(null);
 
     }
 
 })();
+
+
+/* =========================================================
+ACCOUNT EVENTS
+========================================================= */
+
+document.addEventListener(
+    "click",
+    event => {
+
+        const wrap =
+            $("authWrap");
+
+
+        const panel =
+            $("accountPanel");
+
+        /*
+         * On phones the account panel is temporarily portalled
+         * outside #authWrap so it can escape the zoomed body.
+         * Treat clicks inside that panel as internal clicks too.
+         */
+        const clickedInsideWrap =
+            wrap &&
+            wrap.contains(event.target);
+
+        const clickedInsidePanel =
+            panel &&
+            panel.contains(event.target);
+
+        if (
+            wrap &&
+            !clickedInsideWrap &&
+            !clickedInsidePanel
+        ) {
+
+            closeAccountPanel();
+
+        }
+
+    }
+);
+
+
+$("accountPageOverlay")
+    ?.addEventListener(
+        "click",
+        event => {
+
+            if (
+                event.target ===
+                event.currentTarget
+            ) {
+
+                closeAccountPage();
+
+            }
+
+        }
+    );
+
+
+document.addEventListener(
+    "keydown",
+    event => {
+
+        if (event.key === "Escape") {
+
+            closeAccountPage();
+            closeAccountPanel();
+
+        }
+
+    }
+);
 
 
 function hideCarsNavigationUi() {
