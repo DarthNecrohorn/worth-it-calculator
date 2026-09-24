@@ -40,33 +40,27 @@ if(currentAuthUser){
 }
 
 async function signInForAIChat(){
-try{
-const { error } = await window.supabaseClient.auth.signInWithOAuth({
-provider: "google",
-options: {
-redirectTo: `${window.location.origin}/`
-}
-});
 
-    if(error){
-        console.error(
-            "AI Chat Google sign-in error:",
-            error
+    if (
+        typeof window.openAuthModal ===
+        "function"
+    ) {
+
+        window.openAuthModal("signin");
+
+    } else if (
+        typeof showToast ===
+        "function"
+    ) {
+
+        showToast(
+            "Please sign in to use Worth It AI."
         );
 
-        showToast("Could not start Google sign-in.");
     }
 
-}catch(error){
-    console.error(
-        "AI Chat sign-in error:",
-        error
-    );
-
-    showToast("Could not start Google sign-in.");
 }
 
-}
 
 function escapeAIHtml(text){
 return String(text)
