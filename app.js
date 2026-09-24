@@ -422,123 +422,6 @@ async function signInWithGoogle() {
 
 
 /* =========================================================
-IMPLICIT OAUTH CALLBACK RECOVERY
-========================================================= */
-
-async function recoverImplicitAuthFromUrl() {
-
-    const url =
-        new URL(window.location.href);
-
-    const hashParams =
-        new URLSearchParams(
-            url.hash.startsWith("#")
-                ? url.hash.slice(1)
-                : url.hash
-        );
-
-    const queryParams =
-        url.searchParams;
-
-    const accessToken =
-        hashParams.get("access_token") ||
-        queryParams.get("access_token");
-
-    const refreshToken =
-        hashParams.get("refresh_token") ||
-        queryParams.get("refresh_token");
-
-    /*
-     * A successful implicit OAuth callback should contain access_token
-     * and refresh_token. A bare ?code= callback belongs to PKCE and is
-     * intentionally not exchanged here because this client no longer
-     * creates PKCE verifiers.
-     */
-    if (!accessToken || !refreshToken) {
-
-        if (url.searchParams.has("code")) {
-
-            url.searchParams.delete("code");
-
-            window.history.replaceState(
-                {},
-                document.title,
-                url.pathname +
-                (
-                    url.searchParams.toString()
-                        ? "?" + url.searchParams.toString()
-                        : ""
-                ) +
-                url.hash
-            );
-
-        }
-
-        return null;
-
-    }
-
-
-    try {
-
-        const {
-            data,
-            error
-        } =
-            await window.supabaseClient.auth
-                .setSession({
-                    access_token: accessToken,
-                    refresh_token: refreshToken
-                });
-
-        if (error) {
-
-            console.error(
-                "Supabase implicit callback error:",
-                error
-            );
-
-            return null;
-        }
-
-
-        const user =
-            data?.session?.user || null;
-
-        updateAuthUI(user);
-
-        if (typeof updateAIChatView === "function") {
-            updateAIChatView();
-        }
-
-        /* Tokens are persisted; remove them from the visible URL. */
-        window.history.replaceState(
-            {},
-            document.title,
-            url.pathname +
-            (
-                url.searchParams.toString()
-                    ? "?" + url.searchParams.toString()
-                    : ""
-            )
-        );
-
-        return user;
-
-    } catch (error) {
-
-        console.error(
-            "Supabase implicit callback recovery failed:",
-            error
-        );
-
-        return null;
-
-    }
-
-}
-
-/* =========================================================
 SIGN OUT
 ========================================================= */
 
@@ -918,47 +801,79 @@ window.supabaseClient.auth.onAuthStateChange(
 
 
 /* =========================================================
-AUTH STARTUP / CALLBACK RECOVERY
+AUTH STARTUP
 ========================================================= */
 
-updateAuthUI(null);
+/*
+ * Supabase Auth initializes automatically during createClient().
+ * We explicitly await that same initialization promise here so the
+ * UI cannot miss the post-redirect session or be overwritten by a
+ * premature updateAuthUI(null).
+ */
 
-recoverImplicitAuthFromUrl()
-    .then(user => {
+(async function initializeWorthItAuth(){
 
-        if (user) {
-            return;
+    try{
+
+        const initialization =
+            await window.supabaseClient.auth.initialize();
+
+        if (initialization?.error) {
+
+            console.error(
+                "Supabase auth initialization error:",
+                initialization.error
+            );
+
         }
 
-        return window.supabaseClient.auth
-            .getSession()
-            .then(({ data, error }) => {
-
-                if (error) {
-
-                    console.error(
-                        "Supabase startup session recovery error:",
-                        error
-                    );
-
-                    return;
-                }
-
-                updateAuthUI(
-                    data?.session?.user || null
-                );
-
-            });
-
-    })
-    .catch(error => {
+    }catch(error){
 
         console.error(
-            "Supabase startup auth recovery failed:",
+            "Supabase auth initialization failed:",
             error
         );
 
-    });
+    }
+
+
+    try{
+
+        const {
+            data,
+            error
+        } =
+            await window.supabaseClient.auth.getSession();
+
+        if (error) {
+
+            console.error(
+                "Supabase session read error:",
+                error
+            );
+
+            updateAuthUI(null);
+
+            return;
+
+        }
+
+        updateAuthUI(
+            data?.session?.user || null
+        );
+
+    }catch(error){
+
+        console.error(
+            "Supabase session read failed:",
+            error
+        );
+
+        updateAuthUI(null);
+
+    }
+
+})();
 
 
 function hideCarsNavigationUi() {
