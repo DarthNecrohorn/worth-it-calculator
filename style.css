@@ -6558,7 +6558,7 @@ button[disabled],
    WORTH IT — PROFILE AVATAR POLISH
    ========================================================= */
 
-/* Premium profile avatar used after Google sign-in. */
+/* Premium profile avatar used after account sign-in. */
 .profile-nav-btn{
     width:44px;
     height:44px;
@@ -6585,7 +6585,7 @@ button[disabled],
         filter .20s ease;
 }
 
-/* The icon holder is a fixed square so the Google image has one exact center. */
+/* The icon holder is a fixed square so the profile image has one exact center. */
 .profile-nav-btn > #profileNavIcon{
     width:36px;
     height:36px;
@@ -7555,7 +7555,7 @@ html[data-ui-scale="xl"] .profile-nav-btn .auth-avatar-fallback{
 
 @media (max-width:700px){
 
-    /* When signed in, the old Google sign-in lock must not remain
+    /* When signed in, the old sign-in lock must not remain
        beside the profile avatar. */
     .auth-wrap:has(.profile-nav-btn[style*="inline-flex"]) .auth-btn{
         display:none !important;
