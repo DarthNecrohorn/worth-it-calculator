@@ -363,6 +363,17 @@ html[data-theme="light"] .account-panel{background:rgba(255,255,255,.98)}
     border-color:rgba(124,92,255,.72);
     box-shadow:0 0 0 3px rgba(124,92,255,.12);
 }
+.auth-username-availability{
+    min-height:18px;
+    margin-top:6px;
+    font-size:12px;
+    line-height:1.4;
+    font-weight:700;
+}
+.auth-username-availability.error{color:var(--danger)}
+.auth-username-availability.success{color:#22c55e}
+.auth-username-availability.checking{color:var(--muted)}
+
 .auth-password-label-row{
     display:flex;
     align-items:center;
