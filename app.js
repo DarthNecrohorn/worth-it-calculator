@@ -835,7 +835,7 @@ function renderAuthModal() {
 
         if (googleWrap) {
             googleWrap.style.display =
-                "block";
+                "none";
         }
 
 
