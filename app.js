@@ -889,6 +889,11 @@ async function submitAuthForm(event) {
         $("authPasswordConfirm")?.value || "";
 
 
+    if (!authPassedBasicBotChecks()) {
+        return;
+    }
+
+
     if (
         !email &&
         authModalMode !== "reset"
