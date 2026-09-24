@@ -2016,6 +2016,18 @@ try{
 
                     <button type="submit" class="auth-modal-submit" id="authSubmitBtn">Sign in</button>
 
+                    <div class="auth-google-wrap" id="authGoogleWrap">
+                        <div class="auth-divider" aria-hidden="true">
+                            <span></span>
+                            <em>or</em>
+                            <span></span>
+                        </div>
+                        <button type="button" class="auth-google-btn" id="authGoogleBtn" onclick="signInWithGoogle()">
+                            <span class="auth-google-mark" aria-hidden="true">G</span>
+                            <span>Continue with Google</span>
+                        </button>
+                    </div>
+
                     <div class="auth-modal-status" id="authModalStatus" aria-live="polite"></div>
                     <div class="auth-modal-mode" id="authModeToggle"></div>
                 </form>
@@ -2025,7 +2037,7 @@ try{
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.1"></script>
 <script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit"></script>
 
-<script src="app.js?v=auth31"></script>
+<script src="app.js?v=auth32"></script>
 <script src="ai-ui.js"></script>
 <script src="calculators.js"></script>
 <script src="cars-ui.js?v=13"></script>
