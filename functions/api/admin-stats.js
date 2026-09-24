@@ -264,8 +264,8 @@ export async function onRequestGet(
             );
 
         if (
-            user?.id !==
-            ADMIN_USER_ID
+            String(user?.email || "").trim().toLowerCase() !==
+            ADMIN_EMAIL
         ) {
             return responseJson(
                 {
