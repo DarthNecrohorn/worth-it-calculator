@@ -398,7 +398,9 @@ async function signInWithGoogle() {
 
         const authUrl =
             SUPABASE_URL +
-            "/auth/v1/authorize?provider=google&redirect_to=" +
+            "/auth/v1/authorize?provider=google" +
+            "&flow_type=implicit" +
+            "&redirect_to=" +
             encodeURIComponent(redirectTo);
 
         window.location.assign(authUrl);
@@ -428,20 +430,30 @@ async function recoverImplicitAuthFromUrl() {
     const url =
         new URL(window.location.href);
 
-    const params =
+    const hashParams =
         new URLSearchParams(
             url.hash.startsWith("#")
                 ? url.hash.slice(1)
                 : url.hash
         );
 
+    const queryParams =
+        url.searchParams;
+
     const accessToken =
-        params.get("access_token");
+        hashParams.get("access_token") ||
+        queryParams.get("access_token");
 
     const refreshToken =
-        params.get("refresh_token");
+        hashParams.get("refresh_token") ||
+        queryParams.get("refresh_token");
 
-    /* Remove a stale PKCE callback code from previous attempts. */
+    /*
+     * A successful implicit OAuth callback should contain access_token
+     * and refresh_token. A bare ?code= callback belongs to PKCE and is
+     * intentionally not exchanged here because this client no longer
+     * creates PKCE verifiers.
+     */
     if (!accessToken || !refreshToken) {
 
         if (url.searchParams.has("code")) {
