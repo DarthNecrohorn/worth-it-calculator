@@ -634,7 +634,7 @@ function openAuthModal(mode = "signin") {
     if (!overlay) return;
 
     authModalMode =
-        ["signin", "signup", "reset"].includes(mode)
+        ["signin", "signup", "reset", "forgot"].includes(mode)
             ? mode
             : "signin";
 
@@ -830,6 +830,51 @@ function renderAuthModal() {
         forgot.style.display =
             "none";
 
+    } else if (authModalMode === "forgot") {
+
+        title.textContent =
+            "Reset your Worth It password";
+
+        subtitle.textContent =
+            "Enter the email address linked to your account.";
+
+        usernameWrap.style.display =
+            "none";
+
+        emailWrap.style.display =
+            "block";
+
+        confirmWrap.style.display =
+            "none";
+
+        usernameInput.required =
+            false;
+
+        emailInput.required =
+            true;
+
+        passwordInput.required =
+            false;
+
+        confirmInput.required =
+            false;
+
+        passwordInput.value =
+            "";
+
+        passwordLabel.textContent =
+            "Password";
+
+        submit.textContent =
+            "Send reset link";
+
+        toggle.innerHTML =
+            '<button type="button" class="auth-modal-link" onclick="switchAuthMode(&quot;signin&quot;)">Back to sign in</button>';
+
+        forgot.style.display =
+            "none";
+
+
     } else if (authModalMode === "reset") {
 
         title.textContent =
@@ -952,7 +997,9 @@ async function submitAuthForm(event) {
 
 
     if (
-        (authModalMode === "signup" || authModalMode === "reset") &&
+        (authModalMode === "signup" ||
+            authModalMode === "reset" ||
+            authModalMode === "forgot") &&
         !email
     ) {
 
@@ -997,7 +1044,10 @@ async function submitAuthForm(event) {
     }
 
 
-    if (!password) {
+    if (
+        !password &&
+        authModalMode !== "forgot"
+    ) {
 
         setAuthStatus(
             "Enter your password.",
@@ -1052,7 +1102,9 @@ async function submitAuthForm(event) {
             ? "Creating account..."
             : authModalMode === "reset"
                 ? "Updating password..."
-                : "Signing in..."
+                : authModalMode === "forgot"
+                    ? "Sending reset link..."
+                    : "Signing in..."
     );
 
 
