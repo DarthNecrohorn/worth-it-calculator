@@ -43,9 +43,8 @@ EARLY AUTH STATE LISTENER
 
 /*
  * Register this immediately after creating the Supabase client.
- * The OAuth client auto-initializes asynchronously, so registering
- * the listener here guarantees that post-login state changes are
- * observed before the rest of the page finishes loading.
+ * The listener is registered immediately so account state changes
+ * are reflected as soon as Supabase initializes.
  */
 window.supabaseClient.auth.onAuthStateChange(
     (event, session) => {
