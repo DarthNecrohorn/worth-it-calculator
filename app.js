@@ -29,7 +29,7 @@ window.supabaseClient =
                 detectSessionInUrl: true,
                 flowType: "implicit",
                 storage: window.localStorage,
-                storageKey: "worth-it-auth"
+                storageKey: "worth-it-auth-v2"
             }
         }
     );
@@ -203,13 +203,13 @@ function updateAuthUI(user) {
 
 
     const btn =
-        $("authBtn");
+        $("googleSignInBtn");
 
     const icon =
-        $("authIcon");
+        $("googleSignInIcon");
 
     const label =
-        $("authLabel");
+        $("googleSignInLabel");
 
     const profileBtn =
         $("profileNavBtn");
@@ -311,7 +311,7 @@ function updateAuthUI(user) {
 
 
         btn.onclick =
-            handleAuthButton;
+            signInWithGoogle;
 
 
         btn.title =
@@ -373,7 +373,7 @@ function updateAuthUI(user) {
 SIGN IN
 ========================================================= */
 
-async function handleAuthButton() {
+async function signInWithGoogle() {
 
     if (currentAuthUser) {
 
@@ -383,61 +383,25 @@ async function handleAuthButton() {
     }
 
 
+    const redirectTo =
+        "https://worth-it-calculator.pages.dev/";
+
+
     try {
 
-        const {
-            data,
-            error
-        } =
-            await window.supabaseClient.auth
-                .signInWithOAuth({
+        /*
+         * Start Google OAuth directly through Supabase Auth.
+         * This deliberately avoids creating a PKCE code verifier.
+         * A client-only implicit callback returns the session in
+         * the URL fragment, which Supabase stores in localStorage.
+         */
 
-                    provider: "google",
+        const authUrl =
+            SUPABASE_URL +
+            "/auth/v1/authorize?provider=google&redirect_to=" +
+            encodeURIComponent(redirectTo);
 
-                    options: {
-
-                        redirectTo:
-                            `${window.location.origin}/`,
-
-                        skipBrowserRedirect:
-                            true
-
-                    }
-
-                });
-
-
-        if (error) {
-
-            console.error(
-                "Supabase Google sign-in error:",
-                error
-            );
-
-            if (typeof showToast === "function") {
-                showToast("Could not start Google sign-in.");
-            }
-
-            return;
-        }
-
-
-        if (!data?.url) {
-
-            console.error(
-                "Supabase Google sign-in did not return an OAuth URL."
-            );
-
-            if (typeof showToast === "function") {
-                showToast("Could not start Google sign-in.");
-            }
-
-            return;
-        }
-
-
-        window.location.assign(data.url);
-
+        window.location.assign(authUrl);
 
     } catch (error) {
 
@@ -454,6 +418,113 @@ async function handleAuthButton() {
 
 }
 
+
+/* =========================================================
+IMPLICIT OAUTH CALLBACK RECOVERY
+========================================================= */
+
+async function recoverImplicitAuthFromUrl() {
+
+    const url =
+        new URL(window.location.href);
+
+    const params =
+        new URLSearchParams(
+            url.hash.startsWith("#")
+                ? url.hash.slice(1)
+                : url.hash
+        );
+
+    const accessToken =
+        params.get("access_token");
+
+    const refreshToken =
+        params.get("refresh_token");
+
+    /* Remove a stale PKCE callback code from previous attempts. */
+    if (!accessToken || !refreshToken) {
+
+        if (url.searchParams.has("code")) {
+
+            url.searchParams.delete("code");
+
+            window.history.replaceState(
+                {},
+                document.title,
+                url.pathname +
+                (
+                    url.searchParams.toString()
+                        ? "?" + url.searchParams.toString()
+                        : ""
+                ) +
+                url.hash
+            );
+
+        }
+
+        return null;
+
+    }
+
+
+    try {
+
+        const {
+            data,
+            error
+        } =
+            await window.supabaseClient.auth
+                .setSession({
+                    access_token: accessToken,
+                    refresh_token: refreshToken
+                });
+
+        if (error) {
+
+            console.error(
+                "Supabase implicit callback error:",
+                error
+            );
+
+            return null;
+        }
+
+
+        const user =
+            data?.session?.user || null;
+
+        updateAuthUI(user);
+
+        if (typeof updateAIChatView === "function") {
+            updateAIChatView();
+        }
+
+        /* Tokens are persisted; remove them from the visible URL. */
+        window.history.replaceState(
+            {},
+            document.title,
+            url.pathname +
+            (
+                url.searchParams.toString()
+                    ? "?" + url.searchParams.toString()
+                    : ""
+            )
+        );
+
+        return user;
+
+    } catch (error) {
+
+        console.error(
+            "Supabase implicit callback recovery failed:",
+            error
+        );
+
+        return null;
+
+    }
+
+}
 
 /* =========================================================
 SIGN OUT
@@ -745,7 +816,140 @@ function openAccountInfo(
 }
 
 
-/* =========================================================,GLOBAL AUTH FUNCTIONS,========================================================= */,,window.closeAccountPage =,    closeAccountPage;,,window.handleAuthButton =,    handleAuthButton;,,window.signOutUser =,    signOutUser;,,window.openAccountInfo =,    openAccountInfo;,,window.toggleAccountPanel =,    toggleAccountPanel;,,window.updateAuthUI =,    updateAuthUI;,,window.syncAuthSession =,    async function syncAuthSession() {,,        try {,,            const {,                data,,                error,            } =,                await window.supabaseClient.auth.getSession();,,            if (error) {,                console.error("Supabase session recovery error:", error);,                return null;,            },,            const user =,                data?.session?.user ||,                null;,,            updateAuthUI(user);,            return user;,,        } catch (error) {,,            console.error("Supabase session recovery failed:", error);,            return null;,,        },,    };,,,/* =========================================================,AUTH STATE — SINGLE SOURCE OF TRUTH,========================================================= */,,window.supabaseClient.auth.onAuthStateChange(,    (event, session) => {,,        console.log(,            "[Worth It Auth]",,            event,,            session?.user?.email || "(no user)",        );,,        updateAuthUI(,            session?.user || null,        );,,        if (typeof updateAIChatView === "function") {,            updateAIChatView();,        },    },);,,,/*, * Supabase initializes the browser auth client automatically., * The listener above receives INITIAL_SESSION and SIGNED_IN., * No competing getSession initialization is run here., */,updateAuthUI(null);,,function hideCarsNavigationUi() {
+/* =========================================================
+GLOBAL AUTH FUNCTIONS
+========================================================= */
+
+window.closeAccountPage =
+    closeAccountPage;
+
+window.signInWithGoogle =
+    signInWithGoogle;
+
+window.signOutUser =
+    signOutUser;
+
+window.openAccountInfo =
+    openAccountInfo;
+
+window.toggleAccountPanel =
+    toggleAccountPanel;
+
+window.updateAuthUI =
+    updateAuthUI;
+
+window.syncAuthSession =
+    async function syncAuthSession() {
+
+        try {
+
+            const {
+                data,
+                error
+            } =
+                await window.supabaseClient.auth.getSession();
+
+            if (error) {
+
+                console.error(
+                    "Supabase session recovery error:",
+                    error
+                );
+
+                return null;
+            }
+
+            const user =
+                data?.session?.user || null;
+
+            updateAuthUI(user);
+
+            return user;
+
+        } catch (error) {
+
+            console.error(
+                "Supabase session recovery failed:",
+                error
+            );
+
+            return null;
+
+        }
+
+    };
+
+
+/* =========================================================
+AUTH STATE — SINGLE SOURCE OF TRUTH
+========================================================= */
+
+window.supabaseClient.auth.onAuthStateChange(
+    (event, session) => {
+
+        console.log(
+            "[Worth It Auth]",
+            event,
+            session?.user?.email || "(no user)"
+        );
+
+        updateAuthUI(
+            session?.user || null
+        );
+
+        if (typeof updateAIChatView === "function") {
+            updateAIChatView();
+        }
+
+    }
+);
+
+
+/* =========================================================
+AUTH STARTUP / CALLBACK RECOVERY
+========================================================= */
+
+updateAuthUI(null);
+
+recoverImplicitAuthFromUrl()
+    .then(user => {
+
+        if (user) {
+            return;
+        }
+
+        return window.supabaseClient.auth
+            .getSession()
+            .then(({ data, error }) => {
+
+                if (error) {
+
+                    console.error(
+                        "Supabase startup session recovery error:",
+                        error
+                    );
+
+                    return;
+                }
+
+                updateAuthUI(
+                    data?.session?.user || null
+                );
+
+            });
+
+    })
+    .catch(error => {
+
+        console.error(
+            "Supabase startup auth recovery failed:",
+            error
+        );
+
+    });
+
+
+function hideCarsNavigationUi() {
 
     const carsSection =
         document.getElementById("carsSection");
