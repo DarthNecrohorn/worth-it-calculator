@@ -1,5 +1,5 @@
 const SITE_ORIGIN = "https://worth-it-calculator.pages.dev";
-const USERNAME_PATTERN = /^(?=.*[A-Za-z0-9])[A-Za-z0-9_]{3,20}$/;
+const USERNAME_PATTERN = /^(?=.{3,20}$)(?=.*[A-Za-z0-9])[A-Za-z0-9]+(?:_[A-Za-z0-9]+)?$/;
 const MAX_BODY_BYTES = 12000;
 
 function jsonResponse(data, status = 200) {
