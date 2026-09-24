@@ -29,7 +29,7 @@ window.supabaseClient =
                 detectSessionInUrl: true,
                 flowType: "implicit",
                 storage: window.localStorage,
-                storageKey: "worth-it-auth-v2"
+                storageKey: "worth-it-auth"
             }
         }
     );
