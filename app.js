@@ -676,7 +676,7 @@ function togglePasswordVisibility(inputId) {
     if (button) {
         button.textContent =
             visible
-                ? "👁"
+                ? "🙉"
                 : "🙈";
 
         button.title =
