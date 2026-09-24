@@ -1,7 +1,7 @@
 'use strict';
 
 (function(){
-    const ADMIN_USER_ID = 'c3560d70-8b68-49f0-b3f1-9e248673553c';
+    const ADMIN_EMAIL = 'pedjasebez3545@gmail.com';
     let activeSection = 'home';
     let feedbackLoaded = false;
     let usageLoaded = false;
@@ -26,7 +26,7 @@
     async function isAdmin(){
         try{
             const session = await getSession();
-            return session?.user?.id === ADMIN_USER_ID;
+            return String(session?.user?.email || '').trim().toLowerCase() === ADMIN_EMAIL;
         }catch(error){
             return false;
         }
