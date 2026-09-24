@@ -1985,11 +1985,12 @@ try{
                             autocomplete="username"
                             inputmode="text"
                             minlength="3"
-                            maxlength="40"
-                            pattern="[A-Za-z0-9_]{3,40}"
+                            maxlength="20"
+                            pattern="(?=.*[A-Za-z0-9])[A-Za-z0-9_]{3,20}"
                             placeholder="Choose a username"
                             oninput="handleUsernameInput(this)"
                         >
+                        <div id="authUsernameAvailability" class="auth-username-availability" aria-live="polite"></div>
                     </div>
 
                     <div class="auth-field" id="authEmailWrap">
