@@ -441,6 +441,40 @@ html[data-theme="light"] .account-panel{background:rgba(255,255,255,.98)}
 }
 .auth-modal-link:hover{text-decoration:underline}
 .auth-forgot-link{font-size:11px}
+
+.auth-password-input-wrap{
+    position:relative;
+    width:100%;
+}
+
+.auth-password-input-wrap input{
+    padding-right:48px;
+}
+
+.auth-password-toggle{
+    position:absolute;
+    top:50%;
+    right:8px;
+    transform:translateY(-50%);
+    width:34px;
+    height:34px;
+    display:grid;
+    place-items:center;
+    padding:0;
+    border:1px solid transparent;
+    border-radius:9px;
+    background:transparent;
+    color:var(--muted);
+    font-size:15px;
+    line-height:1;
+    cursor:pointer;
+}
+
+.auth-password-toggle:hover{
+    color:var(--text);
+    background:var(--surface-soft);
+    border-color:var(--border);
+}
 @media(max-width:520px){
     .auth-modal-overlay{padding:12px}
     .auth-modal-card{padding:20px;border-radius:18px}
