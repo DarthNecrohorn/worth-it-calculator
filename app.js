@@ -26,8 +26,8 @@ window.supabaseClient =
             auth: {
                 persistSession: true,
                 autoRefreshToken: true,
-                detectSessionInUrl: true,
-                flowType: "implicit",
+                detectSessionInUrl: false,
+                flowType: "pkce",
                 storage: window.localStorage
             }
         }
@@ -35,6 +35,37 @@ window.supabaseClient =
 
 
 let currentAuthUser = null;
+
+
+/* =========================================================
+EARLY AUTH STATE LISTENER
+========================================================= */
+
+/*
+ * Register this immediately after creating the Supabase client.
+ * The OAuth client auto-initializes asynchronously, so registering
+ * the listener here guarantees that post-login state changes are
+ * observed before the rest of the page finishes loading.
+ */
+window.supabaseClient.auth.onAuthStateChange(
+    (event, session) => {
+
+        updateAuthUI(
+            session?.user || null
+        );
+
+
+        if (
+            typeof updateAIChatView ===
+            "function"
+        ) {
+
+            updateAIChatView();
+
+        }
+
+    }
+);
 
 
 /* =========================================================
@@ -758,37 +789,81 @@ window.updateAuthUI =
 
 
 /* =========================================================
-SUPABASE AUTH STATE
+OAUTH CALLBACK + INITIAL SESSION
 ========================================================= */
 
-window.supabaseClient.auth.onAuthStateChange(
-    (event, session) => {
-
-        updateAuthUI(
-            session?.user || null
-        );
-
-
-        if (
-            typeof updateAIChatView ===
-            "function"
-        ) {
-
-            updateAIChatView();
-
-        }
-
-    }
-);
-
-
-/* =========================================================
-INITIALIZE SUPABASE AUTH
-========================================================= */
-
+/*
+ * This site is a static Cloudflare Pages app, so the OAuth callback
+ * is handled directly in the browser.
+ *
+ * The login flow uses PKCE:
+ *   Google -> ?code=... -> exchangeCodeForSession(code)
+ *
+ * We keep detectSessionInUrl disabled and perform the exchange
+ * ourselves so the callback path is deterministic and easy to audit.
+ */
 (async function initializeSupabaseAuth() {
 
     try {
+
+        const params =
+            new URLSearchParams(
+                window.location.search
+            );
+
+        const code =
+            params.get("code");
+
+
+        if (code) {
+
+            const {
+                data,
+                error
+            } =
+                await window.supabaseClient.auth
+                    .exchangeCodeForSession(code);
+
+
+            if (error) {
+
+                console.error(
+                    "Supabase OAuth callback error:",
+                    error
+                );
+
+
+                updateAuthUI(null);
+
+                return;
+            }
+
+
+            updateAuthUI(
+                data?.session?.user || null
+            );
+
+
+            /*
+             * Remove the one-time auth code from the address bar
+             * after a successful exchange.
+             */
+            const cleanUrl =
+                window.location.origin +
+                window.location.pathname;
+
+
+            window.history.replaceState(
+                {},
+                document.title,
+                cleanUrl
+            );
+
+
+            return;
+
+        }
+
 
         const {
             data,
