@@ -476,20 +476,25 @@ html[data-theme="light"] .account-panel{background:rgba(255,255,255,.98)}
     border-radius:9px;
     background:transparent;
     color:var(--muted);
-    font-size:20px;
+    font-size:23px;
     line-height:1;
     cursor:pointer;
     box-sizing:border-box;
     transition:none;
+    outline:none;
+    box-shadow:none;
 }
 
 .auth-password-toggle:hover,
 .auth-password-toggle:active,
-.auth-password-toggle:focus{
+.auth-password-toggle:focus,
+.auth-password-toggle:focus-visible{
     transform:translateY(-50%);
-    color:var(--text);
-    background:var(--surface-soft);
-    border-color:var(--border);
+    color:var(--muted);
+    background:transparent;
+    border-color:transparent;
+    outline:none;
+    box-shadow:none;
 }
 @media(max-width:520px){
     .auth-modal-overlay{padding:12px}
