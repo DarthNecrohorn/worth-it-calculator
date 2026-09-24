@@ -27,7 +27,7 @@ window.supabaseClient =
                 persistSession: true,
                 autoRefreshToken: true,
                 detectSessionInUrl: true,
-                flowType: "implicit",
+                flowType: "pkce",
                 storage: window.localStorage
             }
         }
@@ -903,66 +903,20 @@ window.updateAuthUI =
 
 
 /* =========================================================
-INITIALIZE SUPABASE AUTH
+INITIAL AUTH UI
 ========================================================= */
 
-(async function initializeSupabaseAuth() {
-
-    try {
-
-        const {
-            data,
-            error
-        } =
-            await window.supabaseClient.auth
-                .getSession();
-
-
-        if (error) {
-
-            console.error(
-                "Supabase session error:",
-                error
-            );
-
-
-            updateAuthUI(null);
-
-            return;
-        }
-
-
-        updateAuthUI(
-            data.session?.user || null
-        );
-
-        /*
-         * A short recovery pass handles browsers where the OAuth
-         * callback finishes session initialization just after the
-         * first getSession() completes.
-         */
-        if (!data.session?.user) {
-
-            setTimeout(() => {
-                syncAuthSession();
-            }, 500);
-
-        }
-
-
-    } catch (error) {
-
-        console.error(
-            "Supabase initialization error:",
-            error
-        );
-
-
-        updateAuthUI(null);
-
-    }
-
-})();
+/*
+ * Supabase automatically initializes the browser auth client and
+ * detects the OAuth callback URL. The auth listener above is the
+ * single source of truth for the UI, including post-login redirects.
+ *
+ * We intentionally do not call getSession() here because a second
+ * manual initialization pass can briefly report null while the
+ * OAuth callback is still being processed and overwrite the signed-in
+ * UI state.
+ */
+updateAuthUI(null);
 
 
 /* =========================================================
