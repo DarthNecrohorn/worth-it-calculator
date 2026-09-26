@@ -264,6 +264,10 @@
 
 window.openShop = function(){
 
+        if (typeof window.hideWaterLevelsSection === "function") {
+            window.hideWaterLevelsSection();
+        }
+
         const homePage =
             document.getElementById(
                 "homePage"
