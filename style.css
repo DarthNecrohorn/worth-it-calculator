@@ -10129,6 +10129,10 @@ html.settings-open #cryptoFloatingShowLess{
     text-align:left;
 }
 
+.water-levels-refresh-info-popover[hidden]{
+    display:none !important;
+}
+
 .water-levels-refresh-info-popover strong{
     font-size:12px;
 }
