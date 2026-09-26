@@ -410,6 +410,14 @@
                         return null;
                     });
 
+            /*
+             * A newer search/refresh may already own the UI.
+             * Never let an older request overwrite its state.
+             */
+            if(stationsRequest !== controller){
+                return;
+            }
+
             if(!response.ok || !data || data.ok === false){
                 throw new Error(
                     data &&
@@ -434,6 +442,16 @@
                 error &&
                 error.name === "AbortError"
             ){
+                if(stationsRequest === controller){
+                    state.loading = false;
+                    state.error =
+                        "The Copernicus water-level request timed out. Please try Refresh again.";
+                    renderError(state.error);
+                }
+                return;
+            }
+
+            if(stationsRequest !== controller){
                 return;
             }
 
@@ -459,19 +477,19 @@
 
             if(stationsRequest === controller){
                 stationsRequest = null;
-            }
 
-            window.clearTimeout(
-                stationsRequestTimer
-            );
+                window.clearTimeout(
+                    stationsRequestTimer
+                );
 
-            /*
-             * The success/error branches render after changing
-             * the loading state. Keep finally as a safety net for
-             * aborted or unexpected exits.
-             */
-            if(state.loading){
-                state.loading = false;
+                /*
+                 * Success/error branches already render with the
+                 * correct loading state. This is only a safety net
+                 * for unexpected exits.
+                 */
+                if(state.loading){
+                    state.loading = false;
+                }
             }
 
         }
