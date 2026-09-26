@@ -865,11 +865,11 @@ async function handleLatest(
         const safeDebug =
             rawMessage
                 .replace(
-                    /Bearer\\s+[A-Za-z0-9._~-]+/gi,
+                    /Bearer\s+[A-Za-z0-9._~-]+/gi,
                     "Bearer [redacted]"
                 )
                 .replace(
-                    /https?:\\/\\/[^\\s]+/gi,
+                    /https?:\/\/[^\s]+/gi,
                     "[url]"
                 )
                 .slice(0,500);
