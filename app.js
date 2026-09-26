@@ -1990,6 +1990,7 @@ function openCalculator(type) {
     document.documentElement.classList.remove("settings-open");
 
     hideCarsNavigationUi();
+    hideWaterLevelsSection();
 
     const homePage =
         document.getElementById("homePage");
@@ -2211,6 +2212,7 @@ function showHome() {
     document.documentElement.classList.remove("settings-open");
 
     hideCarsNavigationUi();
+    hideWaterLevelsSection();
     const homePage = document.getElementById("homePage");
     const weatherSection = document.getElementById("weatherSection");
     const newsSection = document.getElementById("newsSection");
@@ -2467,6 +2469,14 @@ function toggleMoreMenu() {
         menu.setAttribute("aria-hidden", "false");
     }
 }
+function hideWaterLevelsSection() {
+    const waterLevelsSection = document.getElementById("waterLevelsSection");
+    if (waterLevelsSection) {
+        waterLevelsSection.style.display = "none";
+    }
+}
+window.hideWaterLevelsSection = hideWaterLevelsSection;
+
 function openDiscountsFromMenu() {
     closeMoreMenu();
 
@@ -2498,6 +2508,62 @@ window.openCarsFromMenu = openCarsFromMenu;
 
 window.openMarketsFromMenu = openMarketsFromMenu;
 
+function openWaterLevelsFromMenu() {
+    closeMoreMenu();
+
+    if (typeof window.openWaterLevels === "function") {
+        window.openWaterLevels();
+    }
+}
+
+window.openWaterLevelsFromMenu = openWaterLevelsFromMenu;
+
+function openWaterLevels() {
+    document.documentElement.classList.remove("settings-open");
+
+    hideCarsNavigationUi();
+
+    const homePage = document.getElementById("homePage");
+    const weatherSection = document.getElementById("weatherSection");
+    const newsSection = document.getElementById("newsSection");
+    const discountsSection = document.getElementById("discountsSection");
+    const marketsSection = document.getElementById("marketsSection");
+    const moneySection = document.getElementById("moneySection");
+    const cryptoSection = document.getElementById("cryptoSection");
+    const settingsPanel = document.getElementById("settingsPanel");
+    const waterLevelsSection = document.getElementById("waterLevelsSection");
+
+    if (homePage) homePage.style.display = "none";
+    if (weatherSection) weatherSection.style.display = "none";
+    if (newsSection) newsSection.style.display = "none";
+    if (discountsSection) discountsSection.style.display = "none";
+    if (marketsSection) marketsSection.style.display = "none";
+    if (moneySection) moneySection.style.display = "none";
+    if (cryptoSection) cryptoSection.style.display = "none";
+    if (settingsPanel) settingsPanel.style.display = "none";
+
+    document.querySelectorAll(".app").forEach(x => {
+        x.classList.remove("active");
+        x.style.display = "none";
+    });
+
+    if (waterLevelsSection) waterLevelsSection.style.display = "block";
+
+    const navLinks = document.getElementById("navLinks");
+    if (navLinks) navLinks.classList.remove("open");
+
+    document.documentElement.style.overflowY = "auto";
+    document.body.style.overflowY = "auto";
+
+    if (typeof initWaterLevelsUI === "function") {
+        initWaterLevelsUI();
+    }
+
+    window.scrollTo({ top: 0, behavior: "auto" });
+}
+
+window.openWaterLevels = openWaterLevels;
+
 function openCryptoFromMenu() {
     closeMoreMenu();
     if (typeof window.openCrypto === "function") {
@@ -2510,6 +2576,7 @@ window.openCryptoFromMenu = openCryptoFromMenu;
 function openCrypto() {
 
     document.documentElement.classList.remove("settings-open");
+    hideWaterLevelsSection();
 
     const carsSection = document.getElementById("carsSection");
     if (carsSection) carsSection.style.display = "none";
