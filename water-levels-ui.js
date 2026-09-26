@@ -488,7 +488,7 @@
                     const controller = new AbortController();
                     const timer = window.setTimeout(function(){
                         controller.abort();
-                    }, 20000);
+                    }, 70000);
 
                     let response;
                     try{
