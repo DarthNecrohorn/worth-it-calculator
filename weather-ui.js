@@ -91,6 +91,10 @@ function $(id){
 
 function openWeather(){
 
+    if(typeof window.hideWaterLevelsSection === "function"){
+        window.hideWaterLevelsSection();
+    }
+
     if(typeof window.hideCarsNavigationUi === "function"){
         window.hideCarsNavigationUi();
     } else {
