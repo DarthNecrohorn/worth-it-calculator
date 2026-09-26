@@ -27,6 +27,26 @@
     const STATION_METADATA_CONCURRENCY = 3;
     const STATION_LATEST_CONCURRENCY = 4;
 
+    const WATER_LOCATION_CONFIG = {
+        CACHE_KEY:
+            "worthIt.waterLevels.location.v1",
+        CACHE_TTL_MS:
+            30 * 60 * 1000,
+        GELOCATION_TIMEOUT_MS:
+            10000,
+        REVERSE_GEOCODE_TIMEOUT_MS:
+            8000,
+        COUNTRY_BOUNDARY_URL:
+            "https://cdn.jsdelivr.net/npm/world-atlas@2.0.2/countries-110m.json",
+        US_STATE_BOUNDARY_URL:
+            "https://cdn.jsdelivr.net/npm/us-atlas@3.0.1/states-10m.json"
+    };
+
+    let waterLocationPromise = null;
+    let waterCountryFeaturesPromise = null;
+    let waterUsStateFeaturesPromise = null;
+    const waterStationGeoCache = new Map();
+
     const state = {
         stations: [],
         loading: false,
@@ -101,6 +121,881 @@
     function currentQuery(){
         const input = get("waterLevelsSearch");
         return input ? input.value.trim() : "";
+    }
+
+    function normalizeGeoName(value){
+        return String(value || "")
+            .normalize("NFD")
+            .replace(/[\u0300-\u036f]/g,"")
+            .toLowerCase()
+            .replace(/\b(united states of america|usa)\b/g,"united states")
+            .replace(/[^a-z0-9]+/g," ")
+            .trim();
+    }
+
+    function readWaterLocationCache(){
+        try{
+            const raw =
+                localStorage.getItem(
+                    WATER_LOCATION_CONFIG.CACHE_KEY
+                );
+
+            if(!raw) return null;
+
+            const parsed = JSON.parse(raw);
+            if(
+                !parsed ||
+                !parsed.timestamp ||
+                !parsed.location
+            ){
+                return null;
+            }
+
+            const age =
+                Date.now() -
+                Number(parsed.timestamp);
+
+            if(
+                !Number.isFinite(age) ||
+                age < 0 ||
+                age > WATER_LOCATION_CONFIG.CACHE_TTL_MS
+            ){
+                return null;
+            }
+
+            return parsed.location;
+        }
+        catch(error){
+            return null;
+        }
+    }
+
+    function saveWaterLocationCache(location){
+        try{
+            localStorage.setItem(
+                WATER_LOCATION_CONFIG.CACHE_KEY,
+                JSON.stringify({
+                    timestamp:Date.now(),
+                    location
+                })
+            );
+        }
+        catch(error){}
+    }
+
+    async function getWaterLocationCoordinates(){
+        if(
+            typeof getBrowserLocation === "function"
+        ){
+            try{
+                const location =
+                    await getBrowserLocation();
+
+                if(
+                    location &&
+                    Number.isFinite(Number(location.latitude)) &&
+                    Number.isFinite(Number(location.longitude))
+                ){
+                    return {
+                        latitude:
+                            Number(location.latitude),
+                        longitude:
+                            Number(location.longitude)
+                    };
+                }
+            }
+            catch(error){}
+        }
+
+        return await new Promise(function(resolve,reject){
+            if(!navigator.geolocation){
+                reject(
+                    new Error(
+                        "Browser geolocation is not supported."
+                    )
+                );
+                return;
+            }
+
+            navigator.geolocation.getCurrentPosition(
+                function(position){
+                    resolve({
+                        latitude:
+                            Number(position.coords.latitude),
+                        longitude:
+                            Number(position.coords.longitude)
+                    });
+                },
+                function(error){
+                    reject(error);
+                },
+                {
+                    enableHighAccuracy:false,
+                    timeout:
+                        WATER_LOCATION_CONFIG.GELOCATION_TIMEOUT_MS,
+                    maximumAge:
+                        WATER_LOCATION_CONFIG.CACHE_TTL_MS
+                }
+            );
+        });
+    }
+
+    async function reverseGeocodeWaterLocation(
+        coordinates
+    ){
+        const controller =
+            new AbortController();
+
+        const timer =
+            window.setTimeout(
+                function(){
+                    controller.abort();
+                },
+                WATER_LOCATION_CONFIG.REVERSE_GEOCODE_TIMEOUT_MS
+            );
+
+        try{
+            const params =
+                new URLSearchParams();
+
+            if(
+                coordinates &&
+                Number.isFinite(Number(coordinates.latitude)) &&
+                Number.isFinite(Number(coordinates.longitude))
+            ){
+                params.set(
+                    "latitude",
+                    String(coordinates.latitude)
+                );
+                params.set(
+                    "longitude",
+                    String(coordinates.longitude)
+                );
+            }
+
+            params.set(
+                "localityLanguage",
+                "en"
+            );
+
+            const response =
+                await fetch(
+                    "https://api.bigdatacloud.net/data/reverse-geocode-client?" +
+                    params.toString(),
+                    {
+                        method:"GET",
+                        headers:{
+                            "Accept":"application/json"
+                        },
+                        cache:"no-store",
+                        signal:controller.signal
+                    }
+                );
+
+            if(!response.ok){
+                throw new Error(
+                    "Reverse geocoding failed."
+                );
+            }
+
+            const data =
+                await response.json();
+
+            if(!data || typeof data !== "object"){
+                throw new Error(
+                    "Invalid reverse geocoding response."
+                );
+            }
+
+            const latitude =
+                Number(data.latitude);
+
+            const longitude =
+                Number(data.longitude);
+
+            if(
+                !Number.isFinite(latitude) ||
+                !Number.isFinite(longitude)
+            ){
+                throw new Error(
+                    "Reverse geocoding returned no coordinates."
+                );
+            }
+
+            return {
+                latitude,
+                longitude,
+                countryCode:
+                    String(
+                        data.countryCode || ""
+                    ).trim().toUpperCase(),
+                countryName:
+                    String(
+                        data.countryName || ""
+                    ).trim(),
+                stateCode:
+                    String(
+                        data.principalSubdivisionCode || ""
+                    ).trim().toUpperCase(),
+                stateName:
+                    String(
+                        data.principalSubdivision || ""
+                    ).trim(),
+                city:
+                    String(
+                        data.city ||
+                        data.locality ||
+                        ""
+                    ).trim(),
+                lookupSource:
+                    String(
+                        data.lookupSource || ""
+                    ).trim()
+            };
+        }
+        finally{
+            window.clearTimeout(timer);
+        }
+    }
+
+    async function resolveWaterLocation(){
+        const cached =
+            readWaterLocationCache();
+
+        if(cached){
+            return cached;
+        }
+
+        if(waterLocationPromise){
+            return await waterLocationPromise;
+        }
+
+        waterLocationPromise =
+            (async function(){
+                let coordinates = null;
+
+                try{
+                    coordinates =
+                        await getWaterLocationCoordinates();
+                }
+                catch(error){}
+
+                try{
+                    let location = null;
+
+                    try{
+                        location =
+                            await reverseGeocodeWaterLocation(
+                                coordinates
+                            );
+                    }
+                    catch(error){
+                        /*
+                         * BigDataCloud also supports a client-side
+                         * IP fallback when coordinates are omitted.
+                         */
+                        if(coordinates){
+                            location =
+                                await reverseGeocodeWaterLocation(
+                                    null
+                                );
+                        }
+                        else{
+                            throw error;
+                        }
+                    }
+
+                    saveWaterLocationCache(location);
+                    return location;
+                }
+                catch(error){
+                    console.warn(
+                        "Water Levels location detection failed:",
+                        error
+                    );
+                    return null;
+                }
+            })();
+
+        try{
+            return await waterLocationPromise;
+        }
+        finally{
+            waterLocationPromise = null;
+        }
+    }
+
+    function pointInRing(
+        longitude,
+        latitude,
+        ring
+    ){
+        let inside = false;
+
+        if(!Array.isArray(ring)) return false;
+
+        for(
+            let index = 0,
+                previous = ring.length - 1;
+            index < ring.length;
+            previous = index++
+        ){
+            const point =
+                ring[index] || [];
+            const prev =
+                ring[previous] || [];
+
+            const xi = Number(point[0]);
+            const yi = Number(point[1]);
+            const xj = Number(prev[0]);
+            const yj = Number(prev[1]);
+
+            if(
+                !Number.isFinite(xi) ||
+                !Number.isFinite(yi) ||
+                !Number.isFinite(xj) ||
+                !Number.isFinite(yj)
+            ){
+                continue;
+            }
+
+            const intersects =
+                (
+                    yi > latitude
+                ) !==
+                (
+                    yj > latitude
+                ) &&
+                longitude <
+                (
+                    (xj - xi) *
+                    (latitude - yi) /
+                    (yj - yi) +
+                    xi
+                );
+
+            if(intersects){
+                inside = !inside;
+            }
+        }
+
+        return inside;
+    }
+
+    function pointInPolygon(
+        longitude,
+        latitude,
+        coordinates
+    ){
+        if(!Array.isArray(coordinates)) return false;
+        if(!pointInRing(longitude,latitude,coordinates[0])){
+            return false;
+        }
+
+        for(
+            let index = 1;
+            index < coordinates.length;
+            index++
+        ){
+            if(
+                pointInRing(
+                    longitude,
+                    latitude,
+                    coordinates[index]
+                )
+            ){
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    function pointInGeometry(
+        longitude,
+        latitude,
+        geometry
+    ){
+        if(!geometry) return false;
+
+        if(geometry.type === "Polygon"){
+            return pointInPolygon(
+                longitude,
+                latitude,
+                geometry.coordinates
+            );
+        }
+
+        if(geometry.type === "MultiPolygon"){
+            return geometry.coordinates.some(
+                function(polygon){
+                    return pointInPolygon(
+                        longitude,
+                        latitude,
+                        polygon
+                    );
+                }
+            );
+        }
+
+        if(
+            geometry.type === "GeometryCollection" &&
+            Array.isArray(geometry.geometries)
+        ){
+            return geometry.geometries.some(
+                function(item){
+                    return pointInGeometry(
+                        longitude,
+                        latitude,
+                        item
+                    );
+                }
+            );
+        }
+
+        return false;
+    }
+
+    async function loadGeoFeatures(url,objectName){
+        if(
+            typeof topojson === "undefined" ||
+            typeof topojson.feature !== "function"
+        ){
+            throw new Error(
+                "TopoJSON client library is unavailable."
+            );
+        }
+
+        const response =
+            await fetch(
+                url,
+                {
+                    method:"GET",
+                    headers:{
+                        "Accept":"application/json"
+                    },
+                    cache:"force-cache"
+                }
+            );
+
+        if(!response.ok){
+            throw new Error(
+                "Geographic boundary data failed to load."
+            );
+        }
+
+        const topology =
+            await response.json();
+
+        if(
+            !topology ||
+            !topology.objects ||
+            !topology.objects[objectName]
+        ){
+            throw new Error(
+                "Invalid geographic boundary data."
+            );
+        }
+
+        const featureCollection =
+            topojson.feature(
+                topology,
+                topology.objects[objectName]
+            );
+
+        return featureCollection.features || [];
+    }
+
+    async function getCountryFeatures(){
+        if(!waterCountryFeaturesPromise){
+            waterCountryFeaturesPromise =
+                loadGeoFeatures(
+                    WATER_LOCATION_CONFIG.COUNTRY_BOUNDARY_URL,
+                    "countries"
+                );
+        }
+
+        return await waterCountryFeaturesPromise;
+    }
+
+    async function getUsStateFeatures(){
+        if(!waterUsStateFeaturesPromise){
+            waterUsStateFeaturesPromise =
+                loadGeoFeatures(
+                    WATER_LOCATION_CONFIG.US_STATE_BOUNDARY_URL,
+                    "states"
+                );
+        }
+
+        return await waterUsStateFeaturesPromise;
+    }
+
+    function featureContainsPoint(
+        feature,
+        longitude,
+        latitude
+    ){
+        return !!(
+            feature &&
+            feature.geometry &&
+            pointInGeometry(
+                longitude,
+                latitude,
+                feature.geometry
+            )
+        );
+    }
+
+    async function classifyWaterStation(
+        station,
+        location
+    ){
+        const cached =
+            waterStationGeoCache.get(
+                station.id
+            );
+
+        if(cached){
+            return cached;
+        }
+
+        const coordinates =
+            station &&
+            station.coordinates;
+
+        if(
+            !coordinates ||
+            !Number.isFinite(Number(coordinates.longitude)) ||
+            !Number.isFinite(Number(coordinates.latitude))
+        ){
+            const fallback = {
+                countryMatch:false,
+                stateMatch:false
+            };
+
+            waterStationGeoCache.set(
+                station.id,
+                fallback
+            );
+
+            return fallback;
+        }
+
+        const longitude =
+            Number(coordinates.longitude);
+
+        const latitude =
+            Number(coordinates.latitude);
+
+        const countryFeatures =
+            await getCountryFeatures();
+
+        const userCountryCode =
+            String(
+                location.countryCode || ""
+            ).toUpperCase();
+
+        const userCountryName =
+            normalizeGeoName(
+                location.countryName
+            );
+
+        let countryMatch = false;
+
+        for(
+            const feature of countryFeatures
+        ){
+            if(
+                !featureContainsPoint(
+                    feature,
+                    longitude,
+                    latitude
+                )
+            ){
+                continue;
+            }
+
+            const featureName =
+                normalizeGeoName(
+                    feature.properties &&
+                    feature.properties.name
+                );
+
+            countryMatch =
+                (
+                    userCountryName &&
+                    featureName ===
+                    userCountryName
+                ) ||
+                (
+                    userCountryCode === "US" &&
+                    featureName === "united states"
+                );
+
+            break;
+        }
+
+        let stateMatch = false;
+
+        if(
+            userCountryCode === "US" &&
+            countryMatch &&
+            location.stateName
+        ){
+            const stateFeatures =
+                await getUsStateFeatures();
+
+            const userStateName =
+                normalizeGeoName(
+                    location.stateName
+                );
+
+            const userStateCode =
+                String(
+                    location.stateCode || ""
+                )
+                .toUpperCase()
+                .replace(/^US-/,"");
+
+            for(
+                const feature of stateFeatures
+            ){
+                if(
+                    !featureContainsPoint(
+                        feature,
+                        longitude,
+                        latitude
+                    )
+                ){
+                    continue;
+                }
+
+                const featureName =
+                    normalizeGeoName(
+                        feature.properties &&
+                        feature.properties.name
+                    );
+
+                const featureCode =
+                    String(
+                        feature.id || ""
+                    )
+                    .trim()
+                    .toUpperCase();
+
+                stateMatch =
+                    (
+                        userStateName &&
+                        featureName ===
+                        userStateName
+                    ) ||
+                    (
+                        userStateCode &&
+                        featureCode ===
+                        userStateCode
+                    );
+
+                break;
+            }
+        }
+
+        const result = {
+            countryMatch,
+            stateMatch
+        };
+
+        waterStationGeoCache.set(
+            station.id,
+            result
+        );
+
+        return result;
+    }
+
+    function haversineDistanceKm(
+        first,
+        second
+    ){
+        const lat1 =
+            Number(first && first.latitude);
+        const lon1 =
+            Number(first && first.longitude);
+        const lat2 =
+            Number(second && second.latitude);
+        const lon2 =
+            Number(second && second.longitude);
+
+        if(
+            !Number.isFinite(lat1) ||
+            !Number.isFinite(lon1) ||
+            !Number.isFinite(lat2) ||
+            !Number.isFinite(lon2)
+        ){
+            return Number.POSITIVE_INFINITY;
+        }
+
+        const toRadians =
+            Math.PI / 180;
+
+        const dLat =
+            (lat2 - lat1) *
+            toRadians;
+
+        const dLon =
+            (lon2 - lon1) *
+            toRadians;
+
+        const a =
+            Math.sin(dLat / 2) ** 2 +
+            Math.cos(lat1 * toRadians) *
+            Math.cos(lat2 * toRadians) *
+            Math.sin(dLon / 2) ** 2;
+
+        return (
+            6371 *
+            2 *
+            Math.atan2(
+                Math.sqrt(a),
+                Math.sqrt(
+                    Math.max(
+                        0,
+                        1 - a
+                    )
+                )
+            )
+        );
+    }
+
+    async function personalizeWaterStations(
+        stations,
+        location
+    ){
+        if(
+            !location ||
+            !Number.isFinite(Number(location.latitude)) ||
+            !Number.isFinite(Number(location.longitude))
+        ){
+            return stations;
+        }
+
+        const enriched =
+            await Promise.all(
+                stations.map(
+                    async function(station,index){
+                        const geo =
+                            await classifyWaterStation(
+                                station,
+                                location
+                            );
+
+                        return {
+                            station,
+                            index,
+                            geo,
+                            distanceKm:
+                                haversineDistanceKm(
+                                    location,
+                                    station.coordinates
+                                )
+                        };
+                    }
+                )
+            );
+
+        function sortByDistance(items){
+            return items.slice().sort(
+                function(left,right){
+                    const distance =
+                        left.distanceKm -
+                        right.distanceKm;
+
+                    if(
+                        Number.isFinite(distance) &&
+                        Math.abs(distance) > 0.000001
+                    ){
+                        return distance;
+                    }
+
+                    return left.index - right.index;
+                }
+            );
+        }
+
+        const rivers =
+            enriched.filter(function(item){
+                return item.station.type === "river";
+            });
+
+        const lakes =
+            enriched.filter(function(item){
+                return item.station.type === "lake";
+            });
+
+        const isUnitedStates =
+            String(
+                location.countryCode || ""
+            ).toUpperCase() === "US";
+
+        function selectCategory(items){
+            const sorted =
+                sortByDistance(items);
+
+            if(isUnitedStates){
+                const sameState =
+                    sorted.filter(function(item){
+                        return item.geo.stateMatch;
+                    });
+
+                const fallback =
+                    sorted.filter(function(item){
+                        return !item.geo.stateMatch;
+                    });
+
+                return sameState
+                    .concat(fallback)
+                    .slice(
+                        0,
+                        CATEGORY_STATION_LIMIT
+                    );
+            }
+
+            return sorted
+                .filter(function(item){
+                    return item.geo.countryMatch;
+                })
+                .slice(
+                    0,
+                    CATEGORY_STATION_LIMIT
+                );
+        }
+
+        const selectedRivers =
+            selectCategory(rivers);
+
+        const selectedLakes =
+            selectCategory(lakes);
+
+        /*
+         * All is its own 800-item view: up to 400 rivers +
+         * up to 400 lakes, then globally sorted by distance.
+         */
+        return selectedRivers
+            .concat(selectedLakes)
+            .sort(
+                function(left,right){
+                    return (
+                        left.distanceKm -
+                        right.distanceKm
+                    );
+                }
+            )
+            .map(function(item){
+                return item.station;
+            })
+            .slice(
+                0,
+                ALL_STATION_LIMIT
+            );
     }
 
     function filteredStations(){
@@ -996,10 +1891,40 @@
                 );
             }
 
-            state.stations =
+            const rawStations =
                 Array.isArray(data.stations)
                     ? data.stations
                     : [];
+
+            let personalizedStations =
+                rawStations;
+
+            if(!query){
+                const location =
+                    await resolveWaterLocation();
+
+                if(location){
+                    try{
+                        personalizedStations =
+                            await personalizeWaterStations(
+                                rawStations,
+                                location
+                            );
+                    }
+                    catch(error){
+                        console.warn(
+                            "Water Levels location personalization failed:",
+                            error
+                        );
+
+                        personalizedStations =
+                            rawStations;
+                    }
+                }
+            }
+
+            state.stations =
+                personalizedStations;
 
             state.error = "";
             state.loading = false;
