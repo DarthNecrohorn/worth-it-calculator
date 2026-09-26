@@ -28,7 +28,7 @@ const WATER_DATASETS = {
     lakes: "wl-lakes_global_vector_daily_v2"
 };
 
-const WATER_CACHE_VERSION = "v44";
+const WATER_CACHE_VERSION = "v45";
 
 const STATIONS_CACHE_TTL_SECONDS =
     6 * 60 * 60;
@@ -2144,9 +2144,74 @@ async function getLatestMeasurementByRange(
                 throw error;
             }
 
-            /*
-             * Continue to the lightweight Range fallback below.
-             */
+        }
+
+    }
+
+    /*
+     * Do not assume that the first JSON node in a CDSE product is the
+     * time series. Verify each JSON candidate until one contains actual
+     * water-level observations.
+     */
+    try{
+
+        const discoveredNode =
+            await findTimeSeriesGeoJsonNode(
+                productId,
+                token,
+                type
+            );
+
+        if(
+            discoveredNode &&
+            discoveredNode.normalizedProduct &&
+            Array.isArray(
+                discoveredNode.normalizedProduct.measurements
+            ) &&
+            discoveredNode.normalizedProduct.measurements.length
+        ){
+
+            const measurements =
+                discoveredNode.normalizedProduct.measurements;
+
+            return {
+                latest:
+                    measurements[
+                        measurements.length - 1
+                    ],
+
+                previous:
+                    measurements.length > 1
+                        ? measurements[
+                            measurements.length - 2
+                          ]
+                        : null,
+
+                station:
+                    catalogue.station,
+
+                coordinates:
+                    discoveredNode.normalizedProduct.coordinates ||
+                    catalogue.coordinates,
+
+                measurementCount:
+                    measurements.length
+            };
+
+        }
+
+    }
+    catch(error){
+
+        lastError = error;
+
+        if(
+            error &&
+            error.code === "CDSE_AUTH"
+        ){
+            memoryToken = null;
+            memoryTokenExpiresAt = 0;
+            throw error;
         }
 
     }
@@ -2572,6 +2637,276 @@ async function findGeoJsonNode(
     }
 
     return null;
+}
+
+
+/* =========================================================
+   TIME-SERIES JSON NODE DISCOVERY
+========================================================= */
+
+async function findTimeSeriesGeoJsonNode(
+    productId,
+    accessToken,
+    type
+) {
+
+    const rootUrl =
+        CDSE_DOWNLOAD_BASE +
+        "(" +
+        encodeURIComponent(productId) +
+        ")/Nodes";
+
+    const queue = [
+        {
+            url: rootUrl,
+            path: []
+        }
+    ];
+
+    const seen = new Set();
+    let visited = 0;
+    let jsonCandidates = 0;
+
+    const MAX_JSON_CANDIDATES = 24;
+
+    while(
+        queue.length &&
+        visited < 200 &&
+        jsonCandidates < MAX_JSON_CANDIDATES
+    ){
+
+        const current =
+            queue.shift();
+
+        if(
+            !current ||
+            !current.url ||
+            seen.has(current.url)
+        ){
+            continue;
+        }
+
+        seen.add(
+            current.url
+        );
+
+        visited++;
+
+        const response =
+            await fetchCdseWithRedirects(
+                current.url,
+                {
+                    headers: {
+                        "Authorization":
+                            "Bearer " +
+                            accessToken,
+                        "Accept":
+                            "application/json"
+                    }
+                },
+                ODATA_TIMEOUT_MS
+            );
+
+        if(
+            response.status === 401 ||
+            response.status === 403
+        ){
+
+            const error =
+                new Error(
+                    "Copernicus product node listing authentication failed."
+                );
+
+            error.code =
+                "CDSE_AUTH";
+
+            throw error;
+
+        }
+
+        if(!response.ok){
+
+            try{
+                await response.body?.cancel();
+            }
+            catch(error){}
+
+            continue;
+
+        }
+
+        const data =
+            await response.json().catch(function(){
+                return null;
+            });
+
+        const nodes =
+            Array.isArray(
+                data &&
+                data.result
+            )
+                ? data.result
+                : Array.isArray(
+                    data &&
+                    data.value
+                )
+                    ? data.value
+                    : [];
+
+        for(
+            const node of nodes
+        ){
+
+            const name =
+                firstNonEmpty(
+                    node && node.Name,
+                    node && node.name,
+                    node && node.Id,
+                    node && node.id
+                );
+
+            if(!name){
+                continue;
+            }
+
+            const lower =
+                String(name).toLowerCase();
+
+            const childPath =
+                current.path.concat(
+                    name
+                );
+
+            if(
+                lower.endsWith(".geojson") ||
+                lower.endsWith(".json")
+            ){
+
+                jsonCandidates++;
+
+                const nodeUrl =
+                    CDSE_DOWNLOAD_BASE +
+                    "(" +
+                    encodeURIComponent(productId) +
+                    ")" +
+                    childPath.map(function(part){
+                        return "/Nodes(" +
+                            encodeURIComponent(part) +
+                            ")";
+                    }).join("") +
+                    "/$value";
+
+                try{
+
+                    const parsed =
+                        await downloadLatestJsonFromNode(
+                            nodeUrl,
+                            accessToken,
+                            productId,
+                            type
+                        );
+
+                    const normalizedProduct =
+                        parsed &&
+                        parsed.normalizedProduct
+                            ? parsed.normalizedProduct
+                            : null;
+
+                    if(
+                        normalizedProduct &&
+                        Array.isArray(
+                            normalizedProduct.measurements
+                        ) &&
+                        normalizedProduct.measurements.length
+                    ){
+
+                        return {
+                            url:
+                                nodeUrl,
+
+                            name,
+
+                            path:
+                                childPath,
+
+                            contentLength:
+                                numberOrNull(
+                                    node &&
+                                    node.ContentLength
+                                ),
+
+                            normalizedProduct
+                        };
+
+                    }
+
+                }
+                catch(error){
+
+                    if(
+                        error &&
+                        error.code === "CDSE_AUTH"
+                    ){
+                        throw error;
+                    }
+
+                }
+
+                continue;
+
+            }
+
+            const childUri =
+                node &&
+                node.Nodes &&
+                node.Nodes.uri
+                    ? String(
+                        node.Nodes.uri
+                    )
+                    : "";
+
+            const childUrl =
+                childUri ||
+                (
+                    node &&
+                    Number(
+                        node.ChildrenNumber
+                    ) > 0
+                        ? CDSE_DOWNLOAD_BASE +
+                            "(" +
+                            encodeURIComponent(productId) +
+                            ")" +
+                            childPath.map(function(part){
+                                return "/Nodes(" +
+                                    encodeURIComponent(part) +
+                                    ")";
+                            }).join("") +
+                            "/Nodes"
+                        : ""
+                );
+
+            if(
+                childUrl &&
+                Number(
+                    node.ChildrenNumber
+                ) !== 0
+            ){
+
+                queue.push({
+                    url:
+                        childUrl,
+                    path:
+                        childPath
+                });
+
+            }
+
+        }
+
+    }
+
+    return null;
+
 }
 
 
@@ -3319,61 +3654,53 @@ async function getParsedProduct(
              */
             try{
                 const discoveredNode =
-                    await findGeoJsonNode(
+                    await findTimeSeriesGeoJsonNode(
                         productId,
-                        token
+                        token,
+                        type
                     );
 
                 if(
                     discoveredNode &&
-                    discoveredNode.url
+                    discoveredNode.normalizedProduct &&
+                    Array.isArray(
+                        discoveredNode.normalizedProduct.measurements
+                    ) &&
+                    discoveredNode.normalizedProduct.measurements.length
                 ){
-                    const stationProduct =
-                        await downloadLatestJsonFromNode(
-                            discoveredNode.url,
-                            token,
-                            productId,
-                            type
+
+                    const product =
+                        discoveredNode.normalizedProduct;
+
+                    const response =
+                        jsonResponse(
+                            product,
+                            200,
+                            {
+                                "Cache-Control":
+                                    "public, max-age=" +
+                                    PRODUCT_CACHE_TTL_SECONDS +
+                                    ", stale-while-revalidate=" +
+                                    PRODUCT_STALE_TTL_SECONDS,
+                                "X-Water-Cache":
+                                    "MISS"
+                            }
                         );
 
-                    if(
-                        stationProduct &&
-                        stationProduct.normalizedProduct &&
-                        Array.isArray(
-                            stationProduct.normalizedProduct.measurements
-                        ) &&
-                        stationProduct.normalizedProduct.measurements.length
-                    ){
-                        const product =
-                            stationProduct.normalizedProduct;
+                    await cache.put(
+                        request,
+                        response.clone()
+                    );
 
-                        const response =
-                            jsonResponse(
-                                product,
-                                200,
-                                {
-                                    "Cache-Control":
-                                        "public, max-age=" +
-                                        PRODUCT_CACHE_TTL_SECONDS +
-                                        ", stale-while-revalidate=" +
-                                        PRODUCT_STALE_TTL_SECONDS,
-                                    "X-Water-Cache":
-                                        "MISS"
-                                }
-                            );
+                    return product;
 
-                        await cache.put(
-                            request,
-                            response.clone()
-                        );
-
-                        return product;
-                    }
                 }
+
             }
             catch(error){
+
                 console.warn(
-                    "Discovered Water Levels history node download failed:",
+                    "Validated Water Levels history node discovery failed:",
                     productId,
                     error
                 );
@@ -3384,6 +3711,7 @@ async function getParsedProduct(
                 ){
                     throw error;
                 }
+
             }
 
             /*
@@ -3799,7 +4127,11 @@ async function downloadAndParseProduct(
 
         const extracted =
             await extractJsonFromZip(
-                bytes
+                bytes,
+                {
+                    productId,
+                    type
+                }
             );
 
         payload =
@@ -4205,7 +4537,12 @@ function normalizeMeasurement(
 
         identifier:
             firstNonEmpty(
-                item.identifier,
+                fieldValue(
+                    item,
+                    [
+                        "identifier"
+                    ]
+                ),
                 ""
             ),
 
@@ -4222,7 +4559,12 @@ function normalizeMeasurement(
 
         satellite:
             firstNonEmpty(
-                item.satellite,
+                fieldValue(
+                    item,
+                    [
+                        "satellite"
+                    ]
+                ),
                 ""
             ),
 
@@ -4627,7 +4969,11 @@ function calculateTrend(
 ========================================================= */
 
 async function extractJsonFromZip(
-    bytes
+    bytes,
+    {
+        productId,
+        type
+    } = {}
 ) {
 
     const view =
@@ -4642,7 +4988,33 @@ async function extractJsonFromZip(
             bytes
         );
 
-    if (endRecord >= 0) {
+    const candidateEntries = [];
+
+    function addCandidate(entry){
+
+        if(
+            !entry ||
+            !entry.fileName ||
+            !isJsonFileName(
+                entry.fileName
+            )
+        ){
+            return;
+        }
+
+        if(
+            candidateEntries.length >= 32
+        ){
+            return;
+        }
+
+        candidateEntries.push(
+            entry
+        );
+
+    }
+
+    if(endRecord >= 0){
 
         const centralOffset =
             view.getUint32(
@@ -4659,22 +5031,21 @@ async function extractJsonFromZip(
         let offset =
             centralOffset;
 
-        for (
+        for(
             let index = 0;
             index < entries &&
-            offset + 46 <= bytes.length;
+            offset + 46 <= bytes.length &&
+            candidateEntries.length < 32;
             index++
-        ) {
+        ){
 
-            if (
+            if(
                 view.getUint32(
                     offset,
                     true
                 ) !== 0x02014b50
-            ) {
-
+            ){
                 break;
-
             }
 
             const compression =
@@ -4724,23 +5095,13 @@ async function extractJsonFromZip(
                     nameBytes
                 );
 
-            if (
-                isJsonFileName(
-                    fileName
-                )
-            ) {
-
-                return await extractZipEntry(
-                    bytes,
-                    view,
-                    {
-                        compression,
-                        compressedSize,
-                        localHeaderOffset
-                    }
-                );
-
-            }
+            addCandidate({
+                fileName,
+                compression,
+                compressedSize,
+                localHeaderOffset,
+                order:index
+            });
 
             offset +=
                 46 +
@@ -4752,9 +5113,179 @@ async function extractJsonFromZip(
 
     }
 
-    return await extractFirstLocalJson(
-        bytes,
-        view
+    if(!candidateEntries.length){
+
+        let offset = 0;
+        let order = 0;
+
+        while(
+            offset + 30 <= bytes.length &&
+            candidateEntries.length < 32
+        ){
+
+            const signature =
+                view.getUint32(
+                    offset,
+                    true
+                );
+
+            if(
+                signature !== 0x04034b50
+            ){
+                offset += 1;
+                continue;
+            }
+
+            const compression =
+                view.getUint16(
+                    offset + 8,
+                    true
+                );
+
+            const compressedSize =
+                view.getUint32(
+                    offset + 18,
+                    true
+                );
+
+            const nameLength =
+                view.getUint16(
+                    offset + 26,
+                    true
+                );
+
+            const extraLength =
+                view.getUint16(
+                    offset + 28,
+                    true
+                );
+
+            const nameBytes =
+                bytes.slice(
+                    offset + 30,
+                    offset + 30 + nameLength
+                );
+
+            const fileName =
+                new TextDecoder().decode(
+                    nameBytes
+                );
+
+            addCandidate({
+                fileName,
+                compression,
+                compressedSize,
+                localHeaderOffset:offset,
+                order:order++
+            });
+
+            offset +=
+                Math.max(
+                    30 +
+                    nameLength +
+                    extraLength +
+                    compressedSize,
+                    1
+                );
+
+        }
+
+    }
+
+    if(!candidateEntries.length){
+
+        throw new Error(
+            "No GeoJSON/JSON file was found in the Copernicus archive."
+        );
+
+    }
+
+    let firstValidJson = null;
+
+    for(
+        const entry of candidateEntries
+    ){
+
+        try{
+
+            const extracted =
+                await extractZipEntry(
+                    bytes,
+                    view,
+                    {
+                        compression:
+                            entry.compression,
+                        compressedSize:
+                            entry.compressedSize,
+                        localHeaderOffset:
+                            entry.localHeaderOffset
+                    }
+                );
+
+            if(
+                !firstValidJson
+            ){
+                firstValidJson =
+                    extracted;
+            }
+
+            const text =
+                new TextDecoder().decode(
+                    extracted
+                );
+
+            const payload =
+                JSON.parse(
+                    text
+                );
+
+            const normalized =
+                normalizeProductPayload(
+                    payload,
+                    {
+                        productId:
+                            String(
+                                productId || ""
+                            ),
+                        type:
+                            String(
+                                type || ""
+                            )
+                    }
+                );
+
+            if(
+                normalized &&
+                Array.isArray(
+                    normalized.measurements
+                ) &&
+                normalized.measurements.length
+            ){
+
+                return extracted;
+
+            }
+
+        }
+        catch(error){
+
+            /* Continue with the next JSON candidate. */
+
+        }
+
+    }
+
+    /*
+     * Keep valid metadata-only JSON as the final diagnostic fallback.
+     * This preserves real catalogue metadata without inventing a time
+     * series when the product genuinely has no usable observations.
+     */
+    if(firstValidJson){
+        return firstValidJson;
+    }
+
+    throw new Error(
+        "No valid JSON file was found in the Copernicus archive."
     );
 
 }
