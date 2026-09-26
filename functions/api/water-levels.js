@@ -28,7 +28,7 @@ const WATER_DATASETS = {
     lakes: "wl-lakes_global_vector_daily_v2"
 };
 
-const WATER_CACHE_VERSION = "v34";
+const WATER_CACHE_VERSION = "v35";
 
 const STATIONS_CACHE_TTL_SECONDS =
     6 * 60 * 60;
@@ -2127,6 +2127,9 @@ async function getLatestMeasurementByRange(
                 return {
                     latest:
                         result.latest,
+                    previous:
+                        result.previous ||
+                        null,
                     station:
                         catalogue.station,
                     coordinates:
