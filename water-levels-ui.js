@@ -50,7 +50,8 @@
     const state = {
         stations: [],
         loading: false,
-        error: ""
+        error: "",
+        location: null
     };
 
     function get(id){
@@ -1780,11 +1781,26 @@
 
         }).join("");
 
+        const locationSuffix =
+            !currentQuery() &&
+            state.location &&
+            state.location.city
+                ? " near " +
+                    state.location.city +
+                    (
+                        state.location.countryCode
+                            ? ", " +
+                                state.location.countryCode
+                            : ""
+                    )
+                : "";
+
         setResultsText(
             visible.length +
             " live Copernicus station" +
             (visible.length === 1 ? "" : "s") +
-            " found"
+            " found" +
+            locationSuffix
         );
 
         /*
@@ -1909,7 +1925,7 @@
              * distance sort below can reliably choose the closest
              * 400 Canadian stations for this category.
              */
-            if(byId.size >= 600){
+            if(byId.size >= 800){
                 break;
             }
         }
@@ -1972,35 +1988,14 @@
                     return left.index - right.index;
                 });
 
-        const rivers =
-            enriched
-                .filter(function(item){
-                    return item.station.type === "river";
-                })
-                .slice(
-                    0,
-                    CATEGORY_STATION_LIMIT
-                );
-
-        const lakes =
-            enriched
-                .filter(function(item){
-                    return item.station.type === "lake";
-                })
-                .slice(
-                    0,
-                    CATEGORY_STATION_LIMIT
-                );
-
         /*
          * The nearby endpoint is geographic, but the expanding
-         * radius may cross the US border. Keep only Canadian
-         * stations before selecting the final nearest set.
+         * radius may cross the US border. Determine the country
+         * for the full candidate pool before taking the final 400.
          */
         const canadianCandidates =
             await Promise.all(
-                rivers
-                    .concat(lakes)
+                enriched
                     .map(
                         async function(item){
                             const geo =
@@ -2083,6 +2078,10 @@
                 ? input.value.trim()
                 : "";
 
+        if(query){
+            state.location = null;
+        }
+
         /*
          * Fetch a single combined Copernicus result set and apply
          * Rivers/Lakes filtering locally. This avoids slow nested
@@ -2149,6 +2148,9 @@
 
                 state.stations =
                     personalizedStations;
+
+                state.location =
+                    location || null;
 
                 state.error = "";
                 state.loading = false;
@@ -2231,6 +2233,9 @@
 
             state.stations =
                 personalizedStations;
+
+            state.location =
+                location || null;
 
             state.error = "";
             state.loading = false;
