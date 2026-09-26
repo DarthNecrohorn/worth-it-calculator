@@ -1476,7 +1476,7 @@ async function findGeoJsonNode(
         visited++;
 
         const response =
-            await fetchWithTimeout(
+            await fetchCdseWithRedirects(
                 current.url,
                 {
                     headers: {
