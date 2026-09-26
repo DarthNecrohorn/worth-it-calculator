@@ -641,6 +641,10 @@ async function loadNews() {
 
 function openNews() {
 
+    if (typeof window.hideWaterLevelsSection === "function") {
+        window.hideWaterLevelsSection();
+    }
+
     if (typeof window.hideCarsNavigationUi === "function") {
         window.hideCarsNavigationUi();
     } else {
