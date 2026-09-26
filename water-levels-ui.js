@@ -325,13 +325,12 @@
                 ? input.value.trim()
                 : "";
 
-        const type =
-            activeFilter === "rivers"
-                ? "river"
-                : activeFilter === "lakes"
-                    ? "lake"
-                    : "";
-
+        /*
+         * Fetch a single combined Copernicus result set and apply
+         * Rivers/Lakes filtering locally. This avoids slow nested
+         * OData attribute filters when switching tabs while keeping
+         * the exact live Copernicus records.
+         */
         const params =
             new URLSearchParams();
 
@@ -342,12 +341,8 @@
 
         params.set(
             "limit",
-            "24"
+            "48"
         );
-
-        if(type){
-            params.set("type",type);
-        }
 
         if(query){
             params.set("q",query);
