@@ -10245,10 +10245,25 @@ html.settings-open #cryptoFloatingShowLess{
     width:100%;
     max-width:1040px;
     margin:0 auto 14px !important;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    flex-wrap:wrap;
+    gap:6px 10px;
     text-align:center;
     color:var(--muted);
     font-size:12px;
     font-weight:800;
+}
+
+.water-levels-results-row > span{
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+}
+
+.water-levels-results-row .water-levels-search-hint{
+    margin-left:0;
 }
 
 .water-levels-grid{
