@@ -2175,48 +2175,8 @@
             state.location = null;
         }
 
-        /*
-         * Browser cache is the second cache layer:
-         * Cloudflare/CDSE remains authoritative, but previously loaded
-         * station cards can be painted immediately while a fresh request
-         * runs in the background.
-         */
-        if(cached && cached.stations.length){
-            state.stations = cached.stations;
-            state.location = cached.location;
-            state.error = "";
-            state.loading = false;
-
-            updateRefreshAvailability();
-            renderCards();
-
-            /*
-             * A fresh browser-cache entry needs no immediate network call.
-             * Stale entries are shown instantly and refreshed in the
-             * background without replacing the visible cards with loaders.
-             */
-            if(cached.fresh && !options.force){
-                return;
-            }
-        }
-
-        const params =
-            new URLSearchParams();
-
-        params.set("action","stations");
-        params.set("limit",String(ALL_STATION_LIMIT));
-
-        if(query){
-            params.set("q",query);
-        }
-
-        if(options.force){
-            params.set("refresh","1");
-        }
-
-        const requestUrl =
-            "/api/water-levels?" +
-            params.toString();
+        const controller =
+            new AbortController();
 
         if(stationsRequest){
             try{
@@ -2225,12 +2185,11 @@
             catch(error){}
         }
 
-        const controller =
-            new AbortController();
-
         stationsRequest = controller;
 
-        window.clearTimeout(stationsRequestTimer);
+        window.clearTimeout(
+            stationsRequestTimer
+        );
 
         stationsRequestTimer =
             window.setTimeout(
@@ -2240,90 +2199,178 @@
                 query ? 25000 : 90000
             );
 
-        /*
-         * If cards came from the browser cache, keep them visible.
-         * Otherwise show the normal loading state.
-         */
-        state.loading = !(
-            cached &&
-            cached.stations &&
-            cached.stations.length
-        );
+        state.loading = true;
         state.error = "";
-
-        if(state.loading){
-            renderLoading(false);
-        }
 
         try{
 
             /*
-             * Start location detection and the normal catalogue request
-             * at the same time. Previously location detection blocked the
-             * Copernicus request, adding geolocation/reverse-geocoding
-             * latency before any station data could arrive.
+             * Search is global. The normal landing view is location-aware:
+             * Serbia/other countries use country-filtered Copernicus data;
+             * Canada uses country + city proximity.
              */
-            const locationPromise =
-                !query
-                    ? resolveWaterLocation()
-                    : Promise.resolve(null);
-
-            const cataloguePromise =
-                fetch(
-                    requestUrl,
-                    {
-                        method:"GET",
-                        headers:{
-                            "Accept":"application/json"
-                        },
-                        signal: controller.signal
-                    }
-                ).then(async function(response){
-                    const data =
-                        await response.json().catch(function(){
-                            return null;
-                        });
-
-                    if(!response.ok || !data || data.ok === false){
-                        throw new Error(
-                            data && data.error
-                                ? data.error
-                                : "The Copernicus water-level endpoint returned an error."
-                        );
-                    }
-
-                    return data;
-                });
-
             const location =
-                await locationPromise;
+                !query
+                    ? await resolveWaterLocation()
+                    : null;
+
+            if(
+                stationsRequest !== controller
+            ){
+                return;
+            }
+
+            const cacheCountry =
+                location &&
+                location.countryName
+                    ? location.countryName
+                    : null;
 
             const cached =
-                readStationsCache(
-                    query,
-                    location &&
-                    location.countryName
-                        ? location.countryName
-                        : null
-                );
+                !options.force
+                    ? readStationsCache(
+                        query,
+                        cacheCountry
+                    )
+                    : null;
 
             if(
                 cached &&
-                cached.stations.length &&
-                state.stations.length === 0
+                cached.stations.length
             ){
-                state.stations = cached.stations;
-                state.location = cached.location || location || null;
+                state.stations =
+                    cached.stations;
+
+                state.location =
+                    cached.location ||
+                    location ||
+                    null;
+
                 state.error = "";
                 state.loading = false;
 
                 updateRefreshAvailability();
                 renderCards();
 
-                if(cached.fresh && !options.force){
+                /*
+                 * Fresh browser cache is enough for the landing view.
+                 * Stale cache remains visible while the fresh request runs.
+                 */
+                if(cached.fresh){
                     return;
                 }
             }
+
+            if(
+                !query &&
+                location
+            ){
+
+                const countryCode =
+                    String(
+                        location.countryCode || ""
+                    )
+                    .trim()
+                    .toUpperCase();
+
+                const personalizedStations =
+                    await loadLocationPersonalizedStations(
+                        location,
+                        controller,
+                        Boolean(options.force)
+                    );
+
+                if(
+                    stationsRequest !== controller
+                ){
+                    return;
+                }
+
+                /*
+                 * Never fall back to the global catalogue here. A location-
+                 * aware landing page must only show stations belonging to
+                 * the detected country.
+                 */
+                if(
+                    !personalizedStations.length
+                ){
+                    throw new Error(
+                        "No Copernicus water-level stations were found for " +
+                        (
+                            location.countryName ||
+                            countryCode ||
+                            "the detected location"
+                        ) +
+                        "."
+                    );
+                }
+
+                state.stations =
+                    personalizedStations;
+
+                state.location =
+                    location;
+
+                state.error = "";
+                state.loading = false;
+
+                saveStationsCache(
+                    query,
+                    personalizedStations,
+                    location
+                );
+
+                updateRefreshAvailability();
+                renderCards();
+                return;
+            }
+
+            /*
+             * Global search path. This is intentionally independent from
+             * location so searching "Danube", "Cauto", etc. works worldwide.
+             */
+            const params =
+                new URLSearchParams();
+
+            params.set(
+                "action",
+                "stations"
+            );
+
+            params.set(
+                "limit",
+                String(
+                    ALL_STATION_LIMIT
+                )
+            );
+
+            if(query){
+                params.set("q",query);
+            }
+
+            if(options.force){
+                params.set("refresh","1");
+            }
+
+            const response =
+                await fetch(
+                    "/api/water-levels?" +
+                    params.toString(),
+                    {
+                        method:"GET",
+                        headers:{
+                            "Accept":"application/json"
+                        },
+                        signal:
+                            controller.signal
+                    }
+                );
+
+            const data =
+                await response.json()
+                    .catch(function(){
+                        return null;
+                    });
 
             if(
                 stationsRequest !== controller
@@ -2332,118 +2379,36 @@
             }
 
             if(
-                !query &&
-                location
+                !response.ok ||
+                !data ||
+                data.ok === false
             ){
-
-                try{
-
-                    const personalizedStations =
-                        await loadLocationPersonalizedStations(
-                            location,
-                            controller,
-                            Boolean(options.force)
-                        );
-
-                    if(
-                        stationsRequest !== controller
-                    ){
-                        return;
-                    }
-
-                    if(personalizedStations.length){
-                        state.stations =
-                            personalizedStations;
-
-                        state.location =
-                            location;
-
-                        state.error = "";
-                        state.loading = false;
-
-                        saveStationsCache(
-                            query,
-                            personalizedStations,
-                            location
-                        );
-
-                        updateRefreshAvailability();
-                        renderCards();
-                        return;
-                    }
-
-                }
-                catch(error){
-
-                    if(
-                        error &&
-                        error.name === "AbortError"
-                    ){
-                        throw error;
-                    }
-
-                    console.warn(
-                        "Water Levels nearby personalization failed; using catalogue fallback:",
-                        error
-                    );
-
-                }
+                throw new Error(
+                    data &&
+                    data.error
+                        ? data.error
+                        : "The Copernicus water-level endpoint returned an error."
+                );
             }
 
-            const data =
-                await cataloguePromise;
-
-            if(stationsRequest !== controller){
-                return;
-            }
-
-            const rawStations =
+            const stations =
                 Array.isArray(data.stations)
                     ? data.stations
                     : [];
 
-            let personalizedStations = rawStations;
+            state.stations =
+                stations;
 
-            if(!query && location){
-                try{
-                    personalizedStations =
-                        await personalizeWaterStations(
-                            rawStations,
-                            location
-                        );
-                }
-                catch(error){
-                    console.warn(
-                        "Water Levels location personalization failed:",
-                        error
-                    );
+            state.location =
+                null;
 
-                    personalizedStations = rawStations;
-                }
-            }
-
-            /*
-             * A geographic country match is preferred, but it must never
-             * leave the section empty when Copernicus returned usable
-             * global products. Keep the global catalogue as the final
-             * data-availability fallback.
-             */
-            if(
-                !personalizedStations.length &&
-                rawStations.length
-            ){
-                personalizedStations = rawStations;
-            }
-
-            state.stations = personalizedStations;
-            state.location = location || null;
             state.error = "";
             state.loading = false;
 
             saveStationsCache(
                 query,
-                personalizedStations,
-                location
+                stations,
+                null
             );
 
             updateRefreshAvailability();
@@ -2456,65 +2421,103 @@
                 error &&
                 error.name === "AbortError"
             ){
-                if(stationsRequest === controller){
+                if(
+                    stationsRequest === controller
+                ){
                     state.loading = false;
-                    state.error =
-                        cached && cached.stations.length
-                            ? ""
-                            : "The Copernicus water-level request timed out. Please try Refresh again.";
 
-                    updateRefreshAvailability();
-
-                    if(state.error){
-                        renderError(state.error);
-                    }
-                    else{
+                    if(
+                        state.stations.length
+                    ){
+                        state.error = "";
                         renderCards();
                     }
+                    else{
+                        state.error =
+                            "The Copernicus water-level request timed out. Please try Refresh again.";
+
+                        renderError(
+                            state.error
+                        );
+                    }
+
+                    updateRefreshAvailability();
                 }
 
                 return;
             }
 
-            if(stationsRequest !== controller){
+            if(
+                stationsRequest !== controller
+            ){
                 return;
             }
 
             console.error(
-                "Water levels station request failed:",
+                "Water Levels station request failed:",
                 error
             );
 
             /*
-             * Never throw away usable cached cards just because the
-             * background refresh failed.
+             * A stale browser cache is still valid presentation data.
+             * Never replace it with an error screen.
              */
-            if(cached && cached.stations.length){
-                state.stations = cached.stations;
-                state.location = cached.location;
-                state.error = "";
-                state.loading = false;
+            try{
+                const locationCountry =
+                    state.location &&
+                    state.location.countryName
+                        ? state.location.countryName
+                        : null;
 
-                updateRefreshAvailability();
-                renderCards();
-                return;
+                const cachedFallback =
+                    readStationsCache(
+                        query,
+                        locationCountry
+                    );
+
+                if(
+                    cachedFallback &&
+                    cachedFallback.stations.length
+                ){
+                    state.stations =
+                        cachedFallback.stations;
+
+                    state.location =
+                        cachedFallback.location ||
+                        state.location ||
+                        null;
+
+                    state.error = "";
+                    state.loading = false;
+
+                    updateRefreshAvailability();
+                    renderCards();
+                    return;
+                }
             }
+            catch(cacheError){}
 
             state.stations = [];
+
             state.error =
-                error && error.message
+                error &&
+                error.message
                     ? error.message
                     : "Unable to load Copernicus water-level data.";
 
             state.loading = false;
 
             updateRefreshAvailability();
-            renderError(state.error);
+            renderError(
+                state.error
+            );
 
         }
         finally{
 
-            if(stationsRequest === controller){
+            if(
+                stationsRequest === controller
+            ){
                 stationsRequest = null;
 
                 window.clearTimeout(
