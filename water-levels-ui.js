@@ -2689,54 +2689,185 @@
                 : stationIdentity(station);
         }
 
-        function selectCategory(type){
-            const countryMatches =
-                enriched.filter(function(item){
-                    return (
-                        item.station.type === type &&
-                        item.geo.countryMatch
-                    );
-                });
+        async function dedupeSameWaterbodyPlace(items){
+            const counts = new Map();
 
-            if(
-                countryCode === "US" &&
-                location.stateName
-            ){
-                const sameState =
-                    sortByDistance(
-                        countryMatches.filter(function(item){
-                            return item.geo.stateMatch;
-                        })
-                    );
+            items.forEach(function(item){
+                const body = normalizeGeoName(
+                    item.station.waterBody ||
+                    item.station.title ||
+                    item.station.productName ||
+                    ""
+                );
 
-                const otherState =
-                    sortByDistance(
-                        countryMatches.filter(function(item){
-                            return !item.geo.stateMatch;
-                        })
+                if(body){
+                    counts.set(
+                        body,
+                        (counts.get(body) || 0) + 1
                     );
+                }
+            });
 
-                return sameState
-                    .concat(otherState)
-                    .slice(
-                        0,
-                        CATEGORY_STATION_LIMIT
-                    );
+            const targets = items.filter(function(item){
+                const body = normalizeGeoName(
+                    item.station.waterBody ||
+                    item.station.title ||
+                    item.station.productName ||
+                    ""
+                );
+
+                return counts.get(body) > 1;
+            });
+
+            let cursor = 0;
+
+            async function worker(){
+                while(cursor < targets.length){
+                    const item = targets[cursor++];
+                    const station = item.station;
+
+                    if(station.placeName){
+                        station.placeName = localizeWaterPlaceName(
+                            station.placeName,
+                            location
+                        );
+                        continue;
+                    }
+
+                    const coordinates = station.coordinates;
+                    const lat = Number(coordinates && coordinates.latitude);
+                    const lon = Number(coordinates && coordinates.longitude);
+
+                    if(!Number.isFinite(lat) || !Number.isFinite(lon)){
+                        continue;
+                    }
+
+                    const cacheKey = lat.toFixed(4) + "|" + lon.toFixed(4);
+                    let placeName = stationPlaceCache.get(cacheKey) || readStationPlaceCache(cacheKey);
+
+                    if(!placeName){
+                        placeName = await reverseGeocodeStationPlace({
+                            latitude:lat,
+                            longitude:lon
+                        });
+                    }
+
+                    if(placeName){
+                        placeName = localizeWaterPlaceName(placeName,location);
+                        station.placeName = placeName;
+                        stationPlaceCache.set(cacheKey,placeName);
+                        saveStationPlaceCache(cacheKey,placeName);
+                    }
+                }
             }
 
-            return sortByDistance(
-                countryMatches
-            ).slice(
-                0,
+            const workers = [];
+            const workerCount = Math.min(
+                STATION_PLACE_CONCURRENCY,
+                targets.length
+            );
+
+            for(let index = 0; index < workerCount; index++){
+                workers.push(worker());
+            }
+
+            await Promise.all(workers);
+
+            const seen = new Set();
+            const unique = [];
+
+            for(const item of sortByDistance(items)){
+                const station = item.station;
+                const body = normalizeGeoName(
+                    station.waterBody ||
+                    station.title ||
+                    station.productName ||
+                    ""
+                );
+                const place = normalizeGeoName(
+                    station.placeName || ""
+                );
+
+                const coordinates = station.coordinates || {};
+                const lat = Number(coordinates.latitude);
+                const lon = Number(coordinates.longitude);
+                const coordinateKey = Number.isFinite(lat) && Number.isFinite(lon)
+                    ? lat.toFixed(4) + "|" + lon.toFixed(4)
+                    : stationIdentity(station);
+
+                const key =
+                    (station.type || "river") +
+                    "|" +
+                    body +
+                    "|" +
+                    (place || coordinateKey);
+
+                if(seen.has(key)){
+                    continue;
+                }
+
+                seen.add(key);
+                unique.push(item);
+            }
+
+            return unique;
+        }
+
+        function diverseStationSelection(items,limit){
+            const sorted = sortByDistance(items);
+            const seenBodies = new Set();
+            const firstPerBody = [];
+            const remaining = [];
+
+            sorted.forEach(function(item){
+                const body = normalizeGeoName(
+                    item.station.waterBody ||
+                    item.station.title ||
+                    item.station.productName ||
+                    ""
+                ) || stationIdentity(item.station);
+
+                if(!seenBodies.has(body)){
+                    seenBodies.add(body);
+                    firstPerBody.push(item);
+                }else{
+                    remaining.push(item);
+                }
+            });
+
+            return firstPerBody
+                .concat(remaining)
+                .slice(0,limit);
+        }
+
+        async function selectCategory(type){
+            const countryMatches = enriched.filter(function(item){
+                return item.station.type === type && item.geo.countryMatch;
+            });
+
+            let ordered = countryMatches;
+
+            if(countryCode === "US" && location.stateName){
+                const sameState = countryMatches.filter(function(item){
+                    return item.geo.stateMatch;
+                });
+                const otherState = countryMatches.filter(function(item){
+                    return !item.geo.stateMatch;
+                });
+                ordered = sameState.concat(otherState);
+            }
+
+            const unique = await dedupeSameWaterbodyPlace(ordered);
+            return diverseStationSelection(
+                unique,
                 CATEGORY_STATION_LIMIT
             );
         }
-
         const selectedRivers =
-            selectCategory("river");
+            await selectCategory("river");
 
         const selectedLakes =
-            selectCategory("lake");
+            await selectCategory("lake");
 
         const combined =
             selectedRivers
