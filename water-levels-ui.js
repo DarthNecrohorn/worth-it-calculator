@@ -28,6 +28,7 @@
     const STATION_METADATA_CONCURRENCY = 3;
     const STATION_LATEST_CONCURRENCY = 4;
     const STATION_PLACE_CONCURRENCY = 3;
+    const WATER_API_VERSION = "waterlevels50";
 
     const WATER_STATION_PLACE_CACHE = {
         CACHE_KEY: "worthIt.waterLevels.stationPlaces.v2",
@@ -2031,6 +2032,7 @@
                     params.set("action","metadata");
                     params.set("id",station.id);
                     params.set("type",station.type);
+                    params.set("_v",WATER_API_VERSION);
 
                     const metadataController =
                         new AbortController();
@@ -2167,6 +2169,7 @@
                     params.set("action","latest");
                     params.set("id",station.id);
                     params.set("type",station.type);
+                    params.set("_v",WATER_API_VERSION);
 
                     const controller = new AbortController();
                     const timer = window.setTimeout(function(){
@@ -3942,6 +3945,11 @@
         params.set(
             "range",
             activeHistoryRange
+        );
+
+        params.set(
+            "_v",
+            WATER_API_VERSION
         );
 
         try{
