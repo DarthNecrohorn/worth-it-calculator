@@ -9999,11 +9999,39 @@ html.settings-open #cryptoFloatingShowLess{
 ========================================================= */
 
 .water-levels-section{
-    width:var(--ui-content-max);
-    max-width:1180px;
-    min-width:0;
-    margin:0 auto;
+    display:block !important;
+    width:min(1180px,calc(100vw - 32px)) !important;
+    max-width:1180px !important;
+    min-width:0 !important;
+    margin-left:auto !important;
+    margin-right:auto !important;
+    margin-top:0;
+    margin-bottom:0;
     padding:42px 0 60px;
+    box-sizing:border-box;
+}
+
+.water-levels-section > .water-levels-header,
+.water-levels-section > .water-levels-toolbar,
+.water-levels-section > .water-levels-results-row,
+.water-levels-section > .water-levels-grid{
+    width:100%;
+    max-width:1180px;
+    margin-left:auto;
+    margin-right:auto;
+    box-sizing:border-box;
+}
+
+.water-levels-grid{
+    display:grid !important;
+    grid-template-columns:repeat(3,minmax(0,1fr)) !important;
+    gap:18px !important;
+}
+
+.water-level-card{
+    display:block !important;
+    width:100%;
+    box-sizing:border-box;
 }
 
 .water-levels-header{
@@ -10234,11 +10262,16 @@ html.settings-open #cryptoFloatingShowLess{
 
 @media(max-width:600px){
     .water-levels-section{
-        width:calc(100% - 20px);
-        max-width:1180px;
-        margin-left:auto;
-        margin-right:auto;
+        width:calc(100% - 20px) !important;
+        max-width:1180px !important;
+        margin-left:auto !important;
+        margin-right:auto !important;
         padding-top:28px;
+        padding-bottom:50px;
+    }
+
+    .water-levels-grid{
+        grid-template-columns:1fr !important;
     }
 
     .water-levels-header{
