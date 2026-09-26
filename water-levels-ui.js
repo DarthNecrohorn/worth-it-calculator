@@ -22,7 +22,7 @@
 
     const stationMetadataCache = new Map();
     const stationLatestCache = new Map();
-    const ALL_STATION_LIMIT = 1200;
+    const ALL_STATION_LIMIT = 800;
     const CATEGORY_STATION_LIMIT = 400;
     const STATION_METADATA_CONCURRENCY = 3;
     const STATION_LATEST_CONCURRENCY = 4;
