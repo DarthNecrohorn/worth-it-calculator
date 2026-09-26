@@ -2106,7 +2106,9 @@
                     });
                     if(current){
                         current.latestHeight = cached.height;
+                        current.previousHeight = cached.previousHeight;
                         current.latestUncertainty = cached.uncertainty;
+                        current.latestDatetime = cached.datetime;
                         applyLatestToCard(current);
                     }
                     continue;
