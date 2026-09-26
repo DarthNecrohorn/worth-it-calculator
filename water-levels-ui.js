@@ -3796,20 +3796,21 @@
                     '<span>' +
                         escapeHtml(
                             waterUsesUsCustomaryUnits()
-                            ? (
-                                formatNumber(
-                                    values[values.length - 1] * 3.280839895,
-                                    2
-                                ) +
-                                " ft latest"
-                            )
-                            : (
-                                formatNumber(
-                                    values[values.length - 1],
-                                    3
-                                ) +
-                                " m latest"
-                            ) +
+                                ? (
+                                    formatNumber(
+                                        values[values.length - 1] * 3.280839895,
+                                        2
+                                    ) +
+                                    " ft latest"
+                                )
+                                : (
+                                    formatNumber(
+                                        values[values.length - 1],
+                                        3
+                                    ) +
+                                    " m latest"
+                                )
+                        ) +
                     '</span>' +
                 '</div>' +
             '</div>';
