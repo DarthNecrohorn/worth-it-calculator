@@ -10006,7 +10006,7 @@ html.settings-open #cryptoFloatingShowLess{
 
 .water-levels-section{
     display:block;
-    width:min(100% - 32px, 1040px) !important;
+    width:min(1040px, calc(100% - 32px)) !important;
     max-width:1040px !important;
     margin:0 auto !important;
     padding:42px 0 64px !important;
@@ -10297,7 +10297,7 @@ html[data-theme="light"] .water-level-card{
 
 @media(max-width:900px){
     .water-levels-section{
-        width:min(100% - 28px,760px) !important;
+        width:min(760px, calc(100% - 28px)) !important;
     }
 
     .water-levels-grid{
