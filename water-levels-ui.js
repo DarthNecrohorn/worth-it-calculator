@@ -247,7 +247,7 @@
         return "± " + formatNumber(number,3) + " m";
     }
 
-    function formatRelativeWaterLevel(
+    function formatRelativeWaterLevelValue(
         surfaceHeight,
         referenceDatumAltitude
     ){
@@ -272,7 +272,6 @@
                 centimeters * 0.3937007874;
 
             return (
-                "Water level: " +
                 (
                     inches > 0
                         ? "+"
@@ -284,7 +283,6 @@
         }
 
         return (
-            "Water level: " +
             (
                 centimeters > 0
                     ? "+"
@@ -293,6 +291,21 @@
             formatNumber(centimeters,0) +
             " cm"
         );
+    }
+
+    function formatRelativeWaterLevel(
+        surfaceHeight,
+        referenceDatumAltitude
+    ){
+        const value =
+            formatRelativeWaterLevelValue(
+                surfaceHeight,
+                referenceDatumAltitude
+            );
+
+        return value
+            ? "Water level: " + value
+            : "";
     }
 
     function waterLengthSystemName(){
@@ -3927,7 +3940,7 @@
 
                 metric(
                     "Water level",
-                    formatRelativeWaterLevel(
+                    formatRelativeWaterLevelValue(
                         latest &&
                         latest.height,
                         station.referenceDatumAltitude
