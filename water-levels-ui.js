@@ -3773,12 +3773,21 @@
 
                     '<span>' +
                         escapeHtml(
-                            formatNumber(
-                                values[values.length - 1],
-                                3
+                            waterUsesUsCustomaryUnits()
+                            ? (
+                                formatNumber(
+                                    values[values.length - 1] * 3.280839895,
+                                    2
+                                ) +
+                                " ft latest"
                             )
-                        ) +
-                        " m latest" +
+                            : (
+                                formatNumber(
+                                    values[values.length - 1],
+                                    3
+                                ) +
+                                " m latest"
+                            ) +
                     '</span>' +
                 '</div>' +
             '</div>';
@@ -3996,6 +4005,10 @@
             data.latest ||
             null;
 
+        const previous =
+            data.previous ||
+            null;
+
         const trend =
             data.trend ||
             {};
@@ -4013,7 +4026,7 @@
             "waterLevelsDetailHeight",
             latest &&
             Number.isFinite(Number(latest.height))
-                ? formatNumber(latest.height,3) + " m"
+                ? formatWaterSurfaceHeight(latest.height)
                 : "—"
         );
 
@@ -4021,12 +4034,7 @@
             "waterLevelsDetailUncertainty",
             latest &&
             Number.isFinite(Number(latest.uncertainty))
-                ? "± " +
-                    formatNumber(
-                        latest.uncertainty,
-                        3
-                    ) +
-                    " m"
+                ? formatWaterUncertainty(latest.uncertainty)
                 : "—"
         );
 
@@ -4056,11 +4064,12 @@
                 ),
 
                 metric(
-                    "Water level",
-                    formatRelativeWaterLevelValue(
+                    "Change since previous observation",
+                    formatSatelliteChange(
                         latest &&
                         latest.height,
-                        station.referenceDatumAltitude
+                        previous &&
+                        previous.height
                     ) || "—"
                 ),
 
