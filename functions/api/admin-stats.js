@@ -85,6 +85,16 @@ const API_REGISTRY = [
         quotaLabel: "Model/plan dependent"
     },
     {
+        key: "water-levels",
+        name: "Water Levels",
+        emoji: "💧",
+        provider: "Copernicus CLMS / CDSE",
+        endpoint: "/api/water-levels",
+        category: "Water",
+        quotaType: "dynamic",
+        quotaLabel: "Provider dependent"
+    },
+    {
         key: "feedback",
         name: "Feedback",
         emoji: "🐞",
@@ -618,6 +628,7 @@ function getApiEmoji(
     if(key.includes("ai") || key.includes("gemini") || key.includes("groq")) return "🤖";
     if(key.includes("feedback") || key.includes("bug") || key.includes("suggest")) return "🐞";
     if(key.includes("shop") || key.includes("product")) return "🛒";
+    if(key.includes("water") || key.includes("copernicus") || key.includes("clms")) return "💧";
 
     return "🔌";
 }
@@ -658,7 +669,15 @@ function isApiConfigured(
         case "currencies":
         case "exchange-rate":
         case "feedback":
-            return true;
+        case "water-levels":
+            return apiKey === "water-levels"
+                ? Boolean(
+                    String(env.CDSE_ACCESS_TOKEN || "").trim()
+                ) || (
+                    Boolean(String(env.CDSE_USERNAME || "").trim()) &&
+                    Boolean(String(env.CDSE_PASSWORD || "").trim())
+                )
+                : true;
 
         default:
             return false;
