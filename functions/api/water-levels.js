@@ -28,7 +28,7 @@ const WATER_DATASETS = {
     lakes: "wl-lakes_global_vector_daily_v2"
 };
 
-const WATER_CACHE_VERSION = "v17";
+const WATER_CACHE_VERSION = "v18";
 
 const STATIONS_CACHE_TTL_SECONDS =
     2 * 60 * 60;
@@ -2092,7 +2092,7 @@ function extractLatestMeasurementFromTail(
 
     const numberMatch =
         valueText.match(
-            /^[-+]?\\d+(?:\\.\\d+)?(?:[eE][-+]?\\d+)?/
+            /^[-+]?\d+(?:\.\d+)?(?:[eE][-+]?\d+)?/
         );
 
     if(!numberMatch){
@@ -2171,7 +2171,7 @@ function extractLatestMeasurementFromTail(
 
     const datetimeMatch =
         objectText.match(
-            /"(?:Datetime|datetime|DateTime|dateTime|timestamp)"\\s*:\\s*"([^"]+)"/
+            /"(?:Datetime|datetime|DateTime|dateTime|timestamp)"\s*:\s*"([^"]+)"/
         );
 
     if(!datetimeMatch){
@@ -2180,7 +2180,7 @@ function extractLatestMeasurementFromTail(
 
     const uncertaintyMatch =
         objectText.match(
-            /"(?:water_surface_height_uncertainty|associated_uncertainty|uncertainty)"\\s*:\\s*([-+]?\\d+(?:\\.\\d+)?(?:[eE][-+]?\\d+)?)/
+            /"(?:water_surface_height_uncertainty|associated_uncertainty|uncertainty)"\s*:\s*([-+]?\d+(?:\.\d+)?(?:[eE][-+]?\d+)?)/
         );
 
     return {
