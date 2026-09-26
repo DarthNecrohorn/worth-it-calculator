@@ -55,7 +55,7 @@
     const waterStationGeoCache = new Map();
 
     const WATER_STATIONS_CACHE = {
-        CACHE_KEY: "worthIt.waterLevels.stations.v6",
+        CACHE_KEY: "worthIt.waterLevels.stations.v7",
         TTL_MS: 30 * 60 * 1000,
         STALE_MS: 24 * 60 * 60 * 1000
     };
