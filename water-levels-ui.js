@@ -268,7 +268,7 @@
                         ) +
 
                         metric(
-                            "Station ID",
+                            "Station / Cell ID",
                             station.stationId || "—"
                         ) +
 
@@ -958,7 +958,7 @@
             metrics.innerHTML = [
 
                 metric(
-                    "Station identifier",
+                    "Station / Cell ID",
                     station.stationId
                 ),
 
