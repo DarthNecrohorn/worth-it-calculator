@@ -55,7 +55,7 @@
     const waterStationGeoCache = new Map();
 
     const WATER_STATIONS_CACHE = {
-        CACHE_KEY: "worthIt.waterLevels.stations.v4",
+        CACHE_KEY: "worthIt.waterLevels.stations.v5",
         TTL_MS: 30 * 60 * 1000,
         STALE_MS: 24 * 60 * 60 * 1000
     };
@@ -191,6 +191,114 @@
             Number(coordinates.longitude).toFixed(4) +
             "°"
         );
+    }
+
+    function waterUsesUsCustomaryUnits(){
+        const location =
+            state.location ||
+            readWaterLocationCache();
+
+        return (
+            String(
+                location &&
+                location.countryCode || ""
+            ).trim().toUpperCase() === "US"
+        );
+    }
+
+    function formatWaterSurfaceHeight(value){
+        const number = Number(value);
+
+        if(!Number.isFinite(number)){
+            return "—";
+        }
+
+        if(waterUsesUsCustomaryUnits()){
+            return (
+                formatNumber(
+                    number * 3.280839895,
+                    2
+                ) +
+                " ft"
+            );
+        }
+
+        return formatNumber(number,3) + " m";
+    }
+
+    function formatWaterUncertainty(value){
+        const number = Number(value);
+
+        if(!Number.isFinite(number)){
+            return "—";
+        }
+
+        if(waterUsesUsCustomaryUnits()){
+            return (
+                "± " +
+                formatNumber(
+                    number * 3.280839895,
+                    2
+                ) +
+                " ft"
+            );
+        }
+
+        return "± " + formatNumber(number,3) + " m";
+    }
+
+    function formatRelativeWaterLevel(
+        surfaceHeight,
+        referenceDatumAltitude
+    ){
+        const height =
+            Number(surfaceHeight);
+
+        const datum =
+            Number(referenceDatumAltitude);
+
+        if(
+            !Number.isFinite(height) ||
+            !Number.isFinite(datum)
+        ){
+            return "";
+        }
+
+        const centimeters =
+            (height - datum) * 100;
+
+        if(waterUsesUsCustomaryUnits()){
+            const inches =
+                centimeters * 0.3937007874;
+
+            return (
+                "Water level: " +
+                (
+                    inches > 0
+                        ? "+"
+                        : ""
+                ) +
+                formatNumber(inches,1) +
+                " in"
+            );
+        }
+
+        return (
+            "Water level: " +
+            (
+                centimeters > 0
+                    ? "+"
+                    : ""
+            ) +
+            formatNumber(centimeters,0) +
+            " cm"
+        );
+    }
+
+    function waterLengthSystemName(){
+        return waterUsesUsCustomaryUnits()
+            ? "US customary"
+            : "Metric";
     }
 
     function stationIcon(type){
@@ -1665,6 +1773,20 @@
             "";
         station.status =
             sourceStation.status || station.status || "CLMS";
+        station.referenceDatumAltitude =
+            Number.isFinite(
+                Number(
+                    sourceStation.referenceDatumAltitude
+                )
+            )
+                ? Number(
+                    sourceStation.referenceDatumAltitude
+                )
+                : station.referenceDatumAltitude;
+        station.referenceGeoid =
+            sourceStation.referenceGeoid ||
+            station.referenceGeoid ||
+            "";
         station.latestHeight =
             latest && Number.isFinite(Number(latest.height))
                 ? Number(latest.height)
@@ -1709,7 +1831,9 @@
         if(height){
             height.textContent =
                 station.latestHeight != null
-                    ? formatNumber(station.latestHeight,3) + " m"
+                    ? formatWaterSurfaceHeight(
+                        station.latestHeight
+                      )
                     : "—";
         }
 
@@ -1717,10 +1841,19 @@
             "[data-water-card-height-note]"
         );
         if(heightNote){
+            const relativeLevel =
+                formatRelativeWaterLevel(
+                    station.latestHeight,
+                    station.referenceDatumAltitude
+                );
+
             heightNote.textContent =
-                station.latestHeight != null
-                    ? "Latest available observation"
-                    : "Open details for latest measurement";
+                relativeLevel ||
+                (
+                    station.latestHeight != null
+                        ? "Latest available observation"
+                        : "Open details for latest measurement"
+                );
         }
 
         const updated = card.querySelector(
@@ -2117,8 +2250,19 @@
 
         const note = card.querySelector("[data-water-card-height-note]");
         if(note){
-            if(station.latestHeight != null){
-                note.textContent = "Latest available observation";
+            const relativeLevel =
+                formatRelativeWaterLevel(
+                    station.latestHeight,
+                    station.referenceDatumAltitude
+                );
+
+            if(relativeLevel){
+                note.textContent =
+                    relativeLevel +
+                    " · Latest observation";
+            }
+            else if(station.latestHeight != null){
+                note.textContent = "Reference datum unavailable";
             }
             else if(station.latestErrorCode === "CDSE_CONFIGURATION"){
                 note.textContent = "Copernicus download credentials are not configured";
@@ -2941,10 +3085,10 @@
                 ? input.value.trim()
                 : "";
 
-        if(query){
-            state.location = null;
-        }
-
+        /*
+         * Search remains global. Keep the detected user location separately
+         * so unit preferences (metric vs US customary) remain automatic.
+         */
         const controller =
             new AbortController();
 
@@ -3780,6 +3924,15 @@
                 ),
 
                 metric(
+                    "Water level",
+                    formatRelativeWaterLevel(
+                        latest &&
+                        latest.height,
+                        station.referenceDatumAltitude
+                    ) || "—"
+                ),
+
+                metric(
                     "Water body",
                     station.waterBody
                 ),
@@ -3864,10 +4017,9 @@
                             station.referenceDatumAltitude
                         )
                     )
-                        ? formatNumber(
-                            station.referenceDatumAltitude,
-                            3
-                        ) + " m"
+                        ? formatWaterSurfaceHeight(
+                            station.referenceDatumAltitude
+                        )
                         : "—"
                 ),
 
