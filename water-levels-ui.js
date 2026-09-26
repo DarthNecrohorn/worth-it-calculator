@@ -16,6 +16,7 @@
     let activeStation = null;
     let searchTimer = null;
     let stationsRequest = null;
+    let stationsRequestTimer = null;
 
     const state = {
         stations: [],
@@ -372,6 +373,18 @@
         stationsRequest =
             controller;
 
+        window.clearTimeout(
+            stationsRequestTimer
+        );
+
+        stationsRequestTimer =
+            window.setTimeout(
+                function(){
+                    controller.abort();
+                },
+                25000
+            );
+
         state.loading = true;
         state.error = "";
         renderLoading();
@@ -447,6 +460,10 @@
             if(stationsRequest === controller){
                 stationsRequest = null;
             }
+
+            window.clearTimeout(
+                stationsRequestTimer
+            );
 
             /*
              * The success/error branches render after changing
