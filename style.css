@@ -10300,3 +10300,155 @@ html.settings-open #cryptoFloatingShowLess{
     }
 }
 
+
+
+/* WATER LEVELS — modern centered layout override */
+.water-levels-section{
+    display:block !important;
+    width:min(100% - 32px, 1080px) !important;
+    max-width:1080px !important;
+    margin:0 auto !important;
+    padding:38px 0 58px !important;
+    box-sizing:border-box !important;
+}
+
+.water-levels-section > *{
+    box-sizing:border-box !important;
+}
+
+.water-levels-header{
+    width:100% !important;
+    max-width:100% !important;
+    margin:0 0 22px !important;
+    display:flex !important;
+    align-items:flex-end !important;
+    justify-content:space-between !important;
+    gap:24px !important;
+}
+
+.water-levels-header > div:first-child{
+    min-width:0 !important;
+}
+
+.water-levels-header h2{
+    font-size:30px !important;
+    letter-spacing:-.02em !important;
+    margin:9px 0 6px !important;
+}
+
+.water-levels-header p{
+    max-width:680px !important;
+}
+
+.water-levels-refresh{
+    flex:0 0 auto !important;
+    min-height:42px !important;
+    padding:10px 16px !important;
+    border-radius:12px !important;
+}
+
+.water-levels-toolbar{
+    width:100% !important;
+    max-width:100% !important;
+    margin:0 0 14px !important;
+    display:flex !important;
+    align-items:center !important;
+    justify-content:space-between !important;
+    gap:16px !important;
+}
+
+.water-levels-filters{
+    flex:0 0 auto !important;
+}
+
+.water-levels-search-wrap{
+    flex:0 0 340px !important;
+    width:340px !important;
+    min-width:0 !important;
+    max-width:340px !important;
+    box-sizing:border-box !important;
+}
+
+.water-levels-results-row{
+    width:100% !important;
+    margin:0 0 12px !important;
+}
+
+.water-levels-grid{
+    width:100% !important;
+    max-width:100% !important;
+    margin:0 !important;
+    display:grid !important;
+    grid-template-columns:repeat(3,minmax(0,1fr)) !important;
+    gap:16px !important;
+    align-items:stretch !important;
+}
+
+.water-level-card{
+    width:100% !important;
+    min-height:245px !important;
+    padding:18px !important;
+    border-radius:18px !important;
+    box-sizing:border-box !important;
+    background:linear-gradient(145deg,rgba(20,30,50,.96),rgba(11,17,31,.96)) !important;
+    border:1px solid var(--border) !important;
+    box-shadow:var(--shadow) !important;
+}
+
+.water-level-card:hover{
+    transform:translateY(-4px) !important;
+    border-color:rgba(124,92,255,.48) !important;
+}
+
+.water-level-card-metrics{
+    gap:8px !important;
+}
+
+@media(max-width:900px){
+    .water-levels-section{
+        width:min(100% - 28px,720px) !important;
+    }
+    .water-levels-grid{
+        grid-template-columns:repeat(2,minmax(0,1fr)) !important;
+    }
+    .water-levels-search-wrap{
+        flex-basis:300px !important;
+        width:300px !important;
+        max-width:300px !important;
+    }
+}
+
+@media(max-width:650px){
+    .water-levels-section{
+        width:calc(100% - 20px) !important;
+        max-width:none !important;
+        padding:28px 0 48px !important;
+    }
+    .water-levels-header{
+        align-items:stretch !important;
+        flex-direction:column !important;
+        gap:14px !important;
+    }
+    .water-levels-header h2{
+        font-size:24px !important;
+    }
+    .water-levels-refresh{
+        width:auto !important;
+        align-self:flex-start !important;
+    }
+    .water-levels-toolbar{
+        align-items:stretch !important;
+        flex-direction:column !important;
+    }
+    .water-levels-filters{
+        width:100% !important;
+    }
+    .water-levels-search-wrap{
+        flex:0 0 auto !important;
+        width:100% !important;
+        max-width:none !important;
+    }
+    .water-levels-grid{
+        grid-template-columns:1fr !important;
+    }
+}
