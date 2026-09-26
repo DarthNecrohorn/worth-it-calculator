@@ -31,10 +31,10 @@ const WATER_DATASETS = {
 const WATER_CACHE_VERSION = "v27";
 
 const STATIONS_CACHE_TTL_SECONDS =
-    2 * 60 * 60;
+    6 * 60 * 60;
 
 const STATIONS_STALE_TTL_SECONDS =
-    48 * 60 * 60;
+    7 * 24 * 60 * 60;
 
 const PRODUCT_CACHE_TTL_SECONDS =
     6 * 60 * 60;
