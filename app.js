@@ -2523,6 +2523,20 @@ function openWaterLevels() {
 
     hideCarsNavigationUi();
 
+    /*
+     * Reset scroll before changing section visibility. Hiding the
+     * current long page first can otherwise trigger browser scroll
+     * anchoring and produce a visible bottom-to-top jump.
+     */
+    const html = document.documentElement;
+    const body = document.body;
+    const previousScrollBehavior = html.style.scrollBehavior;
+
+    html.style.scrollBehavior = "auto";
+    html.scrollTop = 0;
+    body.scrollTop = 0;
+    window.scrollTo(0, 0);
+
     const homePage = document.getElementById("homePage");
     const weatherSection = document.getElementById("weatherSection");
     const newsSection = document.getElementById("newsSection");
@@ -2547,20 +2561,33 @@ function openWaterLevels() {
         x.style.display = "none";
     });
 
-    if (waterLevelsSection) waterLevelsSection.style.display = "block";
+    if (waterLevelsSection) {
+        waterLevelsSection.style.display = "block";
+    }
 
     const navLinks = document.getElementById("navLinks");
     if (navLinks) navLinks.classList.remove("open");
 
-    document.documentElement.style.overflowY = "auto";
-    document.body.style.overflowY = "auto";
+    html.style.overflowY = "auto";
+    body.style.overflowY = "auto";
 
     if (typeof initWaterLevelsUI === "function") {
         initWaterLevelsUI();
     }
 
-    window.scrollTo({ top: 0, behavior: "auto" });
+    /* Re-assert the top position after the new section has been laid out. */
+    html.scrollTop = 0;
+    body.scrollTop = 0;
+    window.scrollTo(0, 0);
+
+    window.requestAnimationFrame(function(){
+        html.scrollTop = 0;
+        body.scrollTop = 0;
+        window.scrollTo(0, 0);
+        html.style.scrollBehavior = previousScrollBehavior;
+    });
 }
+
 
 window.openWaterLevels = openWaterLevels;
 
