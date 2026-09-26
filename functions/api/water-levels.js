@@ -28,7 +28,7 @@ const WATER_DATASETS = {
     lakes: "wl-lakes_global_vector_daily_v2"
 };
 
-const WATER_CACHE_VERSION = "v19";
+const WATER_CACHE_VERSION = "v20";
 
 const STATIONS_CACHE_TTL_SECONDS =
     2 * 60 * 60;
@@ -4414,12 +4414,13 @@ async function fetchCdseWithRedirects(
          * Copernicus Data Space hosts. Never forward secrets to
          * an unrelated redirect target.
          */
-        if(
-            !(
-                hostname === "dataspace.copernicus.eu" ||
-                hostname.endsWith(".dataspace.copernicus.eu")
-            )
-        ){
+        const approvedHost =
+            hostname === "dataspace.copernicus.eu" ||
+            hostname.endsWith(".dataspace.copernicus.eu") ||
+            hostname === "cloudferro.com" ||
+            hostname.endsWith(".cloudferro.com");
+
+        if(!approvedHost){
             try{
                 await response.body?.cancel();
             }catch(error){}
