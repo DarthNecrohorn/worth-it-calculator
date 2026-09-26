@@ -28,7 +28,7 @@ const WATER_DATASETS = {
     lakes: "wl-lakes_global_vector_daily_v2"
 };
 
-const WATER_CACHE_VERSION = "v15";
+const WATER_CACHE_VERSION = "v16";
 
 const STATIONS_CACHE_TTL_SECONDS =
     2 * 60 * 60;
@@ -722,6 +722,25 @@ async function handleLatest(
                 }
             );
 
+        if(
+            !result ||
+            !result.latest ||
+            !Number.isFinite(
+                Number(result.latest.height)
+            ) ||
+            !result.latest.datetime
+        ){
+            const error =
+                new Error(
+                    "No usable Copernicus latest water-level measurement was found."
+                );
+
+            error.code =
+                "CDSE_NO_MEASUREMENT";
+
+            throw error;
+        }
+
         const response =
             jsonResponse(
                 {
@@ -729,7 +748,7 @@ async function handleLatest(
                     productId,
                     type,
                     latest:
-                        result.latest || null,
+                        result.latest,
                     station:
                         result.station || null,
                     coordinates:
@@ -810,6 +829,26 @@ async function handleLatest(
                         "CDSE_AUTH"
                 },
                 503,
+                {
+                    "Cache-Control":
+                        "no-store"
+                }
+            );
+        }
+
+        if(
+            error &&
+            error.code === "CDSE_NO_MEASUREMENT"
+        ){
+            return jsonResponse(
+                {
+                    ok: false,
+                    error:
+                        "No usable latest Copernicus water-level measurement was found.",
+                    code:
+                        "CDSE_NO_MEASUREMENT"
+                },
+                502,
                 {
                     "Cache-Control":
                         "no-store"
@@ -1894,7 +1933,7 @@ async function fetchLatestRangeChunk(
                     knownNodeUrl,
                     accessToken,
                     rangeBytes,
-                    contentLength
+                    undefined
                 );
 
             if(
