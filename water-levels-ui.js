@@ -819,7 +819,7 @@
         };
 
         waterStationGeoCache.set(
-                geoCacheKey,
+            geoCacheKey,
             result
         );
 
@@ -2082,12 +2082,6 @@
             state.location = null;
         }
 
-        /*
-         * Fetch a single combined Copernicus result set and apply
-         * Rivers/Lakes filtering locally. This avoids slow nested
-         * OData attribute filters when switching tabs while keeping
-         * the exact live Copernicus records.
-         */
         const params =
             new URLSearchParams();
 
@@ -2117,7 +2111,44 @@
 
         if(stationsRequest){
             try{
+                stationsRequest.abort();
+            }
+            catch(error){}
+        }
 
+        const controller =
+            new AbortController();
+
+        stationsRequest =
+            controller;
+
+        window.clearTimeout(
+            stationsRequestTimer
+        );
+
+        stationsRequestTimer =
+            window.setTimeout(
+                function(){
+                    controller.abort();
+                },
+                query
+                    ? 25000
+                    : 90000
+            );
+
+        state.loading = true;
+        state.error = "";
+        renderLoading(
+            options.preserveCards === true
+        );
+
+        try{
+
+            /*
+             * Location is resolved before the catalogue request
+             * only when there is no active search. Searching remains
+             * global and unchanged.
+             */
             let location = null;
 
             if(!query){
@@ -2125,6 +2156,11 @@
                     await resolveWaterLocation();
             }
 
+            /*
+             * Canada gets a dedicated proximity search around the
+             * user's city/coordinates because the country contains
+             * a very large number of water-level stations.
+             */
             if(
                 !query &&
                 location &&
@@ -2150,10 +2186,11 @@
                     personalizedStations;
 
                 state.location =
-                    location || null;
+                    location;
 
                 state.error = "";
                 state.loading = false;
+
                 updateRefreshAvailability();
                 renderCards();
 
@@ -2161,9 +2198,7 @@
             }
 
             /*
-             * Default global catalogue path. For non-Canada users
-             * the existing country / US-state personalization is
-             * applied locally after the catalogue response arrives.
+             * Default catalogue path for all other locations.
              */
             const response =
                 await fetch(
@@ -2184,15 +2219,17 @@
                         return null;
                     });
 
-            /*
-             * A newer search/refresh may already own the UI.
-             * Never let an older request overwrite its state.
-             */
-            if(stationsRequest !== controller){
+            if(
+                stationsRequest !== controller
+            ){
                 return;
             }
 
-            if(!response.ok || !data || data.ok === false){
+            if(
+                !response.ok ||
+                !data ||
+                data.ok === false
+            ){
                 throw new Error(
                     data &&
                     data.error
@@ -2239,25 +2276,38 @@
 
             state.error = "";
             state.loading = false;
+
             updateRefreshAvailability();
             renderCards();
 
-        }catch(error){
+        }
+        catch(error){
 
             if(
                 error &&
                 error.name === "AbortError"
             ){
-                if(stationsRequest === controller){
+
+                if(
+                    stationsRequest === controller
+                ){
                     state.loading = false;
                     state.error =
                         "The Copernicus water-level request timed out. Please try Refresh again.";
-                    renderError(state.error);
+
+                    updateRefreshAvailability();
+
+                    renderError(
+                        state.error
+                    );
                 }
+
                 return;
             }
 
-            if(stationsRequest !== controller){
+            if(
+                stationsRequest !== controller
+            ){
                 return;
             }
 
@@ -2267,6 +2317,7 @@
             );
 
             state.stations = [];
+
             state.error =
                 error &&
                 error.message
@@ -2274,26 +2325,26 @@
                     : "Unable to load Copernicus water-level data.";
 
             state.loading = false;
+
             updateRefreshAvailability();
 
             renderError(
                 state.error
             );
 
-        }finally{
+        }
+        finally{
 
-            if(stationsRequest === controller){
+            if(
+                stationsRequest === controller
+            ){
+
                 stationsRequest = null;
 
                 window.clearTimeout(
                     stationsRequestTimer
                 );
 
-                /*
-                 * Success/error branches already render with the
-                 * correct loading state. This is only a safety net
-                 * for unexpected exits.
-                 */
                 if(state.loading){
                     state.loading = false;
                 }
