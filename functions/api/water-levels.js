@@ -28,7 +28,7 @@ const WATER_DATASETS = {
     lakes: "wl-lakes_global_vector_daily_v2"
 };
 
-const WATER_CACHE_VERSION = "v14";
+const WATER_CACHE_VERSION = "v15";
 
 const STATIONS_CACHE_TTL_SECONDS =
     2 * 60 * 60;
@@ -1361,11 +1361,20 @@ async function getLatestMeasurementByRange(
 
         try{
 
+            const knownNodeUrl =
+                buildKnownWaterLevelNodeUrl(
+                    productId,
+                    catalogue.station &&
+                    catalogue.station.productName
+                );
+
             const result =
                 await fetchLatestRangeChunk(
                     productId,
                     token,
-                    rangeBytes
+                    rangeBytes,
+                    knownNodeUrl,
+                    catalogue.contentLength
                 );
 
             if(
@@ -1800,11 +1809,121 @@ async function fetchLatestRangeFromUrl(
 }
 
 
+function buildKnownWaterLevelNodeUrl(
+    productId,
+    productName
+) {
+
+    const name =
+        String(
+            productName || ""
+        ).trim();
+
+    if(!name){
+        return "";
+    }
+
+    const folderName =
+        name;
+
+    let fileName =
+        "";
+
+    if(
+        /_geojson$/i.test(name)
+    ){
+        fileName =
+            name.replace(
+                /_geojson$/i,
+                ""
+            ) +
+            ".json";
+    }
+    else if(
+        /\.geojson$/i.test(name)
+    ){
+        fileName =
+            name.replace(
+                /\.geojson$/i,
+                ""
+            ) +
+            ".json";
+    }
+    else if(
+        /\.json$/i.test(name)
+    ){
+        fileName =
+            name;
+    }
+    else{
+        fileName =
+            name +
+            ".json";
+    }
+
+    return (
+        CDSE_DOWNLOAD_BASE +
+        "(" +
+        encodeURIComponent(productId) +
+        ")" +
+        "/Nodes(" +
+        encodeURIComponent(folderName) +
+        ")" +
+        "/Nodes(" +
+        encodeURIComponent(fileName) +
+        ")" +
+        "/$value"
+    );
+}
+
+
 async function fetchLatestRangeChunk(
     productId,
     accessToken,
-    rangeBytes
+    rangeBytes,
+    knownNodeUrl,
+    contentLength
 ) {
+
+    if(knownNodeUrl){
+
+        try{
+
+            const knownNodeResult =
+                await fetchLatestRangeFromUrl(
+                    knownNodeUrl,
+                    accessToken,
+                    rangeBytes,
+                    contentLength
+                );
+
+            if(
+                knownNodeResult &&
+                (
+                    knownNodeResult.latest ||
+                    knownNodeResult.retryWithLargerRange
+                )
+            ){
+                return knownNodeResult;
+            }
+
+        }
+        catch(error){
+
+            if(
+                error &&
+                error.code === "CDSE_AUTH"
+            ){
+                throw error;
+            }
+
+            /*
+             * Fall back to the root product and recursive node
+             * discovery if the predictable CLMS filename is not
+             * available at this product.
+             */
+        }
+    }
 
     const rootUrl =
         CDSE_DOWNLOAD_BASE +
