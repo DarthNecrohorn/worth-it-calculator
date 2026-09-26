@@ -28,7 +28,7 @@ const WATER_DATASETS = {
     lakes: "wl-lakes_global_vector_daily_v2"
 };
 
-const WATER_CACHE_VERSION = "v20";
+const WATER_CACHE_VERSION = "v21";
 
 const STATIONS_CACHE_TTL_SECONDS =
     2 * 60 * 60;
@@ -1414,6 +1414,69 @@ async function getLatestMeasurementByRange(
 
     let lastError = null;
 
+    const knownNodeUrl =
+        buildKnownWaterLevelNodeUrl(
+            productId,
+            catalogue.station &&
+            catalogue.station.productName
+        );
+
+    /*
+     * Preferred path: download the exact small JSON asset for
+     * this station and parse it normally. This avoids Range
+     * boundary problems and matches the official CDSE Nodes
+     * structure for CLMS Water Level products.
+     */
+    if(knownNodeUrl){
+
+        try{
+
+            const direct =
+                await downloadLatestJsonFromNode(
+                    knownNodeUrl,
+                    token,
+                    productId,
+                    type
+                );
+
+            if(
+                direct &&
+                direct.latest
+            ){
+                return {
+                    latest:
+                        direct.latest,
+                    station:
+                        catalogue.station,
+                    coordinates:
+                        direct.coordinates ||
+                        catalogue.coordinates,
+                    measurementCount:
+                        direct.measurementCount
+                };
+            }
+
+        }
+        catch(error){
+
+            lastError = error;
+
+            if(
+                error &&
+                error.code === "CDSE_AUTH"
+            ){
+                memoryToken = null;
+                memoryTokenExpiresAt = 0;
+                throw error;
+            }
+
+            /*
+             * Continue to the lightweight Range fallback below.
+             */
+        }
+
+    }
+
     for(
         const rangeBytes of LATEST_RANGE_STEPS
     ){
@@ -1505,6 +1568,145 @@ async function getLatestMeasurementByRange(
             catalogue.coordinates,
         measurementCount:
             0
+    };
+
+}
+
+
+async function downloadLatestJsonFromNode(
+    productUrl,
+    accessToken,
+    productId,
+    type
+) {
+
+    const response =
+        await fetchCdseWithRedirects(
+            productUrl,
+            {
+                headers: {
+                    "Authorization":
+                        "Bearer " +
+                        accessToken,
+                    "Accept":
+                        "application/json,application/geo+json,*/*"
+                }
+            },
+            DOWNLOAD_TIMEOUT_MS
+        );
+
+    if(
+        response.status === 401 ||
+        response.status === 403
+    ){
+        const error =
+            new Error(
+                "Copernicus product download authentication failed."
+            );
+
+        error.code = "CDSE_AUTH";
+        error.status = response.status;
+
+        throw error;
+    }
+
+    if(!response.ok){
+        const body =
+            await safeReadText(response);
+
+        throw new Error(
+            "Copernicus station JSON download failed (" +
+            response.status +
+            "): " +
+            body.slice(0,300)
+        );
+    }
+
+    const contentLength =
+        Number(
+            response.headers.get("content-length") || 0
+        );
+
+    /*
+     * A single station product should be a small JSON asset.
+     * Refuse unexpectedly huge responses rather than letting a
+     * Worker parse an enormous object.
+     */
+    if(
+        contentLength > 8 * 1024 * 1024
+    ){
+        throw new Error(
+            "Copernicus station JSON asset is unexpectedly large."
+        );
+    }
+
+    const bytes =
+        new Uint8Array(
+            await response.arrayBuffer()
+        );
+
+    if(
+        !bytes.length
+    ){
+        throw new Error(
+            "Copernicus station JSON asset is empty."
+        );
+    }
+
+    const text =
+        new TextDecoder().decode(
+            bytes
+        );
+
+    let payload;
+
+    try{
+        payload =
+            JSON.parse(text);
+    }
+    catch(error){
+        throw new Error(
+            "Copernicus station JSON asset is not valid JSON."
+        );
+    }
+
+    const normalized =
+        normalizeProductPayload(
+            payload,
+            {
+                productId,
+                type
+            }
+        );
+
+    const measurements =
+        Array.isArray(
+            normalized.measurements
+        )
+            ? normalized.measurements
+            : [];
+
+    if(!measurements.length){
+        return {
+            latest: null,
+            coordinates:
+                normalized.coordinates ||
+                null,
+            measurementCount:
+                0
+        };
+    }
+
+    return {
+        latest:
+            measurements[
+                measurements.length - 1
+            ],
+        coordinates:
+            normalized.coordinates ||
+            null,
+        measurementCount:
+            measurements.length
     };
 
 }
