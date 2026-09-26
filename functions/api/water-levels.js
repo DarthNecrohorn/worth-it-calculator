@@ -28,7 +28,7 @@ const WATER_DATASETS = {
     lakes: "wl-lakes_global_vector_daily_v2"
 };
 
-const WATER_CACHE_VERSION = "v33";
+const WATER_CACHE_VERSION = "v34";
 
 const STATIONS_CACHE_TTL_SECONDS =
     6 * 60 * 60;
@@ -2659,13 +2659,31 @@ async function fetchLatestRangeFromUrl(
 
     const latest =
         extractLatestMeasurementFromTail(
-            text
+            text,
+            0
+        );
+
+    const previous =
+        extractLatestMeasurementFromTail(
+            text,
+            1
         );
 
     if(latest){
+        /*
+         * When Range is partial, keep enlarging it until we can also
+         * identify the previous observation. That gives the UI a real
+         * centimetre/inch change instead of treating missing data as 0.
+         */
         return {
             latest,
-            retryWithLargerRange: false
+            previous,
+            retryWithLargerRange:
+                !previous &&
+                (
+                    response.status === 206 ||
+                    !!contentRange
+                )
         };
     }
 
@@ -2879,7 +2897,8 @@ async function fetchLatestRangeChunk(
 
 
 function extractLatestMeasurementFromTail(
-    text
+    text,
+    occurrenceFromEnd = 0
 ) {
 
     const source =
@@ -2901,28 +2920,60 @@ function extractLatestMeasurementFromTail(
         '"WaterSurfaceHeightAboveReferenceDatum"'
     ];
 
-    let keyPosition = -1;
-    let keyName = "";
+    const keyPositions = [];
 
     for(
         const key of candidates
     ){
-        const position =
-            source.lastIndexOf(
-                key
-            );
+        let searchFrom = 0;
 
-        if(
-            position > keyPosition
-        ){
-            keyPosition = position;
-            keyName = key;
+        while(searchFrom < source.length){
+            const position =
+                source.indexOf(
+                    key,
+                    searchFrom
+                );
+
+            if(position < 0){
+                break;
+            }
+
+            keyPositions.push({
+                position,
+                key
+            });
+
+            searchFrom =
+                position + key.length;
         }
     }
 
-    if(keyPosition < 0){
+    keyPositions.sort(function(left,right){
+        return left.position - right.position;
+    });
+
+    const targetIndex =
+        keyPositions.length -
+        1 -
+        Math.max(
+            0,
+            Math.floor(
+                Number(occurrenceFromEnd) || 0
+            )
+        );
+
+    if(
+        targetIndex < 0 ||
+        !keyPositions[targetIndex]
+    ){
         return null;
     }
+
+    const keyPosition =
+        keyPositions[targetIndex].position;
+
+    const keyName =
+        keyPositions[targetIndex].key;
 
     const colon =
         source.indexOf(
