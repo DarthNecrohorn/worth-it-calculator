@@ -11084,6 +11084,10 @@ function handleVehicleSearch(
 
 async function openCars() {
 
+    if (typeof window.hideWaterLevelsSection === "function") {
+        window.hideWaterLevelsSection();
+    }
+
     /*
      * Cars is a standalone top-level section. Hide everything else
      * inside <main> before doing any asynchronous catalog work.
