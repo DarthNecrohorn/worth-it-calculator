@@ -1921,7 +1921,9 @@ function normalizeMeasurement(
 
     const datetime =
         firstNonEmpty(
+            item.Datetime,
             item.datetime,
+            item.DateTime,
             item.dateTime,
             item.timestamp,
             ""
