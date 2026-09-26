@@ -28,7 +28,7 @@ const WATER_DATASETS = {
     lakes: "wl-lakes_global_vector_daily_v2"
 };
 
-const WATER_CACHE_VERSION = "v16";
+const WATER_CACHE_VERSION = "v17";
 
 const STATIONS_CACHE_TTL_SECONDS =
     2 * 60 * 60;
@@ -2040,79 +2040,148 @@ function extractLatestMeasurementFromTail(
     }
 
     /*
-     * CLMS water-level measurement objects are flat JSON objects.
-     * Extract complete objects that contain the current height
-     * field, then use the last one in the tail.
+     * The CLMS measurement objects are flat JSON objects.
+     * Locate the last height field first instead of running a
+     * large global regex across the entire range chunk.
      */
-    const pattern =
-        /\{[^{}]*(?:"water_surface_height_above_reference_datum"|"WaterSurfaceHeightAboveReferenceDatum")\s*:\s*([-+]?\d+(?:\.\d+)?(?:[eE][-+]?\d+)?)[^{}]*\}/gi;
+    const candidates = [
+        '"water_surface_height_above_reference_datum"',
+        '"WaterSurfaceHeightAboveReferenceDatum"'
+    ];
 
-    let match = null;
-    let candidate = null;
+    let keyPosition = -1;
+    let keyName = "";
 
-    while(
-        (match = pattern.exec(source)) !== null
+    for(
+        const key of candidates
     ){
-        candidate = match;
+        const position =
+            source.lastIndexOf(
+                key
+            );
+
+        if(
+            position > keyPosition
+        ){
+            keyPosition = position;
+            keyName = key;
+        }
     }
 
+    if(keyPosition < 0){
+        return null;
+    }
+
+    const colon =
+        source.indexOf(
+            ":",
+            keyPosition + keyName.length
+        );
+
+    if(colon < 0){
+        return null;
+    }
+
+    const valueText =
+        source
+            .slice(
+                colon + 1,
+                colon + 160
+            )
+            .trim();
+
+    const numberMatch =
+        valueText.match(
+            /^[-+]?\\d+(?:\\.\\d+)?(?:[eE][-+]?\\d+)?/
+        );
+
+    if(!numberMatch){
+        return null;
+    }
+
+    const height =
+        numberOrNull(
+            numberMatch[0]
+        );
+
+    if(!Number.isFinite(height)){
+        return null;
+    }
+
+    /*
+     * Find the containing object. If its opening brace is
+     * outside the current range, the caller will request a
+     * larger range.
+     */
+    const objectStart =
+        source.lastIndexOf(
+            "{",
+            keyPosition
+        );
+
+    const objectEnd =
+        source.indexOf(
+            "}",
+            colon
+        );
+
     if(
-        !candidate
+        objectStart < 0 ||
+        objectEnd < 0 ||
+        objectEnd <= objectStart
     ){
         return null;
     }
 
     const objectText =
-        candidate[0];
-
-    let object = null;
+        source.slice(
+            objectStart,
+            objectEnd + 1
+        );
 
     try{
-        object =
+
+        const object =
             JSON.parse(
                 objectText
             );
-    }
-    catch(error){
-        /*
-         * Fall back to key-level extraction for JSON fragments
-         * that contain escaped/unusual formatting.
-         */
-    }
 
-    if(object){
         const normalized =
-            normalizeMeasurement(object);
+            normalizeMeasurement(
+                object
+            );
 
         if(
-            Number.isFinite(normalized.height) &&
+            Number.isFinite(
+                normalized.height
+            ) &&
             normalized.datetime
         ){
             return normalized;
         }
-    }
 
-    const height =
-        numberOrNull(
-            candidate[1]
-        );
+    }
+    catch(error){
+        /*
+         * The object can start before the byte-range boundary or
+         * otherwise be incomplete. Fall back to small key-level
+         * extraction from the visible fragment.
+         */
+    }
 
     const datetimeMatch =
         objectText.match(
-            /["'](?:Datetime|datetime|DateTime|dateTime|timestamp)["']\s*:\s*["']([^"']+)["']/
+            /"(?:Datetime|datetime|DateTime|dateTime|timestamp)"\\s*:\\s*"([^"]+)"/
         );
+
+    if(!datetimeMatch){
+        return null;
+    }
 
     const uncertaintyMatch =
         objectText.match(
-            /["'](?:water_surface_height_uncertainty|associated_uncertainty|uncertainty)["']\s*:\s*([-+]?\d+(?:\.\d+)?(?:[eE][-+]?\d+)?)/i
+            /"(?:water_surface_height_uncertainty|associated_uncertainty|uncertainty)"\\s*:\\s*([-+]?\\d+(?:\\.\\d+)?(?:[eE][-+]?\\d+)?)/
         );
-
-    if(
-        !Number.isFinite(height) ||
-        !datetimeMatch
-    ){
-        return null;
-    }
 
     return {
         identifier: "",
@@ -2122,7 +2191,9 @@ function extractLatestMeasurementFromTail(
         height,
         uncertainty:
             uncertaintyMatch
-                ? numberOrNull(uncertaintyMatch[1])
+                ? numberOrNull(
+                    uncertaintyMatch[1]
+                  )
                 : null,
         satellite: "",
         groundTrack: null,
