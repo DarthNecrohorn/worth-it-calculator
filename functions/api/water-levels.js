@@ -28,7 +28,7 @@ const WATER_DATASETS = {
     lakes: "wl-lakes_global_vector_daily_v2"
 };
 
-const WATER_CACHE_VERSION = "v39";
+const WATER_CACHE_VERSION = "v40";
 
 const STATIONS_CACHE_TTL_SECONDS =
     6 * 60 * 60;
@@ -4082,6 +4082,11 @@ function buildDetailResponse(
             ? all[all.length - 1]
             : null;
 
+    const previous =
+        all.length > 1
+            ? all[all.length - 2]
+            : null;
+
     const selectedLatest =
         filtered.length
             ? filtered[filtered.length - 1]
@@ -4121,6 +4126,9 @@ function buildDetailResponse(
 
         latest:
             selectedLatest || null,
+
+        previous:
+            previous || null,
 
         trend,
 
