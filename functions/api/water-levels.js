@@ -332,7 +332,7 @@ async function handleStations(
                     stations.length,
 
                 totalCount:
-                    results.reduce(
+                    successfulResults.reduce(
                         function(total, items) {
                             return total + items.length;
                         },
