@@ -22,7 +22,7 @@
 
     const stationMetadataCache = new Map();
     const stationLatestCache = new Map();
-    const ALL_STATION_LIMIT = 48;
+    const ALL_STATION_LIMIT = 24;
     const CATEGORY_STATION_LIMIT = 200;
     const STATION_METADATA_CONCURRENCY = 3;
     const STATION_LATEST_CONCURRENCY = 4;
@@ -1873,8 +1873,16 @@
         );
 
         /*
-         * Station metadata is already present in the station-list response.
-         * Load latest measurements only for cards near the viewport.
+         * Initial station cards are deliberately lightweight so the first
+         * paint is fast. Enrich only the visible first batch with the
+         * heavier Copernicus metadata request after the cards are rendered.
+         */
+        void loadStationMetadata(
+            visible.slice(0,24)
+        );
+
+        /*
+         * Latest measurements remain viewport-driven.
          */
         observeLatestCards();
     }
