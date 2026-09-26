@@ -1,3 +1,5 @@
+import { recordAdminApiUsage } from "../lib/admin-usage.js";
+
 /* =========================================================
    WORTH IT — WATER LEVELS API
    Copernicus CLMS / CDSE
@@ -256,6 +258,11 @@ async function handleStations(
 
     const requestPromise =
         (async function(){
+
+    recordAdminApiUsage(context, {
+        apiKey: "water-levels",
+        provider: "Copernicus CLMS / CDSE"
+    });
 
             const datasets =
                 type === "river"
@@ -576,6 +583,11 @@ async function handleNearby(
     const requestPromise =
         (async function(){
 
+    recordAdminApiUsage(context, {
+        apiKey: "water-levels",
+        provider: "Copernicus CLMS / CDSE"
+    });
+
             const stations =
                 await searchNearbyDatasetProducts({
                     type,
@@ -678,6 +690,11 @@ async function handleMetadata(
             400
         );
     }
+
+    recordAdminApiUsage(context, {
+        apiKey: "water-levels",
+        provider: "Copernicus CLMS / CDSE"
+    });
 
     try {
 
@@ -1007,6 +1024,11 @@ async function handleLatest(
         }
     }
 
+    recordAdminApiUsage(context, {
+        apiKey: "water-levels",
+        provider: "Copernicus CLMS / CDSE"
+    });
+
     try {
 
         /*
@@ -1297,6 +1319,11 @@ async function handleDetails(
         }
 
     }
+
+    recordAdminApiUsage(context, {
+        apiKey: "water-levels",
+        provider: "Copernicus CLMS / CDSE"
+    });
 
     try {
 
