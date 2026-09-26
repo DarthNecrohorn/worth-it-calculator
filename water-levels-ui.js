@@ -925,6 +925,7 @@
 
             state.error = "";
             state.loading = false;
+            updateRefreshAvailability();
             renderCards();
 
         }catch(error){
@@ -959,6 +960,7 @@
                     : "Unable to load Copernicus water-level data.";
 
             state.loading = false;
+            updateRefreshAvailability();
 
             renderError(
                 state.error
@@ -1805,12 +1807,90 @@
         );
     }
 
+    function updateRefreshAvailability(){
+        const button =
+            get("waterLevelsRefresh");
+
+        if(!button) return;
+
+        const hasLoadedStations =
+            Array.isArray(state.stations) &&
+            state.stations.length > 0;
+
+        button.disabled =
+            hasLoadedStations;
+
+        button.setAttribute(
+            "aria-disabled",
+            hasLoadedStations
+                ? "true"
+                : "false"
+        );
+    }
+
     function setupRefresh(){
         const button =
             get("waterLevelsRefresh");
 
+        if(!button) return;
+
+        updateRefreshAvailability();
+
+        if(button.dataset.ready !== "true"){
+            button.dataset.ready = "true";
+
+            button.addEventListener(
+                "click",
+                function(){
+
+                    if(button.disabled){
+                        return;
+                    }
+
+                    loadStations({
+                        force:true,
+                        preserveCards:true
+                    });
+
+                    button.classList.remove(
+                        "is-refreshing"
+                    );
+
+                    void button.offsetWidth;
+
+                    button.classList.add(
+                        "is-refreshing"
+                    );
+
+                    window.clearTimeout(
+                        button._waterRefreshTimer
+                    );
+
+                    button._waterRefreshTimer =
+                        window.setTimeout(
+                            function(){
+                                button.classList.remove(
+                                    "is-refreshing"
+                                );
+                            },
+                            600
+                        );
+
+                }
+            );
+        }
+    }
+
+    function setupRefreshInfo(){
+        const button =
+            get("waterLevelsRefreshInfoButton");
+
+        const popover =
+            get("waterLevelsRefreshInfo");
+
         if(
             !button ||
+            !popover ||
             button.dataset.ready === "true"
         ){
             return;
@@ -1818,39 +1898,55 @@
 
         button.dataset.ready = "true";
 
+        function close(){
+            popover.hidden = true;
+            button.setAttribute(
+                "aria-expanded",
+                "false"
+            );
+        }
+
+        function toggle(){
+            popover.hidden =
+                !popover.hidden;
+
+            button.setAttribute(
+                "aria-expanded",
+                popover.hidden
+                    ? "false"
+                    : "true"
+            );
+        }
+
         button.addEventListener(
             "click",
-            function(){
+            function(event){
+                event.stopPropagation();
+                toggle();
+            }
+        );
 
-                loadStations({
-                    force:true,
-                    preserveCards:true
-                });
+        document.addEventListener(
+            "click",
+            function(event){
+                if(
+                    popover.hidden ||
+                    popover.contains(event.target) ||
+                    event.target === button
+                ){
+                    return;
+                }
 
-                button.classList.remove(
-                    "is-refreshing"
-                );
+                close();
+            }
+        );
 
-                void button.offsetWidth;
-
-                button.classList.add(
-                    "is-refreshing"
-                );
-
-                window.clearTimeout(
-                    button._waterRefreshTimer
-                );
-
-                button._waterRefreshTimer =
-                    window.setTimeout(
-                        function(){
-                            button.classList.remove(
-                                "is-refreshing"
-                            );
-                        },
-                        600
-                    );
-
+        document.addEventListener(
+            "keydown",
+            function(event){
+                if(event.key === "Escape"){
+                    close();
+                }
             }
         );
     }
@@ -2056,6 +2152,8 @@
         setupFilters();
         setupSearch();
         setupRefresh();
+        setupRefreshInfo();
+        updateRefreshAvailability();
         setupCardActions();
         setupDetailModal();
         setupKeyboard();
