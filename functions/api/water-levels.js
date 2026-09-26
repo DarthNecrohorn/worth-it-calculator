@@ -28,7 +28,7 @@ const WATER_DATASETS = {
     lakes: "wl-lakes_global_vector_daily_v2"
 };
 
-const WATER_CACHE_VERSION = "v38";
+const WATER_CACHE_VERSION = "v39";
 
 const STATIONS_CACHE_TTL_SECONDS =
     6 * 60 * 60;
@@ -696,6 +696,22 @@ async function handleMetadata(
                 }
             );
 
+        /*
+         * The cards already request this metadata for every visible
+         * station. Enrich the same response with the latest two
+         * Copernicus observations so the card can show the real
+         * change immediately, without waiting for IntersectionObserver.
+         */
+        const latestResult =
+            await getLatestMeasurementByRange(
+                context,
+                {
+                    productId,
+                    type,
+                    forceRefresh
+                }
+            );
+
         return jsonResponse(
             {
                 ok: true,
@@ -705,8 +721,21 @@ async function handleMetadata(
                     product.station,
                 coordinates:
                     product.coordinates,
+                latest:
+                    latestResult &&
+                    latestResult.latest
+                        ? latestResult.latest
+                        : null,
+                previous:
+                    latestResult &&
+                    latestResult.previous
+                        ? latestResult.previous
+                        : null,
                 measurementCount:
-                    null,
+                    latestResult &&
+                    latestResult.measurementCount != null
+                        ? latestResult.measurementCount
+                        : null,
                 source: {
                     provider:
                         "Copernicus Land Monitoring Service",
