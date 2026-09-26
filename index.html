@@ -378,9 +378,33 @@
             <h2>Explore river &amp; lake water levels</h2>
             <p>Explore satellite-derived water level observations, station metadata and historical measurements from the Copernicus Land Monitoring Service.</p>
         </div>
-        <button type="button" class="water-levels-refresh" id="waterLevelsRefresh" title="Refresh water level data">
-            ↻ Refresh
-        </button>
+        <div class="water-levels-header-actions">
+            <button type="button" class="water-levels-refresh" id="waterLevelsRefresh" title="Retry loading water level stations">
+                ↻ Refresh
+            </button>
+
+            <div class="water-levels-refresh-info">
+                <button
+                    type="button"
+                    class="water-levels-info-button"
+                    id="waterLevelsRefreshInfoButton"
+                    aria-label="What does Refresh do?"
+                    aria-expanded="false"
+                    aria-controls="waterLevelsRefreshInfo"
+                    title="What does Refresh do?"
+                >ⓘ</button>
+
+                <div
+                    class="water-levels-refresh-info-popover"
+                    id="waterLevelsRefreshInfo"
+                    role="tooltip"
+                    hidden
+                >
+                    <strong>What does Refresh do?</strong>
+                    <span>Refresh only retries the station request when the cards have not loaded yet. Once the station cards are loaded, Refresh is disabled and does not make another request.</span>
+                </div>
+            </div>
+        </div>
     </div>
 
     <div class="water-levels-source-row">
@@ -2208,7 +2232,7 @@ try{
 <script src="admin-panel.js"></script>
 <script src="markets-ui.js?v=2"></script>
 <script src="crypto-ui.js"></script>
-<script src="water-levels-ui.js?v=waterlevels14"></script>
+<script src="water-levels-ui.js?v=waterlevels15"></script>
 <script src="currencies-ui.js?v=2"></script>
 <script>
 
