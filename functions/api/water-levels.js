@@ -28,7 +28,7 @@ const WATER_DATASETS = {
     lakes: "wl-lakes_global_vector_daily_v2"
 };
 
-const WATER_CACHE_VERSION = "v10";
+const WATER_CACHE_VERSION = "v11";
 
 const STATIONS_CACHE_TTL_SECONDS =
     2 * 60 * 60;
@@ -1488,20 +1488,12 @@ async function fetchLatestRangeChunk(
                 };
             }
 
-            if(
-                !(
-                    contentType.includes("json") ||
-                    contentType.includes("geo+json") ||
-                    looksLikeJson(bytes)
-                )
-            ){
-                lastError =
-                    new Error(
-                        "Copernicus water-level product is not returned as a JSON/GeoJSON payload."
-                    );
-                continue;
-            }
-
+            /*
+             * CDSE may legitimately return application/octet-stream
+             * even for a GeoJSON product. Do not reject the response
+             * based on MIME type alone. Inspect the actual bytes/text
+             * for the CLMS measurement field instead.
+             */
             const text =
                 new TextDecoder().decode(
                     bytes
@@ -1511,6 +1503,14 @@ async function fetchLatestRangeChunk(
                 extractLatestMeasurementFromTail(
                     text
                 );
+
+            if(!latest && contentType.includes("zip")){
+                lastError =
+                    new Error(
+                        "Copernicus water-level product is packaged as ZIP; a tail JSON read is not possible."
+                    );
+                continue;
+            }
 
             if(latest){
                 return {
