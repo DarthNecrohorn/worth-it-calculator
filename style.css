@@ -10006,6 +10006,7 @@ html.settings-open #cryptoFloatingShowLess{
 
 .water-levels-section{
     display:block;
+    overflow-anchor:none !important;
     width:min(1040px, calc(100% - 32px)) !important;
     max-width:1040px !important;
     margin:0 auto !important;
