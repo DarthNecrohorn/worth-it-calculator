@@ -92,6 +92,7 @@
         <button
             type="button"
             class="nav-overflow-item"
+            onclick="openWaterLevelsFromMenu()"
         >
             <span>💧</span>
             <span>
@@ -253,6 +254,7 @@
       <button
     type="button"
     class="more-menu-item"
+    onclick="openWaterLevelsFromMenu()"
 >
     <span>💧</span>
     <span>
@@ -367,6 +369,36 @@
         </div>
     </div>
 </div>
+
+<!-- WATER LEVELS -->
+<section class="water-levels-section" id="waterLevelsSection" style="display:none;">
+    <div class="water-levels-header">
+        <div>
+            <span class="water-levels-badge">💧 Water levels</span>
+            <h2>Explore water level data</h2>
+            <p>Discover rivers, lakes and monitoring stations with live water-level information.</p>
+        </div>
+        <button type="button" class="water-levels-refresh" id="waterLevelsRefresh" title="Refresh water level data">↻ Refresh</button>
+    </div>
+
+    <div class="water-levels-toolbar">
+        <div class="water-levels-filters" id="waterLevelsFilters">
+            <button type="button" data-water-filter="all" class="active">🌊 All</button>
+            <button type="button" data-water-filter="rivers">🏞️ Rivers</button>
+            <button type="button" data-water-filter="lakes">🏝️ Lakes</button>
+        </div>
+        <label class="water-levels-search-wrap">
+            <span>🔎</span>
+            <input id="waterLevelsSearch" type="search" placeholder="Search stations or places..." autocomplete="off">
+        </label>
+    </div>
+
+    <div class="water-levels-results-row">
+        <span id="waterLevelsResultsCount">Water level stations</span>
+    </div>
+
+    <div class="water-levels-grid" id="waterLevelsGrid"></div>
+</section>
 
 <section class="markets-section" id="marketsSection" style="display:none;">
 
@@ -2054,6 +2086,7 @@ try{
 <script src="admin-panel.js"></script>
 <script src="markets-ui.js?v=2"></script>
 <script src="crypto-ui.js"></script>
+<script src="water-levels-ui.js"></script>
 <script src="currencies-ui.js?v=2"></script>
 <script>
 
