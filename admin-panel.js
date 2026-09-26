@@ -171,14 +171,6 @@
                 api?.quotaType || "dynamic"
             );
 
-        const remainingValue =
-            api?.todayRemaining !== null &&
-            api?.todayRemaining !== undefined
-                ? formatNumber(
-                    api.todayRemaining
-                )
-                : null;
-
         const hasTodayRemaining =
             api?.todayRemaining !== null &&
             api?.todayRemaining !== undefined;
