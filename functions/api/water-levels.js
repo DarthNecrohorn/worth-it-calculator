@@ -646,21 +646,6 @@ async function searchDatasetProducts({
     );
 
     params.set(
-        "$select",
-        [
-            "Id",
-            "Name",
-            "ContentType",
-            "Online",
-            "PublicationDate",
-            "ModificationDate",
-            "ContentDate/Start",
-            "ContentDate/End",
-            "GeoFootprint"
-        ].join(",")
-    );
-
-    params.set(
         "$expand",
         "Attributes"
     );
