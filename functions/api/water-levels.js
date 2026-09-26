@@ -1466,15 +1466,22 @@ async function searchNearbyDatasetProducts({
         filter
     );
 
-    params.set(
-        "$expand",
-        "Attributes"
-    );
+    /*
+     * The initial global station list only needs lightweight product
+     * metadata. Attribute expansion is relatively expensive, so defer it
+     * until an explicit search or a per-station metadata request.
+     */
+    if(query){
+        params.set(
+            "$expand",
+            "Attributes"
+        );
 
-    params.set(
-        "$orderby",
-        "ModificationDate desc,Id asc"
-    );
+        params.set(
+            "$orderby",
+            "ModificationDate desc,Id asc"
+        );
+    }
 
     params.set(
         "$top",
