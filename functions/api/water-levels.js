@@ -28,7 +28,7 @@ const WATER_DATASETS = {
     lakes: "wl-lakes_global_vector_daily_v2"
 };
 
-const WATER_CACHE_VERSION = "v12";
+const WATER_CACHE_VERSION = "v13";
 
 const STATIONS_CACHE_TTL_SECONDS =
     2 * 60 * 60;
@@ -590,7 +590,16 @@ async function getCatalogueProductMetadata(
             const result = {
                 station,
                 coordinates:
-                    station.coordinates || null
+                    station.coordinates || null,
+                contentLength:
+                    numberOrNull(
+                        data.ContentLength
+                    ),
+                contentType:
+                    firstNonEmpty(
+                        data.ContentType,
+                        ""
+                    )
             };
 
             await cache.put(
@@ -1388,6 +1397,8 @@ async function getLatestMeasurementByRange(
                     catalogue.station,
                 coordinates:
                     catalogue.coordinates,
+                contentLength:
+                    catalogue.contentLength,
                 measurementCount:
                     0
             };
@@ -1554,7 +1565,11 @@ async function findGeoJsonNode(
                         "/$value",
                     name,
                     path:
-                        childPath
+                        childPath,
+                    contentLength:
+                        numberOrNull(
+                            node && node.ContentLength
+                        )
                 };
             }
 
@@ -1602,7 +1617,8 @@ async function findGeoJsonNode(
 async function fetchLatestRangeFromUrl(
     productUrl,
     accessToken,
-    rangeBytes
+    rangeBytes,
+    contentLength
 ) {
 
     const response =
@@ -1618,8 +1634,23 @@ async function fetchLatestRangeFromUrl(
                     "Accept-Encoding":
                         "identity",
                     "Range":
-                        "bytes=-" +
-                        String(rangeBytes)
+                        Number.isFinite(Number(contentLength)) &&
+                        Number(contentLength) > Number(rangeBytes)
+                            ? (
+                                "bytes=" +
+                                String(
+                                    Math.max(
+                                        0,
+                                        Number(contentLength) -
+                                        Number(rangeBytes)
+                                    )
+                                ) +
+                                "-"
+                              )
+                            : (
+                                "bytes=-" +
+                                String(rangeBytes)
+                              )
                 },
                 redirect:
                     "follow"
@@ -1833,7 +1864,8 @@ async function fetchLatestRangeChunk(
     return await fetchLatestRangeFromUrl(
         node.url,
         accessToken,
-        rangeBytes
+        rangeBytes,
+        node.contentLength
     );
 }
 
