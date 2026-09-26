@@ -415,8 +415,13 @@ async function handleMetadata(
 
     try {
 
+        /*
+         * The station cards only need catalogue metadata. Do not
+         * download every full GeoJSON product just to obtain the
+         * river/lake name, basin and cell identifier.
+         */
         const product =
-            await getParsedProduct(
+            await getCatalogueProductMetadata(
                 context,
                 {
                     productId,
@@ -425,24 +430,17 @@ async function handleMetadata(
                 }
             );
 
-        const latest =
-            product.measurements &&
-            product.measurements.length
-                ? product.measurements[
-                    product.measurements.length - 1
-                  ]
-                : null;
-
         return jsonResponse(
             {
                 ok: true,
                 productId,
                 type,
-                station: product.station,
-                latest,
-                coordinates: product.coordinates,
+                station:
+                    product.station,
+                coordinates:
+                    product.coordinates,
                 measurementCount:
-                    product.measurementCount || 0,
+                    null,
                 source: {
                     provider:
                         "Copernicus Land Monitoring Service",
@@ -474,26 +472,6 @@ async function handleMetadata(
             error
         );
 
-        if (
-            error &&
-            error.code === "CDSE_CONFIGURATION"
-        ) {
-            return jsonResponse(
-                {
-                    ok: false,
-                    error:
-                        "Copernicus download credentials are not configured.",
-                    code:
-                        "CDSE_CONFIGURATION"
-                },
-                503,
-                {
-                    "Cache-Control":
-                        "no-store"
-                }
-            );
-        }
-
         return jsonResponse(
             {
                 ok: false,
@@ -507,6 +485,137 @@ async function handleMetadata(
             }
         );
 
+    }
+
+}
+
+
+/* =========================================================
+   FAST CATALOGUE METADATA
+========================================================= */
+
+async function getCatalogueProductMetadata(
+    context,
+    {
+        productId,
+        type,
+        forceRefresh
+    }
+) {
+
+    const cacheRequest =
+        createCacheRequest(
+            context.request.url,
+            [
+                "catalogue-metadata",
+                WATER_CACHE_VERSION,
+                type,
+                productId
+            ].join("/")
+        );
+
+    const cache =
+        caches.default;
+
+    if (!forceRefresh) {
+
+        const cached =
+            await cache.match(
+                cacheRequest
+            );
+
+        if (cached) {
+            return await cached.json();
+        }
+
+    }
+
+    const requestKey =
+        cacheRequest.url;
+
+    if (inFlightRequests.has(requestKey)) {
+        return await inFlightRequests.get(requestKey);
+    }
+
+    const promise =
+        (async function(){
+
+            const encodedId =
+                encodeURIComponent(productId);
+
+            const data =
+                await fetchJsonWithTimeout(
+                    ODATA_BASE +
+                        "(" +
+                        encodedId +
+                        ")?$expand=Attributes",
+                    {
+                        headers: {
+                            "Accept":
+                                "application/json"
+                        }
+                    },
+                    ODATA_TIMEOUT_MS
+                );
+
+            if (!data || !data.Id) {
+                throw new Error(
+                    "Copernicus product metadata was not found."
+                );
+            }
+
+            const station =
+                normalizeStation(
+                    data,
+                    type,
+                    type === "river"
+                        ? WATER_DATASETS.rivers
+                        : WATER_DATASETS.lakes
+                );
+
+            if (!station) {
+                throw new Error(
+                    "Unable to normalize Copernicus product metadata."
+                );
+            }
+
+            const result = {
+                station,
+                coordinates:
+                    station.coordinates || null
+            };
+
+            await cache.put(
+                cacheRequest,
+                jsonResponse(
+                    result,
+                    200,
+                    {
+                        "Cache-Control":
+                            "public, max-age=" +
+                            PRODUCT_CACHE_TTL_SECONDS +
+                            ", stale-while-revalidate=" +
+                            PRODUCT_STALE_TTL_SECONDS
+                    }
+                )
+            );
+
+            return result;
+
+        })();
+
+    inFlightRequests.set(
+        requestKey,
+        promise
+    );
+
+    try {
+        return await promise;
+    }
+    finally {
+        inFlightRequests.delete(
+            requestKey
+        );
     }
 
 }
