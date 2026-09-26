@@ -1379,7 +1379,42 @@
                 location.countryName
             );
 
-        let countryMatch = false;
+        /*
+         * Use the same boundary dataset for both the user's coordinates
+         * and each station. This avoids relying on country-name spelling,
+         * translations or variants from the reverse-geocoder (for example
+         * different names for the same country).
+         */
+        let userCountryFeatureName = "";
+
+        if(
+            Number.isFinite(Number(location.latitude)) &&
+            Number.isFinite(Number(location.longitude))
+        ){
+            for(
+                const feature of countryFeatures
+            ){
+                if(
+                    !featureContainsPoint(
+                        feature,
+                        Number(location.longitude),
+                        Number(location.latitude)
+                    )
+                ){
+                    continue;
+                }
+
+                userCountryFeatureName =
+                    normalizeGeoName(
+                        feature.properties &&
+                        feature.properties.name
+                    );
+
+                break;
+            }
+        }
+
+        let stationCountryFeatureName = "";
 
         for(
             const feature of countryFeatures
@@ -1394,47 +1429,96 @@
                 continue;
             }
 
-            const featureName =
+            stationCountryFeatureName =
                 normalizeGeoName(
                     feature.properties &&
                     feature.properties.name
                 );
 
-            countryMatch =
-                (
-                    userCountryName &&
-                    featureName ===
-                    userCountryName
-                ) ||
-                (
-                    userCountryCode === "US" &&
-                    featureName === "united states"
-                );
-
             break;
         }
+
+        const stationCountryName =
+            normalizeGeoName(
+                station &&
+                station.country
+            );
+
+        let countryMatch =
+            Boolean(
+                userCountryFeatureName &&
+                stationCountryFeatureName &&
+                userCountryFeatureName ===
+                stationCountryFeatureName
+            );
+
+        /*
+         * Metadata is a useful secondary fallback when a station lies on
+         * a boundary or the low-resolution country polygon cannot classify
+         * the point cleanly.
+         */
+        if(
+            !countryMatch &&
+            stationCountryName &&
+            (
+                (
+                    userCountryName &&
+                    stationCountryName === userCountryName
+                ) ||
+                (
+                    userCountryFeatureName &&
+                    stationCountryName === userCountryFeatureName
+                )
+            )
+        ){
+            countryMatch = true;
+        }
+
+        /*
+         * When the reverse geocoder has only returned an ISO code, keep the
+         * geometric result as the authoritative country classification.
+         * The US remains covered naturally by its country polygon.
+         */
 
         let stateMatch = false;
 
         if(
             userCountryCode === "US" &&
-            countryMatch &&
-            location.stateName
+            countryMatch
         ){
             const stateFeatures =
                 await getUsStateFeatures();
 
-            const userStateName =
-                normalizeGeoName(
-                    location.stateName
-                );
+            let userStateFeatureName = "";
 
-            const userStateCode =
-                String(
-                    location.stateCode || ""
-                )
-                .toUpperCase()
-                .replace(/^US-/,"");
+            if(
+                Number.isFinite(Number(location.latitude)) &&
+                Number.isFinite(Number(location.longitude))
+            ){
+                for(
+                    const feature of stateFeatures
+                ){
+                    if(
+                        !featureContainsPoint(
+                            feature,
+                            Number(location.longitude),
+                            Number(location.latitude)
+                        )
+                    ){
+                        continue;
+                    }
+
+                    userStateFeatureName =
+                        normalizeGeoName(
+                            feature.properties &&
+                            feature.properties.name
+                        );
+
+                    break;
+                }
+            }
+
+            let stationStateFeatureName = "";
 
             for(
                 const feature of stateFeatures
@@ -1449,33 +1533,54 @@
                     continue;
                 }
 
-                const featureName =
+                stationStateFeatureName =
                     normalizeGeoName(
                         feature.properties &&
                         feature.properties.name
                     );
 
-                const featureCode =
-                    String(
-                        feature.id || ""
-                    )
-                    .trim()
-                    .toUpperCase();
-
-                stateMatch =
-                    (
-                        userStateName &&
-                        featureName ===
-                        userStateName
-                    ) ||
-                    (
-                        userStateCode &&
-                        featureCode ===
-                        userStateCode
-                    );
-
                 break;
             }
+
+            const userStateName =
+                normalizeGeoName(
+                    location.stateName
+                );
+
+            const userStateCode =
+                String(
+                    location.stateCode || ""
+                )
+                .toUpperCase()
+                .replace(/^US-/,"");
+
+            const stationStateCode =
+                String(
+                    station &&
+                    station.stateCode || ""
+                )
+                .trim()
+                .toUpperCase()
+                .replace(/^US-/,"");
+
+            stateMatch =
+                Boolean(
+                    userStateFeatureName &&
+                    stationStateFeatureName &&
+                    userStateFeatureName ===
+                    stationStateFeatureName
+                ) ||
+                Boolean(
+                    userStateName &&
+                    stationStateFeatureName ===
+                    userStateName
+                ) ||
+                Boolean(
+                    userStateCode &&
+                    stationStateCode &&
+                    userStateCode ===
+                    stationStateCode
+                );
         }
 
         const result = {
