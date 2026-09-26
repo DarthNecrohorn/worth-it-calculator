@@ -293,6 +293,51 @@
         );
     }
 
+    function formatSatelliteChange(
+        latestHeight,
+        previousHeight
+    ){
+        const latest =
+            Number(latestHeight);
+        const previous =
+            Number(previousHeight);
+
+        if(
+            !Number.isFinite(latest) ||
+            !Number.isFinite(previous)
+        ){
+            return "";
+        }
+
+        const centimeters =
+            (latest - previous) * 100;
+
+        if(waterUsesUsCustomaryUnits()){
+            const inches =
+                centimeters * 0.3937007874;
+
+            return (
+                (
+                    inches > 0
+                        ? "+"
+                        : ""
+                ) +
+                formatNumber(inches,1) +
+                " in"
+            );
+        }
+
+        return (
+            (
+                centimeters > 0
+                    ? "+"
+                    : ""
+            ) +
+            formatNumber(centimeters,0) +
+            " cm"
+        );
+    }
+
     function formatRelativeWaterLevel(
         surfaceHeight,
         referenceDatumAltitude
@@ -1804,6 +1849,15 @@
             latest && Number.isFinite(Number(latest.height))
                 ? Number(latest.height)
                 : null;
+        station.previousHeight =
+            metadata.previous &&
+            Number.isFinite(Number(metadata.previous.height))
+                ? Number(metadata.previous.height)
+                : (
+                    station.previousHeight != null
+                        ? station.previousHeight
+                        : null
+                );
         station.latestUncertainty =
             latest && Number.isFinite(Number(latest.uncertainty))
                 ? Number(latest.uncertainty)
@@ -1854,19 +1908,21 @@
             "[data-water-card-height-note]"
         );
         if(heightNote){
-            const relativeLevel =
-                formatRelativeWaterLevel(
+            const satelliteChange =
+                formatSatelliteChange(
                     station.latestHeight,
-                    station.referenceDatumAltitude
+                    station.previousHeight
                 );
 
             heightNote.textContent =
-                relativeLevel ||
-                (
-                    station.latestHeight != null
-                        ? "Latest available observation"
-                        : "Open details for latest measurement"
-                );
+                satelliteChange
+                    ? satelliteChange +
+                        " since previous satellite observation"
+                    : (
+                        station.latestHeight != null
+                            ? "Latest available satellite observation"
+                            : "Open details for latest measurement"
+                    );
         }
 
         const updated = card.querySelector(
@@ -2089,6 +2145,11 @@
                             latest && Number.isFinite(Number(latest.height))
                                 ? Number(latest.height)
                                 : null,
+                        previousHeight:
+                            data.previous &&
+                            Number.isFinite(Number(data.previous.height))
+                                ? Number(data.previous.height)
+                                : null,
                         uncertainty:
                             latest && Number.isFinite(Number(latest.uncertainty))
                                 ? Number(latest.uncertainty)
@@ -2111,6 +2172,7 @@
 
                     if(current){
                         current.latestHeight = cached.height;
+                        current.previousHeight = cached.previousHeight;
                         current.latestUncertainty = cached.uncertainty;
                         current.latestDatetime = cached.datetime;
                         current.latestErrorCode =
@@ -2265,16 +2327,16 @@
 
         const note = card.querySelector("[data-water-card-height-note]");
         if(note){
-            const relativeLevel =
-                formatRelativeWaterLevel(
+            const satelliteChange =
+                formatSatelliteChange(
                     station.latestHeight,
-                    station.referenceDatumAltitude
+                    station.previousHeight
                 );
 
-            if(relativeLevel){
+            if(satelliteChange){
                 note.textContent =
-                    relativeLevel +
-                    " · Latest observation";
+                    satelliteChange +
+                    " since previous satellite observation";
             }
             else if(station.latestHeight != null){
                 note.textContent = "Latest satellite observation";
