@@ -242,9 +242,14 @@
                 ? String(station.placeName).trim()
                 : "";
 
-        return place
-            ? base + " — " + place
-            : base;
+        return (
+            base +
+            " — " +
+            (
+                place ||
+                "No city"
+            )
+        );
     }
 
     function localizeWaterPlaceName(placeName,location){
@@ -471,24 +476,22 @@
             return;
         }
 
-        const counts = new Map();
-
-        stations.forEach(function(station){
-            const key = stationBodyKey(station);
-            if(!key) return;
-
-            counts.set(
-                key,
-                (counts.get(key) || 0) + 1
-            );
-        });
-
+        /*
+         * Every visible station gets a city lookup. This is global and is
+         * not limited to repeated river/lake names. When no city can be
+         * resolved, the title remains explicitly labelled "No city".
+         */
         const targets =
             stations.filter(function(station){
                 return (
                     station &&
                     station.coordinates &&
-                    counts.get(stationBodyKey(station)) > 1
+                    Number.isFinite(
+                        Number(station.coordinates.latitude)
+                    ) &&
+                    Number.isFinite(
+                        Number(station.coordinates.longitude)
+                    )
                 );
             });
 
@@ -2312,10 +2315,9 @@
         );
 
         /*
-         * When the same river/lake appears in multiple Copernicus
-         * station products, add the nearest city beside the water-body
-         * name so the individual station locations are distinguishable.
-         * This runs after the first paint and only geocodes repeated names.
+         * Add a city beside every visible river/lake name so
+         * individual station locations are identifiable globally. When
+         * reverse geocoding cannot resolve a city, the title shows "No city".
          */
         void loadStationPlaceLabels(
             visible
