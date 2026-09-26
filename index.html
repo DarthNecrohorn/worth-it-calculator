@@ -373,12 +373,56 @@
 <!-- WATER LEVELS -->
 <section class="water-levels-section" id="waterLevelsSection" style="display:none;">
     <div class="water-levels-header">
-        <div>
+        <div class="water-levels-header-copy">
             <span class="water-levels-badge">💧 Water levels</span>
-            <h2>Explore water level data</h2>
-            <p>Discover rivers, lakes and monitoring stations with live water-level information.</p>
+            <h2>Explore river &amp; lake water levels</h2>
+            <p>Explore satellite-derived water level observations, station metadata and historical measurements from the Copernicus Land Monitoring Service.</p>
         </div>
-        <button type="button" class="water-levels-refresh" id="waterLevelsRefresh" title="Refresh water level data">↻ Refresh</button>
+        <button type="button" class="water-levels-refresh" id="waterLevelsRefresh" title="Refresh water level data">
+            ↻ Refresh
+        </button>
+    </div>
+
+    <div class="water-levels-source-row">
+        <span>🛰️ Copernicus CLMS</span>
+        <span>🌍 Global coverage</span>
+        <span>📡 Near real time</span>
+        <span>🗓️ Historical series</span>
+    </div>
+
+    <div class="water-levels-dataset-grid" aria-label="Dataset coverage">
+        <div class="water-levels-dataset-card">
+            <span class="water-levels-dataset-icon">🏞️</span>
+            <div>
+                <strong>River Water Level</strong>
+                <small>2002–present · global</small>
+            </div>
+            <em>Up to 3 days</em>
+        </div>
+        <div class="water-levels-dataset-card">
+            <span class="water-levels-dataset-icon">🏝️</span>
+            <div>
+                <strong>Lake Water Level</strong>
+                <small>1992–present · global</small>
+            </div>
+            <em>Up to 4 days</em>
+        </div>
+        <div class="water-levels-dataset-card">
+            <span class="water-levels-dataset-icon">📏</span>
+            <div>
+                <strong>Water surface height</strong>
+                <small>Above reference geoid · metres</small>
+            </div>
+            <em>+ uncertainty</em>
+        </div>
+        <div class="water-levels-dataset-card">
+            <span class="water-levels-dataset-icon">📈</span>
+            <div>
+                <strong>Historical observations</strong>
+                <small>Date/time · cycles · measurements</small>
+            </div>
+            <em>Time series</em>
+        </div>
     </div>
 
     <div class="water-levels-toolbar">
@@ -387,17 +431,95 @@
             <button type="button" data-water-filter="rivers">🏞️ Rivers</button>
             <button type="button" data-water-filter="lakes">🏝️ Lakes</button>
         </div>
+
         <label class="water-levels-search-wrap">
             <span>🔎</span>
-            <input id="waterLevelsSearch" type="search" placeholder="Search stations or places..." autocomplete="off">
+            <input id="waterLevelsSearch" type="search" placeholder="Search stations, rivers, lakes, basins..." autocomplete="off">
         </label>
     </div>
 
     <div class="water-levels-results-row">
-        <span id="waterLevelsResultsCount">Water level stations</span>
+        <span id="waterLevelsResultsCount">Preparing water level stations…</span>
+        <span class="water-levels-search-hint">Search will cover station ID, water body, basin, country and metadata when API data is connected.</span>
     </div>
 
     <div class="water-levels-grid" id="waterLevelsGrid"></div>
+
+    <div class="water-levels-attribution">
+        <div>
+            <strong>Data source</strong>
+            <span>Copernicus Land Monitoring Service · River and Lake Water Level</span>
+        </div>
+        <a href="https://land.copernicus.eu/en/products/water-bodies" target="_blank" rel="noopener noreferrer">
+            View Copernicus water-level datasets ↗
+        </a>
+    </div>
+
+    <div class="water-levels-detail-overlay" id="waterLevelsDetailOverlay" aria-hidden="true">
+        <div class="water-levels-detail-card" role="dialog" aria-modal="true" aria-labelledby="waterLevelsDetailTitle">
+            <div class="water-levels-detail-head">
+                <div class="water-levels-detail-title">
+                    <div class="water-levels-detail-icon" id="waterLevelsDetailIcon">💧</div>
+                    <div>
+                        <span id="waterLevelsDetailType">Water level station</span>
+                        <h2 id="waterLevelsDetailTitle">Water level station</h2>
+                    </div>
+                </div>
+                <button type="button" class="water-levels-detail-close" id="waterLevelsDetailClose" aria-label="Close">✕</button>
+            </div>
+
+            <div class="water-levels-detail-status" id="waterLevelsDetailStatus">API pending</div>
+
+            <div class="water-levels-detail-hero">
+                <div>
+                    <span>Water surface height</span>
+                    <strong id="waterLevelsDetailHeight">—</strong>
+                    <small>metres above reference datum</small>
+                </div>
+                <div>
+                    <span>Uncertainty</span>
+                    <strong id="waterLevelsDetailUncertainty">—</strong>
+                    <small>standard deviation</small>
+                </div>
+                <div>
+                    <span>Calculated trend</span>
+                    <strong id="waterLevelsDetailTrend">—</strong>
+                    <small>derived from available history</small>
+                </div>
+            </div>
+
+            <div class="water-levels-detail-section">
+                <div class="water-levels-detail-section-head">
+                    <strong>Station &amp; measurement</strong>
+                    <span>Fields prepared for Copernicus CLMS data</span>
+                </div>
+                <div class="water-levels-detail-metrics" id="waterLevelsDetailMetrics"></div>
+            </div>
+
+            <div class="water-levels-detail-history">
+                <div class="water-levels-detail-section-head">
+                    <strong>History</strong>
+                    <span id="waterLevelsDetailHistoryNote">Historical measurements will appear here after API connection.</span>
+                </div>
+                <div class="water-levels-history-controls" id="waterLevelsHistoryControls">
+                    <button type="button" data-water-history="30D">30D</button>
+                    <button type="button" data-water-history="1Y">1Y</button>
+                    <button type="button" data-water-history="MAX" class="active">MAX</button>
+                </div>
+                <div class="water-levels-history-chart" id="waterLevelsHistoryChart">
+                    <div class="water-levels-history-placeholder">
+                        <span>📈</span>
+                        <strong>Historical time series ready</strong>
+                        <small>Water level and uncertainty will be plotted here when data is connected.</small>
+                    </div>
+                </div>
+            </div>
+
+            <div class="water-levels-detail-footer" id="waterLevelsDetailFooter">
+                Source: Copernicus Land Monitoring Service · Satellite altimetry
+            </div>
+        </div>
+    </div>
 </section>
 
 <section class="markets-section" id="marketsSection" style="display:none;">
