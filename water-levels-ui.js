@@ -457,7 +457,7 @@
         if(!grid) return;
 
         if(state.loading){
-            renderLoading();
+            renderLoading(true);
             return;
         }
 
