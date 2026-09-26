@@ -22,10 +22,17 @@
 
     const stationMetadataCache = new Map();
     const stationLatestCache = new Map();
+    const stationPlaceCache = new Map();
     const ALL_STATION_LIMIT = 24;
     const CATEGORY_STATION_LIMIT = 200;
     const STATION_METADATA_CONCURRENCY = 3;
     const STATION_LATEST_CONCURRENCY = 4;
+    const STATION_PLACE_CONCURRENCY = 3;
+
+    const WATER_STATION_PLACE_CACHE = {
+        CACHE_KEY: "worthIt.waterLevels.stationPlaces.v1",
+        TTL_MS: 7 * 24 * 60 * 60 * 1000
+    };
 
     const WATER_LOCATION_CONFIG = {
         CACHE_KEY:
@@ -192,6 +199,314 @@
 
     function stationTypeLabel(type){
         return type === "lake" ? "Lake" : "River";
+    }
+
+    function stationBodyKey(station){
+        return normalizeGeoName(
+            station &&
+            (
+                station.waterBody ||
+                station.title ||
+                station.productName ||
+                ""
+            )
+        );
+    }
+
+    function stationBaseTitle(station){
+        const typeLabel =
+            stationTypeLabel(
+                station && station.type
+            );
+
+        return (
+            station &&
+            (
+                station.waterBody ||
+                station.title ||
+                station.productName
+            )
+        ) || (
+            typeLabel +
+            " water-level station"
+        );
+    }
+
+    function stationDisplayTitle(station){
+        const base =
+            stationBaseTitle(station);
+
+        const place =
+            station &&
+            station.placeName
+                ? String(station.placeName).trim()
+                : "";
+
+        return place
+            ? base + " — " + place
+            : base;
+    }
+
+    function readStationPlaceCache(key){
+        if(!key) return null;
+
+        try{
+            const raw =
+                localStorage.getItem(
+                    WATER_STATION_PLACE_CACHE.CACHE_KEY +
+                    "::" +
+                    key
+                );
+
+            if(!raw) return null;
+
+            const parsed = JSON.parse(raw);
+
+            if(
+                !parsed ||
+                !parsed.timestamp ||
+                !parsed.placeName
+            ){
+                return null;
+            }
+
+            const age =
+                Date.now() -
+                Number(parsed.timestamp);
+
+            if(
+                !Number.isFinite(age) ||
+                age < 0 ||
+                age > WATER_STATION_PLACE_CACHE.TTL_MS
+            ){
+                return null;
+            }
+
+            return String(parsed.placeName);
+        }
+        catch(error){
+            return null;
+        }
+    }
+
+    function saveStationPlaceCache(key,placeName){
+        if(!key || !placeName) return;
+
+        try{
+            localStorage.setItem(
+                WATER_STATION_PLACE_CACHE.CACHE_KEY +
+                "::" +
+                key,
+                JSON.stringify({
+                    timestamp:Date.now(),
+                    placeName
+                })
+            );
+        }
+        catch(error){}
+    }
+
+    async function reverseGeocodeStationPlace(coordinates){
+        if(
+            !coordinates ||
+            !Number.isFinite(Number(coordinates.latitude)) ||
+            !Number.isFinite(Number(coordinates.longitude))
+        ){
+            return "";
+        }
+
+        const controller =
+            new AbortController();
+
+        const timer =
+            window.setTimeout(
+                function(){
+                    controller.abort();
+                },
+                WATER_LOCATION_CONFIG.REVERSE_GEOCODE_TIMEOUT_MS
+            );
+
+        try{
+            const params =
+                new URLSearchParams();
+
+            params.set(
+                "latitude",
+                String(coordinates.latitude)
+            );
+            params.set(
+                "longitude",
+                String(coordinates.longitude)
+            );
+            params.set(
+                "localityLanguage",
+                "en"
+            );
+
+            const response =
+                await fetch(
+                    "https://api.bigdatacloud.net/data/reverse-geocode-client?" +
+                    params.toString(),
+                    {
+                        method:"GET",
+                        headers:{
+                            "Accept":"application/json"
+                        },
+                        cache:"force-cache",
+                        signal:controller.signal
+                    }
+                );
+
+            if(!response.ok){
+                return "";
+            }
+
+            const data =
+                await response.json().catch(function(){
+                    return null;
+                });
+
+            if(!data || typeof data !== "object"){
+                return "";
+            }
+
+            return String(
+                data.city ||
+                data.locality ||
+                ""
+            ).trim();
+        }
+        catch(error){
+            return "";
+        }
+        finally{
+            window.clearTimeout(timer);
+        }
+    }
+
+    async function loadStationPlaceLabels(stations){
+        if(!Array.isArray(stations) || !stations.length){
+            return;
+        }
+
+        const counts = new Map();
+
+        stations.forEach(function(station){
+            const key = stationBodyKey(station);
+            if(!key) return;
+
+            counts.set(
+                key,
+                (counts.get(key) || 0) + 1
+            );
+        });
+
+        const targets =
+            stations.filter(function(station){
+                return (
+                    station &&
+                    station.coordinates &&
+                    counts.get(stationBodyKey(station)) > 1
+                );
+            });
+
+        if(!targets.length){
+            return;
+        }
+
+        let cursor = 0;
+
+        async function worker(){
+            while(cursor < targets.length){
+                const station = targets[cursor++];
+
+                const lat =
+                    Number(
+                        station.coordinates &&
+                        station.coordinates.latitude
+                    );
+                const lon =
+                    Number(
+                        station.coordinates &&
+                        station.coordinates.longitude
+                    );
+
+                if(
+                    !Number.isFinite(lat) ||
+                    !Number.isFinite(lon)
+                ){
+                    continue;
+                }
+
+                const cacheKey =
+                    lat.toFixed(4) +
+                    "|" +
+                    lon.toFixed(4);
+
+                let placeName =
+                    stationPlaceCache.get(cacheKey) ||
+                    readStationPlaceCache(cacheKey);
+
+                if(placeName){
+                    stationPlaceCache.set(
+                        cacheKey,
+                        placeName
+                    );
+                }
+                else{
+                    placeName =
+                        await reverseGeocodeStationPlace(
+                            {
+                                latitude:lat,
+                                longitude:lon
+                            }
+                        );
+
+                    if(placeName){
+                        stationPlaceCache.set(
+                            cacheKey,
+                            placeName
+                        );
+                        saveStationPlaceCache(
+                            cacheKey,
+                            placeName
+                        );
+                    }
+                }
+
+                if(!placeName){
+                    continue;
+                }
+
+                station.placeName =
+                    placeName;
+
+                const current =
+                    state.stations.find(function(item){
+                        return item.id === station.id;
+                    });
+
+                if(current){
+                    current.placeName =
+                        placeName;
+                    applyStationTitleToCard(
+                        current
+                    );
+                }
+            }
+        }
+
+        const workers = [];
+        const count = Math.min(
+            STATION_PLACE_CONCURRENCY,
+            targets.length
+        );
+
+        for(let index = 0; index < count; index++){
+            workers.push(worker());
+        }
+
+        await Promise.all(workers);
     }
 
     function currentQuery(){
@@ -1181,6 +1496,25 @@
         );
     }
 
+    function applyStationTitleToCard(station){
+        if(!station) return;
+
+        const card =
+            findStationCard(station.id);
+
+        if(!card) return;
+
+        const title =
+            card.querySelector(
+                "[data-water-card-title]"
+            );
+
+        if(title){
+            title.textContent =
+                stationDisplayTitle(station);
+        }
+    }
+
     function findStationCard(stationId){
         const grid = get("waterLevelsGrid");
         if(!grid) return null;
@@ -1252,10 +1586,7 @@
         );
         if(title){
             title.textContent =
-                station.title ||
-                (station.type === "lake"
-                    ? "Lake water-level station"
-                    : "River water-level station");
+                stationDisplayTitle(station);
         }
 
         const location = card.querySelector(
@@ -1772,8 +2103,7 @@
                     '<div class="water-level-card-title">' +
                         '<h3 data-water-card-title>' +
                             escapeHtml(
-                                station.title ||
-                                (typeLabel + " water-level station")
+                                stationDisplayTitle(station)
                             ) +
                         '</h3>' +
 
@@ -1885,6 +2215,16 @@
          */
         void loadStationMetadata(
             visible.slice(0,24)
+        );
+
+        /*
+         * When the same river/lake appears in multiple Copernicus
+         * station products, add the nearest city beside the water-body
+         * name so the individual station locations are distinguishable.
+         * This runs after the first paint and only geocodes repeated names.
+         */
+        void loadStationPlaceLabels(
+            visible
         );
 
         /*
