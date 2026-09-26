@@ -656,8 +656,7 @@ async function searchDatasetProducts({
             "ModificationDate",
             "ContentDate/Start",
             "ContentDate/End",
-            "GeoFootprint",
-            "Attributes"
+            "GeoFootprint"
         ].join(",")
     );
 
@@ -945,7 +944,7 @@ async function getParsedProduct(
                             "public, max-age=" +
                             PRODUCT_CACHE_TTL_SECONDS +
                             ", stale-while-revalidate=" +
-                            PRODUCT_STALE_CACHE_TTL_SECONDS,
+                            PRODUCT_STALE_TTL_SECONDS,
                         "X-Water-Cache":
                             "MISS"
                     }
