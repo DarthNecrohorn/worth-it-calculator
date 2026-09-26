@@ -412,6 +412,7 @@
                     : [];
 
             state.error = "";
+            state.loading = false;
             renderCards();
 
         }catch(error){
@@ -435,6 +436,8 @@
                     ? error.message
                     : "Unable to load Copernicus water-level data.";
 
+            state.loading = false;
+
             renderError(
                 state.error
             );
@@ -445,7 +448,14 @@
                 stationsRequest = null;
             }
 
-            state.loading = false;
+            /*
+             * The success/error branches render after changing
+             * the loading state. Keep finally as a safety net for
+             * aborted or unexpected exits.
+             */
+            if(state.loading){
+                state.loading = false;
+            }
 
         }
     }
