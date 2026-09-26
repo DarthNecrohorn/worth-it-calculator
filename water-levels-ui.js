@@ -28,7 +28,7 @@
     const STATION_METADATA_CONCURRENCY = 3;
     const STATION_LATEST_CONCURRENCY = 4;
     const STATION_PLACE_CONCURRENCY = 3;
-    const WATER_API_VERSION = "waterlevels52";
+    const WATER_API_VERSION = "waterlevels53";
 
     const WATER_STATION_PLACE_CACHE = {
         CACHE_KEY: "worthIt.waterLevels.stationPlaces.v2",
