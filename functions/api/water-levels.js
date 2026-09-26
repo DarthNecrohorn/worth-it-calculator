@@ -176,6 +176,11 @@ async function handleStations(
             url.searchParams.get("q")
         );
 
+    const country =
+        normalizeSearchQuery(
+            url.searchParams.get("country")
+        );
+
     let limit =
         Number(
             url.searchParams.get("limit") || 24
@@ -201,6 +206,7 @@ async function handleStations(
                 "stations",
                 WATER_CACHE_VERSION,
                 type || "all",
+                country.toLowerCase(),
                 query.toLowerCase(),
                 String(limit)
             ].join("/")
@@ -288,6 +294,7 @@ async function handleStations(
                                 datasetId:
                                     pair[1],
                                 query,
+                                country,
                                 limit:
                                     perDatasetLimit
                             });
@@ -335,6 +342,8 @@ async function handleStations(
                 query,
 
                 type,
+
+                country,
 
                 count:
                     stations.length,
@@ -1591,6 +1600,7 @@ async function searchDatasetProducts({
     type,
     datasetId,
     query,
+    country,
     limit,
     offset = 0
 }) {
@@ -1605,6 +1615,17 @@ async function searchDatasetProducts({
         ].join(
             " and "
         );
+
+    if(country){
+
+        filter +=
+            " and " +
+            attributeEquals(
+                "country",
+                country
+            );
+
+    }
 
     if (query) {
 
@@ -1723,6 +1744,7 @@ async function searchDatasetProductsUpToLimit({
     type,
     datasetId,
     query,
+    country,
     limit
 }) {
 
@@ -1757,6 +1779,7 @@ async function searchDatasetProductsUpToLimit({
                 type,
                 datasetId,
                 query,
+                country,
                 limit:
                     pageLimit,
                 offset
@@ -1819,6 +1842,12 @@ function normalizeStation(
         attributeValue(
             attributes,
             "wlBasinName"
+        );
+
+    const country =
+        firstNonEmpty(
+            attributeValue(attributes,"country"),
+            attributeValue(attributes,"wlCountryName")
         );
 
     const stationId =
@@ -1894,6 +1923,9 @@ function normalizeStation(
 
         basin:
             basin || "",
+
+        country:
+            country || "",
 
         stationId:
             stationId || "",
