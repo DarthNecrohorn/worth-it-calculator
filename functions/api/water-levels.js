@@ -89,6 +89,14 @@ export async function onRequestGet(context) {
             );
         }
 
+        if (action === "metadata") {
+            return await handleMetadata(
+                context,
+                url,
+                forceRefresh
+            );
+        }
+
         if (action === "details") {
             return await handleDetails(
                 context,
@@ -366,6 +374,137 @@ async function handleStations(
 
         inFlightRequests.delete(
             requestKey
+        );
+
+    }
+
+}
+
+
+/* =========================================================
+   PRODUCT METADATA SUMMARY
+========================================================= */
+
+async function handleMetadata(
+    context,
+    url,
+    forceRefresh
+) {
+
+    const productId =
+        String(
+            url.searchParams.get("id") || ""
+        )
+        .trim();
+
+    const type =
+        normalizeStationType(
+            url.searchParams.get("type")
+        );
+
+    if (!productId || !type) {
+        return jsonResponse(
+            {
+                ok: false,
+                error:
+                    "A Copernicus product identifier and dataset type are required."
+            },
+            400
+        );
+    }
+
+    try {
+
+        const product =
+            await getParsedProduct(
+                context,
+                {
+                    productId,
+                    type,
+                    forceRefresh
+                }
+            );
+
+        const latest =
+            product.measurements &&
+            product.measurements.length
+                ? product.measurements[
+                    product.measurements.length - 1
+                  ]
+                : null;
+
+        return jsonResponse(
+            {
+                ok: true,
+                productId,
+                type,
+                station: product.station,
+                latest,
+                coordinates: product.coordinates,
+                measurementCount:
+                    product.measurementCount || 0,
+                source: {
+                    provider:
+                        "Copernicus Land Monitoring Service",
+                    catalogue:
+                        "Copernicus Data Space Ecosystem",
+                    dataset:
+                        type === "river"
+                            ? WATER_DATASETS.rivers
+                            : WATER_DATASETS.lakes,
+                    methodology:
+                        "Satellite altimetry"
+                }
+            },
+            200,
+            {
+                "Cache-Control":
+                    "public, max-age=" +
+                    PRODUCT_CACHE_TTL_SECONDS +
+                    ", stale-while-revalidate=" +
+                    PRODUCT_STALE_TTL_SECONDS
+            }
+        );
+
+    }
+    catch (error) {
+
+        console.error(
+            "Water metadata request failed:",
+            error
+        );
+
+        if (
+            error &&
+            error.code === "CDSE_CONFIGURATION"
+        ) {
+            return jsonResponse(
+                {
+                    ok: false,
+                    error:
+                        "Copernicus download credentials are not configured.",
+                    code:
+                        "CDSE_CONFIGURATION"
+                },
+                503,
+                {
+                    "Cache-Control":
+                        "no-store"
+                }
+            );
+        }
+
+        return jsonResponse(
+            {
+                ok: false,
+                error:
+                    "Unable to load Copernicus water-level metadata."
+            },
+            502,
+            {
+                "Cache-Control":
+                    "no-store"
+            }
         );
 
     }
