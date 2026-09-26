@@ -2667,8 +2667,9 @@
         }
 
         /*
-         * Do not collapse different locations of the same river. The city
-         * label is resolved after selection when a water body is repeated.
+         * Do not collapse different locations of the same river or lake.
+         * A repeated water body is allowed when it has a different place;
+         * the same water body + same place is kept only once.
          */
         function fallbackPlaceKey(station){
             const coordinates =
