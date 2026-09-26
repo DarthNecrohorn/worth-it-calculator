@@ -30,7 +30,7 @@
     const STATION_PLACE_CONCURRENCY = 3;
 
     const WATER_STATION_PLACE_CACHE = {
-        CACHE_KEY: "worthIt.waterLevels.stationPlaces.v1",
+        CACHE_KEY: "worthIt.waterLevels.stationPlaces.v2",
         TTL_MS: 7 * 24 * 60 * 60 * 1000
     };
 
@@ -530,6 +530,12 @@
                     readStationPlaceCache(cacheKey);
 
                 if(placeName){
+                    placeName =
+                        localizeWaterPlaceName(
+                            placeName,
+                            state.location
+                        );
+
                     stationPlaceCache.set(
                         cacheKey,
                         placeName
@@ -545,6 +551,12 @@
                         );
 
                     if(placeName){
+                        placeName =
+                            localizeWaterPlaceName(
+                                placeName,
+                                state.location
+                            );
+
                         stationPlaceCache.set(
                             cacheKey,
                             placeName
