@@ -48,7 +48,7 @@
     const waterStationGeoCache = new Map();
 
     const WATER_STATIONS_CACHE = {
-        CACHE_KEY: "worthIt.waterLevels.stations.v1",
+        CACHE_KEY: "worthIt.waterLevels.stations.v2",
         TTL_MS: 30 * 60 * 1000,
         STALE_MS: 24 * 60 * 60 * 1000
     };
@@ -60,17 +60,19 @@
         location: null
     };
 
-    function stationCacheKey(query){
+    function stationCacheKey(query,country){
         return WATER_STATIONS_CACHE.CACHE_KEY +
+            "::" +
+            (country || "global").toLowerCase() +
             "::" +
             (query || "all").toLowerCase();
     }
 
-    function readStationsCache(query){
+    function readStationsCache(query,country){
         try{
             const raw =
                 localStorage.getItem(
-                    stationCacheKey(query)
+                    stationCacheKey(query,country)
                 );
 
             if(!raw) return null;
@@ -112,7 +114,11 @@
     function saveStationsCache(query,stations,location){
         try{
             localStorage.setItem(
-                stationCacheKey(query),
+                stationCacheKey(
+                    query,
+                    location &&
+                    location.countryName
+                ),
                 JSON.stringify({
                     timestamp: Date.now(),
                     stations,
@@ -1893,6 +1899,12 @@
         controller,
         force
     }){
+        const country =
+            String(
+                location &&
+                location.countryName || ""
+            ).trim();
+
         const countryCode =
             String(
                 location &&
@@ -1912,6 +1924,7 @@
 
             params.set("action","nearby");
             params.set("type",type);
+            params.set("country",country);
             params.set("lat",String(location.latitude));
             params.set("lon",String(location.longitude));
             params.set("radiusKm",String(radiusKm));
@@ -1984,9 +1997,118 @@
             }
         }
 
-        return Array.from(
-            byId.values()
-        );
+        return Array.from(byId.values());
+    }
+
+    async function loadCountryStations(
+        location,
+        controller,
+        force
+    ){
+        const country =
+            String(
+                location &&
+                location.countryName || ""
+            ).trim();
+
+        if(!country){
+            return [];
+        }
+
+        const results =
+            await Promise.all([
+                (async function(){
+                    const params = new URLSearchParams();
+                    params.set("action","stations");
+                    params.set("type","river");
+                    params.set("country",country);
+                    params.set("limit","120");
+                    if(force) params.set("refresh","1");
+
+                    const response =
+                        await fetch(
+                            "/api/water-levels?" +
+                            params.toString(),
+                            {
+                                method:"GET",
+                                headers:{
+                                    "Accept":"application/json"
+                                },
+                                signal:controller.signal
+                            }
+                        );
+
+                    const data =
+                        await response.json().catch(function(){ return null; });
+
+                    if(!response.ok || !data || data.ok === false){
+                        throw new Error(
+                            data && data.error
+                                ? data.error
+                                : "Country river stations request failed."
+                        );
+                    }
+
+                    return Array.isArray(data.stations)
+                        ? data.stations
+                        : [];
+                })(),
+                (async function(){
+                    const params = new URLSearchParams();
+                    params.set("action","stations");
+                    params.set("type","lake");
+                    params.set("country",country);
+                    params.set("limit","120");
+                    if(force) params.set("refresh","1");
+
+                    const response =
+                        await fetch(
+                            "/api/water-levels?" +
+                            params.toString(),
+                            {
+                                method:"GET",
+                                headers:{
+                                    "Accept":"application/json"
+                                },
+                                signal:controller.signal
+                            }
+                        );
+
+                    const data =
+                        await response.json().catch(function(){ return null; });
+
+                    if(!response.ok || !data || data.ok === false){
+                        throw new Error(
+                            data && data.error
+                                ? data.error
+                                : "Country lake stations request failed."
+                        );
+                    }
+
+                    return Array.isArray(data.stations)
+                        ? data.stations
+                        : [];
+                })()
+            ]);
+
+        return results
+            .flat()
+            .sort(function(a,b){
+                return (
+                    haversineDistanceKm(
+                        location,
+                        a.coordinates
+                    ) -
+                    haversineDistanceKm(
+                        location,
+                        b.coordinates
+                    )
+                );
+            })
+            .slice(
+                0,
+                ALL_STATION_LIMIT
+            );
     }
 
     async function loadLocationPersonalizedStations(
@@ -1994,111 +2116,48 @@
         controller,
         force
     ){
-        const results =
-            await Promise.all([
-                fetchNearbyWaterCategory({
-                    type:"river",
-                    location,
-                    controller,
-                    force
-                }),
-                fetchNearbyWaterCategory({
-                    type:"lake",
-                    location,
-                    controller,
-                    force
-                })
-            ]);
-
-        const candidates =
-            results.flat();
-
-        const enriched =
-            await Promise.all(
-                candidates.map(
-                    async function(station,index){
-                        return {
-                            station,
-                            index,
-                            distanceKm:
-                                haversineDistanceKm(
-                                    location,
-                                    station.coordinates
-                                ),
-                            geo:
-                                await classifyWaterStation(
-                                    station,
-                                    location
-                                )
-                        };
-                    }
-                )
-            );
-
         const countryCode =
             String(
+                location &&
                 location.countryCode || ""
             ).trim().toUpperCase();
 
-        function selectCategory(type){
-            const items =
-                enriched
-                    .filter(function(item){
-                        return (
-                            item.station.type === type &&
-                            item.geo.countryMatch
-                        );
+        if(countryCode === "CA"){
+            const results =
+                await Promise.all([
+                    fetchNearbyWaterCategory({
+                        type:"river",
+                        location,
+                        controller,
+                        force
+                    }),
+                    fetchNearbyWaterCategory({
+                        type:"lake",
+                        location,
+                        controller,
+                        force
                     })
-                    .sort(function(left,right){
-                        return (
-                            left.distanceKm -
-                            right.distanceKm
-                        );
-                    });
+                ]);
 
-            if(
-                countryCode === "US" &&
-                location.stateName
-            ){
-                const sameState =
-                    items.filter(function(item){
-                        return item.geo.stateMatch;
-                    });
-
-                const otherState =
-                    items.filter(function(item){
-                        return !item.geo.stateMatch;
-                    });
-
-                return sameState
-                    .concat(otherState)
-                    .slice(
-                        0,
-                        CATEGORY_STATION_LIMIT
+            return results
+                .flat()
+                .sort(function(a,b){
+                    return (
+                        haversineDistanceKm(location,a.coordinates) -
+                        haversineDistanceKm(location,b.coordinates)
                     );
-            }
-
-            return items.slice(
-                0,
-                CATEGORY_STATION_LIMIT
-            );
+                })
+                .slice(
+                    0,
+                    ALL_STATION_LIMIT
+                );
         }
 
-        return selectCategory("river")
-            .concat(selectCategory("lake"))
-            .sort(function(left,right){
-                return (
-                    left.distanceKm -
-                    right.distanceKm
-                );
-            })
-            .map(function(item){
-                return item.station;
-            })
-            .slice(
-                0,
-                ALL_STATION_LIMIT
-            );
+        return await loadCountryStations(
+            location,
+            controller,
+            force
+        );
     }
 
     async function loadStations(options){
@@ -2122,9 +2181,6 @@
          * station cards can be painted immediately while a fresh request
          * runs in the background.
          */
-        const cached =
-            readStationsCache(query);
-
         if(cached && cached.stations.length){
             state.stations = cached.stations;
             state.location = cached.location;
@@ -2241,6 +2297,33 @@
 
             const location =
                 await locationPromise;
+
+            const cached =
+                readStationsCache(
+                    query,
+                    location &&
+                    location.countryName
+                        ? location.countryName
+                        : null
+                );
+
+            if(
+                cached &&
+                cached.stations.length &&
+                state.stations.length === 0
+            ){
+                state.stations = cached.stations;
+                state.location = cached.location || location || null;
+                state.error = "";
+                state.loading = false;
+
+                updateRefreshAvailability();
+                renderCards();
+
+                if(cached.fresh && !options.force){
+                    return;
+                }
+            }
 
             if(
                 stationsRequest !== controller
