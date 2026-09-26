@@ -28,7 +28,7 @@ const WATER_DATASETS = {
     lakes: "wl-lakes_global_vector_daily_v2"
 };
 
-const WATER_CACHE_VERSION = "v11";
+const WATER_CACHE_VERSION = "v12";
 
 const STATIONS_CACHE_TTL_SECONDS =
     2 * 60 * 60;
@@ -1431,217 +1431,410 @@ async function getLatestMeasurementByRange(
 }
 
 
+async function findGeoJsonNode(
+    productId,
+    accessToken
+) {
+
+    const rootUrl =
+        CDSE_DOWNLOAD_BASE +
+        "(" +
+        encodeURIComponent(productId) +
+        ")/Nodes";
+
+    const queue = [
+        {
+            url: rootUrl,
+            path: []
+        }
+    ];
+
+    const seen = new Set();
+    let visited = 0;
+
+    while(
+        queue.length &&
+        visited < 200
+    ){
+
+        const current = queue.shift();
+        if(!current || !current.url) continue;
+        if(seen.has(current.url)) continue;
+
+        seen.add(current.url);
+        visited++;
+
+        const response =
+            await fetchWithTimeout(
+                current.url,
+                {
+                    headers: {
+                        "Authorization":
+                            "Bearer " +
+                            accessToken,
+                        "Accept":
+                            "application/json"
+                    }
+                },
+                ODATA_TIMEOUT_MS
+            );
+
+        if(
+            response.status === 401 ||
+            response.status === 403
+        ){
+            const error =
+                new Error(
+                    "Copernicus product node listing authentication failed."
+                );
+            error.code = "CDSE_AUTH";
+            throw error;
+        }
+
+        if(!response.ok){
+            const body =
+                await safeReadText(response);
+
+            throw new Error(
+                "Copernicus product node listing failed (" +
+                response.status +
+                "): " +
+                body.slice(0,300)
+            );
+        }
+
+        const data =
+            await response.json();
+
+        const nodes =
+            Array.isArray(data && data.result)
+                ? data.result
+                : Array.isArray(data && data.value)
+                    ? data.value
+                    : [];
+
+        for(
+            const node of nodes
+        ){
+
+            const name =
+                firstNonEmpty(
+                    node && node.Name,
+                    node && node.name,
+                    node && node.Id,
+                    node && node.id
+                );
+
+            if(!name) continue;
+
+            const lower =
+                name.toLowerCase();
+
+            const childPath =
+                current.path.concat(name);
+
+            if(
+                lower.endsWith(".geojson") ||
+                lower.endsWith(".json")
+            ){
+                const nodeUrl =
+                    CDSE_DOWNLOAD_BASE +
+                    "(" +
+                    encodeURIComponent(productId) +
+                    ")" +
+                    childPath.map(function(part){
+                        return "/Nodes(" +
+                            encodeURIComponent(part) +
+                            ")";
+                    }).join("");
+
+                return {
+                    url:
+                        nodeUrl +
+                        "/$value",
+                    name,
+                    path:
+                        childPath
+                };
+            }
+
+            const childUri =
+                node &&
+                node.Nodes &&
+                node.Nodes.uri
+                    ? String(node.Nodes.uri)
+                    : "";
+
+            const childUrl =
+                childUri ||
+                (
+                    node &&
+                    Number(node.ChildrenNumber) > 0
+                        ? CDSE_DOWNLOAD_BASE +
+                            "(" +
+                            encodeURIComponent(productId) +
+                            ")" +
+                            childPath.map(function(part){
+                                return "/Nodes(" +
+                                    encodeURIComponent(part) +
+                                    ")";
+                            }).join("") +
+                            "/Nodes"
+                        : ""
+                );
+
+            if(
+                childUrl &&
+                Number(node.ChildrenNumber) !== 0
+            ){
+                queue.push({
+                    url: childUrl,
+                    path: childPath
+                });
+            }
+        }
+    }
+
+    return null;
+}
+
+
+async function fetchLatestRangeFromUrl(
+    productUrl,
+    accessToken,
+    rangeBytes
+) {
+
+    const response =
+        await fetchWithTimeout(
+            productUrl,
+            {
+                headers: {
+                    "Authorization":
+                        "Bearer " +
+                        accessToken,
+                    "Accept":
+                        "application/geo+json,application/json,*/*",
+                    "Accept-Encoding":
+                        "identity",
+                    "Range":
+                        "bytes=-" +
+                        String(rangeBytes)
+                },
+                redirect:
+                    "follow"
+            },
+            DOWNLOAD_TIMEOUT_MS
+        );
+
+    if(
+        response.status === 401 ||
+        response.status === 403
+    ){
+        const error =
+            new Error(
+                "Copernicus product download authentication failed."
+            );
+
+        error.code = "CDSE_AUTH";
+        error.status = response.status;
+
+        try{
+            await response.body?.cancel();
+        }catch(error){}
+
+        throw error;
+    }
+
+    if(
+        response.status >= 500
+    ){
+        const body =
+            await safeReadText(response);
+
+        throw new Error(
+            "Copernicus latest measurement download failed (" +
+            response.status +
+            "): " +
+            body.slice(0,300)
+        );
+    }
+
+    if(
+        !response.ok &&
+        response.status !== 206
+    ){
+        const body =
+            await safeReadText(response);
+
+        throw new Error(
+            "Copernicus latest measurement request failed (" +
+            response.status +
+            "): " +
+            body.slice(0,300)
+        );
+    }
+
+    const contentType =
+        String(
+            response.headers.get("content-type") || ""
+        ).toLowerCase();
+
+    const contentLengthHeader =
+        Number(
+            response.headers.get("content-length") || 0
+        );
+
+    const contentRange =
+        String(
+            response.headers.get("content-range") || ""
+        );
+
+    /*
+     * If CDSE ignores Range and starts streaming a large object,
+     * do not pull the entire product into Worker memory.
+     */
+    if(
+        response.status === 200 &&
+        contentLengthHeader > 2 * 1024 * 1024
+    ){
+        try{
+            await response.body?.cancel();
+        }catch(error){}
+
+        const error =
+            new Error(
+                "Copernicus endpoint ignored the range request for a large product."
+            );
+
+        error.code = "CDSE_RANGE_UNSUPPORTED";
+        throw error;
+    }
+
+    const bytes =
+        new Uint8Array(
+            await response.arrayBuffer()
+        );
+
+    if(!bytes.length){
+        return {
+            latest: null,
+            retryWithLargerRange: true
+        };
+    }
+
+    const text =
+        new TextDecoder().decode(
+            bytes
+        );
+
+    const latest =
+        extractLatestMeasurementFromTail(
+            text
+        );
+
+    if(latest){
+        return {
+            latest,
+            retryWithLargerRange: false
+        };
+    }
+
+    if(
+        response.status === 206 ||
+        contentRange
+    ){
+        return {
+            latest: null,
+            retryWithLargerRange: true
+        };
+    }
+
+    /*
+     * A small 200 response can still be a complete GeoJSON file.
+     * Let the parser inspect it even when Content-Type is generic.
+     */
+    if(
+        contentType.includes("zip") ||
+        looksLikeJson(bytes)
+    ){
+        return {
+            latest: null,
+            retryWithLargerRange: false
+        };
+    }
+
+    return {
+        latest: null,
+        retryWithLargerRange: true
+    };
+}
+
+
 async function fetchLatestRangeChunk(
     productId,
     accessToken,
     rangeBytes
 ) {
 
-    const hosts = [
-        CDSE_DOWNLOAD_BASE,
-        ODATA_BASE
-    ];
+    const rootUrl =
+        CDSE_DOWNLOAD_BASE +
+        "(" +
+        encodeURIComponent(productId) +
+        ")/$value";
 
-    let lastError = null;
+    try{
 
-    for(
-        const base of hosts
-    ){
+        const rootResult =
+            await fetchLatestRangeFromUrl(
+                rootUrl,
+                accessToken,
+                rangeBytes
+            );
 
-        const productUrl =
-            base +
-            "(" +
-            encodeURIComponent(productId) +
-            ")/$value";
-
-        try{
-
-            const response =
-                await fetchWithTimeout(
-                    productUrl,
-                    {
-                        headers: {
-                            "Authorization":
-                                "Bearer " +
-                                accessToken,
-                            "Accept":
-                                "application/geo+json,application/json,*/*",
-                            "Accept-Encoding":
-                                "identity",
-                            "Range":
-                                "bytes=-" +
-                                String(rangeBytes)
-                        },
-                        redirect:
-                            "follow"
-                    },
-                    DOWNLOAD_TIMEOUT_MS
-                );
-
-            if(
-                response.status === 401 ||
-                response.status === 403
-            ){
-                const text =
-                    await safeReadText(response);
-
-                const error =
-                    new Error(
-                        "Copernicus product download authentication failed."
-                    );
-
-                error.code = "CDSE_AUTH";
-                error.status = response.status;
-                error.details = text.slice(0,300);
-
-                throw error;
-            }
-
-            if(
-                response.status >= 500
-            ){
-                const text =
-                    await safeReadText(response);
-
-                lastError =
-                    new Error(
-                        "Copernicus latest measurement download failed (" +
-                        response.status +
-                        "): " +
-                        text.slice(0,300)
-                    );
-
-                continue;
-            }
-
-            if(
-                !response.ok &&
-                response.status !== 206
-            ){
-                const text =
-                    await safeReadText(response);
-
-                lastError =
-                    new Error(
-                        "Copernicus latest measurement request failed (" +
-                        response.status +
-                        "): " +
-                        text.slice(0,300)
-                    );
-
-                continue;
-            }
-
-            const contentType =
-                String(
-                    response.headers.get("content-type") || ""
-                ).toLowerCase();
-
-            const contentRange =
-                String(
-                    response.headers.get("content-range") || ""
-                );
-
-            const contentLength =
-                Number(
-                    response.headers.get("content-length") || 0
-                );
-
-            if(
-                response.status === 200 &&
-                contentLength > 0 &&
-                contentLength > 2 * 1024 * 1024
-            ){
-                lastError =
-                    new Error(
-                        "Copernicus product endpoint ignored the Range request for a large product."
-                    );
-                continue;
-            }
-
-            const bytes =
-                new Uint8Array(
-                    await response.arrayBuffer()
-                );
-
-            if(
-                !bytes.length
-            ){
-                return {
-                    latest: null,
-                    retryWithLargerRange: true
-                };
-            }
-
-            /*
-             * CDSE may legitimately return application/octet-stream
-             * even for a GeoJSON product. Do not reject the response
-             * based on MIME type alone. Inspect the actual bytes/text
-             * for the CLMS measurement field instead.
-             */
-            const text =
-                new TextDecoder().decode(
-                    bytes
-                );
-
-            const latest =
-                extractLatestMeasurementFromTail(
-                    text
-                );
-
-            if(!latest && contentType.includes("zip")){
-                lastError =
-                    new Error(
-                        "Copernicus water-level product is packaged as ZIP; a tail JSON read is not possible."
-                    );
-                continue;
-            }
-
-            if(latest){
-                return {
-                    latest,
-                    retryWithLargerRange: false
-                };
-            }
-
-            if(
-                response.status === 206 ||
-                contentRange
-            ){
-                return {
-                    latest: null,
-                    retryWithLargerRange: true
-                };
-            }
-
-            return {
-                latest: null,
-                retryWithLargerRange: false
-            };
-
+        if(
+            rootResult &&
+            rootResult.latest
+        ){
+            return rootResult;
         }
-        catch(error){
 
-            if(
-                error &&
+    }
+    catch(error){
+
+        if(
+            error &&
+            (
                 error.code === "CDSE_AUTH"
-            ){
-                throw error;
-            }
-
-            lastError = error;
+            )
+        ){
+            throw error;
         }
 
+        /*
+         * Root may be a packaged product, or its download endpoint
+         * may ignore Range. Fall through to Nodes.
+         */
     }
 
-    if(lastError){
-        throw lastError;
+    const node =
+        await findGeoJsonNode(
+            productId,
+            accessToken
+        );
+
+    if(!node){
+        return {
+            latest: null,
+            retryWithLargerRange: false
+        };
     }
 
-    throw new Error(
-        "Copernicus water-level product could not be downloaded."
+    return await fetchLatestRangeFromUrl(
+        node.url,
+        accessToken,
+        rangeBytes
     );
-
 }
 
 
