@@ -17,6 +17,10 @@
     let searchTimer = null;
     let stationsRequest = null;
     let stationsRequestTimer = null;
+    let stationMetadataRun = 0;
+
+    const stationMetadataCache = new Map();
+    const STATION_METADATA_CONCURRENCY = 3;
 
     const state = {
         stations: [],
@@ -164,6 +168,265 @@
         );
     }
 
+    function cardMetric(label,value,key){
+        return (
+            '<div class="water-level-metric">' +
+                '<span>' + escapeHtml(label) + '</span>' +
+                '<strong data-water-card-meta="' +
+                    escapeHtml(key) +
+                '">' +
+                    escapeHtml(value || "—") +
+                '</strong>' +
+            '</div>'
+        );
+    }
+
+    function findStationCard(stationId){
+        const grid = get("waterLevelsGrid");
+        if(!grid) return null;
+
+        const cards = grid.querySelectorAll(
+            "[data-water-station-id]"
+        );
+
+        for(const card of cards){
+            if(card.dataset.waterStationId === String(stationId)){
+                return card;
+            }
+        }
+
+        return null;
+    }
+
+    function applyStationMetadata(station,metadata){
+        if(!station || !metadata) return;
+
+        const sourceStation = metadata.station || {};
+        const latest = metadata.latest || null;
+
+        station.waterBody =
+            sourceStation.waterBody || station.waterBody || "";
+        station.basin =
+            sourceStation.basin || station.basin || "";
+        station.stationId =
+            sourceStation.stationId || station.stationId || "";
+        station.location =
+            [
+                station.waterBody,
+                station.basin,
+                sourceStation.country || ""
+            ]
+            .filter(Boolean)
+            .join(" · ");
+        station.title =
+            station.waterBody || station.title || station.productName;
+        station.updated =
+            sourceStation.updated || station.updated || "";
+        station.coordinates =
+            sourceStation.coordinates ||
+            metadata.coordinates ||
+            station.coordinates;
+        station.country = sourceStation.country || station.country || "";
+        station.platform = sourceStation.platform || station.platform || "";
+        station.processingLevel =
+            sourceStation.processingLevel ||
+            station.processingLevel ||
+            "";
+        station.status =
+            sourceStation.status || station.status || "CLMS";
+        station.latestHeight =
+            latest && Number.isFinite(Number(latest.height))
+                ? Number(latest.height)
+                : null;
+        station.latestUncertainty =
+            latest && Number.isFinite(Number(latest.uncertainty))
+                ? Number(latest.uncertainty)
+                : null;
+        station.metadataLoaded = true;
+
+        const card = findStationCard(station.id);
+        if(!card) return;
+
+        const title = card.querySelector(
+            "[data-water-card-title]"
+        );
+        if(title){
+            title.textContent =
+                station.title ||
+                (station.type === "lake"
+                    ? "Lake water-level station"
+                    : "River water-level station");
+        }
+
+        const location = card.querySelector(
+            "[data-water-card-location]"
+        );
+        if(location){
+            location.textContent =
+                station.location ||
+                "Global Copernicus station";
+        }
+
+        const status = card.querySelector(
+            "[data-water-card-status]"
+        );
+        if(status){
+            status.textContent =
+                station.status || "CLMS metadata";
+        }
+
+        const height = card.querySelector(
+            "[data-water-card-height]"
+        );
+        if(height){
+            height.textContent =
+                station.latestHeight != null
+                    ? formatNumber(station.latestHeight,3) + " m"
+                    : "—";
+        }
+
+        const heightNote = card.querySelector(
+            "[data-water-card-height-note]"
+        );
+        if(heightNote){
+            heightNote.textContent =
+                station.latestHeight != null
+                    ? "Latest available observation"
+                    : "Open details for latest measurement";
+        }
+
+        const updated = card.querySelector(
+            "[data-water-card-updated]"
+        );
+        if(updated){
+            updated.textContent =
+                station.updated
+                    ? new Date(station.updated).toLocaleDateString()
+                    : "—";
+        }
+
+        const waterBody = card.querySelector(
+            '[data-water-card-meta="waterBody"]'
+        );
+        if(waterBody){
+            waterBody.textContent = station.waterBody || "—";
+        }
+
+        const basin = card.querySelector(
+            '[data-water-card-meta="basin"]'
+        );
+        if(basin){
+            basin.textContent = station.basin || "—";
+        }
+
+        const stationId = card.querySelector(
+            '[data-water-card-meta="stationId"]'
+        );
+        if(stationId){
+            stationId.textContent = station.stationId || "—";
+        }
+
+        const coordinates = card.querySelector(
+            '[data-water-card-meta="coordinates"]'
+        );
+        if(coordinates){
+            coordinates.textContent =
+                formatCoordinates(station.coordinates);
+        }
+    }
+
+    async function loadStationMetadata(stations){
+        if(!Array.isArray(stations) || !stations.length){
+            return;
+        }
+
+        const runId = ++stationMetadataRun;
+        let cursor = 0;
+
+        async function worker(){
+            while(cursor < stations.length){
+                const station = stations[cursor++];
+                if(!station || !station.id) continue;
+
+                if(stationMetadataCache.has(station.id)){
+                    applyStationMetadata(
+                        station,
+                        stationMetadataCache.get(station.id)
+                    );
+                    continue;
+                }
+
+                try{
+                    const params = new URLSearchParams();
+                    params.set("action","metadata");
+                    params.set("id",station.id);
+                    params.set("type",station.type);
+
+                    const response = await fetch(
+                        "/api/water-levels?" + params.toString(),
+                        {
+                            method:"GET",
+                            headers:{"Accept":"application/json"}
+                        }
+                    );
+
+                    const data = await response.json().catch(function(){
+                        return null;
+                    });
+
+                    if(
+                        !response.ok ||
+                        !data ||
+                        data.ok === false
+                    ){
+                        throw new Error(
+                            data && data.error
+                                ? data.error
+                                : "Metadata request failed."
+                        );
+                    }
+
+                    stationMetadataCache.set(
+                        station.id,
+                        data
+                    );
+
+                    const current = state.stations.find(function(item){
+                        return item.id === station.id;
+                    });
+
+                    if(current){
+                        applyStationMetadata(current,data);
+                    }
+
+                }
+                catch(error){
+                    console.warn(
+                        "Water-level station metadata request failed:",
+                        station.id,
+                        error
+                    );
+                }
+            }
+        }
+
+        const workers = [];
+        const count = Math.min(
+            STATION_METADATA_CONCURRENCY,
+            stations.length
+        );
+
+        for(let index = 0; index < count; index++){
+            workers.push(worker());
+        }
+
+        await Promise.all(workers);
+
+        if(runId !== stationMetadataRun){
+            return;
+        }
+    }
+
     function renderCards(){
         const grid = get("waterLevelsGrid");
         if(!grid) return;
@@ -218,20 +481,20 @@
                             escapeHtml(typeLabel) +
                         '</span>' +
 
-                        '<span class="water-level-card-status">' +
+                        '<span class="water-level-card-status" data-water-card-status>' +
                             escapeHtml(station.status || "CLMS") +
                         '</span>' +
                     '</div>' +
 
                     '<div class="water-level-card-title">' +
-                        '<h3>' +
+                        '<h3 data-water-card-title>' +
                             escapeHtml(
                                 station.title ||
                                 (typeLabel + " water-level station")
                             ) +
                         '</h3>' +
 
-                        '<p>' +
+                        '<p data-water-card-location>' +
                             escapeHtml(location) +
                         '</p>' +
                     '</div>' +
@@ -239,13 +502,13 @@
                     '<div class="water-level-card-hero">' +
                         '<div>' +
                             '<span>Water surface height</span>' +
-                            '<strong>—</strong>' +
-                            '<small>Open details for latest measurement</small>' +
+                            '<strong data-water-card-height>—</strong>' +
+                            '<small data-water-card-height-note>Open details for latest measurement</small>' +
                         '</div>' +
 
                         '<div>' +
                             '<span>Last product update</span>' +
-                            '<strong>' +
+                            '<strong data-water-card-updated>' +
                                 escapeHtml(
                                     station.updated
                                         ? new Date(station.updated).toLocaleDateString()
@@ -257,24 +520,28 @@
                     '</div>' +
 
                     '<div class="water-level-card-metrics">' +
-                        metric(
+                        cardMetric(
                             "Water body",
-                            station.waterBody || "—"
+                            station.waterBody || "Loading…",
+                            "waterBody"
                         ) +
 
-                        metric(
+                        cardMetric(
                             "Basin",
-                            station.basin || "—"
+                            station.basin || "Loading…",
+                            "basin"
                         ) +
 
-                        metric(
+                        cardMetric(
                             "Station / Cell ID",
-                            station.stationId || "—"
+                            station.stationId || "Loading…",
+                            "stationId"
                         ) +
 
-                        metric(
+                        cardMetric(
                             "Coordinates",
-                            formatCoordinates(station.coordinates)
+                            formatCoordinates(station.coordinates),
+                            "coordinates"
                         ) +
                     '</div>' +
 
@@ -312,6 +579,9 @@
             (visible.length === 1 ? "" : "s") +
             " found"
         );
+
+        /* Hydrate visible cards from the actual Copernicus GeoJSON products. */
+        void loadStationMetadata(visible);
     }
 
     async function loadStations(options){
