@@ -737,11 +737,9 @@ function normalizeStation(
     }
 
     const attributes =
-        Array.isArray(
+        normalizeAttributes(
             product.Attributes
-        )
-            ? product.Attributes
-            : [];
+        );
 
     const waterBody =
         attributeValue(
@@ -757,10 +755,10 @@ function normalizeStation(
             "wlBasinName"
         );
 
-    const resource =
-        attributeValue(
-            attributes,
-            "resource"
+    const stationId =
+        firstNonEmpty(
+            attributeValue(attributes,"cellID"),
+            attributeValue(attributes,"resource")
         );
 
     const datasetVersion =
@@ -832,7 +830,7 @@ function normalizeStation(
             basin || "",
 
         stationId:
-            resource || "",
+            stationId || "",
 
         coordinates,
 
@@ -2474,6 +2472,33 @@ async function inflateDeflateRaw(
 /* =========================================================
    ODATA ATTRIBUTE HELPERS
 ========================================================= */
+
+function normalizeAttributes(
+    value
+) {
+
+    if (Array.isArray(value)) {
+        return value;
+    }
+
+    if (
+        value &&
+        Array.isArray(value.value)
+    ) {
+        return value.value;
+    }
+
+    if (
+        value &&
+        Array.isArray(value.Items)
+    ) {
+        return value.Items;
+    }
+
+    return [];
+
+}
+
 
 function attributeEquals(
     name,
