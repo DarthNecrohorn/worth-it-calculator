@@ -10912,6 +10912,12 @@ body.water-levels-modal-open{
    WATER LEVELS — LIVE CHART
 ========================================================= */
 
+.water-levels-detail-history.is-focused{
+    border-color:rgba(124,92,255,.55) !important;
+    box-shadow:0 0 0 3px rgba(124,92,255,.10);
+    transition:border-color .2s ease,box-shadow .2s ease;
+}
+
 .water-levels-chart-inner{
     width:100%;
     padding:12px 14px 10px;
