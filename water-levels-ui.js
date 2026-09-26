@@ -535,7 +535,9 @@
                         errorMessage: ""
                     };
 
-                    stationLatestCache.set(station.id,cached);
+                    if(cached.height != null){
+                        stationLatestCache.set(station.id,cached);
+                    }
 
                     const current = state.stations.find(function(item){
                         return item.id === station.id;
@@ -545,8 +547,14 @@
                         current.latestHeight = cached.height;
                         current.latestUncertainty = cached.uncertainty;
                         current.latestDatetime = cached.datetime;
-                        current.latestErrorCode = "";
-                        current.latestErrorMessage = "";
+                        current.latestErrorCode =
+                            cached.height != null
+                                ? ""
+                                : "CDSE_NO_MEASUREMENT";
+                        current.latestErrorMessage =
+                            cached.height != null
+                                ? ""
+                                : "No usable latest measurement.";
                         applyLatestToCard(current);
                     }
 
@@ -579,6 +587,11 @@
                             message.toLowerCase().includes("authentication")
                         ){
                             code = "CDSE_AUTH";
+                        }
+                        else if(
+                            message.toLowerCase().includes("no usable latest")
+                        ){
+                            code = "CDSE_NO_MEASUREMENT";
                         }
 
                         current.latestErrorCode = code;
@@ -624,6 +637,9 @@
             }
             else if(station.latestErrorCode === "CDSE_AUTH"){
                 note.textContent = "Copernicus download authentication failed";
+            }
+            else if(station.latestErrorCode === "CDSE_NO_MEASUREMENT"){
+                note.textContent = "No usable latest Copernicus measurement";
             }
             else if(station.latestErrorCode){
                 note.textContent = "Latest Copernicus measurement unavailable";
