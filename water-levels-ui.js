@@ -2277,7 +2277,7 @@
                     " · Latest observation";
             }
             else if(station.latestHeight != null){
-                note.textContent = "Reference datum unavailable";
+                note.textContent = "Latest satellite observation";
             }
             else if(station.latestErrorCode === "CDSE_CONFIGURATION"){
                 note.textContent = "Copernicus download credentials are not configured";
