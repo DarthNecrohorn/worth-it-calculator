@@ -297,6 +297,17 @@
         latestHeight,
         previousHeight
     ){
+        if(
+            previousHeight === null ||
+            previousHeight === undefined ||
+            latestHeight === null ||
+            latestHeight === undefined ||
+            latestHeight === "" ||
+            previousHeight === ""
+        ){
+            return "";
+        }
+
         const latest =
             Number(latestHeight);
         const previous =
