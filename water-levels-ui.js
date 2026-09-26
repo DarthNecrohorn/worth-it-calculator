@@ -2344,99 +2344,117 @@
                 ? [250,500,1000,2000,4000,8000]
                 : [150,300,600,1000,2000];
 
-        const byId = new Map();
+        const byStation = new Map();
+
+        function candidateIdentity(station){
+            if(!station) return "";
+
+            const stationId =
+                String(
+                    station.stationId || ""
+                ).trim();
+
+            if(stationId){
+                return (
+                    (station.type || type) +
+                    "|" +
+                    stationId
+                );
+            }
+
+            const coordinates =
+                station.coordinates || {};
+            const lat = Number(coordinates.latitude);
+            const lon = Number(coordinates.longitude);
+
+            if(Number.isFinite(lat) && Number.isFinite(lon)){
+                return (
+                    (station.type || type) +
+                    "|" +
+                    lat.toFixed(4) +
+                    "|" +
+                    lon.toFixed(4)
+                );
+            }
+
+            return String(station.id || "");
+        }
 
         for(const radiusKm of radiiKm){
-
-            const params =
-                new URLSearchParams();
-
+            const params = new URLSearchParams();
             params.set("action","nearby");
             params.set("type",type);
             params.set("lat",String(location.latitude));
             params.set("lon",String(location.longitude));
             params.set("radiusKm",String(radiusKm));
-
-            /*
-             * Canada needs a larger candidate pool. Other countries only
-             * need enough nearby candidates for distance sorting.
-             */
             params.set(
                 "limit",
-                countryCode === "CA"
-                    ? "400"
-                    : "120"
+                countryCode === "CA" ? "400" : "120"
             );
 
             if(force){
                 params.set("refresh","1");
             }
 
-            const response =
-                await fetch(
-                    "/api/water-levels?" +
-                    params.toString(),
-                    {
-                        method:"GET",
-                        headers:{
-                            "Accept":"application/json"
-                        },
-                        signal:controller.signal
-                    }
-                );
+            const response = await fetch(
+                "/api/water-levels?" + params.toString(),
+                {
+                    method:"GET",
+                    headers:{"Accept":"application/json"},
+                    signal:controller.signal
+                }
+            );
 
-            const data =
-                await response.json()
-                    .catch(function(){
-                        return null;
-                    });
+            const data = await response.json().catch(function(){
+                return null;
+            });
 
-            if(
-                !response.ok ||
-                !data ||
-                data.ok === false
-            ){
+            if(!response.ok || !data || data.ok === false){
                 throw new Error(
-                    data &&
-                    data.error
+                    data && data.error
                         ? data.error
                         : "Nearby water-level request failed."
                 );
             }
 
             const stations =
-                Array.isArray(data.stations)
-                    ? data.stations
-                    : [];
+                Array.isArray(data.stations) ? data.stations : [];
 
             stations.forEach(function(station){
+                const key = candidateIdentity(station);
+                if(!key) return;
+
+                const existing = byStation.get(key);
+                if(!existing){
+                    byStation.set(key,station);
+                    return;
+                }
+
+                const existingUpdated = Date.parse(existing.updated);
+                const candidateUpdated = Date.parse(station.updated);
+
                 if(
-                    station &&
-                    station.id &&
-                    !byId.has(station.id)
+                    Number.isFinite(candidateUpdated) &&
+                    (!Number.isFinite(existingUpdated) || candidateUpdated > existingUpdated)
                 ){
-                    byId.set(station.id,station);
+                    byStation.set(key,station);
                 }
             });
 
             /*
-             * We only need a modest local pool. If the first radius has
-             * enough stations, do not make additional Copernicus requests.
+             * Expand the search until we have enough UNIQUE virtual
+             * stations. This prevents dated products for a few major
+             * rivers from crowding out less common local rivers.
              */
             if(
-                byId.size >= (
-                    countryCode === "CA"
-                        ? 180
-                        : 72
-                )
+                byStation.size >=
+                (countryCode === "CA" ? 100 : 40)
             ){
                 break;
             }
         }
 
-        return Array.from(
-            byId.values()
-        );
+        return Array.from(byStation.values());
     }
 
     async function loadLocationPersonalizedStations(
