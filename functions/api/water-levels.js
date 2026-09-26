@@ -28,7 +28,7 @@ const WATER_DATASETS = {
     lakes: "wl-lakes_global_vector_daily_v2"
 };
 
-const WATER_CACHE_VERSION = "v22";
+const WATER_CACHE_VERSION = "v23";
 
 const STATIONS_CACHE_TTL_SECONDS =
     2 * 60 * 60;
@@ -830,7 +830,9 @@ async function handleLatest(
                     debug:
                         error.details
                             ? String(error.details).slice(0,300)
-                            : "CDSE token or download authentication was rejected."
+                            : "CDSE token or download authentication was rejected.",
+                    credentialDiagnostics:
+                        error.credentialDiagnostics || null
                 },
                 503,
                 {
@@ -2713,6 +2715,21 @@ async function getCdseAccessToken(
 
                 authError.details =
                     text.slice(0,300);
+
+                authError.credentialDiagnostics = {
+                    usernameConfigured:
+                        Boolean(username),
+                    usernameLength:
+                        username.length,
+                    passwordConfigured:
+                        Boolean(password),
+                    passwordLength:
+                        password.length,
+                    passwordHasLeadingWhitespace:
+                        password.length !== password.trimStart().length,
+                    passwordHasTrailingWhitespace:
+                        password.length !== password.trimEnd().length
+                };
 
                 throw authError;
 
