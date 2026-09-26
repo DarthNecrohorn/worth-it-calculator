@@ -179,25 +179,49 @@
                 )
                 : null;
 
-        const remainingLabel =
+        const hasTodayRemaining =
             api?.todayRemaining !== null &&
-            api?.todayRemaining !== undefined
+            api?.todayRemaining !== undefined;
+
+        const hasMonthRemaining =
+            api?.monthRemaining !== null &&
+            api?.monthRemaining !== undefined;
+
+        const remainingValue =
+            hasTodayRemaining
+                ? formatNumber(api.todayRemaining)
+                : hasMonthRemaining
+                    ? formatNumber(api.monthRemaining)
+                    : quotaType === "none"
+                        ? "∞"
+                        : quotaType === "dynamic"
+                            ? "Account"
+                            : "Provider";
+
+        const remainingLabel =
+            hasTodayRemaining
                 ? "Remaining today"
-                : quotaType === "none"
-                    ? "Remaining"
-                    : "Remaining";
+                : hasMonthRemaining
+                    ? "Remaining this month"
+                    : quotaType === "none"
+                        ? "No fixed quota"
+                        : "Quota availability";
 
         const remainingDetail =
-            api?.todayRemaining !== null &&
-            api?.todayRemaining !== undefined
+            hasTodayRemaining
                 ? (
                     api?.quotaLabel ||
                     "Daily limit"
                 )
-                : (
-                    api?.quotaLabel ||
-                    "Provider dependent"
-                );
+                : hasMonthRemaining
+                    ? (
+                        api?.quotaLabel ||
+                        "Monthly limit"
+                    )
+                    : (
+                        api?.quotaLabel ||
+                        "Provider/account dependent"
+                    );
 
         const secondaryRemaining =
             api?.monthRemaining !== null &&
@@ -251,14 +275,8 @@
                 '</p>',
                 '<div class="admin-usage-main-number">',
                     '<strong>' +
-                        (
-                            remainingValue !== null
-                                ? remainingValue
-                                : (
-                                    quotaType === "none"
-                                        ? "∞"
-                                        : "—"
-                                )
+                        escapeHtml(
+                            remainingValue
                         ) +
                     '</strong>',
                     '<span>' +
