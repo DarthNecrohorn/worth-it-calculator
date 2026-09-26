@@ -4419,16 +4419,15 @@
 
         if(!button) return;
 
-        const hasLoadedStations =
-            Array.isArray(state.stations) &&
-            state.stations.length > 0;
+        const isBusy =
+            !!state.loading;
 
         button.disabled =
-            hasLoadedStations;
+            isBusy;
 
         button.setAttribute(
             "aria-disabled",
-            hasLoadedStations
+            isBusy
                 ? "true"
                 : "false"
         );
