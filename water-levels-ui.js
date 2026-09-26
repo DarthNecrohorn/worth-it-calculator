@@ -22,7 +22,7 @@
     const stationMetadataCache = new Map();
     const stationLatestCache = new Map();
     const STATION_METADATA_CONCURRENCY = 3;
-    const STATION_LATEST_CONCURRENCY = 2;
+    const STATION_LATEST_CONCURRENCY = 4;
 
     const state = {
         stations: [],
@@ -530,7 +530,9 @@
                         datetime:
                             latest && latest.datetime
                                 ? latest.datetime
-                                : ""
+                                : "",
+                        errorCode: "",
+                        errorMessage: ""
                     };
 
                     stationLatestCache.set(station.id,cached);
@@ -543,6 +545,8 @@
                         current.latestHeight = cached.height;
                         current.latestUncertainty = cached.uncertainty;
                         current.latestDatetime = cached.datetime;
+                        current.latestErrorCode = "";
+                        current.latestErrorMessage = "";
                         applyLatestToCard(current);
                     }
 
@@ -553,6 +557,34 @@
                         station.id,
                         error
                     );
+
+                    const current = state.stations.find(function(item){
+                        return item.id === station.id;
+                    });
+
+                    if(current){
+                        const message =
+                            error && error.message
+                                ? String(error.message)
+                                : "Latest measurement unavailable.";
+
+                        let code = "CDSE_LATEST_FAILED";
+
+                        if(
+                            message.toLowerCase().includes("credentials")
+                        ){
+                            code = "CDSE_CONFIGURATION";
+                        }
+                        else if(
+                            message.toLowerCase().includes("authentication")
+                        ){
+                            code = "CDSE_AUTH";
+                        }
+
+                        current.latestErrorCode = code;
+                        current.latestErrorMessage = message;
+                        applyLatestToCard(current);
+                    }
                 }
             }
         }
@@ -584,10 +616,21 @@
 
         const note = card.querySelector("[data-water-card-height-note]");
         if(note){
-            note.textContent =
-                station.latestHeight != null
-                    ? "Latest available observation"
-                    : "No usable latest measurement";
+            if(station.latestHeight != null){
+                note.textContent = "Latest available observation";
+            }
+            else if(station.latestErrorCode === "CDSE_CONFIGURATION"){
+                note.textContent = "Copernicus download credentials are not configured";
+            }
+            else if(station.latestErrorCode === "CDSE_AUTH"){
+                note.textContent = "Copernicus download authentication failed";
+            }
+            else if(station.latestErrorCode){
+                note.textContent = "Latest Copernicus measurement unavailable";
+            }
+            else{
+                note.textContent = "No usable latest measurement";
+            }
         }
     }
 
