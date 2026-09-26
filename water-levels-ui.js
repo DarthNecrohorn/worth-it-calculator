@@ -1887,63 +1887,43 @@
         observeLatestCards();
     }
 
-    async function fetchCanadaNearbyCategory({
+    async function fetchNearbyWaterCategory({
         type,
         location,
         controller,
         force
     }){
-        const radiiKm = [
-            250,
-            500,
-            1000,
-            2000,
-            4000,
-            8000
-        ];
+        const countryCode =
+            String(
+                location &&
+                location.countryCode || ""
+            ).trim().toUpperCase();
+
+        const radiiKm =
+            countryCode === "CA"
+                ? [250,500,1000,2000,4000,8000]
+                : [150,300,600,1000,2000];
 
         const byId = new Map();
 
         for(const radiusKm of radiiKm){
 
-            const params =
-                new URLSearchParams();
+            const params = new URLSearchParams();
 
-            params.set(
-                "action",
-                "nearby"
-            );
-
-            params.set(
-                "type",
-                type
-            );
-
-            params.set(
-                "lat",
-                String(location.latitude)
-            );
-
-            params.set(
-                "lon",
-                String(location.longitude)
-            );
-
-            params.set(
-                "radiusKm",
-                String(radiusKm)
-            );
-
+            params.set("action","nearby");
+            params.set("type",type);
+            params.set("lat",String(location.latitude));
+            params.set("lon",String(location.longitude));
+            params.set("radiusKm",String(radiusKm));
             params.set(
                 "limit",
-                "1000"
+                countryCode === "CA"
+                    ? "400"
+                    : "120"
             );
 
             if(force){
-                params.set(
-                    "refresh",
-                    "1"
-                );
+                params.set("refresh","1");
             }
 
             const response =
@@ -1955,8 +1935,7 @@
                         headers:{
                             "Accept":"application/json"
                         },
-                        signal:
-                            controller.signal
+                        signal:controller.signal
                     }
                 );
 
@@ -1975,7 +1954,7 @@
                     data &&
                     data.error
                         ? data.error
-                        : "Canada nearby water-level request failed."
+                        : "Nearby water-level request failed."
                 );
             }
 
@@ -1990,19 +1969,17 @@
                     station.id &&
                     !byId.has(station.id)
                 ){
-                    byId.set(
-                        station.id,
-                        station
-                    );
+                    byId.set(station.id,station);
                 }
             });
 
-            /*
-             * Once we have a healthy pool of candidates, the local
-             * distance sort below can reliably choose the closest
-             * 400 Canadian stations for this category.
-             */
-            if(byId.size >= 800){
+            if(
+                byId.size >= (
+                    countryCode === "CA"
+                        ? 100
+                        : 24
+                )
+            ){
                 break;
             }
         }
@@ -2012,20 +1989,20 @@
         );
     }
 
-    async function loadCanadaPersonalizedStations(
+    async function loadLocationPersonalizedStations(
         location,
         controller,
         force
     ){
         const results =
             await Promise.all([
-                fetchCanadaNearbyCategory({
+                fetchNearbyWaterCategory({
                     type:"river",
                     location,
                     controller,
                     force
                 }),
-                fetchCanadaNearbyCategory({
+                fetchNearbyWaterCategory({
                     type:"lake",
                     location,
                     controller,
@@ -2034,101 +2011,81 @@
             ]);
 
         const candidates =
-            results
-                .flat();
+            results.flat();
 
         const enriched =
-            candidates
-                .map(function(station,index){
-                    return {
-                        station,
-                        index,
-                        distanceKm:
-                            haversineDistanceKm(
-                                location,
-                                station.coordinates
-                            )
-                    };
-                })
-                .sort(function(left,right){
-                    const distance =
-                        left.distanceKm -
-                        right.distanceKm;
-
-                    if(
-                        Number.isFinite(distance) &&
-                        Math.abs(distance) > 0.000001
-                    ){
-                        return distance;
-                    }
-
-                    return left.index - right.index;
-                });
-
-        /*
-         * The nearby endpoint is geographic, but the expanding
-         * radius may cross the US border. Determine the country
-         * for the full candidate pool before taking the final 400.
-         */
-        const canadianCandidates =
             await Promise.all(
-                enriched
-                    .map(
-                        async function(item){
-                            const geo =
+                candidates.map(
+                    async function(station,index){
+                        return {
+                            station,
+                            index,
+                            distanceKm:
+                                haversineDistanceKm(
+                                    location,
+                                    station.coordinates
+                                ),
+                            geo:
                                 await classifyWaterStation(
-                                    item.station,
+                                    station,
                                     location
-                                );
-
-                            return {
-                                ...item,
-                                geo
-                            };
-                        }
-                    )
+                                )
+                        };
+                    }
+                )
             );
 
-        const canadianRivers =
-            canadianCandidates
-                .filter(function(item){
-                    return (
-                        item.station.type === "river" &&
-                        item.geo.countryMatch
-                    );
-                })
-                .sort(function(left,right){
-                    return (
-                        left.distanceKm -
-                        right.distanceKm
-                    );
-                })
-                .slice(
-                    0,
-                    CATEGORY_STATION_LIMIT
-                );
+        const countryCode =
+            String(
+                location.countryCode || ""
+            ).trim().toUpperCase();
 
-        const canadianLakes =
-            canadianCandidates
-                .filter(function(item){
-                    return (
-                        item.station.type === "lake" &&
-                        item.geo.countryMatch
-                    );
-                })
-                .sort(function(left,right){
-                    return (
-                        left.distanceKm -
-                        right.distanceKm
-                    );
-                })
-                .slice(
-                    0,
-                    CATEGORY_STATION_LIMIT
-                );
+        function selectCategory(type){
+            const items =
+                enriched
+                    .filter(function(item){
+                        return (
+                            item.station.type === type &&
+                            item.geo.countryMatch
+                        );
+                    })
+                    .sort(function(left,right){
+                        return (
+                            left.distanceKm -
+                            right.distanceKm
+                        );
+                    });
 
-        return canadianRivers
-            .concat(canadianLakes)
+            if(
+                countryCode === "US" &&
+                location.stateName
+            ){
+                const sameState =
+                    items.filter(function(item){
+                        return item.geo.stateMatch;
+                    });
+
+                const otherState =
+                    items.filter(function(item){
+                        return !item.geo.stateMatch;
+                    });
+
+                return sameState
+                    .concat(otherState)
+                    .slice(
+                        0,
+                        CATEGORY_STATION_LIMIT
+                    );
+            }
+
+            return items.slice(
+                0,
+                CATEGORY_STATION_LIMIT
+            );
+        }
+
+        return selectCategory("river")
+            .concat(selectCategory("lake"))
             .sort(function(left,right){
                 return (
                     left.distanceKm -
@@ -2291,41 +2248,63 @@
                 return;
             }
 
-            /*
-             * Canada gets its dedicated city-proximity path. We only wait
-             * for the normal catalogue request when location detection
-             * does not identify Canada.
-             */
             if(
                 !query &&
-                location &&
-                String(location.countryCode || "").toUpperCase() === "CA"
+                location
             ){
-                const personalizedStations =
-                    await loadCanadaPersonalizedStations(
-                        location,
-                        controller,
-                        Boolean(options.force)
+
+                try{
+
+                    const personalizedStations =
+                        await loadLocationPersonalizedStations(
+                            location,
+                            controller,
+                            Boolean(options.force)
+                        );
+
+                    if(
+                        stationsRequest !== controller
+                    ){
+                        return;
+                    }
+
+                    if(personalizedStations.length){
+                        state.stations =
+                            personalizedStations;
+
+                        state.location =
+                            location;
+
+                        state.error = "";
+                        state.loading = false;
+
+                        saveStationsCache(
+                            query,
+                            personalizedStations,
+                            location
+                        );
+
+                        updateRefreshAvailability();
+                        renderCards();
+                        return;
+                    }
+
+                }
+                catch(error){
+
+                    if(
+                        error &&
+                        error.name === "AbortError"
+                    ){
+                        throw error;
+                    }
+
+                    console.warn(
+                        "Water Levels nearby personalization failed; using catalogue fallback:",
+                        error
                     );
 
-                if(stationsRequest !== controller){
-                    return;
                 }
-
-                state.stations = personalizedStations;
-                state.location = location;
-                state.error = "";
-                state.loading = false;
-
-                saveStationsCache(
-                    query,
-                    personalizedStations,
-                    location
-                );
-
-                updateRefreshAvailability();
-                renderCards();
-                return;
             }
 
             const data =
