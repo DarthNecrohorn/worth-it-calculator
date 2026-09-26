@@ -28,7 +28,7 @@ const WATER_DATASETS = {
     lakes: "wl-lakes_global_vector_daily_v2"
 };
 
-const WATER_CACHE_VERSION = "v41";
+const WATER_CACHE_VERSION = "v42";
 
 const STATIONS_CACHE_TTL_SECONDS =
     6 * 60 * 60;
