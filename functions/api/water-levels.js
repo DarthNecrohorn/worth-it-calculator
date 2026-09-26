@@ -28,7 +28,7 @@ const WATER_DATASETS = {
     lakes: "wl-lakes_global_vector_daily_v2"
 };
 
-const WATER_CACHE_VERSION = "v31";
+const WATER_CACHE_VERSION = "v32";
 
 const STATIONS_CACHE_TTL_SECONDS =
     6 * 60 * 60;
@@ -1851,6 +1851,26 @@ function normalizeStation(
             attributeValue(attributes,"wlCountryName")
         );
 
+    const referenceGeoid =
+        firstNonEmpty(
+            attributeValue(
+                attributes,
+                "water_surface_reference_name"
+            ),
+            attributeValue(
+                attributes,
+                "water_surface_reference_datum_name"
+            )
+        );
+
+    const referenceDatumAltitude =
+        numberOrNull(
+            attributeValue(
+                attributes,
+                "water_surface_reference_datum_altitude"
+            )
+        );
+
     const stationId =
         firstNonEmpty(
             attributeValue(attributes,"cellID"),
@@ -1927,6 +1947,11 @@ function normalizeStation(
 
         country:
             country || "",
+
+        referenceGeoid:
+            referenceGeoid || "",
+
+        referenceDatumAltitude,
 
         stationId:
             stationId || "",
