@@ -2244,7 +2244,9 @@
         if(height){
             height.textContent =
                 station.latestHeight != null
-                    ? formatNumber(station.latestHeight,3) + " m"
+                    ? formatWaterSurfaceHeight(
+                        station.latestHeight
+                      )
                     : "—";
         }
 
