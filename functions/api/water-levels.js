@@ -28,7 +28,7 @@ const WATER_DATASETS = {
     lakes: "wl-lakes_global_vector_daily_v2"
 };
 
-const WATER_CACHE_VERSION = "v13";
+const WATER_CACHE_VERSION = "v14";
 
 const STATIONS_CACHE_TTL_SECONDS =
     2 * 60 * 60;
@@ -1622,7 +1622,7 @@ async function fetchLatestRangeFromUrl(
 ) {
 
     const response =
-        await fetchWithTimeout(
+        await fetchCdseWithRedirects(
             productUrl,
             {
                 headers: {
@@ -1651,9 +1651,7 @@ async function fetchLatestRangeFromUrl(
                                 "bytes=-" +
                                 String(rangeBytes)
                               )
-                },
-                redirect:
-                    "follow"
+                }
             },
             DOWNLOAD_TIMEOUT_MS
         );
@@ -2320,7 +2318,7 @@ async function downloadAndParseProduct(
         ")/$value";
 
     const response =
-        await fetchWithTimeout(
+        await fetchCdseWithRedirects(
             productUrl,
             {
                 headers: {
@@ -2329,9 +2327,7 @@ async function downloadAndParseProduct(
                         accessToken,
                     "Accept":
                         "application/geo+json,application/json,application/zip,*/*"
-                },
-                redirect:
-                    "follow"
+                }
             },
             DOWNLOAD_TIMEOUT_MS
         );
@@ -4106,6 +4102,97 @@ function looksLikeJson(
     );
 
 }
+
+async function fetchCdseWithRedirects(
+    url,
+    options = {},
+    timeoutMs = 20000
+) {
+
+    let currentUrl =
+        String(url);
+
+    for(
+        let redirectCount = 0;
+        redirectCount < 6;
+        redirectCount++
+    ){
+
+        const headers =
+            new Headers(
+                options.headers || {}
+            );
+
+        const response =
+            await fetchWithTimeout(
+                currentUrl,
+                {
+                    ...options,
+                    headers,
+                    redirect:
+                        "manual"
+                },
+                timeoutMs
+            );
+
+        if(
+            response.status < 300 ||
+            response.status >= 400
+        ){
+            return response;
+        }
+
+        const location =
+            response.headers.get(
+                "location"
+            );
+
+        if(!location){
+            return response;
+        }
+
+        const nextUrl =
+            new URL(
+                location,
+                currentUrl
+            );
+
+        const hostname =
+            nextUrl.hostname.toLowerCase();
+
+        /*
+         * Preserve the CDSE bearer token only across official
+         * Copernicus Data Space hosts. Never forward secrets to
+         * an unrelated redirect target.
+         */
+        if(
+            !(
+                hostname === "dataspace.copernicus.eu" ||
+                hostname.endsWith(".dataspace.copernicus.eu")
+            )
+        ){
+            try{
+                await response.body?.cancel();
+            }catch(error){}
+
+            throw new Error(
+                "Copernicus download redirected to an unapproved host."
+            );
+        }
+
+        try{
+            await response.body?.cancel();
+        }catch(error){}
+
+        currentUrl =
+            nextUrl.toString();
+    }
+
+    throw new Error(
+        "Copernicus download followed too many redirects."
+    );
+}
+
 
 async function fetchWithTimeout(
     url,
