@@ -675,11 +675,6 @@ async function searchDatasetProducts({
         String(limit)
     );
 
-    params.set(
-        "$count",
-        "true"
-    );
-
     const data =
         await fetchJsonWithTimeout(
             ODATA_BASE +
