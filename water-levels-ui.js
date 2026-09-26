@@ -2158,9 +2158,7 @@
          * runs in the background.
          */
         const cached =
-            !options.force
-                ? readStationsCache(query)
-                : null;
+            readStationsCache(query);
 
         if(cached && cached.stations.length){
             state.stations = cached.stations;
@@ -2176,7 +2174,7 @@
              * Stale entries are shown instantly and refreshed in the
              * background without replacing the visible cards with loaders.
              */
-            if(cached.fresh){
+            if(cached.fresh && !options.force){
                 return;
             }
         }
