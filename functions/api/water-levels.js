@@ -28,7 +28,7 @@ const WATER_DATASETS = {
     lakes: "wl-lakes_global_vector_daily_v2"
 };
 
-const WATER_CACHE_VERSION = "v24";
+const WATER_CACHE_VERSION = "v25";
 
 const STATIONS_CACHE_TTL_SECONDS =
     2 * 60 * 60;
@@ -261,7 +261,7 @@ async function handleStations(
                 await Promise.all(
                     datasets.map(
                         function(pair) {
-                            return searchDatasetProducts({
+                            return searchDatasetProductsUpToLimit({
                                 type:
                                     pair[0],
                                 datasetId:
@@ -1118,11 +1118,14 @@ async function handleDetails(
    DATASET SEARCH
 ========================================================= */
 
+const STATION_QUERY_PAGE_SIZE = 200;
+
 async function searchDatasetProducts({
     type,
     datasetId,
     query,
-    limit
+    limit,
+    offset = 0
 }) {
 
     let filter =
@@ -1181,13 +1184,32 @@ async function searchDatasetProducts({
 
     params.set(
         "$orderby",
-        "ModificationDate desc"
+        "ModificationDate desc,Id asc"
     );
 
     params.set(
         "$top",
-        String(limit)
+        String(
+            Math.min(
+                STATION_QUERY_PAGE_SIZE,
+                Math.max(1, Number(limit) || 1)
+            )
+        )
     );
+
+    if(Number(offset) > 0){
+        params.set(
+            "$skip",
+            String(
+                Math.max(
+                    0,
+                    Math.floor(
+                        Number(offset) || 0
+                    )
+                )
+            )
+        );
+    }
 
     const data =
         await fetchJsonWithTimeout(
@@ -1227,6 +1249,69 @@ async function searchDatasetProducts({
             }
         )
         .filter(Boolean);
+
+}
+
+async function searchDatasetProductsUpToLimit({
+    type,
+    datasetId,
+    query,
+    limit
+}) {
+
+    const target =
+        Math.max(
+            0,
+            Math.floor(
+                Number(limit) || 0
+            )
+        );
+
+    if(target === 0){
+        return [];
+    }
+
+    const results = [];
+
+    for(
+        let offset = 0;
+        offset < target;
+        offset += STATION_QUERY_PAGE_SIZE
+    ){
+
+        const pageLimit =
+            Math.min(
+                STATION_QUERY_PAGE_SIZE,
+                target - offset
+            );
+
+        const page =
+            await searchDatasetProducts({
+                type,
+                datasetId,
+                query,
+                limit:
+                    pageLimit,
+                offset
+            });
+
+        results.push.apply(
+            results,
+            page
+        );
+
+        if(
+            page.length <
+            pageLimit
+        ){
+            break;
+        }
+    }
+
+    return results.slice(
+        0,
+        target
+    );
 
 }
 
