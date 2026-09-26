@@ -139,9 +139,16 @@ export async function onRequestGet(context) {
         return jsonResponse(
             {
                 error:
-                    "Water levels service unavailable."
+                    "Water levels service unavailable.",
+                details:
+                    error && error.message
+                        ? String(error.message).slice(0,500)
+                        : "Unknown server error."
             },
-            500
+            500,
+            {
+                "Cache-Control":"no-store"
+            }
         );
 
     }
@@ -205,7 +212,8 @@ async function handleStations(
     if (!forceRefresh) {
 
         const cached =
-            await cache.match(
+            await safeCacheMatch(
+                cache,
                 cacheKey
             );
 
@@ -377,7 +385,8 @@ async function handleStations(
                     }
                 );
 
-            await cache.put(
+            await safeCachePut(
+                cache,
                 cacheKey,
                 response.clone()
             );
@@ -399,7 +408,8 @@ async function handleStations(
     catch (error) {
 
         const stale =
-            await cache.match(
+            await safeCacheMatch(
+                cache,
                 cacheKey
             );
 
@@ -5356,6 +5366,44 @@ function createCacheRequest(
     );
 
 }
+
+async function safeCacheMatch(
+    cache,
+    request
+){
+    try{
+        return await cache.match(request);
+    }
+    catch(error){
+        console.warn(
+            "Water Levels Cache API match failed:",
+            error
+        );
+        return null;
+    }
+}
+
+async function safeCachePut(
+    cache,
+    request,
+    response
+){
+    try{
+        await cache.put(
+            request,
+            response
+        );
+        return true;
+    }
+    catch(error){
+        console.warn(
+            "Water Levels Cache API put failed:",
+            error
+        );
+        return false;
+    }
+}
+
 
 function responseWithHeaders(
     response,
