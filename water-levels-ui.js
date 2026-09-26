@@ -1859,7 +1859,12 @@
         station.latestHeight =
             latest && Number.isFinite(Number(latest.height))
                 ? Number(latest.height)
-                : null;
+                : (
+                    metadata.latest &&
+                    Number.isFinite(Number(metadata.latest.height))
+                        ? Number(metadata.latest.height)
+                        : null
+                );
         station.previousHeight =
             metadata.previous &&
             Number.isFinite(Number(metadata.previous.height))
@@ -1872,7 +1877,31 @@
         station.latestUncertainty =
             latest && Number.isFinite(Number(latest.uncertainty))
                 ? Number(latest.uncertainty)
-                : null;
+                : (
+                    metadata.latest &&
+                    Number.isFinite(Number(metadata.latest.uncertainty))
+                        ? Number(metadata.latest.uncertainty)
+                        : null
+                );
+        if(
+            station.latestHeight != null
+        ){
+            stationLatestCache.set(
+                station.id,
+                {
+                    height: station.latestHeight,
+                    previousHeight: station.previousHeight,
+                    uncertainty: station.latestUncertainty,
+                    datetime:
+                        metadata.latest &&
+                        metadata.latest.datetime
+                            ? metadata.latest.datetime
+                            : "",
+                    errorCode: "",
+                    errorMessage: ""
+                }
+            );
+        }
         station.metadataLoaded = true;
 
         const card = findStationCard(station.id);
