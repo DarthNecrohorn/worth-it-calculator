@@ -28,7 +28,7 @@ const WATER_DATASETS = {
     lakes: "wl-lakes_global_vector_daily_v2"
 };
 
-const WATER_CACHE_VERSION = "v18";
+const WATER_CACHE_VERSION = "v19";
 
 const STATIONS_CACHE_TTL_SECONDS =
     2 * 60 * 60;
@@ -856,13 +856,33 @@ async function handleLatest(
             );
         }
 
+        const rawMessage =
+            error &&
+            error.message
+                ? String(error.message)
+                : "";
+
+        const safeDebug =
+            rawMessage
+                .replace(
+                    /Bearer\\s+[A-Za-z0-9._~-]+/gi,
+                    "Bearer [redacted]"
+                )
+                .replace(
+                    /https?:\\/\\/[^\\s]+/gi,
+                    "[url]"
+                )
+                .slice(0,500);
+
         return jsonResponse(
             {
                 ok: false,
                 error:
                     "Unable to load the latest Copernicus water-level measurement.",
                 code:
-                    "CDSE_LATEST_FAILED"
+                    "CDSE_LATEST_FAILED",
+                debug:
+                    safeDebug || "Unknown backend error."
             },
             502,
             {
