@@ -28,7 +28,7 @@ const WATER_DATASETS = {
     lakes: "wl-lakes_global_vector_daily_v2"
 };
 
-const WATER_CACHE_VERSION = "v21";
+const WATER_CACHE_VERSION = "v22";
 
 const STATIONS_CACHE_TTL_SECONDS =
     2 * 60 * 60;
@@ -826,7 +826,11 @@ async function handleLatest(
                     error:
                         "Copernicus download authentication failed.",
                     code:
-                        "CDSE_AUTH"
+                        "CDSE_AUTH",
+                    debug:
+                        error.details
+                            ? String(error.details).slice(0,300)
+                            : "CDSE token or download authentication was rejected."
                 },
                 503,
                 {
@@ -2696,9 +2700,21 @@ async function getCdseAccessToken(
                     text.slice(0,500)
                 );
 
-                throw new Error(
-                    "Copernicus authentication failed."
-                );
+                const authError =
+                    new Error(
+                        "Copernicus authentication failed."
+                    );
+
+                authError.code =
+                    "CDSE_AUTH";
+
+                authError.status =
+                    response.status;
+
+                authError.details =
+                    text.slice(0,300);
+
+                throw authError;
 
             }
 
@@ -2710,9 +2726,15 @@ async function getCdseAccessToken(
                 !data.access_token
             ) {
 
-                throw new Error(
-                    "Copernicus authentication returned no access token."
-                );
+                const tokenError =
+                    new Error(
+                        "Copernicus authentication returned no access token."
+                    );
+
+                tokenError.code =
+                    "CDSE_AUTH";
+
+                throw tokenError;
 
             }
 
