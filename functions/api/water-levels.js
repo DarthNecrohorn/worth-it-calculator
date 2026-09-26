@@ -28,7 +28,7 @@ const WATER_DATASETS = {
     lakes: "wl-lakes_global_vector_daily_v2"
 };
 
-const WATER_CACHE_VERSION = "v8";
+const WATER_CACHE_VERSION = "v9";
 
 const STATIONS_CACHE_TTL_SECONDS =
     2 * 60 * 60;
@@ -1721,20 +1721,56 @@ function normalizeProductPayload(
                     : null
               );
 
-    const rawMeasurements =
-        Array.isArray(
-            feature &&
-            feature.data
-        )
-            ? feature.data
-            : (
-                Array.isArray(
-                    payload &&
-                    payload.data
-                )
-                    ? payload.data
-                    : []
-              );
+    const featureList =
+        payload &&
+        payload.type === "FeatureCollection" &&
+        Array.isArray(payload.features)
+            ? payload.features
+            : feature
+                ? [feature]
+                : [];
+
+    const rawMeasurements = [];
+
+    function collectMeasurementData(value){
+        if(!value) return;
+
+        if(Array.isArray(value)){
+            value.forEach(function(item){
+                if(item && typeof item === "object"){
+                    rawMeasurements.push(item);
+                }
+            });
+            return;
+        }
+
+        if(
+            value &&
+            typeof value === "object"
+        ){
+            if(Array.isArray(value.data)){
+                collectMeasurementData(value.data);
+            }
+            if(Array.isArray(value.Data)){
+                collectMeasurementData(value.Data);
+            }
+            if(Array.isArray(value.measurements)){
+                collectMeasurementData(value.measurements);
+            }
+            if(Array.isArray(value.Measurements)){
+                collectMeasurementData(value.Measurements);
+            }
+        }
+    }
+
+    featureList.forEach(function(item){
+        collectMeasurementData(item);
+    });
+
+    collectMeasurementData(payload && payload.data);
+    collectMeasurementData(payload && payload.Data);
+    collectMeasurementData(payload && payload.measurements);
+    collectMeasurementData(payload && payload.Measurements);
 
     const measurements =
         rawMeasurements
@@ -1921,49 +1957,53 @@ function normalizeMeasurement(
 
     const datetime =
         firstNonEmpty(
-            item.Datetime,
-            item.datetime,
-            item.DateTime,
-            item.dateTime,
-            item.timestamp,
+            fieldValue(item,[
+                "Datetime",
+                "datetime",
+                "DateTime",
+                "dateTime",
+                "timestamp"
+            ]),
             ""
         );
 
     const height =
         numberOrNull(
-            firstDefined(
-                item.water_surface_height_above_reference_datum,
-                item.orthometric_height_of_water_surface_at_reference_position,
-                item.water_surface_height,
-                item.waterLevel
-            )
+            fieldValue(item,[
+                "water_surface_height_above_reference_datum",
+                "orthometric_height_of_water_surface_at_reference_position",
+                "water_surface_height",
+                "waterLevel",
+                "WaterSurfaceHeightAboveReferenceDatum"
+            ])
         );
 
     const uncertainty =
         numberOrNull(
-            firstDefined(
-                item.water_surface_height_uncertainty,
-                item.associated_uncertainty,
-                item.uncertainty
-            )
+            fieldValue(item,[
+                "water_surface_height_uncertainty",
+                "associated_uncertainty",
+                "uncertainty",
+                "WaterSurfaceHeightUncertainty"
+            ])
         );
 
     const groundTrack =
         numberOrNull(
-            firstDefined(
-                item["ground-track_number"],
-                item.ground_track_number,
-                item.groundTrackNumber
-            )
+            fieldValue(item,[
+                "ground-track_number",
+                "ground_track_number",
+                "groundTrackNumber"
+            ])
         );
 
     const cycleNumber =
         numberOrNull(
-            firstDefined(
-                item.cycle_number,
-                item.cycleNumber,
-                item.cycle
-            )
+            fieldValue(item,[
+                "cycle_number",
+                "cycleNumber",
+                "cycle"
+            ])
         );
 
     return {
@@ -3175,6 +3215,42 @@ function numberOrNull(
         : null;
 
 }
+
+function fieldValue(
+    object,
+    names
+) {
+
+    if(
+        !object ||
+        typeof object !== "object" ||
+        !Array.isArray(names)
+    ){
+        return undefined;
+    }
+
+    const wanted =
+        new Set(
+            names.map(function(name){
+                return String(name).toLowerCase();
+            })
+        );
+
+    for(
+        const key of Object.keys(object)
+    ){
+        if(
+            wanted.has(
+                String(key).toLowerCase()
+            )
+        ){
+            return object[key];
+        }
+    }
+
+    return undefined;
+}
+
 
 function firstDefined(
     ...values
