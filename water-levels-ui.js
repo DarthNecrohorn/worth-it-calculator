@@ -1758,6 +1758,27 @@
         );
     }
 
+    function formatDatasetVersionLabel(station){
+        const raw =
+            String(
+                station &&
+                station.datasetVersion || ""
+            ).trim();
+
+        if(!raw){
+            return "CLMS v2";
+        }
+
+        if(
+            /^(river|lake)2$/i.test(raw) ||
+            /(?:river|lake)\s*2$/i.test(raw)
+        ){
+            return "CLMS v2";
+        }
+
+        return raw;
+    }
+
     function cardMetric(label,value,key){
         return (
             '<div class="water-level-metric">' +
@@ -2560,8 +2581,7 @@
 
                         '<span>' +
                             escapeHtml(
-                                station.datasetVersion ||
-                                "CLMS"
+                                formatDatasetVersionLabel(station)
                             ) +
                         '</span>' +
                     '</div>' +
