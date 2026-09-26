@@ -28,7 +28,7 @@ const WATER_DATASETS = {
     lakes: "wl-lakes_global_vector_daily_v2"
 };
 
-const WATER_CACHE_VERSION = "v36";
+const WATER_CACHE_VERSION = "v37";
 
 const STATIONS_CACHE_TTL_SECONDS =
     6 * 60 * 60;
@@ -1998,7 +1998,9 @@ function normalizeStation(
 const LATEST_RANGE_STEPS = [
     64 * 1024,
     256 * 1024,
-    1024 * 1024
+    1024 * 1024,
+    4 * 1024 * 1024,
+    8 * 1024 * 1024
 ];
 
 async function getLatestMeasurementByRange(
@@ -2059,7 +2061,11 @@ async function getLatestMeasurementByRange(
 
             if(
                 direct &&
-                direct.latest
+                direct.latest &&
+                (
+                    direct.previous ||
+                    Number(direct.measurementCount) <= 1
+                )
             ){
                 return {
                     latest:
@@ -2683,9 +2689,8 @@ async function fetchLatestRangeFromUrl(
             previous,
             retryWithLargerRange:
                 !previous &&
-                (
-                    response.status === 206 ||
-                    !!contentRange
+                Number(rangeBytes) < (
+                    8 * 1024 * 1024
                 )
         };
     }
