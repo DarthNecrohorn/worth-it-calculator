@@ -656,7 +656,8 @@ async function searchDatasetProducts({
             "ModificationDate",
             "ContentDate/Start",
             "ContentDate/End",
-            "GeoFootprint"
+            "GeoFootprint",
+            "Attributes"
         ].join(",")
     );
 
