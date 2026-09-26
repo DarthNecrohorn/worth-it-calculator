@@ -2130,17 +2130,36 @@
 
                 if(stationLatestCache.has(station.id)){
                     const cached = stationLatestCache.get(station.id);
+                    const cacheIsComplete =
+                        cached &&
+                        cached.height != null &&
+                        cached.previousHeight != null;
+
                     const current = state.stations.find(function(item){
                         return item.id === station.id;
                     });
-                    if(current){
+
+                    if(
+                        current &&
+                        cached &&
+                        cached.height != null
+                    ){
                         current.latestHeight = cached.height;
                         current.previousHeight = cached.previousHeight;
                         current.latestUncertainty = cached.uncertainty;
                         current.latestDatetime = cached.datetime;
                         applyLatestToCard(current);
                     }
-                    continue;
+
+                    /*
+                     * A latest value without a previous value is not a
+                     * complete cache entry for this card. Let the real
+                     * latest endpoint try again so the change in cm/in can
+                     * still be recovered.
+                     */
+                    if(cacheIsComplete){
+                        continue;
+                    }
                 }
 
                 try{
