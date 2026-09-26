@@ -28,7 +28,7 @@ const WATER_DATASETS = {
     lakes: "wl-lakes_global_vector_daily_v2"
 };
 
-const WATER_CACHE_VERSION = "v43";
+const WATER_CACHE_VERSION = "v44";
 
 const STATIONS_CACHE_TTL_SECONDS =
     6 * 60 * 60;
@@ -3301,11 +3301,94 @@ async function getParsedProduct(
                     productId,
                     error
                 );
+
+                if(
+                    error &&
+                    error.code === "CDSE_AUTH"
+                ){
+                    throw error;
+                }
+            }
+
+            /*
+             * Some CLMS products do not expose the station asset at a
+             * predictable folder/file name even though the asset is
+             * discoverable through the product Nodes tree. Reuse the
+             * same recursive node discovery that already powers the
+             * working latest-observation path.
+             */
+            try{
+                const discoveredNode =
+                    await findGeoJsonNode(
+                        productId,
+                        token
+                    );
+
+                if(
+                    discoveredNode &&
+                    discoveredNode.url
+                ){
+                    const stationProduct =
+                        await downloadLatestJsonFromNode(
+                            discoveredNode.url,
+                            token,
+                            productId,
+                            type
+                        );
+
+                    if(
+                        stationProduct &&
+                        stationProduct.normalizedProduct &&
+                        Array.isArray(
+                            stationProduct.normalizedProduct.measurements
+                        ) &&
+                        stationProduct.normalizedProduct.measurements.length
+                    ){
+                        const product =
+                            stationProduct.normalizedProduct;
+
+                        const response =
+                            jsonResponse(
+                                product,
+                                200,
+                                {
+                                    "Cache-Control":
+                                        "public, max-age=" +
+                                        PRODUCT_CACHE_TTL_SECONDS +
+                                        ", stale-while-revalidate=" +
+                                        PRODUCT_STALE_TTL_SECONDS,
+                                    "X-Water-Cache":
+                                        "MISS"
+                                }
+                            );
+
+                        await cache.put(
+                            request,
+                            response.clone()
+                        );
+
+                        return product;
+                    }
+                }
+            }
+            catch(error){
+                console.warn(
+                    "Discovered Water Levels history node download failed:",
+                    productId,
+                    error
+                );
+
+                if(
+                    error &&
+                    error.code === "CDSE_AUTH"
+                ){
+                    throw error;
+                }
             }
 
             /*
              * Preserve the existing root-product fallback for products
-             * whose station JSON cannot be addressed directly.
+             * whose station JSON cannot be discovered as a node.
              */
             const product =
                 await downloadAndParseProduct(
