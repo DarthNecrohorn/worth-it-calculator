@@ -20,7 +20,9 @@
     let stationMetadataRun = 0;
 
     const stationMetadataCache = new Map();
+    const stationLatestCache = new Map();
     const STATION_METADATA_CONCURRENCY = 3;
+    const STATION_LATEST_CONCURRENCY = 2;
 
     const state = {
         stations: [],
@@ -452,6 +454,143 @@
         }
     }
 
+    async function loadStationLatest(stations){
+        if(!Array.isArray(stations) || !stations.length){
+            return;
+        }
+
+        let cursor = 0;
+
+        async function worker(){
+            while(cursor < stations.length){
+                const station = stations[cursor++];
+                if(!station || !station.id) continue;
+
+                if(stationLatestCache.has(station.id)){
+                    const cached = stationLatestCache.get(station.id);
+                    const current = state.stations.find(function(item){
+                        return item.id === station.id;
+                    });
+                    if(current){
+                        current.latestHeight = cached.height;
+                        current.latestUncertainty = cached.uncertainty;
+                        applyLatestToCard(current);
+                    }
+                    continue;
+                }
+
+                try{
+                    const params = new URLSearchParams();
+                    params.set("action","latest");
+                    params.set("id",station.id);
+                    params.set("type",station.type);
+
+                    const controller = new AbortController();
+                    const timer = window.setTimeout(function(){
+                        controller.abort();
+                    }, 20000);
+
+                    let response;
+                    try{
+                        response = await fetch(
+                            "/api/water-levels?" + params.toString(),
+                            {
+                                method:"GET",
+                                headers:{"Accept":"application/json"},
+                                signal:controller.signal
+                            }
+                        );
+                    }
+                    finally{
+                        window.clearTimeout(timer);
+                    }
+
+                    const data = await response.json().catch(function(){
+                        return null;
+                    });
+
+                    if(!response.ok || !data || data.ok === false){
+                        throw new Error(
+                            data && data.error
+                                ? data.error
+                                : "Latest measurement request failed."
+                        );
+                    }
+
+                    const latest = data.latest || null;
+                    const cached = {
+                        height:
+                            latest && Number.isFinite(Number(latest.height))
+                                ? Number(latest.height)
+                                : null,
+                        uncertainty:
+                            latest && Number.isFinite(Number(latest.uncertainty))
+                                ? Number(latest.uncertainty)
+                                : null,
+                        datetime:
+                            latest && latest.datetime
+                                ? latest.datetime
+                                : ""
+                    };
+
+                    stationLatestCache.set(station.id,cached);
+
+                    const current = state.stations.find(function(item){
+                        return item.id === station.id;
+                    });
+
+                    if(current){
+                        current.latestHeight = cached.height;
+                        current.latestUncertainty = cached.uncertainty;
+                        current.latestDatetime = cached.datetime;
+                        applyLatestToCard(current);
+                    }
+
+                }
+                catch(error){
+                    console.warn(
+                        "Water-level latest measurement request failed:",
+                        station.id,
+                        error
+                    );
+                }
+            }
+        }
+
+        const workers = [];
+        const count = Math.min(
+            STATION_LATEST_CONCURRENCY,
+            stations.length
+        );
+
+        for(let index = 0; index < count; index++){
+            workers.push(worker());
+        }
+
+        await Promise.all(workers);
+    }
+
+    function applyLatestToCard(station){
+        const card = findStationCard(station.id);
+        if(!card) return;
+
+        const height = card.querySelector("[data-water-card-height]");
+        if(height){
+            height.textContent =
+                station.latestHeight != null
+                    ? formatNumber(station.latestHeight,3) + " m"
+                    : "—";
+        }
+
+        const note = card.querySelector("[data-water-card-height-note]");
+        if(note){
+            note.textContent =
+                station.latestHeight != null
+                    ? "Latest available observation"
+                    : "No usable latest measurement";
+        }
+    }
+
     function renderCards(){
         const grid = get("waterLevelsGrid");
         if(!grid) return;
@@ -605,8 +744,11 @@
             " found"
         );
 
-        /* Hydrate visible cards from the actual Copernicus GeoJSON products. */
+        /* Hydrate visible cards from the actual Copernicus catalogue metadata. */
         void loadStationMetadata(visible);
+
+        /* Load latest measured water height separately, with strict concurrency. */
+        void loadStationLatest(visible);
     }
 
     async function loadStations(options){
