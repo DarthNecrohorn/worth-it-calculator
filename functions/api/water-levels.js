@@ -1501,21 +1501,18 @@ async function searchNearbyDatasetProducts({
     );
 
     /*
-     * The initial global station list only needs lightweight product
-     * metadata. Attribute expansion is relatively expensive, so defer it
-     * until an explicit search or a per-station metadata request.
+     * Nearby station normalization needs CLMS attributes so the response
+     * contains the river/lake name, basin and station/cell ID.
      */
-    if(query){
-        params.set(
-            "$expand",
-            "Attributes"
-        );
+    params.set(
+        "$expand",
+        "Attributes"
+    );
 
-        params.set(
-            "$orderby",
-            "ModificationDate desc,Id asc"
-        );
-    }
+    params.set(
+        "$orderby",
+        "ModificationDate desc,Id asc"
+    );
 
     params.set(
         "$top",
