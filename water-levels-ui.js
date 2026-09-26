@@ -134,4 +134,15 @@
     }
 
     window.initWaterLevelsUI = init;
+
+    /*
+     * Also initialize when the section already exists in the DOM.
+     * The navigation can still call initWaterLevelsUI() later; the
+     * internal guards keep the event listeners from being duplicated.
+     */
+    if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", init, { once: true });
+    } else {
+        init();
+    }
 })();
