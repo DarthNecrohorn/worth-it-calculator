@@ -265,8 +265,13 @@ async function handleStations(
                     )
                 );
 
-            const results =
-                await Promise.all(
+            /*
+             * River and lake are independent datasets. One temporary
+             * catalogue failure must not take down the entire Water
+             * Levels section, so resolve them independently.
+             */
+            const settled =
+                await Promise.allSettled(
                     datasets.map(
                         function(pair) {
                             return searchDatasetProductsUpToLimit({
@@ -282,8 +287,35 @@ async function handleStations(
                     )
                 );
 
+            const successfulResults =
+                settled
+                    .filter(function(item){
+                        return item.status === "fulfilled";
+                    })
+                    .map(function(item){
+                        return Array.isArray(item.value)
+                            ? item.value
+                            : [];
+                    });
+
+            if(!successfulResults.length){
+                const failed =
+                    settled.find(function(item){
+                        return item.status === "rejected";
+                    });
+
+                throw (
+                    failed &&
+                    failed.reason
+                        ? failed.reason
+                        : new Error(
+                            "Copernicus station catalogue is temporarily unavailable."
+                        )
+                );
+            }
+
             const stations =
-                results
+                successfulResults
                     .flat()
                     .sort(compareStations)
                     .slice(0, limit);
