@@ -9999,9 +9999,11 @@ html.settings-open #cryptoFloatingShowLess{
 ========================================================= */
 
 .water-levels-section{
-    width:min(1400px,calc(100% - 32px));
+    width:var(--ui-content-max);
+    max-width:1180px;
+    min-width:0;
     margin:0 auto;
-    padding:28px 0 50px;
+    padding:42px 0 60px;
 }
 
 .water-levels-header{
@@ -10124,6 +10126,9 @@ html.settings-open #cryptoFloatingShowLess{
 }
 
 .water-levels-grid{
+    width:100%;
+    max-width:1180px;
+    margin:0 auto;
     display:grid;
     grid-template-columns:repeat(3,minmax(0,1fr));
     gap:18px;
@@ -10229,8 +10234,11 @@ html.settings-open #cryptoFloatingShowLess{
 
 @media(max-width:600px){
     .water-levels-section{
-        width:min(100% - 20px,1400px);
-        padding-top:18px;
+        width:calc(100% - 20px);
+        max-width:1180px;
+        margin-left:auto;
+        margin-right:auto;
+        padding-top:28px;
     }
 
     .water-levels-header{
