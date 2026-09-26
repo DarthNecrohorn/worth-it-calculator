@@ -2339,6 +2339,19 @@
                 }
             }
 
+            /*
+             * A geographic country match is preferred, but it must never
+             * leave the section empty when Copernicus returned usable
+             * global products. Keep the global catalogue as the final
+             * data-availability fallback.
+             */
+            if(
+                !personalizedStations.length &&
+                rawStations.length
+            ){
+                personalizedStations = rawStations;
+            }
+
             state.stations = personalizedStations;
             state.location = location || null;
             state.error = "";
