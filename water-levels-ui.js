@@ -1279,6 +1279,9 @@
                 '</div>';
         }
 
+        const detailMode =
+            mode || "details";
+
         overlay.classList.add("open");
         overlay.setAttribute(
             "aria-hidden",
@@ -1289,9 +1292,12 @@
             "water-levels-modal-open"
         );
 
+        overlay.dataset.viewMode =
+            detailMode;
+
         loadDetails(
             station,
-            mode || "details"
+            detailMode
         );
     }
 
@@ -1626,6 +1632,33 @@
             data.measurements
         );
 
+        const historySection =
+            document.querySelector(
+                "#waterLevelsDetailOverlay .water-levels-detail-history"
+            );
+
+        if(historySection){
+            const focusHistory =
+                mode === "history";
+
+            historySection.classList.toggle(
+                "is-focused",
+                focusHistory
+            );
+
+            if(focusHistory){
+                window.setTimeout(
+                    function(){
+                        historySection.scrollIntoView({
+                            behavior:"smooth",
+                            block:"start"
+                        });
+                    },
+                    60
+                );
+            }
+        }
+
         setDetailText(
             "waterLevelsDetailFooter",
             "Source: Copernicus Land Monitoring Service · " +
@@ -1658,6 +1691,19 @@
         document.body.classList.remove(
             "water-levels-modal-open"
         );
+
+        delete overlay.dataset.viewMode;
+
+        const historySection =
+            overlay.querySelector(
+                ".water-levels-detail-history"
+            );
+
+        if(historySection){
+            historySection.classList.remove(
+                "is-focused"
+            );
+        }
 
         activeStationId = null;
         activeStation = null;
