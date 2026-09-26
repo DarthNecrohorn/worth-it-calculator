@@ -55,7 +55,7 @@
     const waterStationGeoCache = new Map();
 
     const WATER_STATIONS_CACHE = {
-        CACHE_KEY: "worthIt.waterLevels.stations.v2",
+        CACHE_KEY: "worthIt.waterLevels.stations.v3",
         TTL_MS: 30 * 60 * 1000,
         STALE_MS: 24 * 60 * 60 * 1000
     };
@@ -2426,8 +2426,8 @@
             if(
                 byId.size >= (
                     countryCode === "CA"
-                        ? 100
-                        : 24
+                        ? 180
+                        : 72
                 )
             ){
                 break;
@@ -2467,13 +2467,32 @@
             return [];
         }
 
+        /*
+         * Copernicus can expose several product records for the same
+         * station because measurements are updated over time. Keep the
+         * spatial candidate pool first, then resolve city names and
+         * collapse repeated river/lake + place combinations.
+         */
         const enriched =
             await Promise.all(
                 candidates.map(
                     async function(station,index){
+                        const placeName =
+                            station &&
+                            station.placeName
+                                ? station.placeName
+                                : await reverseGeocodeStationPlace(
+                                    station && station.coordinates
+                                );
+
                         return {
                             station,
                             index,
+                            placeName:
+                                localizeWaterPlaceName(
+                                    placeName,
+                                    location
+                                ),
                             distanceKm:
                                 haversineDistanceKm(
                                     location,
@@ -2489,33 +2508,137 @@
                 )
             );
 
+        enriched.forEach(function(item){
+            if(item.station && item.placeName){
+                item.station.placeName =
+                    item.placeName;
+            }
+        });
+
         const countryCode =
             String(
                 location.countryCode || ""
             ).trim().toUpperCase();
 
-        function selectCategory(type){
-            const countryMatches =
-                enriched
-                    .filter(function(item){
-                        return (
-                            item.station.type === type &&
-                            item.geo.countryMatch
-                        );
-                    })
-                    .sort(function(left,right){
-                        const distance =
-                            left.distanceKm -
-                            right.distanceKm;
+        function sortByDistance(items){
+            return items.slice().sort(
+                function(left,right){
+                    const distance =
+                        left.distanceKm -
+                        right.distanceKm;
 
-                        return Number.isFinite(distance)
-                            ? distance
-                            : left.index - right.index;
-                    });
+                    if(
+                        Number.isFinite(distance) &&
+                        Math.abs(distance) > 0.000001
+                    ){
+                        return distance;
+                    }
+
+                    const leftUpdated =
+                        Date.parse(
+                            left.station &&
+                            left.station.updated
+                        );
+
+                    const rightUpdated =
+                        Date.parse(
+                            right.station &&
+                            right.station.updated
+                        );
+
+                    if(
+                        Number.isFinite(leftUpdated) &&
+                        Number.isFinite(rightUpdated) &&
+                        leftUpdated !== rightUpdated
+                    ){
+                        return rightUpdated - leftUpdated;
+                    }
+
+                    return left.index - right.index;
+                }
+            );
+        }
+
+        function uniquePlaceKey(item){
+            const station =
+                item && item.station
+                    ? item.station
+                    : {};
+
+            const waterBody =
+                normalizeGeoName(
+                    station.waterBody ||
+                    station.title ||
+                    station.productName ||
+                    station.stationId ||
+                    station.id ||
+                    ""
+                );
+
+            const place =
+                normalizeGeoName(
+                    item.placeName ||
+                    ""
+                );
 
             /*
-             * US keeps same-state stations first, while still using
-             * country containment as the hard boundary.
+             * When a place name is unavailable, the exact coordinates are
+             * used so repeated products for the same station still collapse.
+             */
+            const coordinates =
+                station.coordinates || {};
+
+            const lat =
+                Number(coordinates.latitude);
+            const lon =
+                Number(coordinates.longitude);
+
+            const coordinateKey =
+                Number.isFinite(lat) &&
+                Number.isFinite(lon)
+                    ? lat.toFixed(4) +
+                        "|" +
+                        lon.toFixed(4)
+                    : "";
+
+            return [
+                station.type || "river",
+                waterBody,
+                place || coordinateKey
+            ].join("|");
+        }
+
+        function dedupe(items){
+            const seen = new Set();
+            const unique = [];
+
+            for(const item of sortByDistance(items)){
+                const key =
+                    uniquePlaceKey(item);
+
+                if(seen.has(key)){
+                    continue;
+                }
+
+                seen.add(key);
+                unique.push(item);
+            }
+
+            return unique;
+        }
+
+        function selectCategory(type){
+            const countryMatches =
+                enriched.filter(function(item){
+                    return (
+                        item.station.type === type &&
+                        item.geo.countryMatch
+                    );
+                });
+
+            /*
+             * US keeps same-state stations first, but still stays inside
+             * the detected country boundary.
              */
             if(
                 countryCode === "US" &&
@@ -2531,22 +2654,35 @@
                         return !item.geo.stateMatch;
                     });
 
-                return sameState
-                    .concat(otherState)
-                    .slice(
-                        0,
-                        CATEGORY_STATION_LIMIT
-                    );
+                return dedupe(
+                    sameState.concat(otherState)
+                ).slice(
+                    0,
+                    CATEGORY_STATION_LIMIT
+                );
             }
 
-            return countryMatches.slice(
+            return dedupe(
+                countryMatches
+            ).slice(
                 0,
                 CATEGORY_STATION_LIMIT
             );
         }
 
-        return selectCategory("river")
-            .concat(selectCategory("lake"))
+        const selectedRivers =
+            selectCategory("river");
+
+        const selectedLakes =
+            selectCategory("lake");
+
+        /*
+         * Prefer a broad mix of unique local water bodies instead of
+         * spending most of the 24-card view on repeated products from
+         * the same station. Rivers and lakes are then sorted by distance.
+         */
+        return selectedRivers
+            .concat(selectedLakes)
             .sort(function(left,right){
                 return (
                     left.distanceKm -
