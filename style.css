@@ -10350,3 +10350,559 @@ html[data-theme="light"] .water-level-card{
         min-height:0;
     }
 }
+
+
+
+/* =========================================================
+   WATER LEVELS — COPERNICUS DATA UI
+   Scoped only to Water Levels.
+========================================================= */
+
+.water-levels-source-row{
+    width:100%;
+    max-width:920px;
+    margin:0 auto 18px;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    gap:8px;
+    flex-wrap:wrap;
+}
+
+.water-levels-source-row span{
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    padding:7px 11px;
+    border:1px solid var(--border);
+    border-radius:999px;
+    background:var(--surface-soft);
+    color:var(--muted);
+    font-size:11px;
+    font-weight:800;
+}
+
+.water-levels-dataset-grid{
+    width:100%;
+    max-width:1040px;
+    margin:0 auto 22px;
+    display:grid;
+    grid-template-columns:repeat(4,minmax(0,1fr));
+    gap:10px;
+}
+
+.water-levels-dataset-card{
+    min-width:0;
+    display:grid;
+    grid-template-columns:auto minmax(0,1fr);
+    column-gap:10px;
+    row-gap:3px;
+    align-items:center;
+    padding:13px;
+    border:1px solid var(--border);
+    border-radius:14px;
+    background:var(--surface-soft);
+}
+
+.water-levels-dataset-icon{
+    grid-row:1 / span 2;
+    width:38px;
+    height:38px;
+    display:grid;
+    place-items:center;
+    border-radius:11px;
+    background:rgba(124,92,255,.10);
+    border:1px solid rgba(124,92,255,.18);
+    font-size:18px;
+}
+
+.water-levels-dataset-card strong{
+    display:block;
+    min-width:0;
+    font-size:12px;
+    line-height:1.25;
+}
+
+.water-levels-dataset-card small{
+    display:block;
+    color:var(--muted);
+    font-size:10px;
+    line-height:1.3;
+}
+
+.water-levels-dataset-card em{
+    grid-column:2;
+    color:var(--muted2,var(--muted));
+    font-size:9px;
+    font-style:normal;
+    font-weight:800;
+}
+
+.water-levels-search-hint{
+    display:block;
+    margin-left:auto;
+    color:var(--muted2,var(--muted));
+    font-size:10px;
+    font-weight:500;
+}
+
+.water-levels-card-title h3{
+    margin:0 0 4px;
+    font-size:17px;
+}
+
+.water-levels-card-title p{
+    margin:0;
+    color:var(--muted);
+    font-size:11px;
+    line-height:1.45;
+}
+
+.water-level-card-top{
+    position:relative;
+}
+
+.water-level-card-type{
+    margin-left:auto;
+    margin-right:auto;
+    padding:4px 8px;
+    border:1px solid var(--border);
+    border-radius:999px;
+    color:var(--muted);
+    background:rgba(255,255,255,.025);
+    font-size:9px;
+    font-weight:800;
+}
+
+.water-level-card-hero{
+    display:grid;
+    grid-template-columns:1.25fr 1fr;
+    gap:8px;
+    margin:15px 0 10px;
+}
+
+.water-level-card-hero > div{
+    min-width:0;
+    padding:11px;
+    border:1px solid var(--border);
+    border-radius:12px;
+    background:rgba(124,92,255,.045);
+}
+
+.water-level-card-hero span{
+    display:block;
+    color:var(--muted);
+    font-size:9px;
+    line-height:1.25;
+}
+
+.water-level-card-hero strong{
+    display:block;
+    margin-top:4px;
+    font-size:22px;
+    line-height:1;
+}
+
+.water-level-card-hero small{
+    display:block;
+    margin-top:4px;
+    color:var(--muted);
+    font-size:8px;
+    line-height:1.25;
+}
+
+.water-level-card-meta{
+    display:flex;
+    justify-content:space-between;
+    gap:8px;
+    margin-top:9px;
+    color:var(--muted2,var(--muted));
+    font-size:9px;
+    line-height:1.3;
+}
+
+.water-level-card-actions{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:8px;
+    margin-top:12px;
+}
+
+.water-level-action{
+    border:1px solid var(--border);
+    border-radius:10px;
+    background:var(--surface-soft);
+    color:var(--text);
+    padding:9px 10px;
+    font-size:11px;
+    font-weight:800;
+    cursor:pointer;
+    transition:.2s;
+}
+
+.water-level-action:hover{
+    border-color:rgba(124,92,255,.48);
+    background:rgba(124,92,255,.08);
+    transform:translateY(-1px);
+}
+
+.water-level-action.secondary{
+    color:var(--muted);
+}
+
+.water-levels-attribution{
+    width:100%;
+    max-width:1040px;
+    margin:22px auto 0;
+    padding-top:14px;
+    border-top:1px solid var(--border);
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:16px;
+}
+
+.water-levels-attribution div{
+    display:flex;
+    flex-direction:column;
+    gap:3px;
+}
+
+.water-levels-attribution strong{
+    font-size:11px;
+}
+
+.water-levels-attribution span,
+.water-levels-attribution a{
+    color:var(--muted);
+    font-size:10px;
+}
+
+.water-levels-attribution a{
+    text-decoration:underline;
+}
+
+.water-levels-refresh.is-refreshing{
+    animation:waterLevelsRefreshSpin .55s ease-in-out;
+}
+
+@keyframes waterLevelsRefreshSpin{
+    50%{transform:rotate(2deg) scale(.98)}
+}
+
+.water-levels-detail-overlay{
+    position:fixed;
+    inset:0;
+    z-index:1200;
+    display:none;
+    align-items:center;
+    justify-content:center;
+    padding:18px;
+    background:rgba(2,6,23,.72);
+    backdrop-filter:blur(10px);
+}
+
+.water-levels-detail-overlay.open{
+    display:flex;
+}
+
+.water-levels-detail-card{
+    width:min(980px,100%);
+    max-height:calc(100dvh - 36px);
+    overflow:auto;
+    padding:20px;
+    border:1px solid var(--border);
+    border-radius:22px;
+    background:var(--card-solid,var(--card));
+    box-shadow:0 30px 90px rgba(0,0,0,.32);
+}
+
+.water-levels-detail-head{
+    display:flex;
+    align-items:flex-start;
+    justify-content:space-between;
+    gap:18px;
+}
+
+.water-levels-detail-title{
+    display:flex;
+    align-items:center;
+    gap:12px;
+    min-width:0;
+}
+
+.water-levels-detail-icon{
+    width:54px;
+    height:54px;
+    flex:0 0 54px;
+    display:grid;
+    place-items:center;
+    border-radius:16px;
+    background:rgba(124,92,255,.11);
+    border:1px solid rgba(124,92,255,.20);
+    font-size:25px;
+}
+
+.water-levels-detail-title > div:last-child{
+    min-width:0;
+}
+
+.water-levels-detail-title span{
+    color:var(--muted);
+    font-size:10px;
+    font-weight:800;
+}
+
+.water-levels-detail-title h2{
+    margin:4px 0 0;
+    font-size:25px;
+    line-height:1.15;
+}
+
+.water-levels-detail-close{
+    width:38px;
+    height:38px;
+    border:1px solid var(--border);
+    border-radius:10px;
+    background:var(--surface-soft);
+    color:var(--text);
+    cursor:pointer;
+    font-size:17px;
+}
+
+.water-levels-detail-status{
+    display:inline-flex;
+    margin:16px 0;
+    padding:6px 10px;
+    border-radius:999px;
+    background:rgba(124,92,255,.10);
+    color:var(--muted);
+    font-size:10px;
+    font-weight:800;
+}
+
+.water-levels-detail-hero{
+    display:grid;
+    grid-template-columns:1.3fr 1fr 1fr;
+    gap:10px;
+    margin-bottom:16px;
+}
+
+.water-levels-detail-hero > div{
+    min-width:0;
+    padding:15px;
+    border:1px solid var(--border);
+    border-radius:14px;
+    background:var(--surface-soft);
+}
+
+.water-levels-detail-hero span{
+    display:block;
+    color:var(--muted);
+    font-size:10px;
+}
+
+.water-levels-detail-hero strong{
+    display:block;
+    margin-top:5px;
+    font-size:25px;
+}
+
+.water-levels-detail-hero small{
+    display:block;
+    margin-top:3px;
+    color:var(--muted);
+    font-size:9px;
+}
+
+.water-levels-detail-section,
+.water-levels-detail-history{
+    margin-top:14px;
+    padding:15px;
+    border:1px solid var(--border);
+    border-radius:15px;
+    background:rgba(255,255,255,.02);
+}
+
+.water-levels-detail-section-head{
+    display:flex;
+    align-items:flex-start;
+    justify-content:space-between;
+    gap:12px;
+    margin-bottom:12px;
+}
+
+.water-levels-detail-section-head strong{
+    font-size:12px;
+}
+
+.water-levels-detail-section-head span{
+    color:var(--muted);
+    font-size:9px;
+    line-height:1.4;
+    text-align:right;
+}
+
+.water-levels-detail-metrics{
+    display:grid;
+    grid-template-columns:repeat(4,minmax(0,1fr));
+    gap:8px;
+}
+
+.water-levels-detail-metrics .water-level-metric{
+    min-width:0;
+}
+
+.water-levels-history-controls{
+    display:flex;
+    gap:6px;
+    margin-bottom:10px;
+}
+
+.water-levels-history-controls button{
+    border:1px solid var(--border);
+    border-radius:9px;
+    background:var(--surface-soft);
+    color:var(--muted);
+    padding:7px 10px;
+    font-size:10px;
+    font-weight:800;
+    cursor:pointer;
+}
+
+.water-levels-history-controls button:hover{
+    color:var(--text);
+    border-color:rgba(124,92,255,.42);
+}
+
+.water-levels-history-controls button.active{
+    color:#fff;
+    background:linear-gradient(135deg,var(--primary),var(--primary2));
+    border-color:transparent;
+}
+
+.water-levels-history-chart{
+    min-height:220px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    border:1px dashed var(--border);
+    border-radius:13px;
+    background:var(--surface-soft);
+}
+
+.water-levels-history-placeholder{
+    max-width:420px;
+    padding:30px 20px;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:6px;
+    text-align:center;
+}
+
+.water-levels-history-placeholder span{
+    font-size:26px;
+}
+
+.water-levels-history-placeholder strong{
+    font-size:13px;
+}
+
+.water-levels-history-placeholder small{
+    color:var(--muted);
+    font-size:10px;
+    line-height:1.5;
+}
+
+.water-levels-detail-footer{
+    margin-top:14px;
+    color:var(--muted);
+    font-size:9px;
+    line-height:1.4;
+}
+
+body.water-levels-modal-open{
+    overflow:hidden;
+}
+
+@media(max-width:900px){
+    .water-levels-dataset-grid{
+        grid-template-columns:repeat(2,minmax(0,1fr));
+    }
+
+    .water-levels-detail-hero{
+        grid-template-columns:1fr 1fr;
+    }
+
+    .water-levels-detail-hero > div:last-child{
+        grid-column:1/-1;
+    }
+
+    .water-levels-detail-metrics{
+        grid-template-columns:repeat(3,minmax(0,1fr));
+    }
+}
+
+@media(max-width:650px){
+    .water-levels-source-row{
+        gap:6px;
+    }
+
+    .water-levels-source-row span{
+        font-size:10px;
+        padding:6px 9px;
+    }
+
+    .water-levels-dataset-grid{
+        grid-template-columns:1fr;
+    }
+
+    .water-levels-results-row{
+        text-align:center;
+    }
+
+    .water-levels-search-hint{
+        margin:5px 0 0;
+        line-height:1.4;
+    }
+
+    .water-level-card-hero{
+        grid-template-columns:1fr 1fr;
+    }
+
+    .water-levels-attribution{
+        align-items:flex-start;
+        flex-direction:column;
+    }
+
+    .water-levels-detail-card{
+        padding:14px;
+        border-radius:18px;
+        max-height:calc(100dvh - 20px);
+    }
+
+    .water-levels-detail-title h2{
+        font-size:21px;
+    }
+
+    .water-levels-detail-hero{
+        grid-template-columns:1fr;
+    }
+
+    .water-levels-detail-hero > div:last-child{
+        grid-column:auto;
+    }
+
+    .water-levels-detail-metrics{
+        grid-template-columns:repeat(2,minmax(0,1fr));
+    }
+
+    .water-levels-detail-section-head{
+        flex-direction:column;
+    }
+
+    .water-levels-detail-section-head span{
+        text-align:left;
+    }
+}
