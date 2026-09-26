@@ -341,7 +341,7 @@
 
         params.set(
             "limit",
-            "48"
+            "24"
         );
 
         if(query){
