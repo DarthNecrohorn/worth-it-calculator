@@ -28,7 +28,7 @@ const WATER_DATASETS = {
     lakes: "wl-lakes_global_vector_daily_v2"
 };
 
-const WATER_CACHE_VERSION = "v26";
+const WATER_CACHE_VERSION = "v27";
 
 const STATIONS_CACHE_TTL_SECONDS =
     2 * 60 * 60;
@@ -83,6 +83,14 @@ export async function onRequestGet(context) {
 
         if (action === "stations") {
             return await handleStations(
+                context,
+                url,
+                forceRefresh
+            );
+        }
+
+        if (action === "nearby") {
+            return await handleNearby(
                 context,
                 url,
                 forceRefresh
@@ -384,6 +392,197 @@ async function handleStations(
             requestKey
         );
 
+    }
+
+}
+
+
+/* =========================================================
+   NEARBY STATION SEARCH
+========================================================= */
+
+async function handleNearby(
+    context,
+    url,
+    forceRefresh
+){
+
+    const type =
+        normalizeStationType(
+            url.searchParams.get("type")
+        );
+
+    const latitude =
+        Number(
+            url.searchParams.get("lat")
+        );
+
+    const longitude =
+        Number(
+            url.searchParams.get("lon")
+        );
+
+    let radiusKm =
+        Number(
+            url.searchParams.get("radiusKm") || 500
+        );
+
+    let limit =
+        Number(
+            url.searchParams.get("limit") || 1000
+        );
+
+    if(
+        !type ||
+        !Number.isFinite(latitude) ||
+        !Number.isFinite(longitude)
+    ){
+        return jsonResponse(
+            {
+                ok:false,
+                error:
+                    "A valid station type, latitude and longitude are required."
+            },
+            400,
+            {
+                "Cache-Control":"no-store"
+            }
+        );
+    }
+
+    radiusKm =
+        Math.min(
+            10000,
+            Math.max(
+                25,
+                radiusKm
+            )
+        );
+
+    limit =
+        Math.min(
+            1000,
+            Math.max(
+                1,
+                Math.floor(limit)
+            )
+        );
+
+    const datasetId =
+        type === "river"
+            ? WATER_DATASETS.rivers
+            : WATER_DATASETS.lakes;
+
+    const cacheKey =
+        createCacheRequest(
+            url,
+            [
+                "nearby",
+                WATER_CACHE_VERSION,
+                type,
+                latitude.toFixed(3),
+                longitude.toFixed(3),
+                radiusKm.toFixed(0),
+                String(limit)
+            ].join("/")
+        );
+
+    const cache =
+        caches.default;
+
+    if(!forceRefresh){
+        const cached =
+            await cache.match(cacheKey);
+
+        if(cached){
+            return responseWithHeaders(
+                cached,
+                {
+                    "X-Water-Cache":"HIT"
+                }
+            );
+        }
+    }
+
+    const requestKey =
+        cacheKey.url;
+
+    if(inFlightRequests.has(requestKey)){
+        return responseWithHeaders(
+            await inFlightRequests.get(requestKey),
+            {
+                "X-Water-Cache":"IN-FLIGHT"
+            }
+        );
+    }
+
+    const requestPromise =
+        (async function(){
+
+            const stations =
+                await searchNearbyDatasetProducts({
+                    type,
+                    datasetId,
+                    latitude,
+                    longitude,
+                    radiusKm,
+                    limit
+                });
+
+            const response =
+                jsonResponse(
+                    {
+                        ok:true,
+                        type,
+                        latitude,
+                        longitude,
+                        radiusKm,
+                        count:stations.length,
+                        stations,
+                        source:{
+                            provider:
+                                "Copernicus Land Monitoring Service",
+                            catalogue:
+                                "Copernicus Data Space Ecosystem OData",
+                            selection:
+                                "Geographic proximity search"
+                        }
+                    },
+                    200,
+                    {
+                        "Cache-Control":
+                            "public, max-age=" +
+                            STATIONS_CACHE_TTL_SECONDS +
+                            ", stale-while-revalidate=" +
+                            STATIONS_STALE_TTL_SECONDS,
+                        "X-Water-Cache":"MISS"
+                    }
+                );
+
+            await cache.put(
+                cacheKey,
+                response.clone()
+            );
+
+            return response;
+
+        })();
+
+    inFlightRequests.set(
+        requestKey,
+        requestPromise
+    );
+
+    try{
+        return await requestPromise;
+    }
+    catch(error){
+        throw error;
+    }
+    finally{
+        inFlightRequests.delete(
+            requestKey
+        );
     }
 
 }
@@ -1117,6 +1316,225 @@ async function handleDetails(
 /* =========================================================
    DATASET SEARCH
 ========================================================= */
+
+const NEARBY_QUERY_PAGE_SIZE = 200;
+
+function buildNearbyPolygon(
+    latitude,
+    longitude,
+    radiusKm
+){
+    const earthRadiusKm = 6371;
+    const latDelta =
+        radiusKm / earthRadiusKm * 180 / Math.PI;
+
+    const cosLat =
+        Math.max(
+            0.15,
+            Math.cos(
+                latitude * Math.PI / 180
+            )
+        );
+
+    const lonDelta =
+        radiusKm /
+        (
+            earthRadiusKm *
+            cosLat
+        ) *
+        180 /
+        Math.PI;
+
+    const minLat =
+        Math.max(
+            -89.9,
+            latitude - latDelta
+        );
+
+    const maxLat =
+        Math.min(
+            89.9,
+            latitude + latDelta
+        );
+
+    const minLon =
+        Math.max(
+            -179.9,
+            longitude - lonDelta
+        );
+
+    const maxLon =
+        Math.min(
+            179.9,
+            longitude + lonDelta
+        );
+
+    return [
+        [minLon,minLat],
+        [minLon,maxLat],
+        [maxLon,maxLat],
+        [maxLon,minLat],
+        [minLon,minLat]
+    ];
+}
+
+async function searchNearbyDatasetProducts({
+    type,
+    datasetId,
+    latitude,
+    longitude,
+    radiusKm,
+    limit
+}){
+
+    const polygon =
+        buildNearbyPolygon(
+            latitude,
+            longitude,
+            radiusKm
+        );
+
+    const coordinates =
+        polygon
+            .map(
+                function(point){
+                    return (
+                        point[0] +
+                        " " +
+                        point[1]
+                    );
+                }
+            )
+            .join(",");
+
+    const geometryFilter =
+        "OData.CSC.Intersects(" +
+        "area=geography'SRID=4326;" +
+        "POLYGON((" +
+        coordinates +
+        "))')";
+
+    const filter =
+        [
+            "Collection/Name eq 'CLMS'",
+            attributeEquals(
+                "datasetIdentifier",
+                datasetId
+            ),
+            geometryFilter
+        ].join(
+            " and "
+        );
+
+    const params =
+        new URLSearchParams();
+
+    params.set(
+        "$filter",
+        filter
+    );
+
+    params.set(
+        "$expand",
+        "Attributes"
+    );
+
+    params.set(
+        "$orderby",
+        "ModificationDate desc,Id asc"
+    );
+
+    params.set(
+        "$top",
+        String(
+            Math.min(
+                NEARBY_QUERY_PAGE_SIZE,
+                limit
+            )
+        )
+    );
+
+    const results = [];
+
+    for(
+        let offset = 0;
+        offset < limit;
+        offset += NEARBY_QUERY_PAGE_SIZE
+    ){
+
+        const pageParams =
+            new URLSearchParams(
+                params
+            );
+
+        pageParams.set(
+            "$top",
+            String(
+                Math.min(
+                    NEARBY_QUERY_PAGE_SIZE,
+                    limit - offset
+                )
+            )
+        );
+
+        if(offset > 0){
+            pageParams.set(
+                "$skip",
+                String(offset)
+            );
+        }
+
+        const data =
+            await fetchJsonWithTimeout(
+                ODATA_BASE +
+                    "?" +
+                    pageParams.toString(),
+                {
+                    headers:{
+                        "Accept":
+                            "application/json"
+                    }
+                },
+                ODATA_TIMEOUT_MS
+            );
+
+        if(
+            !data ||
+            !Array.isArray(data.value)
+        ){
+            throw new Error(
+                "Invalid Copernicus nearby station response."
+            );
+        }
+
+        const page =
+            data.value
+                .map(
+                    function(item){
+                        return normalizeStation(
+                            item,
+                            type,
+                            datasetId
+                        );
+                    }
+                )
+                .filter(Boolean);
+
+        results.push.apply(
+            results,
+            page
+        );
+
+        if(page.length < Math.min(NEARBY_QUERY_PAGE_SIZE,limit-offset)){
+            break;
+        }
+    }
+
+    return results.slice(
+        0,
+        limit
+    );
+}
 
 const STATION_QUERY_PAGE_SIZE = 200;
 
