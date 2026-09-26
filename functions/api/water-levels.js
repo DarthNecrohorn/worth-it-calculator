@@ -661,6 +661,38 @@ async function handleLatest(
         );
     }
 
+    const latestCacheKey =
+        createCacheRequest(
+            url,
+            [
+                "latest",
+                WATER_CACHE_VERSION,
+                type,
+                productId
+            ].join("/")
+        );
+
+    const cache =
+        caches.default;
+
+    if(!forceRefresh){
+
+        const cached =
+            await cache.match(
+                latestCacheKey
+            );
+
+        if(cached){
+            return responseWithHeaders(
+                cached,
+                {
+                    "X-Water-Cache":
+                        "HIT"
+                }
+            );
+        }
+    }
+
     try {
 
         /*
@@ -681,41 +713,52 @@ async function handleLatest(
                 }
             );
 
-        return jsonResponse(
-            {
-                ok: true,
-                productId,
-                type,
-                latest:
-                    result.latest || null,
-                station:
-                    result.station || null,
-                coordinates:
-                    result.coordinates || null,
-                measurementCount:
-                    result.measurementCount,
-                source: {
-                    provider:
-                        "Copernicus Land Monitoring Service",
-                    catalogue:
-                        "Copernicus Data Space Ecosystem",
-                    dataset:
-                        type === "river"
-                            ? WATER_DATASETS.rivers
-                            : WATER_DATASETS.lakes,
-                    retrieval:
-                        "Tail-range read of the latest Copernicus GeoJSON product"
+        const response =
+            jsonResponse(
+                {
+                    ok: true,
+                    productId,
+                    type,
+                    latest:
+                        result.latest || null,
+                    station:
+                        result.station || null,
+                    coordinates:
+                        result.coordinates || null,
+                    measurementCount:
+                        result.measurementCount,
+                    source: {
+                        provider:
+                            "Copernicus Land Monitoring Service",
+                        catalogue:
+                            "Copernicus Data Space Ecosystem",
+                        dataset:
+                            type === "river"
+                                ? WATER_DATASETS.rivers
+                                : WATER_DATASETS.lakes,
+                        retrieval:
+                            "Tail-range read of the latest Copernicus GeoJSON product"
+                    }
+                },
+                200,
+                {
+                    "Cache-Control":
+                        "public, max-age=" +
+                        PRODUCT_CACHE_TTL_SECONDS +
+                        ", stale-while-revalidate=" +
+                        PRODUCT_STALE_TTL_SECONDS,
+
+                    "X-Water-Cache":
+                        "MISS"
                 }
-            },
-            200,
-            {
-                "Cache-Control":
-                    "public, max-age=" +
-                    PRODUCT_CACHE_TTL_SECONDS +
-                    ", stale-while-revalidate=" +
-                    PRODUCT_STALE_TTL_SECONDS
-            }
+            );
+
+        await cache.put(
+            latestCacheKey,
+            response.clone()
         );
+
+        return response;
 
     }
     catch (error) {
@@ -725,11 +768,53 @@ async function handleLatest(
             error
         );
 
+        if(
+            error &&
+            error.code === "CDSE_CONFIGURATION"
+        ){
+            return jsonResponse(
+                {
+                    ok: false,
+                    error:
+                        "Copernicus download credentials are not configured.",
+                    code:
+                        "CDSE_CONFIGURATION"
+                },
+                503,
+                {
+                    "Cache-Control":
+                        "no-store"
+                }
+            );
+        }
+
+        if(
+            error &&
+            error.code === "CDSE_AUTH"
+        ){
+            return jsonResponse(
+                {
+                    ok: false,
+                    error:
+                        "Copernicus download authentication failed.",
+                    code:
+                        "CDSE_AUTH"
+                },
+                503,
+                {
+                    "Cache-Control":
+                        "no-store"
+                }
+            );
+        }
+
         return jsonResponse(
             {
                 ok: false,
                 error:
-                    "Unable to load the latest Copernicus water-level measurement."
+                    "Unable to load the latest Copernicus water-level measurement.",
+                code:
+                    "CDSE_LATEST_FAILED"
             },
             502,
             {
