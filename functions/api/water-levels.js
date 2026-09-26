@@ -1352,180 +1352,210 @@ async function fetchLatestRangeChunk(
     rangeBytes
 ) {
 
-    const productUrl =
-        CDSE_DOWNLOAD_BASE +
-        "(" +
-        encodeURIComponent(productId) +
-        ")/$value";
+    const hosts = [
+        CDSE_DOWNLOAD_BASE,
+        ODATA_BASE
+    ];
 
-    const response =
-        await fetchWithTimeout(
-            productUrl,
-            {
-                headers: {
-                    "Authorization":
-                        "Bearer " +
-                        accessToken,
-                    "Accept":
-                        "application/geo+json,application/json,*/*",
-                    "Accept-Encoding":
-                        "identity",
-                    "Range":
-                        "bytes=-" +
-                        String(rangeBytes)
-                },
-                redirect:
-                    "follow"
-            },
-            DOWNLOAD_TIMEOUT_MS
-        );
+    let lastError = null;
 
-    if(
-        response.status === 401 ||
-        response.status === 403
+    for(
+        const base of hosts
     ){
-        const text =
-            await safeReadText(response);
 
-        const error =
-            new Error(
-                "Copernicus product download authentication failed."
-            );
+        const productUrl =
+            base +
+            "(" +
+            encodeURIComponent(productId) +
+            ")/$value";
 
-        error.code = "CDSE_AUTH";
-        error.status = response.status;
-        error.details = text.slice(0,300);
+        try{
 
-        throw error;
+            const response =
+                await fetchWithTimeout(
+                    productUrl,
+                    {
+                        headers: {
+                            "Authorization":
+                                "Bearer " +
+                                accessToken,
+                            "Accept":
+                                "application/geo+json,application/json,*/*",
+                            "Accept-Encoding":
+                                "identity",
+                            "Range":
+                                "bytes=-" +
+                                String(rangeBytes)
+                        },
+                        redirect:
+                            "follow"
+                    },
+                    DOWNLOAD_TIMEOUT_MS
+                );
+
+            if(
+                response.status === 401 ||
+                response.status === 403
+            ){
+                const text =
+                    await safeReadText(response);
+
+                const error =
+                    new Error(
+                        "Copernicus product download authentication failed."
+                    );
+
+                error.code = "CDSE_AUTH";
+                error.status = response.status;
+                error.details = text.slice(0,300);
+
+                throw error;
+            }
+
+            if(
+                response.status >= 500
+            ){
+                const text =
+                    await safeReadText(response);
+
+                lastError =
+                    new Error(
+                        "Copernicus latest measurement download failed (" +
+                        response.status +
+                        "): " +
+                        text.slice(0,300)
+                    );
+
+                continue;
+            }
+
+            if(
+                !response.ok &&
+                response.status !== 206
+            ){
+                const text =
+                    await safeReadText(response);
+
+                lastError =
+                    new Error(
+                        "Copernicus latest measurement request failed (" +
+                        response.status +
+                        "): " +
+                        text.slice(0,300)
+                    );
+
+                continue;
+            }
+
+            const contentType =
+                String(
+                    response.headers.get("content-type") || ""
+                ).toLowerCase();
+
+            const contentRange =
+                String(
+                    response.headers.get("content-range") || ""
+                );
+
+            const contentLength =
+                Number(
+                    response.headers.get("content-length") || 0
+                );
+
+            if(
+                response.status === 200 &&
+                contentLength > 0 &&
+                contentLength > 2 * 1024 * 1024
+            ){
+                lastError =
+                    new Error(
+                        "Copernicus product endpoint ignored the Range request for a large product."
+                    );
+                continue;
+            }
+
+            const bytes =
+                new Uint8Array(
+                    await response.arrayBuffer()
+                );
+
+            if(
+                !bytes.length
+            ){
+                return {
+                    latest: null,
+                    retryWithLargerRange: true
+                };
+            }
+
+            if(
+                !(
+                    contentType.includes("json") ||
+                    contentType.includes("geo+json") ||
+                    looksLikeJson(bytes)
+                )
+            ){
+                lastError =
+                    new Error(
+                        "Copernicus water-level product is not returned as a JSON/GeoJSON payload."
+                    );
+                continue;
+            }
+
+            const text =
+                new TextDecoder().decode(
+                    bytes
+                );
+
+            const latest =
+                extractLatestMeasurementFromTail(
+                    text
+                );
+
+            if(latest){
+                return {
+                    latest,
+                    retryWithLargerRange: false
+                };
+            }
+
+            if(
+                response.status === 206 ||
+                contentRange
+            ){
+                return {
+                    latest: null,
+                    retryWithLargerRange: true
+                };
+            }
+
+            return {
+                latest: null,
+                retryWithLargerRange: false
+            };
+
+        }
+        catch(error){
+
+            if(
+                error &&
+                error.code === "CDSE_AUTH"
+            ){
+                throw error;
+            }
+
+            lastError = error;
+        }
+
     }
 
-    if(
-        response.status >= 500
-    ){
-        const text =
-            await safeReadText(response);
-
-        throw new Error(
-            "Copernicus latest measurement download failed (" +
-            response.status +
-            "): " +
-            text.slice(0,300)
-        );
+    if(lastError){
+        throw lastError;
     }
 
-    if(
-        !response.ok &&
-        response.status !== 206
-    ){
-        const text =
-            await safeReadText(response);
-
-        throw new Error(
-            "Copernicus latest measurement request failed (" +
-            response.status +
-            "): " +
-            text.slice(0,300)
-        );
-    }
-
-    const contentType =
-        String(
-            response.headers.get("content-type") || ""
-        ).toLowerCase();
-
-    const contentRange =
-        String(
-            response.headers.get("content-range") || ""
-        );
-
-    const contentLength =
-        Number(
-            response.headers.get("content-length") || 0
-        );
-
-    /*
-     * Range support is indicated by HTTP 206. If the server
-     * ignored Range and returned a full object, only allow it
-     * when the complete object is small enough to keep this
-     * Worker request lightweight.
-     */
-    if(
-        response.status === 200 &&
-        contentLength > 0 &&
-        contentLength > 2 * 1024 * 1024
-    ){
-        throw new Error(
-            "Copernicus product endpoint ignored the Range request for a large product."
-        );
-    }
-
-    const bytes =
-        new Uint8Array(
-            await response.arrayBuffer()
-        );
-
-    if(
-        !bytes.length
-    ){
-        return {
-            latest: null,
-            retryWithLargerRange: true
-        };
-    }
-
-    if(
-        !(
-            contentType.includes("json") ||
-            contentType.includes("geo+json") ||
-            looksLikeJson(bytes)
-        )
-    ){
-        /*
-         * The water-level CLMS vector dataset is published as
-         * GeoJSON, but some gateways may return a generic MIME type.
-         * A ZIP/native archive cannot be safely parsed from a tail
-         * range, so signal a larger/alternate retrieval attempt.
-         */
-        throw new Error(
-            "Copernicus water-level product is not returned as a JSON/GeoJSON payload."
-        );
-    }
-
-    const text =
-        new TextDecoder().decode(
-            bytes
-        );
-
-    const latest =
-        extractLatestMeasurementFromTail(
-            text
-        );
-
-    if(latest){
-        return {
-            latest,
-            retryWithLargerRange: false
-        };
-    }
-
-    /*
-     * The latest object may cross the boundary of this range.
-     * Ask for a larger tail before giving up.
-     */
-    if(
-        response.status === 206 ||
-        contentRange
-    ){
-        return {
-            latest: null,
-            retryWithLargerRange: true
-        };
-    }
-
-    return {
-        latest: null,
-        retryWithLargerRange: false
-    };
+    throw new Error(
+        "Copernicus water-level product could not be downloaded."
+    );
 
 }
 
@@ -1549,7 +1579,7 @@ function extractLatestMeasurementFromTail(
      * field, then use the last one in the tail.
      */
     const pattern =
-        /\{[^{}]*["']?water_surface_height_above_reference_datum["']?\s*:\s*([-+]?\d+(?:\.\d+)?(?:[eE][-+]?\d+)?)[^{}]*\}/g;
+        /\{[^{}]*(?:"water_surface_height_above_reference_datum"|"WaterSurfaceHeightAboveReferenceDatum")\s*:\s*([-+]?\d+(?:\.\d+)?(?:[eE][-+]?\d+)?)[^{}]*\}/gi;
 
     let match = null;
     let candidate = null;
@@ -1608,7 +1638,7 @@ function extractLatestMeasurementFromTail(
 
     const uncertaintyMatch =
         objectText.match(
-            /["'](?:water_surface_height_uncertainty|associated_uncertainty|uncertainty)["']\s*:\s*([-+]?\d+(?:\.\d+)?(?:[eE][-+]?\d+)?)/ 
+            /["'](?:water_surface_height_uncertainty|associated_uncertainty|uncertainty)["']\s*:\s*([-+]?\d+(?:\.\d+)?(?:[eE][-+]?\d+)?)/i
         );
 
     if(
