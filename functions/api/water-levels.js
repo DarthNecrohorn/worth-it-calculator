@@ -28,7 +28,7 @@ const WATER_DATASETS = {
     lakes: "wl-lakes_global_vector_daily_v2"
 };
 
-const WATER_CACHE_VERSION = "v45";
+const WATER_CACHE_VERSION = "v46";
 
 const STATIONS_CACHE_TTL_SECONDS =
     6 * 60 * 60;
@@ -4280,6 +4280,16 @@ function normalizeProductPayload(
             );
         });
     }
+
+    /*
+     * This is the actual time-series extraction step. CLMS water-level
+     * GeoJSON stores the observations inside nested "data" structures,
+     * and some revisions wrap them through additional objects/features.
+     * Walking the complete payload also supports FeatureCollection products.
+     */
+    collectMeasurementData(
+        payload
+    );
 
     const measurementSeen = new Set();
 
