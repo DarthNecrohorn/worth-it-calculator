@@ -28,7 +28,7 @@ const WATER_DATASETS = {
     lakes: "wl-lakes_global_vector_daily_v2"
 };
 
-const WATER_CACHE_VERSION = "v40";
+const WATER_CACHE_VERSION = "v41";
 
 const STATIONS_CACHE_TTL_SECONDS =
     6 * 60 * 60;
@@ -702,15 +702,33 @@ async function handleMetadata(
          * Copernicus observations so the card can show the real
          * change immediately, without waiting for IntersectionObserver.
          */
-        const latestResult =
-            await getLatestMeasurementByRange(
-                context,
-                {
-                    productId,
-                    type,
-                    forceRefresh
-                }
+        let latestResult = null;
+
+        try{
+            latestResult =
+                await getLatestMeasurementByRange(
+                    context,
+                    {
+                        productId,
+                        type,
+                        forceRefresh
+                    }
+                );
+        }
+        catch(error){
+            /*
+             * Station metadata must remain usable even when the
+             * optional live-measurement enrichment is temporarily
+             * unavailable. The dedicated /latest endpoint can retry it.
+             */
+            console.warn(
+                "Water-level latest enrichment failed:",
+                productId,
+                error
             );
+
+            latestResult = null;
+        }
 
         return jsonResponse(
             {
