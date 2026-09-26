@@ -18,9 +18,12 @@
     let stationsRequest = null;
     let stationsRequestTimer = null;
     let stationMetadataRun = 0;
+    let latestObserver = null;
 
     const stationMetadataCache = new Map();
     const stationLatestCache = new Map();
+    const ALL_STATION_LIMIT = 1200;
+    const CATEGORY_STATION_LIMIT = 400;
     const STATION_METADATA_CONCURRENCY = 3;
     const STATION_LATEST_CONCURRENCY = 4;
 
@@ -103,31 +106,36 @@
     function filteredStations(){
         const query = currentQuery().toLowerCase();
 
-        return state.stations.filter(function(station){
+        const matches =
+            state.stations.filter(function(station){
 
-            const typeOK =
-                activeFilter === "all" ||
-                (activeFilter === "rivers" && station.type === "river") ||
-                (activeFilter === "lakes" && station.type === "lake");
+                const typeOK =
+                    activeFilter === "all" ||
+                    (activeFilter === "rivers" && station.type === "river") ||
+                    (activeFilter === "lakes" && station.type === "lake");
 
-            if(!typeOK) return false;
-            if(!query) return true;
+                if(!typeOK) return false;
+                if(!query) return true;
 
-            return [
-                station.id,
-                station.stationId,
-                station.title,
-                station.productName,
-                station.waterBody,
-                station.basin,
-                station.location,
-                station.datasetId
-            ]
-            .filter(Boolean)
-            .join(" ")
-            .toLowerCase()
-            .includes(query);
-        });
+                return [
+                    station.id,
+                    station.stationId,
+                    station.title,
+                    station.productName,
+                    station.waterBody,
+                    station.basin,
+                    station.location,
+                    station.datasetId
+                ]
+                .filter(Boolean)
+                .join(" ")
+                .toLowerCase()
+                .includes(query);
+            });
+
+        return activeFilter === "all"
+            ? matches.slice(0, ALL_STATION_LIMIT)
+            : matches.slice(0, CATEGORY_STATION_LIMIT);
     }
 
     function setResultsText(text){
@@ -615,6 +623,74 @@
         await Promise.all(workers);
     }
 
+    function observeLatestCards(){
+        const grid = get("waterLevelsGrid");
+        if(!grid) return;
+
+        if(latestObserver){
+            try{
+                latestObserver.disconnect();
+            }catch(error){}
+            latestObserver = null;
+        }
+
+        const cards =
+            grid.querySelectorAll(
+                ".water-level-card[data-water-station-id]"
+            );
+
+        if(!cards.length) return;
+
+        function stationForCard(card){
+            return state.stations.find(function(item){
+                return (
+                    item.id ===
+                    card.dataset.waterStationId
+                );
+            }) || null;
+        }
+
+        if(!("IntersectionObserver" in window)){
+            void loadStationLatest(
+                filteredStations().slice(0,24)
+            );
+            return;
+        }
+
+        latestObserver =
+            new IntersectionObserver(
+                function(entries){
+                    const stations = [];
+
+                    entries.forEach(function(entry){
+                        if(!entry.isIntersecting) return;
+
+                        const station =
+                            stationForCard(entry.target);
+
+                        if(station){
+                            stations.push(station);
+                        }
+
+                        latestObserver.unobserve(
+                            entry.target
+                        );
+                    });
+
+                    if(stations.length){
+                        void loadStationLatest(stations);
+                    }
+                },
+                {
+                    rootMargin:"500px 0px"
+                }
+            );
+
+        cards.forEach(function(card){
+            latestObserver.observe(card);
+        });
+    }
+
     function applyLatestToCard(station){
         const card = findStationCard(station.id);
         if(!card) return;
@@ -803,11 +879,11 @@
             " found"
         );
 
-        /* Hydrate visible cards from the actual Copernicus catalogue metadata. */
-        void loadStationMetadata(visible);
-
-        /* Load latest measured water height separately, with strict concurrency. */
-        void loadStationLatest(visible);
+        /*
+         * Station metadata is already present in the station-list response.
+         * Load latest measurements only for cards near the viewport.
+         */
+        observeLatestCards();
     }
 
     async function loadStations(options){
@@ -837,7 +913,9 @@
 
         params.set(
             "limit",
-            "24"
+            String(
+                ALL_STATION_LIMIT
+            )
         );
 
         if(query){
