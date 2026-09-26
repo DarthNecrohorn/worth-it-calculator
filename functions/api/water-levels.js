@@ -463,6 +463,11 @@ async function handleNearby(
             url.searchParams.get("type")
         );
 
+    const country =
+        normalizeSearchQuery(
+            url.searchParams.get("country")
+        );
+
     const latitude =
         Number(
             url.searchParams.get("lat")
@@ -531,6 +536,7 @@ async function handleNearby(
                 "nearby",
                 WATER_CACHE_VERSION,
                 type,
+                country.toLowerCase(),
                 latitude.toFixed(3),
                 longitude.toFixed(3),
                 radiusKm.toFixed(0),
@@ -574,6 +580,7 @@ async function handleNearby(
                 await searchNearbyDatasetProducts({
                     type,
                     datasetId,
+                    country,
                     latitude,
                     longitude,
                     radiusKm,
@@ -585,6 +592,7 @@ async function handleNearby(
                     {
                         ok:true,
                         type,
+                        country,
                         latitude,
                         longitude,
                         radiusKm,
@@ -1432,6 +1440,7 @@ function buildNearbyPolygon(
 async function searchNearbyDatasetProducts({
     type,
     datasetId,
+    country,
     latitude,
     longitude,
     radiusKm,
@@ -1465,15 +1474,26 @@ async function searchNearbyDatasetProducts({
         coordinates +
         "))')";
 
-    const filter =
-        [
-            "Collection/Name eq 'CLMS'",
+    const filterParts = [
+        "Collection/Name eq 'CLMS'",
+        attributeEquals(
+            "datasetIdentifier",
+            datasetId
+        ),
+        geometryFilter
+    ];
+
+    if(country){
+        filterParts.push(
             attributeEquals(
-                "datasetIdentifier",
-                datasetId
-            ),
-            geometryFilter
-        ].join(
+                "country",
+                country
+            )
+        );
+    }
+
+    const filter =
+        filterParts.join(
             " and "
         );
 
