@@ -2468,31 +2468,127 @@
         }
 
         /*
-         * Copernicus can expose several product records for the same
-         * station because measurements are updated over time. Keep the
-         * spatial candidate pool first, then resolve city names and
-         * collapse repeated river/lake + place combinations.
+         * The catalogue can contain several dated products for the same
+         * Copernicus virtual station. Collapse those first, before doing
+         * any city lookup. Station/cell ID is the strongest identity;
+         * coordinates are the fallback when an ID is unavailable.
          */
+        const stationSeen = new Map();
+
+        function stationIdentity(station){
+            if(!station) return "";
+
+            const stationId =
+                String(
+                    station.stationId ||
+                    ""
+                ).trim();
+
+            if(stationId){
+                return (
+                    "station|" +
+                    (station.type || "river") +
+                    "|" +
+                    stationId
+                );
+            }
+
+            const coordinates =
+                station.coordinates || {};
+
+            const lat =
+                Number(coordinates.latitude);
+            const lon =
+                Number(coordinates.longitude);
+
+            return (
+                "coord|" +
+                (station.type || "river") +
+                "|" +
+                (
+                    Number.isFinite(lat)
+                        ? lat.toFixed(4)
+                        : ""
+                ) +
+                "|" +
+                (
+                    Number.isFinite(lon)
+                        ? lon.toFixed(4)
+                        : ""
+                )
+            );
+        }
+
+        candidates.forEach(function(station,index){
+            const key =
+                stationIdentity(station);
+
+            if(!key){
+                return;
+            }
+
+            const existing =
+                stationSeen.get(key);
+
+            if(!existing){
+                stationSeen.set(
+                    key,
+                    {
+                        station,
+                        index
+                    }
+                );
+                return;
+            }
+
+            /*
+             * When duplicates share one station ID, keep the newest
+             * catalogue product so the visible card represents the
+             * freshest product record.
+             */
+            const existingUpdated =
+                Date.parse(
+                    existing.station &&
+                    existing.station.updated
+                );
+
+            const candidateUpdated =
+                Date.parse(
+                    station &&
+                    station.updated
+                );
+
+            if(
+                Number.isFinite(candidateUpdated) &&
+                (
+                    !Number.isFinite(existingUpdated) ||
+                    candidateUpdated > existingUpdated
+                )
+            ){
+                stationSeen.set(
+                    key,
+                    {
+                        station,
+                        index
+                    }
+                );
+            }
+        });
+
+        const uniqueCandidates =
+            Array.from(
+                stationSeen.values()
+            ).map(function(item){
+                return item.station;
+            });
+
         const enriched =
             await Promise.all(
-                candidates.map(
+                uniqueCandidates.map(
                     async function(station,index){
-                        const placeName =
-                            station &&
-                            station.placeName
-                                ? station.placeName
-                                : await reverseGeocodeStationPlace(
-                                    station && station.coordinates
-                                );
-
                         return {
                             station,
                             index,
-                            placeName:
-                                localizeWaterPlaceName(
-                                    placeName,
-                                    location
-                                ),
                             distanceKm:
                                 haversineDistanceKm(
                                     location,
@@ -2507,13 +2603,6 @@
                     }
                 )
             );
-
-        enriched.forEach(function(item){
-            if(item.station && item.placeName){
-                item.station.placeName =
-                    item.placeName;
-            }
-        });
 
         const countryCode =
             String(
@@ -2559,32 +2648,11 @@
             );
         }
 
-        function uniquePlaceKey(item){
-            const station =
-                item && item.station
-                    ? item.station
-                    : {};
-
-            const waterBody =
-                normalizeGeoName(
-                    station.waterBody ||
-                    station.title ||
-                    station.productName ||
-                    station.stationId ||
-                    station.id ||
-                    ""
-                );
-
-            const place =
-                normalizeGeoName(
-                    item.placeName ||
-                    ""
-                );
-
-            /*
-             * When a place name is unavailable, the exact coordinates are
-             * used so repeated products for the same station still collapse.
-             */
+        /*
+         * Do not collapse different locations of the same river. The city
+         * label is resolved after selection when a water body is repeated.
+         */
+        function fallbackPlaceKey(station){
             const coordinates =
                 station.coordinates || {};
 
@@ -2593,38 +2661,14 @@
             const lon =
                 Number(coordinates.longitude);
 
-            const coordinateKey =
+            return (
                 Number.isFinite(lat) &&
                 Number.isFinite(lon)
-                    ? lat.toFixed(4) +
-                        "|" +
-                        lon.toFixed(4)
-                    : "";
-
-            return [
-                station.type || "river",
-                waterBody,
-                place || coordinateKey
-            ].join("|");
-        }
-
-        function dedupe(items){
-            const seen = new Set();
-            const unique = [];
-
-            for(const item of sortByDistance(items)){
-                const key =
-                    uniquePlaceKey(item);
-
-                if(seen.has(key)){
-                    continue;
-                }
-
-                seen.add(key);
-                unique.push(item);
-            }
-
-            return unique;
+            )
+                ? lat.toFixed(2) +
+                    "|" +
+                    lon.toFixed(2)
+                : stationIdentity(station);
         }
 
         function selectCategory(type){
@@ -2636,33 +2680,33 @@
                     );
                 });
 
-            /*
-             * US keeps same-state stations first, but still stays inside
-             * the detected country boundary.
-             */
             if(
                 countryCode === "US" &&
                 location.stateName
             ){
                 const sameState =
-                    countryMatches.filter(function(item){
-                        return item.geo.stateMatch;
-                    });
+                    sortByDistance(
+                        countryMatches.filter(function(item){
+                            return item.geo.stateMatch;
+                        })
+                    );
 
                 const otherState =
-                    countryMatches.filter(function(item){
-                        return !item.geo.stateMatch;
-                    });
+                    sortByDistance(
+                        countryMatches.filter(function(item){
+                            return !item.geo.stateMatch;
+                        })
+                    );
 
-                return dedupe(
-                    sameState.concat(otherState)
-                ).slice(
-                    0,
-                    CATEGORY_STATION_LIMIT
-                );
+                return sameState
+                    .concat(otherState)
+                    .slice(
+                        0,
+                        CATEGORY_STATION_LIMIT
+                    );
             }
 
-            return dedupe(
+            return sortByDistance(
                 countryMatches
             ).slice(
                 0,
@@ -2676,26 +2720,62 @@
         const selectedLakes =
             selectCategory("lake");
 
+        const combined =
+            selectedRivers
+                .concat(selectedLakes)
+                .sort(function(left,right){
+                    return (
+                        left.distanceKm -
+                        right.distanceKm
+                    );
+                });
+
         /*
-         * Prefer a broad mix of unique local water bodies instead of
-         * spending most of the 24-card view on repeated products from
-         * the same station. Rivers and lakes are then sorted by distance.
+         * A second, conservative spatial pass prevents accidental exact
+         * duplicates when different product identities point to the same
+         * virtual-station location. It still allows the same river at
+         * different places, which is important for long rivers such as
+         * the Danube, Sava, Tisa or Velika Morava.
          */
-        return selectedRivers
-            .concat(selectedLakes)
-            .sort(function(left,right){
-                return (
-                    left.distanceKm -
-                    right.distanceKm
+        const finalSeen = new Set();
+        const finalItems = [];
+
+        for(const item of combined){
+            const station =
+                item.station || {};
+
+            const waterBody =
+                normalizeGeoName(
+                    station.waterBody ||
+                    station.title ||
+                    station.productName ||
+                    ""
                 );
-            })
-            .map(function(item){
-                return item.station;
-            })
-            .slice(
-                0,
-                ALL_STATION_LIMIT
-            );
+
+            const key =
+                (
+                    (station.type || "river") +
+                    "|" +
+                    waterBody +
+                    "|" +
+                    fallbackPlaceKey(station)
+                );
+
+            if(finalSeen.has(key)){
+                continue;
+            }
+
+            finalSeen.add(key);
+            finalItems.push(item);
+
+            if(finalItems.length >= ALL_STATION_LIMIT){
+                break;
+            }
+        }
+
+        return finalItems.map(function(item){
+            return item.station;
+        });
     }
 
     async function loadStations(options){
