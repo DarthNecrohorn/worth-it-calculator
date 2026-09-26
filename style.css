@@ -10061,6 +10061,84 @@ html.settings-open #cryptoFloatingShowLess{
     text-align:center;
 }
 
+.water-levels-header-actions{
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:8px;
+    position:relative;
+}
+
+.water-levels-refresh:disabled{
+    opacity:.52 !important;
+    cursor:default !important;
+    transform:none !important;
+    box-shadow:none !important;
+}
+
+.water-levels-refresh:disabled:hover{
+    border-color:var(--border) !important;
+    background:var(--surface-soft) !important;
+    transform:none !important;
+}
+
+.water-levels-refresh-info{
+    position:relative;
+}
+
+.water-levels-info-button{
+    width:36px;
+    height:36px;
+    display:grid;
+    place-items:center;
+    padding:0;
+    border:1px solid var(--border);
+    border-radius:11px;
+    background:var(--surface-soft);
+    color:var(--muted);
+    font-size:16px;
+    font-weight:900;
+    cursor:pointer;
+    transition:.2s;
+}
+
+.water-levels-info-button:hover,
+.water-levels-info-button[aria-expanded="true"]{
+    color:var(--text);
+    border-color:rgba(124,92,255,.55);
+    background:rgba(124,92,255,.08);
+    transform:translateY(-1px);
+}
+
+.water-levels-refresh-info-popover{
+    position:absolute;
+    z-index:20;
+    top:calc(100% + 9px);
+    right:0;
+    width:min(320px,calc(100vw - 32px));
+    padding:12px 13px;
+    box-sizing:border-box;
+    display:flex;
+    flex-direction:column;
+    gap:5px;
+    border:1px solid var(--border);
+    border-radius:13px;
+    background:var(--card-solid,var(--card));
+    color:var(--text);
+    box-shadow:0 18px 45px rgba(0,0,0,.18);
+    text-align:left;
+}
+
+.water-levels-refresh-info-popover strong{
+    font-size:12px;
+}
+
+.water-levels-refresh-info-popover span{
+    color:var(--muted);
+    font-size:11px;
+    line-height:1.45;
+}
+
 .water-levels-refresh{
     border:1px solid var(--border) !important;
     color:var(--text) !important;
@@ -10321,9 +10399,19 @@ html[data-theme="light"] .water-level-card{
         font-size:13px;
     }
 
+    .water-levels-header-actions{
+        width:100%;
+        justify-content:center;
+    }
+
     .water-levels-refresh{
         width:auto !important;
         align-self:center;
+    }
+
+    .water-levels-refresh-info-popover{
+        right:50%;
+        transform:translateX(50%);
     }
 
     .water-levels-filters{
