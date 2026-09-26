@@ -28,7 +28,7 @@ const WATER_DATASETS = {
     lakes: "wl-lakes_global_vector_daily_v2"
 };
 
-const WATER_CACHE_VERSION = "v42";
+const WATER_CACHE_VERSION = "v43";
 
 const STATIONS_CACHE_TTL_SECONDS =
     6 * 60 * 60;
@@ -2366,6 +2366,9 @@ async function downloadLatestJsonFromNode(
     if(!measurements.length){
         return {
             latest: null,
+            previous: null,
+            normalizedProduct:
+                normalized,
             coordinates:
                 normalized.coordinates ||
                 null,
@@ -2388,6 +2391,8 @@ async function downloadLatestJsonFromNode(
                     latestIndex - 1
                   ]
                 : null,
+        normalizedProduct:
+            normalized,
         coordinates:
             normalized.coordinates ||
             null,
@@ -3222,6 +3227,86 @@ async function getParsedProduct(
                     context
                 );
 
+            /*
+             * History/Details must use the same per-station JSON asset
+             * as the working latest endpoint. The root product download
+             * can be a package/container and may not expose the station
+             * time series directly.
+             */
+            try{
+                const catalogue =
+                    await getCatalogueProductMetadata(
+                        context,
+                        {
+                            productId,
+                            type,
+                            forceRefresh
+                        }
+                    );
+
+                const knownNodeUrl =
+                    buildKnownWaterLevelNodeUrl(
+                        productId,
+                        catalogue.station &&
+                        catalogue.station.productName
+                    );
+
+                if(knownNodeUrl){
+                    const stationProduct =
+                        await downloadLatestJsonFromNode(
+                            knownNodeUrl,
+                            token,
+                            productId,
+                            type
+                        );
+
+                    if(
+                        stationProduct &&
+                        stationProduct.normalizedProduct &&
+                        Array.isArray(
+                            stationProduct.normalizedProduct.measurements
+                        ) &&
+                        stationProduct.normalizedProduct.measurements.length
+                    ){
+                        const product =
+                            stationProduct.normalizedProduct;
+
+                        const response =
+                            jsonResponse(
+                                product,
+                                200,
+                                {
+                                    "Cache-Control":
+                                        "public, max-age=" +
+                                        PRODUCT_CACHE_TTL_SECONDS +
+                                        ", stale-while-revalidate=" +
+                                        PRODUCT_STALE_TTL_SECONDS,
+                                    "X-Water-Cache":
+                                        "MISS"
+                                }
+                            );
+
+                        await cache.put(
+                            request,
+                            response.clone()
+                        );
+
+                        return product;
+                    }
+                }
+            }
+            catch(error){
+                console.warn(
+                    "Per-station Water Levels history download failed:",
+                    productId,
+                    error
+                );
+            }
+
+            /*
+             * Preserve the existing root-product fallback for products
+             * whose station JSON cannot be addressed directly.
+             */
             const product =
                 await downloadAndParseProduct(
                     productId,
