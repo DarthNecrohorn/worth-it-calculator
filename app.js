@@ -2637,6 +2637,7 @@ window.openMoneyFromMenu = openMoneyFromMenu;
 function openMarkets() {
 
     document.documentElement.classList.remove("settings-open");
+    hideWaterLevelsSection();
 
     hideCarsNavigationUi();
 
@@ -2729,6 +2730,7 @@ window.openMarkets = openMarkets;
 function openMoney() {
 
     document.documentElement.classList.remove("settings-open");
+    hideWaterLevelsSection();
 
     const cryptoSection = document.getElementById("cryptoSection");
     if (cryptoSection) cryptoSection.style.display = "none";
