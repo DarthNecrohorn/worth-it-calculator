@@ -2314,7 +2314,14 @@
 
         if(!("IntersectionObserver" in window)){
             void loadStationLatest(
-                filteredStations().slice(0,24)
+                filteredStations()
+                    .slice(0,24)
+                    .filter(function(station){
+                        return (
+                            station.latestHeight == null ||
+                            station.previousHeight == null
+                        );
+                    })
             );
             return;
         }
@@ -2330,7 +2337,13 @@
                         const station =
                             stationForCard(entry.target);
 
-                        if(station){
+                        if(
+                            station &&
+                            (
+                                station.latestHeight == null ||
+                                station.previousHeight == null
+                            )
+                        ){
                             stations.push(station);
                         }
 
