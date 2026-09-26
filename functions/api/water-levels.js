@@ -1474,26 +1474,21 @@ async function searchNearbyDatasetProducts({
         coordinates +
         "))')";
 
-    const filterParts = [
-        "Collection/Name eq 'CLMS'",
-        attributeEquals(
-            "datasetIdentifier",
-            datasetId
-        ),
-        geometryFilter
-    ];
-
-    if(country){
-        filterParts.push(
-            attributeEquals(
-                "country",
-                country
-            )
-        );
-    }
-
+    /*
+     * Country filtering is deliberately handled from the returned
+     * coordinates on the client. CLMS OData attribute names are
+     * collection-specific; using an assumed "country" attribute can
+     * make an otherwise valid geographic query fail.
+     */
     const filter =
-        filterParts.join(
+        [
+            "Collection/Name eq 'CLMS'",
+            attributeEquals(
+                "datasetIdentifier",
+                datasetId
+            ),
+            geometryFilter
+        ].join(
             " and "
         );
 
@@ -1635,17 +1630,6 @@ async function searchDatasetProducts({
         ].join(
             " and "
         );
-
-    if(country){
-
-        filter +=
-            " and " +
-            attributeEquals(
-                "country",
-                country
-            );
-
-    }
 
     if (query) {
 
