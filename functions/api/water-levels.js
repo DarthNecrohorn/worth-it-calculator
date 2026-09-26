@@ -28,7 +28,7 @@ const WATER_DATASETS = {
     lakes: "wl-lakes_global_vector_daily_v2"
 };
 
-const WATER_CACHE_VERSION = "v9";
+const WATER_CACHE_VERSION = "v10";
 
 const STATIONS_CACHE_TTL_SECONDS =
     2 * 60 * 60;
@@ -663,8 +663,16 @@ async function handleLatest(
 
     try {
 
-        const product =
-            await getParsedProduct(
+        /*
+         * IMPORTANT:
+         * Do not parse the complete GeoJSON product here.
+         * Cloudflare Workers Free has a very small CPU budget per
+         * request. CLMS water-level products are time-series files,
+         * and the newest observation is at the end of the data array.
+         * We therefore request only the tail of the remote object.
+         */
+        const result =
+            await getLatestMeasurementByRange(
                 context,
                 {
                     productId,
@@ -673,22 +681,19 @@ async function handleLatest(
                 }
             );
 
-        const latest =
-            Array.isArray(product.measurements) &&
-            product.measurements.length
-                ? product.measurements[
-                    product.measurements.length - 1
-                  ]
-                : null;
-
         return jsonResponse(
             {
                 ok: true,
                 productId,
                 type,
-                latest,
-                station: product.station,
-                coordinates: product.coordinates,
+                latest:
+                    result.latest || null,
+                station:
+                    result.station || null,
+                coordinates:
+                    result.coordinates || null,
+                measurementCount:
+                    result.measurementCount,
                 source: {
                     provider:
                         "Copernicus Land Monitoring Service",
@@ -697,7 +702,9 @@ async function handleLatest(
                     dataset:
                         type === "river"
                             ? WATER_DATASETS.rivers
-                            : WATER_DATASETS.lakes
+                            : WATER_DATASETS.lakes,
+                    retrieval:
+                        "Tail-range read of the latest Copernicus GeoJSON product"
                 }
             },
             200,
@@ -1214,6 +1221,422 @@ function normalizeStation(
 
 
 /* =========================================================
+   LATEST MEASUREMENT — RANGE READ
+========================================================= */
+
+const LATEST_RANGE_STEPS = [
+    64 * 1024,
+    256 * 1024,
+    1024 * 1024
+];
+
+async function getLatestMeasurementByRange(
+    context,
+    {
+        productId,
+        type,
+        forceRefresh
+    }
+) {
+
+    /*
+     * Reuse the fast catalogue metadata path for station
+     * metadata. This is public OData metadata and avoids
+     * downloading the full time-series product.
+     */
+    const catalogue =
+        await getCatalogueProductMetadata(
+            context,
+            {
+                productId,
+                type,
+                forceRefresh
+            }
+        );
+
+    const token =
+        await getCdseAccessToken(
+            context
+        );
+
+    let lastError = null;
+
+    for(
+        const rangeBytes of LATEST_RANGE_STEPS
+    ){
+
+        try{
+
+            const result =
+                await fetchLatestRangeChunk(
+                    productId,
+                    token,
+                    rangeBytes
+                );
+
+            if(
+                result &&
+                result.latest
+            ){
+                return {
+                    latest:
+                        result.latest,
+                    station:
+                        catalogue.station,
+                    coordinates:
+                        catalogue.coordinates,
+                    measurementCount:
+                        null
+                };
+            }
+
+            if(
+                result &&
+                result.retryWithLargerRange
+            ){
+                continue;
+            }
+
+            return {
+                latest: null,
+                station:
+                    catalogue.station,
+                coordinates:
+                    catalogue.coordinates,
+                measurementCount:
+                    0
+            };
+
+        }
+        catch(error){
+
+            lastError = error;
+
+            /*
+             * A 401 means the token is bad/expired. Do not waste
+             * the larger range attempts on the same invalid token.
+             */
+            if(
+                error &&
+                error.code === "CDSE_AUTH"
+            ){
+                memoryToken = null;
+                memoryTokenExpiresAt = 0;
+                break;
+            }
+
+        }
+
+    }
+
+    if(lastError){
+        throw lastError;
+    }
+
+    return {
+        latest: null,
+        station:
+            catalogue.station,
+        coordinates:
+            catalogue.coordinates,
+        measurementCount:
+            0
+    };
+
+}
+
+
+async function fetchLatestRangeChunk(
+    productId,
+    accessToken,
+    rangeBytes
+) {
+
+    const productUrl =
+        CDSE_DOWNLOAD_BASE +
+        "(" +
+        encodeURIComponent(productId) +
+        ")/$value";
+
+    const response =
+        await fetchWithTimeout(
+            productUrl,
+            {
+                headers: {
+                    "Authorization":
+                        "Bearer " +
+                        accessToken,
+                    "Accept":
+                        "application/geo+json,application/json,*/*",
+                    "Accept-Encoding":
+                        "identity",
+                    "Range":
+                        "bytes=-" +
+                        String(rangeBytes)
+                },
+                redirect:
+                    "follow"
+            },
+            DOWNLOAD_TIMEOUT_MS
+        );
+
+    if(
+        response.status === 401 ||
+        response.status === 403
+    ){
+        const text =
+            await safeReadText(response);
+
+        const error =
+            new Error(
+                "Copernicus product download authentication failed."
+            );
+
+        error.code = "CDSE_AUTH";
+        error.status = response.status;
+        error.details = text.slice(0,300);
+
+        throw error;
+    }
+
+    if(
+        response.status >= 500
+    ){
+        const text =
+            await safeReadText(response);
+
+        throw new Error(
+            "Copernicus latest measurement download failed (" +
+            response.status +
+            "): " +
+            text.slice(0,300)
+        );
+    }
+
+    if(
+        !response.ok &&
+        response.status !== 206
+    ){
+        const text =
+            await safeReadText(response);
+
+        throw new Error(
+            "Copernicus latest measurement request failed (" +
+            response.status +
+            "): " +
+            text.slice(0,300)
+        );
+    }
+
+    const contentType =
+        String(
+            response.headers.get("content-type") || ""
+        ).toLowerCase();
+
+    const contentRange =
+        String(
+            response.headers.get("content-range") || ""
+        );
+
+    const contentLength =
+        Number(
+            response.headers.get("content-length") || 0
+        );
+
+    /*
+     * Range support is indicated by HTTP 206. If the server
+     * ignored Range and returned a full object, only allow it
+     * when the complete object is small enough to keep this
+     * Worker request lightweight.
+     */
+    if(
+        response.status === 200 &&
+        contentLength > 0 &&
+        contentLength > 2 * 1024 * 1024
+    ){
+        throw new Error(
+            "Copernicus product endpoint ignored the Range request for a large product."
+        );
+    }
+
+    const bytes =
+        new Uint8Array(
+            await response.arrayBuffer()
+        );
+
+    if(
+        !bytes.length
+    ){
+        return {
+            latest: null,
+            retryWithLargerRange: true
+        };
+    }
+
+    if(
+        !(
+            contentType.includes("json") ||
+            contentType.includes("geo+json") ||
+            looksLikeJson(bytes)
+        )
+    ){
+        /*
+         * The water-level CLMS vector dataset is published as
+         * GeoJSON, but some gateways may return a generic MIME type.
+         * A ZIP/native archive cannot be safely parsed from a tail
+         * range, so signal a larger/alternate retrieval attempt.
+         */
+        throw new Error(
+            "Copernicus water-level product is not returned as a JSON/GeoJSON payload."
+        );
+    }
+
+    const text =
+        new TextDecoder().decode(
+            bytes
+        );
+
+    const latest =
+        extractLatestMeasurementFromTail(
+            text
+        );
+
+    if(latest){
+        return {
+            latest,
+            retryWithLargerRange: false
+        };
+    }
+
+    /*
+     * The latest object may cross the boundary of this range.
+     * Ask for a larger tail before giving up.
+     */
+    if(
+        response.status === 206 ||
+        contentRange
+    ){
+        return {
+            latest: null,
+            retryWithLargerRange: true
+        };
+    }
+
+    return {
+        latest: null,
+        retryWithLargerRange: false
+    };
+
+}
+
+
+function extractLatestMeasurementFromTail(
+    text
+) {
+
+    const source =
+        String(
+            text || ""
+        );
+
+    if(!source){
+        return null;
+    }
+
+    /*
+     * CLMS water-level measurement objects are flat JSON objects.
+     * Extract complete objects that contain the current height
+     * field, then use the last one in the tail.
+     */
+    const pattern =
+        /\{[^{}]*["']?water_surface_height_above_reference_datum["']?\s*:\s*([-+]?\d+(?:\.\d+)?(?:[eE][-+]?\d+)?)[^{}]*\}/g;
+
+    let match = null;
+    let candidate = null;
+
+    while(
+        (match = pattern.exec(source)) !== null
+    ){
+        candidate = match;
+    }
+
+    if(
+        !candidate
+    ){
+        return null;
+    }
+
+    const objectText =
+        candidate[0];
+
+    let object = null;
+
+    try{
+        object =
+            JSON.parse(
+                objectText
+            );
+    }
+    catch(error){
+        /*
+         * Fall back to key-level extraction for JSON fragments
+         * that contain escaped/unusual formatting.
+         */
+    }
+
+    if(object){
+        const normalized =
+            normalizeMeasurement(object);
+
+        if(
+            Number.isFinite(normalized.height) &&
+            normalized.datetime
+        ){
+            return normalized;
+        }
+    }
+
+    const height =
+        numberOrNull(
+            candidate[1]
+        );
+
+    const datetimeMatch =
+        objectText.match(
+            /["'](?:Datetime|datetime|DateTime|dateTime|timestamp)["']\s*:\s*["']([^"']+)["']/
+        );
+
+    const uncertaintyMatch =
+        objectText.match(
+            /["'](?:water_surface_height_uncertainty|associated_uncertainty|uncertainty)["']\s*:\s*([-+]?\d+(?:\.\d+)?(?:[eE][-+]?\d+)?)/ 
+        );
+
+    if(
+        !Number.isFinite(height) ||
+        !datetimeMatch
+    ){
+        return null;
+    }
+
+    return {
+        identifier: "",
+        time: null,
+        datetime:
+            datetimeMatch[1],
+        height,
+        uncertainty:
+            uncertaintyMatch
+                ? numberOrNull(uncertaintyMatch[1])
+                : null,
+        satellite: "",
+        groundTrack: null,
+        cycleNumber: null
+    };
+
+}
+
+
+/* =========================================================
    PRODUCT RETRIEVAL + PARSING
 ========================================================= */
 
@@ -1441,6 +1864,18 @@ async function getCdseAccessToken(
                 "password",
                 password
             );
+
+            const totp =
+                String(
+                    context.env.CDSE_TOTP || ""
+                ).trim();
+
+            if(totp){
+                body.set(
+                    "totp",
+                    totp
+                );
+            }
 
             const response =
                 await fetch(
