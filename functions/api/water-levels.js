@@ -28,7 +28,7 @@ const WATER_DATASETS = {
     lakes: "wl-lakes_global_vector_daily_v2"
 };
 
-const WATER_CACHE_VERSION = "v37";
+const WATER_CACHE_VERSION = "v38";
 
 const STATIONS_CACHE_TTL_SECONDS =
     6 * 60 * 60;
@@ -3676,45 +3676,65 @@ function normalizeProductPayload(
 
     const rawMeasurements = [];
 
-    function collectMeasurementData(value){
-        if(!value) return;
+    /*
+     * CLMS Water Level files contain a time series under the GeoJSON
+     * "data" member, but keep this collector deliberately tolerant:
+     * product revisions can wrap the series in different JSON containers.
+     *
+     * We recognize a measurement by its actual water-level fields instead
+     * of depending only on a particular nesting/key name.
+     */
+    function collectMeasurementData(value, depth = 0){
+        if(
+            value === null ||
+            value === undefined ||
+            depth > 10
+        ){
+            return;
+        }
 
         if(Array.isArray(value)){
             value.forEach(function(item){
-                if(item && typeof item === "object"){
-                    rawMeasurements.push(item);
-                }
+                collectMeasurementData(
+                    item,
+                    depth + 1
+                );
             });
             return;
         }
 
         if(
-            value &&
-            typeof value === "object"
+            typeof value !== "object"
         ){
-            if(Array.isArray(value.data)){
-                collectMeasurementData(value.data);
-            }
-            if(Array.isArray(value.Data)){
-                collectMeasurementData(value.Data);
-            }
-            if(Array.isArray(value.measurements)){
-                collectMeasurementData(value.measurements);
-            }
-            if(Array.isArray(value.Measurements)){
-                collectMeasurementData(value.Measurements);
-            }
+            return;
         }
+
+        const normalized =
+            normalizeMeasurement(
+                value
+            );
+
+        if(
+            Number.isFinite(
+                normalized.height
+            ) &&
+            normalized.datetime
+        ){
+            rawMeasurements.push(
+                value
+            );
+            return;
+        }
+
+        Object.keys(value).forEach(function(key){
+            collectMeasurementData(
+                value[key],
+                depth + 1
+            );
+        });
     }
 
-    featureList.forEach(function(item){
-        collectMeasurementData(item);
-    });
-
-    collectMeasurementData(payload && payload.data);
-    collectMeasurementData(payload && payload.Data);
-    collectMeasurementData(payload && payload.measurements);
-    collectMeasurementData(payload && payload.Measurements);
+    const measurementSeen = new Set();
 
     const measurements =
         rawMeasurements
@@ -3723,10 +3743,26 @@ function normalizeProductPayload(
             )
             .filter(
                 function(item) {
-                    return (
-                        Number.isFinite(item.height) &&
-                        item.datetime
-                    );
+                    if(
+                        !Number.isFinite(item.height) ||
+                        !item.datetime
+                    ){
+                        return false;
+                    }
+
+                    const signature =
+                        [
+                            item.datetime,
+                            item.height,
+                            item.identifier || ""
+                        ].join("|");
+
+                    if(measurementSeen.has(signature)){
+                        return false;
+                    }
+
+                    measurementSeen.add(signature);
+                    return true;
                 }
             )
             .sort(
