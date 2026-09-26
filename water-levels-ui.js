@@ -133,17 +133,23 @@
         if(count) count.textContent = text;
     }
 
-    function renderLoading(){
+    function renderLoading(preserveCards){
         const grid = get("waterLevelsGrid");
         if(!grid) return;
 
-        grid.innerHTML =
-            '<div class="water-level-empty">' +
-                '<strong>Loading Copernicus water-level stations…</strong>' +
-                '<span>Searching the CLMS catalogue and preparing live data.</span>' +
-            '</div>';
+        if(!preserveCards || !grid.querySelector(".water-level-card")){
+            grid.innerHTML =
+                '<div class="water-level-empty">' +
+                    '<strong>Loading Copernicus water-level stations…</strong>' +
+                    '<span>Searching the CLMS catalogue and preparing live data.</span>' +
+                '</div>';
+        }
 
-        setResultsText("Loading live Copernicus stations…");
+        setResultsText(
+            preserveCards
+                ? "Refreshing Copernicus water-level stations…"
+                : "Loading live Copernicus stations…"
+        );
     }
 
     function renderError(message){
@@ -362,13 +368,32 @@
                     params.set("id",station.id);
                     params.set("type",station.type);
 
-                    const response = await fetch(
-                        "/api/water-levels?" + params.toString(),
-                        {
-                            method:"GET",
-                            headers:{"Accept":"application/json"}
-                        }
-                    );
+                    const metadataController =
+                        new AbortController();
+
+                    const metadataTimer =
+                        window.setTimeout(
+                            function(){
+                                metadataController.abort();
+                            },
+                            20000
+                        );
+
+                    let response;
+
+                    try{
+                        response = await fetch(
+                            "/api/water-levels?" + params.toString(),
+                            {
+                                method:"GET",
+                                headers:{"Accept":"application/json"},
+                                signal:metadataController.signal
+                            }
+                        );
+                    }
+                    finally{
+                        window.clearTimeout(metadataTimer);
+                    }
 
                     const data = await response.json().catch(function(){
                         return null;
@@ -522,19 +547,19 @@
                     '<div class="water-level-card-metrics">' +
                         cardMetric(
                             "Water body",
-                            station.waterBody || "Loading…",
+                            station.waterBody || "—",
                             "waterBody"
                         ) +
 
                         cardMetric(
                             "Basin",
-                            station.basin || "Loading…",
+                            station.basin || "—",
                             "basin"
                         ) +
 
                         cardMetric(
                             "Station / Cell ID",
-                            station.stationId || "Loading…",
+                            station.stationId || "—",
                             "stationId"
                         ) +
 
@@ -652,7 +677,7 @@
 
         state.loading = true;
         state.error = "";
-        renderLoading();
+        renderLoading(options.preserveCards === true);
 
         try{
 
@@ -1502,7 +1527,8 @@
 
                 });
 
-                loadStations();
+                /* All/Rivers/Lakes are local filters; do not hit Copernicus again. */
+                renderCards();
 
             }
         );
@@ -1550,7 +1576,8 @@
             function(){
 
                 loadStations({
-                    force:true
+                    force:true,
+                    preserveCards:true
                 });
 
                 button.classList.remove(
