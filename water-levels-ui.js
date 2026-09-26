@@ -247,6 +247,85 @@
             : base;
     }
 
+    function localizeWaterPlaceName(placeName,location){
+        const value =
+            String(placeName || "").trim();
+
+        if(!value) return "";
+
+        const countryCode =
+            String(
+                location &&
+                location.countryCode || ""
+            ).trim().toUpperCase();
+
+        if(countryCode !== "RS"){
+            return value;
+        }
+
+        /*
+         * BigDataCloud commonly returns Serbian place names in an
+         * ASCII/English form. Restore Serbian diacritics for the
+         * station label while keeping the geocoder as the source.
+         */
+        const serbianNames = {
+            "indija":"Inđija",
+            "beocin":"Beočin",
+            "backa palanka":"Bačka Palanka",
+            "backa topola":"Bačka Topola",
+            "backi petrovac":"Bački Petrovac",
+            "backi jarkovac":"Bački Jarkovac",
+            "becej":"Bečej",
+            "bezdan":"Bezdan",
+            "crvenka":"Crvenka",
+            "cacak":"Čačak",
+            "djurdjevo":"Đurđevo",
+            "gornji milanovac":"Gornji Milanovac",
+            "kikinda":"Kikinda",
+            "knjazevac":"Knjaževac",
+            "kragujevac":"Kragujevac",
+            "krusevac":"Kruševac",
+            "loznica":"Loznica",
+            "ljubovija":"Ljubovija",
+            "ljig":"Ljig",
+            "mionica":"Mionica",
+            "novi pazar":"Novi Pazar",
+            "novi sad":"Novi Sad",
+            "odzaci":"Odžaci",
+            "pozezga":"Požega",
+            "sremska mitrovica":"Sremska Mitrovica",
+            "senta":"Senta",
+            "smederevo":"Smederevo",
+            "smederevska palanka":"Smederevska Palanka",
+            "sombor":"Sombor",
+            "sremski karlovci":"Sremski Karlovci",
+            "subotica":"Subotica",
+            "sabac":"Šabac",
+            "trstenik":"Trstenik",
+            "uzice":"Užice",
+            "vranje":"Vranje",
+            "vrbas":"Vrbas",
+            "vrsac":"Vršac",
+            "zabari":"Žabari",
+            "zabalj":"Žabalj",
+            "zajecar":"Zaječar",
+            "zrenjanin":"Zrenjanin"
+        };
+
+        const normalized =
+            value
+                .normalize("NFD")
+                .replace(/[\u0300-\u036f]/g,"")
+                .toLowerCase()
+                .replace(/\s+/g," ")
+                .trim();
+
+        return (
+            serbianNames[normalized] ||
+            value
+        );
+    }
+
     function readStationPlaceCache(key){
         if(!key) return null;
 
@@ -370,11 +449,14 @@
                 return "";
             }
 
-            return String(
-                data.city ||
-                data.locality ||
-                ""
-            ).trim();
+            return localizeWaterPlaceName(
+                String(
+                    data.city ||
+                    data.locality ||
+                    ""
+                ).trim(),
+                state.location
+            );
         }
         catch(error){
             return "";
