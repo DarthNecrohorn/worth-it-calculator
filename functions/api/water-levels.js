@@ -1742,104 +1742,102 @@ async function searchDatasetProducts({
 
     if (query) {
 
-        const waterBodyAttribute =
-            type === "river"
-                ? "wlRiverName"
-                : "wlLakeName";
-
         /*
-         * CDSE documents contains() for product Name and equality
-         * filters for StringAttribute values. Do not use contains()
-         * inside the nested Attributes collection: that form can make
-         * the CLMS OData query fail with HTTP 500.
+         * CLMS exposes virtual-station identifiers through the StringAttribute
+         * "cellID". Use that exact attribute for identifier searches.
          *
-         * For water-body/basin matching use exact StringAttribute
-         * comparisons. Danube and Dunav are treated as multilingual
-         * aliases because CLMS water names may be stored in a local
-         * language.
+         * Keep identifier searches separate from free-text searches because
+         * combining identifier attributes with the broader multilingual
+         * text filter can make the catalogue reject the request.
          */
-        const searchTerms = [query];
-        const lowerQuery = String(query).toLowerCase();
+        const isStationIdQuery =
+            /^\\d{4,}$/.test(query) ||
+            /^C[A-Z0-9_-]{2,}$/.test(query);
 
-        if(
-            lowerQuery === "danube"
-        ){
-            searchTerms.push("Dunav");
-        }
-        else if(
-            lowerQuery === "dunav"
-        ){
-            searchTerms.push("Danube");
-        }
+        if(isStationIdQuery){
 
-        const uniqueSearchTerms =
-            Array.from(
-                new Set(searchTerms)
+            filter +=
+                " and " +
+                attributeEquals(
+                    "cellID",
+                    query
+                );
+
+        }
+        else{
+
+            const waterBodyAttribute =
+                type === "river"
+                    ? "wlRiverName"
+                    : "wlLakeName";
+
+            /*
+             * Danube and Dunav are multilingual aliases, so search the
+             * original term plus only its alternate spelling.
+             */
+            const searchTerms = [query];
+            const lowerQuery = String(query).toLowerCase();
+
+            if(
+                lowerQuery === "danube"
+            ){
+                searchTerms.push("Dunav");
+            }
+            else if(
+                lowerQuery === "dunav"
+            ){
+                searchTerms.push("Danube");
+            }
+
+            const uniqueSearchTerms =
+                Array.from(
+                    new Set(searchTerms)
+                );
+
+            const searchClauses = [];
+
+            uniqueSearchTerms.forEach(
+                function(term){
+                    const escaped =
+                        escapeODataString(term);
+
+                    /*
+                     * Product name is a normal OData string field.
+                     */
+                    searchClauses.push(
+                        "contains(Name,'" +
+                            escaped +
+                            "')"
+                    );
+
+                    /*
+                     * Nested CLMS StringAttribute matching uses the
+                     * documented exact equality form.
+                     */
+                    searchClauses.push(
+                        attributeEquals(
+                            waterBodyAttribute,
+                            term
+                        )
+                    );
+
+                    searchClauses.push(
+                        attributeEquals(
+                            "wlBasinName",
+                            term
+                        )
+                    );
+                }
             );
 
-        const searchClauses = [];
+            filter +=
+                " and (" +
+                searchClauses.join(
+                    " or "
+                ) +
+                ")";
 
-        uniqueSearchTerms.forEach(
-            function(term){
-                const escaped =
-                    escapeODataString(term);
-
-                /*
-                 * Name contains is a documented CDSE OData operation.
-                 */
-                searchClauses.push(
-                    "contains(Name,'" +
-                        escaped +
-                        "')"
-                );
-
-                /*
-                 * Nested CLMS StringAttribute matching uses eq, which
-                 * is the documented/supported attribute filter form.
-                 */
-                searchClauses.push(
-                    attributeEquals(
-                        waterBodyAttribute,
-                        term
-                    )
-                );
-
-                searchClauses.push(
-                    attributeEquals(
-                        "wlBasinName",
-                        term
-                    )
-                );
-
-                /*
-                 * Station / Cell ID is stored by CLMS as cellID for
-                 * virtual stations. Some products expose the same
-                 * identifier through resource instead, so support both.
-                 * Equality keeps this nested attribute filter compatible
-                 * with the stable CDSE OData form used above.
-                 */
-                searchClauses.push(
-                    attributeEquals(
-                        "cellID",
-                        term
-                    )
-                );
-
-                searchClauses.push(
-                    attributeEquals(
-                        "resource",
-                        term
-                    )
-                );
-            }
-        );
-
-        filter +=
-            " and (" +
-            searchClauses.join(
-                " or "
-            ) +
-            ")";
+        }
 
     }
 
