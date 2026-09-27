@@ -225,6 +225,7 @@
     let defaultMapLayer = null;
     let satelliteLayer = null;
     let activeBaseMap = "default";
+    let markerInfoLevel = "default";
 
     function addDefaultBaseLayer(){
         if(!map || defaultMapLayer){
@@ -311,6 +312,57 @@
                         container
                     );
 
+                const infoGroup = L.DomUtil.create(
+                    "div",
+                    "ship-tracking-map-info-options",
+                    container
+                );
+
+                const infoLabel = L.DomUtil.create(
+                    "span",
+                    "ship-tracking-map-info-label",
+                    infoGroup
+                );
+                infoLabel.textContent = "Map information";
+
+                const infoOptions = [
+                    { value: "default", label: "Default" },
+                    { value: "medium", label: "Medium" },
+                    { value: "nothing", label: "Nothing" }
+                ];
+
+                const infoButtons = infoOptions.map(function(option){
+                    const label = L.DomUtil.create(
+                        "label",
+                        "ship-tracking-map-info-option",
+                        infoGroup
+                    );
+                    const input = L.DomUtil.create(
+                        "input",
+                        "",
+                        label
+                    );
+                    input.type = "radio";
+                    input.name = "ship-tracking-map-info";
+                    input.value = option.value;
+                    input.checked = option.value === markerInfoLevel;
+
+                    const textNode = L.DomUtil.create(
+                        "span",
+                        "",
+                        label
+                    );
+                    textNode.textContent = option.label;
+
+                    L.DomEvent.on(input, "change", function(){
+                        if(input.checked){
+                            setMarkerInfoLevel(option.value);
+                        }
+                    });
+
+                    return input;
+                });
+
                 defaultButton.type = "button";
                 satelliteButton.type = "button";
 
@@ -348,6 +400,7 @@
 
                 container._defaultButton = defaultButton;
                 container._satelliteButton = satelliteButton;
+                container._infoButtons = infoButtons;
 
                 map._shipTrackingBaseMapSwitcher = container;
 
@@ -386,6 +439,19 @@
             "aria-pressed",
             defaultActive ? "false" : "true"
         );
+    }
+
+    function setMarkerInfoLevel(level){
+        if(level !== "default" && level !== "medium" && level !== "nothing"){
+            return;
+        }
+
+        if(markerInfoLevel === level){
+            return;
+        }
+
+        markerInfoLevel = level;
+        renderMarkers();
     }
 
     function switchBaseMap(mode){
@@ -844,15 +910,21 @@
                 loadVesselDetails(vessel.mmsi, true);
             });
 
-            marker.bindTooltip(
-                escapeHtml(vessel.name || "Unknown vessel") +
-                    "<br>MMSI " +
-                    escapeHtml(vessel.mmsi),
-                {
-                    direction: "top",
-                    opacity: 0.95
-                }
-            );
+            if(markerInfoLevel !== "nothing"){
+                const tooltipText = markerInfoLevel === "medium"
+                    ? escapeHtml(vessel.name || "Unknown vessel")
+                    : escapeHtml(vessel.name || "Unknown vessel") +
+                        "<br>MMSI " +
+                        escapeHtml(vessel.mmsi);
+
+                marker.bindTooltip(
+                    tooltipText,
+                    {
+                        direction: "top",
+                        opacity: 0.95
+                    }
+                );
+            }
 
             markerLayer.addLayer(marker);
         });
