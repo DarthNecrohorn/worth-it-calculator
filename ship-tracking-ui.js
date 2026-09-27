@@ -1381,6 +1381,21 @@
             point.y + "px";
 
         picker.addEventListener(
+            "wheel",
+            function(event){
+                /*
+                 * Keep the mouse wheel inside the vessel picker.
+                 * Otherwise Leaflet receives the bubbled wheel event,
+                 * zooms the map, and the picker closes on map movement.
+                 */
+                event.stopPropagation();
+            },
+            {
+                passive: true
+            }
+        );
+
+        picker.addEventListener(
             "click",
             function(event){
                 const closeButton =
