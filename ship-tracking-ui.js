@@ -255,453 +255,449 @@
     }
 
     function addMediumInfoLayer(){
-        /*
-         * Kept as a compatibility placeholder. Medium/Nothing now use
-         * the OpenFreeMap vector layer so the base-map appearance is not
-         * replaced by a gray raster map.
-         */
-        return;
-    }
-
-    function getInfoVectorStyle(level){
-        if(infoVectorStylePromise){
-            return infoVectorStylePromise.then(function(style){
-                return buildInfoVectorStyle(style, level);
-            });
-        }
-
-        infoVectorStylePromise = fetch(
-            "https://tiles.openfreemap.org/styles/liberty",
-            {
-                method: "GET",
-                headers: {
-                    "Accept": "application/json"
-                },
-                cache: "force-cache"
-            }
-        ).then(function(response){
-            if(!response.ok){
-                throw new Error("OpenFreeMap style could not be loaded.");
-            }
-            return response.json();
-        });
-
-        return infoVectorStylePromise.then(function(style){
-            return buildInfoVectorStyle(style, level);
-        });
-    }
-
-    function buildInfoVectorStyle(sourceStyle, level){
-        const style = JSON.parse(JSON.stringify(sourceStyle));
-
-        /*
-         * Remove every existing symbol layer first. That guarantees
-         * Nothing means literally no text/icons and also removes POIs,
-         * shops, restaurants, bus stops, road labels, shields, etc.
-         */
-        style.layers = (style.layers || []).filter(function(layer){
-            return layer.type !== "symbol";
-        });
-
-        if(level === "nothing"){
-            return style;
-        }
-
-        const labelPaint = {
-            "text-color": "#374151",
-            "text-halo-color": "#ffffff",
-            "text-halo-width": 1.2
-        };
-
-        style.layers.push({
-            id: "worth-it-medium-place-labels",
-            type: "symbol",
-            source: "openmaptiles",
-            "source-layer": "place",
-            minzoom: 1,
-            filter: [
-                "in",
-                ["get", "class"],
-                "continent",
-                "country",
-                "state",
-                "province",
-                "city",
-                "town",
-                "village",
-                "hamlet"
-            ],
-            layout: {
-                "text-field": [
-                    "coalesce",
-                    ["get", "name"],
-                    ["get", "name:en"]
-                ],
-                "text-font": ["Noto Sans Regular"],
-                "text-size": [
-                    "interpolate",
-                    ["linear"],
-                    ["zoom"],
-                    1, 10,
-                    4, 11,
-                    7, 12,
-                    10, 13,
-                    14, 14
-                ],
-                "text-padding": 2,
-                "text-max-width": 8,
-                "text-allow-overlap": false
-            },
-            paint: labelPaint
-        });
-
-        style.layers.push({
-            id: "worth-it-medium-water-labels",
-            type: "symbol",
-            source: "openmaptiles",
-            "source-layer": "water_name",
-            minzoom: 2,
-            layout: {
-                "text-field": [
-                    "coalesce",
-                    ["get", "name"],
-                    ["get", "name:en"]
-                ],
-                "text-font": ["Noto Sans Italic"],
-                "text-size": [
-                    "interpolate",
-                    ["linear"],
-                    ["zoom"],
-                    2, 10,
-                    6, 12,
-                    10, 13,
-                    14, 14
-                ],
-                "text-max-width": 8,
-                "text-padding": 2
-            },
-            paint: {
-                "text-color": "#4b6ea8",
-                "text-halo-color": "#ffffff",
-                "text-halo-width": 1
-            }
-        });
-
-        style.layers.push({
-            id: "worth-it-medium-river-labels",
-            type: "symbol",
-            source: "openmaptiles",
-            "source-layer": "waterway",
-            minzoom: 5,
-            filter: [
-                "all",
-                ["has", "name"],
-                ["in", ["get", "class"], "river", "canal"]
-            ],
-            layout: {
-                "symbol-placement": "line",
-                "text-field": [
-                    "coalesce",
-                    ["get", "name"],
-                    ["get", "name:en"]
-                ],
-                "text-font": ["Noto Sans Italic"],
-                "text-size": [
-                    "interpolate",
-                    ["linear"],
-                    ["zoom"],
-                    5, 10,
-                    9, 11,
-                    13, 12,
-                    16, 13
-                ],
-                "text-max-angle": 30,
-                "text-padding": 2
-            },
-            paint: {
-                "text-color": "#4b6ea8",
-                "text-halo-color": "#ffffff",
-                "text-halo-width": 1
-            }
-        });
-
-        return style;
-    }
-
-    function removeInfoVectorLayer(){
-        if(map && infoVectorLayer){
-            map.removeLayer(infoVectorLayer);
-        }
-    }
-
-    function applyInfoVectorLayer(level){
-        if(!map || activeBaseMap === "satellite"){
+        if(!map || mediumInfoLayer){
             return;
         }
 
-        const requestId = ++infoVectorRequestId;
-
-        if(infoVectorLayer){
-            map.removeLayer(infoVectorLayer);
-            infoVectorLayer = null;
-        }
-
-        if(defaultMapLayer){
-            map.removeLayer(defaultMapLayer);
-        }
-
-        getInfoVectorStyle(level)
-            .then(function(style){
-                if(
-                    !map ||
-                    requestId !== infoVectorRequestId ||
-                    activeBaseMap === "satellite" ||
-                    markerInfoLevel !== level
-                ){
-                    return;
-                }
-
-                infoVectorLayer = L.maplibreGL({
-                    style: style,
-                    interactive: false,
-                    attribution:
-                        "OpenFreeMap © OpenMapTiles Data from OpenStreetMap"
-                }).addTo(map);
-
-                if(markerLayer){
-                    markerLayer.bringToFront();
-                }
-
-                map.invalidateSize({
-                    pan: false
-                });
-            })
-            .catch(function(error){
-                console.error("Ship tracking info map failed:", error);
-
-                /*
-                 * Never leave the normal map blank if the optional
-                 * vector information layer cannot be loaded.
-                 */
-                if(
-                    map &&
-                    requestId === infoVectorRequestId &&
-                    activeBaseMap !== "satellite" &&
-                    markerInfoLevel === level
-                ){
-                    addDefaultBaseLayer();
-                    if(markerLayer){
-                        markerLayer.bringToFront();
-                    }
-                }
-            });
-    }
-
-    function addSatelliteBaseLayer(){
-        if(!map){
-            return;
-        }
-
-        const cacheKey = Date.now();
-
-        satelliteLayer = L.tileLayer(
-            "https://gibs-{s}.earthdata.nasa.gov/wmts/epsg3857/best/" +
-            "MODIS_Terra_CorrectedReflectance_TrueColor/default/" +
-            "GoogleMapsCompatible_Level9/{z}/{y}/{x}.jpg" +
-            "?refresh=" + cacheKey,
+        mediumInfoLayer = L.tileLayer(
+            "https://services.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}",
             {
                 minZoom: 2,
-                maxZoom: 18,
-                maxNativeZoom: 9,
+                maxZoom: 16,
                 noWrap: false,
-                subdomains: ["a","b","c"],
                 attribution:
-                    "Satellite imagery: NASA GIBS / MODIS Terra " +
-                    "· Sources: NASA",
+                    "Sources: Esri, HERE, Garmin, &copy; OpenStreetMap contributors, and the GIS user community",
                 crossOrigin: true,
                 keepBuffer: 2,
                 updateWhenIdle: true,
                 updateWhenZooming: false
             }
-        ).addTo(map);
-
-        satelliteLayer.bringToBack();
+        );
     }
 
-    function addBaseMapSwitcher(){
+    function switchBaseMap(mode){
         if(!map){
             return;
         }
 
-        const BaseMapSwitcher = L.Control.extend({
-            options: {
-                position: "topleft"
-            },
+        if(mode !== "default" && mode !== "satellite"){
+            return;
+        }
 
-            onAdd: function(){
-                const container =
-                    L.DomUtil.create(
-                        "div",
-                        "leaflet-control ship-tracking-map-switcher"
-                    );
+        if(activeBaseMap === mode){
+            return;
+        }
 
-                const defaultButton =
-                    L.DomUtil.create(
-                        "button",
-                        "ship-tracking-map-switcher-btn active",
-                        container
-                    );
+        addDefaultBaseLayer();
 
-                const satelliteButton =
-                    L.DomUtil.create(
-                        "button",
-                        "ship-tracking-map-switcher-btn",
-                        container
-                    );
-
-                const infoGroup = L.DomUtil.create(
-                    "div",
-                    "ship-tracking-map-info-options",
-                    container
-                );
-
-                const infoLabel = L.DomUtil.create(
-                    "span",
-                    "ship-tracking-map-info-label",
-                    infoGroup
-                );
-                infoLabel.textContent = "Map information";
-
-                const infoOptions = [
-                    { value: "default", label: "Default" },
-                    { value: "medium", label: "Medium" },
-                    { value: "nothing", label: "Nothing" }
-                ];
-
-                const infoButtons = infoOptions.map(function(option){
-                    const label = L.DomUtil.create(
-                        "label",
-                        "ship-tracking-map-info-option",
-                        infoGroup
-                    );
-                    const input = L.DomUtil.create(
-                        "input",
-                        "",
-                        label
-                    );
-                    input.type = "radio";
-                    input.name = "ship-tracking-map-info";
-                    input.value = option.value;
-                    input.checked = option.value === markerInfoLevel;
-
-                    const textNode = L.DomUtil.create(
-                        "span",
-                        "",
-                        label
-                    );
-                    textNode.textContent = option.label;
-
-                    L.DomEvent.on(input, "change", function(){
-                        if(input.checked){
-                            setMarkerInfoLevel(option.value);
-                        }
-                    });
-
-                    return input;
-                });
-
-                defaultButton.type = "button";
-                satelliteButton.type = "button";
-
-                defaultButton.textContent = "Default map";
-                satelliteButton.textContent = "Satellite map";
-
-                defaultButton.setAttribute(
-                    "aria-pressed",
-                    "true"
-                );
-
-                satelliteButton.setAttribute(
-                    "aria-pressed",
-                    "false"
-                );
-
-                L.DomEvent.disableClickPropagation(container);
-                L.DomEvent.disableScrollPropagation(container);
-
-                L.DomEvent.on(
-                    defaultButton,
-                    "click",
-                    function(){
-                        switchBaseMap("default");
-                    }
-                );
-
-                L.DomEvent.on(
-                    satelliteButton,
-                    "click",
-                    function(){
-                        switchBaseMap("satellite");
-                    }
-                );
-
-                container._defaultButton = defaultButton;
-                container._satelliteButton = satelliteButton;
-                container._infoButtons = infoButtons;
-
-                map._shipTrackingBaseMapSwitcher = container;
-
-                return container;
+        if(mode === "satellite"){
+            if(!satelliteLayer){
+                addSatelliteBaseLayer();
+            }else{
+                satelliteLayer.addTo(map);
             }
+
+            if(defaultMapLayer){
+                map.removeLayer(defaultMapLayer);
+            }
+            removeInfoVectorLayer();
+
+            activeBaseMap = "satellite";
+        }else{
+            if(satelliteLayer){
+                map.removeLayer(satelliteLayer);
+            }
+
+            activeBaseMap = "default";
+
+            // Restore the selected geographic information level.
+            setMarkerInfoLevel(markerInfoLevel);
+        }
+
+        if(markerLayer){
+            markerLayer.bringToFront();
+        }
+
+        updateBaseMapSwitcher();
+        map.invalidateSize({ pan: false });
+    }
+
+    function refreshSatelliteBaseLayer(){
+        if(
+            !map ||
+            activeBaseMap !== "satellite"
+        ){
+            return;
+        }
+
+        const previous = satelliteLayer;
+
+        satelliteLayer = null;
+        addSatelliteBaseLayer();
+
+        if(previous){
+            map.removeLayer(previous);
+        }
+
+        if(markerLayer){
+            markerLayer.bringToFront();
+        }
+
+        map.invalidateSize({
+            pan: false
         });
-
-        map.addControl(new BaseMapSwitcher());
     }
 
-    function updateBaseMapSwitcher(){
-        const control = map && map._shipTrackingBaseMapSwitcher;
+    let worldMapPromise = null;
+    let worldLayer = null;
+    let oceanLayer = null;
 
-        if(!control){
+    function loadWorldMapLayer(){
+        /*
+         * Base world geography is already provided by the Leaflet
+         * raster tile layer in setupMap(). Keep this function so the
+         * existing initialization flow remains unchanged.
+         */
+        if(!map){
             return;
         }
 
-        const defaultActive = activeBaseMap === "default";
+        if(worldLayer){
+            return;
+        }
 
-        control._defaultButton.classList.toggle(
-            "active",
-            defaultActive
-        );
-
-        control._satelliteButton.classList.toggle(
-            "active",
-            !defaultActive
-        );
-
-        control._defaultButton.setAttribute(
-            "aria-pressed",
-            defaultActive ? "true" : "false"
-        );
-
-        control._satelliteButton.setAttribute(
-            "aria-pressed",
-            defaultActive ? "false" : "true"
-        );
+        worldLayer = true;
+        return Promise.resolve();
     }
 
-    function setMarkerInfoLevel(level){
-        if(level !== "default" && level !== "medium" && level !== "nothing"){
+    function scheduleMapLoad(force){
+        window.clearTimeout(mapLoadTimer);
+
+        mapLoadTimer = window.setTimeout(function(){
+            loadVisibleVessels(Boolean(force));
+        }, force ? 20 : CONFIG.MAP_LOAD_DEBOUNCE_MS);
+    }
+
+    async function loadVisibleVessels(force){
+        if(!map){
             return;
         }
 
-        if(markerInfoLevel === level){
+        const zoom = map.getZoom();
+
+        if(zoom < CONFIG.MIN_MAP_ZOOM){
+            clearMarkers();
+            setStatus(
+                "Zoom in to load live vessel positions.",
+                "Live AIS map is ready · zoom level " + zoom
+            );
+            renderVesselCards([]);
+            lastViewportKey = "";
             return;
         }
 
-        markerInfoLevel = level;
+        const bounds = map.getBounds();
+        const south = bounds.getSouth();
+        const west = bounds.getWest();
+        const north = bounds.getNorth();
+        const east = bounds.getEast();
+
+        if(
+            !Number.isFinite(south) ||
+            !Number.isFinite(west) ||
+            !Number.isFinite(north) ||
+            !Number.isFinite(east) ||
+            south >= north ||
+            west >= east
+        ){
+            setStatus(
+                "This map view crosses the 180° meridian. Move slightly east or west to load vessels.",
+                ""
+            );
+            return;
+        }
+
+        const max = getViewportMax(zoom);
+        const viewportKey = [
+            round(west, 2),
+            round(south, 2),
+            round(east, 2),
+            round(north, 2),
+            max
+        ].join(",");
+
+        const now = Date.now();
+
+        if(
+            !force &&
+            viewportKey === lastViewportKey &&
+            now - lastLoadAt < 20000
+        ){
+            return;
+        }
+
+        lastViewportKey = viewportKey;
+        lastLoadAt = now;
+
+        if(currentRequestController){
+            currentRequestController.abort();
+        }
+
+        currentRequestController = new AbortController();
+
+        const timeout = window.setTimeout(function(){
+            currentRequestController.abort();
+        }, CONFIG.REQUEST_TIMEOUT_MS);
+
+        setStatus(
+            "Loading live vessels…",
+            "Viewport · " + formatViewportSize(bounds)
+        );
+
+        try{
+            const url =
+                CONFIG.API +
+                "?action=vessels" +
+                "&bbox=" +
+                encodeURIComponent(
+                    [
+                        round(west, 4),
+                        round(south, 4),
+                        round(east, 4),
+                        round(north, 4)
+                    ].join(",")
+                ) +
+                "&max=" +
+                encodeURIComponent(max);
+
+            const response = await fetch(url, {
+                method: "GET",
+                headers: {
+                    "Accept": "application/json"
+                },
+                cache: "no-store",
+                signal: currentRequestController.signal
+            });
+
+            if(!response.ok){
+                const errorBody = await safeJson(response);
+                throw createApiError(response, errorBody);
+            }
+
+            const data = await response.json();
+
+            if(!data || data.ok !== true || !Array.isArray(data.vessels)){
+                throw new Error("Ship tracking response is unavailable.");
+            }
+
+            vessels = data.vessels;
+            updateAttribution(data.attributions || []);
+            renderVesselView();
+            renderMarkers();
+
+            const truncationText =
+                data.truncated
+                    ? " · View is capped; zoom in for more"
+                    : "";
+
+            setStatus(
+                data.vessels.length +
+                    " live vessel" +
+                    (data.vessels.length === 1 ? "" : "s") +
+                    " in the current map area" +
+                    truncationText,
+                "Updated " + formatTime(data.generated_at)
+            );
+
+        }
+        catch(error){
+            if(error && error.name === "AbortError"){
+                return;
+            }
+
+            console.error("Ship tracking vessel load failed:", error);
+
+            setStatus(
+                getApiErrorMessage(error),
+                "The map will keep its last successful data when available."
+            );
+
+            if(vessels.length === 0){
+                renderVesselCards([]);
+            }
+        }
+        finally{
+            window.clearTimeout(timeout);
+            currentRequestController = null;
+        }
+    }
+
+    function renderVesselView(){
+        const filtered = getFilteredVessels();
+        renderVesselCards(filtered);
         renderMarkers();
     }
 
-    function setMarkerInfoLevel(level){
+    function getFilteredVessels(){
+        const input = get("shipTrackingSearch");
+        const query = input ? input.value.trim().toLowerCase() : "";
+
+        return vessels.filter(function(vessel){
+            if(!matchesFilter(vessel)){
+                return false;
+            }
+
+            if(!query){
+                return true;
+            }
+
+            const haystack = [
+                vessel.name,
+                vessel.mmsi,
+                vessel.imo,
+                vessel.callsign,
+                vessel.destination
+            ]
+            .map(function(value){
+                return String(value == null ? "" : value).toLowerCase();
+            })
+            .join(" ");
+
+            return haystack.includes(query);
+        });
+    }
+
+    function matchesFilter(vessel){
+        if(activeFilter === "all"){
+            return true;
+        }
+
+        const type = Number(vessel.type);
+
+        if(activeFilter === "cargo"){
+            return type >= 70 && type <= 79;
+        }
+
+        if(activeFilter === "tanker"){
+            return type >= 80 && type <= 89;
+        }
+
+        if(activeFilter === "passenger"){
+            return type >= 60 && type <= 69;
+        }
+
+        return !(
+            (type >= 60 && type <= 69) ||
+            (type >= 70 && type <= 79) ||
+            (type >= 80 && type <= 89)
+        );
+    }
+
+    function renderVesselCards(filtered){
+        const grid = get("shipTrackingGrid");
+
+        if(!grid){
+            return;
+        }
+
+        if(filtered.length === 0){
+            const input = get("shipTrackingSearch");
+            const query = input ? input.value.trim() : "";
+
+            grid.innerHTML =
+                '<div class="ship-tracking-empty">' +
+                    '<div class="ship-tracking-empty-icon">🚢</div>' +
+                    '<strong>No live vessels match this view</strong>' +
+                    '<span>' +
+                        (
+                            query
+                                ? 'No loaded vessel matches "' +
+                                    escapeHtml(query) +
+                                    '". Pan or zoom the map to search another area.'
+                                : 'Move or zoom the map to an area with AIS traffic.'
+                        ) +
+                    '</span>' +
+                '</div>';
+
+            return;
+        }
+
+        const visible = filtered.slice(0, CONFIG.MAX_CARD_VESSELS);
+
+        grid.innerHTML = visible.map(function(vessel){
+            return createVesselCard(vessel);
+        }).join("");
+    }
+
+    function createVesselCard(vessel){
+        const typeLabel = vesselTypeLabel(vessel.type);
+        const status = navStatusLabel(vessel.nav_status);
+        const speed = formatKnots(vessel.sog);
+        const course = formatDegrees(vessel.cog);
+        const position = formatCoordinates(vessel.lat, vessel.lon);
+        const freshness = formatRelativeTime(vessel.ts);
+
+        return (
+            '<article class="ship-tracking-vessel-card">' +
+                '<div class="ship-tracking-vessel-card-head">' +
+                    '<div>' +
+                        '<span class="ship-tracking-vessel-type">' +
+                            escapeHtml(typeLabel) +
+                        '</span>' +
+                        '<h3>' +
+                            escapeHtml(vessel.name || "Unknown vessel") +
+                        '</h3>' +
+                    '</div>' +
+                    '<span class="ship-tracking-vessel-live">● LIVE</span>' +
+                '</div>' +
+
+                '<div class="ship-tracking-vessel-metrics">' +
+                    metric("Speed", speed) +
+                    metric("Course", course) +
+                    metric("Status", status) +
+                    metric("Position", position) +
+                '</div>' +
+
+                '<div class="ship-tracking-vessel-meta">' +
+                    '<span>MMSI ' +
+                        escapeHtml(vessel.mmsi) +
+                    '</span>' +
+                    (
+                        vessel.imo
+                            ? '<span>IMO ' +
+                                escapeHtml(vessel.imo) +
+                              '</span>'
+                            : ""
+                    ) +
+                    (
+                        vessel.callsign
+                            ? '<span>' +
+                                escapeHtml(vessel.callsign) +
+                              '</span>'
+                            : ""
+                    ) +
+                    (
+                        vessel.destination
+                            ? '<span>→ ' +
+                                escapeHtml(vessel.destination) +
+                              '</span>'
+                            : ""
+                    ) +
+                '</div>' +
+
+                '<div class="ship-tracking-vessel-actions">' +
+                    '<button type="button" class="ship-tracking-action-btn" data-ship-details="' +
+                        escapeHtml(vessel.mmsi) +
+                    '">View details</button>' +
+
+                    '<button type="button" class="ship-tracking-action-btn ship-tracking-action-secondary" data-ship-track="' +
+                        escapeHtml(vessel.mmsi) +
+                    '">Recent track</button>' +
+
+                    '<span class="ship-tracking-vessel-time">' +
+                        escapeHtml(freshness) +
+                    '</span>' +
+     function setMarkerInfoLevel(level){
         if(level !== "default" && level !== "medium" && level !== "nothing"){
             return;
         }
@@ -712,33 +708,25 @@
             return;
         }
 
-        if(activeBaseMap === "satellite"){
-            infoVectorRequestId++;
-            removeInfoVectorLayer();
+        /*
+         * IMPORTANT:
+         * Default remains the existing OSM map. Medium/Nothing cannot
+         * selectively remove labels from OSM raster tiles because the
+         * labels are baked into the tile images. Keep the stable map
+         * visible here until a label-controllable basemap is introduced.
+         */
+        addDefaultBaseLayer();
 
-            if(satelliteLayer){
-                satelliteLayer.bringToBack();
-            }
-
-            if(markerLayer){
-                markerLayer.bringToFront();
-            }
-
-            renderMarkers();
-            return;
+        if(defaultMapLayer){
+            defaultMapLayer.bringToBack();
         }
 
-        if(level === "default"){
-            infoVectorRequestId++;
-            removeInfoVectorLayer();
+        if(mediumInfoLayer){
+            map.removeLayer(mediumInfoLayer);
+        }
 
-            addDefaultBaseLayer();
-
-            if(defaultMapLayer){
-                defaultMapLayer.bringToBack();
-            }
-        }else{
-            applyInfoVectorLayer(level);
+        if(satelliteLayer && activeBaseMap === "satellite"){
+            satelliteLayer.bringToBack();
         }
 
         if(markerLayer){
