@@ -1749,23 +1749,25 @@ async function searchDatasetProducts({
 
         /*
          * Keep global text search on the documented CDSE contains()
-         * path. Add common multilingual aliases for Danube/Dunav.
+         * path. Danube and Dunav are common multilingual names, so
+         * search the original term plus only the alternate name.
+         *
+         * Do not enumerate many case variants here: that expands the
+         * OData $filter dramatically and can push the request URL far
+         * beyond what the catalogue accepts, producing a 500 response.
          */
         const searchTerms = [query];
         const lowerQuery = String(query).toLowerCase();
 
         if(
-            lowerQuery === "danube" ||
+            lowerQuery === "danube"
+        ){
+            searchTerms.push("Dunav");
+        }
+        else if(
             lowerQuery === "dunav"
         ){
-            searchTerms.push(
-                "Danube",
-                "Dunav",
-                "danube",
-                "dunav",
-                "DANUBE",
-                "DUNAV"
-            );
+            searchTerms.push("Danube");
         }
 
         const uniqueSearchTerms =
