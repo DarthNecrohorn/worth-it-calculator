@@ -1810,6 +1810,27 @@ async function searchDatasetProducts({
                         term
                     )
                 );
+
+                /*
+                 * Station / Cell ID is stored by CLMS as cellID for
+                 * virtual stations. Some products expose the same
+                 * identifier through resource instead, so support both.
+                 * Equality keeps this nested attribute filter compatible
+                 * with the stable CDSE OData form used above.
+                 */
+                searchClauses.push(
+                    attributeEquals(
+                        "cellID",
+                        term
+                    )
+                );
+
+                searchClauses.push(
+                    attributeEquals(
+                        "resource",
+                        term
+                    )
+                );
             }
         );
 
