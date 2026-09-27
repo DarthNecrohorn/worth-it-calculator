@@ -11835,3 +11835,187 @@ html[data-theme="light"] .ship-tracking-map-card{background:var(--card-solid,#ff
         padding:16px;
     }
 }
+
+
+/* =========================================================
+   LEAFLET CORE LAYOUT — KEEP MAP TILES STABLE
+   These scoped rules guarantee the core Leaflet positioning
+   even if the external Leaflet stylesheet is unavailable or
+   gets overridden by the site's global styles.
+========================================================= */
+
+.ship-tracking-map.leaflet-container{
+    position:relative;
+    overflow:hidden;
+    width:100%;
+    height:100%;
+    min-height:320px;
+    font:inherit;
+    background:var(--surface-soft);
+    outline:0;
+}
+
+.ship-tracking-map .leaflet-pane,
+.ship-tracking-map .leaflet-tile-pane,
+.ship-tracking-map .leaflet-overlay-pane,
+.ship-tracking-map .leaflet-shadow-pane,
+.ship-tracking-map .leaflet-marker-pane,
+.ship-tracking-map .leaflet-tooltip-pane,
+.ship-tracking-map .leaflet-popup-pane{
+    position:absolute;
+    left:0;
+    top:0;
+}
+
+.ship-tracking-map .leaflet-tile-pane{
+    z-index:200;
+}
+
+.ship-tracking-map .leaflet-overlay-pane{
+    z-index:400;
+}
+
+.ship-tracking-map .leaflet-shadow-pane{
+    z-index:500;
+}
+
+.ship-tracking-map .leaflet-marker-pane{
+    z-index:600;
+}
+
+.ship-tracking-map .leaflet-tooltip-pane{
+    z-index:650;
+}
+
+.ship-tracking-map .leaflet-popup-pane{
+    z-index:700;
+}
+
+.ship-tracking-map .leaflet-tile-container{
+    position:absolute;
+    left:0;
+    top:0;
+    white-space:nowrap;
+    pointer-events:none;
+}
+
+.ship-tracking-map .leaflet-tile{
+    position:absolute;
+    left:0;
+    top:0;
+    width:256px;
+    height:256px;
+    max-width:none !important;
+    max-height:none !important;
+    border:0;
+    margin:0;
+    padding:0;
+    user-select:none;
+    -webkit-user-drag:none;
+}
+
+.ship-tracking-map .leaflet-zoom-animated{
+    transform-origin:0 0;
+}
+
+.ship-tracking-map .leaflet-control-container{
+    position:absolute;
+    left:0;
+    top:0;
+    z-index:800;
+    pointer-events:none;
+    width:100%;
+    height:100%;
+}
+
+.ship-tracking-map .leaflet-top,
+.ship-tracking-map .leaflet-bottom{
+    position:absolute;
+    z-index:1000;
+    pointer-events:none;
+}
+
+.ship-tracking-map .leaflet-top{
+    top:0;
+}
+
+.ship-tracking-map .leaflet-bottom{
+    bottom:0;
+}
+
+.ship-tracking-map .leaflet-left{
+    left:0;
+}
+
+.ship-tracking-map .leaflet-right{
+    right:0;
+}
+
+.ship-tracking-map .leaflet-control{
+    position:relative;
+    z-index:800;
+    pointer-events:auto;
+    float:left;
+    clear:both;
+}
+
+.ship-tracking-map .leaflet-right .leaflet-control{
+    float:right;
+}
+
+.ship-tracking-map .leaflet-top .leaflet-control{
+    margin-top:10px;
+}
+
+.ship-tracking-map .leaflet-top .leaflet-control:first-child{
+    margin-top:10px;
+}
+
+.ship-tracking-map .leaflet-left .leaflet-control{
+    margin-left:10px;
+}
+
+.ship-tracking-map .leaflet-right .leaflet-control{
+    margin-right:10px;
+}
+
+.ship-tracking-map .leaflet-bottom .leaflet-control{
+    margin-bottom:10px;
+}
+
+.ship-tracking-map .leaflet-control-zoom{
+    overflow:hidden;
+    border:1px solid var(--border) !important;
+    border-radius:10px;
+    box-shadow:0 4px 14px rgba(0,0,0,.15);
+}
+
+.ship-tracking-map .leaflet-control-zoom a{
+    display:block;
+    width:32px;
+    height:32px;
+    line-height:32px;
+    border:0;
+    border-bottom:1px solid var(--border);
+    background:var(--card-solid,#fff);
+    color:#111827;
+    text-align:center;
+    text-decoration:none;
+    font-size:18px;
+}
+
+.ship-tracking-map .leaflet-control-zoom a:last-child{
+    border-bottom:0;
+}
+
+.ship-tracking-map .leaflet-control-attribution{
+    padding:3px 7px;
+    background:rgba(255,255,255,.88);
+    color:#4b5563;
+    font-size:10px;
+    line-height:1.4;
+}
+
+.ship-tracking-map .leaflet-control-attribution a{
+    color:#374151;
+}
