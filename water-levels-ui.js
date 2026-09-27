@@ -430,6 +430,34 @@
         );
     }
 
+    function formatStationCardLocation(station){
+        if(!station) return "Global Copernicus station";
+
+        const rawParts = [
+            station.waterBody,
+            station.basin,
+            station.country
+        ]
+        .map(function(value){
+            return String(value || "").trim();
+        })
+        .filter(Boolean);
+
+        const seen = new Set();
+        const parts = [];
+
+        rawParts.forEach(function(value){
+            const key = normalizeGeoName(value);
+            if(!key || seen.has(key)) return;
+            seen.add(key);
+            parts.push(value);
+        });
+
+        return parts.length
+            ? parts.join(" · ")
+            : "Global Copernicus station";
+    }
+
     function localizeWaterPlaceName(placeName,location){
         const value =
             String(placeName || "").trim();
@@ -1931,13 +1959,11 @@
         station.stationId =
             sourceStation.stationId || station.stationId || "";
         station.location =
-            [
-                station.waterBody,
-                station.basin,
-                sourceStation.country || ""
-            ]
-            .filter(Boolean)
-            .join(" · ");
+            formatStationCardLocation({
+                waterBody:station.waterBody,
+                basin:station.basin,
+                country:sourceStation.country || station.country || ""
+            });
         station.title =
             station.waterBody || station.title || station.productName;
         station.updated =
@@ -2582,10 +2608,7 @@
                 stationTypeLabel(station.type);
 
             const location =
-                station.location ||
-                station.waterBody ||
-                station.basin ||
-                "Global Copernicus station";
+                formatStationCardLocation(station);
 
             return (
                 '<article class="water-level-card" data-water-station-id="' +
@@ -2665,10 +2688,6 @@
                     '</div>' +
 
                     '<div class="water-level-card-meta">' +
-                        '<span>' +
-                            escapeHtml(typeLabel) +
-                        '</span>' +
-
                         '<span>' +
                             escapeHtml(
                                 formatDatasetVersionLabel(station)
