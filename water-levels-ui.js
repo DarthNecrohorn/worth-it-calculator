@@ -61,6 +61,11 @@
         STALE_MS: 24 * 60 * 60 * 1000
     };
 
+    const WATER_REFRESH_CONFIG = {
+        KEY: "worthIt.waterLevels.lastSuccessfulRefresh.v1",
+        COOLDOWN_MS: 2 * 60 * 60 * 1000
+    };
+
     let waterRefreshAvailabilityTimer = null;
 
     const state = {
@@ -3584,21 +3589,26 @@
                 state.error = "";
                 state.loading = false;
 
-                if(
-                    !(
+                const usedStaleNearby =
+                    Boolean(
                         options.force &&
                         personalizedResult &&
                         personalizedResult.usedStaleCache
-                    )
-                ){
+                    );
+
+                if(!usedStaleNearby){
                     saveStationsCache(
                         query,
                         personalizedStations,
                         location
                     );
+
+                    markSuccessfulRefresh();
+                }
+                else{
+                    updateRefreshAvailability();
                 }
 
-                updateRefreshAvailability();
                 renderCards();
                 return;
             }
@@ -3689,7 +3699,7 @@
                 null
             );
 
-            updateRefreshAvailability();
+            markSuccessfulRefresh();
             renderCards();
 
         }
@@ -4657,58 +4667,85 @@
         );
     }
 
-    function getCurrentRefreshCacheContext(){
-        const input =
-            get("waterLevelsSearch");
+    function readLastSuccessfulRefreshAt(){
+        try{
+            const value =
+                Number(
+                    localStorage.getItem(
+                        WATER_REFRESH_CONFIG.KEY
+                    )
+                );
 
-        const query =
-            input
-                ? input.value.trim()
-                : "";
+            if(
+                Number.isFinite(value) &&
+                value > 0
+            ){
+                return value;
+            }
+        }
+        catch(error){}
 
-        const locationCountry =
-            state.location &&
-            state.location.countryName
-                ? state.location.countryName
-                : (
-                    !query
-                        ? (
-                            readWaterLocationCache() &&
-                            readWaterLocationCache().countryName
-                                ? readWaterLocationCache().countryName
-                                : null
-                        )
+        /*
+         * Migrate gracefully from the existing station cache when the
+         * new global refresh timestamp does not exist yet.
+         */
+        try{
+            const input =
+                get("waterLevelsSearch");
+
+            const query =
+                input
+                    ? input.value.trim()
+                    : "";
+
+            const cached =
+                readStationsCache(
+                    query,
+                    state.location &&
+                    state.location.countryName
+                        ? state.location.countryName
                         : null
                 );
 
-        return {
-            query,
-            country: locationCountry
-        };
+            if(
+                cached &&
+                Number.isFinite(Number(cached.timestamp)) &&
+                cached.timestamp > 0
+            ){
+                return Number(cached.timestamp);
+            }
+        }
+        catch(error){}
+
+        return 0;
+    }
+
+    function markSuccessfulRefresh(){
+        try{
+            localStorage.setItem(
+                WATER_REFRESH_CONFIG.KEY,
+                String(Date.now())
+            );
+        }
+        catch(error){}
+
+        updateRefreshAvailability();
     }
 
     function getRefreshCooldownRemaining(){
-        const context =
-            getCurrentRefreshCacheContext();
-
-        const cached =
-            readStationsCache(
-                context.query,
-                context.country
-            );
+        const lastRefresh =
+            readLastSuccessfulRefreshAt();
 
         if(
-            !cached ||
-            !cached.stations.length ||
-            !Number.isFinite(Number(cached.ageMs))
+            !lastRefresh
         ){
             return 0;
         }
 
         return Math.max(
             0,
-            WATER_STATIONS_CACHE.TTL_MS -
-            Number(cached.ageMs)
+            WATER_REFRESH_CONFIG.COOLDOWN_MS -
+            (Date.now() - lastRefresh)
         );
     }
 
