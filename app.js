@@ -2661,6 +2661,15 @@ function openShipTracking(){
         window.initShipTrackingUI();
     }
 
+    /*
+     * Leaflet needs a real, visible container before it can
+     * calculate tile positions. Re-measure immediately after the
+     * Ship Tracking section is displayed.
+     */
+    if(typeof window.refreshShipTrackingMap === "function"){
+        window.refreshShipTrackingMap();
+    }
+
     window.scrollTo({
         top:0,
         behavior:"auto"
