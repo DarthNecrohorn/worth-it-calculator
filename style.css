@@ -11604,6 +11604,62 @@ html[data-theme="light"] .ship-tracking-map-card{background:var(--card-solid,#ff
     color:#111827;
 }
 
+.ship-tracking-map-switcher{
+    margin-top:8px !important;
+    display:flex;
+    flex-direction:column;
+    gap:4px;
+}
+
+.ship-tracking-map-switcher-btn{
+    min-width:96px;
+    min-height:31px;
+    padding:5px 9px;
+    border:1px solid rgba(17,24,39,.22);
+    border-radius:8px;
+    background:rgba(255,255,255,.95);
+    color:#111827;
+    box-shadow:0 1px 5px rgba(0,0,0,.16);
+    font:inherit;
+    font-size:11px;
+    font-weight:700;
+    line-height:1.15;
+    cursor:pointer;
+    transition:background .18s ease,border-color .18s ease,color .18s ease,transform .18s ease;
+}
+
+.ship-tracking-map-switcher-btn:hover{
+    border-color:#6366f1;
+    background:#f5f7ff;
+}
+
+.ship-tracking-map-switcher-btn.active{
+    border-color:#6366f1;
+    background:#eef2ff;
+    color:#4338ca;
+}
+
+.ship-tracking-map-switcher-btn:active{
+    transform:translateY(1px);
+}
+
+html[data-theme="dark"] .ship-tracking-map-switcher-btn{
+    border-color:rgba(255,255,255,.18);
+    background:rgba(15,23,42,.95);
+    color:#e5e7eb;
+}
+
+html[data-theme="dark"] .ship-tracking-map-switcher-btn:hover{
+    border-color:#818cf8;
+    background:#172036;
+}
+
+html[data-theme="dark"] .ship-tracking-map-switcher-btn.active{
+    border-color:#818cf8;
+    background:#1e1b4b;
+    color:#c7d2fe;
+}
+
 .ship-tracking-vessel-card{
     min-width:0;
     padding:18px;
