@@ -225,6 +225,9 @@
     let defaultMapLayer = null;
     let mediumInfoLayer = null;
     let satelliteLayer = null;
+    let infoVectorLayer = null;
+    let infoVectorStylePromise = null;
+    let infoVectorRequestId = 0;
     let activeBaseMap = "default";
     let markerInfoLevel = "default";
 
@@ -252,24 +255,246 @@
     }
 
     function addMediumInfoLayer(){
-        if(!map || mediumInfoLayer){
+        /*
+         * Kept as a compatibility placeholder. Medium/Nothing now use
+         * the OpenFreeMap vector layer so the base-map appearance is not
+         * replaced by a gray raster map.
+         */
+        return;
+    }
+
+    function getInfoVectorStyle(level){
+        if(infoVectorStylePromise){
+            return infoVectorStylePromise.then(function(style){
+                return buildInfoVectorStyle(style, level);
+            });
+        }
+
+        infoVectorStylePromise = fetch(
+            "https://tiles.openfreemap.org/styles/liberty",
+            {
+                method: "GET",
+                headers: {
+                    "Accept": "application/json"
+                },
+                cache: "force-cache"
+            }
+        ).then(function(response){
+            if(!response.ok){
+                throw new Error("OpenFreeMap style could not be loaded.");
+            }
+            return response.json();
+        });
+
+        return infoVectorStylePromise.then(function(style){
+            return buildInfoVectorStyle(style, level);
+        });
+    }
+
+    function buildInfoVectorStyle(sourceStyle, level){
+        const style = JSON.parse(JSON.stringify(sourceStyle));
+
+        /*
+         * Remove every existing symbol layer first. That guarantees
+         * Nothing means literally no text/icons and also removes POIs,
+         * shops, restaurants, bus stops, road labels, shields, etc.
+         */
+        style.layers = (style.layers || []).filter(function(layer){
+            return layer.type !== "symbol";
+        });
+
+        if(level === "nothing"){
+            return style;
+        }
+
+        const labelPaint = {
+            "text-color": "#374151",
+            "text-halo-color": "#ffffff",
+            "text-halo-width": 1.2
+        };
+
+        style.layers.push({
+            id: "worth-it-medium-place-labels",
+            type: "symbol",
+            source: "openmaptiles",
+            "source-layer": "place",
+            minzoom: 1,
+            filter: [
+                "in",
+                ["get", "class"],
+                "continent",
+                "country",
+                "state",
+                "province",
+                "city",
+                "town",
+                "village",
+                "hamlet"
+            ],
+            layout: {
+                "text-field": [
+                    "coalesce",
+                    ["get", "name"],
+                    ["get", "name:en"]
+                ],
+                "text-font": ["Noto Sans Regular"],
+                "text-size": [
+                    "interpolate",
+                    ["linear"],
+                    ["zoom"],
+                    1, 10,
+                    4, 11,
+                    7, 12,
+                    10, 13,
+                    14, 14
+                ],
+                "text-padding": 2,
+                "text-max-width": 8,
+                "text-allow-overlap": false
+            },
+            paint: labelPaint
+        });
+
+        style.layers.push({
+            id: "worth-it-medium-water-labels",
+            type: "symbol",
+            source: "openmaptiles",
+            "source-layer": "water_name",
+            minzoom: 2,
+            layout: {
+                "text-field": [
+                    "coalesce",
+                    ["get", "name"],
+                    ["get", "name:en"]
+                ],
+                "text-font": ["Noto Sans Italic"],
+                "text-size": [
+                    "interpolate",
+                    ["linear"],
+                    ["zoom"],
+                    2, 10,
+                    6, 12,
+                    10, 13,
+                    14, 14
+                ],
+                "text-max-width": 8,
+                "text-padding": 2
+            },
+            paint: {
+                "text-color": "#4b6ea8",
+                "text-halo-color": "#ffffff",
+                "text-halo-width": 1
+            }
+        });
+
+        style.layers.push({
+            id: "worth-it-medium-river-labels",
+            type: "symbol",
+            source: "openmaptiles",
+            "source-layer": "waterway",
+            minzoom: 5,
+            filter: [
+                "all",
+                ["has", "name"],
+                ["in", ["get", "class"], "river", "canal"]
+            ],
+            layout: {
+                "symbol-placement": "line",
+                "text-field": [
+                    "coalesce",
+                    ["get", "name"],
+                    ["get", "name:en"]
+                ],
+                "text-font": ["Noto Sans Italic"],
+                "text-size": [
+                    "interpolate",
+                    ["linear"],
+                    ["zoom"],
+                    5, 10,
+                    9, 11,
+                    13, 12,
+                    16, 13
+                ],
+                "text-max-angle": 30,
+                "text-padding": 2
+            },
+            paint: {
+                "text-color": "#4b6ea8",
+                "text-halo-color": "#ffffff",
+                "text-halo-width": 1
+            }
+        });
+
+        return style;
+    }
+
+    function removeInfoVectorLayer(){
+        if(map && infoVectorLayer){
+            map.removeLayer(infoVectorLayer);
+        }
+    }
+
+    function applyInfoVectorLayer(level){
+        if(!map || activeBaseMap === "satellite"){
             return;
         }
 
-        mediumInfoLayer = L.tileLayer(
-            "https://services.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}",
-            {
-                minZoom: 2,
-                maxZoom: 16,
-                noWrap: false,
-                attribution:
-                    "Sources: Esri, HERE, Garmin, &copy; OpenStreetMap contributors, and the GIS user community",
-                crossOrigin: true,
-                keepBuffer: 2,
-                updateWhenIdle: true,
-                updateWhenZooming: false
-            }
-        );
+        const requestId = ++infoVectorRequestId;
+
+        if(infoVectorLayer){
+            map.removeLayer(infoVectorLayer);
+            infoVectorLayer = null;
+        }
+
+        if(defaultMapLayer){
+            map.removeLayer(defaultMapLayer);
+        }
+
+        getInfoVectorStyle(level)
+            .then(function(style){
+                if(
+                    !map ||
+                    requestId !== infoVectorRequestId ||
+                    activeBaseMap === "satellite" ||
+                    markerInfoLevel !== level
+                ){
+                    return;
+                }
+
+                infoVectorLayer = L.maplibreGL({
+                    style: style,
+                    interactive: false,
+                    attribution:
+                        "OpenFreeMap © OpenMapTiles Data from OpenStreetMap"
+                }).addTo(map);
+
+                if(markerLayer){
+                    markerLayer.bringToFront();
+                }
+
+                map.invalidateSize({
+                    pan: false
+                });
+            })
+            .catch(function(error){
+                console.error("Ship tracking info map failed:", error);
+
+                /*
+                 * Never leave the normal map blank if the optional
+                 * vector information layer cannot be loaded.
+                 */
+                if(
+                    map &&
+                    requestId === infoVectorRequestId &&
+                    activeBaseMap !== "satellite" &&
+                    markerInfoLevel === level
+                ){
+                    addDefaultBaseLayer();
+                    if(markerLayer){
+                        markerLayer.bringToFront();
+                    }
+                }
+            });
     }
 
     function addSatelliteBaseLayer(){
@@ -487,35 +712,33 @@
             return;
         }
 
-        addDefaultBaseLayer();
-        addMediumInfoLayer();
-
-        if(defaultMapLayer){
-            map.removeLayer(defaultMapLayer);
-        }
-
-        if(mediumInfoLayer){
-            map.removeLayer(mediumInfoLayer);
-        }
-
         if(activeBaseMap === "satellite"){
+            infoVectorRequestId++;
+            removeInfoVectorLayer();
+
             if(satelliteLayer){
                 satelliteLayer.bringToBack();
             }
+
+            if(markerLayer){
+                markerLayer.bringToFront();
+            }
+
+            renderMarkers();
+            return;
+        }
+
+        if(level === "default"){
+            infoVectorRequestId++;
+            removeInfoVectorLayer();
+
+            addDefaultBaseLayer();
+
+            if(defaultMapLayer){
+                defaultMapLayer.bringToBack();
+            }
         }else{
-            /*
-             * Keep the exact same OSM base map for Default, Medium and
-             * Nothing. The controls are intended to reduce the amount of
-             * geographic text only; they must never change the map colors
-             * or replace the normal map with a gray/blank background.
-             *
-             * OSM raster tiles contain their labels directly in the tile
-             * image, so labels cannot safely be removed with CSS/Leaflet.
-             * A future vector-tile layer can provide true text-density
-             * control without changing the base-map appearance.
-             */
-            defaultMapLayer.addTo(map);
-            defaultMapLayer.bringToBack();
+            applyInfoVectorLayer(level);
         }
 
         if(markerLayer){
@@ -540,7 +763,6 @@
         }
 
         addDefaultBaseLayer();
-        addMediumInfoLayer();
 
         if(mode === "satellite"){
             if(!satelliteLayer){
@@ -552,9 +774,7 @@
             if(defaultMapLayer){
                 map.removeLayer(defaultMapLayer);
             }
-            if(mediumInfoLayer){
-                map.removeLayer(mediumInfoLayer);
-            }
+            removeInfoVectorLayer();
 
             activeBaseMap = "satellite";
         }else{
@@ -564,7 +784,7 @@
 
             activeBaseMap = "default";
 
-            // Restore the selected information level on the normal map.
+            // Restore the selected geographic information level.
             setMarkerInfoLevel(markerInfoLevel);
         }
 
