@@ -211,11 +211,6 @@
 
         map.on("moveend zoomend", function(){
             scheduleMapLoad(false);
-            syncInfoVectorMap();
-        });
-
-        map.on("move", function(){
-            syncInfoVectorMap();
         });
 
         window.setTimeout(function(){
@@ -228,17 +223,8 @@
     }
 
     let defaultMapLayer = null;
-    let mediumInfoLayer = null;
     let satelliteLayer = null;
-    let infoVectorLayer = null;
-    let infoVectorStylePromise = null;
-    let infoVectorRequestId = 0;
-    let infoVectorMap = null;
-    let infoVectorMapContainer = null;
-    let infoVectorMapPromise = null;
-    let infoVectorMapReady = false;
     let activeBaseMap = "default";
-    let markerInfoLevel = "default";
 
     function addDefaultBaseLayer(){
         if(!map || defaultMapLayer){
@@ -261,27 +247,6 @@
         ).addTo(map);
 
         defaultMapLayer.bringToBack();
-    }
-
-    function addMediumInfoLayer(){
-        if(!map || mediumInfoLayer){
-            return;
-        }
-
-        mediumInfoLayer = L.tileLayer(
-            "https://services.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}",
-            {
-                minZoom: 2,
-                maxZoom: 16,
-                noWrap: false,
-                attribution:
-                    "Sources: Esri, HERE, Garmin, &copy; OpenStreetMap contributors, and the GIS user community",
-                crossOrigin: true,
-                keepBuffer: 2,
-                updateWhenIdle: true,
-                updateWhenZooming: false
-            }
-        );
     }
 
     function addSatelliteBaseLayer(){
@@ -346,57 +311,6 @@
                         container
                     );
 
-                const infoGroup = L.DomUtil.create(
-                    "div",
-                    "ship-tracking-map-info-options",
-                    container
-                );
-
-                const infoLabel = L.DomUtil.create(
-                    "span",
-                    "ship-tracking-map-info-label",
-                    infoGroup
-                );
-                infoLabel.textContent = "Map information";
-
-                const infoOptions = [
-                    { value: "default", label: "Default" },
-                    { value: "medium", label: "Medium" },
-                    { value: "nothing", label: "Nothing" }
-                ];
-
-                const infoButtons = infoOptions.map(function(option){
-                    const label = L.DomUtil.create(
-                        "label",
-                        "ship-tracking-map-info-option",
-                        infoGroup
-                    );
-                    const input = L.DomUtil.create(
-                        "input",
-                        "",
-                        label
-                    );
-                    input.type = "radio";
-                    input.name = "ship-tracking-map-info";
-                    input.value = option.value;
-                    input.checked = option.value === markerInfoLevel;
-
-                    const textNode = L.DomUtil.create(
-                        "span",
-                        "",
-                        label
-                    );
-                    textNode.textContent = option.label;
-
-                    L.DomEvent.on(input, "change", function(){
-                        if(input.checked){
-                            setMarkerInfoLevel(option.value);
-                        }
-                    });
-
-                    return input;
-                });
-
                 defaultButton.type = "button";
                 satelliteButton.type = "button";
 
@@ -434,7 +348,6 @@
 
                 container._defaultButton = defaultButton;
                 container._satelliteButton = satelliteButton;
-                container._infoButtons = infoButtons;
 
                 map._shipTrackingBaseMapSwitcher = container;
 
@@ -475,436 +388,6 @@
         );
     }
 
-    function ensureInfoVectorMap(){
-        if(infoVectorMap){
-            return Promise.resolve(infoVectorMap);
-        }
-
-        if(infoVectorMapPromise){
-            return infoVectorMapPromise;
-        }
-
-        if(
-            typeof maplibregl === "undefined" ||
-            typeof VersaTilesStyle === "undefined"
-        ){
-            return Promise.reject(
-                new Error("Map information renderer is unavailable.")
-            );
-        }
-
-        const mapElement = get("shipTrackingMap");
-
-        if(!mapElement){
-            return Promise.reject(
-                new Error("Ship Tracking map container is unavailable.")
-            );
-        }
-
-        infoVectorMapContainer = document.createElement("div");
-        infoVectorMapContainer.className =
-            "ship-tracking-info-vector-map";
-
-        infoVectorMapContainer.setAttribute(
-            "aria-hidden",
-            "true"
-        );
-
-        mapElement.appendChild(infoVectorMapContainer);
-
-        infoVectorMapPromise = buildInfoVectorStyle()
-            .then(function(style){
-                return new Promise(function(resolve, reject){
-                    try{
-                        infoVectorMap = new maplibregl.Map({
-                            container: infoVectorMapContainer,
-                            style: style,
-                            center: getLeafletMapCenter(),
-                            zoom: map.getZoom(),
-                            minZoom: 2,
-                            maxZoom: 18,
-                            renderWorldCopies: true,
-                            attributionControl: false,
-                            preserveDrawingBuffer: false
-                        });
-
-                        disableInfoVectorInteractions();
-
-                        infoVectorMap.once(
-                            "load",
-                            function(){
-                                infoVectorMapReady = true;
-                                syncInfoVectorMap();
-                                applyInfoVectorLevel();
-                                resolve(infoVectorMap);
-                            }
-                        );
-
-                        infoVectorMap.once(
-                            "error",
-                            function(event){
-                                const error =
-                                    event &&
-                                    event.error
-                                        ? event.error
-                                        : new Error(
-                                            "Map information renderer failed."
-                                        );
-
-                                reject(error);
-                            }
-                        );
-                    }catch(error){
-                        reject(error);
-                    }
-                });
-            })
-            .catch(function(error){
-                infoVectorMapPromise = null;
-
-                if(infoVectorMapContainer){
-                    infoVectorMapContainer.remove();
-                    infoVectorMapContainer = null;
-                }
-
-                throw error;
-            });
-
-        return infoVectorMapPromise;
-    }
-
-    async function buildInfoVectorStyle(){
-        const builder =
-            typeof VersaTilesStyle.osm === "function"
-                ? VersaTilesStyle.osm
-                : VersaTilesStyle.colorful;
-
-        if(typeof builder !== "function"){
-            throw new Error(
-                "OpenStreetMap vector style is unavailable."
-            );
-        }
-
-        let style;
-
-        try{
-            style = builder({
-                urls: {
-                    base: "https://tiles.versatiles.org"
-                },
-                projection: "mercator"
-            });
-        }catch(error){
-            /*
-             * Compatibility fallback for older VersaTiles style bundles.
-             */
-            style = builder({
-                baseUrl: "https://tiles.versatiles.org"
-            });
-        }
-
-        if(
-            typeof VersaTilesStyle.inlineSources === "function"
-        ){
-            style = await VersaTilesStyle.inlineSources(style);
-        }
-
-        /*
-         * Keep the same underlying OpenStreetMap vector geography for
-         * every information level. Only symbol/label layers are changed.
-         */
-        style = JSON.parse(JSON.stringify(style));
-
-        style.layers = Array.isArray(style.layers)
-            ? style.layers
-            : [];
-
-        style.layers.forEach(function(layer){
-            if(!layer || layer.type !== "symbol"){
-                return;
-            }
-
-            layer.layout = Object.assign(
-                {},
-                layer.layout || {}
-            );
-
-            layer.layout.visibility = "none";
-        });
-
-        return style;
-    }
-
-    function disableInfoVectorInteractions(){
-        if(!infoVectorMap){
-            return;
-        }
-
-        [
-            "dragPan",
-            "scrollZoom",
-            "boxZoom",
-            "doubleClickZoom",
-            "keyboard",
-            "dragRotate",
-            "touchZoomRotate"
-        ].forEach(function(control){
-            if(
-                infoVectorMap[control] &&
-                typeof infoVectorMap[control].disable === "function"
-            ){
-                infoVectorMap[control].disable();
-            }
-        });
-    }
-
-    function getLeafletMapCenter(){
-        if(!map){
-            return [0, 0];
-        }
-
-        const center = map.getCenter();
-
-        return [
-            center.lng,
-            center.lat
-        ];
-    }
-
-    function syncInfoVectorMap(){
-        if(
-            !map ||
-            !infoVectorMap ||
-            !infoVectorMapReady
-        ){
-            return;
-        }
-
-        const center = getLeafletMapCenter();
-
-        try{
-            infoVectorMap.jumpTo({
-                center: center,
-                zoom: map.getZoom(),
-                bearing: 0,
-                pitch: 0
-            });
-
-            infoVectorMap.resize();
-        }catch(error){
-            console.warn(
-                "Ship Tracking information map sync failed:",
-                error
-            );
-        }
-    }
-
-    function setInfoVectorVisible(visible){
-        if(!infoVectorMapContainer){
-            return;
-        }
-
-        infoVectorMapContainer.style.display =
-            visible ? "block" : "none";
-
-        infoVectorMapContainer.style.pointerEvents =
-            "none";
-
-        if(visible && infoVectorMap){
-            window.requestAnimationFrame(function(){
-                if(!infoVectorMap){
-                    return;
-                }
-
-                infoVectorMap.resize();
-                syncInfoVectorMap();
-            });
-        }
-    }
-
-    function isMediumInfoLabelLayer(layer){
-        if(
-            !layer ||
-            layer.type !== "symbol"
-        ){
-            return false;
-        }
-
-        const id = String(
-            layer.id ||
-            layer["source-layer"] ||
-            ""
-        ).toLowerCase();
-
-        /*
-         * Medium keeps only basic geographic labels:
-         * countries, continents, settlements, rivers/waterways,
-         * lakes/water bodies, seas and oceans.
-         *
-         * Road names, shops, restaurants, bus stops, addresses,
-         * POIs, buildings and other small labels stay hidden.
-         */
-        return (
-            id.includes("country") ||
-            id.includes("continent") ||
-            id.includes("city-label") ||
-            id.includes("place-label") ||
-            id.includes("water-name") ||
-            id.includes("waterway") ||
-            id.includes("marine") ||
-            id.includes("ocean") ||
-            id.includes("lake") ||
-            id.includes("river")
-        );
-    }
-
-    function applyInfoVectorLevel(){
-        if(
-            !infoVectorMap ||
-            !infoVectorMapReady
-        ){
-            return;
-        }
-
-        const style = infoVectorMap.getStyle();
-
-        if(
-            !style ||
-            !Array.isArray(style.layers)
-        ){
-            return;
-        }
-
-        style.layers.forEach(function(layer){
-            if(!layer || layer.type !== "symbol"){
-                return;
-            }
-
-            let visible = false;
-
-            if(markerInfoLevel === "default"){
-                visible = true;
-            }else if(markerInfoLevel === "medium"){
-                visible = isMediumInfoLabelLayer(layer);
-            }
-
-            try{
-                infoVectorMap.setLayoutProperty(
-                    layer.id,
-                    "visibility",
-                    visible ? "visible" : "none"
-                );
-            }catch(error){
-                /*
-                 * Some style-generated layers may be internal-only.
-                 * They are simply left unchanged.
-                 */
-            }
-        });
-    }
-
-    function setMarkerInfoLevel(level){
-        if(
-            level !== "default" &&
-            level !== "medium" &&
-            level !== "nothing"
-        ){
-            return;
-        }
-
-        markerInfoLevel = level;
-
-        if(!map){
-            return;
-        }
-
-        /*
-         * Satellite remains completely unchanged. The information
-         * selector controls the normal geographic map only.
-         */
-        if(activeBaseMap === "satellite"){
-            setInfoVectorVisible(false);
-            bringVesselMarkersToFront();
-            renderMarkers();
-            return;
-        }
-
-        addDefaultBaseLayer();
-
-        /*
-         * DEFAULT is deliberately the original OSM raster layer. This
-         * preserves the existing map appearance exactly.
-         */
-        if(markerInfoLevel === "default"){
-            setInfoVectorVisible(false);
-
-            if(defaultMapLayer && !map.hasLayer(defaultMapLayer)){
-                defaultMapLayer.addTo(map);
-            }
-
-            if(defaultMapLayer){
-                defaultMapLayer.bringToBack();
-            }
-
-            bringVesselMarkersToFront();
-            renderMarkers();
-            map.invalidateSize({ pan: false });
-            return;
-        }
-
-        /*
-         * Medium/Nothing use the same OpenStreetMap-derived geography in
-         * the vector renderer, with only its text/symbol visibility changed.
-         * Keep the original OSM map visible until the vector renderer is
-         * actually ready, preventing a blank-map flash.
-         */
-        ensureInfoVectorMap()
-            .then(function(){
-                if(
-                    !map ||
-                    activeBaseMap !== "default"
-                ){
-                    return;
-                }
-
-                if(defaultMapLayer && map.hasLayer(defaultMapLayer)){
-                    map.removeLayer(defaultMapLayer);
-                }
-
-                syncInfoVectorMap();
-                applyInfoVectorLevel();
-                setInfoVectorVisible(true);
-                bringVesselMarkersToFront();
-                renderMarkers();
-                map.invalidateSize({ pan: false });
-            })
-            .catch(function(error){
-                /*
-                 * Safe fallback: never leave the map without geography.
-                 * Restore the unchanged OSM Default map if the renderer
-                 * cannot initialize.
-                 */
-                console.warn(
-                    "Ship Tracking information map unavailable:",
-                    error
-                );
-
-                if(defaultMapLayer && !map.hasLayer(defaultMapLayer)){
-                    defaultMapLayer.addTo(map);
-                    defaultMapLayer.bringToBack();
-                }
-
-                setInfoVectorVisible(false);
-                bringVesselMarkersToFront();
-                renderMarkers();
-                map.invalidateSize({ pan: false });
-            });
-
-        bringVesselMarkersToFront();
-        renderMarkers();
-        map.invalidateSize({ pan: false });
-    }
-
     function switchBaseMap(mode){
         if(!map){
             return;
@@ -931,8 +414,6 @@
                 map.removeLayer(defaultMapLayer);
             }
 
-            setInfoVectorVisible(false);
-
             activeBaseMap = "satellite";
         }else{
             if(satelliteLayer){
@@ -941,8 +422,13 @@
 
             activeBaseMap = "default";
 
-            // Restore the selected geographic information level.
-            setMarkerInfoLevel(markerInfoLevel);
+            if(defaultMapLayer && !map.hasLayer(defaultMapLayer)){
+                defaultMapLayer.addTo(map);
+            }
+
+            if(defaultMapLayer){
+                defaultMapLayer.bringToBack();
+            }
         }
 
         bringVesselMarkersToFront();
