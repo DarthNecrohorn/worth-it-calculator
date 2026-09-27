@@ -13,6 +13,7 @@
         MIN_MAP_ZOOM: 3,
         MAP_LOAD_DEBOUNCE_MS: 650,
         AUTO_REFRESH_MS: 45000,
+        MAP_BASE_REFRESH_MS: 21600000,
         SEARCH_DEBOUNCE_MS: 220,
         REQUEST_TIMEOUT_MS: 20000
     };
@@ -20,6 +21,7 @@
     let map = null;
     let markerLayer = null;
     let autoRefreshTimer = null;
+    let mapBaseRefreshTimer = null;
     let mapLoadTimer = null;
     let searchTimer = null;
     let selectedMmsi = "";
@@ -204,16 +206,7 @@
          * continents, islands and peninsulas cannot be incorrectly
          * connected into long horizontal polygons.
          */
-        L.tileLayer(
-            "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
-            {
-                minZoom: 2,
-                maxZoom: 19,
-                noWrap: false,
-                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap</a> contributors',
-                crossOrigin: true
-            }
-        ).addTo(map);
+        addSatelliteBaseLayer();
 
         markerLayer = L.layerGroup().addTo(map);
 
@@ -228,6 +221,57 @@
                 });
             }
         }, 50);
+    }
+
+    let satelliteLayer = null;
+
+    function addSatelliteBaseLayer(){
+        if(!map){
+            return;
+        }
+
+        const cacheKey = Date.now();
+
+        satelliteLayer = L.tileLayer(
+            "https://gibs-{s}.earthdata.nasa.gov/wmts/epsg3857/best/" +
+            "MODIS_Terra_CorrectedReflectance_TrueColor/default/" +
+            "GoogleMapsCompatible_Level9/{z}/{y}/{x}.jpg" +
+            "?refresh=" + cacheKey,
+            {
+                minZoom: 2,
+                maxZoom: 18,
+                maxNativeZoom: 9,
+                noWrap: false,
+                subdomains: ["a","b","c"],
+                attribution:
+                    "Satellite imagery: NASA GIBS / MODIS Terra " +
+                    "· Sources: NASA",
+                crossOrigin: true,
+                keepBuffer: 2,
+                updateWhenIdle: true,
+                updateWhenZooming: false
+            }
+        ).addTo(map);
+
+        satelliteLayer.bringToBack();
+    }
+
+    function refreshSatelliteBaseLayer(){
+        if(!map){
+            return;
+        }
+
+        const previous = satelliteLayer;
+
+        addSatelliteBaseLayer();
+
+        if(previous){
+            map.removeLayer(previous);
+        }
+
+        map.invalidateSize({
+            pan: false
+        });
     }
 
     let worldMapPromise = null;
@@ -952,6 +996,15 @@
                 scheduleMapLoad(true);
             }
         }, CONFIG.AUTO_REFRESH_MS);
+
+        mapBaseRefreshTimer = window.setInterval(function(){
+            if(
+                get("shipTrackingSection") &&
+                get("shipTrackingSection").style.display !== "none"
+            ){
+                refreshSatelliteBaseLayer();
+            }
+        }, CONFIG.MAP_BASE_REFRESH_MS);
     }
 
     function updateAttribution(attributions){
