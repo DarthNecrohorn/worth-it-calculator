@@ -28,6 +28,8 @@
     let lastViewportKey = "";
     let lastLoadAt = 0;
     let currentRequestController = null;
+    let worldMapPromise = null;
+    let worldLayer = null;
 
     function get(id){
         return document.getElementById(id);
@@ -178,17 +180,21 @@
         map = L.map(mapElement, {
             minZoom: 2,
             maxZoom: 18,
-            worldCopyJump: true,
+            maxBounds: [
+                [-85, -180],
+                [85, 180]
+            ],
+            maxBoundsViscosity: 0.85,
+            worldCopyJump: false,
             zoomControl: true
-        }).setView([20, 10], 3);
+        }).setView([20, 10], 2);
 
-        L.tileLayer(
-            "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
-            {
-                maxZoom: 19,
-                attribution: "&copy; OpenStreetMap contributors"
-            }
-        ).addTo(map);
+        /*
+         * Do not use raster XYZ tiles here. The previous tile mosaic
+         * was the source of the white/offset blocks. A single vector
+         * world layer remains stable during pan and zoom.
+         */
+        loadWorldMapLayer();
 
         markerLayer = L.layerGroup().addTo(map);
 
@@ -203,6 +209,112 @@
                 });
             }
         }, 50);
+    }
+
+    async function loadWorldMapLayer(){
+        if(!map || typeof topojson === "undefined"){
+            return;
+        }
+
+        if(worldLayer){
+            return;
+        }
+
+        if(worldMapPromise){
+            return worldMapPromise;
+        }
+
+        worldMapPromise = (async function(){
+            try{
+                const response = await fetch(
+                    "https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json",
+                    {
+                        method: "GET",
+                        headers: {
+                            "Accept": "application/json"
+                        },
+                        cache: "force-cache"
+                    }
+                );
+
+                if(!response.ok){
+                    throw new Error(
+                        "World map data returned HTTP " +
+                        response.status
+                    );
+                }
+
+                const topology = await response.json();
+
+                if(
+                    !topology ||
+                    !topology.objects ||
+                    !topology.objects.countries
+                ){
+                    throw new Error("World map geometry is unavailable.");
+                }
+
+                const geojson =
+                    topojson.feature(
+                        topology,
+                        topology.objects.countries
+                    );
+
+                worldLayer = L.geoJSON(
+                    geojson,
+                    {
+                        interactive: false,
+                        style: {
+                            fillColor: "var(--ship-map-land, #cbd5e1)",
+                            fillOpacity: 0.86,
+                            color: "var(--ship-map-border, #94a3b8)",
+                            weight: 0.65,
+                            opacity: 0.9
+                        }
+                    }
+                ).addTo(map);
+
+                worldLayer.bringToBack();
+
+                if(map){
+                    const worldBounds = worldLayer.getBounds();
+
+                    if(worldBounds.isValid()){
+                        map.fitBounds(
+                            worldBounds,
+                            {
+                                padding: [8, 8],
+                                maxZoom: 2
+                            }
+                        );
+                    }
+
+                    map.invalidateSize({
+                        pan: false
+                    });
+                }
+
+                return worldLayer;
+            }
+            catch(error){
+                console.error(
+                    "World map layer failed:",
+                    error
+                );
+
+                setStatus(
+                    "World map could not be loaded.",
+                    "The AIS data connection can still be tested after the map source is available."
+                );
+
+                return null;
+            }
+            finally{
+                worldMapPromise = null;
+            }
+        })();
+
+        return worldMapPromise;
     }
 
     function scheduleMapLoad(force){
