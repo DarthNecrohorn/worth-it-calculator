@@ -13,6 +13,7 @@
         MIN_MAP_ZOOM: 3,
         MAP_LOAD_DEBOUNCE_MS: 650,
         AUTO_REFRESH_MS: 45000,
+        MAP_BASE_REFRESH_MS: 21600000,
         SEARCH_DEBOUNCE_MS: 220,
         REQUEST_TIMEOUT_MS: 20000
     };
@@ -20,6 +21,7 @@
     let map = null;
     let markerLayer = null;
     let autoRefreshTimer = null;
+    let mapBaseRefreshTimer = null;
     let mapLoadTimer = null;
     let searchTimer = null;
     let selectedMmsi = "";
@@ -181,12 +183,17 @@
         map = L.map(mapElement, {
             minZoom: 2,
             maxZoom: 18,
+            /*
+             * Keep latitude inside the Web Mercator world, but allow
+             * unlimited horizontal movement so the world can repeat
+             * seamlessly from left to right.
+             */
             maxBounds: [
-                [-85, -180],
-                [85, 180]
+                [-85.051129, -720],
+                [85.051129, 720]
             ],
-            maxBoundsViscosity: 0.85,
-            worldCopyJump: false,
+            maxBoundsViscosity: 0,
+            worldCopyJump: true,
             zoomControl: true,
             zoomSnap: 0.5,
             zoomDelta: 0.5,
@@ -194,9 +201,12 @@
         }).setView([20, 0], 2);
 
         /*
-         * No raster tile server is used. A complete world geometry is
-         * drawn as one vector layer, with an ocean background underneath.
+         * Start with the normal map. Satellite imagery is available as
+         * an optional layer and is not loaded until the user selects it.
          */
+        addDefaultBaseLayer();
+        addBaseMapSwitcher();
+
         markerLayer = L.layerGroup().addTo(map);
 
         map.on("moveend zoomend", function(){
@@ -212,12 +222,259 @@
         }, 50);
     }
 
+    let defaultMapLayer = null;
+    let satelliteLayer = null;
+    let activeBaseMap = "default";
+
+    function addDefaultBaseLayer(){
+        if(!map || defaultMapLayer){
+            return;
+        }
+
+        defaultMapLayer = L.tileLayer(
+            "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+            {
+                minZoom: 2,
+                maxZoom: 19,
+                noWrap: false,
+                attribution:
+                    '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap</a> contributors',
+                crossOrigin: true,
+                keepBuffer: 2,
+                updateWhenIdle: true,
+                updateWhenZooming: false
+            }
+        ).addTo(map);
+
+        defaultMapLayer.bringToBack();
+    }
+
+    function addSatelliteBaseLayer(){
+        if(!map){
+            return;
+        }
+
+        const cacheKey = Date.now();
+
+        satelliteLayer = L.tileLayer(
+            "https://gibs-{s}.earthdata.nasa.gov/wmts/epsg3857/best/" +
+            "MODIS_Terra_CorrectedReflectance_TrueColor/default/" +
+            "GoogleMapsCompatible_Level9/{z}/{y}/{x}.jpg" +
+            "?refresh=" + cacheKey,
+            {
+                minZoom: 2,
+                maxZoom: 18,
+                maxNativeZoom: 9,
+                noWrap: false,
+                subdomains: ["a","b","c"],
+                attribution:
+                    "Satellite imagery: NASA GIBS / MODIS Terra " +
+                    "· Sources: NASA",
+                crossOrigin: true,
+                keepBuffer: 2,
+                updateWhenIdle: true,
+                updateWhenZooming: false
+            }
+        ).addTo(map);
+
+        satelliteLayer.bringToBack();
+    }
+
+    function addBaseMapSwitcher(){
+        if(!map){
+            return;
+        }
+
+        const BaseMapSwitcher = L.Control.extend({
+            options: {
+                position: "topleft"
+            },
+
+            onAdd: function(){
+                const container =
+                    L.DomUtil.create(
+                        "div",
+                        "leaflet-control ship-tracking-map-switcher"
+                    );
+
+                const defaultButton =
+                    L.DomUtil.create(
+                        "button",
+                        "ship-tracking-map-switcher-btn active",
+                        container
+                    );
+
+                const satelliteButton =
+                    L.DomUtil.create(
+                        "button",
+                        "ship-tracking-map-switcher-btn",
+                        container
+                    );
+
+                defaultButton.type = "button";
+                satelliteButton.type = "button";
+
+                defaultButton.textContent = "Default map";
+                satelliteButton.textContent = "Satellite map";
+
+                defaultButton.setAttribute(
+                    "aria-pressed",
+                    "true"
+                );
+
+                satelliteButton.setAttribute(
+                    "aria-pressed",
+                    "false"
+                );
+
+                L.DomEvent.disableClickPropagation(container);
+                L.DomEvent.disableScrollPropagation(container);
+
+                L.DomEvent.on(
+                    defaultButton,
+                    "click",
+                    function(){
+                        switchBaseMap("default");
+                    }
+                );
+
+                L.DomEvent.on(
+                    satelliteButton,
+                    "click",
+                    function(){
+                        switchBaseMap("satellite");
+                    }
+                );
+
+                container._defaultButton = defaultButton;
+                container._satelliteButton = satelliteButton;
+
+                map._shipTrackingBaseMapSwitcher = container;
+
+                return container;
+            }
+        });
+
+        map.addControl(new BaseMapSwitcher());
+    }
+
+    function updateBaseMapSwitcher(){
+        const control = map && map._shipTrackingBaseMapSwitcher;
+
+        if(!control){
+            return;
+        }
+
+        const defaultActive = activeBaseMap === "default";
+
+        control._defaultButton.classList.toggle(
+            "active",
+            defaultActive
+        );
+
+        control._satelliteButton.classList.toggle(
+            "active",
+            !defaultActive
+        );
+
+        control._defaultButton.setAttribute(
+            "aria-pressed",
+            defaultActive ? "true" : "false"
+        );
+
+        control._satelliteButton.setAttribute(
+            "aria-pressed",
+            defaultActive ? "false" : "true"
+        );
+    }
+
+    function switchBaseMap(mode){
+        if(!map){
+            return;
+        }
+
+        if(mode !== "default" && mode !== "satellite"){
+            return;
+        }
+
+        if(activeBaseMap === mode){
+            return;
+        }
+
+        if(mode === "satellite"){
+            if(!satelliteLayer){
+                addSatelliteBaseLayer();
+            }else{
+                satelliteLayer.addTo(map);
+            }
+
+            if(defaultMapLayer){
+                map.removeLayer(defaultMapLayer);
+            }
+
+            activeBaseMap = "satellite";
+        }else{
+            addDefaultBaseLayer();
+
+            if(satelliteLayer){
+                map.removeLayer(satelliteLayer);
+            }
+
+            if(defaultMapLayer){
+                defaultMapLayer.addTo(map);
+                defaultMapLayer.bringToBack();
+            }
+
+            activeBaseMap = "default";
+        }
+
+        if(markerLayer){
+            markerLayer.bringToFront();
+        }
+
+        updateBaseMapSwitcher();
+        map.invalidateSize({
+            pan: false
+        });
+    }
+
+    function refreshSatelliteBaseLayer(){
+        if(
+            !map ||
+            activeBaseMap !== "satellite"
+        ){
+            return;
+        }
+
+        const previous = satelliteLayer;
+
+        satelliteLayer = null;
+        addSatelliteBaseLayer();
+
+        if(previous){
+            map.removeLayer(previous);
+        }
+
+        if(markerLayer){
+            markerLayer.bringToFront();
+        }
+
+        map.invalidateSize({
+            pan: false
+        });
+    }
+
     let worldMapPromise = null;
     let worldLayer = null;
     let oceanLayer = null;
 
     function loadWorldMapLayer(){
-        if(!map || typeof topojson === "undefined"){
+        /*
+         * Base world geography is already provided by the Leaflet
+         * raster tile layer in setupMap(). Keep this function so the
+         * existing initialization flow remains unchanged.
+         */
+        if(!map){
             return;
         }
 
@@ -225,103 +482,8 @@
             return;
         }
 
-        if(worldMapPromise){
-            return worldMapPromise;
-        }
-
-        worldMapPromise = (async function(){
-            try{
-                /*
-                 * Fill the entire drawable world with ocean first.
-                 * This prevents a large white map area around countries.
-                 */
-                oceanLayer = L.rectangle(
-                    [
-                        [-85.051129, -180],
-                        [85.051129, 180]
-                    ],
-                    {
-                        interactive: false,
-                        stroke: false,
-                        fill: true,
-                        fillColor: "#9fd3ea",
-                        fillOpacity: 1
-                    }
-                ).addTo(map);
-
-                oceanLayer.bringToBack();
-
-                const response = await fetch(
-                    "https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json",
-                    {
-                        method: "GET",
-                        headers: {
-                            "Accept": "application/json"
-                        },
-                        cache: "force-cache"
-                    }
-                );
-
-                if(!response.ok){
-                    throw new Error(
-                        "World map data returned HTTP " +
-                        response.status
-                    );
-                }
-
-                const topology = await response.json();
-
-                if(
-                    !topology ||
-                    !topology.objects ||
-                    !topology.objects.countries
-                ){
-                    throw new Error("World map geometry is unavailable.");
-                }
-
-                const geojson =
-                    topojson.feature(
-                        topology,
-                        topology.objects.countries
-                    );
-
-                worldLayer = L.geoJSON(
-                    geojson,
-                    {
-                        interactive: false,
-                        style: {
-                            fillColor: "#e8eadc",
-                            fillOpacity: 1,
-                            color: "#74817d",
-                            weight: 0.7,
-                            opacity: 0.95
-                        }
-                    }
-                ).addTo(map);
-
-                worldLayer.bringToFront();
-
-                map.invalidateSize({
-                    pan: false
-                });
-            }
-            catch(error){
-                console.error(
-                    "Ship Tracking world map load failed:",
-                    error
-                );
-
-                setStatus(
-                    "World map data could not be loaded.",
-                    "The map frame is ready; live AIS data is unaffected."
-                );
-            }
-            finally{
-                worldMapPromise = null;
-            }
-        })();
-
-        return worldMapPromise;
+        worldLayer = true;
+        return Promise.resolve();
     }
 
     function scheduleMapLoad(force){
@@ -1024,6 +1186,15 @@
                 scheduleMapLoad(true);
             }
         }, CONFIG.AUTO_REFRESH_MS);
+
+        mapBaseRefreshTimer = window.setInterval(function(){
+            if(
+                get("shipTrackingSection") &&
+                get("shipTrackingSection").style.display !== "none"
+            ){
+                refreshSatelliteBaseLayer();
+            }
+        }, CONFIG.MAP_BASE_REFRESH_MS);
     }
 
     function updateAttribution(attributions){
