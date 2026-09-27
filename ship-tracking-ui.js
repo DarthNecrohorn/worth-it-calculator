@@ -201,10 +201,9 @@
         }).setView([20, 0], 2);
 
         /*
-         * Use standard OSM raster tiles for the base world map.
-         * Raster tiles already handle the antimeridian correctly, so
-         * continents, islands and peninsulas cannot be incorrectly
-         * connected into long horizontal polygons.
+         * Use NASA GIBS satellite raster tiles for the base world map.
+         * Raster tiles handle the antimeridian correctly, so continents,
+         * islands and peninsulas stay geographically aligned.
          */
         addSatelliteBaseLayer();
 
