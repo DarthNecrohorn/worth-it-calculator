@@ -1748,37 +1748,61 @@ async function searchDatasetProducts({
                 : "wlLakeName";
 
         /*
-         * Exact water-body/basin matches are checked in addition to
-         * partial matches. This improves reliability for common
-         * multilingual searches such as Danube/Dunav.
+         * Keep global text search on the documented CDSE contains()
+         * path. Add common multilingual aliases for Danube/Dunav.
          */
+        const searchTerms = [query];
+        const lowerQuery = String(query).toLowerCase();
+
+        if(
+            lowerQuery === "danube" ||
+            lowerQuery === "dunav"
+        ){
+            searchTerms.push(
+                "Danube",
+                "Dunav",
+                "danube",
+                "dunav"
+            );
+        }
+
+        const uniqueSearchTerms =
+            Array.from(
+                new Set(searchTerms)
+            );
+
+        const searchClauses = [];
+
+        uniqueSearchTerms.forEach(
+            function(term){
+                const escaped =
+                    escapeODataString(term);
+
+                searchClauses.push(
+                    "contains(Name,'" +
+                        escaped +
+                        "')"
+                );
+
+                searchClauses.push(
+                    attributeContains(
+                        waterBodyAttribute,
+                        term
+                    )
+                );
+
+                searchClauses.push(
+                    attributeContains(
+                        "wlBasinName",
+                        term
+                    )
+                );
+            }
+        );
+
         filter +=
             " and (" +
-            [
-                "contains(Name,'" +
-                    escapeODataString(query) +
-                    "')",
-
-                attributeEquals(
-                    waterBodyAttribute,
-                    query
-                ),
-
-                attributeEquals(
-                    "wlBasinName",
-                    query
-                ),
-
-                attributeContains(
-                    waterBodyAttribute,
-                    query
-                ),
-
-                attributeContains(
-                    "wlBasinName",
-                    query
-                )
-            ].join(
+            searchClauses.join(
                 " or "
             ) +
             ")";
