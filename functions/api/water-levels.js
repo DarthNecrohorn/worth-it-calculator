@@ -1748,13 +1748,15 @@ async function searchDatasetProducts({
                 : "wlLakeName";
 
         /*
-         * Keep global text search on the documented CDSE contains()
-         * path. Danube and Dunav are common multilingual names, so
-         * search the original term plus only the alternate name.
+         * CDSE documents contains() for product Name and equality
+         * filters for StringAttribute values. Do not use contains()
+         * inside the nested Attributes collection: that form can make
+         * the CLMS OData query fail with HTTP 500.
          *
-         * Do not enumerate many case variants here: that expands the
-         * OData $filter dramatically and can push the request URL far
-         * beyond what the catalogue accepts, producing a 500 response.
+         * For water-body/basin matching use exact StringAttribute
+         * comparisons. Danube and Dunav are treated as multilingual
+         * aliases because CLMS water names may be stored in a local
+         * language.
          */
         const searchTerms = [query];
         const lowerQuery = String(query).toLowerCase();
@@ -1782,21 +1784,28 @@ async function searchDatasetProducts({
                 const escaped =
                     escapeODataString(term);
 
+                /*
+                 * Name contains is a documented CDSE OData operation.
+                 */
                 searchClauses.push(
                     "contains(Name,'" +
                         escaped +
                         "')"
                 );
 
+                /*
+                 * Nested CLMS StringAttribute matching uses eq, which
+                 * is the documented/supported attribute filter form.
+                 */
                 searchClauses.push(
-                    attributeContains(
+                    attributeEquals(
                         waterBodyAttribute,
                         term
                     )
                 );
 
                 searchClauses.push(
-                    attributeContains(
+                    attributeEquals(
                         "wlBasinName",
                         term
                     )
