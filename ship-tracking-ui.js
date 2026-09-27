@@ -1412,7 +1412,7 @@
 
                 closeOverlapPicker();
 
-                if(!/^\\d{9}$/.test(mmsi)){
+                if(!/^\d{9}$/.test(mmsi)){
                     return;
                 }
 
