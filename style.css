@@ -11795,13 +11795,35 @@ html[data-theme="dark"] .ship-tracking-map-switcher-btn:hover{
 }
 
 .ship-tracking-detail{
-    width:100%;
-    margin:18px auto 0;
+    position:fixed;
+    inset:0;
+    z-index:1200;
+    display:none;
+    align-items:center;
+    justify-content:center;
+    padding:18px;
+    background:rgba(2,6,23,.72);
+    backdrop-filter:blur(10px);
+    overflow:hidden;
+}
+
+.ship-tracking-detail.open{
+    display:flex;
+}
+
+.ship-tracking-detail-card{
+    width:min(980px,100%);
+    max-height:calc(100dvh - 36px);
+    overflow:auto;
     padding:20px;
     border:1px solid var(--border);
-    border-radius:18px;
+    border-radius:22px;
     background:var(--card-solid,var(--card));
-    box-shadow:0 14px 35px rgba(0,0,0,.10);
+    box-shadow:0 30px 90px rgba(0,0,0,.32);
+}
+
+body.ship-tracking-modal-open{
+    overflow:hidden;
 }
 
 .ship-tracking-detail-head{
@@ -11886,7 +11908,13 @@ html[data-theme="dark"] .ship-tracking-map-switcher-btn:hover{
     }
 
     .ship-tracking-detail{
+        padding:12px;
+    }
+
+    .ship-tracking-detail-card{
+        max-height:calc(100dvh - 24px);
         padding:16px;
+        border-radius:18px;
     }
 }
 

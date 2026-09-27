@@ -46,6 +46,7 @@
         setupFilters();
         setupSearch();
         setupGridEvents();
+        setupDetailModal();
         startAutoRefresh();
 
         /*
@@ -174,6 +175,115 @@
             }
         });
     }
+    function setupDetailModal(){
+        const overlay = get("shipTrackingDetail");
+
+        if(!overlay || overlay.dataset.ready === "true"){
+            return;
+        }
+
+        overlay.dataset.ready = "true";
+
+        overlay.addEventListener("click", function(event){
+            if(event.target === overlay){
+                closeDetailModal();
+                return;
+            }
+
+            const closeButton =
+                event.target.closest("#shipTrackingDetailClose");
+
+            if(closeButton && overlay.contains(closeButton)){
+                event.preventDefault();
+                closeDetailModal();
+                return;
+            }
+
+            const trackButton =
+                event.target.closest("[data-ship-track]");
+
+            if(trackButton && overlay.contains(trackButton)){
+                event.preventDefault();
+                loadVesselTrack(
+                    trackButton.dataset.shipTrack || ""
+                );
+            }
+        });
+
+        if(document.documentElement.dataset.shipTrackingKeyboard !== "true"){
+            document.documentElement.dataset.shipTrackingKeyboard = "true";
+
+            document.addEventListener("keydown", function(event){
+                const detail = get("shipTrackingDetail");
+
+                if(
+                    event.key === "Escape" &&
+                    detail &&
+                    detail.classList.contains("open")
+                ){
+                    closeDetailModal();
+                }
+            });
+        }
+    }
+
+    function openDetailModal(){
+        const detail = get("shipTrackingDetail");
+
+        if(!detail){
+            return;
+        }
+
+        detail.hidden = false;
+        detail.classList.add("open");
+        detail.setAttribute("aria-hidden", "false");
+
+        document.body.classList.add(
+            "ship-tracking-modal-open"
+        );
+    }
+
+    function closeDetailModal(){
+        const detail = get("shipTrackingDetail");
+
+        if(!detail){
+            return;
+        }
+
+        detail.classList.remove("open");
+        detail.hidden = true;
+        detail.setAttribute("aria-hidden", "true");
+
+        document.body.classList.remove(
+            "ship-tracking-modal-open"
+        );
+
+        selectedMmsi = "";
+        renderMarkers();
+    }
+
+    function setDetailContent(content){
+        const detail = get("shipTrackingDetail");
+
+        if(!detail){
+            return;
+        }
+
+        detail.innerHTML =
+            '<div class="ship-tracking-detail-card">' +
+                content +
+            '</div>';
+
+        openDetailModal();
+
+        const card =
+            detail.querySelector(".ship-tracking-detail-card");
+
+        if(card){
+            card.scrollTop = 0;
+        }
+    }
+
 
     function setupMap(mapElement){
         if(map || typeof L === "undefined"){
@@ -1347,27 +1457,20 @@
     }
 
     function renderDetail(vessel, attributions){
-        const detail = get("shipTrackingDetail");
-
-        if(!detail){
-            return;
-        }
-
-        detail.hidden = false;
-        detail.innerHTML =
+        setDetailContent(
             '<div class="ship-tracking-detail-head">' +
                 '<div>' +
                     '<span class="ship-tracking-vessel-type">' +
                         escapeHtml(vesselTypeLabel(vessel.type)) +
                     '</span>' +
-                    '<h3>' +
+                    '<h3 id="shipTrackingDetailTitle">' +
                         escapeHtml(vessel.name || "Unknown vessel") +
                     '</h3>' +
                     '<span class="ship-tracking-detail-subtitle">' +
                         'MMSI ' + escapeHtml(vessel.mmsi) +
                     '</span>' +
                 '</div>' +
-                '<button type="button" class="ship-tracking-detail-close" id="shipTrackingDetailClose">✕</button>' +
+                '<button type="button" class="ship-tracking-detail-close" id="shipTrackingDetailClose" aria-label="Close">✕</button>' +
             '</div>' +
 
             '<div class="ship-tracking-detail-grid">' +
@@ -1392,17 +1495,8 @@
                 '<span class="ship-tracking-detail-note">' +
                     'AIS position data is informational and not a navigational aid.' +
                 '</span>' +
-            '</div>';
-
-        const close = get("shipTrackingDetailClose");
-
-        if(close){
-            close.addEventListener("click", function(){
-                detail.hidden = true;
-                selectedMmsi = "";
-                renderMarkers();
-            });
-        }
+            '</div>'
+        );
 
         if(Array.isArray(attributions) && attributions.length){
             updateAttribution(attributions);
@@ -1410,27 +1504,19 @@
     }
 
     function renderTrackDetail(mmsi, points){
-        const detail = get("shipTrackingDetail");
-
-        if(!detail){
-            return;
-        }
-
-        detail.hidden = false;
-
         const first = points[0];
         const last = points[points.length - 1];
 
-        detail.innerHTML =
+        setDetailContent(
             '<div class="ship-tracking-detail-head">' +
                 '<div>' +
                     '<span class="ship-tracking-vessel-type">Recent track</span>' +
-                    '<h3>24-hour movement history</h3>' +
+                    '<h3 id="shipTrackingDetailTitle">24-hour movement history</h3>' +
                     '<span class="ship-tracking-detail-subtitle">' +
                         'MMSI ' + escapeHtml(mmsi) +
                     '</span>' +
                 '</div>' +
-                '<button type="button" class="ship-tracking-detail-close" id="shipTrackingDetailClose">✕</button>' +
+                '<button type="button" class="ship-tracking-detail-close" id="shipTrackingDetailClose" aria-label="Close">✕</button>' +
             '</div>' +
 
             '<div class="ship-tracking-detail-grid">' +
@@ -1446,15 +1532,8 @@
                 points.length
                     ? '<div class="ship-tracking-track-note">The map now shows the recorded positions returned for this vessel.</div>'
                     : '<div class="ship-tracking-track-note">No recorded positions were returned for the selected period.</div>'
-            );
-
-        const close = get("shipTrackingDetailClose");
-
-        if(close){
-            close.addEventListener("click", function(){
-                detail.hidden = true;
-            });
-        }
+            )
+        );
     }
 
     function drawTrack(points){
@@ -1502,47 +1581,39 @@
     }
 
     function showDetailLoading(message){
-        const detail = get("shipTrackingDetail");
-
-        if(!detail){
-            return;
-        }
-
-        detail.hidden = false;
-        detail.innerHTML =
+        setDetailContent(
             '<div class="ship-tracking-detail-loading">' +
                 '<span>🚢</span>' +
                 '<strong>' +
                     escapeHtml(message) +
                 '</strong>' +
-            '</div>';
+            '</div>'
+        );
     }
 
     function showDetailError(message){
+        setDetailContent(
+            '<div class="ship-tracking-detail-loading">' +
+                '<span>⚠️</span>' +
+                '<strong>' +
+                    escapeHtml(message) +
+                '</strong>' +
+            '</div>'
+        );
+    }
+
+    function scrollToDetail(){
         const detail = get("shipTrackingDetail");
 
         if(!detail){
             return;
         }
 
-        detail.hidden = false;
-        detail.innerHTML =
-            '<div class="ship-tracking-detail-loading">' +
-                '<span>⚠️</span>' +
-                '<strong>' +
-                    escapeHtml(message) +
-                '</strong>' +
-            '</div>';
-    }
+        const card =
+            detail.querySelector(".ship-tracking-detail-card");
 
-    function scrollToDetail(){
-        const detail = get("shipTrackingDetail");
-
-        if(detail){
-            detail.scrollIntoView({
-                behavior: "smooth",
-                block: "start"
-            });
+        if(card){
+            card.scrollTop = 0;
         }
     }
 
@@ -1648,6 +1719,53 @@
     function vesselTypeLabel(type){
         const value = Number(type);
 
+        if(!Number.isFinite(value)){
+            return "Vessel";
+        }
+
+        if(value === 0){
+            return "Type not available";
+        }
+
+        if(value >= 1 && value <= 19){
+            return "Reserved vessel type";
+        }
+
+        if(value >= 20 && value <= 29){
+            return "Wing-in-ground craft";
+        }
+
+        const exactLabels = {
+            30: "Fishing vessel",
+            31: "Towing vessel",
+            32: "Large towing vessel",
+            33: "Dredging / underwater ops",
+            34: "Diving operations",
+            35: "Military vessel",
+            36: "Sailing vessel",
+            37: "Pleasure craft",
+            38: "Reserved vessel type",
+            39: "Reserved vessel type",
+            50: "Pilot vessel",
+            51: "Search & rescue",
+            52: "Tug",
+            53: "Port tender",
+            54: "Anti-pollution vessel",
+            55: "Law enforcement",
+            56: "Local vessel",
+            57: "Local vessel",
+            58: "Medical transport",
+            59: "Non-combatant vessel"
+        };
+
+        if(Object.prototype.hasOwnProperty.call(exactLabels, value)){
+            return exactLabels[value];
+        }
+
+        if(value >= 40 && value <= 49){
+            return "High-speed craft";
+        }
+
         if(value >= 60 && value <= 69){
             return "Passenger";
         }
@@ -1661,12 +1779,10 @@
         }
 
         if(value >= 90 && value <= 99){
-            return "Other service";
+            return "Other vessel";
         }
 
-        return Number.isFinite(value)
-            ? "AIS type " + value
-            : "Vessel";
+        return "Unknown vessel type";
     }
 
     function navStatusLabel(status){
