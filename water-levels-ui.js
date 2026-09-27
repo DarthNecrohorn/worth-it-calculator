@@ -1725,32 +1725,17 @@
                 sortByDistance(items);
 
             if(isUnitedStates){
-                const sameState =
-                    sorted.filter(function(item){
-                        return item.geo.stateMatch;
-                    });
-
-                const fallback =
-                    sorted.filter(function(item){
-                        return !item.geo.stateMatch;
-                    });
-
-                return sameState
-                    .concat(fallback)
+                const sameCountry = sorted.filter(function(item){ return item.geo.countryMatch; });
+                const sameState = sameCountry.filter(function(item){ return item.geo.stateMatch; });
+                const fallback = sameCountry.filter(function(item){ return !item.geo.stateMatch; });
+                return sameState.concat(fallback)
                     .slice(
                         0,
                         CATEGORY_STATION_LIMIT
                     );
             }
 
-            return sorted
-                .filter(function(item){
-                    return item.geo.countryMatch;
-                })
-                .slice(
-                    0,
-                    CATEGORY_STATION_LIMIT
-                );
+            return sorted.filter(function(item){ return item.geo.countryMatch; }).slice(0, CATEGORY_STATION_LIMIT);
         }
 
         const selectedRivers =
