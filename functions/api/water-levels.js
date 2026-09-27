@@ -648,7 +648,52 @@ async function handleNearby(
         return await requestPromise;
     }
     catch(error){
+
+        console.error(
+            "Water nearby request failed:",
+            {
+                type,
+                country,
+                latitude,
+                longitude,
+                radiusKm,
+                limit,
+                error:
+                    error &&
+                    error.message
+                        ? String(error.message).slice(0,500)
+                        : "Unknown nearby request error."
+            }
+        );
+
+        /*
+         * Refresh bypasses the normal cache lookup, but an upstream
+         * Copernicus catalogue failure should not make an already loaded
+         * location view disappear. Reuse the last successful nearby
+         * response for this exact request as a stale fallback.
+         */
+        const stale =
+            await cache.match(
+                cacheKey
+            );
+
+        if(stale){
+
+            return responseWithHeaders(
+                stale,
+                {
+                    "X-Water-Cache":
+                        "STALE-ERROR",
+                    "X-Water-Cache-TTL":
+                        STATIONS_CACHE_TTL_SECONDS +
+                        "s"
+                }
+            );
+
+        }
+
         throw error;
+
     }
     finally{
         inFlightRequests.delete(
