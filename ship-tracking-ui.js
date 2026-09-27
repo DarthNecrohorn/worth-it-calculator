@@ -44,9 +44,48 @@
         setupFilters();
         setupSearch();
         setupGridEvents();
-        setupMap(mapElement);
         startAutoRefresh();
-        scheduleMapLoad(true);
+
+        /*
+         * Leaflet must be initialized only after the section is visible.
+         * Ship Tracking is hidden on first page load.
+         */
+        if(section.style.display !== "none"){
+            prepareVisibleMap();
+        }
+    }
+
+    function prepareVisibleMap(){
+        const mapElement = get("shipTrackingMap");
+
+        if(!mapElement){
+            return;
+        }
+
+        setupMap(mapElement);
+
+        if(!map){
+            return;
+        }
+
+        window.requestAnimationFrame(function(){
+            map.invalidateSize({
+                pan: false
+            });
+
+            window.setTimeout(function(){
+                if(!map){
+                    return;
+                }
+
+                map.invalidateSize({
+                    pan: false
+                });
+
+                loadWorldMapLayer();
+                scheduleMapLoad(true);
+            }, 120);
+        });
     }
 
     function setupFilters(){
@@ -142,18 +181,22 @@
         map = L.map(mapElement, {
             minZoom: 2,
             maxZoom: 18,
-            worldCopyJump: true,
-            zoomControl: true
-        }).setView([20, 10], 3);
+            maxBounds: [
+                [-85, -180],
+                [85, 180]
+            ],
+            maxBoundsViscosity: 0.85,
+            worldCopyJump: false,
+            zoomControl: true,
+            zoomSnap: 0.5,
+            zoomDelta: 0.5,
+            preferCanvas: true
+        }).setView([20, 0], 2);
 
-        L.tileLayer(
-            "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
-            {
-                maxZoom: 19,
-                attribution: "&copy; OpenStreetMap contributors"
-            }
-        ).addTo(map);
-
+        /*
+         * No raster tile server is used. A complete world geometry is
+         * drawn as one vector layer, with an ocean background underneath.
+         */
         markerLayer = L.layerGroup().addTo(map);
 
         map.on("moveend zoomend", function(){
@@ -161,8 +204,124 @@
         });
 
         window.setTimeout(function(){
-            map.invalidateSize();
-        }, 150);
+            if(map){
+                map.invalidateSize({
+                    pan: false
+                });
+            }
+        }, 50);
+    }
+
+    let worldMapPromise = null;
+    let worldLayer = null;
+    let oceanLayer = null;
+
+    function loadWorldMapLayer(){
+        if(!map || typeof topojson === "undefined"){
+            return;
+        }
+
+        if(worldLayer){
+            return;
+        }
+
+        if(worldMapPromise){
+            return worldMapPromise;
+        }
+
+        worldMapPromise = (async function(){
+            try{
+                /*
+                 * Fill the entire drawable world with ocean first.
+                 * This prevents a large white map area around countries.
+                 */
+                oceanLayer = L.rectangle(
+                    [
+                        [-85.051129, -180],
+                        [85.051129, 180]
+                    ],
+                    {
+                        interactive: false,
+                        stroke: false,
+                        fill: true,
+                        fillColor: "#9fd3ea",
+                        fillOpacity: 1
+                    }
+                ).addTo(map);
+
+                oceanLayer.bringToBack();
+
+                const response = await fetch(
+                    "https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json",
+                    {
+                        method: "GET",
+                        headers: {
+                            "Accept": "application/json"
+                        },
+                        cache: "force-cache"
+                    }
+                );
+
+                if(!response.ok){
+                    throw new Error(
+                        "World map data returned HTTP " +
+                        response.status
+                    );
+                }
+
+                const topology = await response.json();
+
+                if(
+                    !topology ||
+                    !topology.objects ||
+                    !topology.objects.countries
+                ){
+                    throw new Error("World map geometry is unavailable.");
+                }
+
+                const geojson =
+                    topojson.feature(
+                        topology,
+                        topology.objects.countries
+                    );
+
+                worldLayer = L.geoJSON(
+                    geojson,
+                    {
+                        interactive: false,
+                        style: {
+                            fillColor: "#e8eadc",
+                            fillOpacity: 1,
+                            color: "#74817d",
+                            weight: 0.7,
+                            opacity: 0.95
+                        }
+                    }
+                ).addTo(map);
+
+                worldLayer.bringToFront();
+
+                map.invalidateSize({
+                    pan: false
+                });
+            }
+            catch(error){
+                console.error(
+                    "Ship Tracking world map load failed:",
+                    error
+                );
+
+                setStatus(
+                    "World map data could not be loaded.",
+                    "The map frame is ready; live AIS data is unaffected."
+                );
+            }
+            finally{
+                worldMapPromise = null;
+            }
+        })();
+
+        return worldMapPromise;
     }
 
     function scheduleMapLoad(force){
@@ -1151,6 +1310,7 @@
     }
 
     window.initShipTrackingUI = init;
+    window.refreshShipTrackingMap = prepareVisibleMap;
 
     if(document.readyState === "loading"){
         document.addEventListener(
