@@ -491,7 +491,8 @@
             if(defaultMapLayer){
                 map.removeLayer(defaultMapLayer);
             }
-activeBaseMap = "satellite";
+
+            activeBaseMap = "satellite";
         }else{
             if(satelliteLayer){
                 map.removeLayer(satelliteLayer);
@@ -499,14 +500,11 @@ activeBaseMap = "satellite";
 
             activeBaseMap = "default";
 
-            // Restore the selected geographic information level.
+            // Re-add the real OSM layer after returning from satellite.
             setMarkerInfoLevel(markerInfoLevel);
         }
 
-        if(markerLayer){
-            markerLayer.bringToFront();
-        }
-
+        bringVesselMarkersToFront();
         updateBaseMapSwitcher();
         map.invalidateSize({ pan: false });
     }
@@ -528,9 +526,7 @@ activeBaseMap = "satellite";
             map.removeLayer(previous);
         }
 
-        if(markerLayer){
-            markerLayer.bringToFront();
-        }
+        bringVesselMarkersToFront();
 
         map.invalidateSize({
             pan: false
@@ -932,6 +928,18 @@ activeBaseMap = "satellite";
         });
     }
 
+    function bringVesselMarkersToFront(){
+        if(!markerLayer || typeof markerLayer.eachLayer !== "function"){
+            return;
+        }
+
+        markerLayer.eachLayer(function(layer){
+            if(layer && typeof layer.bringToFront === "function"){
+                layer.bringToFront();
+            }
+        });
+    }
+
     function setMarkerInfoLevel(level){
         if(level !== "default" && level !== "medium" && level !== "nothing"){
             return;
@@ -944,30 +952,40 @@ activeBaseMap = "satellite";
         }
 
         /*
-         * IMPORTANT:
-         * Default remains the existing OSM map. Medium/Nothing cannot
-         * selectively remove labels from OSM raster tiles because the
-         * labels are baked into the tile images. Keep the stable map
-         * visible here until a label-controllable basemap is introduced.
+         * OSM Standard is the stable Default basemap. Its labels are baked
+         * into raster tiles, so Medium/Nothing currently keep the same
+         * appearance rather than replacing the basemap with another style.
          */
+
         addDefaultBaseLayer();
 
-        if(defaultMapLayer){
-            defaultMapLayer.bringToBack();
+        if(activeBaseMap === "satellite"){
+            if(defaultMapLayer && map.hasLayer(defaultMapLayer)){
+                map.removeLayer(defaultMapLayer);
+            }
+
+            if(satelliteLayer && !map.hasLayer(satelliteLayer)){
+                satelliteLayer.addTo(map);
+            }
+
+            if(satelliteLayer){
+                satelliteLayer.bringToBack();
+            }
+        }else{
+            if(satelliteLayer && map.hasLayer(satelliteLayer)){
+                map.removeLayer(satelliteLayer);
+            }
+
+            if(defaultMapLayer && !map.hasLayer(defaultMapLayer)){
+                defaultMapLayer.addTo(map);
+            }
+
+            if(defaultMapLayer){
+                defaultMapLayer.bringToBack();
+            }
         }
 
-        if(mediumInfoLayer){
-            map.removeLayer(mediumInfoLayer);
-        }
-
-        if(satelliteLayer && activeBaseMap === "satellite"){
-            satelliteLayer.bringToBack();
-        }
-
-        if(markerLayer){
-            markerLayer.bringToFront();
-        }
-
+        bringVesselMarkersToFront();
         renderMarkers();
         map.invalidateSize({ pan: false });
     }
