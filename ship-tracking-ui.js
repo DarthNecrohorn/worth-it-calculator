@@ -216,8 +216,17 @@
     let worldLayer = null;
     let oceanLayer = null;
 
+    const WORLD_MAP_BOUNDS = [
+        [-85.0511287798, -180],
+        [85.0511287798, 180]
+    ];
+
     function loadWorldMapLayer(){
-        if(!map || typeof topojson === "undefined"){
+        if(
+            !map ||
+            typeof topojson === "undefined" ||
+            typeof d3 === "undefined"
+        ){
             return;
         }
 
@@ -232,14 +241,15 @@
         worldMapPromise = (async function(){
             try{
                 /*
-                 * Fill the entire drawable world with ocean first.
-                 * This prevents a large white map area around countries.
+                 * The background remains a simple ocean rectangle.
+                 * The geographic land is rendered separately as an SVG
+                 * using d3-geo's Web Mercator projection. d3-geo clips
+                 * geometry at the antimeridian before generating the path,
+                 * so polygons cannot be accidentally joined across the
+                 * left/right edge of the map.
                  */
                 oceanLayer = L.rectangle(
-                    [
-                        [-85.051129, -180],
-                        [85.051129, 180]
-                    ],
+                    WORLD_MAP_BOUNDS,
                     {
                         interactive: false,
                         stroke: false,
@@ -279,32 +289,95 @@
                     throw new Error("World map geometry is unavailable.");
                 }
 
-                /*
-                 * Keep the Natural Earth country geometry. The land-only
-                 * dissolved geometry can contain antimeridian-spanning
-                 * rings that Leaflet may connect across the map.
-                 */
                 const geojson =
                     topojson.feature(
                         topology,
                         topology.objects.countries
                     );
 
-                worldLayer = L.geoJSON(
-                    geojson,
-                    {
-                        interactive: false,
-                        style: {
-                            fillColor: "#e8eadc",
-                            fillOpacity: 1,
-                            color: "transparent",
-                            weight: 0,
+                const width = 1600;
+                const height = 800;
+
+                /*
+                 * Match Leaflet's default spherical Web Mercator projection.
+                 * Keeping the SVG in the same projection means the artwork
+                 * remains geographically aligned while Leaflet zooms/pans.
+                 */
+                const projection =
+                    d3.geoMercator()
+                        .scale(width / (2 * Math.PI))
+                        .translate([
+                            width / 2,
+                            height / 2
+                        ])
+                        .clipExtent([
+                            [0, 0],
+                            [width, height]
+                        ]);
+
+                const path = d3.geoPath(projection);
+                const pathData = path(geojson);
+
+                if(!pathData){
+                    throw new Error("World map SVG path is unavailable.");
+                }
+
+                const svgNS = "http://www.w3.org/2000/svg";
+                const svg = document.createElementNS(svgNS, "svg");
+
+                svg.setAttribute("xmlns", svgNS);
+                svg.setAttribute("viewBox", "0 0 " + width + " " + height);
+                svg.setAttribute("width", String(width));
+                svg.setAttribute("height", String(height));
+                svg.setAttribute("preserveAspectRatio", "none");
+                svg.setAttribute("aria-hidden", "true");
+
+                const land = document.createElementNS(
+                    svgNS,
+                    "path"
+                );
+
+                land.setAttribute("d", pathData);
+                land.setAttribute("fill", "#e8eadc");
+                land.setAttribute("fill-opacity", "1");
+                land.setAttribute("stroke", "none");
+
+                svg.appendChild(land);
+
+                /*
+                 * Keep the familiar country outlines, but let d3-geo
+                 * generate them so antimeridian clipping is respected.
+                 */
+                const borders = document.createElementNS(
+                    svgNS,
+                    "path"
+                );
+
+                borders.setAttribute("d", pathData);
+                borders.setAttribute("fill", "none");
+                borders.setAttribute("stroke", "#74817d");
+                borders.setAttribute("stroke-width", "0.9");
+                borders.setAttribute("stroke-opacity", "0.8");
+                borders.setAttribute("vector-effect", "non-scaling-stroke");
+
+                svg.appendChild(borders);
+
+                const worldPane =
+                    map.getPane("shipWorldPane") ||
+                    map.createPane("shipWorldPane");
+
+                worldPane.style.zIndex = "350";
+
+                worldLayer =
+                    L.svgOverlay(
+                        svg,
+                        WORLD_MAP_BOUNDS,
+                        {
+                            pane: "shipWorldPane",
+                            interactive: false,
                             opacity: 1
                         }
-                    }
-                ).addTo(map);
-
-                worldLayer.bringToFront();
+                    ).addTo(map);
 
                 map.invalidateSize({
                     pan: false
