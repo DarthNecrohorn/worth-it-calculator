@@ -15,7 +15,8 @@
         AUTO_REFRESH_MS: 45000,
         MAP_BASE_REFRESH_MS: 21600000,
         SEARCH_DEBOUNCE_MS: 220,
-        REQUEST_TIMEOUT_MS: 20000
+        REQUEST_TIMEOUT_MS: 20000,
+        OVERLAP_DISTANCE_PX: 22
     };
 
     let map = null;
@@ -30,6 +31,7 @@
     let lastViewportKey = "";
     let lastLoadAt = 0;
     let currentRequestController = null;
+    let overlapPicker = null;
 
     function get(id){
         return document.getElementById(id);
@@ -108,6 +110,7 @@
             }
 
             activeFilter = button.dataset.shipFilter || "all";
+            closeOverlapPicker();
 
             filters.querySelectorAll("[data-ship-filter]").forEach(function(item){
                 const active = item === button;
@@ -141,6 +144,7 @@
             searchTimer = window.setTimeout(function(){
                 const query = input.value.trim();
 
+                closeOverlapPicker();
                 renderVesselView();
 
                 if(/^\d{9}$/.test(query)){
@@ -318,6 +322,10 @@
         addBaseMapSwitcher();
 
         markerLayer = L.layerGroup().addTo(map);
+
+        map.on("movestart zoomstart", function(){
+            closeOverlapPicker();
+        });
 
         map.on("moveend zoomend", function(){
             scheduleMapLoad(false);
@@ -712,6 +720,7 @@
                 throw new Error("Ship tracking response is unavailable.");
             }
 
+            closeOverlapPicker();
             vessels = data.vessels;
             updateAttribution(data.attributions || []);
             renderVesselView();
@@ -941,9 +950,7 @@
                 getVesselDirection(vessel);
 
             const rotation =
-                Number.isFinite(direction)
-                    ? direction - 90
-                    : -90;
+                getVesselArrowRotation(vessel);
 
             const marker = L.marker(
                 [Number(vessel.lat), Number(vessel.lon)],
@@ -966,7 +973,24 @@
             );
 
             marker.on("click", function(){
+                const overlapping =
+                    getOverlappingVessels(
+                        vessel,
+                        filtered
+                    );
+
+                if(overlapping.length > 1){
+                    selectedMmsi = "";
+                    closeOverlapPicker();
+                    openOverlapPicker(
+                        vessel,
+                        overlapping
+                    );
+                    return;
+                }
+
                 selectedMmsi = String(vessel.mmsi);
+                closeOverlapPicker();
                 renderMarkers();
                 loadVesselDetails(vessel.mmsi, true);
             });
@@ -1008,6 +1032,15 @@
         }
 
         return null;
+    }
+
+    function getVesselArrowRotation(vessel){
+        const direction =
+            getVesselDirection(vessel);
+
+        return Number.isFinite(direction)
+            ? direction - 90
+            : -90;
     }
 
     function bringVesselMarkersToFront(){
@@ -1174,6 +1207,295 @@
             window.clearTimeout(timeout);
             currentRequestController = null;
         }
+    }
+
+    function getOverlappingVessels(centerVessel, candidates){
+        if(
+            !map ||
+            !centerVessel ||
+            !Array.isArray(candidates)
+        ){
+            return [];
+        }
+
+        const centerPoint =
+            map.latLngToContainerPoint([
+                Number(centerVessel.lat),
+                Number(centerVessel.lon)
+            ]);
+
+        if(
+            !centerPoint ||
+            !Number.isFinite(centerPoint.x) ||
+            !Number.isFinite(centerPoint.y)
+        ){
+            return [centerVessel];
+        }
+
+        return candidates
+            .map(function(candidate){
+                if(!candidate){
+                    return null;
+                }
+
+                const point =
+                    map.latLngToContainerPoint([
+                        Number(candidate.lat),
+                        Number(candidate.lon)
+                    ]);
+
+                if(
+                    !point ||
+                    !Number.isFinite(point.x) ||
+                    !Number.isFinite(point.y)
+                ){
+                    return null;
+                }
+
+                const dx =
+                    point.x - centerPoint.x;
+
+                const dy =
+                    point.y - centerPoint.y;
+
+                const distance =
+                    Math.sqrt(
+                        dx * dx +
+                        dy * dy
+                    );
+
+                return {
+                    vessel: candidate,
+                    distance
+                };
+            })
+            .filter(function(item){
+                return (
+                    item &&
+                    Number.isFinite(item.distance) &&
+                    item.distance <=
+                        CONFIG.OVERLAP_DISTANCE_PX
+                );
+            })
+            .sort(function(a,b){
+                return a.distance - b.distance;
+            })
+            .map(function(item){
+                return item.vessel;
+            });
+    }
+
+    function openOverlapPicker(centerVessel, group){
+        if(
+            !map ||
+            !centerVessel ||
+            !Array.isArray(group) ||
+            group.length < 2
+        ){
+            return;
+        }
+
+        const mapElement =
+            map.getContainer();
+
+        if(!mapElement){
+            return;
+        }
+
+        closeOverlapPicker();
+
+        const picker =
+            document.createElement("div");
+
+        picker.className =
+            "ship-tracking-overlap-picker";
+
+        picker.setAttribute(
+            "role",
+            "dialog"
+        );
+
+        picker.setAttribute(
+            "aria-label",
+            group.length + " vessels at this location"
+        );
+
+        picker.innerHTML =
+            '<div class="ship-tracking-overlap-head">' +
+                '<div>' +
+                    '<strong>' +
+                        group.length +
+                        ' vessels at this location' +
+                    '</strong>' +
+                    '<span>Select a vessel</span>' +
+                '</div>' +
+                '<button type="button" class="ship-tracking-overlap-close" data-overlap-close aria-label="Close">✕</button>' +
+            '</div>' +
+            '<div class="ship-tracking-overlap-grid">' +
+                group.map(function(item){
+                    const rotation =
+                        getVesselArrowRotation(item);
+
+                    const name =
+                        item.name ||
+                        "Unknown vessel";
+
+                    return (
+                        '<button type="button" class="ship-tracking-overlap-item" data-overlap-mmsi="' +
+                            escapeHtml(item.mmsi) +
+                            '" title="' +
+                            escapeHtml(name) +
+                            '">' +
+                            '<span class="ship-tracking-overlap-arrow" style="--ship-arrow-rotation:' +
+                                rotation.toFixed(2) +
+                                'deg;">➤</span>' +
+                            '<span class="ship-tracking-overlap-name">' +
+                                escapeHtml(name) +
+                            '</span>' +
+                            '<span class="ship-tracking-overlap-mmsi">' +
+                                escapeHtml(item.mmsi.slice(-4)) +
+                            '</span>' +
+                        '</button>'
+                    );
+                }).join("") +
+            '</div>';
+
+        const point =
+            map.latLngToContainerPoint([
+                Number(centerVessel.lat),
+                Number(centerVessel.lon)
+            ]);
+
+        if(
+            !point ||
+            !Number.isFinite(point.x) ||
+            !Number.isFinite(point.y)
+        ){
+            return;
+        }
+
+        picker.style.left =
+            point.x + "px";
+
+        picker.style.top =
+            point.y + "px";
+
+        picker.addEventListener(
+            "click",
+            function(event){
+                const closeButton =
+                    event.target.closest(
+                        "[data-overlap-close]"
+                    );
+
+                if(closeButton){
+                    event.preventDefault();
+                    closeOverlapPicker();
+                    return;
+                }
+
+                const item =
+                    event.target.closest(
+                        "[data-overlap-mmsi]"
+                    );
+
+                if(!item){
+                    return;
+                }
+
+                event.preventDefault();
+
+                const mmsi =
+                    String(
+                        item.dataset.overlapMmsi || ""
+                    ).trim();
+
+                closeOverlapPicker();
+
+                if(!/^\\d{9}$/.test(mmsi)){
+                    return;
+                }
+
+                selectedMmsi = mmsi;
+                renderMarkers();
+                loadVesselDetails(
+                    mmsi,
+                    true
+                );
+            }
+        );
+
+        mapElement.appendChild(picker);
+
+        overlapPicker = picker;
+
+        requestAnimationFrame(function(){
+            if(
+                !overlapPicker ||
+                overlapPicker !== picker
+            ){
+                return;
+            }
+
+            const width =
+                mapElement.clientWidth;
+
+            const height =
+                mapElement.clientHeight;
+
+            const margin = 8;
+            const pickerWidth =
+                picker.offsetWidth;
+
+            const pickerHeight =
+                picker.offsetHeight;
+
+            const halfWidth =
+                pickerWidth / 2;
+
+            const halfHeight =
+                pickerHeight / 2;
+
+            const clampedX =
+                Math.max(
+                    halfWidth + margin,
+                    Math.min(
+                        width - halfWidth - margin,
+                        point.x
+                    )
+                );
+
+            const clampedY =
+                Math.max(
+                    halfHeight + margin,
+                    Math.min(
+                        height - halfHeight - margin,
+                        point.y
+                    )
+                );
+
+            picker.style.left =
+                clampedX + "px";
+
+            picker.style.top =
+                clampedY + "px";
+        });
+    }
+
+    function closeOverlapPicker(){
+        if(!overlapPicker){
+            return;
+        }
+
+        if(
+            overlapPicker.parentNode
+        ){
+            overlapPicker.parentNode.removeChild(
+                overlapPicker
+            );
+        }
+
+        overlapPicker = null;
     }
 
     function clearMarkers(){
