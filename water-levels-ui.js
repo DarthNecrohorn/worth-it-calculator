@@ -57,9 +57,11 @@
 
     const WATER_STATIONS_CACHE = {
         CACHE_KEY: "worthIt.waterLevels.stations.v8",
-        TTL_MS: 30 * 60 * 1000,
+        TTL_MS: 2 * 60 * 60 * 1000,
         STALE_MS: 24 * 60 * 60 * 1000
     };
+
+    let waterRefreshAvailabilityTimer = null;
 
     const state = {
         stations: [],
@@ -110,6 +112,8 @@
             return {
                 stations: parsed.stations,
                 location: parsed.location || null,
+                timestamp: Number(parsed.timestamp),
+                ageMs: age,
                 fresh:
                     age <= WATER_STATIONS_CACHE.TTL_MS
             };
@@ -2809,6 +2813,7 @@
                 : [150,300,600,1000,2000];
 
         const byStation = new Map();
+        let usedStaleCache = false;
 
         function candidateIdentity(station){
             if(!station) return "";
@@ -2869,6 +2874,15 @@
                 }
             );
 
+            const cacheState =
+                String(
+                    response.headers.get("X-Water-Cache") || ""
+                ).toUpperCase();
+
+            if(cacheState === "STALE-ERROR"){
+                usedStaleCache = true;
+            }
+
             const data = await response.json().catch(function(){
                 return null;
             });
@@ -2918,7 +2932,10 @@
             }
         }
 
-        return Array.from(byStation.values());
+        return {
+            stations: Array.from(byStation.values()),
+            usedStaleCache
+        };
     }
 
     async function loadLocationPersonalizedStations(
@@ -2942,11 +2959,23 @@
                 })
             ]);
 
+        const usedStaleCache =
+            results.some(function(result){
+                return result && result.usedStaleCache;
+            });
+
         const candidates =
-            results.flat();
+            results.flatMap(function(result){
+                return result && Array.isArray(result.stations)
+                    ? result.stations
+                    : [];
+            });
 
         if(!candidates.length){
-            return [];
+            return {
+                stations: [],
+                usedStaleCache
+            };
         }
 
         /*
@@ -3387,9 +3416,12 @@
             }
         }
 
-        return finalItems.map(function(item){
-            return item.station;
-        });
+        return {
+            stations: finalItems.map(function(item){
+                return item.station;
+            }),
+            usedStaleCache
+        };
     }
 
     async function loadStations(options){
@@ -3505,12 +3537,18 @@
                     .trim()
                     .toUpperCase();
 
-                const personalizedStations =
+                const personalizedResult =
                     await loadLocationPersonalizedStations(
                         location,
                         controller,
                         Boolean(options.force)
                     );
+
+                const personalizedStations =
+                    personalizedResult &&
+                    Array.isArray(personalizedResult.stations)
+                        ? personalizedResult.stations
+                        : [];
 
                 if(
                     stationsRequest !== controller
@@ -3546,11 +3584,19 @@
                 state.error = "";
                 state.loading = false;
 
-                saveStationsCache(
-                    query,
-                    personalizedStations,
-                    location
-                );
+                if(
+                    !(
+                        options.force &&
+                        personalizedResult &&
+                        personalizedResult.usedStaleCache
+                    )
+                ){
+                    saveStationsCache(
+                        query,
+                        personalizedStations,
+                        location
+                    );
+                }
 
                 updateRefreshAvailability();
                 renderCards();
@@ -4596,13 +4642,103 @@
 
         input.addEventListener(
             "input",
-            scheduleSearch
+            function(){
+                scheduleSearch();
+                updateRefreshAvailability();
+            }
         );
 
         input.addEventListener(
             "search",
-            scheduleSearch
+            function(){
+                scheduleSearch();
+                updateRefreshAvailability();
+            }
         );
+    }
+
+    function getCurrentRefreshCacheContext(){
+        const input =
+            get("waterLevelsSearch");
+
+        const query =
+            input
+                ? input.value.trim()
+                : "";
+
+        const locationCountry =
+            state.location &&
+            state.location.countryName
+                ? state.location.countryName
+                : (
+                    !query
+                        ? (
+                            readWaterLocationCache() &&
+                            readWaterLocationCache().countryName
+                                ? readWaterLocationCache().countryName
+                                : null
+                        )
+                        : null
+                );
+
+        return {
+            query,
+            country: locationCountry
+        };
+    }
+
+    function getRefreshCooldownRemaining(){
+        const context =
+            getCurrentRefreshCacheContext();
+
+        const cached =
+            readStationsCache(
+                context.query,
+                context.country
+            );
+
+        if(
+            !cached ||
+            !cached.stations.length ||
+            !Number.isFinite(Number(cached.ageMs))
+        ){
+            return 0;
+        }
+
+        return Math.max(
+            0,
+            WATER_STATIONS_CACHE.TTL_MS -
+            Number(cached.ageMs)
+        );
+    }
+
+    function formatRefreshCountdown(milliseconds){
+        const totalMinutes =
+            Math.max(
+                1,
+                Math.ceil(
+                    milliseconds / 60000
+                )
+            );
+
+        const hours =
+            Math.floor(
+                totalMinutes / 60
+            );
+
+        const minutes =
+            totalMinutes % 60;
+
+        if(hours > 0){
+            return (
+                hours +
+                "h " +
+                String(minutes).padStart(2,"0") +
+                "m"
+            );
+        }
+
+        return totalMinutes + "m";
     }
 
     function updateRefreshAvailability(){
@@ -4611,18 +4747,51 @@
 
         if(!button) return;
 
+        window.clearTimeout(
+            waterRefreshAvailabilityTimer
+        );
+
         const isBusy =
             !!state.loading;
 
+        const remaining =
+            getRefreshCooldownRemaining();
+
+        const cooldownActive =
+            remaining > 0;
+
         button.disabled =
-            isBusy;
+            isBusy ||
+            cooldownActive;
 
         button.setAttribute(
             "aria-disabled",
-            isBusy
+            button.disabled
                 ? "true"
                 : "false"
         );
+
+        if(cooldownActive){
+            button.title =
+                "Refresh available in " +
+                formatRefreshCountdown(remaining) +
+                ".";
+            
+            waterRefreshAvailabilityTimer =
+                window.setTimeout(
+                    function(){
+                        updateRefreshAvailability();
+                    },
+                    Math.min(
+                        remaining + 100,
+                        60000
+                    )
+                );
+        }
+        else{
+            button.title =
+                "Refresh checks for newer Copernicus water-level station data.";
+        }
     }
 
     function setupRefresh(){
@@ -4640,7 +4809,11 @@
                 "click",
                 function(){
 
-                    if(button.disabled){
+                    if(
+                        button.disabled ||
+                        getRefreshCooldownRemaining() > 0
+                    ){
+                        updateRefreshAvailability();
                         return;
                     }
 
