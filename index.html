@@ -6,7 +6,8 @@
 <meta name="description" content="Worth It Calculator - smart calculators for cars, money, technology, home and everyday purchases.">
 <title>Worth It — Smart Decision Calculators</title>
 
-    <link rel="stylesheet" href="style.css?v=waterlevels3">  
+    <link rel="stylesheet" href="style.css?v=waterlevels3">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">  
 
 </head>
 
@@ -2051,19 +2052,17 @@
     </div>
 
     <div class="ship-tracking-map-card" id="shipTrackingMapCard">
-        <div class="ship-tracking-map-placeholder">
-            <div class="ship-tracking-map-icon">🗺️</div>
-            <strong>Live vessel map</strong>
-            <span>The map is prepared for live AIS vessel positions and will populate when the Ship Tracking API is connected.</span>
-        </div>
+        <div class="ship-tracking-map" id="shipTrackingMap" aria-label="Live vessel map"></div>
     </div>
 
     <div class="ship-tracking-grid" id="shipTrackingGrid"></div>
 
+    <div class="ship-tracking-detail" id="shipTrackingDetail" hidden></div>
+
     <div class="ship-tracking-attribution">
         <div>
             <strong>Data source</strong>
-            <span>AIS data from Pelyr (pelyr.com), Pelyr Data Licence 1.1</span>
+            <span id="shipTrackingAttributionText">AIS source attribution will appear with the live vessel data.</span>
         </div>
         <a href="https://pelyr.com/" target="_blank" rel="noopener noreferrer">
             View Pelyr AIS platform ↗
@@ -2309,6 +2308,7 @@ try{
 <script src="markets-ui.js?v=2"></script>
 <script src="crypto-ui.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/topojson-client@3/dist/topojson-client.min.js"></script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="water-levels-ui.js?v=waterlevels59"></script>
 <script src="ship-tracking-ui.js?v=shiptracking2"></script>
 <script src="currencies-ui.js?v=2"></script>
