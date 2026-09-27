@@ -502,15 +502,21 @@
             if(satelliteLayer){
                 satelliteLayer.bringToBack();
             }
-        }else if(level === "default"){
+        }else{
+            /*
+             * Keep the exact same OSM base map for Default, Medium and
+             * Nothing. The controls are intended to reduce the amount of
+             * geographic text only; they must never change the map colors
+             * or replace the normal map with a gray/blank background.
+             *
+             * OSM raster tiles contain their labels directly in the tile
+             * image, so labels cannot safely be removed with CSS/Leaflet.
+             * A future vector-tile layer can provide true text-density
+             * control without changing the base-map appearance.
+             */
             defaultMapLayer.addTo(map);
             defaultMapLayer.bringToBack();
-        }else if(level === "medium"){
-            mediumInfoLayer.addTo(map);
-            mediumInfoLayer.bringToBack();
         }
-        // "nothing" intentionally leaves only the map background with no
-        // geographic labels, roads, rivers, lakes, POIs or place information.
 
         if(markerLayer){
             markerLayer.bringToFront();
