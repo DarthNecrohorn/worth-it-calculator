@@ -201,11 +201,11 @@
         }).setView([20, 0], 2);
 
         /*
-         * Use NASA GIBS satellite raster tiles for the base world map.
-         * Raster tiles handle the antimeridian correctly, so continents,
-         * islands and peninsulas stay geographically aligned.
+         * Start with the normal map. Satellite imagery is available as
+         * an optional layer and is not loaded until the user selects it.
          */
-        addSatelliteBaseLayer();
+        addDefaultBaseLayer();
+        addBaseMapSwitcher();
 
         markerLayer = L.layerGroup().addTo(map);
 
@@ -222,7 +222,32 @@
         }, 50);
     }
 
+    let defaultMapLayer = null;
     let satelliteLayer = null;
+    let activeBaseMap = "default";
+
+    function addDefaultBaseLayer(){
+        if(!map || defaultMapLayer){
+            return;
+        }
+
+        defaultMapLayer = L.tileLayer(
+            "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+            {
+                minZoom: 2,
+                maxZoom: 19,
+                noWrap: false,
+                attribution:
+                    '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap</a> contributors',
+                crossOrigin: true,
+                keepBuffer: 2,
+                updateWhenIdle: true,
+                updateWhenZooming: false
+            }
+        ).addTo(map);
+
+        defaultMapLayer.bringToBack();
+    }
 
     function addSatelliteBaseLayer(){
         if(!map){
@@ -255,17 +280,183 @@
         satelliteLayer.bringToBack();
     }
 
-    function refreshSatelliteBaseLayer(){
+    function addBaseMapSwitcher(){
         if(!map){
+            return;
+        }
+
+        const BaseMapSwitcher = L.Control.extend({
+            options: {
+                position: "topleft"
+            },
+
+            onAdd: function(){
+                const container =
+                    L.DomUtil.create(
+                        "div",
+                        "leaflet-control ship-tracking-map-switcher"
+                    );
+
+                const defaultButton =
+                    L.DomUtil.create(
+                        "button",
+                        "ship-tracking-map-switcher-btn active",
+                        container
+                    );
+
+                const satelliteButton =
+                    L.DomUtil.create(
+                        "button",
+                        "ship-tracking-map-switcher-btn",
+                        container
+                    );
+
+                defaultButton.type = "button";
+                satelliteButton.type = "button";
+
+                defaultButton.textContent = "Default map";
+                satelliteButton.textContent = "Satellite map";
+
+                defaultButton.setAttribute(
+                    "aria-pressed",
+                    "true"
+                );
+
+                satelliteButton.setAttribute(
+                    "aria-pressed",
+                    "false"
+                );
+
+                L.DomEvent.disableClickPropagation(container);
+                L.DomEvent.disableScrollPropagation(container);
+
+                L.DomEvent.on(
+                    defaultButton,
+                    "click",
+                    function(){
+                        switchBaseMap("default");
+                    }
+                );
+
+                L.DomEvent.on(
+                    satelliteButton,
+                    "click",
+                    function(){
+                        switchBaseMap("satellite");
+                    }
+                );
+
+                container._defaultButton = defaultButton;
+                container._satelliteButton = satelliteButton;
+
+                map._shipTrackingBaseMapSwitcher = container;
+
+                return container;
+            }
+        });
+
+        map.addControl(new BaseMapSwitcher());
+    }
+
+    function updateBaseMapSwitcher(){
+        const control = map && map._shipTrackingBaseMapSwitcher;
+
+        if(!control){
+            return;
+        }
+
+        const defaultActive = activeBaseMap === "default";
+
+        control._defaultButton.classList.toggle(
+            "active",
+            defaultActive
+        );
+
+        control._satelliteButton.classList.toggle(
+            "active",
+            !defaultActive
+        );
+
+        control._defaultButton.setAttribute(
+            "aria-pressed",
+            defaultActive ? "true" : "false"
+        );
+
+        control._satelliteButton.setAttribute(
+            "aria-pressed",
+            defaultActive ? "false" : "true"
+        );
+    }
+
+    function switchBaseMap(mode){
+        if(!map){
+            return;
+        }
+
+        if(mode !== "default" && mode !== "satellite"){
+            return;
+        }
+
+        if(activeBaseMap === mode){
+            return;
+        }
+
+        if(mode === "satellite"){
+            if(!satelliteLayer){
+                addSatelliteBaseLayer();
+            }else{
+                satelliteLayer.addTo(map);
+            }
+
+            if(defaultMapLayer){
+                map.removeLayer(defaultMapLayer);
+            }
+
+            activeBaseMap = "satellite";
+        }else{
+            addDefaultBaseLayer();
+
+            if(satelliteLayer){
+                map.removeLayer(satelliteLayer);
+            }
+
+            if(defaultMapLayer){
+                defaultMapLayer.addTo(map);
+                defaultMapLayer.bringToBack();
+            }
+
+            activeBaseMap = "default";
+        }
+
+        if(markerLayer){
+            markerLayer.bringToFront();
+        }
+
+        updateBaseMapSwitcher();
+        map.invalidateSize({
+            pan: false
+        });
+    }
+
+    function refreshSatelliteBaseLayer(){
+        if(
+            !map ||
+            activeBaseMap !== "satellite"
+        ){
             return;
         }
 
         const previous = satelliteLayer;
 
+        satelliteLayer = null;
         addSatelliteBaseLayer();
 
         if(previous){
             map.removeLayer(previous);
+        }
+
+        if(markerLayer){
+            markerLayer.bringToFront();
         }
 
         map.invalidateSize({
