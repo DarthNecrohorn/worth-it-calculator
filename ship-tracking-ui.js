@@ -823,6 +823,7 @@
          * selector controls the normal geographic map only.
          */
         if(activeBaseMap === "satellite"){
+            setInfoVectorVisible(false);
             bringVesselMarkersToFront();
             renderMarkers();
             return;
@@ -830,16 +831,39 @@
 
         addDefaultBaseLayer();
 
-        if(defaultMapLayer && map.hasLayer(defaultMapLayer)){
-            map.removeLayer(defaultMapLayer);
+        /*
+         * DEFAULT is deliberately the original OSM raster layer. This
+         * preserves the existing map appearance exactly.
+         */
+        if(markerInfoLevel === "default"){
+            setInfoVectorVisible(false);
+
+            if(defaultMapLayer && !map.hasLayer(defaultMapLayer)){
+                defaultMapLayer.addTo(map);
+            }
+
+            if(defaultMapLayer){
+                defaultMapLayer.bringToBack();
+            }
+
+            bringVesselMarkersToFront();
+            renderMarkers();
+            map.invalidateSize({ pan: false });
+            return;
         }
 
-        setInfoVectorVisible(true);
-        applyInfoVectorLevel();
-
+        /*
+         * Medium/Nothing use the same OpenStreetMap-derived geography in
+         * the vector renderer, with only its text/symbol visibility changed.
+         * Keep the original OSM map visible until the vector renderer is
+         * actually ready, preventing a blank-map flash.
+         */
         ensureInfoVectorMap()
             .then(function(){
-                if(activeBaseMap !== "default"){
+                if(
+                    !map ||
+                    activeBaseMap !== "default"
+                ){
                     return;
                 }
 
@@ -847,17 +871,17 @@
                     map.removeLayer(defaultMapLayer);
                 }
 
-                setInfoVectorVisible(true);
                 syncInfoVectorMap();
                 applyInfoVectorLevel();
+                setInfoVectorVisible(true);
                 bringVesselMarkersToFront();
                 renderMarkers();
                 map.invalidateSize({ pan: false });
             })
             .catch(function(error){
                 /*
-                 * Safe fallback: never leave the map with no geography.
-                 * Restore the unchanged Default OSM map if the renderer
+                 * Safe fallback: never leave the map without geography.
+                 * Restore the unchanged OSM Default map if the renderer
                  * cannot initialize.
                  */
                 console.warn(
