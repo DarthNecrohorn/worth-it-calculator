@@ -30,7 +30,7 @@ const WATER_DATASETS = {
     lakes: "wl-lakes_global_vector_daily_v2"
 };
 
-const WATER_CACHE_VERSION = "v46";
+const WATER_CACHE_VERSION = "v47";
 
 const STATIONS_CACHE_TTL_SECONDS =
     6 * 60 * 60;
@@ -52,7 +52,7 @@ const HISTORY_STALE_TTL_SECONDS =
 
 const MAX_STATION_RESULTS = 800;
 const MAX_HISTORY_POINTS = 1200;
-const ODATA_TIMEOUT_MS = 20000;
+const ODATA_TIMEOUT_MS = 30000;
 const DOWNLOAD_TIMEOUT_MS = 60000;
 
 let memoryToken = null;
