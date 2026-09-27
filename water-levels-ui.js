@@ -3520,9 +3520,10 @@
 
                 /*
                  * Fresh browser cache is enough for the landing view.
-                 * Stale cache remains visible while the fresh request runs.
+                 * Schedule the next automatic check from this successful load.
                  */
                 if(cached.fresh){
+                    scheduleWaterLevelsAutoRefresh();
                     return;
                 }
             }
@@ -3601,6 +3602,7 @@
                 }
 
                 renderCards();
+                scheduleWaterLevelsAutoRefresh();
                 return;
             }
 
@@ -3691,6 +3693,7 @@
             );
 
             renderCards();
+            scheduleWaterLevelsAutoRefresh();
 
         }
         catch(error){
