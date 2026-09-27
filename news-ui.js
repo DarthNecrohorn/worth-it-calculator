@@ -639,7 +639,11 @@ async function loadNews() {
 
     document.documentElement.classList.remove("settings-open");
 
-function openNews() {
+function openNews()
+
+    if(typeof window.hideShipTrackingSection === "function"){
+        window.hideShipTrackingSection();
+    } {
 
     if (typeof window.hideWaterLevelsSection === "function") {
         window.hideWaterLevelsSection();
