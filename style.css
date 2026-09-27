@@ -11606,13 +11606,17 @@ html[data-theme="light"] .ship-tracking-map-card{background:var(--card-solid,#ff
 
 .ship-tracking-map-switcher{
     margin-top:8px !important;
-    display:flex;
-    flex-direction:column;
-    gap:4px;
+    display:flex !important;
+    flex-direction:column !important;
+    align-items:stretch !important;
+    width:max-content;
+    gap:6px !important;
 }
 
 .ship-tracking-map-switcher-btn{
-    min-width:96px;
+    display:block;
+    width:112px;
+    min-width:112px;
     min-height:31px;
     padding:5px 9px;
     border:1px solid rgba(17,24,39,.22);
