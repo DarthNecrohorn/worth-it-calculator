@@ -856,36 +856,6 @@
         });
     }
 
-    let worldMapPromise = null;
-    let worldLayer = null;
-    let oceanLayer = null;
-
-    function loadWorldMapLayer(){
-        /*
-         * Base world geography is already provided by the Leaflet
-         * raster tile layer in setupMap(). Keep this function so the
-         * existing initialization flow remains unchanged.
-         */
-        if(!map){
-            return;
-        }
-
-        if(worldLayer){
-            return;
-        }
-
-        worldLayer = true;
-        return Promise.resolve();
-    }
-
-    function scheduleMapLoad(force){
-        window.clearTimeout(mapLoadTimer);
-
-        mapLoadTimer = window.setTimeout(function(){
-            loadVisibleVessels(Boolean(force));
-        }, force ? 20 : CONFIG.MAP_LOAD_DEBOUNCE_MS);
-    }
-
     async function loadVisibleVessels(force){
         if(!map){
             return;
