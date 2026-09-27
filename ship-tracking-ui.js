@@ -252,7 +252,7 @@
                 oceanLayer.bringToBack();
 
                 const response = await fetch(
-                    "https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json",
+                    "https://cdn.jsdelivr.net/npm/world-atlas@2/land-110m.json",
                     {
                         method: "GET",
                         headers: {
@@ -274,15 +274,20 @@
                 if(
                     !topology ||
                     !topology.objects ||
-                    !topology.objects.countries
+                    !topology.objects.land
                 ){
-                    throw new Error("World map geometry is unavailable.");
+                    throw new Error("World land geometry is unavailable.");
                 }
 
+                /*
+                 * Use one continuous land geometry instead of drawing
+                 * every country as a separate polygon. This avoids
+                 * antialiasing seams that can appear as white lines.
+                 */
                 const geojson =
                     topojson.feature(
                         topology,
-                        topology.objects.countries
+                        topology.objects.land
                     );
 
                 worldLayer = L.geoJSON(
@@ -292,9 +297,9 @@
                         style: {
                             fillColor: "#e8eadc",
                             fillOpacity: 1,
-                            color: "#74817d",
-                            weight: 0.7,
-                            opacity: 0.95
+                            color: "transparent",
+                            weight: 0,
+                            opacity: 1
                         }
                     }
                 ).addTo(map);
