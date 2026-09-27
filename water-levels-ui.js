@@ -61,7 +61,10 @@
         STALE_MS: 24 * 60 * 60 * 1000
     };
 
-    let waterRefreshAvailabilityTimer = null;
+    const WATER_AUTO_REFRESH_INTERVAL_MS =
+        2 * 60 * 60 * 1000;
+
+    let waterAutoRefreshTimer = null;
 
     const state = {
         stations: [],
@@ -3513,7 +3516,6 @@
                 state.error = "";
                 state.loading = false;
 
-                updateRefreshAvailability();
                 renderCards();
 
                 /*
@@ -3598,7 +3600,6 @@
                     );
                 }
 
-                updateRefreshAvailability();
                 renderCards();
                 return;
             }
@@ -3689,7 +3690,6 @@
                 null
             );
 
-            updateRefreshAvailability();
             renderCards();
 
         }
@@ -3712,14 +3712,13 @@
                     }
                     else{
                         state.error =
-                            "The Copernicus water-level request timed out. Please try Refresh again.";
+                            "The Copernicus water-level request timed out. Please try again.";
 
                         renderError(
                             state.error
                         );
                     }
 
-                    updateRefreshAvailability();
                 }
 
                 return;
@@ -3768,7 +3767,6 @@
                     state.error = "";
                     state.loading = false;
 
-                    updateRefreshAvailability();
                     renderCards();
                     return;
                 }
@@ -3785,7 +3783,6 @@
 
             state.loading = false;
 
-            updateRefreshAvailability();
             renderError(
                 state.error
             );
@@ -4642,283 +4639,61 @@
 
         input.addEventListener(
             "input",
-            function(){
-                scheduleSearch();
-                updateRefreshAvailability();
-            }
+            scheduleSearch
         );
 
         input.addEventListener(
             "search",
-            function(){
-                scheduleSearch();
-                updateRefreshAvailability();
-            }
+            scheduleSearch
         );
     }
 
-    function getCurrentRefreshCacheContext(){
-        const input =
-            get("waterLevelsSearch");
-
-        const query =
-            input
-                ? input.value.trim()
-                : "";
-
-        const locationCountry =
-            state.location &&
-            state.location.countryName
-                ? state.location.countryName
-                : (
-                    !query
-                        ? (
-                            readWaterLocationCache() &&
-                            readWaterLocationCache().countryName
-                                ? readWaterLocationCache().countryName
-                                : null
-                        )
-                        : null
-                );
-
-        return {
-            query,
-            country: locationCountry
-        };
-    }
-
-    function getRefreshCooldownRemaining(){
-        const context =
-            getCurrentRefreshCacheContext();
-
-        const cached =
-            readStationsCache(
-                context.query,
-                context.country
-            );
+    function isWaterLevelsAutoRefreshAllowed(){
+        const section =
+            get("waterLevelsSection");
 
         if(
-            !cached ||
-            !cached.stations.length ||
-            !Number.isFinite(Number(cached.ageMs))
+            !section ||
+            section.hidden ||
+            section.style.display === "none"
         ){
-            return 0;
+            return false;
         }
 
-        return Math.max(
-            0,
-            WATER_STATIONS_CACHE.TTL_MS -
-            Number(cached.ageMs)
-        );
+        return document.visibilityState !== "hidden";
     }
 
-    function formatRefreshCountdown(milliseconds){
-        const totalMinutes =
-            Math.max(
-                1,
-                Math.ceil(
-                    milliseconds / 60000
-                )
-            );
-
-        const hours =
-            Math.floor(
-                totalMinutes / 60
-            );
-
-        const minutes =
-            totalMinutes % 60;
-
-        if(hours > 0){
-            return (
-                hours +
-                "h " +
-                String(minutes).padStart(2,"0") +
-                "m"
-            );
-        }
-
-        return totalMinutes + "m";
-    }
-
-    function updateRefreshAvailability(){
-        const button =
-            get("waterLevelsRefresh");
-
-        if(!button) return;
-
+    function scheduleWaterLevelsAutoRefresh(){
         window.clearTimeout(
-            waterRefreshAvailabilityTimer
+            waterAutoRefreshTimer
         );
 
-        const isBusy =
-            !!state.loading;
-
-        const remaining =
-            getRefreshCooldownRemaining();
-
-        const cooldownActive =
-            remaining > 0;
-
-        button.disabled =
-            isBusy ||
-            cooldownActive;
-
-        button.setAttribute(
-            "aria-disabled",
-            button.disabled
-                ? "true"
-                : "false"
-        );
-
-        if(cooldownActive){
-            button.title =
-                "Refresh available in " +
-                formatRefreshCountdown(remaining) +
-                ".";
-            
-            waterRefreshAvailabilityTimer =
-                window.setTimeout(
-                    function(){
-                        updateRefreshAvailability();
-                    },
-                    Math.min(
-                        remaining + 100,
-                        60000
-                    )
-                );
-        }
-        else{
-            button.title =
-                "Refresh checks for newer Copernicus water-level station data.";
-        }
-    }
-
-    function setupRefresh(){
-        const button =
-            get("waterLevelsRefresh");
-
-        if(!button) return;
-
-        updateRefreshAvailability();
-
-        if(button.dataset.ready !== "true"){
-            button.dataset.ready = "true";
-
-            button.addEventListener(
-                "click",
-                function(){
-
+        waterAutoRefreshTimer =
+            window.setTimeout(
+                async function(){
                     if(
-                        button.disabled ||
-                        getRefreshCooldownRemaining() > 0
+                        !state.loading &&
+                        isWaterLevelsAutoRefreshAllowed()
                     ){
-                        updateRefreshAvailability();
-                        return;
+                        try{
+                            await loadStations({
+                                force:false,
+                                preserveCards:true,
+                                automatic:true
+                            });
+                        }
+                        catch(error){
+                            console.warn(
+                                "Water Levels automatic refresh failed:",
+                                error
+                            );
+                        }
                     }
 
-                    loadStations({
-                        force:true,
-                        preserveCards:true
-                    });
-
-                    button.classList.remove(
-                        "is-refreshing"
-                    );
-
-                    void button.offsetWidth;
-
-                    button.classList.add(
-                        "is-refreshing"
-                    );
-
-                    window.clearTimeout(
-                        button._waterRefreshTimer
-                    );
-
-                    button._waterRefreshTimer =
-                        window.setTimeout(
-                            function(){
-                                button.classList.remove(
-                                    "is-refreshing"
-                                );
-                            },
-                            600
-                        );
-
-                }
+                    scheduleWaterLevelsAutoRefresh();
+                },
+                WATER_AUTO_REFRESH_INTERVAL_MS
             );
-        }
-    }
-
-    function setupRefreshInfo(){
-        const button =
-            get("waterLevelsRefreshInfoButton");
-
-        const popover =
-            get("waterLevelsRefreshInfo");
-
-        if(
-            !button ||
-            !popover ||
-            button.dataset.ready === "true"
-        ){
-            return;
-        }
-
-        button.dataset.ready = "true";
-
-        function close(){
-            popover.hidden = true;
-            button.setAttribute(
-                "aria-expanded",
-                "false"
-            );
-        }
-
-        function toggle(){
-            popover.hidden =
-                !popover.hidden;
-
-            button.setAttribute(
-                "aria-expanded",
-                popover.hidden
-                    ? "false"
-                    : "true"
-            );
-        }
-
-        button.addEventListener(
-            "click",
-            function(event){
-                event.stopPropagation();
-                toggle();
-            }
-        );
-
-        document.addEventListener(
-            "click",
-            function(event){
-                if(
-                    popover.hidden ||
-                    popover.contains(event.target) ||
-                    event.target === button
-                ){
-                    return;
-                }
-
-                close();
-            }
-        );
-
-        document.addEventListener(
-            "keydown",
-            function(event){
-                if(event.key === "Escape"){
-                    close();
-                }
-            }
-        );
     }
 
     function setupCardActions(){
@@ -5121,9 +4896,7 @@
 
         setupFilters();
         setupSearch();
-        setupRefresh();
-        setupRefreshInfo();
-        updateRefreshAvailability();
+        scheduleWaterLevelsAutoRefresh();
         setupCardActions();
         setupDetailModal();
         setupKeyboard();
