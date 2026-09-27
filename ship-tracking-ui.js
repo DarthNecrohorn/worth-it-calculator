@@ -697,7 +697,53 @@
                     '<span class="ship-tracking-vessel-time">' +
                         escapeHtml(freshness) +
                     '</span>' +
-     function setMarkerInfoLevel(level){
+                '</div>' +
+            '</article>'
+        );
+    }
+
+    function renderMarkers(){
+        if(!markerLayer){
+            return;
+        }
+
+        clearMarkers();
+
+        const filtered = getFilteredVessels();
+
+        filtered.forEach(function(vessel){
+            const marker = L.circleMarker(
+                [Number(vessel.lat), Number(vessel.lon)],
+                {
+                    radius: selectedMmsi === String(vessel.mmsi) ? 7 : 5,
+                    weight: 1.5,
+                    fillOpacity: 0.75,
+                    opacity: 0.9
+                }
+            );
+
+            marker.on("click", function(){
+                selectedMmsi = String(vessel.mmsi);
+                renderMarkers();
+                loadVesselDetails(vessel.mmsi, true);
+            });
+
+            marker.bindTooltip(
+                escapeHtml(vessel.name || "Unknown vessel") +
+                    "<br>MMSI " +
+                    escapeHtml(vessel.mmsi),
+                {
+                    direction:"top",
+                    offset:[0,-6],
+                    opacity:0.95
+                }
+            );
+
+            marker.addTo(markerLayer);
+        });
+    }
+
+    function setMarkerInfoLevel(level){
         if(level !== "default" && level !== "medium" && level !== "nothing"){
             return;
         }
