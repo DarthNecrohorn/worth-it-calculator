@@ -11082,7 +11082,7 @@ function handleVehicleSearch(
  * ============================================================
  */
 
-async function openCars()
+async function openCars() {
 
     if(typeof window.hideShipTrackingSection === "function"){
         window.hideShipTrackingSection();
