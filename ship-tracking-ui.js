@@ -252,7 +252,7 @@
                 oceanLayer.bringToBack();
 
                 const response = await fetch(
-                    "https://cdn.jsdelivr.net/npm/world-atlas@2/land-110m.json",
+                    "https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json",
                     {
                         method: "GET",
                         headers: {
@@ -274,20 +274,20 @@
                 if(
                     !topology ||
                     !topology.objects ||
-                    !topology.objects.land
+                    !topology.objects.countries
                 ){
-                    throw new Error("World land geometry is unavailable.");
+                    throw new Error("World map geometry is unavailable.");
                 }
 
                 /*
-                 * Use one continuous land geometry instead of drawing
-                 * every country as a separate polygon. This avoids
-                 * antialiasing seams that can appear as white lines.
+                 * Keep the Natural Earth country geometry. The land-only
+                 * dissolved geometry can contain antimeridian-spanning
+                 * rings that Leaflet may connect across the map.
                  */
                 const geojson =
                     topojson.feature(
                         topology,
-                        topology.objects.land
+                        topology.objects.countries
                     );
 
                 worldLayer = L.geoJSON(
