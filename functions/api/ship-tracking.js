@@ -692,10 +692,38 @@ async function getSourceMap(context, apiKey, force){
             })
         : [];
 
-    return {
+    const normalizedBody = {
         ok: true,
         generated_at: data.body.generated_at || null,
         sources
+    };
+
+    /*
+     * The source directory changes rarely. Cache the normalized
+     * copy so vessel/detail/track requests do not repeatedly spend
+     * the provider's 1-request/minute sources budget.
+     */
+    await writeCache(
+        context,
+        key,
+        jsonResponse(
+            normalizedBody,
+            200,
+            {
+                "Cache-Control":
+                    "public, max-age=" +
+                    SOURCE_CACHE_TTL_SECONDS,
+                "CDN-Cache-Control":
+                    "public, max-age=" +
+                    SOURCE_CACHE_TTL_SECONDS
+            }
+        )
+    );
+
+    return {
+        ok: true,
+        generated_at: normalizedBody.generated_at,
+        sources: normalizedBody.sources
     };
 }
 
@@ -977,9 +1005,6 @@ function isIsoUtc(value){
     );
 }
 
-function asyncDelay(){
-    return Promise.resolve();
-}
 
 async function dedupe(key, producer){
     if(inFlight.has(key)){
