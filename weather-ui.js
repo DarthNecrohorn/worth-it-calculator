@@ -91,6 +91,10 @@ function $(id){
 
 function openWeather(){
 
+    if(typeof window.hideShipTrackingSection === "function"){
+        window.hideShipTrackingSection();
+    }
+
     if(typeof window.hideWaterLevelsSection === "function"){
         window.hideWaterLevelsSection();
     }

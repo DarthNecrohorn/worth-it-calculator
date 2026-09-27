@@ -11084,6 +11084,10 @@ function handleVehicleSearch(
 
 async function openCars() {
 
+    if(typeof window.hideShipTrackingSection === "function"){
+        window.hideShipTrackingSection();
+    }
+
     if (typeof window.hideWaterLevelsSection === "function") {
         window.hideWaterLevelsSection();
     }

@@ -2477,6 +2477,25 @@ function hideWaterLevelsSection() {
 }
 window.hideWaterLevelsSection = hideWaterLevelsSection;
 
+function hideShipTrackingSection() {
+    const shipTrackingSection =
+        document.getElementById("shipTrackingSection");
+
+    if(shipTrackingSection){
+        shipTrackingSection.style.display = "none";
+    }
+}
+window.hideShipTrackingSection = hideShipTrackingSection;
+
+function openShipTrackingFromMenu(){
+    closeMoreMenu();
+
+    if(typeof window.openShipTracking === "function"){
+        window.openShipTracking();
+    }
+}
+window.openShipTrackingFromMenu = openShipTrackingFromMenu;
+
 function openDiscountsFromMenu() {
     closeMoreMenu();
 
@@ -2519,6 +2538,8 @@ function openWaterLevelsFromMenu() {
 window.openWaterLevelsFromMenu = openWaterLevelsFromMenu;
 
 function openWaterLevels() {
+    hideShipTrackingSection();
+
     document.documentElement.classList.remove("settings-open");
 
     hideCarsNavigationUi();
@@ -2591,6 +2612,63 @@ function openWaterLevels() {
 
 window.openWaterLevels = openWaterLevels;
 
+function openShipTracking(){
+
+    document.documentElement.classList.remove("settings-open");
+
+    hideCarsNavigationUi();
+    hideWaterLevelsSection();
+
+    const homePage = document.getElementById("homePage");
+    const weatherSection = document.getElementById("weatherSection");
+    const newsSection = document.getElementById("newsSection");
+    const discountsSection = document.getElementById("discountsSection");
+    const marketsSection = document.getElementById("marketsSection");
+    const moneySection = document.getElementById("moneySection");
+    const cryptoSection = document.getElementById("cryptoSection");
+    const carsSection = document.getElementById("carsSection");
+    const settingsPanel = document.getElementById("settingsPanel");
+    const shipTrackingSection = document.getElementById("shipTrackingSection");
+    const shopSection = document.getElementById("shopSection");
+
+    if(homePage) homePage.style.display = "none";
+    if(weatherSection) weatherSection.style.display = "none";
+    if(newsSection) newsSection.style.display = "none";
+    if(discountsSection) discountsSection.style.display = "none";
+    if(marketsSection) marketsSection.style.display = "none";
+    if(moneySection) moneySection.style.display = "none";
+    if(cryptoSection) cryptoSection.style.display = "none";
+    if(carsSection) carsSection.style.display = "none";
+    if(settingsPanel) settingsPanel.style.display = "none";
+    if(shopSection) shopSection.style.display = "none";
+
+    document.querySelectorAll(".app").forEach(function(x){
+        x.classList.remove("active");
+        x.style.display = "none";
+    });
+
+    if(shipTrackingSection){
+        shipTrackingSection.style.display = "block";
+    }
+
+    const navLinks = document.getElementById("navLinks");
+    if(navLinks) navLinks.classList.remove("open");
+
+    document.documentElement.style.overflowY = "auto";
+    document.body.style.overflowY = "auto";
+
+    if(typeof window.initShipTrackingUI === "function"){
+        window.initShipTrackingUI();
+    }
+
+    window.scrollTo({
+        top:0,
+        behavior:"auto"
+    });
+}
+
+window.openShipTracking = openShipTracking;
+
 function openCryptoFromMenu() {
     closeMoreMenu();
     if (typeof window.openCrypto === "function") {
@@ -2601,6 +2679,8 @@ function openCryptoFromMenu() {
 window.openCryptoFromMenu = openCryptoFromMenu;
 
 function openCrypto() {
+    hideShipTrackingSection();
+
 
     document.documentElement.classList.remove("settings-open");
     hideWaterLevelsSection();
@@ -2662,6 +2742,8 @@ function openMoneyFromMenu() {
 window.openMoneyFromMenu = openMoneyFromMenu;
 
 function openMarkets() {
+    hideShipTrackingSection();
+
 
     document.documentElement.classList.remove("settings-open");
     hideWaterLevelsSection();
@@ -2755,6 +2837,8 @@ if (moneySection) {
 window.openMarkets = openMarkets;
 
 function openMoney() {
+    hideShipTrackingSection();
+
 
     document.documentElement.classList.remove("settings-open");
     hideWaterLevelsSection();

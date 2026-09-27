@@ -264,6 +264,10 @@
 
 window.openShop = function(){
 
+        if (typeof window.hideShipTrackingSection === "function") {
+            window.hideShipTrackingSection();
+        }
+
         if (typeof window.hideWaterLevelsSection === "function") {
             window.hideWaterLevelsSection();
         }

@@ -641,6 +641,10 @@ async function loadNews() {
 
 function openNews() {
 
+    if(typeof window.hideShipTrackingSection === "function"){
+        window.hideShipTrackingSection();
+    }
+
     if (typeof window.hideWaterLevelsSection === "function") {
         window.hideWaterLevelsSection();
     }
