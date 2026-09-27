@@ -11923,6 +11923,39 @@ body.ship-tracking-modal-open{
    SHIP TRACKING — FULL WORLD VECTOR MAP
 ========================================================= */
 
+.ship-tracking-vessel-arrow-wrap{
+    background:transparent !important;
+    border:0 !important;
+    width:auto !important;
+    height:auto !important;
+}
+
+.ship-tracking-vessel-arrow{
+    display:block;
+    width:20px;
+    height:20px;
+    line-height:20px;
+    transform:rotate(var(--ship-arrow-rotation,-90deg));
+    transform-origin:50% 50%;
+    color:var(--primary2,var(--primary));
+    font-family:Arial,sans-serif;
+    font-size:16px;
+    font-weight:900;
+    text-align:center;
+    text-shadow:0 1px 2px rgba(0,0,0,.45);
+    filter:drop-shadow(0 1px 1px rgba(255,255,255,.28));
+    pointer-events:auto;
+}
+
+.ship-tracking-vessel-arrow.is-selected{
+    width:24px;
+    height:24px;
+    line-height:24px;
+    font-size:20px;
+    color:var(--primary,var(--primary2));
+    text-shadow:0 1px 3px rgba(0,0,0,.55);
+}
+
 .ship-tracking-map{
     background:#9fd3ea !important;
 }

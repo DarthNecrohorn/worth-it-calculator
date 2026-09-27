@@ -934,13 +934,34 @@
         const filtered = getFilteredVessels();
 
         filtered.forEach(function(vessel){
-            const marker = L.circleMarker(
+            const selected =
+                selectedMmsi === String(vessel.mmsi);
+
+            const direction =
+                getVesselDirection(vessel);
+
+            const rotation =
+                Number.isFinite(direction)
+                    ? direction - 90
+                    : -90;
+
+            const marker = L.marker(
                 [Number(vessel.lat), Number(vessel.lon)],
                 {
-                    radius: selectedMmsi === String(vessel.mmsi) ? 7 : 5,
-                    weight: 1.5,
-                    fillOpacity: 0.75,
-                    opacity: 0.9
+                    icon: L.divIcon({
+                        className: "ship-tracking-vessel-arrow-wrap",
+                        html:
+                            '<span class="ship-tracking-vessel-arrow' +
+                            (selected ? ' is-selected' : '') +
+                            '" style="--ship-arrow-rotation:' +
+                            rotation.toFixed(2) +
+                            'deg;">➤</span>',
+                        iconSize: selected ? [24,24] : [20,20],
+                        iconAnchor: selected ? [12,12] : [10,10],
+                        tooltipAnchor: [0,-10]
+                    }),
+                    keyboard: false,
+                    zIndexOffset: selected ? 1000 : 0
                 }
             );
 
@@ -963,6 +984,30 @@
 
             marker.addTo(markerLayer);
         });
+    }
+
+    function getVesselDirection(vessel){
+        const heading = Number(vessel && vessel.heading);
+
+        if(
+            Number.isFinite(heading) &&
+            heading >= 0 &&
+            heading < 360
+        ){
+            return heading;
+        }
+
+        const course = Number(vessel && vessel.cog);
+
+        if(
+            Number.isFinite(course) &&
+            course >= 0 &&
+            course < 360
+        ){
+            return course;
+        }
+
+        return null;
     }
 
     function bringVesselMarkersToFront(){
