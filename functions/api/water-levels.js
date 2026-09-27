@@ -1762,7 +1762,9 @@ async function searchDatasetProducts({
                 "Danube",
                 "Dunav",
                 "danube",
-                "dunav"
+                "dunav",
+                "DANUBE",
+                "DUNAV"
             );
         }
 
