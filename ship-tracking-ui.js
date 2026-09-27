@@ -44,9 +44,45 @@
         setupFilters();
         setupSearch();
         setupGridEvents();
-        setupMap(mapElement);
         startAutoRefresh();
-        scheduleMapLoad(true);
+
+        /*
+         * Ship Tracking is loaded while its section is hidden.
+         * Leaflet must not calculate its size until the section is
+         * visible, otherwise map tiles can be positioned incorrectly.
+         */
+        if(section.style.display !== "none"){
+            prepareVisibleMap();
+        }
+    }
+
+    function prepareVisibleMap(){
+        const mapElement = get("shipTrackingMap");
+
+        if(!mapElement){
+            return;
+        }
+
+        setupMap(mapElement);
+
+        if(!map){
+            return;
+        }
+
+        window.requestAnimationFrame(function(){
+            map.invalidateSize({
+                pan: false
+            });
+
+            window.setTimeout(function(){
+                if(map){
+                    map.invalidateSize({
+                        pan: false
+                    });
+                    scheduleMapLoad(true);
+                }
+            }, 120);
+        });
     }
 
     function setupFilters(){
@@ -161,8 +197,12 @@
         });
 
         window.setTimeout(function(){
-            map.invalidateSize();
-        }, 150);
+            if(map){
+                map.invalidateSize({
+                    pan: false
+                });
+            }
+        }, 50);
     }
 
     function scheduleMapLoad(force){
@@ -1151,6 +1191,7 @@
     }
 
     window.initShipTrackingUI = init;
+    window.refreshShipTrackingMap = prepareVisibleMap;
 
     if(document.readyState === "loading"){
         document.addEventListener(
