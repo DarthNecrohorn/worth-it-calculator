@@ -181,12 +181,17 @@
         map = L.map(mapElement, {
             minZoom: 2,
             maxZoom: 18,
+            /*
+             * Keep latitude inside the Web Mercator world, but allow
+             * unlimited horizontal movement so the world can repeat
+             * seamlessly from left to right.
+             */
             maxBounds: [
-                [-85, -180],
-                [85, 180]
+                [-85.051129, -720],
+                [85.051129, 720]
             ],
-            maxBoundsViscosity: 0.85,
-            worldCopyJump: false,
+            maxBoundsViscosity: 0,
+            worldCopyJump: true,
             zoomControl: true,
             zoomSnap: 0.5,
             zoomDelta: 0.5,
@@ -204,6 +209,7 @@
             {
                 minZoom: 2,
                 maxZoom: 19,
+                noWrap: false,
                 attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap</a> contributors',
                 crossOrigin: true
             }
