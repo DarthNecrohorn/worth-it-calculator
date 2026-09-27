@@ -1580,6 +1580,42 @@ async function searchNearbyDatasetProducts({
      * Nearby station normalization needs CLMS attributes so the response
      * contains the river/lake name, basin and station/cell ID.
      */
+    /*
+     * Keep catalogue responses smaller while retaining the CLMS
+     * attributes required to build a station card.
+     */
+    params.set(
+        "$select",
+        [
+            "Id",
+            "Name",
+            "ModificationDate",
+            "PublicationDate",
+            "ContentDate",
+            "GeoFootprint",
+            "Online",
+            "ContentType"
+        ].join(",")
+    );
+
+    /*
+     * Keep catalogue responses smaller while retaining the CLMS
+     * attributes required to build a station card.
+     */
+    params.set(
+        "$select",
+        [
+            "Id",
+            "Name",
+            "ModificationDate",
+            "PublicationDate",
+            "ContentDate",
+            "GeoFootprint",
+            "Online",
+            "ContentType"
+        ].join(",")
+    );
+
     params.set(
         "$expand",
         "Attributes"
@@ -1711,12 +1747,27 @@ async function searchDatasetProducts({
                 ? "wlRiverName"
                 : "wlLakeName";
 
+        /*
+         * Exact water-body/basin matches are checked in addition to
+         * partial matches. This improves reliability for common
+         * multilingual searches such as Danube/Dunav.
+         */
         filter +=
             " and (" +
             [
                 "contains(Name,'" +
                     escapeODataString(query) +
                     "')",
+
+                attributeEquals(
+                    waterBodyAttribute,
+                    query
+                ),
+
+                attributeEquals(
+                    "wlBasinName",
+                    query
+                ),
 
                 attributeContains(
                     waterBodyAttribute,
