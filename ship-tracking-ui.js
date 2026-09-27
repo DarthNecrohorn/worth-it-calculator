@@ -275,6 +275,197 @@
         );
     }
 
+    function addSatelliteBaseLayer(){
+        if(!map){
+            return;
+        }
+
+        const cacheKey = Date.now();
+
+        satelliteLayer = L.tileLayer(
+            "https://gibs-{s}.earthdata.nasa.gov/wmts/epsg3857/best/" +
+            "MODIS_Terra_CorrectedReflectance_TrueColor/default/" +
+            "GoogleMapsCompatible_Level9/{z}/{y}/{x}.jpg" +
+            "?refresh=" + cacheKey,
+            {
+                minZoom: 2,
+                maxZoom: 18,
+                maxNativeZoom: 9,
+                noWrap: false,
+                subdomains: ["a","b","c"],
+                attribution:
+                    "Satellite imagery: NASA GIBS / MODIS Terra " +
+                    "· Sources: NASA",
+                crossOrigin: true,
+                keepBuffer: 2,
+                updateWhenIdle: true,
+                updateWhenZooming: false
+            }
+        ).addTo(map);
+
+        satelliteLayer.bringToBack();
+    }
+
+    function addBaseMapSwitcher(){
+        if(!map){
+            return;
+        }
+
+        const BaseMapSwitcher = L.Control.extend({
+            options: {
+                position: "topleft"
+            },
+
+            onAdd: function(){
+                const container =
+                    L.DomUtil.create(
+                        "div",
+                        "leaflet-control ship-tracking-map-switcher"
+                    );
+
+                const defaultButton =
+                    L.DomUtil.create(
+                        "button",
+                        "ship-tracking-map-switcher-btn active",
+                        container
+                    );
+
+                const satelliteButton =
+                    L.DomUtil.create(
+                        "button",
+                        "ship-tracking-map-switcher-btn",
+                        container
+                    );
+
+                const infoGroup = L.DomUtil.create(
+                    "div",
+                    "ship-tracking-map-info-options",
+                    container
+                );
+
+                const infoLabel = L.DomUtil.create(
+                    "span",
+                    "ship-tracking-map-info-label",
+                    infoGroup
+                );
+                infoLabel.textContent = "Map information";
+
+                const infoOptions = [
+                    { value: "default", label: "Default" },
+                    { value: "medium", label: "Medium" },
+                    { value: "nothing", label: "Nothing" }
+                ];
+
+                const infoButtons = infoOptions.map(function(option){
+                    const label = L.DomUtil.create(
+                        "label",
+                        "ship-tracking-map-info-option",
+                        infoGroup
+                    );
+                    const input = L.DomUtil.create(
+                        "input",
+                        "",
+                        label
+                    );
+                    input.type = "radio";
+                    input.name = "ship-tracking-map-info";
+                    input.value = option.value;
+                    input.checked = option.value === markerInfoLevel;
+
+                    const textNode = L.DomUtil.create(
+                        "span",
+                        "",
+                        label
+                    );
+                    textNode.textContent = option.label;
+
+                    L.DomEvent.on(input, "change", function(){
+                        if(input.checked){
+                            setMarkerInfoLevel(option.value);
+                        }
+                    });
+
+                    return input;
+                });
+
+                defaultButton.type = "button";
+                satelliteButton.type = "button";
+
+                defaultButton.textContent = "Default map";
+                satelliteButton.textContent = "Satellite map";
+
+                defaultButton.setAttribute(
+                    "aria-pressed",
+                    "true"
+                );
+
+                satelliteButton.setAttribute(
+                    "aria-pressed",
+                    "false"
+                );
+
+                L.DomEvent.disableClickPropagation(container);
+                L.DomEvent.disableScrollPropagation(container);
+
+                L.DomEvent.on(
+                    defaultButton,
+                    "click",
+                    function(){
+                        switchBaseMap("default");
+                    }
+                );
+
+                L.DomEvent.on(
+                    satelliteButton,
+                    "click",
+                    function(){
+                        switchBaseMap("satellite");
+                    }
+                );
+
+                container._defaultButton = defaultButton;
+                container._satelliteButton = satelliteButton;
+                container._infoButtons = infoButtons;
+
+                map._shipTrackingBaseMapSwitcher = container;
+
+                return container;
+            }
+        });
+
+        map.addControl(new BaseMapSwitcher());
+    }
+
+    function updateBaseMapSwitcher(){
+        const control = map && map._shipTrackingBaseMapSwitcher;
+
+        if(!control){
+            return;
+        }
+
+        const defaultActive = activeBaseMap === "default";
+
+        control._defaultButton.classList.toggle(
+            "active",
+            defaultActive
+        );
+
+        control._satelliteButton.classList.toggle(
+            "active",
+            !defaultActive
+        );
+
+        control._defaultButton.setAttribute(
+            "aria-pressed",
+            defaultActive ? "true" : "false"
+        );
+
+        control._satelliteButton.setAttribute(
+            "aria-pressed",
+            defaultActive ? "false" : "true"
+        );
+    }
+
     function switchBaseMap(mode){
         if(!map){
             return;
@@ -300,9 +491,7 @@
             if(defaultMapLayer){
                 map.removeLayer(defaultMapLayer);
             }
-            removeInfoVectorLayer();
-
-            activeBaseMap = "satellite";
+activeBaseMap = "satellite";
         }else{
             if(satelliteLayer){
                 map.removeLayer(satelliteLayer);
@@ -781,79 +970,6 @@
 
         renderMarkers();
         map.invalidateSize({ pan: false });
-    }
-
-    function switchBaseMap(mode){
-        if(!map){
-            return;
-        }
-
-        if(mode !== "default" && mode !== "satellite"){
-            return;
-        }
-
-        if(activeBaseMap === mode){
-            return;
-        }
-
-        addDefaultBaseLayer();
-
-        if(mode === "satellite"){
-            if(!satelliteLayer){
-                addSatelliteBaseLayer();
-            }else{
-                satelliteLayer.addTo(map);
-            }
-
-            if(defaultMapLayer){
-                map.removeLayer(defaultMapLayer);
-            }
-            removeInfoVectorLayer();
-
-            activeBaseMap = "satellite";
-        }else{
-            if(satelliteLayer){
-                map.removeLayer(satelliteLayer);
-            }
-
-            activeBaseMap = "default";
-
-            // Restore the selected geographic information level.
-            setMarkerInfoLevel(markerInfoLevel);
-        }
-
-        if(markerLayer){
-            markerLayer.bringToFront();
-        }
-
-        updateBaseMapSwitcher();
-        map.invalidateSize({ pan: false });
-    }
-
-    function refreshSatelliteBaseLayer(){
-        if(
-            !map ||
-            activeBaseMap !== "satellite"
-        ){
-            return;
-        }
-
-        const previous = satelliteLayer;
-
-        satelliteLayer = null;
-        addSatelliteBaseLayer();
-
-        if(previous){
-            map.removeLayer(previous);
-        }
-
-        if(markerLayer){
-            markerLayer.bringToFront();
-        }
-
-        map.invalidateSize({
-            pan: false
-        });
     }
 
     async function loadVisibleVessels(force){
