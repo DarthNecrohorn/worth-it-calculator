@@ -223,6 +223,7 @@
     }
 
     let defaultMapLayer = null;
+    let mediumInfoLayer = null;
     let satelliteLayer = null;
     let activeBaseMap = "default";
     let markerInfoLevel = "default";
@@ -248,6 +249,27 @@
         ).addTo(map);
 
         defaultMapLayer.bringToBack();
+    }
+
+    function addMediumInfoLayer(){
+        if(!map || mediumInfoLayer){
+            return;
+        }
+
+        mediumInfoLayer = L.tileLayer(
+            "https://services.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}",
+            {
+                minZoom: 2,
+                maxZoom: 16,
+                noWrap: false,
+                attribution:
+                    "Sources: Esri, HERE, Garmin, &copy; OpenStreetMap contributors, and the GIS user community",
+                crossOrigin: true,
+                keepBuffer: 2,
+                updateWhenIdle: true,
+                updateWhenZooming: false
+            }
+        );
     }
 
     function addSatelliteBaseLayer(){
@@ -454,6 +476,50 @@
         renderMarkers();
     }
 
+    function setMarkerInfoLevel(level){
+        if(level !== "default" && level !== "medium" && level !== "nothing"){
+            return;
+        }
+
+        markerInfoLevel = level;
+
+        if(!map){
+            return;
+        }
+
+        addDefaultBaseLayer();
+        addMediumInfoLayer();
+
+        if(defaultMapLayer){
+            map.removeLayer(defaultMapLayer);
+        }
+
+        if(mediumInfoLayer){
+            map.removeLayer(mediumInfoLayer);
+        }
+
+        if(activeBaseMap === "satellite"){
+            if(satelliteLayer){
+                satelliteLayer.bringToBack();
+            }
+        }else if(level === "default"){
+            defaultMapLayer.addTo(map);
+            defaultMapLayer.bringToBack();
+        }else if(level === "medium"){
+            mediumInfoLayer.addTo(map);
+            mediumInfoLayer.bringToBack();
+        }
+        // "nothing" intentionally leaves only the map background with no
+        // geographic labels, roads, rivers, lakes, POIs or place information.
+
+        if(markerLayer){
+            markerLayer.bringToFront();
+        }
+
+        renderMarkers();
+        map.invalidateSize({ pan: false });
+    }
+
     function switchBaseMap(mode){
         if(!map){
             return;
@@ -467,6 +533,9 @@
             return;
         }
 
+        addDefaultBaseLayer();
+        addMediumInfoLayer();
+
         if(mode === "satellite"){
             if(!satelliteLayer){
                 addSatelliteBaseLayer();
@@ -477,21 +546,20 @@
             if(defaultMapLayer){
                 map.removeLayer(defaultMapLayer);
             }
+            if(mediumInfoLayer){
+                map.removeLayer(mediumInfoLayer);
+            }
 
             activeBaseMap = "satellite";
         }else{
-            addDefaultBaseLayer();
-
             if(satelliteLayer){
                 map.removeLayer(satelliteLayer);
             }
 
-            if(defaultMapLayer){
-                defaultMapLayer.addTo(map);
-                defaultMapLayer.bringToBack();
-            }
-
             activeBaseMap = "default";
+
+            // Restore the selected information level on the normal map.
+            setMarkerInfoLevel(markerInfoLevel);
         }
 
         if(markerLayer){
@@ -499,9 +567,7 @@
         }
 
         updateBaseMapSwitcher();
-        map.invalidateSize({
-            pan: false
-        });
+        map.invalidateSize({ pan: false });
     }
 
     function refreshSatelliteBaseLayer(){
@@ -910,21 +976,15 @@
                 loadVesselDetails(vessel.mmsi, true);
             });
 
-            if(markerInfoLevel !== "nothing"){
-                const tooltipText = markerInfoLevel === "medium"
-                    ? escapeHtml(vessel.name || "Unknown vessel")
-                    : escapeHtml(vessel.name || "Unknown vessel") +
-                        "<br>MMSI " +
-                        escapeHtml(vessel.mmsi);
-
-                marker.bindTooltip(
-                    tooltipText,
-                    {
-                        direction: "top",
-                        opacity: 0.95
-                    }
-                );
-            }
+            marker.bindTooltip(
+                escapeHtml(vessel.name || "Unknown vessel") +
+                    "<br>MMSI " +
+                    escapeHtml(vessel.mmsi),
+                {
+                    direction: "top",
+                    opacity: 0.95
+                }
+            );
 
             markerLayer.addLayer(marker);
         });
