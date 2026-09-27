@@ -11835,3 +11835,16 @@ html[data-theme="light"] .ship-tracking-map-card{background:var(--card-solid,#ff
         padding:16px;
     }
 }
+
+
+/* =========================================================
+   SHIP TRACKING — FULL WORLD VECTOR MAP
+========================================================= */
+
+.ship-tracking-map{
+    background:#9fd3ea !important;
+}
+
+.ship-tracking-map .leaflet-container{
+    background:#9fd3ea !important;
+}
