@@ -203,6 +203,24 @@
                 return;
             }
 
+            const detailsButton =
+                event.target.closest("[data-ship-details]");
+
+            if(detailsButton && overlay.contains(detailsButton)){
+                event.preventDefault();
+
+                const mmsi =
+                    String(
+                        detailsButton.dataset.shipDetails || ""
+                    ).trim();
+
+                if(/^\d{9}$/.test(mmsi)){
+                    loadVesselDetails(mmsi, true);
+                }
+
+                return;
+            }
+
             const trackButton =
                 event.target.closest("[data-ship-track]");
 
@@ -1704,7 +1722,13 @@
                 points.length
                     ? '<div class="ship-tracking-track-note">The map now shows the recorded positions returned for this vessel.</div>'
                     : '<div class="ship-tracking-track-note">No recorded positions were returned for the selected period.</div>'
-            )
+            ) +
+
+            '<div class="ship-tracking-detail-actions">' +
+                '<button type="button" class="ship-tracking-action-btn" data-ship-details="' +
+                    escapeHtml(mmsi) +
+                '">Details</button>' +
+            '</div>'
         );
     }
 
