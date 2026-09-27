@@ -2629,6 +2629,7 @@ function openShipTracking(){
     const carsSection = document.getElementById("carsSection");
     const settingsPanel = document.getElementById("settingsPanel");
     const shipTrackingSection = document.getElementById("shipTrackingSection");
+    const shopSection = document.getElementById("shopSection");
 
     if(homePage) homePage.style.display = "none";
     if(weatherSection) weatherSection.style.display = "none";
@@ -2639,6 +2640,7 @@ function openShipTracking(){
     if(cryptoSection) cryptoSection.style.display = "none";
     if(carsSection) carsSection.style.display = "none";
     if(settingsPanel) settingsPanel.style.display = "none";
+    if(shopSection) shopSection.style.display = "none";
 
     document.querySelectorAll(".app").forEach(function(x){
         x.classList.remove("active");
