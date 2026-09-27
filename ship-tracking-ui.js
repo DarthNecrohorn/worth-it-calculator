@@ -186,7 +186,10 @@
             ],
             maxBoundsViscosity: 0.85,
             worldCopyJump: false,
-            zoomControl: true
+            zoomControl: true,
+            zoomSnap: 0.5,
+            zoomDelta: 0.5,
+            preferCanvas: true
         }).setView([20, 10], 2);
 
         /*
@@ -260,21 +263,44 @@
                         topology.objects.countries
                     );
 
+                /*
+                 * Paint the entire world viewport as ocean first.
+                 * The previous version left all non-country pixels
+                 * white, which made the map look partially unloaded.
+                 */
+                const oceanLayer = L.rectangle(
+                    [
+                        [-85.051129, -180],
+                        [85.051129, 180]
+                    ],
+                    {
+                        interactive: false,
+                        stroke: false,
+                        fill: true,
+                        fillColor: "#b9dff0",
+                        fillOpacity: 1
+                    }
+                ).addTo(map);
+
+                oceanLayer.bringToBack();
+
                 worldLayer = L.geoJSON(
                     geojson,
                     {
                         interactive: false,
-                        style: {
-                            fillColor: "var(--ship-map-land, #cbd5e1)",
-                            fillOpacity: 0.86,
-                            color: "var(--ship-map-border, #94a3b8)",
-                            weight: 0.65,
-                            opacity: 0.9
+                        style: function(){
+                            return {
+                                fillColor: "#e2e8d5",
+                                fillOpacity: 0.98,
+                                color: "#7d8a86",
+                                weight: 0.7,
+                                opacity: 0.95
+                            };
                         }
                     }
                 ).addTo(map);
 
-                worldLayer.bringToBack();
+                worldLayer.bringToFront();
 
                 if(map){
                     const worldBounds = worldLayer.getBounds();
