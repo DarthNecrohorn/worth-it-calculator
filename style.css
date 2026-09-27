@@ -11582,3 +11582,256 @@ html[data-ui-scale="xl"] .water-levels-detail-footer{
 @media(max-width:650px){.ship-tracking-section{width:calc(100% - 20px) !important;max-width:none !important;padding:30px 0 50px !important}.ship-tracking-header h2{font-size:26px !important}.ship-tracking-header p{font-size:13px}.ship-tracking-dataset-grid,.ship-tracking-grid{grid-template-columns:1fr}.ship-tracking-search-wrap input{text-align:left}.ship-tracking-map-card{min-height:270px}.ship-tracking-attribution{flex-direction:column;align-items:flex-start}}
 
 html[data-theme="light"] .ship-tracking-map-card{background:var(--card-solid,#fff)}
+
+
+/* =========================================================
+   SHIP TRACKING — LIVE MAP / VESSEL CARDS
+========================================================= */
+
+.ship-tracking-map{
+    width:100%;
+    min-height:460px;
+    height:460px;
+    background:var(--surface-soft);
+}
+
+.ship-tracking-map .leaflet-container{
+    font:inherit;
+    background:var(--surface-soft);
+}
+
+.ship-tracking-map .leaflet-control-zoom a{
+    color:#111827;
+}
+
+.ship-tracking-vessel-card{
+    min-width:0;
+    padding:18px;
+    border:1px solid var(--border);
+    border-radius:18px;
+    background:var(--card-solid,var(--card));
+    box-shadow:0 12px 30px rgba(0,0,0,.09);
+}
+
+.ship-tracking-vessel-card-head{
+    display:flex;
+    align-items:flex-start;
+    justify-content:space-between;
+    gap:12px;
+}
+
+.ship-tracking-vessel-type{
+    display:inline-flex;
+    align-items:center;
+    padding:5px 8px;
+    border:1px solid rgba(124,92,255,.24);
+    border-radius:999px;
+    background:rgba(124,92,255,.08);
+    color:var(--muted);
+    font-size:9px;
+    font-weight:900;
+    letter-spacing:.04em;
+    text-transform:uppercase;
+}
+
+.ship-tracking-vessel-card h3{
+    margin:7px 0 0;
+    font-size:18px;
+    line-height:1.2;
+}
+
+.ship-tracking-vessel-live{
+    flex:0 0 auto;
+    padding:5px 8px;
+    border-radius:999px;
+    background:rgba(34,197,94,.10);
+    color:#16a34a;
+    font-size:9px;
+    font-weight:900;
+    white-space:nowrap;
+}
+
+.ship-tracking-vessel-metrics,
+.ship-tracking-detail-grid{
+    margin-top:15px;
+    display:grid;
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:8px;
+}
+
+.ship-tracking-metric{
+    min-width:0;
+    padding:10px;
+    border:1px solid var(--border);
+    border-radius:12px;
+    background:var(--surface-soft);
+}
+
+.ship-tracking-metric span{
+    display:block;
+    color:var(--muted);
+    font-size:9px;
+    line-height:1.2;
+}
+
+.ship-tracking-metric strong{
+    display:block;
+    margin-top:4px;
+    min-width:0;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+    color:var(--text);
+    font-size:11px;
+    line-height:1.25;
+}
+
+.ship-tracking-vessel-meta{
+    margin-top:11px;
+    display:flex;
+    flex-wrap:wrap;
+    gap:6px;
+}
+
+.ship-tracking-vessel-meta span{
+    max-width:100%;
+    padding:5px 7px;
+    border-radius:8px;
+    background:var(--surface-soft);
+    color:var(--muted);
+    font-size:9px;
+    line-height:1.2;
+}
+
+.ship-tracking-vessel-actions,
+.ship-tracking-detail-actions{
+    margin-top:13px;
+    display:flex;
+    flex-wrap:wrap;
+    align-items:center;
+    gap:8px;
+}
+
+.ship-tracking-action-btn{
+    border:1px solid rgba(124,92,255,.32);
+    border-radius:10px;
+    padding:8px 11px;
+    background:transparent;
+    color:var(--text);
+    font:inherit;
+    font-size:10px;
+    font-weight:900;
+    cursor:pointer;
+    transition:.2s ease;
+}
+
+.ship-tracking-action-btn:hover{
+    border-color:rgba(124,92,255,.76);
+    transform:translateY(-1px);
+}
+
+.ship-tracking-action-secondary{
+    border-color:var(--border);
+}
+
+.ship-tracking-vessel-time{
+    margin-left:auto;
+    color:var(--muted);
+    font-size:9px;
+}
+
+.ship-tracking-detail{
+    width:100%;
+    margin:18px auto 0;
+    padding:20px;
+    border:1px solid var(--border);
+    border-radius:18px;
+    background:var(--card-solid,var(--card));
+    box-shadow:0 14px 35px rgba(0,0,0,.10);
+}
+
+.ship-tracking-detail-head{
+    display:flex;
+    align-items:flex-start;
+    justify-content:space-between;
+    gap:14px;
+}
+
+.ship-tracking-detail-head h3{
+    margin:8px 0 4px;
+    font-size:22px;
+    line-height:1.2;
+}
+
+.ship-tracking-detail-subtitle{
+    color:var(--muted);
+    font-size:10px;
+}
+
+.ship-tracking-detail-close{
+    flex:0 0 auto;
+    width:34px;
+    height:34px;
+    border:1px solid var(--border);
+    border-radius:10px;
+    background:var(--surface-soft);
+    color:var(--text);
+    cursor:pointer;
+    font-size:15px;
+}
+
+.ship-tracking-detail-note,
+.ship-tracking-track-note{
+    color:var(--muted);
+    font-size:10px;
+    line-height:1.45;
+}
+
+.ship-tracking-detail-loading{
+    min-height:130px;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    gap:8px;
+    text-align:center;
+    color:var(--muted);
+}
+
+.ship-tracking-detail-loading span{
+    font-size:30px;
+}
+
+.ship-tracking-detail-loading strong{
+    color:var(--text);
+    font-size:12px;
+}
+
+@media(max-width:650px){
+    .ship-tracking-map{
+        min-height:320px;
+        height:320px;
+    }
+
+    .ship-tracking-vessel-card{
+        padding:15px;
+    }
+
+    .ship-tracking-vessel-card h3{
+        font-size:16px;
+    }
+
+    .ship-tracking-vessel-metrics,
+    .ship-tracking-detail-grid{
+        grid-template-columns:1fr;
+    }
+
+    .ship-tracking-vessel-time{
+        width:100%;
+        margin-left:0;
+    }
+
+    .ship-tracking-detail{
+        padding:16px;
+    }
+}
