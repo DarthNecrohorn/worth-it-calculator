@@ -1888,6 +1888,7 @@
         }
 
         if(
+            raw === "2" ||
             /^(river|lake)2$/i.test(raw) ||
             /(?:river|lake)\s*2$/i.test(raw)
         ){
