@@ -104,6 +104,7 @@
         <button
             type="button"
             class="nav-overflow-item"
+            onclick="openShipTrackingFromMenu()"
         >
             <span>🚢</span>
             <span>
@@ -1970,6 +1971,105 @@
 
 </section>
 
+<!-- =========================================================
+     SHIP TRACKING
+========================================================= -->
+<section class="ship-tracking-section" id="shipTrackingSection" style="display:none;">
+    <div class="ship-tracking-header">
+        <div class="ship-tracking-header-copy">
+            <span class="ship-tracking-badge">🚢 Ship tracking</span>
+            <h2>Explore ships &amp; vessel movement</h2>
+            <p>Explore live AIS vessel positions, vessel identity, course, speed, destination and recent movement history.</p>
+        </div>
+    </div>
+
+    <div class="ship-tracking-source-row">
+        <span>⚓ AIS</span>
+        <span>🌍 Global coverage</span>
+        <span>📡 Live vessel positions</span>
+        <span>🔄 Continuously updated</span>
+    </div>
+
+    <div class="ship-tracking-dataset-grid" aria-label="Ship tracking data">
+        <div class="ship-tracking-dataset-card">
+            <span class="ship-tracking-dataset-icon">📍</span>
+            <div>
+                <strong>Live vessel positions</strong>
+                <small>Latitude · longitude · speed · course</small>
+            </div>
+        </div>
+
+        <div class="ship-tracking-dataset-card">
+            <span class="ship-tracking-dataset-icon">🆔</span>
+            <div>
+                <strong>Vessel identity</strong>
+                <small>Name · MMSI · IMO · call sign</small>
+            </div>
+        </div>
+
+        <div class="ship-tracking-dataset-card">
+            <span class="ship-tracking-dataset-icon">🧭</span>
+            <div>
+                <strong>Voyage information</strong>
+                <small>Destination · ETA · navigation status</small>
+            </div>
+        </div>
+
+        <div class="ship-tracking-dataset-card">
+            <span class="ship-tracking-dataset-icon">📈</span>
+            <div>
+                <strong>Recent track</strong>
+                <small>Movement history · time · position</small>
+            </div>
+        </div>
+    </div>
+
+    <div class="ship-tracking-toolbar">
+        <div class="ship-tracking-filters" id="shipTrackingFilters">
+            <button type="button" data-ship-filter="all" class="active">🌊 All</button>
+            <button type="button" data-ship-filter="cargo">📦 Cargo</button>
+            <button type="button" data-ship-filter="tanker">🛢️ Tankers</button>
+            <button type="button" data-ship-filter="passenger">🛳️ Passenger</button>
+            <button type="button" data-ship-filter="other">🚤 Other</button>
+        </div>
+
+        <label class="ship-tracking-search-wrap">
+            <span>🔎</span>
+            <input
+                id="shipTrackingSearch"
+                type="search"
+                placeholder="Search vessel name, MMSI or IMO..."
+                autocomplete="off"
+            >
+        </label>
+    </div>
+
+    <div class="ship-tracking-status-row">
+        <span id="shipTrackingStatus">Preparing live AIS vessel data…</span>
+        <span class="ship-tracking-status-hint">Live vessel data will appear after the AIS connection is configured.</span>
+    </div>
+
+    <div class="ship-tracking-map-card" id="shipTrackingMapCard">
+        <div class="ship-tracking-map-placeholder">
+            <div class="ship-tracking-map-icon">🗺️</div>
+            <strong>Live vessel map</strong>
+            <span>The map is prepared for live AIS vessel positions and will populate when the Ship Tracking API is connected.</span>
+        </div>
+    </div>
+
+    <div class="ship-tracking-grid" id="shipTrackingGrid"></div>
+
+    <div class="ship-tracking-attribution">
+        <div>
+            <strong>Data source</strong>
+            <span>AIS data from Pelyr (pelyr.com), Pelyr Data Licence 1.1</span>
+        </div>
+        <a href="https://pelyr.com/" target="_blank" rel="noopener noreferrer">
+            View Pelyr AIS platform ↗
+        </a>
+    </div>
+</section>
+
 </main>
 
 <footer>
@@ -2209,6 +2309,7 @@ try{
 <script src="crypto-ui.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/topojson-client@3/dist/topojson-client.min.js"></script>
 <script src="water-levels-ui.js?v=waterlevels59"></script>
+<script src="ship-tracking-ui.js?v=shiptracking1"></script>
 <script src="currencies-ui.js?v=2"></script>
 <script>
 
