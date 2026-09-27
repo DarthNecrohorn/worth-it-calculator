@@ -433,29 +433,63 @@
     function formatStationCardLocation(station){
         if(!station) return "Global Copernicus station";
 
-        const rawParts = [
-            station.waterBody,
-            station.basin,
-            station.country
-        ]
-        .map(function(value){
-            return String(value || "").trim();
-        })
-        .filter(Boolean);
+        const waterBody =
+            String(station.waterBody || "").trim();
 
-        const seen = new Set();
+        const basin =
+            String(station.basin || "").trim();
+
+        const country =
+            String(station.country || "").trim();
+
         const parts = [];
 
-        rawParts.forEach(function(value){
-            const key = normalizeGeoName(value);
-            if(!key || seen.has(key)) return;
-            seen.add(key);
-            parts.push(value);
-        });
+        /*
+         * CLMS can expose the same geographic name in different
+         * languages, e.g. water body "Dunav" and basin "Danube".
+         * Treat those known aliases as one display value so the card
+         * does not read "Dunav · Danube".
+         */
+        if(waterBody){
+            parts.push(waterBody);
+        }
+
+        if(
+            basin &&
+            !areWaterNameAliasesEqual(waterBody, basin) &&
+            normalizeGeoName(basin) !== normalizeGeoName(waterBody)
+        ){
+            parts.push(basin);
+        }
+
+        if(country){
+            const countryDuplicate = parts.some(function(value){
+                return normalizeGeoName(value) === normalizeGeoName(country);
+            });
+
+            if(!countryDuplicate){
+                parts.push(country);
+            }
+        }
 
         return parts.length
             ? parts.join(" · ")
             : "Global Copernicus station";
+    }
+
+    function areWaterNameAliasesEqual(left,right){
+        const a = normalizeGeoName(left);
+        const b = normalizeGeoName(right);
+
+        if(!a || !b) return false;
+        if(a === b) return true;
+
+        const aliases = new Set([
+            "danube",
+            "dunav"
+        ]);
+
+        return aliases.has(a) && aliases.has(b);
     }
 
     function localizeWaterPlaceName(placeName,location){
