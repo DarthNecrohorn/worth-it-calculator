@@ -2661,6 +2661,13 @@ function openShipTracking(){
         window.initShipTrackingUI();
     }
 
+    /*
+     * Recalculate Leaflet after the section has become visible.
+     */
+    if(typeof window.refreshShipTrackingMap === "function"){
+        window.refreshShipTrackingMap();
+    }
+
     window.scrollTo({
         top:0,
         behavior:"auto"
