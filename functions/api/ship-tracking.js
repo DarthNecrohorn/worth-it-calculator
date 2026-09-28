@@ -1359,6 +1359,62 @@ async function fetchEurisTracks(token, bbox, max){
                     body &&
                     typeof body === "object"
                 ){
+                    /*
+                     * A few EuRIS route/host combinations can answer
+                     * HTTP 200 with an empty track collection for a
+                     * bbox while another exposed EuRIS route has data.
+                     * Do not lock onto an empty 200 response: try the
+                     * next deterministic fallback route/query instead.
+                     */
+                    const initialTrackItems =
+                        extractEurisTrackItems(
+                            body
+                        );
+
+                    const reportedTrackCount =
+                        Number(
+                            body.count
+                        );
+
+                    const emptyTrackResponse =
+                        initialTrackItems.length === 0 &&
+                        (
+                            !Number.isFinite(
+                                reportedTrackCount
+                            ) ||
+                            reportedTrackCount <= 0
+                        );
+
+                    if(
+                        emptyTrackResponse &&
+                        (
+                            endpoint.version === "Tracks_v2" ||
+                            endpoint.version === "Tracks_v2_legacy" ||
+                            endpoint.version === "Tracks_v3" ||
+                            endpoint.version === "Tracks_v3_visuris"
+                        ) &&
+                        endpointIndex < endpoints.length - 1
+                    ){
+                        lastFailure = {
+                            ok: false,
+                            status: 204,
+                            attempts,
+                            endpoint: endpoint.version,
+                            base: endpoint.base,
+                            path: endpoint.path,
+                            query_mode: queryIndex,
+                            body: {
+                                ok: false,
+                                error: {
+                                    code: "euris_empty_response",
+                                    message: "EuRIS returned no tracks on this route; trying the next EuRIS route."
+                                }
+                            }
+                        };
+
+                        continue;
+                    }
+
                     let finalBody =
                         body;
 
