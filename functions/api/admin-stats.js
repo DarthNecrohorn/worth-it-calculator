@@ -125,6 +125,26 @@ const API_REGISTRY = [
         quotaLabel: "Provider dependent"
     },
     {
+        key: "auth-username-availability",
+        name: "Username Availability",
+        emoji: "🔎",
+        provider: "Supabase Auth",
+        endpoint: "/api/auth-username-availability",
+        category: "Auth",
+        quotaType: "dynamic",
+        quotaLabel: "Project/plan dependent"
+    },
+    {
+        key: "auth-username-login",
+        name: "Username Login",
+        emoji: "🔐",
+        provider: "Supabase Auth",
+        endpoint: "/api/auth-username-login",
+        category: "Auth",
+        quotaType: "dynamic",
+        quotaLabel: "Project/plan dependent"
+    },
+    {
         key: "feedback",
         name: "Feedback",
         emoji: "🐞",
@@ -806,6 +826,7 @@ function getApiEmoji(
     if(key.includes("feedback") || key.includes("bug") || key.includes("suggest")) return "🐞";
     if(key.includes("shop") || key.includes("product")) return "🛒";
     if(key.includes("water") || key.includes("copernicus") || key.includes("clms")) return "💧";
+    if(key.includes("auth") || key.includes("username")) return "🔐";
 
     return "🔌";
 }
@@ -880,6 +901,22 @@ function isApiConfigured(
             ) || (
                 Boolean(String(env.CDSE_USERNAME || "").trim()) &&
                 Boolean(String(env.CDSE_PASSWORD || "").trim())
+            );
+
+        case "auth-username-availability":
+        case "auth-username-login":
+            return Boolean(
+                String(env.SUPABASE_URL || "").trim()
+            ) && Boolean(
+                String(
+                    env.SUPABASE_PUBLISHABLE_KEY || ""
+                ).trim()
+            ) && Boolean(
+                String(
+                    env.SUPABASE_SECRET_KEY ||
+                    env.SUPABASE_SERVICE_ROLE_KEY ||
+                    ""
+                ).trim()
             );
 
         case "feedback":
