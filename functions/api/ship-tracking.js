@@ -518,6 +518,8 @@ async function handleVessels(
 
     let eurisRawItems = [];
     let eurisVessels = [];
+    let eurisNormalizationErrorCount = 0;
+    let eurisFirstNormalizationError = "";
 
     if(eurisData.ok){
         try{
@@ -526,19 +528,56 @@ async function handleVessels(
                     eurisData.body
                 );
 
-            eurisVessels =
-                eurisRawItems
-                    .map(normalizeEurisVessel)
-                    .filter(Boolean);
+            eurisRawItems.forEach(function(item){
+                try{
+                    const normalized =
+                        normalizeEurisVessel(
+                            item
+                        );
+
+                    if(normalized){
+                        eurisVessels.push(
+                            normalized
+                        );
+                    }
+                }
+                catch(error){
+                    eurisNormalizationErrorCount += 1;
+
+                    if(
+                        !eurisFirstNormalizationError
+                    ){
+                        eurisFirstNormalizationError =
+                            String(
+                                error &&
+                                error.message
+                                    ? error.message
+                                    : error
+                            );
+                    }
+
+                    console.error(
+                        "EuRIS single-vessel normalization failed:",
+                        error
+                    );
+                }
+            });
         }
         catch(error){
             console.error(
-                "EuRIS vessel processing failed:",
+                "EuRIS vessel extraction failed:",
                 error
             );
 
             eurisRawItems = [];
             eurisVessels = [];
+            eurisFirstNormalizationError =
+                String(
+                    error &&
+                    error.message
+                        ? error.message
+                        : error
+                );
         }
     }
 
@@ -671,7 +710,11 @@ async function handleVessels(
                     eurisData.upstream_meta &&
                     eurisData.upstream_meta.array_lengths
                         ? eurisData.upstream_meta.array_lengths
-                        : {}
+                        : {},
+                normalization_error_count:
+                    eurisNormalizationErrorCount,
+                first_normalization_error:
+                    eurisFirstNormalizationError
             }
         }
     };
