@@ -930,7 +930,13 @@
             }else{
                 console.error(
                     "Ship tracking vessel load failed:",
-                    error
+                    error && error.code
+                        ? error.code + ": " + String(error.message || "")
+                        : String(
+                            error && error.message
+                                ? error.message
+                                : error
+                        )
                 );
 
                 setStatus(
