@@ -20,7 +20,10 @@ import { recordAdminApiUsage } from "../lib/admin-usage.js";
  */
 
 const PELYR_BASE = "https://api.pelyr.com";
-const EURIS_BASE = "https://www.eurisportal.eu";
+const EURIS_BASES = [
+    "https://www.eurisportal.eu",
+    "https://eurisportal.eu"
+];
 
 const VESSEL_CACHE_TTL_SECONDS = 45;
 const EURIS_REGION = {
@@ -1014,25 +1017,44 @@ async function fetchEurisTracks(token, bbox, max){
     }
 
     /*
-     * EuRIS currently documents Tracks_v3 at /api/v3/tracks/bounding-box.
-     * Some deployments expose the same service under the legacy /visuris
-     * prefix, so we try that exact route once when the public V3 route
-     * returns 404. Tracks_v2 is the final compatibility fallback.
+     * EuRIS currently documents Tracks_v3 at
+     * /api/v3/tracks/bounding-box on www.eurisportal.eu.
+     * Some traffic/API deployments have historically exposed
+     * the same services through the /visuris prefix, and the
+     * apex host can route differently from the www host.
+     *
+     * We therefore keep a very small, deterministic fallback
+     * list.  We never fan out all requests in parallel:
+     * 404 advances to the next route/host, 400 advances to
+     * the next query shape, and auth/rate/server errors stop
+     * immediately.
      */
-    const endpoints = [
-        {
-            version: "Tracks_v3",
-            path: "/api/v3/tracks/bounding-box"
-        },
-        {
-            version: "Tracks_v3_visuris",
-            path: "/visuris/api/v3/tracks/bounding-box"
-        },
-        {
-            version: "Tracks_v2",
-            path: "/visuris/api/TracksV2/GetTracksByBBoxV2"
-        }
-    ];
+    const endpoints = [];
+
+    EURIS_BASES.forEach(function(base){
+        endpoints.push(
+            {
+                base,
+                version: "Tracks_v3",
+                path: "/api/v3/tracks/bounding-box"
+            },
+            {
+                base,
+                version: "Tracks_v3_visuris",
+                path: "/visuris/api/v3/tracks/bounding-box"
+            },
+            {
+                base,
+                version: "Tracks_v2",
+                path: "/visuris/api/TracksV2/GetTracksByBBoxV2"
+            },
+            {
+                base,
+                version: "Tracks_v2_legacy",
+                path: "/visuris/api/TracksV2/GetTracksByBBox"
+            }
+        );
+    });
 
     const queryModes = [
         function(){
@@ -1052,10 +1074,47 @@ async function fetchEurisTracks(token, bbox, max){
                 maxLatitude: String(bbox.north),
                 "$top": String(max)
             });
+        },
+        function(){
+            return new URLSearchParams({
+                minLon: String(bbox.west),
+                minLat: String(bbox.south),
+                maxLon: String(bbox.east),
+                maxLat: String(bbox.north),
+                "$top": String(max)
+            });
+        },
+        function(){
+            return new URLSearchParams({
+                minX: String(bbox.west),
+                minY: String(bbox.south),
+                maxX: String(bbox.east),
+                maxY: String(bbox.north),
+                "$top": String(max)
+            });
         }
     ];
 
     let lastFailure = null;
+    let attempts = 0;
+
+    /*
+     * Prefer the last known-good query shape when an isolate
+     * already has one.  A parameter-validation failure (400)
+     * automatically rotates through the other documented/legacy
+     * naming conventions.
+     */
+    const preferredQueryIndexes = [
+        eurisQueryMode,
+        ...queryModes.map(function(_, index){
+            return index;
+        })
+    ].filter(function(value, index, array){
+        return (
+            queryModes[value] &&
+            array.indexOf(value) === index
+        );
+    });
 
     for(
         let endpointIndex = 0;
@@ -1065,34 +1124,40 @@ async function fetchEurisTracks(token, bbox, max){
         const endpoint =
             endpoints[endpointIndex];
 
-        /*
-         * The documented V3 route gets both query shapes.
-         * Alternate paths only get the first shape first; if that
-         * produces a parameter validation error we allow the second.
-         */
         for(
-            let queryIndex = 0;
-            queryIndex < queryModes.length;
-            queryIndex++
+            let preferenceIndex = 0;
+            preferenceIndex < preferredQueryIndexes.length;
+            preferenceIndex++
         ){
+            const queryIndex =
+                preferredQueryIndexes[preferenceIndex];
+
             const query =
                 queryModes[queryIndex]();
 
             let response;
+            attempts += 1;
 
             try{
                 response = await fetch(
-                    EURIS_BASE +
+                    endpoint.base +
                     endpoint.path +
                     "?" +
                     query.toString(),
                     {
                         method: "GET",
+                        redirect: "follow",
                         headers: {
                             "Authorization":
                                 "Bearer " + token,
                             "Accept":
-                                "application/json"
+                                "application/json",
+                            "Origin":
+                                "https://www.eurisportal.eu",
+                            "Referer":
+                                "https://www.eurisportal.eu/",
+                            "X-Requested-With":
+                                "XMLHttpRequest"
                         }
                     }
                 );
@@ -1106,6 +1171,7 @@ async function fetchEurisTracks(token, bbox, max){
                 return {
                     ok: false,
                     status: 502,
+                    attempts,
                     body: {
                         ok: false,
                         error: {
@@ -1133,30 +1199,28 @@ async function fetchEurisTracks(token, bbox, max){
                     body &&
                     typeof body === "object"
                 ){
-                    /*
-                     * Remember the working V3 query shape for future
-                     * requests only. The path fallback is re-evaluated
-                     * cheaply if the main route ever changes.
-                     */
-                    if(
-                        endpoint.version === "Tracks_v3" ||
-                        endpoint.version === "Tracks_v3_visuris"
-                    ){
-                        eurisQueryMode = queryIndex;
-                    }
+                    eurisQueryMode = queryIndex;
 
                     return {
                         ok: true,
                         status: 200,
+                        attempts,
                         body,
-                        endpoint: endpoint.version,
-                        path: endpoint.path
+                        endpoint:
+                            endpoint.version,
+                        base:
+                            endpoint.base,
+                        path:
+                            endpoint.path,
+                        query_mode:
+                            queryIndex
                     };
                 }
 
                 lastFailure = {
                     ok: false,
                     status: 502,
+                    attempts,
                     body: {
                         ok: false,
                         error: {
@@ -1183,6 +1247,15 @@ async function fetchEurisTracks(token, bbox, max){
                     Number.isFinite(retryAfter) && retryAfter > 0
                         ? Math.ceil(retryAfter * 1000)
                         : 0,
+                attempts,
+                endpoint:
+                    endpoint.version,
+                base:
+                    endpoint.base,
+                path:
+                    endpoint.path,
+                query_mode:
+                    queryIndex,
                 body: {
                     ok: false,
                     error: {
@@ -1203,19 +1276,21 @@ async function fetchEurisTracks(token, bbox, max){
             };
 
             /*
-             * 404: route mismatch — move to the next endpoint path.
-             * 400: keep the same path and try the alternate bbox names.
-             * 401/403/429/5xx: do not multiply requests.
+             * 404: this route/host combination is not exposed;
+             * move directly to the next route.  This keeps the
+             * fallback cheap instead of trying four query shapes.
+             *
+             * 400: the route exists, but the bbox parameter names
+             * are not accepted; try the next shape.
+             *
+             * 401/403/429/5xx and other errors stop immediately so
+             * we do not create a request storm against EuRIS.
              */
-            if(
-                response.status === 404
-            ){
+            if(response.status === 404){
                 break;
             }
 
-            if(
-                response.status !== 400
-            ){
+            if(response.status !== 400){
                 return lastFailure;
             }
         }
@@ -1224,6 +1299,7 @@ async function fetchEurisTracks(token, bbox, max){
     return lastFailure || {
         ok: false,
         status: 502,
+        attempts,
         body: {
             ok: false,
             error: {
@@ -1233,7 +1309,6 @@ async function fetchEurisTracks(token, bbox, max){
         }
     };
 }
-
 
 function extractEurisTrackItems(body){
     if(Array.isArray(body)){
