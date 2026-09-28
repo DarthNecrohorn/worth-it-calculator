@@ -1506,8 +1506,8 @@ function findGeoPoint(root){
 
 function findAnyMmsi(root, maxDepth = 7){
     if(
-        !root ||
-        typeof root !== "object"
+        root === null ||
+        root === undefined
     ){
         return null;
     }
@@ -1555,14 +1555,21 @@ function findAnyMmsi(root, maxDepth = 7){
 
         seen.add(value);
 
-        Object.keys(value).forEach(function(key){
+        const keys = Object.keys(value);
+
+        for(
+            let index = 0;
+            index < keys.length;
+            index += 1
+        ){
+            const key = keys[index];
             const child = value[key];
 
             if(
                 child === null ||
                 child === undefined
             ){
-                return;
+                continue;
             }
 
             const normalizedKey =
@@ -1580,31 +1587,11 @@ function findAnyMmsi(root, maxDepth = 7){
                 if(
                     /^\d{9}$/.test(digits)
                 ){
-                    queue.unshift({
-                        value: digits,
-                        depth: maxDepth + 1
-                    });
-                    return;
+                    return digits;
                 }
             }
 
             if(
-                /mmsi/.test(normalizedKey)
-            ){
-                const digits =
-                    String(child)
-                        .replace(/[^0-9]/g, "");
-
-                if(
-                    /^\d{9}$/.test(digits)
-                ){
-                    queue.unshift({
-                        value: digits,
-                        depth: maxDepth + 1
-                    });
-                    return;
-                }
-            }else if(
                 typeof child !== "object"
             ){
                 const digits =
@@ -1616,34 +1603,16 @@ function findAnyMmsi(root, maxDepth = 7){
                 ){
                     return digits;
                 }
+
+                continue;
             }
 
-            if(
-                depth < maxDepth &&
-                typeof child === "object"
-            ){
+            if(depth < maxDepth){
                 queue.push({
                     value: child,
                     depth: depth + 1
                 });
             }
-        });
-
-        if(
-            depth < maxDepth &&
-            Array.isArray(value)
-        ){
-            value.forEach(function(child){
-                if(
-                    child &&
-                    typeof child === "object"
-                ){
-                    queue.push({
-                        value: child,
-                        depth: depth + 1
-                    });
-                }
-            });
         }
     }
 
