@@ -171,6 +171,9 @@
                 api?.quotaType || "dynamic"
             );
 
+        const isGrouped =
+            api?.usageTrackedSeparately === false;
+
         const hasTodayRemaining =
             api?.todayRemaining !== null &&
             api?.todayRemaining !== undefined;
@@ -180,48 +183,69 @@
             api?.monthRemaining !== undefined;
 
         const remainingValue =
-            hasTodayRemaining
-                ? formatNumber(api.todayRemaining)
-                : hasMonthRemaining
-                    ? formatNumber(api.monthRemaining)
-                    : quotaType === "none"
-                        ? "∞"
-                        : quotaType === "dynamic"
-                            ? "Account"
-                            : "Provider";
+            isGrouped
+                ? "Grouped"
+                : hasTodayRemaining
+                    ? formatNumber(api.todayRemaining)
+                    : hasMonthRemaining
+                        ? formatNumber(api.monthRemaining)
+                        : quotaType === "none"
+                            ? "∞"
+                            : quotaType === "dynamic"
+                                ? "Account"
+                                : "Provider";
 
         const remainingLabel =
-            hasTodayRemaining
-                ? "Remaining today"
-                : hasMonthRemaining
-                    ? "Remaining this month"
-                    : quotaType === "none"
-                        ? "No fixed quota"
-                        : "Quota availability";
+            isGrouped
+                ? "Usage tracking"
+                : hasTodayRemaining
+                    ? "Remaining today"
+                    : hasMonthRemaining
+                        ? "Remaining this month"
+                        : quotaType === "none"
+                            ? "No fixed quota"
+                            : "Quota availability";
 
         const remainingDetail =
-            hasTodayRemaining
+            isGrouped
                 ? (
-                    api?.quotaLabel ||
-                    "Daily limit"
+                    api?.trackingGroup
+                        ? "Included in: " + api.trackingGroup
+                        : "Included in grouped service tracking"
                 )
-                : hasMonthRemaining
+                : hasTodayRemaining
                     ? (
                         api?.quotaLabel ||
-                        "Monthly limit"
+                        "Daily limit"
                     )
-                    : (
-                        api?.quotaLabel ||
-                        "Provider/account dependent"
-                    );
+                    : hasMonthRemaining
+                        ? (
+                            api?.quotaLabel ||
+                            "Monthly limit"
+                        )
+                        : (
+                            api?.quotaLabel ||
+                            "Provider/account dependent"
+                        );
 
         const secondaryRemaining =
+            !isGrouped &&
             api?.monthRemaining !== null &&
             api?.monthRemaining !== undefined
                 ? formatNumber(
                     api.monthRemaining
                 )
                 : null;
+
+        const metricValue = value =>
+            isGrouped
+                ? "—"
+                : formatNumber(value);
+
+        const trackedValue =
+            isGrouped
+                ? "Grouped tracker"
+                : formatDateTime(api?.lastSeenAt);
 
         return [
             '<article class="admin-usage-card">',
@@ -291,7 +315,7 @@
                     '<div>',
                         '<span>Used today</span>',
                         '<strong>' +
-                            formatNumber(
+                            metricValue(
                                 api?.todayRequests
                             ) +
                         '</strong>',
@@ -299,7 +323,7 @@
                     '<div>',
                         '<span>This month</span>',
                         '<strong>' +
-                            formatNumber(
+                            metricValue(
                                 api?.monthRequests
                             ) +
                         '</strong>',
@@ -307,7 +331,7 @@
                     '<div>',
                         '<span>Last 30 days</span>',
                         '<strong>' +
-                            formatNumber(
+                            metricValue(
                                 api?.last30DaysRequests
                             ) +
                         '</strong>',
@@ -327,9 +351,7 @@
                         '<span>Last tracked</span>',
                         '<strong>' +
                             escapeHtml(
-                                formatDateTime(
-                                    api?.lastSeenAt
-                                )
+                                trackedValue
                             ) +
                         '</strong>',
                     '</div>',
