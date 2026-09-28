@@ -149,6 +149,8 @@ async function handleVessels(
     apiKey,
     eurisToken
 ){
+    let vesselStage = "validation";
+    try{
     const bboxText = String(
         url.searchParams.get("bbox") || ""
     ).trim();
@@ -225,6 +227,8 @@ async function handleVessels(
             })
             .join(",");
 
+    vesselStage = "cache";
+
     const cached = await readCache(context, key);
 
     if(cached){
@@ -246,6 +250,8 @@ async function handleVessels(
 
     const requestKey =
         key;
+
+    vesselStage = "upstream_requests";
 
     const pelyrPromise =
         apiKey
@@ -301,6 +307,8 @@ async function handleVessels(
                 ok: false,
                 skipped: true
             });
+
+    vesselStage = "await_upstreams";
 
     const results =
         await Promise.allSettled([
@@ -450,6 +458,8 @@ async function handleVessels(
         );
     }
 
+    vesselStage = "pelyr_normalization";
+
     let pelyrVessels = [];
     let pelyrTruncated = false;
     let pelyrAttributions = [];
@@ -511,6 +521,8 @@ async function handleVessels(
             pelyrVessels,
             eurisVessels
         );
+
+    vesselStage = "response_build";
 
     const attributions = [
         ...pelyrAttributions
@@ -623,6 +635,30 @@ async function handleVessels(
     );
 
     return response;
+    }
+    catch(error){
+        console.error(
+            "Ship Tracking handleVessels failed:",
+            {
+                stage: vesselStage,
+                error
+            }
+        );
+
+        return jsonResponse(
+            {
+                ok: false,
+                error: {
+                    code: "internal_error",
+                    message:
+                        "Ship tracking service failed during " +
+                        vesselStage +
+                        "."
+                }
+            },
+            500
+        );
+    }
 }
 
 async function handleVessel(context, url, apiKey){
