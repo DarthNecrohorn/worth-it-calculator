@@ -65,7 +65,9 @@ export async function onRequestGet(context){
 
         const eurisToken = String(
             context.env.EURIS_API_TOKEN || ""
-        ).trim();
+        )
+            .replace(/^Bearer\s+/i, "")
+            .trim();
 
         if(
             !apiKey &&
