@@ -2029,7 +2029,6 @@
                             distance <=
                             (
                                 item.hitRadius ||
-                                hitRadius ||
                                 13
                             ) &&
                             (
