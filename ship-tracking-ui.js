@@ -857,11 +857,36 @@
             const sourceParts = [];
 
             if(activeSources.includes("Pelyr")){
-                sourceParts.push("Pelyr");
+                sourceParts.push(
+                    "Pelyr · " +
+                    String(
+                        sourceStatus.Pelyr &&
+                        Number.isFinite(
+                            Number(sourceStatus.Pelyr.count)
+                        )
+                            ? Number(sourceStatus.Pelyr.count)
+                            : "live"
+                    )
+                );
             }
 
             if(activeSources.includes("EuRIS")){
-                sourceParts.push("EuRIS");
+                const eurisCount =
+                    sourceStatus.EuRIS &&
+                    Number.isFinite(
+                        Number(sourceStatus.EuRIS.count)
+                    )
+                        ? Number(sourceStatus.EuRIS.count)
+                        : null;
+
+                sourceParts.push(
+                    "EuRIS · " +
+                    (
+                        eurisCount === null
+                            ? "live"
+                            : String(eurisCount)
+                    )
+                );
             }else if(
                 sourceStatus.EuRIS &&
                 sourceStatus.EuRIS.enabled
@@ -878,8 +903,17 @@
                         )
                     );
                 }else{
+                    const eurisCount =
+                        Number.isFinite(
+                            Number(sourceStatus.EuRIS.count)
+                        )
+                            ? Number(sourceStatus.EuRIS.count)
+                            : 0;
+
                     sourceParts.push(
-                        "EuRIS connected · 0 vessels in view"
+                        "EuRIS connected · " +
+                        String(eurisCount) +
+                        " in view"
                     );
                 }
             }
