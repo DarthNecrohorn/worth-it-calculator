@@ -1541,7 +1541,7 @@ function findAnyMmsi(root, maxDepth = 7){
                     .replace(/[^0-9]/g, "");
 
             if(
-                /^\\d{9}$/.test(digits)
+                /^\d{9}$/.test(digits)
             ){
                 return digits;
             }
@@ -1578,13 +1578,43 @@ function findAnyMmsi(root, maxDepth = 7){
                         .replace(/[^0-9]/g, "");
 
                 if(
-                    /^\\d{9}$/.test(digits)
+                    /^\d{9}$/.test(digits)
                 ){
                     queue.unshift({
                         value: digits,
                         depth: maxDepth + 1
                     });
                     return;
+                }
+            }
+
+            if(
+                /mmsi/.test(normalizedKey)
+            ){
+                const digits =
+                    String(child)
+                        .replace(/[^0-9]/g, "");
+
+                if(
+                    /^\d{9}$/.test(digits)
+                ){
+                    queue.unshift({
+                        value: digits,
+                        depth: maxDepth + 1
+                    });
+                    return;
+                }
+            }else if(
+                typeof child !== "object"
+            ){
+                const digits =
+                    String(child)
+                        .replace(/[^0-9]/g, "");
+
+                if(
+                    /^\d{9}$/.test(digits)
+                ){
+                    return digits;
                 }
             }
 
