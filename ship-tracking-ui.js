@@ -360,7 +360,6 @@
          * an optional layer and is not loaded until the user selects it.
          */
         addDefaultBaseLayer();
-        addBaseMapSwitcher();
 
         setupShipCanvasLayer();
 
