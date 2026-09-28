@@ -11162,19 +11162,19 @@ body.water-levels-modal-open{
 /* A+ */
 html[data-ui-scale="large"] .water-levels-detail-card{
     width:min(
-        930px,
+        820px,
         calc(
-            (100vw - 30px) /
+            (100vw - 48px) /
             var(--ui-scale,1)
         )
     ) !important;
     max-height:
         calc(
-            (100dvh - 30px) /
+            (100dvh - 48px) /
             var(--ui-scale,1)
         ) !important;
-    padding:14px !important;
-    border-radius:18px;
+    padding:12px !important;
+    border-radius:16px;
 }
 
 html[data-ui-scale="large"] .water-levels-detail-title h2{
@@ -11199,19 +11199,19 @@ html[data-ui-scale="large"] .water-levels-detail-metrics{
 /* A++ */
 html[data-ui-scale="xl"] .water-levels-detail-card{
     width:min(
-        900px,
+        780px,
         calc(
-            (100vw - 26px) /
+            (100vw - 48px) /
             var(--ui-scale,1)
         )
     ) !important;
     max-height:
         calc(
-            (100dvh - 26px) /
+            (100dvh - 48px) /
             var(--ui-scale,1)
         ) !important;
-    padding:12px !important;
-    border-radius:16px;
+    padding:10px !important;
+    border-radius:14px;
 }
 
 html[data-ui-scale="xl"] .water-levels-detail-head{
@@ -11349,17 +11349,17 @@ html[data-ui-scale="xl"] .water-levels-detail-footer{
     .water-levels-detail-card{
         width:
             calc(
-                (100vw - 16px) /
+                (100vw - 28px) /
                 var(--ui-scale,1)
             ) !important;
         max-width:none !important;
         max-height:
             calc(
-                (100dvh - 16px) /
+                (100dvh - 28px) /
                 var(--ui-scale,1)
             ) !important;
-        padding:11px !important;
-        border-radius:16px !important;
+        padding:9px !important;
+        border-radius:14px !important;
     }
 
     .water-levels-detail-head{
