@@ -1037,16 +1037,6 @@ async function fetchEurisTracks(token, bbox, max){
         endpoints.push(
             {
                 base,
-                version: "Tracks_v3",
-                path: "/api/v3/tracks/bounding-box"
-            },
-            {
-                base,
-                version: "Tracks_v3_visuris",
-                path: "/visuris/api/v3/tracks/bounding-box"
-            },
-            {
-                base,
                 version: "Tracks_v2",
                 path: "/visuris/api/TracksV2/GetTracksByBBoxV2"
             },
@@ -1054,48 +1044,42 @@ async function fetchEurisTracks(token, bbox, max){
                 base,
                 version: "Tracks_v2_legacy",
                 path: "/visuris/api/TracksV2/GetTracksByBBox"
+            },
+            {
+                base,
+                version: "Tracks_v3",
+                path: "/api/v3/tracks/bounding-box"
+            },
+            {
+                base,
+                version: "Tracks_v3_visuris",
+                path: "/visuris/api/v3/tracks/bounding-box"
             }
         );
     });
 
-    const queryModes = [
-        function(){
+    const buildQuery = function(endpoint, bboxValue, limit){
+        if(
+            endpoint.version === "Tracks_v2" ||
+            endpoint.version === "Tracks_v2_legacy"
+        ){
             return new URLSearchParams({
-                west: String(bbox.west),
-                south: String(bbox.south),
-                east: String(bbox.east),
-                north: String(bbox.north),
-                "$top": String(max)
-            });
-        },
-        function(){
-            return new URLSearchParams({
-                minLongitude: String(bbox.west),
-                minLatitude: String(bbox.south),
-                maxLongitude: String(bbox.east),
-                maxLatitude: String(bbox.north),
-                "$top": String(max)
-            });
-        },
-        function(){
-            return new URLSearchParams({
-                minLon: String(bbox.west),
-                minLat: String(bbox.south),
-                maxLon: String(bbox.east),
-                maxLat: String(bbox.north),
-                "$top": String(max)
-            });
-        },
-        function(){
-            return new URLSearchParams({
-                minX: String(bbox.west),
-                minY: String(bbox.south),
-                maxX: String(bbox.east),
-                maxY: String(bbox.north),
-                "$top": String(max)
+                minLat: Number(bboxValue.south).toFixed(6),
+                maxLat: Number(bboxValue.north).toFixed(6),
+                minLon: Number(bboxValue.west).toFixed(6),
+                maxLon: Number(bboxValue.east).toFixed(6),
+                pageSize: String(limit)
             });
         }
-    ];
+
+        return new URLSearchParams({
+            west: String(bboxValue.west),
+            south: String(bboxValue.south),
+            east: String(bboxValue.east),
+            north: String(bboxValue.north),
+            "$top": String(limit)
+        });
+    };
 
     let lastFailure = null;
     let attempts = 0;
@@ -1106,17 +1090,21 @@ async function fetchEurisTracks(token, bbox, max){
      * automatically rotates through the other documented/legacy
      * naming conventions.
      */
-    const preferredQueryIndexes = [
-        eurisQueryMode,
-        ...queryModes.map(function(_, index){
-            return index;
-        })
-    ].filter(function(value, index, array){
-        return (
-            queryModes[value] &&
-            array.indexOf(value) === index
+    const queryIndexes =
+        endpoint => (
+            endpoint.version === "Tracks_v2" ||
+            endpoint.version === "Tracks_v2_legacy"
+                ? [0]
+                : [eurisQueryMode, 0, 1, 2, 3]
+                    .filter(function(value, index, array){
+                        return (
+                            Number.isInteger(value) &&
+                            value >= 0 &&
+                            value < 4 &&
+                            array.indexOf(value) === index
+                        );
+                    })
         );
-    });
 
     for(
         let endpointIndex = 0;
@@ -1126,16 +1114,23 @@ async function fetchEurisTracks(token, bbox, max){
         const endpoint =
             endpoints[endpointIndex];
 
+        const indexes =
+            queryIndexes(endpoint);
+
         for(
             let preferenceIndex = 0;
-            preferenceIndex < preferredQueryIndexes.length;
+            preferenceIndex < indexes.length;
             preferenceIndex++
         ){
             const queryIndex =
-                preferredQueryIndexes[preferenceIndex];
+                indexes[preferenceIndex];
 
             const query =
-                queryModes[queryIndex]();
+                buildQuery(
+                    endpoint,
+                    bbox,
+                    max
+                );
 
             let response;
             attempts += 1;
@@ -1201,7 +1196,12 @@ async function fetchEurisTracks(token, bbox, max){
                     body &&
                     typeof body === "object"
                 ){
-                    eurisQueryMode = queryIndex;
+                    if(
+                        endpoint.version === "Tracks_v3" ||
+                        endpoint.version === "Tracks_v3_visuris"
+                    ){
+                        eurisQueryMode = queryIndex;
+                    }
 
                     return {
                         ok: true,
@@ -1784,12 +1784,25 @@ function normalizeEurisVessel(item){
             "AisMMSI"
         ]);
 
+    const trackId =
+        nested([
+            "trackID",
+            "TrackID",
+            "trackId",
+            "TrackId"
+        ]);
+
+    const realMmsi =
+        String(explicitMmsi || "").trim();
+
     const mmsi =
-        String(
-            explicitMmsi ||
-            findAnyMmsi(item) ||
-            ""
-        ).trim();
+        /^\d{9}$/.test(realMmsi)
+            ? realMmsi
+            : String(
+                trackId ||
+                findAnyMmsi(item) ||
+                ""
+            ).trim();
 
     const latitudeValue =
         nested([
@@ -1872,7 +1885,7 @@ function normalizeEurisVessel(item){
     }
 
     if(
-        !/^\d{9}$/.test(mmsi) ||
+        !mmsi ||
         !Number.isFinite(lat) ||
         !Number.isFinite(lon) ||
         lat < -90 ||
@@ -1885,11 +1898,21 @@ function normalizeEurisVessel(item){
 
     return {
         mmsi,
+        real_mmsi:
+            /^\d{9}$/.test(realMmsi)
+                ? realMmsi
+                : null,
+        track_id:
+            trackId !== null &&
+            trackId !== undefined
+                ? String(trackId)
+                : null,
         lat,
         lon,
         sog: nullableNumber(
             nested([
                 "sog",
+                "SOG",
                 "Sog",
                 "speedOverGround",
                 "SpeedOverGround",
@@ -1900,6 +1923,7 @@ function normalizeEurisVessel(item){
         cog: nullableNumber(
             nested([
                 "cog",
+                "COG",
                 "Cog",
                 "courseOverGround",
                 "CourseOverGround",
@@ -1936,7 +1960,9 @@ function normalizeEurisVessel(item){
                 "time",
                 "Time",
                 "updateTime",
-                "UpdateTime"
+                "UpdateTime",
+                "posTS",
+                "PosTS"
             ]) || new Date().toISOString()
         ),
         plausibility: "",
@@ -1945,6 +1971,8 @@ function normalizeEurisVessel(item){
         name: nullableString(
             nested([
                 "name",
+                "shipName",
+                "ship_name",
                 "Name",
                 "shipName",
                 "ShipName",
@@ -2008,6 +2036,8 @@ function normalizeEurisVessel(item){
             nested([
                 "length",
                 "Length",
+                "inlen",
+                "Inlen",
                 "shipLength",
                 "ShipLength"
             ])
@@ -2016,6 +2046,8 @@ function normalizeEurisVessel(item){
             nested([
                 "beam",
                 "Beam",
+                "inbm",
+                "Inbm",
                 "width",
                 "Width",
                 "shipWidth",
