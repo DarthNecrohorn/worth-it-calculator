@@ -11,7 +11,9 @@
         MAX_INITIAL_VESSELS: 800,
         MAX_CARD_VESSELS: 120,
         MIN_MAP_ZOOM: 3,
-        MAP_LOAD_DEBOUNCE_MS: 650,
+        MAP_LOAD_DEBOUNCE_MS: 850,
+        MAP_REQUEST_MIN_INTERVAL_MS: 5200,
+        MAP_REUSE_CENTER_RATIO: 0.25,
         AUTO_REFRESH_MS: 45000,
         MAP_BASE_REFRESH_MS: 21600000,
         SEARCH_DEBOUNCE_MS: 220,
@@ -27,6 +29,9 @@
     let mapBaseRefreshTimer = null;
     let mapLoadTimer = null;
     let searchTimer = null;
+    let mapRequestInFlight = false;
+    let mapRateLimitUntil = 0;
+    let lastSuccessfulViewport = null;
     let selectedMmsi = "";
     let activeFilter = "all";
     let vessels = [];
@@ -650,11 +655,18 @@
     }
 
     function scheduleMapLoad(force){
+        scheduleMapLoadAfter(
+            force ? 20 : CONFIG.MAP_LOAD_DEBOUNCE_MS,
+            Boolean(force)
+        );
+    }
+
+    function scheduleMapLoadAfter(delay, force){
         window.clearTimeout(mapLoadTimer);
 
         mapLoadTimer = window.setTimeout(function(){
             loadVisibleVessels(Boolean(force));
-        }, force ? 20 : CONFIG.MAP_LOAD_DEBOUNCE_MS);
+        }, Math.max(20, Number(delay) || 20));
     }
 
     async function loadVisibleVessels(force){
@@ -715,12 +727,48 @@
             return;
         }
 
+        if(mapRateLimitUntil > now){
+            scheduleMapLoadAfter(
+                mapRateLimitUntil - now + 250,
+                true
+            );
+            return;
+        }
+
+        if(mapRequestInFlight){
+            return;
+        }
+
+        if(
+            !force &&
+            shouldReuseSuccessfulViewport(
+                bounds,
+                zoom
+            )
+        ){
+            return;
+        }
+
+        const elapsedSinceLastRequest =
+            now - lastLoadAt;
+
+        if(
+            lastLoadAt > 0 &&
+            elapsedSinceLastRequest <
+                CONFIG.MAP_REQUEST_MIN_INTERVAL_MS
+        ){
+            scheduleMapLoadAfter(
+                CONFIG.MAP_REQUEST_MIN_INTERVAL_MS -
+                    elapsedSinceLastRequest +
+                    40,
+                force
+            );
+            return;
+        }
+
         lastViewportKey = viewportKey;
         lastLoadAt = now;
-
-        if(currentRequestController){
-            currentRequestController.abort();
-        }
+        mapRequestInFlight = true;
 
         currentRequestController = new AbortController();
 
@@ -771,6 +819,21 @@
 
             closeOverlapPicker();
             vessels = data.vessels;
+
+            lastSuccessfulViewport = {
+                zoom,
+                centerLat: bounds.getCenter().lat,
+                centerLon: bounds.getCenter().lng,
+                latSpan: Math.abs(
+                    bounds.getNorth() -
+                    bounds.getSouth()
+                ),
+                lonSpan: Math.abs(
+                    bounds.getEast() -
+                    bounds.getWest()
+                )
+            };
+
             updateAttribution(data.attributions || []);
             renderVesselView();
 
@@ -794,12 +857,38 @@
                 return;
             }
 
-            console.error("Ship tracking vessel load failed:", error);
+            if(error && error.name === "rate_limited"){
+                const retryAfterMs =
+                    Number(error.retryAfterMs) > 0
+                        ? Number(error.retryAfterMs)
+                        : 6200;
 
-            setStatus(
-                getApiErrorMessage(error),
-                "The map will keep its last successful data when available."
-            );
+                mapRateLimitUntil =
+                    Math.max(
+                        mapRateLimitUntil,
+                        Date.now() + retryAfterMs
+                    );
+
+                setStatus(
+                    getApiErrorMessage(error),
+                    "New live requests are paused until the provider cooldown expires."
+                );
+
+                scheduleMapLoadAfter(
+                    retryAfterMs + 250,
+                    true
+                );
+            }else{
+                console.error(
+                    "Ship tracking vessel load failed:",
+                    error
+                );
+
+                setStatus(
+                    getApiErrorMessage(error),
+                    "The map will keep its last successful data when available."
+                );
+            }
 
             if(vessels.length === 0){
                 renderVesselCards([]);
@@ -808,7 +897,62 @@
         finally{
             window.clearTimeout(timeout);
             currentRequestController = null;
+            mapRequestInFlight = false;
         }
+    }
+
+    function shouldReuseSuccessfulViewport(bounds, zoom){
+        if(
+            !lastSuccessfulViewport ||
+            !bounds
+        ){
+            return false;
+        }
+
+        if(
+            Math.abs(
+                Number(zoom) -
+                Number(lastSuccessfulViewport.zoom)
+            ) >= 0.5
+        ){
+            return false;
+        }
+
+        const center =
+            bounds.getCenter();
+
+        const latSpan =
+            Math.max(
+                0.0001,
+                Number(lastSuccessfulViewport.latSpan) || 0.0001
+            );
+
+        const lonSpan =
+            Math.max(
+                0.0001,
+                Number(lastSuccessfulViewport.lonSpan) || 0.0001
+            );
+
+        const latDelta =
+            Math.abs(
+                center.lat -
+                Number(lastSuccessfulViewport.centerLat)
+            );
+
+        const lonDelta =
+            Math.abs(
+                center.lng -
+                Number(lastSuccessfulViewport.centerLon)
+            );
+
+        return (
+            latDelta <=
+                latSpan *
+                CONFIG.MAP_REUSE_CENTER_RATIO &&
+            lonDelta <=
+                lonSpan *
+                CONFIG.MAP_REUSE_CENTER_RATIO
+        );
     }
 
     function renderVesselView(){
@@ -2040,8 +2184,7 @@
                             )
                         ){
                             best = {
-                                vessel:
-                                    item.vessel,
+                                ...item,
                                 distance:
                                     distance
                             };
@@ -2537,9 +2680,22 @@
                 event.stopPropagation();
             },
             {
+                capture: true,
                 passive: true
             }
         );
+
+        ["pointerdown","mousedown","dblclick"].forEach(function(eventName){
+            picker.addEventListener(
+                eventName,
+                function(event){
+                    event.stopPropagation();
+                },
+                {
+                    capture: true
+                }
+            );
+        });
 
         picker.addEventListener(
             "click",
@@ -2754,6 +2910,29 @@
         const numericMmsi = String(mmsi || "").trim();
 
         if(!/^\d{9}$/.test(numericMmsi)){
+            return;
+        }
+
+        const localVessel =
+            findLoadedVessel(
+                numericMmsi
+            );
+
+        if(localVessel){
+            selectedMmsi =
+                numericMmsi;
+
+            renderDetail(
+                localVessel,
+                []
+            );
+
+            renderMarkers();
+
+            if(reveal){
+                scrollToDetail();
+            }
+
             return;
         }
 
@@ -3375,12 +3554,41 @@
 
         error.name = code || "ApiError";
         error.status = response.status;
+
+        const retryAfter =
+            Number(
+                response.headers.get("Retry-After")
+            );
+
+        if(
+            Number.isFinite(retryAfter) &&
+            retryAfter > 0
+        ){
+            error.retryAfterMs =
+                Math.ceil(
+                    retryAfter * 1000
+                );
+        }
+
         return error;
     }
 
     function getApiErrorMessage(error){
         if(error && error.name === "rate_limited"){
-            return "Ship tracking is rate limited temporarily. Please wait a moment and keep the map area focused.";
+            const retryAfterSeconds =
+                Number(error.retryAfterMs) > 0
+                    ? Math.ceil(
+                        Number(error.retryAfterMs) /
+                        1000
+                    )
+                    : 6;
+
+            return (
+                "Ship tracking is rate limited temporarily. " +
+                "Retrying in about " +
+                retryAfterSeconds +
+                "s."
+            );
         }
 
         if(error && error.name === "not_configured"){
