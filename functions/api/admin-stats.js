@@ -133,6 +133,110 @@ const API_REGISTRY = [
         category: "Site",
         quotaType: "dynamic",
         quotaLabel: "Provider dependent"
+    },
+    {
+        key: "vehiclesdb", name: "VehiclesDB", emoji: "🚗",
+        provider: "VehiclesDB catalog",
+        endpoint: "https://cdn.jsdelivr.net/gh/vehiclesdb/vehiclesdb@latest/dist/vehicles.json",
+        category: "Cars", quotaType: "dynamic",
+        quotaLabel: "Public data source; provider limits apply",
+        trackingMode: "grouped", trackingGroup: "cars"
+    },
+    {
+        key: "wikidata", name: "Wikidata", emoji: "🧬",
+        provider: "Wikidata Query Service",
+        endpoint: "https://query.wikidata.org/sparql",
+        category: "Cars", quotaType: "dynamic",
+        quotaLabel: "Provider rate/concurrency limits apply",
+        trackingMode: "grouped", trackingGroup: "cars"
+    },
+    {
+        key: "dbpedia", name: "DBpedia", emoji: "📚",
+        provider: "DBpedia SPARQL",
+        endpoint: "https://dbpedia.org/sparql",
+        category: "Cars", quotaType: "dynamic",
+        quotaLabel: "Provider rate/concurrency limits apply",
+        trackingMode: "grouped", trackingGroup: "cars"
+    },
+    {
+        key: "wikipedia", name: "Wikipedia API", emoji: "📖",
+        provider: "MediaWiki API",
+        endpoint: "https://en.wikipedia.org/w/api.php",
+        category: "Shared", quotaType: "dynamic",
+        quotaLabel: "Provider rate limits apply",
+        trackingMode: "grouped", trackingGroup: "cars / crypto"
+    },
+    {
+        key: "wikimedia", name: "Wikimedia Commons", emoji: "🖼️",
+        provider: "Wikimedia Commons API",
+        endpoint: "https://commons.wikimedia.org/w/api.php",
+        category: "Shared", quotaType: "dynamic",
+        quotaLabel: "Provider rate limits apply",
+        trackingMode: "grouped", trackingGroup: "cars / markets / crypto"
+    },
+    {
+        key: "world-bank", name: "World Bank Commodity Data", emoji: "🌍",
+        provider: "World Bank",
+        endpoint: "https://www.worldbank.org/en/research/commodity-markets",
+        category: "Markets", quotaType: "dynamic",
+        quotaLabel: "Public data source; provider limits apply",
+        trackingMode: "grouped", trackingGroup: "markets"
+    },
+    {
+        key: "usgs", name: "USGS Mineral Data", emoji: "⛏️",
+        provider: "USGS NMIC / ScienceBase",
+        endpoint: "https://www.usgs.gov/centers/national-minerals-information-center/data",
+        category: "Markets", quotaType: "dynamic",
+        quotaLabel: "Public data source; provider limits apply",
+        trackingMode: "grouped", trackingGroup: "markets"
+    },
+    {
+        key: "eia", name: "EIA", emoji: "⚡",
+        provider: "U.S. Energy Information Administration",
+        endpoint: "https://api.eia.gov/v2/",
+        category: "Markets", quotaType: "dynamic",
+        quotaLabel: "Account/provider dependent",
+        trackingMode: "grouped", trackingGroup: "markets"
+    },
+    {
+        key: "usda-nass", name: "USDA NASS", emoji: "🌾",
+        provider: "USDA National Agricultural Statistics Service",
+        endpoint: "https://www.nass.usda.gov/Quick_Stats/",
+        category: "Markets", quotaType: "dynamic",
+        quotaLabel: "Public data source; provider limits apply",
+        trackingMode: "grouped", trackingGroup: "markets"
+    },
+    {
+        key: "voltlas", name: "Voltlas", emoji: "📦",
+        provider: "Voltlas commodity data",
+        endpoint: "https://voltlas.com/data/latest.json",
+        category: "Markets", quotaType: "dynamic",
+        quotaLabel: "Provider dependent",
+        trackingMode: "grouped", trackingGroup: "markets"
+    },
+    {
+        key: "gemini", name: "Gemini API", emoji: "✨",
+        provider: "Google Gemini",
+        endpoint: "https://generativelanguage.googleapis.com/v1beta/models/",
+        category: "AI", quotaType: "dynamic",
+        quotaLabel: "Project/model/plan dependent",
+        trackingMode: "grouped", trackingGroup: "ai-chat"
+    },
+    {
+        key: "groq", name: "Groq API", emoji: "⚙️",
+        provider: "Groq",
+        endpoint: "https://api.groq.com/openai/v1/chat/completions",
+        category: "AI", quotaType: "dynamic",
+        quotaLabel: "Organization/model/plan dependent",
+        trackingMode: "grouped", trackingGroup: "ai-chat"
+    },
+    {
+        key: "supabase-platform", name: "Supabase Platform", emoji: "🟢",
+        provider: "Supabase Auth / Database",
+        endpoint: "https://supabase.co",
+        category: "Site", quotaType: "dynamic",
+        quotaLabel: "Project/plan dependent",
+        trackingMode: "grouped", trackingGroup: "feedback / auth"
     }
 ];
 
@@ -499,11 +603,19 @@ export async function onRequestGet(
                 )
             );
 
+        const deprecatedUsageKeys =
+            new Set([
+                "ship_tracking_euris_track"
+            ]);
+
         const discoveredApis =
             totals
                 .filter(
                     row =>
                         row?.api_key &&
+                        !deprecatedUsageKeys.has(
+                            String(row.api_key)
+                        ) &&
                         !registeredKeys.has(
                             String(
                                 row.api_key
@@ -605,7 +717,9 @@ export async function onRequestGet(
                         null,
                     lastSeenAt:
                         row?.last_seen_at ||
-                        null
+                        null,
+                    usageTrackedSeparately:
+                        api?.trackingMode !== "grouped"
                 };
             });
 
