@@ -846,13 +846,45 @@
                     ? " · View is capped; zoom in for more"
                     : "";
 
+            const sourceStatus =
+                data.source_status || {};
+
+            const activeSources =
+                Array.isArray(data.sources_used)
+                    ? data.sources_used
+                    : [];
+
+            const sourceParts = [];
+
+            if(activeSources.includes("Pelyr")){
+                sourceParts.push("Pelyr");
+            }
+
+            if(activeSources.includes("EuRIS")){
+                sourceParts.push("EuRIS");
+            }else if(
+                sourceStatus.EuRIS &&
+                sourceStatus.EuRIS.enabled
+            ){
+                sourceParts.push(
+                    "EuRIS connected · 0 usable vessels"
+                );
+            }
+
+            const sourceHint =
+                sourceParts.length
+                    ? "Sources: " + sourceParts.join(" + ")
+                    : "Sources: —";
+
             setStatus(
                 data.vessels.length +
                     " live vessel" +
                     (data.vessels.length === 1 ? "" : "s") +
                     " in the current map area" +
                     truncationText,
-                "Updated " + formatTime(data.generated_at)
+                sourceHint +
+                    " · Updated " +
+                    formatTime(data.generated_at)
             );
 
         }
