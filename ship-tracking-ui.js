@@ -34,8 +34,10 @@
     let lastLoadAt = 0;
     let currentRequestController = null;
     let overlapPicker = null;
+    const markerByMmsi = new Map();
     let markerRenderToken = 0;
     let markerRenderFrame = null;
+    let cardRenderSignature = "";
 
     function get(id){
         return document.getElementById(id);
@@ -330,6 +332,9 @@
             ],
             maxBoundsViscosity: 0,
             worldCopyJump: true,
+            zoomAnimation: false,
+            fadeAnimation: false,
+            markerZoomAnimation: false,
             zoomControl: true,
             zoomSnap: 0.5,
             zoomDelta: 0.5,
@@ -852,10 +857,52 @@
             return;
         }
 
-        if(filtered.length === 0){
-            const input = get("shipTrackingSearch");
-            const query = input ? input.value.trim() : "";
+        const input = get("shipTrackingSearch");
+        const query = input ? input.value.trim() : "";
 
+        const visible = filtered.slice(
+            0,
+            CONFIG.MAX_CARD_VESSELS
+        );
+
+        const signature =
+            activeFilter +
+            "|" +
+            query +
+            "|" +
+            visible.map(function(vessel){
+                const timestamp =
+                    new Date(vessel.ts).getTime();
+
+                return [
+                    vessel.mmsi,
+                    vessel.name,
+                    vessel.type,
+                    vessel.nav_status,
+                    vessel.sog,
+                    vessel.cog,
+                    vessel.lat,
+                    vessel.lon,
+                    vessel.imo,
+                    vessel.callsign,
+                    vessel.destination,
+                    Number.isFinite(timestamp)
+                        ? Math.floor(timestamp / 60000)
+                        : ""
+                ].map(function(value){
+                    return String(
+                        value == null ? "" : value
+                    );
+                }).join("~");
+            }).join("||");
+
+        if(signature === cardRenderSignature){
+            return;
+        }
+
+        cardRenderSignature = signature;
+
+        if(filtered.length === 0){
             grid.innerHTML =
                 '<div class="ship-tracking-empty">' +
                     '<div class="ship-tracking-empty-icon">🚢</div>' +
@@ -873,8 +920,6 @@
 
             return;
         }
-
-        const visible = filtered.slice(0, CONFIG.MAX_CARD_VESSELS);
 
         grid.innerHTML = visible.map(function(vessel){
             return createVesselCard(vessel);
@@ -959,20 +1004,65 @@
             return;
         }
 
-        clearMarkers();
-
         const filtered = getFilteredVessels();
+        syncVisibleMarkers(filtered);
+    }
 
-        if(filtered.length === 0){
-            return;
+    function syncVisibleMarkers(filtered){
+        markerRenderToken += 1;
+
+        if(
+            markerRenderFrame !== null &&
+            typeof window.cancelAnimationFrame === "function"
+        ){
+            window.cancelAnimationFrame(
+                markerRenderFrame
+            );
+            markerRenderFrame = null;
         }
 
-        const renderToken =
-            markerRenderToken;
+        const renderToken = markerRenderToken;
+        const desired = new Map();
 
-        let index = 0;
+        filtered.forEach(function(vessel){
+            const mmsi = String(vessel.mmsi || "").trim();
 
-        function renderBatch(){
+            if(/^\\d{9}$/.test(mmsi)){
+                desired.set(mmsi, vessel);
+            }
+        });
+
+        const staleMmsi = [];
+
+        markerByMmsi.forEach(function(marker, mmsi){
+            if(!desired.has(mmsi)){
+                staleMmsi.push(mmsi);
+            }
+        });
+
+        const settings = getMarkerRenderSettings();
+        let removeIndex = 0;
+        let updateIndex = 0;
+
+        const entries = Array.from(
+            desired.entries()
+        );
+
+        function continueInFrame(callback){
+            if(
+                typeof window.requestAnimationFrame === "function"
+            ){
+                markerRenderFrame =
+                    window.requestAnimationFrame(
+                        callback
+                    );
+            }else{
+                markerRenderFrame =
+                    window.setTimeout(callback, 16);
+            }
+        }
+
+        function removeBatch(){
             if(renderToken !== markerRenderToken){
                 return;
             }
@@ -983,11 +1073,11 @@
                     ? window.performance.now()
                     : Date.now();
 
-            let rendered = 0;
+            let removed = 0;
 
             while(
-                index < filtered.length &&
-                rendered < CONFIG.MARKER_BATCH_SIZE
+                removeIndex < staleMmsi.length &&
+                removed < settings.batchSize
             ){
                 const now =
                     window.performance &&
@@ -996,116 +1086,321 @@
                         : Date.now();
 
                 if(
-                    rendered > 0 &&
-                    now - frameStart >=
-                        CONFIG.MARKER_FRAME_BUDGET_MS
+                    removed > 0 &&
+                    now - frameStart >= settings.frameBudgetMs
                 ){
                     break;
                 }
 
-                const vessel = filtered[index];
-                const selected =
-                    selectedMmsi === String(vessel.mmsi);
+                const mmsi = staleMmsi[removeIndex];
+                const marker = markerByMmsi.get(mmsi);
 
-                const rotation =
-                    getVesselArrowRotation(vessel);
+                if(marker){
+                    markerLayer.removeLayer(marker);
+                    markerByMmsi.delete(mmsi);
+                }
 
-                const marker = L.marker(
-                    [Number(vessel.lat), Number(vessel.lon)],
-                    {
-                        icon: L.divIcon({
-                            className:
-                                "ship-tracking-vessel-arrow-wrap",
-                            html:
-                                '<span class="ship-tracking-vessel-arrow' +
-                                (selected ? ' is-selected' : '') +
-                                '" style="--ship-arrow-rotation:' +
-                                rotation.toFixed(2) +
-                                'deg;">➤</span>',
-                            iconSize:
-                                selected
-                                    ? [24,24]
-                                    : [20,20],
-                            iconAnchor:
-                                selected
-                                    ? [12,12]
-                                    : [10,10],
-                            tooltipAnchor: [0,-10]
-                        }),
-                        keyboard: false,
-                        bubblingMouseEvents: false,
-                        zIndexOffset:
-                            selected
-                                ? 1000
-                                : 0
-                    }
-                );
-
-                marker.on("click", function(){
-                    const overlapping =
-                        getOverlappingVessels(
-                            vessel,
-                            filtered
-                        );
-
-                    if(overlapping.length > 1){
-                        selectedMmsi = "";
-                        closeOverlapPicker();
-                        openOverlapPicker(
-                            vessel,
-                            overlapping
-                        );
-                        return;
-                    }
-
-                    selectedMmsi =
-                        String(vessel.mmsi);
-
-                    closeOverlapPicker();
-                    renderMarkers();
-                    loadVesselDetails(
-                        vessel.mmsi,
-                        true
-                    );
-                });
-
-                marker.bindTooltip(
-                    escapeHtml(
-                        vessel.name ||
-                        "Unknown vessel"
-                    ) +
-                        "<br>MMSI " +
-                        escapeHtml(vessel.mmsi),
-                    {
-                        direction:"top",
-                        offset:[0,-6],
-                        opacity:0.95
-                    }
-                );
-
-                marker.addTo(markerLayer);
-
-                index += 1;
-                rendered += 1;
+                removeIndex += 1;
+                removed += 1;
             }
 
-            if(
-                renderToken !== markerRenderToken
-            ){
+            if(removeIndex < staleMmsi.length){
+                continueInFrame(removeBatch);
                 return;
             }
 
-            if(index < filtered.length){
-                markerRenderFrame =
-                    window.requestAnimationFrame(
-                        renderBatch
-                    );
+            updateBatch();
+        }
+
+        function updateBatch(){
+            if(renderToken !== markerRenderToken){
+                return;
+            }
+
+            const frameStart =
+                window.performance &&
+                typeof window.performance.now === "function"
+                    ? window.performance.now()
+                    : Date.now();
+
+            let processed = 0;
+
+            while(
+                updateIndex < entries.length &&
+                processed < settings.batchSize
+            ){
+                const now =
+                    window.performance &&
+                    typeof window.performance.now === "function"
+                        ? window.performance.now()
+                        : Date.now();
+
+                if(
+                    processed > 0 &&
+                    now - frameStart >= settings.frameBudgetMs
+                ){
+                    break;
+                }
+
+                const entry = entries[updateIndex];
+                const mmsi = entry[0];
+                const vessel = entry[1];
+
+                let marker = markerByMmsi.get(mmsi);
+
+                if(!marker){
+                    marker = createVesselMarker(vessel);
+                    markerByMmsi.set(mmsi, marker);
+                    marker.addTo(markerLayer);
+                }else{
+                    updateVesselMarker(marker, vessel);
+                }
+
+                updateIndex += 1;
+                processed += 1;
+            }
+
+            if(updateIndex < entries.length){
+                continueInFrame(updateBatch);
             }else{
                 markerRenderFrame = null;
             }
         }
 
-        renderBatch();
+        removeBatch();
+    }
+
+    function getMarkerRenderSettings(){
+        const navigatorObject =
+            typeof navigator !== "undefined"
+                ? navigator
+                : null;
+
+        const cores =
+            navigatorObject &&
+            Number.isFinite(
+                Number(navigatorObject.hardwareConcurrency)
+            )
+                ? Number(navigatorObject.hardwareConcurrency)
+                : 8;
+
+        const memory =
+            navigatorObject &&
+            Number.isFinite(
+                Number(navigatorObject.deviceMemory)
+            )
+                ? Number(navigatorObject.deviceMemory)
+                : 8;
+
+        if(cores <= 4 || memory <= 4){
+            return {
+                batchSize: 24,
+                frameBudgetMs: 4
+            };
+        }
+
+        if(cores <= 6 || memory <= 8){
+            return {
+                batchSize: 36,
+                frameBudgetMs: 5
+            };
+        }
+
+        return {
+            batchSize: 50,
+            frameBudgetMs: 6
+        };
+    }
+
+    function createVesselMarker(vessel){
+        const marker =
+            L.marker(
+                [
+                    Number(vessel.lat),
+                    Number(vessel.lon)
+                ],
+                {
+                    icon: createVesselMarkerIcon(
+                        false,
+                        getVesselArrowRotation(vessel)
+                    ),
+                    keyboard: false,
+                    bubblingMouseEvents: false,
+                    zIndexOffset: 0
+                }
+            );
+
+        marker.__shipTrackingMmsi =
+            String(vessel.mmsi || "").trim();
+
+        marker.__shipTrackingLat =
+            Number(vessel.lat);
+
+        marker.__shipTrackingLon =
+            Number(vessel.lon);
+
+        marker.__shipTrackingRotation =
+            null;
+
+        marker.__shipTrackingSelected =
+            false;
+
+        marker.__shipTrackingVessel =
+            vessel;
+
+        marker.on("click", function(){
+            handleVesselMarkerClick(marker);
+        });
+
+        marker.bindTooltip(
+            "",
+            {
+                direction:"top",
+                offset:[0,-6],
+                opacity:0.95
+            }
+        );
+
+        updateVesselMarker(
+            marker,
+            vessel
+        );
+
+        return marker;
+    }
+
+    function createVesselMarkerIcon(selected, rotation){
+        const safeRotation =
+            Number.isFinite(Number(rotation))
+                ? Number(rotation)
+                : -90;
+
+        return L.divIcon({
+            className:
+                "ship-tracking-vessel-arrow-wrap",
+            html:
+                '<span class="ship-tracking-vessel-arrow' +
+                (selected ? ' is-selected' : '') +
+                '" style="--ship-arrow-rotation:' +
+                Math.round(safeRotation) +
+                'deg;">➤</span>',
+            iconSize:
+                selected
+                    ? [24,24]
+                    : [20,20],
+            iconAnchor:
+                selected
+                    ? [12,12]
+                    : [10,10],
+            tooltipAnchor: [0,-10]
+        });
+    }
+
+    function updateVesselMarker(marker, vessel){
+        const mmsi =
+            String(vessel.mmsi || "").trim();
+
+        const lat = Number(vessel.lat);
+        const lon = Number(vessel.lon);
+        const selected =
+            selectedMmsi === mmsi;
+
+        const rotation =
+            Math.round(
+                getVesselArrowRotation(vessel)
+            );
+
+        marker.__shipTrackingVessel =
+            vessel;
+
+        if(
+            Number.isFinite(lat) &&
+            Number.isFinite(lon) &&
+            (
+                Math.abs(
+                    lat - marker.__shipTrackingLat
+                ) > 0.00001 ||
+                Math.abs(
+                    lon - marker.__shipTrackingLon
+                ) > 0.00001
+            )
+        ){
+            marker.setLatLng([lat,lon]);
+            marker.__shipTrackingLat = lat;
+            marker.__shipTrackingLon = lon;
+        }
+
+        if(
+            marker.__shipTrackingRotation !== rotation ||
+            marker.__shipTrackingSelected !== selected
+        ){
+            marker.setIcon(
+                createVesselMarkerIcon(
+                    selected,
+                    rotation
+                )
+            );
+
+            marker.__shipTrackingRotation =
+                rotation;
+
+            marker.__shipTrackingSelected =
+                selected;
+        }
+
+        const tooltip =
+            marker.getTooltip();
+
+        if(tooltip){
+            tooltip.setContent(
+                escapeHtml(
+                    vessel.name ||
+                    "Unknown vessel"
+                ) +
+                "<br>MMSI " +
+                escapeHtml(mmsi)
+            );
+        }
+    }
+
+    function handleVesselMarkerClick(marker){
+        const vessel =
+            marker &&
+            marker.__shipTrackingVessel;
+
+        if(!vessel){
+            return;
+        }
+
+        const filtered =
+            getFilteredVessels();
+
+        const overlapping =
+            getOverlappingVessels(
+                vessel,
+                filtered
+            );
+
+        if(overlapping.length > 1){
+            selectedMmsi = "";
+            closeOverlapPicker();
+            openOverlapPicker(
+                vessel,
+                overlapping
+            );
+            return;
+        }
+
+        selectedMmsi =
+            String(vessel.mmsi);
+
+        closeOverlapPicker();
+        renderMarkers();
+
+        loadVesselDetails(
+            vessel.mmsi,
+            true
+        );
     }
 
     function getVesselDirection(vessel){
@@ -1472,8 +1767,12 @@
         }
 
         if(markerLayer){
-            markerLayer.clearLayers();
+            markerByMmsi.forEach(function(marker){
+                markerLayer.removeLayer(marker);
+            });
         }
+
+        markerByMmsi.clear();
     }
 
     async function loadVesselDetails(mmsi, reveal){
