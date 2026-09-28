@@ -913,7 +913,7 @@
                     sourceParts.push(
                         "EuRIS connected · " +
                         String(eurisCount) +
-                        " in view"
+                        " inland vessels in view"
                     );
                 }
             }
