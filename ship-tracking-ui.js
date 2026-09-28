@@ -1236,7 +1236,7 @@
     }
 
     function createVesselCard(vessel){
-        const typeLabel = vesselTypeLabel(vessel.type);
+        const typeLabel = vesselTypeLabel(vessel.type, vessel.provider);
         const status = navStatusLabel(vessel.nav_status);
         const speed = formatKnots(vessel.sog);
         const course = formatDegrees(vessel.cog);
@@ -3295,7 +3295,7 @@
             '<div class="ship-tracking-detail-head">' +
                 '<div>' +
                     '<span class="ship-tracking-vessel-type">' +
-                        escapeHtml(vesselTypeLabel(vessel.type)) +
+                        escapeHtml(vesselTypeLabel(vessel.type, vessel.provider)) +
                     '</span>' +
                     '<h3 id="shipTrackingDetailTitle">' +
                         escapeHtml(vessel.name || "Unknown vessel") +
@@ -3581,7 +3581,27 @@
         );
     }
 
-    function vesselTypeLabel(type){
+    function vesselTypeLabel(type, provider){
+        const rawType =
+            type === null ||
+            type === undefined ||
+            type === ""
+                ? null
+                : Number(type);
+
+        if(
+            (
+                rawType === null ||
+                !Number.isFinite(rawType) ||
+                rawType === 0
+            ) &&
+            String(provider || "")
+                .toLowerCase()
+                .includes("euris")
+        ){
+            return "Inland vessel";
+        }
+
         const value = Number(type);
 
         if(!Number.isFinite(value)){
