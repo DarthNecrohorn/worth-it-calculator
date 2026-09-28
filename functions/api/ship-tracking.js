@@ -378,14 +378,17 @@ async function handleVessels(
             );
     }
 
-    const eurisVessels =
+    const eurisRawItems =
         eurisData.ok
             ? extractEurisTrackItems(
                 eurisData.body
             )
-                .map(normalizeEurisVessel)
-                .filter(Boolean)
             : [];
+
+    const eurisVessels =
+        eurisRawItems
+            .map(normalizeEurisVessel)
+            .filter(Boolean);
 
     const vessels =
         mergeVesselLists(
@@ -434,8 +437,43 @@ async function handleVessels(
             ),
         vessels,
         attributions,
-        sources_used: sourcesUsed
+        sources_used: sourcesUsed,
+        source_status: {
+            Pelyr: {
+                enabled: Boolean(apiKey),
+                ok: Boolean(pelyrData.ok),
+                count: pelyrVessels.length
+            },
+            EuRIS: {
+                enabled: Boolean(eurisToken),
+                ok: Boolean(eurisData.ok),
+                raw_count: eurisRawItems.length,
+                count: eurisVessels.length,
+                error_code:
+                    !eurisData.ok &&
+                    !eurisData.skipped &&
+                    eurisData.body &&
+                    eurisData.body.error
+                        ? String(
+                            eurisData.body.error.code || ""
+                        )
+                        : ""
+            }
+        }
     };
+
+    if(
+        eurisData.ok &&
+        eurisRawItems.length > 0 &&
+        eurisVessels.length === 0
+    ){
+        console.warn(
+            "EuRIS returned track items, but none matched the vessel normalizer.",
+            {
+                rawCount: eurisRawItems.length
+            }
+        );
+    }
 
     const response = jsonResponse(body, 200, {
         "Cache-Control":
@@ -1171,7 +1209,9 @@ function extractEurisTrackItems(body){
         "items",
         "results",
         "data",
-        "vessels"
+        "vessels",
+        "features",
+        "rows"
     ];
 
     for(const key of keys){
@@ -1202,6 +1242,10 @@ function extractEurisTrackItems(body){
 }
 
 function firstDefinedValue(objects, names){
+    if(!Array.isArray(objects)){
+        return null;
+    }
+
     for(const object of objects){
         if(!object || typeof object !== "object"){
             continue;
@@ -1220,6 +1264,123 @@ function firstDefinedValue(objects, names){
 
     return null;
 }
+
+function findNestedValue(root, names, maxDepth = 4){
+    const wanted =
+        new Set(
+            (Array.isArray(names) ? names : [])
+                .map(String)
+        );
+
+    if(
+        !root ||
+        typeof root !== "object" ||
+        wanted.size === 0
+    ){
+        return null;
+    }
+
+    const queue = [
+        {
+            value: root,
+            depth: 0
+        }
+    ];
+
+    const seen = new Set();
+
+    while(queue.length){
+        const current = queue.shift();
+        const object = current.value;
+        const depth = current.depth;
+
+        if(
+            !object ||
+            typeof object !== "object" ||
+            seen.has(object)
+        ){
+            continue;
+        }
+
+        seen.add(object);
+
+        for(const key of Object.keys(object)){
+            const value = object[key];
+
+            if(
+                wanted.has(key) &&
+                value !== null &&
+                value !== undefined &&
+                value !== ""
+            ){
+                return value;
+            }
+        }
+
+        if(depth >= maxDepth){
+            continue;
+        }
+
+        Object.keys(object).forEach(function(key){
+            const value = object[key];
+
+            if(
+                value &&
+                typeof value === "object"
+            ){
+                queue.push({
+                    value,
+                    depth: depth + 1
+                });
+            }
+        });
+    }
+
+    return null;
+}
+
+function findGeoPoint(root){
+    if(
+        !root ||
+        typeof root !== "object"
+    ){
+        return null;
+    }
+
+    const candidates = [
+        root.geometry && root.geometry.coordinates,
+        root.position && root.position.coordinates,
+        root.location && root.location.coordinates,
+        root.coordinates
+    ];
+
+    for(const coordinates of candidates){
+        if(
+            Array.isArray(coordinates) &&
+            coordinates.length >= 2
+        ){
+            const lon = Number(coordinates[0]);
+            const lat = Number(coordinates[1]);
+
+            if(
+                Number.isFinite(lat) &&
+                Number.isFinite(lon) &&
+                lat >= -90 &&
+                lat <= 90 &&
+                lon >= -180 &&
+                lon <= 180
+            ){
+                return {
+                    lat,
+                    lon
+                };
+            }
+        }
+    }
+
+    return null;
+}
+
 
 function normalizeEurisVessel(item){
     if(
@@ -1247,82 +1408,146 @@ function normalizeEurisVessel(item){
             ? item.ship
             : {};
 
+    const trackData =
+        item.track &&
+        typeof item.track === "object"
+            ? item.track
+            : {};
+
     const objects = [
         item,
         position,
         vesselData,
-        shipData
+        shipData,
+        trackData
     ];
+
+    const nested = function(names){
+        const direct =
+            firstDefinedValue(
+                objects,
+                names
+            );
+
+        return (
+            direct !== null
+                ? direct
+                : findNestedValue(
+                    item,
+                    names
+                )
+        );
+    };
 
     const mmsi =
         String(
-            firstDefinedValue(
-                objects,
-                [
-                    "mmsi",
-                    "MMSI",
-                    "Mmsi",
-                    "shipMmsi",
-                    "ShipMmsi"
-                ]
-            ) || ""
+            nested([
+                "mmsi",
+                "MMSI",
+                "Mmsi",
+                "shipMmsi",
+                "ShipMmsi",
+                "vesselMmsi",
+                "VesselMmsi",
+                "aisMmsi",
+                "AisMmsi"
+            ]) || ""
         ).trim();
 
-    const lat =
+    let lat =
         Number(
-            firstDefinedValue(
-                objects,
-                [
-                    "lat",
-                    "Lat",
-                    "latitude",
-                    "Latitude",
-                    "shipLatitude",
-                    "ShipLatitude"
-                ]
-            )
+            nested([
+                "lat",
+                "Lat",
+                "latitude",
+                "Latitude",
+                "shipLatitude",
+                "ShipLatitude",
+                "vesselLatitude",
+                "VesselLatitude"
+            ])
         );
 
-    const lon =
+    let lon =
         Number(
-            firstDefinedValue(
-                objects,
-                [
-                    "lon",
-                    "Lon",
-                    "longitude",
-                    "Longitude",
-                    "shipLongitude",
-                    "ShipLongitude"
-                ]
-            )
+            nested([
+                "lon",
+                "Lon",
+                "longitude",
+                "Longitude",
+                "shipLongitude",
+                "ShipLongitude",
+                "vesselLongitude",
+                "VesselLongitude"
+            ])
         );
+
+    if(
+        !Number.isFinite(lat) ||
+        !Number.isFinite(lon)
+    ){
+        const point = findGeoPoint(item);
+
+        if(point){
+            lat = point.lat;
+            lon = point.lon;
+        }
+    }
 
     if(
         !/^\d{9}$/.test(mmsi) ||
         !Number.isFinite(lat) ||
-        !Number.isFinite(lon)
+        !Number.isFinite(lon) ||
+        lat < -90 ||
+        lat > 90 ||
+        lon < -180 ||
+        lon > 180
     ){
         return null;
     }
 
-    const providerName =
-        firstDefinedValue(
-            objects,
-            [
-                "name",
-                "Name",
-                "shipName",
-                "ShipName",
-                "vesselName",
-                "VesselName"
-            ]
-        );
-
-    const timestamp =
-        firstDefinedValue(
-            objects,
-            [
+    return {
+        mmsi,
+        lat,
+        lon,
+        sog: nullableNumber(
+            nested([
+                "sog",
+                "Sog",
+                "speedOverGround",
+                "SpeedOverGround",
+                "speed",
+                "Speed"
+            ])
+        ),
+        cog: nullableNumber(
+            nested([
+                "cog",
+                "Cog",
+                "courseOverGround",
+                "CourseOverGround",
+                "course",
+                "Course"
+            ])
+        ),
+        heading: nullableNumber(
+            nested([
+                "heading",
+                "Heading",
+                "trueHeading",
+                "TrueHeading"
+            ])
+        ),
+        nav_status: nullableNumber(
+            nested([
+                "nav_status",
+                "NavStatus",
+                "navigationStatus",
+                "NavigationStatus"
+            ])
+        ),
+        ts: String(
+            nested([
                 "ts",
                 "Ts",
                 "timestamp",
@@ -1332,156 +1557,93 @@ function normalizeEurisVessel(item){
                 "positionTime",
                 "PositionTime",
                 "time",
-                "Time"
-            ]
-        );
-
-    return {
-        mmsi,
-        lat,
-        lon,
-        sog: nullableNumber(
-            firstDefinedValue(
-                objects,
-                [
-                    "sog",
-                    "Sog",
-                    "speedOverGround",
-                    "SpeedOverGround",
-                    "speed",
-                    "Speed"
-                ]
-            )
-        ),
-        cog: nullableNumber(
-            firstDefinedValue(
-                objects,
-                [
-                    "cog",
-                    "Cog",
-                    "courseOverGround",
-                    "CourseOverGround",
-                    "course",
-                    "Course"
-                ]
-            )
-        ),
-        heading: nullableNumber(
-            firstDefinedValue(
-                objects,
-                [
-                    "heading",
-                    "Heading",
-                    "trueHeading",
-                    "TrueHeading"
-                ]
-            )
-        ),
-        nav_status: nullableNumber(
-            firstDefinedValue(
-                objects,
-                [
-                    "nav_status",
-                    "NavStatus",
-                    "navigationStatus",
-                    "NavigationStatus"
-                ]
-            )
-        ),
-        ts: String(
-            timestamp || ""
+                "Time",
+                "updateTime",
+                "UpdateTime"
+            ]) || new Date().toISOString()
         ),
         plausibility: "",
         flags: [],
         position_license: "",
         name: nullableString(
-            providerName
+            nested([
+                "name",
+                "Name",
+                "shipName",
+                "ShipName",
+                "vesselName",
+                "VesselName",
+                "ship_name",
+                "vessel_name"
+            ])
         ),
         type: nullableNumber(
-            firstDefinedValue(
-                objects,
-                [
-                    "type",
-                    "Type",
-                    "shipType",
-                    "ShipType",
-                    "vesselType",
-                    "VesselType"
-                ]
-            )
+            nested([
+                "type",
+                "Type",
+                "shipType",
+                "ShipType",
+                "vesselType",
+                "VesselType",
+                "ship_type",
+                "vessel_type"
+            ])
         ),
         imo: nullableNumber(
-            firstDefinedValue(
-                objects,
-                [
-                    "imo",
-                    "IMO",
-                    "imoNumber",
-                    "ImoNumber"
-                ]
-            )
+            nested([
+                "imo",
+                "IMO",
+                "imoNumber",
+                "ImoNumber"
+            ])
         ),
         callsign: nullableString(
-            firstDefinedValue(
-                objects,
-                [
-                    "callsign",
-                    "Callsign",
-                    "callSign",
-                    "CallSign"
-                ]
-            )
+            nested([
+                "callsign",
+                "Callsign",
+                "callSign",
+                "CallSign"
+            ])
         ),
         destination: nullableString(
-            firstDefinedValue(
-                objects,
-                [
-                    "destination",
-                    "Destination",
-                    "dest",
-                    "Dest"
-                ]
-            )
+            nested([
+                "destination",
+                "Destination",
+                "dest",
+                "Dest"
+            ])
         ),
         draught: nullableNumber(
-            firstDefinedValue(
-                objects,
-                [
-                    "draught",
-                    "Draught",
-                    "draft",
-                    "Draft"
-                ]
-            )
+            nested([
+                "draught",
+                "Draught",
+                "draft",
+                "Draft"
+            ])
         ),
         eta: nullableString(
-            firstDefinedValue(
-                objects,
-                [
-                    "eta",
-                    "ETA"
-                ]
-            )
+            nested([
+                "eta",
+                "ETA"
+            ])
         ),
         length: nullableNumber(
-            firstDefinedValue(
-                objects,
-                [
-                    "length",
-                    "Length"
-                ]
-            )
+            nested([
+                "length",
+                "Length",
+                "shipLength",
+                "ShipLength"
+            ])
         ),
         beam: nullableNumber(
-            firstDefinedValue(
-                objects,
-                [
-                    "beam",
-                    "Beam",
-                    "width",
-                    "Width"
-                ]
-            )
+            nested([
+                "beam",
+                "Beam",
+                "width",
+                "Width",
+                "shipWidth",
+                "ShipWidth"
+            ])
         ),
         static_ts: null,
         static_license: null,
@@ -1489,6 +1651,7 @@ function normalizeEurisVessel(item){
         providers: ["EuRIS"]
     };
 }
+
 
 function mergeVesselLists(primary, secondary){
     const byMmsi = new Map();
