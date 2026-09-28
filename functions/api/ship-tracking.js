@@ -1120,9 +1120,8 @@ async function fetchEurisTracks(token, bbox, max){
          * Authentication failures must not be retried with other shapes.
          */
         if(
-            response.status === 401 ||
-            response.status === 403 ||
-            response.status === 429
+            response.status !== 400 &&
+            response.status !== 404
         ){
             break;
         }
