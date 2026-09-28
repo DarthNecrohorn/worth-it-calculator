@@ -80,12 +80,9 @@ window.openSettings = openSettings;
             value;
 
         /*
-         * The CSS zoom is applied globally to the body. Do not change
-         * the body's width here: width compensation makes the page
-         * overflow at small sizes and pushes right-side controls off-screen.
+         * style.css applies --ui-scale to body zoom.
+         * Keeping one source of truth avoids an extra inline style update.
          */
-        document.body.style.zoom =
-            String(scale);
 
         localStorage.setItem(
             UI_SCALE_KEY,
