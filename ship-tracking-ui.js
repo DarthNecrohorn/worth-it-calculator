@@ -866,9 +866,22 @@
                 sourceStatus.EuRIS &&
                 sourceStatus.EuRIS.enabled
             ){
-                sourceParts.push(
-                    "EuRIS connected · 0 usable vessels"
-                );
+                if(sourceStatus.EuRIS.ok === false){
+                    sourceParts.push(
+                        "EuRIS unavailable" +
+                        (
+                            sourceStatus.EuRIS.error_code
+                                ? " (" +
+                                    sourceStatus.EuRIS.error_code +
+                                    ")"
+                                : ""
+                        )
+                    );
+                }else{
+                    sourceParts.push(
+                        "EuRIS connected · 0 vessels in view"
+                    );
+                }
             }
 
             const sourceHint =
