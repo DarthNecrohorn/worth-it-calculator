@@ -1995,8 +1995,6 @@
             );
 
         let best = null;
-        const hitRadius =
-            13;
 
         for(let dx=-1;dx<=1;dx++){
             for(let dy=-1;dy<=1;dy++){
@@ -2029,7 +2027,11 @@
 
                         if(
                             distance <=
-                            hitRadius &&
+                            (
+                                item.hitRadius ||
+                                hitRadius ||
+                                13
+                            ) &&
                             (
                                 !best ||
                                 distance <
