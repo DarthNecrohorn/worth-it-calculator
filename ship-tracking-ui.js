@@ -17,8 +17,7 @@
         SEARCH_DEBOUNCE_MS: 220,
         REQUEST_TIMEOUT_MS: 20000,
         OVERLAP_DISTANCE_PX: 22,
-        MARKER_BATCH_SIZE: 45,
-        MARKER_FRAME_BUDGET_MS: 7
+        /* Marker work is adaptive to the device; no fixed batch is needed here. */
     };
 
     let map = null;
@@ -38,6 +37,7 @@
     let markerRenderToken = 0;
     let markerRenderFrame = null;
     let cardRenderSignature = "";
+    let cardRenderFrame = null;
 
     function get(id){
         return document.getElementById(id);
@@ -791,8 +791,47 @@
 
     function renderVesselView(){
         const filtered = getFilteredVessels();
-        renderVesselCards(filtered);
+
         renderMarkers();
+        scheduleVesselCards(filtered);
+    }
+
+    function scheduleVesselCards(filtered){
+        if(
+            cardRenderFrame !== null &&
+            typeof window.cancelAnimationFrame === "function"
+        ){
+            window.cancelAnimationFrame(cardRenderFrame);
+            cardRenderFrame = null;
+        }
+
+        if(
+            typeof window.cancelIdleCallback === "function" &&
+            typeof window.requestIdleCallback === "function"
+        ){
+            cardRenderFrame =
+                window.requestIdleCallback(
+                    function(){
+                        cardRenderFrame = null;
+                        renderVesselCards(filtered);
+                    },
+                    {timeout: 300}
+                );
+            return;
+        }
+
+        if(
+            typeof window.requestAnimationFrame === "function"
+        ){
+            cardRenderFrame =
+                window.requestAnimationFrame(function(){
+                    cardRenderFrame = null;
+                    renderVesselCards(filtered);
+                });
+            return;
+        }
+
+        renderVesselCards(filtered);
     }
 
     function getFilteredVessels(){
@@ -1027,7 +1066,7 @@
         filtered.forEach(function(vessel){
             const mmsi = String(vessel.mmsi || "").trim();
 
-            if(/^\\d{9}$/.test(mmsi)){
+            if(/^\d{9}$/.test(mmsi)){
                 desired.set(mmsi, vessel);
             }
         });
@@ -1213,57 +1252,69 @@
     }
 
     function createVesselMarker(vessel){
+        const mmsi =
+            String(vessel.mmsi || "").trim();
+
+        const selected =
+            selectedMmsi === mmsi;
+
+        const rotation =
+            Math.round(
+                getVesselArrowRotation(vessel)
+            );
+
+        const lat = Number(vessel.lat);
+        const lon = Number(vessel.lon);
+
         const marker =
             L.marker(
-                [
-                    Number(vessel.lat),
-                    Number(vessel.lon)
-                ],
+                [lat, lon],
                 {
                     icon: createVesselMarkerIcon(
-                        false,
-                        getVesselArrowRotation(vessel)
+                        selected,
+                        rotation
                     ),
                     keyboard: false,
                     bubblingMouseEvents: false,
-                    zIndexOffset: 0
+                    zIndexOffset:
+                        selected
+                            ? 1000
+                            : 0
                 }
             );
 
         marker.__shipTrackingMmsi =
-            String(vessel.mmsi || "").trim();
+            mmsi;
 
         marker.__shipTrackingLat =
-            Number(vessel.lat);
+            lat;
 
         marker.__shipTrackingLon =
-            Number(vessel.lon);
+            lon;
 
         marker.__shipTrackingRotation =
-            null;
+            rotation;
 
         marker.__shipTrackingSelected =
-            false;
+            selected;
 
         marker.__shipTrackingVessel =
             vessel;
+
+        marker.__shipTrackingTooltipText =
+            getVesselTooltipText(vessel);
 
         marker.on("click", function(){
             handleVesselMarkerClick(marker);
         });
 
         marker.bindTooltip(
-            "",
+            marker.__shipTrackingTooltipText,
             {
                 direction:"top",
                 offset:[0,-6],
                 opacity:0.95
             }
-        );
-
-        updateVesselMarker(
-            marker,
-            vessel
         );
 
         return marker;
@@ -1348,19 +1399,39 @@
                 selected;
         }
 
-        const tooltip =
-            marker.getTooltip();
+        const tooltipText =
+            getVesselTooltipText(vessel);
 
-        if(tooltip){
-            tooltip.setContent(
-                escapeHtml(
-                    vessel.name ||
-                    "Unknown vessel"
-                ) +
-                "<br>MMSI " +
-                escapeHtml(mmsi)
-            );
+        if(
+            tooltipText !==
+            marker.__shipTrackingTooltipText
+        ){
+            marker.__shipTrackingTooltipText =
+                tooltipText;
+
+            const tooltip =
+                marker.getTooltip();
+
+            if(tooltip){
+                tooltip.setContent(
+                    tooltipText
+                );
+            }
         }
+    }
+
+    function getVesselTooltipText(vessel){
+        const mmsi =
+            String(vessel.mmsi || "").trim();
+
+        return (
+            escapeHtml(
+                vessel.name ||
+                "Unknown vessel"
+            ) +
+            "<br>MMSI " +
+            escapeHtml(mmsi)
+        );
     }
 
     function handleVesselMarkerClick(marker){
@@ -1754,6 +1825,26 @@
 
     function clearMarkers(){
         markerRenderToken += 1;
+
+        if(
+            cardRenderFrame !== null &&
+            typeof window.cancelIdleCallback === "function"
+        ){
+            window.cancelIdleCallback(
+                cardRenderFrame
+            );
+            cardRenderFrame = null;
+        }
+
+        if(
+            cardRenderFrame !== null &&
+            typeof window.cancelAnimationFrame === "function"
+        ){
+            window.cancelAnimationFrame(
+                cardRenderFrame
+            );
+            cardRenderFrame = null;
+        }
 
         if(
             markerRenderFrame !== null &&
