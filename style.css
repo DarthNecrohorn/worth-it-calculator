@@ -12150,3 +12150,718 @@ body.ship-tracking-modal-open{
 .ship-tracking-map .leaflet-container{
     background:#9fd3ea !important;
 }
+
+
+/* =========================================================
+   MOBILE / ACCESSIBILITY COMPACTION
+   Admin, Water Levels details/history and Ship Tracking only.
+========================================================= */
+
+@media(max-width:760px){
+    .admin-panel-overlay{
+        padding:7px !important;
+    }
+
+    .admin-panel-card{
+        width:calc(100vw - 14px) !important;
+        max-width:none !important;
+        max-height:calc(100dvh - 14px) !important;
+        padding:12px !important;
+        border-radius:16px !important;
+    }
+
+    .admin-panel-head{
+        gap:8px;
+    }
+
+    .admin-panel-head-copy h3{
+        font-size:20px;
+    }
+
+    .admin-panel-head-copy p{
+        font-size:11px;
+    }
+
+    .admin-panel-content{
+        min-height:0;
+    }
+
+    .admin-panel-section-head{
+        gap:8px;
+        margin-bottom:10px;
+    }
+
+    .admin-panel-back-button{
+        width:32px;
+        height:32px;
+        font-size:20px;
+        border-radius:9px;
+    }
+
+    .admin-panel-section-heading{
+        gap:7px;
+    }
+
+    .admin-panel-section-heading > span{
+        font-size:18px;
+    }
+
+    .admin-panel-section-heading h4{
+        font-size:17px;
+    }
+
+    .admin-panel-section-heading p{
+        font-size:10px;
+    }
+
+    .admin-panel-section-grid{
+        gap:9px;
+        margin-top:10px;
+    }
+
+    .admin-panel-section-button{
+        padding:11px;
+        gap:9px;
+        border-radius:13px;
+    }
+
+    .admin-panel-section-icon{
+        width:36px;
+        height:36px;
+        border-radius:10px;
+        font-size:17px;
+    }
+
+    .admin-panel-section-copy strong{
+        font-size:12px;
+    }
+
+    .admin-panel-section-copy small{
+        font-size:9px;
+    }
+
+    .admin-panel-section-arrow{
+        font-size:21px;
+    }
+
+    .admin-panel-welcome{
+        padding:12px;
+        gap:9px;
+    }
+
+    .admin-panel-welcome-icon{
+        width:38px;
+        height:38px;
+        flex-basis:38px;
+        border-radius:11px;
+        font-size:18px;
+    }
+
+    .admin-panel-welcome-copy strong{
+        font-size:13px;
+    }
+
+    .admin-panel-welcome-copy span{
+        font-size:10px;
+    }
+
+    .admin-usage-summary-grid{
+        gap:7px;
+        margin-bottom:9px;
+    }
+
+    .admin-usage-summary-card{
+        padding:10px;
+        border-radius:12px;
+    }
+
+    .admin-usage-summary-card strong{
+        font-size:19px;
+        margin:3px 0 1px;
+    }
+
+    .admin-usage-summary-card span,
+    .admin-usage-summary-card small{
+        font-size:9px;
+    }
+
+    .admin-usage-note{
+        gap:7px;
+        margin-bottom:9px;
+        padding:9px 10px;
+    }
+
+    .admin-usage-note strong{
+        font-size:10px;
+    }
+
+    .admin-usage-note p{
+        font-size:9px;
+        line-height:1.4;
+    }
+
+    .admin-usage-toolbar{
+        margin-bottom:8px;
+        font-size:10px;
+    }
+
+    .admin-panel-inline-button{
+        min-height:29px;
+        padding:5px 8px;
+        font-size:9px;
+        border-radius:8px;
+    }
+
+    .admin-usage-grid{
+        gap:8px;
+    }
+
+    .admin-usage-card{
+        padding:10px;
+        border-radius:13px;
+    }
+
+    .admin-usage-card-top{
+        gap:7px;
+    }
+
+    .admin-usage-category{
+        font-size:8px;
+    }
+
+    .admin-usage-card h5{
+        font-size:13px;
+    }
+
+    .admin-usage-status{
+        padding:4px 6px;
+        font-size:8px;
+    }
+
+    .admin-usage-provider{
+        min-height:0;
+        margin-top:5px;
+        font-size:9px;
+        line-height:1.35;
+    }
+
+    .admin-usage-main-number{
+        gap:4px;
+        margin-top:7px;
+    }
+
+    .admin-usage-main-number strong{
+        font-size:22px;
+    }
+
+    .admin-usage-main-number span,
+    .admin-usage-remaining-detail{
+        font-size:8px;
+    }
+
+    .admin-usage-metrics{
+        grid-template-columns:repeat(3,minmax(0,1fr)) !important;
+        gap:5px;
+        margin-top:8px;
+    }
+
+    .admin-usage-metrics > div{
+        padding:7px 6px;
+        border-radius:8px;
+    }
+
+    .admin-usage-metrics span{
+        font-size:8px;
+        line-height:1.2;
+    }
+
+    .admin-usage-metrics strong{
+        font-size:11px;
+    }
+
+    .admin-usage-meta{
+        grid-template-columns:repeat(2,minmax(0,1fr)) !important;
+        gap:7px;
+        margin-top:8px;
+        padding-top:8px;
+    }
+
+    .admin-usage-meta span,
+    .admin-usage-meta strong{
+        font-size:8px;
+    }
+
+    .admin-feedback-modern-list{
+        gap:7px;
+    }
+
+    .admin-feedback-modern-item{
+        padding:10px;
+        border-radius:12px;
+    }
+
+    .admin-feedback-modern-head{
+        margin-bottom:6px;
+    }
+
+    .admin-feedback-modern-type{
+        font-size:10px;
+    }
+
+    .admin-feedback-modern-head time,
+    .admin-feedback-modern-page{
+        font-size:8px;
+    }
+
+    .admin-feedback-modern-message{
+        font-size:11px;
+        line-height:1.45;
+    }
+
+    .admin-panel-empty,
+    .admin-panel-error{
+        min-height:170px;
+        padding:16px;
+    }
+}
+
+@media(max-width:650px){
+    /* Water Levels detail/history */
+    .water-levels-detail-card{
+        width:calc((100vw - 12px) / var(--ui-scale,1)) !important;
+        max-width:none !important;
+        max-height:calc((100dvh - 12px) / var(--ui-scale,1)) !important;
+        padding:9px !important;
+        border-radius:14px !important;
+    }
+
+    .water-levels-detail-title h2{
+        font-size:17px !important;
+    }
+
+    .water-levels-detail-icon{
+        width:40px !important;
+        height:40px !important;
+        flex-basis:40px !important;
+        border-radius:11px !important;
+        font-size:18px !important;
+    }
+
+    .water-levels-detail-close{
+        width:32px !important;
+        height:32px !important;
+        flex-basis:32px !important;
+    }
+
+    .water-levels-detail-status{
+        margin:7px 0 !important;
+        padding:5px 7px !important;
+        font-size:8px !important;
+    }
+
+    .water-levels-detail-hero{
+        gap:5px !important;
+        margin-bottom:6px !important;
+    }
+
+    .water-levels-detail-hero > div{
+        padding:8px !important;
+        border-radius:10px !important;
+    }
+
+    .water-levels-detail-hero strong{
+        font-size:16px !important;
+    }
+
+    .water-levels-detail-section,
+    .water-levels-detail-history{
+        margin-top:6px !important;
+        padding:8px !important;
+        border-radius:11px !important;
+    }
+
+    .water-levels-detail-section-head{
+        gap:5px !important;
+        margin-bottom:6px !important;
+    }
+
+    .water-levels-detail-section-head strong{
+        font-size:10px !important;
+    }
+
+    .water-levels-detail-section-head span{
+        font-size:8px !important;
+        line-height:1.3 !important;
+    }
+
+    .water-levels-detail-metrics{
+        gap:4px !important;
+    }
+
+    .water-level-metric{
+        padding:6px 7px !important;
+        border-radius:8px !important;
+    }
+
+    .water-level-metric span{
+        font-size:7px !important;
+    }
+
+    .water-level-metric strong{
+        font-size:10px !important;
+        line-height:1.15 !important;
+    }
+
+    .water-levels-history-controls{
+        gap:4px !important;
+        margin-bottom:5px !important;
+    }
+
+    .water-levels-history-controls button{
+        padding:5px 7px !important;
+        border-radius:8px !important;
+        font-size:8px !important;
+    }
+
+    .water-levels-history-chart,
+    .water-levels-chart-svg{
+        min-height:135px !important;
+    }
+
+    .water-levels-chart-inner{
+        padding:5px 6px !important;
+    }
+
+    .water-levels-chart-summary{
+        font-size:8px !important;
+    }
+
+    .water-levels-detail-footer{
+        margin-top:6px !important;
+        font-size:7px !important;
+    }
+
+    /* Ship Tracking phone layout */
+    .ship-tracking-section{
+        width:calc((100vw - 12px) / var(--ui-scale,1)) !important;
+        max-width:none !important;
+        padding:22px 0 34px !important;
+    }
+
+    .ship-tracking-header{
+        margin-bottom:12px !important;
+    }
+
+    .ship-tracking-header h2{
+        font-size:23px !important;
+        letter-spacing:-.5px !important;
+    }
+
+    .ship-tracking-header p{
+        font-size:11px !important;
+        line-height:1.4 !important;
+    }
+
+    .ship-tracking-source-row{
+        gap:5px !important;
+        margin-bottom:10px !important;
+    }
+
+    .ship-tracking-source-row span{
+        padding:5px 7px !important;
+        font-size:8px !important;
+    }
+
+    .ship-tracking-dataset-grid{
+        gap:6px !important;
+        margin-bottom:10px !important;
+    }
+
+    .ship-tracking-dataset-card{
+        padding:9px !important;
+        column-gap:7px !important;
+        border-radius:11px !important;
+    }
+
+    .ship-tracking-dataset-icon{
+        width:32px !important;
+        height:32px !important;
+        border-radius:9px !important;
+        font-size:15px !important;
+    }
+
+    .ship-tracking-dataset-card strong{
+        font-size:10px !important;
+    }
+
+    .ship-tracking-dataset-card small{
+        font-size:8px !important;
+        margin-top:2px !important;
+    }
+
+    .ship-tracking-toolbar{
+        gap:8px !important;
+        margin-bottom:9px !important;
+    }
+
+    .ship-tracking-filters{
+        gap:5px !important;
+    }
+
+    .ship-tracking-filters button{
+        padding:6px 8px !important;
+        border-radius:9px !important;
+        font-size:9px !important;
+    }
+
+    .ship-tracking-search-wrap{
+        padding:8px 10px !important;
+        border-radius:11px !important;
+        gap:7px !important;
+    }
+
+    .ship-tracking-search-wrap input{
+        font-size:11px !important;
+    }
+
+    .ship-tracking-status-row{
+        margin-bottom:9px !important;
+        gap:4px 7px !important;
+        font-size:9px !important;
+    }
+
+    .ship-tracking-status-hint{
+        font-size:8px !important;
+    }
+
+    .ship-tracking-map-card{
+        min-height:245px !important;
+        margin-bottom:10px !important;
+        border-radius:13px !important;
+    }
+
+    .ship-tracking-map{
+        min-height:280px !important;
+        height:280px !important;
+    }
+
+    .ship-tracking-map-switcher-btn{
+        width:96px !important;
+        min-width:96px !important;
+        min-height:28px !important;
+        padding:4px 7px !important;
+        font-size:9px !important;
+    }
+
+    .ship-tracking-grid{
+        gap:9px !important;
+    }
+
+    .ship-tracking-vessel-card{
+        padding:11px !important;
+        border-radius:13px !important;
+    }
+
+    .ship-tracking-vessel-card h3{
+        font-size:14px !important;
+    }
+
+    .ship-tracking-vessel-metrics,
+    .ship-tracking-detail-grid{
+        gap:5px !important;
+        margin-top:9px !important;
+    }
+
+    .ship-tracking-metric{
+        padding:7px 8px !important;
+        border-radius:9px !important;
+    }
+
+    .ship-tracking-metric span{
+        font-size:8px !important;
+    }
+
+    .ship-tracking-metric strong{
+        font-size:10px !important;
+    }
+
+    .ship-tracking-vessel-actions,
+    .ship-tracking-detail-actions{
+        margin-top:8px !important;
+        gap:5px !important;
+    }
+
+    .ship-tracking-action-btn{
+        padding:6px 8px !important;
+        border-radius:8px !important;
+        font-size:9px !important;
+    }
+
+    .ship-tracking-vessel-time{
+        font-size:8px !important;
+    }
+
+    .ship-tracking-detail{
+        padding:6px !important;
+    }
+
+    .ship-tracking-detail-card{
+        width:calc((100vw - 12px) / var(--ui-scale,1)) !important;
+        max-width:none !important;
+        max-height:calc((100dvh - 12px) / var(--ui-scale,1)) !important;
+        padding:10px !important;
+        border-radius:14px !important;
+    }
+
+    .ship-tracking-detail-head{
+        gap:7px !important;
+    }
+
+    .ship-tracking-detail-head h3{
+        margin-top:5px !important;
+        font-size:17px !important;
+    }
+
+    .ship-tracking-detail-subtitle{
+        font-size:8px !important;
+    }
+
+    .ship-tracking-detail-close{
+        width:32px !important;
+        height:32px !important;
+        font-size:14px !important;
+    }
+
+    .ship-tracking-detail-grid{
+        grid-template-columns:repeat(2,minmax(0,1fr)) !important;
+    }
+
+    .ship-tracking-detail-note,
+    .ship-tracking-track-note{
+        font-size:8px !important;
+        line-height:1.35 !important;
+    }
+}
+
+@media(max-width:650px){
+    html[data-ui-scale="large"] .admin-panel-card,
+    html[data-ui-scale="xl"] .admin-panel-card{
+        width:calc((100vw - 10px) / var(--ui-scale,1)) !important;
+        max-height:calc((100dvh - 10px) / var(--ui-scale,1)) !important;
+        padding:9px !important;
+    }
+
+    html[data-ui-scale="large"] .admin-usage-card,
+    html[data-ui-scale="xl"] .admin-usage-card{
+        padding:8px !important;
+    }
+
+    html[data-ui-scale="large"] .admin-usage-main-number strong{
+        font-size:19px !important;
+    }
+
+    html[data-ui-scale="xl"] .admin-usage-main-number strong{
+        font-size:17px !important;
+    }
+
+    html[data-ui-scale="large"] .admin-panel-section-button,
+    html[data-ui-scale="xl"] .admin-panel-section-button{
+        padding:9px !important;
+    }
+
+    html[data-ui-scale="large"] .water-levels-detail-card,
+    html[data-ui-scale="xl"] .water-levels-detail-card{
+        padding:8px !important;
+        width:calc((100vw - 8px) / var(--ui-scale,1)) !important;
+        max-height:calc((100dvh - 8px) / var(--ui-scale,1)) !important;
+    }
+
+    html[data-ui-scale="large"] .water-levels-history-chart,
+    html[data-ui-scale="large"] .water-levels-chart-svg{
+        min-height:120px !important;
+    }
+
+    html[data-ui-scale="xl"] .water-levels-history-chart,
+    html[data-ui-scale="xl"] .water-levels-chart-svg{
+        min-height:110px !important;
+    }
+
+    html[data-ui-scale="large"] .ship-tracking-section,
+    html[data-ui-scale="xl"] .ship-tracking-section{
+        width:calc((100vw - 8px) / var(--ui-scale,1)) !important;
+        padding-top:18px !important;
+        padding-bottom:26px !important;
+    }
+
+    html[data-ui-scale="large"] .ship-tracking-header h2{
+        font-size:20px !important;
+    }
+
+    html[data-ui-scale="xl"] .ship-tracking-header h2{
+        font-size:18px !important;
+    }
+
+    html[data-ui-scale="large"] .ship-tracking-header p,
+    html[data-ui-scale="xl"] .ship-tracking-header p{
+        font-size:9px !important;
+    }
+
+    html[data-ui-scale="large"] .ship-tracking-source-row span,
+    html[data-ui-scale="xl"] .ship-tracking-source-row span{
+        font-size:7px !important;
+        padding:4px 6px !important;
+    }
+
+    html[data-ui-scale="large"] .ship-tracking-dataset-card,
+    html[data-ui-scale="xl"] .ship-tracking-dataset-card{
+        padding:7px !important;
+    }
+
+    html[data-ui-scale="large"] .ship-tracking-dataset-icon,
+    html[data-ui-scale="xl"] .ship-tracking-dataset-icon{
+        width:28px !important;
+        height:28px !important;
+        font-size:13px !important;
+    }
+
+    html[data-ui-scale="large"] .ship-tracking-dataset-card strong{
+        font-size:9px !important;
+    }
+
+    html[data-ui-scale="xl"] .ship-tracking-dataset-card strong{
+        font-size:8px !important;
+    }
+
+    html[data-ui-scale="large"] .ship-tracking-filters button,
+    html[data-ui-scale="xl"] .ship-tracking-filters button{
+        padding:5px 7px !important;
+        font-size:8px !important;
+    }
+
+    html[data-ui-scale="large"] .ship-tracking-search-wrap input,
+    html[data-ui-scale="xl"] .ship-tracking-search-wrap input{
+        font-size:10px !important;
+    }
+
+    html[data-ui-scale="large"] .ship-tracking-map{
+        height:260px !important;
+        min-height:260px !important;
+    }
+
+    html[data-ui-scale="xl"] .ship-tracking-map{
+        height:235px !important;
+        min-height:235px !important;
+    }
+
+    html[data-ui-scale="large"] .ship-tracking-vessel-card,
+    html[data-ui-scale="xl"] .ship-tracking-vessel-card{
+        padding:9px !important;
+    }
+
+    html[data-ui-scale="large"] .ship-tracking-detail-card,
+    html[data-ui-scale="xl"] .ship-tracking-detail-card{
+        width:calc((100vw - 8px) / var(--ui-scale,1)) !important;
+        max-height:calc((100dvh - 8px) / var(--ui-scale,1)) !important;
+        padding:8px !important;
+    }
+}
