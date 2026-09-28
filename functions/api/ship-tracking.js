@@ -518,8 +518,6 @@ async function handleVessels(
 
     let eurisRawItems = [];
     let eurisVessels = [];
-    let eurisNormalizationErrorCount = 0;
-    let eurisFirstNormalizationError = "";
 
     if(eurisData.ok){
         try{
@@ -528,56 +526,19 @@ async function handleVessels(
                     eurisData.body
                 );
 
-            eurisRawItems.forEach(function(item){
-                try{
-                    const normalized =
-                        normalizeEurisVessel(
-                            item
-                        );
-
-                    if(normalized){
-                        eurisVessels.push(
-                            normalized
-                        );
-                    }
-                }
-                catch(error){
-                    eurisNormalizationErrorCount += 1;
-
-                    if(
-                        !eurisFirstNormalizationError
-                    ){
-                        eurisFirstNormalizationError =
-                            String(
-                                error &&
-                                error.message
-                                    ? error.message
-                                    : error
-                            );
-                    }
-
-                    console.error(
-                        "EuRIS single-vessel normalization failed:",
-                        error
-                    );
-                }
-            });
+            eurisVessels =
+                eurisRawItems
+                    .map(normalizeEurisVessel)
+                    .filter(Boolean);
         }
         catch(error){
             console.error(
-                "EuRIS vessel extraction failed:",
+                "EuRIS vessel processing failed:",
                 error
             );
 
             eurisRawItems = [];
             eurisVessels = [];
-            eurisFirstNormalizationError =
-                String(
-                    error &&
-                    error.message
-                        ? error.message
-                        : error
-                );
         }
     }
 
@@ -680,41 +641,7 @@ async function handleVessels(
                         ? String(
                             eurisData.body.error.code || ""
                         )
-                        : "",
-                upstream_response_url:
-                    eurisData.ok
-                        ? String(
-                            eurisData.upstream_meta &&
-                            eurisData.upstream_meta.response_url ||
-                            ""
-                        )
-                        : "",
-                upstream_content_type:
-                    eurisData.ok
-                        ? String(
-                            eurisData.upstream_meta &&
-                            eurisData.upstream_meta.content_type ||
-                            ""
-                        )
-                        : "",
-                upstream_body_keys:
-                    eurisData.ok &&
-                    eurisData.upstream_meta &&
-                    Array.isArray(
-                        eurisData.upstream_meta.body_keys
-                    )
-                        ? eurisData.upstream_meta.body_keys
-                        : [],
-                upstream_array_lengths:
-                    eurisData.ok &&
-                    eurisData.upstream_meta &&
-                    eurisData.upstream_meta.array_lengths
-                        ? eurisData.upstream_meta.array_lengths
-                        : {},
-                normalization_error_count:
-                    eurisNormalizationErrorCount,
-                first_normalization_error:
-                    eurisFirstNormalizationError
+                        : ""
             }
         }
     };
@@ -1510,15 +1437,6 @@ async function fetchEurisTracks(token, bbox, max){
                     body &&
                     typeof body === "object"
                 ){
-                    const bodyArrayLengths = {};
-                    
-                    Object.keys(body).forEach(function(key){
-                        if(Array.isArray(body[key])){
-                            bodyArrayLengths[key] =
-                                body[key].length;
-                        }
-                    });
-
                     let finalBody =
                         body;
 
@@ -1577,28 +1495,6 @@ async function fetchEurisTracks(token, bbox, max){
                             endpoint.path,
                         query_mode:
                             queryIndex,
-                        upstream_meta: {
-                            response_url:
-                                String(response.url || ""),
-                            content_type:
-                                String(
-                                    response.headers.get(
-                                        "content-type"
-                                    ) || ""
-                                ),
-                            body_keys:
-                                Object.keys(body),
-                            array_lengths:
-                                bodyArrayLengths,
-                            direct_items_length:
-                                Array.isArray(body.items)
-                                    ? body.items.length
-                                    : 0,
-                            direct_value_length:
-                                Array.isArray(body.value)
-                                    ? body.value.length
-                                    : 0
-                        },
                         pagination
                     };
                 }
