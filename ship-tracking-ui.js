@@ -244,7 +244,7 @@
                         detailsButton.dataset.shipDetails || ""
                     ).trim();
 
-                if(/^\d{9}$/.test(mmsi)){
+                if(mmsi){
                     loadVesselDetails(mmsi, true);
                 }
 
@@ -3307,7 +3307,6 @@
             renderTrackDetail(
                 "MMSI " + numericMmsi,
                 data.points,
-                "Pelyr",
                 numericMmsi
             );
             drawTrack(data.points);
@@ -3404,7 +3403,6 @@
                     ? "EuRIS Track ID " + eurisTrackId
                     : "MMSI " + numericMmsi,
                 data.points,
-                "EuRIS",
                 eurisTrackId || numericMmsi
             );
 
@@ -3499,7 +3497,6 @@
     function renderTrackDetail(
         identifier,
         points,
-        provider,
         selectionId
     ){
         const first = points[0];
