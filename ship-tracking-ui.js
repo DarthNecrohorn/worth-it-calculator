@@ -1224,6 +1224,11 @@
                 shipCanvasPointerEvent =
                     null;
 
+                if(shipCanvas){
+                    shipCanvas.style.cursor =
+                        "";
+                }
+
                 closeShipCanvasTooltip();
             }
         );
@@ -1800,7 +1805,16 @@
         if(!hit){
             shipCanvasHoverMmsi = "";
             closeShipCanvasTooltip();
+
+            if(shipCanvas){
+                shipCanvas.style.cursor = "";
+            }
+
             return;
+        }
+
+        if(shipCanvas){
+            shipCanvas.style.cursor = "pointer";
         }
 
         const mmsi =
@@ -2684,12 +2698,19 @@
         }
 
         autoRefreshTimer = window.setInterval(function(){
+            const section =
+                get("shipTrackingSection");
+
             if(
-                get("shipTrackingSection") &&
-                get("shipTrackingSection").style.display !== "none"
+                !section ||
+                section.style.display === "none" ||
+                document.visibilityState ===
+                    "hidden"
             ){
-                scheduleMapLoad(true);
+                return;
             }
+
+            scheduleMapLoad(true);
         }, CONFIG.AUTO_REFRESH_MS);
 
         mapBaseRefreshTimer = window.setInterval(function(){
