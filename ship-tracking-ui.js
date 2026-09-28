@@ -2833,7 +2833,7 @@
 
                 closeOverlapPicker();
 
-                if(!/^\d{9}$/.test(mmsi)){
+                if(!mmsi){
                     return;
                 }
 
@@ -3011,20 +3011,26 @@
     }
 
     async function loadVesselDetails(mmsi, reveal){
-        const numericMmsi = String(mmsi || "").trim();
+        const vesselId =
+            String(mmsi || "").trim();
 
-        if(!/^\d{9}$/.test(numericMmsi)){
+        if(!vesselId){
             return;
         }
 
         const localVessel =
             findLoadedVessel(
-                numericMmsi
+                vesselId
             );
 
+        /*
+         * EuRIS compact Tracks_v2 records use trackID rather
+         * than a 9-digit MMSI.  Details must therefore work
+         * directly from the vessel already loaded on the map.
+         */
         if(localVessel){
             selectedMmsi =
-                numericMmsi;
+                vesselId;
 
             renderDetail(
                 localVessel,
@@ -3037,6 +3043,18 @@
                 scrollToDetail();
             }
 
+            return;
+        }
+
+        const numericMmsi =
+            vesselId;
+
+        if(!/^\d{9}$/.test(numericMmsi)){
+            if(reveal){
+                showDetailError(
+                    "Detailed AIS data is only available for vessels with a verified MMSI."
+                );
+            }
             return;
         }
 
@@ -3198,9 +3216,19 @@
             '</div>' +
 
             '<div class="ship-tracking-detail-actions">' +
-                '<button type="button" class="ship-tracking-action-btn" data-ship-track="' +
-                    escapeHtml(vessel.mmsi) +
-                '">📈 Load recent 24h track</button>' +
+                (
+                    /^\d{9}$/.test(
+                        String(
+                            vessel.mmsi || ""
+                        ).trim()
+                    )
+                        ? '<button type="button" class="ship-tracking-action-btn" data-ship-track="' +
+                            escapeHtml(vessel.mmsi) +
+                          '">📈 Load recent 24h track</button>'
+                        : '<span class="ship-tracking-detail-note">' +
+                            'EuRIS track data is available for this vessel; historical 24h track loading is not available through the current EuRIS compact track endpoint.' +
+                          '</span>'
+                ) +
                 '<span class="ship-tracking-detail-note">' +
                     'AIS position data is informational and not a navigational aid.' +
                 '</span>' +
