@@ -11933,6 +11933,17 @@ body.ship-tracking-modal-open{
 }
 
 @media(max-width:650px){
+    .ship-tracking-overlap-picker{
+        width:min(340px,calc(100% - 20px));
+        max-height:calc(100% - 20px);
+        padding:10px;
+    }
+
+    .ship-tracking-overlap-grid{
+        grid-template-columns:repeat(2,minmax(0,1fr));
+        max-height:300px;
+    }
+
     .ship-tracking-map{
         min-height:320px;
         height:320px;
@@ -12009,14 +12020,17 @@ body.ship-tracking-modal-open{
     position:absolute;
     z-index:950;
     box-sizing:border-box;
-    width:min(330px,calc(100% - 24px));
-    padding:10px;
+    width:min(360px,calc(100% - 24px));
+    max-height:min(430px,calc(100% - 24px));
+    padding:11px;
     border:1px solid var(--border);
     border-radius:16px;
     background:var(--card-solid,var(--card));
     color:var(--text);
     box-shadow:0 20px 50px rgba(0,0,0,.28);
     transform:translate(-50%,-50%);
+    display:flex;
+    flex-direction:column;
 }
 
 .ship-tracking-overlap-head{
@@ -12025,6 +12039,7 @@ body.ship-tracking-modal-open{
     justify-content:space-between;
     gap:10px;
     margin-bottom:9px;
+    flex:0 0 auto;
 }
 
 .ship-tracking-overlap-head > div{
@@ -12059,14 +12074,17 @@ body.ship-tracking-modal-open{
 
 .ship-tracking-overlap-grid{
     display:grid;
-    grid-template-columns:repeat(4,minmax(0,1fr));
-    gap:6px;
-    max-height:210px;
+    grid-template-columns:repeat(3,minmax(0,1fr));
+    gap:7px;
+    min-height:0;
+    max-height:330px;
     overflow-y:auto;
     overflow-x:hidden;
     overscroll-behavior:contain;
+    -webkit-overflow-scrolling:touch;
     scrollbar-width:thin;
-    padding-right:2px;
+    scrollbar-gutter:stable;
+    padding-right:4px;
 }
 
 .ship-tracking-overlap-item{
