@@ -303,13 +303,56 @@ async function handleVessels(
             });
 
     const results =
-        await Promise.all([
+        await Promise.allSettled([
             pelyrPromise,
             eurisPromise
         ]);
 
-    const pelyrData = results[0];
-    const eurisData = results[1];
+    const normalizeSettledSource =
+        function(result, providerCode){
+            if(
+                result.status === "fulfilled"
+            ){
+                return result.value;
+            }
+
+            console.error(
+                "Ship Tracking source promise failed:",
+                providerCode,
+                result.reason
+            );
+
+            return {
+                ok: false,
+                skipped: false,
+                status: 502,
+                unexpected_error: true,
+                body: {
+                    ok: false,
+                    error: {
+                        code:
+                            providerCode +
+                            "_internal_error",
+                        message:
+                            providerCode === "euris"
+                                ? "EuRIS is temporarily unavailable."
+                                : "Pelyr is temporarily unavailable."
+                    }
+                }
+            };
+        };
+
+    const pelyrData =
+        normalizeSettledSource(
+            results[0],
+            "pelyr"
+        );
+
+    const eurisData =
+        normalizeSettledSource(
+            results[1],
+            "euris"
+        );
 
     if(
         !pelyrData.ok &&
