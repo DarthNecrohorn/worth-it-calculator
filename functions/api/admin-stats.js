@@ -700,6 +700,11 @@ export async function onRequestGet(
                             env,
                             api.key
                         ),
+                    configurationLabel:
+                        getApiConfigurationLabel(
+                            env,
+                            api.key
+                        ),
                     totalRequests:
                         Number(
                             row?.total_requests
@@ -752,6 +757,34 @@ export async function onRequestGet(
             500
         );
     }
+}
+
+function getApiConfigurationLabel(
+    env,
+    apiKey
+) {
+    const noKeyRequired = new Set([
+        "currencies",
+        "exchange-rate",
+        "cars",
+        "vehiclesdb",
+        "wikidata",
+        "dbpedia",
+        "wikipedia",
+        "wikimedia",
+        "world-bank",
+        "usgs",
+        "usda-nass",
+        "voltlas"
+    ]);
+
+    if (noKeyRequired.has(apiKey)) {
+        return "No key required";
+    }
+
+    return isApiConfigured(env, apiKey)
+        ? "Configured"
+        : "Missing key";
 }
 
 function getApiEmoji(
@@ -829,20 +862,59 @@ function isApiConfigured(
             );
 
         case "markets":
-        case "crypto":
         case "cars":
         case "currencies":
         case "exchange-rate":
-        case "feedback":
+            return true;
+
+        case "crypto":
+            return Boolean(
+                String(
+                    env.COINMARKETCAP_API_KEY || ""
+                ).trim()
+            );
+
         case "water-levels":
-            return apiKey === "water-levels"
-                ? Boolean(
-                    String(env.CDSE_ACCESS_TOKEN || "").trim()
-                ) || (
-                    Boolean(String(env.CDSE_USERNAME || "").trim()) &&
-                    Boolean(String(env.CDSE_PASSWORD || "").trim())
-                )
-                : true;
+            return Boolean(
+                String(env.CDSE_ACCESS_TOKEN || "").trim()
+            ) || (
+                Boolean(String(env.CDSE_USERNAME || "").trim()) &&
+                Boolean(String(env.CDSE_PASSWORD || "").trim())
+            );
+
+        case "feedback":
+        case "supabase-platform":
+            return Boolean(
+                String(env.SUPABASE_URL || "").trim()
+            ) && Boolean(
+                String(env.SUPABASE_PUBLISHABLE_KEY || "").trim()
+            );
+
+        case "eia":
+            return Boolean(
+                String(env.EIA_API_KEY || "").trim()
+            );
+
+        case "gemini":
+            return Boolean(
+                String(env.GEMINI_API_KEY || "").trim()
+            );
+
+        case "groq":
+            return Boolean(
+                String(env.GROQ_API_KEY || "").trim()
+            );
+
+        case "vehiclesdb":
+        case "wikidata":
+        case "dbpedia":
+        case "wikipedia":
+        case "wikimedia":
+        case "world-bank":
+        case "usgs":
+        case "usda-nass":
+        case "voltlas":
+            return true;
 
         default:
             return false;
