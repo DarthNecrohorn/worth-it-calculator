@@ -95,6 +95,36 @@ const API_REGISTRY = [
         quotaLabel: "Provider dependent"
     },
     {
+        key: "ship_tracking",
+        name: "Ship Tracking — Pelyr",
+        emoji: "🚢",
+        provider: "Pelyr OPEN-AIS",
+        endpoint: "/api/ship-tracking",
+        category: "Ship Tracking",
+        quotaType: "dynamic",
+        quotaLabel: "Provider dependent"
+    },
+    {
+        key: "ship_tracking_euris",
+        name: "Ship Tracking — EuRIS",
+        emoji: "🚢",
+        provider: "EuRIS",
+        endpoint: "/api/ship-tracking",
+        category: "Ship Tracking",
+        quotaType: "dynamic",
+        quotaLabel: "Rate/concurrency limits apply"
+    },
+    {
+        key: "ship_tracking_sources",
+        name: "Pelyr Sources",
+        emoji: "🛰️",
+        provider: "Pelyr OPEN-AIS",
+        endpoint: "/api/ship-tracking?action=sources",
+        category: "Ship Tracking",
+        quotaType: "dynamic",
+        quotaLabel: "Provider dependent"
+    },
+    {
         key: "feedback",
         name: "Feedback",
         emoji: "🐞",
