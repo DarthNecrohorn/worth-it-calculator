@@ -468,6 +468,12 @@ async function handleVessels(
                 pagination_complete:
                     eurisData.pagination
                         ? Boolean(
+                            eurisData.pagination.complete_for_limit
+                        )
+                        : false,
+                pagination_complete_all:
+                    eurisData.pagination
+                        ? Boolean(
                             eurisData.pagination.complete
                         )
                         : false,
@@ -477,8 +483,7 @@ async function handleVessels(
                             eurisData.pagination.error_code ||
                             ""
                         )
-                        : "",
-                                pagination_complete_for_limit:
+                        : "",                pagination_complete_for_limit:
                     eurisData.pagination
                         ? Boolean(
                             eurisData.pagination.complete_for_limit
@@ -1561,7 +1566,6 @@ async function paginateEurisPages(
         complete = true;
     }
 
-    
     if(
         nextUrl &&
         (
@@ -1572,8 +1576,7 @@ async function paginateEurisPages(
         stoppedByLimit = true;
         complete = false;
     }
-
-const limitedItems =
+    const limitedItems =
         allItems.slice(
             0,
             max
@@ -1624,6 +1627,11 @@ const limitedItems =
         pagination: {
             pages: pageCount,
             complete,
+            complete_for_limit:
+                complete ||
+                stoppedByLimit,
+            stopped_by_limit:
+                stoppedByLimit,
             truncated:
                 Boolean(
                     nextUrl
@@ -3014,12 +3022,3 @@ function jsonResponse(body, status, headers){
             entry[1]
         );
     });
-
-    return new Response(
-        JSON.stringify(body),
-        {
-            status,
-            headers: responseHeaders
-        }
-    );
-}
