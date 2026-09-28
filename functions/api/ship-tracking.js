@@ -1503,6 +1503,210 @@ function findGeoPoint(root){
 }
 
 
+
+function findAnyMmsi(root, maxDepth = 7){
+    if(
+        !root ||
+        typeof root !== "object"
+    ){
+        return null;
+    }
+
+    const queue = [
+        {
+            value: root,
+            depth: 0
+        }
+    ];
+
+    const seen = new Set();
+
+    while(queue.length){
+        const current = queue.shift();
+        const value = current.value;
+        const depth = current.depth;
+
+        if(
+            value === null ||
+            value === undefined
+        ){
+            continue;
+        }
+
+        if(
+            typeof value !== "object"
+        ){
+            const digits =
+                String(value)
+                    .replace(/[^0-9]/g, "");
+
+            if(
+                /^\\d{9}$/.test(digits)
+            ){
+                return digits;
+            }
+
+            continue;
+        }
+
+        if(seen.has(value)){
+            continue;
+        }
+
+        seen.add(value);
+
+        Object.keys(value).forEach(function(key){
+            const child = value[key];
+
+            if(
+                child === null ||
+                child === undefined
+            ){
+                return;
+            }
+
+            const normalizedKey =
+                String(key)
+                    .replace(/[^a-z0-9]/gi, "")
+                    .toLowerCase();
+
+            if(
+                /mmsi/.test(normalizedKey)
+            ){
+                const digits =
+                    String(child)
+                        .replace(/[^0-9]/g, "");
+
+                if(
+                    /^\\d{9}$/.test(digits)
+                ){
+                    queue.unshift({
+                        value: digits,
+                        depth: maxDepth + 1
+                    });
+                    return;
+                }
+            }
+
+            if(
+                depth < maxDepth &&
+                typeof child === "object"
+            ){
+                queue.push({
+                    value: child,
+                    depth: depth + 1
+                });
+            }
+        });
+
+        if(
+            depth < maxDepth &&
+            Array.isArray(value)
+        ){
+            value.forEach(function(child){
+                if(
+                    child &&
+                    typeof child === "object"
+                ){
+                    queue.push({
+                        value: child,
+                        depth: depth + 1
+                    });
+                }
+            });
+        }
+    }
+
+    return null;
+}
+
+function findNestedCoordinatePair(root, maxDepth = 7){
+    if(
+        !root ||
+        typeof root !== "object"
+    ){
+        return null;
+    }
+
+    const queue = [
+        {
+            value: root,
+            depth: 0
+        }
+    ];
+
+    const seen = new Set();
+
+    while(queue.length){
+        const current = queue.shift();
+        const value = current.value;
+        const depth = current.depth;
+
+        if(
+            !value ||
+            typeof value !== "object" ||
+            seen.has(value)
+        ){
+            continue;
+        }
+
+        seen.add(value);
+
+        const keys = Object.keys(value);
+
+        const latKey = keys.find(function(key){
+            return /^(lat|latitude|y|positionlat|latitudevalue)$/i.test(
+                String(key)
+            );
+        });
+
+        const lonKey = keys.find(function(key){
+            return /^(lon|lng|longitude|x|positionlon|positionlng|longitudevalue)$/i.test(
+                String(key)
+            );
+        });
+
+        if(
+            latKey &&
+            lonKey
+        ){
+            const lat = Number(value[latKey]);
+            const lon = Number(value[lonKey]);
+
+            if(
+                Number.isFinite(lat) &&
+                Number.isFinite(lon) &&
+                lat >= -90 &&
+                lat <= 90 &&
+                lon >= -180 &&
+                lon <= 180
+            ){
+                return {
+                    lat,
+                    lon
+                };
+            }
+        }
+
+        keys.forEach(function(key){
+            const child = value[key];
+
+            if(
+                depth < maxDepth &&
+                child &&
+                typeof child === "object"
+            ){
+                queue.push({
+                    value: child,
+                    depth: depth + 1
+                });
+            }
+        });
+    }
+
+    return null;
+}
+
 function normalizeEurisVessel(item){
     if(
         !item ||
@@ -1560,19 +1764,32 @@ function normalizeEurisVessel(item){
         );
     };
 
+    const explicitMmsi =
+        nested([
+            "mmsi",
+            "MMSI",
+            "Mmsi",
+            "mmsiNumber",
+            "MmsiNumber",
+            "MMSINumber",
+            "shipMmsi",
+            "ShipMmsi",
+            "shipMMSI",
+            "ShipMMSI",
+            "vesselMmsi",
+            "VesselMmsi",
+            "vesselMMSI",
+            "VesselMMSI",
+            "aisMmsi",
+            "AisMmsi",
+            "AisMMSI"
+        ]);
+
     const mmsi =
         String(
-            nested([
-                "mmsi",
-                "MMSI",
-                "Mmsi",
-                "shipMmsi",
-                "ShipMmsi",
-                "vesselMmsi",
-                "VesselMmsi",
-                "aisMmsi",
-                "AisMmsi"
-            ]) || ""
+            explicitMmsi ||
+            findAnyMmsi(item) ||
+            ""
         ).trim();
 
     const latitudeValue =
@@ -1581,10 +1798,24 @@ function normalizeEurisVessel(item){
             "Lat",
             "latitude",
             "Latitude",
+            "latitudeDegrees",
+            "LatitudeDegrees",
+            "latDeg",
+            "LatDeg",
             "shipLatitude",
             "ShipLatitude",
+            "shipLat",
+            "ShipLat",
             "vesselLatitude",
-            "VesselLatitude"
+            "VesselLatitude",
+            "vesselLat",
+            "VesselLat",
+            "positionLatitude",
+            "PositionLatitude",
+            "positionLat",
+            "PositionLat",
+            "lastLatitude",
+            "LastLatitude"
         ]);
 
     const longitudeValue =
@@ -1593,10 +1824,24 @@ function normalizeEurisVessel(item){
             "Lon",
             "longitude",
             "Longitude",
+            "longitudeDegrees",
+            "LongitudeDegrees",
+            "lonDeg",
+            "LonDeg",
             "shipLongitude",
             "ShipLongitude",
+            "shipLon",
+            "ShipLon",
             "vesselLongitude",
-            "VesselLongitude"
+            "VesselLongitude",
+            "vesselLon",
+            "VesselLon",
+            "positionLongitude",
+            "PositionLongitude",
+            "positionLon",
+            "PositionLon",
+            "lastLongitude",
+            "LastLongitude"
         ]);
 
     let lat =
@@ -1617,7 +1862,9 @@ function normalizeEurisVessel(item){
         !Number.isFinite(lat) ||
         !Number.isFinite(lon)
     ){
-        const point = findGeoPoint(item);
+        const point =
+            findGeoPoint(item) ||
+            findNestedCoordinatePair(item);
 
         if(point){
             lat = point.lat;
