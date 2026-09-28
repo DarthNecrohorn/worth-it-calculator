@@ -33,6 +33,12 @@ const EURIS_REGION = {
     north: 72
 };
 const MAX_EURIS_RESULTS = 600;
+const EURIS_PAGE_SIZE = 100;
+const MAX_EURIS_PAGES =
+    Math.ceil(
+        MAX_EURIS_RESULTS /
+        EURIS_PAGE_SIZE
+    );
 const DETAIL_CACHE_TTL_SECONDS = 20;
 const TRACK_CACHE_TTL_SECONDS = 60;
 const SOURCE_CACHE_TTL_SECONDS = 6 * 60 * 60;
@@ -1068,7 +1074,13 @@ async function fetchEurisTracks(token, bbox, max){
                 maxLat: Number(bboxValue.north).toFixed(6),
                 minLon: Number(bboxValue.west).toFixed(6),
                 maxLon: Number(bboxValue.east).toFixed(6),
-                pageSize: String(limit)
+                pageSize:
+                    String(
+                        Math.min(
+                            EURIS_PAGE_SIZE,
+                            limit
+                        )
+                    )
             });
         }
 
@@ -1826,14 +1838,27 @@ function normalizeEurisVessel(item){
     const realMmsi =
         String(explicitMmsi || "").trim();
 
+    const fallbackMmsi =
+        String(
+            findAnyMmsi(item) ||
+            ""
+        ).trim();
+
     const mmsi =
         /^\d{9}$/.test(realMmsi)
             ? realMmsi
-            : String(
-                trackId ||
-                findAnyMmsi(item) ||
-                ""
-            ).trim();
+            : (
+                /^\d{9}$/.test(fallbackMmsi)
+                    ? fallbackMmsi
+                    : null
+            );
+
+    const normalizedTrackId =
+        trackId !== null &&
+        trackId !== undefined &&
+        String(trackId).trim()
+            ? String(trackId).trim()
+            : null;
 
     const latitudeValue =
         nested([
@@ -1916,7 +1941,8 @@ function normalizeEurisVessel(item){
     }
 
     if(
-        !mmsi ||
+        !mmsi &&
+        !normalizedTrackId ||
         !Number.isFinite(lat) ||
         !Number.isFinite(lon) ||
         lat < -90 ||
@@ -1928,29 +1954,50 @@ function normalizeEurisVessel(item){
     }
 
     return {
+        id:
+            mmsi
+                ? "mmsi:" + mmsi
+                : normalizedTrackId
+                    ? "euris-track:" +
+                        normalizedTrackId
+                    : "",
         mmsi,
         real_mmsi:
             /^\d{9}$/.test(realMmsi)
                 ? realMmsi
-                : null,
+                : (
+                    /^\d{9}$/.test(fallbackMmsi)
+                        ? fallbackMmsi
+                        : null
+                ),
         track_id:
-            trackId !== null &&
-            trackId !== undefined
-                ? String(trackId)
-                : null,
+            normalizedTrackId,
         lat,
         lon,
-        sog: nullableNumber(
-            nested([
-                "sog",
-                "SOG",
-                "Sog",
-                "speedOverGround",
-                "SpeedOverGround",
-                "speed",
-                "Speed"
-            ])
-        ),
+        sog:
+            normalizeEurisSog(
+                nested([
+                    "sog",
+                    "SOG",
+                    "Sog",
+                    "speedOverGround",
+                    "SpeedOverGround",
+                    "speed",
+                    "Speed"
+                ])
+            ).value,
+        sog_status:
+            normalizeEurisSog(
+                nested([
+                    "sog",
+                    "SOG",
+                    "Sog",
+                    "speedOverGround",
+                    "SpeedOverGround",
+                    "speed",
+                    "Speed"
+                ])
+            ).status,
         cog: nullableNumber(
             nested([
                 "cog",
@@ -2093,34 +2140,116 @@ function normalizeEurisVessel(item){
 }
 
 
+function normalizeEurisSog(value){
+    const number =
+        nullableNumber(value);
+
+    if(
+        number === null
+    ){
+        return {
+            value: null,
+            status: "missing"
+        };
+    }
+
+    /*
+     * AIS SOG is encoded in 0.1-knot steps.
+     * 102.2 is the protocol's upper encoded value:
+     * 102.2 knots or higher.  102.3 is the "not available"
+     * code.  Do not present the upper-bound code as an exact
+     * vessel speed.
+     */
+    if(
+        number >= 102.2
+    ){
+        return {
+            value: null,
+            status: "upper_limit"
+        };
+    }
+
+    if(
+        number < 0 ||
+        !Number.isFinite(number)
+    ){
+        return {
+            value: null,
+            status: "invalid"
+        };
+    }
+
+    return {
+        value: number,
+        status: "valid"
+    };
+}
+
+function vesselIdentityKey(vessel){
+    if(
+        !vessel ||
+        typeof vessel !== "object"
+    ){
+        return "";
+    }
+
+    const mmsi =
+        String(
+            vessel.real_mmsi ||
+            vessel.mmsi ||
+            ""
+        ).trim();
+
+    if(/^\d{9}$/.test(mmsi)){
+        return "mmsi:" + mmsi;
+    }
+
+    const trackId =
+        String(
+            vessel.track_id ||
+            ""
+        ).trim();
+
+    if(
+        trackId &&
+        String(vessel.provider || "")
+            .toLowerCase()
+            .includes("euris")
+    ){
+        return "euris-track:" + trackId;
+    }
+
+    return String(
+        vessel.id ||
+        (
+            String(vessel.provider || "unknown") +
+            ":" +
+            trackId
+        )
+    ).trim();
+}
+
 function mergeVesselLists(primary, secondary){
-    const byMmsi = new Map();
+    const byIdentity = new Map();
 
-    primary.forEach(function(vessel){
-        if(!vessel || !vessel.mmsi){
+    const add = function(vessel){
+        if(!vessel){
             return;
         }
 
-        byMmsi.set(
-            String(vessel.mmsi),
-            vessel
-        );
-    });
+        const key =
+            vesselIdentityKey(vessel);
 
-    secondary.forEach(function(vessel){
-        if(!vessel || !vessel.mmsi){
+        if(!key){
             return;
         }
-
-        const mmsi =
-            String(vessel.mmsi);
 
         const existing =
-            byMmsi.get(mmsi);
+            byIdentity.get(key);
 
         if(!existing){
-            byMmsi.set(
-                mmsi,
+            byIdentity.set(
+                key,
                 vessel
             );
             return;
@@ -2130,17 +2259,17 @@ function mergeVesselLists(primary, secondary){
             ...existing
         };
 
-        Object.keys(vessel).forEach(function(key){
+        Object.keys(vessel).forEach(function(keyName){
             const current =
-                merged[key];
+                merged[keyName];
 
             if(
                 current === null ||
                 current === undefined ||
                 current === ""
             ){
-                merged[key] =
-                    vessel[key];
+                merged[keyName] =
+                    vessel[keyName];
             }
         });
 
@@ -2162,16 +2291,20 @@ function mergeVesselLists(primary, secondary){
         merged.provider =
             merged.providers.join(" + ");
 
-        byMmsi.set(
-            mmsi,
+        byIdentity.set(
+            key,
             merged
         );
-    });
+    };
+
+    primary.forEach(add);
+    secondary.forEach(add);
 
     return [
-        ...byMmsi.values()
+        ...byIdentity.values()
     ];
 }
+
 
 async function fetchPelyrJson(apiKey, path){
     let response;
@@ -2315,6 +2448,9 @@ function normalizeVessel(vessel){
     }
 
     return {
+        id:
+            "mmsi:" +
+            mmsi,
         mmsi,
         lat,
         lon,
