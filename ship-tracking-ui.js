@@ -1942,6 +1942,8 @@
         shipCanvasHitGrid =
             hitGrid;
 
+    }
+
     function getCanvasEventContainerPoint(event){
         if(
             !map ||
@@ -2452,7 +2454,12 @@
 
         picker.setAttribute(
             "aria-label",
-            group.length + " vessels at this location"
+            group.length +
+            (
+                isCluster
+                    ? " vessels in this area"
+                    : " vessels at this location"
+            )
         );
 
         picker.innerHTML =
