@@ -1567,6 +1567,7 @@ async function paginateEurisPages(
         complete = true;
     }
 
+    
     if(
         nextUrl &&
         (
@@ -1577,7 +1578,8 @@ async function paginateEurisPages(
         stoppedByLimit = true;
         complete = false;
     }
-    const limitedItems =
+
+const limitedItems =
         allItems.slice(
             0,
             max
@@ -1600,7 +1602,7 @@ async function paginateEurisPages(
         _pagination: {
             pages: pageCount,
             complete,
-                        complete_for_limit:
+            complete_for_limit:
                 complete ||
                 stoppedByLimit,
             stopped_by_limit:
@@ -1628,11 +1630,6 @@ async function paginateEurisPages(
         pagination: {
             pages: pageCount,
             complete,
-            complete_for_limit:
-                complete ||
-                stoppedByLimit,
-            stopped_by_limit:
-                stoppedByLimit,
             truncated:
                 Boolean(
                     nextUrl
@@ -2180,11 +2177,6 @@ function normalizeEurisVessel(item){
             ? String(trackId).trim()
             : null;
 
-    const mmsi =
-        /^\d{9}$/.test(realMmsi)
-            ? realMmsi
-            : null;
-
     const latitudeValue =
         nested([
             "lat",
@@ -2286,8 +2278,14 @@ function normalizeEurisVessel(item){
                     ? "euris-track:" +
                         normalizedTrackId
                     : "",
-        mmsi,
-        real_mmsi: mmsi,
+        mmsi:
+            /^\d{9}$/.test(realMmsi)
+                ? realMmsi
+                : null,
+        real_mmsi:
+            /^\d{9}$/.test(realMmsi)
+                ? realMmsi
+                : null,
         track_id:
             normalizedTrackId,
         lat,
@@ -3016,3 +3014,19 @@ function jsonResponse(body, status, headers){
         "Content-Type": "application/json; charset=utf-8",
         "Cache-Control": "no-store"
     });
+
+    Object.entries(headers || {}).forEach(function(entry){
+        responseHeaders.set(
+            entry[0],
+            entry[1]
+        );
+    });
+
+    return new Response(
+        JSON.stringify(body),
+        {
+            status,
+            headers: responseHeaders
+        }
+    );
+}
