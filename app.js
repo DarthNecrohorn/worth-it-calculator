@@ -1991,6 +1991,7 @@ function openCalculator(type) {
 
     hideCarsNavigationUi();
     hideWaterLevelsSection();
+    hideShipTrackingSection();
 
     const homePage =
         document.getElementById("homePage");
@@ -2213,6 +2214,7 @@ function showHome() {
 
     hideCarsNavigationUi();
     hideWaterLevelsSection();
+    hideShipTrackingSection();
     const homePage = document.getElementById("homePage");
     const weatherSection = document.getElementById("weatherSection");
     const newsSection = document.getElementById("newsSection");
