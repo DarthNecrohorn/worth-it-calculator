@@ -1221,8 +1221,8 @@ async function fetchEurisHistoricalTrack(
     });
 
     const queryVariants = [];
-
     const identifiers = [];
+
     if(identity.trackId){
         identifiers.push({
             key: "trackID",
@@ -1233,6 +1233,7 @@ async function fetchEurisHistoricalTrack(
             value: identity.trackId
         });
     }
+
     if(/^\d{9}$/.test(identity.mmsi)){
         identifiers.push({
             key: "mmsi",
@@ -1249,14 +1250,17 @@ async function fetchEurisHistoricalTrack(
     identifiers.forEach(function(identifier){
         ranges.forEach(function(range){
             const params = new URLSearchParams();
+
             params.set(
                 identifier.key,
                 identifier.value
             );
+
             params.set(
                 range[0],
                 identity.from
             );
+
             params.set(
                 range[1],
                 identity.to
@@ -1266,12 +1270,42 @@ async function fetchEurisHistoricalTrack(
         });
 
         const params = new URLSearchParams();
+
         params.set(
             identifier.key,
             identifier.value
         );
+
         queryVariants.push(params);
     });
+
+    /*
+     * EuRIS exposes AISTracks separately from the public
+     * Tracks_v2 service.  Different deployments may protect
+     * this operation with a bearer token, an API-key header,
+     * or no request authorization at all.
+     *
+     * Try a single bounded set of auth modes for each query
+     * shape and stop as soon as a usable history response is
+     * returned.  Never expose the token to the browser.
+     */
+    const authModes = [
+        function(){
+            return {
+                "Authorization":
+                    "Bearer " + token
+            };
+        },
+        function(){
+            return {
+                "X-API-Key":
+                    token
+            };
+        },
+        function(){
+            return {};
+        }
+    ];
 
     let lastFailure = null;
 
@@ -1291,141 +1325,156 @@ async function fetchEurisHistoricalTrack(
             const query =
                 queryVariants[variantIndex];
 
-            let response;
+            for(
+                let authIndex = 0;
+                authIndex < authModes.length;
+                authIndex += 1
+            ){
+                let response;
 
-            try{
-                response = await fetch(
-                    endpoint.base +
-                    endpoint.path +
-                    "?" +
-                    query.toString(),
-                    {
-                        method: "GET",
-                        redirect: "follow",
-                        headers: {
-                            "Authorization":
-                                "Bearer " + token,
-                            "Accept":
-                                "application/json",
-                            "Origin":
-                                "https://www.eurisportal.eu",
-                            "Referer":
-                                "https://www.eurisportal.eu/",
-                            "X-Requested-With":
-                                "XMLHttpRequest"
+                try{
+                    response = await fetch(
+                        endpoint.base +
+                        endpoint.path +
+                        "?" +
+                        query.toString(),
+                        {
+                            method: "GET",
+                            redirect: "follow",
+                            headers: {
+                                ...authModes[authIndex](),
+                                "Accept":
+                                    "application/json",
+                                "Origin":
+                                    "https://www.eurisportal.eu",
+                                "Referer":
+                                    "https://www.eurisportal.eu/",
+                                "X-Requested-With":
+                                    "XMLHttpRequest"
+                            }
                         }
-                    }
-                );
-            }
-            catch(error){
-                console.error(
-                    "EuRIS historical track request failed:",
-                    error
-                );
+                    );
+                }
+                catch(error){
+                    console.error(
+                        "EuRIS historical track request failed:",
+                        error
+                    );
 
-                return {
-                    ok: false,
-                    status: 502,
-                    body: {
+                    return {
                         ok: false,
-                        error: {
-                            code: "euris_unavailable",
-                            message: "EuRIS is temporarily unavailable."
+                        status: 502,
+                        body: {
+                            ok: false,
+                            error: {
+                                code: "euris_unavailable",
+                                message: "EuRIS is temporarily unavailable."
+                            }
                         }
-                    }
-                };
-            }
+                    };
+                }
 
-            if(response.ok){
-                const body =
+                if(response.ok){
+                    const body =
+                        await response
+                            .json()
+                            .catch(function(){
+                                return null;
+                            });
+
+                    if(body !== null){
+                        const points =
+                            extractEurisHistoryPoints(
+                                body
+                            );
+
+                        if(points.length){
+                            return {
+                                ok: true,
+                                status: 200,
+                                points
+                            };
+                        }
+
+                        lastFailure = {
+                            ok: false,
+                            status: 404,
+                            body: {
+                                ok: false,
+                                error: {
+                                    code: "euris_track_empty",
+                                    message: "EuRIS returned no usable historical track points."
+                                }
+                            }
+                        };
+
+                        /*
+                         * The endpoint accepted the request but did
+                         * not return a usable shape. Try another query
+                         * variant before giving up.
+                         */
+                        continue;
+                    }
+
+                    lastFailure = {
+                        ok: false,
+                        status: 502,
+                        body: {
+                            ok: false,
+                            error: {
+                                code: "euris_invalid_response",
+                                message: "EuRIS returned an invalid historical track response."
+                            }
+                        }
+                    };
+
+                    continue;
+                }
+
+                const errorBody =
                     await response
                         .json()
                         .catch(function(){
                             return null;
                         });
 
-                if(body !== null){
-                    const points =
-                        extractEurisHistoryPoints(
-                            body
-                        );
-
-                    if(points.length){
-                        return {
-                            ok: true,
-                            status: 200,
-                            points
-                        };
-                    }
-
-                    lastFailure = {
-                        ok: false,
-                        status: 404,
-                        body: {
-                            ok: false,
-                            error: {
-                                code: "euris_track_empty",
-                                message: "EuRIS returned no usable historical track points."
-                            }
-                        }
-                    };
-                    continue;
-                }
-
                 lastFailure = {
                     ok: false,
-                    status: 502,
+                    status: response.status,
                     body: {
                         ok: false,
                         error: {
-                            code: "euris_invalid_response",
-                            message: "EuRIS returned an invalid historical track response."
+                            code:
+                                errorBody &&
+                                errorBody.error &&
+                                typeof errorBody.error.code === "string"
+                                    ? errorBody.error.code
+                                    : "euris_http_" + response.status,
+                            message:
+                                errorBody &&
+                                errorBody.error &&
+                                typeof errorBody.error.message === "string"
+                                    ? errorBody.error.message
+                                    : "EuRIS historical track request failed."
                         }
                     }
                 };
-                continue;
-            }
 
-            const errorBody =
-                await response
-                    .json()
-                    .catch(function(){
-                        return null;
-                    });
-
-            lastFailure = {
-                ok: false,
-                status: response.status,
-                body: {
-                    ok: false,
-                    error: {
-                        code:
-                            errorBody &&
-                            errorBody.error &&
-                            typeof errorBody.error.code === "string"
-                                ? errorBody.error.code
-                                : "euris_http_" + response.status,
-                        message:
-                            errorBody &&
-                            errorBody.error &&
-                            typeof errorBody.error.message === "string"
-                                ? errorBody.error.message
-                                : "EuRIS historical track request failed."
-                    }
+                if(
+                    response.status === 429 ||
+                    response.status >= 500
+                ){
+                    return lastFailure;
                 }
-            };
 
-            if(
-                response.status === 401 ||
-                response.status === 403 ||
-                response.status === 429 ||
-                response.status >= 500
-            ){
-                return lastFailure;
-            }
-
-            if(response.status === 404){
-                break;
+                /*
+                 * 401/403 may simply mean this auth mode is not
+                 * the one used by the AISTracks deployment.
+                 * Try the next bounded auth mode.
+                 *
+                 * Other 4xx responses are query-shape errors;
+                 * continue with the next query variant.
+                 */
             }
         }
     }
