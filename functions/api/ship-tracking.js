@@ -483,7 +483,8 @@ async function handleVessels(
                             eurisData.pagination.error_code ||
                             ""
                         )
-                        : "",                pagination_complete_for_limit:
+                        : "",
+                pagination_complete_for_limit:
                     eurisData.pagination
                         ? Boolean(
                             eurisData.pagination.complete_for_limit
@@ -3014,11 +3015,4 @@ function jsonResponse(body, status, headers){
     const responseHeaders = new Headers({
         "Content-Type": "application/json; charset=utf-8",
         "Cache-Control": "no-store"
-    });
-
-    Object.entries(headers || {}).forEach(function(entry){
-        responseHeaders.set(
-            entry[0],
-            entry[1]
-        );
     });
