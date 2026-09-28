@@ -2624,6 +2624,16 @@
             return;
         }
 
+        const centerLat = Number(centerVessel.lat);
+        const centerLon = Number(centerVessel.lon);
+
+        if(
+            !Number.isFinite(centerLat) ||
+            !Number.isFinite(centerLon)
+        ){
+            return;
+        }
+
         const mapElement =
             map.getContainer();
 
