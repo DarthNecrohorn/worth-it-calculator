@@ -186,6 +186,7 @@
         grid.addEventListener("click", function(event){
             const detailsButton = event.target.closest("[data-ship-details]");
             const trackButton = event.target.closest("[data-ship-track]");
+            const eurisTrackButton = event.target.closest("[data-ship-euris-track]");
 
             if(detailsButton){
                 event.preventDefault();
@@ -196,6 +197,15 @@
             if(trackButton){
                 event.preventDefault();
                 loadVesselTrack(trackButton.dataset.shipTrack || "");
+                return;
+            }
+
+            if(eurisTrackButton){
+                event.preventDefault();
+                loadEurisVesselTrack(
+                    eurisTrackButton.dataset.shipEurisTrack || "",
+                    eurisTrackButton.dataset.shipEurisMmsi || ""
+                );
             }
         });
     }
@@ -248,6 +258,21 @@
                 event.preventDefault();
                 loadVesselTrack(
                     trackButton.dataset.shipTrack || ""
+                );
+                return;
+            }
+
+            const eurisTrackButton =
+                event.target.closest("[data-ship-euris-track]");
+
+            if(
+                eurisTrackButton &&
+                overlay.contains(eurisTrackButton)
+            ){
+                event.preventDefault();
+                loadEurisVesselTrack(
+                    eurisTrackButton.dataset.shipEurisTrack || "",
+                    eurisTrackButton.dataset.shipEurisMmsi || ""
                 );
             }
         });
@@ -3290,6 +3315,107 @@
         }
     }
 
+    async function loadEurisVesselTrack(trackId, mmsi){
+        const eurisTrackId =
+            String(trackId || "").trim();
+
+        const numericMmsi =
+            String(mmsi || "").trim();
+
+        if(!eurisTrackId && !/^\d{9}$/.test(numericMmsi)){
+            return;
+        }
+
+        showDetailLoading("Loading recent vessel track…");
+
+        const to = new Date();
+        const from =
+            new Date(
+                to.getTime() -
+                24 * 60 * 60 * 1000
+            );
+
+        try{
+            const params = new URLSearchParams({
+                action: "euris-track",
+                from: from.toISOString(),
+                to: to.toISOString()
+            });
+
+            if(eurisTrackId){
+                params.set(
+                    "trackId",
+                    eurisTrackId
+                );
+            }
+
+            if(/^\d{9}$/.test(numericMmsi)){
+                params.set(
+                    "mmsi",
+                    numericMmsi
+                );
+            }
+
+            const response = await fetch(
+                CONFIG.API +
+                "?" +
+                params.toString(),
+                {
+                    method: "GET",
+                    headers: {
+                        "Accept": "application/json"
+                    },
+                    cache: "no-store"
+                }
+            );
+
+            if(!response.ok){
+                const body = await safeJson(response);
+                throw createApiError(
+                    response,
+                    body
+                );
+            }
+
+            const data =
+                await response.json();
+
+            if(
+                !data ||
+                data.ok !== true ||
+                !Array.isArray(data.points)
+            ){
+                throw new Error(
+                    "EuRIS vessel track is unavailable."
+                );
+            }
+
+            updateAttribution(
+                data.attributions || []
+            );
+
+            renderTrackDetail(
+                eurisTrackId
+                    ? "EuRIS Track ID " + eurisTrackId
+                    : "MMSI " + numericMmsi,
+                data.points,
+                "EuRIS"
+            );
+
+            drawTrack(data.points);
+            scrollToDetail();
+        }
+        catch(error){
+            console.error(
+                "EuRIS vessel track failed:",
+                error
+            );
+            showDetailError(
+                getApiErrorMessage(error)
+            );
+        }
+    }
+
     function renderDetail(vessel, attributions){
         setDetailContent(
             '<div class="ship-tracking-detail-head">' +
@@ -3332,17 +3458,26 @@
 
             '<div class="ship-tracking-detail-actions">' +
                 (
-                    /^\d{9}$/.test(
-                        String(
-                            vessel.mmsi || ""
-                        ).trim()
-                    )
-                        ? '<button type="button" class="ship-tracking-action-btn" data-ship-track="' +
-                            escapeHtml(vessel.mmsi) +
+                    String(vessel.provider || "")
+                        .toLowerCase()
+                        .includes("euris") &&
+                    vessel.track_id
+                        ? '<button type="button" class="ship-tracking-action-btn" data-ship-euris-track="' +
+                            escapeHtml(vessel.track_id) +
+                            '" data-ship-euris-mmsi="' +
+                            escapeHtml(vessel.mmsi || "") +
                           '">📈 Load recent 24h track</button>'
-                        : '<span class="ship-tracking-detail-note">' +
-                            'EuRIS track data is available for this vessel; historical 24h track loading is not available through the current EuRIS compact track endpoint.' +
-                          '</span>'
+                        : /^\d{9}$/.test(
+                            String(
+                                vessel.mmsi || ""
+                            ).trim()
+                        )
+                            ? '<button type="button" class="ship-tracking-action-btn" data-ship-track="' +
+                                escapeHtml(vessel.mmsi) +
+                              '">📈 Load recent 24h track</button>'
+                            : '<span class="ship-tracking-detail-note">' +
+                                'EuRIS track data is available for this vessel; historical 24h track loading is not available through the current EuRIS compact track endpoint.' +
+                              '</span>'
                 ) +
                 '<span class="ship-tracking-detail-note">' +
                     'AIS position data is informational and not a navigational aid.' +
@@ -3355,7 +3490,7 @@
         }
     }
 
-    function renderTrackDetail(mmsi, points){
+    function renderTrackDetail(identifier, points, provider){
         const first = points[0];
         const last = points[points.length - 1];
 
@@ -3365,7 +3500,7 @@
                     '<span class="ship-tracking-vessel-type">Recent track</span>' +
                     '<h3 id="shipTrackingDetailTitle">24-hour movement history</h3>' +
                     '<span class="ship-tracking-detail-subtitle">' +
-                        'MMSI ' + escapeHtml(mmsi) +
+                        escapeHtml(identifier) +
                     '</span>' +
                 '</div>' +
                 '<button type="button" class="ship-tracking-detail-close" id="shipTrackingDetailClose" aria-label="Close">✕</button>' +
@@ -3388,7 +3523,7 @@
 
             '<div class="ship-tracking-detail-actions">' +
                 '<button type="button" class="ship-tracking-action-btn" data-ship-details="' +
-                    escapeHtml(mmsi) +
+                    escapeHtml(identifier) +
                 '">Details</button>' +
             '</div>'
         );
