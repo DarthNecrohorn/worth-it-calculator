@@ -693,6 +693,27 @@ function isApiConfigured(
                 ).trim()
             );
 
+        case "ship_tracking":
+            return Boolean(
+                String(
+                    env.PELYR_API_KEY || ""
+                ).trim()
+            );
+
+        case "ship_tracking_euris":
+            return Boolean(
+                String(
+                    env.EURIS_API_TOKEN || ""
+                ).trim()
+            );
+
+        case "ship_tracking_sources":
+            return Boolean(
+                String(
+                    env.PELYR_API_KEY || ""
+                ).trim()
+            );
+
         case "markets":
         case "crypto":
         case "cars":
