@@ -277,9 +277,12 @@
                         ) +
                     '"><i></i>' +
                         (
-                            configured
-                                ? "Configured"
-                                : "Missing key"
+                            api?.configurationLabel ||
+                            (
+                                configured
+                                    ? "Configured"
+                                    : "Missing key"
+                            )
                         ) +
                     '</span>',
                 '</div>',
