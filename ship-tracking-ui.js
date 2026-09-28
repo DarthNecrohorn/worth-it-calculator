@@ -3304,7 +3304,12 @@
             }
 
             updateAttribution(data.attributions || []);
-            renderTrackDetail(numericMmsi, data.points);
+            renderTrackDetail(
+                "MMSI " + numericMmsi,
+                data.points,
+                "Pelyr",
+                numericMmsi
+            );
             drawTrack(data.points);
             scrollToDetail();
 
@@ -3399,7 +3404,8 @@
                     ? "EuRIS Track ID " + eurisTrackId
                     : "MMSI " + numericMmsi,
                 data.points,
-                "EuRIS"
+                "EuRIS",
+                eurisTrackId || numericMmsi
             );
 
             drawTrack(data.points);
@@ -3490,7 +3496,12 @@
         }
     }
 
-    function renderTrackDetail(identifier, points, provider){
+    function renderTrackDetail(
+        identifier,
+        points,
+        provider,
+        selectionId
+    ){
         const first = points[0];
         const last = points[points.length - 1];
 
@@ -3523,7 +3534,10 @@
 
             '<div class="ship-tracking-detail-actions">' +
                 '<button type="button" class="ship-tracking-action-btn" data-ship-details="' +
-                    escapeHtml(identifier) +
+                    escapeHtml(
+                        selectionId ||
+                        identifier
+                    ) +
                 '">Details</button>' +
             '</div>'
         );
