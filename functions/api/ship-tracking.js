@@ -460,6 +460,17 @@ async function handleVessels(
                 ok: Boolean(eurisData.ok),
                 raw_count: eurisRawItems.length,
                 count: eurisVessels.length,
+                pages:
+                    Number(
+                        eurisData.pagination &&
+                        eurisData.pagination.pages
+                    ) || 0,
+                pagination_complete:
+                    eurisData.pagination
+                        ? Boolean(
+                            eurisData.pagination.complete
+                        )
+                        : false,
                 endpoint:
                     eurisData.ok
                         ? String(eurisData.endpoint || "")
@@ -1239,6 +1250,44 @@ async function fetchEurisTracks(token, bbox, max){
                     body &&
                     typeof body === "object"
                 ){
+                    let finalBody =
+                        body;
+
+                    let pagination =
+                        {
+                            pages: 1,
+                            complete: true,
+                            truncated: false,
+                            error_code: ""
+                        };
+
+                    if(
+                        endpoint.version === "Tracks_v2" ||
+                        endpoint.version === "Tracks_v2_legacy"
+                    ){
+                        const paginated =
+                            await paginateEurisPages(
+                                endpoint,
+                                endpoint.base +
+                                    endpoint.path +
+                                    "?" +
+                                    query.toString(),
+                                body,
+                                token,
+                                max,
+                                attempts
+                            );
+
+                        finalBody =
+                            paginated.body;
+
+                        pagination =
+                            paginated.pagination;
+
+                        attempts =
+                            paginated.attempts;
+                    }
+
                     if(
                         endpoint.version === "Tracks_v3" ||
                         endpoint.version === "Tracks_v3_visuris"
@@ -1250,7 +1299,7 @@ async function fetchEurisTracks(token, bbox, max){
                         ok: true,
                         status: 200,
                         attempts,
-                        body,
+                        body: finalBody,
                         endpoint:
                             endpoint.version,
                         base:
@@ -1258,7 +1307,8 @@ async function fetchEurisTracks(token, bbox, max){
                         path:
                             endpoint.path,
                         query_mode:
-                            queryIndex
+                            queryIndex,
+                        pagination
                     };
                 }
 
@@ -1354,6 +1404,257 @@ async function fetchEurisTracks(token, bbox, max){
         }
     };
 }
+
+async function paginateEurisPages(
+    endpoint,
+    initialUrl,
+    firstBody,
+    token,
+    max,
+    attempts
+){
+    const allItems =
+        extractEurisTrackItems(
+            firstBody
+        );
+
+    const visited =
+        new Set([initialUrl]);
+
+    let nextUrl =
+        resolveEurisNextPageUrl(
+            initialUrl,
+            firstBody.nextPageLink ||
+                firstBody["@odata.nextLink"] ||
+                firstBody.nextLink
+        );
+
+    let pageCount = 1;
+    let complete = !nextUrl;
+    let paginationError = "";
+
+    while(
+        nextUrl &&
+        allItems.length < max &&
+        pageCount < MAX_EURIS_PAGES
+    ){
+        if(
+            visited.has(nextUrl)
+        ){
+            complete = false;
+            paginationError =
+                "euris_pagination_cycle";
+            break;
+        }
+
+        visited.add(nextUrl);
+        attempts += 1;
+
+        let response;
+
+        try{
+            response = await fetch(
+                nextUrl,
+                {
+                    method: "GET",
+                    redirect: "follow",
+                    headers: {
+                        "Authorization":
+                            "Bearer " + token,
+                        "Accept":
+                            "application/json",
+                        "Origin":
+                            "https://www.eurisportal.eu",
+                        "Referer":
+                            "https://www.eurisportal.eu/",
+                        "X-Requested-With":
+                            "XMLHttpRequest"
+                    }
+                }
+            );
+        }
+        catch(error){
+            console.error(
+                "EuRIS pagination request failed:",
+                error
+            );
+
+            complete = false;
+            paginationError =
+                "euris_pagination_unavailable";
+            break;
+        }
+
+        if(!response.ok){
+            complete = false;
+            paginationError =
+                "euris_pagination_http_" +
+                response.status;
+            break;
+        }
+
+        const pageBody =
+            await response
+                .json()
+                .catch(function(){
+                    return null;
+                });
+
+        if(
+            !pageBody ||
+            typeof pageBody !== "object"
+        ){
+            complete = false;
+            paginationError =
+                "euris_pagination_invalid_response";
+            break;
+        }
+
+        const pageItems =
+            extractEurisTrackItems(
+                pageBody
+            );
+
+        if(
+            pageItems.length
+        ){
+            allItems.push(
+                ...pageItems
+            );
+        }
+
+        pageCount += 1;
+
+        nextUrl =
+            resolveEurisNextPageUrl(
+                nextUrl,
+                pageBody.nextPageLink ||
+                    pageBody["@odata.nextLink"] ||
+                    pageBody.nextLink
+            );
+    }
+
+    if(
+        nextUrl &&
+        allItems.length >= max
+    ){
+        complete = false;
+    }
+
+    if(
+        nextUrl &&
+        pageCount >= MAX_EURIS_PAGES
+    ){
+        complete = false;
+
+        if(!paginationError){
+            paginationError =
+                "euris_pagination_limit";
+        }
+    }
+
+    const limitedItems =
+        allItems.slice(
+            0,
+            max
+        );
+
+    const body = {
+        ...firstBody,
+        items:
+            limitedItems,
+        truncated:
+            Boolean(
+                nextUrl ||
+                (
+                    Number(firstBody.count) >
+                    limitedItems.length
+                )
+            ),
+        nextPageLink:
+            nextUrl || null,
+        _pagination: {
+            pages: pageCount,
+            complete,
+            truncated:
+                Boolean(
+                    nextUrl
+                ),
+            collected:
+                limitedItems.length,
+            reported_count:
+                Number.isFinite(
+                    Number(firstBody.count)
+                )
+                    ? Number(firstBody.count)
+                    : null,
+            error_code:
+                paginationError
+        }
+    };
+
+    return {
+        body,
+        attempts,
+        pagination: {
+            pages: pageCount,
+            complete,
+            truncated:
+                Boolean(
+                    nextUrl
+                ),
+            error_code:
+                paginationError
+        }
+    };
+}
+
+function resolveEurisNextPageUrl(
+    currentUrl,
+    rawNext
+){
+    if(
+        !rawNext
+    ){
+        return null;
+    }
+
+    try{
+        const url =
+            new URL(
+                String(rawNext),
+                currentUrl
+            );
+
+        const allowed =
+            EURIS_BASES.some(function(base){
+                return (
+                    url.origin ===
+                    new URL(base).origin
+                );
+            });
+
+        if(!allowed){
+            console.warn(
+                "Rejected EuRIS pagination URL outside EuRIS hosts:",
+                url.origin
+            );
+
+            return null;
+        }
+
+        return url.toString();
+    }
+    catch(error){
+        console.warn(
+            "Invalid EuRIS nextPageLink:",
+            rawNext
+        );
+
+        return null;
+    }
+}
+
 
 function extractEurisTrackItems(body){
     if(Array.isArray(body)){
@@ -1838,21 +2139,6 @@ function normalizeEurisVessel(item){
     const realMmsi =
         String(explicitMmsi || "").trim();
 
-    const fallbackMmsi =
-        String(
-            findAnyMmsi(item) ||
-            ""
-        ).trim();
-
-    const mmsi =
-        /^\d{9}$/.test(realMmsi)
-            ? realMmsi
-            : (
-                /^\d{9}$/.test(fallbackMmsi)
-                    ? fallbackMmsi
-                    : null
-            );
-
     const normalizedTrackId =
         trackId !== null &&
         trackId !== undefined &&
@@ -1961,15 +2247,14 @@ function normalizeEurisVessel(item){
                     ? "euris-track:" +
                         normalizedTrackId
                     : "",
-        mmsi,
+        mmsi:
+            /^\d{9}$/.test(realMmsi)
+                ? realMmsi
+                : null,
         real_mmsi:
             /^\d{9}$/.test(realMmsi)
                 ? realMmsi
-                : (
-                    /^\d{9}$/.test(fallbackMmsi)
-                        ? fallbackMmsi
-                        : null
-                ),
+                : null,
         track_id:
             normalizedTrackId,
         lat,
