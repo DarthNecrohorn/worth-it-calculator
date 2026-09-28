@@ -1535,6 +1535,13 @@ async function paginateEurisPages(
     }
 
     if(
+        !nextUrl &&
+        !paginationError
+    ){
+        complete = true;
+    }
+
+    if(
         nextUrl &&
         allItems.length >= max
     ){
