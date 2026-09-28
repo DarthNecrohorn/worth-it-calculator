@@ -368,6 +368,10 @@
             closeOverlapPicker();
         });
 
+        map.on("move zoom", function(){
+            scheduleShipCanvasDraw();
+        });
+
         map.on("moveend zoomend", function(){
             closeShipCanvasTooltip();
             scheduleShipCanvasDraw();
@@ -1232,21 +1236,13 @@
             return;
         }
 
-        shipCanvasPane =
-            map.createPane(
-                "shipTrackingVesselPane"
-            );
-
-        shipCanvasPane.style.zIndex =
-            "610";
-
-        shipCanvasPane.style.pointerEvents =
-            "auto";
-
         shipCanvas =
             document.createElement(
                 "canvas"
             );
+
+        shipCanvas.style.zIndex =
+            "610";
 
         shipCanvas.className =
             "ship-tracking-vessel-canvas";
@@ -1272,7 +1268,7 @@
             return;
         }
 
-        shipCanvasPane.appendChild(
+        map.getContainer().appendChild(
             shipCanvas
         );
 
@@ -1579,22 +1575,21 @@
             const lat = Number(vessel.lat);
             const lon = Number(vessel.lon);
 
-            const layerPoint =
-                map.latLngToLayerPoint([
+            if(
+                !Number.isFinite(lat) ||
+                !Number.isFinite(lon)
+            ){
+                return;
+            }
+
+            const containerPoint =
+                map.latLngToContainerPoint([
                     lat,
                     lon
                 ]);
 
-            const containerPoint =
-                map.layerPointToContainerPoint(
-                    layerPoint
-                );
-
             if(
-                !layerPoint ||
                 !containerPoint ||
-                !Number.isFinite(layerPoint.x) ||
-                !Number.isFinite(layerPoint.y) ||
                 !Number.isFinite(containerPoint.x) ||
                 !Number.isFinite(containerPoint.y)
             ){
@@ -1602,18 +1597,18 @@
             }
 
             if(
-                layerPoint.x < -32 ||
-                layerPoint.y < -32 ||
-                layerPoint.x > width + 32 ||
-                layerPoint.y > height + 32
+                containerPoint.x < -40 ||
+                containerPoint.y < -40 ||
+                containerPoint.x > width + 40 ||
+                containerPoint.y > height + 40
             ){
                 return;
             }
 
             projected.push({
                 vessel,
-                layerX: layerPoint.x,
-                layerY: layerPoint.y,
+                x: containerPoint.x,
+                y: containerPoint.y,
                 containerX: containerPoint.x,
                 containerY: containerPoint.y
             });
@@ -1733,24 +1728,20 @@
                     ).trim(),
                     containerX: item.containerX,
                     containerY: item.containerY,
-                    x: item.layerX,
-                    y: item.layerY,
+                    x: item.x,
+                    y: item.y,
                     hitRadius: 13
                 };
             }
 
-            let sumLayerX = 0;
-            let sumLayerY = 0;
-            let sumContainerX = 0;
-            let sumContainerY = 0;
+            let sumX = 0;
+            let sumY = 0;
             let sumLat = 0;
             let sumLon = 0;
 
             group.items.forEach(function(item){
-                sumLayerX += item.layerX;
-                sumLayerY += item.layerY;
-                sumContainerX += item.containerX;
-                sumContainerY += item.containerY;
+                sumX += item.x;
+                sumY += item.y;
                 sumLat += Number(item.vessel.lat);
                 sumLon += Number(item.vessel.lon);
             });
@@ -1766,13 +1757,13 @@
                 }),
                 count,
                 containerX:
-                    sumContainerX / count,
+                    sumX / count,
                 containerY:
-                    sumContainerY / count,
+                    sumY / count,
                 x:
-                    sumLayerX / count,
+                    sumX / count,
                 y:
-                    sumLayerY / count,
+                    sumY / count,
                 lat:
                     sumLat / count,
                 lon:
@@ -2037,6 +2028,12 @@
                 group: target.group || null,
                 clusterId:
                     target.clusterId || "",
+                count:
+                    Number(target.count) || 0,
+                lat:
+                    Number(target.lat),
+                lon:
+                    Number(target.lon),
                 mmsi:
                     target.mmsi || "",
                 containerX:
@@ -2395,14 +2392,46 @@
             selectedMmsi = "";
             closeOverlapPicker();
 
+            const group =
+                Array.isArray(target.group)
+                    ? target.group
+                    : [];
+
+            const fallback =
+                group.find(function(item){
+                    return (
+                        item &&
+                        Number.isFinite(Number(item.lat)) &&
+                        Number.isFinite(Number(item.lon))
+                    );
+                }) || null;
+
             const centerVessel = {
-                lat: target.lat,
-                lon: target.lon
+                lat:
+                    Number.isFinite(Number(target.lat))
+                        ? Number(target.lat)
+                        : fallback
+                            ? Number(fallback.lat)
+                            : NaN,
+                lon:
+                    Number.isFinite(Number(target.lon))
+                        ? Number(target.lon)
+                        : fallback
+                            ? Number(fallback.lon)
+                            : NaN
             };
+
+            if(
+                !Number.isFinite(centerVessel.lat) ||
+                !Number.isFinite(centerVessel.lon) ||
+                group.length < 2
+            ){
+                return;
+            }
 
             openOverlapPicker(
                 centerVessel,
-                target.group || [],
+                group,
                 true
             );
 
@@ -2498,10 +2527,20 @@
             return [];
         }
 
+        const centerLat = Number(centerVessel.lat);
+        const centerLon = Number(centerVessel.lon);
+
+        if(
+            !Number.isFinite(centerLat) ||
+            !Number.isFinite(centerLon)
+        ){
+            return;
+        }
+
         const centerPoint =
             map.latLngToContainerPoint([
-                Number(centerVessel.lat),
-                Number(centerVessel.lon)
+                centerLat,
+                centerLon
             ]);
 
         if(
@@ -2518,10 +2557,20 @@
                     return null;
                 }
 
+                const candidateLat = Number(candidate.lat);
+                const candidateLon = Number(candidate.lon);
+
+                if(
+                    !Number.isFinite(candidateLat) ||
+                    !Number.isFinite(candidateLon)
+                ){
+                    return null;
+                }
+
                 const point =
                     map.latLngToContainerPoint([
-                        Number(candidate.lat),
-                        Number(candidate.lon)
+                        candidateLat,
+                        candidateLon
                     ]);
 
                 if(
@@ -2651,8 +2700,8 @@
 
         const point =
             map.latLngToContainerPoint([
-                Number(centerVessel.lat),
-                Number(centerVessel.lon)
+                centerLat,
+                centerLon
             ]);
 
         if(
