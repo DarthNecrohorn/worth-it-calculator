@@ -22,7 +22,7 @@ import { recordAdminApiUsage } from "../lib/admin-usage.js";
 const PELYR_BASE = "https://api.pelyr.com";
 const EURIS_BASE = "https://www.eurisportal.eu";
 
-const VESSEL_CACHE_TTL_SECONDS = 20;
+const VESSEL_CACHE_TTL_SECONDS = 45;
 const EURIS_REGION = {
     west: -25,
     south: 33,
@@ -317,7 +317,20 @@ async function handleVessels(
                     message: "AIS providers are temporarily unavailable."
                 }
             },
-            failure.status || 502
+            failure.status || 502,
+            failure.retryAfterMs > 0
+                ? {
+                    "Retry-After":
+                        String(
+                            Math.max(
+                                1,
+                                Math.ceil(
+                                    failure.retryAfterMs / 1000
+                                )
+                            )
+                        )
+                }
+                : undefined
         );
     }
 
@@ -1592,6 +1605,11 @@ async function fetchPelyrJson(apiKey, path){
     }
 
     if(!response.ok){
+        const retryAfter =
+            Number(
+                response.headers.get("Retry-After")
+            );
+
         const body = await response
             .json()
             .catch(function(){
@@ -1613,6 +1631,10 @@ async function fetchPelyrJson(apiKey, path){
         return {
             ok: false,
             status: response.status,
+            retryAfterMs:
+                Number.isFinite(retryAfter) && retryAfter > 0
+                    ? Math.ceil(retryAfter * 1000)
+                    : 0,
             body: {
                 ok: false,
                 error: {
