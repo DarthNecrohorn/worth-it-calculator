@@ -2020,18 +2020,6 @@
             : -90;
     }
 
-    function bringVesselMarkersToFront(){
-        if(!markerLayer || typeof markerLayer.eachLayer !== "function"){
-            return;
-        }
-
-        markerLayer.eachLayer(function(layer){
-            if(layer && typeof layer.bringToFront === "function"){
-                layer.bringToFront();
-            }
-        });
-    }
-
     function getOverlappingVessels(centerVessel, candidates){
         if(
             !map ||
