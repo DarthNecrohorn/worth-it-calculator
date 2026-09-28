@@ -1579,13 +1579,22 @@
                         ? selectedColor
                         : normalColor;
 
-                ctx.beginPath();
-                ctx.moveTo(8,0);
-                ctx.lineTo(-6,-5);
-                ctx.lineTo(-2,0);
-                ctx.lineTo(-6,5);
-                ctx.closePath();
-                ctx.fill();
+                ctx.textAlign =
+                    "center";
+
+                ctx.textBaseline =
+                    "middle";
+
+                ctx.font =
+                    selected
+                        ? "900 20px Arial,sans-serif"
+                        : "900 16px Arial,sans-serif";
+
+                ctx.fillText(
+                    "➤",
+                    0,
+                    0
+                );
 
                 if(selected){
                     ctx.shadowColor =
