@@ -233,6 +233,9 @@ async function handleVessels(
             north
         ]);
 
+    const requestKey =
+        key;
+
     const pelyrPromise =
         apiKey
             ? dedupe(
