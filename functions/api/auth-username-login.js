@@ -1,3 +1,5 @@
+import { recordAdminApiUsage } from "../lib/admin-usage.js";
+
 const SITE_ORIGIN = "https://worth-it-calculator.pages.dev";
 const USERNAME_PATTERN = /^(?=.{3,20}$)(?=.*[A-Za-z0-9])[A-Za-z0-9]+(?:_[A-Za-z0-9]+)?$/;
 const MAX_BODY_BYTES = 12000;
@@ -120,6 +122,10 @@ export async function onRequestOptions() {
 export async function onRequestPost(
     context
 ) {
+    recordAdminApiUsage(context, {
+        apiKey: "auth-username-login",
+        provider: "Supabase Auth"
+    });
     const request =
         context.request;
 
