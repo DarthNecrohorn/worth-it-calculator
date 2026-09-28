@@ -2153,6 +2153,11 @@ function normalizeEurisVessel(item){
             ? String(trackId).trim()
             : null;
 
+    const mmsi =
+        /^\d{9}$/.test(realMmsi)
+            ? realMmsi
+            : null;
+
     const latitudeValue =
         nested([
             "lat",
@@ -2254,14 +2259,8 @@ function normalizeEurisVessel(item){
                     ? "euris-track:" +
                         normalizedTrackId
                     : "",
-        mmsi:
-            /^\d{9}$/.test(realMmsi)
-                ? realMmsi
-                : null,
-        real_mmsi:
-            /^\d{9}$/.test(realMmsi)
-                ? realMmsi
-                : null,
+        mmsi,
+        real_mmsi: mmsi,
         track_id:
             normalizedTrackId,
         lat,
