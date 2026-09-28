@@ -2442,6 +2442,11 @@ function normalizeEurisVessel(item){
     const realMmsi =
         String(explicitMmsi || "").trim();
 
+    const mmsi =
+        /^\d{9}$/.test(realMmsi)
+            ? realMmsi
+            : null;
+
     const normalizedTrackId =
         trackId !== null &&
         trackId !== undefined &&
