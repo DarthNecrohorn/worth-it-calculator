@@ -11161,11 +11161,8 @@ body.water-levels-modal-open{
 
 /* A+ */
 html[data-ui-scale="large"] .water-levels-detail-overlay{
-    align-items:flex-start;
-    padding-top:
-        max(14px, calc(18px / var(--ui-scale,1))) !important;
-    padding-bottom:
-        max(14px, calc(18px / var(--ui-scale,1))) !important;
+    align-items:center;
+    padding:12px !important;
 }
 
 html[data-ui-scale="large"] .water-levels-detail-card{
@@ -11206,11 +11203,8 @@ html[data-ui-scale="large"] .water-levels-detail-metrics{
 
 /* A++ */
 html[data-ui-scale="xl"] .water-levels-detail-overlay{
-    align-items:flex-start;
-    padding-top:
-        max(12px, calc(16px / var(--ui-scale,1))) !important;
-    padding-bottom:
-        max(12px, calc(16px / var(--ui-scale,1))) !important;
+    align-items:center;
+    padding:10px !important;
 }
 
 html[data-ui-scale="xl"] .water-levels-detail-card{
@@ -11356,13 +11350,13 @@ html[data-ui-scale="xl"] .water-levels-detail-footer{
 /* A-, A and A+ on phones share the same compact modal geometry. */
 @media(max-width:650px){
     .water-levels-detail-overlay{
-        padding:
-            max(8px, calc(12px / var(--ui-scale,1)))
-            !important;
-        align-items:flex-start;
+        padding:8px !important;
+        align-items:center;
     }
 
     .water-levels-detail-card{
+        max-height:80dvh !important;
+        overflow:auto !important;
         width:
             calc(
                 (100vw - 28px) /
@@ -11492,9 +11486,7 @@ html[data-ui-scale="xl"] .water-levels-detail-footer{
 /* Extra compaction for A++ phones. */
 @media(max-width:650px){
     html[data-ui-scale="xl"] .water-levels-detail-overlay{
-        padding:
-            max(6px, calc(10px / var(--ui-scale,1)))
-            !important;
+        padding:8px !important;
     }
 
     html[data-ui-scale="xl"] .water-levels-detail-card{
