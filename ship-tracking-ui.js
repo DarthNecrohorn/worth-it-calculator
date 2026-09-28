@@ -1049,6 +1049,19 @@
         renderVesselCards(filtered);
     }
 
+    function getVesselSelectionId(vessel){
+        if(!vessel){
+            return "";
+        }
+
+        return String(
+            vessel.real_mmsi ||
+            vessel.mmsi ||
+            vessel.track_id ||
+            ""
+        ).trim();
+    }
+
     function getFilteredVessels(){
         const input = get("shipTrackingSearch");
         const query = input ? input.value.trim().toLowerCase() : "";
@@ -1065,6 +1078,8 @@
             const haystack = [
                 vessel.name,
                 vessel.mmsi,
+                vessel.real_mmsi,
+                vessel.track_id,
                 vessel.imo,
                 vessel.callsign,
                 vessel.destination
@@ -1129,7 +1144,7 @@
                     new Date(vessel.ts).getTime();
 
                 return [
-                    vessel.mmsi,
+                    getVesselSelectionId(vessel),
                     vessel.name,
                     vessel.type,
                     vessel.nav_status,
@@ -1210,9 +1225,26 @@
                 '</div>' +
 
                 '<div class="ship-tracking-vessel-meta">' +
-                    '<span>MMSI ' +
-                        escapeHtml(vessel.mmsi) +
-                    '</span>' +
+                    (
+                        vessel.real_mmsi ||
+                        (
+                            vessel.mmsi &&
+                            /^\d{9}$/.test(
+                                String(vessel.mmsi)
+                            )
+                        )
+                            ? '<span>MMSI ' +
+                                escapeHtml(
+                                    vessel.real_mmsi ||
+                                    vessel.mmsi
+                                ) +
+                              '</span>'
+                            : vessel.track_id
+                                ? '<span>EuRIS Track ID ' +
+                                    escapeHtml(vessel.track_id) +
+                                  '</span>'
+                                : ""
+                    ) +
                     (
                         vessel.imo
                             ? '<span>IMO ' +
@@ -1238,12 +1270,27 @@
 
                 '<div class="ship-tracking-vessel-actions">' +
                     '<button type="button" class="ship-tracking-action-btn" data-ship-details="' +
-                        escapeHtml(vessel.mmsi) +
+                        escapeHtml(
+                            getVesselSelectionId(vessel)
+                        ) +
                     '">View details</button>' +
 
-                    '<button type="button" class="ship-tracking-action-btn ship-tracking-action-secondary" data-ship-track="' +
-                        escapeHtml(vessel.mmsi) +
-                    '">Recent track</button>' +
+                    (
+                        /^\d{9}$/.test(
+                            String(
+                                vessel.real_mmsi ||
+                                vessel.mmsi ||
+                                ""
+                            ).trim()
+                        )
+                            ? '<button type="button" class="ship-tracking-action-btn ship-tracking-action-secondary" data-ship-track="' +
+                                escapeHtml(
+                                    vessel.real_mmsi ||
+                                    vessel.mmsi
+                                ) +
+                              '">Recent track</button>'
+                            : ""
+                    ) +
 
                     '<span class="ship-tracking-vessel-time">' +
                         escapeHtml(freshness) +
@@ -1768,9 +1815,10 @@
                 return {
                     cluster: false,
                     vessel: item.vessel,
-                    mmsi: String(
-                        item.vessel.mmsi || ""
-                    ).trim(),
+                    mmsi:
+                        getVesselSelectionId(
+                            item.vessel
+                        ),
                     containerX: item.containerX,
                     containerY: item.containerY,
                     x: item.x,
@@ -2283,11 +2331,9 @@
                         ""
                     )
                 : "vessel:" +
-                    String(
-                        hit.vessel &&
-                        hit.vessel.mmsi ||
-                        ""
-                    ).trim();
+                    getVesselSelectionId(
+                        hit.vessel
+                    );
 
         if(
             shipCanvasHoverMmsi !==
@@ -2342,10 +2388,16 @@
                     "Unknown vessel"
                 ) +
                 '</strong>' +
-                '<span>MMSI ' +
-                escapeHtml(
-                    vessel.mmsi ||
-                    ""
+                '<span>' +
+                (
+                    vessel.real_mmsi
+                        ? 'MMSI ' +
+                            escapeHtml(vessel.real_mmsi)
+                        : vessel.track_id
+                            ? 'EuRIS Track ID ' +
+                                escapeHtml(vessel.track_id)
+                            : 'MMSI ' +
+                                escapeHtml(vessel.mmsi || "")
                 ) +
                 '</span>';
         }
@@ -2514,14 +2566,19 @@
             return;
         }
 
+        const selectionId =
+            getVesselSelectionId(
+                vessel
+            );
+
         selectedMmsi =
-            String(vessel.mmsi || "").trim();
+            selectionId;
 
         closeOverlapPicker();
         renderMarkers();
 
         loadVesselDetails(
-            vessel.mmsi,
+            selectionId,
             true
         );
     }
@@ -2734,8 +2791,10 @@
                         "Unknown vessel";
 
                     return (
-                        '<button type="button" class="ship-tracking-overlap-item" data-overlap-mmsi="' +
-                            escapeHtml(item.mmsi) +
+                        '<button type="button" class="ship-tracking-overlap-item" data-overlap-id="' +
+                            escapeHtml(
+                                getVesselSelectionId(item)
+                            ) +
                             '" title="' +
                             escapeHtml(name) +
                             '">' +
@@ -2817,7 +2876,7 @@
 
                 const item =
                     event.target.closest(
-                        "[data-overlap-mmsi]"
+                        "[data-overlap-id]"
                     );
 
                 if(!item){
@@ -2826,21 +2885,22 @@
 
                 event.preventDefault();
 
-                const mmsi =
+                const vesselId =
                     String(
-                        item.dataset.overlapMmsi || ""
+                        item.dataset.overlapId || ""
                     ).trim();
 
                 closeOverlapPicker();
 
-                if(!mmsi){
+                if(!vesselId){
                     return;
                 }
 
-                selectedMmsi = mmsi;
+                selectedMmsi =
+                    vesselId;
                 renderMarkers();
                 loadVesselDetails(
-                    mmsi,
+                    vesselId,
                     true
                 );
             }
@@ -3004,9 +3064,11 @@
             String(mmsi || "").trim();
 
         return vessels.find(function(vessel){
-            return String(
-                vessel && vessel.mmsi || ""
-            ).trim() === numericMmsi;
+            return (
+                getVesselSelectionId(
+                    vessel
+                ) === numericMmsi
+            );
         }) || null;
     }
 
@@ -3199,7 +3261,9 @@
                                 ? 'MMSI ' + escapeHtml(vessel.real_mmsi)
                                 : vessel.track_id
                                     ? 'EuRIS Track ID ' + escapeHtml(vessel.track_id)
-                                    : 'MMSI ' + escapeHtml(vessel.mmsi || '')
+                                    : 'MMSI ' + escapeHtml(
+                                    vessel.mmsi || ''
+                                )
                         ) +
                     '</span>' +
                 '</div>' +
