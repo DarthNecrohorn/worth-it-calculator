@@ -478,6 +478,18 @@ async function handleVessels(
                             ""
                         )
                         : "",
+                                pagination_complete_for_limit:
+                    eurisData.pagination
+                        ? Boolean(
+                            eurisData.pagination.complete_for_limit
+                        )
+                        : false,
+                pagination_stopped_by_limit:
+                    eurisData.pagination
+                        ? Boolean(
+                            eurisData.pagination.stopped_by_limit
+                        )
+                        : false,
                 endpoint:
                     eurisData.ok
                         ? String(eurisData.endpoint || "")
@@ -1439,6 +1451,7 @@ async function paginateEurisPages(
     let pageCount = 1;
     let complete = !nextUrl;
     let paginationError = "";
+    let stoppedByLimit = false;
 
     while(
         nextUrl &&
@@ -1548,26 +1561,19 @@ async function paginateEurisPages(
         complete = true;
     }
 
+    
     if(
         nextUrl &&
-        allItems.length >= max
+        (
+            allItems.length >= max ||
+            pageCount >= MAX_EURIS_PAGES
+        )
     ){
+        stoppedByLimit = true;
         complete = false;
     }
 
-    if(
-        nextUrl &&
-        pageCount >= MAX_EURIS_PAGES
-    ){
-        complete = false;
-
-        if(!paginationError){
-            paginationError =
-                "euris_pagination_limit";
-        }
-    }
-
-    const limitedItems =
+const limitedItems =
         allItems.slice(
             0,
             max
@@ -1590,6 +1596,11 @@ async function paginateEurisPages(
         _pagination: {
             pages: pageCount,
             complete,
+                        complete_for_limit:
+                complete ||
+                stoppedByLimit,
+            stopped_by_limit:
+                stoppedByLimit,
             truncated:
                 Boolean(
                     nextUrl
