@@ -465,62 +465,103 @@ async function handleVessels(
     let pelyrAttributions = [];
 
     if(pelyrData.ok){
-        const sourceMap =
-            await getSourceMap(
-                context,
-                apiKey
-            );
+        try{
+            const sourceMap =
+                await getSourceMap(
+                    context,
+                    apiKey
+                );
 
-        const normalizedPelyr =
-            Array.isArray(
-                pelyrData.body.vessels
-            )
-                ? pelyrData.body.vessels
-                    .map(normalizeVessel)
-                    .filter(Boolean)
-                : [];
+            const normalizedPelyr =
+                Array.isArray(
+                    pelyrData.body.vessels
+                )
+                    ? pelyrData.body.vessels
+                        .map(normalizeVessel)
+                        .filter(Boolean)
+                    : [];
 
-        if(sourceMap.ok){
-            pelyrAttributions =
-                collectAttributions(
-                    normalizedPelyr,
-                    sourceMap.sources
+            if(sourceMap.ok){
+                pelyrAttributions =
+                    collectAttributions(
+                        normalizedPelyr,
+                        sourceMap.sources
+                    );
+            }
+
+            pelyrVessels =
+                normalizedPelyr.map(function(vessel){
+                    vessel.provider =
+                        "Pelyr";
+                    vessel.providers =
+                        ["Pelyr"];
+
+                    return vessel;
+                });
+
+            pelyrTruncated =
+                Boolean(
+                    pelyrData.body.truncated
                 );
         }
-
-        pelyrVessels =
-            normalizedPelyr.map(function(vessel){
-                vessel.provider =
-                    "Pelyr";
-                vessel.providers =
-                    ["Pelyr"];
-
-                return vessel;
-            });
-
-        pelyrTruncated =
-            Boolean(
-                pelyrData.body.truncated
+        catch(error){
+            console.error(
+                "Pelyr vessel processing failed:",
+                error
             );
+
+            pelyrVessels = [];
+            pelyrTruncated = false;
+            pelyrAttributions = [];
+        }
     }
 
-    const eurisRawItems =
-        eurisData.ok
-            ? extractEurisTrackItems(
-                eurisData.body
-            )
-            : [];
+    let eurisRawItems = [];
+    let eurisVessels = [];
 
-    const eurisVessels =
-        eurisRawItems
-            .map(normalizeEurisVessel)
-            .filter(Boolean);
+    if(eurisData.ok){
+        try{
+            eurisRawItems =
+                extractEurisTrackItems(
+                    eurisData.body
+                );
 
-    const vessels =
-        mergeVesselLists(
-            pelyrVessels,
-            eurisVessels
+            eurisVessels =
+                eurisRawItems
+                    .map(normalizeEurisVessel)
+                    .filter(Boolean);
+        }
+        catch(error){
+            console.error(
+                "EuRIS vessel processing failed:",
+                error
+            );
+
+            eurisRawItems = [];
+            eurisVessels = [];
+        }
+    }
+
+    let vessels = [];
+
+    try{
+        vessels =
+            mergeVesselLists(
+                pelyrVessels,
+                eurisVessels
+            );
+    }
+    catch(error){
+        console.error(
+            "Ship Tracking vessel merge failed:",
+            error
         );
+
+        vessels = [
+            ...pelyrVessels,
+            ...eurisVessels
+        ];
+    }
 
     vesselStage = "response_build";
 
