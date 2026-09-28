@@ -303,56 +303,13 @@ async function handleVessels(
             });
 
     const results =
-        await Promise.allSettled([
+        await Promise.all([
             pelyrPromise,
             eurisPromise
         ]);
 
-    const normalizeSettledSource =
-        function(result, providerCode){
-            if(
-                result.status === "fulfilled"
-            ){
-                return result.value;
-            }
-
-            console.error(
-                "Ship Tracking source promise failed:",
-                providerCode,
-                result.reason
-            );
-
-            return {
-                ok: false,
-                skipped: false,
-                status: 502,
-                unexpected_error: true,
-                body: {
-                    ok: false,
-                    error: {
-                        code:
-                            providerCode +
-                            "_internal_error",
-                        message:
-                            providerCode === "euris"
-                                ? "EuRIS is temporarily unavailable."
-                                : "Pelyr is temporarily unavailable."
-                    }
-                }
-            };
-        };
-
-    const pelyrData =
-        normalizeSettledSource(
-            results[0],
-            "pelyr"
-        );
-
-    const eurisData =
-        normalizeSettledSource(
-            results[1],
-            "euris"
-        );
+    const pelyrData = results[0];
+    const eurisData = results[1];
 
     if(
         !pelyrData.ok &&
@@ -393,103 +350,62 @@ async function handleVessels(
     let pelyrAttributions = [];
 
     if(pelyrData.ok){
-        try{
-            const sourceMap =
-                await getSourceMap(
-                    context,
-                    apiKey
-                );
-
-            const normalizedPelyr =
-                Array.isArray(
-                    pelyrData.body.vessels
-                )
-                    ? pelyrData.body.vessels
-                        .map(normalizeVessel)
-                        .filter(Boolean)
-                    : [];
-
-            if(sourceMap.ok){
-                pelyrAttributions =
-                    collectAttributions(
-                        normalizedPelyr,
-                        sourceMap.sources
-                    );
-            }
-
-            pelyrVessels =
-                normalizedPelyr.map(function(vessel){
-                    vessel.provider =
-                        "Pelyr";
-                    vessel.providers =
-                        ["Pelyr"];
-
-                    return vessel;
-                });
-
-            pelyrTruncated =
-                Boolean(
-                    pelyrData.body.truncated
-                );
-        }
-        catch(error){
-            console.error(
-                "Pelyr vessel normalization failed:",
-                error
+        const sourceMap =
+            await getSourceMap(
+                context,
+                apiKey
             );
 
-            pelyrVessels = [];
-            pelyrTruncated = false;
-            pelyrAttributions = [];
-        }
-    }
+        const normalizedPelyr =
+            Array.isArray(
+                pelyrData.body.vessels
+            )
+                ? pelyrData.body.vessels
+                    .map(normalizeVessel)
+                    .filter(Boolean)
+                : [];
 
-    let eurisRawItems = [];
-    let eurisVessels = [];
-
-    if(eurisData.ok){
-        try{
-            eurisRawItems =
-                extractEurisTrackItems(
-                    eurisData.body
+        if(sourceMap.ok){
+            pelyrAttributions =
+                collectAttributions(
+                    normalizedPelyr,
+                    sourceMap.sources
                 );
-
-            eurisVessels =
-                eurisRawItems
-                    .map(normalizeEurisVessel)
-                    .filter(Boolean);
         }
-        catch(error){
-            console.error(
-                "EuRIS vessel normalization failed:",
-                error
-            );
 
-            eurisRawItems = [];
-            eurisVessels = [];
-        }
-    }
+        pelyrVessels =
+            normalizedPelyr.map(function(vessel){
+                vessel.provider =
+                    "Pelyr";
+                vessel.providers =
+                    ["Pelyr"];
 
-    let vessels = [];
+                return vessel;
+            });
 
-    try{
-        vessels =
-            mergeVesselLists(
-                pelyrVessels,
-                eurisVessels
+        pelyrTruncated =
+            Boolean(
+                pelyrData.body.truncated
             );
     }
-    catch(error){
-        console.error(
-            "Ship Tracking vessel merge failed:",
-            error
+
+    const eurisRawItems =
+        eurisData.ok
+            ? extractEurisTrackItems(
+                eurisData.body
+            )
+            : [];
+
+    const eurisVessels =
+        eurisRawItems
+            .map(normalizeEurisVessel)
+            .filter(Boolean);
+
+    const vessels =
+        mergeVesselLists(
+            pelyrVessels,
+            eurisVessels
         );
-
-        vessels = [
-            ...pelyrVessels,
-            ...eurisVessels
-        ];
-    }
 
     const attributions = [
         ...pelyrAttributions
@@ -552,32 +468,7 @@ async function handleVessels(
                 pagination_complete:
                     eurisData.pagination
                         ? Boolean(
-                            eurisData.pagination.complete_for_limit
-                        )
-                        : false,
-                pagination_complete_all:
-                    eurisData.pagination
-                        ? Boolean(
                             eurisData.pagination.complete
-                        )
-                        : false,
-                pagination_error:
-                    eurisData.pagination
-                        ? String(
-                            eurisData.pagination.error_code ||
-                            ""
-                        )
-                        : "",
-                pagination_complete_for_limit:
-                    eurisData.pagination
-                        ? Boolean(
-                            eurisData.pagination.complete_for_limit
-                        )
-                        : false,
-                pagination_stopped_by_limit:
-                    eurisData.pagination
-                        ? Boolean(
-                            eurisData.pagination.stopped_by_limit
                         )
                         : false,
                 endpoint:
@@ -1359,62 +1250,6 @@ async function fetchEurisTracks(token, bbox, max){
                     body &&
                     typeof body === "object"
                 ){
-                    /*
-                     * A few EuRIS route/host combinations can answer
-                     * HTTP 200 with an empty track collection for a
-                     * bbox while another exposed EuRIS route has data.
-                     * Do not lock onto an empty 200 response: try the
-                     * next deterministic fallback route/query instead.
-                     */
-                    const initialTrackItems =
-                        extractEurisTrackItems(
-                            body
-                        );
-
-                    const reportedTrackCount =
-                        Number(
-                            body.count
-                        );
-
-                    const emptyTrackResponse =
-                        initialTrackItems.length === 0 &&
-                        (
-                            !Number.isFinite(
-                                reportedTrackCount
-                            ) ||
-                            reportedTrackCount <= 0
-                        );
-
-                    if(
-                        emptyTrackResponse &&
-                        (
-                            endpoint.version === "Tracks_v2" ||
-                            endpoint.version === "Tracks_v2_legacy" ||
-                            endpoint.version === "Tracks_v3" ||
-                            endpoint.version === "Tracks_v3_visuris"
-                        ) &&
-                        endpointIndex < endpoints.length - 1
-                    ){
-                        lastFailure = {
-                            ok: false,
-                            status: 204,
-                            attempts,
-                            endpoint: endpoint.version,
-                            base: endpoint.base,
-                            path: endpoint.path,
-                            query_mode: queryIndex,
-                            body: {
-                                ok: false,
-                                error: {
-                                    code: "euris_empty_response",
-                                    message: "EuRIS returned no tracks on this route; trying the next EuRIS route."
-                                }
-                            }
-                        };
-
-                        continue;
-                    }
-
                     let finalBody =
                         body;
 
@@ -1597,7 +1432,6 @@ async function paginateEurisPages(
     let pageCount = 1;
     let complete = !nextUrl;
     let paginationError = "";
-    let stoppedByLimit = false;
 
     while(
         nextUrl &&
@@ -1707,19 +1541,26 @@ async function paginateEurisPages(
         complete = true;
     }
 
-    
     if(
         nextUrl &&
-        (
-            allItems.length >= max ||
-            pageCount >= MAX_EURIS_PAGES
-        )
+        allItems.length >= max
     ){
-        stoppedByLimit = true;
         complete = false;
     }
 
-const limitedItems =
+    if(
+        nextUrl &&
+        pageCount >= MAX_EURIS_PAGES
+    ){
+        complete = false;
+
+        if(!paginationError){
+            paginationError =
+                "euris_pagination_limit";
+        }
+    }
+
+    const limitedItems =
         allItems.slice(
             0,
             max
@@ -1742,11 +1583,6 @@ const limitedItems =
         _pagination: {
             pages: pageCount,
             complete,
-            complete_for_limit:
-                complete ||
-                stoppedByLimit,
-            stopped_by_limit:
-                stoppedByLimit,
             truncated:
                 Boolean(
                     nextUrl
