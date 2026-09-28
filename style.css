@@ -11603,6 +11603,52 @@ html[data-theme="light"] .ship-tracking-map-card{background:var(--card-solid,#ff
     background:var(--surface-soft);
 }
 
+/* Single interactive canvas replaces hundreds of DOM vessel markers. */
+.ship-tracking-vessel-canvas{
+    position:absolute;
+    inset:0;
+    display:block;
+    width:100%;
+    height:100%;
+    outline:none;
+    pointer-events:auto;
+    touch-action:none;
+}
+
+.ship-tracking-canvas-tooltip{
+    position:absolute;
+    z-index:960;
+    max-width:220px;
+    padding:7px 9px;
+    border:1px solid var(--border);
+    border-radius:9px;
+    background:rgba(11,17,31,.96);
+    color:var(--text);
+    box-shadow:0 8px 24px rgba(0,0,0,.2);
+    pointer-events:none;
+    white-space:nowrap;
+}
+
+.ship-tracking-canvas-tooltip strong{
+    display:block;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    font-size:10px;
+    line-height:1.2;
+}
+
+.ship-tracking-canvas-tooltip span{
+    display:block;
+    margin-top:2px;
+    color:var(--muted);
+    font-size:8px;
+    line-height:1.2;
+}
+
+html[data-theme="light"] .ship-tracking-canvas-tooltip{
+    background:rgba(255,255,255,.97);
+}
+
 .ship-tracking-map .leaflet-control-zoom a{
     color:#111827;
 }
