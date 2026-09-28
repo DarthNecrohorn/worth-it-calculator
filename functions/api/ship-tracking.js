@@ -1058,7 +1058,7 @@ async function fetchEurisTracks(token, bbox, max){
         );
     });
 
-    const buildQuery = function(endpoint, bboxValue, limit){
+    const buildQuery = function(endpoint, bboxValue, limit, queryIndex){
         if(
             endpoint.version === "Tracks_v2" ||
             endpoint.version === "Tracks_v2_legacy"
@@ -1069,6 +1069,36 @@ async function fetchEurisTracks(token, bbox, max){
                 minLon: Number(bboxValue.west).toFixed(6),
                 maxLon: Number(bboxValue.east).toFixed(6),
                 pageSize: String(limit)
+            });
+        }
+
+        if(queryIndex === 1){
+            return new URLSearchParams({
+                minLongitude: String(bboxValue.west),
+                minLatitude: String(bboxValue.south),
+                maxLongitude: String(bboxValue.east),
+                maxLatitude: String(bboxValue.north),
+                "$top": String(limit)
+            });
+        }
+
+        if(queryIndex === 2){
+            return new URLSearchParams({
+                minLon: String(bboxValue.west),
+                minLat: String(bboxValue.south),
+                maxLon: String(bboxValue.east),
+                maxLat: String(bboxValue.north),
+                "$top": String(limit)
+            });
+        }
+
+        if(queryIndex === 3){
+            return new URLSearchParams({
+                minX: String(bboxValue.west),
+                minY: String(bboxValue.south),
+                maxX: String(bboxValue.east),
+                maxY: String(bboxValue.north),
+                "$top": String(limit)
             });
         }
 
@@ -1129,7 +1159,8 @@ async function fetchEurisTracks(token, bbox, max){
                 buildQuery(
                     endpoint,
                     bbox,
-                    max
+                    max,
+                    queryIndex
                 );
 
             let response;
