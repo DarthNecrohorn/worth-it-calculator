@@ -2845,7 +2845,12 @@
                                 escapeHtml(name) +
                             '</span>' +
                             '<span class="ship-tracking-overlap-mmsi">' +
-                                escapeHtml(item.mmsi.slice(-4)) +
+                                escapeHtml(
+                                    (
+                                        getVesselSelectionId(item) ||
+                                        "—"
+                                    ).slice(-4)
+                                ) +
                             '</span>' +
                         '</button>'
                     );
