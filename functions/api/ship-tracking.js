@@ -357,10 +357,73 @@ async function handleVessels(
         !pelyrData.ok &&
         !eurisData.ok
     ){
+        const failures = [
+            pelyrData,
+            eurisData
+        ].filter(function(source){
+            return (
+                source &&
+                !source.skipped
+            );
+        });
+
         const failure =
-            !pelyrData.skipped
-                ? pelyrData
-                : eurisData;
+            failures.find(function(source){
+                return Number(source.status) === 429;
+            }) ||
+            failures[0] ||
+            eurisData;
+
+        const rateLimited =
+            failures.some(function(source){
+                return (
+                    Number(source.status) === 429 ||
+                    (
+                        source.body &&
+                        source.body.error &&
+                        String(
+                            source.body.error.code || ""
+                        ) === "rate_limited"
+                    )
+                );
+            });
+
+        const retryAfterMs =
+            failures.reduce(function(maxWait, source){
+                const value =
+                    Number(source.retryAfterMs) || 0;
+
+                return Math.max(
+                    maxWait,
+                    value
+                );
+            }, 0);
+
+        if(rateLimited){
+            return jsonResponse(
+                {
+                    ok: false,
+                    error: {
+                        code: "rate_limited",
+                        message: "AIS providers are temporarily rate limited. Please retry after the provider cooldown."
+                    }
+                },
+                429,
+                retryAfterMs > 0
+                    ? {
+                        "Retry-After":
+                            String(
+                                Math.max(
+                                    1,
+                                    Math.ceil(
+                                        retryAfterMs / 1000
+                                    )
+                                )
+                            )
+                    }
+                    : undefined
+            );
+        }
 
         return jsonResponse(
             failure.body || {
@@ -371,14 +434,14 @@ async function handleVessels(
                 }
             },
             failure.status || 502,
-            failure.retryAfterMs > 0
+            retryAfterMs > 0
                 ? {
                     "Retry-After":
                         String(
                             Math.max(
                                 1,
                                 Math.ceil(
-                                    failure.retryAfterMs / 1000
+                                    retryAfterMs / 1000
                                 )
                             )
                         )
