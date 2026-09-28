@@ -3194,7 +3194,13 @@
                         escapeHtml(vessel.name || "Unknown vessel") +
                     '</h3>' +
                     '<span class="ship-tracking-detail-subtitle">' +
-                        'MMSI ' + escapeHtml(vessel.mmsi) +
+                        (
+                            vessel.real_mmsi
+                                ? 'MMSI ' + escapeHtml(vessel.real_mmsi)
+                                : vessel.track_id
+                                    ? 'EuRIS Track ID ' + escapeHtml(vessel.track_id)
+                                    : 'MMSI ' + escapeHtml(vessel.mmsi || '')
+                        ) +
                     '</span>' +
                 '</div>' +
                 '<button type="button" class="ship-tracking-detail-close" id="shipTrackingDetailClose" aria-label="Close">✕</button>' +
