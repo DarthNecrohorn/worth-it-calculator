@@ -471,6 +471,13 @@ async function handleVessels(
                             eurisData.pagination.complete
                         )
                         : false,
+                pagination_error:
+                    eurisData.pagination
+                        ? String(
+                            eurisData.pagination.error_code ||
+                            ""
+                        )
+                        : "",
                 endpoint:
                     eurisData.ok
                         ? String(eurisData.endpoint || "")
