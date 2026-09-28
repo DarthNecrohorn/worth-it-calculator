@@ -1392,6 +1392,12 @@
                 )
             );
 
+            marker.setZIndexOffset(
+                selected
+                    ? 1000
+                    : 0
+            );
+
             marker.__shipTrackingRotation =
                 rotation;
 
