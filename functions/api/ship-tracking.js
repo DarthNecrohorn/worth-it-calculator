@@ -1454,33 +1454,43 @@ function normalizeEurisVessel(item){
             ]) || ""
         ).trim();
 
+    const latitudeValue =
+        nested([
+            "lat",
+            "Lat",
+            "latitude",
+            "Latitude",
+            "shipLatitude",
+            "ShipLatitude",
+            "vesselLatitude",
+            "VesselLatitude"
+        ]);
+
+    const longitudeValue =
+        nested([
+            "lon",
+            "Lon",
+            "longitude",
+            "Longitude",
+            "shipLongitude",
+            "ShipLongitude",
+            "vesselLongitude",
+            "VesselLongitude"
+        ]);
+
     let lat =
-        Number(
-            nested([
-                "lat",
-                "Lat",
-                "latitude",
-                "Latitude",
-                "shipLatitude",
-                "ShipLatitude",
-                "vesselLatitude",
-                "VesselLatitude"
-            ])
-        );
+        latitudeValue === null ||
+        latitudeValue === undefined ||
+        latitudeValue === ""
+            ? NaN
+            : Number(latitudeValue);
 
     let lon =
-        Number(
-            nested([
-                "lon",
-                "Lon",
-                "longitude",
-                "Longitude",
-                "shipLongitude",
-                "ShipLongitude",
-                "vesselLongitude",
-                "VesselLongitude"
-            ])
-        );
+        longitudeValue === null ||
+        longitudeValue === undefined ||
+        longitudeValue === ""
+            ? NaN
+            : Number(longitudeValue);
 
     if(
         !Number.isFinite(lat) ||
