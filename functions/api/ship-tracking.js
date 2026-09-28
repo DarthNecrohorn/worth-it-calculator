@@ -1381,8 +1381,13 @@ async function fetchEurisTracks(token, bbox, max){
                         method: "GET",
                         redirect: "follow",
                         headers: {
-                            "Authorization":
-                                "Bearer " + token,
+                            ...(endpoint.version === "Tracks_v2" ||
+                            endpoint.version === "Tracks_v2_legacy"
+                                ? {}
+                                : {
+                                    "Authorization":
+                                        "Bearer " + token
+                                }),
                             "Accept":
                                 "application/json",
                             "Origin":
@@ -1641,8 +1646,13 @@ async function paginateEurisPages(
                     method: "GET",
                     redirect: "follow",
                     headers: {
-                        "Authorization":
-                            "Bearer " + token,
+                        ...(endpoint.version === "Tracks_v2" ||
+                        endpoint.version === "Tracks_v2_legacy"
+                            ? {}
+                            : {
+                                "Authorization":
+                                    "Bearer " + token
+                            }),
                         "Accept":
                             "application/json",
                         "Origin":
