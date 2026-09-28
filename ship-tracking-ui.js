@@ -21,7 +21,6 @@
     };
 
     let map = null;
-    let markerLayer = null;
     let autoRefreshTimer = null;
     let mapBaseRefreshTimer = null;
     let mapLoadTimer = null;
@@ -33,9 +32,17 @@
     let lastLoadAt = 0;
     let currentRequestController = null;
     let overlapPicker = null;
-    const markerByMmsi = new Map();
-    let markerRenderToken = 0;
-    let markerRenderFrame = null;
+    let shipCanvasPane = null;
+    let shipCanvas = null;
+    let shipCanvasContext = null;
+    let shipCanvasTooltip = null;
+    let shipCanvasItems = [];
+    let shipCanvasHitGrid = new Map();
+    let shipCanvasRenderToken = 0;
+    let shipCanvasRenderFrame = null;
+    let shipCanvasHoverFrame = null;
+    let shipCanvasPointerEvent = null;
+    let shipCanvasHoverMmsi = "";
     let cardRenderSignature = "";
     let cardRenderFrame = null;
 
@@ -348,15 +355,28 @@
         addDefaultBaseLayer();
         addBaseMapSwitcher();
 
-        markerLayer = L.layerGroup().addTo(map);
+        setupShipCanvasLayer();
 
         map.on("movestart zoomstart", function(){
             closeOverlapPicker();
         });
 
         map.on("moveend zoomend", function(){
+            closeShipCanvasTooltip();
+            scheduleShipCanvasDraw();
             scheduleMapLoad(false);
         });
+
+        map.on("resize", function(){
+            scheduleShipCanvasDraw();
+        });
+
+        window.addEventListener(
+            "worthitsettingschange",
+            function(){
+                scheduleShipCanvasDraw();
+            }
+        );
 
         window.setTimeout(function(){
             if(map){
@@ -1039,412 +1059,869 @@
     }
 
     function renderMarkers(){
-        if(!markerLayer || !map){
+        if(!map){
             return;
         }
 
-        const filtered = getFilteredVessels();
-        syncVisibleMarkers(filtered);
+        const filtered =
+            getFilteredVessels();
+
+        scheduleShipCanvasDraw(
+            filtered
+        );
     }
 
-    function syncVisibleMarkers(filtered){
-        markerRenderToken += 1;
+    function setupShipCanvasLayer(){
+        if(
+            !map ||
+            typeof L === "undefined" ||
+            shipCanvas
+        ){
+            return;
+        }
 
         if(
-            markerRenderFrame !== null &&
-            typeof window.cancelAnimationFrame === "function"
+            typeof map.createPane !== "function"
         ){
-            window.cancelAnimationFrame(
-                markerRenderFrame
-            );
-            markerRenderFrame = null;
+            return;
         }
 
-        const renderToken = markerRenderToken;
-        const desired = new Map();
+        shipCanvasPane =
+            map.createPane(
+                "shipTrackingVesselPane"
+            );
 
-        filtered.forEach(function(vessel){
-            const mmsi = String(vessel.mmsi || "").trim();
+        shipCanvasPane.style.zIndex =
+            "610";
 
-            if(/^\d{9}$/.test(mmsi)){
-                desired.set(mmsi, vessel);
-            }
-        });
+        shipCanvasPane.style.pointerEvents =
+            "auto";
 
-        const staleMmsi = [];
+        shipCanvas =
+            document.createElement(
+                "canvas"
+            );
 
-        markerByMmsi.forEach(function(marker, mmsi){
-            if(!desired.has(mmsi)){
-                staleMmsi.push(mmsi);
-            }
-        });
+        shipCanvas.className =
+            "ship-tracking-vessel-canvas";
 
-        const settings = getMarkerRenderSettings();
-        let removeIndex = 0;
-        let updateIndex = 0;
-
-        const entries = Array.from(
-            desired.entries()
+        shipCanvas.setAttribute(
+            "aria-label",
+            "Interactive live vessel positions"
         );
 
-        function continueInFrame(callback){
-            if(
-                typeof window.requestAnimationFrame === "function"
-            ){
-                markerRenderFrame =
-                    window.requestAnimationFrame(
-                        callback
+        shipCanvas.tabIndex = -1;
+
+        shipCanvasContext =
+            shipCanvas.getContext(
+                "2d",
+                {
+                    alpha: true
+                }
+            );
+
+        if(!shipCanvasContext){
+            shipCanvas = null;
+            shipCanvasPane = null;
+            return;
+        }
+
+        shipCanvasPane.appendChild(
+            shipCanvas
+        );
+
+        shipCanvasTooltip =
+            document.createElement(
+                "div"
+            );
+
+        shipCanvasTooltip.className =
+            "ship-tracking-canvas-tooltip";
+
+        shipCanvasTooltip.setAttribute(
+            "role",
+            "tooltip"
+        );
+
+        shipCanvasTooltip.hidden = true;
+
+        map.getContainer().appendChild(
+            shipCanvasTooltip
+        );
+
+        shipCanvas.addEventListener(
+            "click",
+            function(event){
+                const point =
+                    getCanvasEventContainerPoint(
+                        event
                     );
-            }else{
-                markerRenderFrame =
-                    window.setTimeout(callback, 16);
-            }
-        }
 
-        function removeBatch(){
-            if(renderToken !== markerRenderToken){
-                return;
-            }
+                const hit =
+                    findCanvasVessel(
+                        point
+                    );
 
-            const frameStart =
-                window.performance &&
-                typeof window.performance.now === "function"
-                    ? window.performance.now()
-                    : Date.now();
-
-            let removed = 0;
-
-            while(
-                removeIndex < staleMmsi.length &&
-                removed < settings.batchSize
-            ){
-                const now =
-                    window.performance &&
-                    typeof window.performance.now === "function"
-                        ? window.performance.now()
-                        : Date.now();
+                if(!hit){
+                    return;
+                }
 
                 if(
-                    removed > 0 &&
-                    now - frameStart >= settings.frameBudgetMs
+                    event.cancelable
                 ){
-                    break;
+                    event.preventDefault();
                 }
 
-                const mmsi = staleMmsi[removeIndex];
-                const marker = markerByMmsi.get(mmsi);
+                event.stopPropagation();
 
-                if(marker){
-                    markerLayer.removeLayer(marker);
-                    markerByMmsi.delete(mmsi);
+                handleCanvasVesselClick(
+                    hit.vessel
+                );
+            }
+        );
+
+        shipCanvas.addEventListener(
+            "pointermove",
+            function(event){
+                if(
+                    event.pointerType ===
+                    "touch"
+                ){
+                    return;
                 }
 
-                removeIndex += 1;
-                removed += 1;
-            }
-
-            if(removeIndex < staleMmsi.length){
-                continueInFrame(removeBatch);
-                return;
-            }
-
-            updateBatch();
-        }
-
-        function updateBatch(){
-            if(renderToken !== markerRenderToken){
-                return;
-            }
-
-            const frameStart =
-                window.performance &&
-                typeof window.performance.now === "function"
-                    ? window.performance.now()
-                    : Date.now();
-
-            let processed = 0;
-
-            while(
-                updateIndex < entries.length &&
-                processed < settings.batchSize
-            ){
-                const now =
-                    window.performance &&
-                    typeof window.performance.now === "function"
-                        ? window.performance.now()
-                        : Date.now();
+                shipCanvasPointerEvent =
+                    event;
 
                 if(
-                    processed > 0 &&
-                    now - frameStart >= settings.frameBudgetMs
+                    shipCanvasHoverFrame !==
+                    null
                 ){
-                    break;
+                    return;
                 }
 
-                const entry = entries[updateIndex];
-                const mmsi = entry[0];
-                const vessel = entry[1];
-
-                let marker = markerByMmsi.get(mmsi);
-
-                if(!marker){
-                    marker = createVesselMarker(vessel);
-                    markerByMmsi.set(mmsi, marker);
-                    marker.addTo(markerLayer);
+                if(
+                    typeof window.requestAnimationFrame ===
+                    "function"
+                ){
+                    shipCanvasHoverFrame =
+                        window.requestAnimationFrame(
+                            updateCanvasHover
+                        );
                 }else{
-                    updateVesselMarker(marker, vessel);
+                    shipCanvasHoverFrame =
+                        window.setTimeout(
+                            updateCanvasHover,
+                            16
+                        );
                 }
-
-                updateIndex += 1;
-                processed += 1;
             }
+        );
 
-            if(updateIndex < entries.length){
-                continueInFrame(updateBatch);
-            }else{
-                markerRenderFrame = null;
+        shipCanvas.addEventListener(
+            "pointerleave",
+            function(){
+                shipCanvasPointerEvent =
+                    null;
+
+                closeShipCanvasTooltip();
             }
-        }
+        );
 
-        removeBatch();
+        shipCanvas.addEventListener(
+            "pointercancel",
+            function(){
+                shipCanvasPointerEvent =
+                    null;
+
+                closeShipCanvasTooltip();
+            }
+        );
+
+        scheduleShipCanvasDraw();
     }
 
-    function getMarkerRenderSettings(){
-        const navigatorObject =
-            typeof navigator !== "undefined"
+    function scheduleShipCanvasDraw(filtered){
+        if(!map || !shipCanvas){
+            return;
+        }
+
+        if(
+            !Array.isArray(filtered)
+        ){
+            filtered =
+                getFilteredVessels();
+        }
+
+        const items =
+            filtered.filter(function(vessel){
+                const lat =
+                    Number(vessel.lat);
+
+                const lon =
+                    Number(vessel.lon);
+
+                return (
+                    Number.isFinite(lat) &&
+                    Number.isFinite(lon)
+                );
+            });
+
+        shipCanvasRenderToken += 1;
+
+        if(
+            shipCanvasRenderFrame !==
+            null &&
+            typeof window.cancelAnimationFrame ===
+            "function"
+        ){
+            window.cancelAnimationFrame(
+                shipCanvasRenderFrame
+            );
+
+            shipCanvasRenderFrame =
+                null;
+        }
+
+        const token =
+            shipCanvasRenderToken;
+
+        const draw =
+            function(){
+                shipCanvasRenderFrame =
+                    null;
+
+                if(
+                    token !==
+                    shipCanvasRenderToken
+                ){
+                    return;
+                }
+
+                drawShipCanvas(
+                    items
+                );
+            };
+
+        if(
+            typeof window.requestAnimationFrame ===
+            "function"
+        ){
+            shipCanvasRenderFrame =
+                window.requestAnimationFrame(
+                    draw
+                );
+        }else{
+            shipCanvasRenderFrame =
+                window.setTimeout(
+                    draw,
+                    16
+                );
+        }
+    }
+
+    function getShipCanvasPixelRatio(){
+        const dpr =
+            Number(
+                window.devicePixelRatio
+            ) || 1;
+
+        const nav =
+            typeof navigator !==
+            "undefined"
                 ? navigator
                 : null;
 
         const cores =
-            navigatorObject &&
+            nav &&
             Number.isFinite(
-                Number(navigatorObject.hardwareConcurrency)
+                Number(
+                    nav.hardwareConcurrency
+                )
             )
-                ? Number(navigatorObject.hardwareConcurrency)
+                ? Number(
+                    nav.hardwareConcurrency
+                )
                 : 8;
 
         const memory =
-            navigatorObject &&
+            nav &&
             Number.isFinite(
-                Number(navigatorObject.deviceMemory)
+                Number(
+                    nav.deviceMemory
+                )
             )
-                ? Number(navigatorObject.deviceMemory)
+                ? Number(
+                    nav.deviceMemory
+                )
                 : 8;
 
-        if(cores <= 4 || memory <= 4){
-            return {
-                batchSize: 24,
-                frameBudgetMs: 4
-            };
+        if(
+            cores <= 4 ||
+            memory <= 4
+        ){
+            return Math.min(
+                dpr,
+                1
+            );
         }
 
-        if(cores <= 6 || memory <= 8){
-            return {
-                batchSize: 36,
-                frameBudgetMs: 5
-            };
+        if(
+            cores <= 6 ||
+            memory <= 8
+        ){
+            return Math.min(
+                dpr,
+                1.5
+            );
         }
 
-        return {
-            batchSize: 50,
-            frameBudgetMs: 6
-        };
+        return Math.min(
+            dpr,
+            2
+        );
     }
 
-    function createVesselMarker(vessel){
-        const mmsi =
-            String(vessel.mmsi || "").trim();
+    function drawShipCanvas(vesselsToDraw){
+        if(
+            !map ||
+            !shipCanvas ||
+            !shipCanvasContext
+        ){
+            return;
+        }
 
-        const selected =
-            selectedMmsi === mmsi;
+        const mapSize =
+            map.getSize();
 
-        const rotation =
-            Math.round(
-                getVesselArrowRotation(vessel)
+        const width =
+            Math.max(
+                1,
+                Math.round(mapSize.x)
             );
 
-        const lat = Number(vessel.lat);
-        const lon = Number(vessel.lon);
+        const height =
+            Math.max(
+                1,
+                Math.round(mapSize.y)
+            );
 
-        const marker =
-            L.marker(
-                [lat, lon],
-                {
-                    icon: createVesselMarkerIcon(
-                        selected,
-                        rotation
-                    ),
-                    keyboard: false,
-                    bubblingMouseEvents: false,
-                    zIndexOffset:
-                        selected
-                            ? 1000
-                            : 0
+        const dpr =
+            getShipCanvasPixelRatio();
+
+        const pixelWidth =
+            Math.max(
+                1,
+                Math.round(width * dpr)
+            );
+
+        const pixelHeight =
+            Math.max(
+                1,
+                Math.round(height * dpr)
+            );
+
+        if(
+            shipCanvas.width !==
+            pixelWidth
+        ){
+            shipCanvas.width =
+                pixelWidth;
+        }
+
+        if(
+            shipCanvas.height !==
+            pixelHeight
+        ){
+            shipCanvas.height =
+                pixelHeight;
+        }
+
+        shipCanvas.style.width =
+            width + "px";
+
+        shipCanvas.style.height =
+            height + "px";
+
+        const ctx =
+            shipCanvasContext;
+
+        ctx.setTransform(
+            dpr,
+            0,
+            0,
+            dpr,
+            0,
+            0
+        );
+
+        ctx.clearRect(
+            0,
+            0,
+            width,
+            height
+        );
+
+        const rootStyle =
+            getComputedStyle(
+                document.documentElement
+            );
+
+        const normalColor =
+            rootStyle
+                .getPropertyValue(
+                    "--primary2"
+                )
+                .trim() ||
+            "#38bdf8";
+
+        const selectedColor =
+            rootStyle
+                .getPropertyValue(
+                    "--primary"
+                )
+                .trim() ||
+            "#7c5cff";
+
+        const items = [];
+        const hitGrid = new Map();
+
+        const cellSize = 32;
+
+        vesselsToDraw.forEach(
+            function(vessel){
+                const lat =
+                    Number(vessel.lat);
+
+                const lon =
+                    Number(vessel.lon);
+
+                const layerPoint =
+                    map.latLngToLayerPoint(
+                        [lat,lon]
+                    );
+
+                const containerPoint =
+                    map.layerPointToContainerPoint(
+                        layerPoint
+                    );
+
+                if(
+                    !layerPoint ||
+                    !containerPoint ||
+                    !Number.isFinite(
+                        layerPoint.x
+                    ) ||
+                    !Number.isFinite(
+                        layerPoint.y
+                    ) ||
+                    !Number.isFinite(
+                        containerPoint.x
+                    ) ||
+                    !Number.isFinite(
+                        containerPoint.y
+                    )
+                ){
+                    return;
                 }
-            );
 
-        marker.__shipTrackingMmsi =
-            mmsi;
+                if(
+                    layerPoint.x < -32 ||
+                    layerPoint.y < -32 ||
+                    layerPoint.x > width + 32 ||
+                    layerPoint.y > height + 32
+                ){
+                    return;
+                }
 
-        marker.__shipTrackingLat =
-            lat;
+                const mmsi =
+                    String(
+                        vessel.mmsi ||
+                        ""
+                    ).trim();
 
-        marker.__shipTrackingLon =
-            lon;
+                const selected =
+                    selectedMmsi === mmsi;
 
-        marker.__shipTrackingRotation =
-            rotation;
+                const rotation =
+                    getVesselArrowRotation(
+                        vessel
+                    ) *
+                    Math.PI /
+                    180;
 
-        marker.__shipTrackingSelected =
-            selected;
+                const x =
+                    layerPoint.x;
 
-        marker.__shipTrackingVessel =
-            vessel;
+                const y =
+                    layerPoint.y;
 
-        marker.__shipTrackingTooltipText =
-            getVesselTooltipText(vessel);
+                ctx.save();
+                ctx.translate(x,y);
+                ctx.rotate(rotation);
 
-        marker.on("click", function(){
-            handleVesselMarkerClick(marker);
-        });
+                ctx.globalAlpha =
+                    selected
+                        ? 1
+                        : 0.92;
 
-        marker.bindTooltip(
-            marker.__shipTrackingTooltipText,
-            {
-                direction:"top",
-                offset:[0,-6],
-                opacity:0.95
+                ctx.shadowColor =
+                    "rgba(0,0,0,.40)";
+
+                ctx.shadowBlur =
+                    selected ? 3 : 2;
+
+                ctx.shadowOffsetY =
+                    1;
+
+                ctx.fillStyle =
+                    selected
+                        ? selectedColor
+                        : normalColor;
+
+                ctx.beginPath();
+                ctx.moveTo(8,0);
+                ctx.lineTo(-6,-5);
+                ctx.lineTo(-2,0);
+                ctx.lineTo(-6,5);
+                ctx.closePath();
+                ctx.fill();
+
+                if(selected){
+                    ctx.shadowColor =
+                        "rgba(0,0,0,0)";
+
+                    ctx.lineWidth = 1.5;
+                    ctx.strokeStyle =
+                        selectedColor;
+
+                    ctx.beginPath();
+                    ctx.arc(
+                        0,
+                        0,
+                        10,
+                        0,
+                        Math.PI * 2
+                    );
+                    ctx.stroke();
+                }
+
+                ctx.restore();
+
+                const item = {
+                    vessel: vessel,
+                    mmsi: mmsi,
+                    containerX:
+                        containerPoint.x,
+                    containerY:
+                        containerPoint.y,
+                    x: x,
+                    y: y
+                };
+
+                items.push(item);
+
+                const gx =
+                    Math.floor(
+                        containerPoint.x /
+                        cellSize
+                    );
+
+                const gy =
+                    Math.floor(
+                        containerPoint.y /
+                        cellSize
+                    );
+
+                const key =
+                    gx + ":" + gy;
+
+                let bucket =
+                    hitGrid.get(key);
+
+                if(!bucket){
+                    bucket = [];
+                    hitGrid.set(
+                        key,
+                        bucket
+                    );
+                }
+
+                bucket.push(item);
             }
         );
 
-        return marker;
+        shipCanvasItems =
+            items;
+
+        shipCanvasHitGrid =
+            hitGrid;
     }
 
-    function createVesselMarkerIcon(selected, rotation){
-        const safeRotation =
-            Number.isFinite(Number(rotation))
-                ? Number(rotation)
-                : -90;
-
-        return L.divIcon({
-            className:
-                "ship-tracking-vessel-arrow-wrap",
-            html:
-                '<span class="ship-tracking-vessel-arrow' +
-                (selected ? ' is-selected' : '') +
-                '" style="--ship-arrow-rotation:' +
-                Math.round(safeRotation) +
-                'deg;">➤</span>',
-            iconSize:
-                selected
-                    ? [24,24]
-                    : [20,20],
-            iconAnchor:
-                selected
-                    ? [12,12]
-                    : [10,10],
-            tooltipAnchor: [0,-10]
-        });
-    }
-
-    function updateVesselMarker(marker, vessel){
-        const mmsi =
-            String(vessel.mmsi || "").trim();
-
-        const lat = Number(vessel.lat);
-        const lon = Number(vessel.lon);
-        const selected =
-            selectedMmsi === mmsi;
-
-        const rotation =
-            Math.round(
-                getVesselArrowRotation(vessel)
-            );
-
-        marker.__shipTrackingVessel =
-            vessel;
-
+    function getCanvasEventContainerPoint(event){
         if(
-            Number.isFinite(lat) &&
-            Number.isFinite(lon) &&
-            (
-                Math.abs(
-                    lat - marker.__shipTrackingLat
-                ) > 0.00001 ||
-                Math.abs(
-                    lon - marker.__shipTrackingLon
-                ) > 0.00001
-            )
+            !map ||
+            !event
         ){
-            marker.setLatLng([lat,lon]);
-            marker.__shipTrackingLat = lat;
-            marker.__shipTrackingLon = lon;
+            return null;
         }
 
         if(
-            marker.__shipTrackingRotation !== rotation ||
-            marker.__shipTrackingSelected !== selected
+            typeof map.mouseEventToContainerPoint ===
+            "function"
         ){
-            marker.setIcon(
-                createVesselMarkerIcon(
-                    selected,
-                    rotation
-                )
+            return map.mouseEventToContainerPoint(
+                event
             );
-
-            marker.setZIndexOffset(
-                selected
-                    ? 1000
-                    : 0
-            );
-
-            marker.__shipTrackingRotation =
-                rotation;
-
-            marker.__shipTrackingSelected =
-                selected;
         }
 
-        const tooltipText =
-            getVesselTooltipText(vessel);
+        const rect =
+            map.getContainer()
+                .getBoundingClientRect();
 
+        return {
+            x:
+                event.clientX -
+                rect.left,
+            y:
+                event.clientY -
+                rect.top
+        };
+    }
+
+    function findCanvasVessel(point){
         if(
-            tooltipText !==
-            marker.__shipTrackingTooltipText
+            !point ||
+            !Number.isFinite(point.x) ||
+            !Number.isFinite(point.y)
         ){
-            marker.__shipTrackingTooltipText =
-                tooltipText;
+            return null;
+        }
 
-            const tooltip =
-                marker.getTooltip();
+        const cellSize = 32;
+        const gx =
+            Math.floor(
+                point.x /
+                cellSize
+            );
+        const gy =
+            Math.floor(
+                point.y /
+                cellSize
+            );
 
-            if(tooltip){
-                tooltip.setContent(
-                    tooltipText
+        let best = null;
+        const hitRadius =
+            13;
+
+        for(let dx=-1;dx<=1;dx++){
+            for(let dy=-1;dy<=1;dy++){
+                const bucket =
+                    shipCanvasHitGrid.get(
+                        (gx + dx) +
+                        ":" +
+                        (gy + dy)
+                    );
+
+                if(!bucket){
+                    continue;
+                }
+
+                bucket.forEach(
+                    function(item){
+                        const deltaX =
+                            item.containerX -
+                            point.x;
+
+                        const deltaY =
+                            item.containerY -
+                            point.y;
+
+                        const distance =
+                            Math.sqrt(
+                                deltaX * deltaX +
+                                deltaY * deltaY
+                            );
+
+                        if(
+                            distance <=
+                            hitRadius &&
+                            (
+                                !best ||
+                                distance <
+                                best.distance
+                            )
+                        ){
+                            best = {
+                                vessel:
+                                    item.vessel,
+                                distance:
+                                    distance
+                            };
+                        }
+                    }
                 );
             }
         }
+
+        return best;
     }
 
-    function getVesselTooltipText(vessel){
-        const mmsi =
-            String(vessel.mmsi || "").trim();
+    function updateCanvasHover(){
+        shipCanvasHoverFrame =
+            null;
 
-        return (
+        const event =
+            shipCanvasPointerEvent;
+
+        if(!event){
+            return;
+        }
+
+        const point =
+            getCanvasEventContainerPoint(
+                event
+            );
+
+        const hit =
+            findCanvasVessel(
+                point
+            );
+
+        if(!hit){
+            shipCanvasHoverMmsi = "";
+            closeShipCanvasTooltip();
+            return;
+        }
+
+        const mmsi =
+            String(
+                hit.vessel.mmsi ||
+                ""
+            ).trim();
+
+        if(
+            shipCanvasHoverMmsi !==
+            mmsi
+        ){
+            shipCanvasHoverMmsi =
+                mmsi;
+
+            showShipCanvasTooltip(
+                hit.vessel,
+                point
+            );
+            return;
+        }
+
+        positionShipCanvasTooltip(
+            point
+        );
+    }
+
+    function showShipCanvasTooltip(
+        vessel,
+        point
+    ){
+        if(
+            !shipCanvasTooltip
+        ){
+            return;
+        }
+
+        shipCanvasTooltip.innerHTML =
+            '<strong>' +
             escapeHtml(
                 vessel.name ||
                 "Unknown vessel"
             ) +
-            "<br>MMSI " +
-            escapeHtml(mmsi)
+            '</strong>' +
+            '<span>MMSI ' +
+            escapeHtml(
+                vessel.mmsi ||
+                ""
+            ) +
+            '</span>';
+
+        shipCanvasTooltip.hidden =
+            false;
+
+        positionShipCanvasTooltip(
+            point
         );
     }
 
-    function handleVesselMarkerClick(marker){
-        const vessel =
-            marker &&
-            marker.__shipTrackingVessel;
+    function positionShipCanvasTooltip(
+        point
+    ){
+        if(
+            !shipCanvasTooltip ||
+            shipCanvasTooltip.hidden ||
+            !point
+        ){
+            return;
+        }
 
+        const container =
+            map.getContainer();
+
+        const width =
+            container.clientWidth;
+
+        const height =
+            container.clientHeight;
+
+        const tooltipWidth =
+            shipCanvasTooltip.offsetWidth;
+
+        const tooltipHeight =
+            shipCanvasTooltip.offsetHeight;
+
+        const margin = 8;
+
+        const left =
+            Math.max(
+                margin,
+                Math.min(
+                    width -
+                    tooltipWidth -
+                    margin,
+                    point.x + 12
+                )
+            );
+
+        const top =
+            Math.max(
+                margin,
+                Math.min(
+                    height -
+                    tooltipHeight -
+                    margin,
+                    point.y -
+                    tooltipHeight -
+                    12
+                )
+            );
+
+        shipCanvasTooltip.style.left =
+            left + "px";
+
+        shipCanvasTooltip.style.top =
+            top + "px";
+    }
+
+    function closeShipCanvasTooltip(){
+        shipCanvasHoverMmsi = "";
+
+        if(
+            shipCanvasTooltip
+        ){
+            shipCanvasTooltip.hidden =
+                true;
+        }
+    }
+
+    function handleCanvasVesselClick(vessel){
         if(!vessel){
             return;
         }
@@ -1458,18 +1935,21 @@
                 filtered
             );
 
-        if(overlapping.length > 1){
+        if(
+            overlapping.length > 1
+        ){
             selectedMmsi = "";
             closeOverlapPicker();
             openOverlapPicker(
                 vessel,
                 overlapping
             );
+            scheduleShipCanvasDraw();
             return;
         }
 
         selectedMmsi =
-            String(vessel.mmsi);
+            String(vessel.mmsi || "").trim();
 
         closeOverlapPicker();
         renderMarkers();
@@ -1478,6 +1958,10 @@
             vessel.mmsi,
             true
         );
+    }
+
+    function bringVesselMarkersToFront(){
+        scheduleShipCanvasDraw();
     }
 
     function getVesselDirection(vessel){
@@ -1830,46 +2314,83 @@
     }
 
     function clearMarkers(){
-        markerRenderToken += 1;
+        shipCanvasRenderToken += 1;
+
+        if(
+            shipCanvasRenderFrame !== null &&
+            typeof window.cancelAnimationFrame ===
+            "function"
+        ){
+            window.cancelAnimationFrame(
+                shipCanvasRenderFrame
+            );
+
+            shipCanvasRenderFrame = null;
+        }
+
+        if(
+            shipCanvasHoverFrame !== null &&
+            typeof window.cancelAnimationFrame ===
+            "function"
+        ){
+            window.cancelAnimationFrame(
+                shipCanvasHoverFrame
+            );
+
+            shipCanvasHoverFrame = null;
+        }
+
+        shipCanvasPointerEvent = null;
+        closeShipCanvasTooltip();
+
+        shipCanvasItems = [];
+        shipCanvasHitGrid = new Map();
+
+        if(
+            shipCanvasContext &&
+            shipCanvas
+        ){
+            const width =
+                shipCanvas.clientWidth ||
+                0;
+
+            const height =
+                shipCanvas.clientHeight ||
+                0;
+
+            if(width > 0 && height > 0){
+                shipCanvasContext.clearRect(
+                    0,
+                    0,
+                    width,
+                    height
+                );
+            }
+        }
 
         if(
             cardRenderFrame !== null &&
-            typeof window.cancelIdleCallback === "function"
+            typeof window.cancelIdleCallback ===
+            "function"
         ){
             window.cancelIdleCallback(
                 cardRenderFrame
             );
+
             cardRenderFrame = null;
         }
 
         if(
             cardRenderFrame !== null &&
-            typeof window.cancelAnimationFrame === "function"
+            typeof window.cancelAnimationFrame ===
+            "function"
         ){
             window.cancelAnimationFrame(
                 cardRenderFrame
             );
+
             cardRenderFrame = null;
         }
-
-        if(
-            markerRenderFrame !== null &&
-            typeof window.cancelAnimationFrame === "function"
-        ){
-            window.cancelAnimationFrame(
-                markerRenderFrame
-            );
-
-            markerRenderFrame = null;
-        }
-
-        if(markerLayer){
-            markerByMmsi.forEach(function(marker){
-                markerLayer.removeLayer(marker);
-            });
-        }
-
-        markerByMmsi.clear();
     }
 
     async function loadVesselDetails(mmsi, reveal){
