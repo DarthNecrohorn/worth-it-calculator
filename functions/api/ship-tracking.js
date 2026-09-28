@@ -1103,7 +1103,7 @@ async function fetchEurisTracks(token, bbox, max){
                     error
                 );
 
-                lastFailure = {
+                return {
                     ok: false,
                     status: 502,
                     body: {
@@ -1114,8 +1114,6 @@ async function fetchEurisTracks(token, bbox, max){
                         }
                     }
                 };
-
-                break;
             }
 
             const retryAfter =
@@ -1210,9 +1208,15 @@ async function fetchEurisTracks(token, bbox, max){
              * 401/403/429/5xx: do not multiply requests.
              */
             if(
-                response.status !== 400
+                response.status === 404
             ){
                 break;
+            }
+
+            if(
+                response.status !== 400
+            ){
+                return lastFailure;
             }
         }
     }
