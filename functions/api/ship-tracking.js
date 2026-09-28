@@ -449,6 +449,10 @@ async function handleVessels(
                 ok: Boolean(eurisData.ok),
                 raw_count: eurisRawItems.length,
                 count: eurisVessels.length,
+                endpoint:
+                    eurisData.ok
+                        ? String(eurisData.endpoint || "")
+                        : "",
                 error_code:
                     !eurisData.ok &&
                     !eurisData.skipped &&
@@ -1009,7 +1013,28 @@ async function fetchEurisTracks(token, bbox, max){
         };
     }
 
-    const modes = [
+    /*
+     * EuRIS currently documents Tracks_v3 at /api/v3/tracks/bounding-box.
+     * Some deployments expose the same service under the legacy /visuris
+     * prefix, so we try that exact route once when the public V3 route
+     * returns 404. Tracks_v2 is the final compatibility fallback.
+     */
+    const endpoints = [
+        {
+            version: "Tracks_v3",
+            path: "/api/v3/tracks/bounding-box"
+        },
+        {
+            version: "Tracks_v3_visuris",
+            path: "/visuris/api/v3/tracks/bounding-box"
+        },
+        {
+            version: "Tracks_v2",
+            path: "/visuris/api/TracksV2/GetTracksByBBoxV2"
+        }
+    ];
+
+    const queryModes = [
         function(){
             return new URLSearchParams({
                 west: String(bbox.west),
@@ -1027,154 +1052,168 @@ async function fetchEurisTracks(token, bbox, max){
                 maxLatitude: String(bbox.north),
                 "$top": String(max)
             });
-        },
-        function(){
-            return new URLSearchParams({
-                bbox: [
-                    bbox.west,
-                    bbox.south,
-                    bbox.east,
-                    bbox.north
-                ].join(","),
-                "$top": String(max)
-            });
         }
     ];
-
-    const startMode =
-        Math.max(
-            0,
-            Math.min(
-                eurisQueryMode,
-                modes.length - 1
-            )
-        );
 
     let lastFailure = null;
 
     for(
-        let index = startMode;
-        index < modes.length;
-        index++
+        let endpointIndex = 0;
+        endpointIndex < endpoints.length;
+        endpointIndex++
     ){
-        const query =
-            modes[index]();
+        const endpoint =
+            endpoints[endpointIndex];
 
-        let response;
+        /*
+         * The documented V3 route gets both query shapes.
+         * Alternate paths only get the first shape first; if that
+         * produces a parameter validation error we allow the second.
+         */
+        for(
+            let queryIndex = 0;
+            queryIndex < queryModes.length;
+            queryIndex++
+        ){
+            const query =
+                queryModes[queryIndex]();
 
-        try{
-            response = await fetch(
-                EURIS_BASE +
-                "/api/v3/tracks/bounding-box?" +
-                query.toString(),
-                {
-                    method: "GET",
-                    headers: {
-                        "Authorization":
-                            "Bearer " + token,
-                        "Accept":
-                            "application/json"
+            let response;
+
+            try{
+                response = await fetch(
+                    EURIS_BASE +
+                    endpoint.path +
+                    "?" +
+                    query.toString(),
+                    {
+                        method: "GET",
+                        headers: {
+                            "Authorization":
+                                "Bearer " + token,
+                            "Accept":
+                                "application/json"
+                        }
                     }
-                }
-            );
-        }
-        catch(error){
-            console.error(
-                "EuRIS network request failed:",
-                error
-            );
+                );
+            }
+            catch(error){
+                console.error(
+                    "EuRIS network request failed:",
+                    error
+                );
 
-            lastFailure = {
-                ok: false,
-                status: 502,
-                body: {
+                lastFailure = {
                     ok: false,
-                    error: {
-                        code: "euris_unavailable",
-                        message: "EuRIS is temporarily unavailable."
+                    status: 502,
+                    body: {
+                        ok: false,
+                        error: {
+                            code: "euris_unavailable",
+                            message: "EuRIS is temporarily unavailable."
+                        }
                     }
+                };
+
+                break;
+            }
+
+            const retryAfter =
+                Number(
+                    response.headers.get("Retry-After")
+                );
+
+            if(response.ok){
+                const body =
+                    await response
+                        .json()
+                        .catch(function(){
+                            return null;
+                        });
+
+                if(
+                    body &&
+                    typeof body === "object"
+                ){
+                    /*
+                     * Remember the working V3 query shape for future
+                     * requests only. The path fallback is re-evaluated
+                     * cheaply if the main route ever changes.
+                     */
+                    if(
+                        endpoint.version === "Tracks_v3" ||
+                        endpoint.version === "Tracks_v3_visuris"
+                    ){
+                        eurisQueryMode = queryIndex;
+                    }
+
+                    return {
+                        ok: true,
+                        status: 200,
+                        body,
+                        endpoint: endpoint.version,
+                        path: endpoint.path
+                    };
                 }
-            };
 
-            break;
-        }
+                lastFailure = {
+                    ok: false,
+                    status: 502,
+                    body: {
+                        ok: false,
+                        error: {
+                            code: "euris_invalid_response",
+                            message: "EuRIS returned an invalid vessel response."
+                        }
+                    }
+                };
 
-        if(response.ok){
-            const body =
+                break;
+            }
+
+            const errorBody =
                 await response
                     .json()
                     .catch(function(){
                         return null;
                     });
 
-            if(
-                body &&
-                typeof body === "object"
-            ){
-                eurisQueryMode = index;
-
-                return {
-                    ok: true,
-                    status: 200,
-                    body
-                };
-            }
-
             lastFailure = {
                 ok: false,
-                status: 502,
+                status: response.status,
+                retryAfterMs:
+                    Number.isFinite(retryAfter) && retryAfter > 0
+                        ? Math.ceil(retryAfter * 1000)
+                        : 0,
                 body: {
                     ok: false,
                     error: {
-                        code: "euris_invalid_response",
-                        message: "EuRIS returned an invalid vessel response."
+                        code:
+                            errorBody &&
+                            errorBody.error &&
+                            typeof errorBody.error.code === "string"
+                                ? errorBody.error.code
+                                : "euris_http_" + response.status,
+                        message:
+                            errorBody &&
+                            errorBody.error &&
+                            typeof errorBody.error.message === "string"
+                                ? errorBody.error.message
+                                : "EuRIS vessel request failed."
                     }
                 }
             };
 
-            break;
-        }
-
-        const errorBody =
-            await response
-                .json()
-                .catch(function(){
-                    return null;
-                });
-
-        lastFailure = {
-            ok: false,
-            status: response.status,
-            body: {
-                ok: false,
-                error: {
-                    code:
-                        errorBody &&
-                        errorBody.error &&
-                        typeof errorBody.error.code === "string"
-                            ? errorBody.error.code
-                            : "euris_http_" + response.status,
-                    message:
-                        errorBody &&
-                        errorBody.error &&
-                        typeof errorBody.error.message === "string"
-                            ? errorBody.error.message
-                            : "EuRIS vessel request failed."
-                }
+            /*
+             * 404: route mismatch — move to the next endpoint path.
+             * 400: keep the same path and try the alternate bbox names.
+             * 401/403/429/5xx: do not multiply requests.
+             */
+            if(
+                response.status !== 400
+            ){
+                break;
             }
-        };
-
-        /*
-         * A 400 often means the endpoint accepted the route but the
-         * bounding-box parameter names differ. Try the next documented
-         * compatible shape once, then remember the successful shape.
-         * Authentication failures must not be retried with other shapes.
-         */
-        if(
-            response.status !== 400 &&
-            response.status !== 404
-        ){
-            break;
         }
     }
 
@@ -1190,6 +1229,7 @@ async function fetchEurisTracks(token, bbox, max){
         }
     };
 }
+
 
 function extractEurisTrackItems(body){
     if(Array.isArray(body)){
