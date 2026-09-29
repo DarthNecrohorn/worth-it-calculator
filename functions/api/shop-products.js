@@ -484,6 +484,10 @@ function createFeedDebug() {
         entryShippingRecords: 0,
         deliveryShippingRecords: 0,
         countryValuesFound: 0,
+        shippingEmptyStrings: 0,
+        shippingArrays: 0,
+        shippingObjects: 0,
+        shippingOtherValues: 0,
         sampleDetailKeys: [],
         sampleShipping: []
     };
@@ -553,7 +557,43 @@ function noteFeedDebugShape(
     for (const candidate of candidates) {
         let value = candidate;
 
+        if (
+            typeof value === "string" &&
+            !value.trim()
+        ) {
+            debug.shippingEmptyStrings++;
+        }
+
+        if (Array.isArray(value)) {
+            debug.shippingArrays++;
+        }
+        else if (
+            value &&
+            typeof value === "object"
+        ) {
+            debug.shippingObjects++;
+        }
+        else if (
+            value !== undefined &&
+            value !== null
+        ) {
+            debug.shippingOtherValues++;
+        }
+
         if (typeof value === "string") {
+            const rawPreview =
+                value.slice(0, 500);
+
+            if (
+                debug.sampleShipping.length < 5
+            ) {
+                debug.sampleShipping.push({
+                    rawType:
+                        "string",
+                    rawPreview
+                });
+            }
+
             try {
                 value = JSON.parse(value);
             }
@@ -587,6 +627,22 @@ function noteFeedDebugShape(
                                 .slice(0, 20)
                     });
                 }
+            }
+            else if (
+                item &&
+                typeof item === "object" &&
+                debug.sampleShipping.length < 5
+            ) {
+                debug.sampleShipping.push({
+                    rawType:
+                        "object-without-country",
+                    keys:
+                        Object.keys(item)
+                            .slice(0, 20),
+                    preview:
+                        JSON.stringify(item)
+                            .slice(0, 500)
+                });
             }
         }
     }
