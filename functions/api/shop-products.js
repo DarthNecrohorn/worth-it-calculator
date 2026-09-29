@@ -477,56 +477,73 @@ function productFromEnhancedRecord(
     entry,
     feed
 ) {
-    const details =
+    let details =
         entry?.product_details ||
+        entry ||
         null;
 
-    if (!details) {
+    if (
+        typeof details === "string"
+    ) {
+        try {
+            details =
+                JSON.parse(
+                    details
+                );
+        }
+        catch {
+            return null;
+        }
+    }
+
+    if (
+        !details ||
+        typeof details !== "object"
+    ) {
         return null;
     }
 
     const basic =
         details.product_basic ||
-        {};
+        details;
 
     const pricing =
         details.price_and_availability ||
-        {};
+        details;
 
     const categoryDetails =
         details.product_category ||
-        {};
-
-    const shipping =
-        Array.isArray(
-            details.shipping
-        )
-            ? details.shipping
-            : [];
+        details;
 
     const title =
         normalizeText(
-            basic.title
+            basic.title ||
+            details.title
         );
 
     const deepLink =
         normalizeText(
-            basic.aw_deep_link
+            basic.aw_deep_link ||
+            details.aw_deep_link
         );
 
     const image =
         normalizeText(
-            basic.image_link
+            basic.image_link ||
+            details.image_link ||
+            ""
         );
 
     const basePrice =
         parseEnhancedPrice(
-            pricing.price
+            pricing.price ||
+            details.price
         );
 
     const salePrice =
         parseEnhancedPrice(
-            pricing.sale_price
+            pricing.sale_price ||
+            details.sale_price
         );
 
     const price =
@@ -538,6 +555,10 @@ function productFromEnhancedRecord(
     const currency =
         salePrice.currency ||
         basePrice.currency ||
+        normalizeText(
+            pricing.currency ||
+            details.currency
+        ) ||
         "USD";
 
     const oldPrice =
@@ -550,10 +571,11 @@ function productFromEnhancedRecord(
     if (
         !title ||
         !deepLink ||
-        !image ||
         !Number.isFinite(price) ||
         price <= 0 ||
-        !/^https?:\/\//i.test(deepLink)
+        !/^https?:\/\//i.test(
+            deepLink
+        )
     ) {
         return null;
     }
@@ -573,6 +595,7 @@ function productFromEnhancedRecord(
         normalizeText(
             [
                 categoryDetails.google_product_category,
+                categoryDetails.google_product_category_id,
                 categoryDetails.product_type
             ]
                 .filter(Boolean)
@@ -586,6 +609,13 @@ function productFromEnhancedRecord(
             merchantCategory,
             title
         );
+
+    const shipping =
+        Array.isArray(
+            details.shipping
+        )
+            ? details.shipping
+            : [];
 
     const shippingCountries =
         shipping.length
@@ -613,12 +643,14 @@ function productFromEnhancedRecord(
 
     const availability =
         normalizeText(
-            pricing.availability
+            pricing.availability ||
+            details.availability
         );
 
     const productId =
         normalizeText(
-            basic.id
+            basic.id ||
+            details.id
         );
 
     const product = {
@@ -652,7 +684,8 @@ function productFromEnhancedRecord(
 
         merchantUrl:
             normalizeText(
-                basic.link
+                basic.link ||
+                details.link
             ),
 
         store:
@@ -1083,7 +1116,7 @@ export async function onRequestGet(
 
     const cacheKey =
         new Request(
-            "https://worth-it-shop-feed-cache.local/api/shop-products?v=3"
+            "https://worth-it-shop-feed-cache.local/api/shop-products?v=4"
         );
 
     const cached =
