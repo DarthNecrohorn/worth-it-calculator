@@ -12963,3 +12963,25 @@ html[data-ui-scale="xl"] .water-levels-detail-card{
         max-height:62dvh !important;
     }
 }
+
+/* FINAL DESKTOP ADMIN PANEL A+ / A++ COMPACT OVERRIDE
+ * Keep the private Admin Panel home, Suggestions & Bugs, and API Usage
+ * dialog compact on desktop without changing the mobile layout.
+ */
+@media(min-width:761px){
+    html[data-ui-scale="large"] .admin-panel-card{
+        width:min(900px,calc((100vw - 48px) / var(--ui-scale,1))) !important;
+        max-height:72dvh !important;
+        padding:18px !important;
+        transform:scale(.90) !important;
+        transform-origin:center center !important;
+    }
+
+    html[data-ui-scale="xl"] .admin-panel-card{
+        width:min(840px,calc((100vw - 48px) / var(--ui-scale,1))) !important;
+        max-height:68dvh !important;
+        padding:16px !important;
+        transform:scale(.82) !important;
+        transform-origin:center center !important;
+    }
+}
