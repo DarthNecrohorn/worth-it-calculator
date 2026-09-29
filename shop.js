@@ -570,6 +570,197 @@
         GET ALL SHOP ITEMS
     ================================================ */
 
+    function getAutomaticShopItems(){
+
+        if(!Array.isArray(automaticShopProducts) || !automaticShopProducts.length){
+            return [];
+        }
+
+        return automaticShopProducts
+            .map(product => {
+
+                if(
+                    !product ||
+                    !product.title ||
+                    !product.affiliateUrl ||
+                    !Number.isFinite(Number(product.price))
+                ){
+                    return null;
+                }
+
+                const category =
+                    product.category ||
+                    "other";
+
+                const availability =
+                    product.availability ||
+                    shopPartnerAvailability[product.partnerId] ||
+                    null;
+
+                const currency =
+                    product.currency ||
+                    "$";
+
+                const price =
+                    Number(product.price);
+
+                const oldPrice =
+                    Number.isFinite(Number(product.oldPrice)) &&
+                    Number(product.oldPrice) > price
+                        ? Number(product.oldPrice)
+                        : price;
+
+                return {
+                    id:
+                        product.id ||
+                        `awin-${product.partnerId || "partner"}-${product.title}`,
+
+                    title:
+                        product.title,
+
+                    category:
+                        category,
+
+                    categoryLabel:
+                        getCategoryDefinition(category)?.label ||
+                        category,
+
+                    partnerId:
+                        product.partnerId ||
+                        null,
+
+                    availability:
+                        availability,
+
+                    delivery:
+                        product.delivery ||
+                        null,
+
+                    oldPrice:
+                        oldPrice,
+
+                    currency:
+                        currency,
+
+                    image:
+                        product.image ||
+                        "",
+
+                    expectedUsage:
+                        "",
+
+                    costPerUse:
+                        null,
+
+                    alternative:
+                        "",
+
+                    verdict:
+                        "Popular affiliate product selected from an approved Awin partner feed.",
+
+                    updatedAt:
+                        product.productUpdatedAt ||
+                        "Latest Awin feed",
+
+                    isAffiliate:
+                        true,
+
+                    stores: [
+                        {
+                            name:
+                                product.store ||
+                                "Merchant",
+
+                            price:
+                                price,
+
+                            url:
+                                product.affiliateUrl,
+
+                            affiliate:
+                                true
+                        }
+                    ]
+                };
+            })
+            .filter(Boolean);
+    }
+
+    async function loadAutomaticShopProducts(){
+
+        if(
+            automaticShopFeedLoaded ||
+            automaticShopFeedLoading
+        ){
+            return automaticShopFeedPromise;
+        }
+
+        automaticShopFeedLoading = true;
+
+        automaticShopFeedPromise =
+            (async function(){
+
+                try{
+
+                    const response =
+                        await fetch(
+                            "/api/shop-products",
+                            {
+                                method: "GET",
+                                cache: "no-store",
+                                headers: {
+                                    "Accept": "application/json"
+                                }
+                            }
+                        );
+
+                    if(!response.ok){
+                        return false;
+                    }
+
+                    const data =
+                        await response.json();
+
+                    if(
+                        !data ||
+                        !Array.isArray(data.products) ||
+                        !data.products.length
+                    ){
+                        return false;
+                    }
+
+                    automaticShopProducts =
+                        data.products;
+
+                    automaticShopFeedLoaded =
+                        true;
+
+                    return true;
+
+                }
+                catch(error){
+
+                    console.warn(
+                        "Automatic Awin Shop feed unavailable:",
+                        error
+                    );
+
+                    return false;
+
+                }
+                finally{
+
+                    automaticShopFeedLoading =
+                        false;
+
+                }
+
+            })();
+
+        return automaticShopFeedPromise;
+    }
+
+
     function getAllShopItems(){
 
         const affiliateItems = [];
