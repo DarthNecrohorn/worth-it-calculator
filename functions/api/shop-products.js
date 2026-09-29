@@ -497,7 +497,8 @@ function createFeedDebug() {
         shippingOtherValues: 0,
         fallbackShippingRecords: 0,
         sampleDetailKeys: [],
-        sampleShipping: []
+        sampleShipping: [],
+        lastError: ""
     };
 }
 
@@ -1515,7 +1516,7 @@ export async function onRequestGet(
 
     const cacheKey =
         new Request(
-            "https://worth-it-shop-feed-cache.local/api/shop-products?v=11"
+            "https://worth-it-shop-feed-cache.local/api/shop-products?v=12"
         );
 
     const cached =
@@ -1633,7 +1634,7 @@ export async function onRequestGet(
 
             const feedCacheKey =
                 new Request(
-                    `https://worth-it-shop-feed-cache.local/api/feed/${feed.advertiserId}/${feed.locale}/v11`
+                    `https://worth-it-shop-feed-cache.local/api/feed/${feed.advertiserId}/${feed.locale}/v12`
                 );
 
             let feedProducts =
@@ -1779,46 +1780,59 @@ export async function onRequestGet(
                         error
                     );
 
+                    if (feedDebug) {
+                        feedDebug.lastError =
+                            normalizeText(
+                                error?.message ||
+                                "Unknown Awin feed error"
+                            ).slice(0, 500);
+                    }
+
                     const failureStatus =
                         error?.status === 404
                             ? "feed-not-found"
                             : "unavailable";
 
                     /*
-                     * Negative caching is intentionally shorter than the
-                     * normal product cache so a newly enabled feed can
-                     * recover without waiting for the full 6-hour TTL.
+                     * Only a confirmed 404 is negatively cached.
+                     * Temporary upstream failures, rate limits, timeouts
+                     * and server errors must be retried on the next run.
                      */
-                    const negativeCacheResponse =
-                        jsonResponse(
-                            {
-                                advertiserName:
-                                    feed.advertiserName,
-                                advertiserId:
-                                    feed.advertiserId,
-                                locale:
-                                    feed.locale,
-                                currencyCode:
-                                    feed.currencyCode || "",
-                                primaryRegion:
-                                    feed.primaryRegion || null,
-                                status:
-                                    failureStatus,
-                                products:
-                                    [],
-                                generatedAt:
-                                    new Date().toISOString()
-                            },
-                            200,
-                            60 * 60
-                        );
+                    if (
+                        failureStatus ===
+                        "feed-not-found"
+                    ) {
+                        const negativeCacheResponse =
+                            jsonResponse(
+                                {
+                                    advertiserName:
+                                        feed.advertiserName,
+                                    advertiserId:
+                                        feed.advertiserId,
+                                    locale:
+                                        feed.locale,
+                                    currencyCode:
+                                        feed.currencyCode || "",
+                                    primaryRegion:
+                                        feed.primaryRegion || null,
+                                    status:
+                                        failureStatus,
+                                    products:
+                                        [],
+                                    generatedAt:
+                                        new Date().toISOString()
+                                },
+                                200,
+                                60 * 60
+                            );
 
-                    context.waitUntil(
-                        cache.put(
-                            feedCacheKey,
-                            negativeCacheResponse
-                        )
-                    );
+                        context.waitUntil(
+                            cache.put(
+                                feedCacheKey,
+                                negativeCacheResponse
+                            )
+                        );
+                    }
 
                     feedResults.push({
                         advertiserName:
