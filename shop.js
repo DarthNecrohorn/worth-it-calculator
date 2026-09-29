@@ -304,6 +304,118 @@
         return sortShopItems(filtered);
     }
 
+    function getAvailabilityHTML(deal){
+
+        const availability = deal?.availability;
+        const countryCodes = normalizeCountries(deal);
+
+        if(!availability){
+            return "";
+        }
+
+        if(availability.type === "service"){
+            const serviceArea =
+                Array.isArray(availability.states) && availability.states.length
+                    ? `${availability.states.length} supported areas`
+                    : "Supported service area";
+
+            return `
+                <div class="shop-availability shop-availability-service">
+                    <div class="shop-availability-head">
+                        <div>
+                            <span class="shop-info-label">📍 Availability</span>
+                            <strong>${escapeHTML(serviceArea)}</strong>
+                        </div>
+                        <span class="shop-availability-verified">✓ Verified</span>
+                    </div>
+                    <p class="shop-availability-note">
+                        ${escapeHTML(availability.note || "Service availability is determined by the merchant.")}
+                    </p>
+                </div>
+            `;
+        }
+
+        if(!countryCodes.length){
+            return "";
+        }
+
+        const countryChips =
+            countryCodes
+                .map(
+                    code => `
+                        <span
+                            class="shop-country-chip"
+                            title="${escapeHTML(getCountryDefinition(code)?.name || code)}"
+                        >
+                            ${getCountryFlag(code)}
+                            <span>${escapeHTML(code)}</span>
+                        </span>
+                    `
+                )
+                .join("");
+
+        const countryDetails =
+            countryCodes.length > 8
+                ? `
+                    <details class="shop-country-details">
+                        <summary>See all ${countryCodes.length} destinations</summary>
+                        <div class="shop-country-list">
+                            ${countryCodes
+                                .map(
+                                    code => `
+                                        <span class="shop-country-chip shop-country-chip-full">
+                                            ${getCountryFlag(code)}
+                                            <span>${escapeHTML(getCountryDefinition(code)?.name || code)}</span>
+                                        </span>
+                                    `
+                                )
+                                .join("")}
+                        </div>
+                    </details>
+                `
+                : "";
+
+        return `
+            <div class="shop-availability">
+                <div class="shop-availability-head">
+                    <div>
+                        <span class="shop-info-label">🌍 Availability</span>
+                        <strong>${countryCodes.length === 1 ? "1 country" : `${countryCodes.length} countries`}</strong>
+                    </div>
+                    <span class="shop-availability-verified">✓ Verified ${escapeHTML(availability.verifiedDate || "")}</span>
+                </div>
+
+                <div class="shop-country-summary">
+                    ${countryChips}
+                </div>
+
+                ${countryDetails}
+
+                <p class="shop-availability-note">
+                    ${escapeHTML(availability.note || "Final destination eligibility is confirmed by the merchant at checkout.")}
+                </p>
+            </div>
+        `;
+    }
+
+
+    function getDeliveryHTML(deal){
+
+        if(!deal?.delivery?.note){
+            return "";
+        }
+
+        return `
+            <div class="shop-delivery">
+                <span class="shop-delivery-icon">🚚</span>
+                <div>
+                    <span class="shop-info-label">Delivery</span>
+                    <p>${escapeHTML(deal.delivery.note)}</p>
+                </div>
+            </div>
+        `;
+    }
+
     function renderShopGrid(){
         const container =
             document.getElementById("shopSection");
@@ -457,6 +569,21 @@
 
                         category:
                             safeCategory,
+
+                        categoryLabel:
+                            product.categoryLabel ||
+                            getCategoryDefinition(safeCategory)?.label ||
+                            safeCategory,
+
+                        partnerId:
+                            product.partnerId ||
+                            null,
+
+                        availability:
+                            product.availability || null,
+
+                        delivery:
+                            product.delivery || null,
 
                         oldPrice:
                             Number.isFinite(product.oldPrice)
@@ -932,6 +1059,20 @@ function renderShop(container){
             );
 
 
+        const partner =
+            getPartner(deal);
+
+        const category =
+            getCategoryDefinition(
+                deal.category
+            );
+
+        const availabilityHTML =
+            getAvailabilityHTML(deal);
+
+        const deliveryHTML =
+            getDeliveryHTML(deal);
+
         /* ---------------------------------------------
             IMAGE
         --------------------------------------------- */
@@ -1305,6 +1446,9 @@ function renderShop(container){
                 data-category="${escapeHTML(
                     deal.category
                 )}"
+                data-partner="${escapeHTML(
+                    deal.partnerId || ""
+                )}"
             >
 
                 <div class="shop-card-image">
@@ -1314,9 +1458,18 @@ function renderShop(container){
 
                     <span class="shop-badge">
 
-                        -${discount}%
+                        ${discount > 0 ? `-${discount}%` : "Offer"}
 
                     </span>
+
+                    ${partner
+                        ? `
+                            <span class="shop-partner-badge">
+                                ${partner.icon}
+                                ${escapeHTML(partner.name)}
+                            </span>
+                        `
+                        : ""}
 
                 </div>
 
@@ -1327,8 +1480,13 @@ function renderShop(container){
 
                         <span class="shop-category">
 
+                            ${category?.icon || "🛍️"}
+
                             ${escapeHTML(
-                                deal.category
+                                deal.categoryLabel ||
+                                category?.label ||
+                                deal.category ||
+                                "Shop"
                             )}
 
                         </span>
@@ -1375,6 +1533,12 @@ function renderShop(container){
                     ${savingsHTML}
 
 
+                    ${availabilityHTML}
+
+
+                    ${deliveryHTML}
+
+
                     ${verdictHTML}
 
 
@@ -1397,18 +1561,32 @@ function renderShop(container){
 
                     <div class="shop-updated">
 
-                        ${
-                            deal.isAffiliate
-                                ? "Affiliate deal • "
-                                : "Updated: "
-                        }
+                        <span>
+                            ${deal.isAffiliate ? "Price checked" : "Updated"}
+                        </span>
 
-                        ${escapeHTML(
-                            deal.updatedAt ||
-                            "Today"
-                        )}
+                        <strong>
+                            ${escapeHTML(
+                                deal.updatedAt ||
+                                "Today"
+                            )}
+                        </strong>
 
                     </div>
+
+                    ${deal.isAffiliate
+                        ? `
+                            <div class="shop-affiliate-disclosure">
+                                <span>Affiliate link</span>
+                                <span>•</span>
+                                <span>Worth It may earn a commission</span>
+                            </div>
+
+                            <div class="shop-card-footer-note">
+                                Prices, stock and shipping can change at the merchant checkout.
+                            </div>
+                        `
+                        : ""}
 
                 </div>
 
@@ -1473,56 +1651,46 @@ function renderShop(container){
         if(!shopSection._hasShopControlListeners){
             shopSection._hasShopControlListeners = true;
 
-            const searchInput =
-                document.getElementById(
-                    "shopSearchInput"
-                );
-
-            const countrySelect =
-                document.getElementById(
-                    "shopCountrySelect"
-                );
-
-            const sortSelect =
-                document.getElementById(
-                    "shopSortSelect"
-                );
-
-            if(searchInput){
-                searchInput.addEventListener(
-                    "input",
-                    function(){
+            shopSection.addEventListener(
+                "input",
+                function(event){
+                    if(
+                        event.target &&
+                        event.target.id === "shopSearchInput"
+                    ){
                         shopViewState.query =
-                            searchInput.value || "";
+                            event.target.value || "";
 
                         renderShopGrid();
                     }
-                );
-            }
+                }
+            );
 
-            if(countrySelect){
-                countrySelect.addEventListener(
-                    "change",
-                    function(){
+            shopSection.addEventListener(
+                "change",
+                function(event){
+                    if(
+                        event.target &&
+                        event.target.id === "shopCountrySelect"
+                    ){
                         shopViewState.country =
-                            countrySelect.value || "all";
+                            event.target.value || "all";
 
                         renderShopGrid();
+                        return;
                     }
-                );
-            }
 
-            if(sortSelect){
-                sortSelect.addEventListener(
-                    "change",
-                    function(){
+                    if(
+                        event.target &&
+                        event.target.id === "shopSortSelect"
+                    ){
                         shopViewState.sort =
-                            sortSelect.value || "featured";
+                            event.target.value || "featured";
 
                         renderShopGrid();
                     }
-                );
-            }
+                }
+            );
 
             shopSection.addEventListener(
                 "click",
@@ -1542,7 +1710,11 @@ function renderShop(container){
                     shopViewState.query = "";
                     shopViewState.sort = "featured";
 
-                    renderShop(container);
+                    renderShop(
+                        document.getElementById(
+                            "shopSection"
+                        )
+                    );
                 }
             );
         }
