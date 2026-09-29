@@ -415,7 +415,7 @@ function parseEnhancedPrice(value) {
 
     const match =
         text.match(
-            /([0-9][0-9.,]*)\\s*([A-Z]{3})$/i
+            /([0-9][0-9.,]*)\s*([A-Z]{3})$/i
         );
 
     if (!match) {
@@ -435,7 +435,7 @@ function parseEnhancedPrice(value) {
 
     const numericText =
         match[1]
-            .replace(/,(?=\\d{3}(?:\\D|$))/g, "")
+            .replace(/,(?=\d{3}(?:\D|$))/g, "")
             .replace(",", ".");
 
     const amount =
@@ -497,9 +497,12 @@ function productFromEnhancedRecord(
         details.product_category ||
         {};
 
-    const delivery =
-        details.delivery ||
-        {};
+    const shipping =
+        Array.isArray(
+            details.shipping
+        )
+            ? details.shipping
+            : [];
 
     const title =
         normalizeText(
@@ -585,12 +588,10 @@ function productFromEnhancedRecord(
         );
 
     const shippingCountries =
-        Array.isArray(
-            delivery.shipping
-        )
+        shipping.length
             ? [
                 ...new Set(
-                    delivery.shipping
+                    shipping
                         .map(
                             item =>
                                 String(
@@ -1082,7 +1083,7 @@ export async function onRequestGet(
 
     const cacheKey =
         new Request(
-            "https://worth-it-shop-feed-cache.local/api/shop-products?v=2"
+            "https://worth-it-shop-feed-cache.local/api/shop-products?v=3"
         );
 
     const cached =
@@ -1209,7 +1210,8 @@ export async function onRequestGet(
                         payload &&
                         Array.isArray(
                             payload.products
-                        )
+                        ) &&
+                        payload.products.length
                     ) {
                         feedProducts =
                             payload.products;
@@ -1261,6 +1263,10 @@ export async function onRequestGet(
                                     feed.advertiserId,
                                 locale:
                                     feed.locale,
+                                currencyCode:
+                                    feed.currencyCode || "",
+                                primaryRegion:
+                                    feed.primaryRegion || null,
                                 generatedAt:
                                     new Date().toISOString(),
                                 products:
@@ -1305,6 +1311,10 @@ export async function onRequestGet(
                             feed.advertiserId,
                         locale:
                             feed.locale,
+                        currencyCode:
+                            feed.currencyCode || "",
+                        primaryRegion:
+                            feed.primaryRegion || null,
                         status:
                             error?.status === 404
                                 ? "feed-not-found"
@@ -1324,6 +1334,10 @@ export async function onRequestGet(
                         feed.advertiserId,
                     locale:
                         feed.locale,
+                    currencyCode:
+                        feed.currencyCode || "",
+                    primaryRegion:
+                        feed.primaryRegion || null,
                     status:
                         "cache-hit",
                     products:
