@@ -91,6 +91,277 @@
             .replace(/'/g, "&#039;");
     }
 
+    const shopViewState = {
+        category: "all",
+        country: "all",
+        query: "",
+        sort: "featured"
+    };
+
+    function getPartner(deal){
+        if(!deal || !deal.partnerId || !Array.isArray(SHOP_PARTNERS)){
+            return null;
+        }
+
+        return SHOP_PARTNERS.find(
+            partner => partner.id === deal.partnerId
+        ) || null;
+    }
+
+    function getCategoryDefinition(categoryId){
+        if(!categoryId || !Array.isArray(SHOP_CATEGORIES)){
+            return null;
+        }
+
+        return SHOP_CATEGORIES.find(
+            category => category.id === categoryId
+        ) || null;
+    }
+
+    function getCountryDefinition(countryCode){
+        if(!countryCode || !Array.isArray(SHOP_COUNTRIES)){
+            return null;
+        }
+
+        return SHOP_COUNTRIES.find(
+            country => country.code === countryCode
+        ) || null;
+    }
+
+    function getCountryFlag(countryCode){
+        if(!/^[A-Z]{2}$/.test(String(countryCode || ""))){
+            return "🌍";
+        }
+
+        return String(countryCode)
+            .split("")
+            .map(
+                letter =>
+                    String.fromCodePoint(
+                        127397 + letter.charCodeAt(0)
+                    )
+            )
+            .join("");
+    }
+
+    function normalizeCountries(deal){
+        return Array.isArray(deal?.availability?.countries)
+            ? [...new Set(
+                deal.availability.countries
+                    .map(code => String(code).toUpperCase())
+                    .filter(code => getCountryDefinition(code))
+            )]
+            : [];
+    }
+
+    function getCountryOptions(items){
+        const codes = new Set();
+
+        items.forEach(deal => {
+            normalizeCountries(deal).forEach(code => codes.add(code));
+        });
+
+        return [...codes]
+            .map(code => getCountryDefinition(code))
+            .filter(Boolean)
+            .sort(
+                (a, b) =>
+                    a.name.localeCompare(
+                        b.name,
+                        undefined,
+                        { sensitivity: "base" }
+                    )
+            );
+    }
+
+    function getUniqueProductCountries(items){
+        const codes = new Set();
+
+        items.forEach(deal => {
+            normalizeCountries(deal).forEach(code => codes.add(code));
+        });
+
+        return codes.size;
+    }
+
+    function getCategoryProductCount(items, categoryId){
+        return items.filter(
+            deal => deal.category === categoryId
+        ).length;
+    }
+
+    function sortShopItems(items){
+        const sorted = [...items];
+
+        if(shopViewState.sort === "price"){
+            return sorted.sort(
+                (a, b) =>
+                    getBestStore(a)?.price -
+                    getBestStore(b)?.price
+            );
+        }
+
+        if(shopViewState.sort === "discount"){
+            return sorted.sort(
+                (a, b) => {
+                    const aStore = getBestStore(a);
+                    const bStore = getBestStore(b);
+
+                    return (
+                        calculateDiscount(
+                            b.oldPrice,
+                            bStore ? bStore.price : 0
+                        ) -
+                        calculateDiscount(
+                            a.oldPrice,
+                            aStore ? aStore.price : 0
+                        )
+                    );
+                }
+            );
+        }
+
+        if(shopViewState.sort === "az"){
+            return sorted.sort(
+                (a, b) =>
+                    String(a.title || "").localeCompare(
+                        String(b.title || ""),
+                        undefined,
+                        { sensitivity: "base" }
+                    )
+            );
+        }
+
+        return sorted.sort(
+            (a, b) => {
+                const aStore = getBestStore(a);
+                const bStore = getBestStore(b);
+
+                const discountDiff =
+                    calculateDiscount(
+                        b.oldPrice,
+                        bStore ? bStore.price : 0
+                    ) -
+                    calculateDiscount(
+                        a.oldPrice,
+                        aStore ? aStore.price : 0
+                    );
+
+                return (
+                    discountDiff ||
+                    String(a.title || "").localeCompare(
+                        String(b.title || ""),
+                        undefined,
+                        { sensitivity: "base" }
+                    )
+                );
+            }
+        );
+    }
+
+    function getFilteredShopItems(allItems){
+        const query =
+            String(shopViewState.query || "")
+                .trim()
+                .toLowerCase();
+
+        const filtered = allItems.filter(
+            deal => {
+                if(
+                    shopViewState.category !== "all" &&
+                    deal.category !== shopViewState.category
+                ){
+                    return false;
+                }
+
+                if(
+                    shopViewState.country !== "all" &&
+                    !normalizeCountries(deal).includes(
+                        shopViewState.country
+                    )
+                ){
+                    return false;
+                }
+
+                if(!query){
+                    return true;
+                }
+
+                const searchable = [
+                    deal.title,
+                    deal.store,
+                    deal.categoryLabel,
+                    getPartner(deal)?.name
+                ]
+                    .filter(Boolean)
+                    .join(" ")
+                    .toLowerCase();
+
+                return searchable.includes(query);
+            }
+        );
+
+        return sortShopItems(filtered);
+    }
+
+    function renderShopGrid(){
+        const container =
+            document.getElementById("shopSection");
+
+        const grid =
+            document.getElementById("shopGrid");
+
+        if(!container || !grid){
+            return;
+        }
+
+        const allItems = getAllShopItems();
+        const filteredItems = getFilteredShopItems(allItems);
+
+        if(!filteredItems.length){
+            const countryLabel =
+                shopViewState.country !== "all"
+                    ? getCountryDefinition(
+                        shopViewState.country
+                    )?.name || shopViewState.country
+                    : "all destinations";
+
+            grid.innerHTML = `
+                <div class="shop-empty-state">
+                    <div class="shop-empty-icon">🛍️</div>
+                    <h3>No curated products found</h3>
+                    <p>
+                        We currently do not have a verified offer matching
+                        your filters for <strong>${escapeHTML(countryLabel)}</strong>.
+                        More products are added only after their affiliate
+                        links and availability are verified.
+                    </p>
+                    <button
+                        type="button"
+                        class="shop-reset-btn"
+                        data-shop-reset="true"
+                    >
+                        Reset filters
+                    </button>
+                </div>
+            `;
+
+            return;
+        }
+
+        grid.innerHTML =
+            filteredItems
+                .map(deal => createDealCard(deal))
+                .join("");
+
+        container
+            .querySelectorAll(".shop-result-count")
+            .forEach(node => {
+                node.textContent =
+                    `${filteredItems.length} ${filteredItems.length === 1 ? "product" : "products"}`;
+            });
+    }
+
 
     /* =================================================
         STABLE WORTH IT SCORE GENERATOR
@@ -414,9 +685,7 @@ window.openShop = function(){
 
 function renderShop(container){
 
-    const today =
-        new Date();
-
+    const today = new Date();
 
     const dateText =
         today.toLocaleDateString(
@@ -428,107 +697,206 @@ function renderShop(container){
             }
         );
 
+    const allItems = getAllShopItems();
+    const countryOptions = getCountryOptions(allItems);
+    const connectedPartnerIds =
+        new Set(
+            allItems
+                .map(deal => deal.partnerId)
+                .filter(Boolean)
+        );
 
-    const allItems =
-        getAllShopItems();
+    const categoriesHTML =
+        SHOP_CATEGORIES
+            .map(
+                category => {
+                    const count =
+                        getCategoryProductCount(
+                            allItems,
+                            category.id
+                        );
 
+                    return `
+                        <button
+                            type="button"
+                            class="shop-filter${shopViewState.category === category.id ? " active" : ""}${count === 0 ? " disabled" : ""}"
+                            data-category="${escapeHTML(category.id)}"
+                            ${count === 0 ? "disabled" : ""}
+                            title="${count === 0 ? "Products are being curated for this category" : `${count} ${count === 1 ? "product" : "products"}`}"
+                        >
+                            <span class="shop-filter-icon">${category.icon}</span>
+                            <span>${escapeHTML(category.label)}</span>
+                            <span class="shop-filter-count">${count}</span>
+                        </button>
+                    `;
+                }
+            )
+            .join("");
 
-    const categories = [
-        "Beauty",
-        "Fashion",
-        "Electronics",
-        "Technology",
-        "Home",
-        "Gaming",
-        "Kids",
-        "Gifts"
-    ];
+    const countryOptionsHTML =
+        countryOptions
+            .map(
+                country => `
+                    <option
+                        value="${escapeHTML(country.code)}"
+                        ${shopViewState.country === country.code ? "selected" : ""}
+                    >
+                        ${getCountryFlag(country.code)} ${escapeHTML(country.name)}
+                    </option>
+                `
+            )
+            .join("");
 
+    const partnerHTML =
+        SHOP_PARTNERS
+            .map(
+                partner => {
+                    const productCount =
+                        allItems.filter(
+                            deal =>
+                                deal.partnerId === partner.id
+                        ).length;
 
-    const html = `
+                    const status =
+                        productCount > 0
+                            ? "Live now"
+                            : partner.status === "not-published"
+                                ? "Not published"
+                                : "Curating";
 
-        <div class="shop-header">
+                    return `
+                        <div class="shop-partner-card">
+                            <div class="shop-partner-icon">
+                                ${partner.icon}
+                            </div>
+                            <div class="shop-partner-main">
+                                <strong>${escapeHTML(partner.name)}</strong>
+                                <span>${escapeHTML(partner.coverage)}</span>
+                            </div>
+                            <span class="shop-partner-status ${productCount > 0 ? "live" : ""}">
+                                ${escapeHTML(status)}
+                            </span>
+                        </div>
+                    `;
+                }
+            )
+            .join("");
 
-            <div>
-
-                <h2>
-                    🛍️ Today's Shop
-                </h2>
-
+    container.innerHTML = `
+        <div class="shop-hero">
+            <div class="shop-hero-copy">
+                <div class="shop-eyebrow">
+                    CURATED • TRANSPARENT • GLOBAL
+                </div>
+                <h2>🛍️ Today's Shop</h2>
                 <p>
-
-                    Smart deals selected by Worth It
-
-                    <small>
-                        Updated
-                        ${escapeHTML(dateText)}
-                    </small>
-
+                    Smart deals selected by Worth It —
+                    only products with verified affiliate links are published.
                 </p>
-
+                <div class="shop-hero-meta">
+                    <span>Updated ${escapeHTML(dateText)}</span>
+                    <span class="shop-dot">•</span>
+                    <span>${allItems.length} curated products</span>
+                    <span class="shop-dot">•</span>
+                    <span>${connectedPartnerIds.size} live partner store${connectedPartnerIds.size === 1 ? "" : "s"}</span>
+                    <span class="shop-dot">•</span>
+                    <span>${getUniqueProductCountries(allItems)} shipping destinations represented</span>
+                </div>
             </div>
 
+            <div class="shop-trust-box">
+                <div class="shop-trust-icon">✓</div>
+                <div>
+                    <strong>Worth It picks first</strong>
+                    <span>
+                        We do not publish a product just because a merchant pays a higher commission.
+                    </span>
+                </div>
+            </div>
         </div>
 
-
-            <div
-                class="shop-filters"
-                id="shopFiltersContainer"
-            >
-
-                <button
-                    type="button"
-                    class="shop-filter active"
-                    data-category="all"
+        <div class="shop-controls">
+            <label class="shop-search-box">
+                <span>⌕</span>
+                <input
+                    id="shopSearchInput"
+                    type="search"
+                    value="${escapeHTML(shopViewState.query)}"
+                    placeholder="Search products, stores..."
+                    autocomplete="off"
                 >
-                    All
-                </button>
+            </label>
 
+            <label class="shop-select-box">
+                <span>🌍</span>
+                <select id="shopCountrySelect">
+                    <option value="all">${getCountryFlag("US")} All destinations</option>
+                    ${countryOptionsHTML}
+                </select>
+            </label>
 
-                ${categories
-                    .map(
-                        category => `
+            <label class="shop-select-box">
+                <span>↕</span>
+                <select id="shopSortSelect">
+                    <option value="featured" ${shopViewState.sort === "featured" ? "selected" : ""}>Featured</option>
+                    <option value="discount" ${shopViewState.sort === "discount" ? "selected" : ""}>Biggest discount</option>
+                    <option value="price" ${shopViewState.sort === "price" ? "selected" : ""}>Lowest price</option>
+                    <option value="az" ${shopViewState.sort === "az" ? "selected" : ""}>A–Z</option>
+                </select>
+            </label>
 
-                            <button
-                                type="button"
-                                class="shop-filter"
-                                data-category="${escapeHTML(category)}"
-                            >
-                                ${escapeHTML(category)}
-                            </button>
-
-                        `
-                    )
-                    .join("")}
-
+            <div class="shop-control-result">
+                <span class="shop-result-count">${allItems.length} ${allItems.length === 1 ? "product" : "products"}</span>
             </div>
+        </div>
 
+        <div class="shop-section-heading">
+            <div>
+                <h3>Shop by category</h3>
+                <p>Categories follow the affiliate stores we have selected and are safe to expand over time.</p>
+            </div>
+        </div>
 
-            <div
-                class="shop-grid"
-                id="shopGrid"
+        <div class="shop-filters" id="shopFiltersContainer">
+            <button
+                type="button"
+                class="shop-filter${shopViewState.category === "all" ? " active" : ""}"
+                data-category="all"
             >
+                <span class="shop-filter-icon">✨</span>
+                <span>All</span>
+            </button>
+            ${categoriesHTML}
+        </div>
 
-                ${allItems
-                    .map(
-                        deal =>
-                            createDealCard(deal)
-                    )
-                    .join("")}
-
+        <div class="shop-partners">
+            <div class="shop-partners-heading">
+                <div>
+                    <h3>Partner stores we're curating</h3>
+                    <p>
+                        A category becomes live only after we have a real tracked product link and verified destination information.
+                    </p>
+                </div>
+                <span>${SHOP_PARTNERS.length} sources</span>
             </div>
+            <div class="shop-partners-grid">
+                ${partnerHTML}
+            </div>
+        </div>
 
-        `;
+        <div class="shop-grid" id="shopGrid"></div>
 
+        <div class="shop-footer-note">
+            <strong>Affiliate transparency:</strong>
+            Worth It may earn a commission when you buy through an affiliate link.
+            Prices, stock, shipping costs and destination eligibility can change at the merchant.
+            Always confirm the final details at checkout.
+        </div>
+    `;
 
-        container.innerHTML =
-            html;
-
-
-        setupShopFilters();
-
-    }
-
+    setupShopFilters();
+    renderShopGrid();
+}
 
     /* =================================================
         DEAL CARD
@@ -1061,127 +1429,123 @@ function renderShop(container){
                 "shopFiltersContainer"
             );
 
+        const shopSection =
+            document.getElementById(
+                "shopSection"
+            );
 
-        if(!filtersContainer){
+        if(!filtersContainer || !shopSection){
             return;
         }
 
+        if(!filtersContainer._hasClickListener){
+            filtersContainer._hasClickListener = true;
 
-        if(filtersContainer._hasClickListener){
-            return;
-        }
+            filtersContainer.addEventListener(
+                "click",
+                function(event){
 
-
-        filtersContainer._hasClickListener =
-            true;
-
-
-        filtersContainer.addEventListener(
-            "click",
-            function(event){
-
-                const button =
-                    event.target.closest(
-                        ".shop-filter"
-                    );
-
-
-                if(!button){
-                    return;
-                }
-
-
-                const category =
-                    button.dataset.category;
-
-
-                filtersContainer
-                    .querySelectorAll(
-                        ".shop-filter"
-                    )
-                    .forEach(btn =>
-                        btn.classList.remove(
-                            "active"
-                        )
-                    );
-
-
-                button.classList.add(
-                    "active"
-                );
-
-
-                const grid =
-                    document.getElementById(
-                        "shopGrid"
-                    );
-
-
-                if(!grid){
-                    return;
-                }
-
-
-                const allItems =
-                    getAllShopItems();
-
-
-                const filteredDeals =
-                    category === "all"
-
-                        ? allItems
-
-                        : allItems.filter(
-                            deal =>
-                                deal.category ===
-                                category
+                    const button =
+                        event.target.closest(
+                            ".shop-filter"
                         );
 
+                    if(!button || button.disabled){
+                        return;
+                    }
 
-                if(!filteredDeals.length){
+                    shopViewState.category =
+                        button.dataset.category || "all";
 
-                    grid.innerHTML = `
+                    filtersContainer
+                        .querySelectorAll(".shop-filter")
+                        .forEach(btn =>
+                            btn.classList.remove("active")
+                        );
 
-                        <article class="shop-card">
+                    button.classList.add("active");
 
-                            <div class="shop-card-image">
-
-                                <div class="shop-image-placeholder">
-                                    No products
-                                </div>
-
-                            </div>
-
-
-                            <div class="shop-card-content">
-
-                                <h3>
-                                    No shop items available right now
-                                </h3>
-
-                            </div>
-
-                        </article>
-
-                    `;
-
-                    return;
+                    renderShopGrid();
                 }
+            );
+        }
 
+        if(!shopSection._hasShopControlListeners){
+            shopSection._hasShopControlListeners = true;
 
-                grid.innerHTML =
-                    filteredDeals
-                        .map(
-                            deal =>
-                                createDealCard(
-                                    deal
-                                )
-                        )
-                        .join("");
+            const searchInput =
+                document.getElementById(
+                    "shopSearchInput"
+                );
 
+            const countrySelect =
+                document.getElementById(
+                    "shopCountrySelect"
+                );
+
+            const sortSelect =
+                document.getElementById(
+                    "shopSortSelect"
+                );
+
+            if(searchInput){
+                searchInput.addEventListener(
+                    "input",
+                    function(){
+                        shopViewState.query =
+                            searchInput.value || "";
+
+                        renderShopGrid();
+                    }
+                );
             }
-        );
 
+            if(countrySelect){
+                countrySelect.addEventListener(
+                    "change",
+                    function(){
+                        shopViewState.country =
+                            countrySelect.value || "all";
+
+                        renderShopGrid();
+                    }
+                );
+            }
+
+            if(sortSelect){
+                sortSelect.addEventListener(
+                    "change",
+                    function(){
+                        shopViewState.sort =
+                            sortSelect.value || "featured";
+
+                        renderShopGrid();
+                    }
+                );
+            }
+
+            shopSection.addEventListener(
+                "click",
+                function(event){
+
+                    const resetButton =
+                        event.target.closest(
+                            "[data-shop-reset='true']"
+                        );
+
+                    if(!resetButton){
+                        return;
+                    }
+
+                    shopViewState.category = "all";
+                    shopViewState.country = "all";
+                    shopViewState.query = "";
+                    shopViewState.sort = "featured";
+
+                    renderShop(container);
+                }
+            );
+        }
     }
 
 
