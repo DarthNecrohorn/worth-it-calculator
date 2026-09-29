@@ -495,6 +495,7 @@ function createFeedDebug() {
         shippingArrays: 0,
         shippingObjects: 0,
         shippingOtherValues: 0,
+        fallbackShippingRecords: 0,
         sampleDetailKeys: [],
         sampleShipping: []
     };
@@ -1514,7 +1515,7 @@ export async function onRequestGet(
 
     const cacheKey =
         new Request(
-            "https://worth-it-shop-feed-cache.local/api/shop-products?v=8"
+            "https://worth-it-shop-feed-cache.local/api/shop-products?v=9"
         );
 
     const cached =
@@ -1632,7 +1633,7 @@ export async function onRequestGet(
 
             const feedCacheKey =
                 new Request(
-                    `https://worth-it-shop-feed-cache.local/api/feed/${feed.advertiserId}/${feed.locale}/v8`
+                    `https://worth-it-shop-feed-cache.local/api/feed/${feed.advertiserId}/${feed.locale}/v9`
                 );
 
             let feedProducts =
