@@ -473,9 +473,129 @@ function calculateEnhancedPopularity(product) {
     );
 }
 
+function createFeedDebug() {
+    return {
+        recordsSeen: 0,
+        validJson: 0,
+        errorLines: 0,
+        missingShipping: 0,
+        productsAccepted: 0,
+        directShippingRecords: 0,
+        entryShippingRecords: 0,
+        deliveryShippingRecords: 0,
+        countryValuesFound: 0,
+        sampleDetailKeys: [],
+        sampleShipping: []
+    };
+}
+
+function noteFeedDebugShape(
+    debug,
+    entry,
+    details
+) {
+    if (!debug) {
+        return;
+    }
+
+    debug.recordsSeen++;
+
+    if (
+        !debug.sampleDetailKeys.length &&
+        details &&
+        typeof details === "object"
+    ) {
+        debug.sampleDetailKeys =
+            Object.keys(details)
+                .slice(0, 40);
+    }
+
+    const directShipping =
+        details?.shipping;
+
+    const entryShipping =
+        entry?.shipping;
+
+    const deliveryShipping =
+        details?.delivery?.shipping;
+
+    if (
+        directShipping !== undefined &&
+        directShipping !== null
+    ) {
+        debug.directShippingRecords++;
+    }
+
+    if (
+        entryShipping !== undefined &&
+        entryShipping !== null
+    ) {
+        debug.entryShippingRecords++;
+    }
+
+    if (
+        deliveryShipping !== undefined &&
+        deliveryShipping !== null
+    ) {
+        debug.deliveryShippingRecords++;
+    }
+
+    const candidates = [
+        directShipping,
+        entryShipping,
+        deliveryShipping
+    ].filter(
+        value =>
+            value !== undefined &&
+            value !== null
+    );
+
+    for (const candidate of candidates) {
+        let value = candidate;
+
+        if (typeof value === "string") {
+            try {
+                value = JSON.parse(value);
+            }
+            catch {
+                value = null;
+            }
+        }
+
+        const list =
+            Array.isArray(value)
+                ? value
+                : value &&
+                    typeof value === "object"
+                    ? [value]
+                    : [];
+
+        for (const item of list) {
+            if (item?.country) {
+                debug.countryValuesFound++;
+
+                if (
+                    debug.sampleShipping.length < 5
+                ) {
+                    debug.sampleShipping.push({
+                        country:
+                            String(
+                                item.country
+                            ),
+                        keys:
+                            Object.keys(item)
+                                .slice(0, 20)
+                    });
+                }
+            }
+        }
+    }
+}
+
 function productFromEnhancedRecord(
     entry,
-    feed
+    feed,
+    debug = null
 ) {
     let details =
         entry?.product_details ||
@@ -501,6 +621,15 @@ function productFromEnhancedRecord(
         typeof details !== "object"
     ) {
         return null;
+    }
+
+    if (debug) {
+        debug.validJson++;
+        noteFeedDebugShape(
+            debug,
+            entry,
+            details
+        );
     }
 
     const basic =
@@ -686,7 +815,15 @@ function productFromEnhancedRecord(
         ];
 
     if (!shippingCountries.length) {
+        if (debug) {
+            debug.missingShipping++;
+        }
+
         return null;
+    }
+
+    if (debug) {
+        debug.productsAccepted++;
     }
 
     const availability =
@@ -780,7 +917,8 @@ function productFromEnhancedRecord(
 
 function parseEnhancedJSONL(
     text,
-    feed
+    feed,
+    debug = null
 ) {
     const products = [];
 
@@ -809,13 +947,18 @@ function parseEnhancedJSONL(
             typeof entry === "object" &&
             entry.error
         ) {
+            if (debug) {
+                debug.errorLines++;
+            }
+
             continue;
         }
 
         const product =
             productFromEnhancedRecord(
                 entry,
-                feed
+                feed,
+                debug
             );
 
         if (product) {
@@ -897,7 +1040,8 @@ async function fetchJSON(
 async function fetchEnhancedFeed(
     feed,
     token,
-    signal
+    signal,
+    debug = null
 ) {
     const url =
         `${AWIN_API_BASE_URL}/publishers/${AWIN_PUBLISHER_ID}/awinfeeds/download/${feed.advertiserId}-retail-${feed.locale}.jsonl`;
@@ -981,7 +1125,8 @@ async function fetchEnhancedFeed(
 
     return parseEnhancedJSONL(
         text,
-        feed
+        feed,
+        debug
     );
 }
 
@@ -1159,6 +1304,11 @@ export async function onRequestGet(
         );
     }
 
+    const debugMode =
+        new URL(
+            context.request.url
+        ).searchParams.get("debug") === "1";
+
     const cache =
         caches.default;
 
@@ -1168,9 +1318,11 @@ export async function onRequestGet(
         );
 
     const cached =
-        await cache.match(
-            cacheKey
-        );
+        debugMode
+            ? null
+            : await cache.match(
+                cacheKey
+            );
 
     if (cached) {
         return cached;
@@ -1273,6 +1425,11 @@ export async function onRequestGet(
         for (
             const feed of discoveredFeeds
         ) {
+            const feedDebug =
+                debugMode
+                    ? createFeedDebug()
+                    : null;
+
             const feedCacheKey =
                 new Request(
                     `https://worth-it-shop-feed-cache.local/api/feed/${feed.advertiserId}/${feed.locale}/v7`
@@ -1282,9 +1439,11 @@ export async function onRequestGet(
                 null;
 
             const feedCached =
-                await cache.match(
-                    feedCacheKey
-                );
+                debugMode
+                    ? null
+                    : await cache.match(
+                        feedCacheKey
+                    );
 
             if (feedCached) {
                 try {
@@ -1336,7 +1495,8 @@ export async function onRequestGet(
                         await fetchEnhancedFeed(
                             feed,
                             token,
-                            controller.signal
+                            controller.signal,
+                            feedDebug
                         );
 
                     const feedResponse =
@@ -1378,7 +1538,13 @@ export async function onRequestGet(
                         status:
                             "loaded",
                         products:
-                            feedProducts.length
+                            feedProducts.length,
+                        ...(debugMode
+                            ? {
+                                debug:
+                                    feedDebug
+                            }
+                            : {})
                     });
                 }
                 catch (error) {
@@ -1405,7 +1571,13 @@ export async function onRequestGet(
                                 ? "feed-not-found"
                                 : "unavailable",
                         products:
-                            0
+                            0,
+                        ...(debugMode
+                            ? {
+                                debug:
+                                    feedDebug
+                            }
+                            : {})
                     });
 
                     continue;
@@ -1478,15 +1650,28 @@ export async function onRequestGet(
                     feeds:
                         feedResults,
                     products:
-                        finalProducts
+                        finalProducts,
+                    ...(debugMode
+                        ? {
+                            debug: {
+                                note:
+                                    "Debug mode bypasses Shop caches and fetches up to 5 feeds to inspect product shipping data."
+                            }
+                        }
+                        : {})
                 },
                 200,
-                unfinished
+                debugMode
                     ? 0
-                    : CACHE_TTL_SECONDS
+                    : unfinished
+                        ? 0
+                        : CACHE_TTL_SECONDS
             );
 
-        if (!unfinished) {
+        if (
+            !debugMode &&
+            !unfinished
+        ) {
             context.waitUntil(
                 cache.put(
                     cacheKey,
