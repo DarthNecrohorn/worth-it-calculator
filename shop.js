@@ -46,7 +46,40 @@
 
     function formatPrice(value, currency){
 
-        return (currency || "$") +
+        const currencyMap = {
+            USD: "$",
+            EUR: "€",
+            GBP: "£",
+            CAD: "C$",
+            AUD: "A$",
+            NZD: "NZ$",
+            SGD: "S$",
+            HKD: "HK$",
+            JPY: "¥",
+            CNY: "¥",
+            KRW: "₩",
+            PLN: "zł",
+            CZK: "Kč",
+            HUF: "Ft",
+            NOK: "kr",
+            SEK: "kr",
+            DKK: "kr",
+            CHF: "CHF ",
+            ZAR: "R",
+            BRL: "R$",
+            MXN: "MX$"
+        };
+
+        const rawCurrency =
+            String(currency || "$").trim().toUpperCase();
+
+        const prefix =
+            currencyMap[rawCurrency] ||
+            (rawCurrency.length === 3
+                ? rawCurrency + " "
+                : rawCurrency);
+
+        return prefix +
             Number(value).toFixed(2);
     }
 
