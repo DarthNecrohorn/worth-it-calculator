@@ -172,7 +172,7 @@
         </button>
 
         <button class="admin-panel-nav-btn"
-        id="adminPanelNavBtn"
+        id="adminPanelButton"
         onclick="openAdminPanel()"
         title="Admin Panel"
         style="display:none;">
@@ -797,10 +797,10 @@
     <div class="settings-section">
         <label>Text &amp; UI size</label>
         <div class="settings-options">
-            <button type="button" class="settings-option" id="sizeSmallBtn" onclick="setUIScale('small')">A−</button>
-            <button type="button" class="settings-option" id="sizeNormalBtn" onclick="setUIScale('normal')">A</button>
-            <button type="button" class="settings-option" id="sizeLargeBtn" onclick="setUIScale('large')">A+</button>
-            <button type="button" class="settings-option" id="sizeXLBtn" onclick="setUIScale('xl')">A++</button>
+            <button type="button" class="settings-option" id="sizeSmallBtn" data-ui-scale="small" onclick="setUIScale('small')">A−</button>
+            <button type="button" class="settings-option" id="sizeNormalBtn" data-ui-scale="normal" onclick="setUIScale('normal')">A</button>
+            <button type="button" class="settings-option" id="sizeLargeBtn" data-ui-scale="large" onclick="setUIScale('large')">A+</button>
+            <button type="button" class="settings-option" id="sizeXLBtn" data-ui-scale="xlarge" onclick="setUIScale('xl')">A++</button>
         </div>
         <div class="settings-note">Your preferences are saved automatically.</div>
     </div>
@@ -882,7 +882,7 @@
     </div>
 </div>
 
-<main>
+<main id="app">
 
 <section id="homePage">
 
