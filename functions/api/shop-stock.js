@@ -52,15 +52,15 @@ function jsonResponse(data, status = 200, cacheSeconds = 0) {
 
 function normalizeText(value) {
     return String(value || "")
-        .replace(/\\u00A0/g, " ")
-        .replace(/<script[\\s\\S]*?<\\/script>/gi, " ")
-        .replace(/<style[\\s\\S]*?<\\/style>/gi, " ")
+        .replace(/\u00A0/g, " ")
+        .replace(/<script[\s\S]*?<\/script>/gi, " ")
+        .replace(/<style[\s\S]*?<\/style>/gi, " ")
         .replace(/<[^>]+>/g, " ")
         .replace(/&nbsp;/gi, " ")
         .replace(/&amp;/gi, "&")
         .replace(/&quot;/gi, '"')
         .replace(/&#39;/gi, "'")
-        .replace(/\\s+/g, " ")
+        .replace(/\s+/g, " ")
         .trim();
 }
 
@@ -130,28 +130,28 @@ function detectStock(html, expectedTitle = "") {
      * These are preferable to generic "Add to cart" text because
      * recommendation widgets can also contain that phrase.
      */
-    if (/"is_salable"\\s*:\\s*false/i.test(raw)) {
+    if (/"is_salable"\s*:\s*false/i.test(raw)) {
         return {
             state: "out-of-stock",
             evidence: "is_salable:false"
         };
     }
 
-    if (/"stock_status"\\s*:\\s*["']?0(?:["']|\\b)/i.test(raw)) {
+    if (/"stock_status"\s*:\s*["']?0(?:["']|\b)/i.test(raw)) {
         return {
             state: "out-of-stock",
             evidence: "stock_status:0"
         };
     }
 
-    if (/"is_salable"\\s*:\\s*true/i.test(raw)) {
+    if (/"is_salable"\s*:\s*true/i.test(raw)) {
         return {
             state: "in-stock",
             evidence: "is_salable:true"
         };
     }
 
-    if (/"stock_status"\\s*:\\s*["']?1(?:["']|\\b)/i.test(raw)) {
+    if (/"stock_status"\s*:\s*["']?1(?:["']|\b)/i.test(raw)) {
         return {
             state: "in-stock",
             evidence: "stock_status:1"
@@ -164,28 +164,28 @@ function detectStock(html, expectedTitle = "") {
             expectedTitle
         );
 
-    if (/\\bout\\s+of\\s+stock\\b/i.test(localWindow)) {
+    if (/\bout\s+of\s+stock\b/i.test(localWindow)) {
         return {
             state: "out-of-stock",
             evidence: "Out Of Stock"
         };
     }
 
-    if (/\\bsold\\s+out\\b/i.test(localWindow)) {
+    if (/\bsold\s+out\b/i.test(localWindow)) {
         return {
             state: "out-of-stock",
             evidence: "Sold Out"
         };
     }
 
-    if (/\\bcurrently\\s+unavailable\\b/i.test(localWindow)) {
+    if (/\bcurrently\s+unavailable\b/i.test(localWindow)) {
         return {
             state: "out-of-stock",
             evidence: "Currently Unavailable"
         };
     }
 
-    if (/\\b(in\\s+stock|in-stock)\\b/i.test(localWindow)) {
+    if (/\b(in\s+stock|in-stock)\b/i.test(localWindow)) {
         return {
             state: "in-stock",
             evidence: "In Stock"
@@ -197,14 +197,14 @@ function detectStock(html, expectedTitle = "") {
      * when an item can be purchased. Only use this fallback after
      * the stronger product-local checks above.
      */
-    if (/\\badd\\s+to\\s+cart\\b/i.test(localWindow)) {
+    if (/\badd\s+to\s+cart\b/i.test(localWindow)) {
         return {
             state: "in-stock",
             evidence: "Add to Cart"
         };
     }
 
-    if (/\\badd\\s+to\\s+bag\\b/i.test(localWindow)) {
+    if (/\badd\s+to\s+bag\b/i.test(localWindow)) {
         return {
             state: "in-stock",
             evidence: "Add to Bag"
@@ -389,9 +389,15 @@ export async function onRequestGet(context) {
 }
 
 export async function onRequestOptions() {
-    return jsonResponse(
+    return new Response(
         null,
-        204,
-        0
+        {
+            status: 204,
+            headers: {
+                "Access-Control-Allow-Origin": "*",
+                "Access-Control-Allow-Methods": "GET, OPTIONS",
+                "Access-Control-Allow-Headers": "Content-Type, Accept"
+            }
+        }
     );
 }
