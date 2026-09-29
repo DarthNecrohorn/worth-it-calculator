@@ -151,13 +151,33 @@ async function handleVessels(
 ){
     let vesselStage = "validation";
     try{
-    const bboxText = String(
-        url.searchParams.get("bbox") || ""
-    ).trim();
+    /*
+     * The frontend always supplies the current map viewport. Keep a
+     * bounded Europe-wide fallback for direct/API health requests that
+     * omit bbox, while preserving strict validation for an explicit bbox.
+     */
+    const rawBboxParam =
+        url.searchParams.get("bbox");
 
-    const bboxParts = bboxText
-        .split(",")
-        .map(Number);
+    const hasExplicitBbox =
+        rawBboxParam !== null;
+
+    const bboxText =
+        String(
+            rawBboxParam || ""
+        ).trim();
+
+    const bboxParts =
+        hasExplicitBbox
+            ? bboxText
+                .split(",")
+                .map(Number)
+            : [
+                EURIS_REGION.west,
+                EURIS_REGION.south,
+                EURIS_REGION.east,
+                EURIS_REGION.north
+            ];
 
     if(
         bboxParts.length !== 4 ||
