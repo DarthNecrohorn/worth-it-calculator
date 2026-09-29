@@ -177,9 +177,52 @@
             return null;
         }
 
-        return SHOP_COUNTRIES.find(
-            country => country.code === countryCode
-        ) || null;
+        const code =
+            String(countryCode)
+                .trim()
+                .toUpperCase();
+
+        if(!/^[A-Z]{2}$/.test(code)){
+            return null;
+        }
+
+        const known =
+            SHOP_COUNTRIES.find(
+                country => country.code === code
+            );
+
+        if(known){
+            return known;
+        }
+
+        let name = code;
+
+        try{
+            if(
+                typeof Intl !== "undefined" &&
+                typeof Intl.DisplayNames === "function"
+            ){
+                const displayNames =
+                    new Intl.DisplayNames(
+                        ["en"],
+                        {
+                            type: "region"
+                        }
+                    );
+
+                name =
+                    displayNames.of(code) ||
+                    code;
+            }
+        }
+        catch{
+            name = code;
+        }
+
+        return {
+            code,
+            name
+        };
     }
 
     function getCountryFlag(countryCode){
@@ -199,13 +242,28 @@
     }
 
     function normalizeCountries(deal){
-        return Array.isArray(deal?.availability?.countries)
-            ? [...new Set(
-                deal.availability.countries
-                    .map(code => String(code).toUpperCase())
-                    .filter(code => getCountryDefinition(code))
-            )]
-            : [];
+        const countries =
+            Array.isArray(
+                deal?.availability?.countries
+            )
+                ? deal.availability.countries
+                : [];
+
+        return [
+            ...new Set(
+                countries
+                    .map(
+                        code =>
+                            String(code)
+                                .trim()
+                                .toUpperCase()
+                    )
+                    .filter(
+                        code =>
+                            /^[A-Z]{2}$/.test(code)
+                    )
+            )
+        ];
     }
 
     function getCountryOptions(items){
@@ -360,8 +418,11 @@
 
     function getAvailabilityHTML(deal){
 
-        const availability = deal?.availability;
-        const countryCodes = normalizeCountries(deal);
+        const availability =
+            deal?.availability;
+
+        const countryCodes =
+            normalizeCountries(deal);
 
         if(!availability){
             return "";
@@ -369,7 +430,8 @@
 
         if(availability.type === "service"){
             const serviceArea =
-                Array.isArray(availability.states) && availability.states.length
+                Array.isArray(availability.states) &&
+                availability.states.length
                     ? `${availability.states.length} supported areas`
                     : "Supported service area";
 
@@ -390,7 +452,19 @@
         }
 
         if(!countryCodes.length){
-            return "";
+            return `
+                <div class="shop-availability">
+                    <div class="shop-availability-head">
+                        <div>
+                            <span class="shop-info-label">🌍 Availability</span>
+                            <strong>Destination data not provided</strong>
+                        </div>
+                    </div>
+                    <p class="shop-availability-note">
+                        The affiliate feed did not provide a country-level shipping list for this product.
+                    </p>
+                </div>
+            `;
         }
 
         const countryChips =
@@ -402,7 +476,7 @@
                             title="${escapeHTML(getCountryDefinition(code)?.name || code)}"
                         >
                             ${getCountryFlag(code)}
-                            <span>${escapeHTML(code)}</span>
+                            <span>${escapeHTML(getCountryDefinition(code)?.name || code)}</span>
                         </span>
                     `
                 )
@@ -429,14 +503,21 @@
                 `
                 : "";
 
+        const sourceLabel =
+            availability.sourceLabel
+                ? escapeHTML(availability.sourceLabel)
+                : availability.verifiedDate
+                    ? `✓ Verified ${escapeHTML(availability.verifiedDate)}`
+                    : "From merchant feed";
+
         return `
             <div class="shop-availability">
                 <div class="shop-availability-head">
                     <div>
-                        <span class="shop-info-label">🌍 Availability</span>
+                        <span class="shop-info-label">🌍 Ships to</span>
                         <strong>${countryCodes.length === 1 ? "1 country" : `${countryCodes.length} countries`}</strong>
                     </div>
-                    <span class="shop-availability-verified">✓ Verified ${escapeHTML(availability.verifiedDate || "")}</span>
+                    <span class="shop-availability-verified">${sourceLabel}</span>
                 </div>
 
                 <div class="shop-country-summary">
@@ -446,7 +527,10 @@
                 ${countryDetails}
 
                 <p class="shop-availability-note">
-                    ${escapeHTML(availability.note || "Final destination eligibility is confirmed by the merchant at checkout.")}
+                    ${escapeHTML(
+                        availability.note ||
+                        "Final destination eligibility is confirmed by the merchant at checkout."
+                    )}
                 </p>
             </div>
         `;
@@ -592,8 +676,44 @@
                     product.category ||
                     "other";
 
+                const shippingCountries =
+                    Array.isArray(
+                        product.shippingCountries
+                    )
+                        ? [
+                            ...new Set(
+                                product.shippingCountries
+                                    .map(
+                                        code =>
+                                            String(code)
+                                                .trim()
+                                                .toUpperCase()
+                                    )
+                                    .filter(
+                                        code =>
+                                            /^[A-Z]{2}$/.test(
+                                                code
+                                            )
+                                    )
+                            )
+                        ]
+                        : [];
+
                 const availability =
                     product.availability ||
+                    (
+                        shippingCountries.length
+                            ? {
+                                type: "shipping",
+                                countries:
+                                    shippingCountries,
+                                sourceLabel:
+                                    "Awin product feed",
+                                note:
+                                    "Shipping destinations are taken from the current Awin product feed. Final availability, shipping cost and checkout eligibility can vary by address and merchant."
+                            }
+                            : null
+                    ) ||
                     shopPartnerAvailability[product.partnerId] ||
                     null;
 
