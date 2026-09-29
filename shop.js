@@ -98,6 +98,9 @@
         sort: "featured"
     };
 
+    const liveStockOverrides = new Map();
+    const stockChecksInFlight = new Map();
+
     function getPartner(deal){
         if(!deal || !deal.partnerId || !Array.isArray(SHOP_PARTNERS)){
             return null;
@@ -472,6 +475,8 @@
                 node.textContent =
                     `${filteredItems.length} ${filteredItems.length === 1 ? "product" : "products"}`;
             });
+
+        refreshShopStockStatuses(filteredItems);
     }
 
 
@@ -586,7 +591,11 @@
                             product.delivery || null,
 
                         stockStatus:
+                            liveStockOverrides.get(product.id) ||
                             product.stockStatus || null,
+
+                        stockCheckUrl:
+                            product.stockCheckUrl || null,
 
                         oldPrice:
                             Number.isFinite(product.oldPrice)
@@ -1040,7 +1049,8 @@ function renderShop(container){
             "in-stock": { label: "In stock", className: "in-stock", icon: "✓" },
             "out-of-stock": { label: "Out of stock", className: "out-of-stock", icon: "×" },
             "low-stock": { label: "Limited stock", className: "low-stock", icon: "!" },
-            "unknown": { label: "Stock check needed", className: "unknown", icon: "?" }
+            "checking": { label: "Checking live stock", className: "checking", icon: "↻" },
+            "unknown": { label: "Stock check unavailable", className: "unknown", icon: "?" }
         };
 
         const config = states[stock?.state] || states.unknown;
@@ -1052,7 +1062,7 @@ function renderShop(container){
             : "Latest available check";
 
         return `
-            <div class="shop-stock-status ${config.className}">
+            <div class="shop-stock-status ${config.className}" data-shop-stock-status="true">
                 <span class="shop-stock-icon">${config.icon}</span>
                 <div>
                     <strong>${escapeHTML(config.label)}</strong>
@@ -1060,6 +1070,96 @@ function renderShop(container){
                 </div>
             </div>
         `;
+    }
+
+    async function checkShopStock(deal){
+        if(!deal?.stockCheckUrl){
+            return null;
+        }
+
+        if(stockChecksInFlight.has(deal.id)){
+            return stockChecksInFlight.get(deal.id);
+        }
+
+        const request = (async function(){
+            try{
+                const endpoint =
+                    `/api/shop-stock?url=${encodeURIComponent(deal.stockCheckUrl)}&title=${encodeURIComponent(deal.title || "")}`;
+
+                const response = await fetch(endpoint, {
+                    method: "GET",
+                    cache: "no-store",
+                    headers: {
+                        "Accept": "application/json"
+                    }
+                });
+
+                if(!response.ok){
+                    return null;
+                }
+
+                const data = await response.json();
+
+                if(!data || !["in-stock","out-of-stock","low-stock","unknown"].includes(data.state)){
+                    return null;
+                }
+
+                return data;
+            }
+            catch(error){
+                console.warn("Shop stock refresh failed:", error);
+                return null;
+            }
+            finally{
+                stockChecksInFlight.delete(deal.id);
+            }
+        })();
+
+        stockChecksInFlight.set(deal.id, request);
+
+        return request;
+    }
+
+    async function refreshShopStockStatuses(items){
+        const deals = (Array.isArray(items) ? items : [])
+            .filter(deal => deal?.stockCheckUrl && deal?.id);
+
+        if(!deals.length){
+            return;
+        }
+
+        await Promise.all(
+            deals.map(async deal => {
+                const result = await checkShopStock(deal);
+
+                if(!result){
+                    return;
+                }
+
+                const nextStatus = {
+                    state: result.state,
+                    storefront: result.storefront || deal.stockStatus?.storefront || "",
+                    checkedDate: result.checkedDate || deal.stockStatus?.checkedDate || ""
+                };
+
+                liveStockOverrides.set(deal.id, nextStatus);
+                deal.stockStatus = nextStatus;
+
+                const cards = [
+                    ...document.querySelectorAll(".shop-card")
+                ];
+
+                const card =
+                    cards.find(node => node.dataset.productId === String(deal.id));
+
+                const statusNode =
+                    card?.querySelector("[data-shop-stock-status]");
+
+                if(statusNode){
+                    statusNode.outerHTML = getStockStatusHTML(deal);
+                }
+            })
+        );
     }
 
     function createDealCard(deal){
@@ -1479,6 +1579,7 @@ function renderShop(container){
 
             <article
                 class="shop-card ${deal.isAffiliate ? "shop-affiliate-card" : ""}"
+                data-product-id="${escapeHTML(deal.id || "")}"
                 data-category="${escapeHTML(
                     deal.category
                 )}"
