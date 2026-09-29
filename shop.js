@@ -585,6 +585,9 @@
                         delivery:
                             product.delivery || null,
 
+                        stockStatus:
+                            product.stockStatus || null,
+
                         oldPrice:
                             Number.isFinite(product.oldPrice)
                                 ? product.oldPrice
@@ -1029,6 +1032,36 @@ function renderShop(container){
         DEAL CARD
     ================================================ */
 
+    function getStockStatusHTML(deal){
+
+        const stock = deal?.stockStatus;
+
+        const states = {
+            "in-stock": { label: "In stock", className: "in-stock", icon: "✓" },
+            "out-of-stock": { label: "Out of stock", className: "out-of-stock", icon: "×" },
+            "low-stock": { label: "Limited stock", className: "low-stock", icon: "!" },
+            "unknown": { label: "Stock check needed", className: "unknown", icon: "?" }
+        };
+
+        const config = states[stock?.state] || states.unknown;
+        const storefront = stock?.storefront
+            ? String(stock.storefront).toUpperCase() + " storefront"
+            : "Merchant storefront";
+        const checkedDate = stock?.checkedDate
+            ? "Checked " + String(stock.checkedDate)
+            : "Latest available check";
+
+        return `
+            <div class="shop-stock-status ${config.className}">
+                <span class="shop-stock-icon">${config.icon}</span>
+                <div>
+                    <strong>${escapeHTML(config.label)}</strong>
+                    <small>${escapeHTML(storefront)} • ${escapeHTML(checkedDate)}</small>
+                </div>
+            </div>
+        `;
+    }
+
     function createDealCard(deal){
 
         const stores =
@@ -1072,6 +1105,9 @@ function renderShop(container){
 
         const deliveryHTML =
             getDeliveryHTML(deal);
+
+        const stockStatusHTML =
+            getStockStatusHTML(deal);
 
         /* ---------------------------------------------
             IMAGE
@@ -1533,6 +1569,27 @@ function renderShop(container){
                     ${savingsHTML}
 
 
+                    ${stockStatusHTML}
+
+
+                    <button
+                        type="button"
+                        class="shop-details-toggle"
+                        data-shop-details-toggle="true"
+                        aria-expanded="false"
+                    >
+                        <span>View details</span>
+                        <span class="shop-details-chevron">↓</span>
+                    </button>
+
+
+                    <div
+                        class="shop-card-details"
+                        data-shop-details
+                        hidden
+                    >
+
+
                     ${availabilityHTML}
 
 
@@ -1587,6 +1644,8 @@ function renderShop(container){
                             </div>
                         `
                         : ""}
+
+                    </div>
 
                 </div>
 
@@ -1695,6 +1754,58 @@ function renderShop(container){
             shopSection.addEventListener(
                 "click",
                 function(event){
+
+                    const detailsToggle =
+                        event.target.closest(
+                            "[data-shop-details-toggle='true']"
+                        );
+
+                    if(detailsToggle){
+                        const card =
+                            detailsToggle.closest(".shop-card");
+
+                        const details =
+                            card?.querySelector("[data-shop-details]");
+
+                        if(details){
+                            const opening = details.hidden;
+
+                            details.hidden = !opening;
+                            detailsToggle.setAttribute(
+                                "aria-expanded",
+                                String(opening)
+                            );
+
+                            const label =
+                                detailsToggle.querySelector("span");
+
+                            const chevron =
+                                detailsToggle.querySelector(
+                                    ".shop-details-chevron"
+                                );
+
+                            if(label){
+                                label.textContent =
+                                    opening
+                                        ? "Hide details"
+                                        : "View details";
+                            }
+
+                            if(chevron){
+                                chevron.textContent =
+                                    opening ? "↑" : "↓";
+                            }
+
+                            if(card){
+                                card.classList.toggle(
+                                    "shop-card-expanded",
+                                    opening
+                                );
+                            }
+                        }
+
+                        return;
+                    }
 
                     const resetButton =
                         event.target.closest(
