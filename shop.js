@@ -196,8 +196,8 @@
         if(shopViewState.sort === "price"){
             return sorted.sort(
                 (a, b) =>
-                    getBestStore(a)?.price -
-                    getBestStore(b)?.price
+                    (getBestStore(a)?.price ?? Number.POSITIVE_INFINITY) -
+                    (getBestStore(b)?.price ?? Number.POSITIVE_INFINITY)
             );
         }
 
@@ -957,7 +957,7 @@ function renderShop(container){
             <label class="shop-select-box">
                 <span>🌍</span>
                 <select id="shopCountrySelect">
-                    <option value="all">${getCountryFlag("US")} All destinations</option>
+                    <option value="all">🌍 All destinations</option>
                     ${countryOptionsHTML}
                 </select>
             </label>
@@ -999,7 +999,7 @@ function renderShop(container){
         <div class="shop-partners">
             <div class="shop-partners-heading">
                 <div>
-                    <h3>Partner stores we're curating</h3>
+                    <h3>Affiliate sources we're curating</h3>
                     <p>
                         A category becomes live only after we have a real tracked product link and verified destination information.
                     </p>
