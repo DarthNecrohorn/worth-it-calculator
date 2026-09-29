@@ -74,7 +74,14 @@ const PARTNER_MATCHES = [
     {
         partnerId: "simple-project",
         match: ["shenzhen cangyu", "simple project"],
-        category: "bathroom-home"
+        category: "bathroom-home",
+        shippingFallbackCountries: [
+            "US"
+        ],
+        shippingSourceLabel:
+            "Merchant shipping policy",
+        shippingNote:
+            "Simple Project states that delivery addresses are limited to the United States. Some remote areas, including Alaska, Hawaii and Puerto Rico, may be excluded; final postcode eligibility is checked by the merchant."
     },
     {
         partnerId: "giftlab",
@@ -942,7 +949,7 @@ function productFromEnhancedRecord(
         }
     }
 
-    const shippingCountries =
+    let shippingCountries =
         [
             ...new Set(
                 shippingSource
@@ -955,12 +962,60 @@ function productFromEnhancedRecord(
             )
         ];
 
+    let shippingSourceLabel =
+        "Awin product feed";
+
+    let shippingNote =
+        "Shipping destinations are taken from the current Awin product feed. Final availability, shipping cost and checkout eligibility can vary by address and merchant.";
+
     if (!shippingCountries.length) {
-        if (debug) {
-            debug.missingShipping++;
+        const fallbackCountries =
+            Array.isArray(
+                partner.shippingFallbackCountries
+            )
+                ? partner.shippingFallbackCountries
+                : [];
+
+        if (fallbackCountries.length) {
+            shippingCountries =
+                [
+                    ...new Set(
+                        fallbackCountries
+                            .map(
+                                code =>
+                                    String(code)
+                                        .trim()
+                                        .toUpperCase()
+                            )
+                            .filter(
+                                code =>
+                                    /^[A-Z]{2}$/.test(
+                                        code
+                                    )
+                            )
+                    )
+                ];
+
+            shippingSourceLabel =
+                partner.shippingSourceLabel ||
+                "Merchant shipping policy";
+
+            shippingNote =
+                partner.shippingNote ||
+                "Shipping destinations are based on the merchant's current shipping policy. Final item availability, shipping cost and checkout eligibility can vary.";
+
+            if (debug) {
+                debug.fallbackShippingRecords++;
+            }
         }
 
-        return null;
+        if (!shippingCountries.length) {
+            if (debug) {
+                debug.missingShipping++;
+            }
+
+            return null;
+        }
     }
 
     if (debug) {
@@ -1045,7 +1100,11 @@ function productFromEnhancedRecord(
                 )
                 : null,
 
-        shippingCountries
+        shippingCountries,
+
+        shippingSourceLabel,
+
+        shippingNote
     };
 
     product.popularityScore =
