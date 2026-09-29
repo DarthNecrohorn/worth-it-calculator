@@ -777,6 +777,13 @@ function closeAuthModal() {
 }
 
 
+/*
+ * Backwards-compatible public aliases used by older UI integrations.
+ * The canonical functions remain openAuthModal/closeAuthModal.
+ */
+window.openLoginModal = openAuthModal;
+window.closeLoginModal = closeAuthModal;
+
 function switchAuthMode(mode) {
 
     resetAuthTurnstile();
@@ -2382,6 +2389,27 @@ function toggleSettings() {
 }
 
 window.toggleSettings = toggleSettings;
+
+function closeSettings(){
+    const settingsPanel =
+        document.getElementById("settingsPanel");
+
+    if(!settingsPanel) return;
+
+    settingsPanel.style.display = "none";
+
+    document.documentElement.classList.remove(
+        "settings-open"
+    );
+
+    window.dispatchEvent(
+        new CustomEvent("worthitsettingspanelchange", {
+            detail: { open: false }
+        })
+    );
+}
+
+window.closeSettings = closeSettings;
 
 function money(value) {
     return new Intl.NumberFormat("en-US", {
