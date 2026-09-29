@@ -3269,6 +3269,7 @@ html[data-theme="light"] .news-card-placeholder{
 .shop-grid{
     width:100%;
     display:grid;
+    align-items:start;
     grid-template-columns:repeat(4,minmax(0,1fr));
     gap:18px;
 }
