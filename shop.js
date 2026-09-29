@@ -1015,15 +1015,29 @@
         const automaticItems =
             getAutomaticShopItems();
 
-        return automaticItems.length
-            ? [
-                ...shopItems,
-                ...automaticItems
-            ]
-            : [
-                ...shopItems,
-                ...affiliateItems
-            ];
+        const automaticPartnerIds =
+            new Set(
+                automaticItems
+                    .map(
+                        deal => deal.partnerId
+                    )
+                    .filter(Boolean)
+            );
+
+        const fallbackAffiliateItems =
+            affiliateItems.filter(
+                deal =>
+                    !deal.partnerId ||
+                    !automaticPartnerIds.has(
+                        deal.partnerId
+                    )
+            );
+
+        return [
+            ...shopItems,
+            ...automaticItems,
+            ...fallbackAffiliateItems
+        ];
     }
 
 
