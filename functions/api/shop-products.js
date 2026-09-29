@@ -1122,7 +1122,7 @@ export async function onRequestGet(
 
     const cacheKey =
         new Request(
-            "https://worth-it-shop-feed-cache.local/api/shop-products?v=5"
+            "https://worth-it-shop-feed-cache.local/api/shop-products?v=6"
         );
 
     const cached =
@@ -1233,7 +1233,7 @@ export async function onRequestGet(
         ) {
             const feedCacheKey =
                 new Request(
-                    `https://worth-it-shop-feed-cache.local/api/feed/${feed.advertiserId}/${feed.locale}/v5`
+                    `https://worth-it-shop-feed-cache.local/api/feed/${feed.advertiserId}/${feed.locale}/v6`
                 );
 
             let feedProducts =
