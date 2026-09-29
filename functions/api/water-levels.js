@@ -1662,30 +1662,14 @@ async function searchNearbyDatasetProducts({
     );
 
     params.set(
-        "$select",
-        [
-            "Id",
-            "Name",
-            "ModificationDate",
-            "PublicationDate",
-            "ContentDate",
-            "GeoFootprint",
-            "Online",
-            "ContentType"
-        ].join(",")
-    );
-
-    params.set(
         "$expand",
         "Attributes"
     );
 
-    if(query || country){
-        params.set(
-            "$orderby",
-            "ModificationDate desc,Id asc"
-        );
-    }
+    params.set(
+        "$orderby",
+        "ModificationDate desc,Id asc"
+    );
 
     params.set(
         "$top",
@@ -1903,9 +1887,9 @@ async function searchDatasetProducts({
     }
 
     /*
-     * Country is part of the public station-search contract. Use the
-     * CLMS StringAttribute when available so a country request does not
-     * accidentally return unrelated global stations.
+     * Country is part of the station-search contract. Filter it at the
+     * catalogue level when requested, using the two CLMS country attribute
+     * names already supported by station normalization.
      */
     if(country){
         filter +=
@@ -1924,15 +1908,40 @@ async function searchDatasetProducts({
         filter
     );
 
+    /*
+     * Keep catalogue rows compact. Attributes are still expanded because
+     * they carry the CLMS river/lake/cell metadata used by normalizeStation.
+     */
+    params.set(
+        "$select",
+        [
+            "Id",
+            "Name",
+            "ModificationDate",
+            "PublicationDate",
+            "ContentDate",
+            "GeoFootprint",
+            "Online",
+            "ContentType"
+        ].join(",")
+    );
+
     params.set(
         "$expand",
         "Attributes"
     );
 
-    params.set(
-        "$orderby",
-        "ModificationDate desc,Id asc"
-    );
+    /*
+     * A global river listing is the expensive case on the CLMS catalogue.
+     * Do not force a full ModificationDate sort when no filter is present;
+     * handleStations() still sorts the returned normalized rows locally.
+     */
+    if(query || country){
+        params.set(
+            "$orderby",
+            "ModificationDate desc,Id asc"
+        );
+    }
 
     params.set(
         "$top",
