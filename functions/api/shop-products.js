@@ -1515,7 +1515,7 @@ export async function onRequestGet(
 
     const cacheKey =
         new Request(
-            "https://worth-it-shop-feed-cache.local/api/shop-products?v=9"
+            "https://worth-it-shop-feed-cache.local/api/shop-products?v=10"
         );
 
     const cached =
@@ -1633,7 +1633,7 @@ export async function onRequestGet(
 
             const feedCacheKey =
                 new Request(
-                    `https://worth-it-shop-feed-cache.local/api/feed/${feed.advertiserId}/${feed.locale}/v9`
+                    `https://worth-it-shop-feed-cache.local/api/feed/${feed.advertiserId}/${feed.locale}/v10`
                 );
 
             let feedProducts =
@@ -1655,9 +1655,14 @@ export async function onRequestGet(
                         payload &&
                         Array.isArray(
                             payload.products
-                        ) &&
-                        payload.products.length
+                        )
                     ) {
+                        /*
+                         * An empty array is still a completed feed result.
+                         * Reusing it prevents partners without publishable
+                         * products from consuming another Awin request on
+                         * every page load.
+                         */
                         feedProducts =
                             payload.products;
                     }
@@ -1756,6 +1761,47 @@ export async function onRequestGet(
                         error
                     );
 
+                    const failureStatus =
+                        error?.status === 404
+                            ? "feed-not-found"
+                            : "unavailable";
+
+                    /*
+                     * Negative caching is intentionally shorter than the
+                     * normal product cache so a newly enabled feed can
+                     * recover without waiting for the full 6-hour TTL.
+                     */
+                    const negativeCacheResponse =
+                        jsonResponse(
+                            {
+                                advertiserName:
+                                    feed.advertiserName,
+                                advertiserId:
+                                    feed.advertiserId,
+                                locale:
+                                    feed.locale,
+                                currencyCode:
+                                    feed.currencyCode || "",
+                                primaryRegion:
+                                    feed.primaryRegion || null,
+                                status:
+                                    failureStatus,
+                                products:
+                                    [],
+                                generatedAt:
+                                    new Date().toISOString()
+                            },
+                            200,
+                            60 * 60
+                        );
+
+                    context.waitUntil(
+                        cache.put(
+                            feedCacheKey,
+                            negativeCacheResponse
+                        )
+                    );
+
                     feedResults.push({
                         advertiserName:
                             feed.advertiserName,
@@ -1768,9 +1814,7 @@ export async function onRequestGet(
                         primaryRegion:
                             feed.primaryRegion || null,
                         status:
-                            error?.status === 404
-                                ? "feed-not-found"
-                                : "unavailable",
+                            failureStatus,
                         products:
                             0,
                         ...(debugMode
@@ -1785,6 +1829,42 @@ export async function onRequestGet(
                 }
             }
             else {
+                let cachedFeedStatus =
+                    "cache-hit";
+
+                try {
+                    const cachedPayload =
+                        feedCached
+                            ? await (async () => {
+                                try {
+                                    return await feedCached.clone().json();
+                                }
+                                catch {
+                                    return null;
+                                }
+                            })()
+                            : null;
+
+                    if (
+                        cachedPayload?.status ===
+                        "feed-not-found"
+                    ) {
+                        cachedFeedStatus =
+                            "feed-not-found-cache";
+                    }
+                    else if (
+                        cachedPayload?.status ===
+                        "unavailable"
+                    ) {
+                        cachedFeedStatus =
+                            "unavailable-cache";
+                    }
+                }
+                catch {
+                    cachedFeedStatus =
+                        "cache-hit";
+                }
+
                 feedResults.push({
                     advertiserName:
                         feed.advertiserName,
@@ -1797,7 +1877,7 @@ export async function onRequestGet(
                     primaryRegion:
                         feed.primaryRegion || null,
                     status:
-                        "cache-hit",
+                        cachedFeedStatus,
                     products:
                         feedProducts.length
                 });
