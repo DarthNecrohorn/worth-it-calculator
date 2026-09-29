@@ -643,6 +643,10 @@ function productFromEnhancedRecord(
             )
         ];
 
+    if (!shippingCountries.length) {
+        return null;
+    }
+
     const availability =
         normalizeText(
             pricing.availability ||
