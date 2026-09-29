@@ -1515,7 +1515,7 @@ export async function onRequestGet(
 
     const cacheKey =
         new Request(
-            "https://worth-it-shop-feed-cache.local/api/shop-products?v=10"
+            "https://worth-it-shop-feed-cache.local/api/shop-products?v=11"
         );
 
     const cached =
@@ -1633,11 +1633,14 @@ export async function onRequestGet(
 
             const feedCacheKey =
                 new Request(
-                    `https://worth-it-shop-feed-cache.local/api/feed/${feed.advertiserId}/${feed.locale}/v10`
+                    `https://worth-it-shop-feed-cache.local/api/feed/${feed.advertiserId}/${feed.locale}/v11`
                 );
 
             let feedProducts =
                 null;
+
+            let cachedFeedStatus =
+                "cache-hit";
 
             const feedCached =
                 debugMode
@@ -1665,6 +1668,21 @@ export async function onRequestGet(
                          */
                         feedProducts =
                             payload.products;
+
+                        if (
+                            payload.status ===
+                            "feed-not-found"
+                        ) {
+                            cachedFeedStatus =
+                                "feed-not-found-cache";
+                        }
+                        else if (
+                            payload.status ===
+                            "unavailable"
+                        ) {
+                            cachedFeedStatus =
+                                "unavailable-cache";
+                        }
                     }
                 }
                 catch {
@@ -1829,42 +1847,6 @@ export async function onRequestGet(
                 }
             }
             else {
-                let cachedFeedStatus =
-                    "cache-hit";
-
-                try {
-                    const cachedPayload =
-                        feedCached
-                            ? await (async () => {
-                                try {
-                                    return await feedCached.clone().json();
-                                }
-                                catch {
-                                    return null;
-                                }
-                            })()
-                            : null;
-
-                    if (
-                        cachedPayload?.status ===
-                        "feed-not-found"
-                    ) {
-                        cachedFeedStatus =
-                            "feed-not-found-cache";
-                    }
-                    else if (
-                        cachedPayload?.status ===
-                        "unavailable"
-                    ) {
-                        cachedFeedStatus =
-                            "unavailable-cache";
-                    }
-                }
-                catch {
-                    cachedFeedStatus =
-                        "cache-hit";
-                }
-
                 feedResults.push({
                     advertiserName:
                         feed.advertiserName,
