@@ -23,6 +23,9 @@ function closeAIChat(){
 $("aiChatOverlay")?.classList.remove("open");
 }
 
+window.openAIPanel = openAIChat;
+window.closeAIPanel = closeAIChat;
+
 function updateAIChatView(){
 const loginView = $("aiChatLoginView");
 const appView = $("aiChatAppView");
