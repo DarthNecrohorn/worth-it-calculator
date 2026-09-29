@@ -172,8 +172,6 @@ const affiliateProducts = {
             image:
                 "https://sv9-cdn.stylevana.com/media/catalog/product/cache/7e00eb21d3013c69d32459d0d98e2fbf/s/k/skin1004-madagascar-centella-hyalu-cica-water-fit-sun-serum-spf50-pa-twin-pack-50ml-2ea-859.jpg",
             affiliateUrl: "https://tidd.ly/46mlVcw",
-            stockCheckUrl:
-                "https://www.stylevana.com/en_US/skin1004-madagascar-centella-hyalu-cica-water-fit-sun-serum-spf50-pa-twin-pack-50ml-2ea35662.html",
             availability: {
                 type: "shipping",
                 countries: STYLEVANA_SHIPPING_COUNTRIES,
@@ -184,11 +182,6 @@ const affiliateProducts = {
             delivery: {
                 note:
                     "Delivery time varies by destination, stock status and shipping method."
-            },
-            stockStatus: {
-                state: "checking",
-                storefront: "US",
-                checkedDate: "2026-09-29"
             },
             updatedAt: "September 29, 2026"
         },
@@ -207,8 +200,6 @@ const affiliateProducts = {
             image:
                 "https://sv9-cdn.stylevana.com/media/catalog/product/cache/7e00eb21d3013c69d32459d0d98e2fbf/b/e/beauty-of-joseon-relief-sun-rice-probiotics-niacinamide-set-spf50-pa-50ml-2-218.png",
             affiliateUrl: "https://tidd.ly/4rcWH9W",
-            stockCheckUrl:
-                "https://www.stylevana.com/en_US/beauty-of-joseon-relief-sun-rice-probiotics-set-spf50-pa-50ml-227137.html",
             availability: {
                 type: "shipping",
                 countries: STYLEVANA_SHIPPING_COUNTRIES,
@@ -219,11 +210,6 @@ const affiliateProducts = {
             delivery: {
                 note:
                     "Delivery time varies by destination, stock status and shipping method."
-            },
-            stockStatus: {
-                state: "checking",
-                storefront: "US",
-                checkedDate: "2026-09-29"
             },
             updatedAt: "September 29, 2026"
         }
