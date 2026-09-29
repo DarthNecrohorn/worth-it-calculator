@@ -8,11 +8,10 @@ import { recordAdminApiUsage } from "../lib/admin-usage.js";
      turn their product data into Shop cards.
 
    Required Cloudflare secret:
-     AWIN_DATAFEED_API_KEY
+     AWIN_API_TOKEN
 
-   The Awin Data Feed List API uses a dedicated data-feed API key.
-   This is intentionally kept server-side and is never exposed to
-   the browser.
+   The standard Awin Publisher API token is kept server-side and is
+   never exposed to the browser.
 
    The public endpoint:
      /api/shop-products
