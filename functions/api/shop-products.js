@@ -16,6 +16,8 @@ import { recordAdminApiUsage } from "../lib/admin-usage.js";
    The public endpoint:
      /api/shop-products
 
+ * Automatic feed deployment refresh after Cloudflare secret configuration.
+
    Safety:
      - Only a fixed allowlist of Worth It partner programmes is used.
      - Only joined/active relationships are accepted.
