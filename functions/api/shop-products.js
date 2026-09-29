@@ -610,16 +610,58 @@ function productFromEnhancedRecord(
             title
         );
 
-    const shippingSource =
-        Array.isArray(details.shipping)
-            ? details.shipping
-            : Array.isArray(entry?.shipping)
-                ? entry.shipping
-                : details.shipping
-                    ? [details.shipping]
-                    : entry?.shipping
-                        ? [entry.shipping]
-                        : [];
+    /*
+     * Awin's Enhanced Feed wraps Google-format delivery data under
+     * product_details.delivery.shipping. Some records may expose
+     * shipping directly, so accept both documented shapes.
+     */
+    const delivery =
+        details.delivery &&
+        typeof details.delivery === "object"
+            ? details.delivery
+            : entry?.delivery &&
+                typeof entry.delivery === "object"
+                ? entry.delivery
+                : {};
+
+    const shippingCandidates = [
+        details.shipping,
+        entry?.shipping,
+        delivery.shipping
+    ].filter(
+        value =>
+            value !== undefined &&
+            value !== null
+    );
+
+    const shippingSource = [];
+
+    for (const candidate of shippingCandidates) {
+        let value = candidate;
+
+        if (typeof value === "string") {
+            try {
+                value = JSON.parse(value);
+            }
+            catch {
+                value = null;
+            }
+        }
+
+        if (Array.isArray(value)) {
+            shippingSource.push(
+                ...value
+            );
+        }
+        else if (
+            value &&
+            typeof value === "object"
+        ) {
+            shippingSource.push(
+                value
+            );
+        }
+    }
 
     const shippingCountries =
         [
@@ -1122,7 +1164,7 @@ export async function onRequestGet(
 
     const cacheKey =
         new Request(
-            "https://worth-it-shop-feed-cache.local/api/shop-products?v=6"
+            "https://worth-it-shop-feed-cache.local/api/shop-products?v=7"
         );
 
     const cached =
@@ -1233,7 +1275,7 @@ export async function onRequestGet(
         ) {
             const feedCacheKey =
                 new Request(
-                    `https://worth-it-shop-feed-cache.local/api/feed/${feed.advertiserId}/${feed.locale}/v6`
+                    `https://worth-it-shop-feed-cache.local/api/feed/${feed.advertiserId}/${feed.locale}/v7`
                 );
 
             let feedProducts =
