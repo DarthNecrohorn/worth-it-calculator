@@ -12879,3 +12879,56 @@ body.ship-tracking-modal-open{
         padding:8px !important;
     }
 }
+
+
+/* =========================================================
+   WATER LEVELS — FINAL DETAIL/HISTORY MODAL SAFETY OVERRIDE
+   Keep the modal centered and shorter than the viewport so
+   the header and close button are always reachable.
+   This affects Water Levels only.
+========================================================= */
+
+.water-levels-detail-overlay{
+    align-items:center !important;
+    justify-content:center !important;
+}
+
+.water-levels-detail-card{
+    max-height:78dvh !important;
+    overflow:auto !important;
+}
+
+html[data-ui-scale="large"] .water-levels-detail-card{
+    width:min(820px,calc((100vw - 48px) / var(--ui-scale,1))) !important;
+    max-height:76dvh !important;
+}
+
+html[data-ui-scale="xl"] .water-levels-detail-card{
+    width:min(780px,calc((100vw - 48px) / var(--ui-scale,1))) !important;
+    max-height:74dvh !important;
+}
+
+@media(max-width:650px){
+    .water-levels-detail-overlay{
+        align-items:center !important;
+        padding:10px !important;
+    }
+
+    .water-levels-detail-card{
+        width:calc((100vw - 20px) / var(--ui-scale,1)) !important;
+        max-width:none !important;
+        max-height:78dvh !important;
+        overflow:auto !important;
+        padding:9px !important;
+    }
+
+    html[data-ui-scale="large"] .water-levels-detail-card{
+        width:calc((100vw - 20px) / var(--ui-scale,1)) !important;
+        max-height:74dvh !important;
+    }
+
+    html[data-ui-scale="xl"] .water-levels-detail-card{
+        width:calc((100vw - 20px) / var(--ui-scale,1)) !important;
+        max-height:70dvh !important;
+    }
+}
