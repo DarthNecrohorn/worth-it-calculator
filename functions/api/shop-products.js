@@ -1166,6 +1166,10 @@ export async function onRequestGet(
                             lastImported:
                                 "",
 
+                            currencyCode:
+                                program.currencyCode ||
+                                "",
+
                             locale:
                                 localeForProgram(
                                     program
@@ -1190,7 +1194,7 @@ export async function onRequestGet(
         ) {
             const feedCacheKey =
                 new Request(
-                    `https://worth-it-shop-feed-cache.local/api/feed/${feed.advertiserId}/${feed.locale}`
+                    `https://worth-it-shop-feed-cache.local/api/feed/${feed.advertiserId}/${feed.locale}/v3`
                 );
 
             let feedProducts =
