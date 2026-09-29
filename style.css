@@ -12932,3 +12932,34 @@ html[data-ui-scale="xl"] .water-levels-detail-card{
         max-height:70dvh !important;
     }
 }
+
+
+/* FINAL WATER LEVELS A+ / A++ COMPACT OVERRIDE
+ * Keep the detail/history modal visibly smaller than the surrounding
+ * accessibility-scaled page while preserving centering and internal scrolling.
+ */
+html[data-ui-scale="large"] .water-levels-detail-card{
+    transform:scale(.90) !important;
+    transform-origin:center center !important;
+    max-height:70dvh !important;
+}
+
+html[data-ui-scale="xl"] .water-levels-detail-card{
+    transform:scale(.82) !important;
+    transform-origin:center center !important;
+    max-height:65dvh !important;
+}
+
+@media(max-width:650px){
+    html[data-ui-scale="large"] .water-levels-detail-card{
+        transform:scale(.88) !important;
+        transform-origin:center center !important;
+        max-height:68dvh !important;
+    }
+
+    html[data-ui-scale="xl"] .water-levels-detail-card{
+        transform:scale(.80) !important;
+        transform-origin:center center !important;
+        max-height:62dvh !important;
+    }
+}
