@@ -4655,6 +4655,213 @@ html[data-theme="light"] .shop-select-box select option{
     }
 }
 
+/* =========================================================
+   SHOP COMPACT CARDS
+========================================================= */
+
+.shop-card-image{
+    height:135px;
+}
+
+.shop-card-content{
+    padding:14px;
+}
+
+.shop-title{
+    font-size:15px;
+    -webkit-line-clamp:2;
+    line-clamp:2;
+    margin-bottom:7px;
+}
+
+.shop-prices{
+    margin-top:2px;
+    margin-bottom:8px;
+}
+
+.shop-old-price{
+    font-size:12px;
+}
+
+.shop-new-price{
+    font-size:18px;
+}
+
+.shop-savings{
+    margin-top:-2px;
+    margin-bottom:9px;
+}
+
+.shop-stock-status{
+    display:flex;
+    align-items:center;
+    gap:9px;
+    min-width:0;
+    padding:9px 10px;
+    border:1px solid var(--border);
+    border-radius:12px;
+    background:rgba(255,255,255,.025);
+}
+
+.shop-stock-icon{
+    flex:0 0 auto;
+    width:24px;
+    height:24px;
+    display:grid;
+    place-items:center;
+    border-radius:8px;
+    font-size:12px;
+    font-weight:900;
+}
+
+.shop-stock-status > div{
+    min-width:0;
+}
+
+.shop-stock-status strong,
+.shop-stock-status small{
+    display:block;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+}
+
+.shop-stock-status strong{
+    color:var(--text);
+    font-size:11px;
+    line-height:1.2;
+}
+
+.shop-stock-status small{
+    margin-top:2px;
+    color:var(--muted2);
+    font-size:8px;
+    line-height:1.25;
+}
+
+.shop-stock-status.in-stock{
+    border-color:rgba(52,211,153,.2);
+    background:rgba(52,211,153,.045);
+}
+
+.shop-stock-status.in-stock .shop-stock-icon{
+    background:rgba(52,211,153,.13);
+    color:var(--success);
+}
+
+.shop-stock-status.out-of-stock{
+    border-color:rgba(251,113,133,.2);
+    background:rgba(251,113,133,.045);
+}
+
+.shop-stock-status.out-of-stock .shop-stock-icon{
+    background:rgba(251,113,133,.13);
+    color:var(--danger);
+}
+
+.shop-stock-status.low-stock{
+    border-color:rgba(251,191,36,.22);
+    background:rgba(251,191,36,.045);
+}
+
+.shop-stock-status.low-stock .shop-stock-icon{
+    background:rgba(251,191,36,.13);
+    color:var(--warning);
+}
+
+.shop-stock-status.unknown{
+    border-color:var(--border);
+}
+
+.shop-stock-status.unknown .shop-stock-icon{
+    background:rgba(255,255,255,.07);
+    color:var(--muted);
+}
+
+.shop-details-toggle{
+    width:100%;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:10px;
+    margin-top:9px;
+    padding:9px 10px;
+    border:1px solid var(--border);
+    border-radius:11px;
+    background:rgba(255,255,255,.035);
+    color:var(--text);
+    font-size:10px;
+    font-weight:900;
+    cursor:pointer;
+    transition:
+        background .2s ease,
+        border-color .2s ease,
+        transform .2s ease;
+}
+
+.shop-details-toggle:hover{
+    border-color:rgba(124,92,255,.35);
+    background:rgba(124,92,255,.07);
+}
+
+.shop-details-toggle:focus-visible{
+    outline:2px solid rgba(124,92,255,.6);
+    outline-offset:2px;
+}
+
+.shop-details-chevron{
+    color:var(--primary2);
+    font-size:13px;
+}
+
+.shop-card-details[hidden]{
+    display:none;
+}
+
+.shop-card-details{
+    margin-top:3px;
+}
+
+.shop-card-expanded{
+    border-color:rgba(124,92,255,.34);
+    box-shadow:0 18px 42px rgba(0,0,0,.24);
+}
+
+.shop-card-details .shop-value-analysis{
+    margin-top:11px;
+}
+
+.shop-card-details .shop-availability{
+    margin-top:11px;
+}
+
+.shop-card-details .shop-verdict{
+    margin-top:11px;
+}
+
+.shop-card-details .shop-where-to-buy{
+    margin-top:11px;
+}
+
+.shop-card-details .shop-updated{
+    margin-top:12px;
+}
+
+html[data-theme="light"] .shop-stock-status,
+html[data-theme="light"] .shop-details-toggle{
+    background:rgba(15,23,42,.018);
+}
+
+@media(max-width:700px){
+    .shop-card-image{
+        height:175px;
+    }
+
+    .shop-card-content{
+        padding:15px;
+    }
+}
+
 /* MARKETS */
 
 .markets-section{
