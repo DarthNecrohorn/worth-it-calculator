@@ -708,8 +708,10 @@
                                 countries:
                                     shippingCountries,
                                 sourceLabel:
+                                    product.shippingSourceLabel ||
                                     "Awin product feed",
                                 note:
+                                    product.shippingNote ||
                                     "Shipping destinations are taken from the current Awin product feed. Final availability, shipping cost and checkout eligibility can vary by address and merchant."
                             }
                             : null
