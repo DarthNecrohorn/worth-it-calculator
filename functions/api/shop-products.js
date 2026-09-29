@@ -24,8 +24,13 @@ import { recordAdminApiUsage } from "../lib/admin-usage.js";
      - Product count is capped to keep the Shop fast.
 ========================================================= */
 
-const AWIN_FEED_LIST_URL =
-    "https://productdata.awin.com/datafeed/list/apikey/";
+const AWIN_PUBLISHER_ID = "3077319";
+
+const AWIN_API_BASE_URL =
+    "https://api.awin.com";
+
+const AWIN_API_TOKEN_ENV =
+    "AWIN_API_TOKEN";
 
 const CACHE_TTL_SECONDS =
     6 * 60 * 60;
@@ -36,19 +41,15 @@ const MAX_TOTAL_PRODUCTS =
 const MAX_PRODUCTS_PER_PARTNER =
     8;
 
+const MAX_FEED_REQUESTS_PER_RUN =
+    5;
+
 const MAX_FEED_BYTES =
     40 * 1024 * 1024;
 
 const FEED_FETCH_TIMEOUT_MS =
     25000;
 
-/*
- * Only programmes already selected for Worth It Shop are allowed.
- *
- * The matching terms intentionally use stable advertiser names rather
- * than advertiser IDs so the system can discover the current Awin feed
- * automatically from the publisher's feed list.
- */
 const PARTNER_MATCHES = [
     {
         partnerId: "stylevana",
@@ -63,7 +64,8 @@ const PARTNER_MATCHES = [
     {
         partnerId: "dowinx-eu",
         match: ["dowinx"],
-        category: "gaming-office"
+        category: "gaming-office",
+        prefer: ["dowinx eu"]
     },
     {
         partnerId: "king-koil",
@@ -88,7 +90,8 @@ const PARTNER_MATCHES = [
     {
         partnerId: "everblog-us",
         match: ["everblog"],
-        category: "family-tech"
+        category: "family-tech",
+        prefer: ["everblog us"]
     },
     {
         partnerId: "getout",
@@ -96,6 +99,31 @@ const PARTNER_MATCHES = [
         category: "family-experiences"
     }
 ];
+
+const REGION_TO_LOCALE = {
+    AU: "en_AU",
+    CA: "en_CA",
+    US: "en_US",
+    GB: "en_GB",
+    DE: "de_DE",
+    FR: "fr_FR",
+    IT: "it_IT",
+    ES: "es_ES",
+    PT: "pt_PT",
+    NL: "nl_NL",
+    BE: "nl_BE",
+    AT: "de_AT",
+    CH: "de_CH",
+    DK: "da_DK",
+    SE: "sv_SE",
+    NO: "no_NO",
+    FI: "fi_FI",
+    PL: "pl_PL",
+    CZ: "cs_CZ",
+    SK: "sk_SK",
+    HU: "hu_HU",
+    RO: "ro_RO"
+};
 
 function jsonResponse(
     data,
@@ -371,324 +399,615 @@ function inferCategory(
     return partner?.category || "other";
 }
 
-function normalizeStock(row) {
-    const inStock =
-        parseBoolean(
-            firstValue(
-                row,
-                [
-                    "in_stock",
-                    "stock_status"
-                ]
-            )
-        );
-
-    const stockQuantity =
-        parseNumber(
-            firstValue(
-                row,
-                [
-                    "stock_quantity",
-                    "number_available"
-                ]
-            )
-        );
-
-    if (inStock === false) {
-        return "out-of-stock";
-    }
-
+function parseEnhancedPrice(value) {
     if (
-        inStock === true ||
-        (
-            Number.isFinite(stockQuantity) &&
-            stockQuantity > 0
-        )
+        value === undefined ||
+        value === null ||
+        String(value).trim() === ""
     ) {
-        return "in-stock";
+        return {
+            amount: null,
+            currency: ""
+        };
     }
 
-    return "unknown";
+    const text =
+        normalizeText(value);
+
+    const match =
+        text.match(
+            /([0-9][0-9.,]*)\\s*([A-Z]{3})$/i
+        );
+
+    if (!match) {
+        const number =
+            Number(
+                text.replace(/[^0-9.+-]/g, "")
+            );
+
+        return {
+            amount:
+                Number.isFinite(number)
+                    ? number
+                    : null,
+            currency: ""
+        };
+    }
+
+    const numericText =
+        match[1]
+            .replace(/,(?=\\d{3}(?:\\D|$))/g, "")
+            .replace(",", ".");
+
+    const amount =
+        Number(numericText);
+
+    return {
+        amount:
+            Number.isFinite(amount)
+                ? amount
+                : null,
+        currency:
+            String(match[2]).toUpperCase()
+    };
 }
 
-function calculatePopularityScore(row) {
-    const reviews =
-        Math.max(
-            0,
-            parseNumber(
-                firstValue(
-                    row,
-                    [
-                        "reviews",
-                        "number_stars"
-                    ]
-                )
-            ) || 0
-        );
+function calculateEnhancedPopularity(product) {
+    const price =
+        Number.isFinite(product.price)
+            ? product.price
+            : 0;
 
-    const averageRating =
-        Math.max(
-            0,
-            Math.min(
-                5,
-                parseNumber(
-                    firstValue(
-                        row,
-                        [
-                            "average_rating",
-                            "rating"
-                        ]
-                    )
-                ) || 0
-            )
-        );
+    const oldPrice =
+        Number.isFinite(product.oldPrice)
+            ? product.oldPrice
+            : price;
 
     const discount =
-        Math.max(
-            0,
-            Math.min(
-                100,
-                parseNumber(
-                    firstValue(
-                        row,
-                        [
-                            "savings_percent"
-                        ]
-                    )
-                ) || 0
-            )
-        );
+        oldPrice > price
+            ? ((oldPrice - price) / oldPrice) * 100
+            : 0;
 
-    /*
-     * Popularity is driven primarily by review volume, with rating and
-     * discount acting as secondary signals. This is intentionally not a
-     * commission score.
-     */
-    return (
-        Math.log10(
-            reviews + 1
-        ) * 100 +
-        averageRating * 12 +
-        discount * 0.35
+    return Math.max(
+        0,
+        discount * 2
     );
 }
 
-function productFromRow(
-    row,
+function productFromEnhancedRecord(
+    entry,
     feed
 ) {
-    const productName =
-        firstValue(
-            row,
-            [
-                "product_name",
-                "name",
-                "title"
-            ]
-        );
+    const details =
+        entry?.product_details ||
+        null;
 
-    const deepLink =
-        firstValue(
-            row,
-            [
-                "aw_deep_link",
-                "affiliate_deep_link"
-            ]
-        );
-
-    const merchantLink =
-        firstValue(
-            row,
-            [
-                "merchant_deep_link",
-                "product_url"
-            ]
-        );
-
-    const image =
-        firstValue(
-            row,
-            [
-                "merchant_image_url",
-                "large_image",
-                "aw_image_url",
-                "image_url"
-            ]
-        );
-
-    const price =
-        parseNumber(
-            firstValue(
-                row,
-                [
-                    "search_price",
-                    "store_price",
-                    "price"
-                ]
-            )
-        );
-
-    const oldPrice =
-        parseNumber(
-            firstValue(
-                row,
-                [
-                    "product_price_old",
-                    "rrp_price",
-                    "base_price"
-                ]
-            )
-        );
-
-    if (
-        !productName ||
-        !deepLink ||
-        !image ||
-        !Number.isFinite(price) ||
-        price <= 0
-    ) {
+    if (!details) {
         return null;
     }
 
-    if (!/^https?:\/\//i.test(deepLink)) {
+    const basic =
+        details.product_basic ||
+        {};
+
+    const pricing =
+        details.price_and_availability ||
+        {};
+
+    const categoryDetails =
+        details.product_category ||
+        {};
+
+    const delivery =
+        details.delivery ||
+        {};
+
+    const title =
+        normalizeText(
+            basic.title
+        );
+
+    const deepLink =
+        normalizeText(
+            basic.aw_deep_link
+        );
+
+    const image =
+        normalizeText(
+            basic.image_link
+        );
+
+    const basePrice =
+        parseEnhancedPrice(
+            pricing.price
+        );
+
+    const salePrice =
+        parseEnhancedPrice(
+            pricing.sale_price
+        );
+
+    const price =
+        Number.isFinite(salePrice.amount) &&
+        salePrice.amount > 0
+            ? salePrice.amount
+            : basePrice.amount;
+
+    const currency =
+        salePrice.currency ||
+        basePrice.currency ||
+        "USD";
+
+    const oldPrice =
+        Number.isFinite(basePrice.amount) &&
+        Number.isFinite(price) &&
+        basePrice.amount > price
+            ? basePrice.amount
+            : price;
+
+    if (
+        !title ||
+        !deepLink ||
+        !image ||
+        !Number.isFinite(price) ||
+        price <= 0 ||
+        !/^https?:\/\//i.test(deepLink)
+    ) {
         return null;
     }
 
     const partner =
-        findPartner(
-            feed.advertiserName
+        PARTNER_MATCHES.find(
+            item =>
+                item.partnerId ===
+                feed.partnerId
         );
 
     if (!partner) {
         return null;
     }
 
+    const merchantCategory =
+        normalizeText(
+            [
+                categoryDetails.google_product_category,
+                categoryDetails.product_type
+            ]
+                .filter(Boolean)
+                .join(" ")
+        );
+
     const category =
         inferCategory(
             partner.partnerId,
-            firstValue(row, ["merchant_category"]),
-            firstValue(row, ["category_name"]),
-            productName
+            merchantCategory,
+            merchantCategory,
+            title
         );
 
-    const savingsPercent =
-        parseNumber(
-            firstValue(
-                row,
-                [
-                    "savings_percent"
-                ]
-            )
-        );
-
-    const safeOldPrice =
-        Number.isFinite(oldPrice) &&
-        oldPrice > price
-            ? oldPrice
-            : price;
-
-    const awProductId =
-        firstValue(
-            row,
-            [
-                "aw_product_id",
-                "merchant_product_id",
-                "product_id"
+    const shippingCountries =
+        Array.isArray(
+            delivery.shipping
+        )
+            ? [
+                ...new Set(
+                    delivery.shipping
+                        .map(
+                            item =>
+                                String(
+                                    item?.country ||
+                                    ""
+                                )
+                                    .trim()
+                                    .toUpperCase()
+                        )
+                        .filter(
+                            code =>
+                                /^[A-Z]{2}$/.test(
+                                    code
+                                )
+                        )
+                )
             ]
+            : [];
+
+    const availability =
+        normalizeText(
+            pricing.availability
         );
 
-    const stockStatus =
-        normalizeStock(row);
+    const productId =
+        normalizeText(
+            basic.id
+        );
 
-    return {
+    const product = {
         id:
-            awProductId
-                ? `awin-${partner.partnerId}-${awProductId}`
+            productId
+                ? `awin-${partner.partnerId}-${productId}`
                 : `awin-${partner.partnerId}-${encodeURIComponent(deepLink)}`,
 
-        title:
-            productName,
+        title,
 
         price:
-            Number(price.toFixed(2)),
+            Number(
+                price.toFixed(2)
+            ),
 
         oldPrice:
-            Number(safeOldPrice.toFixed(2)),
+            Number(
+                (
+                    Number.isFinite(oldPrice)
+                        ? oldPrice
+                        : price
+                ).toFixed(2)
+            ),
 
-        currency:
-            firstValue(
-                row,
-                ["currency"]
-            ) || "$",
+        currency,
 
-        image:
-            image,
+        image,
 
         affiliateUrl:
             deepLink,
 
         merchantUrl:
-            merchantLink,
+            normalizeText(
+                basic.link
+            ),
 
         store:
-            firstValue(
-                row,
-                [
-                    "merchant_name"
-                ]
-            ) ||
             feed.advertiserName,
 
         partnerId:
             partner.partnerId,
 
-        category:
-            category,
+        category,
 
         stockStatus:
-            stockStatus,
+            availability ||
+            "unknown",
 
         popularityScore:
-            calculatePopularityScore(row),
-
-        reviews:
-            parseNumber(
-                firstValue(
-                    row,
-                    [
-                        "reviews"
-                    ]
-                )
-            ) || 0,
-
-        rating:
-            parseNumber(
-                firstValue(
-                    row,
-                    [
-                        "average_rating",
-                        "rating"
-                    ]
-                )
-            ),
+            0,
 
         productUpdatedAt:
-            firstValue(
-                row,
-                [
-                    "last_updated"
-                ]
-            ),
+            feed.lastImported ||
+            "Latest Awin feed",
 
         savingsPercent:
-            Number.isFinite(savingsPercent)
-                ? savingsPercent
-                : null
+            oldPrice > price
+                ? Number(
+                    (
+                        (
+                            (oldPrice - price) /
+                            oldPrice
+                        ) * 100
+                    ).toFixed(2)
+                )
+                : null,
+
+        shippingCountries
     };
+
+    product.popularityScore =
+        calculateEnhancedPopularity(
+            product
+        );
+
+    return product;
 }
 
-function dedupeProducts(products) {
-    const map = new Map();
+function parseEnhancedJSONL(
+    text,
+    feed
+) {
+    const products = [];
+
+    for (
+        const rawLine of String(text || "").split("\n")
+    ) {
+        const line =
+            rawLine.trim();
+
+        if (!line) {
+            continue;
+        }
+
+        let entry;
+
+        try {
+            entry =
+                JSON.parse(line);
+        }
+        catch {
+            continue;
+        }
+
+        if (
+            entry &&
+            typeof entry === "object" &&
+            entry.error
+        ) {
+            continue;
+        }
+
+        const product =
+            productFromEnhancedRecord(
+                entry,
+                feed
+            );
+
+        if (product) {
+            products.push(product);
+        }
+    }
+
+    return products
+        .sort(
+            (
+                first,
+                second
+            ) =>
+                second.popularityScore -
+                first.popularityScore
+        )
+        .slice(
+            0,
+            MAX_PRODUCTS_PER_PARTNER
+        );
+}
+
+async function fetchJSON(
+    url,
+    token,
+    signal
+) {
+    const response =
+        await fetch(
+            url,
+            {
+                method: "GET",
+                signal,
+                headers: {
+                    "Accept":
+                        "application/json",
+                    "Authorization":
+                        `Bearer ${token}`,
+                    "User-Agent":
+                        "Worth-It-Shop/1.0"
+                }
+            }
+        );
+
+    const body =
+        await response.text();
+
+    let data = null;
+
+    try {
+        data =
+            body
+                ? JSON.parse(body)
+                : null;
+    }
+    catch {
+        data = null;
+    }
+
+    if (!response.ok) {
+        const error =
+            new Error(
+                normalizeText(
+                    data?.message ||
+                    data?.error ||
+                    `Upstream HTTP ${response.status}`
+                )
+            );
+
+        error.status =
+            response.status;
+
+        throw error;
+    }
+
+    return data;
+}
+
+async function fetchEnhancedFeed(
+    feed,
+    token,
+    signal
+) {
+    const url =
+        `${AWIN_API_BASE_URL}/publishers/${AWIN_PUBLISHER_ID}/awinfeeds/download/${feed.advertiserId}-retail-${feed.locale}.jsonl`;
+
+    const response =
+        await fetch(
+            url,
+            {
+                method: "GET",
+                signal,
+                headers: {
+                    "Accept":
+                        "application/json, application/jsonl, text/plain, */*",
+                    "Authorization":
+                        `Bearer ${token}`,
+                    "User-Agent":
+                        "Worth-It-Shop/1.0"
+                }
+            }
+        );
+
+    if (!response.ok) {
+        const body =
+            await response.text();
+
+        let message =
+            `Upstream HTTP ${response.status}`;
+
+        try {
+            const parsed =
+                JSON.parse(body);
+
+            message =
+                normalizeText(
+                    parsed?.message ||
+                    parsed?.error ||
+                    message
+                );
+        }
+        catch {
+            // Keep the status-based message.
+        }
+
+        const error =
+            new Error(message);
+
+        error.status =
+            response.status;
+
+        throw error;
+    }
+
+    const contentLength =
+        Number(
+            response.headers.get(
+                "content-length"
+            )
+        );
+
+    if (
+        Number.isFinite(contentLength) &&
+        contentLength > MAX_FEED_BYTES
+    ) {
+        throw new Error(
+            "Feed is larger than the safe processing limit."
+        );
+    }
+
+    const text =
+        await response.text();
+
+    if (
+        new TextEncoder()
+            .encode(text)
+            .byteLength > MAX_FEED_BYTES
+    ) {
+        throw new Error(
+            "Feed is larger than the safe processing limit."
+        );
+    }
+
+    return parseEnhancedJSONL(
+        text,
+        feed
+    );
+}
+
+function scoreProgramMatch(
+    program,
+    partner
+) {
+    const name =
+        normalizeKey(
+            program?.name
+        );
+
+    if (!name) {
+        return Number.NEGATIVE_INFINITY;
+    }
+
+    let score = 0;
+
+    if (
+        partner.prefer?.some(
+            preferred =>
+                name ===
+                normalizeKey(
+                    preferred
+                )
+        )
+    ) {
+        score += 1000;
+    }
+
+    if (
+        name ===
+        normalizeKey(
+            partner.partnerId
+        )
+    ) {
+        score += 500;
+    }
+
+    score -=
+        name.length;
+
+    return score;
+}
+
+function pickProgram(
+    programs,
+    partner
+) {
+    const candidates =
+        programs.filter(
+            program => {
+                const name =
+                    normalizeKey(
+                        program?.name
+                    );
+
+                return partner.match.some(
+                    token =>
+                        name.includes(
+                            normalizeKey(token)
+                        )
+                );
+            }
+        );
+
+    return (
+        candidates.sort(
+            (
+                first,
+                second
+            ) =>
+                scoreProgramMatch(
+                    second,
+                    partner
+                ) -
+                scoreProgramMatch(
+                    first,
+                    partner
+                )
+        )[0] ||
+        null
+    );
+}
+
+function localeForProgram(
+    program
+) {
+    const countryCode =
+        String(
+            program?.primaryRegion?.countryCode ||
+            ""
+        )
+            .trim()
+            .toUpperCase();
+
+    return (
+        REGION_TO_LOCALE[countryCode] ||
+        "en_GB"
+    );
+}
+
+function dedupeProducts(
+    products
+) {
+    const map =
+        new Map();
 
     for (const product of products) {
         if (!product) {
@@ -730,185 +1049,6 @@ function dedupeProducts(products) {
     ];
 }
 
-async function fetchText(
-    url,
-    signal
-) {
-    const response =
-        await fetch(
-            url,
-            {
-                method: "GET",
-                signal,
-                headers: {
-                    "Accept":
-                        "text/csv,text/plain,*/*",
-                    "User-Agent":
-                        "Worth-It-Shop/1.0"
-                }
-            }
-        );
-
-    if (!response.ok) {
-        throw new Error(
-            `Upstream HTTP ${response.status}`
-        );
-    }
-
-    const contentLength =
-        Number(
-            response.headers.get(
-                "content-length"
-            )
-        );
-
-    if (
-        Number.isFinite(contentLength) &&
-        contentLength > MAX_FEED_BYTES
-    ) {
-        throw new Error(
-            "Feed is larger than the safe processing limit."
-        );
-    }
-
-    const text =
-        await response.text();
-
-    if (
-        new TextEncoder()
-            .encode(text)
-            .byteLength > MAX_FEED_BYTES
-    ) {
-        throw new Error(
-            "Feed is larger than the safe processing limit."
-        );
-    }
-
-    return text;
-}
-
-function feedDescriptorFromRow(
-    row
-) {
-    const advertiserName =
-        firstValue(
-            row,
-            [
-                "advertiser name",
-                "advertiser_name",
-                "advertiser"
-            ]
-        );
-
-    const membershipStatus =
-        firstValue(
-            row,
-            [
-                "membership status",
-                "membership_status",
-                "status"
-            ]
-        );
-
-    const downloadUrl =
-        firstValue(
-            row,
-            [
-                "url",
-                "download url",
-                "download_url"
-            ]
-        );
-
-    if (
-        !advertiserName ||
-        !downloadUrl ||
-        !membershipIsActive(
-            membershipStatus
-        )
-    ) {
-        return null;
-    }
-
-    const partner =
-        findPartner(
-            advertiserName
-        );
-
-    if (!partner) {
-        return null;
-    }
-
-    return {
-        advertiserName,
-        partnerId:
-            partner.partnerId,
-        category:
-            partner.category,
-        downloadUrl,
-        lastImported:
-            firstValue(
-                row,
-                [
-                    "last imported",
-                    "last_imported"
-                ]
-            ),
-        language:
-            firstValue(
-                row,
-                [
-                    "language"
-                ]
-            ),
-        vertical:
-            firstValue(
-                row,
-                [
-                    "vertical"
-                ]
-            )
-    };
-}
-
-async function fetchFeedProducts(
-    feed,
-    signal
-) {
-    const csv =
-        await fetchText(
-            feed.downloadUrl,
-            signal
-        );
-
-    const rows =
-        parseCSV(
-            csv
-        );
-
-    return rows
-        .map(
-            row =>
-                productFromRow(
-                    row,
-                    feed
-                )
-        )
-        .filter(Boolean)
-        .sort(
-            (
-                first,
-                second
-            ) =>
-                second.popularityScore -
-                first.popularityScore
-        )
-        .slice(
-            0,
-            MAX_PRODUCTS_PER_PARTNER
-        );
-}
-
 export async function onRequestGet(
     context
 ) {
@@ -922,18 +1062,17 @@ export async function onRequestGet(
         }
     );
 
-    const apiKey =
-        context.env
-            .AWIN_DATAFEED_API_KEY;
+    const token =
+        context.env?.[AWIN_API_TOKEN_ENV];
 
-    if (!apiKey) {
+    if (!token) {
         return jsonResponse(
             {
                 ok: false,
                 configured: false,
                 products: [],
                 error:
-                    "Awin data feed key is not configured."
+                    "Awin API token is not configured."
             },
             503
         );
@@ -944,7 +1083,7 @@ export async function onRequestGet(
 
     const cacheKey =
         new Request(
-            "https://worth-it-shop-feed-cache.local/api/shop-products?v=1"
+            "https://worth-it-shop-feed-cache.local/api/shop-products?v=2"
         );
 
     const cached =
@@ -967,72 +1106,236 @@ export async function onRequestGet(
         );
 
     try {
-        const feedListText =
-            await fetchText(
-                AWIN_FEED_LIST_URL +
-                    encodeURIComponent(
-                        apiKey
-                    ),
+        const programmesUrl =
+            `${AWIN_API_BASE_URL}/publishers/${AWIN_PUBLISHER_ID}/programmes?relationship=joined`;
+
+        const programmeData =
+            await fetchJSON(
+                programmesUrl,
+                token,
                 controller.signal
             );
 
-        const feedListRows =
-            parseCSV(
-                feedListText
-            );
+        const programmes =
+            Array.isArray(programmeData)
+                ? programmeData
+                : Array.isArray(
+                    programmeData?.programmes
+                )
+                    ? programmeData.programmes
+                    : [];
 
-        const feeds =
-            feedListRows
+        const discoveredFeeds =
+            PARTNER_MATCHES
                 .map(
-                    row =>
-                        feedDescriptorFromRow(
-                            row
-                        )
+                    partner => {
+                        const program =
+                            pickProgram(
+                                programmes,
+                                partner
+                            );
+
+                        if (
+                            !program ||
+                            !program.id
+                        ) {
+                            return null;
+                        }
+
+                        return {
+                            partnerId:
+                                partner.partnerId,
+
+                            category:
+                                partner.category,
+
+                            advertiserId:
+                                String(
+                                    program.id
+                                ),
+
+                            advertiserName:
+                                normalizeText(
+                                    program.name
+                                ),
+
+                            primaryRegion:
+                                program.primaryRegion ||
+                                null,
+
+                            lastImported:
+                                "",
+
+                            locale:
+                                localeForProgram(
+                                    program
+                                )
+                        };
+                    }
                 )
                 .filter(Boolean);
 
         const products = [];
+        const feedResults = [];
 
         /*
-         * Fetch programme feeds in parallel, but never allow one failing
-         * advertiser to prevent all other connected advertisers from
-         * contributing products.
+         * Awin asks publishers to limit Enhanced Feed downloads to
+         * no more than 5 requests per minute. Feed results are therefore
+         * downloaded sequentially and cached individually for 6 hours.
          */
-        const results =
-            await Promise.allSettled(
-                feeds.map(
-                    feed =>
-                        fetchFeedProducts(
-                            feed,
-                            controller.signal
+        let feedRequestsUsed = 0;
+
+        for (
+            const feed of discoveredFeeds
+        ) {
+            const feedCacheKey =
+                new Request(
+                    `https://worth-it-shop-feed-cache.local/api/feed/${feed.advertiserId}/${feed.locale}`
+                );
+
+            let feedProducts =
+                null;
+
+            const feedCached =
+                await cache.match(
+                    feedCacheKey
+                );
+
+            if (feedCached) {
+                try {
+                    const payload =
+                        await feedCached.json();
+
+                    if (
+                        payload &&
+                        Array.isArray(
+                            payload.products
                         )
-                )
-            );
+                    ) {
+                        feedProducts =
+                            payload.products;
+                    }
+                }
+                catch {
+                    feedProducts =
+                        null;
+                }
+            }
 
-        results.forEach(
-            (
-                result,
-                index
-            ) => {
+            if (!feedProducts) {
                 if (
-                    result.status !==
-                    "fulfilled"
+                    feedRequestsUsed >=
+                    MAX_FEED_REQUESTS_PER_RUN
                 ) {
-                    console.warn(
-                        "Awin product feed failed for " +
-                        feeds[index].advertiserName +
-                        ":",
-                        result.reason
-                    );
+                    feedResults.push({
+                        advertiserName:
+                            feed.advertiserName,
+                        advertiserId:
+                            feed.advertiserId,
+                        locale:
+                            feed.locale,
+                        status:
+                            "rate-limit-batch-deferred",
+                        products:
+                            0
+                    });
 
-                    return;
+                    continue;
                 }
 
-                products.push(
-                    ...result.value
-                );
+                feedRequestsUsed++;
+
+                try {
+                    feedProducts =
+                        await fetchEnhancedFeed(
+                            feed,
+                            token,
+                            controller.signal
+                        );
+
+                    const feedResponse =
+                        jsonResponse(
+                            {
+                                advertiserName:
+                                    feed.advertiserName,
+                                advertiserId:
+                                    feed.advertiserId,
+                                locale:
+                                    feed.locale,
+                                generatedAt:
+                                    new Date().toISOString(),
+                                products:
+                                    feedProducts
+                            },
+                            200,
+                            CACHE_TTL_SECONDS
+                        );
+
+                    context.waitUntil(
+                        cache.put(
+                            feedCacheKey,
+                            feedResponse.clone()
+                        )
+                    );
+
+                    feedResults.push({
+                        advertiserName:
+                            feed.advertiserName,
+                        advertiserId:
+                            feed.advertiserId,
+                        locale:
+                            feed.locale,
+                        status:
+                            "loaded",
+                        products:
+                            feedProducts.length
+                    });
+                }
+                catch (error) {
+                    console.warn(
+                        "Awin Enhanced Feed failed for " +
+                        feed.advertiserName +
+                        ":",
+                        error
+                    );
+
+                    feedResults.push({
+                        advertiserName:
+                            feed.advertiserName,
+                        advertiserId:
+                            feed.advertiserId,
+                        locale:
+                            feed.locale,
+                        status:
+                            error?.status === 404
+                                ? "feed-not-found"
+                                : "unavailable",
+                        products:
+                            0
+                    });
+
+                    continue;
+                }
             }
-        );
+            else {
+                feedResults.push({
+                    advertiserName:
+                        feed.advertiserName,
+                    advertiserId:
+                        feed.advertiserId,
+                    locale:
+                        feed.locale,
+                    status:
+                        "cache-hit",
+                    products:
+                        feedProducts.length
+                });
+            }
+
+            products.push(
+                ...feedProducts
+            );
+        }
 
         const finalProducts =
             dedupeProducts(
@@ -1058,6 +1361,13 @@ export async function onRequestGet(
                     })
                 );
 
+        const unfinished =
+            feedResults.some(
+                item =>
+                    item.status ===
+                    "rate-limit-batch-deferred"
+            );
+
         const response =
             jsonResponse(
                 {
@@ -1065,37 +1375,29 @@ export async function onRequestGet(
                     configured: true,
                     generatedAt:
                         new Date().toISOString(),
+                    publisherId:
+                        AWIN_PUBLISHER_ID,
                     feeds:
-                        feeds.map(
-                            feed => ({
-                                advertiserName:
-                                    feed.advertiserName,
-                                partnerId:
-                                    feed.partnerId,
-                                lastImported:
-                                    feed.lastImported,
-                                language:
-                                    feed.language,
-                                vertical:
-                                    feed.vertical
-                            })
-                        ),
+                        feedResults,
                     products:
                         finalProducts
                 },
                 200,
-                CACHE_TTL_SECONDS
+                unfinished
+                    ? 0
+                    : CACHE_TTL_SECONDS
             );
 
-        context.waitUntil(
-            cache.put(
-                cacheKey,
-                response.clone()
-            )
-        );
+        if (!unfinished) {
+            context.waitUntil(
+                cache.put(
+                    cacheKey,
+                    response.clone()
+                )
+            );
+        }
 
         return response;
-
     }
     catch (error) {
         console.warn(
@@ -1111,12 +1413,10 @@ export async function onRequestGet(
                 error:
                     "Awin product feeds could not be loaded."
             },
-            502
-        );
-    }
-    finally {
-        clearTimeout(
-            timeout
+            error?.status === 401 ||
+            error?.status === 403
+                ? 502
+                : 502
         );
     }
 }
