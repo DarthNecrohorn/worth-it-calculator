@@ -610,36 +610,38 @@ function productFromEnhancedRecord(
             title
         );
 
-    const shipping =
-        Array.isArray(
-            details.shipping
-        )
+    const shippingSource =
+        Array.isArray(details.shipping)
             ? details.shipping
-            : [];
+            : Array.isArray(entry?.shipping)
+                ? entry.shipping
+                : details.shipping
+                    ? [details.shipping]
+                    : entry?.shipping
+                        ? [entry.shipping]
+                        : [];
 
     const shippingCountries =
-        shipping.length
-            ? [
-                ...new Set(
-                    shipping
-                        .map(
-                            item =>
-                                String(
-                                    item?.country ||
-                                    ""
-                                )
-                                    .trim()
-                                    .toUpperCase()
-                        )
-                        .filter(
-                            code =>
-                                /^[A-Z]{2}$/.test(
-                                    code
-                                )
-                        )
-                )
-            ]
-            : [];
+        [
+            ...new Set(
+                shippingSource
+                    .map(
+                        item =>
+                            String(
+                                item?.country ||
+                                ""
+                            )
+                                .trim()
+                                .toUpperCase()
+                    )
+                    .filter(
+                        code =>
+                            /^[A-Z]{2}$/.test(
+                                code
+                            )
+                    )
+            )
+        ];
 
     const availability =
         normalizeText(
