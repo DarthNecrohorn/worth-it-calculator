@@ -1662,14 +1662,30 @@ async function searchNearbyDatasetProducts({
     );
 
     params.set(
+        "$select",
+        [
+            "Id",
+            "Name",
+            "ModificationDate",
+            "PublicationDate",
+            "ContentDate",
+            "GeoFootprint",
+            "Online",
+            "ContentType"
+        ].join(",")
+    );
+
+    params.set(
         "$expand",
         "Attributes"
     );
 
-    params.set(
-        "$orderby",
-        "ModificationDate desc,Id asc"
-    );
+    if(query || country){
+        params.set(
+            "$orderby",
+            "ModificationDate desc,Id asc"
+        );
+    }
 
     params.set(
         "$top",
@@ -1884,6 +1900,20 @@ async function searchDatasetProducts({
 
         }
 
+    }
+
+    /*
+     * Country is part of the public station-search contract. Use the
+     * CLMS StringAttribute when available so a country request does not
+     * accidentally return unrelated global stations.
+     */
+    if(country){
+        filter +=
+            " and (" +
+            attributeEquals("country", country) +
+            " or " +
+            attributeEquals("wlCountryName", country) +
+            ")";
     }
 
     const params =
