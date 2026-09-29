@@ -16,8 +16,6 @@ const SHOP_COUNTRIES = [
     { code: "DK", name: "Denmark" },
     { code: "EE", name: "Estonia" },
     { code: "FI", name: "Finland" },
-    { code: "FR", name: "France" },
-    { code: "DE", name: "Germany" },
     { code: "GR", name: "Greece" },
     { code: "HU", name: "Hungary" },
     { code: "IE", name: "Ireland" },
@@ -148,7 +146,7 @@ const SHOP_PARTNERS = [
  */
 const STYLEVANA_SHIPPING_COUNTRIES = [
     "AU", "BR", "BN", "BG", "CA", "CO", "HR", "CY", "CZ", "DK",
-    "EE", "FI", "FR", "DE", "GR", "HU", "IE", "IT", "LV", "LT",
+    "EE", "FI", "GR", "HU", "IE", "IT", "LV", "LT",
     "MT", "NL", "NZ", "NO", "PH", "PL", "PT", "RO", "SG", "SK",
     "SI", "ZA", "ES", "SE", "GB", "US", "VN"
 ];
