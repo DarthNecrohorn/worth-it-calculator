@@ -216,6 +216,11 @@ const affiliateProducts = {
                 note:
                     "Delivery time varies by destination, stock status and shipping method."
             },
+            stockStatus: {
+                state: "out-of-stock",
+                storefront: "DE",
+                checkedDate: "2026-09-24"
+            },
             updatedAt: "September 29, 2026"
         }
     ]
