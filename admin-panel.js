@@ -398,7 +398,7 @@
     async function refreshAdminUsage(){ usageLoaded = false; await loadUsage(); }
 
     async function updateAdminPanelButton(){
-        const button = $('adminPanelNavBtn');
+        const button = $('adminPanelButton');
         if(!button) return;
         button.style.display = (await isAdmin()) ? '' : 'none';
     }
