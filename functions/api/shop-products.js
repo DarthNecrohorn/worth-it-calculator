@@ -1118,7 +1118,7 @@ export async function onRequestGet(
 
     const cacheKey =
         new Request(
-            "https://worth-it-shop-feed-cache.local/api/shop-products?v=4"
+            "https://worth-it-shop-feed-cache.local/api/shop-products?v=5"
         );
 
     const cached =
