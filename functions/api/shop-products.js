@@ -644,8 +644,102 @@ function noteFeedDebugShape(
                             .slice(0, 500)
                 });
             }
+            else if (
+                item !== undefined &&
+                item !== null &&
+                debug.sampleShipping.length < 5
+            ) {
+                debug.sampleShipping.push({
+                    rawType:
+                        typeof item,
+                    value:
+                        String(item)
+                            .slice(0, 200)
+                });
+            }
         }
     }
+}
+
+function countryCodesFromShippingItem(
+    item
+) {
+    const codes = [];
+
+    if (
+        typeof item === "string"
+    ) {
+        const code =
+            item
+                .trim()
+                .toUpperCase();
+
+        if (/^[A-Z]{2}$/.test(code)) {
+            codes.push(code);
+        }
+
+        return codes;
+    }
+
+    if (
+        !item ||
+        typeof item !== "object"
+    ) {
+        return codes;
+    }
+
+    const directValues = [
+        item.country,
+        item.country_code,
+        item.countryCode
+    ];
+
+    for (const value of directValues) {
+        if (Array.isArray(value)) {
+            for (const nested of value) {
+                const code =
+                    String(nested || "")
+                        .trim()
+                        .toUpperCase();
+
+                if (/^[A-Z]{2}$/.test(code)) {
+                    codes.push(code);
+                }
+            }
+        }
+        else {
+            const code =
+                String(value || "")
+                    .trim()
+                    .toUpperCase();
+
+            if (/^[A-Z]{2}$/.test(code)) {
+                codes.push(code);
+            }
+        }
+    }
+
+    /*
+     * Some feed serializations represent country destinations as
+     * object keys, e.g. { "US": {...}, "CA": {...} }.
+     * Accept only explicit two-letter ISO-style keys.
+     */
+    if (!codes.length) {
+        for (const key of Object.keys(item)) {
+            const code =
+                key
+                    .trim()
+                    .toUpperCase();
+
+            if (/^[A-Z]{2}$/.test(code)) {
+                codes.push(code);
+            }
+        }
+    }
+
+    return [
+        ...new Set(codes)
+    ];
 }
 
 function productFromEnhancedRecord(
@@ -852,19 +946,10 @@ function productFromEnhancedRecord(
         [
             ...new Set(
                 shippingSource
-                    .map(
+                    .flatMap(
                         item =>
-                            String(
-                                item?.country ||
-                                ""
-                            )
-                                .trim()
-                                .toUpperCase()
-                    )
-                    .filter(
-                        code =>
-                            /^[A-Z]{2}$/.test(
-                                code
+                            countryCodesFromShippingItem(
+                                item
                             )
                     )
             )
@@ -1370,7 +1455,7 @@ export async function onRequestGet(
 
     const cacheKey =
         new Request(
-            "https://worth-it-shop-feed-cache.local/api/shop-products?v=7"
+            "https://worth-it-shop-feed-cache.local/api/shop-products?v=8"
         );
 
     const cached =
@@ -1488,7 +1573,7 @@ export async function onRequestGet(
 
             const feedCacheKey =
                 new Request(
-                    `https://worth-it-shop-feed-cache.local/api/feed/${feed.advertiserId}/${feed.locale}/v7`
+                    `https://worth-it-shop-feed-cache.local/api/feed/${feed.advertiserId}/${feed.locale}/v8`
                 );
 
             let feedProducts =
