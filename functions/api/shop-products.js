@@ -7,13 +7,11 @@ import { recordAdminApiUsage } from "../lib/admin-usage.js";
      Automatically discover approved Awin advertiser feeds and
      turn their product data into Shop cards.
 
-   Primary Cloudflare secret:
-     AWIN_FEED_LIST_URL
+   Required Cloudflare secret:
+     AWIN_API_TOKEN
 
-   Secret:
-     AWIN_FEED_LIST_URL
-
-   The Feed List URL is kept server-side and is never exposed to the browser.
+   The standard Awin Publisher API token is kept server-side and is
+   never exposed to the browser.
 
    The public endpoint:
      /api/shop-products
@@ -25,11 +23,13 @@ import { recordAdminApiUsage } from "../lib/admin-usage.js";
      - Product count is capped to keep the Shop fast.
 ========================================================= */
 
-const AWIN_FEED_LIST_URL_ENV =
-    "AWIN_FEED_LIST_URL";
+const AWIN_PUBLISHER_ID = "3077319";
 
-const MAX_FEED_LIST_BYTES =
-    10 * 1024 * 1024;
+const AWIN_API_BASE_URL =
+    "https://api.awin.com";
+
+const AWIN_API_TOKEN_ENV =
+    "AWIN_API_TOKEN";
 
 const CACHE_TTL_SECONDS =
     6 * 60 * 60;
@@ -52,32 +52,27 @@ const FEED_FETCH_TIMEOUT_MS =
 const PARTNER_MATCHES = [
     {
         partnerId: "stylevana",
-        advertiserIds: ["90791"],
         match: ["stylevana"],
         category: "beauty-skincare"
     },
     {
         partnerId: "fntcase",
-        advertiserIds: ["45915"],
         match: ["shenzhen feinuote", "fntcase"],
         category: "phone-accessories"
     },
     {
         partnerId: "dowinx-eu",
-        advertiserIds: ["107524"],
         match: ["dowinx"],
         category: "gaming-office",
         prefer: ["dowinx eu"]
     },
     {
         partnerId: "king-koil",
-        advertiserIds: ["115216"],
         match: ["king koil"],
         category: "sleep-mattresses"
     },
     {
         partnerId: "simple-project",
-        advertiserIds: ["99013"],
         match: ["shenzhen cangyu", "simple project"],
         category: "bathroom-home",
         shippingFallbackCountries: [
@@ -90,13 +85,16 @@ const PARTNER_MATCHES = [
     },
     {
         partnerId: "giftlab",
-        advertiserIds: ["95201"],
         match: ["giftlab"],
         category: "personalized-gifts"
     },
     {
         partnerId: "personalhour",
-        advertiserIds: ["96347"],
+        match: ["personalhour"],
+        category: "fitness-wellness"
+    },
+    {
+        partnerId: "personalhour",
         match: ["personalhour"],
         category: "fitness-wellness"
     }
@@ -250,50 +248,17 @@ function parseBoolean(value) {
  * commas and quoted descriptions, so simple split(",") is unsafe.
  */
 function parseCSV(text) {
-    const source =
-        String(text || "")
-            .replace(/^\uFEFF/, "");
-
-    const firstLine =
-        source.split("\n", 1)[0] || "";
-
-    const delimiterCandidates = [
-        ",",
-        "|",
-        ";",
-        "\t"
-    ];
-
-    const delimiter =
-        delimiterCandidates
-            .map(
-                candidate => ({
-                    candidate,
-                    count:
-                        firstLine.split(candidate).length - 1
-                })
-            )
-            .sort(
-                (
-                    first,
-                    second
-                ) =>
-                    second.count -
-                    first.count
-            )[0]
-            ?.candidate || ",";
-
     const rows = [];
     let row = [];
     let field = "";
     let quoted = false;
 
-    for (let i = 0; i < source.length; i++) {
-        const char = source[i];
+    for (let i = 0; i < text.length; i++) {
+        const char = text[i];
 
         if (quoted) {
             if (char === '"') {
-                if (source[i + 1] === '"') {
+                if (text[i + 1] === '"') {
                     field += '"';
                     i++;
                 }
@@ -313,7 +278,7 @@ function parseCSV(text) {
             continue;
         }
 
-        if (char === delimiter) {
+        if (char === ",") {
             row.push(field);
             field = "";
             continue;
@@ -347,7 +312,6 @@ function parseCSV(text) {
     const headers = rows[0].map(
         header =>
             normalizeText(header)
-                .replace(/^\uFEFF/, "")
                 .replace(/^"|"$/g, "")
                 .toLowerCase()
     );
@@ -385,511 +349,505 @@ function findPartner(advertiserName) {
     ) || null;
 }
 
-function localeFromFeedListRow(
-    row
+function membershipIsActive(status) {
+    const normalized =
+        normalizeKey(status);
+
+    return [
+        "joined",
+        "active",
+        "approved",
+        "accepted"
+    ].includes(normalized);
+}
+
+function inferCategory(
+    partnerId,
+    merchantCategory,
+    categoryName,
+    productName
 ) {
-    const language =
+    const text =
         normalizeKey(
-            row?.language
-        );
-
-    const directMap = {
-        english: "en_GB",
-        en: "en_GB",
-        "en gb": "en_GB",
-        "en us": "en_US",
-        "en au": "en_AU",
-        "en ca": "en_CA",
-        german: "de_DE",
-        de: "de_DE",
-        french: "fr_FR",
-        fr: "fr_FR"
-    };
-
-    return (
-        REGION_TO_LOCALE[
-            normalizeText(
-                row?.primaryRegion
-            ).toUpperCase()
-        ] ||
-        directMap[language] ||
-        "en_GB"
-    );
-}
-
-function parseAwinFeedList(
-    text
-) {
-    const rows =
-        parseCSV(text);
-
-    if (!rows.length) {
-        throw new Error(
-            "Awin Feed List is empty."
-        );
-    }
-
-    const sample =
-        rows[0] || {};
-
-    if (
-        !firstValue(
-            sample,
             [
-                "advertiser name",
-                "advertiser_name"
-            ]
-        ) ||
-        !firstValue(
-            sample,
-            [
-                "feed name",
-                "feed_name"
-            ]
-        ) ||
-        !firstValue(
-            sample,
-            [
-                "url",
-                "download url",
-                "download_url"
-            ]
-        )
-    ) {
-        throw new Error(
-            "Awin Feed List format was not recognized."
-        );
-    }
-
-    return rows;
-}
-
-async function fetchAwinFeedList(
-    feedListUrl,
-    signal
-) {
-    const response =
-        await fetch(
-            feedListUrl,
-            {
-                method: "GET",
-                signal,
-                headers: {
-                    "Accept":
-                        "text/csv, text/plain, */*",
-                    "User-Agent":
-                        "Worth-It-Shop/1.0"
-                }
-            }
-        );
-
-    if (!response.ok) {
-        const error =
-            new Error(
-                `Awin Feed List HTTP ${response.status}`
-            );
-
-        error.status =
-            response.status;
-
-        throw error;
-    }
-
-    const contentLength =
-        Number(
-            response.headers.get(
-                "content-length"
-            )
+                merchantCategory,
+                categoryName,
+                productName
+            ].join(" ")
         );
 
     if (
-        Number.isFinite(contentLength) &&
-        contentLength > MAX_FEED_LIST_BYTES
+        partnerId === "stylevana" &&
+        /(fashion|clothing|apparel|shoes|bags|accessories)/.test(text)
     ) {
-        throw new Error(
-            "Awin Feed List is larger than the safe processing limit."
+        return "fashion-accessories";
+    }
+
+    if (
+        partnerId === "giftlab" &&
+        /(fashion|clothing|apparel|jewelry|accessories)/.test(text)
+    ) {
+        return "fashion-accessories";
+    }
+
+    const partner =
+        PARTNER_MATCHES.find(
+            item =>
+                item.partnerId === partnerId
         );
+
+    return partner?.category || "other";
+}
+
+function parseEnhancedPrice(value) {
+    if (
+        value === undefined ||
+        value === null ||
+        String(value).trim() === ""
+    ) {
+        return {
+            amount: null,
+            currency: ""
+        };
     }
 
     const text =
-        await response.text();
+        normalizeText(value);
 
-    if (
-        new TextEncoder()
-            .encode(text)
-            .byteLength > MAX_FEED_LIST_BYTES
-    ) {
-        throw new Error(
-            "Awin Feed List is larger than the safe processing limit."
+    const match =
+        text.match(
+            /([0-9][0-9.,]*)\s*([A-Z]{3})$/i
         );
+
+    if (!match) {
+        const number =
+            Number(
+                text.replace(/[^0-9.+-]/g, "")
+            );
+
+        return {
+            amount:
+                Number.isFinite(number)
+                    ? number
+                    : null,
+            currency: ""
+        };
     }
 
-    return parseAwinFeedList(
-        text
+    const numericText =
+        match[1]
+            .replace(/,(?=\d{3}(?:\D|$))/g, "")
+            .replace(",", ".");
+
+    const amount =
+        Number(numericText);
+
+    return {
+        amount:
+            Number.isFinite(amount)
+                ? amount
+                : null,
+        currency:
+            String(match[2]).toUpperCase()
+    };
+}
+
+function calculateEnhancedPopularity(product) {
+    const price =
+        Number.isFinite(product.price)
+            ? product.price
+            : 0;
+
+    const oldPrice =
+        Number.isFinite(product.oldPrice)
+            ? product.oldPrice
+            : price;
+
+    const discount =
+        oldPrice > price
+            ? ((oldPrice - price) / oldPrice) * 100
+            : 0;
+
+    return Math.max(
+        0,
+        discount * 2
     );
 }
 
-function buildFeedsFromFeedList(
-    rows
-) {
-    return PARTNER_MATCHES
-        .map(
-            partner => {
-                const candidates =
-                    rows
-                        .map(
-                            row => ({
-                                advertiserName:
-                                    firstValue(
-                                        row,
-                                        [
-                                            "advertiser name",
-                                            "advertiser_name"
-                                        ]
-                                    ),
-                                advertiserId:
-                                    firstValue(
-                                        row,
-                                        [
-                                            "advertiser id",
-                                            "advertiser_id"
-                                        ]
-                                    ),
-                                feedName:
-                                    firstValue(
-                                        row,
-                                        [
-                                            "feed name",
-                                            "feed_name"
-                                        ]
-                                    ),
-                                primaryRegion:
-                                    firstValue(
-                                        row,
-                                        [
-                                            "primary region",
-                                            "primary_region"
-                                        ]
-                                    ),
-                                membershipStatus:
-                                    firstValue(
-                                        row,
-                                        [
-                                            "membership status",
-                                            "membership_status"
-                                        ]
-                                    ),
-                                feedId:
-                                    firstValue(
-                                        row,
-                                        [
-                                            "feed id",
-                                            "feed_id"
-                                        ]
-                                    ),
-                                language:
-                                    firstValue(
-                                        row,
-                                        [
-                                            "language"
-                                        ]
-                                    ),
-                                lastImported:
-                                    firstValue(
-                                        row,
-                                        [
-                                            "last imported",
-                                            "last_imported"
-                                        ]
-                                    ),
-                                downloadUrl:
-                                    firstValue(
-                                        row,
-                                        [
-                                            "url",
-                                            "download url",
-                                            "download_url"
-                                        ]
-                                    )
-                            })
-                        )
-                        .filter(
-                            candidate => {
-                                const normalizedName =
-                                    normalizeKey(
-                                        candidate.advertiserName
-                                    );
-
-                                const normalizedAdvertiserId =
-                                    normalizeText(
-                                        candidate.advertiserId
-                                    );
-
-                                const idMatches =
-                                    Array.isArray(
-                                        partner.advertiserIds
-                                    ) &&
-                                    partner.advertiserIds.includes(
-                                        normalizedAdvertiserId
-                                    );
-
-                                const nameMatches =
-                                    partner.match.some(
-                                        token =>
-                                            normalizedName.includes(
-                                                normalizeKey(token)
-                                            )
-                                    );
-
-                                return (
-                                    (
-                                        idMatches ||
-                                        (
-                                            !Array.isArray(
-                                                partner.advertiserIds
-                                            ) &&
-                                            nameMatches
-                                        )
-                                    ) &&
-                                    /^https?:\/\//i.test(
-                                        candidate.downloadUrl
-                                    )
-                                );
-                            }
-                        );
-
-                if (!candidates.length) {
-                    return null;
-                }
-
-                candidates.sort(
-                    (
-                        first,
-                        second
-                    ) => {
-                        const firstExactId =
-                            Array.isArray(
-                                partner.advertiserIds
-                            ) &&
-                            partner.advertiserIds.includes(
-                                first.advertiserId
-                            )
-                                ? 1
-                                : 0;
-
-                        const secondExactId =
-                            Array.isArray(
-                                partner.advertiserIds
-                            ) &&
-                            partner.advertiserIds.includes(
-                                second.advertiserId
-                            )
-                                ? 1
-                                : 0;
-
-                        if (
-                            firstExactId !==
-                            secondExactId
-                        ) {
-                            return (
-                                secondExactId -
-                                firstExactId
-                            );
-                        }
-                        const firstDefault =
-                            normalizeKey(
-                                first.feedName
-                            ) === "default"
-                                ? 1
-                                : 0;
-
-                        const secondDefault =
-                            normalizeKey(
-                                second.feedName
-                            ) === "default"
-                                ? 1
-                                : 0;
-
-                        if (
-                            firstDefault !==
-                            secondDefault
-                        ) {
-                            return (
-                                secondDefault -
-                                firstDefault
-                            );
-                        }
-
-                        return String(
-                            second.lastImported
-                        ).localeCompare(
-                            String(
-                                first.lastImported
-                            )
-                        );
-                    }
-                );
-
-                const selected =
-                    candidates[0];
-
-                return {
-                    source:
-                        "feed-list",
-                    partnerId:
-                        partner.partnerId,
-                    category:
-                        partner.category,
-                    advertiserId:
-                        selected.advertiserId ||
-                        selected.feedId ||
-                        "",
-                    advertiserName:
-                        normalizeText(
-                            selected.advertiserName
-                        ),
-                    primaryRegion:
-                        selected.primaryRegion ||
-                        null,
-                    lastImported:
-                        selected.lastImported ||
-                        "",
-                    currencyCode:
-                        "",
-                    locale:
-                        localeFromFeedListRow(
-                            selected
-                        ),
-                    feedName:
-                        selected.feedName ||
-                        "",
-                    downloadUrl:
-                        selected.downloadUrl
-                };
-            }
-        )
-        .filter(Boolean);
+function createFeedDebug() {
+    return {
+        recordsSeen: 0,
+        validJson: 0,
+        errorLines: 0,
+        missingShipping: 0,
+        productsAccepted: 0,
+        directShippingRecords: 0,
+        entryShippingRecords: 0,
+        deliveryShippingRecords: 0,
+        countryValuesFound: 0,
+        shippingEmptyStrings: 0,
+        shippingArrays: 0,
+        shippingObjects: 0,
+        shippingOtherValues: 0,
+        fallbackShippingRecords: 0,
+        sampleDetailKeys: [],
+        sampleShipping: [],
+        lastError: ""
+    };
 }
 
-function countryCodesFromLegacyDelivery(
-    row
+function noteFeedDebugShape(
+    debug,
+    entry,
+    details
 ) {
-    const raw =
-        firstValue(
-            row,
-            [
-                "delivery restrictions",
-                "delivery_restrictions",
-                "shipping",
-                "shipping countries",
-                "shipping_countries",
-                "delivery country",
-                "delivery_country"
-            ]
-        );
-
-    if (!raw) {
-        return [];
+    if (!debug) {
+        return;
     }
 
-    const matches =
-        String(raw)
-            .toUpperCase()
-            .match(
-                /\b[A-Z]{2}\b/g
-            ) || [];
+    debug.recordsSeen++;
+
+    if (
+        !debug.sampleDetailKeys.length &&
+        details &&
+        typeof details === "object"
+    ) {
+        debug.sampleDetailKeys =
+            Object.keys(details)
+                .slice(0, 40);
+    }
+
+    const directShipping =
+        details?.shipping;
+
+    const entryShipping =
+        entry?.shipping;
+
+    const deliveryShipping =
+        details?.delivery?.shipping;
+
+    if (
+        directShipping !== undefined &&
+        directShipping !== null
+    ) {
+        debug.directShippingRecords++;
+    }
+
+    if (
+        entryShipping !== undefined &&
+        entryShipping !== null
+    ) {
+        debug.entryShippingRecords++;
+    }
+
+    if (
+        deliveryShipping !== undefined &&
+        deliveryShipping !== null
+    ) {
+        debug.deliveryShippingRecords++;
+    }
+
+    const candidates = [
+        directShipping,
+        entryShipping,
+        deliveryShipping
+    ].filter(
+        value =>
+            value !== undefined &&
+            value !== null
+    );
+
+    for (const candidate of candidates) {
+        let value = candidate;
+
+        if (
+            typeof value === "string" &&
+            !value.trim()
+        ) {
+            debug.shippingEmptyStrings++;
+        }
+
+        if (Array.isArray(value)) {
+            debug.shippingArrays++;
+        }
+        else if (
+            value &&
+            typeof value === "object"
+        ) {
+            debug.shippingObjects++;
+        }
+        else if (
+            value !== undefined &&
+            value !== null
+        ) {
+            debug.shippingOtherValues++;
+        }
+
+        if (typeof value === "string") {
+            const rawPreview =
+                value.slice(0, 500);
+
+            if (
+                debug.sampleShipping.length < 5
+            ) {
+                debug.sampleShipping.push({
+                    rawType:
+                        "string",
+                    rawPreview
+                });
+            }
+
+            try {
+                value = JSON.parse(value);
+            }
+            catch {
+                value = null;
+            }
+        }
+
+        const list =
+            Array.isArray(value)
+                ? value
+                : value &&
+                    typeof value === "object"
+                    ? [value]
+                    : [];
+
+        for (const item of list) {
+            if (item?.country) {
+                debug.countryValuesFound++;
+
+                if (
+                    debug.sampleShipping.length < 5
+                ) {
+                    debug.sampleShipping.push({
+                        country:
+                            String(
+                                item.country
+                            ),
+                        keys:
+                            Object.keys(item)
+                                .slice(0, 20)
+                    });
+                }
+            }
+            else if (
+                item &&
+                typeof item === "object" &&
+                debug.sampleShipping.length < 5
+            ) {
+                debug.sampleShipping.push({
+                    rawType:
+                        "object-without-country",
+                    keys:
+                        Object.keys(item)
+                            .slice(0, 20),
+                    preview:
+                        JSON.stringify(item)
+                            .slice(0, 500)
+                });
+            }
+            else if (
+                item !== undefined &&
+                item !== null &&
+                debug.sampleShipping.length < 5
+            ) {
+                debug.sampleShipping.push({
+                    rawType:
+                        typeof item,
+                    value:
+                        String(item)
+                            .slice(0, 200)
+                });
+            }
+        }
+    }
+}
+
+function countryCodesFromShippingItem(
+    item
+) {
+    const codes = [];
+
+    if (
+        typeof item === "string"
+    ) {
+        const code =
+            item
+                .trim()
+                .toUpperCase();
+
+        if (/^[A-Z]{2}$/.test(code)) {
+            codes.push(code);
+        }
+
+        return codes;
+    }
+
+    if (
+        !item ||
+        typeof item !== "object"
+    ) {
+        return codes;
+    }
+
+    const directValues = [
+        item.country,
+        item.country_code,
+        item.countryCode
+    ];
+
+    for (const value of directValues) {
+        if (Array.isArray(value)) {
+            for (const nested of value) {
+                const code =
+                    String(nested || "")
+                        .trim()
+                        .toUpperCase();
+
+                if (/^[A-Z]{2}$/.test(code)) {
+                    codes.push(code);
+                }
+            }
+        }
+        else {
+            const code =
+                String(value || "")
+                    .trim()
+                    .toUpperCase();
+
+            if (/^[A-Z]{2}$/.test(code)) {
+                codes.push(code);
+            }
+        }
+    }
+
+    /*
+     * Some feed serializations represent country destinations as
+     * object keys, e.g. { "US": {...}, "CA": {...} }.
+     * Accept only explicit two-letter ISO-style keys.
+     */
+    if (!codes.length) {
+        for (const key of Object.keys(item)) {
+            const code =
+                key
+                    .trim()
+                    .toUpperCase();
+
+            if (/^[A-Z]{2}$/.test(code)) {
+                codes.push(code);
+            }
+        }
+    }
 
     return [
-        ...new Set(
-            matches
-        )
+        ...new Set(codes)
     ];
 }
 
-function productFromLegacyRecord(
-    row,
-    feed
+function productFromEnhancedRecord(
+    entry,
+    feed,
+    debug = null
 ) {
+    let details =
+        entry?.product_details ||
+        entry ||
+        null;
+
+    if (
+        typeof details === "string"
+    ) {
+        try {
+            details =
+                JSON.parse(
+                    details
+                );
+        }
+        catch {
+            return null;
+        }
+    }
+
+    if (
+        !details ||
+        typeof details !== "object"
+    ) {
+        return null;
+    }
+
+    if (debug) {
+        debug.validJson++;
+        noteFeedDebugShape(
+            debug,
+            entry,
+            details
+        );
+    }
+
+    const basic =
+        details.product_basic ||
+        details;
+
+    const pricing =
+        details.price_and_availability ||
+        details;
+
+    const categoryDetails =
+        details.product_category ||
+        details;
+
     const title =
-        firstValue(
-            row,
-            [
-                "product name",
-                "product_name",
-                "title"
-            ]
+        normalizeText(
+            basic.title ||
+            details.title
         );
 
     const deepLink =
-        firstValue(
-            row,
-            [
-                "aw_deep_link",
-                "merchant_deep_link",
-                "merchant deep link"
-            ]
+        normalizeText(
+            basic.aw_deep_link ||
+            details.aw_deep_link
         );
 
     const image =
-        firstValue(
-            row,
-            [
-                "aw_image_url",
-                "large_image",
-                "merchant_image_url",
-                "merchant image url"
-            ]
+        normalizeText(
+            basic.image_link ||
+            details.image_link ||
+            ""
         );
 
-    const priceInfo =
+    const basePrice =
         parseEnhancedPrice(
-            firstValue(
-                row,
-                [
-                    "search_price",
-                    "store_price",
-                    "base_price_amount",
-                    "base price amount"
-                ]
-            )
+            pricing.price ||
+            details.price
+        );
+
+    const salePrice =
+        parseEnhancedPrice(
+            pricing.sale_price ||
+            details.sale_price
         );
 
     const price =
-        priceInfo.amount;
+        Number.isFinite(salePrice.amount) &&
+        salePrice.amount > 0
+            ? salePrice.amount
+            : basePrice.amount;
 
     const currency =
-        firstValue(
-            row,
-            [
-                "currency",
-                "currency_code",
-                "currency code"
-            ]
-        ).toUpperCase() ||
-        priceInfo.currency ||
-        feed.currencyCode ||
+        salePrice.currency ||
+        basePrice.currency ||
+        normalizeText(
+            pricing.currency ||
+            details.currency
+        ) ||
         "USD";
 
-    const oldPriceInfo =
-        parseEnhancedPrice(
-            firstValue(
-                row,
-                [
-                    "product_price_old",
-                    "rrp_price",
-                    "base_price_amount",
-                    "base price amount"
-                ]
-            )
-        );
-
     const oldPrice =
-        Number.isFinite(
-            oldPriceInfo.amount
-        ) &&
+        Number.isFinite(basePrice.amount) &&
         Number.isFinite(price) &&
-        oldPriceInfo.amount > price
-            ? oldPriceInfo.amount
+        basePrice.amount > price
+            ? basePrice.amount
             : price;
 
     if (
@@ -918,27 +876,9 @@ function productFromLegacyRecord(
     const merchantCategory =
         normalizeText(
             [
-                firstValue(
-                    row,
-                    [
-                        "merchant_category",
-                        "merchant category"
-                    ]
-                ),
-                firstValue(
-                    row,
-                    [
-                        "category_name",
-                        "category name"
-                    ]
-                ),
-                firstValue(
-                    row,
-                    [
-                        "product_type",
-                        "product type"
-                    ]
-                )
+                categoryDetails.google_product_category,
+                categoryDetails.google_product_category_id,
+                categoryDetails.product_type
             ]
                 .filter(Boolean)
                 .join(" ")
@@ -952,10 +892,71 @@ function productFromLegacyRecord(
             title
         );
 
+    /*
+     * Awin's Enhanced Feed wraps Google-format delivery data under
+     * product_details.delivery.shipping. Some records may expose
+     * shipping directly, so accept both documented shapes.
+     */
+    const delivery =
+        details.delivery &&
+        typeof details.delivery === "object"
+            ? details.delivery
+            : entry?.delivery &&
+                typeof entry.delivery === "object"
+                ? entry.delivery
+                : {};
+
+    const shippingCandidates = [
+        details.shipping,
+        entry?.shipping,
+        delivery.shipping
+    ].filter(
+        value =>
+            value !== undefined &&
+            value !== null
+    );
+
+    const shippingSource = [];
+
+    for (const candidate of shippingCandidates) {
+        let value = candidate;
+
+        if (typeof value === "string") {
+            try {
+                value = JSON.parse(value);
+            }
+            catch {
+                value = null;
+            }
+        }
+
+        if (Array.isArray(value)) {
+            shippingSource.push(
+                ...value
+            );
+        }
+        else if (
+            value &&
+            typeof value === "object"
+        ) {
+            shippingSource.push(
+                value
+            );
+        }
+    }
+
     let shippingCountries =
-        countryCodesFromLegacyDelivery(
-            row
-        );
+        [
+            ...new Set(
+                shippingSource
+                    .flatMap(
+                        item =>
+                            countryCodesFromShippingItem(
+                                item
+                            )
+                    )
+            )
+        ];
 
     let shippingSourceLabel =
         "Awin product feed";
@@ -971,46 +972,62 @@ function productFromLegacyRecord(
                 ? partner.shippingFallbackCountries
                 : [];
 
-        shippingCountries =
-            [
-                ...new Set(
-                    fallbackCountries
-                        .map(
-                            code =>
-                                String(code)
-                                    .trim()
-                                    .toUpperCase()
-                        )
-                        .filter(
-                            code =>
-                                /^[A-Z]{2}$/.test(
-                                    code
-                                )
-                        )
-                )
-            ];
+        if (fallbackCountries.length) {
+            shippingCountries =
+                [
+                    ...new Set(
+                        fallbackCountries
+                            .map(
+                                code =>
+                                    String(code)
+                                        .trim()
+                                        .toUpperCase()
+                            )
+                            .filter(
+                                code =>
+                                    /^[A-Z]{2}$/.test(
+                                        code
+                                    )
+                            )
+                    )
+                ];
 
-        shippingSourceLabel =
-            partner.shippingSourceLabel ||
-            "Merchant shipping policy";
+            shippingSourceLabel =
+                partner.shippingSourceLabel ||
+                "Merchant shipping policy";
 
-        shippingNote =
-            partner.shippingNote ||
-            "Shipping destinations are based on the merchant's current shipping policy. Final item availability, shipping cost and checkout eligibility can vary.";
+            shippingNote =
+                partner.shippingNote ||
+                "Shipping destinations are based on the merchant's current shipping policy. Final item availability, shipping cost and checkout eligibility can vary.";
+
+            if (debug) {
+                debug.fallbackShippingRecords++;
+            }
+        }
+
+        if (!shippingCountries.length) {
+            if (debug) {
+                debug.missingShipping++;
+            }
+
+            return null;
+        }
     }
 
-    if (!shippingCountries.length) {
-        return null;
+    if (debug) {
+        debug.productsAccepted++;
     }
+
+    const availability =
+        normalizeText(
+            pricing.availability ||
+            details.availability
+        );
 
     const productId =
-        firstValue(
-            row,
-            [
-                "aw_product_id",
-                "merchant_product_id",
-                "product_id"
-            ]
+        normalizeText(
+            basic.id ||
+            details.id
         );
 
     const product = {
@@ -1043,12 +1060,9 @@ function productFromLegacyRecord(
             deepLink,
 
         merchantUrl:
-            firstValue(
-                row,
-                [
-                    "merchant_deep_link",
-                    "merchant deep link"
-                ]
+            normalizeText(
+                basic.link ||
+                details.link
             ),
 
         store:
@@ -1060,28 +1074,13 @@ function productFromLegacyRecord(
         category,
 
         stockStatus:
-            firstValue(
-                row,
-                [
-                    "stock_status",
-                    "stock status",
-                    "in_stock",
-                    "in stock"
-                ]
-            ) ||
+            availability ||
             "unknown",
 
         popularityScore:
             0,
 
         productUpdatedAt:
-            firstValue(
-                row,
-                [
-                    "last_updated",
-                    "last updated"
-                ]
-            ) ||
             feed.lastImported ||
             "Latest Awin feed",
 
@@ -1112,21 +1111,58 @@ function productFromLegacyRecord(
     return product;
 }
 
-function parseLegacyCSVFeed(
+function parseEnhancedJSONL(
     text,
-    feed
+    feed,
+    debug = null
 ) {
-    return parseCSV(
-        text
-    )
-        .map(
-            row =>
-                productFromLegacyRecord(
-                    row,
-                    feed
-                )
-        )
-        .filter(Boolean)
+    const products = [];
+
+    for (
+        const rawLine of String(text || "").split("\n")
+    ) {
+        const line =
+            rawLine.trim();
+
+        if (!line) {
+            continue;
+        }
+
+        let entry;
+
+        try {
+            entry =
+                JSON.parse(line);
+        }
+        catch {
+            continue;
+        }
+
+        if (
+            entry &&
+            typeof entry === "object" &&
+            entry.error
+        ) {
+            if (debug) {
+                debug.errorLines++;
+            }
+
+            continue;
+        }
+
+        const product =
+            productFromEnhancedRecord(
+                entry,
+                feed,
+                debug
+            );
+
+        if (product) {
+            products.push(product);
+        }
+    }
+
+    return products
         .sort(
             (
                 first,
@@ -1141,19 +1177,82 @@ function parseLegacyCSVFeed(
         );
 }
 
-async function fetchLegacyFeed(
-    feed,
+async function fetchJSON(
+    url,
+    token,
     signal
 ) {
     const response =
         await fetch(
-            feed.downloadUrl,
+            url,
             {
                 method: "GET",
                 signal,
                 headers: {
                     "Accept":
-                        "text/csv, text/plain, application/octet-stream, */*",
+                        "application/json",
+                    "Authorization":
+                        `Bearer ${token}`,
+                    "User-Agent":
+                        "Worth-It-Shop/1.0"
+                }
+            }
+        );
+
+    const body =
+        await response.text();
+
+    let data = null;
+
+    try {
+        data =
+            body
+                ? JSON.parse(body)
+                : null;
+    }
+    catch {
+        data = null;
+    }
+
+    if (!response.ok) {
+        const error =
+            new Error(
+                normalizeText(
+                    data?.message ||
+                    data?.error ||
+                    `Upstream HTTP ${response.status}`
+                )
+            );
+
+        error.status =
+            response.status;
+
+        throw error;
+    }
+
+    return data;
+}
+
+async function fetchEnhancedFeed(
+    feed,
+    token,
+    signal,
+    debug = null
+) {
+    const url =
+        `${AWIN_API_BASE_URL}/publishers/${AWIN_PUBLISHER_ID}/awinfeeds/download/${feed.advertiserId}-retail-${feed.locale}.jsonl`;
+
+    const response =
+        await fetch(
+            url,
+            {
+                method: "GET",
+                signal,
+                headers: {
+                    "Accept":
+                        "application/json, application/jsonl, text/plain, */*",
+                    "Authorization":
+                        `Bearer ${token}`,
                     "User-Agent":
                         "Worth-It-Shop/1.0"
                 }
@@ -1161,10 +1260,29 @@ async function fetchLegacyFeed(
         );
 
     if (!response.ok) {
+        const body =
+            await response.text();
+
+        let message =
+            `Upstream HTTP ${response.status}`;
+
+        try {
+            const parsed =
+                JSON.parse(body);
+
+            message =
+                normalizeText(
+                    parsed?.message ||
+                    parsed?.error ||
+                    message
+                );
+        }
+        catch {
+            // Keep the status-based message.
+        }
+
         const error =
-            new Error(
-                `Awin Feed HTTP ${response.status}`
-            );
+            new Error(message);
 
         error.status =
             response.status;
@@ -1188,78 +1306,170 @@ async function fetchLegacyFeed(
         );
     }
 
-    const bytes =
-        new Uint8Array(
-            await response.arrayBuffer()
-        );
+    const text =
+        await response.text();
 
     if (
-        bytes.byteLength >
-        MAX_FEED_BYTES
+        new TextEncoder()
+            .encode(text)
+            .byteLength > MAX_FEED_BYTES
     ) {
         throw new Error(
             "Feed is larger than the safe processing limit."
         );
     }
 
-    let sourceBytes =
-        bytes;
+    return parseEnhancedJSONL(
+        text,
+        feed,
+        debug
+    );
+}
 
-    /*
-     * Feed List download URLs commonly request GZIP compression.
-     * Detect the gzip file signature so the worker can safely decode
-     * the feed whether or not the upstream Content-Encoding header is
-     * transparently handled by the runtime.
-     */
+function scoreProgramMatch(
+    program,
+    partner
+) {
+    const name =
+        normalizeKey(
+            program?.name
+        );
+
+    if (!name) {
+        return Number.NEGATIVE_INFINITY;
+    }
+
+    let score = 0;
+
     if (
-        bytes.length >= 2 &&
-        bytes[0] === 0x1f &&
-        bytes[1] === 0x8b
-    ) {
-        const decompressed =
-            await new Response(
-                new Blob([
-                    bytes
-                ]).stream().pipeThrough(
-                    new DecompressionStream(
-                        "gzip"
-                    )
+        partner.prefer?.some(
+            preferred =>
+                name ===
+                normalizeKey(
+                    preferred
                 )
-            ).arrayBuffer();
+        )
+    ) {
+        score += 1000;
+    }
 
-        sourceBytes =
-            new Uint8Array(
-                decompressed
+    if (
+        name ===
+        normalizeKey(
+            partner.partnerId
+        )
+    ) {
+        score += 500;
+    }
+
+    score -=
+        name.length;
+
+    return score;
+}
+
+function pickProgram(
+    programs,
+    partner
+) {
+    const candidates =
+        programs.filter(
+            program => {
+                const name =
+                    normalizeKey(
+                        program?.name
+                    );
+
+                return partner.match.some(
+                    token =>
+                        name.includes(
+                            normalizeKey(token)
+                        )
+                );
+            }
+        );
+
+    return (
+        candidates.sort(
+            (
+                first,
+                second
+            ) =>
+                scoreProgramMatch(
+                    second,
+                    partner
+                ) -
+                scoreProgramMatch(
+                    first,
+                    partner
+                )
+        )[0] ||
+        null
+    );
+}
+
+function localeForProgram(
+    program
+) {
+    const countryCode =
+        String(
+            program?.primaryRegion?.countryCode ||
+            ""
+        )
+            .trim()
+            .toUpperCase();
+
+    return (
+        REGION_TO_LOCALE[countryCode] ||
+        "en_GB"
+    );
+}
+
+function dedupeProducts(
+    products
+) {
+    const map =
+        new Map();
+
+    for (const product of products) {
+        if (!product) {
+            continue;
+        }
+
+        const key =
+            normalizeKey(
+                product.affiliateUrl
+            ) ||
+            normalizeKey(
+                [
+                    product.partnerId,
+                    product.title
+                ].join(" ")
             );
 
+        if (!key) {
+            continue;
+        }
+
+        const existing =
+            map.get(key);
+
         if (
-            sourceBytes.byteLength >
-            MAX_FEED_BYTES
+            !existing ||
+            product.popularityScore >
+                existing.popularityScore
         ) {
-            throw new Error(
-                "Decompressed feed is larger than the safe processing limit."
+            map.set(
+                key,
+                product
             );
         }
     }
 
-    const text =
-        new TextDecoder(
-            "utf-8",
-            {
-                fatal:
-                    false
-            }
-        ).decode(
-            sourceBytes
-        );
-
-    return parseLegacyCSVFeed(
-        text,
-        feed
-    );
+    return [
+        ...map.values()
+    ];
 }
-
-
 
 export async function onRequestGet(
     context
@@ -1274,17 +1484,17 @@ export async function onRequestGet(
         }
     );
 
-    const feedListUrl =
-        context.env?.[AWIN_FEED_LIST_URL_ENV];
+    const token =
+        context.env?.[AWIN_API_TOKEN_ENV];
 
-    if (!feedListUrl) {
+    if (!token) {
         return jsonResponse(
             {
                 ok: false,
                 configured: false,
                 products: [],
                 error:
-                    "Awin Feed List URL is not configured."
+                    "Awin API token is not configured."
             },
             503
         );
@@ -1300,7 +1510,7 @@ export async function onRequestGet(
 
     const cacheKey =
         new Request(
-            "https://worth-it-shop-feed-cache.local/api/shop-products?v=14"
+            "https://worth-it-shop-feed-cache.local/api/shop-products?v=12"
         );
 
     const cached =
@@ -1325,54 +1535,100 @@ export async function onRequestGet(
         );
 
     try {
-        const feedListRows =
-            await fetchAwinFeedList(
-                feedListUrl,
+        const programmesUrl =
+            `${AWIN_API_BASE_URL}/publishers/${AWIN_PUBLISHER_ID}/programmes?relationship=joined`;
+
+        const programmeData =
+            await fetchJSON(
+                programmesUrl,
+                token,
                 controller.signal
             );
 
-        const discoveredFeeds =
-            buildFeedsFromFeedList(
-                feedListRows
-            );
-
-        const discoverySource =
-            "feed-list";
-
-        const feedListInfo = {
-            configured:
-                true,
-            loaded:
-                true,
-            rows:
-                feedListRows.length,
-            matched:
-                discoveredFeeds.length,
-            fallbackToApi:
-                false,
-            matchedAdvertisers:
-                discoveredFeeds.map(
-                    feed =>
-                        feed.advertiserName
+        const programmes =
+            Array.isArray(programmeData)
+                ? programmeData
+                : Array.isArray(
+                    programmeData?.programmes
                 )
-        };
+                    ? programmeData.programmes
+                    : [];
+
+        const discoveredFeeds =
+            PARTNER_MATCHES
+                .map(
+                    partner => {
+                        const program =
+                            pickProgram(
+                                programmes,
+                                partner
+                            );
+
+                        if (
+                            !program ||
+                            !program.id
+                        ) {
+                            return null;
+                        }
+
+                        return {
+                            partnerId:
+                                partner.partnerId,
+
+                            category:
+                                partner.category,
+
+                            advertiserId:
+                                String(
+                                    program.id
+                                ),
+
+                            advertiserName:
+                                normalizeText(
+                                    program.name
+                                ),
+
+                            primaryRegion:
+                                program.primaryRegion ||
+                                null,
+
+                            lastImported:
+                                "",
+
+                            currencyCode:
+                                program.currencyCode ||
+                                "",
+
+                            locale:
+                                localeForProgram(
+                                    program
+                                )
+                        };
+                    }
+                )
+                .filter(Boolean);
 
         const products = [];
         const feedResults = [];
 
         /*
-         * Product feeds are downloaded sequentially and capped per
-         * execution to keep the Shop request safe. Cached feed results
-         * allow deferred feeds to complete on subsequent requests.
+         * Awin asks publishers to limit Enhanced Feed downloads to
+         * no more than 5 requests per minute. Feed results are therefore
+         * downloaded sequentially and cached individually for 6 hours.
          */
         let feedRequestsUsed = 0;
 
         for (
             const feed of discoveredFeeds
         ) {
+            const feedDebug =
+                debugMode
+                    ? createFeedDebug()
+                    : null;
+
             const feedCacheKey =
                 new Request(
-                    `https://worth-it-shop-feed-cache.local/api/feed/feed-list/${feed.advertiserId}/${feed.locale}/v14`
+                    `https://worth-it-shop-feed-cache.local/api/feed/${feed.advertiserId}/${feed.locale}/v12`
                 );
 
             let feedProducts =
@@ -1444,11 +1700,6 @@ export async function onRequestGet(
                             feed.locale,
                         status:
                             "rate-limit-batch-deferred",
-                        source:
-                            "feed-list",
-                        feedName:
-                            feed.feedName ||
-                            "",
                         products:
                             0
                     });
@@ -1460,9 +1711,11 @@ export async function onRequestGet(
 
                 try {
                     feedProducts =
-                        await fetchLegacyFeed(
+                        await fetchEnhancedFeed(
                             feed,
-                            controller.signal
+                            token,
+                            controller.signal,
+                            feedDebug
                         );
 
                     const feedResponse =
@@ -1503,22 +1756,31 @@ export async function onRequestGet(
                             feed.locale,
                         status:
                             "loaded",
-                        source:
-                            "feed-list",
-                        feedName:
-                            feed.feedName ||
-                            "",
                         products:
                             feedProducts.length,
+                        ...(debugMode
+                            ? {
+                                debug:
+                                    feedDebug
+                            }
+                            : {})
                     });
                 }
                 catch (error) {
                     console.warn(
-                        "Awin Feed List product feed failed for " +
+                        "Awin Enhanced Feed failed for " +
                         feed.advertiserName +
                         ":",
                         error
                     );
+
+                    if (feedDebug) {
+                        feedDebug.lastError =
+                            normalizeText(
+                                error?.message ||
+                                "Unknown Awin feed error"
+                            ).slice(0, 500);
+                    }
 
                     const failureStatus =
                         error?.status === 404
@@ -1579,13 +1841,14 @@ export async function onRequestGet(
                             feed.primaryRegion || null,
                         status:
                             failureStatus,
-                        source:
-                            "feed-list",
-                        feedName:
-                            feed.feedName ||
-                            "",
                         products:
                             0,
+                        ...(debugMode
+                            ? {
+                                debug:
+                                    feedDebug
+                            }
+                            : {})
                     });
 
                     continue;
@@ -1605,11 +1868,6 @@ export async function onRequestGet(
                         feed.primaryRegion || null,
                     status:
                         cachedFeedStatus,
-                    source:
-                        "feed-list",
-                    feedName:
-                        feed.feedName ||
-                        "",
                     products:
                         feedProducts.length
                 });
@@ -1658,6 +1916,8 @@ export async function onRequestGet(
                     configured: true,
                     generatedAt:
                         new Date().toISOString(),
+                    publisherId:
+                        AWIN_PUBLISHER_ID,
                     feeds:
                         feedResults,
                     products:
@@ -1666,10 +1926,7 @@ export async function onRequestGet(
                         ? {
                             debug: {
                                 note:
-                                    "Debug mode bypasses Shop caches and inspects the Awin Feed List and selected product feeds.",
-                                discoverySource,
-                                feedList:
-                                    feedListInfo
+                                    "Debug mode bypasses Shop caches and fetches up to 5 feeds to inspect product shipping data."
                             }
                         }
                         : {})
