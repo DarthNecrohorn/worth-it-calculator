@@ -1988,28 +1988,44 @@ export async function onRequestGet(
         ) {
             accountCacheHit = true;
 
-            return jsonResponse(
-                {
-                    ok: true,
-                    configured: true,
-                    generatedAt:
-                        accountCache.savedAt ||
-                        new Date().toISOString(),
-                    publisherId:
-                        AWIN_PUBLISHER_ID,
-                    products:
-                        accountCache.products,
-                    ...(debugMode
-                        ? {
-                            debug: {
-                                accountCacheHit: true
+            const accountResponse =
+                jsonResponse(
+                    {
+                        ok: true,
+                        configured: true,
+                        generatedAt:
+                            accountCache.savedAt ||
+                            new Date().toISOString(),
+                        publisherId:
+                            AWIN_PUBLISHER_ID,
+                        products:
+                            accountCache.products,
+                        ...(debugMode
+                            ? {
+                                debug: {
+                                    accountCacheHit: true
+                                }
                             }
-                        }
-                        : {})
-                },
-                200,
-                CACHE_TTL_SECONDS
+                            : {})
+                    },
+                    200
+                );
+
+            /*
+             * Account snapshots are private user data and must never be
+             * stored in a shared browser/CDN cache.
+             */
+            accountResponse.headers.set(
+                "Cache-Control",
+                "private, no-store"
             );
+
+            accountResponse.headers.set(
+                "Cloudflare-CDN-Cache-Control",
+                "no-store"
+            );
+
+            return accountResponse;
         }
     }
 
