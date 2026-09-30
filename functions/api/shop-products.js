@@ -172,7 +172,7 @@ function getBearerToken(request) {
         request.headers.get("Authorization") || "";
 
     const match =
-        header.match(/^Bearer\\s+(.+)$/i);
+        header.match(/^Bearer\s+(.+)$/i);
 
     return match
         ? match[1].trim()
