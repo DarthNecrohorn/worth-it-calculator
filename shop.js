@@ -162,6 +162,26 @@
         ) || null;
     }
 
+    function getPartnerShippingCoverage(partnerId, items){
+        const countries = new Set();
+
+        items
+            .filter(
+                deal =>
+                    deal?.partnerId === partnerId
+            )
+            .forEach(
+                deal =>
+                    normalizeCountries(deal)
+                        .forEach(
+                            code =>
+                                countries.add(code)
+                        )
+            );
+
+        return countries.size;
+    }
+
     function getCategoryDefinition(categoryId){
         if(!categoryId || !Array.isArray(SHOP_CATEGORIES)){
             return null;
@@ -1284,6 +1304,19 @@ function renderShop(container){
                                 deal.partnerId === partner.id
                         ).length;
 
+                    const shippingCoverage =
+                        getPartnerShippingCoverage(
+                            partner.id,
+                            allItems
+                        );
+
+                    const coverageText =
+                        shippingCoverage > 0
+                            ? `${shippingCoverage} currently represented shipping destination${shippingCoverage === 1 ? "" : "s"}`
+                            : partner.status === "not-published"
+                                ? "No verified shipping destinations — programme not published"
+                                : "No verified shipping destinations yet";
+
                     const status =
                         productCount > 0
                             ? "Live now"
@@ -1298,7 +1331,7 @@ function renderShop(container){
                             </div>
                             <div class="shop-partner-main">
                                 <strong>${escapeHTML(partner.name)}</strong>
-                                <span>${escapeHTML(partner.coverage)}</span>
+                                <span>${escapeHTML(coverageText)}</span>
                             </div>
                             <span class="shop-partner-status ${productCount > 0 ? "live" : ""}">
                                 ${escapeHTML(status)}
