@@ -1947,13 +1947,17 @@ export async function onRequestGet(
     const forceFresh =
         requestUrl.searchParams.get("fresh") === "1";
 
+    const accountDebug =
+        requestUrl.searchParams.get("accountDebug") === "1";
+
     /*
-     * Account cache is intentionally bypassed in debug/fresh mode so
-     * diagnostics can inspect the real feed/cache rotation.
+     * Normal debug/fresh requests bypass the private account snapshot.
+     * accountDebug=1 is the isolated diagnostic exception: it authenticates
+     * the caller, tests the account cache, and skips the shared Shop cache.
      */
     const accountCacheEnabled =
-        !debugMode &&
-        !forceFresh;
+        !forceFresh &&
+        (!debugMode || accountDebug);
 
     const authenticatedUserId =
         accountCacheEnabled
@@ -2477,6 +2481,42 @@ export async function onRequestGet(
                     "rate-limit-batch-deferred"
             );
 
+        let accountDebugWriteResult =
+            null;
+
+        let accountDebugVerified =
+            false;
+
+        if (
+            accountDebug &&
+            authenticatedUserId &&
+            !unfinished
+        ) {
+            accountDebugWriteResult =
+                await writeAccountShopCache(
+                    context,
+                    authenticatedUserId,
+                    finalProducts
+                );
+
+            if (accountDebugWriteResult) {
+                const verifiedAccountCache =
+                    await readAccountShopCache(
+                        context,
+                        authenticatedUserId
+                    );
+
+                accountDebugVerified =
+                    Boolean(
+                        verifiedAccountCache &&
+                        Array.isArray(
+                            verifiedAccountCache.products
+                        ) &&
+                        verifiedAccountCache.products.length
+                    );
+            }
+        }
+
         const response =
             jsonResponse(
                 {
@@ -2509,7 +2549,27 @@ export async function onRequestGet(
                                     Boolean(authenticatedUserId) &&
                                     accountCacheEnabled,
                                 accountCacheHit:
-                                    accountCacheHit
+                                    accountCacheHit,
+                                ...(accountDebug
+                                    ? {
+                                        accountDebug:
+                                            true,
+                                        authenticatedUser:
+                                            Boolean(
+                                                authenticatedUserId
+                                            ),
+                                        serviceRoleConfigured:
+                                            Boolean(
+                                                getSupabaseServiceRoleKey(
+                                                    context
+                                                )
+                                            ),
+                                        accountCacheWriteResult:
+                                            accountDebugWriteResult,
+                                        accountCacheVerified:
+                                            accountDebugVerified
+                                    }
+                                    : {})
                             }
                         }
                         : {})
