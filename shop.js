@@ -1525,6 +1525,9 @@ function renderShop(container){
                 bestPrice
             );
 
+        const isOnDiscount =
+            discount > 0;
+
 
         const partner =
             getPartner(deal);
@@ -1850,9 +1853,9 @@ function renderShop(container){
 
                 </strong>
 
-                <span class="shop-discount-status ${deal.isOnDiscount ? "on-discount" : "not-on-discount"}">
+                <span class="shop-discount-status ${isOnDiscount ? "on-discount" : "not-on-discount"}">
 
-                    ${deal.isOnDiscount ? "On discount" : "Not on discount"}
+                    ${isOnDiscount ? "On discount" : "Not on discount"}
 
                 </span>
 
