@@ -21,6 +21,11 @@ import { recordAdminApiUsage } from "../lib/admin-usage.js";
      - Only joined/active relationships are accepted.
      - Product URLs come from Awin's feed; no affiliate URLs are invented.
      - Product count is capped to keep the Shop fast.
+
+   Automatic discount detection:
+     - Uses Awin regular price + active sale price.
+     - Respects Awin sale-price effective dates when provided.
+     - Automatically returns to regular price when the sale is inactive.
 ========================================================= */
 
 const AWIN_PUBLISHER_ID = "3077319";
@@ -1688,7 +1693,7 @@ export async function onRequestGet(
 
     const cacheKey =
         new Request(
-            "https://worth-it-shop-feed-cache.local/api/shop-products?v=17"
+            "https://worth-it-shop-feed-cache.local/api/shop-products?v=18"
         );
 
     const cached =
@@ -1810,7 +1815,7 @@ export async function onRequestGet(
 
             const feedCacheKey =
                 new Request(
-                    `https://worth-it-shop-feed-cache.local/api/feed/${feed.advertiserId}/${feed.locale}/v16`
+                    `https://worth-it-shop-feed-cache.local/api/feed/${feed.advertiserId}/${feed.locale}/v17`
                 );
 
             let feedProducts =
