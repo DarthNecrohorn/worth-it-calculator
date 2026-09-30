@@ -118,24 +118,7 @@ const SHOP_PARTNERS = [
         coverage: "Fitness, Pilates & wellness",
         note: "Destination availability will be attached per product."
     },
-    {
-        id: "everblog-us",
-        name: "Everblog US",
-        categoryIds: ["family-tech"],
-        icon: "📅",
-        status: "ready-to-connect",
-        coverage: "United States",
-        note: "US-focused program; only approved offers will be published."
-    },
-    {
-        id: "getout",
-        name: "GetOut",
-        categoryIds: ["family-experiences"],
-        icon: "👨‍👩‍👧",
-        status: "not-published",
-        coverage: "Family experiences in supported US states",
-        note: "Kept out of Shop until the partnership is accepted and a tracked offer is connected."
-    }
+,
 ];
 
 /*
