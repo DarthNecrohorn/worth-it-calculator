@@ -317,9 +317,12 @@
     }
 
     function getCategoryProductCount(items, categoryId){
-        return items.filter(
-            deal => deal.category === categoryId
-        ).length;
+        return Math.min(
+            12,
+            items.filter(
+                deal => deal.category === categoryId
+            ).length
+        );
     }
 
     function sortShopItems(items){
@@ -433,7 +436,14 @@
             }
         );
 
-        return sortShopItems(filtered);
+        const sorted =
+            sortShopItems(filtered);
+
+        if(shopViewState.category !== "all"){
+            return sorted.slice(0, 12);
+        }
+
+        return sorted.slice(0, 300);
     }
 
     function getAvailabilityHTML(deal){
