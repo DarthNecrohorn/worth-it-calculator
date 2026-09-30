@@ -36,7 +36,22 @@ const AWIN_API_BASE_URL =
 const AWIN_API_TOKEN_ENV =
     "AWIN_API_TOKEN";
 
+const SUPABASE_URL_ENV =
+    "SUPABASE_URL";
+
+const SUPABASE_PUBLISHABLE_KEY_ENV =
+    "SUPABASE_PUBLISHABLE_KEY";
+
+const SUPABASE_SERVICE_ROLE_KEY_ENV =
+    "SUPABASE_SERVICE_ROLE_KEY";
+
+const SUPABASE_SECRET_KEY_ENV =
+    "SUPABASE_SECRET_KEY";
+
 const CACHE_TTL_SECONDS =
+    6 * 60 * 60;
+
+const SHOP_ACCOUNT_CACHE_TTL_SECONDS =
     6 * 60 * 60;
 
 const FAILED_FEED_CACHE_TTL_SECONDS =
@@ -151,6 +166,253 @@ const REGION_TO_LOCALE = {
     HU: "hu_HU",
     RO: "ro_RO"
 };
+
+function getBearerToken(request) {
+    const header =
+        request.headers.get("Authorization") || "";
+
+    const match =
+        header.match(/^Bearer\\s+(.+)$/i);
+
+    return match
+        ? match[1].trim()
+        : "";
+}
+
+async function getAuthenticatedUserId(context) {
+    const accessToken =
+        getBearerToken(context.request);
+
+    if (!accessToken) {
+        return null;
+    }
+
+    const supabaseUrl =
+        String(
+            context.env?.[SUPABASE_URL_ENV] || ""
+        ).trim();
+
+    const supabasePublishableKey =
+        String(
+            context.env?.[SUPABASE_PUBLISHABLE_KEY_ENV] || ""
+        ).trim();
+
+    if (
+        !supabaseUrl ||
+        !supabasePublishableKey
+    ) {
+        return null;
+    }
+
+    try {
+        const response =
+            await fetch(
+                supabaseUrl +
+                "/auth/v1/user",
+                {
+                    method: "GET",
+                    headers: {
+                        "apikey":
+                            supabasePublishableKey,
+                        "Authorization":
+                            "Bearer " + accessToken,
+                        "Accept":
+                            "application/json"
+                    }
+                }
+            );
+
+        if (!response.ok) {
+            return null;
+        }
+
+        const user =
+            await response.json();
+
+        return (
+            typeof user?.id === "string" &&
+            user.id
+                ? user.id
+                : null
+        );
+    }
+    catch {
+        return null;
+    }
+}
+
+function getSupabaseServiceRoleKey(context) {
+    return String(
+        context.env?.[SUPABASE_SERVICE_ROLE_KEY_ENV] ||
+        context.env?.[SUPABASE_SECRET_KEY_ENV] ||
+        ""
+    ).trim();
+}
+
+async function readAccountShopCache(
+    context,
+    userId
+) {
+    const supabaseUrl =
+        String(
+            context.env?.[SUPABASE_URL_ENV] || ""
+        ).trim();
+
+    const serviceRoleKey =
+        getSupabaseServiceRoleKey(context);
+
+    if (
+        !supabaseUrl ||
+        !serviceRoleKey ||
+        !userId
+    ) {
+        return null;
+    }
+
+    try {
+        const response =
+            await fetch(
+                supabaseUrl +
+                "/rest/v1/shop_account_cache?user_id=eq." +
+                encodeURIComponent(userId) +
+                "&select=products,saved_at,expires_at&limit=1",
+                {
+                    method: "GET",
+                    headers: {
+                        "apikey":
+                            serviceRoleKey,
+                        "Authorization":
+                            "Bearer " + serviceRoleKey,
+                        "Accept":
+                            "application/json"
+                    }
+                }
+            );
+
+        if (!response.ok) {
+            return null;
+        }
+
+        const rows =
+            await response.json();
+
+        const row =
+            Array.isArray(rows)
+                ? rows[0]
+                : null;
+
+        if (
+            !row ||
+            !Array.isArray(row.products)
+        ) {
+            return null;
+        }
+
+        const expiresAt =
+            Date.parse(
+                String(row.expires_at || "")
+            );
+
+        if (
+            !Number.isFinite(expiresAt) ||
+            Date.now() >= expiresAt
+        ) {
+            return null;
+        }
+
+        return {
+            products:
+                row.products,
+            savedAt:
+                row.saved_at || null,
+            expiresAt:
+                row.expires_at || null
+        };
+    }
+    catch (error) {
+        console.warn(
+            "Shop account cache read failed:",
+            error
+        );
+
+        return null;
+    }
+}
+
+async function writeAccountShopCache(
+    context,
+    userId,
+    products
+) {
+    const supabaseUrl =
+        String(
+            context.env?.[SUPABASE_URL_ENV] || ""
+        ).trim();
+
+    const serviceRoleKey =
+        getSupabaseServiceRoleKey(context);
+
+    if (
+        !supabaseUrl ||
+        !serviceRoleKey ||
+        !userId ||
+        !Array.isArray(products) ||
+        !products.length
+    ) {
+        return false;
+    }
+
+    const now =
+        new Date();
+
+    const expiresAt =
+        new Date(
+            now.getTime() +
+            SHOP_ACCOUNT_CACHE_TTL_SECONDS * 1000
+        );
+
+    try {
+        const response =
+            await fetch(
+                supabaseUrl +
+                "/rest/v1/shop_account_cache?on_conflict=user_id",
+                {
+                    method: "POST",
+                    headers: {
+                        "apikey":
+                            serviceRoleKey,
+                        "Authorization":
+                            "Bearer " + serviceRoleKey,
+                        "Content-Type":
+                            "application/json",
+                        "Prefer":
+                            "resolution=merge-duplicates,return=minimal"
+                    },
+                    body:
+                        JSON.stringify({
+                            user_id:
+                                userId,
+                            products:
+                                products,
+                            saved_at:
+                                now.toISOString(),
+                            expires_at:
+                                expiresAt.toISOString()
+                        })
+                }
+            );
+
+        return response.ok;
+    }
+    catch (error) {
+        console.warn(
+            "Shop account cache write failed:",
+            error
+        );
+
+        return false;
+    }
+}
 
 function jsonResponse(
     data,
@@ -1685,6 +1947,19 @@ export async function onRequestGet(
     const forceFresh =
         requestUrl.searchParams.get("fresh") === "1";
 
+    /*
+     * Account cache is intentionally bypassed in debug/fresh mode so
+     * diagnostics can inspect the real feed/cache rotation.
+     */
+    const accountCacheEnabled =
+        !debugMode &&
+        !forceFresh;
+
+    const authenticatedUserId =
+        accountCacheEnabled
+            ? await getAuthenticatedUserId(context)
+            : null;
+
     const cache =
         caches.default;
 
@@ -1692,6 +1967,51 @@ export async function onRequestGet(
         new Request(
             "https://worth-it-shop-feed-cache.local/api/shop-products?v=19"
         );
+
+    let accountCacheHit =
+        false;
+
+    if (
+        authenticatedUserId &&
+        accountCacheEnabled
+    ) {
+        const accountCache =
+            await readAccountShopCache(
+                context,
+                authenticatedUserId
+            );
+
+        if (
+            accountCache &&
+            Array.isArray(accountCache.products) &&
+            accountCache.products.length
+        ) {
+            accountCacheHit = true;
+
+            return jsonResponse(
+                {
+                    ok: true,
+                    configured: true,
+                    generatedAt:
+                        accountCache.savedAt ||
+                        new Date().toISOString(),
+                    publisherId:
+                        AWIN_PUBLISHER_ID,
+                    products:
+                        accountCache.products,
+                    ...(debugMode
+                        ? {
+                            debug: {
+                                accountCacheHit: true
+                            }
+                        }
+                        : {})
+                },
+                200,
+                CACHE_TTL_SECONDS
+            );
+        }
+    }
 
     const cached =
         debugMode
@@ -1701,6 +2021,39 @@ export async function onRequestGet(
             );
 
     if (cached) {
+        if (
+            authenticatedUserId &&
+            accountCacheEnabled
+        ) {
+            /*
+             * The global Shop snapshot is already complete, so associate
+             * it with the signed-in account without making another Awin
+             * request. Cache the exact response body in the account row.
+             */
+            try {
+                const cachedPayload =
+                    await cached.clone().json();
+
+                if (
+                    Array.isArray(
+                        cachedPayload?.products
+                    ) &&
+                    cachedPayload.products.length
+                ) {
+                    context.waitUntil(
+                        writeAccountShopCache(
+                            context,
+                            authenticatedUserId,
+                            cachedPayload.products
+                        )
+                    );
+                }
+            }
+            catch {
+                // Keep serving the global cache if account persistence fails.
+            }
+        }
+
         return cached;
     }
 
@@ -2130,7 +2483,12 @@ export async function onRequestGet(
                                 deferredFeedCount,
                                 feedRequestsUsed,
                                 maxFeedRequestsPerRun:
-                                    MAX_FEED_REQUESTS_PER_RUN
+                                    MAX_FEED_REQUESTS_PER_RUN,
+                                accountCacheEligible:
+                                    Boolean(authenticatedUserId) &&
+                                    accountCacheEnabled,
+                                accountCacheHit:
+                                    accountCacheHit
                             }
                         }
                         : {})
@@ -2153,6 +2511,16 @@ export async function onRequestGet(
                     response.clone()
                 )
             );
+
+            if (authenticatedUserId) {
+                context.waitUntil(
+                    writeAccountShopCache(
+                        context,
+                        authenticatedUserId,
+                        finalProducts
+                    )
+                );
+            }
         }
 
         return response;
