@@ -477,6 +477,58 @@ function parseEnhancedPrice(value) {
     };
 }
 
+
+function isSalePriceCurrentlyActive(
+    baseAmount,
+    saleAmount,
+    effectiveDate,
+    nowMs = Date.now()
+) {
+    if (
+        !Number.isFinite(baseAmount) ||
+        !Number.isFinite(saleAmount) ||
+        baseAmount <= 0 ||
+        saleAmount <= 0 ||
+        saleAmount >= baseAmount
+    ) {
+        return false;
+    }
+
+    const effective =
+        normalizeText(
+            effectiveDate
+        );
+
+    if (!effective) {
+        return true;
+    }
+
+    const parts =
+        effective.split("/");
+
+    if (parts.length !== 2) {
+        return false;
+    }
+
+    const start =
+        new Date(parts[0]).getTime();
+
+    const end =
+        new Date(parts[1]).getTime();
+
+    if (
+        !Number.isFinite(start) ||
+        !Number.isFinite(end)
+    ) {
+        return false;
+    }
+
+    return (
+        nowMs >= start &&
+        nowMs <= end
+    );
+}
+
 function calculateEnhancedPopularity(product) {
     const price =
         Number.isFinite(product.price)
@@ -853,15 +905,40 @@ function productFromEnhancedRecord(
             details.sale_price
         );
 
+    const salePriceEffectiveDate =
+        firstValue(
+            pricing.sale_price_effective_date !== undefined
+                ? {
+                    sale_price_effective_date:
+                        pricing.sale_price_effective_date
+                }
+                : {},
+            ["sale_price_effective_date"]
+        ) ||
+        normalizeText(
+            details.sale_price_effective_date
+        );
+
+    const saleIsActive =
+        isSalePriceCurrentlyActive(
+            basePrice.amount,
+            salePrice.amount,
+            salePriceEffectiveDate
+        );
+
     const price =
-        Number.isFinite(salePrice.amount) &&
-        salePrice.amount > 0
+        saleIsActive
             ? salePrice.amount
             : basePrice.amount;
 
     const currency =
-        salePrice.currency ||
+        (
+            saleIsActive
+                ? salePrice.currency
+                : ""
+        ) ||
         basePrice.currency ||
+        salePrice.currency ||
         normalizeText(
             pricing.currency ||
             details.currency
@@ -869,9 +946,7 @@ function productFromEnhancedRecord(
         "USD";
 
     const oldPrice =
-        Number.isFinite(basePrice.amount) &&
-        Number.isFinite(price) &&
-        basePrice.amount > price
+        saleIsActive
             ? basePrice.amount
             : price;
 
@@ -1142,17 +1217,52 @@ function productFromEnhancedRecord(
             feed.lastImported ||
             "Latest Awin feed",
 
+        isOnDiscount:
+            saleIsActive,
+
+        regularPrice:
+            Number(
+                (
+                    Number.isFinite(basePrice.amount)
+                        ? basePrice.amount
+                        : price
+                ).toFixed(2)
+            ),
+
+        salePrice:
+            saleIsActive
+                ? Number(
+                    salePrice.amount.toFixed(2)
+                )
+                : null,
+
+        savings:
+            saleIsActive
+                ? Number(
+                    (
+                        basePrice.amount -
+                        salePrice.amount
+                    ).toFixed(2)
+                )
+                : 0,
+
         savingsPercent:
-            oldPrice > price
+            saleIsActive
                 ? Number(
                     (
                         (
-                            (oldPrice - price) /
-                            oldPrice
+                            (
+                                basePrice.amount -
+                                salePrice.amount
+                            ) /
+                            basePrice.amount
                         ) * 100
                     ).toFixed(2)
                 )
-                : null,
+                : 0,
+
+        salePriceEffectiveDate:
+            salePriceEffectiveDate || null,
 
         shippingCountries,
 
@@ -1581,7 +1691,7 @@ export async function onRequestGet(
 
     const cacheKey =
         new Request(
-            "https://worth-it-shop-feed-cache.local/api/shop-products?v=16"
+            "https://worth-it-shop-feed-cache.local/api/shop-products?v=17"
         );
 
     const cached =
@@ -1703,7 +1813,7 @@ export async function onRequestGet(
 
             const feedCacheKey =
                 new Request(
-                    `https://worth-it-shop-feed-cache.local/api/feed/${feed.advertiserId}/${feed.locale}/v15`
+                    `https://worth-it-shop-feed-cache.local/api/feed/${feed.advertiserId}/${feed.locale}/v16`
                 );
 
             let feedProducts =
