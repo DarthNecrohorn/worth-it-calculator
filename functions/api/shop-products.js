@@ -7,11 +7,13 @@ import { recordAdminApiUsage } from "../lib/admin-usage.js";
      Automatically discover approved Awin advertiser feeds and
      turn their product data into Shop cards.
 
-   Required Cloudflare secret:
+   Primary Cloudflare secret:
+     AWIN_FEED_LIST_URL
+
+   Legacy fallback secret:
      AWIN_API_TOKEN
 
-   The standard Awin Publisher API token is kept server-side and is
-   never exposed to the browser.
+   Both secrets are kept server-side and are never exposed to the browser.
 
    The public endpoint:
      /api/shop-products
@@ -30,6 +32,12 @@ const AWIN_API_BASE_URL =
 
 const AWIN_API_TOKEN_ENV =
     "AWIN_API_TOKEN";
+
+const AWIN_FEED_LIST_URL_ENV =
+    "AWIN_FEED_LIST_URL";
+
+const MAX_FEED_LIST_BYTES =
+    10 * 1024 * 1024;
 
 const CACHE_TTL_SECONDS =
     6 * 60 * 60;
@@ -254,17 +262,50 @@ function parseBoolean(value) {
  * commas and quoted descriptions, so simple split(",") is unsafe.
  */
 function parseCSV(text) {
+    const source =
+        String(text || "")
+            .replace(/^\uFEFF/, "");
+
+    const firstLine =
+        source.split("\n", 1)[0] || "";
+
+    const delimiterCandidates = [
+        ",",
+        "|",
+        ";",
+        "\t"
+    ];
+
+    const delimiter =
+        delimiterCandidates
+            .map(
+                candidate => ({
+                    candidate,
+                    count:
+                        firstLine.split(candidate).length - 1
+                })
+            )
+            .sort(
+                (
+                    first,
+                    second
+                ) =>
+                    second.count -
+                    first.count
+            )[0]
+            ?.candidate || ",";
+
     const rows = [];
     let row = [];
     let field = "";
     let quoted = false;
 
-    for (let i = 0; i < text.length; i++) {
-        const char = text[i];
+    for (let i = 0; i < source.length; i++) {
+        const char = source[i];
 
         if (quoted) {
             if (char === '"') {
-                if (text[i + 1] === '"') {
+                if (source[i + 1] === '"') {
                     field += '"';
                     i++;
                 }
@@ -284,7 +325,7 @@ function parseCSV(text) {
             continue;
         }
 
-        if (char === ",") {
+        if (char === delimiter) {
             row.push(field);
             field = "";
             continue;
@@ -318,6 +359,7 @@ function parseCSV(text) {
     const headers = rows[0].map(
         header =>
             normalizeText(header)
+                .replace(/^\uFEFF/, "")
                 .replace(/^"|"$/g, "")
                 .toLowerCase()
     );
@@ -1332,6 +1374,778 @@ async function fetchEnhancedFeed(
     );
 }
 
+function localeFromFeedListRow(
+    row
+) {
+    const language =
+        normalizeKey(
+            row?.language
+        );
+
+    const directMap = {
+        english: "en_GB",
+        en: "en_GB",
+        "en gb": "en_GB",
+        "en us": "en_US",
+        "en au": "en_AU",
+        "en ca": "en_CA",
+        german: "de_DE",
+        de: "de_DE",
+        french: "fr_FR",
+        fr: "fr_FR"
+    };
+
+    return (
+        REGION_TO_LOCALE[
+            normalizeText(
+                row?.primaryRegion
+            ).toUpperCase()
+        ] ||
+        directMap[language] ||
+        "en_GB"
+    );
+}
+
+function parseAwinFeedList(
+    text
+) {
+    const rows =
+        parseCSV(text);
+
+    if (!rows.length) {
+        throw new Error(
+            "Awin Feed List is empty."
+        );
+    }
+
+    const sample =
+        rows[0] || {};
+
+    if (
+        !firstValue(
+            sample,
+            [
+                "advertiser name",
+                "advertiser_name"
+            ]
+        ) ||
+        !firstValue(
+            sample,
+            [
+                "feed name",
+                "feed_name"
+            ]
+        ) ||
+        !firstValue(
+            sample,
+            [
+                "url",
+                "download url",
+                "download_url"
+            ]
+        )
+    ) {
+        throw new Error(
+            "Awin Feed List format was not recognized."
+        );
+    }
+
+    return rows;
+}
+
+async function fetchAwinFeedList(
+    feedListUrl,
+    signal
+) {
+    const response =
+        await fetch(
+            feedListUrl,
+            {
+                method: "GET",
+                signal,
+                headers: {
+                    "Accept":
+                        "text/csv, text/plain, */*",
+                    "User-Agent":
+                        "Worth-It-Shop/1.0"
+                }
+            }
+        );
+
+    if (!response.ok) {
+        const error =
+            new Error(
+                `Awin Feed List HTTP ${response.status}`
+            );
+
+        error.status =
+            response.status;
+
+        throw error;
+    }
+
+    const contentLength =
+        Number(
+            response.headers.get(
+                "content-length"
+            )
+        );
+
+    if (
+        Number.isFinite(contentLength) &&
+        contentLength > MAX_FEED_LIST_BYTES
+    ) {
+        throw new Error(
+            "Awin Feed List is larger than the safe processing limit."
+        );
+    }
+
+    const text =
+        await response.text();
+
+    if (
+        new TextEncoder()
+            .encode(text)
+            .byteLength > MAX_FEED_LIST_BYTES
+    ) {
+        throw new Error(
+            "Awin Feed List is larger than the safe processing limit."
+        );
+    }
+
+    return parseAwinFeedList(
+        text
+    );
+}
+
+function buildFeedsFromFeedList(
+    rows
+) {
+    return PARTNER_MATCHES
+        .map(
+            partner => {
+                const candidates =
+                    rows
+                        .map(
+                            row => ({
+                                advertiserName:
+                                    firstValue(
+                                        row,
+                                        [
+                                            "advertiser name",
+                                            "advertiser_name"
+                                        ]
+                                    ),
+                                advertiserId:
+                                    firstValue(
+                                        row,
+                                        [
+                                            "advertiser id",
+                                            "advertiser_id"
+                                        ]
+                                    ),
+                                feedName:
+                                    firstValue(
+                                        row,
+                                        [
+                                            "feed name",
+                                            "feed_name"
+                                        ]
+                                    ),
+                                primaryRegion:
+                                    firstValue(
+                                        row,
+                                        [
+                                            "primary region",
+                                            "primary_region"
+                                        ]
+                                    ),
+                                membershipStatus:
+                                    firstValue(
+                                        row,
+                                        [
+                                            "membership status",
+                                            "membership_status"
+                                        ]
+                                    ),
+                                feedId:
+                                    firstValue(
+                                        row,
+                                        [
+                                            "feed id",
+                                            "feed_id"
+                                        ]
+                                    ),
+                                language:
+                                    firstValue(
+                                        row,
+                                        [
+                                            "language"
+                                        ]
+                                    ),
+                                lastImported:
+                                    firstValue(
+                                        row,
+                                        [
+                                            "last imported",
+                                            "last_imported"
+                                        ]
+                                    ),
+                                downloadUrl:
+                                    firstValue(
+                                        row,
+                                        [
+                                            "url",
+                                            "download url",
+                                            "download_url"
+                                        ]
+                                    )
+                            })
+                        )
+                        .filter(
+                            candidate => {
+                                const normalizedName =
+                                    normalizeKey(
+                                        candidate.advertiserName
+                                    );
+
+                                return (
+                                    partner.match.some(
+                                        token =>
+                                            normalizedName.includes(
+                                                normalizeKey(token)
+                                            )
+                                    ) &&
+                                    membershipIsActive(
+                                        candidate.membershipStatus
+                                    ) &&
+                                    /^https?:\/\//i.test(
+                                        candidate.downloadUrl
+                                    )
+                                );
+                            }
+                        );
+
+                if (!candidates.length) {
+                    return null;
+                }
+
+                candidates.sort(
+                    (
+                        first,
+                        second
+                    ) => {
+                        const firstDefault =
+                            normalizeKey(
+                                first.feedName
+                            ) === "default"
+                                ? 1
+                                : 0;
+
+                        const secondDefault =
+                            normalizeKey(
+                                second.feedName
+                            ) === "default"
+                                ? 1
+                                : 0;
+
+                        if (
+                            firstDefault !==
+                            secondDefault
+                        ) {
+                            return (
+                                secondDefault -
+                                firstDefault
+                            );
+                        }
+
+                        return String(
+                            second.lastImported
+                        ).localeCompare(
+                            String(
+                                first.lastImported
+                            )
+                        );
+                    }
+                );
+
+                const selected =
+                    candidates[0];
+
+                return {
+                    source:
+                        "feed-list",
+                    partnerId:
+                        partner.partnerId,
+                    category:
+                        partner.category,
+                    advertiserId:
+                        selected.advertiserId ||
+                        selected.feedId ||
+                        "",
+                    advertiserName:
+                        normalizeText(
+                            selected.advertiserName
+                        ),
+                    primaryRegion:
+                        selected.primaryRegion ||
+                        null,
+                    lastImported:
+                        selected.lastImported ||
+                        "",
+                    currencyCode:
+                        "",
+                    locale:
+                        localeFromFeedListRow(
+                            selected
+                        ),
+                    feedName:
+                        selected.feedName ||
+                        "",
+                    downloadUrl:
+                        selected.downloadUrl
+                };
+            }
+        )
+        .filter(Boolean);
+}
+
+function countryCodesFromLegacyDelivery(
+    row
+) {
+    const raw =
+        firstValue(
+            row,
+            [
+                "delivery restrictions",
+                "delivery_restrictions",
+                "shipping",
+                "shipping countries",
+                "shipping_countries",
+                "delivery country",
+                "delivery_country"
+            ]
+        );
+
+    if (!raw) {
+        return [];
+    }
+
+    const matches =
+        String(raw)
+            .toUpperCase()
+            .match(
+                /\b[A-Z]{2}\b/g
+            ) || [];
+
+    return [
+        ...new Set(
+            matches
+        )
+    ];
+}
+
+function productFromLegacyRecord(
+    row,
+    feed
+) {
+    const title =
+        firstValue(
+            row,
+            [
+                "product name",
+                "product_name",
+                "title"
+            ]
+        );
+
+    const deepLink =
+        firstValue(
+            row,
+            [
+                "aw_deep_link",
+                "merchant_deep_link",
+                "merchant deep link"
+            ]
+        );
+
+    const image =
+        firstValue(
+            row,
+            [
+                "aw_image_url",
+                "large_image",
+                "merchant_image_url",
+                "merchant image url"
+            ]
+        );
+
+    const priceInfo =
+        parseEnhancedPrice(
+            firstValue(
+                row,
+                [
+                    "search_price",
+                    "store_price",
+                    "base_price_amount",
+                    "base price amount"
+                ]
+            )
+        );
+
+    const price =
+        priceInfo.amount;
+
+    const currency =
+        firstValue(
+            row,
+            [
+                "currency",
+                "currency_code",
+                "currency code"
+            ]
+        ).toUpperCase() ||
+        priceInfo.currency ||
+        feed.currencyCode ||
+        "USD";
+
+    const oldPriceInfo =
+        parseEnhancedPrice(
+            firstValue(
+                row,
+                [
+                    "product_price_old",
+                    "rrp_price",
+                    "base_price_amount",
+                    "base price amount"
+                ]
+            )
+        );
+
+    const oldPrice =
+        Number.isFinite(
+            oldPriceInfo.amount
+        ) &&
+        Number.isFinite(price) &&
+        oldPriceInfo.amount > price
+            ? oldPriceInfo.amount
+            : price;
+
+    if (
+        !title ||
+        !deepLink ||
+        !Number.isFinite(price) ||
+        price <= 0 ||
+        !/^https?:\/\//i.test(
+            deepLink
+        )
+    ) {
+        return null;
+    }
+
+    const partner =
+        PARTNER_MATCHES.find(
+            item =>
+                item.partnerId ===
+                feed.partnerId
+        );
+
+    if (!partner) {
+        return null;
+    }
+
+    const merchantCategory =
+        normalizeText(
+            [
+                firstValue(
+                    row,
+                    [
+                        "merchant_category",
+                        "merchant category"
+                    ]
+                ),
+                firstValue(
+                    row,
+                    [
+                        "category_name",
+                        "category name"
+                    ]
+                ),
+                firstValue(
+                    row,
+                    [
+                        "product_type",
+                        "product type"
+                    ]
+                )
+            ]
+                .filter(Boolean)
+                .join(" ")
+        );
+
+    const category =
+        inferCategory(
+            partner.partnerId,
+            merchantCategory,
+            merchantCategory,
+            title
+        );
+
+    let shippingCountries =
+        countryCodesFromLegacyDelivery(
+            row
+        );
+
+    let shippingSourceLabel =
+        "Awin product feed";
+
+    let shippingNote =
+        "Shipping destinations are taken from the current Awin product feed. Final availability, shipping cost and checkout eligibility can vary by address and merchant.";
+
+    if (!shippingCountries.length) {
+        const fallbackCountries =
+            Array.isArray(
+                partner.shippingFallbackCountries
+            )
+                ? partner.shippingFallbackCountries
+                : [];
+
+        shippingCountries =
+            [
+                ...new Set(
+                    fallbackCountries
+                        .map(
+                            code =>
+                                String(code)
+                                    .trim()
+                                    .toUpperCase()
+                        )
+                        .filter(
+                            code =>
+                                /^[A-Z]{2}$/.test(
+                                    code
+                                )
+                        )
+                )
+            ];
+
+        shippingSourceLabel =
+            partner.shippingSourceLabel ||
+            "Merchant shipping policy";
+
+        shippingNote =
+            partner.shippingNote ||
+            "Shipping destinations are based on the merchant's current shipping policy. Final item availability, shipping cost and checkout eligibility can vary.";
+    }
+
+    if (!shippingCountries.length) {
+        return null;
+    }
+
+    const productId =
+        firstValue(
+            row,
+            [
+                "aw_product_id",
+                "merchant_product_id",
+                "product_id"
+            ]
+        );
+
+    const product = {
+        id:
+            productId
+                ? `awin-${partner.partnerId}-${productId}`
+                : `awin-${partner.partnerId}-${encodeURIComponent(deepLink)}`,
+
+        title,
+
+        price:
+            Number(
+                price.toFixed(2)
+            ),
+
+        oldPrice:
+            Number(
+                (
+                    Number.isFinite(oldPrice)
+                        ? oldPrice
+                        : price
+                ).toFixed(2)
+            ),
+
+        currency,
+
+        image,
+
+        affiliateUrl:
+            deepLink,
+
+        merchantUrl:
+            firstValue(
+                row,
+                [
+                    "merchant_deep_link",
+                    "merchant deep link"
+                ]
+            ),
+
+        store:
+            feed.advertiserName,
+
+        partnerId:
+            partner.partnerId,
+
+        category,
+
+        stockStatus:
+            firstValue(
+                row,
+                [
+                    "stock_status",
+                    "stock status",
+                    "in_stock",
+                    "in stock"
+                ]
+            ) ||
+            "unknown",
+
+        popularityScore:
+            0,
+
+        productUpdatedAt:
+            firstValue(
+                row,
+                [
+                    "last_updated",
+                    "last updated"
+                ]
+            ) ||
+            feed.lastImported ||
+            "Latest Awin feed",
+
+        savingsPercent:
+            oldPrice > price
+                ? Number(
+                    (
+                        (
+                            (oldPrice - price) /
+                            oldPrice
+                        ) * 100
+                    ).toFixed(2)
+                )
+                : null,
+
+        shippingCountries,
+
+        shippingSourceLabel,
+
+        shippingNote
+    };
+
+    product.popularityScore =
+        calculateEnhancedPopularity(
+            product
+        );
+
+    return product;
+}
+
+function parseLegacyCSVFeed(
+    text,
+    feed
+) {
+    return parseCSV(
+        text
+    )
+        .map(
+            row =>
+                productFromLegacyRecord(
+                    row,
+                    feed
+                )
+        )
+        .filter(Boolean)
+        .sort(
+            (
+                first,
+                second
+            ) =>
+                second.popularityScore -
+                first.popularityScore
+        )
+        .slice(
+            0,
+            MAX_PRODUCTS_PER_PARTNER
+        );
+}
+
+async function fetchLegacyFeed(
+    feed,
+    signal
+) {
+    const response =
+        await fetch(
+            feed.downloadUrl,
+            {
+                method: "GET",
+                signal,
+                headers: {
+                    "Accept":
+                        "text/csv, text/plain, */*",
+                    "User-Agent":
+                        "Worth-It-Shop/1.0"
+                }
+            }
+        );
+
+    if (!response.ok) {
+        const error =
+            new Error(
+                `Awin Feed HTTP ${response.status}`
+            );
+
+        error.status =
+            response.status;
+
+        throw error;
+    }
+
+    const contentLength =
+        Number(
+            response.headers.get(
+                "content-length"
+            )
+        );
+
+    if (
+        Number.isFinite(contentLength) &&
+        contentLength > MAX_FEED_BYTES
+    ) {
+        throw new Error(
+            "Feed is larger than the safe processing limit."
+        );
+    }
+
+    const text =
+        await response.text();
+
+    if (
+        new TextEncoder()
+            .encode(text)
+            .byteLength > MAX_FEED_BYTES
+    ) {
+        throw new Error(
+            "Feed is larger than the safe processing limit."
+        );
+    }
+
+    return parseLegacyCSVFeed(
+        text,
+        feed
+    );
+}
+
 function scoreProgramMatch(
     program,
     partner
@@ -1493,14 +2307,20 @@ export async function onRequestGet(
     const token =
         context.env?.[AWIN_API_TOKEN_ENV];
 
-    if (!token) {
+    const feedListUrl =
+        context.env?.[AWIN_FEED_LIST_URL_ENV];
+
+    if (
+        !token &&
+        !feedListUrl
+    ) {
         return jsonResponse(
             {
                 ok: false,
                 configured: false,
                 products: [],
                 error:
-                    "Awin API token is not configured."
+                    "Awin Feed List URL and API token are not configured."
             },
             503
         );
@@ -1516,7 +2336,7 @@ export async function onRequestGet(
 
     const cacheKey =
         new Request(
-            "https://worth-it-shop-feed-cache.local/api/shop-products?v=12"
+            "https://worth-it-shop-feed-cache.local/api/shop-products?v=13"
         );
 
     const cached =
@@ -1541,78 +2361,159 @@ export async function onRequestGet(
         );
 
     try {
-        const programmesUrl =
-            `${AWIN_API_BASE_URL}/publishers/${AWIN_PUBLISHER_ID}/programmes?relationship=joined`;
+        let discoveredFeeds = [];
+        let discoverySource =
+            "publisher-api";
 
-        const programmeData =
-            await fetchJSON(
-                programmesUrl,
-                token,
-                controller.signal
-            );
+        let feedListInfo = {
+            configured:
+                Boolean(feedListUrl),
+            loaded:
+                false,
+            rows:
+                0,
+            matched:
+                0,
+            fallbackToApi:
+                false,
+            matchedAdvertisers:
+                []
+        };
 
-        const programmes =
-            Array.isArray(programmeData)
-                ? programmeData
-                : Array.isArray(
-                    programmeData?.programmes
-                )
-                    ? programmeData.programmes
-                    : [];
+        if (feedListUrl) {
+            try {
+                const feedListRows =
+                    await fetchAwinFeedList(
+                        feedListUrl,
+                        controller.signal
+                    );
 
-        const discoveredFeeds =
-            PARTNER_MATCHES
-                .map(
-                    partner => {
-                        const program =
-                            pickProgram(
-                                programmes,
-                                partner
-                            );
+                discoveredFeeds =
+                    buildFeedsFromFeedList(
+                        feedListRows
+                    );
 
-                        if (
-                            !program ||
-                            !program.id
-                        ) {
-                            return null;
+                discoverySource =
+                    "feed-list";
+
+                feedListInfo.loaded =
+                    true;
+
+                feedListInfo.rows =
+                    feedListRows.length;
+
+                feedListInfo.matched =
+                    discoveredFeeds.length;
+
+                feedListInfo.matchedAdvertisers =
+                    discoveredFeeds.map(
+                        feed =>
+                            feed.advertiserName
+                    );
+
+                if (
+                    !discoveredFeeds.length &&
+                    token
+                ) {
+                    feedListInfo.fallbackToApi =
+                        true;
+                }
+            }
+            catch (error) {
+                console.warn(
+                    "Awin Feed List failed:",
+                    error
+                );
+
+                if (!token) {
+                    throw error;
+                }
+
+                feedListInfo.fallbackToApi =
+                    true;
+            }
+        }
+
+        if (
+            !discoveredFeeds.length &&
+            token
+        ) {
+            discoverySource =
+                "publisher-api";
+
+            const programmesUrl =
+                AWIN_API_BASE_URL +
+                "/publishers/" +
+                AWIN_PUBLISHER_ID +
+                "/programmes?relationship=joined";
+
+            const programmeData =
+                await fetchJSON(
+                    programmesUrl,
+                    token,
+                    controller.signal
+                );
+
+            const programmes =
+                Array.isArray(programmeData)
+                    ? programmeData
+                    : Array.isArray(
+                        programmeData?.programmes
+                    )
+                        ? programmeData.programmes
+                        : [];
+
+            discoveredFeeds =
+                PARTNER_MATCHES
+                    .map(
+                        partner => {
+                            const program =
+                                pickProgram(
+                                    programmes,
+                                    partner
+                                );
+
+                            if (
+                                !program ||
+                                !program.id
+                            ) {
+                                return null;
+                            }
+
+                            return {
+                                source:
+                                    "publisher-api",
+                                partnerId:
+                                    partner.partnerId,
+                                category:
+                                    partner.category,
+                                advertiserId:
+                                    String(
+                                        program.id
+                                    ),
+                                advertiserName:
+                                    normalizeText(
+                                        program.name
+                                    ),
+                                primaryRegion:
+                                    program.primaryRegion ||
+                                    null,
+                                lastImported:
+                                    "",
+                                currencyCode:
+                                    program.currencyCode ||
+                                    "",
+                                locale:
+                                    localeForProgram(
+                                        program
+                                    ),
+                                feedName:
+                                    ""
+                            };
                         }
-
-                        return {
-                            partnerId:
-                                partner.partnerId,
-
-                            category:
-                                partner.category,
-
-                            advertiserId:
-                                String(
-                                    program.id
-                                ),
-
-                            advertiserName:
-                                normalizeText(
-                                    program.name
-                                ),
-
-                            primaryRegion:
-                                program.primaryRegion ||
-                                null,
-
-                            lastImported:
-                                "",
-
-                            currencyCode:
-                                program.currencyCode ||
-                                "",
-
-                            locale:
-                                localeForProgram(
-                                    program
-                                )
-                        };
-                    }
-                )
-                .filter(Boolean);
+                    )
+                    .filter(Boolean);
+        }
 
         const products = [];
         const feedResults = [];
@@ -1634,7 +2535,7 @@ export async function onRequestGet(
 
             const feedCacheKey =
                 new Request(
-                    `https://worth-it-shop-feed-cache.local/api/feed/${feed.advertiserId}/${feed.locale}/v12`
+                    `https://worth-it-shop-feed-cache.local/api/feed/${feed.source || "publisher-api"}/${feed.advertiserId}/${feed.locale}/v13`
                 );
 
             let feedProducts =
@@ -1706,6 +2607,12 @@ export async function onRequestGet(
                             feed.locale,
                         status:
                             "rate-limit-batch-deferred",
+                        source:
+                            feed.source ||
+                            "publisher-api",
+                        feedName:
+                            feed.feedName ||
+                            "",
                         products:
                             0
                     });
@@ -1717,12 +2624,18 @@ export async function onRequestGet(
 
                 try {
                     feedProducts =
-                        await fetchEnhancedFeed(
-                            feed,
-                            token,
-                            controller.signal,
-                            feedDebug
-                        );
+                        feed.source ===
+                        "feed-list"
+                            ? await fetchLegacyFeed(
+                                feed,
+                                controller.signal
+                            )
+                            : await fetchEnhancedFeed(
+                                feed,
+                                token,
+                                controller.signal,
+                                feedDebug
+                            );
 
                     const feedResponse =
                         jsonResponse(
@@ -1762,6 +2675,12 @@ export async function onRequestGet(
                             feed.locale,
                         status:
                             "loaded",
+                        source:
+                            feed.source ||
+                            "publisher-api",
+                        feedName:
+                            feed.feedName ||
+                            "",
                         products:
                             feedProducts.length,
                         ...(debugMode
@@ -1774,7 +2693,14 @@ export async function onRequestGet(
                 }
                 catch (error) {
                     console.warn(
-                        "Awin Enhanced Feed failed for " +
+                        "Awin " +
+                        (
+                            feed.source ===
+                            "feed-list"
+                                ? "Feed List product feed"
+                                : "Enhanced Feed"
+                        ) +
+                        " failed for " +
                         feed.advertiserName +
                         ":",
                         error
@@ -1847,6 +2773,12 @@ export async function onRequestGet(
                             feed.primaryRegion || null,
                         status:
                             failureStatus,
+                        source:
+                            feed.source ||
+                            "publisher-api",
+                        feedName:
+                            feed.feedName ||
+                            "",
                         products:
                             0,
                         ...(debugMode
@@ -1874,6 +2806,12 @@ export async function onRequestGet(
                         feed.primaryRegion || null,
                     status:
                         cachedFeedStatus,
+                    source:
+                        feed.source ||
+                        "publisher-api",
+                    feedName:
+                        feed.feedName ||
+                        "",
                     products:
                         feedProducts.length
                 });
@@ -1932,7 +2870,10 @@ export async function onRequestGet(
                         ? {
                             debug: {
                                 note:
-                                    "Debug mode bypasses Shop caches and fetches up to 5 feeds to inspect product shipping data."
+                                    "Debug mode bypasses Shop caches and fetches up to 5 feeds to inspect product shipping data.",
+                                discoverySource,
+                                feedList:
+                                    feedListInfo
                             }
                         }
                         : {})
