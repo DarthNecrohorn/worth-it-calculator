@@ -2053,7 +2053,8 @@ export async function onRequestGet(
             /*
              * The global Shop snapshot is already complete, so associate
              * it with the signed-in account without making another Awin
-             * request. Cache the exact response body in the account row.
+             * request. In accountDebug mode we await + verify the write so
+             * diagnostics can distinguish persistence failure from timing.
              */
             try {
                 const cachedPayload =
@@ -2065,6 +2066,62 @@ export async function onRequestGet(
                     ) &&
                     cachedPayload.products.length
                 ) {
+                    if (accountDebug) {
+                        const writeResult =
+                            await writeAccountShopCache(
+                                context,
+                                authenticatedUserId,
+                                cachedPayload.products
+                            );
+
+                        const verified =
+                            writeResult
+                                ? await readAccountShopCache(
+                                    context,
+                                    authenticatedUserId
+                                )
+                                : null;
+
+                        const debugResponse =
+                            jsonResponse(
+                                {
+                                    ...cachedPayload,
+                                    debug: {
+                                        accountDebug: true,
+                                        authenticatedUser:
+                                            Boolean(
+                                                authenticatedUserId
+                                            ),
+                                        serviceRoleConfigured:
+                                            Boolean(
+                                                getSupabaseServiceRoleKey(
+                                                    context
+                                                )
+                                            ),
+                                        globalCacheHit: true,
+                                        accountCacheWriteResult:
+                                            writeResult,
+                                        accountCacheVerified:
+                                            Boolean(
+                                                verified &&
+                                                Array.isArray(
+                                                    verified.products
+                                                ) &&
+                                                verified.products.length
+                                            )
+                                    }
+                                },
+                                200
+                            );
+
+                        debugResponse.headers.set(
+                            "X-Worth-It-Shop-Cache",
+                            "global-diagnostic"
+                        );
+
+                        return debugResponse;
+                    }
+
                     context.waitUntil(
                         writeAccountShopCache(
                             context,
@@ -2074,7 +2131,37 @@ export async function onRequestGet(
                     );
                 }
             }
-            catch {
+            catch (error) {
+                if (accountDebug) {
+                    return jsonResponse(
+                        {
+                            ok: false,
+                            configured: true,
+                            products: [],
+                            error:
+                                "Shop account cache diagnostic failed.",
+                            debug: {
+                                accountDebug: true,
+                                authenticatedUser:
+                                    Boolean(
+                                        authenticatedUserId
+                                    ),
+                                serviceRoleConfigured:
+                                    Boolean(
+                                        getSupabaseServiceRoleKey(
+                                            context
+                                        )
+                                    ),
+                                diagnosticError:
+                                    normalizeText(
+                                        error?.message ||
+                                        "Unknown error"
+                                    ).slice(0, 500)
+                            }
+                        },
+                        500
+                    );
+                }
                 // Keep serving the global cache if account persistence fails.
             }
         }
