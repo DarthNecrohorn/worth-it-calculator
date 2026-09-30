@@ -136,130 +136,6 @@
     let automaticShopFeedLoading = false;
     let automaticShopFeedPromise = null;
 
-    /*
-     * Persist the complete Awin product pool in the browser so reopening
-     * Shop, switching categories, or refreshing the page does not trigger
-     * another API request while the cached pool is still fresh.
-     *
-     * The browser TTL matches the backend's 6-hour Shop cache.
-     */
-    const SHOP_BROWSER_CACHE_KEY =
-        "worth-it-shop-awin-products-v1";
-
-    const SHOP_BROWSER_CACHE_TTL_MS =
-        6 * 60 * 60 * 1000;
-
-    function readAutomaticShopBrowserCache(){
-
-        try{
-
-            const raw =
-                localStorage.getItem(
-                    SHOP_BROWSER_CACHE_KEY
-                );
-
-            if(!raw){
-                return null;
-            }
-
-            const payload =
-                JSON.parse(raw);
-
-            if(
-                !payload ||
-                !Array.isArray(payload.products) ||
-                !payload.products.length ||
-                !Number.isFinite(Number(payload.savedAt))
-            ){
-                localStorage.removeItem(
-                    SHOP_BROWSER_CACHE_KEY
-                );
-
-                return null;
-            }
-
-            const age =
-                Date.now() -
-                Number(payload.savedAt);
-
-            if(
-                age < 0 ||
-                age > SHOP_BROWSER_CACHE_TTL_MS
-            ){
-                localStorage.removeItem(
-                    SHOP_BROWSER_CACHE_KEY
-                );
-
-                return null;
-            }
-
-            return payload.products;
-
-        }
-        catch(error){
-
-            console.warn(
-                "Shop browser cache could not be read:",
-                error
-            );
-
-            return null;
-
-        }
-    }
-
-    function writeAutomaticShopBrowserCache(products){
-
-        if(
-            !Array.isArray(products) ||
-            !products.length
-        ){
-            return;
-        }
-
-        try{
-
-            localStorage.setItem(
-                SHOP_BROWSER_CACHE_KEY,
-                JSON.stringify({
-                    savedAt:
-                        Date.now(),
-                    products:
-                        products
-                })
-            );
-
-        }
-        catch(error){
-
-            /*
-             * Storage can be unavailable or full. The Shop continues
-             * normally with the in-memory product pool in that case.
-             */
-            console.warn(
-                "Shop browser cache could not be saved:",
-                error
-            );
-
-        }
-    }
-
-    const shopPartnerAvailability = {
-        stylevana: {
-            type: "shipping",
-            countries: [
-                "AU", "BR", "BN", "BG", "CA", "CO", "HR", "CY", "CZ", "DK",
-                "EE", "FI", "GR", "HU", "IE", "IT", "LV", "LT",
-                "MT", "NL", "NZ", "NO", "PH", "PL", "PT", "RO", "SG", "SK",
-                "SI", "ZA", "ES", "SE", "GB", "US", "VN"
-            ],
-            verifiedDate: "2026-09-29",
-            note:
-                "Merchant shipping coverage was checked against current Stylevana destination pages. Final item availability, shipping cost and checkout eligibility can vary."
-        }
-    };
-
-
     function getPartner(deal){
         if(!deal || !deal.partnerId || !Array.isArray(SHOP_PARTNERS)){
             return null;
@@ -963,6 +839,40 @@
             .filter(Boolean);
     }
 
+    async function getShopAccessToken(){
+
+        try{
+
+            const client =
+                window.supabaseClient;
+
+            if(
+                !client ||
+                !client.auth
+            ){
+                return "";
+            }
+
+            const result =
+                await client.auth.getSession();
+
+            return (
+                result?.data?.session?.access_token ||
+                ""
+            );
+
+        }
+        catch(error){
+
+            console.warn(
+                "Shop could not read the current account session:",
+                error
+            );
+
+            return "";
+        }
+    }
+
     async function loadAutomaticShopProducts(){
 
         if(
@@ -1001,15 +911,26 @@
 
                 try{
 
+                    const accessToken =
+                        await getShopAccessToken();
+
+                    const headers = {
+                        "Accept": "application/json"
+                    };
+
+                    if(accessToken){
+                        headers.Authorization =
+                            "Bearer " + accessToken;
+                    }
+
                     const response =
                         await fetch(
                             "/api/shop-products",
                             {
                                 method: "GET",
                                 cache: "no-store",
-                                headers: {
-                                    "Accept": "application/json"
-                                }
+                                headers:
+                                    headers
                             }
                         );
 
