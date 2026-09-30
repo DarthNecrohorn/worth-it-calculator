@@ -52,27 +52,32 @@ const FEED_FETCH_TIMEOUT_MS =
 const PARTNER_MATCHES = [
     {
         partnerId: "stylevana",
+        advertiserIds: ["90791"],
         match: ["stylevana"],
         category: "beauty-skincare"
     },
     {
         partnerId: "fntcase",
+        advertiserIds: ["45915"],
         match: ["shenzhen feinuote", "fntcase"],
         category: "phone-accessories"
     },
     {
         partnerId: "dowinx-eu",
+        advertiserIds: ["107524"],
         match: ["dowinx"],
         category: "gaming-office",
         prefer: ["dowinx eu"]
     },
     {
         partnerId: "king-koil",
+        advertiserIds: ["115216"],
         match: ["king koil"],
         category: "sleep-mattresses"
     },
     {
         partnerId: "simple-project",
+        advertiserIds: ["99013"],
         match: ["shenzhen cangyu", "simple project"],
         category: "bathroom-home",
         shippingFallbackCountries: [
@@ -85,11 +90,13 @@ const PARTNER_MATCHES = [
     },
     {
         partnerId: "giftlab",
+        advertiserIds: ["95201"],
         match: ["giftlab"],
         category: "personalized-gifts"
     },
     {
         partnerId: "personalhour",
+        advertiserIds: ["96347"],
         match: ["personalhour"],
         category: "fitness-wellness"
     },
@@ -389,131 +396,6 @@ function findPartner(advertiserName) {
     ) || null;
 }
 
-function membershipIsActive(status) {
-    const normalized =
-        normalizeKey(status);
-
-    return [
-        "joined",
-        "active",
-        "approved",
-        "accepted"
-    ].includes(normalized);
-}
-
-function inferCategory(
-    partnerId,
-    merchantCategory,
-    categoryName,
-    productName
-) {
-    const text =
-        normalizeKey(
-            [
-                merchantCategory,
-                categoryName,
-                productName
-            ].join(" ")
-        );
-
-    if (
-        partnerId === "stylevana" &&
-        /(fashion|clothing|apparel|shoes|bags|accessories)/.test(text)
-    ) {
-        return "fashion-accessories";
-    }
-
-    if (
-        partnerId === "giftlab" &&
-        /(fashion|clothing|apparel|jewelry|accessories)/.test(text)
-    ) {
-        return "fashion-accessories";
-    }
-
-    const partner =
-        PARTNER_MATCHES.find(
-            item =>
-                item.partnerId === partnerId
-        );
-
-    return partner?.category || "other";
-}
-
-function parseEnhancedPrice(value) {
-    if (
-        value === undefined ||
-        value === null ||
-        String(value).trim() === ""
-    ) {
-        return {
-            amount: null,
-            currency: ""
-        };
-    }
-
-    const text =
-        normalizeText(value);
-
-    const match =
-        text.match(
-            /([0-9][0-9.,]*)\s*([A-Z]{3})$/i
-        );
-
-    if (!match) {
-        const number =
-            Number(
-                text.replace(/[^0-9.+-]/g, "")
-            );
-
-        return {
-            amount:
-                Number.isFinite(number)
-                    ? number
-                    : null,
-            currency: ""
-        };
-    }
-
-    const numericText =
-        match[1]
-            .replace(/,(?=\d{3}(?:\D|$))/g, "")
-            .replace(",", ".");
-
-    const amount =
-        Number(numericText);
-
-    return {
-        amount:
-            Number.isFinite(amount)
-                ? amount
-                : null,
-        currency:
-            String(match[2]).toUpperCase()
-    };
-}
-
-function calculateEnhancedPopularity(product) {
-    const price =
-        Number.isFinite(product.price)
-            ? product.price
-            : 0;
-
-    const oldPrice =
-        Number.isFinite(product.oldPrice)
-            ? product.oldPrice
-            : price;
-
-    const discount =
-        oldPrice > price
-            ? ((oldPrice - price) / oldPrice) * 100
-            : 0;
-
-    return Math.max(
-        0,
-        discount * 2
-    );
-}
-
 function localeFromFeedListRow(
     row
 ) {
@@ -749,15 +631,36 @@ function buildFeedsFromFeedList(
                                         candidate.advertiserName
                                     );
 
-                                return (
+                                const normalizedAdvertiserId =
+                                    normalizeText(
+                                        candidate.advertiserId
+                                    );
+
+                                const idMatches =
+                                    Array.isArray(
+                                        partner.advertiserIds
+                                    ) &&
+                                    partner.advertiserIds.includes(
+                                        normalizedAdvertiserId
+                                    );
+
+                                const nameMatches =
                                     partner.match.some(
                                         token =>
                                             normalizedName.includes(
                                                 normalizeKey(token)
                                             )
-                                    ) &&
-                                    membershipIsActive(
-                                        candidate.membershipStatus
+                                    );
+
+                                return (
+                                    (
+                                        idMatches ||
+                                        (
+                                            !Array.isArray(
+                                                partner.advertiserIds
+                                            ) &&
+                                            nameMatches
+                                        )
                                     ) &&
                                     /^https?:\/\//i.test(
                                         candidate.downloadUrl
@@ -775,6 +678,35 @@ function buildFeedsFromFeedList(
                         first,
                         second
                     ) => {
+                        const firstExactId =
+                            Array.isArray(
+                                partner.advertiserIds
+                            ) &&
+                            partner.advertiserIds.includes(
+                                first.advertiserId
+                            )
+                                ? 1
+                                : 0;
+
+                        const secondExactId =
+                            Array.isArray(
+                                partner.advertiserIds
+                            ) &&
+                            partner.advertiserIds.includes(
+                                second.advertiserId
+                            )
+                                ? 1
+                                : 0;
+
+                        if (
+                            firstExactId !==
+                            secondExactId
+                        ) {
+                            return (
+                                secondExactId -
+                                firstExactId
+                            );
+                        }
                         const firstDefault =
                             normalizeKey(
                                 first.feedName
