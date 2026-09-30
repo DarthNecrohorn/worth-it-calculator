@@ -342,8 +342,7 @@ async function readAccountShopCache(
 async function writeAccountShopCache(
     context,
     userId,
-    products,
-    diagnostic = false
+    products
 ) {
     const supabaseUrl =
         String(
@@ -403,30 +402,6 @@ async function writeAccountShopCache(
                 }
             );
 
-        if (diagnostic) {
-            let errorBody = "";
-
-            if (!response.ok) {
-                try {
-                    errorBody =
-                        normalizeText(
-                            await response.text()
-                        ).slice(0, 1000);
-                }
-                catch {
-                    errorBody = "";
-                }
-            }
-
-            return {
-                ok: response.ok,
-                status: response.status,
-                statusText: response.statusText || "",
-                error:
-                    errorBody || null
-            };
-        }
-
         return response.ok;
     }
     catch (error) {
@@ -434,19 +409,6 @@ async function writeAccountShopCache(
             "Shop account cache write failed:",
             error
         );
-
-        if (diagnostic) {
-            return {
-                ok: false,
-                status: 0,
-                statusText: "",
-                error:
-                    normalizeText(
-                        error?.message ||
-                        "Unknown error"
-                    ).slice(0, 1000)
-            };
-        }
 
         return false;
     }
@@ -1985,17 +1947,13 @@ export async function onRequestGet(
     const forceFresh =
         requestUrl.searchParams.get("fresh") === "1";
 
-    const accountDebug =
-        requestUrl.searchParams.get("accountDebug") === "1";
-
     /*
-     * Normal debug/fresh requests bypass the private account snapshot.
-     * accountDebug=1 is the isolated diagnostic exception: it authenticates
-     * the caller, tests the account cache, and skips the shared Shop cache.
+     * Account cache is intentionally bypassed in debug/fresh mode so
+     * diagnostics can inspect the real feed/cache rotation.
      */
     const accountCacheEnabled =
-        !forceFresh &&
-        (!debugMode || accountDebug);
+        !debugMode &&
+        !forceFresh;
 
     const authenticatedUserId =
         accountCacheEnabled
@@ -2091,8 +2049,7 @@ export async function onRequestGet(
             /*
              * The global Shop snapshot is already complete, so associate
              * it with the signed-in account without making another Awin
-             * request. In accountDebug mode we await + verify the write so
-             * diagnostics can distinguish persistence failure from timing.
+             * request. Cache the exact response body in the account row.
              */
             try {
                 const cachedPayload =
@@ -2104,63 +2061,6 @@ export async function onRequestGet(
                     ) &&
                     cachedPayload.products.length
                 ) {
-                    if (accountDebug) {
-                        const writeResult =
-                            await writeAccountShopCache(
-                                context,
-                                authenticatedUserId,
-                                cachedPayload.products,
-                                true
-                            );
-
-                        const verified =
-                            writeResult?.ok
-                                ? await readAccountShopCache(
-                                    context,
-                                    authenticatedUserId
-                                )
-                                : null;
-
-                        const debugResponse =
-                            jsonResponse(
-                                {
-                                    ...cachedPayload,
-                                    debug: {
-                                        accountDebug: true,
-                                        authenticatedUser:
-                                            Boolean(
-                                                authenticatedUserId
-                                            ),
-                                        serviceRoleConfigured:
-                                            Boolean(
-                                                getSupabaseServiceRoleKey(
-                                                    context
-                                                )
-                                            ),
-                                        globalCacheHit: true,
-                                        accountCacheWriteResult:
-                                            writeResult,
-                                        accountCacheVerified:
-                                            Boolean(
-                                                verified &&
-                                                Array.isArray(
-                                                    verified.products
-                                                ) &&
-                                                verified.products.length
-                                            )
-                                    }
-                                },
-                                200
-                            );
-
-                        debugResponse.headers.set(
-                            "X-Worth-It-Shop-Cache",
-                            "global-diagnostic"
-                        );
-
-                        return debugResponse;
-                    }
-
                     context.waitUntil(
                         writeAccountShopCache(
                             context,
@@ -2170,37 +2070,7 @@ export async function onRequestGet(
                     );
                 }
             }
-            catch (error) {
-                if (accountDebug) {
-                    return jsonResponse(
-                        {
-                            ok: false,
-                            configured: true,
-                            products: [],
-                            error:
-                                "Shop account cache diagnostic failed.",
-                            debug: {
-                                accountDebug: true,
-                                authenticatedUser:
-                                    Boolean(
-                                        authenticatedUserId
-                                    ),
-                                serviceRoleConfigured:
-                                    Boolean(
-                                        getSupabaseServiceRoleKey(
-                                            context
-                                        )
-                                    ),
-                                diagnosticError:
-                                    normalizeText(
-                                        error?.message ||
-                                        "Unknown error"
-                                    ).slice(0, 500)
-                            }
-                        },
-                        500
-                    );
-                }
+            catch {
                 // Keep serving the global cache if account persistence fails.
             }
         }
@@ -2607,42 +2477,6 @@ export async function onRequestGet(
                     "rate-limit-batch-deferred"
             );
 
-        let accountDebugWriteResult =
-            null;
-
-        let accountDebugVerified =
-            false;
-
-        if (
-            accountDebug &&
-            authenticatedUserId &&
-            !unfinished
-        ) {
-            accountDebugWriteResult =
-                await writeAccountShopCache(
-                    context,
-                    authenticatedUserId,
-                    finalProducts
-                );
-
-            if (accountDebugWriteResult) {
-                const verifiedAccountCache =
-                    await readAccountShopCache(
-                        context,
-                        authenticatedUserId
-                    );
-
-                accountDebugVerified =
-                    Boolean(
-                        verifiedAccountCache &&
-                        Array.isArray(
-                            verifiedAccountCache.products
-                        ) &&
-                        verifiedAccountCache.products.length
-                    );
-            }
-        }
-
         const response =
             jsonResponse(
                 {
@@ -2656,7 +2490,7 @@ export async function onRequestGet(
                         feedResults,
                     products:
                         finalProducts,
-                    ...(debugMode || accountDebug
+                    ...(debugMode
                         ? {
                             debug: {
                                 note:
@@ -2675,27 +2509,7 @@ export async function onRequestGet(
                                     Boolean(authenticatedUserId) &&
                                     accountCacheEnabled,
                                 accountCacheHit:
-                                    accountCacheHit,
-                                ...(accountDebug
-                                    ? {
-                                        accountDebug:
-                                            true,
-                                        authenticatedUser:
-                                            Boolean(
-                                                authenticatedUserId
-                                            ),
-                                        serviceRoleConfigured:
-                                            Boolean(
-                                                getSupabaseServiceRoleKey(
-                                                    context
-                                                )
-                                            ),
-                                        accountCacheWriteResult:
-                                            accountDebugWriteResult,
-                                        accountCacheVerified:
-                                            accountDebugVerified
-                                    }
-                                    : {})
+                                    accountCacheHit
                             }
                         }
                         : {})
