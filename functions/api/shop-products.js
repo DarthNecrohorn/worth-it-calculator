@@ -59,7 +59,8 @@ const PARTNER_MATCHES = [
     {
         partnerId: "stylevana",
         match: ["stylevana"],
-        category: "beauty-skincare"
+        category: "beauty-skincare",
+        feedLocale: "en_US"
     },
     {
         partnerId: "fntcase",
@@ -1466,8 +1467,15 @@ function pickProgram(
 }
 
 function localeForProgram(
-    program
+    program,
+    partner = null
 ) {
+    if (
+        partner?.feedLocale
+    ) {
+        return partner.feedLocale;
+    }
+
     const countryCode =
         String(
             program?.primaryRegion?.countryCode ||
@@ -1664,7 +1672,8 @@ export async function onRequestGet(
 
                             locale:
                                 localeForProgram(
-                                    program
+                                    program,
+                                    partner
                                 )
                         };
                     }
