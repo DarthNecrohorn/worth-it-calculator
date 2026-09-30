@@ -882,28 +882,6 @@
             return automaticShopFeedPromise;
         }
 
-        /*
-         * First check the browser cache. This avoids another request to
-         * /api/shop-products after refresh/reopen while the saved product
-         * pool is still inside its 6-hour freshness window.
-         */
-        const cachedProducts =
-            readAutomaticShopBrowserCache();
-
-        if(cachedProducts){
-
-            automaticShopProducts =
-                cachedProducts;
-
-            automaticShopFeedLoaded =
-                true;
-
-            automaticShopFeedPromise =
-                Promise.resolve(true);
-
-            return automaticShopFeedPromise;
-        }
-
         automaticShopFeedLoading = true;
 
         automaticShopFeedPromise =
@@ -954,10 +932,6 @@
 
                     automaticShopFeedLoaded =
                         true;
-
-                    writeAutomaticShopBrowserCache(
-                        automaticShopProducts
-                    );
 
                     return true;
 
