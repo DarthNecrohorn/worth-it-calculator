@@ -136,6 +136,114 @@
     let automaticShopFeedLoading = false;
     let automaticShopFeedPromise = null;
 
+    /*
+     * Persist the complete Awin product pool in the browser so reopening
+     * Shop, switching categories, or refreshing the page does not trigger
+     * another API request while the cached pool is still fresh.
+     *
+     * The browser TTL matches the backend's 6-hour Shop cache.
+     */
+    const SHOP_BROWSER_CACHE_KEY =
+        "worth-it-shop-awin-products-v1";
+
+    const SHOP_BROWSER_CACHE_TTL_MS =
+        6 * 60 * 60 * 1000;
+
+    function readAutomaticShopBrowserCache(){
+
+        try{
+
+            const raw =
+                localStorage.getItem(
+                    SHOP_BROWSER_CACHE_KEY
+                );
+
+            if(!raw){
+                return null;
+            }
+
+            const payload =
+                JSON.parse(raw);
+
+            if(
+                !payload ||
+                !Array.isArray(payload.products) ||
+                !payload.products.length ||
+                !Number.isFinite(Number(payload.savedAt))
+            ){
+                localStorage.removeItem(
+                    SHOP_BROWSER_CACHE_KEY
+                );
+
+                return null;
+            }
+
+            const age =
+                Date.now() -
+                Number(payload.savedAt);
+
+            if(
+                age < 0 ||
+                age > SHOP_BROWSER_CACHE_TTL_MS
+            ){
+                localStorage.removeItem(
+                    SHOP_BROWSER_CACHE_KEY
+                );
+
+                return null;
+            }
+
+            return payload.products;
+
+        }
+        catch(error){
+
+            console.warn(
+                "Shop browser cache could not be read:",
+                error
+            );
+
+            return null;
+
+        }
+    }
+
+    function writeAutomaticShopBrowserCache(products){
+
+        if(
+            !Array.isArray(products) ||
+            !products.length
+        ){
+            return;
+        }
+
+        try{
+
+            localStorage.setItem(
+                SHOP_BROWSER_CACHE_KEY,
+                JSON.stringify({
+                    savedAt:
+                        Date.now(),
+                    products:
+                        products
+                })
+            );
+
+        }
+        catch(error){
+
+            /*
+             * Storage can be unavailable or full. The Shop continues
+             * normally with the in-memory product pool in that case.
+             */
+            console.warn(
+                "Shop browser cache could not be saved:",
+                error
+            );
+
+        }
+    }
+
     const shopPartnerAvailability = {
         stylevana: {
             type: "shipping",
@@ -864,6 +972,28 @@
             return automaticShopFeedPromise;
         }
 
+        /*
+         * First check the browser cache. This avoids another request to
+         * /api/shop-products after refresh/reopen while the saved product
+         * pool is still inside its 6-hour freshness window.
+         */
+        const cachedProducts =
+            readAutomaticShopBrowserCache();
+
+        if(cachedProducts){
+
+            automaticShopProducts =
+                cachedProducts;
+
+            automaticShopFeedLoaded =
+                true;
+
+            automaticShopFeedPromise =
+                Promise.resolve(true);
+
+            return automaticShopFeedPromise;
+        }
+
         automaticShopFeedLoading = true;
 
         automaticShopFeedPromise =
@@ -903,6 +1033,10 @@
 
                     automaticShopFeedLoaded =
                         true;
+
+                    writeAutomaticShopBrowserCache(
+                        automaticShopProducts
+                    );
 
                     return true;
 
