@@ -16,5 +16,13 @@ create index if not exists shop_account_cache_expires_at_idx
 
 alter table public.shop_account_cache enable row level security;
 
+/*
+ * The Shop backend accesses this private table through the server-side
+ * Supabase service_role key. RLS still blocks direct client access because
+ * no anon/authenticated policies are granted.
+ */
+grant usage on schema public to service_role;
+grant all on table public.shop_account_cache to service_role;
+
 drop policy if exists "Users cannot access Shop account cache directly"
     on public.shop_account_cache;
