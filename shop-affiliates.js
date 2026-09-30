@@ -117,6 +117,42 @@ const SHOP_PARTNERS = [
         status: "ready-to-connect",
         coverage: "Fitness, Pilates & wellness",
         note: "Destination availability will be attached per product."
+    },
+    {
+        id: "everblog-us",
+        name: "Everblog US",
+        categoryIds: ["family-tech"],
+        icon: "📅",
+        status: "ready-to-connect",
+        coverage: "United States family calendar",
+        note: "Awin source joined; products will be published only with verified affiliate URLs."
+    },
+    {
+        id: "getout",
+        name: "GetOut",
+        categoryIds: ["family-experiences"],
+        icon: "👨‍👩‍👧",
+        status: "not-published",
+        coverage: "Family entertainment & local experiences",
+        note: "Awin source is listed, but the current account relationship is not joined; no products will be published until access is active."
+    },
+    {
+        id: "lunzo-hu",
+        name: "Lunzo HU",
+        categoryIds: ["fashion-accessories"],
+        icon: "🇭🇺",
+        status: "ready-to-connect",
+        coverage: "Lunzo.hu product catalogue",
+        note: "Awin source joined; product data feed will be used when available."
+    },
+    {
+        id: "lunzo-pl",
+        name: "Lunzo PL",
+        categoryIds: ["fashion-accessories"],
+        icon: "🇵🇱",
+        status: "ready-to-connect",
+        coverage: "Lunzo.pl product catalogue",
+        note: "Awin source joined; product data feed will be used when available."
     }
 ];
 
