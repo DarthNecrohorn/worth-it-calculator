@@ -10,10 +10,10 @@ import { recordAdminApiUsage } from "../lib/admin-usage.js";
    Primary Cloudflare secret:
      AWIN_FEED_LIST_URL
 
-   Legacy fallback secret:
-     AWIN_API_TOKEN
+   Secret:
+     AWIN_FEED_LIST_URL
 
-   Both secrets are kept server-side and are never exposed to the browser.
+   The Feed List URL is kept server-side and is never exposed to the browser.
 
    The public endpoint:
      /api/shop-products
@@ -24,14 +24,6 @@ import { recordAdminApiUsage } from "../lib/admin-usage.js";
      - Product URLs come from Awin's feed; no affiliate URLs are invented.
      - Product count is capped to keep the Shop fast.
 ========================================================= */
-
-const AWIN_PUBLISHER_ID = "3077319";
-
-const AWIN_API_BASE_URL =
-    "https://api.awin.com";
-
-const AWIN_API_TOKEN_ENV =
-    "AWIN_API_TOKEN";
 
 const AWIN_FEED_LIST_URL_ENV =
     "AWIN_FEED_LIST_URL";
@@ -47,9 +39,6 @@ const MAX_TOTAL_PRODUCTS =
 
 const MAX_PRODUCTS_PER_PARTNER =
     8;
-
-const MAX_FEED_REQUESTS_PER_RUN =
-    5;
 
 const MAX_FEED_BYTES =
     40 * 1024 * 1024;
@@ -1225,155 +1214,6 @@ function parseEnhancedJSONL(
         );
 }
 
-async function fetchJSON(
-    url,
-    token,
-    signal
-) {
-    const response =
-        await fetch(
-            url,
-            {
-                method: "GET",
-                signal,
-                headers: {
-                    "Accept":
-                        "application/json",
-                    "Authorization":
-                        `Bearer ${token}`,
-                    "User-Agent":
-                        "Worth-It-Shop/1.0"
-                }
-            }
-        );
-
-    const body =
-        await response.text();
-
-    let data = null;
-
-    try {
-        data =
-            body
-                ? JSON.parse(body)
-                : null;
-    }
-    catch {
-        data = null;
-    }
-
-    if (!response.ok) {
-        const error =
-            new Error(
-                normalizeText(
-                    data?.message ||
-                    data?.error ||
-                    `Upstream HTTP ${response.status}`
-                )
-            );
-
-        error.status =
-            response.status;
-
-        throw error;
-    }
-
-    return data;
-}
-
-async function fetchEnhancedFeed(
-    feed,
-    token,
-    signal,
-    debug = null
-) {
-    const url =
-        `${AWIN_API_BASE_URL}/publishers/${AWIN_PUBLISHER_ID}/awinfeeds/download/${feed.advertiserId}-retail-${feed.locale}.jsonl`;
-
-    const response =
-        await fetch(
-            url,
-            {
-                method: "GET",
-                signal,
-                headers: {
-                    "Accept":
-                        "application/json, application/jsonl, text/plain, */*",
-                    "Authorization":
-                        `Bearer ${token}`,
-                    "User-Agent":
-                        "Worth-It-Shop/1.0"
-                }
-            }
-        );
-
-    if (!response.ok) {
-        const body =
-            await response.text();
-
-        let message =
-            `Upstream HTTP ${response.status}`;
-
-        try {
-            const parsed =
-                JSON.parse(body);
-
-            message =
-                normalizeText(
-                    parsed?.message ||
-                    parsed?.error ||
-                    message
-                );
-        }
-        catch {
-            // Keep the status-based message.
-        }
-
-        const error =
-            new Error(message);
-
-        error.status =
-            response.status;
-
-        throw error;
-    }
-
-    const contentLength =
-        Number(
-            response.headers.get(
-                "content-length"
-            )
-        );
-
-    if (
-        Number.isFinite(contentLength) &&
-        contentLength > MAX_FEED_BYTES
-    ) {
-        throw new Error(
-            "Feed is larger than the safe processing limit."
-        );
-    }
-
-    const text =
-        await response.text();
-
-    if (
-        new TextEncoder()
-            .encode(text)
-            .byteLength > MAX_FEED_BYTES
-    ) {
-        throw new Error(
-            "Feed is larger than the safe processing limit."
-        );
-    }
-
-    return parseEnhancedJSONL(
-        text,
-        feed,
-        debug
-    );
-}
-
 function localeFromFeedListRow(
     row
 ) {
@@ -2304,23 +2144,17 @@ export async function onRequestGet(
         }
     );
 
-    const token =
-        context.env?.[AWIN_API_TOKEN_ENV];
-
     const feedListUrl =
         context.env?.[AWIN_FEED_LIST_URL_ENV];
 
-    if (
-        !token &&
-        !feedListUrl
-    ) {
+    if (!feedListUrl) {
         return jsonResponse(
             {
                 ok: false,
                 configured: false,
                 products: [],
                 error:
-                    "Awin Feed List URL and API token are not configured."
+                    "Awin Feed List URL is not configured."
             },
             503
         );
@@ -2336,7 +2170,7 @@ export async function onRequestGet(
 
     const cacheKey =
         new Request(
-            "https://worth-it-shop-feed-cache.local/api/shop-products?v=13"
+            "https://worth-it-shop-feed-cache.local/api/shop-products?v=14"
         );
 
     const cached =
@@ -2361,159 +2195,37 @@ export async function onRequestGet(
         );
 
     try {
-        let discoveredFeeds = [];
-        let discoverySource =
-            "publisher-api";
+        const feedListRows =
+            await fetchAwinFeedList(
+                feedListUrl,
+                controller.signal
+            );
 
-        let feedListInfo = {
+        const discoveredFeeds =
+            buildFeedsFromFeedList(
+                feedListRows
+            );
+
+        const discoverySource =
+            "feed-list";
+
+        const feedListInfo = {
             configured:
-                Boolean(feedListUrl),
+                true,
             loaded:
-                false,
+                true,
             rows:
-                0,
+                feedListRows.length,
             matched:
-                0,
+                discoveredFeeds.length,
             fallbackToApi:
                 false,
             matchedAdvertisers:
-                []
+                discoveredFeeds.map(
+                    feed =>
+                        feed.advertiserName
+                )
         };
-
-        if (feedListUrl) {
-            try {
-                const feedListRows =
-                    await fetchAwinFeedList(
-                        feedListUrl,
-                        controller.signal
-                    );
-
-                discoveredFeeds =
-                    buildFeedsFromFeedList(
-                        feedListRows
-                    );
-
-                discoverySource =
-                    "feed-list";
-
-                feedListInfo.loaded =
-                    true;
-
-                feedListInfo.rows =
-                    feedListRows.length;
-
-                feedListInfo.matched =
-                    discoveredFeeds.length;
-
-                feedListInfo.matchedAdvertisers =
-                    discoveredFeeds.map(
-                        feed =>
-                            feed.advertiserName
-                    );
-
-                if (
-                    !discoveredFeeds.length &&
-                    token
-                ) {
-                    feedListInfo.fallbackToApi =
-                        true;
-                }
-            }
-            catch (error) {
-                console.warn(
-                    "Awin Feed List failed:",
-                    error
-                );
-
-                if (!token) {
-                    throw error;
-                }
-
-                feedListInfo.fallbackToApi =
-                    true;
-            }
-        }
-
-        if (
-            !discoveredFeeds.length &&
-            token
-        ) {
-            discoverySource =
-                "publisher-api";
-
-            const programmesUrl =
-                AWIN_API_BASE_URL +
-                "/publishers/" +
-                AWIN_PUBLISHER_ID +
-                "/programmes?relationship=joined";
-
-            const programmeData =
-                await fetchJSON(
-                    programmesUrl,
-                    token,
-                    controller.signal
-                );
-
-            const programmes =
-                Array.isArray(programmeData)
-                    ? programmeData
-                    : Array.isArray(
-                        programmeData?.programmes
-                    )
-                        ? programmeData.programmes
-                        : [];
-
-            discoveredFeeds =
-                PARTNER_MATCHES
-                    .map(
-                        partner => {
-                            const program =
-                                pickProgram(
-                                    programmes,
-                                    partner
-                                );
-
-                            if (
-                                !program ||
-                                !program.id
-                            ) {
-                                return null;
-                            }
-
-                            return {
-                                source:
-                                    "publisher-api",
-                                partnerId:
-                                    partner.partnerId,
-                                category:
-                                    partner.category,
-                                advertiserId:
-                                    String(
-                                        program.id
-                                    ),
-                                advertiserName:
-                                    normalizeText(
-                                        program.name
-                                    ),
-                                primaryRegion:
-                                    program.primaryRegion ||
-                                    null,
-                                lastImported:
-                                    "",
-                                currencyCode:
-                                    program.currencyCode ||
-                                    "",
-                                locale:
-                                    localeForProgram(
-                                        program
-                                    ),
-                                feedName:
-                                    ""
-                            };
-                        }
-                    )
-                    .filter(Boolean);
-        }
 
         const products = [];
         const feedResults = [];
@@ -2529,13 +2241,11 @@ export async function onRequestGet(
             const feed of discoveredFeeds
         ) {
             const feedDebug =
-                debugMode
-                    ? createFeedDebug()
-                    : null;
+                null;
 
             const feedCacheKey =
                 new Request(
-                    `https://worth-it-shop-feed-cache.local/api/feed/${feed.source || "publisher-api"}/${feed.advertiserId}/${feed.locale}/v13`
+                    `https://worth-it-shop-feed-cache.local/api/feed/feed-list/${feed.advertiserId}/${feed.locale}/v14`
                 );
 
             let feedProducts =
@@ -2608,8 +2318,7 @@ export async function onRequestGet(
                         status:
                             "rate-limit-batch-deferred",
                         source:
-                            feed.source ||
-                            "publisher-api",
+                            "feed-list",
                         feedName:
                             feed.feedName ||
                             "",
@@ -2624,18 +2333,10 @@ export async function onRequestGet(
 
                 try {
                     feedProducts =
-                        feed.source ===
-                        "feed-list"
-                            ? await fetchLegacyFeed(
-                                feed,
-                                controller.signal
-                            )
-                            : await fetchEnhancedFeed(
-                                feed,
-                                token,
-                                controller.signal,
-                                feedDebug
-                            );
+                        await fetchLegacyFeed(
+                            feed,
+                            controller.signal
+                        );
 
                     const feedResponse =
                         jsonResponse(
@@ -2676,8 +2377,7 @@ export async function onRequestGet(
                         status:
                             "loaded",
                         source:
-                            feed.source ||
-                            "publisher-api",
+                            "feed-list",
                         feedName:
                             feed.feedName ||
                             "",
@@ -2693,14 +2393,7 @@ export async function onRequestGet(
                 }
                 catch (error) {
                     console.warn(
-                        "Awin " +
-                        (
-                            feed.source ===
-                            "feed-list"
-                                ? "Feed List product feed"
-                                : "Enhanced Feed"
-                        ) +
-                        " failed for " +
+                        "Awin Feed List product feed failed for " +
                         feed.advertiserName +
                         ":",
                         error
@@ -2774,8 +2467,7 @@ export async function onRequestGet(
                         status:
                             failureStatus,
                         source:
-                            feed.source ||
-                            "publisher-api",
+                            "feed-list",
                         feedName:
                             feed.feedName ||
                             "",
@@ -2807,8 +2499,7 @@ export async function onRequestGet(
                     status:
                         cachedFeedStatus,
                     source:
-                        feed.source ||
-                        "publisher-api",
+                        "feed-list",
                     feedName:
                         feed.feedName ||
                         "",
