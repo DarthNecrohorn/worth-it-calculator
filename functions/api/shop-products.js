@@ -2530,7 +2530,7 @@ export async function onRequestGet(
                         feedResults,
                     products:
                         finalProducts,
-                    ...(debugMode
+                    ...(debugMode || accountDebug
                         ? {
                             debug: {
                                 note:
