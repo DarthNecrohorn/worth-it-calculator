@@ -92,6 +92,29 @@ const PARTNER_MATCHES = [
         partnerId: "personalhour",
         match: ["personalhour"],
         category: "fitness-wellness"
+    },
+    {
+        partnerId: "everblog-us",
+        match: ["everblog"],
+        category: "family-tech",
+        prefer: ["everblog us"]
+    },
+    {
+        partnerId: "getout",
+        match: ["getout"],
+        category: "family-experiences"
+    },
+    {
+        partnerId: "lunzo-hu",
+        match: ["lunzo hu", "lunzo.hu"],
+        category: "other",
+        prefer: ["lunzo hu"]
+    },
+    {
+        partnerId: "lunzo-pl",
+        match: ["lunzo pl", "lunzo.pl"],
+        category: "other",
+        prefer: ["lunzo pl"]
     }
 ];
 
