@@ -2025,6 +2025,11 @@ export async function onRequestGet(
                 "no-store"
             );
 
+            accountResponse.headers.set(
+                "X-Worth-It-Shop-Cache",
+                "account"
+            );
+
             return accountResponse;
         }
     }
