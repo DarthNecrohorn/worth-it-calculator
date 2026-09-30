@@ -100,17 +100,7 @@ const PARTNER_MATCHES = [
         match: ["personalhour"],
         category: "fitness-wellness"
     },
-    {
-        partnerId: "everblog-us",
-        match: ["everblog"],
-        category: "family-tech",
-        prefer: ["everblog us"]
-    },
-    {
-        partnerId: "getout",
-        match: ["getout"],
-        category: "family-experiences"
-    }
+,
 ];
 
 const REGION_TO_LOCALE = {
