@@ -752,6 +752,10 @@
                         ? Number(product.oldPrice)
                         : price;
 
+                const isOnDiscount =
+                    product.isOnDiscount === true ||
+                    oldPrice > price;
+
                 return {
                     id:
                         product.id ||
@@ -780,6 +784,19 @@
 
                     oldPrice:
                         oldPrice,
+
+                    isOnDiscount:
+                        isOnDiscount,
+
+                    savings:
+                        isOnDiscount
+                            ? Number(
+                                (
+                                    oldPrice -
+                                    price
+                                ).toFixed(2)
+                            )
+                            : 0,
 
                     currency:
                         currency,
@@ -1818,7 +1835,11 @@ function renderShop(container){
 
             <div class="shop-savings">
 
-                You save
+                <span>
+
+                    You save
+
+                </span>
 
                 <strong>
 
@@ -1828,6 +1849,12 @@ function renderShop(container){
                     )}
 
                 </strong>
+
+                <span class="shop-discount-status ${deal.isOnDiscount ? "on-discount" : "not-on-discount"}">
+
+                    ${deal.isOnDiscount ? "On discount" : "Not on discount"}
+
+                </span>
 
             </div>
 
