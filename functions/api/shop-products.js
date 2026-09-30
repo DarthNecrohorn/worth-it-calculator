@@ -1907,6 +1907,216 @@ function dedupeProducts(
     ];
 }
 
+async function probeEnhancedFeedLocale(
+    advertiserId,
+    locale,
+    token,
+    signal
+) {
+    const cleanAdvertiserId =
+        String(advertiserId || "").trim();
+
+    const cleanLocale =
+        String(locale || "").trim();
+
+    const url =
+        AWIN_API_BASE_URL +
+        "/publishers/" +
+        AWIN_PUBLISHER_ID +
+        "/awinfeeds/download/" +
+        encodeURIComponent(cleanAdvertiserId) +
+        "-retail-" +
+        encodeURIComponent(cleanLocale) +
+        ".jsonl";
+
+    try {
+        const response =
+            await fetch(
+                url,
+                {
+                    method: "GET",
+                    signal,
+                    headers: {
+                        "Accept":
+                            "application/json, application/jsonl, text/plain, */*",
+                        "Authorization":
+                            "Bearer " + token,
+                        "User-Agent":
+                            "Worth-It-Shop/1.0"
+                    }
+                }
+            );
+
+        const body =
+            await response.text();
+
+        let parsed = null;
+
+        try {
+            parsed =
+                body
+                    ? JSON.parse(body)
+                    : null;
+        }
+        catch {
+            parsed = null;
+        }
+
+        return {
+            advertiserId: cleanAdvertiserId,
+            locale: cleanLocale,
+            httpStatus: response.status,
+            ok: response.ok,
+            status:
+                response.ok
+                    ? "available"
+                    : response.status === 404
+                        ? "not-found"
+                        : "error",
+            message:
+                normalizeText(
+                    parsed?.message ||
+                    parsed?.error ||
+                    (
+                        response.ok
+                            ? "Feed endpoint responded successfully."
+                            : "HTTP " + response.status
+                    )
+                ).slice(0, 500),
+            contentType:
+                response.headers.get("content-type") || "",
+            contentLength:
+                response.headers.get("content-length") || "",
+            bodyPreview:
+                response.ok
+                    ? body.slice(0, 120)
+                    : ""
+        };
+    }
+    catch (error) {
+        return {
+            advertiserId: cleanAdvertiserId,
+            locale: cleanLocale,
+            httpStatus: null,
+            ok: false,
+            status: "request-error",
+            message:
+                normalizeText(
+                    error?.message ||
+                    "Unknown request error"
+                ).slice(0, 500)
+        };
+    }
+}
+
+async function runEnhancedFeedProbe(
+    context,
+    token
+) {
+    const requestUrl =
+        new URL(context.request.url);
+
+    const advertiserId =
+        String(
+            requestUrl.searchParams.get(
+                "advertiserId"
+            ) || ""
+        ).trim();
+
+    const localeParam =
+        String(
+            requestUrl.searchParams.get(
+                "locales"
+            ) || ""
+        ).trim();
+
+    if (!advertiserId) {
+        return jsonResponse(
+            {
+                ok: false,
+                error: "advertiserId is required.",
+                example:
+                    "/api/shop-products?feedProbe=1&advertiserId=107524&locales=en_US,en_GB,de_DE,nl_NL"
+            },
+            400
+        );
+    }
+
+    const locales =
+        localeParam
+            ? [
+                ...new Set(
+                    localeParam
+                        .split(",")
+                        .map(
+                            value =>
+                                String(value).trim()
+                        )
+                        .filter(Boolean)
+                )
+            ]
+            : [];
+
+    if (
+        locales.length < 1 ||
+        locales.length > 5
+    ) {
+        return jsonResponse(
+            {
+                ok: false,
+                error:
+                    "Provide between 1 and 5 comma-separated locales."
+            },
+            400
+        );
+    }
+
+    const controller =
+        new AbortController();
+
+    const timeout =
+        setTimeout(
+            () => controller.abort(),
+            25000
+        );
+
+    try {
+        const results = [];
+
+        for (const locale of locales) {
+            results.push(
+                await probeEnhancedFeedLocale(
+                    advertiserId,
+                    locale,
+                    token,
+                    controller.signal
+                )
+            );
+        }
+
+        return jsonResponse(
+            {
+                ok: true,
+                probe: "enhanced-retail-feed",
+                publisherId: AWIN_PUBLISHER_ID,
+                advertiserId,
+                requestedLocales: locales,
+                results,
+                availableLocales:
+                    results
+                        .filter(result => result.ok)
+                        .map(result => result.locale),
+                generatedAt:
+                    new Date().toISOString()
+            },
+            200
+        );
+    }
+    finally {
+        clearTimeout(timeout);
+    }
+}
+
 export async function onRequestGet(
     context
 ) {
@@ -1940,6 +2150,17 @@ export async function onRequestGet(
         new URL(
             context.request.url
         );
+
+    if (
+        requestUrl.searchParams.get(
+            "feedProbe"
+        ) === "1"
+    ) {
+        return runEnhancedFeedProbe(
+            context,
+            token
+        );
+    }
 
     const debugMode =
         requestUrl.searchParams.get("debug") === "1";
