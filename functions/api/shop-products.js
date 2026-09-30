@@ -34,6 +34,9 @@ const AWIN_API_TOKEN_ENV =
 const CACHE_TTL_SECONDS =
     6 * 60 * 60;
 
+const FAILED_FEED_CACHE_TTL_SECONDS =
+    15 * 60;
+
 const MAX_TOTAL_PRODUCTS =
     48;
 
@@ -1518,17 +1521,23 @@ export async function onRequestGet(
         );
     }
 
-    const debugMode =
+    const requestUrl =
         new URL(
             context.request.url
-        ).searchParams.get("debug") === "1";
+        );
+
+    const debugMode =
+        requestUrl.searchParams.get("debug") === "1";
+
+    const forceFresh =
+        requestUrl.searchParams.get("fresh") === "1";
 
     const cache =
         caches.default;
 
     const cacheKey =
         new Request(
-            "https://worth-it-shop-feed-cache.local/api/shop-products?v=12"
+            "https://worth-it-shop-feed-cache.local/api/shop-products?v=13"
         );
 
     const cached =
@@ -1635,6 +1644,9 @@ export async function onRequestGet(
          * downloaded sequentially and cached individually for 6 hours.
          */
         let feedRequestsUsed = 0;
+        let cachedFeedCount = 0;
+        let attemptedFeedCount = 0;
+        let deferredFeedCount = 0;
 
         for (
             const feed of discoveredFeeds
@@ -1646,7 +1658,7 @@ export async function onRequestGet(
 
             const feedCacheKey =
                 new Request(
-                    `https://worth-it-shop-feed-cache.local/api/feed/${feed.advertiserId}/${feed.locale}/v12`
+                    `https://worth-it-shop-feed-cache.local/api/feed/${feed.advertiserId}/${feed.locale}/v13`
                 );
 
             let feedProducts =
@@ -1656,7 +1668,7 @@ export async function onRequestGet(
                 "cache-hit";
 
             const feedCached =
-                debugMode
+                forceFresh
                     ? null
                     : await cache.match(
                         feedCacheKey
@@ -1681,6 +1693,8 @@ export async function onRequestGet(
                          */
                         feedProducts =
                             payload.products;
+
+                        cachedFeedCount++;
 
                         if (
                             payload.status ===
@@ -1709,6 +1723,8 @@ export async function onRequestGet(
                     feedRequestsUsed >=
                     MAX_FEED_REQUESTS_PER_RUN
                 ) {
+                    deferredFeedCount++;
+
                     feedResults.push({
                         advertiserName:
                             feed.advertiserName,
@@ -1726,6 +1742,7 @@ export async function onRequestGet(
                 }
 
                 feedRequestsUsed++;
+                attemptedFeedCount++;
 
                 try {
                     feedProducts =
@@ -1806,45 +1823,40 @@ export async function onRequestGet(
                             : "unavailable";
 
                     /*
-                     * Only a confirmed 404 is negatively cached.
-                     * Temporary upstream failures, rate limits, timeouts
-                     * and server errors must be retried on the next run.
+                     * Cache feed failures briefly so one broken/unavailable
+                     * advertiser cannot consume the same Awin request slot
+                     * on every page load. Successful feeds keep their 6h cache.
                      */
-                    if (
-                        failureStatus ===
-                        "feed-not-found"
-                    ) {
-                        const negativeCacheResponse =
-                            jsonResponse(
-                                {
-                                    advertiserName:
-                                        feed.advertiserName,
-                                    advertiserId:
-                                        feed.advertiserId,
-                                    locale:
-                                        feed.locale,
-                                    currencyCode:
-                                        feed.currencyCode || "",
-                                    primaryRegion:
-                                        feed.primaryRegion || null,
-                                    status:
-                                        failureStatus,
-                                    products:
-                                        [],
-                                    generatedAt:
-                                        new Date().toISOString()
-                                },
-                                200,
-                                60 * 60
-                            );
-
-                        context.waitUntil(
-                            cache.put(
-                                feedCacheKey,
-                                negativeCacheResponse
-                            )
+                    const negativeCacheResponse =
+                        jsonResponse(
+                            {
+                                advertiserName:
+                                    feed.advertiserName,
+                                advertiserId:
+                                    feed.advertiserId,
+                                locale:
+                                    feed.locale,
+                                currencyCode:
+                                    feed.currencyCode || "",
+                                primaryRegion:
+                                    feed.primaryRegion || null,
+                                status:
+                                    failureStatus,
+                                products:
+                                    [],
+                                generatedAt:
+                                    new Date().toISOString()
+                            },
+                            200,
+                            FAILED_FEED_CACHE_TTL_SECONDS
                         );
-                    }
+
+                    context.waitUntil(
+                        cache.put(
+                            feedCacheKey,
+                            negativeCacheResponse
+                        )
+                    );
 
                     feedResults.push({
                         advertiserName:
@@ -1944,7 +1956,17 @@ export async function onRequestGet(
                         ? {
                             debug: {
                                 note:
-                                    "Debug mode bypasses Shop caches and fetches up to 5 feeds to inspect product shipping data."
+                                    forceFresh
+                                        ? "Fresh debug mode bypasses individual feed caches and fetches up to 5 feeds."
+                                        : "Debug mode bypasses the whole-Shop cache but reuses individual feed caches.",
+                                discoveredFeedCount:
+                                    discoveredFeeds.length,
+                                cachedFeedCount,
+                                attemptedFeedCount,
+                                deferredFeedCount,
+                                feedRequestsUsed,
+                                maxFeedRequestsPerRun:
+                                    MAX_FEED_REQUESTS_PER_RUN
                             }
                         }
                         : {})
