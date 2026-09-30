@@ -92,11 +92,6 @@ const PARTNER_MATCHES = [
         partnerId: "personalhour",
         match: ["personalhour"],
         category: "fitness-wellness"
-    },
-    {
-        partnerId: "personalhour",
-        match: ["personalhour"],
-        category: "fitness-wellness"
     }
 ];
 
