@@ -117,8 +117,7 @@ const SHOP_PARTNERS = [
         status: "ready-to-connect",
         coverage: "Fitness, Pilates & wellness",
         note: "Destination availability will be attached per product."
-    },
-,
+    }
 ];
 
 /*
