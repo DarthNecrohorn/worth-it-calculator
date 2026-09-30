@@ -1026,6 +1026,39 @@ function productFromEnhancedRecord(
             }
         }
 
+        /*
+         * Some valid Awin product feeds contain no shipping field at all.
+         * Do not discard those otherwise-valid products. When the merchant
+         * has no explicit shipping fallback, use the programme's primary
+         * region as a clearly labelled regional fallback. This is not a
+         * claim of worldwide shipping; final checkout eligibility remains
+         * subject to the merchant.
+         */
+        if (!shippingCountries.length) {
+            const regionCode =
+                String(
+                    feed?.primaryRegion?.countryCode || ""
+                )
+                    .trim()
+                    .toUpperCase();
+
+            if (/^[A-Z]{2}$/.test(regionCode)) {
+                shippingCountries = [
+                    regionCode
+                ];
+
+                shippingSourceLabel =
+                    "Awin programme region fallback";
+
+                shippingNote =
+                    "This Awin feed does not provide explicit shipping destinations. The programme's primary region is shown as a regional fallback; final shipping availability, cost and checkout eligibility must be confirmed with the merchant.";
+
+                if (debug) {
+                    debug.fallbackShippingRecords++;
+                }
+            }
+        }
+
         if (!shippingCountries.length) {
             if (debug) {
                 debug.missingShipping++;
@@ -1537,7 +1570,7 @@ export async function onRequestGet(
 
     const cacheKey =
         new Request(
-            "https://worth-it-shop-feed-cache.local/api/shop-products?v=13"
+            "https://worth-it-shop-feed-cache.local/api/shop-products?v=14"
         );
 
     const cached =
@@ -1658,7 +1691,7 @@ export async function onRequestGet(
 
             const feedCacheKey =
                 new Request(
-                    `https://worth-it-shop-feed-cache.local/api/feed/${feed.advertiserId}/${feed.locale}/v13`
+                    `https://worth-it-shop-feed-cache.local/api/feed/${feed.advertiserId}/${feed.locale}/v14`
                 );
 
             let feedProducts =
