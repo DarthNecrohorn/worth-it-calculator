@@ -342,7 +342,8 @@ async function readAccountShopCache(
 async function writeAccountShopCache(
     context,
     userId,
-    products
+    products,
+    diagnostic = false
 ) {
     const supabaseUrl =
         String(
@@ -402,6 +403,30 @@ async function writeAccountShopCache(
                 }
             );
 
+        if (diagnostic) {
+            let errorBody = "";
+
+            if (!response.ok) {
+                try {
+                    errorBody =
+                        normalizeText(
+                            await response.text()
+                        ).slice(0, 1000);
+                }
+                catch {
+                    errorBody = "";
+                }
+            }
+
+            return {
+                ok: response.ok,
+                status: response.status,
+                statusText: response.statusText || "",
+                error:
+                    errorBody || null
+            };
+        }
+
         return response.ok;
     }
     catch (error) {
@@ -409,6 +434,19 @@ async function writeAccountShopCache(
             "Shop account cache write failed:",
             error
         );
+
+        if (diagnostic) {
+            return {
+                ok: false,
+                status: 0,
+                statusText: "",
+                error:
+                    normalizeText(
+                        error?.message ||
+                        "Unknown error"
+                    ).slice(0, 1000)
+            };
+        }
 
         return false;
     }
@@ -2071,11 +2109,12 @@ export async function onRequestGet(
                             await writeAccountShopCache(
                                 context,
                                 authenticatedUserId,
-                                cachedPayload.products
+                                cachedPayload.products,
+                                true
                             );
 
                         const verified =
-                            writeResult
+                            writeResult?.ok
                                 ? await readAccountShopCache(
                                     context,
                                     authenticatedUserId
