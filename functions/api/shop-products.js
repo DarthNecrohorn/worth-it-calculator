@@ -99,8 +99,7 @@ const PARTNER_MATCHES = [
         advertiserIds: ["96347"],
         match: ["personalhour"],
         category: "fitness-wellness"
-    },
-,
+    }
 ];
 
 const REGION_TO_LOCALE = {
