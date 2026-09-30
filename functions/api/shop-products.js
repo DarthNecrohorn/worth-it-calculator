@@ -43,13 +43,10 @@ const FAILED_FEED_CACHE_TTL_SECONDS =
     15 * 60;
 
 const MAX_TOTAL_PRODUCTS =
-    120;
+    300;
 
 const MAX_PRODUCTS_PER_PARTNER =
-    24;
-
-const MAX_PRODUCTS_PER_CATEGORY =
-    12;
+    60;
 
 const MAX_FEED_REQUESTS_PER_RUN =
     5;
@@ -1693,7 +1690,7 @@ export async function onRequestGet(
 
     const cacheKey =
         new Request(
-            "https://worth-it-shop-feed-cache.local/api/shop-products?v=18"
+            "https://worth-it-shop-feed-cache.local/api/shop-products?v=19"
         );
 
     const cached =
@@ -1815,7 +1812,7 @@ export async function onRequestGet(
 
             const feedCacheKey =
                 new Request(
-                    `https://worth-it-shop-feed-cache.local/api/feed/${feed.advertiserId}/${feed.locale}/v17`
+                    `https://worth-it-shop-feed-cache.local/api/feed/${feed.advertiserId}/${feed.locale}/v18`
                 );
 
             let feedProducts =
@@ -2078,56 +2075,21 @@ export async function onRequestGet(
             );
 
         /*
-         * Keep the Shop balanced: every category gets its own quota of
-         * up to 12 products. This prevents one large merchant feed from
-         * filling the whole Shop while other selected categories remain empty.
+         * Keep the API pool broad enough for the Shop:
+         * - up to 60 products per partner feed
+         * - up to 300 products overall
          *
-         * We do not invent products: if a category's Awin feeds contain
-         * fewer than 12 valid products, that category will temporarily
-         * contain fewer until its source feed is available.
+         * Category pages apply their own 12-card presentation limit in
+         * the frontend. The "All" view can therefore show products from
+         * all available categories without prematurely truncating each
+         * category in the API response.
          */
-        const productsByCategory =
-            new Map();
-
-        for (const product of dedupedProducts) {
-            const category =
-                product.category || "other";
-
-            if (!productsByCategory.has(category)) {
-                productsByCategory.set(
-                    category,
-                    []
-                );
-            }
-
-            productsByCategory
-                .get(category)
-                .push(product);
-        }
-
-        const finalProducts = [];
-
-        for (const categoryProducts of productsByCategory.values()) {
-            finalProducts.push(
-                ...categoryProducts.slice(
+        const finalProducts =
+            dedupedProducts
+                .slice(
                     0,
-                    MAX_PRODUCTS_PER_CATEGORY
-                )
-            );
-        }
-
-        finalProducts
-            .sort(
-                (
-                    first,
-                    second
-                ) =>
-                    second.popularityScore -
-                    first.popularityScore
-            )
-            .splice(
-                MAX_TOTAL_PRODUCTS
-            );
+                    MAX_TOTAL_PRODUCTS
+                );
 
         for (const product of finalProducts) {
             product.popularityScore =
