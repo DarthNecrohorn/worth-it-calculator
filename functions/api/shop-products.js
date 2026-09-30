@@ -38,10 +38,13 @@ const FAILED_FEED_CACHE_TTL_SECONDS =
     15 * 60;
 
 const MAX_TOTAL_PRODUCTS =
-    100;
+    120;
 
 const MAX_PRODUCTS_PER_PARTNER =
-    15;
+    24;
+
+const MAX_PRODUCTS_PER_CATEGORY =
+    12;
 
 const MAX_FEED_REQUESTS_PER_RUN =
     5;
@@ -1570,7 +1573,7 @@ export async function onRequestGet(
 
     const cacheKey =
         new Request(
-            "https://worth-it-shop-feed-cache.local/api/shop-products?v=15"
+            "https://worth-it-shop-feed-cache.local/api/shop-products?v=16"
         );
 
     const cached =
@@ -1941,29 +1944,74 @@ export async function onRequestGet(
             );
         }
 
-        const finalProducts =
+        const dedupedProducts =
             dedupeProducts(
                 products
-            )
-                .sort(
-                    (
-                        first,
-                        second
-                    ) =>
-                        second.popularityScore -
-                        first.popularityScore
-                )
-                .slice(
-                    0,
-                    MAX_TOTAL_PRODUCTS
-                )
-                .map(
-                    product => ({
-                        ...product,
-                        popularityScore:
-                            undefined
-                    })
+            ).sort(
+                (
+                    first,
+                    second
+                ) =>
+                    second.popularityScore -
+                    first.popularityScore
+            );
+
+        /*
+         * Keep the Shop balanced: every category gets its own quota of
+         * up to 12 products. This prevents one large merchant feed from
+         * filling the whole Shop while other selected categories remain empty.
+         *
+         * We do not invent products: if a category's Awin feeds contain
+         * fewer than 12 valid products, that category will temporarily
+         * contain fewer until its source feed is available.
+         */
+        const productsByCategory =
+            new Map();
+
+        for (const product of dedupedProducts) {
+            const category =
+                product.category || "other";
+
+            if (!productsByCategory.has(category)) {
+                productsByCategory.set(
+                    category,
+                    []
                 );
+            }
+
+            productsByCategory
+                .get(category)
+                .push(product);
+        }
+
+        const finalProducts = [];
+
+        for (const categoryProducts of productsByCategory.values()) {
+            finalProducts.push(
+                ...categoryProducts.slice(
+                    0,
+                    MAX_PRODUCTS_PER_CATEGORY
+                )
+            );
+        }
+
+        finalProducts
+            .sort(
+                (
+                    first,
+                    second
+                ) =>
+                    second.popularityScore -
+                    first.popularityScore
+            )
+            .splice(
+                MAX_TOTAL_PRODUCTS
+            );
+
+        for (const product of finalProducts) {
+            product.popularityScore =
+                undefined;
+        }
 
         const unfinished =
             feedResults.some(
