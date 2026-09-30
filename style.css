@@ -13923,3 +13923,30 @@ html[data-ui-scale="xl"] .water-levels-detail-card{
         transform-origin:center center !important;
     }
 }
+
+
+.shop-savings{
+    justify-content:flex-start;
+    flex-wrap:wrap;
+}
+
+.shop-discount-status{
+    margin-left:auto;
+    font-size:10px;
+    font-weight:800;
+    white-space:nowrap;
+}
+
+.shop-discount-status.on-discount{
+    color:var(--success);
+}
+
+.shop-discount-status.not-on-discount{
+    color:var(--muted2);
+}
+
+@media (max-width:640px){
+    .shop-discount-status{
+        margin-left:auto;
+    }
+}
