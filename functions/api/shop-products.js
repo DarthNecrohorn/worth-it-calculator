@@ -40,6 +40,9 @@ const MAX_TOTAL_PRODUCTS =
 const MAX_PRODUCTS_PER_PARTNER =
     8;
 
+const MAX_FEED_REQUESTS_PER_RUN =
+    5;
+
 const MAX_FEED_BYTES =
     40 * 1024 * 1024;
 
@@ -1437,9 +1440,9 @@ export async function onRequestGet(
         const feedResults = [];
 
         /*
-         * Awin asks publishers to limit Enhanced Feed downloads to
-         * no more than 5 requests per minute. Feed results are therefore
-         * downloaded sequentially and cached individually for 6 hours.
+         * Product feeds are downloaded sequentially and capped per
+         * execution to keep the Shop request safe. Cached feed results
+         * allow deferred feeds to complete on subsequent requests.
          */
         let feedRequestsUsed = 0;
 
@@ -1596,14 +1599,6 @@ export async function onRequestGet(
                         error
                     );
 
-                    if (feedDebug) {
-                        feedDebug.lastError =
-                            normalizeText(
-                                error?.message ||
-                                "Unknown Awin feed error"
-                            ).slice(0, 500);
-                    }
-
                     const failureStatus =
                         error?.status === 404
                             ? "feed-not-found"
@@ -1670,12 +1665,6 @@ export async function onRequestGet(
                             "",
                         products:
                             0,
-                        ...(debugMode
-                            ? {
-                                debug:
-                                    feedDebug
-                            }
-                            : {})
                     });
 
                     continue;
@@ -1756,7 +1745,7 @@ export async function onRequestGet(
                         ? {
                             debug: {
                                 note:
-                                    "Debug mode bypasses Shop caches and fetches up to 5 feeds to inspect product shipping data.",
+                                    "Debug mode bypasses Shop caches and inspects the Awin Feed List and selected product feeds.",
                                 discoverySource,
                                 feedList:
                                     feedListInfo
