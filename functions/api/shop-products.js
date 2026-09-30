@@ -511,709 +511,6 @@ function calculateEnhancedPopularity(product) {
     );
 }
 
-function createFeedDebug() {
-    return {
-        recordsSeen: 0,
-        validJson: 0,
-        errorLines: 0,
-        missingShipping: 0,
-        productsAccepted: 0,
-        directShippingRecords: 0,
-        entryShippingRecords: 0,
-        deliveryShippingRecords: 0,
-        countryValuesFound: 0,
-        shippingEmptyStrings: 0,
-        shippingArrays: 0,
-        shippingObjects: 0,
-        shippingOtherValues: 0,
-        fallbackShippingRecords: 0,
-        sampleDetailKeys: [],
-        sampleShipping: [],
-        lastError: ""
-    };
-}
-
-function noteFeedDebugShape(
-    debug,
-    entry,
-    details
-) {
-    if (!debug) {
-        return;
-    }
-
-    debug.recordsSeen++;
-
-    if (
-        !debug.sampleDetailKeys.length &&
-        details &&
-        typeof details === "object"
-    ) {
-        debug.sampleDetailKeys =
-            Object.keys(details)
-                .slice(0, 40);
-    }
-
-    const directShipping =
-        details?.shipping;
-
-    const entryShipping =
-        entry?.shipping;
-
-    const deliveryShipping =
-        details?.delivery?.shipping;
-
-    if (
-        directShipping !== undefined &&
-        directShipping !== null
-    ) {
-        debug.directShippingRecords++;
-    }
-
-    if (
-        entryShipping !== undefined &&
-        entryShipping !== null
-    ) {
-        debug.entryShippingRecords++;
-    }
-
-    if (
-        deliveryShipping !== undefined &&
-        deliveryShipping !== null
-    ) {
-        debug.deliveryShippingRecords++;
-    }
-
-    const candidates = [
-        directShipping,
-        entryShipping,
-        deliveryShipping
-    ].filter(
-        value =>
-            value !== undefined &&
-            value !== null
-    );
-
-    for (const candidate of candidates) {
-        let value = candidate;
-
-        if (
-            typeof value === "string" &&
-            !value.trim()
-        ) {
-            debug.shippingEmptyStrings++;
-        }
-
-        if (Array.isArray(value)) {
-            debug.shippingArrays++;
-        }
-        else if (
-            value &&
-            typeof value === "object"
-        ) {
-            debug.shippingObjects++;
-        }
-        else if (
-            value !== undefined &&
-            value !== null
-        ) {
-            debug.shippingOtherValues++;
-        }
-
-        if (typeof value === "string") {
-            const rawPreview =
-                value.slice(0, 500);
-
-            if (
-                debug.sampleShipping.length < 5
-            ) {
-                debug.sampleShipping.push({
-                    rawType:
-                        "string",
-                    rawPreview
-                });
-            }
-
-            try {
-                value = JSON.parse(value);
-            }
-            catch {
-                value = null;
-            }
-        }
-
-        const list =
-            Array.isArray(value)
-                ? value
-                : value &&
-                    typeof value === "object"
-                    ? [value]
-                    : [];
-
-        for (const item of list) {
-            if (item?.country) {
-                debug.countryValuesFound++;
-
-                if (
-                    debug.sampleShipping.length < 5
-                ) {
-                    debug.sampleShipping.push({
-                        country:
-                            String(
-                                item.country
-                            ),
-                        keys:
-                            Object.keys(item)
-                                .slice(0, 20)
-                    });
-                }
-            }
-            else if (
-                item &&
-                typeof item === "object" &&
-                debug.sampleShipping.length < 5
-            ) {
-                debug.sampleShipping.push({
-                    rawType:
-                        "object-without-country",
-                    keys:
-                        Object.keys(item)
-                            .slice(0, 20),
-                    preview:
-                        JSON.stringify(item)
-                            .slice(0, 500)
-                });
-            }
-            else if (
-                item !== undefined &&
-                item !== null &&
-                debug.sampleShipping.length < 5
-            ) {
-                debug.sampleShipping.push({
-                    rawType:
-                        typeof item,
-                    value:
-                        String(item)
-                            .slice(0, 200)
-                });
-            }
-        }
-    }
-}
-
-function countryCodesFromShippingItem(
-    item
-) {
-    const codes = [];
-
-    if (
-        typeof item === "string"
-    ) {
-        const code =
-            item
-                .trim()
-                .toUpperCase();
-
-        if (/^[A-Z]{2}$/.test(code)) {
-            codes.push(code);
-        }
-
-        return codes;
-    }
-
-    if (
-        !item ||
-        typeof item !== "object"
-    ) {
-        return codes;
-    }
-
-    const directValues = [
-        item.country,
-        item.country_code,
-        item.countryCode
-    ];
-
-    for (const value of directValues) {
-        if (Array.isArray(value)) {
-            for (const nested of value) {
-                const code =
-                    String(nested || "")
-                        .trim()
-                        .toUpperCase();
-
-                if (/^[A-Z]{2}$/.test(code)) {
-                    codes.push(code);
-                }
-            }
-        }
-        else {
-            const code =
-                String(value || "")
-                    .trim()
-                    .toUpperCase();
-
-            if (/^[A-Z]{2}$/.test(code)) {
-                codes.push(code);
-            }
-        }
-    }
-
-    /*
-     * Some feed serializations represent country destinations as
-     * object keys, e.g. { "US": {...}, "CA": {...} }.
-     * Accept only explicit two-letter ISO-style keys.
-     */
-    if (!codes.length) {
-        for (const key of Object.keys(item)) {
-            const code =
-                key
-                    .trim()
-                    .toUpperCase();
-
-            if (/^[A-Z]{2}$/.test(code)) {
-                codes.push(code);
-            }
-        }
-    }
-
-    return [
-        ...new Set(codes)
-    ];
-}
-
-function productFromEnhancedRecord(
-    entry,
-    feed,
-    debug = null
-) {
-    let details =
-        entry?.product_details ||
-        entry ||
-        null;
-
-    if (
-        typeof details === "string"
-    ) {
-        try {
-            details =
-                JSON.parse(
-                    details
-                );
-        }
-        catch {
-            return null;
-        }
-    }
-
-    if (
-        !details ||
-        typeof details !== "object"
-    ) {
-        return null;
-    }
-
-    if (debug) {
-        debug.validJson++;
-        noteFeedDebugShape(
-            debug,
-            entry,
-            details
-        );
-    }
-
-    const basic =
-        details.product_basic ||
-        details;
-
-    const pricing =
-        details.price_and_availability ||
-        details;
-
-    const categoryDetails =
-        details.product_category ||
-        details;
-
-    const title =
-        normalizeText(
-            basic.title ||
-            details.title
-        );
-
-    const deepLink =
-        normalizeText(
-            basic.aw_deep_link ||
-            details.aw_deep_link
-        );
-
-    const image =
-        normalizeText(
-            basic.image_link ||
-            details.image_link ||
-            ""
-        );
-
-    const basePrice =
-        parseEnhancedPrice(
-            pricing.price ||
-            details.price
-        );
-
-    const salePrice =
-        parseEnhancedPrice(
-            pricing.sale_price ||
-            details.sale_price
-        );
-
-    const price =
-        Number.isFinite(salePrice.amount) &&
-        salePrice.amount > 0
-            ? salePrice.amount
-            : basePrice.amount;
-
-    const currency =
-        salePrice.currency ||
-        basePrice.currency ||
-        normalizeText(
-            pricing.currency ||
-            details.currency
-        ) ||
-        "USD";
-
-    const oldPrice =
-        Number.isFinite(basePrice.amount) &&
-        Number.isFinite(price) &&
-        basePrice.amount > price
-            ? basePrice.amount
-            : price;
-
-    if (
-        !title ||
-        !deepLink ||
-        !Number.isFinite(price) ||
-        price <= 0 ||
-        !/^https?:\/\//i.test(
-            deepLink
-        )
-    ) {
-        return null;
-    }
-
-    const partner =
-        PARTNER_MATCHES.find(
-            item =>
-                item.partnerId ===
-                feed.partnerId
-        );
-
-    if (!partner) {
-        return null;
-    }
-
-    const merchantCategory =
-        normalizeText(
-            [
-                categoryDetails.google_product_category,
-                categoryDetails.google_product_category_id,
-                categoryDetails.product_type
-            ]
-                .filter(Boolean)
-                .join(" ")
-        );
-
-    const category =
-        inferCategory(
-            partner.partnerId,
-            merchantCategory,
-            merchantCategory,
-            title
-        );
-
-    /*
-     * Awin's Enhanced Feed wraps Google-format delivery data under
-     * product_details.delivery.shipping. Some records may expose
-     * shipping directly, so accept both documented shapes.
-     */
-    const delivery =
-        details.delivery &&
-        typeof details.delivery === "object"
-            ? details.delivery
-            : entry?.delivery &&
-                typeof entry.delivery === "object"
-                ? entry.delivery
-                : {};
-
-    const shippingCandidates = [
-        details.shipping,
-        entry?.shipping,
-        delivery.shipping
-    ].filter(
-        value =>
-            value !== undefined &&
-            value !== null
-    );
-
-    const shippingSource = [];
-
-    for (const candidate of shippingCandidates) {
-        let value = candidate;
-
-        if (typeof value === "string") {
-            try {
-                value = JSON.parse(value);
-            }
-            catch {
-                value = null;
-            }
-        }
-
-        if (Array.isArray(value)) {
-            shippingSource.push(
-                ...value
-            );
-        }
-        else if (
-            value &&
-            typeof value === "object"
-        ) {
-            shippingSource.push(
-                value
-            );
-        }
-    }
-
-    let shippingCountries =
-        [
-            ...new Set(
-                shippingSource
-                    .flatMap(
-                        item =>
-                            countryCodesFromShippingItem(
-                                item
-                            )
-                    )
-            )
-        ];
-
-    let shippingSourceLabel =
-        "Awin product feed";
-
-    let shippingNote =
-        "Shipping destinations are taken from the current Awin product feed. Final availability, shipping cost and checkout eligibility can vary by address and merchant.";
-
-    if (!shippingCountries.length) {
-        const fallbackCountries =
-            Array.isArray(
-                partner.shippingFallbackCountries
-            )
-                ? partner.shippingFallbackCountries
-                : [];
-
-        if (fallbackCountries.length) {
-            shippingCountries =
-                [
-                    ...new Set(
-                        fallbackCountries
-                            .map(
-                                code =>
-                                    String(code)
-                                        .trim()
-                                        .toUpperCase()
-                            )
-                            .filter(
-                                code =>
-                                    /^[A-Z]{2}$/.test(
-                                        code
-                                    )
-                            )
-                    )
-                ];
-
-            shippingSourceLabel =
-                partner.shippingSourceLabel ||
-                "Merchant shipping policy";
-
-            shippingNote =
-                partner.shippingNote ||
-                "Shipping destinations are based on the merchant's current shipping policy. Final item availability, shipping cost and checkout eligibility can vary.";
-
-            if (debug) {
-                debug.fallbackShippingRecords++;
-            }
-        }
-
-        if (!shippingCountries.length) {
-            if (debug) {
-                debug.missingShipping++;
-            }
-
-            return null;
-        }
-    }
-
-    if (debug) {
-        debug.productsAccepted++;
-    }
-
-    const availability =
-        normalizeText(
-            pricing.availability ||
-            details.availability
-        );
-
-    const productId =
-        normalizeText(
-            basic.id ||
-            details.id
-        );
-
-    const product = {
-        id:
-            productId
-                ? `awin-${partner.partnerId}-${productId}`
-                : `awin-${partner.partnerId}-${encodeURIComponent(deepLink)}`,
-
-        title,
-
-        price:
-            Number(
-                price.toFixed(2)
-            ),
-
-        oldPrice:
-            Number(
-                (
-                    Number.isFinite(oldPrice)
-                        ? oldPrice
-                        : price
-                ).toFixed(2)
-            ),
-
-        currency,
-
-        image,
-
-        affiliateUrl:
-            deepLink,
-
-        merchantUrl:
-            normalizeText(
-                basic.link ||
-                details.link
-            ),
-
-        store:
-            feed.advertiserName,
-
-        partnerId:
-            partner.partnerId,
-
-        category,
-
-        stockStatus:
-            availability ||
-            "unknown",
-
-        popularityScore:
-            0,
-
-        productUpdatedAt:
-            feed.lastImported ||
-            "Latest Awin feed",
-
-        savingsPercent:
-            oldPrice > price
-                ? Number(
-                    (
-                        (
-                            (oldPrice - price) /
-                            oldPrice
-                        ) * 100
-                    ).toFixed(2)
-                )
-                : null,
-
-        shippingCountries,
-
-        shippingSourceLabel,
-
-        shippingNote
-    };
-
-    product.popularityScore =
-        calculateEnhancedPopularity(
-            product
-        );
-
-    return product;
-}
-
-function parseEnhancedJSONL(
-    text,
-    feed,
-    debug = null
-) {
-    const products = [];
-
-    for (
-        const rawLine of String(text || "").split("\n")
-    ) {
-        const line =
-            rawLine.trim();
-
-        if (!line) {
-            continue;
-        }
-
-        let entry;
-
-        try {
-            entry =
-                JSON.parse(line);
-        }
-        catch {
-            continue;
-        }
-
-        if (
-            entry &&
-            typeof entry === "object" &&
-            entry.error
-        ) {
-            if (debug) {
-                debug.errorLines++;
-            }
-
-            continue;
-        }
-
-        const product =
-            productFromEnhancedRecord(
-                entry,
-                feed,
-                debug
-            );
-
-        if (product) {
-            products.push(product);
-        }
-    }
-
-    return products
-        .sort(
-            (
-                first,
-                second
-            ) =>
-                second.popularityScore -
-                first.popularityScore
-        )
-        .slice(
-            0,
-            MAX_PRODUCTS_PER_PARTNER
-        );
-}
-
 function localeFromFeedListRow(
     row
 ) {
@@ -1932,7 +1229,7 @@ async function fetchLegacyFeed(
                 signal,
                 headers: {
                     "Accept":
-                        "text/csv, text/plain, */*",
+                        "text/csv, text/plain, application/octet-stream, */*",
                     "User-Agent":
                         "Worth-It-Shop/1.0"
                 }
@@ -1967,18 +1264,70 @@ async function fetchLegacyFeed(
         );
     }
 
-    const text =
-        await response.text();
+    const bytes =
+        new Uint8Array(
+            await response.arrayBuffer()
+        );
 
     if (
-        new TextEncoder()
-            .encode(text)
-            .byteLength > MAX_FEED_BYTES
+        bytes.byteLength >
+        MAX_FEED_BYTES
     ) {
         throw new Error(
             "Feed is larger than the safe processing limit."
         );
     }
+
+    let sourceBytes =
+        bytes;
+
+    /*
+     * Feed List download URLs commonly request GZIP compression.
+     * Detect the gzip file signature so the worker can safely decode
+     * the feed whether or not the upstream Content-Encoding header is
+     * transparently handled by the runtime.
+     */
+    if (
+        bytes.length >= 2 &&
+        bytes[0] === 0x1f &&
+        bytes[1] === 0x8b
+    ) {
+        const decompressed =
+            await new Response(
+                new Blob([
+                    bytes
+                ]).stream().pipeThrough(
+                    new DecompressionStream(
+                        "gzip"
+                    )
+                )
+            ).arrayBuffer();
+
+        sourceBytes =
+            new Uint8Array(
+                decompressed
+            );
+
+        if (
+            sourceBytes.byteLength >
+            MAX_FEED_BYTES
+        ) {
+            throw new Error(
+                "Decompressed feed is larger than the safe processing limit."
+            );
+        }
+    }
+
+    const text =
+        new TextDecoder(
+            "utf-8",
+            {
+                fatal:
+                    false
+            }
+        ).decode(
+            sourceBytes
+        );
 
     return parseLegacyCSVFeed(
         text,
@@ -1986,150 +1335,7 @@ async function fetchLegacyFeed(
     );
 }
 
-function scoreProgramMatch(
-    program,
-    partner
-) {
-    const name =
-        normalizeKey(
-            program?.name
-        );
 
-    if (!name) {
-        return Number.NEGATIVE_INFINITY;
-    }
-
-    let score = 0;
-
-    if (
-        partner.prefer?.some(
-            preferred =>
-                name ===
-                normalizeKey(
-                    preferred
-                )
-        )
-    ) {
-        score += 1000;
-    }
-
-    if (
-        name ===
-        normalizeKey(
-            partner.partnerId
-        )
-    ) {
-        score += 500;
-    }
-
-    score -=
-        name.length;
-
-    return score;
-}
-
-function pickProgram(
-    programs,
-    partner
-) {
-    const candidates =
-        programs.filter(
-            program => {
-                const name =
-                    normalizeKey(
-                        program?.name
-                    );
-
-                return partner.match.some(
-                    token =>
-                        name.includes(
-                            normalizeKey(token)
-                        )
-                );
-            }
-        );
-
-    return (
-        candidates.sort(
-            (
-                first,
-                second
-            ) =>
-                scoreProgramMatch(
-                    second,
-                    partner
-                ) -
-                scoreProgramMatch(
-                    first,
-                    partner
-                )
-        )[0] ||
-        null
-    );
-}
-
-function localeForProgram(
-    program
-) {
-    const countryCode =
-        String(
-            program?.primaryRegion?.countryCode ||
-            ""
-        )
-            .trim()
-            .toUpperCase();
-
-    return (
-        REGION_TO_LOCALE[countryCode] ||
-        "en_GB"
-    );
-}
-
-function dedupeProducts(
-    products
-) {
-    const map =
-        new Map();
-
-    for (const product of products) {
-        if (!product) {
-            continue;
-        }
-
-        const key =
-            normalizeKey(
-                product.affiliateUrl
-            ) ||
-            normalizeKey(
-                [
-                    product.partnerId,
-                    product.title
-                ].join(" ")
-            );
-
-        if (!key) {
-            continue;
-        }
-
-        const existing =
-            map.get(key);
-
-        if (
-            !existing ||
-            product.popularityScore >
-                existing.popularityScore
-        ) {
-            map.set(
-                key,
-                product
-            );
-        }
-    }
-
-    return [
-        ...map.values()
-    ];
-}
 
 export async function onRequestGet(
     context
@@ -2240,9 +1446,6 @@ export async function onRequestGet(
         for (
             const feed of discoveredFeeds
         ) {
-            const feedDebug =
-                null;
-
             const feedCacheKey =
                 new Request(
                     `https://worth-it-shop-feed-cache.local/api/feed/feed-list/${feed.advertiserId}/${feed.locale}/v14`
@@ -2383,12 +1586,6 @@ export async function onRequestGet(
                             "",
                         products:
                             feedProducts.length,
-                        ...(debugMode
-                            ? {
-                                debug:
-                                    feedDebug
-                            }
-                            : {})
                     });
                 }
                 catch (error) {
@@ -2551,8 +1748,6 @@ export async function onRequestGet(
                     configured: true,
                     generatedAt:
                         new Date().toISOString(),
-                    publisherId:
-                        AWIN_PUBLISHER_ID,
                     feeds:
                         feedResults,
                     products:
