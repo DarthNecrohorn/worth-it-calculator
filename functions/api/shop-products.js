@@ -567,6 +567,7 @@ function createFeedDebug() {
         shippingObjects: 0,
         shippingOtherValues: 0,
         fallbackShippingRecords: 0,
+        discountedProducts: 0,
         sampleDetailKeys: [],
         sampleShipping: [],
         lastError: ""
@@ -906,16 +907,8 @@ function productFromEnhancedRecord(
         );
 
     const salePriceEffectiveDate =
-        firstValue(
-            pricing.sale_price_effective_date !== undefined
-                ? {
-                    sale_price_effective_date:
-                        pricing.sale_price_effective_date
-                }
-                : {},
-            ["sale_price_effective_date"]
-        ) ||
         normalizeText(
+            pricing.sale_price_effective_date ||
             details.sale_price_effective_date
         );
 
@@ -1149,6 +1142,10 @@ function productFromEnhancedRecord(
 
     if (debug) {
         debug.productsAccepted++;
+
+        if (saleIsActive) {
+            debug.discountedProducts++;
+        }
     }
 
     const availability =
