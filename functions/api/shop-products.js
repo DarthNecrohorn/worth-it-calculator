@@ -38,10 +38,10 @@ const FAILED_FEED_CACHE_TTL_SECONDS =
     15 * 60;
 
 const MAX_TOTAL_PRODUCTS =
-    48;
+    100;
 
 const MAX_PRODUCTS_PER_PARTNER =
-    8;
+    15;
 
 const MAX_FEED_REQUESTS_PER_RUN =
     5;
@@ -1570,7 +1570,7 @@ export async function onRequestGet(
 
     const cacheKey =
         new Request(
-            "https://worth-it-shop-feed-cache.local/api/shop-products?v=14"
+            "https://worth-it-shop-feed-cache.local/api/shop-products?v=15"
         );
 
     const cached =
@@ -1691,7 +1691,7 @@ export async function onRequestGet(
 
             const feedCacheKey =
                 new Request(
-                    `https://worth-it-shop-feed-cache.local/api/feed/${feed.advertiserId}/${feed.locale}/v14`
+                    `https://worth-it-shop-feed-cache.local/api/feed/${feed.advertiserId}/${feed.locale}/v15`
                 );
 
             let feedProducts =
