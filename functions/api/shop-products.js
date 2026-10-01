@@ -2954,11 +2954,12 @@ async function runLegacyFeedProbe(
         );
     }
 
-    if (
-        !LEGACY_FEED_PREFERENCES[
+    const preference =
+        LEGACY_FEED_PREFERENCES[
             partnerId
-        ]
-    ) {
+        ];
+
+    if (!preference) {
         return jsonResponse(
             {
                 ok: false,
@@ -2974,76 +2975,32 @@ async function runLegacyFeedProbe(
         );
     }
 
-    let feeds;
-
-    try {
-        feeds =
-            await fetchAwinFeedList(
-                context,
-                apiKey
-            );
-    }
-    catch (error) {
-        return jsonResponse(
-            {
-                ok: false,
-                configured: true,
-                probe:
-                    "awin-standard-product-feed",
-                partnerId,
-                stage:
-                    "feed-list",
-                error:
-                    normalizeText(
-                        error?.message ||
-                        "Awin Product Feed List request failed."
-                    ).slice(0, 500),
-                status:
-                    Number.isFinite(error?.status)
-                        ? error.status
-                        : null
-            },
-            502
-        );
-    }
-
-    const selectedFeed =
-        findPreferredLegacyFeed(
-            feeds,
-            partnerId
-        );
-
-    if (!selectedFeed) {
-        return jsonResponse(
-            {
-                ok: false,
-                configured: true,
-                error:
-                    "Selected legacy feed was not found in Awin Product Feed List.",
-                partnerId
-            },
-            404
-        );
-    }
-
+    /*
+     * The Awin Product Feed List endpoint currently returns HTTP 400
+     * for this publisher key, while the concrete Create-a-Feed download
+     * URL works. The legacy probe therefore uses the known Feed ID
+     * directly instead of depending on the separate Feed List service.
+     */
     const feed = {
         partnerId,
         advertiserId:
-            selectedFeed.advertiserId,
+            preference.advertiserId,
         advertiserName:
-            selectedFeed.advertiserName,
+            preference.feedName,
         primaryRegion:
-            selectedFeed.primaryRegion,
+            partnerId === "stylevana"
+                ? "US"
+                : "",
         locale:
-            selectedFeed.language,
+            partnerId === "stylevana"
+                ? "en_US"
+                : "en_US",
         lastImported:
-            selectedFeed.lastImported,
+            "",
         feedId:
-            selectedFeed.feedId,
+            preference.feedId,
         feedName:
-            selectedFeed.feedName,
-        url:
-            selectedFeed.url
+            preference.feedName
     };
 
     const debug = {
@@ -3051,7 +3008,9 @@ async function runLegacyFeedProbe(
         validRecords: 0,
         invalidRecords: 0,
         discountedProducts: 0,
-        missingShipping: 0
+        missingShipping: 0,
+        source:
+            "direct-create-a-feed-download"
     };
 
     let feedText;
@@ -3128,8 +3087,6 @@ async function runLegacyFeedProbe(
                     feed.feedName,
                 language:
                     feed.locale,
-                vertical:
-                    selectedFeed.vertical,
                 primaryRegion:
                     feed.primaryRegion,
                 lastImported:
