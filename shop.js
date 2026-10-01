@@ -688,6 +688,33 @@
                     ? `✓ Verified ${escapeHTML(availability.verifiedDate)}`
                     : "From merchant feed";
 
+        if(
+            coverageType === "regional" &&
+            !countryCodes.length
+        ){
+            return `
+                <div class="shop-availability">
+                    <div class="shop-availability-head">
+                        <div>
+                            <span class="shop-info-label">🌍 Ships to</span>
+                            <strong>${escapeHTML(
+                                availability.coverageLabel ||
+                                "Regional shipping coverage"
+                            )}</strong>
+                        </div>
+                        <span class="shop-availability-verified">${sourceLabel}</span>
+                    </div>
+
+                    <p class="shop-availability-note">
+                        ${escapeHTML(
+                            availability.note ||
+                            "The merchant publishes regional shipping coverage rather than a complete country list. Final destination eligibility is confirmed at checkout."
+                        )}
+                    </p>
+                </div>
+            `;
+        }
+
         const countryChips =
             countryCodes
                 .map(
