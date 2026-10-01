@@ -752,7 +752,11 @@
                             }
                             : null
                     ) ||
-                    shopPartnerAvailability[product.partnerId] ||
+                    (
+                        typeof shopPartnerAvailability !== "undefined"
+                            ? shopPartnerAvailability[product.partnerId]
+                            : null
+                    ) ||
                     null;
 
                 const currency =
