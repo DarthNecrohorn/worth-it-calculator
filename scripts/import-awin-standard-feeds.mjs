@@ -24,6 +24,13 @@ const FEEDS = [
     shippingCountries: ["US"]
   },
   {
+    partnerId: "fntcase",
+    name: "Shenzhen Feinuote Electronic Technology Co., Ltd.",
+    category: "phone-accessories",
+    env: "AWIN_FNTCASE_FEED_URL",
+    shippingCountries: []
+  },
+  {
     partnerId: "giftlab",
     advertiserId: "95201",
     name: "Giftlab",
