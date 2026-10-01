@@ -2965,11 +2965,38 @@ async function runLegacyFeedProbe(
         );
     }
 
-    const feeds =
-        await fetchAwinFeedList(
-            context,
-            apiKey
+    let feeds;
+
+    try {
+        feeds =
+            await fetchAwinFeedList(
+                context,
+                apiKey
+            );
+    }
+    catch (error) {
+        return jsonResponse(
+            {
+                ok: false,
+                configured: true,
+                probe:
+                    "awin-standard-product-feed",
+                partnerId,
+                stage:
+                    "feed-list",
+                error:
+                    normalizeText(
+                        error?.message ||
+                        "Awin Product Feed List request failed."
+                    ).slice(0, 500),
+                status:
+                    Number.isFinite(error?.status)
+                        ? error.status
+                        : null
+            },
+            502
         );
+    }
 
     const selectedFeed =
         findPreferredLegacyFeed(
@@ -3018,11 +3045,54 @@ async function runLegacyFeedProbe(
         missingShipping: 0
     };
 
-    const feedText =
-        await downloadLegacyFeed(
-            feed,
-            apiKey
+    let feedText;
+
+    try {
+        feedText =
+            await downloadLegacyFeed(
+                feed,
+                apiKey
+            );
+    }
+    catch (error) {
+        return jsonResponse(
+            {
+                ok: false,
+                configured: true,
+                probe:
+                    "awin-standard-product-feed",
+                partnerId,
+                stage:
+                    "feed-download",
+                error:
+                    normalizeText(
+                        error?.message ||
+                        "Awin legacy feed download failed."
+                    ).slice(0, 500),
+                status:
+                    Number.isFinite(error?.status)
+                        ? error.status
+                        : null,
+                feed: {
+                    advertiserId:
+                        feed.advertiserId,
+                    advertiserName:
+                        feed.advertiserName,
+                    feedId:
+                        feed.feedId,
+                    feedName:
+                        feed.feedName,
+                    language:
+                        feed.locale,
+                    primaryRegion:
+                        feed.primaryRegion,
+                    lastImported:
+                        feed.lastImported
+                }
+            },
+            502
         );
+    }
 
     const products =
         parseLegacyCSVProducts(
