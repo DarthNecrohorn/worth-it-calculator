@@ -301,12 +301,9 @@
     }
 
     function getCategoryProductCount(items, categoryId){
-        return Math.min(
-            12,
-            items.filter(
-                deal => deal.category === categoryId
-            ).length
-        );
+        return items.filter(
+            deal => deal.category === categoryId
+        ).length;
     }
 
     function sortShopItems(items){
@@ -423,11 +420,7 @@
         const sorted =
             sortShopItems(filtered);
 
-        if(shopViewState.category !== "all"){
-            return sorted.slice(0, 12);
-        }
-
-        return sorted.slice(0, 300);
+        return sorted;
     }
 
     function getAvailabilityHTML(deal){
