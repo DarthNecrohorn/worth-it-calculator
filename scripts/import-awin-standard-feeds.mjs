@@ -205,7 +205,10 @@ function toProduct(row, feed, importedAt) {
   );
 
   const affiliateUrl = normalizeText(
-    firstValue(row, ["aw_deep_link"])
+    firstValue(row, [
+      "aw_deep_link",
+      "awin_deep_link"
+    ])
   );
 
   const image = normalizeText(
@@ -213,12 +216,18 @@ function toProduct(row, feed, importedAt) {
       "merchant_image_url",
       "aw_image_url",
       "large_image",
-      "aw_thumb_url"
+      "aw_thumb_url",
+      "image_url",
+      "image_link"
     ])
   );
 
-  const price = parseNumber(
+  const feedPrice = parseNumber(
     firstValue(row, ["search_price", "price"])
+  );
+
+  const feedSalePrice = parseNumber(
+    firstValue(row, ["sale_price"])
   );
 
   const storePrice = parseNumber(
@@ -226,10 +235,21 @@ function toProduct(row, feed, importedAt) {
   );
 
   const rrpPrice = parseNumber(
-    firstValue(row, ["rrp_price"])
+    firstValue(row, [
+      "rrp_price",
+      "product_price_old"
+    ])
   );
 
-  let regularPrice = price;
+  const price =
+    Number.isFinite(feedSalePrice) &&
+    Number.isFinite(feedPrice) &&
+    feedSalePrice > 0 &&
+    feedSalePrice < feedPrice
+      ? feedSalePrice
+      : feedPrice;
+
+  let regularPrice = feedPrice;
 
   if (
     Number.isFinite(storePrice) &&
@@ -279,7 +299,8 @@ function toProduct(row, feed, importedAt) {
   const awProductId = normalizeText(
     firstValue(row, [
       "aw_product_id",
-      "merchant_product_id"
+      "merchant_product_id",
+      "id"
     ])
   );
 
@@ -351,7 +372,10 @@ function toProduct(row, feed, importedAt) {
       ),
     brandName:
       normalizeText(
-        firstValue(row, ["brand_name"])
+        firstValue(row, [
+          "brand_name",
+          "brand"
+        ])
       )
   };
 }
