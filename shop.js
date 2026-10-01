@@ -509,6 +509,17 @@
             `;
         }
 
+        const coverageType =
+            availability.coverageType ||
+            "exact";
+
+        const sourceLabel =
+            availability.sourceLabel
+                ? escapeHTML(availability.sourceLabel)
+                : availability.verifiedDate
+                    ? `✓ Verified ${escapeHTML(availability.verifiedDate)}`
+                    : "From merchant feed";
+
         const countryChips =
             countryCodes
                 .map(
@@ -528,7 +539,11 @@
             countryCodes.length > 8
                 ? `
                     <details class="shop-country-details">
-                        <summary>See all ${countryCodes.length} destinations</summary>
+                        <summary>${
+                            coverageType === "regional"
+                                ? `See listed destinations (${countryCodes.length})`
+                                : `See all ${countryCodes.length} destinations`
+                        }</summary>
                         <div class="shop-country-list">
                             ${countryCodes
                                 .map(
@@ -545,12 +560,41 @@
                 `
                 : "";
 
-        const sourceLabel =
-            availability.sourceLabel
-                ? escapeHTML(availability.sourceLabel)
-                : availability.verifiedDate
-                    ? `✓ Verified ${escapeHTML(availability.verifiedDate)}`
-                    : "From merchant feed";
+        if(coverageType === "regional"){
+            const coverageLabel =
+                availability.coverageLabel ||
+                "Regional shipping coverage";
+
+            return `
+                <div class="shop-availability">
+                    <div class="shop-availability-head">
+                        <div>
+                            <span class="shop-info-label">🌍 Ships to</span>
+                            <strong>${escapeHTML(coverageLabel)}</strong>
+                        </div>
+                        <span class="shop-availability-verified">${sourceLabel}</span>
+                    </div>
+
+                    ${
+                        countryCodes.length
+                            ? `
+                                <div class="shop-country-summary">
+                                    ${countryChips}
+                                </div>
+                                ${countryDetails}
+                            `
+                            : ""
+                    }
+
+                    <p class="shop-availability-note">
+                        ${escapeHTML(
+                            availability.note ||
+                            "The merchant publishes regional shipping coverage rather than a complete country list. Final destination eligibility is confirmed at checkout."
+                        )}
+                    </p>
+                </div>
+            `;
+        }
 
         return `
             <div class="shop-availability">
@@ -741,20 +785,39 @@
                         ]
                         : [];
 
+                const shippingCoverageType =
+                    product.shippingCoverageType ||
+                    (
+                        shippingCountries.length
+                            ? "exact"
+                            : "unknown"
+                    );
+
                 const availability =
                     product.availability ||
                     (
-                        shippingCountries.length
+                        shippingCoverageType !== "unknown"
                             ? {
                                 type: "shipping",
+                                coverageType:
+                                    shippingCoverageType,
+                                coverageLabel:
+                                    product.shippingCoverageLabel ||
+                                    "",
                                 countries:
                                     shippingCountries,
                                 sourceLabel:
                                     product.shippingSourceLabel ||
                                     "Awin product feed",
+                                sourceUrl:
+                                    product.shippingSourceUrl ||
+                                    "",
+                                verifiedAt:
+                                    product.shippingVerifiedAt ||
+                                    "",
                                 note:
                                     product.shippingNote ||
-                                    "Shipping destinations are taken from the current Awin product feed. Final availability, shipping cost and checkout eligibility can vary by address and merchant."
+                                    "Shipping availability is determined by the current product or merchant shipping data. Final eligibility can vary at checkout."
                             }
                             : null
                     ) ||
