@@ -91,7 +91,7 @@ function extractCountryCodes(value) {
       return;
     }
 
-    for (const token of String(item).split(/[,;|\\s]+/)) {
+    for (const token of String(item).split(/[,;|\s]+/)) {
       const match = token.match(/^[A-Za-z]{2}$/);
       if (match) add(match[0]);
     }
