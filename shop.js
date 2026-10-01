@@ -959,29 +959,41 @@
                         shippingCountries
                     );
 
+                const explicitServiceAvailability =
+                    product?.availability?.type === "service"
+                        ? product.availability
+                        : null;
+
+                const explicitShippingAvailability =
+                    product?.availability?.type === "shipping"
+                        ? product.availability
+                        : null;
+
+                const resolvedShippingAvailability =
+                    effectiveShipping.coverageType !== "unknown"
+                        ? {
+                            type: "shipping",
+                            coverageType:
+                                effectiveShipping.coverageType,
+                            coverageLabel:
+                                effectiveShipping.coverageLabel,
+                            countries:
+                                effectiveShipping.countries,
+                            sourceLabel:
+                                effectiveShipping.sourceLabel,
+                            sourceUrl:
+                                effectiveShipping.sourceUrl,
+                            verifiedAt:
+                                effectiveShipping.verifiedAt,
+                            note:
+                                effectiveShipping.note
+                        }
+                        : null;
+
                 const availability =
-                    product.availability ||
-                    (
-                        effectiveShipping.coverageType !== "unknown"
-                            ? {
-                                type: "shipping",
-                                coverageType:
-                                    effectiveShipping.coverageType,
-                                coverageLabel:
-                                    effectiveShipping.coverageLabel,
-                                countries:
-                                    effectiveShipping.countries,
-                                sourceLabel:
-                                    effectiveShipping.sourceLabel,
-                                sourceUrl:
-                                    effectiveShipping.sourceUrl,
-                                verifiedAt:
-                                    effectiveShipping.verifiedAt,
-                                note:
-                                    effectiveShipping.note
-                            }
-                            : null
-                    ) ||
+                    explicitServiceAvailability ||
+                    resolvedShippingAvailability ||
+                    explicitShippingAvailability ||
                     (
                         typeof shopPartnerAvailability !== "undefined"
                             ? shopPartnerAvailability[product.partnerId]
