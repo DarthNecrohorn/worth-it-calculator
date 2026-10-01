@@ -11,6 +11,21 @@ const MAX_FEED_BYTES = 120 * 1024 * 1024;
 const MAX_PRODUCTS_PER_CATEGORY = 200;
 
 /*
+ * Merchant-level Stylevana shipping coverage used as a fallback when the
+ * Awin product feed does not contain product-level destination data.
+ *
+ * The list is applied automatically to every imported Stylevana product on
+ * each GitHub Actions run. Product-level shipping data can override this
+ * fallback when a future feed format provides it.
+ */
+const STYLEVANA_SHIPPING_COUNTRIES = [
+  "AU", "BR", "BN", "BG", "CA", "CO", "HR", "CY", "CZ", "DK",
+  "EE", "FI", "GR", "HU", "IE", "IT", "LV", "LT",
+  "MT", "NL", "NZ", "NO", "PH", "PL", "PT", "RO", "SG", "SK",
+  "SI", "ZA", "ES", "SE", "GB", "US", "VN"
+];
+
+/*
  * The importer keeps at most 200 products per Shop category. With the
  * current Shop category set, the resulting snapshot remains well below
  * Cloudflare Pages' 25 MiB single-asset limit.
@@ -22,7 +37,7 @@ const FEEDS = [
     name: "Stylevana",
     category: "beauty-skincare",
     env: "AWIN_STYLEVANA_FEED_URL",
-    shippingCountries: ["US"]
+    shippingCountries: STYLEVANA_SHIPPING_COUNTRIES
   },
   {
     partnerId: "fntcase",
