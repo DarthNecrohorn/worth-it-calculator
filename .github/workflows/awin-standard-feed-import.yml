@@ -37,7 +37,7 @@ jobs:
 
       - name: Commit updated product snapshot
         run: |
-          git add -A data/shop-products-awin.json data/shop-products-awin/
+          git add -A data/shop-products-awin.json
 
           if git diff --cached --quiet; then
             echo "No product snapshot changes."
