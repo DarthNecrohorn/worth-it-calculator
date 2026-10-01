@@ -21,19 +21,55 @@ const MAX_PRODUCTS_PER_CATEGORY = 200;
  * https://stylevana.zendesk.com/hc/en-us/articles/43813531311897-Where-do-you-ship-to
  */
 const STYLEVANA_SHIPPING_COUNTRIES = [
-  "AU", "AT", "BE", "BR", "BN", "BG", "CA", "CL", "CN", "CO",
+  "AU", "AT", "BE", "BR", "BN", "BG", "CA", "CL", "CO",
   "HR", "CY", "CZ", "DK", "EE", "FI", "FR", "DE", "GR", "HK",
-  "HU", "IE", "IL", "IT", "JP", "LV", "LT", "LU", "MY", "MT",
+  "HU", "IE", "IL", "IT", "LV", "LT", "LU", "MY", "MT",
   "MX", "NL", "NZ", "NO", "PH", "PL", "PT", "RO", "SG", "SK",
   "SI", "ZA", "ES", "SE", "CH", "GB", "AE", "US", "VN", "PE"
 ];
 
+const DOWINX_EU_LISTED_COUNTRIES = [
+  "IS", "NO", "SE", "FI", "DK",
+  "GB", "IE", "FR", "DE", "NL", "BE", "LU", "MC",
+  "CH", "AT", "PL", "CZ", "SK", "HU", "LI",
+  "PT", "ES", "IT", "BG", "RO",
+  "EE", "LV", "LT"
+];
+
 const SHIPPING_PROFILES = {
   stylevana: {
+    type: "exact",
     countries: STYLEVANA_SHIPPING_COUNTRIES,
     sourceLabel: "Stylevana verified shipping destinations",
+    sourceUrl:
+      "https://stylevana.zendesk.com/hc/en-us/articles/43813531311897-Where-do-you-ship-to",
+    verifiedAt: "2026-08-26",
     note:
-      "Stylevana's current merchant-level shipping destinations are used because the standard Awin feed does not provide product-level shipping destinations. Individual products or checkout rules may still have destination restrictions."
+      "Stylevana's current official shipping-destination list is used because the standard Awin feed does not provide product-level shipping destinations. Individual products, remote areas or checkout rules may still have destination restrictions."
+  },
+
+  "dowinx-eu": {
+    type: "regional",
+    countries: DOWINX_EU_LISTED_COUNTRIES,
+    coverageLabel: "Most of Europe",
+    sourceLabel: "Dowinx EU shipping coverage",
+    sourceUrl:
+      "https://eu.dowinx.com/pages/shipping-and-delivery",
+    verifiedAt: "2026-10-01",
+    note:
+      "Dowinx EU states that it ships to approximately 75% of European countries and lists the destinations shown here as examples. The country list is not exhaustive, so Worth It does not present it as a complete country count."
+  },
+
+  fntcase: {
+    type: "regional",
+    countries: [],
+    coverageLabel: "Most of Europe & North America",
+    sourceLabel: "FNTCASE shipping coverage",
+    sourceUrl:
+      "https://fntcase.com/pages/faqs",
+    verifiedAt: "2026-10-01",
+    note:
+      "FNTCASE states that it ships to most European and North American countries, but it does not publish a complete country list. Worth It therefore shows the regional coverage without inventing an exact country count."
   }
 };
 
@@ -133,8 +169,12 @@ function resolveProductShipping(row) {
   if (!countries.length) return null;
 
   return {
+    type: "exact",
     countries,
+    coverageLabel: "",
     sourceLabel: "Awin product shipping data",
+    sourceUrl: "",
+    verifiedAt: "",
     note:
       "Shipping destinations were taken from product-level data supplied through the Awin feed. Merchant checkout restrictions may still apply."
   };
@@ -143,8 +183,15 @@ function resolveProductShipping(row) {
 function resolveShipping(feed, row) {
   /*
    * One resolver is used for every Awin product. The strongest available
-   * source wins: product-level data, verified merchant profile, configured
-   * merchant fallback, then unknown.
+   * source wins:
+   *
+   *   1) product-level country data,
+   *   2) verified merchant profile,
+   *   3) explicitly marked exact merchant configuration,
+   *   4) unknown.
+   *
+   * Legacy programme-region fallbacks are deliberately NOT treated as
+   * exact country coverage.
    */
   const productShipping = resolveProductShipping(row);
 
@@ -154,28 +201,43 @@ function resolveShipping(feed, row) {
 
   const profile = SHIPPING_PROFILES[feed.partnerId];
 
-  if (profile?.countries?.length) {
+  if (profile) {
     return {
-      countries: [...new Set(profile.countries)],
+      type: profile.type || "exact",
+      countries: [...new Set(profile.countries || [])],
+      coverageLabel: profile.coverageLabel || "",
       sourceLabel: profile.sourceLabel,
+      sourceUrl: profile.sourceUrl || "",
+      verifiedAt: profile.verifiedAt || "",
       note: profile.note
     };
   }
 
-  if (feed.shippingCountries?.length) {
+  if (
+    feed.shippingCountries?.length &&
+    feed.shippingCountriesAreExact === true
+  ) {
     return {
+      type: "exact-configured",
       countries: [...new Set(feed.shippingCountries)],
-      sourceLabel: "Merchant shipping fallback",
+      coverageLabel: "",
+      sourceLabel: "Merchant shipping configuration",
+      sourceUrl: feed.shippingSourceUrl || "",
+      verifiedAt: feed.shippingVerifiedAt || "",
       note:
-        "The merchant's configured shipping coverage is used because the product feed does not provide positive country-level shipping destinations."
+        "This exact country coverage was explicitly configured for the merchant. Final product and checkout eligibility may still vary."
     };
   }
 
   return {
+    type: "unknown",
     countries: [],
-    sourceLabel: "No shipping destination in feed",
+    coverageLabel: "",
+    sourceLabel: "No verified shipping destination",
+    sourceUrl: "",
+    verifiedAt: "",
     note:
-      "No reliable country-level shipping destination is available in the product feed or merchant configuration."
+      "No reliable country-level or regional shipping coverage is available for this product or merchant."
   };
 }
 
@@ -561,7 +623,11 @@ function toProduct(row, feed, importedAt) {
       const shipping = resolveShipping(feed, row);
       return {
         shippingCountries: shipping.countries,
+        shippingCoverageType: shipping.type,
+        shippingCoverageLabel: shipping.coverageLabel,
         shippingSourceLabel: shipping.sourceLabel,
+        shippingSourceUrl: shipping.sourceUrl,
+        shippingVerifiedAt: shipping.verifiedAt,
         shippingNote: shipping.note
       };
     })(),
