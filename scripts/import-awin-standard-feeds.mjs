@@ -16,7 +16,8 @@ const MAX_PRODUCTS_PER_CATEGORY = 200;
  *
  * The list is applied automatically to every imported Stylevana product on
  * each GitHub Actions run. Product-level shipping data can override this
- * fallback when a future feed format provides it.
+ * fallback when a future feed format provides it. The generated snapshot
+ * is refreshed automatically after importer configuration changes.
  */
 const STYLEVANA_SHIPPING_COUNTRIES = [
   "AU", "BR", "BN", "BG", "CA", "CO", "HR", "CY", "CZ", "DK",
