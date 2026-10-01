@@ -64,9 +64,6 @@ const ISO_COUNTRY_CODES = new Set([
 function extractCountryCodes(value) {
   if (value === undefined || value === null) return [];
 
-  const text = String(value).trim();
-  if (!text) return [];
-
   const codes = [];
   const add = code => {
     const normalized = String(code || "").trim().toUpperCase();
@@ -97,6 +94,14 @@ function extractCountryCodes(value) {
     }
   };
 
+  if (typeof value === "object") {
+    visit(value);
+    return [...new Set(codes)];
+  }
+
+  const text = String(value).trim();
+  if (!text) return [];
+
   try {
     visit(JSON.parse(text));
   } catch {
@@ -104,6 +109,97 @@ function extractCountryCodes(value) {
   }
 
   return [...new Set(codes)];
+}
+
+function validateShippingProfiles(profiles) {
+  if (!profiles || typeof profiles !== "object") {
+    throw new Error("Shipping profiles are missing or invalid.");
+  }
+
+  for (const [partnerId, profile] of Object.entries(profiles)) {
+    const type = String(profile?.type || "");
+
+    if (!["exact", "regional"].includes(type)) {
+      throw new Error(
+        `Invalid shipping profile type for ${partnerId}: ${type || "missing"}`
+      );
+    }
+
+    const countries = Array.isArray(profile?.countries)
+      ? profile.countries
+      : [];
+
+    const normalized = countries.map(code =>
+      String(code || "").trim().toUpperCase()
+    );
+
+    if (new Set(normalized).size !== normalized.length) {
+      throw new Error(
+        `Duplicate shipping countries in profile: ${partnerId}`
+      );
+    }
+
+    for (const code of normalized) {
+      if (!ISO_COUNTRY_CODES.has(code)) {
+        throw new Error(
+          `Invalid ISO country code in shipping profile ${partnerId}: ${code}`
+        );
+      }
+    }
+
+    if (type === "exact" && !normalized.length) {
+      throw new Error(
+        `Exact shipping profile has no countries: ${partnerId}`
+      );
+    }
+
+    if (!String(profile?.sourceLabel || "").trim()) {
+      throw new Error(
+        `Shipping profile has no source label: ${partnerId}`
+      );
+    }
+
+    if (!String(profile?.note || "").trim()) {
+      throw new Error(
+        `Shipping profile has no note: ${partnerId}`
+      );
+    }
+  }
+}
+
+validateShippingProfiles(SHIPPING_PROFILES);
+
+const SHIPPING_PARSER_SMOKE_TESTS = [
+  {
+    input: "US, CA|GB",
+    expected: ["US", "CA", "GB"]
+  },
+  {
+    input: '{"country":"DE"}',
+    expected: ["DE"]
+  },
+  {
+    input: {
+      shipping: [
+        { country: "FR" },
+        { country_code: "RS" }
+      ]
+    },
+    expected: ["FR", "RS"]
+  }
+];
+
+for (const test of SHIPPING_PARSER_SMOKE_TESTS) {
+  const actual = extractCountryCodes(test.input);
+
+  if (
+    actual.length !== test.expected.length ||
+    actual.some(code => !test.expected.includes(code))
+  ) {
+    throw new Error(
+      "Shipping country parser smoke test failed."
+    );
+  }
 }
 
 function resolveProductShipping(row) {
