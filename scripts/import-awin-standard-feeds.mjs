@@ -18,7 +18,7 @@ const MAX_FEED_BYTES = 120 * 1024 * 1024;
  * feeds are split into multiple gzip-compressed chunks.
  */
 const CHUNK_TARGET_BYTES =
-  8 * 1024 * 1024;
+  20 * 1024 * 1024;
 
 const FEEDS = [
   {
