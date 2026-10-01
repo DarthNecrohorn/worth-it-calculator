@@ -2151,9 +2151,40 @@ const LEGACY_FEED_MAX_BYTES =
     50 * 1024 * 1024;
 
 function getAwinFeedApiKey(context) {
-    return String(
-        context.env?.[AWIN_FEED_API_KEY_ENV] || ""
-    ).trim();
+    const configured =
+        String(
+            context.env?.[AWIN_FEED_API_KEY_ENV] || ""
+        ).trim();
+
+    if (!configured) {
+        return "";
+    }
+
+    /*
+     * Accept either the bare Data Feed API key or the full Create-a-Feed
+     * download URL stored in Cloudflare.
+     */
+    const match =
+        configured.match(
+            /\/datafeed\/download\/apikey\/([^/]+)\/fid\//i
+        );
+
+    return match
+        ? decodeURIComponent(match[1])
+        : configured;
+}
+
+function getConfiguredAwinFeedUrl(context) {
+    const configured =
+        String(
+            context.env?.[AWIN_FEED_API_KEY_ENV] || ""
+        ).trim();
+
+    return /^https?:\/\//i.test(
+        configured
+    )
+        ? configured
+        : "";
 }
 
 function feedListValue(
@@ -2794,8 +2825,40 @@ const LEGACY_DOWNLOAD_COLUMNS = [
 
 function buildLegacyDownloadUrl(
     feed,
-    apiKey
+    apiKey,
+    configuredAwinUrl = ""
 ) {
+    const directConfiguredUrl =
+        normalizeText(
+            configuredAwinUrl
+        );
+
+    if (
+        /^https?:\/\//i.test(
+            directConfiguredUrl
+        )
+    ) {
+        const configuredFeedIdMatch =
+            directConfiguredUrl.match(
+                /\/fid\/([^/]+)/i
+            );
+
+        const configuredFeedId =
+            configuredFeedIdMatch
+                ? decodeURIComponent(
+                    configuredFeedIdMatch[1]
+                )
+                : "";
+
+        if (
+            !configuredFeedId ||
+            configuredFeedId ===
+                String(feed?.feedId || "").trim()
+        ) {
+            return directConfiguredUrl;
+        }
+    }
+
     const configuredUrl =
         normalizeText(
             feed?.url
@@ -2869,12 +2932,14 @@ function buildLegacyDownloadUrl(
 
 async function downloadLegacyFeed(
     feed,
-    apiKey
+    apiKey,
+    configuredAwinUrl = ""
 ) {
     const downloadUrl =
         buildLegacyDownloadUrl(
             feed,
-            apiKey
+            apiKey,
+            configuredAwinUrl
         );
 
     if (!downloadUrl) {
@@ -3019,7 +3084,10 @@ async function runLegacyFeedProbe(
         feedText =
             await downloadLegacyFeed(
                 feed,
-                apiKey
+                apiKey,
+                getConfiguredAwinFeedUrl(
+                    context
+                )
             );
     }
     catch (error) {
