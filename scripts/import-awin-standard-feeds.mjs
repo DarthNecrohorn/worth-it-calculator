@@ -20,58 +20,26 @@ const MAX_PRODUCTS_PER_CATEGORY = 200;
  * Source:
  * https://stylevana.zendesk.com/hc/en-us/articles/43813531311897-Where-do-you-ship-to
  */
-const STYLEVANA_SHIPPING_COUNTRIES = [
-  "AU", "AT", "BE", "BR", "BN", "BG", "CA", "CL", "CO",
-  "HR", "CY", "CZ", "DK", "EE", "FI", "FR", "DE", "GR", "HK",
-  "HU", "IE", "IL", "IT", "LV", "LT", "LU", "MY", "MT",
-  "MX", "NL", "NZ", "NO", "PH", "PL", "PT", "RO", "SG", "SK",
-  "SI", "ZA", "ES", "SE", "CH", "GB", "AE", "US", "VN", "PE"
-];
+const SHIPPING_PROFILES_PATH =
+  "data/shop-shipping-profiles.json";
 
-const DOWINX_EU_LISTED_COUNTRIES = [
-  "IS", "NO", "SE", "FI", "DK",
-  "GB", "IE", "FR", "DE", "NL", "BE", "LU", "MC",
-  "CH", "AT", "PL", "CZ", "SK", "HU", "LI",
-  "PT", "ES", "IT", "BG", "RO",
-  "EE", "LV", "LT"
-];
+const SHIPPING_PROFILE_DATA =
+  JSON.parse(
+    await fs.readFile(
+      SHIPPING_PROFILES_PATH,
+      "utf8"
+    )
+  );
 
-const SHIPPING_PROFILES = {
-  stylevana: {
-    type: "exact",
-    countries: STYLEVANA_SHIPPING_COUNTRIES,
-    sourceLabel: "Stylevana verified shipping destinations",
-    sourceUrl:
-      "https://stylevana.zendesk.com/hc/en-us/articles/43813531311897-Where-do-you-ship-to",
-    verifiedAt: "2026-08-26",
-    note:
-      "Stylevana's current official shipping-destination list is used because the standard Awin feed does not provide product-level shipping destinations. Individual products, remote areas or checkout rules may still have destination restrictions."
-  },
+const SHIPPING_PROFILES =
+  SHIPPING_PROFILE_DATA?.profiles || {};
 
-  "dowinx-eu": {
-    type: "regional",
-    countries: DOWINX_EU_LISTED_COUNTRIES,
-    coverageLabel: "Most of Europe",
-    sourceLabel: "Dowinx EU shipping coverage",
-    sourceUrl:
-      "https://eu.dowinx.com/pages/shipping-and-delivery",
-    verifiedAt: "2026-10-01",
-    note:
-      "Dowinx EU states that it ships to approximately 75% of European countries and lists the destinations shown here as examples. The country list is not exhaustive, so Worth It does not present it as a complete country count."
-  },
-
-  fntcase: {
-    type: "regional",
-    countries: [],
-    coverageLabel: "Most of Europe & North America",
-    sourceLabel: "FNTCASE shipping coverage",
-    sourceUrl:
-      "https://fntcase.com/pages/faqs",
-    verifiedAt: "2026-10-01",
-    note:
-      "FNTCASE states that it ships to most European and North American countries, but it does not publish a complete country list. Worth It therefore shows the regional coverage without inventing an exact country count."
-  }
-};
+const STYLEVANA_SHIPPING_COUNTRIES =
+  Array.isArray(
+    SHIPPING_PROFILES.stylevana?.countries
+  )
+    ? SHIPPING_PROFILES.stylevana.countries
+    : [];
 
 const ISO_COUNTRY_CODES = new Set([
   "AD","AE","AF","AG","AI","AL","AM","AO","AQ","AR","AS","AT","AU","AW","AX",
@@ -267,7 +235,7 @@ const FEEDS = [
     name: "Dowinx (EU)",
     category: "gaming-office",
     env: "AWIN_DOWINX_EU_FEED_URL",
-    shippingCountries: ["US"]
+    shippingCountries: []
   },
   {
     partnerId: "king-koil",
