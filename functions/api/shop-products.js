@@ -13,6 +13,7 @@ import { recordAdminApiUsage } from "../lib/admin-usage.js";
  */
 
 const RESPONSE_CACHE_SECONDS = 300;
+const MAX_PRODUCTS_PER_CATEGORY = 200;
 
 async function readAssetJSON(context, path) {
     try {
@@ -304,9 +305,35 @@ export async function onRequestGet(
             context
         );
 
-    const products =
+    const rankedProducts =
         dedupeProducts(
             snapshot.products
+        );
+
+    const products = [
+        ...new Set(
+            rankedProducts.map(
+                product =>
+                    product?.category ||
+                    "other"
+            )
+        )
+    ]
+        .sort()
+        .flatMap(
+            category =>
+                rankedProducts
+                    .filter(
+                        product =>
+                            (
+                                product?.category ||
+                                "other"
+                            ) === category
+                    )
+                    .slice(
+                        0,
+                        MAX_PRODUCTS_PER_CATEGORY
+                    )
         );
 
     const feeds =
