@@ -1,7 +1,54 @@
 {
-  "version": "0",
-  "generatedAt": null,
-  "totalProducts": 0,
-  "feeds": [],
-  "chunks": []
+  "version": "20261001202216272",
+  "generatedAt": "2026-10-01T20:22:16.272Z",
+  "totalProducts": 24681,
+  "feeds": [
+    {
+      "partnerId": "stylevana",
+      "advertiserId": "90791",
+      "status": "loaded",
+      "rows": 24498,
+      "products": 24498
+    },
+    {
+      "partnerId": "dowinx-eu",
+      "advertiserId": "107524",
+      "status": "loaded",
+      "rows": 183,
+      "products": 183
+    },
+    {
+      "partnerId": "fntcase",
+      "status": "loaded",
+      "rows": 1736,
+      "products": 0
+    },
+    {
+      "partnerId": "giftlab",
+      "status": "not-configured",
+      "products": 0
+    },
+    {
+      "partnerId": "king-koil",
+      "status": "not-configured",
+      "products": 0
+    }
+  ],
+  "chunks": [
+    {
+      "path": "data/shop-products-awin/stylevana-0001.json.gz",
+      "products": 17126,
+      "bytes": 1652086
+    },
+    {
+      "path": "data/shop-products-awin/stylevana-0002.json.gz",
+      "products": 7372,
+      "bytes": 684184
+    },
+    {
+      "path": "data/shop-products-awin/dowinx-eu-0001.json.gz",
+      "products": 183,
+      "bytes": 14573
+    }
+  ]
 }
