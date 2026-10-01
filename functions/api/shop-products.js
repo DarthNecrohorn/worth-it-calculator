@@ -5,95 +5,17 @@ import { recordAdminApiUsage } from "../lib/admin-usage.js";
  *
  * Awin product feeds are imported by GitHub Actions from GitHub
  * repository secrets. Cloudflare only serves the generated static
- * snapshot.
+ * snapshot from data/shop-products-awin.json.
  *
- * The snapshot is stored as multiple gzip-compressed chunks plus a
- * small manifest so the Cloudflare Pages 25 MiB single-asset limit
- * does not impose a product-count limit on the Shop.
+ * The importer keeps at most 200 products per Shop category so the
+ * snapshot remains small and the browser never has to process an
+ * unbounded product catalogue.
  */
 
 const RESPONSE_CACHE_SECONDS = 300;
 const MAX_PRODUCTS_PER_CATEGORY = 200;
 
-async function readAssetJSON(context, path) {
-    try {
-        const assetUrl =
-            new URL(
-                "/" + path,
-                context.request.url
-            );
-
-        const response =
-            await context.env.ASSETS.fetch(
-                assetUrl
-            );
-
-        if (!response.ok) {
-            return null;
-        }
-
-        return await response.json();
-    }
-    catch {
-        return null;
-    }
-}
-
-async function readCompressedAssetJSON(
-    context,
-    path
-) {
-    try {
-        const assetUrl =
-            new URL(
-                "/" + path,
-                context.request.url
-            );
-
-        const response =
-            await context.env.ASSETS.fetch(
-                assetUrl
-            );
-
-        if (!response.ok) {
-            return null;
-        }
-
-        const compressed =
-            await response.arrayBuffer();
-
-        const stream =
-            new Blob(
-                [compressed]
-            )
-                .stream()
-                .pipeThrough(
-                    new DecompressionStream(
-                        "gzip"
-                    )
-                );
-
-        const text =
-            await new Response(
-                stream
-            ).text();
-
-        return JSON.parse(text);
-    }
-    catch (error) {
-        console.warn(
-            "Compressed Awin Shop chunk could not be read:",
-            path,
-            error
-        );
-
-        return null;
-    }
-}
-
-async function readImportedAwinProducts(
-    context
-) {
+async function readImportedAwinProducts(context) {
     try {
         if (!context.env?.ASSETS) {
             return {
@@ -104,18 +26,18 @@ async function readImportedAwinProducts(
             };
         }
 
-        const manifest =
-            await readAssetJSON(
-                context,
-                "data/shop-products-awin/manifest.json"
+        const assetUrl =
+            new URL(
+                "/data/shop-products-awin.json",
+                context.request.url
             );
 
-        if (
-            !manifest ||
-            !Array.isArray(
-                manifest.chunks
-            )
-        ) {
+        const response =
+            await context.env.ASSETS.fetch(
+                assetUrl
+            );
+
+        if (!response.ok) {
             return {
                 version: "0",
                 generatedAt: null,
@@ -124,53 +46,30 @@ async function readImportedAwinProducts(
             };
         }
 
-        const products = [];
-
-        for (
-            const chunk of manifest.chunks
-        ) {
-            if (
-                !chunk ||
-                !chunk.path
-            ) {
-                continue;
-            }
-
-            const chunkProducts =
-                await readCompressedAssetJSON(
-                    context,
-                    chunk.path
-                );
-
-            if (
-                !Array.isArray(
-                    chunkProducts
-                )
-            ) {
-                continue;
-            }
-
-            products.push(
-                ...chunkProducts
-            );
-        }
+        const payload =
+            await response.json();
 
         return {
             version:
                 String(
-                    manifest.version ||
+                    payload?.version ||
                     "0"
                 ),
             generatedAt:
-                manifest.generatedAt ||
+                payload?.generatedAt ||
                 null,
             feeds:
                 Array.isArray(
-                    manifest.feeds
+                    payload?.feeds
                 )
-                    ? manifest.feeds
+                    ? payload.feeds
                     : [],
-            products
+            products:
+                Array.isArray(
+                    payload?.products
+                )
+                    ? payload.products
+                    : []
         };
     }
     catch (error) {
@@ -231,6 +130,39 @@ function dedupeProducts(products) {
     return [
         ...map.values()
     ];
+}
+
+function limitProductsPerCategory(products) {
+    const ranked =
+        dedupeProducts(
+            products
+        );
+
+    const categories = [
+        ...new Set(
+            ranked.map(
+                product =>
+                    product?.category ||
+                    "other"
+            )
+        )
+    ].sort();
+
+    return categories.flatMap(
+        category =>
+            ranked
+                .filter(
+                    product =>
+                        (
+                            product?.category ||
+                            "other"
+                        ) === category
+                )
+                .slice(
+                    0,
+                    MAX_PRODUCTS_PER_CATEGORY
+                )
+    );
 }
 
 function jsonResponse(
@@ -305,35 +237,9 @@ export async function onRequestGet(
             context
         );
 
-    const rankedProducts =
-        dedupeProducts(
+    const products =
+        limitProductsPerCategory(
             snapshot.products
-        );
-
-    const products = [
-        ...new Set(
-            rankedProducts.map(
-                product =>
-                    product?.category ||
-                    "other"
-            )
-        )
-    ]
-        .sort()
-        .flatMap(
-            category =>
-                rankedProducts
-                    .filter(
-                        product =>
-                            (
-                                product?.category ||
-                                "other"
-                            ) === category
-                    )
-                    .slice(
-                        0,
-                        MAX_PRODUCTS_PER_CATEGORY
-                    )
         );
 
     const feeds =
