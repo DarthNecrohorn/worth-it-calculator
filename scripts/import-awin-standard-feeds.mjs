@@ -1,5 +1,5 @@
 import fs from "node:fs/promises";
-import { gunzipSync } from "node:zlib";
+import { gunzipSync, gzipSync } from "node:zlib";
 
 const OUTPUT_DIR =
   "data/shop-products-awin";
