@@ -2,6 +2,9 @@ name: Import Awin standard product feeds
 
 on:
   workflow_dispatch:
+  push:
+    paths:
+      - "scripts/import-awin-standard-feeds.mjs"
   schedule:
     - cron: "0 */6 * * *"
 
