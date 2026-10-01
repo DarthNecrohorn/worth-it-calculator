@@ -4,8 +4,6 @@ import { gunzipSync } from "node:zlib";
 const OUTPUT =
   "data/shop-products-awin.json";
 
-const MAX_PRODUCTS_PER_FEED = 60;
-const MAX_OUTPUT_PRODUCTS = 300;
 const MAX_FEED_BYTES = 120 * 1024 * 1024;
 
 const FEEDS = [
@@ -441,10 +439,7 @@ for (const feed of FEEDS) {
           b.popularityScore -
           a.popularityScore
       )
-      .slice(
-        0,
-        MAX_PRODUCTS_PER_FEED
-      );
+      ;
 
     products.push(...feedProducts);
 
@@ -474,8 +469,7 @@ const finalProducts =
       (a, b) =>
         b.popularityScore -
         a.popularityScore
-    )
-    .slice(0, MAX_OUTPUT_PRODUCTS);
+    );
 
 const output = {
   version: importedAt.replace(/[^0-9]/g, ""),
