@@ -1,10 +1,24 @@
 import fs from "node:fs/promises";
 import { gunzipSync } from "node:zlib";
 
-const OUTPUT =
+const OUTPUT_DIR =
+  "data/shop-products-awin";
+
+const MANIFEST =
+  OUTPUT_DIR + "/manifest.json";
+
+const LEGACY_OUTPUT =
   "data/shop-products-awin.json";
 
 const MAX_FEED_BYTES = 120 * 1024 * 1024;
+
+/*
+ * Keep every committed snapshot asset comfortably below Cloudflare
+ * Pages' 25 MiB asset limit. There is no product-count limit; large
+ * feeds are split into multiple gzip-compressed chunks.
+ */
+const CHUNK_TARGET_BYTES =
+  8 * 1024 * 1024;
 
 const FEEDS = [
   {
@@ -478,22 +492,180 @@ const finalProducts =
         a.popularityScore
     );
 
-const output = {
-  version: importedAt.replace(/[^0-9]/g, ""),
-  generatedAt: importedAt,
-  feeds: feedStatus,
-  products: finalProducts
-};
-
-await fs.mkdir(
-  "data",
-  { recursive: true }
+/*
+ * The previous importer wrote every product into one JSON asset. That
+ * eventually exceeded the Cloudflare Pages 25 MiB asset limit once the
+ * product-count cap was removed. The snapshot is now stored as multiple
+ * gzip-compressed chunks plus one small manifest. Product count remains
+ * unrestricted by this importer.
+ */
+await fs.rm(
+  OUTPUT_DIR,
+  {
+    recursive: true,
+    force: true
+  }
 );
 
+await fs.rm(
+  LEGACY_OUTPUT,
+  {
+    force: true
+  }
+);
+
+await fs.mkdir(
+  OUTPUT_DIR,
+  {
+    recursive: true
+  }
+);
+
+async function writeChunk(
+  partnerId,
+  productsInChunk,
+  index
+) {
+  const baseName =
+    partnerId +
+    "-" +
+    String(index).padStart(4, "0") +
+    ".json.gz";
+
+  const relativePath =
+    OUTPUT_DIR + "/" + baseName;
+
+  const json =
+    JSON.stringify(
+      productsInChunk
+    );
+
+  const compressed =
+    gzipSync(
+      Buffer.from(
+        json,
+        "utf8"
+      )
+    );
+
+  if (
+    compressed.byteLength >
+    24 * 1024 * 1024
+  ) {
+    throw new Error(
+      "Generated snapshot chunk exceeds the safe Cloudflare asset size."
+    );
+  }
+
+  await fs.writeFile(
+    relativePath,
+    compressed
+  );
+
+  return {
+    path:
+      relativePath.replace(
+        /^data\\/,
+        ""
+      ),
+    products:
+      productsInChunk.length,
+    bytes:
+      compressed.byteLength
+  };
+}
+
+const chunks = [];
+
+const partnerIds = [
+  ...new Set(
+    finalProducts
+      .map(
+        product =>
+          product?.partnerId
+      )
+      .filter(Boolean)
+  )
+];
+
+for (const partnerId of partnerIds) {
+  const partnerProducts =
+    finalProducts.filter(
+      product =>
+        product.partnerId ===
+        partnerId
+    );
+
+  let current = [];
+  let currentBytes = 2;
+  let chunkIndex = 1;
+
+  for (const product of partnerProducts) {
+    const encodedProduct =
+      JSON.stringify(
+        product
+      );
+
+    const productBytes =
+      Buffer.byteLength(
+        encodedProduct,
+        "utf8"
+      ) +
+      (current.length ? 1 : 0);
+
+    if (
+      current.length &&
+      currentBytes +
+        productBytes >
+        CHUNK_TARGET_BYTES
+    ) {
+      chunks.push(
+        await writeChunk(
+          partnerId,
+          current,
+          chunkIndex
+        )
+      );
+
+      chunkIndex++;
+      current = [];
+      currentBytes = 2;
+    }
+
+    current.push(product);
+    currentBytes += productBytes;
+  }
+
+  if (current.length) {
+    chunks.push(
+      await writeChunk(
+        partnerId,
+        current,
+        chunkIndex
+      )
+    );
+  }
+}
+
+const manifest = {
+  version:
+    importedAt.replace(
+      /[^0-9]/g,
+      ""
+    ),
+  generatedAt:
+    importedAt,
+  totalProducts:
+    finalProducts.length,
+  feeds:
+    feedStatus,
+  chunks
+};
+
 await fs.writeFile(
-  OUTPUT,
+  MANIFEST,
   JSON.stringify(
-    output,
+    manifest,
     null,
     2
   ) + "\n",
@@ -503,10 +675,16 @@ await fs.writeFile(
 console.log(
   JSON.stringify(
     {
-      output: OUTPUT,
-      generatedAt: importedAt,
-      feeds: feedStatus,
-      products: finalProducts.length
+      manifest:
+        MANIFEST,
+      generatedAt:
+        importedAt,
+      feeds:
+        feedStatus,
+      products:
+        finalProducts.length,
+      chunks:
+        chunks.length
     },
     null,
     2
