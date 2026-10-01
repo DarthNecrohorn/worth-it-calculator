@@ -1,7 +1,7 @@
 {
-  "version": "20261001202216272",
-  "generatedAt": "2026-10-01T20:22:16.272Z",
-  "totalProducts": 24681,
+  "version": "20261001203052655",
+  "generatedAt": "2026-10-01T20:30:52.655Z",
+  "totalProducts": 659,
   "feeds": [
     {
       "partnerId": "stylevana",
@@ -21,7 +21,7 @@
       "partnerId": "fntcase",
       "status": "loaded",
       "rows": 1736,
-      "products": 0
+      "products": 1736
     },
     {
       "partnerId": "giftlab",
@@ -37,18 +37,18 @@
   "chunks": [
     {
       "path": "data/shop-products-awin/stylevana-0001.json.gz",
-      "products": 17126,
-      "bytes": 1652086
-    },
-    {
-      "path": "data/shop-products-awin/stylevana-0002.json.gz",
-      "products": 7372,
-      "bytes": 684184
+      "products": 276,
+      "bytes": 24393
     },
     {
       "path": "data/shop-products-awin/dowinx-eu-0001.json.gz",
       "products": 183,
       "bytes": 14573
+    },
+    {
+      "path": "data/shop-products-awin/fntcase-0001.json.gz",
+      "products": 200,
+      "bytes": 12873
     }
   ]
 }
