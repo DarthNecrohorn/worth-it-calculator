@@ -20,6 +20,7 @@ jobs:
         env:
           AWIN_STYLEVANA_FEED_URL: ${{ secrets.AWIN_STYLEVANA_FEED_URL }}
           AWIN_DOWINX_EU_FEED_URL: ${{ secrets.AWIN_DOWINX_EU_FEED_URL }}
+          AWIN_FNTCASE_FEED_URL: ${{ secrets.AWIN_FNTCASE_FEED_URL }}
           AWIN_GIFTLAB_FEED_URL: ${{ secrets.AWIN_GIFTLAB_FEED_URL }}
           AWIN_KING_KOIL_FEED_URL: ${{ secrets.AWIN_KING_KOIL_FEED_URL }}
         run: |
