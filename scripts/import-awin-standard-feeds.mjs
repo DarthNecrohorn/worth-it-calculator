@@ -37,14 +37,121 @@ const SHIPPING_PROFILES = {
   }
 };
 
+const ISO_COUNTRY_CODES = new Set([
+  "AD","AE","AF","AG","AI","AL","AM","AO","AQ","AR","AS","AT","AU","AW","AX",
+  "AZ","BA","BB","BD","BE","BF","BG","BH","BI","BJ","BL","BM","BN","BO","BQ",
+  "BR","BS","BT","BV","BW","BY","BZ","CA","CC","CD","CF","CG","CH","CI","CK",
+  "CL","CM","CN","CO","CR","CU","CV","CW","CX","CY","CZ","DE","DJ","DK","DM",
+  "DO","DZ","EC","EE","EG","EH","ER","ES","ET","FI","FJ","FK","FM","FO","FR",
+  "GA","GB","GD","GE","GF","GG","GH","GI","GL","GM","GN","GP","GQ","GR","GS",
+  "GT","GU","GW","GY","HK","HM","HN","HR","HT","HU","ID","IE","IL","IM","IN",
+  "IO","IQ","IR","IS","IT","JE","JM","JO","JP","KE","KG","KH","KI","KM","KN",
+  "KP","KR","KW","KY","KZ","LA","LB","LC","LI","LK","LR","LS","LT","LU","LV",
+  "LY","MA","MC","MD","ME","MF","MG","MH","MK","ML","MM","MN","MO","MP","MQ",
+  "MR","MS","MT","MU","MV","MW","MX","MY","MZ","NA","NC","NE","NF","NG","NI",
+  "NL","NO","NP","NR","NU","NZ","OM","PA","PE","PF","PG","PH","PK","PL","PM",
+  "PN","PR","PS","PT","PW","PY","QA","RE","RO","RS","RU","RW","SA","SB","SC",
+  "SD","SE","SG","SH","SI","SJ","SK","SL","SM","SN","SO","SR","SS","ST","SV",
+  "SX","SY","SZ","TC","TD","TF","TG","TH","TJ","TK","TL","TM","TN","TO","TR",
+  "TT","TV","TW","TZ","UA","UG","UM","US","UY","UZ","VA","VC","VE","VG","VI",
+  "VN","VU","WF","WS","YE","YT","ZA","ZM","ZW"
+]);
+
+function extractCountryCodes(value) {
+  if (value === undefined || value === null) return [];
+
+  const text = String(value).trim();
+  if (!text) return [];
+
+  const codes = [];
+  const add = code => {
+    const normalized = String(code || "").trim().toUpperCase();
+    if (ISO_COUNTRY_CODES.has(normalized)) codes.push(normalized);
+  };
+
+  const visit = item => {
+    if (item === null || item === undefined) return;
+
+    if (Array.isArray(item)) {
+      item.forEach(visit);
+      return;
+    }
+
+    if (typeof item === "object") {
+      for (const key of ["country", "country_code", "countryCode"]) {
+        if (item[key]) add(item[key]);
+      }
+      for (const key of ["shipping", "destinations", "included_destination", "included_country"]) {
+        if (item[key]) visit(item[key]);
+      }
+      return;
+    }
+
+    for (const token of String(item).split(/[,;|\\s]+/)) {
+      const match = token.match(/^[A-Za-z]{2}$/);
+      if (match) add(match[0]);
+    }
+  };
+
+  try {
+    visit(JSON.parse(text));
+  } catch {
+    visit(text);
+  }
+
+  return [...new Set(codes)];
+}
+
+function resolveProductShipping(row) {
+  /*
+   * Awin enhanced Google-format feeds support a product-level shipping
+   * object with a required ISO country field. Hosted CSV feeds can also
+   * expose advertiser-mapped/custom destination fields.
+   *
+   * Only positive country evidence is used here. Restriction prose alone
+   * cannot safely be converted into a complete destination list.
+   */
+  const candidateKeys = [
+    "shipping",
+    "shipping_countries",
+    "shipping_country",
+    "shipping_destination",
+    "shipping_destinations",
+    "included_destination",
+    "included_country",
+    "included_countries"
+  ];
+
+  const countries = [
+    ...new Set(
+      candidateKeys.flatMap(key =>
+        extractCountryCodes(row[key])
+      )
+    )
+  ];
+
+  if (!countries.length) return null;
+
+  return {
+    countries,
+    sourceLabel: "Awin product shipping data",
+    note:
+      "Shipping destinations were taken from product-level data supplied through the Awin feed. Merchant checkout restrictions may still apply."
+  };
+}
+
 function resolveShipping(feed, row) {
   /*
-   * Keep this resolver central so every current and future Awin category
-   * automatically gets the same shipping-data pipeline.
-   *
-   * If Awin later exposes product-level destination fields in a feed, they
-   * should be parsed here before the merchant profile fallback is applied.
+   * One resolver is used for every Awin product. The strongest available
+   * source wins: product-level data, verified merchant profile, configured
+   * merchant fallback, then unknown.
    */
+  const productShipping = resolveProductShipping(row);
+
+  if (productShipping) {
+    return productShipping;
+  }
+
   const profile = SHIPPING_PROFILES[feed.partnerId];
 
   if (profile?.countries?.length) {
@@ -60,7 +167,7 @@ function resolveShipping(feed, row) {
       countries: [...new Set(feed.shippingCountries)],
       sourceLabel: "Merchant shipping fallback",
       note:
-        "The merchant's configured shipping coverage is used because the standard Awin feed does not provide product-level shipping destinations."
+        "The merchant's configured shipping coverage is used because the product feed does not provide positive country-level shipping destinations."
     };
   }
 
@@ -68,7 +175,7 @@ function resolveShipping(feed, row) {
     countries: [],
     sourceLabel: "No shipping destination in feed",
     note:
-      "This standard Awin feed does not provide a country-level shipping destination."
+      "No reliable country-level shipping destination is available in the product feed or merchant configuration."
   };
 }
 
