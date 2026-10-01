@@ -34,13 +34,14 @@ jobs:
 
       - name: Commit updated product snapshot
         run: |
-          if git diff --quiet -- data/shop-products-awin.json data/shop-products-awin/; then
+          git add -A data/shop-products-awin.json data/shop-products-awin/
+
+          if git diff --cached --quiet; then
             echo "No product snapshot changes."
             exit 0
           fi
 
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -A data/shop-products-awin.json data/shop-products-awin/
           git commit -m "Update imported Awin standard product feeds"
           git push
