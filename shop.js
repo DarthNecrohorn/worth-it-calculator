@@ -131,6 +131,8 @@
         sort: "featured"
     };
 
+    const MAX_SHOP_PRODUCTS_PER_CATEGORY = 200;
+
     let automaticShopProducts = [];
     let automaticShopFeedLoaded = false;
     let automaticShopFeedLoading = false;
@@ -420,7 +422,34 @@
         const sorted =
             sortShopItems(filtered);
 
-        return sorted;
+        const limited = [];
+
+        const categoryCounts =
+            new Map();
+
+        for(const deal of sorted){
+            const category =
+                deal.category || "other";
+
+            const count =
+                categoryCounts.get(category) || 0;
+
+            if(
+                count >=
+                MAX_SHOP_PRODUCTS_PER_CATEGORY
+            ){
+                continue;
+            }
+
+            categoryCounts.set(
+                category,
+                count + 1
+            );
+
+            limited.push(deal);
+        }
+
+        return limited;
     }
 
     function getAvailabilityHTML(deal){
