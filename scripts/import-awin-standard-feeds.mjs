@@ -1,14 +1,11 @@
 import fs from "node:fs/promises";
-import { gunzipSync, gzipSync } from "node:zlib";
+import { gunzipSync } from "node:zlib";
+
+const OUTPUT =
+  "data/shop-products-awin.json";
 
 const OUTPUT_DIR =
   "data/shop-products-awin";
-
-const MANIFEST =
-  OUTPUT_DIR + "/manifest.json";
-
-const LEGACY_OUTPUT =
-  "data/shop-products-awin.json";
 
 const MAX_FEED_BYTES = 120 * 1024 * 1024;
 const MAX_PRODUCTS_PER_CATEGORY = 200;
@@ -24,18 +21,9 @@ const CHUNK_TARGET_BYTES =
 const FEEDS = [
   {
     partnerId: "stylevana",
-    advertiserId: "90791",
     name: "Stylevana",
     category: "beauty-skincare",
     env: "AWIN_STYLEVANA_FEED_URL",
-    shippingCountries: ["US"]
-  },
-  {
-    partnerId: "dowinx-eu",
-    advertiserId: "107524",
-    name: "Dowinx (EU)",
-    category: "gaming-office",
-    env: "AWIN_DOWINX_EU_FEED_URL",
     shippingCountries: ["US"]
   },
   {
@@ -46,22 +34,69 @@ const FEEDS = [
     shippingCountries: []
   },
   {
+    partnerId: "dowinx-eu",
+    name: "Dowinx (EU)",
+    category: "gaming-office",
+    env: "AWIN_DOWINX_EU_FEED_URL",
+    shippingCountries: ["US"]
+  },
+  {
+    partnerId: "king-koil",
+    name: "King Koil",
+    category: "sleep-mattresses",
+    env: "AWIN_KING_KOIL_FEED_URL",
+    shippingCountries: []
+  },
+  {
+    partnerId: "simple-project",
+    name: "Shenzhen Cangyu Technology Co., Ltd.",
+    category: "bathroom-home",
+    env: "AWIN_SIMPLE_PROJECT_FEED_URL",
+    shippingCountries: ["US"]
+  },
+  {
     partnerId: "giftlab",
-    advertiserId: "95201",
     name: "Giftlab",
     category: "personalized-gifts",
     env: "AWIN_GIFTLAB_FEED_URL",
     shippingCountries: []
   },
   {
-    partnerId: "king-koil",
-    advertiserId: "115216",
-    name: "King Koil",
-    category: "sleep-mattresses",
-    env: "AWIN_KING_KOIL_FEED_URL",
+    partnerId: "personalhour",
+    name: "PersonalHour",
+    category: "fitness-wellness",
+    env: "AWIN_PERSONALHOUR_FEED_URL",
     shippingCountries: []
+  },
+  {
+    partnerId: "everblog-us",
+    name: "Everblog US",
+    category: "family-tech",
+    env: "AWIN_EVERBLOG_US_FEED_URL",
+    shippingCountries: ["US"]
+  },
+  {
+    partnerId: "getout",
+    name: "GetOut",
+    category: "family-experiences",
+    env: "AWIN_GETOUT_FEED_URL",
+    shippingCountries: []
+  },
+  {
+    partnerId: "lunzo-hu",
+    name: "Lunzo HU",
+    category: "fashion-accessories",
+    env: "AWIN_LUNZO_HU_FEED_URL",
+    shippingCountries: ["HU"]
+  },
+  {
+    partnerId: "lunzo-pl",
+    name: "Lunzo PL",
+    category: "fashion-accessories",
+    env: "AWIN_LUNZO_PL_FEED_URL",
+    shippingCountries: ["PL"]
   }
-];
+]
 
 function normalizeText(value) {
   return String(value ?? "")
@@ -546,11 +581,12 @@ const finalProducts = [
   );
 
 /*
- * The previous importer wrote every product into one JSON asset. That
- * eventually exceeded the Cloudflare Pages 25 MiB asset limit once the
- * product-count cap was removed. The snapshot is now stored as multiple
- * gzip-compressed chunks plus one small manifest. Product count remains
- * unrestricted by this importer.
+ * With 200 products per category the complete Shop snapshot stays
+ * comfortably below the Cloudflare Pages single-asset limit.
+ *
+ * A single ordinary JSON asset is deliberately used here instead of
+ * compressed chunks. Cloudflare Pages and the browser can read it
+ * directly with no content-encoding/decompression ambiguity.
  */
 await fs.rm(
   OUTPUT_DIR,
@@ -560,147 +596,14 @@ await fs.rm(
   }
 );
 
-await fs.rm(
-  LEGACY_OUTPUT,
-  {
-    force: true
-  }
-);
-
 await fs.mkdir(
-  OUTPUT_DIR,
+  "data",
   {
     recursive: true
   }
 );
 
-async function writeChunk(
-  partnerId,
-  productsInChunk,
-  index
-) {
-  const baseName =
-    partnerId +
-    "-" +
-    String(index).padStart(4, "0") +
-    ".json.gz";
-
-  const relativePath =
-    OUTPUT_DIR + "/" + baseName;
-
-  const json =
-    JSON.stringify(
-      productsInChunk
-    );
-
-  const compressed =
-    gzipSync(
-      Buffer.from(
-        json,
-        "utf8"
-      )
-    );
-
-  if (
-    compressed.byteLength >
-    24 * 1024 * 1024
-  ) {
-    throw new Error(
-      "Generated snapshot chunk exceeds the safe Cloudflare asset size."
-    );
-  }
-
-  await fs.writeFile(
-    relativePath,
-    compressed
-  );
-
-  return {
-    path:
-      relativePath.replace(
-        /^data\\/,
-        ""
-      ),
-    products:
-      productsInChunk.length,
-    bytes:
-      compressed.byteLength
-  };
-}
-
-const chunks = [];
-
-const partnerIds = [
-  ...new Set(
-    finalProducts
-      .map(
-        product =>
-          product?.partnerId
-      )
-      .filter(Boolean)
-  )
-];
-
-for (const partnerId of partnerIds) {
-  const partnerProducts =
-    finalProducts.filter(
-      product =>
-        product.partnerId ===
-        partnerId
-    );
-
-  let current = [];
-  let currentBytes = 2;
-  let chunkIndex = 1;
-
-  for (const product of partnerProducts) {
-    const encodedProduct =
-      JSON.stringify(
-        product
-      );
-
-    const productBytes =
-      Buffer.byteLength(
-        encodedProduct,
-        "utf8"
-      ) +
-      (current.length ? 1 : 0);
-
-    if (
-      current.length &&
-      currentBytes +
-        productBytes >
-        CHUNK_TARGET_BYTES
-    ) {
-      chunks.push(
-        await writeChunk(
-          partnerId,
-          current,
-          chunkIndex
-        )
-      );
-
-      chunkIndex++;
-      current = [];
-      currentBytes = 2;
-    }
-
-    current.push(product);
-    currentBytes += productBytes;
-  }
-
-  if (current.length) {
-    chunks.push(
-      await writeChunk(
-        partnerId,
-        current,
-        chunkIndex
-      )
-    );
-  }
-}
-
-const manifest = {
+const output = {
   version:
     importedAt.replace(
       /[^0-9]/g,
@@ -712,32 +615,49 @@ const manifest = {
     finalProducts.length,
   feeds:
     feedStatus,
-  chunks
+  products:
+    finalProducts
 };
 
 await fs.writeFile(
-  MANIFEST,
+  OUTPUT,
   JSON.stringify(
-    manifest,
+    output,
     null,
     2
   ) + "\n",
   "utf8"
 );
 
+const outputBytes =
+  (
+    await fs.stat(
+      OUTPUT
+    )
+  ).size;
+
+if (
+  outputBytes >=
+  25 * 1024 * 1024
+) {
+  throw new Error(
+    "Generated Shop snapshot exceeds the Cloudflare Pages 25 MiB asset limit."
+  );
+}
+
 console.log(
   JSON.stringify(
     {
-      manifest:
-        MANIFEST,
+      output:
+        OUTPUT,
       generatedAt:
         importedAt,
       feeds:
         feedStatus,
       products:
         finalProducts.length,
-      chunks:
-        chunks.length
+      bytes:
+        outputBytes
     },
     null,
     2
