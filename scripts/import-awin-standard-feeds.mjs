@@ -11,12 +11,10 @@ const MAX_FEED_BYTES = 120 * 1024 * 1024;
 const MAX_PRODUCTS_PER_CATEGORY = 200;
 
 /*
- * Keep every committed snapshot asset comfortably below Cloudflare
- * Pages' 25 MiB asset limit. There is no product-count limit; large
- * feeds are split into multiple gzip-compressed chunks.
+ * The importer keeps at most 200 products per Shop category. With the
+ * current Shop category set, the resulting snapshot remains well below
+ * Cloudflare Pages' 25 MiB single-asset limit.
  */
-const CHUNK_TARGET_BYTES =
-  20 * 1024 * 1024;
 
 const FEEDS = [
   {
