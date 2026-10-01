@@ -138,6 +138,151 @@
     let automaticShopFeedLoading = false;
     let automaticShopFeedPromise = null;
 
+    let shopShippingProfiles = {};
+    let shopShippingProfilesLoaded = false;
+    let shopShippingProfilesPromise = null;
+
+    async function loadShopShippingProfiles(){
+
+        if(shopShippingProfilesLoaded){
+            return true;
+        }
+
+        if(shopShippingProfilesPromise){
+            return shopShippingProfilesPromise;
+        }
+
+        shopShippingProfilesPromise =
+            (async function(){
+
+                try{
+
+                    const response =
+                        await fetch(
+                            "/data/shop-shipping-profiles.json",
+                            {
+                                method: "GET",
+                                cache: "no-store",
+                                headers: {
+                                    "Accept": "application/json"
+                                }
+                            }
+                        );
+
+                    if(!response.ok){
+                        return false;
+                    }
+
+                    const data =
+                        await response.json();
+
+                    shopShippingProfiles =
+                        data &&
+                        data.profiles &&
+                        typeof data.profiles === "object"
+                            ? data.profiles
+                            : {};
+
+                    shopShippingProfilesLoaded =
+                        true;
+
+                    return true;
+
+                }
+                catch(error){
+
+                    console.warn(
+                        "Shop shipping profiles unavailable:",
+                        error
+                    );
+
+                    return false;
+
+                }
+
+            })();
+
+        return shopShippingProfilesPromise;
+    }
+
+    function getEffectiveShippingProfile(product, shippingCountries){
+
+        const profile =
+            product?.partnerId
+                ? shopShippingProfiles[product.partnerId]
+                : null;
+
+        const sourceLabel =
+            String(
+                product?.shippingSourceLabel || ""
+            );
+
+        const hasProductLevelData =
+            product?.shippingCoverageType === "exact" &&
+            sourceLabel === "Awin product shipping data";
+
+        if(
+            profile &&
+            !hasProductLevelData
+        ){
+            return {
+                coverageType:
+                    profile.type ||
+                    "exact",
+                coverageLabel:
+                    profile.coverageLabel ||
+                    "",
+                countries:
+                    Array.isArray(profile.countries)
+                        ? profile.countries
+                        : shippingCountries,
+                sourceLabel:
+                    profile.sourceLabel ||
+                    sourceLabel ||
+                    "Merchant shipping coverage",
+                sourceUrl:
+                    profile.sourceUrl ||
+                    product?.shippingSourceUrl ||
+                    "",
+                verifiedAt:
+                    profile.verifiedAt ||
+                    product?.shippingVerifiedAt ||
+                    "",
+                note:
+                    profile.note ||
+                    product?.shippingNote ||
+                    "Final destination eligibility is confirmed by the merchant at checkout."
+            };
+        }
+
+        return {
+            coverageType:
+                product?.shippingCoverageType ||
+                (
+                    shippingCountries.length
+                        ? "exact"
+                        : "unknown"
+                ),
+            coverageLabel:
+                product?.shippingCoverageLabel ||
+                "",
+            countries:
+                shippingCountries,
+            sourceLabel:
+                product?.shippingSourceLabel ||
+                "Awin product feed",
+            sourceUrl:
+                product?.shippingSourceUrl ||
+                "",
+            verifiedAt:
+                product?.shippingVerifiedAt ||
+                "",
+            note:
+                product?.shippingNote ||
+                "Shipping availability is determined by the current product or merchant shipping data. Final eligibility can vary at checkout."
+        };
+    }
+
     function getPartner(deal){
         if(!deal || !deal.partnerId || !Array.isArray(SHOP_PARTNERS)){
             return null;
@@ -785,39 +930,32 @@
                         ]
                         : [];
 
-                const shippingCoverageType =
-                    product.shippingCoverageType ||
-                    (
-                        shippingCountries.length
-                            ? "exact"
-                            : "unknown"
+                const effectiveShipping =
+                    getEffectiveShippingProfile(
+                        product,
+                        shippingCountries
                     );
 
                 const availability =
                     product.availability ||
                     (
-                        shippingCoverageType !== "unknown"
+                        effectiveShipping.coverageType !== "unknown"
                             ? {
                                 type: "shipping",
                                 coverageType:
-                                    shippingCoverageType,
+                                    effectiveShipping.coverageType,
                                 coverageLabel:
-                                    product.shippingCoverageLabel ||
-                                    "",
+                                    effectiveShipping.coverageLabel,
                                 countries:
-                                    shippingCountries,
+                                    effectiveShipping.countries,
                                 sourceLabel:
-                                    product.shippingSourceLabel ||
-                                    "Awin product feed",
+                                    effectiveShipping.sourceLabel,
                                 sourceUrl:
-                                    product.shippingSourceUrl ||
-                                    "",
+                                    effectiveShipping.sourceUrl,
                                 verifiedAt:
-                                    product.shippingVerifiedAt ||
-                                    "",
+                                    effectiveShipping.verifiedAt,
                                 note:
-                                    product.shippingNote ||
-                                    "Shipping availability is determined by the current product or merchant shipping data. Final eligibility can vary at checkout."
+                                    effectiveShipping.note
                             }
                             : null
                     ) ||
@@ -983,6 +1121,8 @@
             (async function(){
 
                 try{
+
+                    await loadShopShippingProfiles();
 
                     const accessToken =
                         await getShopAccessToken();
