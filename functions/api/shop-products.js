@@ -2326,10 +2326,19 @@ async function fetchAwinFeedList(
         );
 
     if (!response.ok) {
+        const body =
+            await response.text();
+
         const error =
             new Error(
                 "Awin Product Feed List HTTP " +
-                response.status
+                response.status +
+                (
+                    body
+                        ? ": " +
+                            normalizeText(body).slice(0, 400)
+                        : ""
+                )
             );
 
         error.status =
