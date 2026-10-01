@@ -295,6 +295,7 @@
 
     function getPartnerShippingCoverage(partnerId, items){
         const countries = new Set();
+        const regionalLabels = new Set();
 
         items
             .filter(
@@ -302,15 +303,37 @@
                     deal?.partnerId === partnerId
             )
             .forEach(
-                deal =>
+                deal => {
+
                     normalizeCountries(deal)
                         .forEach(
                             code =>
                                 countries.add(code)
-                        )
+                        );
+
+                    const availability =
+                        deal?.availability;
+
+                    if(
+                        availability?.coverageType === "regional" &&
+                        availability.coverageLabel
+                    ){
+                        regionalLabels.add(
+                            String(
+                                availability.coverageLabel
+                            )
+                                .trim()
+                        );
+                    }
+                }
             );
 
-        return countries.size;
+        return {
+            countryCount:
+                countries.size,
+            regionalLabels:
+                [...regionalLabels]
+        };
     }
 
     function getCategoryDefinition(categoryId){
@@ -1602,11 +1625,13 @@ function renderShop(container){
                         );
 
                     const coverageText =
-                        shippingCoverage > 0
-                            ? `${shippingCoverage} currently represented shipping destination${shippingCoverage === 1 ? "" : "s"}`
-                            : partner.status === "not-published"
-                                ? "No verified shipping destinations — programme not published"
-                                : "No verified shipping destinations yet";
+                        shippingCoverage.countryCount > 0
+                            ? `${shippingCoverage.countryCount} currently represented shipping destination${shippingCoverage.countryCount === 1 ? "" : "s"}`
+                            : shippingCoverage.regionalLabels.length
+                                ? shippingCoverage.regionalLabels.join(" / ")
+                                : partner.status === "not-published"
+                                    ? "No verified shipping destinations — programme not published"
+                                    : "No verified shipping destinations yet";
 
                     const status =
                         productCount > 0
