@@ -5,6 +5,7 @@ on:
   push:
     paths:
       - "scripts/import-awin-standard-feeds.mjs"
+      - "data/shop-shipping-profiles.json"
       - ".github/workflows/awin-standard-feed-import.yml"
   schedule:
     - cron: "0 */6 * * *"
