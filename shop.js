@@ -664,19 +664,6 @@
             `;
         }
 
-        if(!countryCodes.length){
-            return `
-                <div class="shop-availability">
-                    <div class="shop-availability-head">
-                        <div>
-                            <span class="shop-info-label">🌍 Ships to</span>
-                            <strong>No Information</strong>
-                        </div>
-                    </div>
-                </div>
-            `;
-        }
-
         const coverageType =
             availability.coverageType ||
             "exact";
@@ -711,6 +698,19 @@
                             "The merchant publishes regional shipping coverage rather than a complete country list. Final destination eligibility is confirmed at checkout."
                         )}
                     </p>
+                </div>
+            `;
+        }
+
+        if(!countryCodes.length){
+            return `
+                <div class="shop-availability">
+                    <div class="shop-availability-head">
+                        <div>
+                            <span class="shop-info-label">🌍 Ships to</span>
+                            <strong>No Information</strong>
+                        </div>
+                    </div>
                 </div>
             `;
         }
