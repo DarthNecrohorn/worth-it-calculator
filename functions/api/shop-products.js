@@ -2764,12 +2764,119 @@ function parseLegacyCSVProducts(
         );
 }
 
-async function downloadLegacyFeed(
-    feed
+const LEGACY_DOWNLOAD_COLUMNS = [
+    "aw_deep_link",
+    "product_name",
+    "aw_product_id",
+    "merchant_product_id",
+    "merchant_image_url",
+    "search_price",
+    "currency",
+    "store_price",
+    "rrp_price",
+    "merchant_deep_link",
+    "merchant_category",
+    "category_name",
+    "stock_status",
+    "in_stock",
+    "is_for_sale",
+    "brand_name"
+];
+
+function buildLegacyDownloadUrl(
+    feed,
+    apiKey
 ) {
+    const configuredUrl =
+        normalizeText(
+            feed?.url
+        );
+
+    if (
+        /^https?:\/\//i.test(
+            configuredUrl
+        )
+    ) {
+        return configuredUrl;
+    }
+
+    const feedId =
+        normalizeText(
+            feed?.feedId
+        );
+
+    if (
+        !feedId ||
+        !apiKey
+    ) {
+        return "";
+    }
+
+    /*
+     * The Product Feed List can expose an advertiser-hosted SFTP/FTP
+     * location. Cloudflare Workers cannot fetch sftp:// or ftp:// URLs
+     * with the standard fetch() API. Awin's publisher download endpoint
+     * provides the corresponding HTTP(S) legacy feed for the Feed ID.
+     */
+    const region =
+        normalizeText(
+            feed?.primaryRegion
+        ).toUpperCase();
+
+    const configuredLocale =
+        normalizeText(
+            feed?.locale
+        );
+
+    const locale =
+        /^[a-z]{2}_[A-Z]{2}$/.test(
+            configuredLocale
+        )
+            ? configuredLocale
+            : REGION_TO_LOCALE[region] || "en_US";
+
+    const language =
+        locale
+            .split("_")[0]
+            .toLowerCase();
+
+    const columns =
+        encodeURIComponent(
+            LEGACY_DOWNLOAD_COLUMNS.join(",")
+        );
+
+    return (
+        "https://datafeed.api.productserve.com/datafeed/download/apikey/" +
+        encodeURIComponent(apiKey) +
+        "/fid/" +
+        encodeURIComponent(feedId) +
+        "/format/csv/language/" +
+        encodeURIComponent(language) +
+        "/delimiter/%2C/compression/gzip/adultcontent/1/columns/" +
+        columns +
+        "/"
+    );
+}
+
+async function downloadLegacyFeed(
+    feed,
+    apiKey
+) {
+    const downloadUrl =
+        buildLegacyDownloadUrl(
+            feed,
+            apiKey
+        );
+
+    if (!downloadUrl) {
+        throw new Error(
+            "Awin legacy feed does not have a usable HTTP(S) download URL."
+        );
+    }
+
     const response =
         await fetch(
-            feed.url,
+            downloadUrl,
             {
                 method: "GET",
                 headers: {
@@ -2913,7 +3020,8 @@ async function runLegacyFeedProbe(
 
     const feedText =
         await downloadLegacyFeed(
-            feed
+            feed,
+            apiKey
         );
 
     const products =
