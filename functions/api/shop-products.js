@@ -417,6 +417,67 @@ async function writeAccountShopCache(
     }
 }
 
+async function readImportedAwinProducts(context) {
+    try {
+        if (!context.env?.ASSETS) {
+            return {
+                version: "0",
+                generatedAt: null,
+                feeds: [],
+                products: []
+            };
+        }
+
+        const assetUrl =
+            new URL(
+                "/data/shop-products-awin.json",
+                context.request.url
+            );
+
+        const response =
+            await context.env.ASSETS.fetch(
+                assetUrl
+            );
+
+        if (!response.ok) {
+            return {
+                version: "0",
+                generatedAt: null,
+                feeds: [],
+                products: []
+            };
+        }
+
+        const payload =
+            await response.json();
+
+        return {
+            version:
+                String(
+                    payload?.version || "0"
+                ),
+            generatedAt:
+                payload?.generatedAt || null,
+            feeds:
+                Array.isArray(payload?.feeds)
+                    ? payload.feeds
+                    : [],
+            products:
+                Array.isArray(payload?.products)
+                    ? payload.products
+                    : []
+        };
+    }
+    catch {
+        return {
+            version: "0",
+            generatedAt: null,
+            feeds: [],
+            products: []
+        };
+    }
+}
+
 function jsonResponse(
     data,
     status = 200,
@@ -3257,12 +3318,20 @@ export async function onRequestGet(
             ? await getAuthenticatedUserId(context)
             : null;
 
+    const importedSnapshot =
+        await readImportedAwinProducts(
+            context
+        );
+
     const cache =
         caches.default;
 
     const cacheKey =
         new Request(
-            "https://worth-it-shop-feed-cache.local/api/shop-products?v=19"
+            "https://worth-it-shop-feed-cache.local/api/shop-products?v=20&standard=" +
+            encodeURIComponent(
+                importedSnapshot.version
+            )
         );
 
     let accountCacheHit =
@@ -3296,7 +3365,24 @@ export async function onRequestGet(
                         publisherId:
                             AWIN_PUBLISHER_ID,
                         products:
-                            accountCache.products,
+                            dedupeProducts(
+                                [
+                                    ...accountCache.products,
+                                    ...importedSnapshot.products
+                                ]
+                            )
+                                .sort(
+                                    (
+                                        first,
+                                        second
+                                    ) =>
+                                        second.popularityScore -
+                                        first.popularityScore
+                                )
+                                .slice(
+                                    0,
+                                    MAX_TOTAL_PRODUCTS
+                                ),
                         ...(debugMode
                             ? {
                                 debug: {
@@ -3339,6 +3425,77 @@ export async function onRequestGet(
             );
 
     if (cached) {
+        if (
+            importedSnapshot.products.length
+        ) {
+            try {
+                const cachedPayload =
+                    await cached.clone().json();
+
+                if (
+                    cachedPayload &&
+                    Array.isArray(
+                        cachedPayload.products
+                    )
+                ) {
+                    cachedPayload.products =
+                        dedupeProducts(
+                            [
+                                ...cachedPayload.products,
+                                ...importedSnapshot.products
+                            ]
+                        )
+                            .sort(
+                                (
+                                    first,
+                                    second
+                                ) =>
+                                    second.popularityScore -
+                                    first.popularityScore
+                            )
+                            .slice(
+                                0,
+                                MAX_TOTAL_PRODUCTS
+                            );
+
+                    cachedPayload.feeds =
+                        [
+                            ...(Array.isArray(
+                                cachedPayload.feeds
+                            )
+                                ? cachedPayload.feeds
+                                : []),
+                            ...importedSnapshot.feeds
+                        ];
+
+                    const mergedCachedResponse =
+                        jsonResponse(
+                            cachedPayload,
+                            200
+                        );
+
+                    if (
+                        authenticatedUserId &&
+                        accountCacheEnabled &&
+                        cachedPayload.products.length
+                    ) {
+                        context.waitUntil(
+                            writeAccountShopCache(
+                                context,
+                                authenticatedUserId,
+                                cachedPayload.products
+                            )
+                        );
+                    }
+
+                    return mergedCachedResponse;
+                }
+            }
+            catch {
+                // Fall through to the normal cached response.
+            }
+        }
+
         if (
             authenticatedUserId &&
             accountCacheEnabled
@@ -3460,8 +3617,12 @@ export async function onRequestGet(
                 )
                 .filter(Boolean);
 
-        const products = [];
-        const feedResults = [];
+        const products = [
+            ...importedSnapshot.products
+        ];
+        const feedResults = [
+            ...importedSnapshot.feeds
+        ];
 
         /*
          * Awin asks publishers to limit Enhanced Feed downloads to
