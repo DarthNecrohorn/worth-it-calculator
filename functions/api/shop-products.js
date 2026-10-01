@@ -2955,7 +2955,11 @@ async function downloadLegacyFeed(
                 method: "GET",
                 headers: {
                     "Accept":
-                        "text/csv, text/plain, application/gzip, */*"
+                        "text/csv, text/plain, application/gzip, */*",
+                    "Accept-Encoding":
+                        "gzip",
+                    "User-Agent":
+                        "Mozilla/5.0 (compatible; Worth-It-Shop/1.0)"
                 }
             }
         );
