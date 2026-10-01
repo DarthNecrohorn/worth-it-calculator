@@ -3,18 +3,96 @@ import { recordAdminApiUsage } from "../lib/admin-usage.js";
 /*
  * WORTH IT — Awin Shop Products
  *
- * Awin product feeds are imported by GitHub Actions from the
- * configured GitHub repository secrets. Cloudflare only serves
- * the generated static snapshot from data/shop-products-awin.json.
+ * Awin product feeds are imported by GitHub Actions from GitHub
+ * repository secrets. Cloudflare only serves the generated static
+ * snapshot.
  *
- * There is no Awin Partner API token, Product Feed API key,
- * Enhanced Feed request, Legacy Feed request, or per-request
- * Awin product/programme limit in this function.
+ * The snapshot is stored as multiple gzip-compressed chunks plus a
+ * small manifest so the Cloudflare Pages 25 MiB single-asset limit
+ * does not impose a product-count limit on the Shop.
  */
 
 const RESPONSE_CACHE_SECONDS = 300;
 
-async function readImportedAwinProducts(context) {
+async function readAssetJSON(context, path) {
+    try {
+        const assetUrl =
+            new URL(
+                "/" + path,
+                context.request.url
+            );
+
+        const response =
+            await context.env.ASSETS.fetch(
+                assetUrl
+            );
+
+        if (!response.ok) {
+            return null;
+        }
+
+        return await response.json();
+    }
+    catch {
+        return null;
+    }
+}
+
+async function readCompressedAssetJSON(
+    context,
+    path
+) {
+    try {
+        const assetUrl =
+            new URL(
+                "/" + path,
+                context.request.url
+            );
+
+        const response =
+            await context.env.ASSETS.fetch(
+                assetUrl
+            );
+
+        if (!response.ok) {
+            return null;
+        }
+
+        const compressed =
+            await response.arrayBuffer();
+
+        const stream =
+            new Blob(
+                [compressed]
+            )
+                .stream()
+                .pipeThrough(
+                    new DecompressionStream(
+                        "gzip"
+                    )
+                );
+
+        const text =
+            await new Response(
+                stream
+            ).text();
+
+        return JSON.parse(text);
+    }
+    catch (error) {
+        console.warn(
+            "Compressed Awin Shop chunk could not be read:",
+            path,
+            error
+        );
+
+        return null;
+    }
+}
+
+async function readImportedAwinProducts(
+    context
+) {
     try {
         if (!context.env?.ASSETS) {
             return {
@@ -25,18 +103,18 @@ async function readImportedAwinProducts(context) {
             };
         }
 
-        const assetUrl =
-            new URL(
-                "/data/shop-products-awin.json",
-                context.request.url
+        const manifest =
+            await readAssetJSON(
+                context,
+                "data/shop-products-awin/manifest.json"
             );
 
-        const response =
-            await context.env.ASSETS.fetch(
-                assetUrl
-            );
-
-        if (!response.ok) {
+        if (
+            !manifest ||
+            !Array.isArray(
+                manifest.chunks
+            )
+        ) {
             return {
                 version: "0",
                 generatedAt: null,
@@ -45,24 +123,53 @@ async function readImportedAwinProducts(context) {
             };
         }
 
-        const payload =
-            await response.json();
+        const products = [];
+
+        for (
+            const chunk of manifest.chunks
+        ) {
+            if (
+                !chunk ||
+                !chunk.path
+            ) {
+                continue;
+            }
+
+            const chunkProducts =
+                await readCompressedAssetJSON(
+                    context,
+                    chunk.path
+                );
+
+            if (
+                !Array.isArray(
+                    chunkProducts
+                )
+            ) {
+                continue;
+            }
+
+            products.push(
+                ...chunkProducts
+            );
+        }
 
         return {
             version:
                 String(
-                    payload?.version || "0"
+                    manifest.version ||
+                    "0"
                 ),
             generatedAt:
-                payload?.generatedAt || null,
+                manifest.generatedAt ||
+                null,
             feeds:
-                Array.isArray(payload?.feeds)
-                    ? payload.feeds
+                Array.isArray(
+                    manifest.feeds
+                )
+                    ? manifest.feeds
                     : [],
-            products:
-                Array.isArray(payload?.products)
-                    ? payload.products
-                    : []
+            products
         };
     }
     catch (error) {
@@ -91,7 +198,10 @@ function dedupeProducts(products) {
     const map = new Map();
 
     for (const product of products) {
-        if (!product || typeof product !== "object") {
+        if (
+            !product ||
+            typeof product !== "object"
+        ) {
             continue;
         }
 
@@ -110,11 +220,16 @@ function dedupeProducts(products) {
         }
 
         if (!map.has(key)) {
-            map.set(key, product);
+            map.set(
+                key,
+                product
+            );
         }
     }
 
-    return [...map.values()];
+    return [
+        ...map.values()
+    ];
 }
 
 function jsonResponse(
@@ -122,16 +237,17 @@ function jsonResponse(
     status = 200,
     cacheSeconds = 0
 ) {
-    const headers = new Headers({
-        "Content-Type":
-            "application/json; charset=UTF-8",
-        "Access-Control-Allow-Origin":
-            "*",
-        "Access-Control-Allow-Methods":
-            "GET, OPTIONS",
-        "Access-Control-Allow-Headers":
-            "Content-Type, Accept"
-    });
+    const headers =
+        new Headers({
+            "Content-Type":
+                "application/json; charset=UTF-8",
+            "Access-Control-Allow-Origin":
+                "*",
+            "Access-Control-Allow-Methods":
+                "GET, OPTIONS",
+            "Access-Control-Allow-Headers":
+                "Content-Type, Accept"
+        });
 
     if (cacheSeconds > 0) {
         headers.set(
@@ -160,7 +276,9 @@ function jsonResponse(
     );
 }
 
-export async function onRequestGet(context) {
+export async function onRequestGet(
+    context
+) {
     recordAdminApiUsage(
         context,
         {
@@ -192,14 +310,17 @@ export async function onRequestGet(context) {
         );
 
     const feeds =
-        Array.isArray(snapshot.feeds)
+        Array.isArray(
+            snapshot.feeds
+        )
             ? snapshot.feeds
             : [];
 
     const loadedFeedCount =
         feeds.filter(
             feed =>
-                feed?.status === "loaded"
+                feed?.status ===
+                "loaded"
         ).length;
 
     const configured =
