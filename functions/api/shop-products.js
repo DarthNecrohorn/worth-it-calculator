@@ -2855,7 +2855,7 @@ function buildLegacyDownloadUrl(
         );
 
     return (
-        "https://datafeed.api.productserve.com/datafeed/download/apikey/" +
+        "https://productdata.awin.com/datafeed/download/apikey/" +
         encodeURIComponent(apiKey) +
         "/fid/" +
         encodeURIComponent(feedId) +
