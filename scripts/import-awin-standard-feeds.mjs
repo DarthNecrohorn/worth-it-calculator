@@ -11,6 +11,7 @@ const LEGACY_OUTPUT =
   "data/shop-products-awin.json";
 
 const MAX_FEED_BYTES = 120 * 1024 * 1024;
+const MAX_PRODUCTS_PER_CATEGORY = 200;
 
 /*
  * Keep every committed snapshot asset comfortably below Cloudflare
@@ -484,13 +485,41 @@ for (const feed of FEEDS) {
   }
 }
 
-const finalProducts =
+const rankedProducts =
   dedupe(products)
     .sort(
       (a, b) =>
         b.popularityScore -
         a.popularityScore
     );
+
+/*
+ * Keep the catalogue broad across every connected programme while
+ * preventing the browser from receiving tens of thousands of products.
+ * The limit is per Shop category, not per programme.
+ */
+const finalProducts = [
+  ...new Set(
+    rankedProducts.map(
+      product =>
+        product.category || "other"
+    )
+  )
+]
+  .sort()
+  .flatMap(
+    category =>
+      rankedProducts
+        .filter(
+          product =>
+            (product.category || "other") ===
+            category
+        )
+        .slice(
+          0,
+          MAX_PRODUCTS_PER_CATEGORY
+        )
+  );
 
 /*
  * The previous importer wrote every product into one JSON asset. That
