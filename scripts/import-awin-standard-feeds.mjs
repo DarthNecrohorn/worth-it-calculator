@@ -11,20 +11,66 @@ const MAX_FEED_BYTES = 120 * 1024 * 1024;
 const MAX_PRODUCTS_PER_CATEGORY = 200;
 
 /*
- * Merchant-level Stylevana shipping coverage used as a fallback when the
- * Awin product feed does not contain product-level destination data.
+ * Central merchant shipping profiles.
  *
- * The list is applied automatically to every imported Stylevana product on
- * each GitHub Actions run. Product-level shipping data can override this
- * fallback when a future feed format provides it. The generated snapshot
- * is refreshed automatically after importer configuration changes.
+ * Stylevana's current official "Where do you ship to?" support page lists
+ * the destinations below. This is merchant-level verified coverage, not a
+ * promise that every individual SKU is eligible for every destination.
+ *
+ * Source:
+ * https://stylevana.zendesk.com/hc/en-us/articles/43813531311897-Where-do-you-ship-to
  */
 const STYLEVANA_SHIPPING_COUNTRIES = [
-  "AU", "BR", "BN", "BG", "CA", "CO", "HR", "CY", "CZ", "DK",
-  "EE", "FI", "GR", "HU", "IE", "IT", "LV", "LT",
-  "MT", "NL", "NZ", "NO", "PH", "PL", "PT", "RO", "SG", "SK",
-  "SI", "ZA", "ES", "SE", "GB", "US", "VN"
+  "AU", "AT", "BE", "BR", "BN", "BG", "CA", "CL", "CN", "CO",
+  "HR", "CY", "CZ", "DK", "EE", "FI", "FR", "DE", "GR", "HK",
+  "HU", "IE", "IL", "IT", "JP", "LV", "LT", "LU", "MY", "MT",
+  "MX", "NL", "NZ", "NO", "PH", "PL", "PT", "RO", "SG", "SK",
+  "SI", "ZA", "ES", "SE", "CH", "GB", "AE", "US", "VN", "PE"
 ];
+
+const SHIPPING_PROFILES = {
+  stylevana: {
+    countries: STYLEVANA_SHIPPING_COUNTRIES,
+    sourceLabel: "Stylevana verified shipping destinations",
+    note:
+      "Stylevana's current merchant-level shipping destinations are used because the standard Awin feed does not provide product-level shipping destinations. Individual products or checkout rules may still have destination restrictions."
+  }
+};
+
+function resolveShipping(feed, row) {
+  /*
+   * Keep this resolver central so every current and future Awin category
+   * automatically gets the same shipping-data pipeline.
+   *
+   * If Awin later exposes product-level destination fields in a feed, they
+   * should be parsed here before the merchant profile fallback is applied.
+   */
+  const profile = SHIPPING_PROFILES[feed.partnerId];
+
+  if (profile?.countries?.length) {
+    return {
+      countries: [...new Set(profile.countries)],
+      sourceLabel: profile.sourceLabel,
+      note: profile.note
+    };
+  }
+
+  if (feed.shippingCountries?.length) {
+    return {
+      countries: [...new Set(feed.shippingCountries)],
+      sourceLabel: "Merchant shipping fallback",
+      note:
+        "The merchant's configured shipping coverage is used because the standard Awin feed does not provide product-level shipping destinations."
+    };
+  }
+
+  return {
+    countries: [],
+    sourceLabel: "No shipping destination in feed",
+    note:
+      "This standard Awin feed does not provide a country-level shipping destination."
+  };
+}
 
 /*
  * The importer keeps at most 200 products per Shop category. With the
@@ -404,16 +450,14 @@ function toProduct(row, feed, importedAt) {
           )
         : 0,
     salePriceEffectiveDate: null,
-    shippingCountries:
-      feed.shippingCountries,
-    shippingSourceLabel:
-      feed.shippingCountries.length
-        ? "Awin programme region fallback"
-        : "No shipping destination in feed",
-    shippingNote:
-      feed.shippingCountries.length
-        ? "This standard Awin feed does not provide product-level shipping destinations. The programme's primary region is shown as a regional fallback; final shipping availability must be confirmed with the merchant."
-        : "This standard Awin feed does not provide a country-level shipping destination.",
+    ...(() => {
+      const shipping = resolveShipping(feed, row);
+      return {
+        shippingCountries: shipping.countries,
+        shippingSourceLabel: shipping.sourceLabel,
+        shippingNote: shipping.note
+      };
+    })(),
     awProductId,
     merchantProductId:
       normalizeText(
