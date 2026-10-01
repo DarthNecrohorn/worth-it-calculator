@@ -461,7 +461,16 @@
             normalizeCountries(deal);
 
         if(!availability){
-            return "";
+            return `
+                <div class="shop-availability">
+                    <div class="shop-availability-head">
+                        <div>
+                            <span class="shop-info-label">🌍 Ships to</span>
+                            <strong>No Information</strong>
+                        </div>
+                    </div>
+                </div>
+            `;
         }
 
         if(availability.type === "service"){
@@ -492,13 +501,10 @@
                 <div class="shop-availability">
                     <div class="shop-availability-head">
                         <div>
-                            <span class="shop-info-label">🌍 Availability</span>
-                            <strong>Destination data not provided</strong>
+                            <span class="shop-info-label">🌍 Ships to</span>
+                            <strong>No Information</strong>
                         </div>
                     </div>
-                    <p class="shop-availability-note">
-                        The affiliate feed did not provide a country-level shipping list for this product.
-                    </p>
                 </div>
             `;
         }
