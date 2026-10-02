@@ -315,6 +315,11 @@ export async function onRequestGet() {
         { readBody: true }
     );
 
+    results.tests.pirIdentifier = await probe(
+        "https://www1.usgs.gov/pir/api/identifiers/" + encodeURIComponent(USGS_PID),
+        { readBody: true }
+    );
+
     results.tests.doi = await probe(DOI_URL, { readBody: false });
 
     results.tests.dataCatalog = {
