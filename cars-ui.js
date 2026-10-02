@@ -476,17 +476,17 @@ const popularVehicleHydrationState =
 
 const POPULAR_DETAILS_CONCURRENCY = 6;
 
-const POPULAR_NONCAR_DETAILS_CONCURRENCY = 12;
-const POPULAR_NONCAR_QUALITY_BATCH_SIZE = 12;
-const POPULAR_NONCAR_INITIAL_MAX_CHECKS = 180;
+const POPULAR_NONCAR_DETAILS_CONCURRENCY = 16;
+const POPULAR_NONCAR_QUALITY_BATCH_SIZE = 16;
+const POPULAR_NONCAR_INITIAL_MAX_CHECKS = 300;
 
 const POPULAR_NONCAR_INITIAL_VISIBLE_ROWS = 3;
 const POPULAR_NONCAR_INITIAL_CARD_COUNT = 12;
 const POPULAR_NONCAR_REFRESH_CARD_COUNT = 12;
 
 const POPULAR_REFRESH_CARD_COUNT = 8;
-const POPULAR_REFRESH_MAX_CHECKS = 180;
-const POPULAR_REFRESH_CONCURRENCY = 12;
+const POPULAR_REFRESH_MAX_CHECKS = 240;
+const POPULAR_REFRESH_CONCURRENCY = 16;
 
 const PERSISTENT_VEHICLE_DETAILS_MAX_ENTRIES = 40;
 
@@ -4006,7 +4006,7 @@ function hasUsablePopularVehicleDetails(
     const minimumSpecificationFields =
         kind === "car"
             ? POPULAR_MIN_SPECIFICATION_FIELDS
-            : 1;
+            : 0;
 
     if (
         specificationCount <
@@ -4049,7 +4049,24 @@ function hasUsablePopularVehicleDetails(
         vehicleTypeTermCount === 0 &&
         specificationCount === 0
     ) {
-        return false;
+        /*
+         * For non-car categories, the catalog kind + make/model identity
+         * checks above are already mandatory. Wikipedia infoboxes for
+         * buses/vans/trucks/motorcycles are sometimes sparse or formatted
+         * in ways that leave zero normalized technical fields, so do not
+         * discard the article when its description clearly identifies the
+         * requested vehicle type.
+         */
+        if (
+            kind === "car" ||
+            !hasExpectedPopularVehicleKindEvidence(
+                details,
+                vehicle,
+                kind
+            )
+        ) {
+            return false;
+        }
     }
 
     if (
