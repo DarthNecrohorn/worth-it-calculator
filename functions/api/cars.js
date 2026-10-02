@@ -32,6 +32,7 @@ const CACHE_TTL = 86400; // 24 hours
 const WIKIPEDIA_CACHE_TTL = 604800; // 7 days
 const MAX_MODELS_PER_KIND = 300; // Keep the catalog focused on popular vehicles
 const WIKIPEDIA_CACHE_VERSION = "v20";
+const WIKIMEDIA_IMAGE_LOOKUP_TIMEOUT_MS = 1600;
 
 const WIKIPEDIA_API =
     "https://en.wikipedia.org/w/api.php";
@@ -5569,12 +5570,31 @@ async function handleDetails(
             }
         );
 
+    /*
+     * Image/license validation is deliberately secondary to the vehicle
+     * information itself. Do not make Wikipedia specifications wait on a
+     * slow Wikimedia Commons request. A fast Commons response is still
+     * included; otherwise the vehicle can render with an image placeholder
+     * and the technical data can still qualify it for Popular.
+     */
+    const commercialImageWithTimeout =
+        Promise.race([
+            commercialImagePromise,
+            new Promise(
+                resolve =>
+                    setTimeout(
+                        () => resolve(null),
+                        WIKIMEDIA_IMAGE_LOOKUP_TIMEOUT_MS
+                    )
+            )
+        ]);
+
     const [
         wikipediaData,
         initialCommercialImage
     ] = await Promise.all([
         wikipediaDataPromise,
-        commercialImagePromise
+        commercialImageWithTimeout
     ]);
 
     let specifications =
