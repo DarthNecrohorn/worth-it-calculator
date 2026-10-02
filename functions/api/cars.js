@@ -31,8 +31,10 @@ const VEHICLES_DB_URL =
 const CACHE_TTL = 86400; // 24 hours
 const WIKIPEDIA_CACHE_TTL = 604800; // 7 days
 const MAX_MODELS_PER_KIND = 300; // Keep the catalog focused on popular vehicles
-const WIKIDATA_CANDIDATE_LIMIT = 1000;
-const DBPEDIA_CANDIDATE_LIMIT = 1000;
+const WIKIDATA_CANDIDATE_LIMIT = 600;
+const WIKIDATA_NONCAR_CANDIDATE_LIMIT = 1000;
+const DBPEDIA_CANDIDATE_LIMIT = 600;
+const DBPEDIA_NONCAR_CANDIDATE_LIMIT = 1000;
 const WIKIPEDIA_CACHE_VERSION = "v20";
 const WIKIMEDIA_IMAGE_LOOKUP_TIMEOUT_MS = 1600;
 
@@ -708,6 +710,11 @@ async function handleWikidataCandidates(
         });
     }
 
+    const candidateLimit =
+        kind === "car"
+            ? WIKIDATA_CANDIDATE_LIMIT
+            : WIKIDATA_NONCAR_CANDIDATE_LIMIT;
+
     const query =
         "SELECT ?item ?itemLabel ?manufacturerLabel ?article ?description WHERE {" +
         " ?item wdt:P31/wdt:P279* wd:" + classId + "." +
@@ -717,7 +724,7 @@ async function handleWikidataCandidates(
         " OPTIONAL { ?item schema:description ?description." +
         " FILTER(LANG(?description)=\"en\") }" +
         " SERVICE wikibase:label { bd:serviceParam wikibase:language \"en\". }" +
-        "} LIMIT " + WIKIDATA_CANDIDATE_LIMIT;
+        "} LIMIT " + candidateLimit;
 
     const url =
         new URL(WIKIDATA_SPARQL_API);
@@ -775,7 +782,7 @@ async function handleWikidataCandidates(
                 yearEnd: null
             });
 
-            if (vehicles.length >= WIKIDATA_CANDIDATE_LIMIT) {
+            if (vehicles.length >= candidateLimit) {
                 break;
             }
         }
@@ -1041,6 +1048,11 @@ async function handleDbpediaCandidates(
               "\"))"
             : "";
 
+    const candidateLimit =
+        kind === "car"
+            ? DBPEDIA_CANDIDATE_LIMIT
+            : DBPEDIA_NONCAR_CANDIDATE_LIMIT;
+
     const query =
         "SELECT ?item ?itemLabel ?manufacturerLabel WHERE {" +
         " " + typeClause +
@@ -1054,7 +1066,7 @@ async function handleDbpediaCandidates(
         abstractFilter +
         "} ORDER BY LCASE(STR(?itemLabel))" +
         " LIMIT " +
-        DBPEDIA_CANDIDATE_LIMIT;
+        candidateLimit;
 
     const url =
         new URL(DBPEDIA_SPARQL_API);
@@ -1136,7 +1148,7 @@ async function handleDbpediaCandidates(
 
             if (
                 vehicles.length >=
-                DBPEDIA_CANDIDATE_LIMIT
+                candidateLimit
             ) {
                 break;
             }
