@@ -76,6 +76,51 @@ function extractResourceCandidates(body) {
     return Array.from(candidates).slice(0, 100);
 }
 
+function extractHtmlDetails(html) {
+    if (!html) {
+        return {
+            scripts: [],
+            links: [],
+            snippets: []
+        };
+    }
+
+    const scripts = new Set();
+    const links = new Set();
+    const snippets = [];
+
+    for (const match of html.matchAll(/<script[^>]+src=["']([^"']+)["']/gi)) {
+        scripts.add(decodeXml(match[1]));
+    }
+
+    for (const match of html.matchAll(/<a[^>]+href=["']([^"']+)["'][^>]*>/gi)) {
+        const value = decodeXml(match[1]);
+        if (/download|file|data|metadata|api|csv|zip/i.test(value)) {
+            links.add(value);
+        }
+    }
+
+    for (const pattern of [
+        /MCS2026[^\n]{0,500}/gi,
+        /Commodities_Data\.csv[^\n]{0,500}/gi,
+        /download[^\n]{0,500}/gi,
+        /api[^\n]{0,500}/gi,
+        /entity[^\n]{0,500}/gi
+    ]) {
+        for (const match of html.matchAll(pattern)) {
+            snippets.push(match[0].slice(0, 1000));
+            if (snippets.length >= 50) break;
+        }
+        if (snippets.length >= 50) break;
+    }
+
+    return {
+        scripts: Array.from(scripts).slice(0, 100),
+        links: Array.from(links).slice(0, 100),
+        snippets: Array.from(new Set(snippets)).slice(0, 50)
+    };
+}
+
 function extractDistributionDetails(xml) {
     if (!xml) {
         return {
@@ -190,7 +235,8 @@ export async function onRequestGet() {
         finalUrl: dataCatalog.finalUrl,
         contentType: dataCatalog.contentType,
         contentLength: dataCatalog.contentLength,
-        resourceCandidates: extractResourceCandidates(dataCatalog.body)
+        resourceCandidates: extractResourceCandidates(dataCatalog.body),
+        htmlDetails: extractHtmlDetails(dataCatalog.body)
     };
 
     results.tests.metadataXml = {
