@@ -1,0 +1,39 @@
+name: Refresh USGS MCS market snapshot
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "scripts/import-usgs-mcs-snapshot.mjs"
+      - ".github/workflows/usgs-mcs-refresh.yml"
+  schedule:
+    - cron: "17 4 * * 1"
+
+permissions:
+  contents: write
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Refresh USGS MCS snapshot
+        run: |
+          node scripts/import-usgs-mcs-snapshot.mjs
+
+      - name: Commit updated USGS snapshot
+        run: |
+          git add data/markets/usgs/MCS2026_Commodities_Data.csv data/markets/usgs/MCS2026_Commodities_Data.meta.json
+
+          if git diff --cached --quiet; then
+            echo "No USGS MCS snapshot changes."
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "Update USGS MCS market snapshot"
+          git push
