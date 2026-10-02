@@ -60,6 +60,9 @@ const POPULAR_QUALITY_BATCH_SIZE = 10;
 const POPULAR_INITIAL_MAX_CHECKS = 40;
 const POPULAR_SHOW_ALL_MAX_NEW_CHECKS = 1500;
 const VEHICLE_DETAILS_REQUEST_TIMEOUT_MS = 15000;
+const VEHICLE_NONCAR_DETAILS_REQUEST_TIMEOUT_MS = 6500;
+const POPULAR_NONCAR_PROGRESSIVE_BUDGET_MS = 7000;
+const POPULAR_NONCAR_EARLY_SUPPLEMENTAL_COUNT = 180;
 const POPULAR_MAX_DISPLAY_RESULTS = MAX_VEHICLES_PER_CATEGORY;
 const POPULAR_MIN_SPECIFICATION_FIELDS = 2;
 const POPULAR_MIN_DESCRIPTION_LENGTH = 60;
@@ -1605,11 +1608,16 @@ async function fetchVehicleDetails(
                         ? new AbortController()
                         : null;
 
+                const requestTimeoutMs =
+                    kind === "car"
+                        ? VEHICLE_DETAILS_REQUEST_TIMEOUT_MS
+                        : VEHICLE_NONCAR_DETAILS_REQUEST_TIMEOUT_MS;
+
                 const timeoutId =
                     controller
                         ? window.setTimeout(
                             () => controller.abort(),
-                            VEHICLE_DETAILS_REQUEST_TIMEOUT_MS
+                            requestTimeoutMs
                         )
                         : null;
 
@@ -3407,7 +3415,8 @@ function hasExpectedPopularVehicleKindEvidence(
 
         if (
             !hasExpectedText &&
-            contradictionCount >= 1
+            contradictionCount >= 2 &&
+            getPopularVehicleSpecificationCount(details) < 1
         ) {
             return false;
         }
@@ -3479,9 +3488,14 @@ function hasExpectedPopularVehicleKindEvidence(
             details
         );
 
+    const minimumTechnicalFields =
+        kind === "car"
+            ? POPULAR_MIN_SPECIFICATION_FIELDS
+            : 1;
+
     if (
         technicalSpecificationCount >=
-        POPULAR_MIN_SPECIFICATION_FIELDS
+        minimumTechnicalFields
     ) {
         return true;
     }
@@ -3921,9 +3935,14 @@ function hasUsablePopularVehicleDetails(
         return false;
     }
 
+    const minimumDescriptionLength =
+        kind === "car"
+            ? POPULAR_MIN_DESCRIPTION_LENGTH
+            : 40;
+
     if (
         normalizePopularQualityText(description).length <
-        POPULAR_MIN_DESCRIPTION_LENGTH
+        minimumDescriptionLength
     ) {
         return false;
     }
@@ -3933,9 +3952,14 @@ function hasUsablePopularVehicleDetails(
             details
         );
 
+    const minimumSpecificationFields =
+        kind === "car"
+            ? POPULAR_MIN_SPECIFICATION_FIELDS
+            : 1;
+
     if (
         specificationCount <
-        POPULAR_MIN_SPECIFICATION_FIELDS
+        minimumSpecificationFields
     ) {
         return false;
     }
@@ -4221,11 +4245,80 @@ async function runPopularVehicleQualityBatch(
 }
 
 
+function getPopularQualityScanCandidates(
+    kind,
+    candidates
+) {
+
+    const safeCandidates =
+        Array.isArray(candidates)
+            ? candidates
+            : [];
+
+    if (
+        kind === "car" ||
+        !safeCandidates.some(
+            vehicle => Boolean(vehicle?.supplementalSource)
+        )
+    ) {
+        return safeCandidates.slice();
+    }
+
+    const baseCandidates =
+        safeCandidates.filter(
+            vehicle => !vehicle?.supplementalSource
+        );
+
+    const supplementalCandidates =
+        safeCandidates.filter(
+            vehicle => Boolean(vehicle?.supplementalSource)
+        );
+
+    const earlyBaseCount =
+        Math.min(
+            60,
+            baseCandidates.length
+        );
+
+    const earlySupplementalCount =
+        Math.min(
+            POPULAR_NONCAR_EARLY_SUPPLEMENTAL_COUNT,
+            supplementalCandidates.length
+        );
+
+    const ordered = [
+        ...baseCandidates.slice(0, earlyBaseCount),
+        ...supplementalCandidates.slice(0, earlySupplementalCount),
+        ...baseCandidates.slice(earlyBaseCount),
+        ...supplementalCandidates.slice(earlySupplementalCount)
+    ];
+
+    const seen = new Set();
+
+    return ordered.filter(vehicle => {
+        const key =
+            getPopularVehicleQualityKey(
+                vehicle,
+                kind
+            );
+
+        if (seen.has(key)) {
+            return false;
+        }
+
+        seen.add(key);
+        return true;
+    });
+}
+
+
 async function collectFastPopularVehicleInformation(
     kind,
     candidates,
     desiredCount = POPULAR_REFRESH_CARD_COUNT,
-    maxChecks = POPULAR_REFRESH_MAX_CHECKS
+    maxChecks = POPULAR_REFRESH_MAX_CHECKS,
+    onValid = null,
+    timeBudgetMs = POPULAR_NONCAR_PROGRESSIVE_BUDGET_MS
 ) {
 
     const safeCandidates =
@@ -4243,63 +4336,191 @@ async function collectFastPopularVehicleInformation(
         return [];
     }
 
-    const targetCount = Math.min(desiredCount, safeCandidates.length);
-    const validKeys = new Set();
+    const targetCount =
+        Math.min(
+            desiredCount,
+            safeCandidates.length
+        );
+
+    const validKeys =
+        new Set();
+
     let cursor = 0;
     let resolved = false;
     let resolveEarly;
-    let rejectEarly;
 
-    const earlyPromise = new Promise((resolve, reject) => {
-        resolveEarly = resolve;
-        rejectEarly = reject;
-    });
+    const earlyPromise =
+        new Promise(
+            resolve => {
+                resolveEarly = resolve;
+            }
+        );
+
+    let timeoutId = null;
+
+    const getValidVehicles = () =>
+        safeCandidates
+            .filter(
+                vehicle =>
+                    validKeys.has(
+                        getPopularVehicleQualityKey(
+                            vehicle,
+                            kind
+                        )
+                    )
+            )
+            .slice(
+                0,
+                targetCount
+            );
 
     const finish = () => {
-        if (resolved) return;
-        resolved = true;
-        resolveEarly(
-            safeCandidates
-                .filter(vehicle =>
-                    validKeys.has(getPopularVehicleQualityKey(vehicle, kind))
-                )
-                .slice(0, targetCount)
-        );
-    };
 
-    const worker = async () => {
-        while (!resolved) {
-            const index = cursor++;
-            if (index >= safeCandidates.length) break;
-
-            const vehicle = safeCandidates[index];
-            try {
-                const result = await evaluatePopularVehicleCandidate(vehicle, kind);
-                if (result?.usable === true) {
-                    validKeys.add(getPopularVehicleQualityKey(result.vehicle, kind));
-                    if (validKeys.size >= targetCount) finish();
-                }
-            } catch (error) {
-                console.warn(
-                    "Fast popular vehicle refresh request failed:",
-                    vehicle?.make, vehicle?.model, kind, error
-                );
-            }
+        if (resolved) {
+            return;
         }
+
+        resolved = true;
+
+        if (timeoutId !== null) {
+            window.clearTimeout(
+                timeoutId
+            );
+        }
+
+        resolveEarly(
+            getValidVehicles()
+        );
+
     };
 
-    const workerCount = Math.min(POPULAR_REFRESH_CONCURRENCY, safeCandidates.length);
+    const worker =
+        async () => {
+
+            while (!resolved) {
+
+                const index =
+                    cursor++;
+
+                if (
+                    index >=
+                    safeCandidates.length
+                ) {
+                    break;
+                }
+
+                const vehicle =
+                    safeCandidates[index];
+
+                try {
+
+                    const result =
+                        await evaluatePopularVehicleCandidate(
+                            vehicle,
+                            kind
+                        );
+
+                    if (
+                        result?.usable === true
+                    ) {
+
+                        const key =
+                            getPopularVehicleQualityKey(
+                                result.vehicle,
+                                kind
+                            );
+
+                        if (
+                            !validKeys.has(
+                                key
+                            )
+                        ) {
+
+                            validKeys.add(
+                                key
+                            );
+
+                            if (
+                                typeof onValid ===
+                                "function"
+                            ) {
+
+                                try {
+                                    onValid(
+                                        result.vehicle
+                                    );
+                                } catch (error) {
+                                    console.warn(
+                                        "Popular vehicle progressive render callback failed:",
+                                        error
+                                    );
+                                }
+
+                            }
+
+                            if (
+                                validKeys.size >=
+                                targetCount
+                            ) {
+                                finish();
+                            }
+
+                        }
+
+                    }
+
+                } catch (error) {
+
+                    console.warn(
+                        "Fast popular vehicle refresh request failed:",
+                        vehicle?.make,
+                        vehicle?.model,
+                        kind,
+                        error
+                    );
+
+                }
+
+            }
+
+        };
+
+    const workerCount =
+        Math.min(
+            POPULAR_REFRESH_CONCURRENCY,
+            safeCandidates.length
+        );
+
+    timeoutId =
+        window.setTimeout(
+            finish,
+            Math.max(
+                500,
+                Number(timeBudgetMs) ||
+                POPULAR_NONCAR_PROGRESSIVE_BUDGET_MS
+            )
+        );
 
     void Promise.all(
-        Array.from({ length: workerCount }, () => worker())
-    ).then(() => {
-        if (!resolved) finish();
-    }).catch(error => {
-        if (!resolved) {
-            resolved = true;
-            rejectEarly(error);
+        Array.from(
+            {
+                length:
+                    workerCount
+            },
+            () => worker()
+        )
+    ).then(
+        finish
+    ).catch(
+        error => {
+            console.warn(
+                "Fast popular vehicle refresh workers failed:",
+                kind,
+                error
+            );
+            finish();
         }
-    });
+    );
 
     return earlyPromise;
 }
