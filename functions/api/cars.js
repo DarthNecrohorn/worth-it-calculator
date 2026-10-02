@@ -35,7 +35,7 @@ const WIKIDATA_CANDIDATE_LIMIT = 600;
 const WIKIDATA_NONCAR_CANDIDATE_LIMIT = 1000;
 const DBPEDIA_CANDIDATE_LIMIT = 600;
 const DBPEDIA_NONCAR_CANDIDATE_LIMIT = 1000;
-const WIKIPEDIA_CACHE_VERSION = "v20";
+const WIKIPEDIA_CACHE_VERSION = "v21";
 const WIKIMEDIA_IMAGE_LOOKUP_TIMEOUT_MS = 1600;
 
 const WIKIPEDIA_API =
@@ -4797,7 +4797,8 @@ function isVehicleImageUrlMatchingName(
 async function getCommercialWikimediaImage(
     imageTitle,
     make,
-    model
+    model,
+    kind = "car"
 ) {
 
     if (!imageTitle) {
@@ -4864,7 +4865,14 @@ async function getCommercialWikimediaImage(
          * generic or only-partially-matching vehicle images even when
          * their license is otherwise acceptable.
          */
+        /*
+         * Cars keep the strict filename identity check. For non-car
+         * categories, the image is already the selected Wikipedia
+         * page image for an identity-matched vehicle article, and many
+         * legitimate Commons filenames do not contain the full model name.
+         */
         if (
+            kind === "car" &&
             !isVehicleImageUrlMatchingName(
                 imageInfo.url,
                 make,
@@ -5618,7 +5626,8 @@ async function handleDetails(
         getCommercialWikimediaImage(
             page.imageTitle,
             vehicle.make,
-            vehicle.model
+            vehicle.model,
+            vehicle.kind
         ).catch(
             error => {
 

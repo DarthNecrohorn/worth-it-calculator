@@ -39,7 +39,7 @@ const VEHICLE_CATALOG_BASE_URL =
 const VEHICLE_DATASET_MANIFEST_URL =
     "https://cdn.jsdelivr.net/gh/vehiclesdb/vehiclesdb@latest/manifest.json";
 
-const VEHICLE_DETAILS_CACHE_VERSION = "v19";
+const VEHICLE_DETAILS_CACHE_VERSION = "v20";
 
 const MAX_VEHICLES_PER_CATEGORY = 300;
 
@@ -547,7 +547,7 @@ function getPopularMaxNewChecks(kind) {
  * Persistent browser cache version for account-scoped vehicle
  * metadata/images.
  */
-const VEHICLE_PERSISTENT_CACHE_VERSION = "v3";
+const VEHICLE_PERSISTENT_CACHE_VERSION = "v4";
 
 let vehicleAccountCacheOwnerPromise =
     null;
@@ -3872,6 +3872,25 @@ function hasPopularVehicleImageRelevance(
      */
     if (!isAllowedVehicleImageHost(imageUrl)) {
         return false;
+    }
+
+    /*
+     * For non-car categories, the backend has already validated that
+     * this is the selected Wikimedia image from an identity-matched
+     * Wikipedia vehicle article and that its license permits commercial
+     * use. Do not require the Commons filename to contain the exact
+     * make + model phrase because many legitimate van/bus/motorcycle
+     * images use generic or abbreviated filenames.
+     */
+    const imageKind =
+        normalizeVehicleText(
+            details?.kind ||
+            vehicle?.kind ||
+            ""
+        );
+
+    if (imageKind !== "car") {
+        return true;
     }
 
     const imageFilename =
