@@ -4203,8 +4203,15 @@ async function getUSGSReleaseInfoMultiSource(
         year === 2026
     ) {
 
+        /*
+         * The 2026 commodity CSV is attached to the current
+         * ScienceBase child item used by the USGS data catalog.
+         * The parent release item is still useful for citation,
+         * but the parent item path currently returns HTTP 403
+         * for the CSV download.
+         */
         scienceBaseItemId =
-            "696a75d5d4be0228872d3bf8";
+            "69837e43b66b01367d7ec7c7";
 
     }
 
@@ -4224,7 +4231,17 @@ async function getUSGSReleaseInfoMultiSource(
         `MCS${year}_Commodities_Data.csv`;
 
 
+    const knownFileUrls = {
+
+        2026:
+            "https://www.sciencebase.gov/catalog/file/get/69837e43b66b01367d7ec7c7?f=__disk__d3%2Fac%2F84%2Fd3ac8466552946c5e8caa2c2c6338d9e1aff655d"
+
+    };
+
     const fileUrl =
+        knownFileUrls[
+            year
+        ] ||
         `${USGS_SCIENCEBASE_FILE_PREFIX}${scienceBaseItemId}?name=${encodeURIComponent(fileName)}`;
 
 
