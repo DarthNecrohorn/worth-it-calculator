@@ -321,6 +321,41 @@ export async function onRequestGet() {
     );
 
     /*
+     * The current USGS Data Catalog download UI uses a catalog-item
+     * download route. Test that route directly for the exact CSV before
+     * changing Markets source logic.
+     */
+    const directDownloadUrls = [
+        "https://data.usgs.gov/datacatalog/data/USGS%3A69837e43b66b01367d7ec7c7/download/MCS2026_Commodities_Data.csv",
+        "https://data.usgs.gov/datacatalog/data/USGS%3A69837e43b66b01367d7ec7c7/download/mcs2026.csv"
+    ];
+
+    results.tests.directDownloads = [];
+
+    for (const url of directDownloadUrls) {
+        results.tests.directDownloads.push(
+            await probe(url, {
+                accept: "text/csv,text/plain,application/octet-stream,*/*",
+                readBody: true
+            })
+        );
+    }
+
+    /*
+     * Also test the CKAN-compatible catalog API shape discovered in
+     * independent USGS tooling. This is discovery-only; Markets does not
+     * use it yet.
+     */
+    results.tests.packageShow = await probe(
+        "https://data.usgs.gov/datacatalog/api/3/action/package_show?id=" +
+        encodeURIComponent(USGS_PID),
+        {
+            accept: "application/json,text/plain,*/*",
+            readBody: true
+        }
+    );
+
+    /*
      * USGS Data Catalog exposes a harvest API used by USGS tooling to
      * enumerate cataloged metadata records. This isolated diagnostic
      * checks whether that API exposes the machine-readable source/file
