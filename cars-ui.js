@@ -1412,13 +1412,15 @@ function getVehicleKindInfo(kind) {
 function getVehicleDetailsCacheKey(
     make,
     model,
-    kind
+    kind,
+    mode = "full"
 ) {
 
     return [
         normalizeVehicleText(make),
         normalizeVehicleText(model),
-        normalizeVehicleText(kind)
+        normalizeVehicleText(kind),
+        normalizeVehicleText(mode)
     ].join("|");
 
 }
@@ -1429,7 +1431,8 @@ async function fetchVehicleDetailsWithRetry(
     model,
     kind,
     attempts = 2,
-    retryDelayMs = 650
+    retryDelayMs = 650,
+    mode = "full"
 ) {
 
     const maxAttempts =
@@ -1450,7 +1453,8 @@ async function fetchVehicleDetailsWithRetry(
             await fetchVehicleDetails(
                 make,
                 model,
-                kind
+                kind,
+                mode
             );
 
         if (lastResult) {
@@ -1481,14 +1485,19 @@ async function fetchVehicleDetailsWithRetry(
 async function fetchVehicleDetails(
     make,
     model,
-    kind
+    kind,
+    mode = "full"
 ) {
+
+    const isFastMode =
+        mode === "fast";
 
     const cacheKey =
         getVehicleDetailsCacheKey(
             make,
             model,
-            kind
+            kind,
+            mode
         );
 
 
@@ -1511,25 +1520,29 @@ async function fetchVehicleDetails(
      * This lets a returning user restore vehicle information without
      * requesting Wikipedia again on every visit.
      */
-    const persistentOwner =
-        await getVehicleAccountCacheOwner();
+    if (!isFastMode) {
 
-    const persistentDetails =
-        readPersistentVehicleDetails(
-            persistentOwner,
-            make,
-            model,
-            kind
-        );
+        const persistentOwner =
+            await getVehicleAccountCacheOwner();
 
-    if (persistentDetails) {
+        const persistentDetails =
+            readPersistentVehicleDetails(
+                persistentOwner,
+                make,
+                model,
+                kind
+            );
 
-        vehicleDetailsCache.set(
-            cacheKey,
-            persistentDetails
-        );
+        if (persistentDetails) {
 
-        return persistentDetails;
+            vehicleDetailsCache.set(
+                cacheKey,
+                persistentDetails
+            );
+
+            return persistentDetails;
+
+        }
 
     }
 
@@ -1582,6 +1595,10 @@ async function fetchVehicleDetails(
                         kind: kind
 
                     });
+
+                if (isFastMode) {
+                    params.set("fast", "1");
+                }
 
                 if (catalogVehicle) {
 
@@ -1715,14 +1732,16 @@ async function fetchVehicleDetails(
                     data
                 );
 
-                void getVehicleAccountCacheOwner()
-                    .then(
-                        owner =>
-                            writePersistentVehicleDetails(
-                                owner,
-                                data
-                            )
-                    );
+                if (!isFastMode) {
+                    void getVehicleAccountCacheOwner()
+                        .then(
+                            owner =>
+                                writePersistentVehicleDetails(
+                                    owner,
+                                    data
+                                )
+                        );
+                }
 
                 return data;
 
@@ -4213,7 +4232,10 @@ async function evaluatePopularVehicleCandidate(
                 : 1,
             kind === "car"
                 ? 650
-                : 250
+                : 250,
+            kind === "car"
+                ? "full"
+                : "fast"
         );
 
     if (!details) {
