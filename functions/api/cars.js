@@ -5547,6 +5547,60 @@ async function handleDetails(
     }
 
     /*
+     * Fast quality mode is used only by the Popular Vehicles candidate
+     * scanner for non-car categories. It needs a reliable Wikipedia
+     * identity/description but does not need the full infobox parser or
+     * Wikimedia license lookup before a card can qualify.
+     *
+     * The normal details endpoint remains unchanged for vehicle cards,
+     * comparison and detail views.
+     */
+
+    if (
+        requestUrl.searchParams.get("fast") === "1" &&
+        kind !== "car"
+    ) {
+
+        return jsonResponse(
+            {
+                success: true,
+                source: {
+                    catalog:
+                        "VehiclesDB Open Dataset",
+                    information:
+                        "Wikipedia"
+                },
+                kind,
+                vehicle: {
+                    make: vehicle.make,
+                    model: vehicle.model,
+                    kind: vehicle.kind,
+                    body_type: vehicle.bodyType,
+                    body_types: vehicle.bodyTypes,
+                    year_start: vehicle.yearStart,
+                    year_end: vehicle.yearEnd,
+                    global_decile: vehicle.globalDecile
+                },
+                wikipedia: {
+                    title: page.title,
+                    url: page.url,
+                    description:
+                        page.description ||
+                        "No Information"
+                },
+                image: null,
+                specifications:
+                    createEmptyWikipediaSpecifications(),
+                comparisonAvailable: false
+            },
+            200,
+            WIKIPEDIA_CACHE_TTL
+        );
+
+    }
+
+
+    /*
      * 4. Load technical Wikipedia data and the Wikimedia image/license
      *    check in parallel. The two operations are independent.
      */
