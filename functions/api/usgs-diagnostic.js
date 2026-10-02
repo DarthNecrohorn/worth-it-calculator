@@ -268,7 +268,8 @@ export async function onRequestGet() {
         contentType: dataCatalog.contentType,
         contentLength: dataCatalog.contentLength,
         resourceCandidates: extractResourceCandidates(dataCatalog.body),
-        htmlDetails: extractHtmlDetails(dataCatalog.body),\n        scriptClues: extractScriptClues(extractHtmlDetails(dataCatalog.body).scripts)
+        htmlDetails: extractHtmlDetails(dataCatalog.body),
+        scriptClues: extractScriptClues(extractHtmlDetails(dataCatalog.body).scripts)
     };
 
     results.tests.metadataXml = {
