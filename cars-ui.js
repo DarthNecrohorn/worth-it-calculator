@@ -56,13 +56,17 @@ const INITIAL_VISIBLE_ROWS = 2;
  * out of the Popular Vehicles view.
  */
 const POPULAR_CANDIDATE_POOL_SIZE = 1000;
+const POPULAR_NONCAR_CANDIDATE_POOL_SIZE = 1800;
+const POPULAR_NONCAR_BASE_CANDIDATE_LIMIT = 1400;
+const POPULAR_NONCAR_SUPPLEMENTAL_CANDIDATE_LIMIT = 1600;
 const POPULAR_QUALITY_BATCH_SIZE = 10;
 const POPULAR_INITIAL_MAX_CHECKS = 40;
 const POPULAR_SHOW_ALL_MAX_NEW_CHECKS = 1500;
 const VEHICLE_DETAILS_REQUEST_TIMEOUT_MS = 15000;
 const VEHICLE_NONCAR_DETAILS_REQUEST_TIMEOUT_MS = 6500;
 const POPULAR_NONCAR_PROGRESSIVE_BUDGET_MS = 7000;
-const POPULAR_NONCAR_EARLY_SUPPLEMENTAL_COUNT = 180;
+const POPULAR_NONCAR_EARLY_BASE_COUNT = 120;
+const POPULAR_NONCAR_EARLY_SUPPLEMENTAL_COUNT = 400;
 const POPULAR_MAX_DISPLAY_RESULTS = MAX_VEHICLES_PER_CATEGORY;
 const POPULAR_MIN_SPECIFICATION_FIELDS = 2;
 const POPULAR_MIN_DESCRIPTION_LENGTH = 60;
@@ -436,10 +440,10 @@ const dbpediaVehicleCatalogLoading =
     new Map();
 
 const WIKIDATA_SUPPLEMENTAL_LIMIT =
-    600;
+    1000;
 
 const DBPEDIA_SUPPLEMENTAL_LIMIT =
-    600;
+    1000;
 
 const VEHICLE_PERSISTENT_CATALOG_VERSION =
     "v2";
@@ -472,13 +476,17 @@ const popularVehicleHydrationState =
 
 const POPULAR_DETAILS_CONCURRENCY = 6;
 
-const POPULAR_NONCAR_DETAILS_CONCURRENCY = 12;
-const POPULAR_NONCAR_QUALITY_BATCH_SIZE = 12;
-const POPULAR_NONCAR_INITIAL_MAX_CHECKS = 72;
+const POPULAR_NONCAR_DETAILS_CONCURRENCY = 16;
+const POPULAR_NONCAR_QUALITY_BATCH_SIZE = 16;
+const POPULAR_NONCAR_INITIAL_MAX_CHECKS = 300;
+
+const POPULAR_NONCAR_INITIAL_VISIBLE_ROWS = 3;
+const POPULAR_NONCAR_INITIAL_CARD_COUNT = 12;
+const POPULAR_NONCAR_REFRESH_CARD_COUNT = 12;
 
 const POPULAR_REFRESH_CARD_COUNT = 8;
-const POPULAR_REFRESH_MAX_CHECKS = 72;
-const POPULAR_REFRESH_CONCURRENCY = 12;
+const POPULAR_REFRESH_MAX_CHECKS = 240;
+const POPULAR_REFRESH_CONCURRENCY = 16;
 
 const PERSISTENT_VEHICLE_DETAILS_MAX_ENTRIES = 40;
 
@@ -486,6 +494,35 @@ function getPopularDetailsConcurrency(kind) {
     return kind === "car"
         ? POPULAR_DETAILS_CONCURRENCY
         : POPULAR_NONCAR_DETAILS_CONCURRENCY;
+}
+
+function getPopularInitialVisibleRows(kind) {
+    return kind === "car"
+        ? INITIAL_VISIBLE_ROWS
+        : POPULAR_NONCAR_INITIAL_VISIBLE_ROWS;
+}
+
+function getPopularInitialCardCount(
+    kind,
+    candidatesLength = Infinity
+) {
+
+    const desired =
+        kind === "car"
+            ? Math.max(
+                1,
+                getVehiclesPerRow() *
+                INITIAL_VISIBLE_ROWS
+            )
+            : POPULAR_NONCAR_INITIAL_CARD_COUNT;
+
+    return Math.min(
+        desired,
+        Math.max(
+            0,
+            Number(candidatesLength) || 0
+        )
+    );
 }
 
 function getPopularQualityBatchSize(kind) {
@@ -3101,11 +3138,21 @@ function getPopularVehicles(
                 )
         );
 
+    const isNonCarCatalog =
+        rankedVehicles.some(
+            vehicle =>
+                normalizeVehicleText(
+                    vehicle?.kind
+                ) !== "car"
+        );
+
     if (!hasSupplemental) {
 
         return rankedVehicles.slice(
             0,
-            POPULAR_CANDIDATE_POOL_SIZE
+            isNonCarCatalog
+                ? POPULAR_NONCAR_CANDIDATE_POOL_SIZE
+                : POPULAR_CANDIDATE_POOL_SIZE
         );
 
     }
@@ -3127,11 +3174,15 @@ function getPopularVehicles(
     return [
         ...baseVehicles.slice(
             0,
-            900
+            isNonCarCatalog
+                ? POPULAR_NONCAR_BASE_CANDIDATE_LIMIT
+                : 900
         ),
         ...supplementalVehicles.slice(
             0,
-            1200
+            isNonCarCatalog
+                ? POPULAR_NONCAR_SUPPLEMENTAL_CANDIDATE_LIMIT
+                : 1200
         )
     ];
 
@@ -3955,7 +4006,7 @@ function hasUsablePopularVehicleDetails(
     const minimumSpecificationFields =
         kind === "car"
             ? POPULAR_MIN_SPECIFICATION_FIELDS
-            : 1;
+            : 0;
 
     if (
         specificationCount <
@@ -3998,7 +4049,24 @@ function hasUsablePopularVehicleDetails(
         vehicleTypeTermCount === 0 &&
         specificationCount === 0
     ) {
-        return false;
+        /*
+         * For non-car categories, the catalog kind + make/model identity
+         * checks above are already mandatory. Wikipedia infoboxes for
+         * buses/vans/trucks/motorcycles are sometimes sparse or formatted
+         * in ways that leave zero normalized technical fields, so do not
+         * discard the article when its description clearly identifies the
+         * requested vehicle type.
+         */
+        if (
+            kind === "car" ||
+            !hasExpectedPopularVehicleKindEvidence(
+                details,
+                vehicle,
+                kind
+            )
+        ) {
+            return false;
+        }
     }
 
     if (
@@ -4276,7 +4344,7 @@ function getPopularQualityScanCandidates(
 
     const earlyBaseCount =
         Math.min(
-            60,
+            POPULAR_NONCAR_EARLY_BASE_COUNT,
             baseCandidates.length
         );
 
@@ -5054,7 +5122,7 @@ function hideOrShowStablePopularCards(
         Math.max(
             1,
             getVehiclesPerRow() *
-            INITIAL_VISIBLE_ROWS
+            getPopularInitialVisibleRows(kind)
         );
 
     cards.forEach(
@@ -5120,7 +5188,7 @@ function appendStablePopularVehicleCards(
         Math.max(
             1,
             getVehiclesPerRow() *
-            INITIAL_VISIBLE_ROWS
+            getPopularInitialVisibleRows(kind)
         );
 
     const fragment =
@@ -5426,11 +5494,10 @@ async function refreshNonCarPopularCategoryInBackground(
          */
         const targetCount =
             Math.min(
-                POPULAR_REFRESH_CARD_COUNT,
-                Math.max(
-                    1,
-                    getVehiclesPerRow() *
-                    INITIAL_VISIBLE_ROWS
+                POPULAR_NONCAR_REFRESH_CARD_COUNT,
+                getPopularInitialCardCount(
+                    kind,
+                    candidates.length
                 ),
                 candidates.length
             );
@@ -5483,19 +5550,17 @@ async function refreshNonCarPopularCategoryInBackground(
                         state.validVehicles,
                         state.validVehicles.slice(
                             0,
-                            Math.max(
-                                1,
-                                getVehiclesPerRow() *
-                                INITIAL_VISIBLE_ROWS
+                            getPopularInitialCardCount(
+                                kind,
+                                candidates.length
                             )
                         ),
                         kind,
                         stablePopularHasMoreVehicles(
                             kind,
-                            Math.max(
-                                1,
-                                getVehiclesPerRow() *
-                                INITIAL_VISIBLE_ROWS
+                            getPopularInitialCardCount(
+                                kind,
+                                candidates.length
                             )
                         )
                     );
@@ -5549,10 +5614,9 @@ async function refreshNonCarPopularCategoryInBackground(
         );
 
         const visibleCount =
-            Math.max(
-                1,
-                getVehiclesPerRow() *
-                INITIAL_VISIBLE_ROWS
+            getPopularInitialCardCount(
+                kind,
+                candidates.length
             );
 
         const state =
@@ -6118,15 +6182,14 @@ async function loadAndRenderNonCarPopularVehicles(
     grid.innerHTML = "";
 
     const initialCount =
-        Math.max(
-            1,
-            getVehiclesPerRow() *
-            INITIAL_VISIBLE_ROWS
+        getPopularInitialCardCount(
+            kind,
+            candidates.length
         );
 
     const targetCount =
         Math.min(
-            POPULAR_REFRESH_CARD_COUNT,
+            POPULAR_NONCAR_INITIAL_CARD_COUNT,
             initialCount,
             candidates.length
         );
