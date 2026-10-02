@@ -3138,6 +3138,14 @@ function getPopularVehicles(
                 )
         );
 
+    const isNonCarCatalog =
+        rankedVehicles.some(
+            vehicle =>
+                normalizeVehicleText(
+                    vehicle?.kind
+                ) !== "car"
+        );
+
     if (!hasSupplemental) {
 
         return rankedVehicles.slice(
@@ -4319,7 +4327,7 @@ function getPopularQualityScanCandidates(
 
     const earlyBaseCount =
         Math.min(
-            60,
+            POPULAR_NONCAR_EARLY_BASE_COUNT,
             baseCandidates.length
         );
 
