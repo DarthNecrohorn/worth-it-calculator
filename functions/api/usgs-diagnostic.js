@@ -76,6 +76,38 @@ function extractResourceCandidates(body) {
     return Array.from(candidates).slice(0, 100);
 }
 
+function decodeDataUriScript(value) {
+    if (!value || !value.startsWith("data:text/javascript;base64,")) return "";
+    try {
+        return atob(value.slice("data:text/javascript;base64,".length));
+    } catch {
+        return "";
+    }
+}
+
+function extractScriptClues(scripts) {
+    const clues = new Set();
+    const patterns = [
+        /https?:\/\/[^"'\s)]+/gi,
+        /(?:fetch|axios|XMLHttpRequest)\s*\([^)]{0,300}/gi,
+        /(?:\/api\/|graphql|download|resource|metadata|datacatalog|search)[^"'\s]{0,250}/gi
+    ];
+
+    for (const script of scripts || []) {
+        const decoded = decodeDataUriScript(script);
+        if (!decoded) continue;
+
+        for (const pattern of patterns) {
+            for (const match of decoded.matchAll(pattern)) {
+                clues.add(match[0].slice(0, 500));
+                if (clues.size >= 100) return Array.from(clues);
+            }
+        }
+    }
+
+    return Array.from(clues);
+}
+
 function extractHtmlDetails(html) {
     if (!html) {
         return {
@@ -236,7 +268,8 @@ export async function onRequestGet() {
         contentType: dataCatalog.contentType,
         contentLength: dataCatalog.contentLength,
         resourceCandidates: extractResourceCandidates(dataCatalog.body),
-        htmlDetails: extractHtmlDetails(dataCatalog.body)
+        htmlDetails: extractHtmlDetails(dataCatalog.body),
+        scriptClues: extractScriptClues(extractHtmlDetails(dataCatalog.body).scripts)
     };
 
     results.tests.metadataXml = {
