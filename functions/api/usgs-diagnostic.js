@@ -108,6 +108,56 @@ function extractScriptClues(scripts) {
     return Array.from(clues);
 }
 
+function extractContextMatches(scripts, html) {
+    const targets = [
+        "api/identifiers",
+        "mcs2026",
+        "Commodities_Data",
+        "download",
+        "fetch(",
+        ".csv",
+        ".then("
+    ];
+
+    const contexts = [];
+    const sources = [
+        { source: "html", text: html || "" },
+        ...(scripts || []).map((script, index) => ({
+            source: "script-" + index,
+            text: decodeDataUriScript(script)
+        }))
+    ];
+
+    for (const { source, text } of sources) {
+        if (!text) continue;
+
+        for (const target of targets) {
+            let offset = 0;
+            let count = 0;
+
+            while (count < 20) {
+                const index = text.toLowerCase().indexOf(target.toLowerCase(), offset);
+                if (index === -1) break;
+
+                const start = Math.max(0, index - 800);
+                const end = Math.min(text.length, index + target.length + 1200);
+
+                contexts.push({
+                    source,
+                    target,
+                    context: text.slice(start, end)
+                });
+
+                offset = index + target.length;
+                count++;
+                if (contexts.length >= 100) return contexts;
+            }
+        }
+    }
+
+    return contexts;
+}
+
 function extractHtmlDetails(html) {
     if (!html) {
         return {
@@ -253,8 +303,15 @@ export async function onRequestGet() {
         "application/xml,text/xml,*/*"
     );
 
+    const htmlDetails = extractHtmlDetails(dataCatalog.body);
+
     results.tests.aisResolve = await probe(
         "https://www1.usgs.gov/identifiers/api/resolve/" + encodeURIComponent(USGS_PID),
+        { readBody: true }
+    );
+
+    results.tests.aisIdentifierApi = await probe(
+        "https://www1.usgs.gov/identifiers/api/identifiers/" + encodeURIComponent(USGS_PID),
         { readBody: true }
     );
 
@@ -268,8 +325,9 @@ export async function onRequestGet() {
         contentType: dataCatalog.contentType,
         contentLength: dataCatalog.contentLength,
         resourceCandidates: extractResourceCandidates(dataCatalog.body),
-        htmlDetails: extractHtmlDetails(dataCatalog.body),
-        scriptClues: extractScriptClues(extractHtmlDetails(dataCatalog.body).scripts)
+        htmlDetails,
+        scriptClues: extractScriptClues(htmlDetails.scripts),
+        contextMatches: extractContextMatches(htmlDetails.scripts, dataCatalog.body)
     };
 
     results.tests.metadataXml = {
