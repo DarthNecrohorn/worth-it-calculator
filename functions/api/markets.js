@@ -161,7 +161,7 @@ const USDA_NASS_PRICE_FILE_CACHE_PREFIX =
     "https://worth-it-internal-cache.local/markets-usda-nass-price-file-v2/";
 
 const MARKETS_RESULT_CACHE_KEY =
-    "https://worth-it-internal-cache.local/markets-multisource-v6.json";
+    "https://worth-it-internal-cache.local/markets-multisource-v7.json";
 
 
 /* =========================================================
@@ -6577,6 +6577,7 @@ async function buildCombinedMarketsDataset(
     const datasets = [];
     const status = [];
     const errors = [];
+    const warnings = [];
 
 
     for (
@@ -6601,11 +6602,28 @@ async function buildCombinedMarketsDataset(
                 result.value
             );
 
+            const sourceAvailable =
+                result.value?.available !== false;
+
+            const sourceError =
+                result.value?.error ||
+                null;
+
+            if (
+                sourceError
+            ) {
+
+                warnings.push(
+                    `${task.name}: ${sourceError}`
+                );
+
+            }
+
             status.push({
                 source:
                     task.name,
                 ok:
-                    true,
+                    sourceAvailable,
                 configured:
                     result.value?.configured !== false,
                 count:
@@ -6615,7 +6633,7 @@ async function buildCombinedMarketsDataset(
                         ? result.value.prices.length
                         : 0,
                 error:
-                    null
+                    sourceError
             });
 
         }
@@ -6627,7 +6645,7 @@ async function buildCombinedMarketsDataset(
                     result.reason
                 );
 
-            errors.push(
+            warnings.push(
                 `${task.name}: ${message}`
             );
 
@@ -6777,7 +6795,9 @@ async function buildCombinedMarketsDataset(
         source_status:
             status,
 
-        errors,
+        errors: [],
+
+        warnings,
 
         category_sources:
             categorySources,
@@ -9022,6 +9042,44 @@ export async function onRequestGet(
             error
         );
 
+        /*
+         * A temporary upstream outage must not blank Markets when
+         * an earlier successful merged result is still available.
+         */
+        const staleResult =
+            await cache.match(
+                resultCacheKey
+            );
+
+        if (
+            staleResult
+        ) {
+
+            const headers =
+                new Headers(
+                    staleResult.headers
+                );
+
+            headers.set(
+                "X-Worth-It-Stale-Fallback",
+                "1"
+            );
+
+            headers.set(
+                "Cache-Control",
+                "no-store"
+            );
+
+            return new Response(
+                staleResult.body,
+                {
+                    status:
+                        200,
+                    headers
+                }
+            );
+
+        }
 
         return jsonResponse(
             {
