@@ -32,6 +32,7 @@ const CACHE_TTL = 86400; // 24 hours
 const WIKIPEDIA_CACHE_TTL = 604800; // 7 days
 const MAX_MODELS_PER_KIND = 300; // Keep the catalog focused on popular vehicles
 const WIKIPEDIA_CACHE_VERSION = "v20";
+const WIKIMEDIA_IMAGE_LOOKUP_TIMEOUT_MS = 1600;
 
 const WIKIPEDIA_API =
     "https://en.wikipedia.org/w/api.php";
@@ -4076,7 +4077,8 @@ const WIKIPEDIA_KIND_SEARCH_TERMS = {
     ],
     van: [
         "van", "minivan", "panel van", "cargo van",
-        "microvan", "people carrier", "light commercial vehicle"
+        "microvan", "people carrier", "light commercial vehicle",
+        "commercial vehicle", "multi-purpose vehicle", "mpv"
     ],
     truck: [
         "truck", "lorry", "pickup truck", "heavy truck",
@@ -4085,7 +4087,7 @@ const WIKIPEDIA_KIND_SEARCH_TERMS = {
     bus: [
         "bus", "coach", "transit bus", "city bus",
         "double-decker", "shuttle bus", "school bus",
-        "minibus"
+        "minibus", "public transport", "passenger transport"
     ]
 };
 
@@ -4259,7 +4261,7 @@ function hasStrongWikipediaKindContradiction(
 
     return (
         positiveCount === 0 &&
-        contradictionCount >= 1
+        contradictionCount >= 2
     );
 }
 
@@ -5568,12 +5570,31 @@ async function handleDetails(
             }
         );
 
+    /*
+     * Image/license validation is deliberately secondary to the vehicle
+     * information itself. Do not make Wikipedia specifications wait on a
+     * slow Wikimedia Commons request. A fast Commons response is still
+     * included; otherwise the vehicle can render with an image placeholder
+     * and the technical data can still qualify it for Popular.
+     */
+    const commercialImageWithTimeout =
+        Promise.race([
+            commercialImagePromise,
+            new Promise(
+                resolve =>
+                    setTimeout(
+                        () => resolve(null),
+                        WIKIMEDIA_IMAGE_LOOKUP_TIMEOUT_MS
+                    )
+            )
+        ]);
+
     const [
         wikipediaData,
         initialCommercialImage
     ] = await Promise.all([
         wikipediaDataPromise,
-        commercialImagePromise
+        commercialImageWithTimeout
     ]);
 
     let specifications =
