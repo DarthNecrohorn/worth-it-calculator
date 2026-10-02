@@ -779,8 +779,13 @@ export async function onRequestGet(context) {
                         "",
 
                     image:
-                        article.image_url ||
-                        "",
+                        String(
+                            article.image_url ||
+                            ""
+                        ).replace(
+                            /^http:\/\//i,
+                            "https://"
+                        ),
 
                     publishedAt:
                         article.pubDate ||
