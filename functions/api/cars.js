@@ -5586,6 +5586,13 @@ async function handleDetails(
      * included; otherwise the vehicle can render with an image placeholder
      * and the technical data can still qualify it for Popular.
      */
+    const imageLookupTimeoutMs =
+        kind === "motorcycle" ||
+        kind === "van" ||
+        kind === "truck"
+            ? 5000
+            : WIKIMEDIA_IMAGE_LOOKUP_TIMEOUT_MS;
+
     const commercialImageWithTimeout =
         Promise.race([
             commercialImagePromise,
@@ -5593,7 +5600,7 @@ async function handleDetails(
                 resolve =>
                     setTimeout(
                         () => resolve(null),
-                        WIKIMEDIA_IMAGE_LOOKUP_TIMEOUT_MS
+                        imageLookupTimeoutMs
                     )
             )
         ]);
