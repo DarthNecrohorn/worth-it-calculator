@@ -1424,6 +1424,21 @@ function getVehicleDetailsCacheKey(
 }
 
 
+function getVehicleDetailsRequestVersion(
+    kind
+) {
+
+    return (
+        kind === "motorcycle" ||
+        kind === "van" ||
+        kind === "truck"
+    )
+        ? "v21"
+        : VEHICLE_DETAILS_CACHE_VERSION;
+
+}
+
+
 async function fetchVehicleDetailsWithRetry(
     make,
     model,
@@ -1522,7 +1537,16 @@ async function fetchVehicleDetails(
             kind
         );
 
-    if (persistentDetails) {
+    const shouldRefreshOptionalImage =
+        (
+            kind === "motorcycle" ||
+            kind === "van" ||
+            kind === "truck"
+        ) &&
+        persistentDetails &&
+        !persistentDetails.image;
+
+    if (persistentDetails && !shouldRefreshOptionalImage) {
 
         vehicleDetailsCache.set(
             cacheKey,
@@ -1664,7 +1688,7 @@ async function fetchVehicleDetails(
 
                     response =
                         await fetch(
-                            `${VEHICLE_API}?${params.toString()}&v=${VEHICLE_DETAILS_CACHE_VERSION}`,
+                            `${VEHICLE_API}?${params.toString()}&v=${getVehicleDetailsRequestVersion(kind)}`,
                             {
                                 headers: {
                                     "Accept":
