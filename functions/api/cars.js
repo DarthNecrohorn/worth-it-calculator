@@ -4076,7 +4076,8 @@ const WIKIPEDIA_KIND_SEARCH_TERMS = {
     ],
     van: [
         "van", "minivan", "panel van", "cargo van",
-        "microvan", "people carrier", "light commercial vehicle"
+        "microvan", "people carrier", "light commercial vehicle",
+        "commercial vehicle", "multi-purpose vehicle", "mpv"
     ],
     truck: [
         "truck", "lorry", "pickup truck", "heavy truck",
@@ -4085,7 +4086,7 @@ const WIKIPEDIA_KIND_SEARCH_TERMS = {
     bus: [
         "bus", "coach", "transit bus", "city bus",
         "double-decker", "shuttle bus", "school bus",
-        "minibus"
+        "minibus", "public transport", "passenger transport"
     ]
 };
 
@@ -4259,7 +4260,7 @@ function hasStrongWikipediaKindContradiction(
 
     return (
         positiveCount === 0 &&
-        contradictionCount >= 1
+        contradictionCount >= 2
     );
 }
 
