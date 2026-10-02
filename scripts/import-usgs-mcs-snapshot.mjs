@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 
 const SOURCE_URL =
-    "https://www.sciencebase.gov/catalog/file/get/696a75d5d4be0228872d3bf8/MCS2026_Commodities_Data.csv";
+    "https://www.sciencebase.gov/catalog/file/get/696a75d5d4be0228872d3bf8?name=MCS2026_Commodities_Data.csv";
 
 const OUTPUT_PATH =
     "data/markets/usgs/MCS2026_Commodities_Data.csv";
