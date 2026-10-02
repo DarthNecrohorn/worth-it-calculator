@@ -11319,7 +11319,7 @@ async function openCars() {
     currentVehicleCatalog =
         vehicles;
 
-    updateCarsLastUpdated(kind);
+    updateCarsLastUpdated("car");
 
     await loadAndRenderPopularVehicles(
         "car",
