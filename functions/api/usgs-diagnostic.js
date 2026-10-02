@@ -88,9 +88,9 @@ function decodeDataUriScript(value) {
 function extractScriptClues(scripts) {
     const clues = new Set();
     const patterns = [
-        /https?:\\/\\/[^"'\\s)]+/gi,
-        /(?:fetch|axios|XMLHttpRequest)\\s*\\([^)]{0,300}/gi,
-        /(?:/api/|graphql|download|resource|metadata|datacatalog|search)[^"'\\s]{0,250}/gi
+        /https?:\/\/[^"'\s)]+/gi,
+        /(?:fetch|axios|XMLHttpRequest)\s*\([^)]{0,300}/gi,
+        /(?:\/api\/|graphql|download|resource|metadata|datacatalog|search)[^"'\s]{0,250}/gi
     ];
 
     for (const script of scripts || []) {
