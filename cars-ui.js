@@ -1426,6 +1426,21 @@ function getVehicleDetailsCacheKey(
 }
 
 
+function getVehicleDetailsRequestVersion(
+    kind
+) {
+
+    return (
+        kind === "motorcycle" ||
+        kind === "van" ||
+        kind === "truck"
+    )
+        ? "v21"
+        : VEHICLE_DETAILS_CACHE_VERSION;
+
+}
+
+
 async function fetchVehicleDetailsWithRetry(
     make,
     model,
@@ -1681,7 +1696,7 @@ async function fetchVehicleDetails(
 
                     response =
                         await fetch(
-                            `${VEHICLE_API}?${params.toString()}&v=${VEHICLE_DETAILS_CACHE_VERSION}`,
+                            `${VEHICLE_API}?${params.toString()}&v=${getVehicleDetailsRequestVersion(kind)}`,
                             {
                                 headers: {
                                     "Accept":
@@ -5940,11 +5955,136 @@ async function refreshPopularVehicleCategory(
         }
 
         /*
-         * Cars retain their established refresh path. Vans/Buses/etc.
-         * refresh completely in the background so the Refresh button is
-         * never held hostage by a long-running Wikipedia quality scan.
+         * Cars also refresh completely in the background. Existing validated
+         * cards stay visible while the fresh catalog and Wikipedia checks run.
          */
-        const freshCatalog = await fetchFreshVehicleCatalog(kind);
+        const refreshPromise = (async () => {
+            const freshCatalog = await fetchFreshVehicleCatalog(kind);
+
+            const refreshedCatalog =
+                freshCatalog.length
+                    ? freshCatalog
+                    : currentVehicleCatalog;
+
+            if (freshCatalog.length) {
+                vehicleCatalogCache.set(kind, refreshedCatalog);
+                currentVehicleCatalog = refreshedCatalog;
+                updateCarsLastUpdated(kind);
+            }
+
+            const candidates = getPopularVehicles(currentVehicleCatalog);
+
+            if (!candidates.length) return;
+
+            const visibleCount =
+                Math.min(
+                    POPULAR_REFRESH_CARD_COUNT,
+                    Math.max(
+                        1,
+                        getVehiclesPerRow() * INITIAL_VISIBLE_ROWS
+                    ),
+                    candidates.length
+                );
+
+            const scanCandidates =
+                getPopularQualityScanCandidates(
+                    kind,
+                    candidates
+                );
+
+            const progress = vehicle => {
+                if (
+                    currentVehicleKind !== kind ||
+                    currentVehicleMode !== "popular" ||
+                    displayState.cancelled
+                ) {
+                    return;
+                }
+
+                mergePopularValidVehiclesIntoState(
+                    kind,
+                    candidates,
+                    [vehicle]
+                );
+
+                if (!grid.querySelector('.car-card[data-popular-stable-card="true"]')) {
+                    grid.innerHTML = "";
+                }
+
+                appendStablePopularVehicleCards(
+                    kind,
+                    [vehicle],
+                    false
+                );
+
+                const state = popularVehicleQualityState.get(kind);
+
+                if (state) {
+                    renderVehicleExpandButton(
+                        state.validVehicles,
+                        state.validVehicles.slice(0, visibleCount),
+                        kind,
+                        stablePopularHasMoreVehicles(kind, visibleCount)
+                    );
+                }
+
+                hideOrShowStablePopularCards(kind, false);
+            };
+
+            const fastVehicles =
+                await collectFastPopularVehicleInformation(
+                    kind,
+                    scanCandidates,
+                    visibleCount,
+                    Math.max(
+                        POPULAR_NONCAR_INITIAL_MAX_CHECKS,
+                        visibleCount * 25
+                    ),
+                    progress,
+                    POPULAR_NONCAR_PROGRESSIVE_BUDGET_MS
+                );
+
+            if (
+                currentVehicleKind !== kind ||
+                currentVehicleMode !== "popular" ||
+                displayState.cancelled
+            ) {
+                return;
+            }
+
+            mergePopularValidVehiclesIntoState(
+                kind,
+                candidates,
+                fastVehicles
+            );
+
+            appendStablePopularVehicleCards(
+                kind,
+                fastVehicles,
+                false
+            );
+
+            const state = popularVehicleQualityState.get(kind);
+
+            if (state) {
+                renderVehicleExpandButton(
+                    state.validVehicles,
+                    state.validVehicles.slice(0, visibleCount),
+                    kind,
+                    stablePopularHasMoreVehicles(kind, visibleCount)
+                );
+            }
+
+            hideOrShowStablePopularCards(kind, false);
+
+            void continueStablePopularVehicleLoading(kind, candidates);
+            void enrichVehicleCategoryWithSupplementalSources(kind);
+        })().catch(error => {
+            console.error("Popular car background refresh failed:", error);
+        });
+
+        void refreshPromise;
+        return;
 
         if (freshCatalog.length) {
             let refreshedCatalog = freshCatalog;
@@ -6601,6 +6741,185 @@ async function loadAndRenderPopularVehicles(
 
         return;
 
+    }
+
+    if (!showAll) {
+
+        const displayState =
+            startStablePopularVehicleDisplay(
+                kind,
+                false
+            );
+
+        currentVehicleShowAll = false;
+        grid.innerHTML = "";
+
+        const initialCount =
+            Math.min(
+                MAX_VEHICLES_PER_CATEGORY,
+                Math.max(
+                    1,
+                    getVehiclesPerRow() * INITIAL_VISIBLE_ROWS
+                )
+            );
+
+        const existingState =
+            popularVehicleQualityState.get(kind);
+
+        const restoredVehicles =
+            Array.isArray(existingState?.validVehicles)
+                ? existingState.validVehicles.slice(0, initialCount)
+                : [];
+
+        if (restoredVehicles.length) {
+            appendStablePopularVehicleCards(
+                kind,
+                restoredVehicles,
+                false
+            );
+        } else {
+            grid.innerHTML =
+                '<div class="cars-empty-state">' +
+                '<div class="cars-empty-icon">🚗</div>' +
+                '<strong>Checking popular cars...</strong>' +
+                '<p>Reliable vehicle information is being checked and cards will appear as soon as each result is verified.</p>' +
+                '</div>';
+        }
+
+        const scanCandidates =
+            getPopularQualityScanCandidates(
+                kind,
+                candidates
+            );
+
+        const remainingTarget =
+            Math.max(
+                0,
+                initialCount - restoredVehicles.length
+            );
+
+        const progress =
+            vehicle => {
+
+                if (
+                    currentVehicleKind !== kind ||
+                    currentVehicleMode !== "popular" ||
+                    displayState.cancelled
+                ) {
+                    return;
+                }
+
+                mergePopularValidVehiclesIntoState(
+                    kind,
+                    candidates,
+                    [vehicle]
+                );
+
+                if (!grid.querySelector('.car-card[data-popular-stable-card="true"]')) {
+                    grid.innerHTML = "";
+                }
+
+                appendStablePopularVehicleCards(
+                    kind,
+                    [vehicle],
+                    false
+                );
+
+                const state =
+                    popularVehicleQualityState.get(kind);
+
+                if (state) {
+                    renderVehicleExpandButton(
+                        state.validVehicles,
+                        state.validVehicles.slice(0, initialCount),
+                        kind,
+                        stablePopularHasMoreVehicles(
+                            kind,
+                            initialCount
+                        )
+                    );
+                }
+
+                hideOrShowStablePopularCards(
+                    kind,
+                    false
+                );
+            };
+
+        if (remainingTarget > 0) {
+            void collectFastPopularVehicleInformation(
+                kind,
+                scanCandidates,
+                remainingTarget,
+                Math.max(
+                    POPULAR_NONCAR_INITIAL_MAX_CHECKS,
+                    initialCount * 25
+                ),
+                progress,
+                POPULAR_NONCAR_PROGRESSIVE_BUDGET_MS
+            ).then(
+                validVehicles => {
+
+                    if (
+                        currentVehicleKind !== kind ||
+                        currentVehicleMode !== "popular" ||
+                        displayState.cancelled
+                    ) {
+                        return;
+                    }
+
+                    mergePopularValidVehiclesIntoState(
+                        kind,
+                        candidates,
+                        validVehicles
+                    );
+
+                    appendStablePopularVehicleCards(
+                        kind,
+                        validVehicles,
+                        false
+                    );
+
+                    const state =
+                        popularVehicleQualityState.get(kind);
+
+                    if (state) {
+                        renderVehicleExpandButton(
+                            state.validVehicles,
+                            state.validVehicles.slice(0, initialCount),
+                            kind,
+                            stablePopularHasMoreVehicles(
+                                kind,
+                                initialCount
+                            )
+                        );
+                    }
+
+                    hideOrShowStablePopularCards(
+                        kind,
+                        false
+                    );
+                }
+            ).catch(
+                error => {
+                    console.warn(
+                        "Progressive Cars initial loading failed:",
+                        error
+                    );
+                }
+            );
+        }
+
+        void continueStablePopularVehicleLoading(
+            kind,
+            candidates
+        );
+
+        void enrichVehicleCategoryWithSupplementalSources(
+            kind
+        );
+
+        return;
     }
 
     const displayState =
