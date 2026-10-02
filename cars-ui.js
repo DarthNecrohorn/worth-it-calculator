@@ -10983,7 +10983,7 @@ async function filterCarsByCategory(
     currentVehicleCatalog =
         vehicles;
 
-    updateCarsLastUpdated(kind);
+    updateCarsLastUpdated("car");
 
     await loadAndRenderPopularVehicles(
         kind,
