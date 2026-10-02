@@ -146,10 +146,10 @@ const VOLTLAS_SOURCE_CACHE_KEY =
     "https://worth-it-internal-cache.local/markets-voltlas-v3.json";
 
 const USGS_SOURCE_CACHE_KEY =
-    "https://worth-it-internal-cache.local/markets-usgs-mcs-v2.json";
+    "https://worth-it-internal-cache.local/markets-usgs-mcs-v3.json";
 
 const USGS_DISCOVERY_CACHE_KEY =
-    "https://worth-it-internal-cache.local/markets-usgs-discovery-v2.json";
+    "https://worth-it-internal-cache.local/markets-usgs-discovery-v3.json";
 
 const EIA_SOURCE_CACHE_PREFIX =
     "https://worth-it-internal-cache.local/markets-eia-series-v3/";
@@ -161,7 +161,7 @@ const USDA_NASS_PRICE_FILE_CACHE_PREFIX =
     "https://worth-it-internal-cache.local/markets-usda-nass-price-file-v2/";
 
 const MARKETS_RESULT_CACHE_KEY =
-    "https://worth-it-internal-cache.local/markets-multisource-v5.json";
+    "https://worth-it-internal-cache.local/markets-multisource-v6.json";
 
 
 /* =========================================================
