@@ -1,5 +1,18 @@
 import { recordAdminApiUsage } from "../lib/admin-usage.js";
 
+function normalizeNewsImageUrl(value) {
+
+    return String(
+        value || ""
+    )
+        .trim()
+        .replace(
+            /^http:\/\//i,
+            "https://"
+        );
+
+}
+
 export async function onRequestGet(context) {
 
     const apiKey =
@@ -72,7 +85,7 @@ export async function onRequestGet(context) {
 
 
     const cacheKeyUrl =
-        `${requestUrl.origin}${requestUrl.pathname}/?news-cache=v10`;
+        `${requestUrl.origin}${requestUrl.pathname}/?news-cache=v11`;
 
 
     const cacheKey =
@@ -1084,8 +1097,9 @@ export async function onRequestGet(context) {
                             "",
 
                         image:
-                            row.image ||
-                            "",
+                            normalizeNewsImageUrl(
+                                row.image
+                            ),
 
                         publishedAt:
                             row.published_at ||
@@ -1233,7 +1247,9 @@ export async function onRequestGet(context) {
                             articleUrl,
                             article.title || "",
                             article.description || "",
-                            article.image || "",
+                            normalizeNewsImageUrl(
+                                article.image
+                            ),
                             article.publishedAt || "",
                             article.source || "",
                             now - newArticleIndex++
@@ -1334,8 +1350,9 @@ export async function onRequestGet(context) {
                         "",
 
                     image:
-                        row.image ||
-                        "",
+                        normalizeNewsImageUrl(
+                            row.image
+                        ),
 
                     publishedAt:
                         row.published_at ||
@@ -1465,8 +1482,9 @@ export async function onRequestGet(context) {
                                                 "",
 
                                             image:
-                                                row.image ||
-                                                "",
+                                                normalizeNewsImageUrl(
+                                                    row.image
+                                                ),
 
                                             publishedAt:
                                                 row.published_at ||

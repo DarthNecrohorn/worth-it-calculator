@@ -474,8 +474,10 @@ const POPULAR_NONCAR_QUALITY_BATCH_SIZE = 12;
 const POPULAR_NONCAR_INITIAL_MAX_CHECKS = 72;
 
 const POPULAR_REFRESH_CARD_COUNT = 8;
-const POPULAR_REFRESH_MAX_CHECKS = 96;
+const POPULAR_REFRESH_MAX_CHECKS = 72;
 const POPULAR_REFRESH_CONCURRENCY = 12;
+
+const PERSISTENT_VEHICLE_DETAILS_MAX_ENTRIES = 40;
 
 function getPopularDetailsConcurrency(kind) {
     return kind === "car"
@@ -896,17 +898,94 @@ function writePersistentVehicleDetails(
                 )
         };
 
-        localStorage.setItem(
+        const storageKey =
             getVehiclePersistentDetailsKey(
                 owner,
                 make,
                 model,
                 kind
-            ),
-            JSON.stringify(
-                compact
-            )
-        );
+            );
+
+        const cachePrefix =
+            [
+                "worthItVehicleDetails",
+                VEHICLE_PERSISTENT_CACHE_VERSION,
+                String(owner)
+            ].join(":") + ":";
+
+        const cacheKeys = [];
+
+        for (
+            let index = 0;
+            index < localStorage.length;
+            index += 1
+        ) {
+
+            const key =
+                localStorage.key(index);
+
+            if (
+                key &&
+                key.startsWith(cachePrefix) &&
+                key !== storageKey
+            ) {
+                cacheKeys.push(key);
+            }
+
+        }
+
+        while (
+            cacheKeys.length >=
+            PERSISTENT_VEHICLE_DETAILS_MAX_ENTRIES
+        ) {
+
+            localStorage.removeItem(
+                cacheKeys.shift()
+            );
+
+        }
+
+        try {
+
+            localStorage.setItem(
+                storageKey,
+                JSON.stringify(
+                    compact
+                )
+            );
+
+        } catch (error) {
+
+            if (
+                error?.name !==
+                "QuotaExceededError"
+            ) {
+                return;
+            }
+
+            for (
+                const key of cacheKeys
+            ) {
+                localStorage.removeItem(
+                    key
+                );
+            }
+
+            try {
+
+                localStorage.setItem(
+                    storageKey,
+                    JSON.stringify(
+                        compact
+                    )
+                );
+
+            } catch {
+                /* Persistent browser caching is optional. */
+
+            }
+
+        }
 
     } catch (error) {
 
@@ -5156,10 +5235,50 @@ async function refreshPopularVehicleCategory(
 
     currentVehicleShowAll = false;
 
-    const oldQualityState = popularVehicleQualityState.get(kind);
-    const oldValidVehicles = Array.isArray(oldQualityState?.validVehicles)
-        ? oldQualityState.validVehicles.slice()
-        : [];
+    const oldQualityState =
+        popularVehicleQualityState.get(
+            kind
+        );
+
+    let oldValidVehicles =
+        Array.isArray(
+            oldQualityState?.validVehicles
+        )
+            ? oldQualityState.validVehicles.slice()
+            : [];
+
+    /*
+     * Recover already validated non-car vehicles before the fresh catalog
+     * request so refresh does not leave Bus/Truck/etc. blank.
+     */
+    if (
+        kind !== "car" &&
+        !oldValidVehicles.length
+    ) {
+
+        const cachedCandidates =
+            getPopularVehicles(
+                currentVehicleCatalog
+            );
+
+        await restorePersistentPopularVehicles(
+            kind,
+            cachedCandidates
+        );
+
+        const restoredState =
+            popularVehicleQualityState.get(
+                kind
+            );
+
+        oldValidVehicles =
+            Array.isArray(
+                restoredState?.validVehicles
+            )
+                ? restoredState.validVehicles.slice()
+                : [];
+
+    }
 
     const oldDisplayState = getStablePopularDisplayState(kind);
     if (oldDisplayState) oldDisplayState.cancelled = true;
