@@ -342,6 +342,47 @@ export async function onRequestGet() {
     }
 
     /*
+     * MCS 2026 has a parent ScienceBase release item plus child SDC
+     * records. Test the parent and the second child because the exact
+     * commodity CSV is listed as an attachment on the release record.
+     */
+    const catalogDownloadCandidates = [
+        {
+            label: "parent-release",
+            url:
+                "https://data.usgs.gov/datacatalog/data/USGS%3A696a75d5d4be0228872d3bf8/download/MCS2026_Commodities_Data.csv"
+        },
+        {
+            label: "parent-release-unencoded",
+            url:
+                "https://data.usgs.gov/datacatalog/data/USGS:696a75d5d4be0228872d3bf8/download/MCS2026_Commodities_Data.csv"
+        },
+        {
+            label: "industry-child",
+            url:
+                "https://data.usgs.gov/datacatalog/data/USGS%3A69837ec8b66b01367d7ec7d9/download/MCS2026_Mineral_Industry_Trends_and_Salient_Statistics.zip"
+        },
+        {
+            label: "commodity-child",
+            url:
+                "https://data.usgs.gov/datacatalog/data/USGS%3A69837e43b66b01367d7ec7c7/download/MCS2026_Commodities_Data.csv"
+        }
+    ];
+
+    results.tests.catalogDownloadCandidates = [];
+
+    for (const candidate of catalogDownloadCandidates) {
+        results.tests.catalogDownloadCandidates.push({
+            label: candidate.label,
+            ...(await probe(candidate.url, {
+                accept:
+                    "text/csv,application/zip,application/octet-stream,text/plain,*/*",
+                readBody: true
+            }))
+        });
+    }
+
+    /*
      * Also test the CKAN-compatible catalog API shape discovered in
      * independent USGS tooling. This is discovery-only; Markets does not
      * use it yet.
