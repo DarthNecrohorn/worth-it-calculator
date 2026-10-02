@@ -4230,19 +4230,79 @@ async function getUSGSReleaseInfoMultiSource(
     const fileName =
         `MCS${year}_Commodities_Data.csv`;
 
-
-    const knownFileUrls = {
-
-        2026:
-            "https://www.sciencebase.gov/catalog/file/get/69837e43b66b01367d7ec7c7?f=__disk__d3%2Fac%2F84%2Fd3ac8466552946c5e8caa2c2c6338d9e1aff655d"
-
-    };
-
-    const fileUrl =
-        knownFileUrls[
-            year
-        ] ||
+    /*
+     * ScienceBase file URLs can contain a generated disk path that may
+     * become stale and start returning HTTP 403. Resolve the currently
+     * attached file from the item's live sbJSON instead of keeping a
+     * permanent hard-coded download URL.
+     */
+    let fileUrl =
         `${USGS_SCIENCEBASE_FILE_PREFIX}${scienceBaseItemId}?name=${encodeURIComponent(fileName)}`;
+
+    try {
+
+        const itemResponse =
+            await fetch(
+                `https://www.sciencebase.gov/catalog/item/${scienceBaseItemId}?format=json`,
+                {
+                    headers: {
+                        "Accept":
+                            "application/json",
+                        "User-Agent":
+                            WIKIMEDIA_USER_AGENT
+                    }
+                }
+            );
+
+        if (
+            itemResponse.ok
+        ) {
+
+            const itemData =
+                await itemResponse.json();
+
+            const attachedFile =
+                Array.isArray(
+                    itemData?.files
+                )
+                    ? itemData.files.find(
+                        file =>
+                            String(
+                                file?.name ||
+                                    ""
+                            ).trim() ===
+                            fileName
+                    )
+                    : null;
+
+            if (
+                attachedFile?.url
+            ) {
+
+                fileUrl =
+                    attachedFile.url;
+
+            }
+
+        }
+        else {
+
+            console.warn(
+                `USGS ScienceBase item metadata failed with status ${itemResponse.status}; using the standard file endpoint.`
+            );
+
+        }
+
+    }
+    catch (error) {
+
+        console.warn(
+            "USGS ScienceBase file URL discovery failed; using the standard file endpoint:",
+            error
+        );
+
+    }
+
 
 
     const result = {
