@@ -37,6 +37,16 @@ async function fetchText(url, accept = "*/*") {
     }
 }
 
+function decodeXml(value) {
+    return value
+        .replace(/&amp;/g, "&")
+        .replace(/&quot;/g, '"')
+        .replace(/&#x2F;/gi, "/")
+        .replace(/&#47;/g, "/")
+        .replace(/&lt;/g, "<")
+        .replace(/&gt;/g, ">");
+}
+
 function extractResourceCandidates(body) {
     if (!body) return [];
 
@@ -45,28 +55,91 @@ function extractResourceCandidates(body) {
     const add = value => {
         if (!value) return;
 
-        const decoded = value
-            .replace(/&amp;/g, "&")
-            .replace(/&quot;/g, '"')
-            .replace(/&#x2F;/gi, "/")
-            .replace(/&#47;/g, "/");
+        const decoded = decodeXml(value.trim());
 
         if (
             /MCS2026/i.test(decoded) ||
             /Commodities_Data\.csv/i.test(decoded) ||
             /sciencebase\.gov/i.test(decoded) ||
-            /data\.usgs\.gov/i.test(decoded)
+            /data\.usgs\.gov/i.test(decoded) ||
+            /doi\.org/i.test(decoded)
         ) {
             candidates.add(decoded);
         }
     };
 
     for (const match of body.matchAll(/https?:[^"'<>\s]+/gi)) add(match[0]);
-    for (const match of body.matchAll(/(?:href|src|content|url|downloadurl)\s*=\s*["']([^"']+)["']/gi)) {
+    for (const match of body.matchAll(/(?:href|src|content|url|downloadurl|linkage)\s*=\s*["']([^"']+)["']/gi)) {
         add(match[1]);
     }
 
     return Array.from(candidates).slice(0, 100);
+}
+
+function extractDistributionDetails(xml) {
+    if (!xml) {
+        return {
+            sections: [],
+            urls: [],
+            fileNames: [],
+            relevantLines: []
+        };
+    }
+
+    const sections = [];
+    const urls = new Set();
+    const fileNames = new Set();
+    const relevantLines = [];
+
+    const distributionMatch = xml.match(/<distinfo[\s\S]*?<\/distinfo>/i);
+    if (distributionMatch) sections.push(decodeXml(distributionMatch[0]));
+
+    for (const match of xml.matchAll(/https?:[^"'<>\s]+/gi)) {
+        const url = decodeXml(match[0]);
+        urls.add(url);
+    }
+
+    for (const match of xml.matchAll(/<[^>]*(?:linkage|networka|networkr|onlink|name|title)[^>]*>([\s\S]*?)<\//gi)) {
+        const value = decodeXml(match[1].replace(/<[^>]+>/g, "").trim());
+        if (!value) continue;
+
+        if (
+            /MCS2026/i.test(value) ||
+            /Commodities_Data\.csv/i.test(value) ||
+            /\.csv(?:$|\?)/i.test(value) ||
+            /\.zip(?:$|\?)/i.test(value) ||
+            /sciencebase\.gov/i.test(value) ||
+            /data\.usgs\.gov/i.test(value) ||
+            /doi\.org/i.test(value)
+        ) {
+            relevantLines.push(value);
+        }
+
+        if (/\.csv(?:$|\?)/i.test(value) || /\.zip(?:$|\?)/i.test(value)) {
+            fileNames.add(value);
+        }
+    }
+
+    for (const line of xml.split(/\r?\n/)) {
+        if (
+            /MCS2026/i.test(line) ||
+            /Commodities_Data\.csv/i.test(line) ||
+            /<distinfo/i.test(line) ||
+            /<stdorder/i.test(line) ||
+            /<networkr/i.test(line) ||
+            /<networka/i.test(line) ||
+            /<linkage/i.test(line)
+        ) {
+            relevantLines.push(decodeXml(line.trim()));
+        }
+    }
+
+    return {
+        sections: sections.slice(0, 5),
+        urls: Array.from(urls).slice(0, 100),
+        fileNames: Array.from(fileNames).slice(0, 100),
+        relevantLines: Array.from(new Set(relevantLines)).slice(0, 200)
+    };
 }
 
 async function probe(url, options = {}) {
@@ -127,7 +200,8 @@ export async function onRequestGet() {
         finalUrl: metadataXml.finalUrl,
         contentType: metadataXml.contentType,
         contentLength: metadataXml.contentLength,
-        resourceCandidates: extractResourceCandidates(metadataXml.body)
+        resourceCandidates: extractResourceCandidates(metadataXml.body),
+        distribution: extractDistributionDetails(metadataXml.body)
     };
 
     results.tests.legacyScienceBase = await probe(
