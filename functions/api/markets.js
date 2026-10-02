@@ -74,6 +74,9 @@ const USGS_LICENSE_URL =
 const USGS_SCIENCEBASE_FILE_PREFIX =
     "https://www.sciencebase.gov/catalog/file/get/";
 
+const USGS_MCS_SNAPSHOT_URL =
+    "https://raw.githubusercontent.com/DarthNecrohorn/worth-it-calculator/main/data/markets/usgs/MCS2026_Commodities_Data.csv";
+
 const VOLTLAS_DATA_URL =
     "https://voltlas.com/data/latest.json";
 
@@ -146,10 +149,10 @@ const VOLTLAS_SOURCE_CACHE_KEY =
     "https://worth-it-internal-cache.local/markets-voltlas-v3.json";
 
 const USGS_SOURCE_CACHE_KEY =
-    "https://worth-it-internal-cache.local/markets-usgs-mcs-v3.json";
+    "https://worth-it-internal-cache.local/markets-usgs-mcs-v4.json";
 
 const USGS_DISCOVERY_CACHE_KEY =
-    "https://worth-it-internal-cache.local/markets-usgs-discovery-v3.json";
+    "https://worth-it-internal-cache.local/markets-usgs-discovery-v4.json";
 
 const EIA_SOURCE_CACHE_PREFIX =
     "https://worth-it-internal-cache.local/markets-eia-series-v3/";
@@ -161,7 +164,7 @@ const USDA_NASS_PRICE_FILE_CACHE_PREFIX =
     "https://worth-it-internal-cache.local/markets-usda-nass-price-file-v2/";
 
 const MARKETS_RESULT_CACHE_KEY =
-    "https://worth-it-internal-cache.local/markets-multisource-v7.json";
+    "https://worth-it-internal-cache.local/markets-multisource-v8.json";
 
 
 /* =========================================================
@@ -4034,276 +4037,28 @@ async function getUSGSReleaseInfoMultiSource(
     }
 
 
-    const pageResponse =
-        await fetch(
-            USGS_DATA_PAGE,
-            {
-                headers: {
-                    "Accept":
-                        "text/html,application/xhtml+xml",
-                    "User-Agent":
-                        WIKIMEDIA_USER_AGENT
-                }
-            }
-        );
-
-
-    if (
-        !pageResponse.ok
-    ) {
-
-        throw new Error(
-            `USGS NMIC data page failed with status ${pageResponse.status}.`
-        );
-
-    }
-
-
-    const html =
-        await pageResponse.text();
-
-
-    const releaseMatch =
-        html.match(
-            /Mineral Commodity Summaries\s+(\d{4})\s+Data Release/i
-        );
-
-
-    if (
-        !releaseMatch
-    ) {
-
-        throw new Error(
-            "Unable to discover current USGS MCS release year."
-        );
-
-    }
-
-
+    /*
+     * ScienceBase blocks direct runtime requests from the Cloudflare
+     * Worker with HTTP 403. A GitHub Actions runner refreshes the exact
+     * official USGS CSV into a versioned project snapshot instead.
+     *
+     * The runtime therefore reads our own immutable repository copy,
+     * while the provenance remains the official USGS MCS 2026 release.
+     */
     const year =
-        Number(
-            releaseMatch[1]
-        );
-
-
-    const releasePage =
-        `https://www.usgs.gov/data/mineral-commodity-summaries-${year}-data-release`;
-
-
-    const releaseResponse =
-        await fetch(
-            releasePage,
-            {
-                headers: {
-                    "Accept":
-                        "text/html,application/xhtml+xml",
-                    "User-Agent":
-                        WIKIMEDIA_USER_AGENT
-                }
-            }
-        );
-
-
-    if (
-        !releaseResponse.ok
-    ) {
-
-        throw new Error(
-            `USGS release page failed with status ${releaseResponse.status}.`
-        );
-
-    }
-
-
-    const releaseHtml =
-        await releaseResponse.text();
-
-
-    const doiMatch =
-        releaseHtml.match(
-            /https:\/\/doi\.org\/(10\.5066\/[A-Z0-9]+)/i
-        );
-
+        2026;
 
     const doi =
-        doiMatch?.[1] ||
-        null;
+        "10.5066/P1WKQ63T";
 
+    const releasePage =
+        "https://www.usgs.gov/data/mineral-commodity-summaries-2026-data-release";
 
-    let scienceBaseItemId =
-        null;
-
-
-    const directScienceBaseMatch =
-        releaseHtml.match(
-            /sciencebase\.gov\/catalog\/(?:item|file)\/(?:get\/)?([a-f0-9]{24})/i
-        );
-
-
-    scienceBaseItemId =
-        directScienceBaseMatch?.[1] ||
-        null;
-
-
-    try {
-
-        if (
-            doi
-        ) {
-
-            const doiResponse =
-                await fetch(
-                    `https://doi.org/${doi}`,
-                    {
-                        redirect:
-                            "follow",
-                        headers: {
-                            "Accept":
-                                "text/html,application/xhtml+xml",
-                            "User-Agent":
-                                WIKIMEDIA_USER_AGENT
-                        }
-                    }
-                );
-
-
-            const finalUrl =
-                doiResponse.url ||
-                "";
-
-            const finalHtml =
-                await doiResponse.text();
-
-
-            const itemIdMatch =
-                `${finalUrl}\n${finalHtml}`.match(
-                    /sciencebase\.gov\/catalog\/(?:item|file)\/([a-f0-9]{24})/i
-                );
-
-
-            scienceBaseItemId =
-                itemIdMatch?.[1] ||
-                null;
-
-        }
-
-    }
-    catch (error) {
-
-        console.warn(
-            "USGS ScienceBase item discovery failed:",
-            error
-        );
-
-    }
-
-
-    if (
-        !scienceBaseItemId &&
-        year === 2026
-    ) {
-
-        /*
-         * The 2026 commodity CSV is attached to the current
-         * ScienceBase child item used by the USGS data catalog.
-         * The parent release item is still useful for citation,
-         * but the parent item path currently returns HTTP 403
-         * for the CSV download.
-         */
-        scienceBaseItemId =
-            "69837e43b66b01367d7ec7c7";
-
-    }
-
-
-    if (
-        !scienceBaseItemId
-    ) {
-
-        throw new Error(
-            "Unable to discover current USGS ScienceBase item ID."
-        );
-
-    }
-
+    const scienceBaseItemId =
+        "696a75d5d4be0228872d3bf8";
 
     const fileName =
-        `MCS${year}_Commodities_Data.csv`;
-
-    /*
-     * ScienceBase file URLs can contain a generated disk path that may
-     * become stale and start returning HTTP 403. Resolve the currently
-     * attached file from the item's live sbJSON instead of keeping a
-     * permanent hard-coded download URL.
-     */
-    let fileUrl =
-        `${USGS_SCIENCEBASE_FILE_PREFIX}${scienceBaseItemId}?name=${encodeURIComponent(fileName)}`;
-
-    try {
-
-        const itemResponse =
-            await fetch(
-                `https://www.sciencebase.gov/catalog/item/${scienceBaseItemId}?format=json`,
-                {
-                    headers: {
-                        "Accept":
-                            "application/json",
-                        "User-Agent":
-                            WIKIMEDIA_USER_AGENT
-                    }
-                }
-            );
-
-        if (
-            itemResponse.ok
-        ) {
-
-            const itemData =
-                await itemResponse.json();
-
-            const attachedFile =
-                Array.isArray(
-                    itemData?.files
-                )
-                    ? itemData.files.find(
-                        file =>
-                            String(
-                                file?.name ||
-                                    ""
-                            ).trim() ===
-                            fileName
-                    )
-                    : null;
-
-            if (
-                attachedFile?.url
-            ) {
-
-                fileUrl =
-                    attachedFile.url;
-
-            }
-
-        }
-        else {
-
-            console.warn(
-                `USGS ScienceBase item metadata failed with status ${itemResponse.status}; using the standard file endpoint.`
-            );
-
-        }
-
-    }
-    catch (error) {
-
-        console.warn(
-            "USGS ScienceBase file URL discovery failed; using the standard file endpoint:",
-            error
-        );
-
-    }
-
-
+        "MCS2026_Commodities_Data.csv";
 
     const result = {
 
@@ -4317,10 +4072,14 @@ async function getUSGSReleaseInfoMultiSource(
 
         fileName,
 
-        fileUrl,
+        fileUrl:
+            USGS_MCS_SNAPSHOT_URL,
+
+        officialSourceUrl:
+            releasePage,
 
         source:
-            `U.S. Geological Survey, Mineral Commodity Summaries`,
+            "U.S. Geological Survey, Mineral Commodity Summaries",
 
         license:
             "CC0 1.0",
@@ -4356,7 +4115,6 @@ async function getUSGSReleaseInfoMultiSource(
 
     return result;
 }
-
 
 function parseCSVText(
     text
