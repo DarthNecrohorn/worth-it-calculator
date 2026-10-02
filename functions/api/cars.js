@@ -4860,23 +4860,21 @@ async function getCommercialWikimediaImage(
         }
 
         /*
-         * Require the complete make + model phrase in the actual
-         * Wikimedia source URL after normalization. This blocks
-         * generic or only-partially-matching vehicle images even when
-         * their license is otherwise acceptable.
+         * Keep Cars and Buses on the strict filename identity check.
+         * Motorcycles, Vans and Trucks also accept a Commons file title
+         * match when the generated file URL omits the complete model name.
          */
-        /*
-         * Cars keep the strict filename identity check. For non-car
-         * categories, the image is already the selected Wikipedia
-         * page image for an identity-matched vehicle article, and many
-         * legitimate Commons filenames do not contain the full model name.
-         */
-        if (
-            kind === "car" &&
-            !isVehicleImageUrlMatchingName(
+        const strictImageMatch =
+            isVehicleImageUrlMatchingName(
                 imageInfo.url,
                 make,
                 model
+            );
+
+        if (
+            !strictImageMatch &&
+            !["motorcycle", "van", "truck"].includes(
+                String(kind || "").toLowerCase()
             )
         ) {
             console.info(
@@ -4887,6 +4885,39 @@ async function getCommercialWikimediaImage(
                 imageInfo.url
             );
             return null;
+        }
+
+        if (
+            !strictImageMatch &&
+            ["motorcycle", "van", "truck"].includes(
+                String(kind || "").toLowerCase()
+            )
+        ) {
+            const imageTitleText =
+                normalizeVehicleImageMatchText(title);
+
+            const vehicleMakeText =
+                normalizeVehicleImageMatchText(make);
+
+            const vehicleModelText =
+                normalizeVehicleImageMatchText(model);
+
+            const titleBasedMatch =
+                vehicleMakeText &&
+                vehicleModelText &&
+                imageTitleText.includes(vehicleMakeText) &&
+                imageTitleText.includes(vehicleModelText);
+
+            if (!titleBasedMatch) {
+                console.info(
+                    "Wikimedia image blocked by vehicle-name match filter:",
+                    title,
+                    make,
+                    model,
+                    imageInfo.url
+                );
+                return null;
+            }
         }
 
         const license =
@@ -5536,10 +5567,21 @@ async function handleDetails(
      */
     if (
         kind !== "car" &&
-        hasStrongWikipediaKindContradiction(
-            page.title,
-            page.description,
-            kind
+        (
+            hasStrongWikipediaKindContradiction(
+                page.title,
+                page.description,
+                kind
+            ) ||
+            (
+                kind === "bus" &&
+                /(?:light commercial vehicle|\bvan\b|\bpanel van\b|\bcargo van\b|\bminivan\b|\btruck\b|\blorry\b|\bpickup\b|\bmotorcycle\b|\bmoped\b)/i.test(
+                    String(page.description || "")
+                ) &&
+                !/(?:\bbus\b|\bcoach\b|minibus|transit bus|city bus|double-decker|shuttle bus|school bus)/i.test(
+                    String(page.description || "")
+                )
+            )
         )
     ) {
 
