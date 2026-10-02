@@ -233,7 +233,16 @@ const WIKIMEDIA_IMAGE_CACHE_PREFIX =
     "https://worth-it-internal-cache.local/markets-wikimedia-image-v14/";
 
 const MAX_IMAGE_SEARCH_CANDIDATES =
-    100;
+    40;
+
+/*
+ * Keep each image lookup bounded even when the commodity search
+ * builder produces many fallback formulations. This prevents a
+ * single Worker invocation from approaching Cloudflare's Free-plan
+ * subrequest limit while preserving several relevance fallbacks.
+ */
+const MAX_IMAGE_SEARCH_QUERIES =
+    4;
 
 const IMAGE_SEARCH_PAGE_SIZE =
     20;
@@ -8129,6 +8138,9 @@ async function searchWikimediaImage(
         buildCommoditySearchQueries(
             commodityName,
             category
+        ).slice(
+            0,
+            MAX_IMAGE_SEARCH_QUERIES
         );
 
 
