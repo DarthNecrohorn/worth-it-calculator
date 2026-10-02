@@ -1,0 +1,11 @@
+{
+  "year": 2026,
+  "fileName": "MCS2026_Commodities_Data.csv",
+  "sourceUrl": "https://www.sciencebase.gov/catalog/file/get/696a75d5d4be0228872d3bf8?name=MCS2026_Commodities_Data.csv",
+  "sourcePage": "https://www.usgs.gov/data/mineral-commodity-summaries-2026-data-release",
+  "doi": "10.5066/P1WKQ63T",
+  "scienceBaseItemId": "696a75d5d4be0228872d3bf8",
+  "bytes": 3189010,
+  "sha256": "582a0aa231aea53d8a97dc8d1cd3dfa5f885cf3760353e3d029d7f0ae4fbaaf5",
+  "fetchedAt": "2026-10-02T11:05:35.003Z"
+}
