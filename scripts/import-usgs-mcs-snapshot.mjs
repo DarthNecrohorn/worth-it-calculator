@@ -42,7 +42,7 @@ async function main() {
         buffer
             .subarray(0, 1000)
             .toString("latin1")
-            .replace(/^\\uFEFF/, "");
+            .replace(/^\uFEFF/, "");
 
     if (!preview.startsWith(EXPECTED_HEADER)) {
         throw new Error(
