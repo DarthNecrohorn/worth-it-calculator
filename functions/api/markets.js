@@ -8986,6 +8986,228 @@ export async function onRequestGet(
 
 
     /* ---------------------------------------------------------
+       USGS DIAGNOSTIC ACTION
+       This action is intentionally limited to the USGS source.
+    --------------------------------------------------------- */
+
+    if (
+        action ===
+        "usgs-diagnostic"
+    ) {
+
+        const year =
+            new Date().getUTCFullYear();
+
+        const fileName =
+            `MCS${year}_Commodities_Data.csv`;
+
+        const scienceBaseItemId =
+            "69837e43b66b01367d7ec7c7";
+
+        const standardFileUrl =
+            `${USGS_SCIENCEBASE_FILE_PREFIX}${scienceBaseItemId}?name=${encodeURIComponent(fileName)}`;
+
+        const diagnostic = {
+            success: true,
+            year,
+            fileName,
+            scienceBaseItemId,
+            metadata: {
+                url:
+                    `https://www.sciencebase.gov/catalog/item/${scienceBaseItemId}?format=json`,
+                status:
+                    null,
+                ok:
+                    false,
+                attachedFileFound:
+                    false,
+                attachedFileName:
+                    null,
+                attachedFileUrl:
+                    null
+            },
+            standardEndpoint: {
+                url:
+                    standardFileUrl,
+                status:
+                    null,
+                ok:
+                    false
+            },
+            attachedEndpoint: {
+                url:
+                    null,
+                status:
+                    null,
+                ok:
+                    false
+            }
+        };
+
+        try {
+
+            const metadataResponse =
+                await fetch(
+                    diagnostic.metadata.url,
+                    {
+                        cache:
+                            "no-store",
+                        headers: {
+                            "Accept":
+                                "application/json",
+                            "User-Agent":
+                                WIKIMEDIA_USER_AGENT
+                        }
+                    }
+                );
+
+            diagnostic.metadata.status =
+                metadataResponse.status;
+
+            diagnostic.metadata.ok =
+                metadataResponse.ok;
+
+            if (
+                metadataResponse.ok
+            ) {
+
+                const itemData =
+                    await metadataResponse.json();
+
+                const files =
+                    Array.isArray(
+                        itemData?.files
+                    )
+                        ? itemData.files
+                        : [];
+
+                const attachedFile =
+                    files.find(
+                        file =>
+                            String(
+                                file?.name ||
+                                    ""
+                            ).trim() ===
+                            fileName
+                    );
+
+                diagnostic.metadata.attachedFileFound =
+                    Boolean(
+                        attachedFile
+                    );
+
+                diagnostic.metadata.attachedFileName =
+                    attachedFile?.name ||
+                    null;
+
+                diagnostic.metadata.attachedFileUrl =
+                    attachedFile?.url ||
+                    null;
+
+            }
+
+        }
+        catch (error) {
+
+            diagnostic.metadata.error =
+                String(
+                    error?.message ||
+                        error
+                );
+
+        }
+
+        try {
+
+            const standardResponse =
+                await fetch(
+                    standardFileUrl,
+                    {
+                        method:
+                            "GET",
+                        cache:
+                            "no-store",
+                        headers: {
+                            "Accept":
+                                "text/csv,text/plain,*/*",
+                            "User-Agent":
+                                WIKIMEDIA_USER_AGENT
+                        }
+                    }
+                );
+
+            diagnostic.standardEndpoint.status =
+                standardResponse.status;
+
+            diagnostic.standardEndpoint.ok =
+                standardResponse.ok;
+
+        }
+        catch (error) {
+
+            diagnostic.standardEndpoint.error =
+                String(
+                    error?.message ||
+                        error
+                );
+
+        }
+
+        if (
+            diagnostic.metadata.attachedFileUrl
+        ) {
+
+            diagnostic.attachedEndpoint.url =
+                diagnostic.metadata.attachedFileUrl;
+
+            try {
+
+                const attachedResponse =
+                    await fetch(
+                        diagnostic.attachedEndpoint.url,
+                        {
+                            method:
+                                "GET",
+                            cache:
+                                "no-store",
+                            headers: {
+                                "Accept":
+                                    "text/csv,text/plain,*/*",
+                                "User-Agent":
+                                    WIKIMEDIA_USER_AGENT
+                            }
+                        }
+                    );
+
+                diagnostic.attachedEndpoint.status =
+                    attachedResponse.status;
+
+                diagnostic.attachedEndpoint.ok =
+                    attachedResponse.ok;
+
+            }
+            catch (error) {
+
+                diagnostic.attachedEndpoint.error =
+                    String(
+                        error?.message ||
+                            error
+                    );
+
+            }
+
+        }
+
+        return jsonResponse(
+            diagnostic,
+            200,
+            0
+        );
+
+    }
+
+
+    /* ---------------------------------------------------------
        WIKIMEDIA IMAGE ACTION
     --------------------------------------------------------- */
 
