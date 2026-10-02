@@ -320,6 +320,101 @@ export async function onRequestGet() {
         { readBody: true }
     );
 
+    /*
+     * USGS Data Catalog exposes a harvest API used by USGS tooling to
+     * enumerate cataloged metadata records. This isolated diagnostic
+     * checks whether that API exposes the machine-readable source/file
+     * information for the MCS 2026 record.
+     */
+    const harvestBaseUrl =
+        "https://data.usgs.gov/datacatalog/api/harvest/files";
+
+    async function probeHarvest(url) {
+        const result = await fetchText(
+            url,
+            "application/json,text/plain,*/*"
+        );
+
+        let json = null;
+
+        try {
+            json = result.body
+                ? JSON.parse(result.body)
+                : null;
+        }
+        catch {
+            json = null;
+        }
+
+        const items =
+            Array.isArray(json?.items)
+                ? json.items
+                : [];
+
+        const matchedItems =
+            items.filter(item => {
+                const values = Object.values(item || {})
+                    .map(value => String(value ?? ""));
+
+                return values.some(
+                    value =>
+                        value.includes(USGS_PID) ||
+                        /MCS2026|Commodities_Data/i.test(value)
+                );
+            });
+
+        const sourceFileClues = [];
+
+        for (const item of matchedItems) {
+            for (const [key, value] of Object.entries(item || {})) {
+                const textValue = String(value ?? "");
+
+                if (
+                    /url|file|download|source|data|metadata/i.test(key) ||
+                    /MCS2026|Commodities_Data|sciencebase|data\.usgs\.gov/i.test(textValue)
+                ) {
+                    sourceFileClues.push({
+                        key,
+                        value: textValue.slice(0, 2000)
+                    });
+                }
+            }
+        }
+
+        return {
+            url: result.url,
+            status: result.status,
+            ok: result.ok,
+            finalUrl: result.finalUrl,
+            contentType: result.contentType,
+            itemCount: items.length,
+            topLevelKeys: json && typeof json === "object"
+                ? Object.keys(json)
+                : [],
+            matchedItemCount: matchedItems.length,
+            matchedItems,
+            sourceFileClues,
+            preview: result.body
+                ? result.body.slice(0, 2000)
+                : null,
+            error: result.error || null
+        };
+    }
+
+    results.tests.harvestApi = await probeHarvest(
+        harvestBaseUrl +
+        "?data_source_name=" +
+        encodeURIComponent("National Minerals Information Center") +
+        "&size=10000"
+    );
+
+    results.tests.harvestApiByPid = await probeHarvest(
+        harvestBaseUrl +
+        "?metadata_pid=" +
+        encodeURIComponent(USGS_PID) +
+        "&size=100"
+    );
+
     results.tests.doi = await probe(DOI_URL, { readBody: false });
 
     results.tests.dataCatalog = {
