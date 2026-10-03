@@ -7,15 +7,23 @@ jobs:
   source:
     runs-on: ubuntu-latest
     steps:
-      - name: Verify secondary vehicle sources
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Syntax checks
+        run: |
+          node --check functions/api/cars.js
+          node --check cars-ui.js
+
+      - name: Verify secondary sources
         run: |
           node <<'NODE'
           (async () => {
             const tests = [
-              'https://www.fueleconomy.gov/ws/rest/vehicle/menu/model?year=2024&make=Honda',
               'https://www.fueleconomy.gov/ws/rest/vehicle/menu/model?year=2024&make=Honda&format=json',
-              'https://www.fueleconomy.gov/ws/rest/vehicle/menu/options?year=2024&make=Honda&model=Civic',
-              'https://www.fueleconomy.gov/ws/rest/vehicle/menu/options?year=2024&make=Honda&model=Civic&format=json',
               'https://api.openverse.org/v1/images/?q=Honda%20Civic&page_size=3&mature=false'
             ];
 
@@ -30,26 +38,21 @@ jobs:
                   }
                 );
 
-              const body =
-                await response.text();
-
               console.log(
-                JSON.stringify(
-                  {
-                    url,
-                    status: response.status,
-                    contentType:
-                      response.headers.get('content-type'),
-                    preview:
-                      body.slice(0, 5000)
-                  },
-                  null,
-                  2
-                )
+                JSON.stringify({
+                  url,
+                  status: response.status,
+                  contentType:
+                    response.headers.get('content-type')
+                })
               );
+
+              if (!response.ok) {
+                process.exit(1);
+              }
             }
           })().catch(error => {
             console.error(error);
-            process.exitCode = 1;
+            process.exit(1);
           });
           NODE
