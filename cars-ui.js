@@ -2296,6 +2296,39 @@ function updateVehicleCardInformationPreview(
         details?.specifications ||
         {};
 
+    /*
+     * Comparison availability is a hard quality requirement for
+     * popular cards. If the details endpoint says this vehicle cannot
+     * be compared, remove the card instead of leaving a dead card in
+     * the visible catalog. Recovery will try a more popular candidate.
+     */
+    const comparisonAvailable =
+        details?.comparisonAvailable === true;
+
+    card.dataset.comparisonState =
+        comparisonAvailable
+            ? "available"
+            : "unavailable";
+
+    if (
+        details &&
+        currentVehicleMode === "popular" &&
+        card.dataset.popularStableCard === "true" &&
+        !comparisonAvailable
+    ) {
+        const recoveryKind =
+            imageElement?.dataset.vehicleSourceKind ||
+            card.dataset.vehicleSourceKind ||
+            currentVehicleKind;
+
+        removePopularVehicleCardAndRecover(
+            card,
+            recoveryKind
+        );
+
+        return;
+    }
+
     const fuelEconomy =
         details?.external?.fuelEconomy ||
         null;
@@ -2671,7 +2704,11 @@ async function findNextPopularCardRecoveryCandidate(
                 candidateKind
             );
 
-        if (imageAvailable && informationAvailable) {
+        if (
+            imageAvailable &&
+            informationAvailable &&
+            details?.comparisonAvailable === true
+        ) {
             return {
                 candidate,
                 details,
@@ -2767,6 +2804,52 @@ function replacePopularCardWithRecoveryCandidate(
 
     reorderPopularVehicleCardsByImageAvailability(
         kind
+    );
+
+    return true;
+}
+
+function removePopularVehicleCardAndRecover(
+    card,
+    kind
+) {
+
+    if (
+        !card ||
+        !card.isConnected ||
+        currentVehicleMode !== "popular"
+    ) {
+        return false;
+    }
+
+    const oldKey =
+        normalizeVehicleText(
+            card.dataset.vehicleMake || ""
+        ) +
+        "|" +
+        normalizeVehicleText(
+            card.dataset.vehicleModel || ""
+        );
+
+    currentVehicleResults =
+        Array.isArray(currentVehicleResults)
+            ? currentVehicleResults.filter(
+                vehicle =>
+                    normalizeVehicleText(vehicle?.make) +
+                    "|" +
+                    normalizeVehicleText(vehicle?.model) !== oldKey
+            )
+            : [];
+
+    card.remove();
+
+    /*
+     * No placeholder is kept. If no suitable candidate exists, the
+     * card stays removed and the visible result count becomes smaller.
+     */
+    window.setTimeout(
+        () => schedulePopularCardRecovery(kind),
+        0
     );
 
     return true;
