@@ -1,0 +1,124 @@
+name: Temp Cars Live Integration Test
+
+on:
+  push:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Run live Cars API tests
+        env:
+          SITE: https://worth-it-calculator.pages.dev
+        run: |
+          node <<'NODE'
+          const kinds = {
+            car: 'car',
+            motorcycle: 'motorcycle',
+            van: 'van',
+            truck: 'truck',
+            bus: 'bus'
+          };
+
+          function sleep(ms) {
+            return new Promise(r => setTimeout(r, ms));
+          }
+
+          async function getJson(url) {
+            const r = await fetch(url, {
+              headers: { 'accept': 'application/json' }
+            });
+            let data = null;
+            try { data = await r.json(); } catch {}
+            return { status: r.status, data };
+          }
+
+          async function getCatalog(kind) {
+            const r = await fetch(`https://cdn.jsdelivr.net/gh/vehiclesdb/vehiclesdb@latest/catalog/${kind}/models.json`);
+            if (!r.ok) throw new Error(`catalog ${kind} ${r.status}`);
+            const rows = await r.json();
+            return rows;
+          }
+
+          async function getMakes(kind) {
+            const r = await fetch(`https://cdn.jsdelivr.net/gh/vehiclesdb/vehiclesdb@latest/catalog/${kind}/makes.json`);
+            if (!r.ok) throw new Error(`makes ${kind} ${r.status}`);
+            return r.json();
+          }
+
+          function materialize(rows, makes) {
+            const map = new Map((makes || []).filter(x => x?.id).map(x => [String(x.id), x.name || '']));
+            const out = [];
+            const seen = new Set();
+            for (const row of rows || []) {
+              const make = map.get(String(row?.make_id || '')) || row?.make_name || row?.make || '';
+              const model = row?.name || '';
+              if (!make || !model) continue;
+              const key = (make + '|' + model).toLowerCase();
+              if (seen.has(key)) continue;
+              seen.add(key);
+              out.push({ make, model });
+            }
+            return out;
+          }
+
+          const results = [];
+
+          for (const [kind, sourceKind] of Object.entries(kinds)) {
+            const rows = await getCatalog(sourceKind);
+            const makes = await getMakes(sourceKind);
+            const vehicles = materialize(rows, makes).slice(0, 20);
+
+            let imageOk = 0;
+            let descOk = 0;
+            let bothOk = 0;
+            let failures = [];
+
+            for (const v of vehicles) {
+              const q = new URLSearchParams({
+                action: 'details',
+                make: v.make,
+                model: v.model,
+                kind,
+                image_only: '1',
+                v: 'live-test-1'
+              });
+
+              try {
+                const r = await getJson(`${process.env.SITE}/api/cars?${q}`);
+                const d = r.data;
+                const image = !!d?.image?.url;
+                const desc = String(d?.wikipedia?.description || '').trim();
+                const hasDesc = desc.length >= 40 && !/^no information$/i.test(desc);
+
+                if (image) imageOk++;
+                if (hasDesc) descOk++;
+                if (image && hasDesc) bothOk++;
+
+                if (!image || !hasDesc || r.status !== 200 || d?.success !== true) {
+                  failures.push({
+                    make: v.make,
+                    model: v.model,
+                    status: r.status,
+                    title: d?.wikipedia?.title || null,
+                    image: image,
+                    descLen: desc.length,
+                    error: d?.error || null
+                  });
+                }
+              } catch (e) {
+                failures.push({ make:v.make, model:v.model, error:String(e) });
+              }
+            }
+
+            results.push({ kind, tested: vehicles.length, imageOk, descOk, bothOk, failures: failures.slice(0, 12) });
+            await sleep(250);
+          }
+
+          console.log(JSON.stringify(results, null, 2));
+          const total = results.reduce((a,r)=>a+r.tested,0);
+          const both = results.reduce((a,r)=>a+r.bothOk,0);
+          if (total === 0 || both < Math.floor(total * 0.4)) {
+            process.exit(1);
+          }
+          NODE
