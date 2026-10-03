@@ -200,7 +200,7 @@ const VEHICLE_KIND_INFO = {
         plural: "Vehicles",
         title: "🚗 All Vehicles",
         description:
-            "Explore 600 vehicles from the connected VehiclesDB dataset."
+            "Explore up to 2000 vehicles from the connected VehiclesDB dataset."
     },
 
     car: {
@@ -678,7 +678,7 @@ const VEHICLE_PERSISTENT_CATALOG_VERSION =
     "v7";
 
 const VEHICLE_PERSISTENT_POPULAR_VERSION =
-    "v8";
+    "v9";
 
 const VEHICLE_PERSISTENT_CATEGORY_TTL_MS =
     7 * 24 * 60 * 60 * 1000;
@@ -8152,7 +8152,7 @@ async function renderPopularCatalogImmediately(kind, showAll = false) {
     );
 
     /*
-     * "Show all" must never wait for the entire 600-vehicle quality scan.
+     * "Show all" must never wait for the entire 2000-vehicle quality scan.
      * The initial scan may already be running in the background. Reuse the
      * validated vehicles that are available right now, render them
      * immediately, and let the same quality scanner append further valid
@@ -14108,7 +14108,7 @@ function handleVehicleSearch(
  */
 
 const UNIFIED_BACKGROUND_WARMUP_BATCH_SIZE = 2;
-const UNIFIED_BACKGROUND_WARMUP_MAX_PER_SESSION = 600;
+const UNIFIED_BACKGROUND_WARMUP_MAX_PER_SESSION = 2000;
 
 let unifiedVehicleBackgroundWarmupPromise = null;
 
