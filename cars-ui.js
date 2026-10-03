@@ -12197,7 +12197,6 @@ function injectVehicleUiStyles() {
             position: absolute;
             inset: 0;
             background: rgba(0, 0, 0, 0.72);
-            backdrop-filter: blur(4px);
             user-select: none;
             -webkit-user-select: none;
         }
