@@ -1,0 +1,51 @@
+name: Temp Cars Direct Title Test
+
+on:
+  push:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Test known Wikipedia titles
+        env:
+          SITE: https://worth-it-calculator.pages.dev
+        run: |
+          node <<'NODE'
+          const cases = [
+            ['motorcycle','BMW','R1300GS','BMW R 1300 GS'],
+            ['motorcycle','Bajaj','Boxer BM150','Bajaj Boxer'],
+            ['van','Mercedes-Benz','Sprinter','Mercedes-Benz Sprinter'],
+            ['van','Iveco','Daily','Iveco Daily'],
+            ['van','Ford','Transit Custom','Ford Transit Custom'],
+            ['truck','DAF','XF','DAF XF'],
+            ['truck','MAN','TGL','MAN TGL'],
+            ['truck','Iveco','S-Way','Iveco S-Way'],
+            ['bus','Ford','Transit','Ford Transit'],
+            ['bus','Mercedes-Benz','Sprinter','Mercedes-Benz Sprinter'],
+            ['bus','Wrightbus','StreetDeck','Wright StreetDeck'],
+            ['bus','Mitsubishi Fuso','Rosa','Mitsubishi Fuso Rosa']
+          ];
+          for (const [kind,make,model,title] of cases) {
+            const u=new URL(process.env.SITE+'/api/cars');
+            u.searchParams.set('action','details');
+            u.searchParams.set('kind',kind);
+            u.searchParams.set('make',make);
+            u.searchParams.set('model',model);
+            u.searchParams.set('wikipedia_title',title);
+            u.searchParams.set('image_only','1');
+            u.searchParams.set('v','direct-title-test-1');
+            const r=await fetch(u);
+            const d=await r.json();
+            const desc=String(d?.wikipedia?.description||'').trim();
+            console.log(JSON.stringify({
+              kind,make,model,title,
+              status:r.status,
+              returnedTitle:d?.wikipedia?.title||null,
+              descLen:desc.length,
+              image:Boolean(d?.image?.url),
+              verified:d?.image?.identity_verified===true,
+              error:d?.error||null
+            }));
+          }
+          NODE
