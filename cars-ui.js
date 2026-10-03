@@ -168,7 +168,7 @@ const VEHICLE_KINDS = [
 ];
 
 const VEHICLE_ALL_KIND = "all";
-const MAX_UNIFIED_VEHICLES = 2000;
+const MAX_UNIFIED_VEHICLES = 1000;
 const UNIFIED_BACKGROUND_CANDIDATE_POOL_LIMIT = 6000;
 const VEHICLE_FAVORITES_STORAGE_KEY = "worth-it-vehicle-favorites-v1";
 const VEHICLE_RECENT_STORAGE_KEY = "worth-it-vehicle-recent-v1";
@@ -201,7 +201,7 @@ const VEHICLE_KIND_INFO = {
         plural: "Vehicles",
         title: "🚗 All Vehicles",
         description:
-            "Explore up to 2000 vehicles from the connected VehiclesDB dataset."
+            "Explore up to 1000 vehicles from the connected VehiclesDB dataset."
     },
 
     car: {
@@ -695,7 +695,7 @@ const VEHICLE_PERSISTENT_CATALOG_VERSION =
     "v7";
 
 const VEHICLE_PERSISTENT_POPULAR_VERSION =
-    "v11";
+    "v12";
 
 const VEHICLE_PERSISTENT_CATEGORY_TTL_MS =
     7 * 24 * 60 * 60 * 1000;
@@ -15367,6 +15367,8 @@ async function startUnifiedVehicleBackgroundWarmup() {
                             key,
                             true
                         );
+
+                        sortAndTrimUnifiedCatalog();
                     }
                 }
 
@@ -15415,6 +15417,61 @@ async function startUnifiedVehicleBackgroundWarmup() {
                         candidates
                     );
 
+                /*
+                 * Keep only the most popular validated vehicles.
+                 *
+                 * Existing cached vehicles remain eligible, but when a
+                 * newly verified candidate is more popular than the least
+                 * popular vehicle currently in the 1000-item catalog, the
+                 * least popular entry is replaced. Because candidates are
+                 * ordered by the current VehiclesDB popularity order, the
+                 * catalog can evolve on every dataset refresh instead of
+                 * permanently freezing its original 1000 entries.
+                 */
+                function sortAndTrimUnifiedCatalog() {
+                    validVehicles.sort(
+                        (a, b) =>
+                            (
+                                candidateOrder.get(
+                                    getPopularVehicleQualityKey(
+                                        a,
+                                        VEHICLE_ALL_KIND
+                                    )
+                                ) ??
+                                Number.MAX_SAFE_INTEGER
+                            ) -
+                            (
+                                candidateOrder.get(
+                                    getPopularVehicleQualityKey(
+                                        b,
+                                        VEHICLE_ALL_KIND
+                                    )
+                                ) ??
+                                Number.MAX_SAFE_INTEGER
+                            )
+                    );
+
+                    if (
+                        validVehicles.length >
+                        MAX_UNIFIED_VEHICLES
+                    ) {
+                        const removed =
+                            validVehicles.splice(
+                                MAX_UNIFIED_VEHICLES
+                            );
+
+                        removed.forEach(vehicle => {
+                            const removedKey =
+                                getPopularVehicleQualityKey(
+                                    vehicle,
+                                    VEHICLE_ALL_KIND
+                                );
+
+                            validKeys.delete(removedKey);
+                        });
+                    }
+                }
+
                 warmupQualityState.validVehicles =
                     validVehicles.slice();
 
@@ -15432,9 +15489,7 @@ async function startUnifiedVehicleBackgroundWarmup() {
 
                 while (
                     nextIndex <
-                        candidates.length &&
-                    validVehicles.length <
-                        MAX_UNIFIED_VEHICLES
+                        candidates.length
                 ) {
 
                     const batch = [];
@@ -15564,27 +15619,7 @@ async function startUnifiedVehicleBackgroundWarmup() {
 
                     if (added) {
 
-                        validVehicles.sort(
-                            (a, b) =>
-                                (
-                                    candidateOrder.get(
-                                        getPopularVehicleQualityKey(
-                                            a,
-                                            VEHICLE_ALL_KIND
-                                        )
-                                    ) ??
-                                    Number.MAX_SAFE_INTEGER
-                                ) -
-                                (
-                                    candidateOrder.get(
-                                        getPopularVehicleQualityKey(
-                                            b,
-                                            VEHICLE_ALL_KIND
-                                        )
-                                    ) ??
-                                    Number.MAX_SAFE_INTEGER
-                                )
-                        );
+                        sortAndTrimUnifiedCatalog();
 
                         /*
                          * Persist after every successful batch. If the
@@ -15684,6 +15719,8 @@ async function startUnifiedVehicleBackgroundWarmup() {
                             Number.MAX_SAFE_INTEGER
                         )
                 );
+
+                sortAndTrimUnifiedCatalog();
 
                 validVehicles =
                     validVehicles.slice(
