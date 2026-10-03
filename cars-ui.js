@@ -8221,6 +8221,15 @@ async function renderPopularCatalogImmediately(kind, showAll = false) {
     );
 
     /*
+     * Returning users can restore the already-verified vehicle list first.
+     * The current quality scanner then only has to fill gaps/new candidates.
+     */
+    await restorePersistentPopularVehicles(
+        kind,
+        unique
+    );
+
+    /*
      * "Show all" must never wait for the entire 2000-vehicle quality scan.
      * The initial scan may already be running in the background. Reuse the
      * validated vehicles that are available right now, render them
@@ -14176,12 +14185,139 @@ function handleVehicleSearch(
  * ============================================================
  */
 
-const UNIFIED_BACKGROUND_WARMUP_BATCH_SIZE = 2;
-const UNIFIED_BACKGROUND_WARMUP_MAX_PER_SESSION = 2000;
+const UNIFIED_BACKGROUND_WARMUP_BATCH_SIZE = 12;
+const UNIFIED_BACKGROUND_WARMUP_MAX_PER_SESSION =
+    MAX_UNIFIED_VEHICLES;
 
 let unifiedVehicleBackgroundWarmupPromise = null;
 
-function startUnifiedVehicleBackgroundWarmup() {
+function buildUnifiedBackgroundWarmupCandidates(
+    catalog
+) {
+
+    const sourceCatalog =
+        Array.isArray(catalog)
+            ? catalog
+            : [];
+
+    const buckets =
+        VEHICLE_KINDS.reduce(
+            (map, sourceKind) => {
+                map.set(
+                    sourceKind,
+                    sourceCatalog.filter(
+                        vehicle =>
+                            (
+                                vehicle?.sourceKind ||
+                                vehicle?.kind
+                            ) === sourceKind &&
+                            vehicle?.make &&
+                            vehicle?.model
+                    )
+                );
+                return map;
+            },
+            new Map()
+        );
+
+    const weights = {
+        car: 4,
+        motorcycle: 1,
+        van: 1,
+        truck: 1,
+        bus: 1
+    };
+
+    const result = [];
+    const seen = new Set();
+
+    while (
+        result.length <
+            UNIFIED_BACKGROUND_WARMUP_MAX_PER_SESSION
+    ) {
+
+        let addedThisRound = false;
+
+        for (const sourceKind of VEHICLE_KINDS) {
+
+            const bucket =
+                buckets.get(sourceKind) || [];
+
+            const takeCount =
+                weights[sourceKind] || 1;
+
+            for (
+                let index = 0;
+                index < takeCount;
+                index += 1
+            ) {
+
+                const vehicle =
+                    bucket.shift();
+
+                if (!vehicle) {
+                    continue;
+                }
+
+                const key =
+                    getPopularVehicleQualityKey(
+                        vehicle,
+                        VEHICLE_ALL_KIND
+                    );
+
+                if (seen.has(key)) {
+                    continue;
+                }
+
+                seen.add(key);
+                result.push(vehicle);
+                addedThisRound = true;
+
+                if (
+                    result.length >=
+                    UNIFIED_BACKGROUND_WARMUP_MAX_PER_SESSION
+                ) {
+                    break;
+                }
+            }
+
+            if (
+                result.length >=
+                UNIFIED_BACKGROUND_WARMUP_MAX_PER_SESSION
+            ) {
+                break;
+            }
+        }
+
+        if (!addedThisRound) {
+            break;
+        }
+    }
+
+    return result;
+}
+
+function getUnifiedBackgroundWarmupPause() {
+    return new Promise(resolve => {
+        if (
+            typeof window.requestIdleCallback ===
+            "function"
+        ) {
+            window.requestIdleCallback(
+                () => resolve(),
+                { timeout: 1200 }
+            );
+            return;
+        }
+
+        window.setTimeout(
+            resolve,
+            UNIFIED_BACKGROUND_WARMUP_DELAY_MS
+        );
+    });
+}
+
+async function startUnifiedVehicleBackgroundWarmup() {
 
     if (unifiedVehicleBackgroundWarmupPromise) {
         return unifiedVehicleBackgroundWarmupPromise;
@@ -14194,93 +14330,139 @@ function startUnifiedVehicleBackgroundWarmup() {
 
                 await fetchVehicleDatasetMetadata();
 
-                const catalog =
-                    await fetchUnifiedVehicleCatalog();
+                /*
+                 * Always obtain the current unified catalog in the
+                 * background. The public UI still restores its local
+                 * cache immediately, while this check lets a new dataset
+                 * replace lower-popularity vehicles with newer candidates.
+                 */
+                const freshCatalog =
+                    await buildFreshUnifiedVehicleCatalog();
+
+                if (!freshCatalog.length) {
+                    return;
+                }
+
+                vehicleCatalogCache.set(
+                    VEHICLE_ALL_KIND,
+                    freshCatalog
+                );
+
+                void writePersistentVehicleCatalog(
+                    VEHICLE_ALL_KIND,
+                    freshCatalog
+                );
 
                 const candidates =
-                    Array.isArray(catalog)
-                        ? catalog.slice(
-                            0,
-                            Math.min(
-                                MAX_UNIFIED_VEHICLES,
-                                UNIFIED_BACKGROUND_WARMUP_MAX_PER_SESSION
+                    buildUnifiedBackgroundWarmupCandidates(
+                        freshCatalog
+                    );
+
+                if (!candidates.length) {
+                    return;
+                }
+
+                const storedPayload =
+                    await readPersistentPopularVehicles(
+                        VEHICLE_ALL_KIND
+                    );
+
+                const storedVersion =
+                    storedPayload?.datasetVersion ||
+                    null;
+
+                const reusableStoredVehicles =
+                    storedVersion &&
+                    vehicleDetailsDatasetVersion &&
+                    storedVersion ===
+                        vehicleDetailsDatasetVersion
+                        ? (
+                            Array.isArray(
+                                storedPayload?.vehicles
                             )
+                                ? storedPayload.vehicles
+                                : []
                         )
                         : [];
 
+                const candidateKeys =
+                    new Set(
+                        candidates.map(
+                            vehicle =>
+                                getPopularVehicleQualityKey(
+                                    vehicle,
+                                    VEHICLE_ALL_KIND
+                                )
+                        )
+                    );
+
+                const validKeys =
+                    new Set();
+
+                const validVehicles =
+                    [];
+
                 for (
-                    let offset = 0;
-                    offset < candidates.length;
-                    offset += UNIFIED_BACKGROUND_WARMUP_BATCH_SIZE
+                    const vehicle
+                    of reusableStoredVehicles
                 ) {
 
-                    /*
-                     * Keep background enrichment deliberately light. The
-                     * user-facing details request must not compete with a
-                     * large burst of Wikipedia/Wikimedia requests.
-                     */
-                    if (offset > 0) {
-                        await new Promise(resolve =>
-                            window.setTimeout(
-                                resolve,
-                                UNIFIED_BACKGROUND_WARMUP_DELAY_MS
-                            )
+                    const key =
+                        getPopularVehicleQualityKey(
+                            vehicle,
+                            VEHICLE_ALL_KIND
+                        );
+
+                    if (
+                        candidateKeys.has(key) &&
+                        !validKeys.has(key)
+                    ) {
+                        validKeys.add(key);
+                        validVehicles.push(vehicle);
+                        popularVehicleQualityCache.set(
+                            key,
+                            true
                         );
                     }
+                }
 
-                    const batch =
-                        candidates.slice(
-                            offset,
-                            offset +
+                /*
+                 * Keep the same balanced order used by the public
+                 * Popular/All Vehicles selector.
+                 */
+                validVehicles.sort(
+                    (a, b) =>
+                        candidates.indexOf(a) -
+                        candidates.indexOf(b)
+                );
+
+                if (validVehicles.length) {
+                    void writePersistentPopularVehicles(
+                        VEHICLE_ALL_KIND,
+                        validVehicles
+                    );
+                }
+
+                let nextIndex = 0;
+
+                while (
+                    nextIndex <
+                        candidates.length &&
+                    validVehicles.length <
+                        MAX_UNIFIED_VEHICLES
+                ) {
+
+                    const batch = [];
+
+                    while (
+                        nextIndex <
+                            candidates.length &&
+                        batch.length <
                             UNIFIED_BACKGROUND_WARMUP_BATCH_SIZE
-                        );
-
-                    const results =
-                        await Promise.all(
-                            batch.map(
-                                async vehicle => {
-
-                                    const detailKind =
-                                        vehicle.sourceKind ||
-                                        vehicle.kind ||
-                                        "car";
-
-                                    const details =
-                                        await fetchVehicleDetailsWithRetry(
-                                            vehicle.make,
-                                            vehicle.model,
-                                            detailKind,
-                                            1,
-                                            0,
-                                            "full"
-                                        );
-
-                                    return {
-                                        vehicle,
-                                        details,
-                                        detailKind
-                                    };
-
-                                }
-                            )
-                        );
-
-                    /*
-                     * The details response is already account-cached by the
-                     * full fetch. Also cache the quality decision so opening
-                     * Cars does not have to repeat the same validation.
-                     */
-                    for (const result of results) {
+                    ) {
 
                         const vehicle =
-                            result.vehicle;
-
-                        const details =
-                            result.details;
-
-                        if (!details) {
-                            continue;
-                        }
+                            candidates[nextIndex++];
 
                         const key =
                             getPopularVehicleQualityKey(
@@ -14288,78 +14470,101 @@ function startUnifiedVehicleBackgroundWarmup() {
                                 VEHICLE_ALL_KIND
                             );
 
-                        const detailKind =
-                            vehicle.sourceKind ||
-                            vehicle.kind ||
-                            "car";
+                        if (validKeys.has(key)) {
+                            continue;
+                        }
 
-                        const hasUsableDetails =
-                            hasUsablePopularVehicleDetails(
-                                details,
-                                vehicle,
-                                detailKind
-                            );
+                        batch.push(vehicle);
+                    }
 
-                        const isValid =
-                            hasUsableDetails &&
-                            hasRequiredVehicleCardQuality(
-                                details,
-                                vehicle,
-                                detailKind
-                            );
+                    if (!batch.length) {
+                        continue;
+                    }
 
-                        popularVehicleQualityCache.set(
-                            key,
-                            isValid
+                    const results =
+                        await runPopularVehicleQualityBatch(
+                            batch,
+                            VEHICLE_ALL_KIND
                         );
 
+                    let added = false;
+
+                    for (const result of results) {
+
                         if (
-                            currentVehicleKind !== VEHICLE_ALL_KIND ||
-                            currentVehicleMode !== "popular"
+                            result?.usable !== true
                         ) {
                             continue;
                         }
 
-                        const card =
-                            findUnifiedVehicleCard(
-                                vehicle
+                        const vehicle =
+                            result.vehicle;
+
+                        const key =
+                            getPopularVehicleQualityKey(
+                                vehicle,
+                                VEHICLE_ALL_KIND
                             );
 
-                        if (!card) {
+                        if (validKeys.has(key)) {
                             continue;
                         }
 
-                        applyUnifiedVehicleCardDetailsState(
-                            card,
-                            vehicle,
-                            details
+                        validKeys.add(key);
+                        validVehicles.push(vehicle);
+                        popularVehicleQualityCache.set(
+                            key,
+                            true
+                        );
+                        added = true;
+                    }
+
+                    if (added) {
+
+                        validVehicles.sort(
+                            (a, b) =>
+                                candidates.indexOf(a) -
+                                candidates.indexOf(b)
+                        );
+
+                        /*
+                         * Persist after every successful batch. If the
+                         * browser is closed midway, the next visit resumes
+                         * from the already verified vehicles instead of
+                         * starting over.
+                         */
+                        await writePersistentPopularVehicles(
+                            VEHICLE_ALL_KIND,
+                            validVehicles
                         );
 
                     }
 
-                    await new Promise(resolve => {
+                    await getUnifiedBackgroundWarmupPause();
 
-                        if (
-                            typeof window.requestIdleCallback ===
-                            "function"
-                        ) {
+                }
 
-                            window.requestIdleCallback(
-                                () => resolve(),
-                                { timeout: 1000 }
-                            );
+                /*
+                 * Keep a final 2000-item account-scoped quality snapshot.
+                 */
+                if (validVehicles.length) {
+                    await writePersistentPopularVehicles(
+                        VEHICLE_ALL_KIND,
+                        validVehicles
+                    );
+                }
 
-                        } else {
-
-                            window.setTimeout(
-                                resolve,
-                                80
-                            );
-
-                        }
-
-                    });
-
+                /*
+                 * If Cars is already open, update its in-memory catalog.
+                 * Do not inject cards into an inactive section; the verified
+                 * snapshot is restored instantly the next time Cars opens.
+                 */
+                if (
+                    currentVehicleKind ===
+                        VEHICLE_ALL_KIND
+                ) {
+                    currentVehicleCatalog =
+                        freshCatalog;
                 }
 
             } catch (error) {
@@ -14375,6 +14580,7 @@ function startUnifiedVehicleBackgroundWarmup() {
 
     return unifiedVehicleBackgroundWarmupPromise;
 }
+
 /*
  * ============================================================
  * OPEN CARS
@@ -14742,6 +14948,9 @@ document.addEventListener(
                 () => {
 
                     vehicleAccountCacheOwnerPromise =
+                        null;
+
+                    unifiedVehicleBackgroundWarmupPromise =
                         null;
 
                 }
