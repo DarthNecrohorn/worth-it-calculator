@@ -5984,6 +5984,15 @@ async function handleDetails(
                         vehicle.model,
                         vehicle.kind
                     );
+
+                if (!fallbackImage) {
+                    fallbackImage =
+                        await searchOpenverseVehicleImage(
+                            vehicle.make,
+                            vehicle.model,
+                            vehicle.kind
+                        );
+                }
             } catch (error) {
                 console.error(
                     "Fallback Commons image lookup failed:",
@@ -6045,6 +6054,15 @@ async function handleDetails(
                         vehicle.model,
                         vehicle.kind
                     );
+
+                if (!fallbackImage) {
+                    fallbackImage =
+                        await searchOpenverseVehicleImage(
+                            vehicle.make,
+                            vehicle.model,
+                            vehicle.kind
+                        );
+                }
             } catch (error) {
                 console.error(
                     "Fallback Commons image lookup after page failure failed:",
@@ -6098,6 +6116,15 @@ async function handleDetails(
                         vehicle.model,
                         vehicle.kind
                     );
+
+                if (!fallbackImage) {
+                    fallbackImage =
+                        await searchOpenverseVehicleImage(
+                            vehicle.make,
+                            vehicle.model,
+                            vehicle.kind
+                        );
+                }
             } catch (error) {
                 console.error(
                     "Fallback Commons image lookup after identity rejection failed:",
@@ -6199,11 +6226,21 @@ async function handleDetails(
             );
 
             if (!image) {
-                image = await searchCommercialWikimediaImage(
-                    vehicle.make,
-                    vehicle.model,
-                    vehicle.kind
-                );
+                image =
+                    await searchCommercialWikimediaImage(
+                        vehicle.make,
+                        vehicle.model,
+                        vehicle.kind
+                    );
+            }
+
+            if (!image) {
+                image =
+                    await searchOpenverseVehicleImage(
+                        vehicle.make,
+                        vehicle.model,
+                        vehicle.kind
+                    );
             }
         } catch (error) {
             console.error(
@@ -6238,6 +6275,9 @@ async function handleDetails(
                     description: page.description || "No Information"
                 },
                 image,
+                external: {
+                    fuelEconomy: null
+                },
                 specifications: createEmptyWikipediaSpecifications(),
                 comparisonAvailable: false
             },
@@ -6278,6 +6318,9 @@ async function handleDetails(
                         "No Information"
                 },
                 image: null,
+                external: {
+                    fuelEconomy: null
+                },
                 specifications:
                     createEmptyWikipediaSpecifications(),
                 comparisonAvailable: false
@@ -6303,6 +6346,30 @@ async function handleDetails(
             }
         );
 
+    const fuelEconomyYear =
+        chooseFuelEconomyYear(
+            vehicle
+        );
+
+    const fuelEconomyPromise =
+        kind === "car" &&
+        fuelEconomyYear
+            ? Promise.race([
+                getFuelEconomyVehicle(
+                    vehicle.make,
+                    vehicle.model,
+                    fuelEconomyYear
+                ),
+                new Promise(
+                    resolve =>
+                        setTimeout(
+                            () => resolve(null),
+                            1800
+                        )
+                )
+            ])
+            : Promise.resolve(null);
+
     const commercialImagePromise =
         (async () => {
 
@@ -6314,12 +6381,26 @@ async function handleDetails(
                     vehicle.kind
                 );
 
-            return directImage ||
+            if (directImage) {
+                return directImage;
+            }
+
+            const wikimediaImage =
                 await searchCommercialWikimediaImage(
                     vehicle.make,
                     vehicle.model,
                     vehicle.kind
                 );
+
+            if (wikimediaImage) {
+                return wikimediaImage;
+            }
+
+            return await searchOpenverseVehicleImage(
+                vehicle.make,
+                vehicle.model,
+                vehicle.kind
+            );
 
         })().catch(
             error => {
@@ -6363,10 +6444,12 @@ async function handleDetails(
 
     const [
         wikipediaData,
-        initialCommercialImage
+        initialCommercialImage,
+        fuelEconomy
     ] = await Promise.all([
         wikipediaDataPromise,
-        commercialImageWithTimeout
+        commercialImageWithTimeout,
+        fuelEconomyPromise
     ]);
 
     let specifications =
@@ -6600,6 +6683,10 @@ async function handleDetails(
 
             image:
                 commercialImage,
+
+            external: {
+                fuelEconomy
+            },
 
             specifications,
             comparisonAvailable
