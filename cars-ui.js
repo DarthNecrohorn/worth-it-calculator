@@ -39,7 +39,7 @@ const VEHICLE_CATALOG_BASE_URL =
 const VEHICLE_DATASET_MANIFEST_URL =
     "https://cdn.jsdelivr.net/gh/vehiclesdb/vehiclesdb@latest/manifest.json";
 
-const VEHICLE_DETAILS_CACHE_VERSION = "v27";
+const VEHICLE_DETAILS_CACHE_VERSION = "v28";
 
 const MAX_VEHICLES_PER_CATEGORY = 300;
 
@@ -286,6 +286,7 @@ const vehicleLastUpdatedAt = new Map();
 
 let vehicleDatasetMetaPromise = null;
 let vehicleDatasetMeta = null;
+let vehicleDetailsDatasetVersion = null;
 
 function formatVehicleDatasetBuiltAt(value) {
     if (!value) return "Date unavailable";
@@ -379,9 +380,23 @@ async function fetchVehicleDatasetMetadata(
                     );
                 }
 
+                const nextDatasetVersion =
+                    String(manifest.version);
+
+                if (
+                    vehicleDetailsDatasetVersion &&
+                    vehicleDetailsDatasetVersion !== nextDatasetVersion
+                ) {
+                    vehicleDetailsCache.clear();
+                    popularVehicleQualityCache.clear();
+                }
+
+                vehicleDetailsDatasetVersion =
+                    nextDatasetVersion;
+
                 vehicleDatasetMeta = {
                     version:
-                        String(manifest.version),
+                        nextDatasetVersion,
                     builtAt:
                         String(manifest.built_at)
                 };
@@ -591,7 +606,7 @@ function getPopularBackgroundTargetCount(
  * Persistent browser cache version for account-scoped vehicle
  * metadata/images.
  */
-const VEHICLE_PERSISTENT_CACHE_VERSION = "v10";
+const VEHICLE_PERSISTENT_CACHE_VERSION = "v11";
 
 let vehicleAccountCacheOwnerPromise =
     null;
@@ -898,6 +913,13 @@ function readPersistentVehicleDetails(
             return null;
         }
 
+        if (
+            vehicleDetailsDatasetVersion &&
+            parsed.datasetVersion !== vehicleDetailsDatasetVersion
+        ) {
+            return null;
+        }
+
         return parsed;
 
     } catch {
@@ -945,6 +967,10 @@ function writePersistentVehicleDetails(
         const compact = {
             success:
                 true,
+
+            datasetVersion:
+                vehicleDetailsDatasetVersion ||
+                null,
 
             kind,
 
@@ -1679,6 +1705,13 @@ async function fetchVehicleDetails(
 
                 if (isImageMode) {
                     params.set("image_only", "1");
+                }
+
+                if (vehicleDetailsDatasetVersion) {
+                    params.set(
+                        "dataset_version",
+                        vehicleDetailsDatasetVersion
+                    );
                 }
 
                 if (catalogVehicle) {
@@ -8688,6 +8721,7 @@ function getVehicleSpecificationEntries(
     const labels = [
         ["production", "Production"],
         ["generation", "Generation"],
+        ["price", "MSRP / listed price"],
         ["bodyType", "Body type"],
         ["engine", "Engine"],
         ["engineDisplacement", "Engine displacement"],
@@ -12954,6 +12988,8 @@ function startUnifiedVehicleBackgroundWarmup() {
         (async () => {
 
             try {
+
+                await fetchVehicleDatasetMetadata();
 
                 const catalog =
                     await fetchUnifiedVehicleCatalog();
