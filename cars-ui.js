@@ -10052,6 +10052,17 @@ if (!window.__worthItVehicleDetailsNavigationBound) {
                 return;
             }
 
+            // Browser text-selection shortcuts such as Ctrl+A / Cmd+A
+            // must not trigger vehicle navigation while the details modal
+            // is open. Only the plain A/D keys are navigation commands.
+            if (
+                event.ctrlKey ||
+                event.metaKey ||
+                event.altKey
+            ) {
+                return;
+            }
+
             const key =
                 String(event.key || "").toLowerCase();
 
