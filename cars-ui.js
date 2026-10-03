@@ -2398,7 +2398,6 @@ function updateVehicleCardInformationPreview(
     preview.textContent =
         "Vehicle profile • VehiclesDB catalog";
     preview.removeAttribute("title");
-    preview.removeAttribute("title");
 
 }
 
@@ -4722,7 +4721,15 @@ function hasPopularVehicleImageRelevance(
         return false;
     }
 
-    if (!isAllowedVehicleImageHost(imageUrl)) {
+    const isVerifiedOpenverseImage =
+        image?.identity_verified === true &&
+        image?.source_provider === "Openverse" &&
+        /^https:\/\//i.test(imageUrl);
+
+    if (
+        !isAllowedVehicleImageHost(imageUrl) &&
+        !isVerifiedOpenverseImage
+    ) {
         return false;
     }
 
