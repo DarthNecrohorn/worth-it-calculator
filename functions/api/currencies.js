@@ -6,6 +6,9 @@ import { recordAdminApiUsage } from "../lib/admin-usage.js";
 ========================================================= */
 
 const FRANKFURTER_API = "https://api.frankfurter.dev/v2";
+const CURRENCY_CACHE_VERSION = "v3";
+const CURRENCY_LIVE_CACHE_TTL = 3600;
+const CURRENCY_STALE_CACHE_TTL = 604800;
 
 const EXCLUDED_CURRENCY_CODES = new Set([
     "XAG",
@@ -353,6 +356,56 @@ function normalizeCurrencies(data) {
 }
 
 /* =========================================================
+   CLOUDFLARE CACHE HELPERS
+========================================================= */
+
+function getCurrencyCacheKey(base, variant = "live") {
+    return new Request(
+        "https://worth-it-currency-cache.local/" +
+        CURRENCY_CACHE_VERSION + "/" + variant + "/" +
+        encodeURIComponent(base)
+    );
+}
+
+async function getCurrencyCacheResponse(base, variant = "live") {
+    try {
+        if (typeof caches === "undefined" || !caches.default) return null;
+        return await caches.default.match(
+            getCurrencyCacheKey(base, variant)
+        );
+    } catch (error) {
+        console.warn("Currency cache read failed:", error);
+        return null;
+    }
+}
+
+async function putCurrencyCacheResponse(base, variant, response) {
+    try {
+        if (typeof caches === "undefined" || !caches.default || !response) return;
+        await caches.default.put(
+            getCurrencyCacheKey(base, variant),
+            response.clone()
+        );
+    } catch (error) {
+        console.warn("Currency cache write failed:", error);
+    }
+}
+
+function createCurrencyResponse(data, cacheSeconds, extraHeaders = {}) {
+    return new Response(
+        JSON.stringify(data),
+        {
+            status: 200,
+            headers: {
+                "Content-Type": "application/json",
+                "Cache-Control": "public, max-age=" + cacheSeconds + ", s-maxage=" + cacheSeconds,
+                ...extraHeaders
+            }
+        }
+    );
+}
+
+/* =========================================================
    MAIN API HANDLER
 ========================================================= */
 
@@ -435,6 +488,16 @@ export async function onRequest(context) {
             );
         }
 
+        const liveCached =
+            await getCurrencyCacheResponse(
+                base,
+                "live"
+            );
+
+        if (liveCached) {
+            return liveCached;
+        }
+
         /* =================================================
            DATE RANGE
 
@@ -469,7 +532,7 @@ export async function onRequest(context) {
            calculated from the same rates response.
         ================================================= */
 
-        const [
+        let [
             currenciesRaw,
             historicalRaw
         ] = await Promise.all([
@@ -487,6 +550,15 @@ export async function onRequest(context) {
 
         ]);
 
+        if (!historicalRaw) {
+            historicalRaw =
+                await safeFetchJson(
+                    FRANKFURTER_API +
+                    "/rates?base=" +
+                    encodeURIComponent(base)
+                );
+        }
+
         /* =================================================
            NORMALIZE
         ================================================= */
@@ -498,8 +570,45 @@ export async function onRequest(context) {
             );
 
         if (!normalizedRates.length) {
-            throw new Error(
-                "Unable to retrieve current exchange rates."
+            const staleCached =
+                await getCurrencyCacheResponse(
+                    base,
+                    "stale"
+                );
+
+            if (staleCached) {
+                const staleData =
+                    await staleCached.clone().json();
+                staleData.stale = true;
+                return createCurrencyResponse(
+                    staleData,
+                    CURRENCY_LIVE_CACHE_TTL,
+                    {
+                        "X-Worth-It-Currency-Stale": "1"
+                    }
+                );
+            }
+
+            const degraded = {
+                base,
+                currencies: { [base]: base },
+                rates: { [base]: 1 },
+                previousRates: {},
+                ratesList: [],
+                previousRatesList: [],
+                date: today,
+                previousDate: null,
+                majorRates: {},
+                majorPreviousRates: {},
+                degraded: true
+            };
+
+            return createCurrencyResponse(
+                degraded,
+                CURRENCY_LIVE_CACHE_TTL,
+                {
+                    "X-Worth-It-Currency-Degraded": "1"
+                }
             );
         }
 
@@ -691,21 +800,30 @@ export async function onRequest(context) {
             majorPreviousRates
         };
 
-        return new Response(
-            JSON.stringify(responseData),
-            {
-                status: 200,
-                headers: {
-                    "Content-Type":
-                        "application/json",
+        const response =
+            createCurrencyResponse(
+                responseData,
+                CURRENCY_LIVE_CACHE_TTL,
+                corsHeaders
+            );
 
-                    "Cache-Control":
-                        "public, max-age=3600, s-maxage=3600",
-
-                    ...corsHeaders
-                }
-            }
+        await putCurrencyCacheResponse(
+            base,
+            "live",
+            response
         );
+
+        await putCurrencyCacheResponse(
+            base,
+            "stale",
+            createCurrencyResponse(
+                responseData,
+                CURRENCY_STALE_CACHE_TTL,
+                corsHeaders
+            )
+        );
+
+        return response;
 
     } catch (error) {
 
@@ -714,26 +832,46 @@ export async function onRequest(context) {
             error
         );
 
-        return new Response(
-            JSON.stringify({
-                error:
-                    "Failed to load currency data",
+        const staleCached =
+            await getCurrencyCacheResponse(
+                base,
+                "stale"
+            );
 
-                message:
-                    error?.message ||
-                    "Unknown error"
-            }),
-            {
-                status: 500,
-                headers: {
-                    "Content-Type":
-                        "application/json",
-
-                    "Cache-Control":
-                        "no-store",
-
-                    ...corsHeaders
+        if (staleCached) {
+            const staleData =
+                await staleCached.clone().json();
+            staleData.stale = true;
+            return createCurrencyResponse(
+                staleData,
+                CURRENCY_LIVE_CACHE_TTL,
+                {
+                    ...corsHeaders,
+                    "X-Worth-It-Currency-Stale": "1"
                 }
+            );
+        }
+
+        const degraded = {
+            base,
+            currencies: { [base]: base },
+            rates: { [base]: 1 },
+            previousRates: {},
+            ratesList: [],
+            previousRatesList: [],
+            date: today,
+            previousDate: null,
+            majorRates: {},
+            majorPreviousRates: {},
+            degraded: true
+        };
+
+        return createCurrencyResponse(
+            degraded,
+            CURRENCY_LIVE_CACHE_TTL,
+            {
+                ...corsHeaders,
+                "X-Worth-It-Currency-Degraded": "1"
             }
         );
     }
