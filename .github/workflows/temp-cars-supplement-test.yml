@@ -1,0 +1,62 @@
+name: Temp Cars Supplemental Identity Test
+
+on:
+  push:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Inspect Wikidata and DBpedia identity coverage
+        env:
+          SITE: https://worth-it-calculator.pages.dev
+        run: |
+          node <<'NODE'
+          const cases = [
+            ['motorcycle','BMW','R1300GS'],
+            ['motorcycle','Bajaj','Boxer BM150'],
+            ['van','Mercedes-Benz','Sprinter'],
+            ['van','Iveco','Daily'],
+            ['van','Ford','Transit Custom'],
+            ['truck','DAF','XF'],
+            ['truck','MAN','TGL'],
+            ['truck','Iveco','S-Way'],
+            ['bus','Ford','Transit'],
+            ['bus','Mercedes-Benz','Sprinter'],
+            ['bus','Wrightbus','Streetdeck'],
+            ['bus','Mitsubishi Fuso','Rosa']
+          ];
+
+          async function get(action,kind){
+            const u=new URL(process.env.SITE+'/api/cars');
+            u.searchParams.set('action',action);
+            u.searchParams.set('kind',kind);
+            u.searchParams.set('v','supp-test-1');
+            const r=await fetch(u);
+            if(!r.ok) throw new Error(action+'/'+kind+' '+r.status);
+            return r.json();
+          }
+
+          function norm(x){return String(x||'').trim().toLowerCase().replace(/[^a-z0-9]+/g,'');}
+          function match(rows,make,model){
+            return (rows||[]).filter(x=>{
+              const a=norm(x.make), b=norm(make), c=norm(x.model), d=norm(model);
+              return a===b && (c===d || c.includes(d) || d.includes(c));
+            }).slice(0,5);
+          }
+
+          for(const action of ['wikidata','dbpedia']){
+            console.log('=== '+action+' ===');
+            const cache=new Map();
+            for(const [kind,make,model] of cases){
+              if(!cache.has(kind)) cache.set(kind,await get(action,kind));
+              const rows=cache.get(kind)?.vehicles||[];
+              console.log(JSON.stringify({
+                kind,make,model,count:rows.length,
+                matches:match(rows,make,model).map(x=>({
+                  make:x.make,model:x.model,kind:x.kind,wikipediaTitle:x.wikipediaTitle||null
+                }))
+              }));
+            }
+          }
+          NODE
