@@ -1232,6 +1232,7 @@ const popularCardRecoveryState =
 
 const POPULAR_CARD_RECOVERY_CONCURRENCY = 1;
 const POPULAR_CARD_RECOVERY_MAX_CANDIDATES = 200;
+const UNIFIED_CARD_RECOVERY_MAX_CANDIDATES = 600;
 const POPULAR_CARD_RECOVERY_CANDIDATE_WINDOW = 8;
 
 
@@ -2480,6 +2481,162 @@ function updateVehicleCardInformationPreview(
 }
 
 
+function hasUnifiedVehicleDisplayInformation(
+    details
+) {
+
+    if (
+        !details ||
+        details.success === false
+    ) {
+        return false;
+    }
+
+    const description =
+        String(
+            details?.wikipedia?.description ||
+            ""
+        ).trim();
+
+    const hasDescription =
+        isUsefulVehicleDetailValue(description) &&
+        !/^no information$/i.test(description);
+
+    const specificationCount =
+        Object.values(
+            details?.specifications || {}
+        ).filter(value =>
+            isUsefulVehicleDetailValue(value)
+        ).length;
+
+    /*
+     * Catalog body type/year alone do not count. The card is considered
+     * informative only when the details API returned a real description
+     * or at least one real technical specification.
+     */
+    return (
+        hasDescription ||
+        specificationCount > 0
+    );
+
+}
+
+function findUnifiedVehicleCard(
+    vehicle
+) {
+
+    const make =
+        normalizeVehicleText(
+            vehicle?.make
+        );
+
+    const model =
+        normalizeVehicleText(
+            vehicle?.model
+        );
+
+    const sourceKind =
+        normalizeVehicleText(
+            vehicle?.sourceKind ||
+            vehicle?.kind ||
+            "car"
+        );
+
+    const grid =
+        document.getElementById(
+            "popularCarsGrid"
+        );
+
+    if (!grid) {
+        return null;
+    }
+
+    return Array.from(
+        grid.querySelectorAll(
+            '.car-card[data-popular-stable-card="true"]'
+        )
+    ).find(card =>
+        normalizeVehicleText(
+            card.dataset.vehicleMake
+        ) === make &&
+        normalizeVehicleText(
+            card.dataset.vehicleModel
+        ) === model &&
+        normalizeVehicleText(
+            card.dataset.vehicleSourceKind
+        ) === sourceKind
+    ) || null;
+
+}
+
+function applyUnifiedVehicleCardDetailsState(
+    card,
+    vehicle,
+    details
+) {
+
+    if (!card) {
+        return;
+    }
+
+    const infoAvailable =
+        hasUnifiedVehicleDisplayInformation(
+            details
+        );
+
+    const comparisonAvailable =
+        details?.comparisonAvailable === true;
+
+    card.dataset.infoState =
+        infoAvailable
+            ? "available"
+            : "unavailable";
+
+    card.dataset.comparisonState =
+        comparisonAvailable
+            ? "available"
+            : "unavailable";
+
+    card.dataset.detailsReady =
+        "true";
+
+    /*
+     * Preserve the existing comparison requirement: a card is fully valid
+     * only when useful information and comparison data are both present.
+     */
+    const unifiedCardValid =
+        infoAvailable &&
+        comparisonAvailable;
+
+    card.dataset.qualityState =
+        unifiedCardValid
+            ? "valid"
+            : "invalid";
+
+    if (unifiedCardValid) {
+        card.dataset.recoveryLocked =
+            "true";
+        return;
+    }
+
+    if (
+        currentVehicleMode === "popular" &&
+        currentVehicleKind === VEHICLE_ALL_KIND
+    ) {
+        card.dataset.recoveryLocked =
+            "false";
+
+        window.setTimeout(
+            () =>
+                schedulePopularCardRecovery(
+                    VEHICLE_ALL_KIND
+                ),
+            0
+        );
+    }
+
+}
+
 function getPopularCardRecoveryState(
     kind
 ) {
@@ -3610,7 +3767,18 @@ async function buildFreshUnifiedVehicleCatalog() {
         return (String(a.make) + " " + String(a.model)).localeCompare(String(b.make) + " " + String(b.model), undefined, { sensitivity: "base" });
     });
 
-    return vehicles.slice(0, MAX_UNIFIED_VEHICLES);
+    /*
+     * Keep a hidden popularity-ordered recovery pool. Only the first 600
+     * are public, but candidates 601–1200 are available as replacements
+     * when a visible card fails the background quality check.
+     */
+    return vehicles.slice(
+        0,
+        Math.max(
+            MAX_UNIFIED_VEHICLES,
+            1200
+        )
+    );
 }
 
 async function fetchUnifiedVehicleCatalog() {
@@ -7176,6 +7344,14 @@ function preloadPopularVehicleCardInformation(
     kind
 ) {
 
+    /*
+     * Unified Cars cards contain no image elements. Their detail
+     * validation is handled by the account-scoped background warmup.
+     */
+    if (kind === VEHICLE_ALL_KIND) {
+        return;
+    }
+
     const grid =
         document.getElementById("popularCarsGrid");
 
@@ -8044,42 +8220,44 @@ function createVehicleCard(
             "button"
         );
 
-
     card.type =
         "button";
-
 
     card.className =
         "car-card";
 
-    card.dataset.imageState =
+    /*
+     * Cars-section cards are deliberately lightweight. There is no
+     * Wikipedia/Wikimedia image request here. The dataset supplies the
+     * card identity, while full information is loaded in the background
+     * and/or when the card is opened.
+     */
+    card.dataset.infoState =
         "pending";
 
-    /* Popular category cards participate in image-priority ordering.
-     * Search results keep their normal search ordering. */
+    card.dataset.comparisonState =
+        "pending";
+
+    card.dataset.imageState =
+        "not-required";
+
     card.dataset.popularStableCard =
         currentVehicleMode === "popular"
             ? "true"
             : "false";
 
-
     const info =
-        getVehicleKindInfo(
-            kind
-        );
-
+        getVehicleKindInfo(kind);
 
     const make =
         escapeVehicleHtml(
             vehicle.make
         );
 
-
     const model =
         escapeVehicleHtml(
             vehicle.model
         );
-
 
     const bodyType =
         vehicle.bodyType
@@ -8088,16 +8266,12 @@ function createVehicleCard(
             )
             : "";
 
-
     let secondaryText =
         info.singular;
 
-
     if (bodyType) {
-
         secondaryText +=
             ` • ${bodyType}`;
-
     }
 
     const yearStart =
@@ -8126,179 +8300,50 @@ function createVehicleCard(
 
     }
 
-
     /*
-     * Image area.
+     * Image replacement: a static emoji only. This keeps the card
+     * visually consistent while avoiding any network/image work.
      */
-
-    const imageContainer =
+    const visual =
         document.createElement(
             "div"
         );
 
+    visual.className =
+        "car-card-emoji";
 
-    imageContainer.className =
-        "car-card-image-container";
-
-
-    imageContainer.style.width =
-        "100%";
-
-
-    imageContainer.style.overflow =
-        "hidden";
-
-
-    /*
-     * Placeholder is shown immediately.
-     * The real image replaces it once the
-     * details API returns.
-     */
-
-    const placeholder =
-        createVehicleImagePlaceholder(
-            vehicle,
-            kind
-        );
-
-
-    imageContainer.appendChild(
-        placeholder
+    visual.setAttribute(
+        "aria-hidden",
+        "true"
     );
 
-
-    /*
-     * Real lazy-loading image.
-     */
-
-    const image =
-        createVehicleImageElement(
-            vehicle,
-            kind
-        );
-
-
-    image.style.position =
-        "absolute";
-
-
-    image.style.inset =
-        "0";
-
-
-    /*
-     * Make the image container relative.
-     */
-
-    imageContainer.style.position =
-        "relative";
-
-
-    imageContainer.style.height =
-        "180px";
-
-
-    imageContainer.appendChild(
-        image
-    );
-
-
-    /*
-     * Hide the image until loaded.
-     */
-
-    image.addEventListener(
-        "load",
-        () => {
-
-            if (
-                placeholder.isConnected
-            ) {
-
-                placeholder.remove();
-
-            }
-
-        }
-    );
-
-
-    /*
-     * Text area.
-     */
+    visual.textContent =
+        info.icon;
 
     const textContainer =
         document.createElement(
             "div"
         );
 
-
     textContainer.className =
         "car-card-content";
 
-
     textContainer.innerHTML = `
-
         <strong>
             ${make} ${model}
         </strong>
-
         <span>
             ${secondaryText}
         </span>
-
     `;
 
-
     card.appendChild(
-        imageContainer
+        visual
     );
-
 
     card.appendChild(
         textContainer
     );
-
-    /*
-     * Show useful catalog information immediately. Wikipedia data will
-     * replace this preview as soon as the lightweight hydration request
-     * succeeds.
-     */
-    updateVehicleCardInformationPreview(
-        image,
-        null,
-        vehicle
-    );
-
-    /*
-     * The quality scan normally fetched Wikipedia details before the
-     * card was created. Reuse that cached response immediately so cards
-     * with "Image unavailable" still show useful technical information
-     * without waiting for the image observer.
-     */
-    const cachedDetails =
-        vehicleDetailsCache.get(
-            getVehicleDetailsCacheKey(
-                vehicle.make,
-                vehicle.model,
-                vehicle.sourceKind || kind
-            )
-        );
-
-    if (cachedDetails) {
-
-        updateVehicleCardInformationPreview(
-            image,
-            cachedDetails
-        );
-
-    }
-
-
-    /*
-     * Comparison system will be connected
-     * to these cards later.
-     */
 
     card.dataset.vehicleKind =
         kind;
@@ -8307,56 +8352,44 @@ function createVehicleCard(
         vehicle.sourceKind ||
         kind;
 
-
     card.dataset.vehicleMake =
         vehicle.make || "";
-
 
     card.dataset.vehicleModel =
         vehicle.model || "";
 
-
     /*
-     * Clicking a card opens the full vehicle detail panel.
+     * Reuse a complete details response when the account/session cache
+     * already has one. This only changes validation state; no information
+     * text is injected into the lightweight card.
      */
+    const cachedDetails =
+        vehicleDetailsCache.get(
+            getVehicleDetailsCacheKey(
+                vehicle.make,
+                vehicle.model,
+                vehicle.sourceKind || kind,
+                "full"
+            )
+        );
+
+    if (cachedDetails) {
+        applyUnifiedVehicleCardDetailsState(
+            card,
+            vehicle,
+            cachedDetails
+        );
+    }
 
     card.addEventListener(
         "click",
         () => {
-
             openVehicleDetailsPanel(
                 vehicle,
                 kind
             );
-
         }
     );
-
-
-    /*
-     * Register image with IntersectionObserver.
-     */
-
-    const observer =
-        getVehicleImageObserver();
-
-
-    if (observer) {
-
-    observer.observe(
-        image
-    );
-
-} else {
-
-    queueVehicleImageLoad(
-        image,
-        vehicle.make || "",
-        vehicle.model || "",
-        vehicle.sourceKind || kind
-    );
-
-}
 
     return card;
 
@@ -8366,6 +8399,7 @@ function createVehicleCard(
 /*
  * ============================================================
  * RENDER VEHICLES
+
  * ============================================================
  */
 
@@ -12996,7 +13030,15 @@ async function openCars() {
 
     if (currentVehicleKind !== VEHICLE_ALL_KIND) return;
 
-    currentVehicleCatalog = vehicles.slice(0, MAX_UNIFIED_VEHICLES);
+    currentVehicleCatalog = Array.isArray(vehicles)
+        ? vehicles.slice(
+            0,
+            Math.max(
+                MAX_UNIFIED_VEHICLES,
+                1200
+            )
+        )
+        : [];
     updateCarsLastUpdated(VEHICLE_ALL_KIND);
     await loadAndRenderPopularVehicles(VEHICLE_ALL_KIND, false);
     /*
