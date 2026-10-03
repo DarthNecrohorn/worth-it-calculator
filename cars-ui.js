@@ -13983,11 +13983,21 @@ function queueCloudVehicleAccountCacheUpsert(
         return vehicleAccountCloudSyncPromise;
     }
 
-    const batch =
-        records.slice(
-            0,
-            VEHICLE_ACCOUNT_CLOUD_CACHE_BATCH_SIZE
+    const batches = [];
+
+    for (
+        let index = 0;
+        index < records.length;
+        index += VEHICLE_ACCOUNT_CLOUD_CACHE_BATCH_SIZE
+    ) {
+        batches.push(
+            records.slice(
+                index,
+                index +
+                    VEHICLE_ACCOUNT_CLOUD_CACHE_BATCH_SIZE
+            )
         );
+    }
 
     vehicleAccountCloudSyncPromise =
         vehicleAccountCloudSyncPromise
@@ -14001,33 +14011,37 @@ function queueCloudVehicleAccountCacheUpsert(
                     return;
                 }
 
-                const response =
-                    await fetch(
-                        VEHICLE_API +
-                        "?action=account-cache-upsert",
-                        {
-                            method: "POST",
-                            headers: {
-                                "Accept":
-                                    "application/json",
-                                "Content-Type":
-                                    "application/json",
-                                "Authorization":
-                                    "Bearer " + accessToken
-                            },
-                            body:
-                                JSON.stringify({
-                                    datasetVersion,
-                                    records: batch
-                                })
-                        }
-                    );
+                for (const batch of batches) {
 
-                if (!response.ok) {
-                    throw new Error(
-                        "Cloud vehicle cache upsert returned " +
-                        response.status
-                    );
+                    const response =
+                        await fetch(
+                            VEHICLE_API +
+                            "?action=account-cache-upsert",
+                            {
+                                method: "POST",
+                                headers: {
+                                    "Accept":
+                                        "application/json",
+                                    "Content-Type":
+                                        "application/json",
+                                    "Authorization":
+                                        "Bearer " + accessToken
+                                },
+                                body:
+                                    JSON.stringify({
+                                        datasetVersion,
+                                        records: batch
+                                    })
+                            }
+                        );
+
+                    if (!response.ok) {
+                        throw new Error(
+                            "Cloud vehicle cache upsert returned " +
+                            response.status
+                        );
+                    }
+
                 }
 
             })
@@ -14790,6 +14804,20 @@ async function startUnifiedVehicleBackgroundWarmup() {
                 const reusableStoredKeys =
                     new Set();
 
+                const cloudReusableStoredKeys =
+                    new Set(
+                        cloudReusableStoredVehicles.map(
+                            vehicle =>
+                                getPopularVehicleQualityKey(
+                                    vehicle,
+                                    VEHICLE_ALL_KIND
+                                )
+                        )
+                    );
+
+                const localMigrationRecords =
+                    [];
+
                 const reusableStoredVehicles =
                     [];
 
@@ -14899,6 +14927,21 @@ async function startUnifiedVehicleBackgroundWarmup() {
                         reusableStoredVehicles.push(
                             candidate
                         );
+
+                        if (
+                            !cloudReusableStoredKeys.has(key)
+                        ) {
+                            localMigrationRecords.push({
+                                rankIndex:
+                                    candidateOrder.get(key) ??
+                                    Number.MAX_SAFE_INTEGER,
+                                vehicle:
+                                    candidate,
+                                details:
+                                    persistentDetails
+                            });
+                        }
+
                     }
 
                 }
@@ -14913,6 +14956,13 @@ async function startUnifiedVehicleBackgroundWarmup() {
                                 )
                         )
                     );
+
+                if (localMigrationRecords.length) {
+                    queueCloudVehicleAccountCacheUpsert(
+                        vehicleDetailsDatasetVersion,
+                        localMigrationRecords
+                    );
+                }
 
                 const validKeys =
                     new Set();
@@ -15157,10 +15207,38 @@ async function startUnifiedVehicleBackgroundWarmup() {
                 /*
                  * Keep a final 2000-item account-scoped quality snapshot.
                  */
-                if (validVehicles.length) {
+                validVehicles.sort(
+                    (a, b) =>
+                        (
+                            candidateOrder.get(
+                                getPopularVehicleQualityKey(
+                                    a,
+                                    VEHICLE_ALL_KIND
+                                )
+                            ) ??
+                            Number.MAX_SAFE_INTEGER
+                        ) -
+                        (
+                            candidateOrder.get(
+                                getPopularVehicleQualityKey(
+                                    b,
+                                    VEHICLE_ALL_KIND
+                                )
+                            ) ??
+                            Number.MAX_SAFE_INTEGER
+                        )
+                );
+
+                const finalValidVehicles =
+                    validVehicles.slice(
+                        0,
+                        MAX_UNIFIED_VEHICLES
+                    );
+
+                if (finalValidVehicles.length) {
                     await writePersistentPopularVehicles(
                         VEHICLE_ALL_KIND,
-                        validVehicles
+                        finalValidVehicles
                     );
                 }
 
