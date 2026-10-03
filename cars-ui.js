@@ -54,7 +54,7 @@ const IMMEDIATE_POPULAR_CATALOG_TARGET = 140;
 
 const MAX_SEARCH_RESULTS = 600;
 
-const INITIAL_VISIBLE_ROWS = 2;
+const INITIAL_VISIBLE_ROWS = 3;
 
 /*
  * Popular Vehicles quality selection.
@@ -7154,75 +7154,124 @@ async function renderPopularCatalogImmediately(kind, showAll = false) {
 
     for (const vehicle of catalog) {
         if (!vehicle?.make || !vehicle?.model) continue;
-        const sourceKind = vehicle.sourceKind || vehicle.kind;
+
+        const sourceKind =
+            vehicle.sourceKind ||
+            vehicle.kind;
+
         if (!VEHICLE_KINDS.includes(sourceKind)) continue;
-        const key = normalizeVehicleText(vehicle.make) + "|" +
-            normalizeVehicleText(vehicle.model) + "|" + sourceKind;
+
+        const key =
+            normalizeVehicleText(vehicle.make) + "|" +
+            normalizeVehicleText(vehicle.model) + "|" +
+            sourceKind;
+
         if (seen.has(key)) continue;
+
         seen.add(key);
         unique.push(vehicle);
+
         if (unique.length >= MAX_UNIFIED_VEHICLES) break;
     }
 
     currentVehicleResults = unique;
+    currentVehicleShowAll = Boolean(showAll);
 
     /*
-     * Unified Vehicles keeps the same compact landing behavior as the
-     * previous vehicle section: opening Cars shows only the initial rows,
-     * while "Show all vehicles" expands the already-loaded 600-card
-     * catalog. Refresh/open must always return to this collapsed state.
+     * Keep the first paint small and deterministic: exactly three rows.
+     * Never create hundreds of hidden cards and then hydrate them all.
      */
-    const visibleCount =
+    const initialCount =
+        getInitialVehicleLimit(unique);
+
+    const targetCount =
         showAll
             ? unique.length
-            : getInitialVehicleLimit(unique);
+            : initialCount;
 
-    currentVehicleShowAll = Boolean(showAll);
     grid.innerHTML = "";
 
-    const fragment = document.createDocumentFragment();
+    const appendCards = (from, to) => {
+        const fragment =
+            document.createDocumentFragment();
 
-    unique.forEach((vehicle, index) => {
-        const card = createVehicleCard(
-            vehicle,
-            vehicle.sourceKind || vehicle.kind || kind
-        );
+        for (let index = from; index < to; index++) {
+            const vehicle = unique[index];
 
-        card.dataset.popularStableCard = "true";
+            const card =
+                createVehicleCard(
+                    vehicle,
+                    vehicle.sourceKind ||
+                        vehicle.kind ||
+                        kind
+                );
 
-        if (index >= visibleCount) {
-            card.style.display = "none";
-            card.dataset.vehicleCollapsed = "true";
+            card.dataset.popularStableCard =
+                "true";
+
+            fragment.appendChild(card);
         }
 
-        fragment.appendChild(card);
-    });
+        if (fragment.childNodes.length) {
+            grid.appendChild(fragment);
+        }
+    };
 
-    grid.appendChild(fragment);
+    appendCards(
+        0,
+        Math.min(initialCount, targetCount)
+    );
 
-    reorderPopularVehicleCardsByImageAvailability(kind);
+    /*
+     * "Show all" expands downward in small batches. This keeps the browser
+     * responsive and guarantees that cards enter the DOM in feed order.
+     */
+    if (showAll) {
 
-    const visibleVehicles =
-        unique.slice(0, visibleCount);
+        let cursor = initialCount;
+
+        while (
+            cursor < targetCount &&
+            currentVehicleKind === kind &&
+            currentVehicleMode === "popular"
+        ) {
+            const next =
+                Math.min(
+                    cursor + 24,
+                    targetCount
+                );
+
+            appendCards(
+                cursor,
+                next
+            );
+
+            cursor = next;
+
+            await new Promise(
+                resolve =>
+                    window.requestAnimationFrame(resolve)
+            );
+        }
+    }
 
     if (showAll) {
         renderVehicleCollapseButton(kind);
     } else {
         renderVehicleExpandButton(
             unique,
-            visibleVehicles,
+            unique.slice(0, initialCount),
             kind,
-            unique.length > visibleCount
+            unique.length > initialCount
         );
     }
 
-    /* Only hydrate the cards visible on first paint. Deeper cards are
-       handled by the existing bounded observer after expansion/scroll,
-       while persistent account-scoped detail/image cache prevents
-       repeated Wikipedia calls for already-loaded vehicles. */
+    /*
+     * Hydration starts at the top. Do not reorder cards when their images
+     * finish; otherwise the grid jumps while it is loading.
+     */
     void preloadPopularVehicleCardInformation(kind);
 }
-
 async function loadAndRenderNonCarPopularVehicles(
     kind,
     showAll = false
@@ -12594,6 +12643,109 @@ function handleVehicleSearch(
 
 /*
  * ============================================================
+ * BACKGROUND VEHICLE WARMUP
+ *
+ * Prepare the unified catalog and account-scoped full details while
+ * the user is elsewhere on the site. Cached details are reused later.
+ * ============================================================
+ */
+
+const UNIFIED_BACKGROUND_WARMUP_BATCH_SIZE = 8;
+const UNIFIED_BACKGROUND_WARMUP_MAX_PER_SESSION = 600;
+
+let unifiedVehicleBackgroundWarmupPromise = null;
+
+function startUnifiedVehicleBackgroundWarmup() {
+
+    if (unifiedVehicleBackgroundWarmupPromise) {
+        return unifiedVehicleBackgroundWarmupPromise;
+    }
+
+    unifiedVehicleBackgroundWarmupPromise =
+        (async () => {
+
+            try {
+
+                const catalog =
+                    await fetchUnifiedVehicleCatalog();
+
+                const candidates =
+                    Array.isArray(catalog)
+                        ? catalog.slice(
+                            0,
+                            Math.min(
+                                MAX_UNIFIED_VEHICLES,
+                                UNIFIED_BACKGROUND_WARMUP_MAX_PER_SESSION
+                            )
+                        )
+                        : [];
+
+                for (
+                    let offset = 0;
+                    offset < candidates.length;
+                    offset += UNIFIED_BACKGROUND_WARMUP_BATCH_SIZE
+                ) {
+
+                    const batch =
+                        candidates.slice(
+                            offset,
+                            offset +
+                            UNIFIED_BACKGROUND_WARMUP_BATCH_SIZE
+                        );
+
+                    await Promise.all(
+                        batch.map(
+                            vehicle =>
+                                fetchVehicleDetailsWithRetry(
+                                    vehicle.make,
+                                    vehicle.model,
+                                    vehicle.sourceKind ||
+                                        vehicle.kind ||
+                                        "car",
+                                    1,
+                                    0,
+                                    "full"
+                                )
+                        )
+                    );
+
+                    await new Promise(resolve => {
+
+                        if (
+                            typeof window.requestIdleCallback ===
+                            "function"
+                        ) {
+                            window.requestIdleCallback(
+                                () => resolve(),
+                                { timeout: 1000 }
+                            );
+                        } else {
+                            window.setTimeout(
+                                resolve,
+                                80
+                            );
+                        }
+
+                    });
+
+                }
+
+            } catch (error) {
+
+                console.warn(
+                    "Background vehicle warmup failed:",
+                    error
+                );
+
+            }
+
+        })();
+
+    return unifiedVehicleBackgroundWarmupPromise;
+}
+
+/*
+ * ============================================================
  * OPEN CARS
  * ============================================================
  */
@@ -12955,10 +13107,13 @@ document.addEventListener(
         }
 
         /*
-         * Create the five public vehicle categories.
+         * Initialize the unified Vehicles UI and begin warming the
+         * account-scoped catalog/details in the background.
          */
 
         renderVehicleCategoryButtons();
+
+        void startUnifiedVehicleBackgroundWarmup();
 
 
         /*
