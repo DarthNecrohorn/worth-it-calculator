@@ -1,0 +1,48 @@
+name: Temp Cars Resolver Probe
+
+on:
+  push:
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Probe resolver
+        env:
+          SITE: https://worth-it-calculator.pages.dev
+        run: |
+          node <<'NODE'
+          const cases=[
+            ['van','Mercedes-Benz','Sprinter'],
+            ['van','Iveco','Daily'],
+            ['van','Ford','Transit Custom'],
+            ['truck','DAF','XF'],
+            ['truck','MAN','TGL'],
+            ['truck','Iveco','S-Way'],
+            ['bus','Ford','Transit'],
+            ['bus','Mercedes-Benz','Sprinter'],
+            ['bus','Wrightbus','StreetDeck'],
+            ['bus','Mitsubishi Fuso','Rosa'],
+            ['motorcycle','BMW','R1300GS'],
+            ['motorcycle','Bajaj','Boxer BM150']
+          ];
+          for(const [kind,make,model] of cases){
+            const u=new URL(process.env.SITE+'/api/cars');
+            u.searchParams.set('action','details');
+            u.searchParams.set('kind',kind);
+            u.searchParams.set('make',make);
+            u.searchParams.set('model',model);
+            u.searchParams.set('image_only','1');
+            u.searchParams.set('v','resolver-probe-2');
+            const r=await fetch(u);
+            const d=await r.json();
+            const desc=String(d?.wikipedia?.description||'').trim();
+            console.log(JSON.stringify({
+              kind,make,model,status:r.status,
+              title:d?.wikipedia?.title||null,
+              descLen:desc.length,
+              image:Boolean(d?.image?.url),
+              verified:d?.image?.identity_verified===true
+            }));
+          }
+          NODE
