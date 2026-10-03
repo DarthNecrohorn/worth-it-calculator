@@ -1,0 +1,19 @@
+name: Cars syntax verification
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  syntax:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Parse Cars frontend
+        run: node --check cars-ui.js
+      - name: Parse Cars API
+        run: node --check functions/api/cars.js
