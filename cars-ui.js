@@ -9758,8 +9758,7 @@ function createVehicleDetailsModal() {
         >
             ❯
         </button>
-    
-
+    `;
     document.body.appendChild(modal);
 
     modal.querySelectorAll(
