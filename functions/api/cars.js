@@ -36,7 +36,7 @@ const WIKIDATA_CANDIDATE_LIMIT = 600;
 const WIKIDATA_NONCAR_CANDIDATE_LIMIT = 1000;
 const DBPEDIA_CANDIDATE_LIMIT = 600;
 const DBPEDIA_NONCAR_CANDIDATE_LIMIT = 1000;
-const WIKIPEDIA_CACHE_VERSION = "v28";
+const WIKIPEDIA_CACHE_VERSION = "v29";
 const WIKIMEDIA_IMAGE_LOOKUP_TIMEOUT_MS = 3500;
 
 const WIKIPEDIA_API =
@@ -6923,7 +6923,8 @@ function createWikipediaNoInformation(
     model,
     kind,
     image = null,
-    informationSource = "Wikipedia"
+    informationSource = "Wikipedia",
+    vehicle = null
 ) {
 
     return {
@@ -6951,9 +6952,18 @@ function createWikipediaNoInformation(
         image,
 
         specifications:
-            createEmptyWikipediaSpecifications(),
+            mergeCatalogFallbackSpecifications(
+                createEmptyWikipediaSpecifications(),
+                vehicle
+            ),
 
-        comparisonAvailable: false
+        comparisonAvailable:
+            hasWikipediaVehicleInformation(
+                mergeCatalogFallbackSpecifications(
+                    createEmptyWikipediaSpecifications(),
+                    vehicle
+                )
+            )
     };
 }
 
@@ -7002,7 +7012,80 @@ async function handleDetails(
         );
     }
 
-    /*
+       const detailsMode =
+        requestUrl.searchParams.get("image_only") === "1"
+            ? "image"
+            : requestUrl.searchParams.get("fast") === "1"
+                ? "fast"
+                : "full";
+
+    const detailsCacheKey =
+        new Request(
+            "https://worth-it-vehicle-details-cache.local/" +
+            WIKIPEDIA_CACHE_VERSION + "/" +
+            detailsMode + "/" +
+            encodeURIComponent(kind) + "/" +
+            encodeURIComponent(make) + "/" +
+            encodeURIComponent(model)
+        );
+
+    const detailsCache =
+        typeof caches !== "undefined"
+            ? caches.default
+            : null;
+
+    if (detailsCache) {
+        try {
+            const cachedResponse =
+                await detailsCache.match(
+                    detailsCacheKey
+                );
+
+            if (cachedResponse) {
+                return cachedResponse;
+            }
+        } catch (error) {
+            console.warn(
+                "Vehicle details cache read failed:",
+                error
+            );
+        }
+    }
+
+    const respondDetails = async (
+        data,
+        status = 200,
+        cacheSeconds = CACHE_TTL
+    ) => {
+        const response =
+            jsonResponse(
+                data,
+                status,
+                cacheSeconds
+            );
+
+        if (
+            detailsCache &&
+            status >= 200 &&
+            status < 300
+        ) {
+            try {
+                await detailsCache.put(
+                    detailsCacheKey,
+                    response.clone()
+                );
+            } catch (error) {
+                console.warn(
+                    "Vehicle details cache write failed:",
+                    error
+                );
+            }
+        }
+
+        return response;
+    };
+
+    /* /*
      * The frontend already received this vehicle from the
      * VehiclesDB open catalog. Do not reload and parse the full
      * VehiclesDB dataset for every Wikipedia detail request.
@@ -7131,7 +7214,7 @@ async function handleDetails(
             }
         }
 
-        return jsonResponse(
+        return respondDetails(
             createWikipediaNoInformation(
                 vehicle.make,
                 vehicle.model,
@@ -7139,7 +7222,8 @@ async function handleDetails(
                 fallbackImage,
                 fallbackImage
                     ? "Wikimedia Commons"
-                    : "Wikipedia"
+                    : "Wikipedia",
+                vehicle
             ),
             200,
             NEGATIVE_WIKIPEDIA_CACHE_TTL
@@ -7201,7 +7285,7 @@ async function handleDetails(
             }
         }
 
-        return jsonResponse(
+        return respondDetails(
             createWikipediaNoInformation(
                 vehicle.make,
                 vehicle.model,
@@ -7209,7 +7293,8 @@ async function handleDetails(
                 fallbackImage,
                 fallbackImage
                     ? "Wikimedia Commons"
-                    : "Wikipedia"
+                    : "Wikipedia",
+                vehicle
             ),
             200,
             NEGATIVE_WIKIPEDIA_CACHE_TTL
@@ -7264,7 +7349,7 @@ async function handleDetails(
             }
         }
 
-        return jsonResponse(
+        return respondDetails(
             createWikipediaNoInformation(
                 vehicle.make,
                 vehicle.model,
@@ -7272,7 +7357,8 @@ async function handleDetails(
                 fallbackImage,
                 fallbackImage
                     ? "Wikimedia Commons"
-                    : "Wikipedia"
+                    : "Wikipedia",
+                vehicle
             ),
             200,
             NEGATIVE_WIKIPEDIA_CACHE_TTL
@@ -7312,11 +7398,14 @@ async function handleDetails(
         )
     ) {
 
-        return jsonResponse(
+        return respondDetails(
             createWikipediaNoInformation(
                 vehicle.make,
                 vehicle.model,
-                kind
+                kind,
+                null,
+                "Wikipedia",
+                vehicle
             ),
             200,
             NEGATIVE_WIKIPEDIA_CACHE_TTL
@@ -7379,7 +7468,7 @@ async function handleDetails(
             );
         }
 
-        return jsonResponse(
+        return respondDetails(
             {
                 success: true,
                 source: {
@@ -7418,7 +7507,7 @@ async function handleDetails(
         requestUrl.searchParams.get("fast") === "1"
     ) {
 
-        return jsonResponse(
+        return respondDetails(
             {
                 success: true,
                 source: {
@@ -7745,7 +7834,7 @@ async function handleDetails(
             hasContradictoryKind
         ) {
 
-            return jsonResponse(
+            return respondDetails(
                 createWikipediaNoInformation(
                     vehicle.make,
                     vehicle.model,
@@ -7829,7 +7918,7 @@ async function handleDetails(
 
     /* 5. Return stable frontend response. */
 
-    return jsonResponse(
+    return respondDetails(
         {
             success: true,
 
