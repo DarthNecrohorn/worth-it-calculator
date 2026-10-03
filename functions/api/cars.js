@@ -134,6 +134,25 @@ function jsonResponse(
     );
 }
 
+function privateJsonResponse(
+    data,
+    status = 200
+) {
+
+    return new Response(
+        JSON.stringify(data),
+        {
+            status,
+            headers: {
+                "Content-Type":
+                    "application/json; charset=UTF-8",
+                "Cache-Control":
+                    "private, no-store"
+            }
+        }
+    );
+}
+
 /*
  * ------------------------------------------------------------
  * Normalization helpers
@@ -8593,7 +8612,7 @@ async function handleVehicleAccountCacheGet(
         context?.env?.DB;
 
     if (!db) {
-        return jsonResponse(
+        return privateJsonResponse(
             {
                 success: false,
                 error:
@@ -8610,7 +8629,7 @@ async function handleVehicleAccountCacheGet(
         );
 
     if (!user) {
-        return jsonResponse(
+        return privateJsonResponse(
             {
                 success: false,
                 error: "Authentication required."
@@ -8630,7 +8649,7 @@ async function handleVehicleAccountCacheGet(
             .slice(0, 120);
 
     if (!datasetVersion) {
-        return jsonResponse(
+        return privateJsonResponse(
             {
                 success: false,
                 error:
@@ -8715,7 +8734,7 @@ async function handleVehicleAccountCacheGet(
                         entry?.details
                 );
 
-        return jsonResponse(
+        return privateJsonResponse(
             {
                 success: true,
                 datasetVersion,
@@ -8733,7 +8752,7 @@ async function handleVehicleAccountCacheGet(
             error
         );
 
-        return jsonResponse(
+        return privateJsonResponse(
             {
                 success: false,
                 error:
@@ -8752,7 +8771,7 @@ async function handleVehicleAccountCacheUpsert(
         context?.env?.DB;
 
     if (!db) {
-        return jsonResponse(
+        return privateJsonResponse(
             {
                 success: false,
                 error:
@@ -8769,7 +8788,7 @@ async function handleVehicleAccountCacheUpsert(
         );
 
     if (!user) {
-        return jsonResponse(
+        return privateJsonResponse(
             {
                 success: false,
                 error: "Authentication required."
@@ -8785,7 +8804,7 @@ async function handleVehicleAccountCacheUpsert(
         payload =
             await context.request.json();
     } catch {
-        return jsonResponse(
+        return privateJsonResponse(
             {
                 success: false,
                 error:
@@ -8809,7 +8828,7 @@ async function handleVehicleAccountCacheUpsert(
             : [];
 
     if (!datasetVersion || !records.length) {
-        return jsonResponse(
+        return privateJsonResponse(
             {
                 success: false,
                 error:
@@ -8891,7 +8910,7 @@ async function handleVehicleAccountCacheUpsert(
             await db.batch(statements);
         }
 
-        return jsonResponse(
+        return privateJsonResponse(
             {
                 success: true,
                 saved:
@@ -8908,7 +8927,7 @@ async function handleVehicleAccountCacheUpsert(
             error
         );
 
-        return jsonResponse(
+        return privateJsonResponse(
             {
                 success: false,
                 error:
@@ -8927,7 +8946,7 @@ async function handleVehicleAccountCacheFinalize(
         context?.env?.DB;
 
     if (!db) {
-        return jsonResponse(
+        return privateJsonResponse(
             {
                 success: false,
                 error:
@@ -8944,7 +8963,7 @@ async function handleVehicleAccountCacheFinalize(
         );
 
     if (!user) {
-        return jsonResponse(
+        return privateJsonResponse(
             {
                 success: false,
                 error: "Authentication required."
@@ -8960,7 +8979,7 @@ async function handleVehicleAccountCacheFinalize(
         payload =
             await context.request.json();
     } catch {
-        return jsonResponse(
+        return privateJsonResponse(
             {
                 success: false,
                 error:
@@ -8979,7 +8998,7 @@ async function handleVehicleAccountCacheFinalize(
             .slice(0, 120);
 
     if (!datasetVersion) {
-        return jsonResponse(
+        return privateJsonResponse(
             {
                 success: false,
                 error:
@@ -9035,7 +9054,7 @@ async function handleVehicleAccountCacheFinalize(
                 )
                 .first();
 
-        return jsonResponse(
+        return privateJsonResponse(
             {
                 success: true,
                 datasetVersion,
@@ -9054,7 +9073,7 @@ async function handleVehicleAccountCacheFinalize(
             error
         );
 
-        return jsonResponse(
+        return privateJsonResponse(
             {
                 success: false,
                 error:
