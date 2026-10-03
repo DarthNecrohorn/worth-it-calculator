@@ -12013,11 +12013,11 @@ function injectVehicleUiStyles() {
         }
 
         .worth-it-vehicle-modal-navigation-previous {
-            left: 10px;
+            left: max(8px, calc(50% - 560px));
         }
 
         .worth-it-vehicle-modal-navigation-next {
-            right: 10px;
+            right: max(8px, calc(50% - 560px));
         }
 
         .worth-it-vehicle-modal-navigation:hover,
@@ -13365,11 +13365,11 @@ function injectVehicleUiStyles() {
             }
 
             .worth-it-vehicle-modal-navigation-previous {
-                left: 6px;
+                left: 4px;
             }
 
             .worth-it-vehicle-modal-navigation-next {
-                right: 6px;
+                right: 4px;
             }
 
             .worth-it-vehicle-modal-body {
