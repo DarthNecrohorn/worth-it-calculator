@@ -76,8 +76,9 @@ const POPULAR_NONCAR_SUPPLEMENTAL_CANDIDATE_LIMIT = 2200;
 const POPULAR_QUALITY_BATCH_SIZE = 10;
 const POPULAR_INITIAL_MAX_CHECKS = 40;
 const POPULAR_SHOW_ALL_MAX_NEW_CHECKS = 1500;
-const VEHICLE_DETAILS_REQUEST_TIMEOUT_MS = 15000;
-const VEHICLE_NONCAR_DETAILS_REQUEST_TIMEOUT_MS = 6500;
+const VEHICLE_DETAILS_REQUEST_TIMEOUT_MS = 30000;
+const VEHICLE_NONCAR_DETAILS_REQUEST_TIMEOUT_MS = 15000;
+const UNIFIED_BACKGROUND_WARMUP_DELAY_MS = 250;
 const VEHICLE_FAST_DETAILS_REQUEST_TIMEOUT_MS = 5000;
 const VEHICLE_IMAGE_DETAILS_REQUEST_TIMEOUT_MS = 8000;
 const POPULAR_NONCAR_PROGRESSIVE_BUDGET_MS = 7000;
@@ -1954,7 +1955,10 @@ async function fetchVehicleDetails(
                  * or rate-limit should silently fall back to the card
                  * placeholder/recovery path instead of flooding the console.
                  */
-                if (mode !== "image") {
+                if (
+                    mode !== "image" &&
+                    error?.name !== "AbortError"
+                ) {
                     console.warn(
                         "Vehicle details request failed:",
                         make,
@@ -13044,7 +13048,7 @@ function handleVehicleSearch(
  * ============================================================
  */
 
-const UNIFIED_BACKGROUND_WARMUP_BATCH_SIZE = 8;
+const UNIFIED_BACKGROUND_WARMUP_BATCH_SIZE = 2;
 const UNIFIED_BACKGROUND_WARMUP_MAX_PER_SESSION = 600;
 
 let unifiedVehicleBackgroundWarmupPromise = null;
@@ -13081,6 +13085,20 @@ function startUnifiedVehicleBackgroundWarmup() {
                     offset < candidates.length;
                     offset += UNIFIED_BACKGROUND_WARMUP_BATCH_SIZE
                 ) {
+
+                    /*
+                     * Keep background enrichment deliberately light. The
+                     * user-facing details request must not compete with a
+                     * large burst of Wikipedia/Wikimedia requests.
+                     */
+                    if (offset > 0) {
+                        await new Promise(resolve =>
+                            window.setTimeout(
+                                resolve,
+                                UNIFIED_BACKGROUND_WARMUP_DELAY_MS
+                            )
+                        );
+                    }
 
                     const batch =
                         candidates.slice(
