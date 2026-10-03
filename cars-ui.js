@@ -11575,7 +11575,8 @@ let vehicleCategoryPreloadPromise =
     null;
 
 function preloadVehicleCategoryCatalogs(
-    excludeKind = null
+    excludeKind = null,
+    warmDetails = false
 ) {
 
     if (
@@ -11626,6 +11627,16 @@ function preloadVehicleCategoryCatalogs(
              * Limit this to three categories at once so the active Cars
              * category and visible images are not starved of bandwidth.
              */
+ 
+            /*
+             * Do not warm Wikipedia details for other categories while
+             * Cars is loading. Catalog prefetch stays lightweight; each
+             * category owns its own quality/image workload when opened.
+             */
+            if (!warmDetails) {
+                return;
+            }
+
             const queue =
                 kindsToPreload.slice();
 
@@ -12311,7 +12322,8 @@ async function openCars() {
      * without competing with the active category's initial requests.
      */
     void preloadVehicleCategoryCatalogs(
-        "car"
+        "car",
+        false
     );
 
 
