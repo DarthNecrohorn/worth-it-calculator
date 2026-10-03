@@ -14185,10 +14185,10 @@ html[data-ui-scale="xl"] .water-levels-detail-card{
         border-radius:15px !important;
     }
     html[data-ui-scale="xl"] .worth-it-vehicle-modal-navigation-previous{
-        left:max(8px,calc(50% - 395px)) !important;
+        left:max(8px,calc(50% - 387px)) !important;
     }
     html[data-ui-scale="xl"] .worth-it-vehicle-modal-navigation-next{
-        right:max(8px,calc(50% - 395px)) !important;
+        right:max(8px,calc(50% - 387px)) !important;
     }
 }
 
