@@ -12070,8 +12070,11 @@ function injectVehicleUiStyles() {
             top: 12px;
             right: 12px;
             z-index: 5;
+            display: grid;
+            place-items: center;
             width: 42px;
             height: 42px;
+            padding: 0;
             border: 1px solid rgba(255, 255, 255, 0.12);
             border-radius: 50%;
             background: rgba(17, 19, 24, 0.86);
