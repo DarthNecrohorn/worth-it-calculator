@@ -6860,6 +6860,15 @@ async function restorePersistentPopularVehicles(
         return 0;
     }
 
+    if (
+        storedPayload?.datasetVersion &&
+        vehicleDetailsDatasetVersion &&
+        storedPayload.datasetVersion !==
+            vehicleDetailsDatasetVersion
+    ) {
+        return 0;
+    }
+
     const state =
         getPopularVehicleQualityState(
             kind,
@@ -14430,10 +14439,39 @@ async function startUnifiedVehicleBackgroundWarmup() {
                  * Keep the same balanced order used by the public
                  * Popular/All Vehicles selector.
                  */
+                const candidateOrder =
+                    new Map(
+                        candidates.map(
+                            (vehicle, index) => [
+                                getPopularVehicleQualityKey(
+                                    vehicle,
+                                    VEHICLE_ALL_KIND
+                                ),
+                                index
+                            ]
+                        )
+                    );
+
                 validVehicles.sort(
                     (a, b) =>
-                        candidates.indexOf(a) -
-                        candidates.indexOf(b)
+                        (
+                            candidateOrder.get(
+                                getPopularVehicleQualityKey(
+                                    a,
+                                    VEHICLE_ALL_KIND
+                                )
+                            ) ??
+                            Number.MAX_SAFE_INTEGER
+                        ) -
+                        (
+                            candidateOrder.get(
+                                getPopularVehicleQualityKey(
+                                    b,
+                                    VEHICLE_ALL_KIND
+                                )
+                            ) ??
+                            Number.MAX_SAFE_INTEGER
+                        )
                 );
 
                 if (validVehicles.length) {
@@ -14523,8 +14561,24 @@ async function startUnifiedVehicleBackgroundWarmup() {
 
                         validVehicles.sort(
                             (a, b) =>
-                                candidates.indexOf(a) -
-                                candidates.indexOf(b)
+                                (
+                                    candidateOrder.get(
+                                        getPopularVehicleQualityKey(
+                                            a,
+                                            VEHICLE_ALL_KIND
+                                        )
+                                    ) ??
+                                    Number.MAX_SAFE_INTEGER
+                                ) -
+                                (
+                                    candidateOrder.get(
+                                        getPopularVehicleQualityKey(
+                                            b,
+                                            VEHICLE_ALL_KIND
+                                        )
+                                    ) ??
+                                    Number.MAX_SAFE_INTEGER
+                                )
                         );
 
                         /*
