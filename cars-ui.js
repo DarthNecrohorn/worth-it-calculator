@@ -14022,7 +14022,7 @@ async function readCloudVehicleAccountCache(
 ) {
 
     const accessToken =
-        await getVehicleAccountAccessToken();
+        await getVehicleAccountAccessToken(true);
 
     if (!accessToken || !datasetVersion) {
         return [];
@@ -14220,7 +14220,7 @@ function queueCloudVehicleAccountCacheUpsert(
             .then(async () => {
 
                 const accessToken =
-                    await getVehicleAccountAccessToken();
+                    await getVehicleAccountAccessToken(true);
 
                 if (!accessToken) {
                     return;
@@ -14228,7 +14228,7 @@ function queueCloudVehicleAccountCacheUpsert(
 
                 for (const batch of batches) {
 
-                    const response =
+                    let response =
                         await fetch(
                             VEHICLE_API +
                             "?action=account-cache-upsert",
@@ -14240,7 +14240,9 @@ function queueCloudVehicleAccountCacheUpsert(
                                     "Content-Type":
                                         "application/json",
                                     "Authorization":
-                                        "Bearer " + accessToken
+                                        "Bearer " + accessToken,
+                                    "X-Supabase-Access-Token":
+                                        accessToken
                                 },
                                 body:
                                     JSON.stringify({
@@ -14250,11 +14252,41 @@ function queueCloudVehicleAccountCacheUpsert(
                             }
                         );
 
+                    if (response.status === 401) {
+                        const refreshedToken =
+                            await getVehicleAccountAccessToken(true);
+
+                        if (!refreshedToken) {
+                            return;
+                        }
+
+                        response =
+                            await fetch(
+                                VEHICLE_API +
+                                "?action=account-cache-upsert",
+                                {
+                                    method: "POST",
+                                    headers: {
+                                        "Accept":
+                                            "application/json",
+                                        "Content-Type":
+                                            "application/json",
+                                        "Authorization":
+                                            "Bearer " + refreshedToken,
+                                        "X-Supabase-Access-Token":
+                                            refreshedToken
+                                    },
+                                    body:
+                                        JSON.stringify({
+                                            datasetVersion,
+                                            records: batch
+                                        })
+                                }
+                            );
+                    }
+
                     if (!response.ok) {
-                        throw new Error(
-                            "Cloud vehicle cache upsert returned " +
-                            response.status
-                        );
+                        return;
                     }
 
                 }
@@ -14283,7 +14315,7 @@ async function finalizeCloudVehicleAccountCache(
     await vehicleAccountCloudSyncPromise;
 
     const accessToken =
-        await getVehicleAccountAccessToken();
+        await getVehicleAccountAccessToken(true);
 
     if (!accessToken) {
         return;
@@ -14303,7 +14335,9 @@ async function finalizeCloudVehicleAccountCache(
                         "Content-Type":
                             "application/json",
                         "Authorization":
-                            "Bearer " + accessToken
+                            "Bearer " + accessToken,
+                        "X-Supabase-Access-Token":
+                            accessToken
                     },
                     body:
                         JSON.stringify({
@@ -14312,11 +14346,40 @@ async function finalizeCloudVehicleAccountCache(
                 }
             );
 
+        if (response.status === 401) {
+            const refreshedToken =
+                await getVehicleAccountAccessToken(true);
+
+            if (!refreshedToken) {
+                return;
+            }
+
+            response =
+                await fetch(
+                    VEHICLE_API +
+                    "?action=account-cache-finalize",
+                    {
+                        method: "POST",
+                        headers: {
+                            "Accept":
+                                "application/json",
+                            "Content-Type":
+                                "application/json",
+                            "Authorization":
+                                "Bearer " + refreshedToken,
+                            "X-Supabase-Access-Token":
+                                refreshedToken
+                        },
+                        body:
+                            JSON.stringify({
+                                datasetVersion
+                            })
+                    }
+                );
+        }
+
         if (!response.ok) {
-            throw new Error(
-                "Cloud vehicle cache finalize returned " +
-                response.status
-            );
+            return;
         }
 
     } catch (error) {
