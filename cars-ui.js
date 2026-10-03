@@ -462,7 +462,7 @@ const DBPEDIA_SUPPLEMENTAL_LIMIT =
     1000;
 
 const VEHICLE_PERSISTENT_CATALOG_VERSION =
-    "v5";
+    "v6";
 
 const VEHICLE_PERSISTENT_POPULAR_VERSION =
     "v7";
@@ -505,6 +505,8 @@ const POPULAR_REFRESH_MAX_CHECKS = 320;
 const POPULAR_REFRESH_CONCURRENCY = 4;
 
 const PERSISTENT_VEHICLE_DETAILS_MAX_ENTRIES = 500;
+const POPULAR_INITIAL_DETAILS_PREFETCH = 6;
+const POPULAR_DETAILS_PREFETCH_CONCURRENCY = 3;
 
 function getPopularDetailsConcurrency(kind) {
     return kind === "car"
@@ -577,7 +579,7 @@ function getPopularBackgroundTargetCount(
  * Persistent browser cache version for account-scoped vehicle
  * metadata/images.
  */
-const VEHICLE_PERSISTENT_CACHE_VERSION = "v8";
+const VEHICLE_PERSISTENT_CACHE_VERSION = "v9";
 
 let vehicleAccountCacheOwnerPromise =
     null;
@@ -664,11 +666,10 @@ async function readPersistentVehicleCatalog(
     kind
 ) {
 
-    if (kind === "car") {
-        return null;
-    }
-
     try {
+
+        const owner =
+            await getVehicleAccountCacheOwner();
 
         const cache =
             await caches.open(
@@ -679,6 +680,8 @@ async function readPersistentVehicleCatalog(
         const response =
             await cache.match(
                 "https://worth-it-cars-cache.local/catalog/" +
+                owner +
+                "/" +
                 kind
             );
 
@@ -726,7 +729,6 @@ async function writePersistentVehicleCatalog(
 ) {
 
     if (
-        kind === "car" ||
         !Array.isArray(vehicles) ||
         !vehicles.length
     ) {
@@ -788,6 +790,9 @@ async function writePersistentVehicleCatalog(
                         vehicle.model
                 );
 
+        const owner =
+            await getVehicleAccountCacheOwner();
+
         const cache =
             await caches.open(
                 "worth-it-cars-catalog-" +
@@ -796,6 +801,8 @@ async function writePersistentVehicleCatalog(
 
         await cache.put(
             "https://worth-it-cars-cache.local/catalog/" +
+            owner +
+            "/" +
             kind,
             new Response(
                 JSON.stringify({
@@ -2401,9 +2408,9 @@ function updateVehicleCardInformationPreview(
         return;
     }
 
-    card.dataset.infoState = "catalog";
+    card.dataset.infoState = "unavailable";
     preview.textContent =
-        "Vehicle profile • VehiclesDB catalog";
+        "Couldn't find informations on wikipedia and online";
     preview.removeAttribute("title");
 
 }
@@ -6795,6 +6802,109 @@ async function refreshCurrentVehicleCategory(
 
 
 
+async function prefetchPopularVehicleDetails(
+    kind
+) {
+
+    const grid =
+        document.getElementById("popularCarsGrid");
+
+    if (!grid || currentVehicleKind !== kind || currentVehicleMode !== "popular") {
+        return;
+    }
+
+    const cards =
+        Array.from(
+            grid.querySelectorAll(
+                '.car-card[data-popular-stable-card="true"]'
+            )
+        ).slice(0, POPULAR_INITIAL_DETAILS_PREFETCH);
+
+    let nextIndex = 0;
+
+    const worker = async () => {
+        while (nextIndex < cards.length) {
+            const index = nextIndex++;
+            const card = cards[index];
+
+            if (
+                currentVehicleKind !== kind ||
+                currentVehicleMode !== "popular"
+            ) {
+                return;
+            }
+
+            const make =
+                card.dataset.vehicleMake || "";
+            const model =
+                card.dataset.vehicleModel || "";
+            const detailKind =
+                card.dataset.vehicleSourceKind || kind;
+
+            if (!make || !model) {
+                continue;
+            }
+
+            try {
+                const details =
+                    await fetchVehicleDetailsWithRetry(
+                        make,
+                        model,
+                        detailKind,
+                        1,
+                        0,
+                        "full"
+                    );
+
+                if (
+                    details &&
+                    currentVehicleKind === kind &&
+                    currentVehicleMode === "popular"
+                ) {
+                    const image =
+                        card.querySelector(".car-card-image");
+
+                    if (image) {
+                        updateVehicleCardInformationPreview(
+                            image,
+                            details
+                        );
+
+                        if (details?.image?.url) {
+                            applyVehicleImageDetails(
+                                image,
+                                details
+                            );
+                        }
+                    }
+                }
+            } catch (error) {
+                console.warn(
+                    "Initial vehicle detail prefetch failed:",
+                    make,
+                    model,
+                    detailKind,
+                    error
+                );
+            }
+        }
+    };
+
+    const workerCount =
+        Math.min(
+            POPULAR_DETAILS_PREFETCH_CONCURRENCY,
+            cards.length
+        );
+
+    await Promise.all(
+        Array.from(
+            { length: workerCount },
+            () => worker()
+        )
+    );
+}
+
+
 function preloadPopularVehicleCardInformation(
     kind
 ) {
@@ -6983,7 +7093,13 @@ async function renderPopularCatalogImmediately(
      * information even when a commercial-use image is unavailable. The
      * bounded image queue keeps this work from blocking rendering.
      */
+    /*
+     * Start image hydration and a small full-detail prefetch in parallel.
+     * The first cards paint immediately; returning users get details/images
+     * from the account-scoped persistent cache without waiting for Wikipedia.
+     */
     void preloadPopularVehicleCardInformation(kind);
+    void prefetchPopularVehicleDetails(kind);
 
     /*
      * If the base VehiclesDB catalog has fewer than 100 records for a
@@ -8462,8 +8578,8 @@ async function openVehicleDetailsPanel(
         body.innerHTML = `
             <div class="worth-it-vehicle-detail-loading">
                 <div class="worth-it-vehicle-detail-loading-icon">⚠️</div>
-                <strong>Vehicle information is unavailable.</strong>
-                <span>Please try again.</span>
+                <strong>Couldn't find informations on wikipedia and online</strong>
+                <span>No reliable vehicle information was returned.</span>
             </div>
         `;
 
@@ -8526,7 +8642,7 @@ async function openVehicleDetailsPanel(
                     title,
                 description:
                     details.wikipedia?.description ||
-                    "No Information",
+                    "Couldn't find informations on wikipedia and online",
                 url:
                     details.wikipedia?.url ||
                     ""
@@ -8641,7 +8757,7 @@ function renderVehicleDetailsPanel(
             ? String(wikipedia.description).trim()
             : fallbackAboutParts.length
                 ? fallbackAboutParts.join(" • ")
-                : "Vehicle information is currently limited to the VehiclesDB catalog.";
+                : "Couldn't find informations on wikipedia and online";
 
     const entries =
         getVehicleSpecificationEntries(
@@ -8747,7 +8863,7 @@ function renderVehicleDetailsPanel(
                 <div class="worth-it-vehicle-no-specs">
                     ${fallbackAboutParts.length
                     ? escapeVehicleHtml(fallbackAboutParts.join(" • "))
-                    : "No additional technical specifications are currently available."}
+                    : "Couldn't find informations on wikipedia and online"}
                 </div>
             `;
 
