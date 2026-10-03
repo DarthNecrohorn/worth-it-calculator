@@ -606,7 +606,7 @@ function getPopularBackgroundTargetCount(
  * Persistent browser cache version for account-scoped vehicle
  * metadata/images.
  */
-const VEHICLE_PERSISTENT_CACHE_VERSION = "v11";
+const VEHICLE_PERSISTENT_CACHE_VERSION = "v12";
 
 let vehicleAccountCacheOwnerPromise =
     null;
@@ -1890,18 +1890,27 @@ async function fetchVehicleDetails(
                  * browser memory cache. Successful article/image results
                  * remain cached normally.
                  */
-                if (
-                    !isImageMode ||
+                const cacheableDetails =
                     hasWikipediaPage ||
-                    hasUsableImage
-                ) {
+                    hasUsableImage;
+
+                /*
+                 * Never persist a negative "No Information" response.
+                 * A temporary Wikipedia/Wikimedia failure must not become
+                 * a permanent account cache entry.
+                 */
+                if (cacheableDetails) {
                     vehicleDetailsCache.set(
                         cacheKey,
                         data
                     );
                 }
 
-                if (!isFastMode && !isImageMode) {
+                if (
+                    !isFastMode &&
+                    !isImageMode &&
+                    cacheableDetails
+                ) {
                     void getVehicleAccountCacheOwner()
                         .then(
                             owner =>
@@ -2514,50 +2523,16 @@ function updateVehicleCardInformationPreview(
 }
 
 
-function getUnifiedVehiclePrice(
-    details
-) {
-
-    const price =
-        details?.specifications?.price ||
-        "";
-
-    return isUsefulVehicleDetailValue(price)
-        ? String(price).trim()
-        : "";
-
-}
-
-function getUnifiedVehicleQuickStats(
-    details
-) {
-
-    const specifications =
-        details?.specifications ||
-        {};
-
-    const stats = [
-        ["Fuel", specifications.fuel],
-        ["Power", specifications.horsepower],
-        ["Engine", specifications.engine],
-        ["Range", specifications.electricRange],
-        ["Transmission", specifications.transmission],
-        ["Torque", specifications.torque],
-        ["Seats", specifications.seating]
-    ];
-
-    return stats
-        .filter(([, value]) =>
-            isUsefulVehicleDetailValue(value)
-        )
-        .slice(0, 3);
-
-}
 
 function updateUnifiedVehicleCardPresentation(
-    card,
-    details
+    card
 ) {
+
+    /*
+     * Prices and quick specification chips are intentionally not shown
+     * on the unified vehicle cards. Cards stay lightweight; the detail
+     * modal contains the full available information.
+     */
 
     if (!card) {
         return;
@@ -2565,7 +2540,7 @@ function updateUnifiedVehicleCardPresentation(
 
     const priceElement =
         card.querySelector(
-            ".car-card-price"
+            ".car-card-price-row"
         );
 
     const quickStatsElement =
@@ -2573,40 +2548,12 @@ function updateUnifiedVehicleCardPresentation(
             ".car-card-quick-stats"
         );
 
-    const price =
-        getUnifiedVehiclePrice(details);
-
     if (priceElement) {
-        priceElement.textContent =
-            price ||
-            "Price not available";
-
-        priceElement.classList.toggle(
-            "is-unavailable",
-            !price
-        );
+        priceElement.remove();
     }
 
     if (quickStatsElement) {
-
-        const quickStats =
-            getUnifiedVehicleQuickStats(
-                details
-            );
-
-        quickStatsElement.innerHTML =
-            quickStats.length
-                ? quickStats
-                    .map(
-                        ([label, value]) =>
-                            `<span title="${escapeVehicleHtml(String(value))}">
-                                <b>${escapeVehicleHtml(label)}:</b>
-                                ${escapeVehicleHtml(String(value))}
-                            </span>`
-                    )
-                    .join("")
-                : '<span class="is-unavailable">More details available after opening</span>';
-
+        quickStatsElement.remove();
     }
 
 }
@@ -2744,8 +2691,7 @@ function applyUnifiedVehicleCardDetailsState(
             : "invalid";
 
     updateUnifiedVehicleCardPresentation(
-        card,
-        details
+        card
     );
 
     if (unifiedCardValid) {
@@ -9140,48 +9086,35 @@ async function openVehicleDetailsPanel(
      * article because its title/summary wording is unusual.
      */
     const hasDisplayableData =
-        currentVehicleKind === VEHICLE_ALL_KIND
-            ? (
-                hasUnifiedVehicleDisplayInformation(details) &&
+        Boolean(
+            details?.success !== false &&
+            (
+                isUsefulVehicleDetailValue(
+                    details?.wikipedia?.description
+                ) ||
+                specificationValues.length > 0 ||
+                Boolean(
+                    String(
+                        details?.image?.url || ""
+                    ).trim()
+                ) ||
                 (
-                    hasPopularVehicleIdentityMatch(
-                        details,
-                        vehicle
-                    ) ||
-                    (
-                        normalizeVehicleText(
-                            details?.vehicle?.make || ""
-                        ) === normalizeVehicleText(vehicle.make) &&
-                        normalizeVehicleText(
-                            details?.vehicle?.model || ""
-                        ) === normalizeVehicleText(vehicle.model)
+                    isUsefulVehicleDetailValue(
+                        details?.wikipedia?.title
+                    ) &&
+                    Boolean(
+                        String(
+                            details?.wikipedia?.url || ""
+                        ).trim()
+                    ) &&
+                    !/^no information$/i.test(
+                        String(
+                            details?.wikipedia?.title || ""
+                        ).trim()
                     )
                 )
             )
-            : Boolean(
-                details?.success !== false &&
-                (
-                    isUsefulVehicleDetailValue(
-                        details?.wikipedia?.description
-                    ) ||
-                    specificationValues.length > 0 ||
-                    Boolean(
-                        String(
-                            details?.image?.url || ""
-                        ).trim()
-                    ) ||
-                    (
-                        isUsefulVehicleDetailValue(
-                            details?.wikipedia?.title
-                        ) &&
-                        !/^no information$/i.test(
-                            String(
-                                details?.wikipedia?.title || ""
-                            ).trim()
-                        )
-                    )
-                )
-            );
+        );
 
     if (!hasDisplayableData) {
 
