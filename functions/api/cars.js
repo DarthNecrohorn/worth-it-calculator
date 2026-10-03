@@ -4548,7 +4548,8 @@ function isWikipediaVehicleTitlePlausible(
     title,
     make,
     model,
-    kind
+    kind,
+    supportingText = ""
 ) {
 
     const identityScore =
@@ -4559,17 +4560,83 @@ function isWikipediaVehicleTitlePlausible(
         );
 
     if (
-        identityScore < 70
+        identityScore >= 70
     ) {
-        return false;
+        return !hasStrongWikipediaKindContradiction(
+            title,
+            supportingText,
+            kind
+        );
     }
 
-    return !hasStrongWikipediaKindContradiction(
-        title,
-        "",
-        kind
+    /*
+     * Family/range articles are common for commercial vehicles. A valid
+     * article may be titled "MAN TG-range" while its lead explicitly
+     * identifies the requested TGL model. Accept this only when the
+     * manufacturer is present in the title and the requested model is
+     * represented in the supporting text.
+     */
+    const titleText =
+        normalizeWikipediaSearchText(
+            title || ""
+        );
+
+    const supporting =
+        normalizeWikipediaSearchText(
+            supportingText || ""
+        );
+
+    const makeText =
+        normalizeWikipediaSearchText(
+            make || ""
+        );
+
+    const modelTokens =
+        normalizeWikipediaSearchText(
+            model || ""
+        )
+            .split(/\s+/)
+            .filter(token =>
+                token.length >= 2
+            );
+
+    const makeInTitle =
+        Boolean(
+            makeText &&
+            titleText.includes(
+                makeText
+            )
+        );
+
+    const modelMatches =
+        modelTokens.filter(token =>
+            wikipediaTextContainsTerm(
+                supporting,
+                token
+            )
+        ).length;
+
+    const minimumModelMatches =
+        modelTokens.length <= 1
+            ? 1
+            : Math.max(
+                1,
+                Math.ceil(
+                    modelTokens.length * 0.5
+                )
+            );
+
+    return (
+        makeInTitle &&
+        modelMatches >= minimumModelMatches &&
+        !hasStrongWikipediaKindContradiction(
+            title,
+            supportingText,
+            kind
+        )
     );
 }
+
 
 async function searchWikipediaVehicle(
     make,
@@ -4837,7 +4904,8 @@ async function searchWikipediaVehicle(
                         candidate.title,
                         make,
                         model,
-                        kind
+                        kind,
+                        candidate.snippet
                     )
                 ) {
                     continue;
@@ -6099,7 +6167,8 @@ async function handleDetails(
             page.title,
             vehicle.make,
             vehicle.model,
-            kind
+            kind,
+            page.description
         )
     ) {
 
