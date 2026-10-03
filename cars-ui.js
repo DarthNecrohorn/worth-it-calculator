@@ -12198,6 +12198,8 @@ function injectVehicleUiStyles() {
             inset: 0;
             background: rgba(0, 0, 0, 0.72);
             backdrop-filter: blur(4px);
+            user-select: none;
+            -webkit-user-select: none;
         }
 
         .worth-it-vehicle-modal-dialog {
@@ -12206,6 +12208,8 @@ function injectVehicleUiStyles() {
             width: min(960px, 100%);
             max-height: min(900px, calc(100vh - 48px));
             overflow: auto;
+            user-select: text;
+            -webkit-user-select: text;
             border: 1px solid rgba(255, 255, 255, 0.12);
             border-radius: 20px;
             background: #111318;
@@ -12315,6 +12319,8 @@ function injectVehicleUiStyles() {
 
         .worth-it-vehicle-modal-body {
             padding: 28px;
+            user-select: text;
+            -webkit-user-select: text;
         }
 
         .cars-results-description-with-info {
