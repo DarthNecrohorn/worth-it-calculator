@@ -562,7 +562,7 @@ function refreshVehicleModalNavigationControls() {
         const label =
             direction === "previous"
                 ? "Previous vehicle — A or ←"
-                : "Next vehicle — S or →";
+                : "Next vehicle — D or →";
 
         control.setAttribute(
             "aria-label",
@@ -9745,8 +9745,8 @@ function createVehicleDetailsModal() {
                 type="button"
                 class="worth-it-vehicle-modal-navigation worth-it-vehicle-modal-navigation-next"
                 data-vehicle-navigation="next"
-                aria-label="Next vehicle — S or →"
-                title="Next vehicle — S or →"
+                aria-label="Next vehicle — D or →"
+                title="Next vehicle — D or →"
                 hidden
             >
                 ❯
