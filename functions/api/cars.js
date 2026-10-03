@@ -8612,14 +8612,26 @@ async function getAuthenticatedSupabaseUser(
 async function ensureVehicleAccountCacheTable(
     db
 ) {
-    await db.batch([
-        db.prepare(
-            CREATE_VEHICLE_ACCOUNT_CACHE_SQL
-        ),
-        db.prepare(
+    /*
+     * The cache table is required for account sync. The secondary
+     * rank index is only an optimization and must not turn an
+     * otherwise valid cache operation into a 500 if an older
+     * deployment left an incompatible index behind.
+     */
+    await db.prepare(
+        CREATE_VEHICLE_ACCOUNT_CACHE_SQL
+    ).run();
+
+    try {
+        await db.prepare(
             CREATE_VEHICLE_ACCOUNT_CACHE_INDEX_SQL
-        )
-    ]);
+        ).run();
+    } catch (error) {
+        console.warn(
+            "Vehicle account cache rank index creation skipped:",
+            error
+        );
+    }
 }
 
 function getVehicleAccountCacheKey(
