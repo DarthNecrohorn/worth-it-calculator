@@ -2076,6 +2076,24 @@ function createVehicleImageElement(
                 "unavailable"
             );
 
+            const card =
+                image.closest(
+                    ".car-card"
+                );
+
+            if (
+                currentVehicleMode === "popular" &&
+                card
+            ) {
+                window.setTimeout(
+                    () =>
+                        schedulePopularCardRecovery(
+                            kind
+                        ),
+                    0
+                );
+            }
+
             showVehicleImagePlaceholder(
                 image
             );
