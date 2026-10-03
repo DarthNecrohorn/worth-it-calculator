@@ -2926,6 +2926,15 @@ function findPopularCardRecoveryTarget(
              * Legacy category cards keep the older image-aware behavior.
              */
             if (kind === VEHICLE_ALL_KIND) {
+                /*
+                 * Never recover/remove a card while its background details
+                 * request is still pending. Only a completed validation may
+                 * mark a unified card as bad.
+                 */
+                if (card.dataset.detailsReady !== "true") {
+                    return false;
+                }
+
                 return (
                     card.dataset.infoState !== "available" ||
                     card.dataset.comparisonState !== "available"
@@ -2943,8 +2952,11 @@ function findPopularCardRecoveryTarget(
                 const aBad =
                     kind === VEHICLE_ALL_KIND
                         ? (
-                            a.dataset.infoState !== "available" ||
-                            a.dataset.comparisonState !== "available"
+                            a.dataset.detailsReady === "true" &&
+                            (
+                                a.dataset.infoState !== "available" ||
+                                a.dataset.comparisonState !== "available"
+                            )
                         )
                             ? 0
                             : 1
@@ -2959,8 +2971,11 @@ function findPopularCardRecoveryTarget(
                 const bBad =
                     kind === VEHICLE_ALL_KIND
                         ? (
-                            b.dataset.infoState !== "available" ||
-                            b.dataset.comparisonState !== "available"
+                            b.dataset.detailsReady === "true" &&
+                            (
+                                b.dataset.infoState !== "available" ||
+                                b.dataset.comparisonState !== "available"
+                            )
                         )
                             ? 0
                             : 1
@@ -3257,15 +3272,17 @@ function removePopularCardAndRecover(
             card.dataset.vehicleModel || ""
         );
 
-    currentVehicleResults =
-        Array.isArray(currentVehicleResults)
-            ? currentVehicleResults.filter(
-                vehicle =>
-                    normalizeVehicleText(vehicle?.make) +
-                    "|" +
-                    normalizeVehicleText(vehicle?.model) !== oldKey
-            )
-            : [];
+    if (kind !== VEHICLE_ALL_KIND) {
+        currentVehicleResults =
+            Array.isArray(currentVehicleResults)
+                ? currentVehicleResults.filter(
+                    vehicle =>
+                        normalizeVehicleText(vehicle?.make) +
+                        "|" +
+                        normalizeVehicleText(vehicle?.model) !== oldKey
+                )
+                : [];
+    }
 
     card.remove();
 
@@ -8538,7 +8555,7 @@ function createVehicleCard(
 
         <div class="car-card-price-row">
             <span class="car-card-price-label">MSRP / listed price</span>
-            <strong class="car-card-price">Checking…</strong>
+            <strong class="car-card-price">Couldn't find the price</strong>
         </div>
 
         <div class="car-card-quick-stats" aria-label="Vehicle highlights"></div>
