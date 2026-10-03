@@ -7823,13 +7823,58 @@ async function renderPopularCatalogImmediately(kind, showAll = false) {
         showAll
     );
 
-    const validVehicles =
-        await ensurePopularVehicleQuality(
-            kind,
-            unique,
-            desiredCount,
-            maxChecks
-        );
+    /*
+     * "Show all" must never wait for the entire 600-vehicle quality scan.
+     * The initial scan may already be running in the background. Reuse the
+     * validated vehicles that are available right now, render them
+     * immediately, and let the same quality scanner append further valid
+     * vehicles as they finish.
+     */
+    let validVehicles = [];
+
+    const qualityState =
+        popularVehicleQualityState.get(kind);
+
+    if (showAll && qualityState?.loadingPromise) {
+        validVehicles =
+            Array.isArray(qualityState.validVehicles)
+                ? qualityState.validVehicles.slice()
+                : [];
+
+        if (!validVehicles.length) {
+            await ensurePopularVehicleQuality(
+                kind,
+                unique,
+                Math.min(
+                    desiredCount,
+                    Math.max(
+                        getPopularInitialCheckLimit(kind),
+                        getPopularQualityBatchSize(kind)
+                    )
+                ),
+                Math.min(
+                    maxChecks,
+                    Math.max(
+                        getPopularInitialCheckLimit(kind),
+                        getPopularQualityBatchSize(kind)
+                    )
+                )
+            );
+
+            validVehicles =
+                Array.isArray(qualityState.validVehicles)
+                    ? qualityState.validVehicles.slice()
+                    : [];
+        }
+    } else {
+        validVehicles =
+            await ensurePopularVehicleQuality(
+                kind,
+                unique,
+                desiredCount,
+                maxChecks
+            );
+    }
 
     if (
         currentVehicleKind !== kind ||
@@ -7861,6 +7906,12 @@ async function renderPopularCatalogImmediately(kind, showAll = false) {
         validVehicles.slice();
 
     if (showAll) {
+        /*
+         * The user gets the already-validated vehicles immediately.
+         * continueStablePopularVehicleLoading() below keeps scanning the
+         * remaining catalog and appends only vehicles that pass the same
+         * quality gate.
+         */
         renderVehicleCollapseButton(kind);
     } else {
         renderVehicleExpandButton(
