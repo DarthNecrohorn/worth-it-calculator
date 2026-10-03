@@ -678,7 +678,7 @@ const VEHICLE_PERSISTENT_CATALOG_VERSION =
     "v7";
 
 const VEHICLE_PERSISTENT_POPULAR_VERSION =
-    "v9";
+    "v10";
 
 const VEHICLE_PERSISTENT_CATEGORY_TTL_MS =
     7 * 24 * 60 * 60 * 1000;
@@ -1082,44 +1082,36 @@ function getVehiclePersistentDetailsKey(
 
 }
 
-function readPersistentVehicleDetails(
+function getVehiclePersistentDetailsCacheUrl(
+    owner,
+    make,
+    model,
+    kind
+) {
+    return (
+        "https://worth-it-cars-cache.local/details/" +
+        encodeURIComponent(String(owner || "guest")) +
+        "/" +
+        encodeURIComponent(normalizeVehicleText(kind)) +
+        "/" +
+        encodeURIComponent(normalizeVehicleText(make)) +
+        "/" +
+        encodeURIComponent(normalizeVehicleText(model))
+    );
+}
+
+async function readPersistentVehicleDetails(
     owner,
     make,
     model,
     kind
 ) {
 
-    try {
-
-        const raw =
-            localStorage.getItem(
-                getVehiclePersistentDetailsKey(
-                    owner,
-                    make,
-                    model,
-                    kind
-                )
-            );
-
-        if (!raw) {
-            return null;
+    const isValidPersistentDetails = parsed => {
+        if (!parsed || !parsed.specifications) {
+            return false;
         }
 
-        const parsed =
-            JSON.parse(raw);
-
-        if (
-            !parsed ||
-            !parsed.specifications
-        ) {
-            return null;
-        }
-
-        /*
-         * Never restore an old negative/no-information response from
-         * persistent storage. Only a response with a real Wikipedia
-         * article or a usable image is allowed back into the live cache.
-         */
         const hasWikipedia =
             Boolean(
                 String(parsed?.wikipedia?.title || "").trim() &&
@@ -1136,24 +1128,77 @@ function readPersistentVehicleDetails(
             );
 
         if (!hasWikipedia && !hasImage) {
-            return null;
+            return false;
         }
 
         if (
             vehicleDetailsDatasetVersion &&
             parsed.datasetVersion !== vehicleDetailsDatasetVersion
         ) {
+            return false;
+        }
+
+        return true;
+    };
+
+    try {
+        const raw =
+            localStorage.getItem(
+                getVehiclePersistentDetailsKey(
+                    owner,
+                    make,
+                    model,
+                    kind
+                )
+            );
+
+        if (raw) {
+            try {
+                const parsed = JSON.parse(raw);
+                if (isValidPersistentDetails(parsed)) {
+                    return parsed;
+                }
+            } catch {
+                /* Try the larger Cache Storage copy below. */
+            }
+        }
+    } catch {
+        /* Continue to Cache Storage. */
+    }
+
+    try {
+        const cache =
+            await caches.open(
+                "worth-it-cars-details-" +
+                VEHICLE_PERSISTENT_CACHE_VERSION +
+                "-" +
+                String(owner || "guest")
+            );
+
+        const response =
+            await cache.match(
+                getVehiclePersistentDetailsCacheUrl(
+                    owner,
+                    make,
+                    model,
+                    kind
+                )
+            );
+
+        if (!response) {
             return null;
         }
 
-        return parsed;
+        const parsed =
+            await response.json();
+
+        return isValidPersistentDetails(parsed)
+            ? parsed
+            : null;
 
     } catch {
-
         return null;
-
     }
-
 }
 
 function writePersistentVehicleDetails(
@@ -1327,6 +1372,46 @@ function writePersistentVehicleDetails(
             }
 
         }
+
+    }
+
+    /*
+     * Cache Storage is the large persistent layer for the full vehicle
+     * catalog. It is namespaced by the authenticated account owner, so
+     * background validation can retain far more than localStorage allows.
+     */
+    void (async () => {
+        try {
+            const cache =
+                await caches.open(
+                    "worth-it-cars-details-" +
+                    VEHICLE_PERSISTENT_CACHE_VERSION +
+                    "-" +
+                    String(owner || "guest")
+                );
+
+            await cache.put(
+                getVehiclePersistentDetailsCacheUrl(
+                    owner,
+                    make,
+                    model,
+                    kind
+                ),
+                new Response(
+                    JSON.stringify(compact),
+                    {
+                        status: 200,
+                        headers: {
+                            "Content-Type":
+                                "application/json; charset=UTF-8"
+                        }
+                    }
+                )
+            );
+        } catch {
+            /* Cache Storage is an optional persistent accelerator. */
+        }
+    })();
 
     } catch (error) {
 
@@ -6616,6 +6701,8 @@ async function readPersistentPopularVehicles(
 ) {
 
     try {
+        const owner =
+            await getVehicleAccountCacheOwner();
 
         const cache =
             await caches.open(
@@ -6626,11 +6713,13 @@ async function readPersistentPopularVehicles(
         const response =
             await cache.match(
                 "https://worth-it-cars-cache.local/popular/" +
-                kind
+                encodeURIComponent(String(owner || "guest")) +
+                "/" +
+                encodeURIComponent(String(kind || VEHICLE_ALL_KIND))
             );
 
         if (!response) {
-            return [];
+            return null;
         }
 
         const payload =
@@ -6643,27 +6732,30 @@ async function readPersistentPopularVehicles(
             payload?.version !==
                 VEHICLE_PERSISTENT_POPULAR_VERSION ||
             !Array.isArray(payload?.vehicles) ||
+            !payload.vehicles.length ||
             !Number.isFinite(savedAt) ||
             Date.now() - savedAt >
                 VEHICLE_PERSISTENT_CATEGORY_TTL_MS
         ) {
-            return [];
+            return null;
         }
 
-        return payload.vehicles;
+        return {
+            vehicles: payload.vehicles,
+            datasetVersion:
+                payload?.datasetVersion ||
+                null,
+            savedAt
+        };
 
     } catch (error) {
-
         console.warn(
             "Persistent popular vehicle cache read skipped:",
             kind,
             error
         );
-
-        return [];
-
+        return null;
     }
-
 }
 
 async function writePersistentPopularVehicles(
@@ -6679,13 +6771,17 @@ async function writePersistentPopularVehicles(
     }
 
     try {
+        const owner =
+            await getVehicleAccountCacheOwner();
+
+        const limit =
+            kind === VEHICLE_ALL_KIND
+                ? MAX_UNIFIED_VEHICLES
+                : MAX_VEHICLES_PER_CATEGORY;
 
         const compactVehicles =
             vehicles
-                .slice(
-                    0,
-                    MAX_VEHICLES_PER_CATEGORY
-                )
+                .slice(0, limit)
                 .map(vehicle => ({
                     make:
                         vehicle?.make || "",
@@ -6738,11 +6834,16 @@ async function writePersistentPopularVehicles(
 
         await cache.put(
             "https://worth-it-cars-cache.local/popular/" +
-            kind,
+            encodeURIComponent(String(owner || "guest")) +
+            "/" +
+            encodeURIComponent(String(kind || VEHICLE_ALL_KIND)),
             new Response(
                 JSON.stringify({
                     version:
                         VEHICLE_PERSISTENT_POPULAR_VERSION,
+                    datasetVersion:
+                        vehicleDetailsDatasetVersion ||
+                        null,
                     savedAt:
                         Date.now(),
                     vehicles:
@@ -6759,15 +6860,12 @@ async function writePersistentPopularVehicles(
         );
 
     } catch (error) {
-
         console.warn(
             "Persistent popular vehicle cache write skipped:",
             kind,
             error
         );
-
     }
-
 }
 
 async function restorePersistentPopularVehicles(
@@ -6782,10 +6880,15 @@ async function restorePersistentPopularVehicles(
         return 0;
     }
 
-    const stored =
+    const storedPayload =
         await readPersistentPopularVehicles(
             kind
         );
+
+    const stored =
+        Array.isArray(storedPayload?.vehicles)
+            ? storedPayload.vehicles
+            : [];
 
     if (!stored.length) {
         return 0;
