@@ -4304,6 +4304,108 @@ function hasStrongWikipediaKindContradiction(
 }
 
 
+async function resolveWikipediaTitleFromWikidata(
+    make,
+    model,
+    kind
+) {
+
+    const classId =
+        WIKIDATA_CLASS_BY_KIND[kind];
+
+    if (
+        !classId ||
+        !make ||
+        !model
+    ) {
+        return null;
+    }
+
+    try {
+
+        const escapedModel =
+            String(model)
+                .replace(/\/g, "\\")
+                .replace(/"/g, "\"");
+
+        const escapedMake =
+            String(make)
+                .replace(/\/g, "\\")
+                .replace(/"/g, "\"");
+
+        const query =
+            "SELECT ?article ?itemLabel ?manufacturerLabel WHERE {" +
+            " ?item wdt:P31/wdt:P279* wd:" +
+            classId +
+            "." +
+            " ?item wdt:P176 ?manufacturer." +
+            " ?item rdfs:label ?itemLabel." +
+            " ?manufacturer rdfs:label ?manufacturerLabel." +
+            " ?article schema:about ?item;" +
+            " schema:isPartOf <https://en.wikipedia.org/>." +
+            " FILTER(LANG(?itemLabel)=\"en\")" +
+            " FILTER(LANG(?manufacturerLabel)=\"en\")" +
+            " FILTER(LCASE(STR(?itemLabel)) = LCASE(\"" +
+            escapedModel +
+            "\"))" +
+            " FILTER(LCASE(STR(?manufacturerLabel)) = LCASE(\"" +
+            escapedMake +
+            "\"))" +
+            "} LIMIT 5";
+
+        const url =
+            new URL(WIKIDATA_SPARQL_API);
+
+        url.searchParams.set(
+            "query",
+            query
+        );
+
+        url.searchParams.set(
+            "format",
+            "json"
+        );
+
+        const data =
+            await fetchWikidataCached(
+                url.toString()
+            );
+
+        const bindings =
+            Array.isArray(
+                data?.results?.bindings
+            )
+                ? data.results.bindings
+                : [];
+
+        for (const binding of bindings) {
+
+            const title =
+                getWikidataWikipediaTitle(
+                    binding?.article?.value
+                );
+
+            if (title) {
+                return title;
+            }
+
+        }
+
+    } catch (error) {
+
+        console.warn(
+            "Wikidata Wikipedia-title fallback failed:",
+            make,
+            model,
+            kind,
+            error
+        );
+
+    }
+
+    return null;
+}
+
 async function searchWikipediaVehicle(
     make,
     model,
@@ -5650,6 +5752,15 @@ async function handleDetails(
                     vehicle.model,
                     kind
                 );
+
+            if (!wikipediaTitle) {
+                wikipediaTitle =
+                    await resolveWikipediaTitleFromWikidata(
+                        vehicle.make,
+                        vehicle.model,
+                        kind
+                    );
+            }
 
         } catch (error) {
 
