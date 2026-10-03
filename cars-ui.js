@@ -79,6 +79,7 @@ const POPULAR_SHOW_ALL_MAX_NEW_CHECKS = 1500;
 const VEHICLE_DETAILS_REQUEST_TIMEOUT_MS = 15000;
 const VEHICLE_NONCAR_DETAILS_REQUEST_TIMEOUT_MS = 6500;
 const VEHICLE_FAST_DETAILS_REQUEST_TIMEOUT_MS = 5000;
+const VEHICLE_IMAGE_DETAILS_REQUEST_TIMEOUT_MS = 8000;
 const POPULAR_NONCAR_PROGRESSIVE_BUDGET_MS = 7000;
 const POPULAR_NONCAR_EARLY_BASE_COUNT = 120;
 const POPULAR_NONCAR_EARLY_SUPPLEMENTAL_COUNT = 400;
@@ -1536,6 +1537,9 @@ async function fetchVehicleDetails(
     const isFastMode =
         mode === "fast";
 
+    const isImageMode =
+        mode === "image";
+
     const cacheKey =
         getVehicleDetailsCacheKey(
             make,
@@ -1564,7 +1568,7 @@ async function fetchVehicleDetails(
      * This lets a returning user restore vehicle information without
      * requesting Wikipedia again on every visit.
      */
-    if (!isFastMode) {
+    if (!isFastMode && !isImageMode) {
 
         const persistentOwner =
             await getVehicleAccountCacheOwner();
@@ -1644,6 +1648,10 @@ async function fetchVehicleDetails(
                     params.set("fast", "1");
                 }
 
+                if (isImageMode) {
+                    params.set("image_only", "1");
+                }
+
                 if (catalogVehicle) {
 
                     if (catalogVehicle.wikipediaTitle) {
@@ -1707,12 +1715,16 @@ async function fetchVehicleDetails(
                         : null;
 
                 const requestTimeoutMs =
-                    isFastMode
-                        ? VEHICLE_FAST_DETAILS_REQUEST_TIMEOUT_MS
+                    isImageMode
+                        ? VEHICLE_IMAGE_DETAILS_REQUEST_TIMEOUT_MS
                         : (
-                            kind === "car"
-                                ? VEHICLE_DETAILS_REQUEST_TIMEOUT_MS
-                                : VEHICLE_NONCAR_DETAILS_REQUEST_TIMEOUT_MS
+                            isFastMode
+                                ? VEHICLE_FAST_DETAILS_REQUEST_TIMEOUT_MS
+                                : (
+                                    kind === "car"
+                                        ? VEHICLE_DETAILS_REQUEST_TIMEOUT_MS
+                                        : VEHICLE_NONCAR_DETAILS_REQUEST_TIMEOUT_MS
+                                )
                         );
 
                 const timeoutId =
@@ -2230,7 +2242,8 @@ async function loadVehicleCardImage(
         await fetchVehicleDetails(
             make,
             model,
-            kind
+            kind,
+            "image"
         );
 
     updateVehicleCardInformationPreview(
