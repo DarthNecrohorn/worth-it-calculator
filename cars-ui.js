@@ -493,7 +493,7 @@ const VEHICLE_PERSISTENT_CATALOG_VERSION =
     "v7";
 
 const VEHICLE_PERSISTENT_POPULAR_VERSION =
-    "v7";
+    "v8";
 
 const VEHICLE_PERSISTENT_CATEGORY_TTL_MS =
     7 * 24 * 60 * 60 * 1000;
@@ -4867,7 +4867,7 @@ function getPopularVehicles(
             )
             : vehicles;
 
-    const rankedVehicles =
+    const filteredVehicles =
         sourceVehicles
             .filter(
                 vehicle =>
@@ -4876,8 +4876,20 @@ function getPopularVehicles(
                     isCatalogVehicleKindCompatible(
                         vehicle
                     )
-            )
-            .sort(
+            );
+
+    /*
+     * The unified renderer deliberately builds a weighted, cross-kind
+     * candidate order before calling this function. Re-sorting that order
+     * here by body-type priority was undoing the balancing and pushing
+     * motorcycles, vans, trucks and buses behind the car candidates again.
+     *
+     * Category views still need their normal popularity ordering.
+     */
+    const rankedVehicles =
+        requestedKind === VEHICLE_ALL_KIND
+            ? filteredVehicles
+            : filteredVehicles.sort(
                 (a, b) => {
 
                     const kindPriorityDifference =
