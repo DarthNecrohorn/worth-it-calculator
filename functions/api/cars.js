@@ -36,7 +36,7 @@ const WIKIDATA_CANDIDATE_LIMIT = 600;
 const WIKIDATA_NONCAR_CANDIDATE_LIMIT = 1000;
 const DBPEDIA_CANDIDATE_LIMIT = 600;
 const DBPEDIA_NONCAR_CANDIDATE_LIMIT = 1000;
-const WIKIPEDIA_CACHE_VERSION = "v26";
+const WIKIPEDIA_CACHE_VERSION = "v27";
 const WIKIMEDIA_IMAGE_LOOKUP_TIMEOUT_MS = 3500;
 
 const WIKIPEDIA_API =
@@ -4345,17 +4345,10 @@ async function resolveWikipediaTitleFromWikidata(
         return null;
     }
 
-    try {
-
-        const escapedModel =
-            String(model)
-                .replace(/\\/g, "\\\\")
-                .replace(/"/g, "\\\"");
-
-        const escapedMake =
-            String(make)
-                .replace(/\\/g, "\\\\")
-                .replace(/"/g, "\\\"");
+    const runQuery = async (
+        labelFilter,
+        manufacturerFilter
+    ) => {
 
         const query =
             "SELECT ?article ?itemLabel ?manufacturerLabel WHERE {" +
@@ -4369,16 +4362,18 @@ async function resolveWikipediaTitleFromWikidata(
             " schema:isPartOf <https://en.wikipedia.org/>." +
             " FILTER(LANG(?itemLabel)=\"en\")" +
             " FILTER(LANG(?manufacturerLabel)=\"en\")" +
-            " FILTER(LCASE(STR(?itemLabel)) = LCASE(\"" +
-            escapedModel +
-            "\"))" +
-            " FILTER(LCASE(STR(?manufacturerLabel)) = LCASE(\"" +
-            escapedMake +
-            "\"))" +
-            "} LIMIT 5";
+            " FILTER(" +
+            labelFilter +
+            ")" +
+            " FILTER(" +
+            manufacturerFilter +
+            ")" +
+            "} LIMIT 8";
 
         const url =
-            new URL(WIKIDATA_SPARQL_API);
+            new URL(
+                WIKIDATA_SPARQL_API
+            );
 
         url.searchParams.set(
             "query",
@@ -4395,25 +4390,150 @@ async function resolveWikipediaTitleFromWikidata(
                 url.toString()
             );
 
-        const bindings =
-            Array.isArray(
-                data?.results?.bindings
-            )
-                ? data.results.bindings
-                : [];
+        return Array.isArray(
+            data?.results?.bindings
+        )
+            ? data.results.bindings
+            : [];
 
-        for (const binding of bindings) {
+    };
 
-            const title =
-                getWikidataWikipediaTitle(
-                    binding?.article?.value
+    try {
+
+        const escapedModel =
+            String(model)
+                .replace(/\\/g, "\\\\")
+                .replace(/"/g, "\\\"");
+
+        const escapedMake =
+            String(make)
+                .replace(/\\/g, "\\\\")
+                .replace(/"/g, "\\\"");
+
+        /*
+         * First try the exact Wikidata model + manufacturer labels.
+         */
+        let bindings =
+            await runQuery(
+                'LCASE(STR(?itemLabel)) = LCASE("' +
+                    escapedModel +
+                    '")',
+                'LCASE(STR(?manufacturerLabel)) = LCASE("' +
+                    escapedMake +
+                    '")'
+            );
+
+        /*
+         * Then allow the Wikidata item label to contain the requested
+         * model and the manufacturer label to contain the make. This
+         * handles catalog abbreviations such as "TGL" vs "MAN TGL"
+         * while retaining the vehicle-class constraint and requiring an
+         * English Wikipedia sitelink.
+         */
+        if (!bindings.length) {
+
+            bindings =
+                await runQuery(
+                    'CONTAINS(LCASE(STR(?itemLabel)), LCASE("' +
+                        escapedModel +
+                        '"))',
+                    'CONTAINS(LCASE(STR(?manufacturerLabel)), LCASE("' +
+                        escapedMake +
+                        '"))'
                 );
 
-            if (title) {
-                return title;
-            }
-
         }
+
+        const requestedModelKey =
+            simplifyText(
+                model
+            );
+
+        const requestedMakeKey =
+            simplifyText(
+                make
+            );
+
+        const candidates =
+            bindings
+                .map(binding => {
+
+                    const title =
+                        getWikidataWikipediaTitle(
+                            binding?.article?.value
+                        );
+
+                    const itemLabel =
+                        String(
+                            binding?.itemLabel?.value ||
+                            ""
+                        ).trim();
+
+                    const manufacturerLabel =
+                        String(
+                            binding?.manufacturerLabel?.value ||
+                            ""
+                        ).trim();
+
+                    const itemKey =
+                        simplifyText(
+                            itemLabel
+                        );
+
+                    const manufacturerKey =
+                        simplifyText(
+                            manufacturerLabel
+                        );
+
+                    let score = 0;
+
+                    if (
+                        itemKey ===
+                        requestedModelKey
+                    ) {
+                        score += 200;
+                    }
+
+                    if (
+                        requestedModelKey &&
+                        itemKey.includes(
+                            requestedModelKey
+                        )
+                    ) {
+                        score += 80;
+                    }
+
+                    if (
+                        manufacturerKey ===
+                        requestedMakeKey
+                    ) {
+                        score += 120;
+                    }
+
+                    if (
+                        requestedMakeKey &&
+                        manufacturerKey.includes(
+                            requestedMakeKey
+                        )
+                    ) {
+                        score += 50;
+                    }
+
+                    return {
+                        title,
+                        score
+                    };
+
+                })
+                .filter(candidate =>
+                    Boolean(candidate.title)
+                )
+                .sort(
+                    (a, b) =>
+                        b.score - a.score
+                );
+
+        return candidates[0]?.title || null;
 
     } catch (error) {
 
@@ -4425,10 +4545,12 @@ async function resolveWikipediaTitleFromWikidata(
             error
         );
 
+        return null;
+
     }
 
-    return null;
 }
+
 
 function getVehicleWikipediaSearchVariants(
     make,
