@@ -3434,6 +3434,36 @@ function popularQualityTextContainsToken(
 }
 
 
+function popularQualityTextContainsTerm(
+    text,
+    term
+) {
+
+    const normalizedTerm =
+        normalizePopularQualityText(term);
+
+    if (!normalizedTerm) {
+        return false;
+    }
+
+    const escapedParts =
+        normalizedTerm
+            .split(/\s+/)
+            .map(part =>
+                part.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+            );
+
+    const pattern =
+        escapedParts.join("\\s+");
+
+    return new RegExp(
+        `(?:^|\\s)${pattern}(?=\\s|$)`,
+        "i"
+    ).test(
+        String(text || "")
+    );
+}
+
 function hasPopularVehicleIdentityMatch(
     details,
     vehicle
@@ -3615,8 +3645,9 @@ function hasExpectedPopularVehicleKindEvidence(
 
     const hasExpectedText =
         expectedTerms.some(term =>
-            combinedText.includes(
-                normalizePopularQualityText(term)
+            popularQualityTextContainsTerm(
+                combinedText,
+                term
             )
         );
 
@@ -3636,8 +3667,9 @@ function hasExpectedPopularVehicleKindEvidence(
     const hasExpectedBodyType =
         expectedTerms.some(term =>
             bodyTypes.some(bodyType =>
-                bodyType.includes(
-                    normalizePopularQualityText(term)
+                popularQualityTextContainsTerm(
+                    bodyType,
+                    term
                 )
             )
         );
@@ -3677,8 +3709,9 @@ function countPopularVehicleTypeTerms(
         POPULAR_VEHICLE_TYPE_TERMS.car;
 
     return terms.filter(term =>
-        text.includes(
-            normalizePopularQualityText(term)
+        popularQualityTextContainsTerm(
+            text,
+            term
         )
     ).length;
 
@@ -3695,8 +3728,9 @@ function countPopularNonVehicleEntityTerms(
         );
 
     return POPULAR_NON_VEHICLE_ENTITY_TERMS.filter(term =>
-        text.includes(
-            normalizePopularQualityText(term)
+        popularQualityTextContainsTerm(
+            text,
+            term
         )
     ).length;
 
