@@ -3061,6 +3061,21 @@ async function loadVehicleCardImage(
                     normalizeVehicleText(kind)
         ) || null;
 
+    /*
+     * Unified Vehicles cards need the complete details response, not the
+     * image-only response. The image-only endpoint intentionally omits
+     * some fields (notably comparison/Wikipedia data), and treating that
+     * partial response as a failed vehicle would incorrectly trigger
+     * recovery and make cards disappear.
+     *
+     * Category-specific legacy views may continue using the lighter image
+     * request, but the unified view always hydrates from the full response.
+     */
+    const requestMode =
+        currentVehicleKind === VEHICLE_ALL_KIND
+            ? "full"
+            : "image";
+
     const details =
         await fetchVehicleDetailsWithRetry(
             make,
@@ -3068,7 +3083,7 @@ async function loadVehicleCardImage(
             kind,
             1,
             0,
-            "image"
+            requestMode
         );
 
     updateVehicleCardInformationPreview(
