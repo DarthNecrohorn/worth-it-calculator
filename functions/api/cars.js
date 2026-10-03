@@ -2081,7 +2081,20 @@ function getWikipediaSpecificationField(label) {
     const normalized =
         normalizeWikipediaLabel(label);
 
-    return WIKIPEDIA_FIELD_ALIASES[normalized] || null;
+    if (
+        WIKIPEDIA_FIELD_ALIASES[normalized]
+    ) {
+        return WIKIPEDIA_FIELD_ALIASES[normalized];
+    }
+
+    if (
+        /\bmsrp\b/i.test(normalized) ||
+        /^(?:starting|base|list|retail|manufacturer|purchase)?\s*price(?:\s*\([^)]*\))?$/i.test(normalized)
+    ) {
+        return "price";
+    }
+
+    return null;
 }
 
 /*
