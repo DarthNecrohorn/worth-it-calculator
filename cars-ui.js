@@ -168,7 +168,7 @@ const VEHICLE_KINDS = [
 ];
 
 const VEHICLE_ALL_KIND = "all";
-const MAX_UNIFIED_VEHICLES = 600;
+const MAX_UNIFIED_VEHICLES = 1000;
 
 const VEHICLE_DATA_KINDS = [
     "car",
@@ -597,9 +597,9 @@ function getPopularBackgroundTargetCount(
         );
 
     /*
-     * The unified All Vehicles view is capped at 600 PUBLIC cards,
+     * The unified All Vehicles view is capped at 1000 PUBLIC cards,
      * but it must be allowed to keep validating candidates until it
-     * can fill that public limit. The old 100-card background target
+     * can fill that public limit. The old small background target
      * silently stopped the unified list after a small fraction of the
      * connected dataset.
      *
@@ -4046,15 +4046,15 @@ async function buildFreshUnifiedVehicleCatalog() {
     });
 
     /*
-     * Keep a hidden popularity-ordered recovery pool. Only the first 600
-     * are public, but candidates 601–1200 are available as replacements
+     * Keep a hidden popularity-ordered recovery pool. Only the first 1000
+     * are public, but candidates 1001–2000 are available as replacements
      * when a visible card fails the background quality check.
      */
     return vehicles.slice(
         0,
         Math.max(
             MAX_UNIFIED_VEHICLES,
-            1200
+            2000
         )
     );
 }
@@ -4066,7 +4066,7 @@ async function fetchUnifiedVehicleCatalog() {
 
     const saved = await readPersistentVehicleCatalog(VEHICLE_ALL_KIND);
     if (Array.isArray(saved) && saved.length) {
-        const limited = saved.slice(0, Math.max(MAX_UNIFIED_VEHICLES, 1200));
+        const limited = saved.slice(0, Math.max(MAX_UNIFIED_VEHICLES, 2000));
         vehicleCatalogCache.set(VEHICLE_ALL_KIND, limited);
         void buildFreshUnifiedVehicleCatalog().then(fresh => {
             if (fresh.length) {
@@ -7768,7 +7768,7 @@ async function renderPopularCatalogImmediately(kind, showAll = false) {
             );
 
     /*
-     * Build a larger validation pool than the public 600-card limit.
+     * Build a larger validation pool than the public 1000-card limit.
      * For the unified view, scan the categories in a weighted round-robin
      * instead of letting the popularity sort fill the pool almost entirely
      * with cars. This is what allows valid motorcycles, vans, trucks and
@@ -7786,7 +7786,7 @@ async function renderPopularCatalogImmediately(kind, showAll = false) {
         kind === VEHICLE_ALL_KIND
             ? Math.max(
                 MAX_UNIFIED_VEHICLES,
-                1200
+                2000
             )
             : MAX_UNIFIED_VEHICLES;
 
@@ -13045,7 +13045,7 @@ function updateCarsCategoryHeader(
         '<span class="cars-results-description-text">' +
         escapeVehicleHtml(
             kind === VEHICLE_ALL_KIND
-                ? "600 cars, motorcycles, vans, trucks and buses from the connected VehiclesDB dataset."
+                ? "1000 cars, motorcycles, vans, trucks and buses from the connected VehiclesDB dataset."
                 : info.description
         ) +
         '</span>' +
@@ -13806,7 +13806,7 @@ async function openCars() {
             '<div class="cars-empty-state">' +
                 '<div class="cars-empty-icon">🚗</div>' +
                 '<strong>Loading vehicles...</strong>' +
-                '<p>Loading the 600-vehicle catalog. Returning users can restore previously loaded cards from their account cache.</p>' +
+                '<p>Loading the 1000-vehicle catalog. Returning users can restore previously loaded cards from their account cache.</p>' +
             '</div>';
     }
 
