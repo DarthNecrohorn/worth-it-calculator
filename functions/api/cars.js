@@ -4823,6 +4823,140 @@ function isVehicleImageUrlMatchingName(
     );
 }
 
+async function searchCommercialWikimediaImage(
+    make,
+    model,
+    kind = "car"
+) {
+
+    const searchText =
+        String(make || "") +
+        " " +
+        String(model || "");
+
+    const normalizedSearchText =
+        searchText
+            .replace(/\s+/g, " ")
+            .trim();
+
+    if (!normalizedSearchText) {
+        return null;
+    }
+
+    try {
+
+        const url =
+            new URL(WIKIMEDIA_COMMONS_API);
+
+        url.searchParams.set(
+            "action",
+            "query"
+        );
+
+        url.searchParams.set(
+            "generator",
+            "search"
+        );
+
+        url.searchParams.set(
+            "gsrsearch",
+            normalizedSearchText
+        );
+
+        url.searchParams.set(
+            "gsrnamespace",
+            "6"
+        );
+
+        url.searchParams.set(
+            "gsrlimit",
+            "8"
+        );
+
+        url.searchParams.set(
+            "prop",
+            "imageinfo"
+        );
+
+        url.searchParams.set(
+            "iiprop",
+            "url|extmetadata"
+        );
+
+        url.searchParams.set(
+            "iiextmetadatafilter",
+            "License|LicenseShortName|UsageTerms|LicenseUrl|Artist|Credit"
+        );
+
+        url.searchParams.set(
+            "iiurlwidth",
+            "1200"
+        );
+
+        url.searchParams.set(
+            "format",
+            "json"
+        );
+
+        url.searchParams.set(
+            "formatversion",
+            "2"
+        );
+
+        const data =
+            await fetchWikipediaCached(
+                url.toString()
+            );
+
+        const pages =
+            Array.isArray(
+                data?.query?.pages
+            )
+                ? data.query.pages
+                : Object.values(
+                    data?.query?.pages || {}
+                );
+
+        for (const page of pages) {
+
+            const title =
+                String(
+                    page?.title || ""
+                ).trim();
+
+            if (!title) {
+                continue;
+            }
+
+            const image =
+                await getCommercialWikimediaImage(
+                    title,
+                    make,
+                    model,
+                    kind
+                );
+
+            if (image?.url) {
+                return image;
+            }
+
+        }
+
+    } catch (error) {
+
+        console.error(
+            "Wikimedia Commons vehicle image search failed:",
+            make,
+            model,
+            kind,
+            error
+        );
+
+    }
+
+    return null;
+}
+
 async function getCommercialWikimediaImage(
     imageTitle,
     make,
@@ -4889,9 +5023,10 @@ async function getCommercialWikimediaImage(
         }
 
         /*
-         * Keep Cars and Buses on the strict filename identity check.
-         * Motorcycles, Vans and Trucks also accept a Commons file title
-         * match when the generated file URL omits the complete model name.
+         * Keep the car category on the strict filename identity check.
+         * Commercial-vehicle and motorcycle categories also accept the
+         * article's lead Commons image when the generated file URL does
+         * not contain the complete make + model phrase.
          */
         const strictImageMatch =
             isVehicleImageUrlMatchingName(
@@ -4902,7 +5037,12 @@ async function getCommercialWikimediaImage(
 
         if (
             !strictImageMatch &&
-            !["motorcycle", "van", "truck"].includes(
+            ![
+                "motorcycle",
+                "van",
+                "truck",
+                "bus"
+            ].includes(
                 String(kind || "").toLowerCase()
             )
         ) {
@@ -4918,7 +5058,12 @@ async function getCommercialWikimediaImage(
 
         if (
             !strictImageMatch &&
-            ["motorcycle", "van", "truck"].includes(
+            [
+                "motorcycle",
+                "van",
+                "truck",
+                "bus"
+            ].includes(
                 String(kind || "").toLowerCase()
             )
         ) {
@@ -5635,6 +5780,14 @@ async function handleDetails(
                 vehicle.model,
                 vehicle.kind
             );
+
+            if (!image) {
+                image = await searchCommercialWikimediaImage(
+                    vehicle.make,
+                    vehicle.model,
+                    vehicle.kind
+                );
+            }
         } catch (error) {
             console.error(
                 "Lightweight vehicle image lookup failed:",
@@ -5729,12 +5882,24 @@ async function handleDetails(
         );
 
     const commercialImagePromise =
-        getCommercialWikimediaImage(
-            page.imageTitle,
-            vehicle.make,
-            vehicle.model,
-            vehicle.kind
-        ).catch(
+        (async () => {
+
+            const directImage =
+                await getCommercialWikimediaImage(
+                    page.imageTitle,
+                    vehicle.make,
+                    vehicle.model,
+                    vehicle.kind
+                );
+
+            return directImage ||
+                await searchCommercialWikimediaImage(
+                    vehicle.make,
+                    vehicle.model,
+                    vehicle.kind
+                );
+
+        })().catch(
             error => {
 
                 console.error(
