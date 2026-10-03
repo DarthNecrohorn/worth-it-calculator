@@ -39,7 +39,7 @@ const VEHICLE_CATALOG_BASE_URL =
 const VEHICLE_DATASET_MANIFEST_URL =
     "https://cdn.jsdelivr.net/gh/vehiclesdb/vehiclesdb@latest/manifest.json";
 
-const VEHICLE_DETAILS_CACHE_VERSION = "v26";
+const VEHICLE_DETAILS_CACHE_VERSION = "v27";
 
 const MAX_VEHICLES_PER_CATEGORY = 300;
 
@@ -462,10 +462,10 @@ const DBPEDIA_SUPPLEMENTAL_LIMIT =
     1000;
 
 const VEHICLE_PERSISTENT_CATALOG_VERSION =
-    "v4";
+    "v5";
 
 const VEHICLE_PERSISTENT_POPULAR_VERSION =
-    "v6";
+    "v7";
 
 const VEHICLE_PERSISTENT_CATEGORY_TTL_MS =
     7 * 24 * 60 * 60 * 1000;
@@ -577,7 +577,7 @@ function getPopularBackgroundTargetCount(
  * Persistent browser cache version for account-scoped vehicle
  * metadata/images.
  */
-const VEHICLE_PERSISTENT_CACHE_VERSION = "v7";
+const VEHICLE_PERSISTENT_CACHE_VERSION = "v8";
 
 let vehicleAccountCacheOwnerPromise =
     null;
@@ -3756,11 +3756,14 @@ const VEHICLE_KIND_BODY_TYPE_TERMS = {
     truck: [
         "truck", "lorry", "pickup", "pickup truck",
         "heavy truck", "heavy goods vehicle",
-        "tractor unit", "tractor-trailer"
+        "tractor unit", "tractor-trailer", "light truck",
+        "heavy commercial vehicle", "cab over"
     ],
     bus: [
         "bus", "coach", "transit bus", "city bus",
-        "double-decker", "minibus", "shuttle bus"
+        "double-decker", "single-decker", "single deck",
+        "double-decker bus", "articulated bus", "midibus",
+        "minibus", "shuttle bus"
     ]
 };
 
@@ -3809,8 +3812,33 @@ const VEHICLE_KIND_NAME_CONTRADICTIONS = {
         { make: "isuzu", models: ["d-max"] },
         { make: "mazda", models: ["bt-50", "bt50"] },
         { make: "daf", models: ["xf", "xf95", "xf105"] },
-        { make: "man", models: ["tgm", "tga", "l2000"] },
-        { make: "mercedes benz", models: ["actros", "atego"] }
+        { make: "man", models: ["tgm", "tga", "tgx", "tgs", "tgl", "l2000"] },
+        { make: "mercedes benz", models: ["actros", "atego", "arocs", "axor"] }
+    ],
+    truck: [
+        { make: "ford", models: ["transit", "transit connect", "transit custom", "tourneo"] },
+        { make: "mercedes benz", models: ["sprinter", "vito", "citan", "esprinter", "eqv", "v-class"] },
+        { make: "renault", models: ["master", "trafic", "kangoo"] },
+        { make: "peugeot", models: ["boxer", "expert", "partner"] },
+        { make: "citroen", models: ["jumper", "jumpy", "berlingo"] },
+        { make: "fiat", models: ["ducato", "scudo", "doblo"] },
+        { make: "volkswagen", models: ["transporter", "caravelle", "multivan", "crafter", "caddy"] }
+    ],
+    bus: [
+        { make: "ford", models: ["f-150", "f150", "f-250", "f250", "f-350", "f350", "ranger", "transit", "transit connect", "transit custom"] },
+        { make: "toyota", models: ["hilux", "tacoma", "tundra", "hiace", "proace"] },
+        { make: "mitsubishi", models: ["triton", "l200", "canter", "fighter"] },
+        { make: "nissan", models: ["navara", "frontier", "nv200", "nv300", "nv400"] },
+        { make: "volkswagen", models: ["amarok", "transporter", "crafter", "caddy"] },
+        { make: "isuzu", models: ["d-max", "elf", "n-series", "f-series"] },
+        { make: "mazda", models: ["bt-50"] },
+        { make: "daf", models: ["xf", "xf95", "xf105", "cf", "lf", "xg"] },
+        { make: "man", models: ["tgm", "tga", "tgx", "tgs", "tgl", "l2000"] },
+        { make: "iveco", models: ["daily", "eurocargo", "stralis", "s-way", "x-way"] },
+        { make: "mercedes benz", models: ["actros", "atego", "arocs", "axor", "sprinter", "vito", "citan"] },
+        { make: "volvo", models: ["fh", "fm", "fe", "fl", "fmx"] },
+        { make: "scania", models: ["r-series", "s-series", "p-series", "g-series"] },
+        { make: "renault", models: ["master", "trafic", "kangoo", "t", "c", "k"] }
     ]
 };
 
@@ -3897,16 +3925,26 @@ function isCatalogVehicleKindCompatible(
         return false;
     }
 
+    /*
+     * Model-name contradictions are a hard rejection even when
+     * VehiclesDB happens to report a misleading body type.
+     */
+    if (
+        hasObviousVehicleNameCategoryContradiction(
+            vehicle,
+            kind
+        )
+    ) {
+        return false;
+    }
+
     const bodyTypes =
         getCatalogVehicleBodyTypes(
             vehicle
         );
 
     if (!bodyTypes.length) {
-        return !hasObviousVehicleNameCategoryContradiction(
-            vehicle,
-            kind
-        );
+        return true;
     }
 
     const contradictions =
@@ -8555,6 +8593,56 @@ function renderVehicleDetailsPanel(
     const specifications =
         details.specifications || {};
 
+    const catalogBodyType =
+        apiVehicle?.body_type ||
+        apiVehicle?.bodyType ||
+        catalogVehicle?.body_type ||
+        catalogVehicle?.bodyType ||
+        "";
+
+    const catalogYearStart =
+        apiVehicle?.year_start ??
+        apiVehicle?.yearStart ??
+        catalogVehicle?.year_start ??
+        catalogVehicle?.yearStart ??
+        "";
+
+    const catalogYearEnd =
+        apiVehicle?.year_end ??
+        apiVehicle?.yearEnd ??
+        catalogVehicle?.year_end ??
+        catalogVehicle?.yearEnd ??
+        "";
+
+    const catalogProduction =
+        catalogYearStart && catalogYearEnd
+            ? (
+                String(catalogYearStart) === String(catalogYearEnd)
+                    ? String(catalogYearStart)
+                    : String(catalogYearStart) + "–" + String(catalogYearEnd)
+            )
+            : catalogYearStart
+                ? String(catalogYearStart) + "–present"
+                : catalogYearEnd
+                    ? "through " + String(catalogYearEnd)
+                    : "";
+
+    const fallbackAboutParts = [
+        isUsefulVehicleDetailValue(catalogBodyType)
+            ? "Body type: " + String(catalogBodyType)
+            : "",
+        isUsefulVehicleDetailValue(catalogProduction)
+            ? "Production: " + String(catalogProduction)
+            : ""
+    ].filter(Boolean);
+
+    const aboutDescription =
+        isUsefulVehicleDetailValue(wikipedia.description)
+            ? String(wikipedia.description).trim()
+            : fallbackAboutParts.length
+                ? fallbackAboutParts.join(" • ")
+                : "Vehicle information is currently limited to the VehiclesDB catalog.";
+
     const entries =
         getVehicleSpecificationEntries(
             specifications
@@ -8657,7 +8745,9 @@ function renderVehicleDetailsPanel(
             `
             : `
                 <div class="worth-it-vehicle-no-specs">
-                    No technical specifications are currently available from Wikipedia.
+                    ${fallbackAboutParts.length
+                    ? escapeVehicleHtml(fallbackAboutParts.join(" • "))
+                    : "No additional technical specifications are currently available."}
                 </div>
             `;
 
@@ -8692,8 +8782,7 @@ function renderVehicleDetailsPanel(
             <h3>About this vehicle</h3>
             <p class="worth-it-vehicle-description">
                 ${escapeVehicleHtml(
-                    wikipedia.description ||
-                    "No description is currently available."
+                    aboutDescription
                 )}
             </p>
         </section>
