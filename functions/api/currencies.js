@@ -831,10 +831,22 @@ export async function onRequest(context) {
             "Currencies API error:",
             error
         );
+        const fallbackUrl =
+            new URL(context.request.url);
+
+        const fallbackBase =
+            (
+                fallbackUrl.searchParams.get("base") ||
+                "EUR"
+            ).trim().toUpperCase();
+
+        const fallbackToday =
+            getUTCDate(new Date());
+
 
         const staleCached =
             await getCurrencyCacheResponse(
-                base,
+                fallbackBase,
                 "stale"
             );
 
@@ -853,13 +865,13 @@ export async function onRequest(context) {
         }
 
         const degraded = {
-            base,
+            base: fallbackBase,
             currencies: { [base]: base },
             rates: { [base]: 1 },
             previousRates: {},
             ratesList: [],
             previousRatesList: [],
-            date: today,
+            date: fallbackToday,
             previousDate: null,
             majorRates: {},
             majorPreviousRates: {},
