@@ -14323,7 +14323,7 @@ async function finalizeCloudVehicleAccountCache(
 
     try {
 
-        const response =
+        let response =
             await fetch(
                 VEHICLE_API +
                 "?action=account-cache-finalize",
