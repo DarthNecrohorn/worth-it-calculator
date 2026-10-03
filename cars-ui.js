@@ -39,7 +39,7 @@ const VEHICLE_CATALOG_BASE_URL =
 const VEHICLE_DATASET_MANIFEST_URL =
     "https://cdn.jsdelivr.net/gh/vehiclesdb/vehiclesdb@latest/manifest.json";
 
-const VEHICLE_DETAILS_CACHE_VERSION = "v23";
+const VEHICLE_DETAILS_CACHE_VERSION = "v24";
 
 const MAX_VEHICLES_PER_CATEGORY = 300;
 
@@ -2026,6 +2026,22 @@ function createVehicleImageElement(
         vehicle.sourceKind ||
         kind;
 
+    image.dataset.vehicleBodyType =
+        vehicle.bodyType ||
+        "";
+
+    image.dataset.vehicleYearStart =
+        vehicle.yearStart !== null &&
+        vehicle.yearStart !== undefined
+            ? String(vehicle.yearStart)
+            : "";
+
+    image.dataset.vehicleYearEnd =
+        vehicle.yearEnd !== null &&
+        vehicle.yearEnd !== undefined
+            ? String(vehicle.yearEnd)
+            : "";
+
     image.style.width =
         "100%";
 
@@ -2229,14 +2245,47 @@ function updateVehicleCardInformationPreview(
         );
     }
 
+    const datasetVehicle = {
+        bodyType:
+            imageElement?.dataset.vehicleBodyType ||
+            "",
+        bodyTypes:
+            imageElement?.dataset.vehicleBodyType
+                ? [imageElement.dataset.vehicleBodyType]
+                : [],
+        yearStart:
+            imageElement?.dataset.vehicleYearStart ||
+            "",
+        yearEnd:
+            imageElement?.dataset.vehicleYearEnd ||
+            ""
+    };
+
     const apiVehicle =
         details?.vehicle ||
         catalogVehicle ||
-        {};
+        datasetVehicle;
 
     const specifications =
         details?.specifications ||
         {};
+
+    const fuelEconomy =
+        details?.external?.fuelEconomy ||
+        null;
+
+    const externalEconomySummary =
+        fuelEconomy
+            ? [
+                fuelEconomy.combinedMpg !== null &&
+                fuelEconomy.combinedMpg !== undefined
+                    ? "EPA " + fuelEconomy.combinedMpg + " MPG"
+                    : "",
+                fuelEconomy.fuelType || ""
+            ]
+                .filter(Boolean)
+                .join(" • ")
+            : "";
 
     const technicalCandidates = [
         ["fuel", specifications.fuel],
@@ -2247,7 +2296,8 @@ function updateVehicleCardInformationPreview(
         ["payload", specifications.payload],
         ["cargo", specifications.cargoCapacity],
         ["seats", specifications.seating],
-        ["economy", specifications.fuelEconomy]
+        ["economy", specifications.fuelEconomy],
+        ["epa", externalEconomySummary]
     ];
 
     const technicalValues =
@@ -2344,9 +2394,10 @@ function updateVehicleCardInformationPreview(
         return;
     }
 
-    card.dataset.infoState = "pending";
+    card.dataset.infoState = "catalog";
     preview.textContent =
-        "Information is being checked…";
+        "Vehicle profile • VehiclesDB catalog";
+    preview.removeAttribute("title");
     preview.removeAttribute("title");
 
 }
@@ -2781,6 +2832,25 @@ async function loadVehicleCardImage(
     imageElement.dataset.queued =
         "false";
 
+    const catalogVehicle =
+        currentVehicleCatalog.find(
+            vehicle =>
+                normalizeVehicleText(
+                    vehicle?.make
+                ) ===
+                    normalizeVehicleText(make) &&
+                normalizeVehicleText(
+                    vehicle?.model
+                ) ===
+                    normalizeVehicleText(model) &&
+                normalizeVehicleText(
+                    vehicle?.sourceKind ||
+                    vehicle?.kind ||
+                    kind
+                ) ===
+                    normalizeVehicleText(kind)
+        ) || null;
+
     const details =
         await fetchVehicleDetailsWithRetry(
             make,
@@ -2793,7 +2863,8 @@ async function loadVehicleCardImage(
 
     updateVehicleCardInformationPreview(
         imageElement,
-        details
+        details,
+        catalogVehicle
     );
 
     if (
