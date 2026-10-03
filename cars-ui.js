@@ -8199,14 +8199,29 @@ async function renderPopularCatalogImmediately(kind, showAll = false) {
      * Start with an empty/loading state. No unverified card is inserted
      * into the DOM while the quality scan is running.
      */
-    grid.innerHTML =
-        '<div class="cars-empty-state">' +
-            '<div class="cars-empty-icon">' +
-                getVehicleKindInfo(kind).icon +
-            '</div>' +
-            '<strong>Checking vehicle information...</strong>' +
-            '<p>Only vehicles with reliable information and a verified reusable image will be shown.</p>' +
-        '</div>';
+    const hasRenderedVehicleCards =
+        Boolean(
+            grid.querySelector(
+                '.car-card[data-popular-stable-card="true"]'
+            )
+        );
+
+    /*
+     * When Show all is requested, never blank an already populated
+     * quality-gated grid while persistent data is being restored. The
+     * existing verified cards stay visible and the background scanner
+     * appends the rest.
+     */
+    if (!showAll || !hasRenderedVehicleCards) {
+        grid.innerHTML =
+            '<div class="cars-empty-state">' +
+                '<div class="cars-empty-icon">' +
+                    getVehicleKindInfo(kind).icon +
+                '</div>' +
+                '<strong>Checking vehicle information...</strong>' +
+                '<p>Only vehicles with reliable information and a verified reusable image will be shown.</p>' +
+            '</div>';
+    }
 
     if (!unique.length) {
         currentVehicleResults = [];
@@ -8250,10 +8265,11 @@ async function renderPopularCatalogImmediately(kind, showAll = false) {
      * Returning users can restore the already-verified vehicle list first.
      * The current quality scanner then only has to fill gaps/new candidates.
      */
-    await restorePersistentPopularVehicles(
-        kind,
-        unique
-    );
+    const restorePromise =
+        restorePersistentPopularVehicles(
+            kind,
+            unique
+        );
 
     /*
      * "Show all" must never wait for the entire 2000-vehicle quality scan.
@@ -8274,8 +8290,8 @@ async function renderPopularCatalogImmediately(kind, showAll = false) {
     if (showAll) {
         /*
          * Show all is intentionally non-blocking. Use every vehicle that
-         * the background scanner or persistent account cache has already
-         * validated, then let the scanner append the rest as they finish.
+         * the background scanner has already validated without waiting for
+         * the persistent restore request to finish.
          */
         validVehicles =
             Array.isArray(qualityState?.validVehicles)
@@ -8343,15 +8359,72 @@ async function renderPopularCatalogImmediately(kind, showAll = false) {
     }
 
     /*
-     * Only validated vehicles reach the DOM.
+     * Only validated vehicles reach the DOM. Keep the existing verified
+     * cards during Show all expansion; this avoids a visible blank/loading
+     * phase while the persistent snapshot is being restored.
      */
-    grid.innerHTML = "";
+    if (!showAll) {
+        grid.innerHTML = "";
+    } else if (!validVehicles.length) {
+        grid.innerHTML =
+            '<div class="cars-empty-state">' +
+                '<div class="cars-empty-icon">' +
+                    getVehicleKindInfo(kind).icon +
+                '</div>' +
+                '<strong>Checking vehicle information...</strong>' +
+                '<p>Only vehicles with reliable information and a verified reusable image will be shown.</p>' +
+            '</div>';
+    }
 
     appendStablePopularVehicleCards(
         kind,
         validVehicles,
         showAll
     );
+
+    if (showAll) {
+        /*
+         * Persistent validation may finish after the first Show all paint.
+         * Merge it into the shared quality state and immediately append any
+         * additional verified vehicles without blocking the UI.
+         */
+        void restorePromise.then(() => {
+            if (
+                currentVehicleKind !== kind ||
+                currentVehicleMode !== "popular"
+            ) {
+                return;
+            }
+
+            const restoredState =
+                popularVehicleQualityState.get(kind);
+
+            const restoredVehicles =
+                Array.isArray(restoredState?.validVehicles)
+                    ? restoredState.validVehicles.slice()
+                    : [];
+
+            if (!restoredVehicles.length) {
+                return;
+            }
+
+            appendStablePopularVehicleCards(
+                kind,
+                restoredVehicles,
+                true
+            );
+
+            currentVehicleResults =
+                restoredVehicles.slice();
+
+            renderVehicleCollapseButton(kind);
+        }).catch(error => {
+            console.warn(
+                "Persistent popular vehicle restore failed:",
+                error
+            );
+        });
+    }
 
     currentVehicleResults =
         validVehicles.slice();
