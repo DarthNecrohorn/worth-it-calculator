@@ -169,6 +169,10 @@ const VEHICLE_KINDS = [
 
 const VEHICLE_ALL_KIND = "all";
 const MAX_UNIFIED_VEHICLES = 1000;
+const VEHICLE_FAVORITES_STORAGE_KEY = "worth-it-vehicle-favorites-v1";
+const VEHICLE_RECENT_STORAGE_KEY = "worth-it-vehicle-recent-v1";
+const VEHICLE_RECENT_LIMIT = 8;
+const VEHICLE_SEARCH_DEBOUNCE_MS = 120;
 
 const VEHICLE_DATA_KINDS = [
     "car",
@@ -8244,74 +8248,115 @@ function stateHasMorePopularVehicleCandidates(
 }
 
 
+/* ============================================================
+ * VEHICLE PERSONAL LISTS
+ * ============================================================ */
+
+function getVehicleStorageKey(vehicle, kind = currentVehicleKind) {
+    return [normalizeVehicleText(vehicle?.sourceKind || vehicle?.kind || kind || ""), normalizeVehicleText(vehicle?.make || ""), normalizeVehicleText(vehicle?.model || "")].filter(Boolean).join("|");
+}
+function readVehiclePersonalList(key) {
+    try { const parsed = JSON.parse(localStorage.getItem(key) || "[]"); return Array.isArray(parsed) ? parsed : []; } catch { return []; }
+}
+function writeVehiclePersonalList(key, list) {
+    try { localStorage.setItem(key, JSON.stringify(list)); } catch {}
+}
+function getVehicleFavorites() { return readVehiclePersonalList(VEHICLE_FAVORITES_STORAGE_KEY); }
+function isVehicleFavorite(vehicle, kind = currentVehicleKind) {
+    const key = getVehicleStorageKey(vehicle, kind);
+    return getVehicleFavorites().some(item => item?.key === key);
+}
+function toggleVehicleFavorite(vehicle, kind = currentVehicleKind) {
+    const key = getVehicleStorageKey(vehicle, kind);
+    const favorites = getVehicleFavorites();
+    const index = favorites.findIndex(item => item?.key === key);
+    if (index >= 0) favorites.splice(index, 1);
+    else favorites.unshift({ key, make: vehicle?.make || "", model: vehicle?.model || "", kind: vehicle?.sourceKind || vehicle?.kind || kind || "", bodyType: vehicle?.bodyType || "", yearStart: vehicle?.yearStart ?? "", yearEnd: vehicle?.yearEnd ?? "" });
+    writeVehiclePersonalList(VEHICLE_FAVORITES_STORAGE_KEY, favorites.slice(0, 100));
+    renderVehiclePersonalPanels();
+    refreshVehicleFavoriteControls();
+}
+function recordRecentlyViewedVehicle(vehicle, kind = currentVehicleKind) {
+    const key = getVehicleStorageKey(vehicle, kind);
+    if (!key) return;
+    const recent = readVehiclePersonalList(VEHICLE_RECENT_STORAGE_KEY).filter(item => item?.key !== key);
+    recent.unshift({ key, make: vehicle?.make || "", model: vehicle?.model || "", kind: vehicle?.sourceKind || vehicle?.kind || kind || "", bodyType: vehicle?.bodyType || "", yearStart: vehicle?.yearStart ?? "", yearEnd: vehicle?.yearEnd ?? "" });
+    writeVehiclePersonalList(VEHICLE_RECENT_STORAGE_KEY, recent.slice(0, VEHICLE_RECENT_LIMIT));
+    renderVehiclePersonalPanels();
+}
+function ensureVehiclePersonalPanels() {
+    const grid = document.getElementById("popularCarsGrid");
+    if (!grid || document.getElementById("carsPersonalPanels")) return;
+    const wrapper = document.createElement("div");
+    wrapper.id = "carsPersonalPanels";
+    wrapper.className = "cars-personal-panels";
+    wrapper.dataset.activeTab = "recent";
+    wrapper.innerHTML = '<div class="cars-personal-toolbar"><button type="button" class="cars-personal-tab is-active" data-personal-tab="recent">Recently viewed</button><button type="button" class="cars-personal-tab" data-personal-tab="favorites">Favorites</button></div><div class="cars-personal-content" id="carsPersonalContent"></div>';
+    grid.parentNode.insertBefore(wrapper, grid);
+    wrapper.querySelectorAll("[data-personal-tab]").forEach(button => button.addEventListener("click", () => {
+        wrapper.querySelectorAll("[data-personal-tab]").forEach(item => item.classList.toggle("is-active", item === button));
+        wrapper.dataset.activeTab = button.dataset.personalTab;
+        renderVehiclePersonalPanels();
+    }));
+}
+function renderVehiclePersonalPanels() {
+    const wrapper = document.getElementById("carsPersonalPanels");
+    const content = document.getElementById("carsPersonalContent");
+    if (!wrapper || !content) return;
+    const tab = wrapper.dataset.activeTab || "recent";
+    const list = tab === "favorites" ? getVehicleFavorites() : readVehiclePersonalList(VEHICLE_RECENT_STORAGE_KEY);
+    if (!list.length) { content.innerHTML = '<div class="cars-personal-empty"><span>' + (tab === "favorites" ? "♡" : "↺") + '</span><div><strong>' + (tab === "favorites" ? "No favorite vehicles yet" : "No recently viewed vehicles yet") + '</strong><p>' + (tab === "favorites" ? "Open a vehicle and save it to Favorites." : "Vehicles you open will appear here for quick access.") + '</p></div></div>'; return; }
+    content.innerHTML = list.map(item => {
+        const label = (item.make + " " + item.model).trim();
+        const meta = [item.bodyType, item.yearStart && item.yearEnd ? item.yearStart + "–" + item.yearEnd : item.yearStart || item.yearEnd].filter(Boolean).join(" • ");
+        return '<button type="button" class="cars-personal-item" data-personal-key="' + escapeVehicleHtml(item.key) + '"><span class="cars-personal-item-icon">' + (tab === "favorites" ? "♥" : "↺") + '</span><span class="cars-personal-item-copy"><strong>' + escapeVehicleHtml(label) + '</strong><small>' + escapeVehicleHtml(meta || "Vehicle") + '</small></span><span class="cars-personal-item-action">Open</span></button>';
+    }).join("");
+    content.querySelectorAll(".cars-personal-item").forEach(button => button.addEventListener("click", () => {
+        const item = list.find(entry => entry?.key === button.dataset.personalKey);
+        if (!item) return;
+        openVehicleDetailsPanel({ make:item.make, model:item.model, sourceKind:item.kind, kind:item.kind, bodyType:item.bodyType, yearStart:item.yearStart || null, yearEnd:item.yearEnd || null }, item.kind || currentVehicleKind);
+    }));
+}
+function refreshVehicleFavoriteControls() {
+    document.querySelectorAll("[data-vehicle-favorite]").forEach(control => {
+        const vehicle = control._worthItVehicle;
+        if (!vehicle) return;
+        const favorite = isVehicleFavorite(vehicle, control._worthItVehicleKind);
+        control.textContent = favorite ? "♥" : "♡";
+        control.classList.toggle("is-favorite", favorite);
+        control.setAttribute("aria-label", favorite ? "Remove from favorites" : "Add to favorites");
+        control.title = favorite ? "Remove from favorites" : "Add to favorites";
+    });
+}
+
 /*
  * ============================================================
  * SEARCH
  * ============================================================
  */
 
-function searchVehicleCatalog(
-    vehicles,
-    query
-) {
-
-    const normalizedQuery =
-        normalizeVehicleText(
-            query
-        );
-
-
-    if (!normalizedQuery) {
-
-        return currentVehicleKind === VEHICLE_ALL_KIND
-            ? vehicles.slice(0, MAX_UNIFIED_VEHICLES)
-            : getPopularVehicles(
-                vehicles,
-                currentVehicleKind
-            );
-
-    }
-
-
-    const categoryVehicles =
-        currentVehicleKind === VEHICLE_ALL_KIND
-            ? vehicles
-            : getStrictVehicleCategoryCatalog(
-                vehicles,
-                currentVehicleKind
-            );
-
-    const results =
-        categoryVehicles.filter(
-            vehicle => {
-
-                const text =
-                    normalizeVehicleText(
-                        `${vehicle.make} ${vehicle.model} ${vehicle.bodyType || ""}`
-                    );
-
-                return text.includes(
-                    normalizedQuery
-                );
-
-            }
-        );
-
-
-    return results.slice(
-        0,
-        MAX_SEARCH_RESULTS
-    );
-
+function searchVehicleCatalog(vehicles, query) {
+    const normalizedQuery = normalizeVehicleText(query);
+    if (!normalizedQuery) return currentVehicleKind === VEHICLE_ALL_KIND ? vehicles.slice(0, MAX_UNIFIED_VEHICLES) : getPopularVehicles(vehicles, currentVehicleKind);
+    const tokens = normalizedQuery.split(/\s+/).filter(Boolean);
+    const categoryVehicles = currentVehicleKind === VEHICLE_ALL_KIND ? vehicles : getStrictVehicleCategoryCatalog(vehicles, currentVehicleKind);
+    return categoryVehicles.map(vehicle => {
+        const make = normalizeVehicleText(vehicle?.make || "");
+        const model = normalizeVehicleText(vehicle?.model || "");
+        const body = normalizeVehicleText(vehicle?.bodyType || "");
+        const full = (make + " " + model + " " + body).trim();
+        let score = 0;
+        if (full === normalizedQuery) score += 1000;
+        if (make === normalizedQuery) score += 850;
+        if (model === normalizedQuery) score += 800;
+        if (make.startsWith(normalizedQuery)) score += 500;
+        if (model.startsWith(normalizedQuery)) score += 450;
+        if (full.startsWith(normalizedQuery)) score += 350;
+        if (full.includes(normalizedQuery)) score += 250;
+        for (const token of tokens) { if (make === token) score += 180; else if (make.startsWith(token)) score += 120; else if (model.startsWith(token)) score += 110; else if (model.includes(token)) score += 80; else if (body.includes(token)) score += 40; }
+        return {vehicle, score};
+    }).filter(item => item.score > 0).sort((a,b) => b.score - a.score).slice(0, MAX_SEARCH_RESULTS).map(item => item.vehicle);
 }
-
-
-/*
- * ============================================================
- * CALCULATE VEHICLES FOR 3 ROWS
- * ============================================================
- */
-
 function getVehiclesPerRow() {
 
     const grid =
@@ -9400,6 +9445,8 @@ async function openVehicleDetailsPanel(
 
     const title =
         `${vehicle.make || ""} ${vehicle.model || ""}`.trim();
+
+    recordRecentlyViewedVehicle(vehicle, kind);
 
     body.innerHTML = `
         <div class="worth-it-vehicle-detail-loading">
@@ -13788,6 +13835,9 @@ async function openCars() {
     /* Unified vehicle catalog: no category buttons. */
     renderVehicleCategoryButtons();
 
+        ensureVehiclePersonalPanels();
+        renderVehiclePersonalPanels();
+
     currentVehicleKind = VEHICLE_ALL_KIND;
     currentVehicleCatalog = [];
     currentVehicleResults = [];
@@ -14061,16 +14111,13 @@ document.addEventListener(
         }
 
 
-        searchInput.addEventListener(
-            "input",
-            function () {
+        let vehicleSearchTimer = null;
 
-                handleVehicleSearch(
-                    this.value
-                );
-
-            }
-        );
+        searchInput.addEventListener("input", function () {
+            const value = this.value;
+            window.clearTimeout(vehicleSearchTimer);
+            vehicleSearchTimer = window.setTimeout(() => handleVehicleSearch(value), VEHICLE_SEARCH_DEBOUNCE_MS);
+        });
 
     }
 );
