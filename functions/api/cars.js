@@ -1726,6 +1726,14 @@ async function handleImages(requestUrl) {
     const model =
         requestUrl.searchParams.get("model");
 
+    const datasetVersion =
+        String(
+            requestUrl.searchParams.get("dataset_version") ||
+            "dataset-unknown"
+        )
+            .replace(/[^a-zA-Z0-9._-]/g, "_")
+            .slice(0, 80);
+
     if (!make || !model) {
 
         return jsonResponse(
@@ -7221,6 +7229,7 @@ async function handleDetails(
             WIKIPEDIA_CACHE_VERSION + "/" +
             detailsMode + "/" +
             encodeURIComponent(kind) + "/" +
+            encodeURIComponent(datasetVersion) + "/" +
             encodeURIComponent(make) + "/" +
             encodeURIComponent(model)
         );
