@@ -8355,14 +8355,47 @@ async function openVehicleDetailsPanel(
      * in the catalog, but clearly show "No Information" and cannot
      * be added to comparison.
      */
-    const hasReliableData =
-        hasReliableVehicleWikipediaData(
-            details,
-            vehicle,
-            detailKind
+    const specificationValues =
+        Object.values(
+            details?.specifications || {}
+        )
+            .filter(value =>
+                isUsefulVehicleDetailValue(value)
+            );
+
+    /*
+     * The API performs the authoritative make/model/category validation.
+     * The frontend quality gate is therefore only for deciding whether
+     * there is enough content to render—not for hiding a server-validated
+     * article because its title/summary wording is unusual.
+     */
+    const hasDisplayableData =
+        Boolean(
+            details?.success !== false &&
+            (
+                isUsefulVehicleDetailValue(
+                    details?.wikipedia?.description
+                ) ||
+                specificationValues.length > 0 ||
+                Boolean(
+                    String(
+                        details?.image?.url || ""
+                    ).trim()
+                ) ||
+                (
+                    isUsefulVehicleDetailValue(
+                        details?.wikipedia?.title
+                    ) &&
+                    !/^no information$/i.test(
+                        String(
+                            details?.wikipedia?.title || ""
+                        ).trim()
+                    )
+                )
+            )
         );
 
-    if (!hasReliableData) {
+    if (!hasDisplayableData) {
 
         const noInformationDetails = {
             ...details,
