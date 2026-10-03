@@ -13964,6 +13964,42 @@ const VEHICLE_ACCOUNT_CLOUD_CACHE_BATCH_SIZE =
 let vehicleAccountCloudSyncPromise =
     Promise.resolve();
 
+/*
+ * Supabase can automatically refresh a session while several vehicle
+ * warmup tasks are starting at the same time. Never start more than one
+ * refresh request concurrently: doing so can invalidate the previous
+ * refresh token and produce a 429/401 cascade.
+ */
+let vehicleAccountSessionRefreshPromise = null;
+
+async function refreshVehicleAccountSession() {
+    if (!window.supabaseClient?.auth) {
+        return null;
+    }
+
+    if (vehicleAccountSessionRefreshPromise) {
+        return vehicleAccountSessionRefreshPromise;
+    }
+
+    vehicleAccountSessionRefreshPromise =
+        (async () => {
+            try {
+                const refreshed =
+                    await window.supabaseClient.auth.refreshSession();
+
+                return String(
+                    refreshed?.data?.session?.access_token || ""
+                ).trim() || null;
+            } catch {
+                return null;
+            } finally {
+                vehicleAccountSessionRefreshPromise = null;
+            }
+        })();
+
+    return vehicleAccountSessionRefreshPromise;
+}
+
 async function getVehicleAccountAccessToken(
     forceRefresh = false
 ) {
@@ -13973,17 +14009,7 @@ async function getVehicleAccountAccessToken(
         }
 
         if (forceRefresh) {
-            const refreshed =
-                await window.supabaseClient.auth.refreshSession();
-
-            const refreshedToken =
-                String(
-                    refreshed?.data?.session?.access_token || ""
-                ).trim();
-
-            if (refreshedToken) {
-                return refreshedToken;
-            }
+            return await refreshVehicleAccountSession();
         }
 
         const { data } =
@@ -13998,19 +14024,7 @@ async function getVehicleAccountAccessToken(
             return token;
         }
 
-        if (!forceRefresh) {
-            const refreshed =
-                await window.supabaseClient.auth.refreshSession();
-
-            return (
-                String(
-                    refreshed?.data?.session?.access_token || ""
-                ).trim() ||
-                null
-            );
-        }
-
-        return null;
+        return await refreshVehicleAccountSession();
 
     } catch {
         return null;
@@ -16078,7 +16092,17 @@ document.addEventListener(
         ) {
 
             window.supabaseClient.auth.onAuthStateChange(
-                () => {
+                (event) => {
+
+                    /*
+                     * TOKEN_REFRESHED is normal background Supabase
+                     * activity. It must not restart the entire vehicle
+                     * warmup, otherwise every refresh can create another
+                     * cache read/write wave.
+                     */
+                    if (event === "TOKEN_REFRESHED") {
+                        return;
+                    }
 
                     vehicleAccountCacheOwnerPromise =
                         null;
@@ -16089,12 +16113,14 @@ document.addEventListener(
                     unifiedVehicleBackgroundWarmupActive =
                         false;
 
-                    window.setTimeout(
-                        () => {
-                            void startUnifiedVehicleBackgroundWarmup();
-                        },
-                        0
-                    );
+                    if (event === "SIGNED_IN") {
+                        window.setTimeout(
+                            () => {
+                                void startUnifiedVehicleBackgroundWarmup();
+                            },
+                            0
+                        );
+                    }
 
                 }
             );
