@@ -36,7 +36,7 @@ const WIKIDATA_CANDIDATE_LIMIT = 600;
 const WIKIDATA_NONCAR_CANDIDATE_LIMIT = 1000;
 const DBPEDIA_CANDIDATE_LIMIT = 600;
 const DBPEDIA_NONCAR_CANDIDATE_LIMIT = 1000;
-const WIKIPEDIA_CACHE_VERSION = "v23";
+const WIKIPEDIA_CACHE_VERSION = "v24";
 const WIKIMEDIA_IMAGE_LOOKUP_TIMEOUT_MS = 3500;
 
 const WIKIPEDIA_API =
@@ -4293,14 +4293,37 @@ function hasStrongWikipediaKindContradiction(
 
     const contradictionCount =
         contradictionTerms.filter(term =>
-            text.includes(
-                normalizeWikipediaSearchText(term)
+            wikipediaTextContainsTerm(
+                text,
+                term
             )
         ).length;
 
+    const titleText =
+        normalizeWikipediaSearchText(
+            title || ""
+        );
+
+    const titleContradictionCount =
+        contradictionTerms.filter(term =>
+            wikipediaTextContainsTerm(
+                titleText,
+                term
+            )
+        ).length;
+
+    /*
+     * A single mention of another vehicle type in a descriptive article
+     * is not enough to reject a valid page. Explicit vehicle-kind wording
+     * in the title remains a hard signal, while body-text conflicts need
+     * at least two independent terms.
+     */
     return (
         positiveCount === 0 &&
-        contradictionCount >= 1
+        (
+            titleContradictionCount >= 1 ||
+            contradictionCount >= 2
+        )
     );
 }
 
@@ -4407,6 +4430,147 @@ async function resolveWikipediaTitleFromWikidata(
     return null;
 }
 
+function getVehicleWikipediaSearchVariants(
+    make,
+    model
+) {
+
+    const rawModel =
+        String(model || "")
+            .replace(/\s+/g, " ")
+            .trim();
+
+    const spacedCodeModel =
+        rawModel
+            .replace(/([A-Za-z])(?=\d)/g, "$1 ")
+            .replace(/(\d)(?=[A-Za-z])/g, "$1 ")
+            .replace(/\s+/g, " ")
+            .trim();
+
+    const variants = [
+        `${make} ${rawModel}`.trim(),
+        `${make} ${spacedCodeModel}`.trim(),
+        `${rawModel} ${make}`.trim(),
+        `${spacedCodeModel} ${make}`.trim()
+    ];
+
+    return Array.from(
+        new Set(
+            variants.filter(Boolean)
+        )
+    );
+}
+
+function getWikipediaVehicleIdentityScore(
+    title,
+    make,
+    model
+) {
+
+    const titleKey =
+        simplifyText(title);
+
+    const makeKey =
+        simplifyText(make);
+
+    const modelKey =
+        simplifyText(model);
+
+    if (
+        !titleKey ||
+        !modelKey
+    ) {
+        return 0;
+    }
+
+    let score = 0;
+
+    if (
+        titleKey ===
+        simplifyText(
+            `${make} ${model}`
+        )
+    ) {
+        score += 180;
+    }
+
+    if (
+        titleKey.includes(
+            modelKey
+        )
+    ) {
+        score += 90;
+    }
+
+    if (
+        makeKey &&
+        titleKey.includes(
+            makeKey
+        )
+    ) {
+        score += 40;
+    }
+
+    const modelTokens =
+        normalizeWikipediaSearchText(
+            model
+        )
+            .split(/\s+/)
+            .filter(token =>
+                token.length >= 2
+            );
+
+    if (modelTokens.length) {
+
+        const matchedTokens =
+            modelTokens.filter(token =>
+                wikipediaTextContainsTerm(
+                    normalizeWikipediaSearchText(
+                        title
+                    ),
+                    token
+                )
+            ).length;
+
+        score += Math.round(
+            70 *
+            (
+                matchedTokens /
+                modelTokens.length
+            )
+        );
+    }
+
+    return score;
+}
+
+function isWikipediaVehicleTitlePlausible(
+    title,
+    make,
+    model,
+    kind
+) {
+
+    const identityScore =
+        getWikipediaVehicleIdentityScore(
+            title,
+            make,
+            model
+        );
+
+    if (
+        identityScore < 70
+    ) {
+        return false;
+    }
+
+    return !hasStrongWikipediaKindContradiction(
+        title,
+        "",
+        kind
+    );
+}
+
 async function searchWikipediaVehicle(
     make,
     model,
@@ -4420,12 +4584,25 @@ async function searchWikipediaVehicle(
     const exactName =
         `${make} ${model}`.trim();
 
-    const searches = [
-        `"${exactName}" ${kind}`,
-        `${exactName} ${kind}`,
-        `"${exactName}" vehicle`,
-        exactName
-    ];
+    const titleVariants =
+        getVehicleWikipediaSearchVariants(
+            make,
+            model
+        );
+
+    const searches =
+        Array.from(
+            new Set(
+                titleVariants.flatMap(
+                    variant => [
+                        `"${variant}" ${kind}`,
+                        `"${variant}" vehicle`,
+                        variant,
+                        `${variant} ${kind}`
+                    ]
+                )
+            )
+        );
 
     const normalizedTarget =
         simplifyText(
@@ -4654,6 +4831,17 @@ async function searchWikipediaVehicle(
                     );
 
             for (const candidate of candidates) {
+
+                if (
+                    !isWikipediaVehicleTitlePlausible(
+                        candidate.title,
+                        make,
+                        model,
+                        kind
+                    )
+                ) {
+                    continue;
+                }
 
                 if (
                     kind !== "car" &&
