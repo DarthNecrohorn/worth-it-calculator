@@ -1829,6 +1829,93 @@ async function fetchVehicleDetails(
  * ============================================================
  */
 
+function setPopularVehicleImageState(
+    imageElement,
+    state
+) {
+
+    const card =
+        imageElement?.closest(
+            ".car-card"
+        );
+
+    if (!card) {
+        return;
+    }
+
+    card.dataset.imageState =
+        state;
+
+    if (
+        currentVehicleMode === "popular" &&
+        card.dataset.popularStableCard === "true"
+    ) {
+        reorderPopularVehicleCardsByImageAvailability(
+            card.dataset.vehicleKind ||
+            currentVehicleKind
+        );
+    }
+}
+
+function reorderPopularVehicleCardsByImageAvailability(
+    kind = currentVehicleKind
+) {
+
+    if (
+        currentVehicleMode !== "popular" ||
+        currentVehicleKind !== kind
+    ) {
+        return;
+    }
+
+    const grid =
+        document.getElementById(
+            "popularCarsGrid"
+        );
+
+    if (!grid) {
+        return;
+    }
+
+    const cards =
+        Array.from(
+            grid.querySelectorAll(
+                '.car-card[data-popular-stable-card="true"]'
+            )
+        );
+
+    const priority = {
+        available: 0,
+        pending: 1,
+        unavailable: 2
+    };
+
+    cards
+        .map(
+            (card, index) => ({
+                card,
+                index,
+                rank:
+                    priority[
+                        card.dataset.imageState ||
+                        "pending"
+                    ] ?? 1
+            })
+        )
+        .sort(
+            (a, b) =>
+                a.rank - b.rank ||
+                a.index - b.index
+        )
+        .forEach(
+            entry =>
+                grid.appendChild(
+                    entry.card
+                )
+        );
+
+}
+
 function createVehicleImageElement(
     vehicle,
     kind
@@ -1894,6 +1981,11 @@ function createVehicleImageElement(
             image.style.opacity =
                 "1";
 
+            setPopularVehicleImageState(
+                image,
+                "available"
+            );
+
         }
     );
 
@@ -1901,6 +1993,11 @@ function createVehicleImageElement(
     image.addEventListener(
         "error",
         () => {
+
+            setPopularVehicleImageState(
+                image,
+                "unavailable"
+            );
 
             showVehicleImagePlaceholder(
                 image
@@ -2156,6 +2253,11 @@ async function loadVehicleCardImage(
         !imageIsRelevant
     ) {
 
+        setPopularVehicleImageState(
+            imageElement,
+            "unavailable"
+        );
+
         const parent =
             imageElement.parentNode;
 
@@ -2212,6 +2314,11 @@ async function loadVehicleCardImage(
 
     imageElement.dataset.loaded =
         "true";
+
+    setPopularVehicleImageState(
+        imageElement,
+        "pending"
+    );
 
     void cachedObjectUrlPromise
         .then(
@@ -5237,6 +5344,10 @@ function appendStablePopularVehicleCards(
         );
     }
 
+    reorderPopularVehicleCardsByImageAvailability(
+        kind
+    );
+
     refreshStablePopularResults(
         kind
     );
@@ -7352,6 +7463,9 @@ function createVehicleCard(
 
     card.className =
         "car-card";
+
+    card.dataset.imageState =
+        "pending";
 
 
     const info =
