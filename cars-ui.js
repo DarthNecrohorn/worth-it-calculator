@@ -14219,29 +14219,25 @@ function startUnifiedVehicleBackgroundWarmup() {
                                 VEHICLE_ALL_KIND
                             );
 
-                        const hasInformation =
-                            hasUnifiedVehicleDisplayInformation(
-                                details
-                            );
+                        const detailKind =
+                            vehicle.sourceKind ||
+                            vehicle.kind ||
+                            "car";
 
-                        const identityOk =
-                            hasPopularVehicleIdentityMatch(
+                        const hasUsableDetails =
+                            hasUsablePopularVehicleDetails(
                                 details,
-                                vehicle
-                            ) ||
-                            (
-                                normalizeVehicleText(
-                                    details?.vehicle?.make || ""
-                                ) === normalizeVehicleText(vehicle.make) &&
-                                normalizeVehicleText(
-                                    details?.vehicle?.model || ""
-                                ) === normalizeVehicleText(vehicle.model)
+                                vehicle,
+                                detailKind
                             );
 
                         const isValid =
-                            hasInformation &&
-                            identityOk &&
-                            details?.comparisonAvailable === true;
+                            hasUsableDetails &&
+                            hasRequiredVehicleCardQuality(
+                                details,
+                                vehicle,
+                                detailKind
+                            );
 
                         popularVehicleQualityCache.set(
                             key,
