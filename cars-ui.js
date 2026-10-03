@@ -1223,61 +1223,44 @@ function writePersistentVehicleDetails(
             details?.kind ||
             "";
 
-        if (
-            !make ||
-            !model ||
-            !kind
-        ) {
+        if (!make || !model || !kind) {
             return;
         }
 
         /*
          * Keep enough metadata for fast card rendering and image reuse,
-         * while avoiding storing unnecessarily large raw API responses.
+         * while avoiding unnecessarily large raw API responses.
          */
         const compact = {
-            success:
-                true,
-
+            success: true,
             datasetVersion:
                 vehicleDetailsDatasetVersion ||
                 null,
-
             kind,
-
             vehicle: {
                 make,
                 model,
                 kind
             },
-
             wikipedia: {
                 title:
                     details?.wikipedia?.title ||
                     "No Information",
-
                 url:
                     details?.wikipedia?.url ||
                     null,
-
                 description:
                     String(
                         details?.wikipedia?.description ||
                         "No Information"
-                    ).slice(
-                        0,
-                        2500
-                    )
+                    ).slice(0, 2500)
             },
-
             image:
                 details?.image ||
                 null,
-
             specifications:
                 details?.specifications ||
                 {},
-
             comparisonAvailable:
                 Boolean(
                     details?.comparisonAvailable
@@ -1301,123 +1284,106 @@ function writePersistentVehicleDetails(
 
         const cacheKeys = [];
 
-        for (
-            let index = 0;
-            index < localStorage.length;
-            index += 1
-        ) {
+        try {
 
-            const key =
-                localStorage.key(index);
-
-            if (
-                key &&
-                key.startsWith(cachePrefix) &&
-                key !== storageKey
+            for (
+                let index = 0;
+                index < localStorage.length;
+                index += 1
             ) {
-                cacheKeys.push(key);
+                const key =
+                    localStorage.key(index);
+
+                if (
+                    key &&
+                    key.startsWith(cachePrefix) &&
+                    key !== storageKey
+                ) {
+                    cacheKeys.push(key);
+                }
             }
 
-        }
-
-        while (
-            cacheKeys.length >=
-            PERSISTENT_VEHICLE_DETAILS_MAX_ENTRIES
-        ) {
-
-            localStorage.removeItem(
-                cacheKeys.shift()
-            );
-
-        }
-
-        try {
+            while (
+                cacheKeys.length >=
+                PERSISTENT_VEHICLE_DETAILS_MAX_ENTRIES
+            ) {
+                localStorage.removeItem(
+                    cacheKeys.shift()
+                );
+            }
 
             localStorage.setItem(
                 storageKey,
-                JSON.stringify(
-                    compact
-                )
+                JSON.stringify(compact)
             );
 
         } catch (error) {
 
             if (
-                error?.name !==
+                error?.name ===
                 "QuotaExceededError"
             ) {
-                return;
+                for (const key of cacheKeys) {
+                    try {
+                        localStorage.removeItem(key);
+                    } catch {}
+                }
+
+                try {
+                    localStorage.setItem(
+                        storageKey,
+                        JSON.stringify(compact)
+                    );
+                } catch {
+                    /* Cache Storage below is the large persistent layer. */
+                }
             }
 
-            for (
-                const key of cacheKeys
-            ) {
-                localStorage.removeItem(
-                    key
-                );
-            }
+        }
 
+        /*
+         * Cache Storage is the large persistent layer for vehicle details.
+         * It is namespaced by the authenticated account owner, so the
+         * background validator can retain thousands of verified records.
+         */
+        void (async () => {
             try {
+                const cache =
+                    await caches.open(
+                        "worth-it-cars-details-" +
+                        VEHICLE_PERSISTENT_CACHE_VERSION +
+                        "-" +
+                        String(owner || "guest")
+                    );
 
-                localStorage.setItem(
-                    storageKey,
-                    JSON.stringify(
-                        compact
+                await cache.put(
+                    getVehiclePersistentDetailsCacheUrl(
+                        owner,
+                        make,
+                        model,
+                        kind
+                    ),
+                    new Response(
+                        JSON.stringify(compact),
+                        {
+                            status: 200,
+                            headers: {
+                                "Content-Type":
+                                    "application/json; charset=UTF-8"
+                            }
+                        }
                     )
                 );
 
             } catch {
-                /* Persistent browser caching is optional. */
-
+                /* Persistent Cache Storage is optional. */
             }
-
-        }
-
-    }
-
-    /*
-     * Cache Storage is the large persistent layer for the full vehicle
-     * catalog. It is namespaced by the authenticated account owner, so
-     * background validation can retain far more than localStorage allows.
-     */
-    void (async () => {
-        try {
-            const cache =
-                await caches.open(
-                    "worth-it-cars-details-" +
-                    VEHICLE_PERSISTENT_CACHE_VERSION +
-                    "-" +
-                    String(owner || "guest")
-                );
-
-            await cache.put(
-                getVehiclePersistentDetailsCacheUrl(
-                    owner,
-                    make,
-                    model,
-                    kind
-                ),
-                new Response(
-                    JSON.stringify(compact),
-                    {
-                        status: 200,
-                        headers: {
-                            "Content-Type":
-                                "application/json; charset=UTF-8"
-                        }
-                    }
-                )
-            );
-        } catch {
-            /* Cache Storage is an optional persistent accelerator. */
-        }
-    })();
+        })();
 
     } catch (error) {
 
         /*
-         * localStorage quota or serialization problems must never
-         * interrupt Cars rendering.
+         * Persistent caching must never interrupt Cars rendering.
          */
         console.warn(
             "Vehicle persistent cache write skipped:",
