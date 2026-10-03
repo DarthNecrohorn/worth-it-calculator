@@ -13964,21 +13964,53 @@ const VEHICLE_ACCOUNT_CLOUD_CACHE_BATCH_SIZE =
 let vehicleAccountCloudSyncPromise =
     Promise.resolve();
 
-async function getVehicleAccountAccessToken() {
+async function getVehicleAccountAccessToken(
+    forceRefresh = false
+) {
     try {
         if (!window.supabaseClient?.auth) {
             return null;
         }
 
+        if (forceRefresh) {
+            const refreshed =
+                await window.supabaseClient.auth.refreshSession();
+
+            const refreshedToken =
+                String(
+                    refreshed?.data?.session?.access_token || ""
+                ).trim();
+
+            if (refreshedToken) {
+                return refreshedToken;
+            }
+        }
+
         const { data } =
             await window.supabaseClient.auth.getSession();
 
-        return (
+        const token =
             String(
                 data?.session?.access_token || ""
-            ).trim() ||
-            null
-        );
+            ).trim();
+
+        if (token) {
+            return token;
+        }
+
+        if (!forceRefresh) {
+            const refreshed =
+                await window.supabaseClient.auth.refreshSession();
+
+            return (
+                String(
+                    refreshed?.data?.session?.access_token || ""
+                ).trim() ||
+                null
+            );
+        }
+
+        return null;
 
     } catch {
         return null;
@@ -14029,11 +14061,78 @@ async function readCloudVehicleAccountCache(
                             "Accept":
                                 "application/json",
                             "Authorization":
-                                "Bearer " + accessToken
+                                "Bearer " + accessToken,
+                            "X-Supabase-Access-Token":
+                                accessToken
                         },
                         cache: "no-store"
                     }
                 );
+
+            if (response.status === 401) {
+                const refreshedToken =
+                    await getVehicleAccountAccessToken(true);
+
+                if (!refreshedToken) {
+                    return [];
+                }
+
+                const retryResponse =
+                    await fetch(
+                        VEHICLE_API +
+                        "?action=account-cache-get" +
+                        "&dataset_version=" +
+                        encodeURIComponent(datasetVersion) +
+                        "&offset=" +
+                        offset +
+                        "&limit=" +
+                        limit,
+                        {
+                            method: "GET",
+                            headers: {
+                                "Accept":
+                                    "application/json",
+                                "Authorization":
+                                    "Bearer " + refreshedToken,
+                                "X-Supabase-Access-Token":
+                                    refreshedToken
+                            },
+                            cache: "no-store"
+                        }
+                    );
+
+                if (!retryResponse.ok) {
+                    return [];
+                }
+
+                const payload =
+                    await retryResponse.json();
+
+                if (
+                    !payload?.success ||
+                    payload.datasetVersion !==
+                        datasetVersion ||
+                    !Array.isArray(
+                        payload.vehicles
+                    )
+                ) {
+                    return [];
+                }
+
+                results.push(
+                    ...payload.vehicles
+                );
+
+                if (
+                    !payload.hasMore ||
+                    payload.vehicles.length < limit
+                ) {
+                    break;
+                }
+
+                offset += payload.vehicles.length;
+                continue;
+            }
 
             if (!response.ok) {
                 return [];
