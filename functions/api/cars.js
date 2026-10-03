@@ -30,13 +30,14 @@ const VEHICLES_DB_URL =
 
 const CACHE_TTL = 86400; // 24 hours
 const WIKIPEDIA_CACHE_TTL = 604800; // 7 days
+const NEGATIVE_WIKIPEDIA_CACHE_TTL = 300; // 5 minutes for temporary no-data results
 const MAX_MODELS_PER_KIND = 300; // Keep the catalog focused on popular vehicles
 const WIKIDATA_CANDIDATE_LIMIT = 600;
 const WIKIDATA_NONCAR_CANDIDATE_LIMIT = 1000;
 const DBPEDIA_CANDIDATE_LIMIT = 600;
 const DBPEDIA_NONCAR_CANDIDATE_LIMIT = 1000;
-const WIKIPEDIA_CACHE_VERSION = "v22";
-const WIKIMEDIA_IMAGE_LOOKUP_TIMEOUT_MS = 3000;
+const WIKIPEDIA_CACHE_VERSION = "v23";
+const WIKIMEDIA_IMAGE_LOOKUP_TIMEOUT_MS = 3500;
 
 const WIKIPEDIA_API =
     "https://en.wikipedia.org/w/api.php";
@@ -4925,6 +4926,116 @@ function isVehicleImageUrlMatchingName(
     );
 }
 
+
+function createCommercialWikimediaImageFromInfo(
+    imageInfo,
+    title,
+    make,
+    model,
+    kind = "car",
+    identityVerified = false,
+    requireFilenameIdentity = false
+) {
+
+    if (!imageInfo?.url) {
+        return null;
+    }
+
+    if (
+        requireFilenameIdentity &&
+        !isVehicleImageUrlMatchingName(
+            imageInfo.url,
+            make,
+            model
+        )
+    ) {
+        return null;
+    }
+
+    const license =
+        getCommercialWikimediaLicense(
+            imageInfo.extmetadata
+        );
+
+    if (!license) {
+        return null;
+    }
+
+    const author =
+        stripHtmlForMetadata(
+            imageInfo.extmetadata?.Artist?.value ||
+            imageInfo.extmetadata?.Credit?.value ||
+            ""
+        );
+
+    return {
+        url:
+            imageInfo.thumburl ||
+            imageInfo.url,
+        source_url:
+            imageInfo.descriptionurl ||
+            ("https://commons.wikimedia.org/wiki/" +
+                encodeURIComponent(
+                    String(title || "").replace(/ /g, "_")
+                )),
+        author:
+            author || null,
+        license:
+            license.name,
+        license_url:
+            license.url || null,
+        identity_verified:
+            Boolean(identityVerified)
+    };
+}
+
+function isCommercialWikimediaSearchResultRelevant(
+    title,
+    imageInfo,
+    make,
+    model
+) {
+
+    const titleText =
+        normalizeVehicleImageMatchText(
+            title
+        );
+
+    const makeText =
+        normalizeVehicleImageMatchText(
+            make
+        );
+
+    const modelText =
+        normalizeVehicleImageMatchText(
+            model
+        );
+
+    if (
+        !titleText ||
+        !makeText ||
+        !modelText
+    ) {
+        return false;
+    }
+
+    const hasExactFileName =
+        isVehicleImageUrlMatchingName(
+            imageInfo?.url,
+            make,
+            model
+        );
+
+    const hasIdentityInFileTitle =
+        titleText.includes(makeText) &&
+        titleText.includes(modelText);
+
+    return (
+        hasExactFileName ||
+        hasIdentityInFileTitle
+    );
+}
+
 async function searchCommercialWikimediaImage(
     make,
     model,
@@ -4932,16 +5043,11 @@ async function searchCommercialWikimediaImage(
 ) {
 
     const searchText =
-        String(make || "") +
-        " " +
-        String(model || "");
-
-    const normalizedSearchText =
-        searchText
+        (String(make || "") + " " + String(model || ""))
             .replace(/\s+/g, " ")
             .trim();
 
-    if (!normalizedSearchText) {
+    if (!searchText) {
         return null;
     }
 
@@ -4950,60 +5056,23 @@ async function searchCommercialWikimediaImage(
         const url =
             new URL(WIKIMEDIA_COMMONS_API);
 
-        url.searchParams.set(
-            "action",
-            "query"
-        );
-
-        url.searchParams.set(
-            "generator",
-            "search"
-        );
-
-        url.searchParams.set(
-            "gsrsearch",
-            normalizedSearchText
-        );
-
-        url.searchParams.set(
-            "gsrnamespace",
-            "6"
-        );
-
-        url.searchParams.set(
-            "gsrlimit",
-            "8"
-        );
-
-        url.searchParams.set(
-            "prop",
-            "imageinfo"
-        );
-
+        url.searchParams.set("action", "query");
+        url.searchParams.set("generator", "search");
+        url.searchParams.set("gsrsearch", "\"" + searchText + "\"");
+        url.searchParams.set("gsrnamespace", "6");
+        url.searchParams.set("gsrlimit", "12");
+        url.searchParams.set("prop", "imageinfo");
         url.searchParams.set(
             "iiprop",
             "url|extmetadata"
         );
-
         url.searchParams.set(
             "iiextmetadatafilter",
             "License|LicenseShortName|UsageTerms|LicenseUrl|Artist|Credit"
         );
-
-        url.searchParams.set(
-            "iiurlwidth",
-            "1200"
-        );
-
-        url.searchParams.set(
-            "format",
-            "json"
-        );
-
-        url.searchParams.set(
-            "formatversion",
-            "2"
-        );
+        url.searchParams.set("iiurlwidth", "1200");
+        url.searchParams.set("format", "json");
+        url.searchParams.set("formatversion", "2");
 
         const data =
             await fetchWikipediaCached(
@@ -5011,9 +5080,7 @@ async function searchCommercialWikimediaImage(
             );
 
         const pages =
-            Array.isArray(
-                data?.query?.pages
-            )
+            Array.isArray(data?.query?.pages)
                 ? data.query.pages
                 : Object.values(
                     data?.query?.pages || {}
@@ -5026,22 +5093,38 @@ async function searchCommercialWikimediaImage(
                     page?.title || ""
                 ).trim();
 
-            if (!title) {
+            const imageInfo =
+                Array.isArray(page?.imageinfo)
+                    ? page.imageinfo[0]
+                    : null;
+
+            if (
+                !title ||
+                !imageInfo?.url ||
+                !isCommercialWikimediaSearchResultRelevant(
+                    title,
+                    imageInfo,
+                    make,
+                    model
+                )
+            ) {
                 continue;
             }
 
             const image =
-                await getCommercialWikimediaImage(
+                createCommercialWikimediaImageFromInfo(
+                    imageInfo,
                     title,
                     make,
                     model,
-                    kind
+                    kind,
+                    true,
+                    false
                 );
 
             if (image?.url) {
                 return image;
             }
-
         }
 
     } catch (error) {
@@ -5058,6 +5141,7 @@ async function searchCommercialWikimediaImage(
 
     return null;
 }
+
 
 async function getCommercialWikimediaImage(
     imageTitle,
@@ -5078,7 +5162,7 @@ async function getCommercialWikimediaImage(
     }
 
     if (!/^file:/i.test(title)) {
-        title = `File:${title}`;
+        title = "File:" + title;
     }
 
     try {
@@ -5120,97 +5204,20 @@ async function getCommercialWikimediaImage(
                 ? page.imageinfo[0]
                 : null;
 
-        if (!imageInfo?.url) {
-            return null;
-        }
-
         /*
-         * Keep the car category on the strict filename identity check.
-         * Commercial-vehicle and motorcycle categories also accept the
-         * article's lead Commons image when the generated file URL does
-         * not contain the complete make + model phrase.
+         * This is the lead image attached to the exact Wikipedia article
+         * that already passed make/model/category checks. The Commons
+         * filename itself does not need to repeat the vehicle name.
          */
-        const strictImageMatch =
-            isVehicleImageUrlMatchingName(
-                imageInfo.url,
-                make,
-                model
-            );
-
-        if (
-            !strictImageMatch &&
-            ![
-                "motorcycle",
-                "van",
-                "truck",
-                "bus"
-            ].includes(
-                String(kind || "").toLowerCase()
-            )
-        ) {
-            console.info(
-                "Wikimedia image blocked by vehicle-name URL filter:",
-                title,
-                make,
-                model,
-                imageInfo.url
-            );
-            return null;
-        }
-
-        if (
-            !strictImageMatch &&
-            [
-                "motorcycle",
-                "van",
-                "truck",
-                "bus"
-            ].includes(
-                String(kind || "").toLowerCase()
-            )
-        ) {
-            /*
-             * The article itself has already passed the vehicle identity
-             * and category checks. These three categories may have generic
-             * Commons filenames, so the commercial-license check is the
-             * remaining image gate.
-             */
-        }
-
-        const license =
-            getCommercialWikimediaLicense(
-                imageInfo.extmetadata
-            );
-
-        if (!license) {
-            console.info(
-                "Wikimedia image blocked by commercial-license filter:",
-                title
-            );
-            return null;
-        }
-
-        const author =
-            stripHtmlForMetadata(
-                imageInfo.extmetadata?.Artist?.value ||
-                imageInfo.extmetadata?.Credit?.value ||
-                ""
-            );
-
-        return {
-            /* Prefer the 1200px Commons thumbnail for card performance. */
-            url:
-                imageInfo.thumburl ||
-                imageInfo.url,
-            source_url:
-                imageInfo.descriptionurl ||
-                `https://commons.wikimedia.org/wiki/${encodeURIComponent(
-                    title.replace(/ /g, "_")
-                )}`,
-            author: author || null,
-            license: license.name,
-            license_url: license.url || null
-        };
+        return createCommercialWikimediaImageFromInfo(
+            imageInfo,
+            title,
+            make,
+            model,
+            kind,
+            true,
+            false
+        );
 
     } catch (error) {
 
@@ -5781,8 +5788,7 @@ async function handleDetails(
                 kind
             ),
             200,
-            WIKIPEDIA_CACHE_TTL
-        );
+            NEGATIVE_WIKIPEDIA_CACHE_TTL25232
     }
 
     /* 3. Load article summary/image. */
@@ -5814,8 +5820,7 @@ async function handleDetails(
                 kind
             ),
             200,
-            WIKIPEDIA_CACHE_TTL
-        );
+            NEGATIVE_WIKIPEDIA_CACHE_TTL129252
     }
 
     /*
@@ -5919,7 +5924,12 @@ async function handleDetails(
                 vehicle: {
                     make: vehicle.make,
                     model: vehicle.model,
-                    kind: vehicle.kind
+                    kind: vehicle.kind,
+                    body_type: vehicle.bodyType,
+                    body_types: vehicle.bodyTypes,
+                    year_start: vehicle.yearStart,
+                    year_end: vehicle.yearEnd,
+                    global_decile: vehicle.globalDecile
                 },
                 wikipedia: {
                     title: page.title,
