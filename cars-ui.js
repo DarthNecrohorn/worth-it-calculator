@@ -15624,33 +15624,32 @@ async function startUnifiedVehicleBackgroundWarmup() {
                         added = true;
                     }
 
-                    /*
-                     * A candidate can be rejected immediately after validation
-                     * if it is below the current Top 1000 cutoff. Never write
-                     * such a replaced-out candidate into the account snapshot.
-                     */
-                    cloudRecords =
-                        cloudRecords.filter(record =>
-                            validKeys.has(
-                                getPopularVehicleQualityKey(
-                                    record.vehicle,
-                                    VEHICLE_ALL_KIND
-                                )
-                            )
-                        );
-
-                    if (cloudRecords.length) {
-
-                        queueCloudVehicleAccountCacheUpsert(
-                            vehicleDetailsDatasetVersion,
-                            cloudRecords
-                        );
-
-                    }
-
                     if (added) {
 
                         sortAndTrimUnifiedCatalog();
+
+                        /*
+                         * Only sync vehicles that survived the current Top 1000
+                         * trim. This keeps rejected/replaced candidates out of
+                         * D1 and prevents the background scanner from turning
+                         * thousands of checked candidates into database writes.
+                         */
+                        cloudRecords =
+                            cloudRecords.filter(record =>
+                                validKeys.has(
+                                    getPopularVehicleQualityKey(
+                                        record.vehicle,
+                                        VEHICLE_ALL_KIND
+                                    )
+                                )
+                            );
+
+                        if (cloudRecords.length) {
+                            queueCloudVehicleAccountCacheUpsert(
+                                vehicleDetailsDatasetVersion,
+                                cloudRecords
+                            );
+                        }
 
                         /*
                          * Persist after every successful batch. If the
