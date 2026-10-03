@@ -36,7 +36,7 @@ const WIKIDATA_CANDIDATE_LIMIT = 600;
 const WIKIDATA_NONCAR_CANDIDATE_LIMIT = 1000;
 const DBPEDIA_CANDIDATE_LIMIT = 600;
 const DBPEDIA_NONCAR_CANDIDATE_LIMIT = 1000;
-const WIKIPEDIA_CACHE_VERSION = "v30";
+const WIKIPEDIA_CACHE_VERSION = "v31";
 const WIKIMEDIA_IMAGE_LOOKUP_TIMEOUT_MS = 3500;
 
 const WIKIPEDIA_API =
@@ -7077,7 +7077,7 @@ function createWikipediaNoInformation(
         wikipedia: {
             title: "No Information",
             url: null,
-            description: "No Information"
+            description: "Couldn't find informations on wikipedia and online"
         },
 
         image,
