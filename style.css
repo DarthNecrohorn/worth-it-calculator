@@ -14181,6 +14181,14 @@ html[data-ui-scale="xl"] .water-levels-detail-card{
     gap: 8px;
 }
 
+.cars-personal-panels[data-active-tab="favorites"] .cars-personal-content {
+    max-height: 250px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable;
+    padding-right: 4px;
+}
+
 .cars-personal-empty {
     display: flex;
     align-items: center;
@@ -14348,4 +14356,16 @@ html[data-ui-scale="xl"] .water-levels-detail-card{
         width: 32px;
         height: 32px;
     }
+}
+
+
+.cars-results-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 12px;
+}
+
+.cars-compare-jump-button {
+    margin-left: 8px;
 }
