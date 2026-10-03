@@ -803,7 +803,7 @@ function getPopularBackgroundTargetCount(
         );
 
     /*
-     * The unified All Vehicles view is capped at 2000 PUBLIC cards,
+     * The unified All Vehicles view is capped at 1000 PUBLIC cards,
      * but it must be allowed to keep validating candidates until it
      * can fill that public limit. The old small background target
      * silently stopped the unified list after a small fraction of the
@@ -4304,7 +4304,7 @@ async function buildFreshUnifiedVehicleCatalog() {
 
     /*
      * Keep a hidden popularity-ordered verification pool larger than the
-     * public 2000-card limit. This gives the quality gate enough candidates
+     * public 1000-card limit. This gives the quality gate enough candidates
      * to replace entries that lack reliable information or a verified image.
      */
     return vehicles.slice(
@@ -8067,7 +8067,7 @@ async function renderPopularCatalogImmediately(kind, showAll = false) {
             );
 
     /*
-     * Build a larger validation pool than the public 2000-card limit.
+     * Build a larger validation pool than the public 1000-card limit.
      * For the unified view, scan the categories in a weighted round-robin
      * instead of letting the popularity sort fill the pool almost entirely
      * with cars. This is what allows valid motorcycles, vans, trucks and
@@ -8288,7 +8288,7 @@ async function renderPopularCatalogImmediately(kind, showAll = false) {
         );
 
     /*
-     * "Show all" must never wait for the entire 2000-vehicle quality scan.
+     * "Show all" must never wait for the entire 1000-vehicle quality scan.
      * The initial scan may already be running in the background. Reuse the
      * validated vehicles that are available right now, render them
      * immediately, and let the same quality scanner append further valid
@@ -13912,7 +13912,7 @@ function updateCarsCategoryHeader(
         '<span class="cars-results-description-text">' +
         escapeVehicleHtml(
             kind === VEHICLE_ALL_KIND
-                ? "2000 cars, motorcycles, vans, trucks and buses from the connected VehiclesDB dataset."
+                ? "Up to 1,000 verified cars, motorcycles, vans, trucks and buses from the connected VehiclesDB dataset."
                 : info.description
         ) +
         '</span>' +
