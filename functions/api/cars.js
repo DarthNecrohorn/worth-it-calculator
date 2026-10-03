@@ -8472,6 +8472,601 @@ async function handleDetails(
  */
 
 /*
+ * ============================================================
+ * AUTHENTICATED VEHICLE ACCOUNT CACHE
+ *
+ * The browser cache remains a fast local layer, but the complete
+ * verified All Vehicles snapshot is also stored in D1 so the same
+ * account can restore it from another device/browser.
+ * ============================================================
+ */
+
+const VEHICLE_ACCOUNT_CACHE_TABLE =
+    "vehicle_account_cache_v1";
+
+const CREATE_VEHICLE_ACCOUNT_CACHE_SQL =
+    "CREATE TABLE IF NOT EXISTS " +
+    VEHICLE_ACCOUNT_CACHE_TABLE +
+    " (" +
+    "user_id TEXT NOT NULL, " +
+    "dataset_version TEXT NOT NULL, " +
+    "vehicle_key TEXT NOT NULL, " +
+    "rank_index INTEGER NOT NULL, " +
+    "vehicle_json TEXT NOT NULL, " +
+    "details_json TEXT NOT NULL, " +
+    "saved_at TEXT NOT NULL, " +
+    "PRIMARY KEY (user_id, dataset_version, vehicle_key)" +
+    ")";
+
+const CREATE_VEHICLE_ACCOUNT_CACHE_INDEX_SQL =
+    "CREATE INDEX IF NOT EXISTS idx_vehicle_account_cache_user_dataset_rank " +
+    "ON " +
+    VEHICLE_ACCOUNT_CACHE_TABLE +
+    " (user_id, dataset_version, rank_index)";
+
+const SUPABASE_PROJECT_URL =
+    "https://diutcnylnubljvpezhmq.supabase.co";
+
+const SUPABASE_PUBLISHABLE_KEY =
+    "sb_publishable_W9769alA1ckSllKvue4U2Q_TdXpWnjP";
+
+async function getAuthenticatedSupabaseUser(
+    context
+) {
+    const authorization =
+        context.request.headers.get("Authorization") || "";
+
+    if (!/^Bearer\s+/i.test(authorization)) {
+        return null;
+    }
+
+    try {
+        const response =
+            await fetch(
+                SUPABASE_PROJECT_URL +
+                "/auth/v1/user",
+                {
+                    method: "GET",
+                    headers: {
+                        "apikey":
+                            SUPABASE_PUBLISHABLE_KEY,
+                        "Authorization":
+                            authorization,
+                        "Accept":
+                            "application/json"
+                    }
+                }
+            );
+
+        if (!response.ok) {
+            return null;
+        }
+
+        const user =
+            await response.json();
+
+        return user?.id
+            ? user
+            : null;
+
+    } catch {
+        return null;
+    }
+}
+
+async function ensureVehicleAccountCacheTable(
+    db
+) {
+    await db.batch([
+        db.prepare(
+            CREATE_VEHICLE_ACCOUNT_CACHE_SQL
+        ),
+        db.prepare(
+            CREATE_VEHICLE_ACCOUNT_CACHE_INDEX_SQL
+        )
+    ]);
+}
+
+function getVehicleAccountCacheKey(
+    vehicle
+) {
+    const normalize =
+        value =>
+            String(value || "")
+                .trim()
+                .toLowerCase();
+
+    return [
+        normalize(vehicle?.sourceKind || vehicle?.kind),
+        normalize(vehicle?.make),
+        normalize(vehicle?.model)
+    ]
+        .filter(Boolean)
+        .join("|");
+}
+
+async function handleVehicleAccountCacheGet(
+    context,
+    requestUrl
+) {
+    const db =
+        context?.env?.DB;
+
+    if (!db) {
+        return jsonResponse(
+            {
+                success: false,
+                error:
+                    "Vehicle account cache is not configured."
+            },
+            503,
+            30
+        );
+    }
+
+    const user =
+        await getAuthenticatedSupabaseUser(
+            context
+        );
+
+    if (!user) {
+        return jsonResponse(
+            {
+                success: false,
+                error: "Authentication required."
+            },
+            401,
+            30
+        );
+    }
+
+    const datasetVersion =
+        String(
+            requestUrl.searchParams.get(
+                "dataset_version"
+            ) || ""
+        )
+            .trim()
+            .slice(0, 120);
+
+    if (!datasetVersion) {
+        return jsonResponse(
+            {
+                success: false,
+                error:
+                    "Missing dataset_version."
+            },
+            400,
+            30
+        );
+    }
+
+    const offset =
+        Math.max(
+            0,
+            Number.parseInt(
+                requestUrl.searchParams.get(
+                    "offset"
+                ),
+                10
+            ) || 0
+        );
+
+    const limit =
+        Math.min(
+            250,
+            Math.max(
+                1,
+                Number.parseInt(
+                    requestUrl.searchParams.get(
+                        "limit"
+                    ),
+                    10
+                ) || 250
+            )
+        );
+
+    try {
+        await ensureVehicleAccountCacheTable(db);
+
+        const { results = [] } =
+            await db.prepare(
+                "SELECT rank_index, vehicle_json, details_json, saved_at " +
+                "FROM " +
+                VEHICLE_ACCOUNT_CACHE_TABLE +
+                " WHERE user_id = ? AND dataset_version = ? " +
+                "ORDER BY rank_index ASC " +
+                "LIMIT ? OFFSET ?"
+            )
+                .bind(
+                    user.id,
+                    datasetVersion,
+                    limit,
+                    offset
+                )
+                .all();
+
+        const vehicles =
+            results
+                .map(row => {
+                    try {
+                        return {
+                            rankIndex:
+                                Number(row?.rank_index),
+                            vehicle:
+                                JSON.parse(
+                                    row.vehicle_json
+                                ),
+                            details:
+                                JSON.parse(
+                                    row.details_json
+                                ),
+                            savedAt:
+                                row.saved_at || null
+                        };
+                    } catch {
+                        return null;
+                    }
+                })
+                .filter(
+                    entry =>
+                        entry?.vehicle?.make &&
+                        entry?.vehicle?.model &&
+                        entry?.details
+                );
+
+        return jsonResponse(
+            {
+                success: true,
+                datasetVersion,
+                vehicles,
+                hasMore:
+                    vehicles.length >= limit
+            },
+            200,
+            30
+        );
+
+    } catch (error) {
+        console.error(
+            "Vehicle account cache read failed:",
+            error
+        );
+
+        return jsonResponse(
+            {
+                success: false,
+                error:
+                    "Vehicle account cache read failed."
+            },
+            500,
+            30
+        );
+    }
+}
+
+async function handleVehicleAccountCacheUpsert(
+    context
+) {
+    const db =
+        context?.env?.DB;
+
+    if (!db) {
+        return jsonResponse(
+            {
+                success: false,
+                error:
+                    "Vehicle account cache is not configured."
+            },
+            503,
+            30
+        );
+    }
+
+    const user =
+        await getAuthenticatedSupabaseUser(
+            context
+        );
+
+    if (!user) {
+        return jsonResponse(
+            {
+                success: false,
+                error: "Authentication required."
+            },
+            401,
+            30
+        );
+    }
+
+    let payload;
+
+    try {
+        payload =
+            await context.request.json();
+    } catch {
+        return jsonResponse(
+            {
+                success: false,
+                error:
+                    "Invalid JSON request body."
+            },
+            400,
+            30
+        );
+    }
+
+    const datasetVersion =
+        String(
+            payload?.datasetVersion || ""
+        )
+            .trim()
+            .slice(0, 120);
+
+    const records =
+        Array.isArray(payload?.records)
+            ? payload.records.slice(0, 100)
+            : [];
+
+    if (!datasetVersion || !records.length) {
+        return jsonResponse(
+            {
+                success: false,
+                error:
+                    "Missing datasetVersion or records."
+            },
+            400,
+            30
+        );
+    }
+
+    try {
+        await ensureVehicleAccountCacheTable(db);
+
+        const savedAt =
+            new Date().toISOString();
+
+        const statements = [];
+
+        for (const record of records) {
+            const vehicle =
+                record?.vehicle;
+
+            const details =
+                record?.details;
+
+            const key =
+                getVehicleAccountCacheKey(
+                    vehicle
+                );
+
+            if (
+                !key ||
+                !vehicle?.make ||
+                !vehicle?.model ||
+                !details ||
+                details?.success === false ||
+                details?.comparisonAvailable !== true ||
+                !details?.specifications ||
+                !String(
+                    details?.image?.url || ""
+                ).trim()
+            ) {
+                continue;
+            }
+
+            const rankIndex =
+                Math.max(
+                    0,
+                    Number.parseInt(
+                        record?.rankIndex,
+                        10
+                    ) || 0
+                );
+
+            statements.push(
+                db.prepare(
+                    "INSERT INTO " +
+                    VEHICLE_ACCOUNT_CACHE_TABLE +
+                    " (user_id, dataset_version, vehicle_key, rank_index, vehicle_json, details_json, saved_at) " +
+                    "VALUES (?, ?, ?, ?, ?, ?, ?) " +
+                    "ON CONFLICT(user_id, dataset_version, vehicle_key) DO UPDATE SET " +
+                    "rank_index = excluded.rank_index, " +
+                    "vehicle_json = excluded.vehicle_json, " +
+                    "details_json = excluded.details_json, " +
+                    "saved_at = excluded.saved_at"
+                ).bind(
+                    user.id,
+                    datasetVersion,
+                    key,
+                    rankIndex,
+                    JSON.stringify(vehicle),
+                    JSON.stringify(details),
+                    savedAt
+                )
+            );
+        }
+
+        if (statements.length) {
+            await db.batch(statements);
+        }
+
+        return jsonResponse(
+            {
+                success: true,
+                saved:
+                    statements.length,
+                datasetVersion
+            },
+            200,
+            30
+        );
+
+    } catch (error) {
+        console.error(
+            "Vehicle account cache upsert failed:",
+            error
+        );
+
+        return jsonResponse(
+            {
+                success: false,
+                error:
+                    "Vehicle account cache upsert failed."
+            },
+            500,
+            30
+        );
+    }
+}
+
+async function handleVehicleAccountCacheFinalize(
+    context
+) {
+    const db =
+        context?.env?.DB;
+
+    if (!db) {
+        return jsonResponse(
+            {
+                success: false,
+                error:
+                    "Vehicle account cache is not configured."
+            },
+            503,
+            30
+        );
+    }
+
+    const user =
+        await getAuthenticatedSupabaseUser(
+            context
+        );
+
+    if (!user) {
+        return jsonResponse(
+            {
+                success: false,
+                error: "Authentication required."
+            },
+            401,
+            30
+        );
+    }
+
+    let payload;
+
+    try {
+        payload =
+            await context.request.json();
+    } catch {
+        return jsonResponse(
+            {
+                success: false,
+                error:
+                    "Invalid JSON request body."
+            },
+            400,
+            30
+        );
+    }
+
+    const datasetVersion =
+        String(
+            payload?.datasetVersion || ""
+        )
+            .trim()
+            .slice(0, 120);
+
+    if (!datasetVersion) {
+        return jsonResponse(
+            {
+                success: false,
+                error:
+                    "Missing datasetVersion."
+            },
+            400,
+            30
+        );
+    }
+
+    try {
+        await ensureVehicleAccountCacheTable(db);
+
+        /*
+         * Finalization is only called after the current snapshot has
+         * finished validating. At that point the previous dataset is
+         * safe to discard, which automatically removes obsolete /
+         * lower-ranked vehicles from the account cache.
+         */
+        await db.prepare(
+            "DELETE FROM " +
+            VEHICLE_ACCOUNT_CACHE_TABLE +
+            " WHERE user_id = ? AND dataset_version <> ?"
+        )
+            .bind(
+                user.id,
+                datasetVersion
+            )
+            .run();
+
+        await db.prepare(
+            "DELETE FROM " +
+            VEHICLE_ACCOUNT_CACHE_TABLE +
+            " WHERE user_id = ? AND dataset_version = ? AND rank_index >= ?"
+        )
+            .bind(
+                user.id,
+                datasetVersion,
+                2000
+            )
+            .run();
+
+        const countResult =
+            await db.prepare(
+                "SELECT COUNT(*) AS count " +
+                "FROM " +
+                VEHICLE_ACCOUNT_CACHE_TABLE +
+                " WHERE user_id = ? AND dataset_version = ?"
+            )
+                .bind(
+                    user.id,
+                    datasetVersion
+                )
+                .first();
+
+        return jsonResponse(
+            {
+                success: true,
+                datasetVersion,
+                count:
+                    Number(
+                        countResult?.count || 0
+                    )
+            },
+            200,
+            30
+        );
+
+    } catch (error) {
+        console.error(
+            "Vehicle account cache finalize failed:",
+            error
+        );
+
+        return jsonResponse(
+            {
+                success: false,
+                error:
+                    "Vehicle account cache finalize failed."
+            },
+            500,
+            30
+        );
+    }
+}
+
+/*
  * ------------------------------------------------------------
  * Lightweight catalog redirect
  *
@@ -8713,6 +9308,12 @@ export async function onRequestGet(context) {
                     requestUrl
                 );
 
+            case "account-cache-get":
+                return handleVehicleAccountCacheGet(
+                    context,
+                    requestUrl
+                );
+
             default:
                 return jsonResponse(
                     {
@@ -8726,7 +9327,10 @@ export async function onRequestGet(context) {
                             "images",
                             "details",
                             "wikidata",
-                            "dbpedia"
+                            "dbpedia",
+                            "account-cache-get",
+                            "account-cache-upsert",
+                            "account-cache-finalize"
                         ],
                         supportedKinds:
                             Array.from(VALID_KINDS)
