@@ -35,7 +35,7 @@ const WIKIDATA_CANDIDATE_LIMIT = 600;
 const WIKIDATA_NONCAR_CANDIDATE_LIMIT = 1000;
 const DBPEDIA_CANDIDATE_LIMIT = 600;
 const DBPEDIA_NONCAR_CANDIDATE_LIMIT = 1000;
-const WIKIPEDIA_CACHE_VERSION = "v21";
+const WIKIPEDIA_CACHE_VERSION = "v22";
 const WIKIMEDIA_IMAGE_LOOKUP_TIMEOUT_MS = 1600;
 
 const WIKIPEDIA_API =
@@ -4142,6 +4142,32 @@ function normalizeWikipediaSearchText(
         .trim();
 }
 
+function wikipediaTextContainsTerm(
+    text,
+    term
+) {
+
+    const normalizedTerm =
+        normalizeWikipediaSearchText(term);
+
+    if (!normalizedTerm) {
+        return false;
+    }
+
+    const escapedParts =
+        normalizedTerm
+            .split(/\s+/)
+            .map(part =>
+                part.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+            );
+
+    return new RegExp(
+        `(?:^|\\s)${escapedParts.join("\\s+")}(?=\\s|$)`,
+        "i"
+    ).test(
+        String(text || "")
+    );
+}
 function getWikipediaKindEvidenceScore(
     title,
     snippet,
@@ -4166,8 +4192,9 @@ function getWikipediaKindEvidenceScore(
 
     for (const term of terms) {
         if (
-            text.includes(
-                normalizeWikipediaSearchText(term)
+            wikipediaTextContainsTerm(
+                text,
+                term
             )
         ) {
             positive++;
@@ -4176,8 +4203,9 @@ function getWikipediaKindEvidenceScore(
 
     for (const term of contradictions) {
         if (
-            text.includes(
-                normalizeWikipediaSearchText(term)
+            wikipediaTextContainsTerm(
+                text,
+                term
             )
         ) {
             negative++;
@@ -4256,8 +4284,9 @@ function hasStrongWikipediaKindContradiction(
 
     const positiveCount =
         positiveTerms.filter(term =>
-            text.includes(
-                normalizeWikipediaSearchText(term)
+            wikipediaTextContainsTerm(
+                text,
+                term
             )
         ).length;
 
@@ -4270,7 +4299,7 @@ function hasStrongWikipediaKindContradiction(
 
     return (
         positiveCount === 0 &&
-        contradictionCount >= 2
+        contradictionCount >= 1
     );
 }
 
@@ -4893,31 +4922,12 @@ async function getCommercialWikimediaImage(
                 String(kind || "").toLowerCase()
             )
         ) {
-            const imageTitleText =
-                normalizeVehicleImageMatchText(title);
-
-            const vehicleMakeText =
-                normalizeVehicleImageMatchText(make);
-
-            const vehicleModelText =
-                normalizeVehicleImageMatchText(model);
-
-            const titleBasedMatch =
-                vehicleMakeText &&
-                vehicleModelText &&
-                imageTitleText.includes(vehicleMakeText) &&
-                imageTitleText.includes(vehicleModelText);
-
-            if (!titleBasedMatch) {
-                console.info(
-                    "Wikimedia image blocked by vehicle-name match filter:",
-                    title,
-                    make,
-                    model,
-                    imageInfo.url
-                );
-                return null;
-            }
+            /*
+             * The article itself has already passed the vehicle identity
+             * and category checks. These three categories may have generic
+             * Commons filenames, so the commercial-license check is the
+             * remaining image gate.
+             */
         }
 
         const license =
@@ -5607,8 +5617,7 @@ async function handleDetails(
      */
 
     if (
-        requestUrl.searchParams.get("fast") === "1" &&
-        kind !== "car"
+        requestUrl.searchParams.get("fast") === "1"
     ) {
 
         return jsonResponse(

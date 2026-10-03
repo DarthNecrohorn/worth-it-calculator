@@ -39,7 +39,7 @@ const VEHICLE_CATALOG_BASE_URL =
 const VEHICLE_DATASET_MANIFEST_URL =
     "https://cdn.jsdelivr.net/gh/vehiclesdb/vehiclesdb@latest/manifest.json";
 
-const VEHICLE_DETAILS_CACHE_VERSION = "v20";
+const VEHICLE_DETAILS_CACHE_VERSION = "v22";
 
 const MAX_VEHICLES_PER_CATEGORY = 300;
 
@@ -56,17 +56,20 @@ const INITIAL_VISIBLE_ROWS = 2;
  * out of the Popular Vehicles view.
  */
 const POPULAR_CANDIDATE_POOL_SIZE = 2500;
+const POPULAR_MIN_VALID_CARDS_PER_CATEGORY = 100;
 const POPULAR_CAR_INITIAL_VISIBLE_ROWS = 3;
 const POPULAR_CAR_INITIAL_CARD_COUNT = 12;
 const POPULAR_CAR_INITIAL_MAX_CHECKS = 250;
-const POPULAR_NONCAR_CANDIDATE_POOL_SIZE = 1800;
-const POPULAR_NONCAR_BASE_CANDIDATE_LIMIT = 1400;
-const POPULAR_NONCAR_SUPPLEMENTAL_CANDIDATE_LIMIT = 1600;
+const POPULAR_CAR_MAX_NEW_CHECKS = 2400;
+const POPULAR_NONCAR_CANDIDATE_POOL_SIZE = 2400;
+const POPULAR_NONCAR_BASE_CANDIDATE_LIMIT = 1800;
+const POPULAR_NONCAR_SUPPLEMENTAL_CANDIDATE_LIMIT = 2200;
 const POPULAR_QUALITY_BATCH_SIZE = 10;
 const POPULAR_INITIAL_MAX_CHECKS = 40;
 const POPULAR_SHOW_ALL_MAX_NEW_CHECKS = 1500;
 const VEHICLE_DETAILS_REQUEST_TIMEOUT_MS = 15000;
 const VEHICLE_NONCAR_DETAILS_REQUEST_TIMEOUT_MS = 6500;
+const VEHICLE_FAST_DETAILS_REQUEST_TIMEOUT_MS = 5000;
 const POPULAR_NONCAR_PROGRESSIVE_BUDGET_MS = 7000;
 const POPULAR_NONCAR_EARLY_BASE_COUNT = 120;
 const POPULAR_NONCAR_EARLY_SUPPLEMENTAL_COUNT = 400;
@@ -452,7 +455,7 @@ const VEHICLE_PERSISTENT_CATALOG_VERSION =
     "v2";
 
 const VEHICLE_PERSISTENT_POPULAR_VERSION =
-    "v3";
+    "v4";
 
 const VEHICLE_PERSISTENT_CATEGORY_TTL_MS =
     7 * 24 * 60 * 60 * 1000;
@@ -477,9 +480,9 @@ const VEHICLE_SUPPLEMENTAL_CATEGORIES = [
 const popularVehicleHydrationState =
     new Map();
 
-const POPULAR_DETAILS_CONCURRENCY = 6;
+const POPULAR_DETAILS_CONCURRENCY = 16;
 
-const POPULAR_NONCAR_DETAILS_CONCURRENCY = 16;
+const POPULAR_NONCAR_DETAILS_CONCURRENCY = 20;
 const POPULAR_NONCAR_QUALITY_BATCH_SIZE = 16;
 const POPULAR_NONCAR_INITIAL_MAX_CHECKS = 300;
 
@@ -487,11 +490,11 @@ const POPULAR_NONCAR_INITIAL_VISIBLE_ROWS = 3;
 const POPULAR_NONCAR_INITIAL_CARD_COUNT = 12;
 const POPULAR_NONCAR_REFRESH_CARD_COUNT = 12;
 
-const POPULAR_REFRESH_CARD_COUNT = 8;
-const POPULAR_REFRESH_MAX_CHECKS = 240;
-const POPULAR_REFRESH_CONCURRENCY = 16;
+const POPULAR_REFRESH_CARD_COUNT = 12;
+const POPULAR_REFRESH_MAX_CHECKS = 320;
+const POPULAR_REFRESH_CONCURRENCY = 20;
 
-const PERSISTENT_VEHICLE_DETAILS_MAX_ENTRIES = 40;
+const PERSISTENT_VEHICLE_DETAILS_MAX_ENTRIES = 500;
 
 function getPopularDetailsConcurrency(kind) {
     return kind === "car"
@@ -538,15 +541,33 @@ function getPopularInitialCheckLimit(kind) {
 
 function getPopularMaxNewChecks(kind) {
     return kind === "car"
-        ? POPULAR_SHOW_ALL_MAX_NEW_CHECKS
-        : 2600;
+        ? POPULAR_CAR_MAX_NEW_CHECKS
+        : 3600;
+}
+
+function getPopularBackgroundTargetCount(
+    kind,
+    candidatesLength
+) {
+
+    const available =
+        Math.max(
+            0,
+            Number(candidatesLength) || 0
+        );
+
+    return Math.min(
+        MAX_VEHICLES_PER_CATEGORY,
+        available,
+        POPULAR_MIN_VALID_CARDS_PER_CATEGORY
+    );
 }
 
 /*
  * Persistent browser cache version for account-scoped vehicle
  * metadata/images.
  */
-const VEHICLE_PERSISTENT_CACHE_VERSION = "v4";
+const VEHICLE_PERSISTENT_CACHE_VERSION = "v5";
 
 let vehicleAccountCacheOwnerPromise =
     null;
@@ -1163,7 +1184,7 @@ async function cacheVehicleImageResponse(
 
 let vehicleImageObserver = null;
 
-const MAX_CONCURRENT_IMAGE_REQUESTS = 8;
+const MAX_CONCURRENT_IMAGE_REQUESTS = 12;
 
 let activeVehicleImageRequests = 0;
 
@@ -1352,7 +1373,7 @@ function getVehicleImageObserver() {
                  * This prevents hundreds of details
                  * requests from starting at once.
                  */
-                rootMargin: "400px 0px"
+                rootMargin: "800px 0px"
             }
         );
 
@@ -1677,9 +1698,13 @@ async function fetchVehicleDetails(
                         : null;
 
                 const requestTimeoutMs =
-                    kind === "car"
-                        ? VEHICLE_DETAILS_REQUEST_TIMEOUT_MS
-                        : VEHICLE_NONCAR_DETAILS_REQUEST_TIMEOUT_MS;
+                    isFastMode
+                        ? VEHICLE_FAST_DETAILS_REQUEST_TIMEOUT_MS
+                        : (
+                            kind === "car"
+                                ? VEHICLE_DETAILS_REQUEST_TIMEOUT_MS
+                                : VEHICLE_NONCAR_DETAILS_REQUEST_TIMEOUT_MS
+                        );
 
                 const timeoutId =
                     controller
@@ -1804,6 +1829,93 @@ async function fetchVehicleDetails(
  * ============================================================
  */
 
+function setPopularVehicleImageState(
+    imageElement,
+    state
+) {
+
+    const card =
+        imageElement?.closest(
+            ".car-card"
+        );
+
+    if (!card) {
+        return;
+    }
+
+    card.dataset.imageState =
+        state;
+
+    if (
+        currentVehicleMode === "popular" &&
+        card.dataset.popularStableCard === "true"
+    ) {
+        reorderPopularVehicleCardsByImageAvailability(
+            card.dataset.vehicleKind ||
+            currentVehicleKind
+        );
+    }
+}
+
+function reorderPopularVehicleCardsByImageAvailability(
+    kind = currentVehicleKind
+) {
+
+    if (
+        currentVehicleMode !== "popular" ||
+        currentVehicleKind !== kind
+    ) {
+        return;
+    }
+
+    const grid =
+        document.getElementById(
+            "popularCarsGrid"
+        );
+
+    if (!grid) {
+        return;
+    }
+
+    const cards =
+        Array.from(
+            grid.querySelectorAll(
+                '.car-card[data-popular-stable-card="true"]'
+            )
+        );
+
+    const priority = {
+        available: 0,
+        pending: 1,
+        unavailable: 2
+    };
+
+    cards
+        .map(
+            (card, index) => ({
+                card,
+                index,
+                rank:
+                    priority[
+                        card.dataset.imageState ||
+                        "pending"
+                    ] ?? 1
+            })
+        )
+        .sort(
+            (a, b) =>
+                a.rank - b.rank ||
+                a.index - b.index
+        )
+        .forEach(
+            entry =>
+                grid.appendChild(
+                    entry.card
+                )
+        );
+
+}
+
 function createVehicleImageElement(
     vehicle,
     kind
@@ -1869,6 +1981,11 @@ function createVehicleImageElement(
             image.style.opacity =
                 "1";
 
+            setPopularVehicleImageState(
+                image,
+                "available"
+            );
+
         }
     );
 
@@ -1876,6 +1993,11 @@ function createVehicleImageElement(
     image.addEventListener(
         "error",
         () => {
+
+            setPopularVehicleImageState(
+                image,
+                "unavailable"
+            );
 
             showVehicleImagePlaceholder(
                 image
@@ -2131,6 +2253,11 @@ async function loadVehicleCardImage(
         !imageIsRelevant
     ) {
 
+        setPopularVehicleImageState(
+            imageElement,
+            "unavailable"
+        );
+
         const parent =
             imageElement.parentNode;
 
@@ -2187,6 +2314,11 @@ async function loadVehicleCardImage(
 
     imageElement.dataset.loaded =
         "true";
+
+    setPopularVehicleImageState(
+        imageElement,
+        "pending"
+    );
 
     void cachedObjectUrlPromise
         .then(
@@ -3302,6 +3434,36 @@ function popularQualityTextContainsToken(
 }
 
 
+function popularQualityTextContainsTerm(
+    text,
+    term
+) {
+
+    const normalizedTerm =
+        normalizePopularQualityText(term);
+
+    if (!normalizedTerm) {
+        return false;
+    }
+
+    const escapedParts =
+        normalizedTerm
+            .split(/\s+/)
+            .map(part =>
+                part.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+            );
+
+    const pattern =
+        escapedParts.join("\\s+");
+
+    return new RegExp(
+        `(?:^|\\s)${pattern}(?=\\s|$)`,
+        "i"
+    ).test(
+        String(text || "")
+    );
+}
+
 function hasPopularVehicleIdentityMatch(
     details,
     vehicle
@@ -3456,7 +3618,7 @@ function hasExpectedPopularVehicleKindEvidence(
     kind
 ) {
 
-    if (!kind) {
+    if (!kind || kind === "car") {
         return true;
     }
 
@@ -3471,92 +3633,23 @@ function hasExpectedPopularVehicleKindEvidence(
         );
 
     const combinedText =
-        `${title} ${description}`.trim();
+        title + " " + description;
 
-    if (kind === "bus") {
-        const busTerms =
-            POPULAR_VEHICLE_TYPE_TERMS.bus || [];
+    const expectedTerms =
+        POPULAR_VEHICLE_TYPE_TERMS[kind] ||
+        [];
 
-        const nonBusTerms = [
-            "light commercial vehicle",
-            "van",
-            "panel van",
-            "cargo van",
-            "minivan",
-            "truck",
-            "lorry",
-            "pickup",
-            "motorcycle",
-            "moped"
-        ];
+    const contradictionTerms =
+        POPULAR_VEHICLE_KIND_CONTRADICTION_TERMS[kind] ||
+        [];
 
-        const hasBusText =
-            busTerms.some(term =>
-                combinedText.includes(
-                    normalizePopularQualityText(term)
-                )
-            );
-
-        const hasNonBusText =
-            nonBusTerms.some(term =>
-                combinedText.includes(
-                    normalizePopularQualityText(term)
-                )
-            );
-
-        const specificationBodyType =
-            normalizePopularQualityText(
-                details?.specifications?.bodyType || ""
-            );
-
-        const hasNonBusBodyType =
-            nonBusTerms.some(term =>
-                specificationBodyType.includes(
-                    normalizePopularQualityText(term)
-                )
-            );
-
-        if (
-            !hasBusText &&
-            (hasNonBusText || hasNonBusBodyType)
-        ) {
-            return false;
-        }
-    }
-
-    if (kind !== "car") {
-
-        const expectedTerms =
-            POPULAR_VEHICLE_TYPE_TERMS[kind] ||
-            [];
-
-        const contradictionTerms =
-            POPULAR_VEHICLE_KIND_CONTRADICTION_TERMS[kind] ||
-            [];
-
-        const hasExpectedText =
-            expectedTerms.some(term =>
-                combinedText.includes(
-                    normalizePopularQualityText(term)
-                )
-            );
-
-        const contradictionCount =
-            contradictionTerms.filter(term =>
-                combinedText.includes(
-                    normalizePopularQualityText(term)
-                )
-            ).length;
-
-        if (
-            !hasExpectedText &&
-            contradictionCount >= 2 &&
-            getPopularVehicleSpecificationCount(details) < 1
-        ) {
-            return false;
-        }
-
-    }
+    const hasExpectedText =
+        expectedTerms.some(term =>
+            popularQualityTextContainsTerm(
+                combinedText,
+                term
+            )
+        );
 
     const bodyTypes = [
         ...(Array.isArray(details?.vehicle?.body_types)
@@ -3571,96 +3664,35 @@ function hasExpectedPopularVehicleKindEvidence(
         )
         .filter(Boolean);
 
-    const expectedTerms =
-        POPULAR_VEHICLE_TYPE_TERMS[kind] ||
-        [];
-
-    const hasExpectedText =
-        expectedTerms.some(term =>
-            combinedText.includes(
-                normalizePopularQualityText(term)
-            )
-        );
-
-    if (hasExpectedText) {
-        return true;
-    }
-
-    const bodyTypeText =
-        bodyTypes.join(" ");
-
     const hasExpectedBodyType =
         expectedTerms.some(term =>
-            bodyTypeText.includes(
-                normalizePopularQualityText(term)
+            bodyTypes.some(bodyType =>
+                popularQualityTextContainsTerm(
+                    bodyType,
+                    term
+                )
             )
         );
 
-    if (hasExpectedBodyType) {
+    if (hasExpectedText || hasExpectedBodyType) {
         return true;
     }
 
-    /*
-     * An exact Wikipedia title match is a useful last-resort identity
-     * signal for records whose summary omits the vehicle type. Only use
-     * it when there is no strong contradiction from another vehicle kind.
-     */
     const targetTitle =
         normalizePopularQualityText(
-            `${vehicle?.make || ""} ${vehicle?.model || ""}`
+            (vehicle?.make || "") + " " + (vehicle?.model || "")
         );
 
-    /*
-     * VehiclesDB already provides the authoritative category. Some
-     * Wikipedia summaries (especially for buses, trucks, vans, mopeds
-     * and motorcycles) do not explicitly repeat the vehicle type even
-     * though the article contains a real vehicle infobox. In that case,
-     * two or more technical specification fields are enough to accept
-     * the page once the make/model identity has already matched.
-     */
-    const technicalSpecificationCount =
-        getPopularVehicleSpecificationCount(
-            details
-        );
-
-    const minimumTechnicalFields =
-        kind === "car"
-            ? POPULAR_MIN_SPECIFICATION_FIELDS
-            : 1;
-
-    if (
-        technicalSpecificationCount >=
-        minimumTechnicalFields
-    ) {
-        return true;
-    }
-
-    const exactTitle =
-        title === targetTitle;
-
-    if (!exactTitle) {
+    if (!targetTitle || title !== targetTitle) {
         return false;
     }
 
-    const contradictionTerms = {
-        motorcycle: ["bus", "truck", "van", "lorry"],
-        moped: ["bus", "truck", "van", "lorry", "sedan", "hatchback", "coupe"],
-        van: ["bus", "truck", "sedan", "hatchback", "coupe", "roadster"],
-        truck: ["bus", "coach", "sedan", "hatchback", "coupe"],
-        bus: ["truck", "lorry", "sedan", "hatchback", "coupe"],
-        car: ["bus", "coach", "truck", "lorry", "motorcycle", "moped"]
-    };
-
-    const contradictions =
-        contradictionTerms[kind] || [];
-
-    return !contradictions.some(term =>
+    return !contradictionTerms.some(term =>
         combinedText.includes(
             normalizePopularQualityText(term)
         )
     );
 }
-
 
 function countPopularVehicleTypeTerms(
     details,
@@ -3677,8 +3709,9 @@ function countPopularVehicleTypeTerms(
         POPULAR_VEHICLE_TYPE_TERMS.car;
 
     return terms.filter(term =>
-        text.includes(
-            normalizePopularQualityText(term)
+        popularQualityTextContainsTerm(
+            text,
+            term
         )
     ).length;
 
@@ -3695,8 +3728,9 @@ function countPopularNonVehicleEntityTerms(
         );
 
     return POPULAR_NON_VEHICLE_ENTITY_TERMS.filter(term =>
-        text.includes(
-            normalizePopularQualityText(term)
+        popularQualityTextContainsTerm(
+            text,
+            term
         )
     ).length;
 
@@ -4106,10 +4140,7 @@ function hasUsablePopularVehicleDetails(
             details
         );
 
-    const minimumSpecificationFields =
-        kind === "car"
-            ? POPULAR_MIN_SPECIFICATION_FIELDS
-            : 0;
+    const minimumSpecificationFields = 0;
 
     if (
         specificationCount <
@@ -4311,15 +4342,9 @@ async function evaluatePopularVehicleCandidate(
             vehicle.make,
             vehicle.model,
             detailKind,
-            kind === "car"
-                ? 2
-                : 1,
-            kind === "car"
-                ? 650
-                : 250,
-            kind === "car"
-                ? "full"
-                : "fast"
+            1,
+            0,
+            "fast"
         );
 
     if (!details) {
@@ -4739,10 +4764,6 @@ async function readPersistentPopularVehicles(
     kind
 ) {
 
-    if (kind === "car") {
-        return [];
-    }
-
     try {
 
         const cache =
@@ -4800,7 +4821,6 @@ async function writePersistentPopularVehicles(
 ) {
 
     if (
-        kind === "car" ||
         !Array.isArray(vehicles) ||
         !vehicles.length
     ) {
@@ -4905,7 +4925,6 @@ async function restorePersistentPopularVehicles(
 ) {
 
     if (
-        kind === "car" ||
         !Array.isArray(candidates) ||
         !candidates.length
     ) {
@@ -5359,6 +5378,10 @@ function appendStablePopularVehicleCards(
         );
     }
 
+    reorderPopularVehicleCardsByImageAvailability(
+        kind
+    );
+
     refreshStablePopularResults(
         kind
     );
@@ -5417,7 +5440,10 @@ async function continueStablePopularVehicleLoading(
         await ensurePopularVehicleQuality(
             kind,
             candidates,
-            MAX_VEHICLES_PER_CATEGORY,
+            getPopularBackgroundTargetCount(
+                kind,
+                candidates?.length
+            ),
             getPopularMaxNewChecks(kind),
             async validVehicles => {
 
@@ -7474,6 +7500,9 @@ function createVehicleCard(
 
     card.className =
         "car-card";
+
+    card.dataset.imageState =
+        "pending";
 
 
     const info =
@@ -11580,7 +11609,8 @@ let vehicleCategoryPreloadPromise =
     null;
 
 function preloadVehicleCategoryCatalogs(
-    excludeKind = null
+    excludeKind = null,
+    warmDetails = false
 ) {
 
     if (
@@ -11631,6 +11661,16 @@ function preloadVehicleCategoryCatalogs(
              * Limit this to three categories at once so the active Cars
              * category and visible images are not starved of bandwidth.
              */
+ 
+            /*
+             * Do not warm Wikipedia details for other categories while
+             * Cars is loading. Catalog prefetch stays lightweight; each
+             * category owns its own quality/image workload when opened.
+             */
+            if (!warmDetails) {
+                return;
+            }
+
             const queue =
                 kindsToPreload.slice();
 
@@ -12316,7 +12356,8 @@ async function openCars() {
      * without competing with the active category's initial requests.
      */
     void preloadVehicleCategoryCatalogs(
-        "car"
+        "car",
+        false
     );
 
 
