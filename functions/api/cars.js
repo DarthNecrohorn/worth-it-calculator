@@ -4325,13 +4325,13 @@ async function resolveWikipediaTitleFromWikidata(
 
         const escapedModel =
             String(model)
-                .replace(/\/g, "\\")
-                .replace(/"/g, "\"");
+                .replace(/\\/g, "\\\\")
+                .replace(/"/g, "\\\"");
 
         const escapedMake =
             String(make)
-                .replace(/\/g, "\\")
-                .replace(/"/g, "\"");
+                .replace(/\\/g, "\\\\")
+                .replace(/"/g, "\\\"");
 
         const query =
             "SELECT ?article ?itemLabel ?manufacturerLabel WHERE {" +
