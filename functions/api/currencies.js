@@ -866,8 +866,8 @@ export async function onRequest(context) {
 
         const degraded = {
             base: fallbackBase,
-            currencies: { [base]: base },
-            rates: { [base]: 1 },
+            currencies: { [fallbackBase]: fallbackBase },
+            rates: { [fallbackBase]: 1 },
             previousRates: {},
             ratesList: [],
             previousRatesList: [],
