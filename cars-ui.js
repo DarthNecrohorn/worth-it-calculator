@@ -14022,7 +14022,7 @@ async function readCloudVehicleAccountCache(
 ) {
 
     const accessToken =
-        await getVehicleAccountAccessToken(true);
+        await getVehicleAccountAccessToken();
 
     if (!accessToken || !datasetVersion) {
         return [];
@@ -14220,7 +14220,7 @@ function queueCloudVehicleAccountCacheUpsert(
             .then(async () => {
 
                 const accessToken =
-                    await getVehicleAccountAccessToken(true);
+                    await getVehicleAccountAccessToken();
 
                 if (!accessToken) {
                     return;
@@ -14315,7 +14315,7 @@ async function finalizeCloudVehicleAccountCache(
     await vehicleAccountCloudSyncPromise;
 
     const accessToken =
-        await getVehicleAccountAccessToken(true);
+        await getVehicleAccountAccessToken();
 
     if (!accessToken) {
         return;
