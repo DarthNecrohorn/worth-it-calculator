@@ -2629,13 +2629,15 @@ function findPopularCardRecoveryTarget(
             (a, b) => {
                 const aBad =
                     a.dataset.imageState !== "available" ||
-                    a.dataset.infoState !== "available"
+                    a.dataset.infoState !== "available" ||
+                    a.dataset.comparisonState !== "available"
                         ? 0
                         : 1;
 
                 const bBad =
                     b.dataset.imageState !== "available" ||
-                    b.dataset.infoState !== "available"
+                    b.dataset.infoState !== "available" ||
+                    b.dataset.comparisonState !== "available"
                         ? 0
                         : 1;
 
@@ -2921,6 +2923,18 @@ function removePopularCardAndRecover(
 function schedulePopularCardRecovery(
     kind
 ) {
+
+    /*
+     * The unified Vehicles view uses one recovery queue for every vehicle
+     * type. Individual cards still keep their real sourceKind (car,
+     * motorcycle, van, truck, bus), but recovery itself must run against
+     * the unified "all" catalog state.
+     */
+    if (
+        currentVehicleKind === VEHICLE_ALL_KIND
+    ) {
+        kind = VEHICLE_ALL_KIND;
+    }
 
     if (
         currentVehicleMode !== "popular" ||
