@@ -11985,6 +11985,60 @@ function injectVehicleUiStyles() {
             box-shadow: 0 24px 80px rgba(0, 0, 0, 0.45);
         }
 
+        .worth-it-vehicle-modal-navigation {
+            position: absolute;
+            top: 50%;
+            z-index: 6;
+            display: grid;
+            place-items: center;
+            width: 72px;
+            height: 104px;
+            padding: 0 0 8px;
+            border: 1px solid rgba(255, 255, 255, 0.16);
+            border-radius: 18px;
+            background: rgba(12, 14, 19, 0.82);
+            color: #ffffff;
+            font-family: Georgia, "Times New Roman", serif;
+            font-size: 64px;
+            font-weight: 700;
+            line-height: 1;
+            cursor: pointer;
+            transform: translateY(-50%);
+            box-shadow: 0 14px 36px rgba(0, 0, 0, 0.32);
+            backdrop-filter: blur(8px);
+            transition:
+                transform 0.15s ease,
+                background 0.15s ease,
+                border-color 0.15s ease;
+        }
+
+        .worth-it-vehicle-modal-navigation-previous {
+            left: 10px;
+        }
+
+        .worth-it-vehicle-modal-navigation-next {
+            right: 10px;
+        }
+
+        .worth-it-vehicle-modal-navigation:hover,
+        .worth-it-vehicle-modal-navigation:focus-visible {
+            background: rgba(124, 92, 255, 0.24);
+            border-color: rgba(124, 92, 255, 0.62);
+            outline: none;
+            transform: translateY(-50%) scale(1.04);
+        }
+
+        .worth-it-vehicle-modal-navigation[hidden] {
+            display: none;
+        }
+
+        html[data-theme="light"] .worth-it-vehicle-modal-navigation {
+            border-color: rgba(0, 0, 0, 0.12);
+            background: rgba(255, 255, 255, 0.9);
+            color: #16181d;
+            box-shadow: 0 14px 36px rgba(0, 0, 0, 0.18);
+        }
+
         .worth-it-vehicle-modal-close {
             position: absolute;
             top: 12px;
@@ -13302,6 +13356,20 @@ function injectVehicleUiStyles() {
             .worth-it-vehicle-modal-dialog {
                 max-height: calc(100vh - 20px);
                 border-radius: 16px;
+            }
+
+            .worth-it-vehicle-modal-navigation {
+                width: 58px;
+                height: 88px;
+                font-size: 50px;
+            }
+
+            .worth-it-vehicle-modal-navigation-previous {
+                left: 6px;
+            }
+
+            .worth-it-vehicle-modal-navigation-next {
+                right: 6px;
             }
 
             .worth-it-vehicle-modal-body {
