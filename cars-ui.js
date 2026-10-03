@@ -8267,6 +8267,10 @@ async function renderPopularCatalogImmediately(kind, showAll = false) {
     let qualityState =
         popularVehicleQualityState.get(kind);
 
+    const backgroundWarmupActive =
+        kind === VEHICLE_ALL_KIND &&
+        Boolean(unifiedVehicleBackgroundWarmupPromise);
+
     if (showAll) {
         /*
          * Show all is intentionally non-blocking. Use every vehicle that
@@ -8277,10 +8281,6 @@ async function renderPopularCatalogImmediately(kind, showAll = false) {
             Array.isArray(qualityState?.validVehicles)
                 ? qualityState.validVehicles.slice()
                 : [];
-
-        const backgroundWarmupActive =
-            kind === VEHICLE_ALL_KIND &&
-            Boolean(unifiedVehicleBackgroundWarmupPromise);
 
         /*
          * On a first-ever visit there may be no background result yet.
@@ -8389,10 +8389,12 @@ async function renderPopularCatalogImmediately(kind, showAll = false) {
      * cards are appended only after they pass the exact same quality gate.
      * This keeps the visible list stable and prevents disappearing cards.
      */
-    void continueStablePopularVehicleLoading(
-        kind,
-        unique
-    );
+    if (!backgroundWarmupActive) {
+        void continueStablePopularVehicleLoading(
+            kind,
+            unique
+        );
+    }
 }
 async function loadAndRenderNonCarPopularVehicles(
     kind,
