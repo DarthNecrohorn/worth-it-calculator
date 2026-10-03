@@ -7444,6 +7444,20 @@ async function handleDetails(
                 ? "fast"
                 : "full";
 
+    /*
+     * Keep the server-side details cache scoped to the VehiclesDB
+     * dataset version supplied by the frontend. Without this local
+     * value, the cache-key construction throws a ReferenceError and
+     * every details request becomes HTTP 500.
+     */
+    const datasetVersion =
+        String(
+            requestUrl.searchParams.get("dataset_version") ||
+            "dataset-unknown"
+        )
+            .replace(/[^a-zA-Z0-9._-]/g, "_")
+            .slice(0, 80);
+
     const detailsCacheKey =
         new Request(
             "https://worth-it-vehicle-details-cache.local/" +
