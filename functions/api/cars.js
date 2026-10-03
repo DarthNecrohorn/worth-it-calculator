@@ -7838,7 +7838,10 @@ async function handleDetails(
                 createWikipediaNoInformation(
                     vehicle.make,
                     vehicle.model,
-                    kind
+                    kind,
+                    null,
+                    "Wikipedia",
+                    vehicle
                 ),
                 200,
                 NEGATIVE_WIKIPEDIA_CACHE_TTL
