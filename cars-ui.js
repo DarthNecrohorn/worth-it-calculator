@@ -16069,7 +16069,8 @@ function ensureVehiclesDBAttribution() {
         </a>
 
         · CC BY 4.0
-        · Supplemental vehicle candidates from
+        · Up to 1,000 verified vehicles are selected and refreshed as the VehiclesDB dataset updates
+        · Supplemental candidates from
         <a
             href="https://www.wikidata.org/"
             target="_blank"
