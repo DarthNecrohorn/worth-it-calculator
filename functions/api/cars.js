@@ -36,7 +36,7 @@ const WIKIDATA_CANDIDATE_LIMIT = 600;
 const WIKIDATA_NONCAR_CANDIDATE_LIMIT = 1000;
 const DBPEDIA_CANDIDATE_LIMIT = 600;
 const DBPEDIA_NONCAR_CANDIDATE_LIMIT = 1000;
-const WIKIPEDIA_CACHE_VERSION = "v24";
+const WIKIPEDIA_CACHE_VERSION = "v25";
 const WIKIMEDIA_IMAGE_LOOKUP_TIMEOUT_MS = 3500;
 
 const WIKIPEDIA_API =
@@ -5241,7 +5241,10 @@ function createCommercialWikimediaImageFromInfo(
         license_url:
             license.url || null,
         identity_verified:
-            Boolean(identityVerified)
+            Boolean(identityVerified),
+
+        source_provider:
+            "Wikimedia Commons"
     };
 }
 
@@ -5858,6 +5861,820 @@ function hasWikipediaVehicleInformation(
  * Create complete "No Information" result
  * ------------------------------------------------------------
  */
+
+
+/*
+ * ------------------------------------------------------------
+ * SECONDARY PUBLIC VEHICLE SOURCES
+ * ------------------------------------------------------------
+ * FuelEconomy.gov:
+ *   Official U.S. DOE/EPA public vehicle data for passenger cars.
+ *
+ * Openverse:
+ *   Openly licensed image discovery fallback. Because Openverse
+ *   aggregates third-party media, license metadata is independently
+ *   filtered here before an image is accepted.
+ * ------------------------------------------------------------
+ */
+
+async function fetchExternalJsonWithTimeout(
+    url,
+    timeoutMs = 2200
+) {
+
+    const controller =
+        typeof AbortController !== "undefined"
+            ? new AbortController()
+            : null;
+
+    const timer =
+        setTimeout(
+            () => {
+                try {
+                    controller?.abort();
+                } catch {}
+            },
+            timeoutMs
+        );
+
+    try {
+
+        const response =
+            await fetch(
+                url,
+                {
+                    headers: {
+                        "Accept":
+                            "application/json"
+                    },
+                    ...(controller
+                        ? {
+                            signal:
+                                controller.signal
+                        }
+                        : {})
+                }
+            );
+
+        if (!response.ok) {
+
+            throw new Error(
+                "External source returned HTTP " +
+                response.status
+            );
+        }
+
+        return await response.json();
+
+    } finally {
+
+        clearTimeout(
+            timer
+        );
+
+    }
+
+}
+
+function normalizeExternalMenuItems(
+    data
+) {
+
+    const raw =
+        Array.isArray(data?.menuItem)
+            ? data.menuItem
+            : (
+                data?.menuItem
+                    ? [data.menuItem]
+                    : []
+            );
+
+    return raw
+        .map(item => ({
+            text:
+                String(
+                    item?.text ||
+                    item?.name ||
+                    ""
+                ).trim(),
+            value:
+                String(
+                    item?.value ||
+                    item?.id ||
+                    ""
+                ).trim()
+        }))
+        .filter(item =>
+            item.text &&
+            item.value
+        );
+
+}
+
+function chooseFuelEconomyModel(
+    menuItems,
+    requestedModel
+) {
+
+    const target =
+        simplifyText(
+            requestedModel
+        );
+
+    if (!target) {
+        return null;
+    }
+
+    const targetTokens =
+        normalizeWikipediaSearchText(
+            requestedModel
+        )
+            .split(/\s+/)
+            .filter(Boolean);
+
+    const candidates =
+        menuItems
+            .map(item => {
+
+                const key =
+                    simplifyText(
+                        item.text
+                    );
+
+                let score = 0;
+
+                if (
+                    key === target
+                ) {
+                    score += 250;
+                }
+
+                if (
+                    key.includes(target) ||
+                    target.includes(key)
+                ) {
+                    score += 100;
+                }
+
+                score +=
+                    targetTokens.filter(token =>
+                        key.includes(
+                            simplifyText(token)
+                        )
+                    ).length * 20;
+
+                return {
+                    ...item,
+                    score
+                };
+
+            })
+            .sort(
+                (a, b) =>
+                    b.score - a.score
+            );
+
+    return (
+        candidates[0] &&
+        candidates[0].score >= 90
+    )
+        ? candidates[0]
+        : null;
+
+}
+
+function normalizeFuelEconomyVehicle(
+    data,
+    make,
+    model,
+    year
+) {
+
+    if (!data || typeof data !== "object") {
+        return null;
+    }
+
+    const returnedMake =
+        String(
+            data.make ||
+            data.makeDisplay ||
+            ""
+        ).trim();
+
+    const returnedModel =
+        String(
+            data.model ||
+            data.modelName ||
+            ""
+        ).trim();
+
+    const requestedMakeKey =
+        simplifyText(make);
+
+    const requestedModelKey =
+        simplifyText(model);
+
+    const returnedMakeKey =
+        simplifyText(returnedMake);
+
+    const returnedModelKey =
+        simplifyText(returnedModel);
+
+    if (
+        !returnedModelKey ||
+        !requestedModelKey ||
+        (
+            !returnedModelKey.includes(
+                requestedModelKey
+            ) &&
+            !requestedModelKey.includes(
+                returnedModelKey
+            )
+        )
+    ) {
+        return null;
+    }
+
+    if (
+        requestedMakeKey &&
+        returnedMakeKey &&
+        !returnedMakeKey.includes(
+            requestedMakeKey
+        ) &&
+        !requestedMakeKey.includes(
+            returnedMakeKey
+        )
+    ) {
+        return null;
+    }
+
+    const toNumber =
+        value => {
+
+            const number =
+                Number(value);
+
+            return Number.isFinite(number)
+                ? number
+                : null;
+
+        };
+
+    const result = {
+        source:
+            "FuelEconomy.gov / U.S. DOE + EPA",
+
+        year:
+            toNumber(
+                data.year
+            ) ??
+            toNumber(
+                year
+            ),
+
+        make:
+            returnedMake ||
+            make,
+
+        model:
+            returnedModel ||
+            model,
+
+        fuelType:
+            String(
+                data.fuelType ||
+                data.fuelType1 ||
+                ""
+            ).trim() ||
+            null,
+
+        cityMpg:
+            toNumber(
+                data.city08
+            ),
+
+        highwayMpg:
+            toNumber(
+                data.highway08
+            ),
+
+        combinedMpg:
+            toNumber(
+                data.comb08 ??
+                data.combined08
+            ),
+
+        annualFuelCost:
+            toNumber(
+                data.annualFuelCost
+            ),
+
+        co2TailpipeGpm:
+            toNumber(
+                data.co2TailpipeGpm ??
+                data.co2Tailpipe
+            ),
+
+        rangeMiles:
+            toNumber(
+                data.range ??
+                data.rangeA
+            ),
+
+        vehicleId:
+            toNumber(
+                data.id ??
+                data.vehicleId
+            )
+    };
+
+    if (
+        result.fuelType ||
+        result.cityMpg !== null ||
+        result.highwayMpg !== null ||
+        result.combinedMpg !== null ||
+        result.annualFuelCost !== null ||
+        result.co2TailpipeGpm !== null ||
+        result.rangeMiles !== null
+    ) {
+        return result;
+    }
+
+    return null;
+
+}
+
+async function getFuelEconomyVehicle(
+    make,
+    model,
+    year
+) {
+
+    const requestedYear =
+        Math.trunc(
+            Number(year)
+        );
+
+    if (
+        !make ||
+        !model ||
+        !Number.isFinite(requestedYear) ||
+        requestedYear < 1984
+    ) {
+        return null;
+    }
+
+    try {
+
+        /*
+         * Resolve the model through the official EPA menu first.
+         * The options endpoint expects the exact menu model name,
+         * e.g. "Civic 4Dr" rather than the generic "Civic".
+         */
+        const modelMenuUrl =
+            "https://www.fueleconomy.gov/ws/rest/vehicle/menu/model" +
+            "?year=" +
+            encodeURIComponent(
+                String(requestedYear)
+            ) +
+            "&make=" +
+            encodeURIComponent(
+                String(make)
+            ) +
+            "&format=json";
+
+        const modelMenu =
+            await fetchExternalJsonWithTimeout(
+                modelMenuUrl,
+                1400
+            );
+
+        const modelItems =
+            normalizeExternalMenuItems(
+                modelMenu
+            );
+
+        const modelMatch =
+            chooseFuelEconomyModel(
+                modelItems,
+                model
+            );
+
+        if (!modelMatch) {
+            return null;
+        }
+
+        const optionsUrl =
+            "https://www.fueleconomy.gov/ws/rest/vehicle/menu/options" +
+            "?year=" +
+            encodeURIComponent(
+                String(requestedYear)
+            ) +
+            "&make=" +
+            encodeURIComponent(
+                String(make)
+            ) +
+            "&model=" +
+            encodeURIComponent(
+                String(modelMatch.text)
+            ) +
+            "&format=json";
+
+        const optionsData =
+            await fetchExternalJsonWithTimeout(
+                optionsUrl,
+                1400
+            );
+
+        const options =
+            normalizeExternalMenuItems(
+                optionsData
+            );
+
+        const option =
+            options.find(
+                item =>
+                    /^\d+$/.test(
+                        item.value
+                    )
+            );
+
+        if (!option) {
+            return null;
+        }
+
+        const vehicleUrl =
+            "https://www.fueleconomy.gov/ws/rest/vehicle/" +
+            encodeURIComponent(
+                option.value
+            ) +
+            "?format=json";
+
+        const vehicleData =
+            await fetchExternalJsonWithTimeout(
+                vehicleUrl,
+                1600
+            );
+
+        return normalizeFuelEconomyVehicle(
+            vehicleData,
+            make,
+            model,
+            requestedYear
+        );
+
+    } catch (error) {
+
+        console.warn(
+            "FuelEconomy.gov lookup failed:",
+            make,
+            model,
+            year,
+            error
+        );
+
+        return null;
+
+    }
+
+}
+
+function chooseFuelEconomyYear(
+    vehicle
+) {
+
+    const currentYear =
+        new Date().getUTCFullYear();
+
+    const years =
+        [
+            vehicle?.yearEnd,
+            vehicle?.yearStart,
+            currentYear
+        ]
+            .map(value =>
+                Number(value)
+            )
+            .filter(value =>
+                Number.isFinite(value) &&
+                value >= 1984 &&
+                value <= currentYear
+            );
+
+    return years.length
+        ? Math.trunc(
+            years[0]
+        )
+        : null;
+
+}
+
+function isOpenverseCommercialLicense(
+    result
+) {
+
+    const license =
+        String(
+            result?.license ||
+            ""
+        )
+            .trim()
+            .toLowerCase();
+
+    const licenseUrl =
+        String(
+            result?.license_url ||
+            ""
+        )
+            .trim()
+            .toLowerCase();
+
+    if (
+        /\b(?:nc|non[- ]?commercial)\b/i.test(
+            license
+        ) ||
+        /(?:by[- ]?nc|non[- ]?commercial)/i.test(
+            licenseUrl
+        )
+    ) {
+        return false;
+    }
+
+    if (
+        /\b(?:nd|no[- ]?derivatives)\b/i.test(
+            license
+        ) ||
+        /(?:by[- ]?nd)/i.test(
+            licenseUrl
+        )
+    ) {
+        return false;
+    }
+
+    if (
+        /^(?:cc0|zero|pd|pdm|public[- ]?domain)$/i.test(
+            license
+        )
+    ) {
+        return true;
+    }
+
+    if (
+        /^cc[- ]?by(?:[- ]?4\\.0|[- ]?3\\.0|)?$/i.test(
+            license
+        ) ||
+        /^cc[- ]?by[- ]?sa(?:[- ]?4\\.0|[- ]?3\\.0|)?$/i.test(
+            license
+        )
+    ) {
+        return true;
+    }
+
+    return (
+        /creativecommons\\.org\\/publicdomain/i.test(
+            licenseUrl
+        ) ||
+        /creativecommons\\.org\\/licenses\\/by(?:\\/|$)/i.test(
+            licenseUrl
+        ) ||
+        /creativecommons\\.org\\/licenses\\/by-sa(?:\\/|$)/i.test(
+            licenseUrl
+        )
+    );
+
+}
+
+function getOpenverseIdentityScore(
+    result,
+    make,
+    model
+) {
+
+    const title =
+        String(
+            result?.title ||
+            ""
+        );
+
+    const tags =
+        Array.isArray(result?.tags)
+            ? result.tags
+                .map(tag =>
+                    typeof tag === "string"
+                        ? tag
+                        : tag?.name
+                )
+                .filter(Boolean)
+                .join(" ")
+            : "";
+
+    const haystack =
+        simplifyText(
+            title +
+            " " +
+            tags
+        );
+
+    const makeKey =
+        simplifyText(
+            make
+        );
+
+    const modelKey =
+        simplifyText(
+            model
+        );
+
+    if (
+        !makeKey ||
+        !modelKey ||
+        !haystack
+    ) {
+        return 0;
+    }
+
+    let score = 0;
+
+    if (
+        haystack.includes(
+            makeKey
+        )
+    ) {
+        score += 80;
+    }
+
+    if (
+        haystack.includes(
+            modelKey
+        )
+    ) {
+        score += 120;
+    }
+
+    if (
+        haystack.includes(
+            makeKey +
+            modelKey
+        )
+    ) {
+        score += 80;
+    }
+
+    return score;
+
+}
+
+async function searchOpenverseVehicleImage(
+    make,
+    model,
+    kind
+) {
+
+    const query =
+        (
+            String(make || "") +
+            " " +
+            String(model || "")
+        )
+            .replace(/\s+/g, " ")
+            .trim();
+
+    if (!query) {
+        return null;
+    }
+
+    try {
+
+        const url =
+            new URL(
+                "https://api.openverse.org/v1/images/"
+            );
+
+        url.searchParams.set(
+            "q",
+            query
+        );
+
+        url.searchParams.set(
+            "page_size",
+            "12"
+        );
+
+        url.searchParams.set(
+            "mature",
+            "false"
+        );
+
+        const data =
+            await fetchExternalJsonWithTimeout(
+                url.toString(),
+                2200
+            );
+
+        const candidates =
+            (
+                Array.isArray(
+                    data?.results
+                )
+                    ? data.results
+                    : []
+            )
+                .map(result => ({
+                    result,
+                    score:
+                        getOpenverseIdentityScore(
+                            result,
+                            make,
+                            model
+                        )
+                }))
+                .filter(item =>
+                    item.score >= 200 &&
+                    isOpenverseCommercialLicense(
+                        item.result
+                    )
+                )
+                .sort(
+                    (a, b) =>
+                        b.score - a.score
+                );
+
+        for (
+            const item of candidates
+        ) {
+
+            const result =
+                item.result;
+
+            const imageUrl =
+                String(
+                    result?.thumbnail ||
+                    result?.url ||
+                    ""
+                ).trim();
+
+            if (!imageUrl) {
+                continue;
+            }
+
+            return {
+                url:
+                    imageUrl,
+
+                source_url:
+                    result?.foreign_landing_url ||
+                    result?.landing_url ||
+                    result?.detail_url ||
+                    "https://openverse.org/",
+
+                author:
+                    String(
+                        result?.creator ||
+                        ""
+                    ).trim() ||
+                    null,
+
+                license:
+                    String(
+                        result?.license ||
+                        "Open license"
+                    ).trim(),
+
+                license_url:
+                    String(
+                        result?.license_url ||
+                        ""
+                    ).trim() ||
+                    null,
+
+                identity_verified:
+                    true,
+
+                source_provider:
+                    "Openverse",
+
+                source_kind:
+                    kind || null
+            };
+
+        }
+
+    } catch (error) {
+
+        console.warn(
+            "Openverse vehicle image lookup failed:",
+            make,
+            model,
+            kind,
+            error
+        );
+
+    }
+
+    return null;
+
+}
+
 
 function createWikipediaNoInformation(
     make,
