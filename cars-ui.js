@@ -6871,10 +6871,11 @@ async function prefetchPopularVehicleDetails(
                         );
 
                         if (details?.image?.url) {
-                            applyVehicleImageDetails(
-                                image,
-                                details
-                            );
+                            image.dataset.loaded = "true";
+                            image.dataset.vehicleImageUrl =
+                                String(details.image.url);
+                            image.src =
+                                String(details.image.url);
                         }
                     }
                 }
