@@ -2321,9 +2321,14 @@ function updateVehicleCardInformationPreview(
             card.dataset.vehicleSourceKind ||
             currentVehicleKind;
 
-        removePopularVehicleCardAndRecover(
-            card,
-            recoveryKind
+        /*
+         * Keep the existing card in place until a valid replacement is
+         * ready. The recovery queue will replace it, or remove it only
+         * after the candidate pool is exhausted.
+         */
+        window.setTimeout(
+            () => schedulePopularCardRecovery(recoveryKind),
+            0
         );
 
         return;
@@ -2494,18 +2499,42 @@ function getPopularCardRecoveryState(
             pool:
                 currentVehicleKind === VEHICLE_ALL_KIND &&
                 Array.isArray(vehicleCatalogCache.get(VEHICLE_ALL_KIND))
-                    ? vehicleCatalogCache.get(VEHICLE_ALL_KIND).slice(
-                        IMMEDIATE_POPULAR_CARD_COUNT,
-                        IMMEDIATE_POPULAR_CARD_COUNT +
-                        POPULAR_CARD_RECOVERY_MAX_CANDIDATES
-                    )
+                    ? (() => {
+                        const start =
+                            Math.max(
+                                1,
+                                getInitialVehicleLimit(
+                                    Array.isArray(currentVehicleResults)
+                                        ? currentVehicleResults
+                                        : []
+                                )
+                            );
+
+                        return vehicleCatalogCache
+                            .get(VEHICLE_ALL_KIND)
+                            .slice(
+                                start,
+                                start +
+                                POPULAR_CARD_RECOVERY_MAX_CANDIDATES
+                            );
+                    })()
                     : (
                         Array.isArray(currentVehicleResults)
-                            ? currentVehicleResults.slice(
-                                IMMEDIATE_POPULAR_CARD_COUNT,
-                                IMMEDIATE_POPULAR_CARD_COUNT +
-                                POPULAR_CARD_RECOVERY_MAX_CANDIDATES
-                            )
+                            ? (() => {
+                                const start =
+                                    Math.max(
+                                        1,
+                                        getInitialVehicleLimit(
+                                            currentVehicleResults
+                                        )
+                                    );
+
+                                return currentVehicleResults.slice(
+                                    start,
+                                    start +
+                                    POPULAR_CARD_RECOVERY_MAX_CANDIDATES
+                                );
+                            })()
                             : []
                     ),
             nextIndex: 0,
@@ -2592,7 +2621,8 @@ function findPopularCardRecoveryTarget(
             card.dataset.recoveryQueued !== "true" &&
             (
                 card.dataset.imageState !== "available" ||
-                card.dataset.infoState !== "available"
+                card.dataset.infoState !== "available" ||
+                card.dataset.comparisonState !== "available"
             )
         )
         .sort(
@@ -2657,6 +2687,37 @@ async function findNextPopularCardRecoveryCandidate(
         if (
             state.usedKeys.has(key)
         ) {
+            continue;
+        }
+
+        /*
+         * Never select a vehicle that is already rendered. Recovery should
+         * move forward through the popularity-ordered catalog, not create
+         * duplicates in the grid.
+         */
+        const alreadyRendered =
+            Array.from(
+                document.querySelectorAll(
+                    '#popularCarsGrid .car-card[data-popular-stable-card="true"]'
+                )
+            ).some(
+                existingCard =>
+                    getPopularVehicleQualityKey(
+                        {
+                            make:
+                                existingCard.dataset.vehicleMake || "",
+                            model:
+                                existingCard.dataset.vehicleModel || "",
+                            sourceKind:
+                                existingCard.dataset.vehicleSourceKind ||
+                                kind
+                        },
+                        existingCard.dataset.vehicleSourceKind || kind
+                    ) === key
+            );
+
+        if (alreadyRendered) {
+            state.usedKeys.add(key);
             continue;
         }
 
@@ -2802,14 +2863,16 @@ function replacePopularCardWithRecoveryCandidate(
         );
     }
 
-    reorderPopularVehicleCardsByImageAvailability(
-        kind
-    );
+    if (kind !== VEHICLE_ALL_KIND) {
+        reorderPopularVehicleCardsByImageAvailability(
+            kind
+        );
+    }
 
     return true;
 }
 
-function removePopularVehicleCardAndRecover(
+function removePopularCardAndRecover(
     card,
     kind
 ) {
@@ -2921,8 +2984,11 @@ function schedulePopularCardRecovery(
 
                 } else if (target.isConnected) {
 
-                    target.dataset.recoveryLocked =
-                        "true";
+                    /*
+                     * Only remove the bad card after recovery has actually
+                     * exhausted its candidate search.
+                     */
+                    removePopularCardAndRecover(target, kind);
 
                 }
 
