@@ -8523,11 +8523,28 @@ const CREATE_VEHICLE_ACCOUNT_CACHE_INDEX_SQL =
     VEHICLE_ACCOUNT_CACHE_TABLE +
     " (user_id, dataset_version, rank_index)";
 
-const SUPABASE_PROJECT_URL =
+const DEFAULT_SUPABASE_PROJECT_URL =
     "https://diutcnylnubljvpezhmq.supabase.co";
 
-const SUPABASE_PUBLISHABLE_KEY =
+const DEFAULT_SUPABASE_PUBLISHABLE_KEY =
     "sb_publishable_W9769alA1ckSllKvue4U2Q_TdXpWnjP";
+
+function getSupabaseConfig(context) {
+    const env = context?.env || {};
+
+    return {
+        projectUrl:
+            String(
+                env.SUPABASE_URL ||
+                DEFAULT_SUPABASE_PROJECT_URL
+            ).trim().replace(/\/$/, ""),
+        publishableKey:
+            String(
+                env.SUPABASE_PUBLISHABLE_KEY ||
+                DEFAULT_SUPABASE_PUBLISHABLE_KEY
+            ).trim()
+    };
+}
 
 async function getAuthenticatedSupabaseUser(
     context
@@ -8549,16 +8566,25 @@ async function getAuthenticatedSupabaseUser(
         return null;
     }
 
+    const {
+        projectUrl,
+        publishableKey
+    } = getSupabaseConfig(context);
+
+    if (!projectUrl || !publishableKey) {
+        return null;
+    }
+
     try {
         const response =
             await fetch(
-                SUPABASE_PROJECT_URL +
+                projectUrl +
                 "/auth/v1/user",
                 {
                     method: "GET",
                     headers: {
                         "apikey":
-                            SUPABASE_PUBLISHABLE_KEY,
+                            publishableKey,
                         "Authorization":
                             authorization,
                         "Accept":
