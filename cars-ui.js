@@ -9745,18 +9745,22 @@ function createVehicleDetailsModal() {
             title="Previous vehicle — A or ←"
             hidden
         >
-            ❮
+            <span class="worth-it-vehicle-navigation-key">A</span>
+            <span class="worth-it-vehicle-navigation-arrow">❮</span>
+            <span class="worth-it-vehicle-navigation-key">←</span>
         </button>
 
         <button
             type="button"
             class="worth-it-vehicle-modal-navigation worth-it-vehicle-modal-navigation-next"
             data-vehicle-navigation="next"
-            aria-label="Next vehicle — D or →"
-            title="Next vehicle — D or →"
+            aria-label="Next vehicle — S or →"
+            title="Next vehicle — S or →"
             hidden
         >
-            ❯
+            <span class="worth-it-vehicle-navigation-key">S</span>
+            <span class="worth-it-vehicle-navigation-arrow">❯</span>
+            <span class="worth-it-vehicle-navigation-key">→</span>
         </button>
     `;
     document.body.appendChild(modal);
@@ -12009,6 +12013,29 @@ function injectVehicleUiStyles() {
                 transform 0.15s ease,
                 background 0.15s ease,
                 border-color 0.15s ease;
+        }
+
+        .worth-it-vehicle-modal-navigation {
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .worth-it-vehicle-navigation-key {
+            display: block;
+            font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+            font-size: 16px;
+            font-weight: 800;
+            line-height: 1;
+            letter-spacing: 0;
+            opacity: 0.85;
+        }
+
+        .worth-it-vehicle-navigation-arrow {
+            display: block;
+            font-family: Georgia, "Times New Roman", serif;
+            font-size: 64px;
+            font-weight: 700;
+            line-height: 0.8;
         }
 
         .worth-it-vehicle-modal-navigation-previous {
