@@ -607,7 +607,7 @@ function getPopularBackgroundTargetCount(
  * Persistent browser cache version for account-scoped vehicle
  * metadata/images.
  */
-const VEHICLE_PERSISTENT_CACHE_VERSION = "v13";
+const VEHICLE_PERSISTENT_CACHE_VERSION = "v14";
 
 let vehicleAccountCacheOwnerPromise =
     null;
@@ -2626,6 +2626,46 @@ function hasUnifiedVehicleDisplayInformation(
 
 }
 
+function hasRequiredVehicleCardQuality(
+    details,
+    vehicle,
+    kind
+) {
+
+    if (!details || details.success === false) {
+        return false;
+    }
+
+    const detailKind =
+        vehicle?.sourceKind ||
+        vehicle?.kind ||
+        kind;
+
+    const imageAvailable =
+        hasPopularVehicleImageRelevance(
+            details,
+            vehicle
+        );
+
+    const informationAvailable =
+        kind === VEHICLE_ALL_KIND
+            ? hasUnifiedVehicleDisplayInformation(details)
+            : hasUsablePopularVehicleDetails(
+                details,
+                vehicle,
+                detailKind
+            );
+
+    const comparisonAvailable =
+        details?.comparisonAvailable === true;
+
+    return (
+        imageAvailable &&
+        informationAvailable &&
+        comparisonAvailable
+    );
+}
+
 function findUnifiedVehicleCard(
     vehicle
 ) {
@@ -2692,6 +2732,12 @@ function applyUnifiedVehicleCardDetailsState(
     const comparisonAvailable =
         details?.comparisonAvailable === true;
 
+    const imageAvailable =
+        hasPopularVehicleImageRelevance(
+            details,
+            vehicle
+        );
+
     card.dataset.infoState =
         infoAvailable
             ? "available"
@@ -2702,15 +2748,27 @@ function applyUnifiedVehicleCardDetailsState(
             ? "available"
             : "unavailable";
 
+    card.dataset.imageState =
+        imageAvailable
+            ? "available"
+            : "unavailable";
+
     card.dataset.detailsReady =
         "true";
 
     /*
-     * Preserve the existing comparison requirement: a card is fully valid
-     * only when useful information and comparison data are both present.
+     * A public Popular card is valid only when it has:
+     *   1. reliable vehicle information,
+     *   2. a commercially reusable, identity-verified image, and
+     *   3. comparison data.
+     *
+     * Vehicles that fail any of these gates are replaced by recovery
+     * rather than being left visible with "No image available" or
+     * "Couldn't find information".
      */
     const unifiedCardValid =
         infoAvailable &&
+        imageAvailable &&
         comparisonAvailable;
 
     card.dataset.qualityState =
@@ -2895,9 +2953,9 @@ function findPopularCardRecoveryTarget(
             }
 
             /*
-             * Unified Cars cards have no image state. Their only quality
-             * gates are real information and comparison availability.
-             * Legacy category cards keep the older image-aware behavior.
+             * Every Popular card now uses the same hard quality gates:
+             * reliable information, a commercially reusable image, and
+             * comparison data.
              */
             if (kind === VEHICLE_ALL_KIND) {
                 /*
@@ -2910,6 +2968,7 @@ function findPopularCardRecoveryTarget(
                 }
 
                 return (
+                    card.dataset.imageState !== "available" ||
                     card.dataset.infoState !== "available" ||
                     card.dataset.comparisonState !== "available"
                 );
@@ -2928,6 +2987,7 @@ function findPopularCardRecoveryTarget(
                         ? (
                             a.dataset.detailsReady === "true" &&
                             (
+                                a.dataset.imageState !== "available" ||
                                 a.dataset.infoState !== "available" ||
                                 a.dataset.comparisonState !== "available"
                             )
@@ -2947,6 +3007,7 @@ function findPopularCardRecoveryTarget(
                         ? (
                             b.dataset.detailsReady === "true" &&
                             (
+                                b.dataset.imageState !== "available" ||
                                 b.dataset.infoState !== "available" ||
                                 b.dataset.comparisonState !== "available"
                             )
@@ -3113,9 +3174,7 @@ async function findNextPopularCardRecoveryCandidate(
                 );
 
         const imageGate =
-            kind === VEHICLE_ALL_KIND
-                ? true
-                : imageAvailable;
+            imageAvailable;
 
         if (
             imageGate &&
@@ -5756,11 +5815,22 @@ function hasUsablePopularVehicleDetails(
     }
 
     /*
-     * Image availability is intentionally NOT part of vehicle quality.
-     * A missing or blocked Wikimedia image must never discard otherwise
-     * reliable Wikipedia data.
+     * Image availability is a hard public-card requirement. The image
+     * must have passed the backend commercial-license and identity checks.
      */
-    return true;
+    const imageAvailable =
+        hasPopularVehicleImageRelevance(
+            details,
+            vehicle
+        );
+
+    const comparisonAvailable =
+        details?.comparisonAvailable === true;
+
+    return (
+        imageAvailable &&
+        comparisonAvailable
+    );
 }
 
 
@@ -5882,10 +5952,12 @@ async function evaluatePopularVehicleCandidate(
      * loader, so one slow/failing request does not hold up the first cards.
      * Cars retain the existing two-attempt behavior.
      */
-    const evaluationMode =
-        kind === VEHICLE_ALL_KIND
-            ? "full"
-            : "fast";
+    /*
+     * Candidate qualification must use the complete response so the same
+     * commercial-image, information and comparison gates are applied
+     * before a vehicle is allowed to occupy a Popular card.
+     */
+    const evaluationMode = "full";
 
     const details =
         await fetchVehicleDetailsWithRetry(
@@ -5913,14 +5985,22 @@ async function evaluatePopularVehicleCandidate(
             detailKind
         );
 
+    const finalUsable =
+        usable &&
+        hasRequiredVehicleCardQuality(
+            details,
+            vehicle,
+            detailKind
+        );
+
     popularVehicleQualityCache.set(
         key,
-        usable
+        finalUsable
     );
 
     return {
         vehicle,
-        usable
+        usable: finalUsable
     };
 
 }
@@ -8433,7 +8513,9 @@ function createVehicleCard(
         "pending";
 
     card.dataset.imageState =
-        "not-required";
+        currentVehicleMode === "popular"
+            ? "pending"
+            : "not-required";
 
     card.dataset.popularStableCard =
         currentVehicleMode === "popular"
@@ -9095,10 +9177,57 @@ async function openVehicleDetailsPanel(
     }
 
     /*
-     * Vehicles without reliable Wikipedia information stay visible
-     * in the catalog, but clearly show "No Information" and cannot
-     * be added to comparison.
+     * A Popular card must never open into a dead/no-information detail
+     * panel. If the complete response fails the same image + information
+     * + comparison gates used by recovery, mark the card for replacement
+     * and stop here.
      */
+    if (
+        currentVehicleMode === "popular"
+    ) {
+        const card =
+            findUnifiedVehicleCard(vehicle) ||
+            Array.from(
+                document.querySelectorAll(
+                    '.car-card[data-popular-stable-card="true"]'
+                )
+            ).find(existingCard =>
+                normalizeVehicleText(existingCard.dataset.vehicleMake) ===
+                    normalizeVehicleText(vehicle.make) &&
+                normalizeVehicleText(existingCard.dataset.vehicleModel) ===
+                    normalizeVehicleText(vehicle.model) &&
+                normalizeVehicleText(existingCard.dataset.vehicleSourceKind) ===
+                    normalizeVehicleText(detailKind)
+            );
+
+        if (
+            card &&
+            !hasRequiredVehicleCardQuality(
+                details,
+                vehicle,
+                currentVehicleKind
+            )
+        ) {
+            card.dataset.detailsReady = "true";
+            card.dataset.qualityState = "invalid";
+            card.dataset.recoveryLocked = "false";
+
+            closeVehicleDetailsPanel();
+
+            window.setTimeout(
+                () =>
+                    schedulePopularCardRecovery(
+                        currentVehicleKind === VEHICLE_ALL_KIND
+                            ? VEHICLE_ALL_KIND
+                            : detailKind
+                    ),
+                0
+            );
+
+            return;
+        }
+    }
+
     const specificationValues =
         Object.values(
             details?.specifications || {}
@@ -9219,19 +9348,15 @@ async function openVehicleDetailsPanel(
     }
 
     const safeDetails =
-        currentVehicleKind === VEHICLE_ALL_KIND
+        hasPopularVehicleImageRelevance(
+            details,
+            vehicle
+        )
             ? details
-            : (
-                hasPopularVehicleImageRelevance(
-                    details,
-                    vehicle
-                )
-                    ? details
-                    : {
-                        ...details,
-                        image: null
-                    }
-            );
+            : {
+                ...details,
+                image: null
+            };
 
     renderVehicleDetailsPanel(
         body,
