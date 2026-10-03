@@ -12024,7 +12024,7 @@ function injectVehicleUiStyles() {
             background: rgba(124, 92, 255, 0.24);
             border-color: rgba(124, 92, 255, 0.62);
             outline: none;
-            transform: translateY(-50%) scale(1.04);
+            transform: translateY(-50%);
         }
 
         .worth-it-vehicle-modal-navigation[hidden] {
