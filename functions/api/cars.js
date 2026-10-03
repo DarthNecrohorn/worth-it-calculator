@@ -8533,7 +8533,17 @@ async function getAuthenticatedSupabaseUser(
     context
 ) {
     const authorization =
-        context.request.headers.get("Authorization") || "";
+        context.request.headers.get("Authorization") ||
+        (
+            context.request.headers.get(
+                "X-Supabase-Access-Token"
+            )
+                ? "Bearer " +
+                    context.request.headers.get(
+                        "X-Supabase-Access-Token"
+                    )
+                : ""
+        );
 
     if (!/^Bearer\s+/i.test(authorization)) {
         return null;
