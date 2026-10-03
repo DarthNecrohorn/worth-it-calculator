@@ -1200,6 +1200,21 @@ let activeVehicleImageRequests = 0;
 
 const vehicleImageQueue = [];
 
+/*
+ * Background recovery for the first 100 popular cards.
+ *
+ * Some VehiclesDB records are valid catalog entries but have no useful
+ * Wikipedia/Wikimedia match. When that happens, replace the weak card
+ * with the next better same-category record instead of leaving a large
+ * "Image unavailable" block in the main catalog.
+ */
+const popularCardRecoveryState =
+    new Map();
+
+const POPULAR_CARD_RECOVERY_CONCURRENCY = 4;
+const POPULAR_CARD_RECOVERY_MAX_CANDIDATES = 200;
+const POPULAR_CARD_RECOVERY_CANDIDATE_WINDOW = 8;
+
 
 function processVehicleImageQueue() {
 
@@ -2228,6 +2243,7 @@ function updateVehicleCardInformationPreview(
             );
 
     if (technicalValues.length) {
+        card.dataset.infoState = "available";
         preview.textContent =
             technicalValues.join(" • ");
         preview.removeAttribute("title");
@@ -2246,6 +2262,7 @@ function updateVehicleCardInformationPreview(
             description
         )
     ) {
+        card.dataset.infoState = "available";
         preview.textContent =
             description.length > 110
                 ? `${description.slice(0, 107).trimEnd()}…`
@@ -2302,15 +2319,427 @@ function updateVehicleCardInformationPreview(
         .filter(Boolean);
 
     if (catalogValues.length) {
+        card.dataset.infoState = "catalog";
         preview.textContent =
             catalogValues.join(" • ");
         preview.removeAttribute("title");
         return;
     }
 
+    card.dataset.infoState = "pending";
     preview.textContent =
         "Information is being checked…";
     preview.removeAttribute("title");
+
+}
+
+
+function getPopularCardRecoveryState(
+    kind
+) {
+
+    let state =
+        popularCardRecoveryState.get(
+            kind
+        );
+
+    if (
+        !state ||
+        state.catalogRef !== currentVehicleResults
+    ) {
+
+        state = {
+            catalogRef: currentVehicleResults,
+            pool:
+                Array.isArray(currentVehicleResults)
+                    ? currentVehicleResults.slice(
+                        IMMEDIATE_POPULAR_CARD_COUNT,
+                        IMMEDIATE_POPULAR_CARD_COUNT +
+                        POPULAR_CARD_RECOVERY_MAX_CANDIDATES
+                    )
+                    : [],
+            nextIndex: 0,
+            active: 0,
+            usedKeys: new Set()
+        };
+
+        popularCardRecoveryState.set(
+            kind,
+            state
+        );
+    }
+
+    return state;
+}
+
+function getPopularCardRecoveryQuality(
+    details,
+    vehicle
+) {
+
+    if (!details) {
+        return 0;
+    }
+
+    const imageAvailable =
+        hasPopularVehicleImageRelevance(
+            details,
+            vehicle
+        );
+
+    const description =
+        String(
+            details?.wikipedia?.description || ""
+        ).trim();
+
+    const hasDescription =
+        description.length >= 40 &&
+        !/^no information$/i.test(
+            description
+        );
+
+    if (
+        imageAvailable &&
+        hasDescription
+    ) {
+        return 3;
+    }
+
+    if (imageAvailable) {
+        return 2;
+    }
+
+    if (hasDescription) {
+        return 1;
+    }
+
+    return 0;
+}
+
+function findPopularCardRecoveryTarget(
+    kind
+) {
+
+    const grid =
+        document.getElementById(
+            "popularCarsGrid"
+        );
+
+    if (!grid) {
+        return null;
+    }
+
+    const cards =
+        Array.from(
+            grid.querySelectorAll(
+                '.car-card[data-popular-stable-card="true"]'
+            )
+        );
+
+    return cards
+        .filter(card =>
+            card.dataset.recoveryLocked !== "true" &&
+            card.dataset.recoveryQueued !== "true" &&
+            (
+                card.dataset.imageState === "unavailable" ||
+                (
+                    card.dataset.imageState !== "available" &&
+                    card.dataset.infoState === "pending"
+                )
+            )
+        )
+        .sort(
+            (a, b) => {
+                const aBad =
+                    a.dataset.imageState === "unavailable" ||
+                    a.dataset.infoState === "pending"
+                        ? 0
+                        : 1;
+
+                const bBad =
+                    b.dataset.imageState === "unavailable" ||
+                    b.dataset.infoState === "pending"
+                        ? 0
+                        : 1;
+
+                return aBad - bBad;
+            }
+        )[0] || null;
+}
+
+async function findNextPopularCardRecoveryCandidate(
+    kind
+) {
+
+    const state =
+        getPopularCardRecoveryState(
+            kind
+        );
+
+    let bestFallback = null;
+
+    const end =
+        Math.min(
+            state.pool.length,
+            state.nextIndex +
+            POPULAR_CARD_RECOVERY_CANDIDATE_WINDOW
+        );
+
+    while (
+        state.nextIndex < end
+    ) {
+
+        const candidate =
+            state.pool[
+                state.nextIndex++
+            ];
+
+        if (
+            !candidate?.make ||
+            !candidate?.model
+        ) {
+            continue;
+        }
+
+        const key =
+            getPopularVehicleQualityKey(
+                candidate,
+                kind
+            );
+
+        if (
+            state.usedKeys.has(key)
+        ) {
+            continue;
+        }
+
+        state.usedKeys.add(key);
+
+        let details = null;
+
+        try {
+
+            details =
+                await fetchVehicleDetailsWithRetry(
+                    candidate.make,
+                    candidate.model,
+                    kind,
+                    1,
+                    0,
+                    "image"
+                );
+
+        } catch (error) {
+
+            console.warn(
+                "Popular card recovery request failed:",
+                candidate.make,
+                candidate.model,
+                kind,
+                error
+            );
+
+        }
+
+        const quality =
+            getPopularCardRecoveryQuality(
+                details,
+                candidate
+            );
+
+        if (quality >= 3) {
+            return {
+                candidate,
+                details,
+                quality
+            };
+        }
+
+        if (
+            quality >= 1 &&
+            !bestFallback
+        ) {
+            bestFallback = {
+                candidate,
+                details,
+                quality
+            };
+        }
+    }
+
+    return bestFallback;
+}
+
+function replacePopularCardWithRecoveryCandidate(
+    card,
+    candidate,
+    details,
+    kind
+) {
+
+    if (
+        !card ||
+        !candidate ||
+        !details ||
+        currentVehicleKind !== kind ||
+        currentVehicleMode !== "popular" ||
+        !card.isConnected
+    ) {
+        return false;
+    }
+
+    const replacement =
+        createVehicleCard(
+            candidate,
+            kind
+        );
+
+    replacement.dataset.recoveryLocked =
+        "true";
+
+    const replacementImage =
+        replacement.querySelector(
+            ".car-card-image"
+        );
+
+    if (replacementImage) {
+        updateVehicleCardInformationPreview(
+            replacementImage,
+            details,
+            candidate
+        );
+    }
+
+    const oldKey =
+        normalizeVehicleText(
+            card.dataset.vehicleMake || ""
+        ) +
+        "|" +
+        normalizeVehicleText(
+            card.dataset.vehicleModel || ""
+        );
+
+    const resultIndex =
+        currentVehicleResults.findIndex(
+            vehicle =>
+                normalizeVehicleText(
+                    vehicle?.make
+                ) +
+                "|" +
+                normalizeVehicleText(
+                    vehicle?.model
+                ) === oldKey
+        );
+
+    if (resultIndex >= 0) {
+        currentVehicleResults[resultIndex] =
+            candidate;
+    }
+
+    card.replaceWith(
+        replacement
+    );
+
+    if (replacementImage) {
+        queueVehicleImageLoad(
+            replacementImage,
+            candidate.make,
+            candidate.model,
+            kind
+        );
+    }
+
+    reorderPopularVehicleCardsByImageAvailability(
+        kind
+    );
+
+    return true;
+}
+
+function schedulePopularCardRecovery(
+    kind
+) {
+
+    if (
+        currentVehicleMode !== "popular" ||
+        currentVehicleKind !== kind
+    ) {
+        return;
+    }
+
+    const state =
+        getPopularCardRecoveryState(
+            kind
+        );
+
+    for (
+        let i = 0;
+        i < POPULAR_CARD_RECOVERY_CONCURRENCY;
+        i++
+    ) {
+
+        if (
+            state.active >=
+            POPULAR_CARD_RECOVERY_CONCURRENCY
+        ) {
+            break;
+        }
+
+        const target =
+            findPopularCardRecoveryTarget(
+                kind
+            );
+
+        if (!target) {
+            break;
+        }
+
+        target.dataset.recoveryQueued =
+            "true";
+
+        state.active++;
+
+        void (async () => {
+
+            try {
+
+                const result =
+                    await findNextPopularCardRecoveryCandidate(
+                        kind
+                    );
+
+                if (
+                    result?.candidate &&
+                    result?.details
+                ) {
+
+                    replacePopularCardWithRecoveryCandidate(
+                        target,
+                        result.candidate,
+                        result.details,
+                        kind
+                    );
+
+                } else if (target.isConnected) {
+
+                    target.dataset.recoveryLocked =
+                        "true";
+
+                }
+
+            } finally {
+
+                state.active--;
+
+                window.setTimeout(
+                    () => schedulePopularCardRecovery(kind),
+                    0
+                );
+
+            }
+
+        })();
+    }
 
 }
 
@@ -2377,6 +2806,36 @@ async function loadVehicleCardImage(
             imageElement,
             "unavailable"
         );
+
+        const card =
+            imageElement.closest(
+                ".car-card"
+            );
+
+        const description =
+            String(
+                details?.wikipedia?.description || ""
+            ).trim();
+
+        const hasUsefulDescription =
+            description.length >= 40 &&
+            !/^no information$/i.test(
+                description
+            );
+
+        if (
+            currentVehicleMode === "popular" &&
+            card &&
+            !hasUsefulDescription
+        ) {
+            window.setTimeout(
+                () =>
+                    schedulePopularCardRecovery(
+                        kind
+                    ),
+                0
+            );
+        }
 
         const parent =
             imageElement.parentNode;
@@ -6270,6 +6729,22 @@ async function renderPopularCatalogImmediately(
 
     currentVehicleResults = unique;
     currentVehicleShowAll = false;
+
+    popularCardRecoveryState.set(
+        kind,
+        {
+            catalogRef: currentVehicleResults,
+            pool:
+                unique.slice(
+                    IMMEDIATE_POPULAR_CARD_COUNT,
+                    IMMEDIATE_POPULAR_CARD_COUNT +
+                    POPULAR_CARD_RECOVERY_MAX_CANDIDATES
+                ),
+            nextIndex: 0,
+            active: 0,
+            usedKeys: new Set()
+        }
+    );
 
     grid.innerHTML = "";
 
