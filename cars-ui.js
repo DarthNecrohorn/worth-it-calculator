@@ -9918,10 +9918,23 @@ function renderVehicleDetailsPanel(
 
         ${externalHtml}
 
-        <div class="worth-it-vehicle-detail-actions">
-            <button
-                type="button"
-                class="worth-it-vehicle-compare-button${alreadyCompared ? " is-added" : ""}${!allowCompare ? " is-disabled" : ""}"
+        <div class="worth-it-vehicle-detail-verification">
+    <span class="worth-it-vehicle-verified-badge">✓ Verified information</span>
+    <span class="worth-it-vehicle-verified-badge">✓ Verified reusable image</span>
+</div>
+
+<div class="worth-it-vehicle-detail-actions">
+    <button
+        type="button"
+        class="worth-it-vehicle-favorite-button"
+        data-vehicle-detail-favorite
+    >
+        ${isVehicleFavorite(apiVehicle, kind) ? "♥ Remove from favorites" : "♡ Add to favorites"}
+    </button>
+
+    <button
+        type="button"
+        class="worth-it-vehicle-compare-button${alreadyCompared ? " is-added" : ""}${!allowCompare ? " is-disabled" : ""}"
                 data-vehicle-compare
                 data-vehicle-key="${escapeVehicleHtml(compareKey)}"
                 ${allowCompare ? "" : "disabled"}
@@ -9940,6 +9953,17 @@ function renderVehicleDetailsPanel(
             </div>
         </div>
     `;
+
+    const favoriteButton = body.querySelector("[data-vehicle-detail-favorite]");
+
+    if (favoriteButton) {
+        favoriteButton.addEventListener("click", () => {
+            toggleVehicleFavorite(apiVehicle, kind);
+            const favorite = isVehicleFavorite(apiVehicle, kind);
+            favoriteButton.textContent = favorite ? "♥ Remove from favorites" : "♡ Add to favorites";
+            favoriteButton.classList.toggle("is-favorite", favorite);
+        });
+    }
 
     const compareButton =
         body.querySelector(
