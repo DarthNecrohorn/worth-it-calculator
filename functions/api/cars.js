@@ -5616,6 +5616,61 @@ async function handleDetails(
      * comparison and detail views.
      */
 
+    /*
+     * Lightweight image mode for category cards. The browser only needs
+     * the commercial Wikimedia image at this stage; parsing Wikipedia's
+     * full infobox and generation/specification tables would unnecessarily
+     * delay the image. Full technical details remain on the normal path.
+     */
+    if (
+        requestUrl.searchParams.get("image_only") === "1"
+    ) {
+
+        let image = null;
+
+        try {
+            image = await getCommercialWikimediaImage(
+                page.imageTitle,
+                vehicle.make,
+                vehicle.model,
+                vehicle.kind
+            );
+        } catch (error) {
+            console.error(
+                "Lightweight vehicle image lookup failed:",
+                vehicle.make,
+                vehicle.model,
+                error
+            );
+        }
+
+        return jsonResponse(
+            {
+                success: true,
+                source: {
+                    catalog: "VehiclesDB Open Dataset",
+                    information: "Wikimedia Commons"
+                },
+                kind,
+                vehicle: {
+                    make: vehicle.make,
+                    model: vehicle.model,
+                    kind: vehicle.kind
+                },
+                wikipedia: {
+                    title: page.title,
+                    url: page.url,
+                    description: page.description || "No Information"
+                },
+                image,
+                specifications: createEmptyWikipediaSpecifications(),
+                comparisonAvailable: false
+            },
+            200,
+            WIKIPEDIA_CACHE_TTL
+        );
+    }
+
     if (
         requestUrl.searchParams.get("fast") === "1"
     ) {
