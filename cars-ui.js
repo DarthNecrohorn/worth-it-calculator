@@ -169,6 +169,7 @@ const VEHICLE_KINDS = [
 
 const VEHICLE_ALL_KIND = "all";
 const MAX_UNIFIED_VEHICLES = 2000;
+const UNIFIED_BACKGROUND_CANDIDATE_POOL_LIMIT = 6000;
 const VEHICLE_FAVORITES_STORAGE_KEY = "worth-it-vehicle-favorites-v1";
 const VEHICLE_RECENT_STORAGE_KEY = "worth-it-vehicle-recent-v1";
 const VEHICLE_ACCOUNT_METADATA_KEY = "worth_it_vehicle_lists_v1";
@@ -4282,15 +4283,15 @@ async function buildFreshUnifiedVehicleCatalog() {
     });
 
     /*
-     * Keep a hidden popularity-ordered recovery pool. Only the first 2000
-     * are public, but candidates 1001–2000 are available as replacements
-     * when a visible card fails the background quality check.
+     * Keep a hidden popularity-ordered verification pool larger than the
+     * public 2000-card limit. This gives the quality gate enough candidates
+     * to replace entries that lack reliable information or a verified image.
      */
     return vehicles.slice(
         0,
         Math.max(
-            MAX_UNIFIED_VEHICLES,
-            2000
+            UNIFIED_BACKGROUND_CANDIDATE_POOL_LIMIT,
+            MAX_UNIFIED_VEHICLES
         )
     );
 }
@@ -4302,7 +4303,13 @@ async function fetchUnifiedVehicleCatalog() {
 
     const saved = await readPersistentVehicleCatalog(VEHICLE_ALL_KIND);
     if (Array.isArray(saved) && saved.length) {
-        const limited = saved.slice(0, Math.max(MAX_UNIFIED_VEHICLES, 2000));
+        const limited = saved.slice(
+            0,
+            Math.max(
+                UNIFIED_BACKGROUND_CANDIDATE_POOL_LIMIT,
+                MAX_UNIFIED_VEHICLES
+            )
+        );
         vehicleCatalogCache.set(VEHICLE_ALL_KIND, limited);
         void buildFreshUnifiedVehicleCatalog().then(fresh => {
             if (fresh.length) {
@@ -15443,10 +15450,7 @@ async function openCars() {
     currentVehicleCatalog = Array.isArray(vehicles)
         ? vehicles.slice(
             0,
-            Math.max(
-                MAX_UNIFIED_VEHICLES,
-                1200
-            )
+            MAX_UNIFIED_VEHICLES
         )
         : [];
     updateCarsLastUpdated(VEHICLE_ALL_KIND);
