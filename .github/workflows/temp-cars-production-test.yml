@@ -1,0 +1,153 @@
+name: Temp Cars Production Test
+
+on:
+  push:
+
+jobs:
+  production:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify production Cars endpoint
+        env:
+          SITE: https://worth-it-calculator.pages.dev
+        run: |
+          node <<'NODE'
+          (async () => {
+            const cases = [
+              ['car','Honda','Civic'],
+              ['car','Toyota','Prius'],
+              ['van','Mercedes-Benz','Sprinter'],
+              ['van','Ford','Transit Custom'],
+              ['truck','DAF','XF'],
+              ['truck','MAN','TGL'],
+              ['bus','Wrightbus','StreetDeck'],
+              ['bus','Mitsubishi Fuso','Rosa'],
+              ['motorcycle','BMW','R1300GS']
+            ];
+
+            let failures = 0;
+
+            for (const [kind,make,model] of cases) {
+
+              const url =
+                new URL(
+                  process.env.SITE + '/api/cars'
+                );
+
+              url.searchParams.set(
+                'action',
+                'details'
+              );
+              url.searchParams.set(
+                'kind',
+                kind
+              );
+              url.searchParams.set(
+                'make',
+                make
+              );
+              url.searchParams.set(
+                'model',
+                model
+              );
+              url.searchParams.set(
+                'v',
+                'production-check-1'
+              );
+
+              const response =
+                await fetch(
+                  url,
+                  {
+                    headers: {
+                      accept: 'application/json'
+                    }
+                  }
+                );
+
+              const data =
+                await response.json();
+
+              const description =
+                String(
+                  data?.wikipedia?.description ||
+                  ''
+                ).trim();
+
+              const specs =
+                Object.entries(
+                  data?.specifications || {}
+                )
+                .filter(([,value]) =>
+                  value !== null &&
+                  value !== undefined &&
+                  String(value).trim() &&
+                  !/^no information$/i.test(
+                    String(value).trim()
+                  )
+                );
+
+              const image =
+                Boolean(
+                  data?.image?.url
+                );
+
+              const meaningful =
+                description.length >= 40 ||
+                specs.length > 0 ||
+                image;
+
+              console.log(
+                JSON.stringify(
+                  {
+                    kind,
+                    make,
+                    model,
+                    status: response.status,
+                    success:
+                      data?.success === true,
+                    wikipediaTitle:
+                      data?.wikipedia?.title ||
+                      null,
+                    descriptionLength:
+                      description.length,
+                    image,
+                    imageProvider:
+                      data?.image?.source_provider ||
+                      'Wikimedia Commons',
+                    specificationCount:
+                      specs.length,
+                    epa:
+                      data?.external?.fuelEconomy
+                        ? {
+                            year:
+                              data.external.fuelEconomy.year,
+                            combinedMpg:
+                              data.external.fuelEconomy.combinedMpg,
+                            fuelType:
+                              data.external.fuelEconomy.fuelType
+                          }
+                        : null
+                  },
+                  null,
+                  2
+                )
+              );
+
+              if (
+                response.status !== 200 ||
+                data?.success !== true ||
+                !meaningful
+              ) {
+                failures++;
+              }
+            }
+
+            if (failures) {
+              process.exit(1);
+            }
+          })().catch(error => {
+            console.error(error);
+            process.exit(1);
+          });
+          NODE
