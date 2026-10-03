@@ -39,7 +39,7 @@ const VEHICLE_CATALOG_BASE_URL =
 const VEHICLE_DATASET_MANIFEST_URL =
     "https://cdn.jsdelivr.net/gh/vehiclesdb/vehiclesdb@latest/manifest.json";
 
-const VEHICLE_DETAILS_CACHE_VERSION = "v24";
+const VEHICLE_DETAILS_CACHE_VERSION = "v25";
 
 const MAX_VEHICLES_PER_CATEGORY = 300;
 
@@ -490,9 +490,9 @@ const VEHICLE_SUPPLEMENTAL_CATEGORIES = [
 const popularVehicleHydrationState =
     new Map();
 
-const POPULAR_DETAILS_CONCURRENCY = 16;
+const POPULAR_DETAILS_CONCURRENCY = 4;
 
-const POPULAR_NONCAR_DETAILS_CONCURRENCY = 20;
+const POPULAR_NONCAR_DETAILS_CONCURRENCY = 3;
 const POPULAR_NONCAR_QUALITY_BATCH_SIZE = 16;
 const POPULAR_NONCAR_INITIAL_MAX_CHECKS = 300;
 
@@ -502,7 +502,7 @@ const POPULAR_NONCAR_REFRESH_CARD_COUNT = 12;
 
 const POPULAR_REFRESH_CARD_COUNT = 12;
 const POPULAR_REFRESH_MAX_CHECKS = 320;
-const POPULAR_REFRESH_CONCURRENCY = 20;
+const POPULAR_REFRESH_CONCURRENCY = 4;
 
 const PERSISTENT_VEHICLE_DETAILS_MAX_ENTRIES = 500;
 
@@ -1194,7 +1194,7 @@ async function cacheVehicleImageResponse(
 
 let vehicleImageObserver = null;
 
-const MAX_CONCURRENT_IMAGE_REQUESTS = 16;
+const MAX_CONCURRENT_IMAGE_REQUESTS = 4;
 
 let activeVehicleImageRequests = 0;
 
@@ -1211,7 +1211,7 @@ const vehicleImageQueue = [];
 const popularCardRecoveryState =
     new Map();
 
-const POPULAR_CARD_RECOVERY_CONCURRENCY = 4;
+const POPULAR_CARD_RECOVERY_CONCURRENCY = 1;
 const POPULAR_CARD_RECOVERY_MAX_CANDIDATES = 200;
 const POPULAR_CARD_RECOVERY_CANDIDATE_WINDOW = 8;
 
