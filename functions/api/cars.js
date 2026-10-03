@@ -4142,6 +4142,32 @@ function normalizeWikipediaSearchText(
         .trim();
 }
 
+function wikipediaTextContainsTerm(
+    text,
+    term
+) {
+
+    const normalizedTerm =
+        normalizeWikipediaSearchText(term);
+
+    if (!normalizedTerm) {
+        return false;
+    }
+
+    const escapedParts =
+        normalizedTerm
+            .split(/\s+/)
+            .map(part =>
+                part.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+            );
+
+    return new RegExp(
+        `(?:^|\\s)${escapedParts.join("\\s+")}(?=\\s|$)`,
+        "i"
+    ).test(
+        String(text || "")
+    );
+}
 function getWikipediaKindEvidenceScore(
     title,
     snippet,
@@ -4166,8 +4192,9 @@ function getWikipediaKindEvidenceScore(
 
     for (const term of terms) {
         if (
-            text.includes(
-                normalizeWikipediaSearchText(term)
+            wikipediaTextContainsTerm(
+                text,
+                term
             )
         ) {
             positive++;
@@ -4176,8 +4203,9 @@ function getWikipediaKindEvidenceScore(
 
     for (const term of contradictions) {
         if (
-            text.includes(
-                normalizeWikipediaSearchText(term)
+            wikipediaTextContainsTerm(
+                text,
+                term
             )
         ) {
             negative++;
@@ -4256,8 +4284,9 @@ function hasStrongWikipediaKindContradiction(
 
     const positiveCount =
         positiveTerms.filter(term =>
-            text.includes(
-                normalizeWikipediaSearchText(term)
+            wikipediaTextContainsTerm(
+                text,
+                term
             )
         ).length;
 
