@@ -15,7 +15,7 @@ const SUPABASE_URL =
     "https://diutcnylnubljvpezhmq.supabase.co";
 
 const SUPABASE_PUBLISHABLE_KEY =
-    "sb_publishable_W9769alA1ckSllKvue4U2Q_TdXpWnjp";
+    "sb_publishable_AzgPXyMrDpruSqGt-al9gg_9gsiCopw";
 
 
 window.supabaseClient =
