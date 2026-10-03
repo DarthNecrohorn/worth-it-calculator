@@ -780,6 +780,56 @@ async function fetchWikidataCached(
     return data;
 }
 
+async function fetchWikidataArticleDescription(
+    wikipediaTitle
+) {
+
+    const title =
+        String(wikipediaTitle || "").trim();
+
+    if (!title) {
+        return "";
+    }
+
+    const query =
+        "SELECT ?description WHERE {" +
+        " ?article schema:about ?item;" +
+        " schema:isPartOf <https://en.wikipedia.org/>;" +
+        " schema:name ?name." +
+        " OPTIONAL { ?item schema:description ?description." +
+        " FILTER(LANG(?description)=\"en\") }" +
+        " FILTER(STR(?name)=\"" +
+        title.replace(/"/g, '\\\"') +
+        "\")" +
+        "} LIMIT 1";
+
+    const url =
+        new URL(WIKIDATA_SPARQL_API);
+
+    url.searchParams.set("query", query);
+    url.searchParams.set("format", "json");
+
+    try {
+        const data =
+            await fetchWikidataCached(
+                url.toString()
+            );
+
+        return String(
+            data?.results?.bindings?.[0]?.description?.value ||
+            ""
+        ).trim();
+
+    } catch (error) {
+        console.warn(
+            "Wikidata description fallback failed:",
+            title,
+            error
+        );
+        return "";
+    }
+}
+
 function getWikidataWikipediaTitle(articleUrl) {
 
     const raw = String(articleUrl || "").trim();
@@ -7430,6 +7480,27 @@ async function handleDetails(
             200,
             NEGATIVE_WIKIPEDIA_CACHE_TTL
         );
+    }
+
+    /*
+     * If Wikipedia has the article but its lead extract is empty, use the
+     * connected Wikidata description as a secondary online-information
+     * source. Wikidata is only a fallback for missing text; it never replaces
+     * Wikipedia technical specifications or category validation.
+     */
+    if (
+        page &&
+        !isUsefulWikipediaValue(page.description)
+    ) {
+        const wikidataDescription =
+            await fetchWikidataArticleDescription(
+                page.title
+            );
+
+        if (wikidataDescription) {
+            page.description =
+                wikidataDescription;
+        }
     }
 
     /*
