@@ -1,0 +1,81 @@
+name: Temp Cars Browser Test
+
+on:
+  push:
+
+jobs:
+  browser:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install Playwright
+        run: |
+          npm init -y >/dev/null 2>&1
+          npm install --no-save playwright >/dev/null 2>&1
+          npx playwright install --with-deps chromium >/dev/null 2>&1
+
+      - name: Inspect live Cars UI
+        env:
+          SITE: https://worth-it-calculator.pages.dev
+        run: |
+          node <<'NODE'
+          const { chromium } = require('playwright');
+
+          const browser = await chromium.launch({headless:true});
+          const page = await browser.newPage({viewport:{width:1440,height:1200}});
+
+          page.on('console', msg => {
+            if (msg.type() === 'error') console.log('[browser console error]', msg.text());
+          });
+
+          await page.goto(process.env.SITE, {waitUntil:'domcontentloaded', timeout:60000});
+          await page.waitForTimeout(2500);
+
+          const inspect = async (label) => {
+            const cards = await page.locator('#popularCarsGrid .car-card').all();
+            const rows = [];
+            for (let i=0; i<Math.min(cards.length,12); i++) {
+              const card = cards[i];
+              rows.push(await card.evaluate(el => ({
+                text: el.innerText,
+                info: el.querySelector('.car-card-info-preview')?.textContent || null,
+                infoState: el.dataset.infoState || null,
+                imageState: el.dataset.imageState || null,
+                img: el.querySelector('img.car-card-image')?.getAttribute('src') || null,
+                imageCount: el.querySelectorAll('img.car-card-image').length
+              })));
+            }
+            console.log(JSON.stringify({label, cards:cards.length, rows}, null, 2));
+          };
+
+          await inspect('initial');
+
+          const buttons = await page.locator('button').allTextContents();
+          console.log('BUTTONS', JSON.stringify(buttons.filter(Boolean).slice(0,120)));
+
+          const exploreVans = page.getByText('Explore vans', {exact:true});
+          if (await exploreVans.count()) {
+            await exploreVans.first().click();
+            await page.waitForTimeout(3500);
+            await inspect('vans-after-click');
+          }
+
+          const clickableCards = page.locator('#popularCarsGrid .car-card');
+          if (await clickableCards.count()) {
+            await clickableCards.first().click();
+            await page.waitForTimeout(3000);
+            console.log('MODAL', JSON.stringify({
+              visible: await page.locator('#worthItVehicleDetailsModal.is-open').count() > 0,
+              body: (await page.locator('#worthItVehicleModalBody').textContent().catch(()=>'')) || '',
+              htmlSnippet: (await page.locator('#worthItVehicleModalBody').innerHTML().catch(()=>'' )).slice(0,5000)
+            }, null, 2));
+          }
+
+          await browser.close();
+          NODE
