@@ -3789,6 +3789,71 @@ function getCatalogVehicleBodyTypes(
         .filter(Boolean);
 }
 
+const VEHICLE_KIND_NAME_CONTRADICTIONS = {
+    car: [
+        { make: "ford", models: ["f-150", "f150", "f-250", "f250", "f-350", "f350", "ranger"] },
+        { make: "mercedes benz", models: ["sprinter", "vito", "citan", "esprinter", "eqv"] },
+        { make: "renault", models: ["master", "trafic", "kangoo"] },
+        { make: "peugeot", models: ["boxer", "expert", "partner"] },
+        { make: "citroen", models: ["jumper", "jumpy", "berlingo"] },
+        { make: "fiat", models: ["ducato", "scudo", "doblo"] },
+        { make: "volkswagen", models: ["transporter", "caravelle", "multivan", "crafter", "caddy"] },
+        { make: "toyota", models: ["hiace", "commuter", "proace"] }
+    ],
+    van: [
+        { make: "ford", models: ["f-150", "f150", "f-250", "f250", "f-350", "f350", "ranger"] },
+        { make: "toyota", models: ["hilux", "tacoma", "tundra"] },
+        { make: "mitsubishi", models: ["triton", "l200", "canter", "fighter"] },
+        { make: "nissan", models: ["navara", "frontier"] },
+        { make: "volkswagen", models: ["amarok"] },
+        { make: "isuzu", models: ["d-max"] },
+        { make: "mazda", models: ["bt-50", "bt50"] },
+        { make: "daf", models: ["xf", "xf95", "xf105"] },
+        { make: "man", models: ["tgm", "tga", "l2000"] },
+        { make: "mercedes benz", models: ["actros", "atego"] }
+    ]
+};
+
+function normalizeVehicleNameForCategoryCheck(value) {
+    return String(value || "")
+        .trim()
+        .toLowerCase()
+        .replace(/[–—]/g, "-")
+        .replace(/[^a-z0-9]+/g, " ")
+        .replace(/\s+/g, " ")
+        .trim();
+}
+
+function hasObviousVehicleNameCategoryContradiction(
+    vehicle,
+    requestedKind
+) {
+    const rules =
+        VEHICLE_KIND_NAME_CONTRADICTIONS[requestedKind] ||
+        [];
+
+    if (!rules.length) return false;
+
+    const make = normalizeVehicleNameForCategoryCheck(vehicle?.make);
+    const model = normalizeVehicleNameForCategoryCheck(vehicle?.model);
+
+    if (!make || !model) return false;
+
+    return rules.some(rule => {
+        if (make !== normalizeVehicleNameForCategoryCheck(rule.make)) {
+            return false;
+        }
+
+        return rule.models.some(candidate => {
+            const normalizedCandidate =
+                normalizeVehicleNameForCategoryCheck(candidate);
+
+            return model === normalizedCandidate ||
+                model.startsWith(normalizedCandidate + " ") ||
+                model.endsWith(" " + normalizedCandidate);
+        });
+    });
+}
 const VEHICLE_KIND_BODY_TYPE_CONTRADICTIONS = {
     car: [
         "van", "minivan", "panel van", "cargo van", "microvan",
@@ -3838,7 +3903,10 @@ function isCatalogVehicleKindCompatible(
         );
 
     if (!bodyTypes.length) {
-        return true;
+        return !hasObviousVehicleNameCategoryContradiction(
+            vehicle,
+            kind
+        );
     }
 
     const contradictions =
