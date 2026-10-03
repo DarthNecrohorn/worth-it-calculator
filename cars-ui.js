@@ -43,6 +43,15 @@ const VEHICLE_DETAILS_CACHE_VERSION = "v22";
 
 const MAX_VEHICLES_PER_CATEGORY = 300;
 
+/*
+ * The category landing view is intentionally catalog-first. The first
+ * 100 unique vehicles must be visible without waiting for Wikipedia,
+ * Wikimedia or supplemental quality checks. Those expensive enrichments
+ * are background work only.
+ */
+const IMMEDIATE_POPULAR_CARD_COUNT = 100;
+const IMMEDIATE_POPULAR_CATALOG_TARGET = 140;
+
 const MAX_SEARCH_RESULTS = MAX_VEHICLES_PER_CATEGORY;
 
 const INITIAL_VISIBLE_ROWS = 2;
@@ -6304,7 +6313,7 @@ async function refreshPopularVehicleCategory(
     }
 }
 
-async function loadAndRenderNonCarPopularVehicles(
+async function renderPopularCatalogImmediately(
     kind,
     showAll = false
 ) {
@@ -6317,372 +6326,142 @@ async function loadAndRenderNonCarPopularVehicles(
     }
 
     const grid =
-        document.getElementById(
-            "popularCarsGrid"
-        );
+        document.getElementById("popularCarsGrid");
 
     if (!grid) {
         return;
     }
 
-    const catalogVehicles =
+    const catalog =
         Array.isArray(currentVehicleCatalog)
             ? currentVehicleCatalog
             : [];
 
-    let candidates =
-        getPopularVehicles(
-            catalogVehicles
-        );
+    /*
+     * getPopularVehicles already deduplicates by the catalog merge stage
+     * and applies category/body-type compatibility. Keep the landing view
+     * deterministic by taking the first 100 ranked unique records.
+     */
+    const candidates =
+        getPopularVehicles(catalog);
 
     if (!candidates.length) {
-
         grid.innerHTML =
             '<div class="cars-empty-state">' +
-            '<div class="cars-empty-icon">' +
-            escapeVehicleHtml(
-                getVehicleKindInfo(kind).icon
-            ) +
-            '</div>' +
-            '<strong>Loading ' +
-            escapeVehicleHtml(
-                getVehicleKindInfo(kind).plural.toLowerCase()
-            ) +
-            '...</strong>' +
-            '<p>Preparing vehicle data.</p>' +
+                '<div class="cars-empty-icon">' +
+                    escapeVehicleHtml(getVehicleKindInfo(kind).icon) +
+                '</div>' +
+                '<strong>Loading ' +
+                    escapeVehicleHtml(getVehicleKindInfo(kind).plural.toLowerCase()) +
+                    '...</strong>' +
+                '<p>Preparing the vehicle catalog.</p>' +
             '</div>';
 
-        void enrichVehicleCategoryWithSupplementalSources(
-            kind
-        );
-
+        void enrichVehicleCategoryWithSupplementalSources(kind);
         return;
     }
 
-    await restorePersistentPopularVehicles(
-        kind,
-        candidates
-    );
+    const unique = [];
+    const seen = new Set();
 
-    candidates =
-        getPopularVehicles(
-            vehicleCatalogCache.get(kind) ||
-            catalogVehicles
-        );
+    for (const vehicle of candidates) {
+        const key =
+            normalizeVehicleText(vehicle.make) +
+            "|" +
+            normalizeVehicleText(vehicle.model);
 
-    if (!candidates.length) {
-        return;
-    }
-
-    const existingState =
-        getStablePopularDisplayState(
-            kind
-        );
-
-    if (
-        showAll &&
-        existingState &&
-        !existingState.cancelled
-    ) {
-
-        existingState.showAll = true;
-
-        hideOrShowStablePopularCards(
-            kind,
-            true
-        );
-
-        const allValid =
-            await ensurePopularVehicleQuality(
-                kind,
-                candidates,
-                MAX_VEHICLES_PER_CATEGORY,
-                getPopularMaxNewChecks(kind)
-            );
-
-        if (
-            currentVehicleKind !== kind ||
-            currentVehicleMode !== "popular" ||
-            existingState.cancelled
-        ) {
-            return;
+        if (!vehicle.make || !vehicle.model || seen.has(key)) {
+            continue;
         }
 
-        appendStablePopularVehicleCards(
-            kind,
-            allValid,
-            true
-        );
+        seen.add(key);
+        unique.push(vehicle);
 
-        renderVehicleCollapseButton(
-            kind
-        );
-
-        return;
+        if (unique.length >= MAX_VEHICLES_PER_CATEGORY) {
+            break;
+        }
     }
 
-    const displayState =
-        startStablePopularVehicleDisplay(
-            kind,
-            false
+    const firstBatch =
+        unique.slice(
+            0,
+            Math.min(
+                IMMEDIATE_POPULAR_CARD_COUNT,
+                unique.length
+            )
         );
 
-    const existingExpandButton =
-        document.getElementById(
-            "carsVehicleExpandButton"
-        );
-
-    if (existingExpandButton) {
-        existingExpandButton.remove();
-    }
+    currentVehicleResults = unique;
+    currentVehicleShowAll = false;
 
     grid.innerHTML = "";
 
-    const initialCount =
-        getPopularInitialCardCount(
-            kind,
-            candidates.length
-        );
+    const fragment =
+        document.createDocumentFragment();
 
-    const targetCount =
-        Math.min(
-            POPULAR_NONCAR_INITIAL_CARD_COUNT,
-            initialCount,
-            candidates.length
-        );
+    for (const vehicle of firstBatch) {
+        const card =
+            createVehicleCard(vehicle, kind);
 
-    /*
-     * Restore validated persistent/in-memory vehicles immediately.
-     * New candidates are then checked progressively; the category no
-     * longer waits for a complete 72-item Wikipedia wave before showing
-     * its first usable card.
-     */
-    const currentState =
-        popularVehicleQualityState.get(
-            kind
-        );
-
-    const restoredVehicles =
-        Array.isArray(
-            currentState?.validVehicles
-        )
-            ? currentState.validVehicles.slice(
-                0,
-                targetCount
-            )
-            : [];
-
-    if (restoredVehicles.length) {
-
-        appendStablePopularVehicleCards(
-            kind,
-            restoredVehicles,
-            false
-        );
-
-        renderVehicleExpandButton(
-            currentState.validVehicles,
-            restoredVehicles,
-            kind,
-            stablePopularHasMoreVehicles(
-                kind,
-                initialCount
-            )
-        );
-
-    } else {
-
-        grid.innerHTML =
-            '<div class="cars-empty-state">' +
-            '<div class="cars-empty-icon">' +
-            escapeVehicleHtml(
-                getVehicleKindInfo(kind).icon
-            ) +
-            '</div>' +
-            '<strong>Checking popular ' +
-            escapeVehicleHtml(
-                getVehicleKindInfo(kind).plural.toLowerCase()
-            ) +
-            '...</strong>' +
-            '<p>Reliable vehicle information is being checked and cards will appear as soon as each result is verified.</p>' +
-            '</div>';
-
+        card.dataset.popularStableCard = "true";
+        fragment.appendChild(card);
     }
 
-    const scanCandidates =
-        getPopularQualityScanCandidates(
-            kind,
-            candidates
-        );
-
-    const progress =
-        vehicle => {
-
-            if (
-                currentVehicleKind !== kind ||
-                currentVehicleMode !== "popular" ||
-                displayState.cancelled
-            ) {
-                return;
-            }
-
-            mergePopularValidVehiclesIntoState(
-                kind,
-                candidates,
-                [vehicle]
-            );
-
-            if (
-                !grid.querySelector(
-                    '.car-card[data-popular-stable-card="true"]'
-                )
-            ) {
-                grid.innerHTML = "";
-            }
-
-            const state =
-                popularVehicleQualityState.get(
-                    kind
-                );
-
-            appendStablePopularVehicleCards(
-                kind,
-                [vehicle],
-                false
-            );
-
-            if (state) {
-                renderVehicleExpandButton(
-                    state.validVehicles,
-                    state.validVehicles.slice(
-                        0,
-                        initialCount
-                    ),
-                    kind,
-                    stablePopularHasMoreVehicles(
-                        kind,
-                        initialCount
-                    )
-                );
-            }
-
-            hideOrShowStablePopularCards(
-                kind,
-                false
-            );
-
-        };
+    grid.appendChild(fragment);
 
     /*
-     * The fast collector has a hard time budget. It can finish early
-     * after the target is reached, or return the cards found so far after
-     * the budget while the longer category scan continues in background.
+     * Images are intentionally lazy and concurrency-limited. As each image
+     * resolves, setPopularVehicleImageState() moves available cards above
+     * pending/unavailable cards without blocking the initial 100-card render.
      */
-    const hydrationPromise =
-        collectFastPopularVehicleInformation(
-            kind,
-            scanCandidates,
-            targetCount,
-            POPULAR_NONCAR_INITIAL_MAX_CHECKS,
-            progress,
-            POPULAR_NONCAR_PROGRESSIVE_BUDGET_MS
+    reorderPopularVehicleCardsByImageAvailability(kind);
+
+    /*
+     * If the base VehiclesDB catalog has fewer than 100 records for a
+     * category, supplemental sources are allowed to fill the missing
+     * records in the background. Once they arrive, the same renderer is
+     * called again and only the missing slots are added.
+     */
+    if (unique.length < IMMEDIATE_POPULAR_CARD_COUNT) {
+        void enrichVehicleCategoryWithSupplementalSources(kind);
+    }
+
+    /*
+     * Do not run the old 100s/1000s-of-Wikipedia-candidates quality scan
+     * here. Details are fetched only when a card needs its image or when
+     * the user opens the vehicle, which makes category switching fast.
+     */
+    if (!showAll) {
+        return;
+    }
+
+    /* Keep the explicit "show all" path useful without blocking the first
+     * render. It exposes the already available catalog immediately. */
+    const allCards =
+        unique.slice(
+            0,
+            MAX_VEHICLES_PER_CATEGORY
         );
 
-    void hydrationPromise.then(
-        async validVehicles => {
+    if (allCards.length <= firstBatch.length) {
+        return;
+    }
 
-            if (
-                currentVehicleKind !== kind ||
-                currentVehicleMode !== "popular" ||
-                displayState.cancelled
-            ) {
-                return;
-            }
+    for (const vehicle of allCards.slice(firstBatch.length)) {
+        const card = createVehicleCard(vehicle, kind);
+        card.dataset.popularStableCard = "true";
+        grid.appendChild(card);
+    }
 
-            mergePopularValidVehiclesIntoState(
-                kind,
-                candidates,
-                validVehicles
-            );
+    reorderPopularVehicleCardsByImageAvailability(kind);
+}
 
-            const state =
-                popularVehicleQualityState.get(
-                    kind
-                );
 
-            if (
-                validVehicles.length &&
-                !grid.querySelector(
-                    '.car-card[data-popular-stable-card="true"]'
-                )
-            ) {
-                grid.innerHTML = "";
-            }
-
-            appendStablePopularVehicleCards(
-                kind,
-                validVehicles,
-                false
-            );
-
-            if (state?.validVehicles?.length) {
-
-                renderVehicleExpandButton(
-                    state.validVehicles,
-                    state.validVehicles.slice(
-                        0,
-                        initialCount
-                    ),
-                    kind,
-                    stablePopularHasMoreVehicles(
-                        kind,
-                        initialCount
-                    )
-                );
-
-                hideOrShowStablePopularCards(
-                    kind,
-                    false
-                );
-
-            }
-
-            /*
-             * Never replace the waiting state with "No information" just
-             * because the short first wave did not find enough vehicles.
-             * Continue through the full candidate pool in background.
-             */
-            void continueStablePopularVehicleLoading(
-                kind,
-                candidates
-            );
-
-            void enrichVehicleCategoryWithSupplementalSources(
-                kind
-            );
-
-        }
-    ).catch(
-        error => {
-
-            console.warn(
-                "Progressive non-car popular loading failed:",
-                kind,
-                error
-            );
-
-            void continueStablePopularVehicleLoading(
-                kind,
-                candidates
-            );
-
-            void enrichVehicleCategoryWithSupplementalSources(
-                kind
-            );
-
-        }
-    );
-
+async function loadAndRenderNonCarPopularVehicles(
+    kind,
+    showAll = false
+) {
+    return renderPopularCatalogImmediately(kind, showAll);
 }
 
 
@@ -6690,13 +6469,19 @@ async function loadAndRenderPopularVehicles(
     kind,
     showAll = false
 ) {
+    return renderPopularCatalogImmediately(kind, showAll);
+}
 
-    if (kind !== "car") {
-        return loadAndRenderNonCarPopularVehicles(
-            kind,
-            showAll
-        );
-    }
+/*
+ * ============================================================
+ * POPULAR CATEGORY REFRESH
+ * ============================================================
+ */
+
+async function refreshPopularVehicleCategory(
+    kind,
+    refreshButton = null
+) {
 
     if (
         currentVehicleKind !== kind ||
@@ -6705,270 +6490,92 @@ async function loadAndRenderPopularVehicles(
         return;
     }
 
-    const catalogVehicles =
-        Array.isArray(currentVehicleCatalog)
-            ? currentVehicleCatalog
-            : [];
-
-    const candidates =
-        getPopularVehicles(
-            catalogVehicles
-        ).slice(
-            0,
-            POPULAR_CANDIDATE_POOL_SIZE
-        );
-
     const grid =
-        document.getElementById(
-            "popularCarsGrid"
-        );
+        document.getElementById("popularCarsGrid");
 
     if (!grid) {
         return;
     }
 
-    if (!candidates.length) {
-        renderVehicleCards([], kind, showAll);
-        return;
+    if (refreshButton) {
+        refreshButton.disabled = true;
+        refreshButton.classList.add("is-loading");
     }
 
-    const existingDisplayState =
-        getStablePopularDisplayState(kind);
-
-    if (
-        showAll &&
-        existingDisplayState &&
-        !existingDisplayState.cancelled
-    ) {
-
-        currentVehicleShowAll = true;
-        existingDisplayState.showAll = true;
-
-        hideOrShowStablePopularCards(kind, true);
-
-        const allValidVehicles =
-            await ensurePopularVehicleQuality(
-                kind,
-                candidates,
-                Math.min(
-                    MAX_VEHICLES_PER_CATEGORY,
-                    candidates.length
-                ),
-                POPULAR_SHOW_ALL_MAX_NEW_CHECKS,
-                async validVehicles => {
-
-                    if (
-                        currentVehicleKind !== kind ||
-                        currentVehicleMode !== "popular"
-                    ) {
-                        return;
-                    }
-
-                    appendStablePopularVehicleCards(
-                        kind,
-                        validVehicles,
-                        true
-                    );
-                }
-            );
+    try {
+        /*
+         * Never clear the current 100 cards while the network is working.
+         * Fetch the lightweight catalog first; the existing UI remains
+         * usable if the refresh fails.
+         */
+        const freshCatalog =
+            await fetchFreshVehicleCatalog(kind);
 
         if (
-            currentVehicleKind !== kind ||
-            currentVehicleMode !== "popular" ||
-            existingDisplayState.cancelled
+            freshCatalog.length &&
+            currentVehicleKind === kind &&
+            currentVehicleMode === "popular"
         ) {
-            return;
-        }
-
-        appendStablePopularVehicleCards(
-            kind,
-            allValidVehicles,
-            true
-        );
-
-        hideOrShowStablePopularCards(kind, true);
-        refreshStablePopularResults(kind);
-        renderVehicleCollapseButton(kind);
-        return;
-    }
-
-    const displayState =
-        startStablePopularVehicleDisplay(kind, false);
-
-    grid.innerHTML = "";
-
-    const initialCount =
-        getPopularInitialCardCount(
-            kind,
-            candidates.length
-        );
-
-    const targetCount =
-        Math.min(
-            POPULAR_CAR_INITIAL_CARD_COUNT,
-            initialCount,
-            candidates.length
-        );
-
-    if (!targetCount) {
-        return;
-    }
-
-    const scanCandidates =
-        getPopularQualityScanCandidates(
-            kind,
-            candidates
-        );
-
-    const progress =
-        vehicle => {
-
-            if (
-                currentVehicleKind !== kind ||
-                currentVehicleMode !== "popular" ||
-                displayState.cancelled
-            ) {
-                return;
-            }
-
-            mergePopularValidVehiclesIntoState(
+            vehicleCatalogCache.set(
                 kind,
-                candidates,
-                [vehicle]
+                freshCatalog
             );
 
-            if (
-                !grid.querySelector(
-                    '.car-card[data-popular-stable-card="true"]'
-                )
-            ) {
-                grid.innerHTML = "";
-            }
+            currentVehicleCatalog =
+                freshCatalog;
 
-            const state =
-                popularVehicleQualityState.get(kind);
+            setVehicleLastUpdated(kind);
+            updateCarsLastUpdated(kind);
+        }
 
-            appendStablePopularVehicleCards(
+        if (
+            currentVehicleKind === kind &&
+            currentVehicleMode === "popular"
+        ) {
+            await renderPopularCatalogImmediately(
                 kind,
-                [vehicle],
                 false
             );
+        }
 
-            if (state) {
-                renderVehicleExpandButton(
-                    state.validVehicles,
-                    state.validVehicles.slice(
-                        0,
-                        initialCount
-                    ),
-                    kind,
-                    stablePopularHasMoreVehicles(
-                        kind,
-                        initialCount
-                    )
-                );
-            }
+        /*
+         * Supplemental sources and details are deliberately background
+         * work. Refresh therefore finishes as soon as the lightweight
+         * category catalog is usable.
+         */
+        void enrichVehicleCategoryWithSupplementalSources(kind);
 
-            hideOrShowStablePopularCards(kind, false);
-        };
-
-    const hydrationPromise =
-        collectFastPopularVehicleInformation(
+    } catch (error) {
+        console.error(
+            "Vehicle category refresh failed:",
             kind,
-            scanCandidates,
-            targetCount,
-            POPULAR_CAR_INITIAL_MAX_CHECKS,
-            progress,
-            POPULAR_NONCAR_PROGRESSIVE_BUDGET_MS
+            error
         );
 
-    void hydrationPromise.then(
-        validVehicles => {
-
-            if (
-                currentVehicleKind !== kind ||
-                currentVehicleMode !== "popular" ||
-                displayState.cancelled
-            ) {
-                return;
-            }
-
-            mergePopularValidVehiclesIntoState(
+        /*
+         * Preserve the current cards on temporary network/API failures.
+         * A refresh must never turn a populated category into an empty
+         * state.
+         */
+        if (
+            currentVehicleKind === kind &&
+            currentVehicleMode === "popular" &&
+            !grid.querySelector(".car-card")
+        ) {
+            await renderPopularCatalogImmediately(
                 kind,
-                candidates,
-                validVehicles
-            );
-
-            const state =
-                popularVehicleQualityState.get(kind);
-
-            if (
-                validVehicles.length &&
-                !grid.querySelector(
-                    '.car-card[data-popular-stable-card="true"]'
-                )
-            ) {
-                grid.innerHTML = "";
-            }
-
-            appendStablePopularVehicleCards(
-                kind,
-                validVehicles,
                 false
             );
-
-            if (state?.validVehicles?.length) {
-
-                renderVehicleExpandButton(
-                    state.validVehicles,
-                    state.validVehicles.slice(
-                        0,
-                        initialCount
-                    ),
-                    kind,
-                    stablePopularHasMoreVehicles(
-                        kind,
-                        initialCount
-                    )
-                );
-
-                hideOrShowStablePopularCards(
-                    kind,
-                    false
-                );
-            }
-
-            void continueStablePopularVehicleLoading(
-                kind,
-                candidates
-            );
-
-            void enrichVehicleCategoryWithSupplementalSources(
-                kind
-            );
-
         }
-    ).catch(
-        error => {
 
-            console.warn(
-                "Progressive Cars popular loading failed:",
-                kind,
-                error
-            );
-
-            void continueStablePopularVehicleLoading(
-                kind,
-                candidates
-            );
-
-            void enrichVehicleCategoryWithSupplementalSources(
-                kind
-            );
-
+    } finally {
+        if (refreshButton) {
+            refreshButton.disabled = false;
+            refreshButton.classList.remove("is-loading");
         }
-    );
+    }
 }
+
 
 function stateHasMorePopularVehicleCandidates(
     kind
@@ -7503,6 +7110,13 @@ function createVehicleCard(
 
     card.dataset.imageState =
         "pending";
+
+    /* Popular category cards participate in image-priority ordering.
+     * Search results keep their normal search ordering. */
+    card.dataset.popularStableCard =
+        currentVehicleMode === "popular"
+            ? "true"
+            : "false";
 
 
     const info =
