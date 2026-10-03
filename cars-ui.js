@@ -596,6 +596,22 @@ function getPopularBackgroundTargetCount(
             Number(candidatesLength) || 0
         );
 
+    /*
+     * The unified All Vehicles view is capped at 600 PUBLIC cards,
+     * but it must be allowed to keep validating candidates until it
+     * can fill that public limit. The old 100-card background target
+     * silently stopped the unified list after a small fraction of the
+     * connected dataset.
+     *
+     * Category-specific views keep their existing 100-card target.
+     */
+    if (kind === VEHICLE_ALL_KIND) {
+        return Math.min(
+            MAX_UNIFIED_VEHICLES,
+            available
+        );
+    }
+
     return Math.min(
         MAX_VEHICLES_PER_CATEGORY,
         available,
@@ -7768,7 +7784,24 @@ async function renderPopularCatalogImmediately(kind, showAll = false) {
         seen.add(key);
         unique.push(vehicle);
 
-        if (unique.length >= MAX_UNIFIED_VEHICLES) {
+        /*
+         * The source catalog may contain more than the 600 public cards.
+         * Keep a larger quality-gated candidate pool so vehicles whose
+         * Wikipedia/image/comparison checks fail can be replaced by the
+         * next valid model instead of shrinking the final list.
+         *
+         * The public All Vehicles limit remains 600; this is only the
+         * pre-render validation pool.
+         */
+        const candidatePoolLimit =
+            kind === VEHICLE_ALL_KIND
+                ? Math.max(
+                    MAX_UNIFIED_VEHICLES,
+                    1200
+                )
+                : MAX_UNIFIED_VEHICLES;
+
+        if (unique.length >= candidatePoolLimit) {
             break;
         }
     }
@@ -7799,7 +7832,10 @@ async function renderPopularCatalogImmediately(kind, showAll = false) {
 
     const desiredCount =
         showAll
-            ? unique.length
+            ? Math.min(
+                MAX_UNIFIED_VEHICLES,
+                unique.length
+            )
             : initialCount;
 
     /*
@@ -7811,7 +7847,8 @@ async function renderPopularCatalogImmediately(kind, showAll = false) {
         showAll
             ? Math.max(
                 getPopularMaxNewChecks(kind),
-                desiredCount
+                desiredCount,
+                unique.length
             )
             : Math.max(
                 getPopularInitialCheckLimit(kind),
@@ -8696,21 +8733,49 @@ function createVehicleCard(
             ` • ${escapeVehicleHtml(yearText)}`;
     }
 
-    const visual =
-        document.createElement(
-            "div"
+    /*
+     * Popular cards are quality-gated before they reach the DOM. Their
+     * full details response is therefore already cached here, including
+     * the image that passed the backend's identity/licensing checks.
+     * Render that verified image directly instead of showing an emoji
+     * placeholder and trying to hydrate it later.
+     */
+    const cachedDetails =
+        vehicleDetailsCache.get(
+            getVehicleDetailsCacheKey(
+                vehicle.make,
+                vehicle.model,
+                vehicle.sourceKind || kind,
+                "full"
+            )
         );
 
-    visual.className =
-        "car-card-emoji";
+    const verifiedImage =
+        currentVehicleMode === "popular" &&
+        hasPopularVehicleImageRelevance(
+            cachedDetails,
+            vehicle
+        )
+            ? String(cachedDetails.image.url)
+            : "";
 
-    visual.setAttribute(
-        "aria-hidden",
-        "true"
-    );
+    const visual =
+        verifiedImage
+            ? createVehicleImageElement(
+                vehicle,
+                kind
+            )
+            : createVehicleImagePlaceholder(
+                vehicle,
+                kind,
+                "Verified image loading..."
+            );
 
-    visual.textContent =
-        info.icon;
+    if (verifiedImage) {
+        visual.src = verifiedImage;
+        visual.dataset.verifiedImage = "true";
+        visual.style.opacity = "1";
+    }
 
     const textContainer =
         document.createElement(
@@ -8754,16 +8819,6 @@ function createVehicleCard(
 
     card.dataset.vehicleModel =
         vehicle.model || "";
-
-    const cachedDetails =
-        vehicleDetailsCache.get(
-            getVehicleDetailsCacheKey(
-                vehicle.make,
-                vehicle.model,
-                vehicle.sourceKind || kind,
-                "full"
-            )
-        );
 
     if (cachedDetails) {
         applyUnifiedVehicleCardDetailsState(
