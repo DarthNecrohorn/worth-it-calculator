@@ -6109,7 +6109,7 @@ function preloadPopularVehicleCardInformation(
     const cards =
         Array.from(
             grid.querySelectorAll(
-                '.car-card[data-popularStable-card="true"], .car-card[data-popularStableCard="true"], .car-card'
+                '.car-card[data-popular-stable-card="true"], .car-card'
             )
         );
 
@@ -7736,8 +7736,7 @@ async function openVehicleDetailsPanel(
             details,
             vehicle,
             detailKind
-        ) &&
-        details.comparisonAvailable !== false;
+        );
 
     if (!hasReliableData) {
 
@@ -7745,12 +7744,22 @@ async function openVehicleDetailsPanel(
             ...details,
             wikipedia: {
                 ...(details.wikipedia || {}),
-                title: title,
-                description: "No Information",
-                url: ""
+                title:
+                    details.wikipedia?.title ||
+                    title,
+                description:
+                    details.wikipedia?.description ||
+                    "No Information",
+                url:
+                    details.wikipedia?.url ||
+                    ""
             },
-            specifications: {},
-            image: null,
+            specifications:
+                details.specifications || {},
+            image:
+                hasPopularVehicleImageRelevance(details, vehicle)
+                    ? details.image
+                    : null,
             comparisonAvailable: false
         };
 
@@ -7781,7 +7790,7 @@ async function openVehicleDetailsPanel(
         safeDetails,
         vehicle,
         kind,
-        true
+        safeDetails.comparisonAvailable !== false
     );
 
 }
