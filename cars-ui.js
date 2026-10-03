@@ -8285,7 +8285,7 @@ async function renderPopularCatalogImmediately(kind, showAll = false) {
 
     const backgroundWarmupActive =
         kind === VEHICLE_ALL_KIND &&
-        Boolean(unifiedVehicleBackgroundWarmupPromise);
+        unifiedVehicleBackgroundWarmupActive;
 
     if (showAll) {
         /*
@@ -14711,6 +14711,7 @@ const UNIFIED_BACKGROUND_WARMUP_MAX_PER_SESSION =
     );
 
 let unifiedVehicleBackgroundWarmupPromise = null;
+let unifiedVehicleBackgroundWarmupActive = false;
 
 function buildUnifiedBackgroundWarmupCandidates(
     catalog
@@ -14843,6 +14844,8 @@ async function startUnifiedVehicleBackgroundWarmup() {
     if (unifiedVehicleBackgroundWarmupPromise) {
         return unifiedVehicleBackgroundWarmupPromise;
     }
+
+    unifiedVehicleBackgroundWarmupActive = true;
 
     unifiedVehicleBackgroundWarmupPromise =
         (async () => {
@@ -15541,6 +15544,10 @@ async function startUnifiedVehicleBackgroundWarmup() {
                     error
                 );
 
+            } finally {
+
+                unifiedVehicleBackgroundWarmupActive = false;
+
             }
 
         })();
@@ -15916,6 +15923,9 @@ document.addEventListener(
 
                     unifiedVehicleBackgroundWarmupPromise =
                         null;
+
+                    unifiedVehicleBackgroundWarmupActive =
+                        false;
 
                     window.setTimeout(
                         () => {
