@@ -5406,7 +5406,10 @@ async function continueStablePopularVehicleLoading(
         await ensurePopularVehicleQuality(
             kind,
             candidates,
-            MAX_VEHICLES_PER_CATEGORY,
+            getPopularBackgroundTargetCount(
+                kind,
+                candidates?.length
+            ),
             getPopularMaxNewChecks(kind),
             async validVehicles => {
 
