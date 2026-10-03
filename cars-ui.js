@@ -10650,7 +10650,7 @@ function renderVehicleDetailsPanel(
 
             <div class="worth-it-vehicle-detail-heading">
                 <div class="worth-it-vehicle-detail-kind">
-                    ${info.icon} ${escapeVehicleHtml(info.singular)}
+                    ${escapeVehicleHtml(info.singular)}
                 </div>
 
                 <h2 id="worthItVehicleModalTitle">
