@@ -8902,6 +8902,59 @@ function renderVehicleCompareBar() {
 }
 
 
+function scrollToVehicleCompareSection() {
+    const panel =
+        document.getElementById("carsComparePanel");
+
+    if (!panel) return;
+
+    const rect =
+        panel.getBoundingClientRect();
+
+    window.scrollTo({
+        top: Math.max(
+            0,
+            window.scrollY + rect.top - 24
+        ),
+        behavior: "smooth"
+    });
+}
+
+function scrollToCarsSectionTop() {
+    const carsSection =
+        document.getElementById("carsSection");
+
+    if (!carsSection) return;
+
+    const rect =
+        carsSection.getBoundingClientRect();
+
+    window.scrollTo({
+        top: Math.max(
+            0,
+            window.scrollY + rect.top - 18
+        ),
+        behavior: "smooth"
+    });
+}
+
+function bindVehicleCompareBackButton(panel) {
+    if (!panel) return;
+
+    panel.querySelectorAll(
+        "[data-compare-go-back-up]"
+    ).forEach(button => {
+        button.addEventListener(
+            "click",
+            event => {
+                event.preventDefault();
+                event.stopPropagation();
+                scrollToCarsSectionTop();
+            }
+        );
+    });
+}
+
 function renderVehicleCompareSection() {
 
     const panel =
@@ -8945,6 +8998,16 @@ function renderVehicleCompareSection() {
                     </small>
                 </div>
             </div>
+
+            <div class="cars-compare-navigation">
+                <button
+                    type="button"
+                    class="cars-compare-back-up"
+                    data-compare-go-back-up
+                >
+                    ↑ Go back up
+                </button>
+            </div>
         `;
 
         const addButton =
@@ -8974,6 +9037,8 @@ function renderVehicleCompareSection() {
             );
 
         }
+
+        bindVehicleCompareBackButton(panel);
 
         return;
     }
@@ -9117,9 +9182,18 @@ function renderVehicleCompareSection() {
                 >
                     ⚖️ Compare vehicles
                 </button>
+                <button
+                    type="button"
+                    class="cars-compare-back-up"
+                    data-compare-go-back-up
+                >
+                    ↑ Go back up
+                </button>
             </div>
         </div>
     `;
+
+    bindVehicleCompareBackButton(panel);
 
     panel.querySelectorAll(
         "[data-compare-live-remove]"
@@ -11104,6 +11178,43 @@ function injectVehicleUiStyles() {
             padding-right: 100px;
         }
 
+        .cars-compare-jump-button,
+        .cars-compare-back-up {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            min-height: 38px;
+            padding: 8px 12px;
+            border: 1px solid rgba(124, 92, 255, 0.35);
+            border-radius: 10px;
+            background: rgba(124, 92, 255, 0.10);
+            color: inherit;
+            font-size: 0.82rem;
+            font-weight: 800;
+            cursor: pointer;
+            transition:
+                background 0.16s ease,
+                border-color 0.16s ease,
+                transform 0.16s ease;
+        }
+
+        .cars-compare-jump-button:hover,
+        .cars-compare-jump-button:focus-visible,
+        .cars-compare-back-up:hover,
+        .cars-compare-back-up:focus-visible {
+            background: rgba(124, 92, 255, 0.18);
+            border-color: rgba(124, 92, 255, 0.58);
+            outline: none;
+            transform: translateY(-1px);
+        }
+
+        .cars-compare-navigation {
+            display: flex;
+            justify-content: center;
+            margin-top: 16px;
+        }
+
         .cars-refresh-button {
             width: 40px;
             height: 40px;
@@ -11575,6 +11686,20 @@ function renderPopularRefreshControls(
 
     const actions = ensureCarsResultsHeaderActions(header);
     if (!actions) return;
+
+    const compareButton = document.createElement("button");
+    compareButton.type = "button";
+    compareButton.className = "cars-compare-jump-button";
+    compareButton.setAttribute("aria-label", "Go to car comparison");
+    compareButton.title = "Go down to Compare Cars";
+    compareButton.textContent = "⚖️ Compare Cars ↓";
+    actions.appendChild(compareButton);
+
+    compareButton.addEventListener("click", event => {
+        event.preventDefault();
+        event.stopPropagation();
+        scrollToVehicleCompareSection();
+    });
 
     const refreshButton = document.createElement("button");
     refreshButton.type = "button";
