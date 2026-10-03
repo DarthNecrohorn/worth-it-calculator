@@ -171,6 +171,7 @@ const VEHICLE_ALL_KIND = "all";
 const MAX_UNIFIED_VEHICLES = 1000;
 const VEHICLE_FAVORITES_STORAGE_KEY = "worth-it-vehicle-favorites-v1";
 const VEHICLE_RECENT_STORAGE_KEY = "worth-it-vehicle-recent-v1";
+const VEHICLE_ACCOUNT_METADATA_KEY = "worth_it_vehicle_lists_v1";
 const VEHICLE_RECENT_LIMIT = 8;
 const VEHICLE_SEARCH_DEBOUNCE_MS = 120;
 
@@ -8253,78 +8254,266 @@ function stateHasMorePopularVehicleCandidates(
  * ============================================================ */
 
 function getVehicleStorageKey(vehicle, kind = currentVehicleKind) {
-    return [normalizeVehicleText(vehicle?.sourceKind || vehicle?.kind || kind || ""), normalizeVehicleText(vehicle?.make || ""), normalizeVehicleText(vehicle?.model || "")].filter(Boolean).join("|");
+    return [
+        normalizeVehicleText(vehicle?.sourceKind || vehicle?.kind || kind || ""),
+        normalizeVehicleText(vehicle?.make || ""),
+        normalizeVehicleText(vehicle?.model || "")
+    ].filter(Boolean).join("|");
 }
+
 function readVehiclePersonalList(key) {
-    try { const parsed = JSON.parse(localStorage.getItem(key) || "[]"); return Array.isArray(parsed) ? parsed : []; } catch { return []; }
+    try {
+        const parsed = JSON.parse(localStorage.getItem(key) || "[]");
+        return Array.isArray(parsed) ? parsed : [];
+    } catch {
+        return [];
+    }
 }
+
 function writeVehiclePersonalList(key, list) {
     try { localStorage.setItem(key, JSON.stringify(list)); } catch {}
 }
-function getVehicleFavorites() { return readVehiclePersonalList(VEHICLE_FAVORITES_STORAGE_KEY); }
+
+function getVehicleFavorites() {
+    return readVehiclePersonalList(VEHICLE_FAVORITES_STORAGE_KEY);
+}
+
+function getVehicleRecent() {
+    return readVehiclePersonalList(VEHICLE_RECENT_STORAGE_KEY);
+}
+
+function getVehicleAccountLists() {
+    try {
+        const metadata =
+            window.__worthItVehicleAccountLists ||
+            window.supabaseClient?.auth?.currentUser?.user_metadata?.[VEHICLE_ACCOUNT_METADATA_KEY];
+
+        return {
+            favorites: Array.isArray(metadata?.favorites) ? metadata.favorites : null,
+            recent: Array.isArray(metadata?.recent) ? metadata.recent : null
+        };
+    } catch {
+        return { favorites: null, recent: null };
+    }
+}
+
+let vehicleAccountListsSyncPromise = null;
+
+async function loadVehicleAccountLists() {
+    try {
+        if (!window.supabaseClient?.auth) return;
+
+        const { data } = await window.supabaseClient.auth.getSession();
+        const metadata = data?.session?.user?.user_metadata?.[VEHICLE_ACCOUNT_METADATA_KEY];
+
+        if (!metadata || typeof metadata !== "object") return;
+
+        const favorites = Array.isArray(metadata.favorites) ? metadata.favorites : [];
+        const recent = Array.isArray(metadata.recent) ? metadata.recent.slice(0, VEHICLE_RECENT_LIMIT) : [];
+
+        window.__worthItVehicleAccountLists = { favorites, recent };
+        writeVehiclePersonalList(VEHICLE_FAVORITES_STORAGE_KEY, favorites);
+        writeVehiclePersonalList(VEHICLE_RECENT_STORAGE_KEY, recent);
+        renderVehiclePersonalPanels();
+        refreshVehicleFavoriteControls();
+    } catch {
+        /* Local fallback remains available if the account cannot be read. */
+    }
+}
+
+async function saveVehicleAccountLists(favorites, recent) {
+    try {
+        if (!window.supabaseClient?.auth) return;
+
+        const { data: sessionData } = await window.supabaseClient.auth.getSession();
+        if (!sessionData?.session?.user) return;
+
+        const payload = {
+            favorites: Array.isArray(favorites) ? favorites : [],
+            recent: Array.isArray(recent) ? recent.slice(0, VEHICLE_RECENT_LIMIT) : []
+        };
+
+        window.__worthItVehicleAccountLists = payload;
+
+        vehicleAccountListsSyncPromise =
+            (vehicleAccountListsSyncPromise || Promise.resolve())
+                .catch(() => {})
+                .then(async () => {
+                    await window.supabaseClient.auth.updateUser({
+                        data: {
+                            [VEHICLE_ACCOUNT_METADATA_KEY]: payload
+                        }
+                    });
+                });
+
+        await vehicleAccountListsSyncPromise;
+    } catch {
+        /* Do not break the vehicle UI if account persistence is temporarily unavailable. */
+    }
+}
+
 function isVehicleFavorite(vehicle, kind = currentVehicleKind) {
     const key = getVehicleStorageKey(vehicle, kind);
     return getVehicleFavorites().some(item => item?.key === key);
 }
+
 function toggleVehicleFavorite(vehicle, kind = currentVehicleKind) {
     const key = getVehicleStorageKey(vehicle, kind);
     const favorites = getVehicleFavorites();
     const index = favorites.findIndex(item => item?.key === key);
-    if (index >= 0) favorites.splice(index, 1);
-    else favorites.unshift({ key, make: vehicle?.make || "", model: vehicle?.model || "", kind: vehicle?.sourceKind || vehicle?.kind || kind || "", bodyType: vehicle?.bodyType || "", yearStart: vehicle?.yearStart ?? "", yearEnd: vehicle?.yearEnd ?? "" });
-    writeVehiclePersonalList(VEHICLE_FAVORITES_STORAGE_KEY, favorites.slice(0, 100));
+
+    if (index >= 0) {
+        favorites.splice(index, 1);
+    } else {
+        favorites.unshift({
+            key,
+            make: vehicle?.make || "",
+            model: vehicle?.model || "",
+            kind: vehicle?.sourceKind || vehicle?.kind || kind || "",
+            bodyType: vehicle?.bodyType || "",
+            yearStart: vehicle?.yearStart ?? "",
+            yearEnd: vehicle?.yearEnd ?? ""
+        });
+    }
+
+    const recent = getVehicleRecent();
+    writeVehiclePersonalList(VEHICLE_FAVORITES_STORAGE_KEY, favorites);
     renderVehiclePersonalPanels();
     refreshVehicleFavoriteControls();
+    void saveVehicleAccountLists(favorites, recent);
 }
+
 function recordRecentlyViewedVehicle(vehicle, kind = currentVehicleKind) {
     const key = getVehicleStorageKey(vehicle, kind);
     if (!key) return;
-    const recent = readVehiclePersonalList(VEHICLE_RECENT_STORAGE_KEY).filter(item => item?.key !== key);
-    recent.unshift({ key, make: vehicle?.make || "", model: vehicle?.model || "", kind: vehicle?.sourceKind || vehicle?.kind || kind || "", bodyType: vehicle?.bodyType || "", yearStart: vehicle?.yearStart ?? "", yearEnd: vehicle?.yearEnd ?? "" });
-    writeVehiclePersonalList(VEHICLE_RECENT_STORAGE_KEY, recent.slice(0, VEHICLE_RECENT_LIMIT));
+
+    const recent = getVehicleRecent().filter(item => item?.key !== key);
+
+    recent.unshift({
+        key,
+        make: vehicle?.make || "",
+        model: vehicle?.model || "",
+        kind: vehicle?.sourceKind || vehicle?.kind || kind || "",
+        bodyType: vehicle?.bodyType || "",
+        yearStart: vehicle?.yearStart ?? "",
+        yearEnd: vehicle?.yearEnd ?? ""
+    });
+
+    const trimmedRecent = recent.slice(0, VEHICLE_RECENT_LIMIT);
+    writeVehiclePersonalList(VEHICLE_RECENT_STORAGE_KEY, trimmedRecent);
     renderVehiclePersonalPanels();
+    void saveVehicleAccountLists(getVehicleFavorites(), trimmedRecent);
 }
+
 function ensureVehiclePersonalPanels() {
     const grid = document.getElementById("popularCarsGrid");
     if (!grid || document.getElementById("carsPersonalPanels")) return;
+
     const wrapper = document.createElement("div");
     wrapper.id = "carsPersonalPanels";
     wrapper.className = "cars-personal-panels";
     wrapper.dataset.activeTab = "recent";
-    wrapper.innerHTML = '<div class="cars-personal-toolbar"><button type="button" class="cars-personal-tab is-active" data-personal-tab="recent">Recently viewed</button><button type="button" class="cars-personal-tab" data-personal-tab="favorites">Favorites</button></div><div class="cars-personal-content" id="carsPersonalContent"></div>';
+    wrapper.innerHTML =
+        '<div class="cars-personal-toolbar">' +
+        '<button type="button" class="cars-personal-tab is-active" data-personal-tab="recent">Recently viewed</button>' +
+        '<button type="button" class="cars-personal-tab" data-personal-tab="favorites">Favorites</button>' +
+        '</div>' +
+        '<div class="cars-personal-content" id="carsPersonalContent"></div>';
+
     grid.parentNode.insertBefore(wrapper, grid);
-    wrapper.querySelectorAll("[data-personal-tab]").forEach(button => button.addEventListener("click", () => {
-        wrapper.querySelectorAll("[data-personal-tab]").forEach(item => item.classList.toggle("is-active", item === button));
-        wrapper.dataset.activeTab = button.dataset.personalTab;
-        renderVehiclePersonalPanels();
-    }));
+
+    wrapper.querySelectorAll("[data-personal-tab]").forEach(button =>
+        button.addEventListener("click", () => {
+            wrapper.querySelectorAll("[data-personal-tab]").forEach(item =>
+                item.classList.toggle("is-active", item === button)
+            );
+            wrapper.dataset.activeTab = button.dataset.personalTab;
+            renderVehiclePersonalPanels();
+        })
+    );
+
+    renderVehiclePersonalPanels();
 }
+
 function renderVehiclePersonalPanels() {
     const wrapper = document.getElementById("carsPersonalPanels");
     const content = document.getElementById("carsPersonalContent");
     if (!wrapper || !content) return;
+
     const tab = wrapper.dataset.activeTab || "recent";
-    const list = tab === "favorites" ? getVehicleFavorites() : readVehiclePersonalList(VEHICLE_RECENT_STORAGE_KEY);
-    if (!list.length) { content.innerHTML = '<div class="cars-personal-empty"><span>' + (tab === "favorites" ? "♡" : "↺") + '</span><div><strong>' + (tab === "favorites" ? "No favorite vehicles yet" : "No recently viewed vehicles yet") + '</strong><p>' + (tab === "favorites" ? "Open a vehicle and save it to Favorites." : "Vehicles you open will appear here for quick access.") + '</p></div></div>'; return; }
+    const list =
+        tab === "favorites"
+            ? getVehicleFavorites()
+            : getVehicleRecent();
+
+    if (!list.length) {
+        content.innerHTML =
+            '<div class="cars-personal-empty">' +
+            '<span>' + (tab === "favorites" ? "♡" : "↺") + '</span>' +
+            '<div><strong>' +
+            (tab === "favorites" ? "No favorite vehicles yet" : "No recently viewed vehicles yet") +
+            '</strong><p>' +
+            (tab === "favorites"
+                ? "Open a vehicle and save it to Favorites."
+                : "Vehicles you open will appear here for quick access.") +
+            '</p></div></div>';
+        return;
+    }
+
     content.innerHTML = list.map(item => {
         const label = (item.make + " " + item.model).trim();
-        const meta = [item.bodyType, item.yearStart && item.yearEnd ? item.yearStart + "–" + item.yearEnd : item.yearStart || item.yearEnd].filter(Boolean).join(" • ");
-        return '<button type="button" class="cars-personal-item" data-personal-key="' + escapeVehicleHtml(item.key) + '"><span class="cars-personal-item-icon">' + (tab === "favorites" ? "♥" : "↺") + '</span><span class="cars-personal-item-copy"><strong>' + escapeVehicleHtml(label) + '</strong><small>' + escapeVehicleHtml(meta || "Vehicle") + '</small></span><span class="cars-personal-item-action">Open</span></button>';
+        const meta = [
+            item.bodyType,
+            item.yearStart && item.yearEnd
+                ? item.yearStart + "–" + item.yearEnd
+                : item.yearStart || item.yearEnd
+        ].filter(Boolean).join(" • ");
+
+        return '<button type="button" class="cars-personal-item" data-personal-key="' +
+            escapeVehicleHtml(item.key) +
+            '">' +
+            '<span class="cars-personal-item-icon">' + (tab === "favorites" ? "♥" : "↺") + '</span>' +
+            '<span class="cars-personal-item-copy"><strong>' +
+            escapeVehicleHtml(label) +
+            '</strong><small>' +
+            escapeVehicleHtml(meta || "Vehicle") +
+            '</small></span>' +
+            '<span class="cars-personal-item-action">Open</span></button>';
     }).join("");
-    content.querySelectorAll(".cars-personal-item").forEach(button => button.addEventListener("click", () => {
-        const item = list.find(entry => entry?.key === button.dataset.personalKey);
-        if (!item) return;
-        openVehicleDetailsPanel({ make:item.make, model:item.model, sourceKind:item.kind, kind:item.kind, bodyType:item.bodyType, yearStart:item.yearStart || null, yearEnd:item.yearEnd || null }, item.kind || currentVehicleKind);
-    }));
+
+    content.querySelectorAll(".cars-personal-item").forEach(button =>
+        button.addEventListener("click", () => {
+            const item = list.find(entry => entry?.key === button.dataset.personalKey);
+            if (!item) return;
+
+            openVehicleDetailsPanel(
+                {
+                    make: item.make,
+                    model: item.model,
+                    sourceKind: item.kind,
+                    kind: item.kind,
+                    bodyType: item.bodyType,
+                    yearStart: item.yearStart || null,
+                    yearEnd: item.yearEnd || null
+                },
+                item.kind || currentVehicleKind
+            );
+        })
+    );
 }
+
 function refreshVehicleFavoriteControls() {
     document.querySelectorAll("[data-vehicle-favorite]").forEach(control => {
         const vehicle = control._worthItVehicle;
         if (!vehicle) return;
+
         const favorite = isVehicleFavorite(vehicle, control._worthItVehicleKind);
         control.textContent = favorite ? "♥" : "♡";
         control.classList.toggle("is-favorite", favorite);
-        control.setAttribute("aria-label", favorite ? "Remove from favorites" : "Add to favorites");
+        control.setAttribute(
+            "aria-label",
+            favorite ? "Remove from favorites" : "Add to favorites"
+        );
         control.title = favorite ? "Remove from favorites" : "Add to favorites";
     });
 }
@@ -12989,11 +13178,7 @@ function ensureCarsResultsHeaderActions(
 }
 
 
-function renderPopularRefreshControls(
-    header,
-    kind
-) {
-
+function renderPopularRefreshControls(header, kind) {
     if (!header) return;
 
     const actions = ensureCarsResultsHeaderActions(header);
@@ -13011,64 +13196,6 @@ function renderPopularRefreshControls(
         event.preventDefault();
         event.stopPropagation();
         scrollToVehicleCompareSection();
-    });
-
-    const refreshButton = document.createElement("button");
-    refreshButton.type = "button";
-    refreshButton.className = "cars-refresh-button";
-    refreshButton.setAttribute("aria-label", "Refresh popular vehicles");
-    refreshButton.title = "Refresh popular vehicles";
-    refreshButton.textContent = "↻";
-
-    const infoWrap = document.createElement("span");
-    infoWrap.className = "cars-refresh-info-wrap";
-
-    const infoButton = document.createElement("button");
-    infoButton.type = "button";
-    infoButton.className = "cars-popularity-info-button cars-refresh-info-button";
-    infoButton.setAttribute("aria-label", "Refresh information");
-    infoButton.setAttribute("aria-expanded", "false");
-    infoButton.setAttribute("aria-controls", "carsRefreshTooltip");
-    infoButton.title = "What does Refresh do?";
-    infoButton.textContent = "ⓘ";
-
-    const tooltip = document.createElement("span");
-    tooltip.id = "carsRefreshTooltip";
-    tooltip.className = "cars-refresh-tooltip";
-    tooltip.setAttribute("role", "tooltip");
-    tooltip.hidden = true;
-    tooltip.innerHTML =
-        "<strong>Refresh</strong>" +
-        "<span>Refreshes the currently selected vehicle category. " +
-        "The first 8 cards are shown as soon as reliable information " +
-        "is available. Images load separately and never block the cards, " +
-        "and existing cached information is reused when possible.</span>";
-
-    infoWrap.appendChild(infoButton);
-    infoWrap.appendChild(tooltip);
-    actions.appendChild(refreshButton);
-    actions.appendChild(infoWrap);
-
-    infoButton.addEventListener("click", event => {
-        event.preventDefault();
-        event.stopPropagation();
-
-        const shouldOpen = tooltip.hidden;
-        tooltip.hidden = !shouldOpen;
-        infoButton.setAttribute("aria-expanded", shouldOpen ? "true" : "false");
-        infoWrap.classList.toggle("is-open", shouldOpen);
-    });
-
-    refreshButton.addEventListener("click", event => {
-        event.preventDefault();
-        event.stopPropagation();
-
-        if (refreshButton.disabled) return;
-
-        void refreshCurrentVehicleCategory(
-            currentVehicleKind,
-            refreshButton
-        );
     });
 }
 
@@ -13861,6 +13988,7 @@ async function openCars() {
 
         ensureVehiclePersonalPanels();
         renderVehiclePersonalPanels();
+        void loadVehicleAccountLists();
 
     currentVehicleKind = VEHICLE_ALL_KIND;
     currentVehicleCatalog = [];
