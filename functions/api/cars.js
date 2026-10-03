@@ -5788,7 +5788,8 @@ async function handleDetails(
                 kind
             ),
             200,
-            NEGATIVE_WIKIPEDIA_CACHE_TTL25232
+            NEGATIVE_WIKIPEDIA_CACHE_TTL
+        );
     }
 
     /* 3. Load article summary/image. */
@@ -5820,7 +5821,8 @@ async function handleDetails(
                 kind
             ),
             200,
-            NEGATIVE_WIKIPEDIA_CACHE_TTL129252
+            NEGATIVE_WIKIPEDIA_CACHE_TTL
+        );
     }
 
     /*
