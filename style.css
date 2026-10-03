@@ -14136,3 +14136,216 @@ html[data-ui-scale="xl"] .water-levels-detail-card{
         margin-left:auto;
     }
 }
+
+
+/* ============================================================
+ * Vehicles — search/personal lists/details enhancements
+ * ============================================================ */
+
+.cars-personal-panels {
+    margin: 0 0 18px;
+    padding: 14px;
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    background: var(--surface-soft);
+}
+
+.cars-personal-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.cars-personal-tab {
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding: 8px 13px;
+    background: transparent;
+    color: var(--muted);
+    font: inherit;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.cars-personal-tab.is-active {
+    background: rgba(124,92,255,.12);
+    border-color: rgba(124,92,255,.42);
+    color: var(--text);
+}
+
+.cars-personal-content {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 8px;
+}
+
+.cars-personal-empty {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-height: 70px;
+    padding: 10px;
+    color: var(--muted);
+}
+
+.cars-personal-empty > span {
+    display: grid;
+    place-items: center;
+    width: 38px;
+    height: 38px;
+    border-radius: 11px;
+    background: rgba(124,92,255,.1);
+    font-size: 20px;
+}
+
+.cars-personal-empty strong {
+    display: block;
+    color: var(--text);
+    font-size: 13px;
+}
+
+.cars-personal-empty p {
+    margin: 4px 0 0;
+    font-size: 12px;
+}
+
+.cars-personal-item {
+    display: flex;
+    align-items: center;
+    min-width: 0;
+    gap: 10px;
+    padding: 10px 11px;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: rgba(255,255,255,.02);
+    color: var(--text);
+    text-align: left;
+    cursor: pointer;
+}
+
+.cars-personal-item:hover,
+.cars-personal-item:focus-visible {
+    border-color: rgba(124,92,255,.48);
+    outline: none;
+}
+
+.cars-personal-item-icon {
+    flex: 0 0 auto;
+    font-size: 16px;
+}
+
+.cars-personal-item-copy {
+    display: flex;
+    flex: 1 1 auto;
+    min-width: 0;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.cars-personal-item-copy strong {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 13px;
+}
+
+.cars-personal-item-copy small {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--muted);
+    font-size: 11px;
+}
+
+.cars-personal-item-action {
+    flex: 0 0 auto;
+    color: var(--muted);
+    font-size: 11px;
+    font-weight: 700;
+}
+
+.car-card {
+    position: relative;
+}
+
+.car-card-favorite {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    z-index: 4;
+    display: grid;
+    place-items: center;
+    width: 34px;
+    height: 34px;
+    border: 1px solid var(--border);
+    border-radius: 50%;
+    background: rgba(10,10,18,.78);
+    color: var(--muted);
+    font-size: 18px !important;
+    line-height: 1;
+    cursor: pointer;
+    backdrop-filter: blur(8px);
+}
+
+.car-card-favorite:hover,
+.car-card-favorite:focus-visible,
+.car-card-favorite.is-favorite {
+    border-color: rgba(124,92,255,.55);
+    color: var(--text);
+    outline: none;
+}
+
+.worth-it-vehicle-detail-verification {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 7px;
+    margin: 14px 0 2px;
+}
+
+.worth-it-vehicle-verified-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 5px 8px;
+    border: 1px solid rgba(124,92,255,.35);
+    border-radius: 999px;
+    background: rgba(124,92,255,.08);
+    color: var(--text);
+    font-size: 11px;
+    font-weight: 700;
+}
+
+.worth-it-vehicle-favorite-button {
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 9px 12px;
+    background: var(--surface-soft);
+    color: var(--text);
+    font: inherit;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.worth-it-vehicle-favorite-button:hover,
+.worth-it-vehicle-favorite-button.is-favorite {
+    border-color: rgba(124,92,255,.48);
+    background: rgba(124,92,255,.1);
+}
+
+@media (max-width: 640px) {
+    .cars-personal-content {
+        grid-template-columns: 1fr;
+    }
+
+    .cars-personal-panels {
+        padding: 11px;
+    }
+
+    .car-card-favorite {
+        width: 32px;
+        height: 32px;
+    }
+}
