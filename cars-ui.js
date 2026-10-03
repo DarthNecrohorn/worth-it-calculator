@@ -562,7 +562,7 @@ function refreshVehicleModalNavigationControls() {
         const label =
             direction === "previous"
                 ? "Previous vehicle — A or ←"
-                : "Next vehicle — D or →";
+                : "Next vehicle — S or →";
 
         control.setAttribute(
             "aria-label",
@@ -9849,7 +9849,7 @@ if (!window.__worthItVehicleDetailsNavigationBound) {
                 navigateVehicleModal("previous");
             } else if (
                 key === "arrowright" ||
-                key === "d"
+                key === "s"
             ) {
                 event.preventDefault();
                 navigateVehicleModal("next");
@@ -13387,6 +13387,14 @@ function injectVehicleUiStyles() {
             .worth-it-vehicle-modal-navigation {
                 width: 58px;
                 height: 88px;
+                font-size: 50px;
+            }
+
+            .worth-it-vehicle-navigation-key {
+                font-size: 13px;
+            }
+
+            .worth-it-vehicle-navigation-arrow {
                 font-size: 50px;
             }
 
