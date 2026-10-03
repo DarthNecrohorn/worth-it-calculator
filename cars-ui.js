@@ -14850,6 +14850,19 @@ async function startUnifiedVehicleBackgroundWarmup() {
                 const localMigrationRecords =
                     [];
 
+                const candidateOrder =
+                    new Map(
+                        candidates.map(
+                            (vehicle, index) => [
+                                getPopularVehicleQualityKey(
+                                    vehicle,
+                                    VEHICLE_ALL_KIND
+                                ),
+                                index
+                            ]
+                        )
+                    );
+
                 const reusableStoredVehicles =
                     [];
 
@@ -15030,19 +15043,6 @@ async function startUnifiedVehicleBackgroundWarmup() {
                  * Keep the same balanced order used by the public
                  * Popular/All Vehicles selector.
                  */
-                const candidateOrder =
-                    new Map(
-                        candidates.map(
-                            (vehicle, index) => [
-                                getPopularVehicleQualityKey(
-                                    vehicle,
-                                    VEHICLE_ALL_KIND
-                                ),
-                                index
-                            ]
-                        )
-                    );
-
                 validVehicles.sort(
                     (a, b) =>
                         (
