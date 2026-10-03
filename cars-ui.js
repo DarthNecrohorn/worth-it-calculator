@@ -15007,6 +15007,13 @@ document.addEventListener(
                     unifiedVehicleBackgroundWarmupPromise =
                         null;
 
+                    window.setTimeout(
+                        () => {
+                            void startUnifiedVehicleBackgroundWarmup();
+                        },
+                        0
+                    );
+
                 }
             );
 
