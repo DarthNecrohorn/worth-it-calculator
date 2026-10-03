@@ -13952,6 +13952,15 @@ document.addEventListener("click", event => {
  * ============================================================
  */
 
+const VEHICLE_ACCOUNT_CLOUD_CACHE_MAX =
+    MAX_UNIFIED_VEHICLES;
+
+const VEHICLE_ACCOUNT_CLOUD_CACHE_PAGE_SIZE =
+    250;
+
+const VEHICLE_ACCOUNT_CLOUD_CACHE_BATCH_SIZE =
+    100;
+
 let vehicleAccountCloudSyncPromise =
     Promise.resolve();
 
@@ -14843,31 +14852,65 @@ async function startUnifiedVehicleBackgroundWarmup() {
                 await fetchVehicleDatasetMetadata();
 
                 /*
-                 * Always obtain the current unified catalog in the
-                 * background. The public UI still restores its local
-                 * cache immediately, while this check lets a new dataset
-                 * replace lower-popularity vehicles with newer candidates.
+                 * Start from the account-scoped persistent catalog whenever
+                 * one already exists. This lets detail/image warmup continue
+                 * immediately on returning visits instead of waiting for a
+                 * fresh VehiclesDB download. A fresh dataset check runs in
+                 * parallel and replaces the catalog later when available.
                  */
-                const freshCatalog =
-                    await buildFreshUnifiedVehicleCatalog();
+                const savedCatalog =
+                    await readPersistentVehicleCatalog(
+                        VEHICLE_ALL_KIND
+                    );
 
-                if (!freshCatalog.length) {
+                const freshCatalogPromise =
+                    buildFreshUnifiedVehicleCatalog()
+                        .catch(error => {
+                            console.warn(
+                                "Background fresh unified catalog refresh failed:",
+                                error
+                            );
+                            return [];
+                        });
+
+                let warmupCatalog =
+                    Array.isArray(savedCatalog) &&
+                    savedCatalog.length
+                        ? savedCatalog.slice(
+                            0,
+                            Math.max(
+                                UNIFIED_BACKGROUND_CANDIDATE_POOL_LIMIT,
+                                MAX_UNIFIED_VEHICLES
+                            )
+                        )
+                        : null;
+
+                if (!warmupCatalog?.length) {
+                    warmupCatalog =
+                        await freshCatalogPromise;
+                }
+
+                if (!warmupCatalog?.length) {
                     return;
                 }
 
                 vehicleCatalogCache.set(
                     VEHICLE_ALL_KIND,
-                    freshCatalog
+                    warmupCatalog
                 );
 
                 void writePersistentVehicleCatalog(
                     VEHICLE_ALL_KIND,
-                    freshCatalog
+                    warmupCatalog
                 );
 
+                /*
+                 * The current dataset check continues independently. It is
+                 * used for the account snapshot and monthly model rotation.
+                 */
                 const candidates =
                     buildUnifiedBackgroundWarmupCandidates(
-                        freshCatalog
+                        warmupCatalog
                     );
 
                 if (!candidates.length) {
@@ -14896,6 +14939,21 @@ async function startUnifiedVehicleBackgroundWarmup() {
                                 : []
                         )
                         : [];
+
+                const freshCatalog =
+                    await freshCatalogPromise;
+
+                if (freshCatalog.length) {
+                    vehicleCatalogCache.set(
+                        VEHICLE_ALL_KIND,
+                        freshCatalog
+                    );
+
+                    void writePersistentVehicleCatalog(
+                        VEHICLE_ALL_KIND,
+                        freshCatalog
+                    );
+                }
 
                 /*
                  * Restore the authenticated cloud snapshot first. This is
