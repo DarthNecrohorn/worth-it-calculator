@@ -6336,27 +6336,46 @@ html[data-theme="light"] .currency-card:hover{
     min-width: 0;
     box-sizing: border-box;
     overflow: hidden;
-    background: var(--card);
+    background:
+        linear-gradient(
+            180deg,
+            rgba(17,25,42,.88),
+            rgba(17,25,42,.72)
+        );
     border: 1px solid var(--border);
-    border-radius: var(--radius);
+    border-radius: 22px;
     padding: 24px;
-    box-shadow: var(--shadow);
+    box-shadow:
+        0 18px 55px rgba(0,0,0,.18),
+        inset 0 1px 0 rgba(255,255,255,.035);
 }
 
 .cars-block-header {
-    margin-bottom: 18px;
+    margin-bottom: 20px;
 }
 
 .cars-block-header h3 {
     margin: 0;
-    font-size: 21px;
-    letter-spacing: -.3px;
+    font-size: 22px;
+    letter-spacing: -.45px;
 }
 
 .cars-block-header p {
-    margin: 5px 0 0;
+    margin: 6px 0 0;
     color: var(--muted);
     font-size: 14px;
+}
+
+.cars-results-description-with-info {
+    display: block;
+}
+
+.cars-results-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-top: 14px;
 }
 
 
@@ -6380,39 +6399,145 @@ html[data-theme="light"] .currency-card:hover{
     box-sizing: border-box;
     overflow: hidden;
     flex-direction: column;
-    align-items: flex-start;
+    align-items: stretch;
     text-align: left;
 
-    min-height: 155px;
-    padding: 20px;
+    min-height: 290px;
+    padding: 14px;
 
-    background: rgba(255,255,255,.035);
+    background:
+        linear-gradient(
+            180deg,
+            rgba(255,255,255,.048),
+            rgba(255,255,255,.022)
+        );
     border: 1px solid var(--border);
-    border-radius: 15px;
+    border-radius: 18px;
 
     color: var(--text);
-    transition: .2s;
+    box-shadow:
+        0 12px 35px rgba(0,0,0,.16),
+        inset 0 1px 0 rgba(255,255,255,.04);
+
+    transition:
+        transform .18s ease,
+        border-color .18s ease,
+        box-shadow .18s ease,
+        background .18s ease;
 }
 
 .car-card:hover {
-    transform: translateY(-3px);
-    border-color: rgba(124,92,255,.45);
-    box-shadow: var(--shadow);
+    transform: translateY(-4px);
+    border-color: rgba(124,92,255,.46);
+    background:
+        linear-gradient(
+            180deg,
+            rgba(124,92,255,.055),
+            rgba(255,255,255,.025)
+        );
+    box-shadow:
+        0 18px 48px rgba(0,0,0,.22),
+        0 0 0 1px rgba(124,92,255,.08);
 }
 
-.car-card-icon {
-    font-size: 34px;
-    margin-bottom: 18px;
+.car-card:focus-visible {
+    outline: none;
+    border-color: rgba(124,92,255,.72);
+    box-shadow: var(--focus-ring), 0 18px 48px rgba(0,0,0,.18);
 }
 
 .car-card strong {
-    font-size: 16px;
+    font-size: 17px;
+    line-height: 1.25;
+    letter-spacing: -.2px;
 }
 
 .car-card span {
-    margin-top: 4px;
     color: var(--muted);
     font-size: 13px;
+}
+
+.car-card-title {
+    display: block;
+}
+
+.car-card-meta {
+    display: block;
+    margin-top: 5px;
+}
+
+.car-card-price-row {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    margin-top: 15px;
+    padding: 11px 12px;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: var(--surface-soft);
+}
+
+.car-card-price-label {
+    color: var(--muted2);
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: .45px;
+    text-transform: uppercase;
+}
+
+.car-card-price {
+    color: var(--text);
+    font-size: 15px;
+    white-space: nowrap;
+}
+
+.car-card-price.is-unavailable {
+    color: var(--muted2);
+    font-weight: 600;
+    font-size: 12px;
+}
+
+.car-card-quick-stats {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 7px;
+    margin-top: 11px;
+}
+
+.car-card-quick-stats > span {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 4px;
+    min-width: 0;
+    max-width: 100%;
+    padding: 6px 8px;
+    border: 1px solid var(--border);
+    border-radius: 9px;
+    background: rgba(255,255,255,.025);
+    color: var(--muted);
+    font-size: 11px;
+    line-height: 1.25;
+}
+
+.car-card-quick-stats b {
+    color: var(--text);
+    font-weight: 800;
+}
+
+.car-card-quick-stats .is-unavailable {
+    border-style: dashed;
+    color: var(--muted2);
+}
+
+.car-card-click-hint {
+    display: block;
+    margin-top: auto;
+    padding-top: 13px;
+    color: var(--primary2) !important;
+    font-size: 12px !important;
+    font-weight: 800;
+    letter-spacing: .05px;
 }
 
 
@@ -6528,7 +6653,22 @@ html[data-theme="light"] .cars-category-card {
 }
 
 html[data-theme="light"] .car-card-emoji {
-    background: rgba(15,23,42,.045);
+    background:
+        radial-gradient(
+            circle at 50% 35%,
+            rgba(124,92,255,.09),
+            transparent 58%
+        ),
+        rgba(15,23,42,.045);
+}
+
+html[data-theme="light"] .cars-section-block {
+    background:
+        linear-gradient(
+            180deg,
+            rgba(255,255,255,.96),
+            rgba(248,250,252,.92)
+        );
 }
 
 html[data-theme="light"] .cars-compare-placeholder {
@@ -6569,7 +6709,19 @@ html[data-theme="light"] .cars-compare-placeholder {
     }
 
     .car-card {
-        min-height: 130px;
+        min-height: 270px;
+        padding: 12px;
+    }
+
+    .car-card-price-row {
+        align-items: flex-start;
+        flex-direction: column;
+        gap: 4px;
+    }
+
+    .car-card-emoji {
+        height: 124px;
+        min-height: 124px;
     }
 
 }
@@ -6592,15 +6744,22 @@ html[data-theme="light"] .cars-compare-placeholder {
 
 .car-card-emoji {
     width: 100%;
-    height: 150px;
-    min-height: 150px;
+    height: 132px;
+    min-height: 132px;
     display: flex;
     align-items: center;
     justify-content: center;
     box-sizing: border-box;
-    border-radius: 12px;
-    background: rgba(128,128,128,.08);
-    font-size: 58px;
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    background:
+        radial-gradient(
+            circle at 50% 35%,
+            rgba(124,92,255,.12),
+            transparent 58%
+        ),
+        rgba(128,128,128,.055);
+    font-size: 56px;
     line-height: 1;
     user-select: none;
 }
