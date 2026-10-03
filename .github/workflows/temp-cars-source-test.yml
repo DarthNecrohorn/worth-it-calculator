@@ -18,6 +18,12 @@ jobs:
           node --check functions/api/cars.js
           node --check cars-ui.js
 
+      - name: Cloudflare-style bundle check
+        run: |
+          npm init -y >/dev/null 2>&1
+          npm install --no-save esbuild >/dev/null 2>&1
+          npx esbuild functions/api/cars.js --bundle --format=esm --platform=neutral --outfile=/tmp/cars-bundle.js
+
       - name: Verify secondary sources
         run: |
           node <<'NODE'
