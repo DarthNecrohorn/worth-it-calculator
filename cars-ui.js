@@ -15053,6 +15053,27 @@ async function startUnifiedVehicleBackgroundWarmup() {
                     );
                 }
 
+                /*
+                 * Share the background scanner with the public Popular/All
+                 * Vehicles state. This means Show all can immediately use
+                 * vehicles that were already validated while the user was
+                 * elsewhere on the site instead of starting another scan.
+                 */
+                const warmupQualityState =
+                    getPopularVehicleQualityState(
+                        VEHICLE_ALL_KIND,
+                        candidates
+                    );
+
+                warmupQualityState.validVehicles =
+                    validVehicles.slice();
+
+                warmupQualityState.checkedCount = 0;
+
+                warmupQualityState.nextIndex = 0;
+
+                warmupQualityState.exhausted = false;
+
                 let nextIndex = 0;
 
                 while (
@@ -15090,6 +15111,17 @@ async function startUnifiedVehicleBackgroundWarmup() {
                     if (!batch.length) {
                         continue;
                     }
+
+                    /*
+                     * Keep the shared quality state in lock-step with the
+                     * background scanner so the active All Vehicles view
+                     * can consume results as soon as they are validated.
+                     */
+                    warmupQualityState.nextIndex =
+                        nextIndex;
+
+                    warmupQualityState.checkedCount =
+                        nextIndex;
 
                     const results =
                         await runPopularVehicleQualityBatch(
@@ -15213,6 +15245,59 @@ async function startUnifiedVehicleBackgroundWarmup() {
 
                     }
 
+                    /*
+                     * Publish the newly validated vehicles to the same
+                     * in-memory quality state used by Show all. Never add
+                     * anything to the DOM unless the Cars section is open
+                     * and Show all is active.
+                     */
+                    warmupQualityState.validVehicles =
+                        validVehicles.slice();
+
+                    warmupQualityState.nextIndex =
+                        nextIndex;
+
+                    warmupQualityState.checkedCount =
+                        nextIndex;
+
+                    if (
+                        currentVehicleKind === VEHICLE_ALL_KIND &&
+                        currentVehicleMode === "popular"
+                    ) {
+                        const displayState =
+                            getStablePopularDisplayState(
+                                VEHICLE_ALL_KIND
+                            );
+
+                        if (
+                            displayState?.showAll &&
+                            added
+                        ) {
+                            const grid =
+                                document.getElementById(
+                                    "popularCarsGrid"
+                                );
+
+                            if (
+                                grid &&
+                                !grid.querySelector(
+                                    '.car-card[data-popular-stable-card="true"]'
+                                )
+                            ) {
+                                grid.innerHTML = "";
+                            }
+
+                            appendStablePopularVehicleCards(
+                                VEHICLE_ALL_KIND,
+                                validVehicles,
+                                true
+                            );
+
+                            currentVehicleResults =
+                                validVehicles.slice();
+                        }
+                    }
+
                     await getUnifiedBackgroundWarmupPause();
 
                 }
@@ -15241,6 +15326,25 @@ async function startUnifiedVehicleBackgroundWarmup() {
                             Number.MAX_SAFE_INTEGER
                         )
                 );
+
+                validVehicles =
+                    validVehicles.slice(
+                        0,
+                        MAX_UNIFIED_VEHICLES
+                    );
+
+                warmupQualityState.validVehicles =
+                    validVehicles.slice();
+
+                warmupQualityState.nextIndex =
+                    nextIndex;
+
+                warmupQualityState.checkedCount =
+                    nextIndex;
+
+                warmupQualityState.exhausted =
+                    nextIndex >= candidates.length ||
+                    validVehicles.length >= MAX_UNIFIED_VEHICLES;
 
                 const finalValidVehicles =
                     validVehicles.slice(
