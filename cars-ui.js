@@ -678,7 +678,7 @@ const VEHICLE_PERSISTENT_CATALOG_VERSION =
     "v7";
 
 const VEHICLE_PERSISTENT_POPULAR_VERSION =
-    "v10";
+    "v11";
 
 const VEHICLE_PERSISTENT_CATEGORY_TTL_MS =
     7 * 24 * 60 * 60 * 1000;
@@ -6272,7 +6272,11 @@ async function evaluatePopularVehicleCandidate(
 
     return {
         vehicle,
-        usable: finalUsable
+        usable: finalUsable,
+        details:
+            finalUsable
+                ? details
+                : null
     };
 
 }
@@ -13834,6 +13838,377 @@ document.addEventListener("click", event => {
 
 /*
  * ============================================================
+ * ACCOUNT CLOUD VEHICLE CACHE
+ *
+ * D1 is the authoritative cross-device cache for authenticated
+ * users. Browser Cache Storage remains the fast local layer.
+ * ============================================================
+ */
+
+let vehicleAccountCloudSyncPromise =
+    Promise.resolve();
+
+async function getVehicleAccountAccessToken() {
+    try {
+        if (!window.supabaseClient?.auth) {
+            return null;
+        }
+
+        const { data } =
+            await window.supabaseClient.auth.getSession();
+
+        return (
+            String(
+                data?.session?.access_token || ""
+            ).trim() ||
+            null
+        );
+
+    } catch {
+        return null;
+    }
+}
+
+async function readCloudVehicleAccountCache(
+    datasetVersion
+) {
+
+    const accessToken =
+        await getVehicleAccountAccessToken();
+
+    if (!accessToken || !datasetVersion) {
+        return [];
+    }
+
+    const results = [];
+    let offset = 0;
+
+    try {
+
+        while (
+            results.length <
+            VEHICLE_ACCOUNT_CLOUD_CACHE_MAX
+        ) {
+
+            const limit =
+                Math.min(
+                    VEHICLE_ACCOUNT_CLOUD_CACHE_PAGE_SIZE,
+                    VEHICLE_ACCOUNT_CLOUD_CACHE_MAX -
+                        results.length
+                );
+
+            const response =
+                await fetch(
+                    VEHICLE_API +
+                    "?action=account-cache-get" +
+                    "&dataset_version=" +
+                    encodeURIComponent(datasetVersion) +
+                    "&offset=" +
+                    offset +
+                    "&limit=" +
+                    limit,
+                    {
+                        method: "GET",
+                        headers: {
+                            "Accept":
+                                "application/json",
+                            "Authorization":
+                                "Bearer " + accessToken
+                        },
+                        cache: "no-store"
+                    }
+                );
+
+            if (!response.ok) {
+                return [];
+            }
+
+            const payload =
+                await response.json();
+
+            if (
+                !payload?.success ||
+                payload.datasetVersion !==
+                    datasetVersion ||
+                !Array.isArray(
+                    payload.vehicles
+                )
+            ) {
+                return [];
+            }
+
+            results.push(
+                ...payload.vehicles
+            );
+
+            if (
+                !payload.hasMore ||
+                payload.vehicles.length < limit
+            ) {
+                break;
+            }
+
+            offset +=
+                payload.vehicles.length;
+
+        }
+
+        return results.slice(
+            0,
+            VEHICLE_ACCOUNT_CLOUD_CACHE_MAX
+        );
+
+    } catch (error) {
+
+        console.warn(
+            "Cloud vehicle account cache read skipped:",
+            error
+        );
+
+        return [];
+
+    }
+}
+
+function queueCloudVehicleAccountCacheUpsert(
+    datasetVersion,
+    records
+) {
+
+    if (
+        !datasetVersion ||
+        !Array.isArray(records) ||
+        !records.length
+    ) {
+        return vehicleAccountCloudSyncPromise;
+    }
+
+    const batch =
+        records.slice(
+            0,
+            VEHICLE_ACCOUNT_CLOUD_CACHE_BATCH_SIZE
+        );
+
+    vehicleAccountCloudSyncPromise =
+        vehicleAccountCloudSyncPromise
+            .catch(() => {})
+            .then(async () => {
+
+                const accessToken =
+                    await getVehicleAccountAccessToken();
+
+                if (!accessToken) {
+                    return;
+                }
+
+                const response =
+                    await fetch(
+                        VEHICLE_API +
+                        "?action=account-cache-upsert",
+                        {
+                            method: "POST",
+                            headers: {
+                                "Accept":
+                                    "application/json",
+                                "Content-Type":
+                                    "application/json",
+                                "Authorization":
+                                    "Bearer " + accessToken
+                            },
+                            body:
+                                JSON.stringify({
+                                    datasetVersion,
+                                    records: batch
+                                })
+                        }
+                    );
+
+                if (!response.ok) {
+                    throw new Error(
+                        "Cloud vehicle cache upsert returned " +
+                        response.status
+                    );
+                }
+
+            })
+            .catch(error => {
+
+                console.warn(
+                    "Cloud vehicle account cache upsert skipped:",
+                    error
+                );
+
+            });
+
+    return vehicleAccountCloudSyncPromise;
+}
+
+async function finalizeCloudVehicleAccountCache(
+    datasetVersion
+) {
+
+    if (!datasetVersion) {
+        return;
+    }
+
+    await vehicleAccountCloudSyncPromise;
+
+    const accessToken =
+        await getVehicleAccountAccessToken();
+
+    if (!accessToken) {
+        return;
+    }
+
+    try {
+
+        const response =
+            await fetch(
+                VEHICLE_API +
+                "?action=account-cache-finalize",
+                {
+                    method: "POST",
+                    headers: {
+                        "Accept":
+                            "application/json",
+                        "Content-Type":
+                            "application/json",
+                        "Authorization":
+                            "Bearer " + accessToken
+                    },
+                    body:
+                        JSON.stringify({
+                            datasetVersion
+                        })
+                }
+            );
+
+        if (!response.ok) {
+            throw new Error(
+                "Cloud vehicle cache finalize returned " +
+                response.status
+            );
+        }
+
+    } catch (error) {
+
+        console.warn(
+            "Cloud vehicle account cache finalize skipped:",
+            error
+        );
+
+    }
+}
+
+async function restoreCloudPopularVehicleSnapshot(
+    candidates,
+    datasetVersion
+) {
+
+    if (
+        !Array.isArray(candidates) ||
+        !candidates.length ||
+        !datasetVersion
+    ) {
+        return [];
+    }
+
+    const records =
+        await readCloudVehicleAccountCache(
+            datasetVersion
+        );
+
+    if (!records.length) {
+        return [];
+    }
+
+    const candidateMap =
+        new Map(
+            candidates.map(
+                vehicle => [
+                    getPopularVehicleQualityKey(
+                        vehicle,
+                        VEHICLE_ALL_KIND
+                    ),
+                    vehicle
+                ]
+            )
+        );
+
+    const restored =
+        new Set();
+
+    for (
+        const record of
+        records.sort(
+            (a, b) =>
+                Number(a?.rankIndex || 0) -
+                Number(b?.rankIndex || 0)
+        )
+    ) {
+
+        const key =
+            getPopularVehicleQualityKey(
+                record?.vehicle,
+                VEHICLE_ALL_KIND
+            );
+
+        const candidate =
+            candidateMap.get(key);
+
+        if (
+            !candidate ||
+            restored.has(key)
+        ) {
+            continue;
+        }
+
+        const details =
+            record?.details;
+
+        if (
+            !hasRequiredVehicleCardQuality(
+                details,
+                candidate,
+                VEHICLE_ALL_KIND
+            )
+        ) {
+            continue;
+        }
+
+        vehicleDetailsCache.set(
+            getVehicleDetailsCacheKey(
+                candidate.make,
+                candidate.model,
+                candidate.sourceKind ||
+                    candidate.kind ||
+                    "car",
+                "full"
+            ),
+            details
+        );
+
+        popularVehicleQualityCache.set(
+            key,
+            true
+        );
+
+        restored.add(key);
+    }
+
+    return candidates.filter(
+        vehicle =>
+            restored.has(
+                getPopularVehicleQualityKey(
+                    vehicle,
+                    VEHICLE_ALL_KIND
+                )
+            )
+    );
+}
+
+/*
+ * ============================================================
  * BACKGROUND VEHICLE CATALOG PRELOAD
  * ============================================================
  */
@@ -14195,8 +14570,15 @@ function handleVehicleSearch(
  */
 
 const UNIFIED_BACKGROUND_WARMUP_BATCH_SIZE = 12;
+/*
+ * Scan beyond the public 2000-card limit so failed/missing records can
+ * be replaced by the next valid popular vehicle.
+ */
 const UNIFIED_BACKGROUND_WARMUP_MAX_PER_SESSION =
-    MAX_UNIFIED_VEHICLES;
+    Math.max(
+        MAX_UNIFIED_VEHICLES * 3,
+        6000
+    );
 
 let unifiedVehicleBackgroundWarmupPromise = null;
 
@@ -14380,7 +14762,7 @@ async function startUnifiedVehicleBackgroundWarmup() {
                     storedPayload?.datasetVersion ||
                     null;
 
-                const reusableStoredVehicles =
+                const localReusableStoredVehicles =
                     storedVersion &&
                     vehicleDetailsDatasetVersion &&
                     storedVersion ===
@@ -14393,6 +14775,133 @@ async function startUnifiedVehicleBackgroundWarmup() {
                                 : []
                         )
                         : [];
+
+                /*
+                 * Restore the authenticated cloud snapshot first. This is
+                 * the cross-device source and already contains the full
+                 * validated details response.
+                 */
+                const cloudReusableStoredVehicles =
+                    await restoreCloudPopularVehicleSnapshot(
+                        candidates,
+                        vehicleDetailsDatasetVersion
+                    );
+
+                const reusableStoredKeys =
+                    new Set();
+
+                const reusableStoredVehicles =
+                    [];
+
+                for (
+                    const vehicle
+                    of cloudReusableStoredVehicles
+                ) {
+
+                    const key =
+                        getPopularVehicleQualityKey(
+                            vehicle,
+                            VEHICLE_ALL_KIND
+                        );
+
+                    if (
+                        !reusableStoredKeys.has(key)
+                    ) {
+                        reusableStoredKeys.add(key);
+                        reusableStoredVehicles.push(
+                            vehicle
+                        );
+                    }
+
+                }
+
+                /*
+                 * Local browser cache remains a fallback for records that
+                 * have not reached the cloud yet.
+                 */
+                const localCandidateMap =
+                    new Map(
+                        candidates.map(
+                            vehicle => [
+                                getPopularVehicleQualityKey(
+                                    vehicle,
+                                    VEHICLE_ALL_KIND
+                                ),
+                                vehicle
+                            ]
+                        )
+                    );
+
+                const persistentOwner =
+                    await getVehicleAccountCacheOwner();
+
+                for (
+                    const storedVehicle
+                    of localReusableStoredVehicles
+                ) {
+
+                    const candidate =
+                        localCandidateMap.get(
+                            getPopularVehicleQualityKey(
+                                storedVehicle,
+                                VEHICLE_ALL_KIND
+                            )
+                        );
+
+                    if (!candidate) {
+                        continue;
+                    }
+
+                    const key =
+                        getPopularVehicleQualityKey(
+                            candidate,
+                            VEHICLE_ALL_KIND
+                        );
+
+                    if (
+                        reusableStoredKeys.has(key)
+                    ) {
+                        continue;
+                    }
+
+                    const persistentDetails =
+                        await readPersistentVehicleDetails(
+                            persistentOwner,
+                            candidate.make,
+                            candidate.model,
+                            candidate.sourceKind ||
+                                candidate.kind ||
+                                "car"
+                        );
+
+                    if (
+                        persistentDetails &&
+                        hasRequiredVehicleCardQuality(
+                            persistentDetails,
+                            candidate,
+                            VEHICLE_ALL_KIND
+                        )
+                    ) {
+
+                        vehicleDetailsCache.set(
+                            getVehicleDetailsCacheKey(
+                                candidate.make,
+                                candidate.model,
+                                candidate.sourceKind ||
+                                    candidate.kind ||
+                                    "car",
+                                "full"
+                            ),
+                            persistentDetails
+                        );
+
+                        reusableStoredKeys.add(key);
+                        reusableStoredVehicles.push(
+                            candidate
+                        );
+                    }
+
+                }
 
                 const candidateKeys =
                     new Set(
@@ -14526,6 +15035,7 @@ async function startUnifiedVehicleBackgroundWarmup() {
                         );
 
                     let added = false;
+                    const cloudRecords = [];
 
                     for (const result of results) {
 
@@ -14555,6 +15065,22 @@ async function startUnifiedVehicleBackgroundWarmup() {
                             true
                         );
 
+                        if (
+                            result?.details &&
+                            result?.usable === true
+                        ) {
+
+                            cloudRecords.push({
+                                rankIndex:
+                                    candidateOrder.get(key) ??
+                                    Number.MAX_SAFE_INTEGER,
+                                vehicle,
+                                details:
+                                    result.details
+                            });
+
+                        }
+
                         const cachedDetails =
                             vehicleDetailsCache.get(
                                 getVehicleDetailsCacheKey(
@@ -14576,6 +15102,15 @@ async function startUnifiedVehicleBackgroundWarmup() {
                         }
 
                         added = true;
+                    }
+
+                    if (cloudRecords.length) {
+
+                        queueCloudVehicleAccountCacheUpsert(
+                            vehicleDetailsDatasetVersion,
+                            cloudRecords
+                        );
+
                     }
 
                     if (added) {
@@ -14628,6 +15163,16 @@ async function startUnifiedVehicleBackgroundWarmup() {
                         validVehicles
                     );
                 }
+
+                /*
+                 * Finalize the authenticated cloud snapshot only after
+                 * the current dataset has been scanned or 2000 valid
+                 * vehicles have been collected. Older datasets are then
+                 * removed automatically.
+                 */
+                await finalizeCloudVehicleAccountCache(
+                    vehicleDetailsDatasetVersion
+                );
 
                 /*
                  * If Cars is already open, update its in-memory catalog.
