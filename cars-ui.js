@@ -39,7 +39,7 @@ const VEHICLE_CATALOG_BASE_URL =
 const VEHICLE_DATASET_MANIFEST_URL =
     "https://cdn.jsdelivr.net/gh/vehiclesdb/vehiclesdb@latest/manifest.json";
 
-const VEHICLE_DETAILS_CACHE_VERSION = "v22";
+const VEHICLE_DETAILS_CACHE_VERSION = "v23";
 
 const MAX_VEHICLES_PER_CATEGORY = 300;
 
@@ -577,7 +577,7 @@ function getPopularBackgroundTargetCount(
  * Persistent browser cache version for account-scoped vehicle
  * metadata/images.
  */
-const VEHICLE_PERSISTENT_CACHE_VERSION = "v5";
+const VEHICLE_PERSISTENT_CACHE_VERSION = "v6";
 
 let vehicleAccountCacheOwnerPromise =
     null;
@@ -1460,13 +1460,7 @@ function getVehicleDetailsRequestVersion(
     kind
 ) {
 
-    return (
-        kind === "motorcycle" ||
-        kind === "van" ||
-        kind === "truck"
-    )
-        ? "v21"
-        : VEHICLE_DETAILS_CACHE_VERSION;
+    return VEHICLE_DETAILS_CACHE_VERSION;
 
 }
 
@@ -1798,10 +1792,46 @@ async function fetchVehicleDetails(
                 }
 
 
-                vehicleDetailsCache.set(
-                    cacheKey,
-                    data
-                );
+                const hasWikipediaPage =
+                    Boolean(
+                        String(
+                            data?.wikipedia?.title || ""
+                        ).trim() &&
+                        String(
+                            data?.wikipedia?.url || ""
+                        ).trim() &&
+                        String(
+                            data?.wikipedia?.description || ""
+                        ).trim() &&
+                        !/^no information$/i.test(
+                            String(
+                                data?.wikipedia?.description || ""
+                            ).trim()
+                        )
+                    );
+
+                const hasUsableImage =
+                    Boolean(
+                        String(
+                            data?.image?.url || ""
+                        ).trim()
+                    );
+
+                /*
+                 * Never lock a temporary resolution failure into the
+                 * browser memory cache. Successful article/image results
+                 * remain cached normally.
+                 */
+                if (
+                    !isImageMode ||
+                    hasWikipediaPage ||
+                    hasUsableImage
+                ) {
+                    vehicleDetailsCache.set(
+                        cacheKey,
+                        data
+                    );
+                }
 
                 if (!isFastMode && !isImageMode) {
                     void getVehicleAccountCacheOwner()
@@ -2124,7 +2154,8 @@ function showVehicleImagePlaceholder(
 
 function updateVehicleCardInformationPreview(
     imageElement,
-    details
+    details,
+    catalogVehicle = null
 ) {
 
     const card =
@@ -2165,21 +2196,16 @@ function updateVehicleCardInformationPreview(
         );
     }
 
-    if (!details) {
-
-        preview.textContent =
-            "No Information";
-        preview.removeAttribute("title");
-
-        return;
-
-    }
+    const apiVehicle =
+        details?.vehicle ||
+        catalogVehicle ||
+        {};
 
     const specifications =
         details?.specifications ||
         {};
 
-    const candidates = [
+    const technicalCandidates = [
         ["fuel", specifications.fuel],
         ["power", specifications.horsepower],
         ["engine", specifications.engine],
@@ -2191,8 +2217,8 @@ function updateVehicleCardInformationPreview(
         ["economy", specifications.fuelEconomy]
     ];
 
-    const values =
-        candidates
+    const technicalValues =
+        technicalCandidates
             .filter(([, value]) =>
                 isUsefulVehicleDetailValue(value)
             )
@@ -2201,20 +2227,25 @@ function updateVehicleCardInformationPreview(
                 String(value).trim()
             );
 
+    if (technicalValues.length) {
+        preview.textContent =
+            technicalValues.join(" • ");
+        preview.removeAttribute("title");
+        return;
+    }
+
     const description =
         String(
             details?.wikipedia?.description ||
             ""
         ).trim();
 
-    if (values.length) {
-        preview.textContent =
-            values.join(" • ");
-        preview.removeAttribute("title");
-        return;
-    }
-
-    if (description && !/^no information$/i.test(description)) {
+    if (
+        description &&
+        !/^no information$/i.test(
+            description
+        )
+    ) {
         preview.textContent =
             description.length > 110
                 ? `${description.slice(0, 107).trimEnd()}…`
@@ -2224,11 +2255,65 @@ function updateVehicleCardInformationPreview(
         return;
     }
 
+    /*
+     * Catalog metadata is always available and makes every card useful
+     * even while Wikipedia is loading or temporarily unavailable.
+     */
+    const bodyType =
+        Array.isArray(apiVehicle?.body_types) &&
+        apiVehicle.body_types.length
+            ? apiVehicle.body_types[0]
+            : (
+                apiVehicle?.body_type ||
+                catalogVehicle?.bodyType ||
+                ""
+            );
+
+    const yearStart =
+        apiVehicle?.year_start ??
+        apiVehicle?.yearStart ??
+        catalogVehicle?.yearStart ??
+        "";
+
+    const yearEnd =
+        apiVehicle?.year_end ??
+        apiVehicle?.yearEnd ??
+        catalogVehicle?.yearEnd ??
+        "";
+
+    const yearText =
+        yearStart &&
+        yearEnd &&
+        String(yearStart) !== String(yearEnd)
+            ? `${yearStart}–${yearEnd}`
+            : (
+                yearStart ||
+                yearEnd ||
+                ""
+            );
+
+    const catalogValues = [
+        bodyType,
+        yearText
+    ]
+        .map(value =>
+            String(value || "").trim()
+        )
+        .filter(Boolean);
+
+    if (catalogValues.length) {
+        preview.textContent =
+            catalogValues.join(" • ");
+        preview.removeAttribute("title");
+        return;
+    }
+
     preview.textContent =
-        "No Information";
+        "Information is being checked…";
     preview.removeAttribute("title");
 
 }
+
 
 async function loadVehicleCardImage(
     imageElement,
@@ -2250,10 +2335,12 @@ async function loadVehicleCardImage(
         "false";
 
     const details =
-        await fetchVehicleDetails(
+        await fetchVehicleDetailsWithRetry(
             make,
             model,
             kind,
+            2,
+            350,
             "image"
         );
 
@@ -4087,22 +4174,26 @@ function hasPopularVehicleImageRelevance(
         return false;
     }
 
-    /*
-     * Only accept the Wikimedia/Wikipedia image returned by the API.
-     * This prevents unrelated third-party image URLs from entering the
-     * final validated vehicle list.
-     */
     if (!isAllowedVehicleImageHost(imageUrl)) {
         return false;
     }
 
     /*
-     * For non-car categories, the backend has already validated that
-     * this is the selected Wikimedia image from an identity-matched
-     * Wikipedia vehicle article and that its license permits commercial
-     * use. Do not require the Commons filename to contain the exact
-     * make + model phrase because many legitimate van/bus/motorcycle
-     * images use generic or abbreviated filenames.
+     * The backend verifies the image against the already-resolved
+     * Wikipedia vehicle article or an identity-matched Commons search
+     * result. Trust that explicit verification instead of requiring a
+     * fragile filename convention in the browser.
+     */
+    if (
+        image?.identity_verified === true
+    ) {
+        return true;
+    }
+
+    /*
+     * Backward-compatible fallback for older cached/API responses.
+     * Non-car images were already allowed here because their Wikimedia
+     * article identity was verified server-side.
      */
     const imageKind =
         normalizeVehicleText(
@@ -4131,11 +4222,6 @@ function hasPopularVehicleImageRelevance(
             )
         );
 
-    /*
-     * The direct image URL filename is the primary identity check.
-     * A generic source/article URL is not enough to prove that the image
-     * itself belongs to the requested vehicle.
-     */
     if (
         nonVehicleImageTerms.length > 0
     ) {
@@ -7112,6 +7198,17 @@ function createVehicleCard(
 
     card.appendChild(
         textContainer
+    );
+
+    /*
+     * Show useful catalog information immediately. Wikipedia data will
+     * replace this preview as soon as the lightweight hydration request
+     * succeeds.
+     */
+    updateVehicleCardInformationPreview(
+        image,
+        null,
+        vehicle
     );
 
     /*
