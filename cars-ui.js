@@ -8264,16 +8264,32 @@ async function renderPopularCatalogImmediately(kind, showAll = false) {
      */
     let validVehicles = [];
 
-    const qualityState =
+    let qualityState =
         popularVehicleQualityState.get(kind);
 
-    if (showAll && qualityState?.loadingPromise) {
+    if (showAll) {
+        /*
+         * Show all is intentionally non-blocking. Use every vehicle that
+         * the background scanner or persistent account cache has already
+         * validated, then let the scanner append the rest as they finish.
+         */
         validVehicles =
-            Array.isArray(qualityState.validVehicles)
+            Array.isArray(qualityState?.validVehicles)
                 ? qualityState.validVehicles.slice()
                 : [];
 
-        if (!validVehicles.length) {
+        const backgroundWarmupActive =
+            kind === VEHICLE_ALL_KIND &&
+            Boolean(unifiedVehicleBackgroundWarmupPromise);
+
+        /*
+         * On a first-ever visit there may be no background result yet.
+         * Do only one small starter batch; never wait for the full 2000.
+         */
+        if (
+            !validVehicles.length &&
+            !backgroundWarmupActive
+        ) {
             await ensurePopularVehicleQuality(
                 kind,
                 unique,
@@ -8293,8 +8309,11 @@ async function renderPopularCatalogImmediately(kind, showAll = false) {
                 )
             );
 
+            qualityState =
+                popularVehicleQualityState.get(kind);
+
             validVehicles =
-                Array.isArray(qualityState.validVehicles)
+                Array.isArray(qualityState?.validVehicles)
                     ? qualityState.validVehicles.slice()
                     : [];
         }
