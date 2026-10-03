@@ -36,7 +36,7 @@ const WIKIDATA_CANDIDATE_LIMIT = 600;
 const WIKIDATA_NONCAR_CANDIDATE_LIMIT = 1000;
 const DBPEDIA_CANDIDATE_LIMIT = 600;
 const DBPEDIA_NONCAR_CANDIDATE_LIMIT = 1000;
-const WIKIPEDIA_CACHE_VERSION = "v29";
+const WIKIPEDIA_CACHE_VERSION = "v30";
 const WIKIMEDIA_IMAGE_LOOKUP_TIMEOUT_MS = 3500;
 
 const WIKIPEDIA_API =
@@ -171,6 +171,109 @@ function simplifyText(value) {
         .normalize("NFKD")
         .replace(/[\u0300-\u036f]/g, "")
         .replace(/[^a-z0-9]/g, "");
+}
+
+/*
+ * Conservative cross-category guard for obvious model-name leaks.
+ * VehiclesDB remains the source of category membership, but a source
+ * record with an obviously contradictory commercial-vehicle name must
+ * not be exposed in the requested public category.
+ */
+const VEHICLE_KIND_NAME_CONTRADICTIONS = {
+    car: [
+        { make: "ford", models: ["f-150","f150","f-250","f250","f-350","f350","ranger"] },
+        { make: "mercedes benz", models: ["sprinter","vito","citan","esprinter","eqv"] },
+        { make: "renault", models: ["master","trafic","kangoo"] },
+        { make: "peugeot", models: ["boxer","expert","partner"] },
+        { make: "citroen", models: ["jumper","jumpy","berlingo"] },
+        { make: "fiat", models: ["ducato","scudo","doblo"] },
+        { make: "volkswagen", models: ["transporter","caravelle","multivan","crafter","caddy"] },
+        { make: "toyota", models: ["hiace","commuter","proace"] }
+    ],
+    van: [
+        { make: "ford", models: ["f-150","f150","f-250","f250","f-350","f350","ranger"] },
+        { make: "toyota", models: ["hilux","tacoma","tundra"] },
+        { make: "mitsubishi", models: ["triton","l200","canter","fighter"] },
+        { make: "nissan", models: ["navara","frontier"] },
+        { make: "volkswagen", models: ["amarok"] },
+        { make: "isuzu", models: ["d-max"] },
+        { make: "mazda", models: ["bt-50","bt50"] },
+        { make: "daf", models: ["xf","xf95","xf105"] },
+        { make: "man", models: ["tgm","tga","tgx","tgs","tgl","l2000"] },
+        { make: "mercedes benz", models: ["actros","atego","arocs","axor"] }
+    ],
+    truck: [
+        { make: "ford", models: ["transit","transit connect","transit custom","tourneo"] },
+        { make: "mercedes benz", models: ["sprinter","vito","citan","esprinter","eqv","v-class"] },
+        { make: "renault", models: ["master","trafic","kangoo"] },
+        { make: "peugeot", models: ["boxer","expert","partner"] },
+        { make: "citroen", models: ["jumper","jumpy","berlingo"] },
+        { make: "fiat", models: ["ducato","scudo","doblo"] },
+        { make: "volkswagen", models: ["transporter","caravelle","multivan","crafter","caddy"] }
+    ],
+    bus: [
+        { make: "ford", models: ["f-150","f150","f-250","f250","f-350","f350","ranger","transit","transit connect","transit custom"] },
+        { make: "toyota", models: ["hilux","tacoma","tundra","hiace","proace"] },
+        { make: "mitsubishi", models: ["triton","l200","canter","fighter"] },
+        { make: "nissan", models: ["navara","frontier","nv200","nv300","nv400"] },
+        { make: "volkswagen", models: ["amarok","transporter","crafter","caddy"] },
+        { make: "isuzu", models: ["d-max","elf","n-series","f-series"] },
+        { make: "mazda", models: ["bt-50"] },
+        { make: "daf", models: ["xf","xf95","xf105","cf","lf","xg"] },
+        { make: "man", models: ["tgm","tga","tgx","tgs","tgl","l2000"] },
+        { make: "iveco", models: ["daily","eurocargo","stralis","s-way","x-way"] },
+        { make: "mercedes benz", models: ["actros","atego","arocs","axor","sprinter","vito","citan"] },
+        { make: "volvo", models: ["fh","fm","fe","fl","fmx"] },
+        { make: "scania", models: ["r-series","s-series","p-series","g-series"] },
+        { make: "renault", models: ["master","trafic","kangoo","t","c","k"] }
+    ]
+};
+
+function normalizeVehicleNameForCategoryCheck(value) {
+    return String(value || "")
+        .trim()
+        .toLowerCase()
+        .replace(/[–—]/g, "-")
+        .replace(/[^a-z0-9]+/g, " ")
+        .replace(/\s+/g, " ")
+        .trim();
+}
+
+function hasObviousVehicleNameCategoryContradiction(vehicle, requestedKind) {
+    const rules = VEHICLE_KIND_NAME_CONTRADICTIONS[requestedKind] || [];
+    const make = normalizeVehicleNameForCategoryCheck(vehicle?.make);
+    const model = normalizeVehicleNameForCategoryCheck(vehicle?.model);
+
+    if (!make || !model) return false;
+
+    return rules.some(rule => {
+        if (make !== normalizeVehicleNameForCategoryCheck(rule.make)) {
+            return false;
+        }
+
+        return rule.models.some(candidate => {
+            const normalizedCandidate =
+                normalizeVehicleNameForCategoryCheck(candidate);
+
+            return model === normalizedCandidate ||
+                model.startsWith(normalizedCandidate + " ") ||
+                model.endsWith(" " + normalizedCandidate);
+        });
+    });
+}
+
+function isWikipediaDisambiguationSignal(title, supportingText = "") {
+    const text =
+        normalizeText(String(title || "") + " " + String(supportingText || ""));
+
+    return (
+        text.includes("disambiguation") ||
+        text.includes("may refer to") ||
+        text.includes("can refer to") ||
+        text.includes("refers to various ") ||
+        text.includes("refers to several ") ||
+        text.includes("is a disambiguation")
+    );
 }
 
 /*
@@ -310,6 +413,21 @@ function getModelsByKind(
                 normalizeKind(model.kind);
 
             if (modelKind !== kind) {
+                continue;
+            }
+
+            const candidate = {
+                make: make.name || "",
+                model: model.name || "",
+                kind: modelKind
+            };
+
+            if (
+                hasObviousVehicleNameCategoryContradiction(
+                    candidate,
+                    kind
+                )
+            ) {
                 continue;
             }
 
@@ -4846,6 +4964,10 @@ async function searchWikipediaVehicle(
             if (
                 hasMake &&
                 hasModel &&
+                !isWikipediaDisambiguationSignal(
+                    exactPage.title,
+                    exactPage.description
+                ) &&
                 !hasStrongWikipediaKindContradiction(
                     exactPage.title,
                     exactPage.description,
@@ -5020,6 +5142,15 @@ async function searchWikipediaVehicle(
                     );
 
             for (const candidate of candidates) {
+
+                if (
+                    isWikipediaDisambiguationSignal(
+                        candidate.title,
+                        candidate.snippet
+                    )
+                ) {
+                    continue;
+                }
 
                 if (
                     !isWikipediaVehicleTitlePlausible(
