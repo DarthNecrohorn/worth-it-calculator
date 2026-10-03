@@ -9754,11 +9754,11 @@ function createVehicleDetailsModal() {
             type="button"
             class="worth-it-vehicle-modal-navigation worth-it-vehicle-modal-navigation-next"
             data-vehicle-navigation="next"
-            aria-label="Next vehicle — S or →"
-            title="Next vehicle — S or →"
+            aria-label="Next vehicle — D or →"
+            title="Next vehicle — D or →"
             hidden
         >
-            <span class="worth-it-vehicle-navigation-key">S</span>
+            <span class="worth-it-vehicle-navigation-key">D</span>
             <span class="worth-it-vehicle-navigation-arrow">❯</span>
             <span class="worth-it-vehicle-navigation-key">→</span>
         </button>
@@ -9849,7 +9849,7 @@ if (!window.__worthItVehicleDetailsNavigationBound) {
                 navigateVehicleModal("previous");
             } else if (
                 key === "arrowright" ||
-                key === "s"
+                key === "d"
             ) {
                 event.preventDefault();
                 navigateVehicleModal("next");
