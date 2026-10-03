@@ -15539,7 +15539,7 @@ async function startUnifiedVehicleBackgroundWarmup() {
                         );
 
                     let added = false;
-                    const cloudRecords = [];
+                    let cloudRecords = [];
 
                     for (const result of results) {
 
@@ -15607,6 +15607,21 @@ async function startUnifiedVehicleBackgroundWarmup() {
 
                         added = true;
                     }
+
+                    /*
+                     * A candidate can be rejected immediately after validation
+                     * if it is below the current Top 1000 cutoff. Never write
+                     * such a replaced-out candidate into the account snapshot.
+                     */
+                    cloudRecords =
+                        cloudRecords.filter(record =>
+                            validKeys.has(
+                                getPopularVehicleQualityKey(
+                                    record.vehicle,
+                                    VEHICLE_ALL_KIND
+                                )
+                            )
+                        );
 
                     if (cloudRecords.length) {
 
