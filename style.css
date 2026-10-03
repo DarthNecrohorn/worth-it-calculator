@@ -14182,11 +14182,15 @@ html[data-ui-scale="xl"] .water-levels-detail-card{
 }
 
 .cars-personal-panels[data-active-tab="favorites"] .cars-personal-content {
+    height: 250px;
+    min-height: 0;
     max-height: 250px;
-    overflow-y: auto;
-    overscroll-behavior: contain;
+    overflow-x: hidden;
+    overflow-y: scroll;
+    overscroll-behavior-y: contain;
     scrollbar-gutter: stable;
-    padding-right: 4px;
+    align-content: start;
+    padding-right: 6px;
 }
 
 .cars-personal-empty {
