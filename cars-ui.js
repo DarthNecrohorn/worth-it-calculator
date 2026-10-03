@@ -3482,10 +3482,13 @@ async function loadVehicleCardImage(
      * Category-specific legacy views may continue using the lighter image
      * request, but the unified view always hydrates from the full response.
      */
-    const requestMode =
-        currentVehicleKind === VEHICLE_ALL_KIND
-            ? "full"
-            : "image";
+    /*
+     * A displayed Popular card must be validated with the complete
+     * details response. The image-only response intentionally has
+     * comparisonAvailable=false, so using it here could incorrectly
+     * evict an otherwise valid card.
+     */
+    const requestMode = "full";
 
     const details =
         await fetchVehicleDetailsWithRetry(
