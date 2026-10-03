@@ -7072,24 +7072,61 @@ async function renderPopularCatalogImmediately(kind, showAll = false) {
     }
 
     currentVehicleResults = unique;
-    currentVehicleShowAll = true;
+
+    /*
+     * Unified Vehicles keeps the same compact landing behavior as the
+     * previous vehicle section: opening Cars shows only the initial rows,
+     * while "Show all vehicles" expands the already-loaded 600-card
+     * catalog. Refresh/open must always return to this collapsed state.
+     */
+    const visibleCount =
+        showAll
+            ? unique.length
+            : getInitialVehicleLimit(unique);
+
+    currentVehicleShowAll = Boolean(showAll);
     grid.innerHTML = "";
 
     const fragment = document.createDocumentFragment();
-    for (const vehicle of unique) {
+
+    unique.forEach((vehicle, index) => {
         const card = createVehicleCard(
             vehicle,
             vehicle.sourceKind || vehicle.kind || kind
         );
+
         card.dataset.popularStableCard = "true";
+
+        if (index >= visibleCount) {
+            card.style.display = "none";
+            card.dataset.vehicleCollapsed = "true";
+        }
+
         fragment.appendChild(card);
-    }
+    });
+
     grid.appendChild(fragment);
+
     reorderPopularVehicleCardsByImageAvailability(kind);
 
-    /* Images/details hydrate through the existing bounded observer and
-       account-scoped persistent detail cache. Do not fan out 600 Wikipedia
-       requests on first paint. */
+    const visibleVehicles =
+        unique.slice(0, visibleCount);
+
+    if (showAll) {
+        renderVehicleCollapseButton(kind);
+    } else {
+        renderVehicleExpandButton(
+            unique,
+            visibleVehicles,
+            kind,
+            unique.length > visibleCount
+        );
+    }
+
+    /* Only hydrate the cards visible on first paint. Deeper cards are
+       handled by the existing bounded observer after expansion/scroll,
+       while persistent account-scoped detail/image cache prevents
+       repeated Wikipedia calls for already-loaded vehicles. */
     void preloadPopularVehicleCardInformation(kind);
 }
 
@@ -7130,7 +7167,7 @@ async function refreshPopularVehicleCategory(
                 vehicleCatalogCache.set(VEHICLE_ALL_KIND, fresh);
                 currentVehicleCatalog = fresh;
                 void writePersistentVehicleCatalog(VEHICLE_ALL_KIND, fresh);
-                await renderPopularCatalogImmediately(VEHICLE_ALL_KIND, true);
+                await renderPopularCatalogImmediately(VEHICLE_ALL_KIND, false);
             }
         } catch (error) {
             console.warn("Unified vehicle refresh failed:", error);
@@ -12621,7 +12658,7 @@ async function openCars() {
 
     currentVehicleCatalog = vehicles.slice(0, MAX_UNIFIED_VEHICLES);
     updateCarsLastUpdated(VEHICLE_ALL_KIND);
-    await loadAndRenderPopularVehicles(VEHICLE_ALL_KIND, true);
+    await loadAndRenderPopularVehicles(VEHICLE_ALL_KIND, false);
     /*
      * Scroll to Cars.
      */
