@@ -1,0 +1,119 @@
+name: Temp Cars Verification
+
+on:
+  push:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Syntax checks
+        run: |
+          node --check cars-ui.js
+          node --check functions/api/cars.js
+      - name: Live Cars API verification
+        env:
+          SITE: https://worth-it-calculator.pages.dev
+        run: |
+          node <<'NODE'
+          const kinds = ['car','motorcycle','van','truck','bus'];
+
+          const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+          async function json(url) {
+            const response = await fetch(url, {headers:{accept:'application/json'}});
+            let data = null;
+            try { data = await response.json(); } catch {}
+            return {status:response.status, data};
+          }
+
+          async function catalog(kind) {
+            const [mr, kr] = await Promise.all([
+              fetch(`https://cdn.jsdelivr.net/gh/vehiclesdb/vehiclesdb@latest/catalog/${kind}/models.json`),
+              fetch(`https://cdn.jsdelivr.net/gh/vehiclesdb/vehiclesdb@latest/catalog/${kind}/makes.json`)
+            ]);
+            if (!mr.ok || !kr.ok) throw new Error(`catalog ${kind} ${mr.status}/${kr.status}`);
+            const [models,makes] = await Promise.all([mr.json(),kr.json()]);
+            const map = new Map((makes||[]).filter(x=>x?.id).map(x=>[String(x.id),x.name||'']));
+            const rows=[];
+            const seen=new Set();
+            for(const x of models||[]){
+              const make=map.get(String(x?.make_id||''))||x?.make_name||x?.make||'';
+              const model=x?.name||'';
+              if(!make||!model) continue;
+              const key=(make+'|'+model).toLowerCase();
+              if(seen.has(key)) continue;
+              seen.add(key);
+              rows.push({
+                make, model,
+                body_type:Array.isArray(x?.body_types)&&x.body_types[0]||null,
+                year_start:x?.year_start??null,
+                year_end:x?.year_end??null
+              });
+            }
+            return rows;
+          }
+
+          async function testOne(kind, v, mode) {
+            const q = new URLSearchParams({
+              action:'details',
+              make:v.make,
+              model:v.model,
+              kind,
+              v:'verification-1'
+            });
+            if(mode==='image') q.set('image_only','1');
+            const r=await json(`${process.env.SITE}/api/cars?${q}`);
+            const d=r.data;
+            return {
+              make:v.make, model:v.model, mode,
+              status:r.status,
+              success:d?.success===true,
+              title:d?.wikipedia?.title||null,
+              descriptionLength:String(d?.wikipedia?.description||'').length,
+              image:Boolean(d?.image?.url),
+              identityVerified:d?.image?.identity_verified===true,
+              specs:Object.keys(d?.specifications||{}).filter(k=>d.specifications[k]!==null&&d.specifications[k]!==''&&d.specifications[k]!=='No Information').length,
+              error:d?.error||null
+            };
+          }
+
+          const report=[];
+          for(const kind of kinds){
+            const all=await catalog(kind);
+            const picks=[];
+            for(let i=0;i<8;i++){
+              picks.push(all[Math.floor(i*(all.length-1)/7)]);
+            }
+            const imageResults=await Promise.all(picks.map(v=>testOne(kind,v,'image')));
+            const fullResults=await Promise.all(picks.slice(0,2).map(v=>testOne(kind,v,'full')));
+            report.push({kind,totalCatalog:all.length,imageResults,fullResults});
+            await sleep(100);
+          }
+
+          console.log(JSON.stringify(report,null,2));
+
+          const imageRows=report.flatMap(x=>x.imageResults);
+          const successful=imageRows.filter(x=>x.status===200&&x.success);
+          const withImages=imageRows.filter(x=>x.image);
+          const withDescriptions=imageRows.filter(x=>x.descriptionLength>=40);
+          const verified=withImages.filter(x=>x.identityVerified);
+
+          console.log(JSON.stringify({
+            summary:{
+              imageRequests:imageRows.length,
+              successful:successful.length,
+              images:withImages.length,
+              descriptions40plus:withDescriptions.length,
+              verifiedImages:verified.length
+            }
+          },null,2));
+
+          if(successful.length < imageRows.length*0.8 || withDescriptions.length < imageRows.length*0.7) {
+            process.exit(1);
+          }
+          NODE
