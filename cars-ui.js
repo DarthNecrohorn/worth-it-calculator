@@ -7699,137 +7699,198 @@ function preloadPopularVehicleCardInformation(
 }
 
 async function renderPopularCatalogImmediately(kind, showAll = false) {
-    if (currentVehicleKind !== kind || currentVehicleMode !== "popular") return;
+    if (
+        currentVehicleKind !== kind ||
+        currentVehicleMode !== "popular"
+    ) {
+        return;
+    }
 
-    const grid = document.getElementById("popularCarsGrid");
-    if (!grid) return;
+    const grid =
+        document.getElementById("popularCarsGrid");
 
-    const catalog = kind === VEHICLE_ALL_KIND
-        ? currentVehicleCatalog
-        : getStrictVehicleCategoryCatalog(currentVehicleCatalog, kind);
+    if (!grid) {
+        return;
+    }
+
+    /*
+     * Popular cards are now quality-first.
+     *
+     * Do NOT render raw VehiclesDB candidates and then remove them after
+     * Wikipedia/Wikimedia checks finish. That caused cards to disappear
+     * underneath the user and made a click open a modal that immediately
+     * closed again.
+     *
+     * Instead, validate candidates in the background first. A vehicle is
+     * allowed into the public Popular grid only when it has:
+     *   1. reliable vehicle information,
+     *   2. an identity-verified, commercially reusable image, and
+     *   3. comparison data.
+     *
+     * This is especially important for buses, vans, trucks and motorcycles,
+     * where incomplete catalog metadata can otherwise look like a valid
+     * card before the detail request has finished.
+     */
+    const catalog =
+        kind === VEHICLE_ALL_KIND
+            ? currentVehicleCatalog
+            : getStrictVehicleCategoryCatalog(
+                currentVehicleCatalog,
+                kind
+            );
 
     const unique = [];
     const seen = new Set();
 
     for (const vehicle of catalog) {
-        if (!vehicle?.make || !vehicle?.model) continue;
+        if (!vehicle?.make || !vehicle?.model) {
+            continue;
+        }
 
         const sourceKind =
             vehicle.sourceKind ||
             vehicle.kind;
 
-        if (!VEHICLE_KINDS.includes(sourceKind)) continue;
+        if (!VEHICLE_KINDS.includes(sourceKind)) {
+            continue;
+        }
 
         const key =
-            normalizeVehicleText(vehicle.make) + "|" +
-            normalizeVehicleText(vehicle.model) + "|" +
-            sourceKind;
+            getPopularVehicleQualityKey(
+                vehicle,
+                kind
+            );
 
-        if (seen.has(key)) continue;
+        if (seen.has(key)) {
+            continue;
+        }
 
         seen.add(key);
         unique.push(vehicle);
 
-        if (unique.length >= MAX_UNIFIED_VEHICLES) break;
+        if (unique.length >= MAX_UNIFIED_VEHICLES) {
+            break;
+        }
     }
 
-    currentVehicleResults = unique;
-    currentVehicleShowAll = Boolean(showAll);
+    currentVehicleShowAll =
+        Boolean(showAll);
 
     /*
-     * Keep the first paint small and deterministic: exactly three rows.
-     * Never create hundreds of hidden cards and then hydrate them all.
+     * Start with an empty/loading state. No unverified card is inserted
+     * into the DOM while the quality scan is running.
      */
+    grid.innerHTML =
+        '<div class="cars-empty-state">' +
+            '<div class="cars-empty-icon">' +
+                getVehicleKindInfo(kind).icon +
+            '</div>' +
+            '<strong>Checking vehicle information...</strong>' +
+            '<p>Only vehicles with reliable information and a verified reusable image will be shown.</p>' +
+        '</div>';
+
+    if (!unique.length) {
+        currentVehicleResults = [];
+        return;
+    }
+
     const initialCount =
         getInitialVehicleLimit(unique);
 
-    const targetCount =
+    const desiredCount =
         showAll
             ? unique.length
             : initialCount;
 
-    grid.innerHTML = "";
+    /*
+     * For the first paint, do enough background checks to fill the visible
+     * rows. A failed/slow candidate is simply skipped and the next
+     * candidate is checked; it is never rendered and later removed.
+     */
+    const maxChecks =
+        showAll
+            ? Math.max(
+                getPopularMaxNewChecks(kind),
+                desiredCount
+            )
+            : Math.max(
+                getPopularInitialCheckLimit(kind),
+                desiredCount
+            );
 
-    const appendCards = (from, to) => {
-        const fragment =
-            document.createDocumentFragment();
-
-        for (let index = from; index < to; index++) {
-            const vehicle = unique[index];
-
-            const card =
-                createVehicleCard(
-                    vehicle,
-                    vehicle.sourceKind ||
-                        vehicle.kind ||
-                        kind
-                );
-
-            card.dataset.popularStableCard =
-                "true";
-
-            fragment.appendChild(card);
-        }
-
-        if (fragment.childNodes.length) {
-            grid.appendChild(fragment);
-        }
-    };
-
-    appendCards(
-        0,
-        Math.min(initialCount, targetCount)
+    startStablePopularVehicleDisplay(
+        kind,
+        showAll
     );
 
-    /*
-     * "Show all" expands downward in small batches. This keeps the browser
-     * responsive and guarantees that cards enter the DOM in feed order.
-     */
-    if (showAll) {
+    const validVehicles =
+        await ensurePopularVehicleQuality(
+            kind,
+            unique,
+            desiredCount,
+            maxChecks
+        );
 
-        let cursor = initialCount;
-
-        while (
-            cursor < targetCount &&
-            currentVehicleKind === kind &&
-            currentVehicleMode === "popular"
-        ) {
-            const next =
-                Math.min(
-                    cursor + 24,
-                    targetCount
-                );
-
-            appendCards(
-                cursor,
-                next
-            );
-
-            cursor = next;
-
-            await new Promise(
-                resolve =>
-                    window.requestAnimationFrame(resolve)
-            );
-        }
+    if (
+        currentVehicleKind !== kind ||
+        currentVehicleMode !== "popular"
+    ) {
+        return;
     }
+
+    const displayState =
+        getStablePopularDisplayState(kind);
+
+    if (displayState) {
+        displayState.showAll =
+            Boolean(showAll);
+    }
+
+    /*
+     * Only validated vehicles reach the DOM.
+     */
+    grid.innerHTML = "";
+
+    appendStablePopularVehicleCards(
+        kind,
+        validVehicles,
+        showAll
+    );
+
+    currentVehicleResults =
+        validVehicles.slice();
 
     if (showAll) {
         renderVehicleCollapseButton(kind);
     } else {
         renderVehicleExpandButton(
-            unique,
-            unique.slice(0, initialCount),
+            validVehicles,
+            validVehicles.slice(
+                0,
+                initialCount
+            ),
             kind,
-            unique.length > initialCount
+            stablePopularHasMoreVehicles(
+                kind,
+                initialCount
+            )
         );
     }
 
+    hideOrShowStablePopularCards(
+        kind,
+        showAll
+    );
+
     /*
-     * Hydration starts at the top. Do not reorder cards when their images
-     * finish; otherwise the grid jumps while it is loading.
+     * Continue validating the remaining catalog in the background. New
+     * cards are appended only after they pass the exact same quality gate.
+     * This keeps the visible list stable and prevents disappearing cards.
      */
-    void preloadPopularVehicleCardInformation(kind);
+    void continueStablePopularVehicleLoading(
+        kind,
+        unique
+    );
 }
 async function loadAndRenderNonCarPopularVehicles(
     kind,
