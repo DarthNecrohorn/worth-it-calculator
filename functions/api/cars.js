@@ -8527,7 +8527,7 @@ const DEFAULT_SUPABASE_PROJECT_URL =
     "https://diutcnylnubljvpezhmq.supabase.co";
 
 const DEFAULT_SUPABASE_PUBLISHABLE_KEY =
-    "sb_publishable_W9769alA1ckSllKvue4U2Q_TdXpWnjP";
+    "sb_publishable_AzgPXyMrDpruSqGt-al9gg_9gsiCopw";
 
 function getSupabaseConfig(context) {
     const env = context?.env || {};
