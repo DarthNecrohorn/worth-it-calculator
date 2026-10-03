@@ -577,7 +577,7 @@ function getPopularBackgroundTargetCount(
  * Persistent browser cache version for account-scoped vehicle
  * metadata/images.
  */
-const VEHICLE_PERSISTENT_CACHE_VERSION = "v6";
+const VEHICLE_PERSISTENT_CACHE_VERSION = "v7";
 
 let vehicleAccountCacheOwnerPromise =
     null;
