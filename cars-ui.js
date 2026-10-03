@@ -15359,7 +15359,7 @@ async function startUnifiedVehicleBackgroundWarmup() {
                 const validKeys =
                     new Set();
 
-                const validVehicles =
+                let validVehicles =
                     [];
 
                 for (
