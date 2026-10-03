@@ -5794,14 +5794,16 @@ function hasWikipediaVehicleInformation(
 function createWikipediaNoInformation(
     make,
     model,
-    kind
+    kind,
+    image = null,
+    informationSource = "Wikipedia"
 ) {
 
     return {
         success: true,
         source: {
             catalog: "VehiclesDB Open Dataset",
-            information: "Wikipedia"
+            information: informationSource
         },
 
         make:
@@ -5819,7 +5821,7 @@ function createWikipediaNoInformation(
             description: "No Information"
         },
 
-        image: null,
+        image,
 
         specifications:
             createEmptyWikipediaSpecifications(),
@@ -5969,11 +5971,39 @@ async function handleDetails(
 
     if (!wikipediaTitle) {
 
+        let fallbackImage = null;
+
+        if (
+            requestUrl.searchParams.get("image_only") === "1" ||
+            requestUrl.searchParams.get("fast") !== "1"
+        ) {
+            try {
+                fallbackImage =
+                    await searchCommercialWikimediaImage(
+                        vehicle.make,
+                        vehicle.model,
+                        vehicle.kind
+                    );
+            } catch (error) {
+                console.error(
+                    "Fallback Commons image lookup failed:",
+                    vehicle.make,
+                    vehicle.model,
+                    vehicle.kind,
+                    error
+                );
+            }
+        }
+
         return jsonResponse(
             createWikipediaNoInformation(
                 vehicle.make,
                 vehicle.model,
-                kind
+                kind,
+                fallbackImage,
+                fallbackImage
+                    ? "Wikimedia Commons"
+                    : "Wikipedia"
             ),
             200,
             NEGATIVE_WIKIPEDIA_CACHE_TTL
@@ -6002,11 +6032,92 @@ async function handleDetails(
 
     if (!page) {
 
+        let fallbackImage = null;
+
+        if (
+            requestUrl.searchParams.get("image_only") === "1" ||
+            requestUrl.searchParams.get("fast") !== "1"
+        ) {
+            try {
+                fallbackImage =
+                    await searchCommercialWikimediaImage(
+                        vehicle.make,
+                        vehicle.model,
+                        vehicle.kind
+                    );
+            } catch (error) {
+                console.error(
+                    "Fallback Commons image lookup after page failure failed:",
+                    vehicle.make,
+                    vehicle.model,
+                    vehicle.kind,
+                    error
+                );
+            }
+        }
+
         return jsonResponse(
             createWikipediaNoInformation(
                 vehicle.make,
                 vehicle.model,
-                kind
+                kind,
+                fallbackImage,
+                fallbackImage
+                    ? "Wikimedia Commons"
+                    : "Wikipedia"
+            ),
+            200,
+            NEGATIVE_WIKIPEDIA_CACHE_TTL
+        );
+    }
+
+    /*
+     * Reject redirects/search results that ended on a different model.
+     * A family-level page is acceptable when the requested model is
+     * visibly represented in the page title; unrelated redirects are not.
+     */
+    if (
+        !isWikipediaVehicleTitlePlausible(
+            page.title,
+            vehicle.make,
+            vehicle.model,
+            kind
+        )
+    ) {
+
+        let fallbackImage = null;
+
+        if (
+            requestUrl.searchParams.get("image_only") === "1" ||
+            requestUrl.searchParams.get("fast") !== "1"
+        ) {
+            try {
+                fallbackImage =
+                    await searchCommercialWikimediaImage(
+                        vehicle.make,
+                        vehicle.model,
+                        vehicle.kind
+                    );
+            } catch (error) {
+                console.error(
+                    "Fallback Commons image lookup after identity rejection failed:",
+                    vehicle.make,
+                    vehicle.model,
+                    vehicle.kind,
+                    error
+                );
+            }
+        }
+
+        return jsonResponse(
+            createWikipediaNoInformation(
+                vehicle.make,
+                vehicle.model,
+                kind,
+                fallbackImage,
+                fallbackImage
+                    ? "Wikimedia Commons"
+                    : "Wikipedia"
             ),
             200,
             NEGATIVE_WIKIPEDIA_CACHE_TTL
@@ -6053,7 +6164,7 @@ async function handleDetails(
                 kind
             ),
             200,
-            WIKIPEDIA_CACHE_TTL
+            NEGATIVE_WIKIPEDIA_CACHE_TTL
         );
     }
 
