@@ -9092,54 +9092,12 @@ async function openVehicleDetailsPanel(
         return;
     }
 
-    if (
-        currentVehicleKind === VEHICLE_ALL_KIND &&
-        details
-    ) {
-        const card =
-            findUnifiedVehicleCard(
-                vehicle
-            );
-
-        if (card) {
-            applyUnifiedVehicleCardDetailsState(
-                card,
-                vehicle,
-                details
-            );
-        }
-    }
-
     if (!details) {
 
         if (
             currentVehicleKind === VEHICLE_ALL_KIND &&
             currentVehicleMode === "popular"
         ) {
-
-            const card =
-                findUnifiedVehicleCard(
-                    vehicle
-                );
-
-            if (card) {
-
-                card.dataset.infoState =
-                    "unavailable";
-
-                card.dataset.comparisonState =
-                    "unavailable";
-
-                window.setTimeout(
-                    () =>
-                        schedulePopularCardRecovery(
-                            VEHICLE_ALL_KIND
-                        ),
-                    0
-                );
-
-            }
-
             body.innerHTML = `
                 <div class="worth-it-vehicle-detail-loading">
                     <div class="worth-it-vehicle-detail-loading-icon">⚠️</div>
@@ -9231,30 +9189,6 @@ async function openVehicleDetailsPanel(
             currentVehicleKind === VEHICLE_ALL_KIND &&
             currentVehicleMode === "popular"
         ) {
-
-            const card =
-                findUnifiedVehicleCard(
-                    vehicle
-                );
-
-            if (card) {
-
-                card.dataset.infoState =
-                    "unavailable";
-
-                card.dataset.comparisonState =
-                    "unavailable";
-
-                window.setTimeout(
-                    () =>
-                        schedulePopularCardRecovery(
-                            VEHICLE_ALL_KIND
-                        ),
-                    0
-                );
-
-            }
-
             const noInformationDetails = {
                 ...details,
                 wikipedia: {
