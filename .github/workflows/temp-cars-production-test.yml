@@ -52,7 +52,7 @@ jobs:
               );
               url.searchParams.set(
                 'v',
-                'production-check-2'
+                'production-check-3'
               );
 
               const response =
