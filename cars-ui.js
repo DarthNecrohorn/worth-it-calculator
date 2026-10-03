@@ -3727,6 +3727,11 @@ function getVehiclePopularityValue(
 
 
 const VEHICLE_KIND_BODY_TYPE_TERMS = {
+    car: [
+        "sedan", "saloon", "hatchback", "liftback", "fastback",
+        "coupe", "convertible", "cabriolet", "roadster",
+        "wagon", "estate", "suv", "crossover"
+    ],
     motorcycle: [
         "motorcycle", "motorbike", "scooter", "underbone",
         "moped", "motor scooter", "motorized bicycle",
@@ -3738,10 +3743,12 @@ const VEHICLE_KIND_BODY_TYPE_TERMS = {
     ],
     van: [
         "van", "minivan", "panel van", "cargo van",
-        "microvan", "people carrier"
+        "microvan", "people carrier", "light commercial vehicle",
+        "mpv"
     ],
     truck: [
-        "truck", "lorry", "pickup", "heavy truck",
+        "truck", "lorry", "pickup", "pickup truck",
+        "heavy truck", "heavy goods vehicle",
         "tractor unit", "tractor-trailer"
     ],
     bus: [
@@ -3776,6 +3783,12 @@ function getCatalogVehicleBodyTypes(
 }
 
 const VEHICLE_KIND_BODY_TYPE_CONTRADICTIONS = {
+    car: [
+        "van", "minivan", "panel van", "cargo van", "microvan",
+        "people carrier", "light commercial vehicle", "mpv",
+        "pickup", "pickup truck", "truck", "lorry", "bus",
+        "coach", "minibus", "motorcycle", "motorbike", "moped"
+    ],
     motorcycle: [
         "car", "sedan", "hatchback", "coupe", "suv",
         "sport utility", "van", "truck", "bus"
@@ -3783,17 +3796,19 @@ const VEHICLE_KIND_BODY_TYPE_CONTRADICTIONS = {
     van: [
         "suv", "sport utility", "crossover", "sedan",
         "hatchback", "coupe", "roadster", "convertible",
-        "wagon", "pickup", "motorcycle", "moped", "truck", "bus"
+        "wagon", "pickup", "pickup truck", "motorcycle", "moped",
+        "truck", "lorry", "bus", "coach", "minibus"
     ],
     truck: [
         "suv", "sport utility", "sedan", "hatchback",
         "coupe", "roadster", "convertible", "wagon",
-        "motorcycle", "moped", "bus", "van"
+        "motorcycle", "moped", "bus", "coach", "minibus", "van"
     ],
     bus: [
         "suv", "sport utility", "sedan", "hatchback",
         "coupe", "roadster", "convertible", "wagon",
-        "motorcycle", "moped", "truck", "van"
+        "motorcycle", "moped", "truck", "lorry", "van",
+        "pickup", "pickup truck"
     ]
 };
 
@@ -3806,8 +3821,8 @@ function isCatalogVehicleKindCompatible(
             vehicle?.kind
         );
 
-    if (!kind || kind === "car") {
-        return true;
+    if (!kind) {
+        return false;
     }
 
     const bodyTypes =
@@ -6330,44 +6345,14 @@ async function refreshNonCarPopularCategoryInBackground(
                 freshCatalog
             );
 
-            const cachedWikidata =
-                supplementalVehicleCatalogCache.get(
-                    kind
-                ) || [];
-
-            const cachedDbpedia =
-                dbpediaVehicleCatalogCache.get(
-                    kind
-                ) || [];
-
-            if (
-                cachedWikidata.length ||
-                cachedDbpedia.length
-            ) {
-
-                refreshedCatalog =
-                    mergeSupplementalVehicleCatalog(
-                        kind,
-                        [
-                            ...cachedWikidata.slice(
-                                0,
-                                WIKIDATA_SUPPLEMENTAL_LIMIT
-                            ),
-                            ...cachedDbpedia.slice(
-                                0,
-                                DBPEDIA_SUPPLEMENTAL_LIMIT
-                            )
-                        ]
-                    );
-
-            } else {
-
-                vehicleCatalogCache.set(
-                    kind,
-                    refreshedCatalog
-                );
-
-            }
+            /*
+             * Supplemental Wikidata/DBpedia records are discovery helpers
+             * only. VehiclesDB remains the public category membership source.
+             */
+            vehicleCatalogCache.set(
+                kind,
+                refreshedCatalog
+            );
 
             currentVehicleCatalog =
                 refreshedCatalog;
@@ -6612,25 +6597,11 @@ async function refreshCurrentVehicleCategory(
             const freshCatalog = await fetchFreshVehicleCatalog(kind);
 
             if (freshCatalog.length) {
-                let refreshedCatalog = freshCatalog;
-
-                const cachedWikidata =
-                    supplementalVehicleCatalogCache.get(kind) || [];
-                const cachedDbpedia =
-                    dbpediaVehicleCatalogCache.get(kind) || [];
-
-                if (
-                    kind !== "car" &&
-                    (cachedWikidata.length || cachedDbpedia.length)
-                ) {
-                    refreshedCatalog = mergeSupplementalVehicleCatalog(
-                        kind,
-                        [
-                            ...cachedWikidata.slice(0, WIKIDATA_SUPPLEMENTAL_LIMIT),
-                            ...cachedDbpedia.slice(0, DBPEDIA_SUPPLEMENTAL_LIMIT)
-                        ]
-                    );
-                }
+                /*
+                 * Supplemental sources are not public category members.
+                 * Search therefore stays inside the refreshed VehiclesDB catalog.
+                 */
+                const refreshedCatalog = freshCatalog;
 
                 vehicleCatalogCache.set(
                     kind,
