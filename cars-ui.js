@@ -3925,10 +3925,15 @@ function getStrictVehicleCategoryCatalog(
                 recordKind
             );
 
+        const allowedSourceKinds =
+            VEHICLE_CATALOG_SOURCE_KINDS[requestedKind] ||
+            [requestedKind];
+
         if (
             recordKind !== requestedKind ||
-            sourceKind !== requestedKind ||
-            vehicle?.supplementalSource
+            !allowedSourceKinds.includes(sourceKind) ||
+            vehicle?.supplementalSource ||
+            !isCatalogVehicleKindCompatible(vehicle)
         ) {
             return false;
         }
@@ -3996,15 +4001,27 @@ function getCachedSupplementalWikipediaTitle(
 }
 
 function getPopularVehicles(
-    vehicles
+    vehicles,
+    kind = null
 ) {
 
     if (!Array.isArray(vehicles)) {
         return [];
     }
 
+    const requestedKind =
+        normalizeVehicleText(kind);
+
+    const sourceVehicles =
+        VEHICLE_KINDS.includes(requestedKind)
+            ? getStrictVehicleCategoryCatalog(
+                vehicles,
+                requestedKind
+            )
+            : vehicles;
+
     const rankedVehicles =
-        vehicles
+        sourceVehicles
             .filter(
                 vehicle =>
                     vehicle &&
@@ -5769,7 +5786,8 @@ async function ensurePopularVehicleQuality(
 
     const candidates =
         getPopularVehicles(
-            catalogVehicles
+            catalogVehicles,
+            kind
         );
 
     if (!candidates.length) {
@@ -6371,7 +6389,8 @@ async function refreshNonCarPopularCategoryInBackground(
 
         const candidates =
             getPopularVehicles(
-                refreshedCatalog
+                refreshedCatalog,
+                kind
             );
 
         if (!candidates.length) {
@@ -6711,11 +6730,21 @@ function preloadPopularVehicleCardInformation(
         );
 
     /*
-     * Prefer the first 100 cards. The queue is shared with the normal lazy
-     * image loader, so cards already observed by IntersectionObserver are
-     * not requested twice.
+     * Only hydrate rows near the viewport. Deeper cards are handled by
+     * the Intersection Observer as the user scrolls, avoiding a burst of
+     * 100 detail/image requests when a category opens.
      */
-    for (const card of cards.slice(0, IMMEDIATE_POPULAR_CARD_COUNT)) {
+    const visiblePreloadCount =
+        Math.min(
+            cards.length,
+            Math.max(
+                1,
+                getVehiclesPerRow() *
+                getPopularInitialVisibleRows(kind)
+            )
+        );
+
+    for (const card of cards.slice(0, visiblePreloadCount)) {
         if (
             currentVehicleKind !== kind ||
             currentVehicleMode !== "popular"
@@ -7068,14 +7097,21 @@ function searchVehicleCatalog(
     if (!normalizedQuery) {
 
         return getPopularVehicles(
-            vehicles
+            vehicles,
+            currentVehicleKind
         );
 
     }
 
 
+    const categoryVehicles =
+        getStrictVehicleCategoryCatalog(
+            vehicles,
+            currentVehicleKind
+        );
+
     const results =
-        vehicles.filter(
+        categoryVehicles.filter(
             vehicle => {
 
                 const text =
