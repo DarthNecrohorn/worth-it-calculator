@@ -1792,7 +1792,7 @@ async function fetchVehicleDetails(
                     data
                 );
 
-                if (!isFastMode) {
+                if (!isFastMode && !isImageMode) {
                     void getVehicleAccountCacheOwner()
                         .then(
                             owner =>
