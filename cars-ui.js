@@ -766,6 +766,10 @@ function getPopularInitialCheckLimit(kind) {
 }
 
 function getPopularMaxNewChecks(kind) {
+    if (kind === VEHICLE_ALL_KIND) {
+        return UNIFIED_BACKGROUND_CANDIDATE_POOL_LIMIT;
+    }
+
     return kind === "car"
         ? POPULAR_CAR_MAX_NEW_CHECKS
         : 3600;
@@ -8035,7 +8039,12 @@ async function renderPopularCatalogImmediately(kind, showAll = false) {
      */
     const catalog =
         kind === VEHICLE_ALL_KIND
-            ? currentVehicleCatalog
+            ? (
+                vehicleCatalogCache.get(
+                    VEHICLE_ALL_KIND
+                ) ||
+                currentVehicleCatalog
+            )
             : getStrictVehicleCategoryCatalog(
                 currentVehicleCatalog,
                 kind
@@ -8058,10 +8067,7 @@ async function renderPopularCatalogImmediately(kind, showAll = false) {
 
     const candidatePoolLimit =
         kind === VEHICLE_ALL_KIND
-            ? Math.max(
-                MAX_UNIFIED_VEHICLES,
-                2000
-            )
+            ? UNIFIED_BACKGROUND_CANDIDATE_POOL_LIMIT
             : MAX_UNIFIED_VEHICLES;
 
     const normalizedCatalog =
