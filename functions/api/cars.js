@@ -36,7 +36,7 @@ const WIKIDATA_CANDIDATE_LIMIT = 600;
 const WIKIDATA_NONCAR_CANDIDATE_LIMIT = 1000;
 const DBPEDIA_CANDIDATE_LIMIT = 600;
 const DBPEDIA_NONCAR_CANDIDATE_LIMIT = 1000;
-const WIKIPEDIA_CACHE_VERSION = "v25";
+const WIKIPEDIA_CACHE_VERSION = "v26";
 const WIKIMEDIA_IMAGE_LOOKUP_TIMEOUT_MS = 3500;
 
 const WIKIPEDIA_API =
@@ -4922,8 +4922,23 @@ async function searchWikipediaVehicle(
                     continue;
                 }
 
+                const hasFamilyModelEvidence =
+                    candidate.kindEvidence &&
+                    candidate.kindEvidence.positive > 0 &&
+                    isWikipediaVehicleTitlePlausible(
+                        candidate.title,
+                        make,
+                        model,
+                        kind,
+                        candidate.snippet
+                    );
+
                 if (
-                    candidate.score >= 75
+                    candidate.score >= 75 ||
+                    (
+                        hasFamilyModelEvidence &&
+                        candidate.score >= 30
+                    )
                 ) {
                     return candidate.title;
                 }
@@ -7447,18 +7462,60 @@ async function handleDetails(
             ]
         };
 
+        const kindBodyTypeExpected = {
+            motorcycle: [
+                "motorcycle", "motorbike", "scooter",
+                "underbone", "moped", "two-wheeler"
+            ],
+            van: [
+                "van", "minivan", "panel van", "cargo van",
+                "microvan", "people carrier",
+                "light commercial vehicle", "mpv"
+            ],
+            truck: [
+                "truck", "lorry", "pickup truck",
+                "heavy truck", "tractor unit"
+            ],
+            bus: [
+                "bus", "coach", "minibus",
+                "transit bus", "city bus",
+                "double-decker", "shuttle bus"
+            ]
+        };
+
         const contradictions =
             kindBodyTypeContradictions[kind] ||
             [];
 
-        if (
-            bodyTypeText &&
+        const expected =
+            kindBodyTypeExpected[kind] ||
+            [];
+
+        const hasExpectedKind =
+            expected.some(
+                term =>
+                    bodyTypeText.includes(
+                        normalizeWikipediaSearchText(term)
+                    )
+            );
+
+        const hasContradictoryKind =
             contradictions.some(
                 term =>
                     bodyTypeText.includes(
                         normalizeWikipediaSearchText(term)
                     )
-            )
+            );
+
+        /*
+         * A body-style field can legitimately contain several forms,
+         * such as "van / minibus". Accept it when the requested kind
+         * is explicitly present. Only reject an exclusive contradiction.
+         */
+        if (
+            bodyTypeText &&
+            !hasExpectedKind &&
+            hasContradictoryKind
         ) {
 
             return jsonResponse(
@@ -7468,7 +7525,7 @@ async function handleDetails(
                     kind
                 ),
                 200,
-                WIKIPEDIA_CACHE_TTL
+                NEGATIVE_WIKIPEDIA_CACHE_TTL
             );
         }
     }
