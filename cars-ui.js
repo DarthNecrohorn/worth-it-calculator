@@ -466,6 +466,186 @@ const vehicleCompareSelection =
 let vehicleModalScrollY =
     0;
 
+let vehicleModalNavigationItems = [];
+let vehicleModalNavigationIndex = -1;
+
+function getVehicleNavigationKey(vehicle, kind = "") {
+    return getVehicleStorageKey(
+        vehicle,
+        vehicle?.sourceKind || vehicle?.kind || kind || currentVehicleKind
+    );
+}
+
+function buildVehicleNavigationItem(item, fallbackKind = currentVehicleKind) {
+    if (!item) return null;
+
+    return {
+        make: item.make || "",
+        model: item.model || "",
+        sourceKind: item.sourceKind || item.kind || fallbackKind || "",
+        kind: item.kind || item.sourceKind || fallbackKind || "",
+        bodyType: item.bodyType || item.body_type || "",
+        yearStart: item.yearStart ?? item.year_start ?? null,
+        yearEnd: item.yearEnd ?? item.year_end ?? null
+    };
+}
+
+function setVehicleModalNavigation(vehicle, kind, items, index = null) {
+    const fallbackItems =
+        Array.isArray(items) && items.length
+            ? items
+            : [vehicle];
+
+    const uniqueItems = [];
+    const seen = new Set();
+
+    fallbackItems.forEach(item => {
+        const normalized = buildVehicleNavigationItem(item, kind);
+        const key = getVehicleNavigationKey(normalized, kind);
+        if (!normalized || !key || seen.has(key)) return;
+
+        seen.add(key);
+        uniqueItems.push(normalized);
+    });
+
+    vehicleModalNavigationItems = uniqueItems;
+
+    const currentKey =
+        getVehicleNavigationKey(vehicle, kind);
+
+    const resolvedIndex =
+        Number.isInteger(index)
+            ? index
+            : uniqueItems.findIndex(
+                item =>
+                    getVehicleNavigationKey(item, item.kind || kind) ===
+                    currentKey
+            );
+
+    vehicleModalNavigationIndex =
+        resolvedIndex >= 0
+            ? resolvedIndex
+            : uniqueItems.length
+                ? 0
+                : -1;
+
+    refreshVehicleModalNavigationControls();
+}
+
+function refreshVehicleModalNavigationControls() {
+    const modal =
+        document.getElementById(
+            "worthItVehicleDetailsModal"
+        );
+
+    if (!modal) return;
+
+    const controls =
+        modal.querySelectorAll(
+            "[data-vehicle-navigation]"
+        );
+
+    const hasMultipleVehicles =
+        vehicleModalNavigationItems.length > 1 &&
+        vehicleModalNavigationIndex >= 0;
+
+    controls.forEach(control => {
+        control.hidden = !hasMultipleVehicles;
+
+        if (!hasMultipleVehicles) {
+            return;
+        }
+
+        const direction =
+            control.dataset.vehicleNavigation;
+
+        const label =
+            direction === "previous"
+                ? "Previous vehicle — A or ←"
+                : "Next vehicle — S or →";
+
+        control.setAttribute(
+            "aria-label",
+            label
+        );
+        control.title =
+            label;
+    });
+}
+
+function getVehicleModalNavigationListFromCards() {
+    const grid =
+        document.getElementById(
+            "popularCarsGrid"
+        );
+
+    if (!grid) return [];
+
+    return Array.from(
+        grid.querySelectorAll(
+            '.car-card[data-popular-stable-card="true"]'
+        )
+    )
+        .map(card => card._worthItVehicle)
+        .filter(Boolean)
+        .map(vehicle =>
+            buildVehicleNavigationItem(
+                vehicle,
+                vehicle.sourceKind || currentVehicleKind
+            )
+        );
+}
+
+function getVehicleModalNavigationTarget(direction) {
+    const items =
+        vehicleModalNavigationItems;
+
+    if (
+        items.length < 2 ||
+        vehicleModalNavigationIndex < 0
+    ) {
+        return null;
+    }
+
+    const offset =
+        direction === "previous"
+            ? -1
+            : 1;
+
+    const nextIndex =
+        (
+            vehicleModalNavigationIndex +
+            offset +
+            items.length
+        ) % items.length;
+
+    return {
+        vehicle: items[nextIndex],
+        kind:
+            items[nextIndex].kind ||
+            items[nextIndex].sourceKind ||
+            currentVehicleKind,
+        items,
+        index: nextIndex
+    };
+}
+
+function navigateVehicleModal(direction) {
+    const target =
+        getVehicleModalNavigationTarget(direction);
+
+    if (!target) return;
+
+    void openVehicleDetailsPanel(
+        target.vehicle,
+        target.kind,
+        {
+            items: target.items,
+            index: target.index
+        }
+    );
+}
+
 /*
  * Per-category state for progressively selecting popular vehicles
  * that have usable Wikipedia + Wikimedia data.
@@ -8486,17 +8666,40 @@ function renderVehiclePersonalPanels() {
             const item = list.find(entry => entry?.key === button.dataset.personalKey);
             if (!item) return;
 
+            const personalVehicles =
+                list.map(entry =>
+                    buildVehicleNavigationItem(
+                        entry,
+                        entry.kind || currentVehicleKind
+                    )
+                );
+
+            const selectedVehicle =
+                buildVehicleNavigationItem(
+                    item,
+                    item.kind || currentVehicleKind
+                );
+
+            const selectedIndex =
+                personalVehicles.findIndex(
+                    entry =>
+                        getVehicleNavigationKey(
+                            entry,
+                            entry.kind || currentVehicleKind
+                        ) ===
+                        getVehicleNavigationKey(
+                            selectedVehicle,
+                            selectedVehicle.kind || currentVehicleKind
+                        )
+                );
+
             openVehicleDetailsPanel(
+                selectedVehicle,
+                item.kind || currentVehicleKind,
                 {
-                    make: item.make,
-                    model: item.model,
-                    sourceKind: item.kind,
-                    kind: item.kind,
-                    bodyType: item.bodyType,
-                    yearStart: item.yearStart || null,
-                    yearEnd: item.yearEnd || null
-                },
-                item.kind || currentVehicleKind
+                    items: personalVehicles,
+                    index: selectedIndex
+                }
             );
         })
     );
@@ -9168,15 +9371,41 @@ function createVehicleCard(
         );
     }
 
+    card._worthItVehicle =
+        vehicle;
+
+    card._worthItVehicleKind =
+        kind;
+
     card.addEventListener(
         "click",
         event => {
             event.preventDefault();
             event.stopPropagation();
 
+            const navigationItems =
+                getVehicleModalNavigationListFromCards();
+
+            const selectedIndex =
+                navigationItems.findIndex(
+                    item =>
+                        getVehicleNavigationKey(
+                            item,
+                            item.kind || kind
+                        ) ===
+                        getVehicleNavigationKey(
+                            vehicle,
+                            kind
+                        )
+                );
+
             void openVehicleDetailsPanel(
                 vehicle,
-                kind
+                kind,
+                {
+                    items: navigationItems,
+                    index: selectedIndex
+                }
             );
         }
     );
@@ -9501,6 +9730,28 @@ function createVehicleDetailsModal() {
                 ×
             </button>
 
+            <button
+                type="button"
+                class="worth-it-vehicle-modal-navigation worth-it-vehicle-modal-navigation-previous"
+                data-vehicle-navigation="previous"
+                aria-label="Previous vehicle — A or ←"
+                title="Previous vehicle — A or ←"
+                hidden
+            >
+                ❮
+            </button>
+
+            <button
+                type="button"
+                class="worth-it-vehicle-modal-navigation worth-it-vehicle-modal-navigation-next"
+                data-vehicle-navigation="next"
+                aria-label="Next vehicle — S or →"
+                title="Next vehicle — S or →"
+                hidden
+            >
+                ❯
+            </button>
+
             <div class="worth-it-vehicle-modal-body" id="worthItVehicleModalBody">
                 <div class="worth-it-vehicle-modal-loading">
                     Loading vehicle details…
@@ -9524,10 +9775,85 @@ function createVehicleDetailsModal() {
 
     });
 
+    modal.querySelector(
+        '[data-vehicle-navigation="previous"]'
+    )?.addEventListener(
+        "click",
+        event => {
+            event.preventDefault();
+            event.stopPropagation();
+            navigateVehicleModal("previous");
+        }
+    );
+
+    modal.querySelector(
+        '[data-vehicle-navigation="next"]'
+    )?.addEventListener(
+        "click",
+        event => {
+            event.preventDefault();
+            event.stopPropagation();
+            navigateVehicleModal("next");
+        }
+    );
+
     return modal;
 
 }
 
+
+if (!window.__worthItVehicleDetailsNavigationBound) {
+    window.__worthItVehicleDetailsNavigationBound = true;
+
+    document.addEventListener(
+        "keydown",
+        event => {
+            const modal =
+                document.getElementById(
+                    "worthItVehicleDetailsModal"
+                );
+
+            if (
+                !modal ||
+                !modal.classList.contains("is-open")
+            ) {
+                return;
+            }
+
+            const target =
+                event.target;
+
+            if (
+                target instanceof HTMLElement &&
+                (
+                    target.isContentEditable ||
+                    ["INPUT", "TEXTAREA", "SELECT"].includes(
+                        target.tagName
+                    )
+                )
+            ) {
+                return;
+            }
+
+            const key =
+                String(event.key || "").toLowerCase();
+
+            if (
+                key === "arrowleft" ||
+                key === "a"
+            ) {
+                event.preventDefault();
+                navigateVehicleModal("previous");
+            } else if (
+                key === "arrowright" ||
+                key === "s"
+            ) {
+                event.preventDefault();
+                navigateVehicleModal("next");
+            }
+        }
+    );
+}
 
 function setVehicleModalOpen(
     open
@@ -9596,7 +9922,8 @@ function closeVehicleDetailsPanel(restoreScroll = true) {
 
 async function openVehicleDetailsPanel(
     vehicle,
-    kind
+    kind,
+    navigation = null
 ) {
 
     if (!vehicle) {
@@ -9613,6 +9940,29 @@ async function openVehicleDetailsPanel(
 
     if (!body) {
         return;
+    }
+
+    if (
+        navigation &&
+        Array.isArray(navigation.items)
+    ) {
+        setVehicleModalNavigation(
+            vehicle,
+            kind,
+            navigation.items,
+            navigation.index
+        );
+    } else {
+        const cardItems =
+            getVehicleModalNavigationListFromCards();
+
+        setVehicleModalNavigation(
+            vehicle,
+            kind,
+            cardItems.length
+                ? cardItems
+                : [vehicle]
+        );
     }
 
     const requestToken =
