@@ -9186,6 +9186,67 @@ function createLightweightVehicleFromRequest(
  * ============================================================
  */
 
+export async function onRequestPost(context) {
+
+    try {
+
+        const requestUrl =
+            new URL(
+                context.request.url
+            );
+
+        const action =
+            (
+                requestUrl.searchParams.get("action") ||
+                ""
+            )
+                .trim()
+                .toLowerCase();
+
+        switch (action) {
+
+            case "account-cache-upsert":
+                return handleVehicleAccountCacheUpsert(
+                    context
+                );
+
+            case "account-cache-finalize":
+                return handleVehicleAccountCacheFinalize(
+                    context
+                );
+
+            default:
+                return jsonResponse(
+                    {
+                        success: false,
+                        error:
+                            "Invalid POST action"
+                    },
+                    400,
+                    30
+                );
+        }
+
+    } catch (error) {
+
+        console.error(
+            "VehiclesDB Cars POST API error:",
+            error
+        );
+
+        return jsonResponse(
+            {
+                success: false,
+                error:
+                    error?.message ||
+                    "Internal server error"
+            },
+            500,
+            60
+        );
+    }
+}
+
 export async function onRequestGet(context) {
 
     recordAdminApiUsage(context, {
