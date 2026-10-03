@@ -10653,11 +10653,22 @@ function renderVehicleDetailsPanel(
                     ${escapeVehicleHtml(info.singular)}
                 </div>
 
-                <h2 id="worthItVehicleModalTitle">
-                    ${escapeVehicleHtml(
-                        `${apiVehicle.make || ""} ${apiVehicle.model || ""}`.trim()
-                    )}
-                </h2>
+                <div class="worth-it-vehicle-detail-title-row">
+                    <h2 id="worthItVehicleModalTitle">
+                        ${escapeVehicleHtml(
+                            `${apiVehicle.make || ""} ${apiVehicle.model || ""}`.trim()
+                        )}
+                    </h2>
+                    <button
+                        type="button"
+                        class="worth-it-vehicle-web-search-button"
+                        data-vehicle-web-search
+                        aria-label="Search this vehicle on the web"
+                        title="Search the web for this vehicle"
+                    >
+                        🔎
+                    </button>
+                </div>
 
                 <div class="worth-it-vehicle-detail-generation">
                     ${escapeVehicleHtml(
@@ -10720,6 +10731,26 @@ function renderVehicleDetailsPanel(
             </div>
         </div>
     `;
+
+    const webSearchButton = body.querySelector("[data-vehicle-web-search]");
+
+    if (webSearchButton) {
+        webSearchButton.addEventListener("click", event => {
+            event.preventDefault();
+            event.stopPropagation();
+
+            const vehicleName = `${apiVehicle.make || ""} ${apiVehicle.model || ""}`.trim();
+
+            if (!vehicleName) {
+                return;
+            }
+
+            const searchQuery = vehicleName + " price and specifications";
+            const searchUrl = "https://www.google.com/search?q=" + encodeURIComponent(searchQuery);
+
+            window.open(searchUrl, "_blank", "noopener,noreferrer");
+        });
+    }
 
     const favoriteButton = body.querySelector("[data-vehicle-detail-favorite]");
 
@@ -12472,6 +12503,52 @@ function injectVehicleUiStyles() {
             padding: 18px 8px 18px 0;
         }
 
+        .worth-it-vehicle-detail-title-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            min-width: 0;
+        }
+
+        .worth-it-vehicle-detail-title-row h2 {
+            min-width: 0;
+            overflow-wrap: anywhere;
+        }
+
+        .worth-it-vehicle-web-search-button {
+            flex: 0 0 auto;
+            width: 42px;
+            height: 42px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0;
+            border: 1px solid rgba(255, 255, 255, 0.14);
+            border-radius: 11px;
+            background: rgba(255, 255, 255, 0.08);
+            color: #fff;
+            font-size: 1.1rem;
+            line-height: 1;
+            cursor: pointer;
+            transition:
+                background 0.2s ease,
+                border-color 0.2s ease,
+                transform 0.2s ease,
+                box-shadow 0.2s ease;
+        }
+
+        .worth-it-vehicle-web-search-button:hover {
+            background: rgba(255, 255, 255, 0.14);
+            border-color: rgba(139, 92, 246, 0.75);
+            box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.18);
+            transform: scale(1.04);
+        }
+
+        .worth-it-vehicle-web-search-button:focus-visible {
+            outline: 2px solid rgba(139, 92, 246, 0.9);
+            outline-offset: 2px;
+        }
+
         .worth-it-vehicle-detail-kind {
             font-size: 0.88rem;
             opacity: 0.68;
@@ -13653,6 +13730,19 @@ function injectVehicleUiStyles() {
             .worth-it-vehicle-detail-header {
                 grid-template-columns: 1fr;
                 gap: 16px;
+            }
+
+            .worth-it-vehicle-detail-title-row {
+                align-items: flex-start;
+            }
+
+            .worth-it-vehicle-detail-title-row h2 {
+                font-size: clamp(1.55rem, 7vw, 2.1rem);
+            }
+
+            .worth-it-vehicle-web-search-button {
+                width: 40px;
+                height: 40px;
             }
 
             .worth-it-vehicle-detail-image-wrap,
