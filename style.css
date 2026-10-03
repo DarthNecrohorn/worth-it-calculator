@@ -14182,15 +14182,32 @@ html[data-ui-scale="xl"] .water-levels-detail-card{
 }
 
 .cars-personal-panels[data-active-tab="favorites"] .cars-personal-content {
-    height: 250px;
+    height: 122px;
     min-height: 0;
-    max-height: 250px;
+    max-height: 122px;
     overflow-x: hidden;
-    overflow-y: scroll;
+    overflow-y: auto;
     overscroll-behavior-y: contain;
     scrollbar-gutter: stable;
     align-content: start;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
     padding-right: 6px;
+}
+
+@media (max-width: 900px) {
+    .cars-personal-panels[data-active-tab="favorites"] .cars-personal-content {
+        height: 170px;
+        max-height: 170px;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 640px) {
+    .cars-personal-panels[data-active-tab="favorites"] .cars-personal-content {
+        height: 220px;
+        max-height: 220px;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
 }
 
 .cars-personal-empty {
