@@ -314,6 +314,22 @@ function formatVehicleDatasetBuiltAt(value) {
     );
 }
 
+function updateCarsCatalogCount(count = null) {
+    const element =
+        document.getElementById("carsCatalogCount");
+
+    if (!element) return;
+
+    const numericCount =
+        Number.isFinite(Number(count))
+            ? Math.max(0, Math.floor(Number(count)))
+            : 0;
+
+    element.textContent =
+        numericCount.toLocaleString("en-US") +
+        " vehicles currently available";
+}
+
 function updateCarsDatasetStatus() {
     const element =
         document.getElementById("carsLastUpdated");
@@ -15402,6 +15418,10 @@ async function startUnifiedVehicleBackgroundWarmup() {
                 warmupQualityState.validVehicles =
                     validVehicles.slice();
 
+                updateCarsCatalogCount(
+                    validVehicles.length
+                );
+
                 warmupQualityState.checkedCount = 0;
 
                 warmupQualityState.nextIndex = 0;
@@ -15588,6 +15608,10 @@ async function startUnifiedVehicleBackgroundWarmup() {
                     warmupQualityState.validVehicles =
                         validVehicles.slice();
 
+                    updateCarsCatalogCount(
+                        validVehicles.length
+                    );
+
                     warmupQualityState.nextIndex =
                         nextIndex;
 
@@ -15669,6 +15693,10 @@ async function startUnifiedVehicleBackgroundWarmup() {
 
                 warmupQualityState.validVehicles =
                     validVehicles.slice();
+
+                updateCarsCatalogCount(
+                    validVehicles.length
+                );
 
                 warmupQualityState.nextIndex =
                     nextIndex;
