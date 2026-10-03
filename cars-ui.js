@@ -704,9 +704,9 @@ const VEHICLE_SUPPLEMENTAL_CATEGORIES = [
 const popularVehicleHydrationState =
     new Map();
 
-const POPULAR_DETAILS_CONCURRENCY = 4;
+const POPULAR_DETAILS_CONCURRENCY = 6;
 
-const POPULAR_NONCAR_DETAILS_CONCURRENCY = 3;
+const POPULAR_NONCAR_DETAILS_CONCURRENCY = 5;
 const POPULAR_NONCAR_QUALITY_BATCH_SIZE = 16;
 const POPULAR_NONCAR_INITIAL_MAX_CHECKS = 300;
 
@@ -14875,7 +14875,7 @@ function handleVehicleSearch(
  * ============================================================
  */
 
-const UNIFIED_BACKGROUND_WARMUP_BATCH_SIZE = 12;
+const UNIFIED_BACKGROUND_WARMUP_BATCH_SIZE = 24;
 /*
  * Scan beyond the public 2000-card limit so failed/missing records can
  * be replaced by the next valid popular vehicle.
@@ -15010,7 +15010,10 @@ function getUnifiedBackgroundWarmupPause() {
 
         window.setTimeout(
             resolve,
-            UNIFIED_BACKGROUND_WARMUP_DELAY_MS
+            Math.min(
+                UNIFIED_BACKGROUND_WARMUP_DELAY_MS,
+                250
+            )
         );
     });
 }
