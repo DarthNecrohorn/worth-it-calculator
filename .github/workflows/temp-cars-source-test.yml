@@ -12,6 +12,9 @@ jobs:
           node <<'NODE'
           (async () => {
             const tests = [
+              'https://www.fueleconomy.gov/ws/rest/vehicle/menu/model?year=2024&make=Honda',
+              'https://www.fueleconomy.gov/ws/rest/vehicle/menu/model?year=2024&make=Honda&format=json',
+              'https://www.fueleconomy.gov/ws/rest/vehicle/menu/options?year=2024&make=Honda&model=Civic',
               'https://www.fueleconomy.gov/ws/rest/vehicle/menu/options?year=2024&make=Honda&model=Civic&format=json',
               'https://api.openverse.org/v1/images/?q=Honda%20Civic&page_size=3&mature=false'
             ];
@@ -27,7 +30,7 @@ jobs:
                   }
                 );
 
-              const text =
+              const body =
                 await response.text();
 
               console.log(
@@ -35,16 +38,15 @@ jobs:
                   {
                     url,
                     status: response.status,
-                    preview: text.slice(0, 4000)
+                    contentType:
+                      response.headers.get('content-type'),
+                    preview:
+                      body.slice(0, 5000)
                   },
                   null,
                   2
                 )
               );
-
-              if (!response.ok) {
-                process.exitCode = 1;
-              }
             }
           })().catch(error => {
             console.error(error);
