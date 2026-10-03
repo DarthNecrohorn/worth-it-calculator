@@ -462,10 +462,10 @@ const DBPEDIA_SUPPLEMENTAL_LIMIT =
     1000;
 
 const VEHICLE_PERSISTENT_CATALOG_VERSION =
-    "v2";
+    "v3";
 
 const VEHICLE_PERSISTENT_POPULAR_VERSION =
-    "v4";
+    "v5";
 
 const VEHICLE_PERSISTENT_CATEGORY_TTL_MS =
     7 * 24 * 60 * 60 * 1000;
@@ -1654,10 +1654,21 @@ async function fetchVehicleDetails(
 
                 if (catalogVehicle) {
 
-                    if (catalogVehicle.wikipediaTitle) {
+                    const wikipediaTitle =
+                        String(
+                            catalogVehicle.wikipediaTitle ||
+                            getCachedSupplementalWikipediaTitle(
+                                make,
+                                model,
+                                kind
+                            ) ||
+                            ""
+                        ).trim();
+
+                    if (wikipediaTitle) {
                         params.set(
                             "wikipedia_title",
-                            catalogVehicle.wikipediaTitle
+                            wikipediaTitle
                         );
                     }
 
@@ -3280,6 +3291,120 @@ function getCatalogVehicleKindPriority(
         : 2;
 }
 
+function getStrictVehicleCategoryCatalog(
+    vehicles,
+    kind
+) {
+
+    if (!Array.isArray(vehicles)) {
+        return [];
+    }
+
+    const requestedKind =
+        normalizeVehicleText(kind);
+
+    if (!VEHICLE_KINDS.includes(requestedKind)) {
+        return [];
+    }
+
+    const seen = new Set();
+
+    return vehicles.filter(vehicle => {
+
+        if (
+            !vehicle?.make ||
+            !vehicle?.model
+        ) {
+            return false;
+        }
+
+        /*
+         * The VehiclesDB source kind is authoritative. Supplemental
+         * Wikidata/DBpedia candidates must never become part of another
+         * category's public catalog, even when their text happens to
+         * contain overlapping commercial-vehicle terminology.
+         */
+        const recordKind =
+            normalizeVehicleText(
+                vehicle?.kind
+            );
+
+        const sourceKind =
+            normalizeVehicleText(
+                vehicle?.sourceKind ||
+                recordKind
+            );
+
+        if (
+            recordKind !== requestedKind ||
+            sourceKind !== requestedKind ||
+            vehicle?.supplementalSource
+        ) {
+            return false;
+        }
+
+        const key =
+            normalizeVehicleText(vehicle.make) +
+            "|" +
+            normalizeVehicleText(vehicle.model);
+
+        if (seen.has(key)) {
+            return false;
+        }
+
+        seen.add(key);
+        return true;
+
+    });
+
+}
+
+function getCachedSupplementalWikipediaTitle(
+    make,
+    model,
+    kind
+) {
+
+    const targetMake =
+        normalizeVehicleText(make);
+
+    const targetModel =
+        normalizeVehicleText(model);
+
+    const targetKind =
+        normalizeVehicleText(kind);
+
+    if (!targetMake || !targetModel || !targetKind) {
+        return null;
+    }
+
+    const sources = [
+        supplementalVehicleCatalogCache.get(targetKind) || [],
+        dbpediaVehicleCatalogCache.get(targetKind) || []
+    ];
+
+    for (const source of sources) {
+        for (const vehicle of source) {
+            if (
+                normalizeVehicleText(vehicle?.kind || targetKind) !== targetKind ||
+                normalizeVehicleText(vehicle?.make) !== targetMake ||
+                normalizeVehicleText(vehicle?.model) !== targetModel
+            ) {
+                continue;
+            }
+
+            const title =
+                String(vehicle?.wikipediaTitle || "").trim();
+
+            if (title) {
+                return title;
+            }
+        }
+    }
+
+    return null;
+}
+
 function getPopularVehicles(
     vehicles
 ) {
@@ -3697,6 +3822,26 @@ function hasExpectedPopularVehicleKindEvidence(
         );
 
     if (hasExpectedText || hasExpectedBodyType) {
+        return true;
+    }
+
+    /*
+     * A catalog record already carries an authoritative VehiclesDB kind.
+     * A legitimate Wikipedia article can omit the literal category word
+     * (especially for vans, buses and trucks). Preserve the strong identity
+     * check and only reject an explicit contradiction.
+     */
+    if (
+        hasPopularVehicleIdentityMatch(
+            details,
+            vehicle
+        ) &&
+        !contradictionTerms.some(term =>
+            combinedText.includes(
+                normalizePopularQualityText(term)
+            )
+        )
+    ) {
         return true;
     }
 
@@ -5950,6 +6095,58 @@ async function refreshCurrentVehicleCategory(
 
 
 
+function preloadPopularVehicleCardInformation(
+    kind
+) {
+
+    const grid =
+        document.getElementById("popularCarsGrid");
+
+    if (!grid) {
+        return;
+    }
+
+    const cards =
+        Array.from(
+            grid.querySelectorAll(
+                '.car-card[data-popularStable-card="true"], .car-card[data-popularStableCard="true"], .car-card'
+            )
+        );
+
+    /*
+     * Prefer the first 100 cards. The queue is shared with the normal lazy
+     * image loader, so cards already observed by IntersectionObserver are
+     * not requested twice.
+     */
+    for (const card of cards.slice(0, IMMEDIATE_POPULAR_CARD_COUNT)) {
+        if (
+            currentVehicleKind !== kind ||
+            currentVehicleMode !== "popular"
+        ) {
+            return;
+        }
+
+        const image =
+            card.querySelector(
+                ".car-card-image"
+            );
+
+        if (!image) {
+            continue;
+        }
+
+        queueVehicleImageLoad(
+            image,
+            image.dataset.vehicleMake || card.dataset.vehicleMake || "",
+            image.dataset.vehicleModel || card.dataset.vehicleModel || "",
+            image.dataset.vehicleSourceKind ||
+                card.dataset.vehicleSourceKind ||
+                kind
+        );
+    }
+
+}
+
 async function renderPopularCatalogImmediately(
     kind,
     showAll = false
@@ -5970,9 +6167,10 @@ async function renderPopularCatalogImmediately(
     }
 
     const catalog =
-        Array.isArray(currentVehicleCatalog)
-            ? currentVehicleCatalog
-            : [];
+        getStrictVehicleCategoryCatalog(
+            currentVehicleCatalog,
+            kind
+        );
 
     /*
      * getPopularVehicles already deduplicates by the catalog merge stage
@@ -6052,6 +6250,14 @@ async function renderPopularCatalogImmediately(
      * pending/unavailable cards without blocking the initial 100-card render.
      */
     reorderPopularVehicleCardsByImageAvailability(kind);
+
+    /*
+     * Hydrate the category cards in the background. The image-only details
+     * path also supplies the Wikipedia lead description, so cards gain real
+     * information even when a commercial-use image is unavailable. The
+     * bounded image queue keeps this work from blocking rendering.
+     */
+    void preloadPopularVehicleCardInformation(kind);
 
     /*
      * If the base VehiclesDB catalog has fewer than 100 records for a
