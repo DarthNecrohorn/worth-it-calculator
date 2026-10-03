@@ -9846,7 +9846,7 @@ if (!window.__worthItVehicleDetailsNavigationBound) {
                 navigateVehicleModal("previous");
             } else if (
                 key === "arrowright" ||
-                key === "s"
+                key === "d"
             ) {
                 event.preventDefault();
                 navigateVehicleModal("next");
