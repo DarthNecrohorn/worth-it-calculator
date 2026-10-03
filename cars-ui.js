@@ -9920,7 +9920,7 @@ function renderVehicleDetailsPanel(
 
         <div class="worth-it-vehicle-detail-verification">
     <span class="worth-it-vehicle-verified-badge">✓ Verified information</span>
-    <span class="worth-it-vehicle-verified-badge">✓ Verified reusable image</span>
+    ${hasPopularVehicleImageRelevance(details, catalogVehicle) ? '<span class="worth-it-vehicle-verified-badge">✓ Verified reusable image</span>' : ""}
 </div>
 
 <div class="worth-it-vehicle-detail-actions">
