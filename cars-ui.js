@@ -9730,35 +9730,35 @@ function createVehicleDetailsModal() {
                 ×
             </button>
 
-            <button
-                type="button"
-                class="worth-it-vehicle-modal-navigation worth-it-vehicle-modal-navigation-previous"
-                data-vehicle-navigation="previous"
-                aria-label="Previous vehicle — A or ←"
-                title="Previous vehicle — A or ←"
-                hidden
-            >
-                ❮
-            </button>
-
-            <button
-                type="button"
-                class="worth-it-vehicle-modal-navigation worth-it-vehicle-modal-navigation-next"
-                data-vehicle-navigation="next"
-                aria-label="Next vehicle — D or →"
-                title="Next vehicle — D or →"
-                hidden
-            >
-                ❯
-            </button>
-
             <div class="worth-it-vehicle-modal-body" id="worthItVehicleModalBody">
                 <div class="worth-it-vehicle-modal-loading">
                     Loading vehicle details…
                 </div>
             </div>
         </div>
-    `;
+
+        <button
+            type="button"
+            class="worth-it-vehicle-modal-navigation worth-it-vehicle-modal-navigation-previous"
+            data-vehicle-navigation="previous"
+            aria-label="Previous vehicle — A or ←"
+            title="Previous vehicle — A or ←"
+            hidden
+        >
+            ❮
+        </button>
+
+        <button
+            type="button"
+            class="worth-it-vehicle-modal-navigation worth-it-vehicle-modal-navigation-next"
+            data-vehicle-navigation="next"
+            aria-label="Next vehicle — D or →"
+            title="Next vehicle — D or →"
+            hidden
+        >
+            ❯
+        </button>
+    
 
     document.body.appendChild(modal);
 
