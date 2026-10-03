@@ -168,7 +168,7 @@ const VEHICLE_KINDS = [
 ];
 
 const VEHICLE_ALL_KIND = "all";
-const MAX_UNIFIED_VEHICLES = 1000;
+const MAX_UNIFIED_VEHICLES = 2000;
 const VEHICLE_FAVORITES_STORAGE_KEY = "worth-it-vehicle-favorites-v1";
 const VEHICLE_RECENT_STORAGE_KEY = "worth-it-vehicle-recent-v1";
 const VEHICLE_ACCOUNT_METADATA_KEY = "worth_it_vehicle_lists_v1";
@@ -684,7 +684,7 @@ const VEHICLE_PERSISTENT_CATEGORY_TTL_MS =
     7 * 24 * 60 * 60 * 1000;
 
 const VEHICLE_PERSISTENT_CATALOG_LIMIT =
-    1200;
+    2200;
 
 const VEHICLE_SUPPLEMENTAL_CATEGORIES = [
     "car",
@@ -782,7 +782,7 @@ function getPopularBackgroundTargetCount(
         );
 
     /*
-     * The unified All Vehicles view is capped at 1000 PUBLIC cards,
+     * The unified All Vehicles view is capped at 2000 PUBLIC cards,
      * but it must be allowed to keep validating candidates until it
      * can fill that public limit. The old small background target
      * silently stopped the unified list after a small fraction of the
@@ -4231,7 +4231,7 @@ async function buildFreshUnifiedVehicleCatalog() {
     });
 
     /*
-     * Keep a hidden popularity-ordered recovery pool. Only the first 1000
+     * Keep a hidden popularity-ordered recovery pool. Only the first 2000
      * are public, but candidates 1001–2000 are available as replacements
      * when a visible card fails the background quality check.
      */
@@ -7953,7 +7953,7 @@ async function renderPopularCatalogImmediately(kind, showAll = false) {
             );
 
     /*
-     * Build a larger validation pool than the public 1000-card limit.
+     * Build a larger validation pool than the public 2000-card limit.
      * For the unified view, scan the categories in a weighted round-robin
      * instead of letting the popularity sort fill the pool almost entirely
      * with cars. This is what allows valid motorcycles, vans, trucks and
@@ -13698,7 +13698,7 @@ function updateCarsCategoryHeader(
         '<span class="cars-results-description-text">' +
         escapeVehicleHtml(
             kind === VEHICLE_ALL_KIND
-                ? "1000 cars, motorcycles, vans, trucks and buses from the connected VehiclesDB dataset."
+                ? "2000 cars, motorcycles, vans, trucks and buses from the connected VehiclesDB dataset."
                 : info.description
         ) +
         '</span>' +
@@ -14463,7 +14463,7 @@ async function openCars() {
             '<div class="cars-empty-state">' +
                 '<div class="cars-empty-icon">🚗</div>' +
                 '<strong>Loading vehicles...</strong>' +
-                '<p>Loading the 1000-vehicle catalog. Returning users can restore previously loaded cards from their account cache.</p>' +
+                '<p>Loading the 2000-vehicle catalog. Returning users can restore previously loaded cards from their account cache.</p>' +
             '</div>';
     }
 
