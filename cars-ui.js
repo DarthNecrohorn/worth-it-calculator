@@ -2672,7 +2672,7 @@ function getPopularCardRecoveryState(
                             .slice(
                                 start,
                                 start +
-                                POPULAR_CARD_RECOVERY_MAX_CANDIDATES
+                                UNIFIED_CARD_RECOVERY_MAX_CANDIDATES
                             );
                     })()
                     : (
@@ -2689,7 +2689,11 @@ function getPopularCardRecoveryState(
                                 return currentVehicleResults.slice(
                                     start,
                                     start +
-                                    POPULAR_CARD_RECOVERY_MAX_CANDIDATES
+                                    (
+                                        currentVehicleKind === VEHICLE_ALL_KIND
+                                            ? UNIFIED_CARD_RECOVERY_MAX_CANDIDATES
+                                            : POPULAR_CARD_RECOVERY_MAX_CANDIDATES
+                                    )
                                 );
                             })()
                             : []
@@ -2773,30 +2777,65 @@ function findPopularCardRecoveryTarget(
         );
 
     return cards
-        .filter(card =>
-            card.dataset.recoveryLocked !== "true" &&
-            card.dataset.recoveryQueued !== "true" &&
-            (
+        .filter(card => {
+            if (
+                card.dataset.recoveryLocked === "true" ||
+                card.dataset.recoveryQueued === "true"
+            ) {
+                return false;
+            }
+
+            /*
+             * Unified Cars cards have no image state. Their only quality
+             * gates are real information and comparison availability.
+             * Legacy category cards keep the older image-aware behavior.
+             */
+            if (kind === VEHICLE_ALL_KIND) {
+                return (
+                    card.dataset.infoState !== "available" ||
+                    card.dataset.comparisonState !== "available"
+                );
+            }
+
+            return (
                 card.dataset.imageState !== "available" ||
                 card.dataset.infoState !== "available" ||
                 card.dataset.comparisonState !== "available"
-            )
-        )
+            );
+        })
         .sort(
             (a, b) => {
                 const aBad =
-                    a.dataset.imageState !== "available" ||
-                    a.dataset.infoState !== "available" ||
-                    a.dataset.comparisonState !== "available"
-                        ? 0
-                        : 1;
+                    kind === VEHICLE_ALL_KIND
+                        ? (
+                            a.dataset.infoState !== "available" ||
+                            a.dataset.comparisonState !== "available"
+                        )
+                            ? 0
+                            : 1
+                        : (
+                            a.dataset.imageState !== "available" ||
+                            a.dataset.infoState !== "available" ||
+                            a.dataset.comparisonState !== "available"
+                        )
+                            ? 0
+                            : 1;
 
                 const bBad =
-                    b.dataset.imageState !== "available" ||
-                    b.dataset.infoState !== "available" ||
-                    b.dataset.comparisonState !== "available"
-                        ? 0
-                        : 1;
+                    kind === VEHICLE_ALL_KIND
+                        ? (
+                            b.dataset.infoState !== "available" ||
+                            b.dataset.comparisonState !== "available"
+                        )
+                            ? 0
+                            : 1
+                        : (
+                            b.dataset.imageState !== "available" ||
+                            b.dataset.infoState !== "available" ||
+                            b.dataset.comparisonState !== "available"
+                        )
+                            ? 0
+                            : 1;
 
                 return aBad - bBad;
             }
@@ -2884,16 +2923,26 @@ async function findNextPopularCardRecoveryCandidate(
 
         let details = null;
 
+        const candidateKind =
+            candidate.sourceKind ||
+            candidate.kind ||
+            kind;
+
+        const candidateRequestMode =
+            kind === VEHICLE_ALL_KIND
+                ? "full"
+                : "image";
+
         try {
 
             details =
                 await fetchVehicleDetailsWithRetry(
                     candidate.make,
                     candidate.model,
-                    candidate.sourceKind || candidate.kind || kind,
+                    candidateKind,
                     1,
                     0,
-                    "image"
+                    candidateRequestMode
                 );
 
         } catch (error) {
@@ -2908,9 +2957,6 @@ async function findNextPopularCardRecoveryCandidate(
 
         }
 
-        const candidateKind =
-            candidate.sourceKind || candidate.kind || kind;
-
         const imageAvailable =
             hasPopularVehicleImageRelevance(
                 details,
@@ -2918,14 +2964,21 @@ async function findNextPopularCardRecoveryCandidate(
             );
 
         const informationAvailable =
-            hasUsablePopularVehicleDetails(
-                details,
-                candidate,
-                candidateKind
-            );
+            kind === VEHICLE_ALL_KIND
+                ? hasUnifiedVehicleDisplayInformation(details)
+                : hasUsablePopularVehicleDetails(
+                    details,
+                    candidate,
+                    candidateKind
+                );
+
+        const imageGate =
+            kind === VEHICLE_ALL_KIND
+                ? true
+                : imageAvailable;
 
         if (
-            imageAvailable &&
+            imageGate &&
             informationAvailable &&
             details?.comparisonAvailable === true
         ) {
