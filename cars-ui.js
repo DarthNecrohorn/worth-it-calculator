@@ -1906,7 +1906,7 @@ async function fetchVehicleDetails(
             await getVehicleAccountCacheOwner();
 
         const persistentDetails =
-            readPersistentVehicleDetails(
+            await readPersistentVehicleDetails(
                 persistentOwner,
                 make,
                 model,
