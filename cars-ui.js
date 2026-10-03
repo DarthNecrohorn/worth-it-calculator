@@ -7755,54 +7755,148 @@ async function renderPopularCatalogImmediately(kind, showAll = false) {
                 kind
             );
 
+    /*
+     * Build a larger validation pool than the public 600-card limit.
+     * For the unified view, scan the categories in a weighted round-robin
+     * instead of letting the popularity sort fill the pool almost entirely
+     * with cars. This is what allows valid motorcycles, vans, trucks and
+     * buses to compete for public slots as well.
+     *
+     * Each category keeps its original VehiclesDB popularity order.
+     * Cars get a larger share because the section is still primarily a
+     * Cars/vehicles browser, while every other category gets guaranteed
+     * early validation opportunities.
+     */
     const unique = [];
     const seen = new Set();
 
-    for (const vehicle of catalog) {
-        if (!vehicle?.make || !vehicle?.model) {
-            continue;
-        }
+    const candidatePoolLimit =
+        kind === VEHICLE_ALL_KIND
+            ? Math.max(
+                MAX_UNIFIED_VEHICLES,
+                1200
+            )
+            : MAX_UNIFIED_VEHICLES;
 
-        const sourceKind =
-            vehicle.sourceKind ||
-            vehicle.kind;
-
-        if (!VEHICLE_KINDS.includes(sourceKind)) {
-            continue;
-        }
-
-        const key =
-            getPopularVehicleQualityKey(
-                vehicle,
-                kind
-            );
-
-        if (seen.has(key)) {
-            continue;
-        }
-
-        seen.add(key);
-        unique.push(vehicle);
-
-        /*
-         * The source catalog may contain more than the 600 public cards.
-         * Keep a larger quality-gated candidate pool so vehicles whose
-         * Wikipedia/image/comparison checks fail can be replaced by the
-         * next valid model instead of shrinking the final list.
-         *
-         * The public All Vehicles limit remains 600; this is only the
-         * pre-render validation pool.
-         */
-        const candidatePoolLimit =
-            kind === VEHICLE_ALL_KIND
-                ? Math.max(
-                    MAX_UNIFIED_VEHICLES,
-                    1200
+    const normalizedCatalog =
+        catalog.filter(
+            vehicle =>
+                vehicle?.make &&
+                vehicle?.model &&
+                VEHICLE_KINDS.includes(
+                    vehicle.sourceKind ||
+                    vehicle.kind
                 )
-                : MAX_UNIFIED_VEHICLES;
+        );
 
-        if (unique.length >= candidatePoolLimit) {
-            break;
+    const candidateBuckets =
+        kind === VEHICLE_ALL_KIND
+            ? VEHICLE_KINDS.reduce(
+                (map, sourceKind) => {
+                    map.set(
+                        sourceKind,
+                        normalizedCatalog.filter(
+                            vehicle =>
+                                (vehicle.sourceKind || vehicle.kind) ===
+                                sourceKind
+                        )
+                    );
+                    return map;
+                },
+                new Map()
+            )
+            : null;
+
+    if (kind === VEHICLE_ALL_KIND) {
+        /*
+         * Weighted order: 4 cars, then 1 motorcycle, 1 van, 1 truck,
+         * 1 bus. This preserves a strong car presence without allowing
+         * cars to starve the commercial/two-wheeler categories.
+         */
+        const weights = {
+            car: 4,
+            motorcycle: 1,
+            van: 1,
+            truck: 1,
+            bus: 1
+        };
+
+        let bucketIndex = 0;
+
+        while (
+            unique.length < candidatePoolLimit &&
+            bucketIndex < candidatePoolLimit * 2
+        ) {
+            let addedThisRound = false;
+
+            for (const sourceKind of VEHICLE_KINDS) {
+                const bucket =
+                    candidateBuckets.get(sourceKind) || [];
+
+                const takeCount =
+                    weights[sourceKind] || 1;
+
+                for (
+                    let offset = 0;
+                    offset < takeCount &&
+                    bucketIndex < candidatePoolLimit * 2;
+                    offset++
+                ) {
+                    const vehicle =
+                        bucket.shift();
+
+                    if (!vehicle) {
+                        continue;
+                    }
+
+                    const key =
+                        getPopularVehicleQualityKey(
+                            vehicle,
+                            kind
+                        );
+
+                    if (seen.has(key)) {
+                        continue;
+                    }
+
+                    seen.add(key);
+                    unique.push(vehicle);
+                    addedThisRound = true;
+
+                    if (unique.length >= candidatePoolLimit) {
+                        break;
+                    }
+                }
+
+                if (unique.length >= candidatePoolLimit) {
+                    break;
+                }
+            }
+
+            if (!addedThisRound) {
+                break;
+            }
+
+            bucketIndex++;
+        }
+    } else {
+        for (const vehicle of normalizedCatalog) {
+            const key =
+                getPopularVehicleQualityKey(
+                    vehicle,
+                    kind
+                );
+
+            if (seen.has(key)) {
+                continue;
+            }
+
+            seen.add(key);
+            unique.push(vehicle);
+
+            if (unique.length >= candidatePoolLimit) {
+                break;
+            }
         }
     }
 
