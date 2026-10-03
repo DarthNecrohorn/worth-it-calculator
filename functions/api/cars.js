@@ -36,7 +36,7 @@ const WIKIDATA_CANDIDATE_LIMIT = 600;
 const WIKIDATA_NONCAR_CANDIDATE_LIMIT = 1000;
 const DBPEDIA_CANDIDATE_LIMIT = 600;
 const DBPEDIA_NONCAR_CANDIDATE_LIMIT = 1000;
-const WIKIPEDIA_CACHE_VERSION = "v27";
+const WIKIPEDIA_CACHE_VERSION = "v28";
 const WIKIMEDIA_IMAGE_LOOKUP_TIMEOUT_MS = 3500;
 
 const WIKIPEDIA_API =
@@ -5851,10 +5851,18 @@ async function getWikipediaInfoboxData(
         const generationSections =
             extractGenerationSections(html);
 
+        const parsedTechnicalTables =
+            parseWikipediaTechnicalTables(html);
+
+        /*
+         * Family/model-line pages can contain generation sections. We still
+         * parse their technical tables as a last-resort fallback when the
+         * infobox itself yields no usable technical fields.
+         */
         const tableSpecifications =
             generationSections.length
                 ? createEmptyWikipediaSpecifications()
-                : parseWikipediaTechnicalTables(html);
+                : parsedTechnicalTables;
 
         const merged =
             mergeWikipediaSpecifications(
@@ -5862,11 +5870,29 @@ async function getWikipediaInfoboxData(
                 htmlSpecifications
             );
 
-        const finalSpecifications =
+        let finalSpecifications =
             mergeWikipediaSpecifications(
                 merged,
                 tableSpecifications
             );
+
+        /*
+         * Some family pages hide useful numbers in technical tables rather
+         * than the infobox. Use those tables only when the normal result
+         * still has no usable information.
+         */
+        if (
+            generationSections.length &&
+            !hasWikipediaVehicleInformation(
+                finalSpecifications
+            )
+        ) {
+            finalSpecifications =
+                mergeWikipediaSpecifications(
+                    finalSpecifications,
+                    parsedTechnicalTables
+                );
+        }
 
         let latestGeneration = {
             title: null,
@@ -5944,6 +5970,8 @@ function getWikipediaVehicleInformationCount(
     }
 
     const comparisonFields = [
+        "bodyType",
+        "production",
         "engine",
         "engineDisplacement",
         "fuel",
@@ -6743,10 +6771,14 @@ async function searchOpenverseVehicleImage(
             const result =
                 item.result;
 
+            /*
+             * Openverse exposes url as the media URL and thumbnail as a
+             * thumbnail representation. Prefer the source media URL.
+             */
             const imageUrl =
                 String(
-                    result?.thumbnail ||
                     result?.url ||
+                    result?.thumbnail ||
                     ""
                 ).trim();
 
@@ -6812,6 +6844,79 @@ async function searchOpenverseVehicleImage(
 
 }
 
+
+function createCatalogFallbackSpecifications(
+    vehicle
+) {
+
+    const specifications =
+        createEmptyWikipediaSpecifications();
+
+    const bodyTypes =
+        Array.isArray(vehicle?.bodyTypes)
+            ? vehicle.bodyTypes
+                .map(value => String(value || "").trim())
+                .filter(Boolean)
+            : [];
+
+    const bodyType =
+        String(
+            vehicle?.bodyType ||
+            bodyTypes[0] ||
+            ""
+        ).trim();
+
+    if (bodyType) {
+        specifications.bodyType = bodyType;
+    }
+
+    const yearStart =
+        String(vehicle?.yearStart || "").trim();
+    const yearEnd =
+        String(vehicle?.yearEnd || "").trim();
+
+    if (yearStart && yearEnd) {
+        specifications.production =
+            yearStart === yearEnd
+                ? yearStart
+                : yearStart + "–" + yearEnd;
+    } else if (yearStart) {
+        specifications.production =
+            yearStart + "–present";
+    } else if (yearEnd) {
+        specifications.production =
+            "through " + yearEnd;
+    }
+
+    return specifications;
+}
+
+function mergeCatalogFallbackSpecifications(
+    specifications,
+    vehicle
+) {
+
+    const merged = {
+        ...createEmptyWikipediaSpecifications(),
+        ...(specifications || {})
+    };
+
+    const fallback =
+        createCatalogFallbackSpecifications(
+            vehicle
+        );
+
+    for (const field of ["bodyType", "production"]) {
+        if (
+            !isUsefulWikipediaValue(merged[field]) &&
+            isUsefulWikipediaValue(fallback[field])
+        ) {
+            merged[field] = fallback[field];
+        }
+    }
+
+    return merged;
+}
 
 function createWikipediaNoInformation(
     make,
@@ -7651,6 +7756,16 @@ async function handleDetails(
             );
         }
     }
+
+    /*
+     * Retain authoritative VehiclesDB body type and production range when
+     * Wikipedia does not expose structured values for them.
+     */
+    specifications =
+        mergeCatalogFallbackSpecifications(
+            specifications,
+            vehicle
+        );
 
     inferWikipediaFuel(specifications);
 
