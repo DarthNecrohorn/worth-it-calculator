@@ -1194,7 +1194,7 @@ async function cacheVehicleImageResponse(
 
 let vehicleImageObserver = null;
 
-const MAX_CONCURRENT_IMAGE_REQUESTS = 12;
+const MAX_CONCURRENT_IMAGE_REQUESTS = 16;
 
 let activeVehicleImageRequests = 0;
 
@@ -1383,7 +1383,7 @@ function getVehicleImageObserver() {
                  * This prevents hundreds of details
                  * requests from starting at once.
                  */
-                rootMargin: "800px 0px"
+                rootMargin: "1200px 0px"
             }
         );
 
