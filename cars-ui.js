@@ -39,7 +39,7 @@ const VEHICLE_CATALOG_BASE_URL =
 const VEHICLE_DATASET_MANIFEST_URL =
     "https://cdn.jsdelivr.net/gh/vehiclesdb/vehiclesdb@latest/manifest.json";
 
-const VEHICLE_DETAILS_CACHE_VERSION = "v20";
+const VEHICLE_DETAILS_CACHE_VERSION = "v22";
 
 const MAX_VEHICLES_PER_CATEGORY = 300;
 
@@ -56,17 +56,20 @@ const INITIAL_VISIBLE_ROWS = 2;
  * out of the Popular Vehicles view.
  */
 const POPULAR_CANDIDATE_POOL_SIZE = 2500;
+const POPULAR_MIN_VALID_CARDS_PER_CATEGORY = 100;
 const POPULAR_CAR_INITIAL_VISIBLE_ROWS = 3;
 const POPULAR_CAR_INITIAL_CARD_COUNT = 12;
 const POPULAR_CAR_INITIAL_MAX_CHECKS = 250;
-const POPULAR_NONCAR_CANDIDATE_POOL_SIZE = 1800;
-const POPULAR_NONCAR_BASE_CANDIDATE_LIMIT = 1400;
-const POPULAR_NONCAR_SUPPLEMENTAL_CANDIDATE_LIMIT = 1600;
+const POPULAR_CAR_MAX_NEW_CHECKS = 2400;
+const POPULAR_NONCAR_CANDIDATE_POOL_SIZE = 2400;
+const POPULAR_NONCAR_BASE_CANDIDATE_LIMIT = 1800;
+const POPULAR_NONCAR_SUPPLEMENTAL_CANDIDATE_LIMIT = 2200;
 const POPULAR_QUALITY_BATCH_SIZE = 10;
 const POPULAR_INITIAL_MAX_CHECKS = 40;
 const POPULAR_SHOW_ALL_MAX_NEW_CHECKS = 1500;
 const VEHICLE_DETAILS_REQUEST_TIMEOUT_MS = 15000;
 const VEHICLE_NONCAR_DETAILS_REQUEST_TIMEOUT_MS = 6500;
+const VEHICLE_FAST_DETAILS_REQUEST_TIMEOUT_MS = 5000;
 const POPULAR_NONCAR_PROGRESSIVE_BUDGET_MS = 7000;
 const POPULAR_NONCAR_EARLY_BASE_COUNT = 120;
 const POPULAR_NONCAR_EARLY_SUPPLEMENTAL_COUNT = 400;
@@ -452,7 +455,7 @@ const VEHICLE_PERSISTENT_CATALOG_VERSION =
     "v2";
 
 const VEHICLE_PERSISTENT_POPULAR_VERSION =
-    "v3";
+    "v4";
 
 const VEHICLE_PERSISTENT_CATEGORY_TTL_MS =
     7 * 24 * 60 * 60 * 1000;
@@ -477,9 +480,9 @@ const VEHICLE_SUPPLEMENTAL_CATEGORIES = [
 const popularVehicleHydrationState =
     new Map();
 
-const POPULAR_DETAILS_CONCURRENCY = 6;
+const POPULAR_DETAILS_CONCURRENCY = 16;
 
-const POPULAR_NONCAR_DETAILS_CONCURRENCY = 16;
+const POPULAR_NONCAR_DETAILS_CONCURRENCY = 20;
 const POPULAR_NONCAR_QUALITY_BATCH_SIZE = 16;
 const POPULAR_NONCAR_INITIAL_MAX_CHECKS = 300;
 
@@ -487,11 +490,11 @@ const POPULAR_NONCAR_INITIAL_VISIBLE_ROWS = 3;
 const POPULAR_NONCAR_INITIAL_CARD_COUNT = 12;
 const POPULAR_NONCAR_REFRESH_CARD_COUNT = 12;
 
-const POPULAR_REFRESH_CARD_COUNT = 8;
-const POPULAR_REFRESH_MAX_CHECKS = 240;
-const POPULAR_REFRESH_CONCURRENCY = 16;
+const POPULAR_REFRESH_CARD_COUNT = 12;
+const POPULAR_REFRESH_MAX_CHECKS = 320;
+const POPULAR_REFRESH_CONCURRENCY = 20;
 
-const PERSISTENT_VEHICLE_DETAILS_MAX_ENTRIES = 40;
+const PERSISTENT_VEHICLE_DETAILS_MAX_ENTRIES = 500;
 
 function getPopularDetailsConcurrency(kind) {
     return kind === "car"
@@ -538,15 +541,33 @@ function getPopularInitialCheckLimit(kind) {
 
 function getPopularMaxNewChecks(kind) {
     return kind === "car"
-        ? POPULAR_SHOW_ALL_MAX_NEW_CHECKS
-        : 2600;
+        ? POPULAR_CAR_MAX_NEW_CHECKS
+        : 3600;
+}
+
+function getPopularBackgroundTargetCount(
+    kind,
+    candidatesLength
+) {
+
+    const available =
+        Math.max(
+            0,
+            Number(candidatesLength) || 0
+        );
+
+    return Math.min(
+        MAX_VEHICLES_PER_CATEGORY,
+        available,
+        POPULAR_MIN_VALID_CARDS_PER_CATEGORY
+    );
 }
 
 /*
  * Persistent browser cache version for account-scoped vehicle
  * metadata/images.
  */
-const VEHICLE_PERSISTENT_CACHE_VERSION = "v4";
+const VEHICLE_PERSISTENT_CACHE_VERSION = "v5";
 
 let vehicleAccountCacheOwnerPromise =
     null;
@@ -1163,7 +1184,7 @@ async function cacheVehicleImageResponse(
 
 let vehicleImageObserver = null;
 
-const MAX_CONCURRENT_IMAGE_REQUESTS = 8;
+const MAX_CONCURRENT_IMAGE_REQUESTS = 12;
 
 let activeVehicleImageRequests = 0;
 
@@ -1352,7 +1373,7 @@ function getVehicleImageObserver() {
                  * This prevents hundreds of details
                  * requests from starting at once.
                  */
-                rootMargin: "400px 0px"
+                rootMargin: "800px 0px"
             }
         );
 
@@ -1677,9 +1698,13 @@ async function fetchVehicleDetails(
                         : null;
 
                 const requestTimeoutMs =
-                    kind === "car"
-                        ? VEHICLE_DETAILS_REQUEST_TIMEOUT_MS
-                        : VEHICLE_NONCAR_DETAILS_REQUEST_TIMEOUT_MS;
+                    isFastMode
+                        ? VEHICLE_FAST_DETAILS_REQUEST_TIMEOUT_MS
+                        : (
+                            kind === "car"
+                                ? VEHICLE_DETAILS_REQUEST_TIMEOUT_MS
+                                : VEHICLE_NONCAR_DETAILS_REQUEST_TIMEOUT_MS
+                        );
 
                 const timeoutId =
                     controller
@@ -4106,10 +4131,7 @@ function hasUsablePopularVehicleDetails(
             details
         );
 
-    const minimumSpecificationFields =
-        kind === "car"
-            ? POPULAR_MIN_SPECIFICATION_FIELDS
-            : 0;
+    const minimumSpecificationFields = 0;
 
     if (
         specificationCount <
@@ -4311,15 +4333,9 @@ async function evaluatePopularVehicleCandidate(
             vehicle.make,
             vehicle.model,
             detailKind,
-            kind === "car"
-                ? 2
-                : 1,
-            kind === "car"
-                ? 650
-                : 250,
-            kind === "car"
-                ? "full"
-                : "fast"
+            1,
+            0,
+            "fast"
         );
 
     if (!details) {
@@ -4739,10 +4755,6 @@ async function readPersistentPopularVehicles(
     kind
 ) {
 
-    if (kind === "car") {
-        return [];
-    }
-
     try {
 
         const cache =
@@ -4800,7 +4812,6 @@ async function writePersistentPopularVehicles(
 ) {
 
     if (
-        kind === "car" ||
         !Array.isArray(vehicles) ||
         !vehicles.length
     ) {
@@ -4905,7 +4916,6 @@ async function restorePersistentPopularVehicles(
 ) {
 
     if (
-        kind === "car" ||
         !Array.isArray(candidates) ||
         !candidates.length
     ) {
