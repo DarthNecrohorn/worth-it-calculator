@@ -3481,7 +3481,7 @@ function hasExpectedPopularVehicleKindEvidence(
     kind
 ) {
 
-    if (!kind) {
+    if (!kind || kind === "car") {
         return true;
     }
 
@@ -3496,92 +3496,22 @@ function hasExpectedPopularVehicleKindEvidence(
         );
 
     const combinedText =
-        `${title} ${description}`.trim();
+        title + " " + description;
 
-    if (kind === "bus") {
-        const busTerms =
-            POPULAR_VEHICLE_TYPE_TERMS.bus || [];
+    const expectedTerms =
+        POPULAR_VEHICLE_TYPE_TERMS[kind] ||
+        [];
 
-        const nonBusTerms = [
-            "light commercial vehicle",
-            "van",
-            "panel van",
-            "cargo van",
-            "minivan",
-            "truck",
-            "lorry",
-            "pickup",
-            "motorcycle",
-            "moped"
-        ];
+    const contradictionTerms =
+        POPULAR_VEHICLE_KIND_CONTRADICTION_TERMS[kind] ||
+        [];
 
-        const hasBusText =
-            busTerms.some(term =>
-                combinedText.includes(
-                    normalizePopularQualityText(term)
-                )
-            );
-
-        const hasNonBusText =
-            nonBusTerms.some(term =>
-                combinedText.includes(
-                    normalizePopularQualityText(term)
-                )
-            );
-
-        const specificationBodyType =
-            normalizePopularQualityText(
-                details?.specifications?.bodyType || ""
-            );
-
-        const hasNonBusBodyType =
-            nonBusTerms.some(term =>
-                specificationBodyType.includes(
-                    normalizePopularQualityText(term)
-                )
-            );
-
-        if (
-            !hasBusText &&
-            (hasNonBusText || hasNonBusBodyType)
-        ) {
-            return false;
-        }
-    }
-
-    if (kind !== "car") {
-
-        const expectedTerms =
-            POPULAR_VEHICLE_TYPE_TERMS[kind] ||
-            [];
-
-        const contradictionTerms =
-            POPULAR_VEHICLE_KIND_CONTRADICTION_TERMS[kind] ||
-            [];
-
-        const hasExpectedText =
-            expectedTerms.some(term =>
-                combinedText.includes(
-                    normalizePopularQualityText(term)
-                )
-            );
-
-        const contradictionCount =
-            contradictionTerms.filter(term =>
-                combinedText.includes(
-                    normalizePopularQualityText(term)
-                )
-            ).length;
-
-        if (
-            !hasExpectedText &&
-            contradictionCount >= 2 &&
-            getPopularVehicleSpecificationCount(details) < 1
-        ) {
-            return false;
-        }
-
-    }
+    const hasExpectedText =
+        expectedTerms.some(term =>
+            combinedText.includes(
+                normalizePopularQualityText(term)
+            )
+        );
 
     const bodyTypes = [
         ...(Array.isArray(details?.vehicle?.body_types)
@@ -3596,96 +3526,34 @@ function hasExpectedPopularVehicleKindEvidence(
         )
         .filter(Boolean);
 
-    const expectedTerms =
-        POPULAR_VEHICLE_TYPE_TERMS[kind] ||
-        [];
-
-    const hasExpectedText =
-        expectedTerms.some(term =>
-            combinedText.includes(
-                normalizePopularQualityText(term)
-            )
-        );
-
-    if (hasExpectedText) {
-        return true;
-    }
-
-    const bodyTypeText =
-        bodyTypes.join(" ");
-
     const hasExpectedBodyType =
         expectedTerms.some(term =>
-            bodyTypeText.includes(
-                normalizePopularQualityText(term)
+            bodyTypes.some(bodyType =>
+                bodyType.includes(
+                    normalizePopularQualityText(term)
+                )
             )
         );
 
-    if (hasExpectedBodyType) {
+    if (hasExpectedText || hasExpectedBodyType) {
         return true;
     }
 
-    /*
-     * An exact Wikipedia title match is a useful last-resort identity
-     * signal for records whose summary omits the vehicle type. Only use
-     * it when there is no strong contradiction from another vehicle kind.
-     */
     const targetTitle =
         normalizePopularQualityText(
-            `${vehicle?.make || ""} ${vehicle?.model || ""}`
+            (vehicle?.make || "") + " " + (vehicle?.model || "")
         );
 
-    /*
-     * VehiclesDB already provides the authoritative category. Some
-     * Wikipedia summaries (especially for buses, trucks, vans, mopeds
-     * and motorcycles) do not explicitly repeat the vehicle type even
-     * though the article contains a real vehicle infobox. In that case,
-     * two or more technical specification fields are enough to accept
-     * the page once the make/model identity has already matched.
-     */
-    const technicalSpecificationCount =
-        getPopularVehicleSpecificationCount(
-            details
-        );
-
-    const minimumTechnicalFields =
-        kind === "car"
-            ? POPULAR_MIN_SPECIFICATION_FIELDS
-            : 1;
-
-    if (
-        technicalSpecificationCount >=
-        minimumTechnicalFields
-    ) {
-        return true;
-    }
-
-    const exactTitle =
-        title === targetTitle;
-
-    if (!exactTitle) {
+    if (!targetTitle || title !== targetTitle) {
         return false;
     }
 
-    const contradictionTerms = {
-        motorcycle: ["bus", "truck", "van", "lorry"],
-        moped: ["bus", "truck", "van", "lorry", "sedan", "hatchback", "coupe"],
-        van: ["bus", "truck", "sedan", "hatchback", "coupe", "roadster"],
-        truck: ["bus", "coach", "sedan", "hatchback", "coupe"],
-        bus: ["truck", "lorry", "sedan", "hatchback", "coupe"],
-        car: ["bus", "coach", "truck", "lorry", "motorcycle", "moped"]
-    };
-
-    const contradictions =
-        contradictionTerms[kind] || [];
-
-    return !contradictions.some(term =>
+    return !contradictionTerms.some(term =>
         combinedText.includes(
             normalizePopularQualityText(term)
         )
     );
 }
-
 
 function countPopularVehicleTypeTerms(
     details,
