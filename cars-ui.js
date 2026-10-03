@@ -166,6 +166,9 @@ const VEHICLE_KINDS = [
     "bus"
 ];
 
+const VEHICLE_ALL_KIND = "all";
+const MAX_UNIFIED_VEHICLES = 600;
+
 const VEHICLE_DATA_KINDS = [
     "car",
     "motorcycle",
@@ -184,6 +187,15 @@ const VEHICLE_CATALOG_SOURCE_KINDS = {
 };
 
 const VEHICLE_KIND_INFO = {
+
+    all: {
+        icon: "🚗",
+        singular: "Vehicle",
+        plural: "Vehicles",
+        title: "🚗 All Vehicles",
+        description:
+            "Explore 600 vehicles from the connected VehiclesDB dataset."
+    },
 
     car: {
         icon: "🚗",
@@ -462,7 +474,7 @@ const DBPEDIA_SUPPLEMENTAL_LIMIT =
     1000;
 
 const VEHICLE_PERSISTENT_CATALOG_VERSION =
-    "v6";
+    "v7";
 
 const VEHICLE_PERSISTENT_POPULAR_VERSION =
     "v7";
@@ -579,7 +591,7 @@ function getPopularBackgroundTargetCount(
  * Persistent browser cache version for account-scoped vehicle
  * metadata/images.
  */
-const VEHICLE_PERSISTENT_CACHE_VERSION = "v9";
+const VEHICLE_PERSISTENT_CACHE_VERSION = "v10";
 
 let vehicleAccountCacheOwnerPromise =
     null;
@@ -3371,6 +3383,72 @@ async function refreshVehicleCatalogInBackground(
 
     }
 
+}
+
+async function buildFreshUnifiedVehicleCatalog() {
+
+    const catalogs =
+        await Promise.all(
+            VEHICLE_KINDS.map(
+                kind =>
+                    fetchFreshVehicleCatalog(kind).catch(error => {
+                        console.warn("Unified vehicle source failed:", kind, error);
+                        return [];
+                    })
+            )
+        );
+
+    const merged = new Map();
+
+    catalogs.flat().forEach(vehicle => {
+        if (!vehicle?.make || !vehicle?.model) return;
+
+        const sourceKind = vehicle.sourceKind || vehicle.kind;
+        if (!VEHICLE_KINDS.includes(sourceKind)) return;
+        if (!isCatalogVehicleKindCompatible(vehicle)) return;
+
+        const key = normalizeVehicleText(vehicle.make) + "|" +
+            normalizeVehicleText(vehicle.model) + "|" + sourceKind;
+
+        if (!merged.has(key)) {
+            merged.set(key, { ...vehicle, kind: sourceKind, sourceKind });
+        }
+    });
+
+    const vehicles = Array.from(merged.values());
+    vehicles.sort((a, b) => {
+        const popularity = getVehiclePopularityValue(a) - getVehiclePopularityValue(b);
+        if (popularity !== 0) return popularity;
+        return (String(a.make) + " " + String(a.model)).localeCompare(String(b.make) + " " + String(b.model), undefined, { sensitivity: "base" });
+    });
+
+    return vehicles.slice(0, MAX_UNIFIED_VEHICLES);
+}
+
+async function fetchUnifiedVehicleCatalog() {
+    if (vehicleCatalogCache.has(VEHICLE_ALL_KIND)) {
+        return vehicleCatalogCache.get(VEHICLE_ALL_KIND);
+    }
+
+    const saved = await readPersistentVehicleCatalog(VEHICLE_ALL_KIND);
+    if (Array.isArray(saved) && saved.length) {
+        const limited = saved.slice(0, MAX_UNIFIED_VEHICLES);
+        vehicleCatalogCache.set(VEHICLE_ALL_KIND, limited);
+        void buildFreshUnifiedVehicleCatalog().then(fresh => {
+            if (fresh.length) {
+                vehicleCatalogCache.set(VEHICLE_ALL_KIND, fresh);
+                void writePersistentVehicleCatalog(VEHICLE_ALL_KIND, fresh);
+            }
+        }).catch(error => console.warn("Background unified catalog refresh failed:", error));
+        return limited;
+    }
+
+    const fresh = await buildFreshUnifiedVehicleCatalog();
+    if (fresh.length) {
+        vehicleCatalogCache.set(VEHICLE_ALL_KIND, fresh);
+        void writePersistentVehicleCatalog(VEHICLE_ALL_KIND, fresh);
+    }
+    return fresh;
 }
 
 async function fetchVehicleCatalog(
@@ -7297,19 +7375,23 @@ function searchVehicleCatalog(
 
     if (!normalizedQuery) {
 
-        return getPopularVehicles(
-            vehicles,
-            currentVehicleKind
-        );
+        return currentVehicleKind === VEHICLE_ALL_KIND
+            ? vehicles.slice(0, MAX_UNIFIED_VEHICLES)
+            : getPopularVehicles(
+                vehicles,
+                currentVehicleKind
+            );
 
     }
 
 
     const categoryVehicles =
-        getStrictVehicleCategoryCatalog(
-            vehicles,
-            currentVehicleKind
-        );
+        currentVehicleKind === VEHICLE_ALL_KIND
+            ? vehicles
+            : getStrictVehicleCategoryCatalog(
+                vehicles,
+                currentVehicleKind
+            );
 
     const results =
         categoryVehicles.filter(
@@ -12375,87 +12457,12 @@ function preloadVehicleCategoryCatalogs(
  */
 
 function renderVehicleCategoryButtons() {
-
     const categoryGrid =
-        document.querySelector(
-            "#carsSection .cars-category-grid"
-        );
+        document.querySelector("#carsSection .cars-category-grid");
 
-
-    if (!categoryGrid) {
-
-        return;
-
+    if (categoryGrid) {
+        categoryGrid.remove();
     }
-
-
-    categoryGrid.innerHTML =
-        "";
-
-
-    for (
-        const kind of VEHICLE_KINDS
-    ) {
-
-        const info =
-            getVehicleKindInfo(
-                kind
-            );
-
-
-        const button =
-            document.createElement(
-                "button"
-            );
-
-
-        button.type =
-            "button";
-
-
-        button.className =
-            "cars-category-card";
-
-
-        button.dataset.vehicleKind =
-            kind;
-
-
-        button.innerHTML = `
-
-            <span>
-                ${info.icon}
-            </span>
-
-            <strong>
-                ${info.plural}
-            </strong>
-
-            <small>
-                Explore ${info.plural.toLowerCase()}
-            </small>
-
-        `;
-
-
-        button.addEventListener(
-            "click",
-            () => {
-
-                filterCarsByCategory(
-                    kind
-                );
-
-            }
-        );
-
-
-        categoryGrid.appendChild(
-            button
-        );
-
-    }
-
 }
 
 
@@ -12465,144 +12472,8 @@ function renderVehicleCategoryButtons() {
  * ============================================================
  */
 
-async function filterCarsByCategory(
-    kind
-) {
-
-    if (
-        !VEHICLE_KINDS.includes(kind)
-    ) {
-
-        kind =
-            "car";
-
-    }
-
-
-    currentVehicleKind =
-        kind;
-
-
-    currentVehicleShowAll =
-        false;
-
-    currentVehicleMode =
-        "popular";
-
-    popularVehicleHydrationState.delete(
-        `quality-retry:${kind}`
-    );
-
-    closeVehicleDetailsPanel(false);
-    hideVehicleFloatingCollapseButton();
-
-
-    const info =
-        getVehicleKindInfo(
-            kind
-        );
-
-
-    updateCarsCategoryHeader(
-        "popular",
-        kind
-    );
-
-
-    const oldExpandButton =
-        document.getElementById(
-            "carsVehicleExpandButton"
-        );
-
-
-    if (oldExpandButton) {
-
-        oldExpandButton.remove();
-
-    }
-
-
-    const grid =
-        document.getElementById(
-            "popularCarsGrid"
-        );
-
-
-    if (grid) {
-
-        grid.innerHTML = `
-
-            <div class="cars-empty-state">
-
-                <div class="cars-empty-icon">
-                    ${info.icon}
-                </div>
-
-                <strong>
-                    Loading ${info.plural.toLowerCase()}...
-                </strong>
-
-                <p>
-                    Loading the latest VehiclesDB catalog and checking available vehicle information.
-                </p>
-
-            </div>
-
-        `;
-
-    }
-
-
-    /*
-     * Usually this resolves from the background-preloaded catalog
-     * immediately, matching the behaviour of the Cars category.
-     */
-    let vehicles =
-        await fetchVehicleCatalog(
-            kind
-        );
-
-    /*
-     * A temporary CDN failure can return an empty result without meaning
-     * that the category is actually empty. Try the catalog once more before
-     * presenting the user with an empty category.
-     */
-    if (
-        !vehicles.length
-    ) {
-
-        await new Promise(
-            resolve =>
-                window.setTimeout(
-                    resolve,
-                    350
-                )
-        );
-
-        if (
-            currentVehicleKind !== kind ||
-            currentVehicleMode !== "popular"
-        ) {
-            return;
-        }
-
-        vehicles =
-            await fetchVehicleCatalog(
-                kind
-            );
-
-    }
-
-    currentVehicleCatalog =
-        vehicles;
-
-    updateCarsLastUpdated(kind);
-
-    await loadAndRenderPopularVehicles(
-        kind,
-        false
-    );
-
+async function filterCarsByCategory() {
+    await openCars();
 }
 
 
