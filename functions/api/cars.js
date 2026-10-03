@@ -2076,6 +2076,173 @@ const WIKIPEDIA_FIELD_ALIASES = {
     "number of doors": "doors"
 };
 
+/*
+ * Extract an explicit price mentioned in the Wikipedia lead.
+ * Only prices tied to clear pricing language are accepted.
+ */
+function extractExplicitWikipediaPrice(text) {
+
+    const source =
+        normalizeWikipediaText(text);
+
+    if (!source) {
+        return "";
+    }
+
+    const currency =
+        "(?:US|CA|AU|NZ|HK|SG)?\\s*(?:\\$|€|£|¥|₹|R\\$|₽)";
+
+    const amount =
+        "\\d[\\d,]*(?:\\.\\d+)?(?:\\s*(?:million|billion|thousand))?";
+
+    const patterns = [
+        new RegExp(
+            "\\b(?:MSRP|starting price|starting at|base price|list price|retail price|manufacturer(?:'s|\\s+)suggested retail price|prices?\\s+(?:start|starts|started|starting)\\s+at)\\b[^.]{0,100}?(" +
+            currency +
+            ")\\s*(" +
+            amount +
+            ")",
+            "i"
+        ),
+        new RegExp(
+            "\\b(" +
+            currency +
+            ")\\s*(" +
+            amount +
+            ")\\s*(?:MSRP|starting price|base price|list price)\\b",
+            "i"
+        )
+    ];
+
+    for (const pattern of patterns) {
+
+        const match =
+            source.match(pattern);
+
+        if (!match) {
+            continue;
+        }
+
+        return (
+            String(match[1] || "").trim() +
+            String(match[2] || "").trim()
+        ).replace(/\\s+/g, " ");
+
+    }
+
+    return "";
+}
+
+/*
+ * Wikidata P2284 is a structured published-price property.
+ * It is used only as a fallback when Wikipedia has no explicit price.
+ */
+async function fetchWikidataVehiclePrice(wikipediaTitle) {
+
+    const title =
+        String(wikipediaTitle || "").trim();
+
+    if (!title) {
+        return "";
+    }
+
+    try {
+
+        const query =
+            "SELECT ?amount ?unitLabel ?date WHERE {" +
+            " ?article schema:about ?item;" +
+            " schema:isPartOf <https://en.wikipedia.org/>;" +
+            " schema:name ?name." +
+            " FILTER(STR(?name)=\"" +
+            title.replace(/"/g, '\\"') +
+            "\")" +
+            " ?item p:P2284 ?statement." +
+            " ?statement ps:P2284 ?amount." +
+            " ?statement psv:P2284 ?quantity." +
+            " ?quantity wikibase:quantityUnit ?unit." +
+            " OPTIONAL { ?statement pq:P585 ?date. }" +
+            " SERVICE wikibase:label { bd:serviceParam wikibase:language \"en\". }" +
+            "} ORDER BY DESC(?date) LIMIT 5";
+
+        const url =
+            new URL(
+                WIKIDATA_SPARQL_API
+            );
+
+        url.searchParams.set(
+            "query",
+            query
+        );
+
+        url.searchParams.set(
+            "format",
+            "json"
+        );
+
+        const data =
+            await fetchWikidataCached(
+                url.toString()
+            );
+
+        const bindings =
+            data &&
+            data.results &&
+            Array.isArray(data.results.bindings)
+                ? data.results.bindings
+                : [];
+
+        for (const binding of bindings) {
+
+            const rawAmount =
+                binding &&
+                binding.amount &&
+                binding.amount.value
+                    ? String(binding.amount.value).trim()
+                    : "";
+
+            const unitLabel =
+                binding &&
+                binding.unitLabel &&
+                binding.unitLabel.value
+                    ? String(binding.unitLabel.value).trim()
+                    : "";
+
+            const numeric =
+                Number(rawAmount);
+
+            if (
+                !rawAmount ||
+                !unitLabel ||
+                !Number.isFinite(numeric) ||
+                numeric <= 0
+            ) {
+                continue;
+            }
+
+            return (
+                unitLabel +
+                " " +
+                numeric.toLocaleString(
+                    "en-US",
+                    { maximumFractionDigits: 2 }
+                )
+            );
+
+        }
+
+    } catch (error) {
+
+        console.warn(
+            "Wikidata vehicle price lookup failed:",
+            wikipediaTitle,
+            error
+        );
+
+    }
+
+    return "";
+}
+
 function getWikipediaSpecificationField(label) {
 
     const normalized =
@@ -8143,6 +8310,42 @@ async function handleDetails(
     ) {
         specifications.generation =
             specificationSourceTitle;
+    }
+
+    if (
+        !isUsefulWikipediaValue(
+            specifications?.price
+        )
+    ) {
+
+        const leadPrice =
+            extractExplicitWikipediaPrice(
+                page.description
+            );
+
+        if (leadPrice) {
+            specifications.price =
+                leadPrice;
+        }
+
+    }
+
+    if (
+        !isUsefulWikipediaValue(
+            specifications?.price
+        )
+    ) {
+
+        const wikidataPrice =
+            await fetchWikidataVehiclePrice(
+                page.title
+            );
+
+        if (wikidataPrice) {
+            specifications.price =
+                wikidataPrice;
+        }
+
     }
 
     const comparisonAvailable =
