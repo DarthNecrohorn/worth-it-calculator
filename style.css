@@ -14163,10 +14163,10 @@ html[data-ui-scale="xl"] .water-levels-detail-card{
         font-size:52px !important;
     }
     html[data-ui-scale="large"] .worth-it-vehicle-modal-navigation-previous{
-        left:max(8px,calc(50% - 505px)) !important;
+        left:max(8px,calc(50% - 455px)) !important;
     }
     html[data-ui-scale="large"] .worth-it-vehicle-modal-navigation-next{
-        right:max(8px,calc(50% - 505px)) !important;
+        right:max(8px,calc(50% - 455px)) !important;
     }
 
     html[data-ui-scale="xl"] .worth-it-vehicle-modal-dialog{
@@ -14185,10 +14185,10 @@ html[data-ui-scale="xl"] .water-levels-detail-card{
         border-radius:15px !important;
     }
     html[data-ui-scale="xl"] .worth-it-vehicle-modal-navigation-previous{
-        left:max(8px,calc(50% - 475px)) !important;
+        left:max(8px,calc(50% - 370px)) !important;
     }
     html[data-ui-scale="xl"] .worth-it-vehicle-modal-navigation-next{
-        right:max(8px,calc(50% - 475px)) !important;
+        right:max(8px,calc(50% - 370px)) !important;
     }
 }
 
