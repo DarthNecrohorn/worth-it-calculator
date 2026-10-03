@@ -3038,64 +3038,20 @@ async function enrichVehicleCategoryWithSupplementalSources(
     kind
 ) {
 
-    const [
-        wikidata,
-        dbpedia
-    ] =
-        await Promise.all([
-            fetchSupplementalVehicleCatalog(
-                kind
-            ),
-            fetchDbpediaVehicleCatalog(
-                kind
-            )
-        ]);
-
-    const supplemental =
-        [
-            ...(Array.isArray(wikidata)
-                ? wikidata.slice(
-                    0,
-                    WIKIDATA_SUPPLEMENTAL_LIMIT
-                )
-                : []),
-            ...(Array.isArray(dbpedia)
-                ? dbpedia.slice(
-                    0,
-                    DBPEDIA_SUPPLEMENTAL_LIMIT
-                )
-                : [])
-        ];
-
-    if (!supplemental.length) {
-        return;
-    }
-
-    const mergedCatalog =
-        mergeSupplementalVehicleCatalog(
-            kind,
-            supplemental
-        );
-
-    void writePersistentVehicleCatalog(
-        kind,
-        mergedCatalog
-    );
-
-    if (
-        currentVehicleKind === kind &&
-        currentVehicleMode === "popular"
-    ) {
-
-        currentVehicleCatalog =
-            mergedCatalog;
-
-        void continueStablePopularVehicleLoading(
-            kind,
-            mergedCatalog
-        );
-
-    }
+    /*
+     * Supplemental sources are discovery/identity helpers only.
+     * VehiclesDB remains the sole source of public category membership.
+     *
+     * In particular, do not merge Wikidata/DBpedia records back into
+     * vehicleCatalogCache or continue the old quality scanner here. A
+     * broad DBpedia transportation class can legitimately contain both
+     * vans and trucks, so merging those candidates is exactly how the
+     * category bleed-through occurred.
+     */
+    await Promise.all([
+        fetchSupplementalVehicleCatalog(kind),
+        fetchDbpediaVehicleCatalog(kind)
+    ]);
 
 }
 
