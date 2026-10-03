@@ -720,9 +720,9 @@ const VEHICLE_SUPPLEMENTAL_CATEGORIES = [
 const popularVehicleHydrationState =
     new Map();
 
-const POPULAR_DETAILS_CONCURRENCY = 6;
+const POPULAR_DETAILS_CONCURRENCY = 4;
 
-const POPULAR_NONCAR_DETAILS_CONCURRENCY = 5;
+const POPULAR_NONCAR_DETAILS_CONCURRENCY = 3;
 const POPULAR_NONCAR_QUALITY_BATCH_SIZE = 16;
 const POPULAR_NONCAR_INITIAL_MAX_CHECKS = 300;
 
@@ -2135,9 +2135,13 @@ async function fetchVehicleDetails(
 
                 if (!response.ok) {
 
-                    throw new Error(
-                        `Vehicle details API returned ${response.status}`
-                    );
+                    const error =
+                        new Error(
+                            `Vehicle details API returned ${response.status}`
+                        );
+
+                    error.status = response.status;
+                    throw error;
 
                 }
 
@@ -2230,7 +2234,8 @@ async function fetchVehicleDetails(
                  */
                 if (
                     mode !== "image" &&
-                    error?.name !== "AbortError"
+                    error?.name !== "AbortError" &&
+                    ![429, 502, 503, 504].includes(Number(error?.status))
                 ) {
                     console.warn(
                         "Vehicle details request failed:",
@@ -6258,13 +6263,23 @@ async function evaluatePopularVehicleCandidate(
      */
     const evaluationMode = "full";
 
+    const detailsRetryAttempts =
+        detailKind === "car"
+            ? 2
+            : 3;
+
+    const detailsRetryDelayMs =
+        detailKind === "car"
+            ? 650
+            : 1000;
+
     const details =
         await fetchVehicleDetailsWithRetry(
             vehicle.make,
             vehicle.model,
             detailKind,
-            1,
-            0,
+            detailsRetryAttempts,
+            detailsRetryDelayMs,
             evaluationMode
         );
 
