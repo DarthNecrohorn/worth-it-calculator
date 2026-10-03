@@ -9979,40 +9979,6 @@ function createVehicleDetailsModal() {
     `;
     document.body.appendChild(modal);
 
-    /*
-     * Preserve native text copying from the vehicle details panel.
-     * Some browser/context-menu copy paths can otherwise resolve the
-     * page URL instead of the current selection. The copy event is
-     * scoped only to this modal and writes the selected text directly.
-     */
-    modal.addEventListener("copy", event => {
-        const selection = window.getSelection();
-
-        if (!selection || selection.rangeCount === 0) {
-            return;
-        }
-
-        const range = selection.getRangeAt(0);
-        const container = range.commonAncestorContainer;
-
-        if (!modal.contains(container)) {
-            return;
-        }
-
-        const selectedText = selection.toString();
-
-        if (!selectedText) {
-            return;
-        }
-
-        event.clipboardData?.setData(
-            "text/plain",
-            selectedText
-        );
-
-        event.preventDefault();
-    });
-
     modal.querySelectorAll(
         "[data-vehicle-modal-close]"
     ).forEach(button => {
