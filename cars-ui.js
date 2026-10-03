@@ -606,7 +606,7 @@ function getPopularBackgroundTargetCount(
  * Persistent browser cache version for account-scoped vehicle
  * metadata/images.
  */
-const VEHICLE_PERSISTENT_CACHE_VERSION = "v12";
+const VEHICLE_PERSISTENT_CACHE_VERSION = "v13";
 
 let vehicleAccountCacheOwnerPromise =
     null;
@@ -910,6 +910,30 @@ function readPersistentVehicleDetails(
             !parsed ||
             !parsed.specifications
         ) {
+            return null;
+        }
+
+        /*
+         * Never restore an old negative/no-information response from
+         * persistent storage. Only a response with a real Wikipedia
+         * article or a usable image is allowed back into the live cache.
+         */
+        const hasWikipedia =
+            Boolean(
+                String(parsed?.wikipedia?.title || "").trim() &&
+                String(parsed?.wikipedia?.url || "").trim() &&
+                String(parsed?.wikipedia?.description || "").trim() &&
+                !/^no information$/i.test(
+                    String(parsed?.wikipedia?.description || "").trim()
+                )
+            );
+
+        const hasImage =
+            Boolean(
+                String(parsed?.image?.url || "").trim()
+            );
+
+        if (!hasWikipedia && !hasImage) {
             return null;
         }
 
