@@ -39,7 +39,7 @@ const VEHICLE_CATALOG_BASE_URL =
 const VEHICLE_DATASET_MANIFEST_URL =
     "https://cdn.jsdelivr.net/gh/vehiclesdb/vehiclesdb@latest/manifest.json";
 
-const VEHICLE_DETAILS_CACHE_VERSION = "v25";
+const VEHICLE_DETAILS_CACHE_VERSION = "v26";
 
 const MAX_VEHICLES_PER_CATEGORY = 300;
 
@@ -1863,13 +1863,20 @@ async function fetchVehicleDetails(
 
             } catch (error) {
 
-                console.error(
-                    "Vehicle details error:",
-                    make,
-                    model,
-                    kind,
-                    error
-                );
+                /*
+                 * Image hydration is best-effort. A transient 5xx, timeout
+                 * or rate-limit should silently fall back to the card
+                 * placeholder/recovery path instead of flooding the console.
+                 */
+                if (mode !== "image") {
+                    console.warn(
+                        "Vehicle details request failed:",
+                        make,
+                        model,
+                        kind,
+                        error
+                    );
+                }
 
                 /*
                   * Do not cache failed requests.
@@ -2855,8 +2862,8 @@ async function loadVehicleCardImage(
             make,
             model,
             kind,
-            2,
-            350,
+            1,
+            0,
             "image"
         );
 
