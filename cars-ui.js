@@ -8471,6 +8471,56 @@ function renderVehicleDetailsPanel(
                 </div>
             `;
 
+    const fuelEconomy =
+        details?.external?.fuelEconomy ||
+        null;
+
+    const fuelEconomyRows =
+        fuelEconomy
+            ? [
+                fuelEconomy.fuelType
+                    ? ["Fuel type", fuelEconomy.fuelType]
+                    : null,
+                fuelEconomy.cityMpg !== null &&
+                fuelEconomy.cityMpg !== undefined
+                    ? ["City", String(fuelEconomy.cityMpg) + " MPG"]
+                    : null,
+                fuelEconomy.highwayMpg !== null &&
+                fuelEconomy.highwayMpg !== undefined
+                    ? ["Highway", String(fuelEconomy.highwayMpg) + " MPG"]
+                    : null,
+                fuelEconomy.combinedMpg !== null &&
+                fuelEconomy.combinedMpg !== undefined
+                    ? ["Combined", String(fuelEconomy.combinedMpg) + " MPG"]
+                    : null,
+                fuelEconomy.annualFuelCost !== null &&
+                fuelEconomy.annualFuelCost !== undefined
+                    ? ["Annual fuel cost", "$" + Number(fuelEconomy.annualFuelCost).toLocaleString("en-US")]
+                    : null,
+                fuelEconomy.co2TailpipeGpm !== null &&
+                fuelEconomy.co2TailpipeGpm !== undefined
+                    ? ["Tailpipe CO₂", String(fuelEconomy.co2TailpipeGpm) + " g/mi"]
+                    : null
+            ]
+                .filter(Boolean)
+            : [];
+
+    const externalHtml =
+        fuelEconomyRows.length
+            ? '<section class="worth-it-vehicle-detail-section">' +
+                '<h3>EPA fuel economy</h3>' +
+                '<div class="worth-it-vehicle-spec-grid">' +
+                fuelEconomyRows.map(([label, value]) =>
+                    '<div class="worth-it-vehicle-spec-item">' +
+                    '<span>' + escapeVehicleHtml(label) + '</span>' +
+                    '<strong>' + escapeVehicleHtml(String(value)) + '</strong>' +
+                    '</div>'
+                ).join("") +
+                '</div>' +
+                '<small style="opacity:0.7;">Source: FuelEconomy.gov / U.S. DOE + EPA</small>' +
+                '</section>'
+            : "";
+
     const specsHtml =
         entries.length
             ? `
@@ -8530,6 +8580,8 @@ function renderVehicleDetailsPanel(
             <h3>Specifications</h3>
             ${specsHtml}
         </section>
+
+        ${externalHtml}
 
         <div class="worth-it-vehicle-detail-actions">
             <button
