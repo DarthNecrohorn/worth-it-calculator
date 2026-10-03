@@ -2425,6 +2425,20 @@ function updateVehicleCardInformationPreview(
         "Couldn't find informations on wikipedia and online";
     preview.removeAttribute("title");
 
+    if (
+        currentVehicleMode === "popular" &&
+        card.dataset.popularStableCard === "true"
+    ) {
+        window.setTimeout(
+            () => schedulePopularCardRecovery(
+                imageElement?.dataset.vehicleSourceKind ||
+                card.dataset.vehicleSourceKind ||
+                currentVehicleKind
+            ),
+            0
+        );
+    }
+
 }
 
 
@@ -2445,13 +2459,22 @@ function getPopularCardRecoveryState(
         state = {
             catalogRef: currentVehicleResults,
             pool:
-                Array.isArray(currentVehicleResults)
-                    ? currentVehicleResults.slice(
+                currentVehicleKind === VEHICLE_ALL_KIND &&
+                Array.isArray(vehicleCatalogCache.get(VEHICLE_ALL_KIND))
+                    ? vehicleCatalogCache.get(VEHICLE_ALL_KIND).slice(
                         IMMEDIATE_POPULAR_CARD_COUNT,
                         IMMEDIATE_POPULAR_CARD_COUNT +
                         POPULAR_CARD_RECOVERY_MAX_CANDIDATES
                     )
-                    : [],
+                    : (
+                        Array.isArray(currentVehicleResults)
+                            ? currentVehicleResults.slice(
+                                IMMEDIATE_POPULAR_CARD_COUNT,
+                                IMMEDIATE_POPULAR_CARD_COUNT +
+                                POPULAR_CARD_RECOVERY_MAX_CANDIDATES
+                            )
+                            : []
+                    ),
             nextIndex: 0,
             active: 0,
             usedKeys: new Set()
@@ -2535,24 +2558,21 @@ function findPopularCardRecoveryTarget(
             card.dataset.recoveryLocked !== "true" &&
             card.dataset.recoveryQueued !== "true" &&
             (
-                card.dataset.imageState === "unavailable" ||
-                (
-                    card.dataset.imageState !== "available" &&
-                    card.dataset.infoState === "pending"
-                )
+                card.dataset.imageState !== "available" ||
+                card.dataset.infoState !== "available"
             )
         )
         .sort(
             (a, b) => {
                 const aBad =
-                    a.dataset.imageState === "unavailable" ||
-                    a.dataset.infoState === "pending"
+                    a.dataset.imageState !== "available" ||
+                    a.dataset.infoState !== "available"
                         ? 0
                         : 1;
 
                 const bBad =
-                    b.dataset.imageState === "unavailable" ||
-                    b.dataset.infoState === "pending"
+                    b.dataset.imageState !== "available" ||
+                    b.dataset.infoState !== "available"
                         ? 0
                         : 1;
 
@@ -2617,7 +2637,7 @@ async function findNextPopularCardRecoveryCandidate(
                 await fetchVehicleDetailsWithRetry(
                     candidate.make,
                     candidate.model,
-                    kind,
+                    candidate.sourceKind || candidate.kind || kind,
                     1,
                     0,
                     "image"
@@ -2635,28 +2655,27 @@ async function findNextPopularCardRecoveryCandidate(
 
         }
 
-        const quality =
-            getPopularCardRecoveryQuality(
+        const candidateKind =
+            candidate.sourceKind || candidate.kind || kind;
+
+        const imageAvailable =
+            hasPopularVehicleImageRelevance(
                 details,
                 candidate
             );
 
-        if (quality >= 3) {
+        const informationAvailable =
+            hasUsablePopularVehicleDetails(
+                details,
+                candidate,
+                candidateKind
+            );
+
+        if (imageAvailable && informationAvailable) {
             return {
                 candidate,
                 details,
-                quality
-            };
-        }
-
-        if (
-            quality >= 1 &&
-            !bestFallback
-        ) {
-            bestFallback = {
-                candidate,
-                details,
-                quality
+                quality: 3
             };
         }
     }
@@ -2682,10 +2701,13 @@ function replacePopularCardWithRecoveryCandidate(
         return false;
     }
 
+    const candidateKind =
+        candidate.sourceKind || candidate.kind || kind;
+
     const replacement =
         createVehicleCard(
             candidate,
-            kind
+            candidateKind
         );
 
     replacement.dataset.recoveryLocked =
@@ -2739,7 +2761,7 @@ function replacePopularCardWithRecoveryCandidate(
             replacementImage,
             candidate.make,
             candidate.model,
-            kind
+            candidateKind
         );
     }
 
@@ -2926,21 +2948,9 @@ async function loadVehicleCardImage(
                 ".car-card"
             );
 
-        const description =
-            String(
-                details?.wikipedia?.description || ""
-            ).trim();
-
-        const hasUsefulDescription =
-            description.length >= 40 &&
-            !/^no information$/i.test(
-                description
-            );
-
         if (
             currentVehicleMode === "popular" &&
-            card &&
-            !hasUsefulDescription
+            card
         ) {
             window.setTimeout(
                 () =>
@@ -3432,7 +3442,7 @@ async function fetchUnifiedVehicleCatalog() {
 
     const saved = await readPersistentVehicleCatalog(VEHICLE_ALL_KIND);
     if (Array.isArray(saved) && saved.length) {
-        const limited = saved.slice(0, MAX_UNIFIED_VEHICLES);
+        const limited = saved.slice(0, Math.max(MAX_UNIFIED_VEHICLES, 1200));
         vehicleCatalogCache.set(VEHICLE_ALL_KIND, limited);
         void buildFreshUnifiedVehicleCatalog().then(fresh => {
             if (fresh.length) {
