@@ -2514,6 +2514,103 @@ function updateVehicleCardInformationPreview(
 }
 
 
+function getUnifiedVehiclePrice(
+    details
+) {
+
+    const price =
+        details?.specifications?.price ||
+        "";
+
+    return isUsefulVehicleDetailValue(price)
+        ? String(price).trim()
+        : "";
+
+}
+
+function getUnifiedVehicleQuickStats(
+    details
+) {
+
+    const specifications =
+        details?.specifications ||
+        {};
+
+    const stats = [
+        ["Fuel", specifications.fuel],
+        ["Power", specifications.horsepower],
+        ["Engine", specifications.engine],
+        ["Range", specifications.electricRange],
+        ["Transmission", specifications.transmission],
+        ["Torque", specifications.torque],
+        ["Seats", specifications.seating]
+    ];
+
+    return stats
+        .filter(([, value]) =>
+            isUsefulVehicleDetailValue(value)
+        )
+        .slice(0, 3);
+
+}
+
+function updateUnifiedVehicleCardPresentation(
+    card,
+    details
+) {
+
+    if (!card) {
+        return;
+    }
+
+    const priceElement =
+        card.querySelector(
+            ".car-card-price"
+        );
+
+    const quickStatsElement =
+        card.querySelector(
+            ".car-card-quick-stats"
+        );
+
+    const price =
+        getUnifiedVehiclePrice(details);
+
+    if (priceElement) {
+        priceElement.textContent =
+            price ||
+            "Price not available";
+
+        priceElement.classList.toggle(
+            "is-unavailable",
+            !price
+        );
+    }
+
+    if (quickStatsElement) {
+
+        const quickStats =
+            getUnifiedVehicleQuickStats(
+                details
+            );
+
+        quickStatsElement.innerHTML =
+            quickStats.length
+                ? quickStats
+                    .map(
+                        ([label, value]) =>
+                            `<span title="${escapeVehicleHtml(String(value))}">
+                                <b>${escapeVehicleHtml(label)}:</b>
+                                ${escapeVehicleHtml(String(value))}
+                            </span>`
+                    )
+                    .join("")
+                : '<span class="is-unavailable">More details available after opening</span>';
+
+    }
+
+}
+
 function hasUnifiedVehicleDisplayInformation(
     details
 ) {
@@ -2645,6 +2742,11 @@ function applyUnifiedVehicleCardDetailsState(
         unifiedCardValid
             ? "valid"
             : "invalid";
+
+    updateUnifiedVehicleCardPresentation(
+        card,
+        details
+    );
 
     if (unifiedCardValid) {
         card.dataset.recoveryLocked =
@@ -8333,12 +8435,6 @@ function createVehicleCard(
     card.className =
         "car-card";
 
-    /*
-     * Cars-section cards are deliberately lightweight. There is no
-     * Wikipedia/Wikimedia image request here. The dataset supplies the
-     * card identity, while full information is loaded in the background
-     * and/or when the card is opened.
-     */
     card.dataset.infoState =
         "pending";
 
@@ -8354,7 +8450,9 @@ function createVehicleCard(
             : "false";
 
     const info =
-        getVehicleKindInfo(kind);
+        getVehicleKindInfo(
+            kind
+        );
 
     const make =
         escapeVehicleHtml(
@@ -8394,7 +8492,6 @@ function createVehicleCard(
             : "";
 
     if (yearStart || yearEnd) {
-
         const yearText =
             yearStart &&
             yearEnd &&
@@ -8404,13 +8501,8 @@ function createVehicleCard(
 
         secondaryText +=
             ` • ${escapeVehicleHtml(yearText)}`;
-
     }
 
-    /*
-     * Image replacement: a static emoji only. This keeps the card
-     * visually consistent while avoiding any network/image work.
-     */
     const visual =
         document.createElement(
             "div"
@@ -8436,11 +8528,23 @@ function createVehicleCard(
         "car-card-content";
 
     textContainer.innerHTML = `
-        <strong>
+        <strong class="car-card-title">
             ${make} ${model}
         </strong>
-        <span>
+
+        <span class="car-card-meta">
             ${secondaryText}
+        </span>
+
+        <div class="car-card-price-row">
+            <span class="car-card-price-label">MSRP / listed price</span>
+            <strong class="car-card-price">Checking…</strong>
+        </div>
+
+        <div class="car-card-quick-stats" aria-label="Vehicle highlights"></div>
+
+        <span class="car-card-click-hint">
+            Click to see more info and compare
         </span>
     `;
 
@@ -8465,11 +8569,6 @@ function createVehicleCard(
     card.dataset.vehicleModel =
         vehicle.model || "";
 
-    /*
-     * Reuse a complete details response when the account/session cache
-     * already has one. This only changes validation state; no information
-     * text is injected into the lightweight card.
-     */
     const cachedDetails =
         vehicleDetailsCache.get(
             getVehicleDetailsCacheKey(
@@ -8499,7 +8598,6 @@ function createVehicleCard(
     );
 
     return card;
-
 }
 
 
@@ -8965,6 +9063,24 @@ async function openVehicleDetailsPanel(
         !modal.classList.contains("is-open")
     ) {
         return;
+    }
+
+    if (
+        currentVehicleKind === VEHICLE_ALL_KIND &&
+        details
+    ) {
+        const card =
+            findUnifiedVehicleCard(
+                vehicle
+            );
+
+        if (card) {
+            applyUnifiedVehicleCardDetailsState(
+                card,
+                vehicle,
+                details
+            );
+        }
     }
 
     if (!details) {
