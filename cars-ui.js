@@ -8553,13 +8553,6 @@ function createVehicleCard(
             ${secondaryText}
         </span>
 
-        <div class="car-card-price-row">
-            <span class="car-card-price-label">MSRP / listed price</span>
-            <strong class="car-card-price">Couldn't find the price</strong>
-        </div>
-
-        <div class="car-card-quick-stats" aria-label="Vehicle highlights"></div>
-
         <span class="car-card-click-hint">
             Click to see more info and compare
         </span>
@@ -8606,8 +8599,11 @@ function createVehicleCard(
 
     card.addEventListener(
         "click",
-        () => {
-            openVehicleDetailsPanel(
+        event => {
+            event.preventDefault();
+            event.stopPropagation();
+
+            void openVehicleDetailsPanel(
                 vehicle,
                 kind
             );
@@ -9048,6 +9044,18 @@ async function openVehicleDetailsPanel(
         return;
     }
 
+    const requestToken =
+        String(Date.now()) +
+        "-" +
+        String(
+            Math.random()
+                .toString(36)
+                .slice(2)
+        );
+
+    modal.dataset.vehicleRequestToken =
+        requestToken;
+
     setVehicleModalOpen(true);
 
     const info =
@@ -9077,7 +9085,9 @@ async function openVehicleDetailsPanel(
         );
 
     if (
-        !modal.classList.contains("is-open")
+        !modal.classList.contains("is-open") ||
+        modal.dataset.vehicleRequestToken !==
+            requestToken
     ) {
         return;
     }
@@ -9130,7 +9140,14 @@ async function openVehicleDetailsPanel(
 
             }
 
-            setVehicleModalOpen(false);
+            body.innerHTML = `
+                <div class="worth-it-vehicle-detail-loading">
+                    <div class="worth-it-vehicle-detail-loading-icon">⚠️</div>
+                    <strong>Couldn't find informations on wikipedia and online</strong>
+                    <span>No reliable vehicle information was returned. Please try opening this vehicle again later.</span>
+                </div>
+            `;
+
             return;
         }
 
@@ -9238,7 +9255,37 @@ async function openVehicleDetailsPanel(
 
             }
 
-            setVehicleModalOpen(false);
+            const noInformationDetails = {
+                ...details,
+                wikipedia: {
+                    ...(details.wikipedia || {}),
+                    title:
+                        details.wikipedia?.title ||
+                        title,
+                    description:
+                        details.wikipedia?.description ||
+                        "Couldn't find informations on wikipedia and online",
+                    url:
+                        details.wikipedia?.url ||
+                        ""
+                },
+                specifications:
+                    details.specifications || {},
+                image:
+                    hasPopularVehicleImageRelevance(details, vehicle)
+                        ? details.image
+                        : null,
+                comparisonAvailable: false
+            };
+
+            renderVehicleDetailsPanel(
+                body,
+                noInformationDetails,
+                vehicle,
+                kind,
+                false
+            );
+
             return;
         }
 
