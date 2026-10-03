@@ -9125,7 +9125,13 @@ async function handleVehicleAccountCacheFinalize(
             {
                 success: false,
                 error:
-                    "Vehicle account cache finalize failed."
+                    "Vehicle account cache finalize failed.",
+                detail:
+                    String(
+                        error?.message ||
+                        error ||
+                        "Unknown database error"
+                    ).slice(0, 500)
             },
             500,
             30
