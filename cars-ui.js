@@ -3113,10 +3113,13 @@ async function findNextPopularCardRecoveryCandidate(
             candidate.kind ||
             kind;
 
-        const candidateRequestMode =
-            kind === VEHICLE_ALL_KIND
-                ? "full"
-                : "image";
+        /*
+         * Recovery must use the same complete response for every vehicle
+         * type. The image-only response does not contain comparison data,
+         * so using it for buses/vans/trucks/motorcycles makes valid
+         * candidates look invalid and causes their cards to disappear.
+         */
+        const candidateRequestMode = "full";
 
         try {
 
@@ -3410,10 +3413,12 @@ function schedulePopularCardRecovery(
                 } else if (target.isConnected) {
 
                     /*
-                     * Only remove the bad card after recovery has actually
-                     * exhausted its candidate search.
+                     * A failed/empty recovery search is not proof that the
+                     * vehicle is invalid. Network timeouts and temporary
+                     * API failures must never make a card disappear.
+                     * Keep it visible and let a later recovery pass retry.
                      */
-                    removePopularCardAndRecover(target, kind);
+                    target.dataset.recoveryQueued = "false";
 
                 }
 
