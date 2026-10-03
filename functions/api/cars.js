@@ -36,7 +36,7 @@ const WIKIDATA_CANDIDATE_LIMIT = 600;
 const WIKIDATA_NONCAR_CANDIDATE_LIMIT = 1000;
 const DBPEDIA_CANDIDATE_LIMIT = 600;
 const DBPEDIA_NONCAR_CANDIDATE_LIMIT = 1000;
-const WIKIPEDIA_CACHE_VERSION = "v31";
+const WIKIPEDIA_CACHE_VERSION = "v32";
 const WIKIMEDIA_IMAGE_LOOKUP_TIMEOUT_MS = 3500;
 
 const WIKIPEDIA_API =
@@ -1877,6 +1877,7 @@ function normalizeWikipediaLabel(value) {
 const WIKIPEDIA_SPEC_FIELDS = [
     "production",
     "generation",
+    "price",
     "bodyType",
     "engine",
     "engineDisplacement",
@@ -1930,6 +1931,20 @@ const WIKIPEDIA_FIELD_ALIASES = {
 
     generation: "generation",
     generations: "generation",
+
+    price: "price",
+    "starting price": "price",
+    "base price": "price",
+    msrp: "price",
+    "base msrp": "price",
+    "starting msrp": "price",
+    "list price": "price",
+    "sticker price": "price",
+    "retail price": "price",
+    "manufacturer's suggested retail price": "price",
+    "manufacturer suggested retail price": "price",
+    "manufacturer suggested retail": "price",
+    "starting at": "price",
 
     "body style": "bodyType",
     "body styles": "bodyType",
