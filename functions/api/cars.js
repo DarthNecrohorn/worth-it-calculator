@@ -36,7 +36,7 @@ const WIKIDATA_CANDIDATE_LIMIT = 600;
 const WIKIDATA_NONCAR_CANDIDATE_LIMIT = 1000;
 const DBPEDIA_CANDIDATE_LIMIT = 600;
 const DBPEDIA_NONCAR_CANDIDATE_LIMIT = 1000;
-const WIKIPEDIA_CACHE_VERSION = "v32";
+const WIKIPEDIA_CACHE_VERSION = "v33";
 const WIKIMEDIA_IMAGE_LOOKUP_TIMEOUT_MS = 3500;
 
 const WIKIPEDIA_API =
@@ -5119,9 +5119,50 @@ function isWikipediaVehicleTitlePlausible(
                 )
             );
 
+    /*
+     * VehiclesDB often stores a trim/variant such as "V 602 Luxury",
+     * while Wikipedia documents the underlying model family as "Aion V".
+     * Accept a family article when:
+     *   1. the manufacturer is present in the Wikipedia title,
+     *   2. the first model token is present in the title,
+     *   3. the page has positive vehicle-kind evidence,
+     *   4. there is no strong cross-category contradiction.
+     *
+     * This is deliberately limited to the model-family prefix so an
+     * unrelated article cannot qualify merely because one trim word
+     * appears somewhere in its text.
+     */
+    const firstModelToken =
+        modelTokens[0] || "";
+
+    const familyTokenInTitle =
+        Boolean(
+            firstModelToken &&
+            wikipediaTextContainsTerm(
+                titleText,
+                firstModelToken
+            )
+        );
+
+    const kindEvidence =
+        getWikipediaKindEvidenceScore(
+            title,
+            supportingText,
+            kind
+        );
+
+    const familyArticleAccepted =
+        makeInTitle &&
+        familyTokenInTitle &&
+        kindEvidence &&
+        kindEvidence.positive > 0;
+
     return (
         makeInTitle &&
-        modelMatches >= minimumModelMatches &&
+        (
+            modelMatches >= minimumModelMatches ||
+            familyArticleAccepted
+        ) &&
         !hasStrongWikipediaKindContradiction(
             title,
             supportingText,
