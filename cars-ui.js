@@ -14554,6 +14554,27 @@ async function startUnifiedVehicleBackgroundWarmup() {
                             key,
                             true
                         );
+
+                        const cachedDetails =
+                            vehicleDetailsCache.get(
+                                getVehicleDetailsCacheKey(
+                                    vehicle.make,
+                                    vehicle.model,
+                                    vehicle.sourceKind ||
+                                        vehicle.kind ||
+                                        "car",
+                                    "full"
+                                )
+                            );
+
+                        if (
+                            cachedDetails?.image?.url
+                        ) {
+                            void cacheVehicleImageResponse(
+                                cachedDetails.image.url
+                            );
+                        }
+
                         added = true;
                     }
 
