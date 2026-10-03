@@ -6420,10 +6420,10 @@ function isOpenverseCommercialLicense(
     }
 
     if (
-        /^cc[- ]?by(?:[- ]?4\\.0|[- ]?3\\.0|)?$/i.test(
+        /^cc[- ]?by(?:[- ]?4\.0|[- ]?3\.0|)?$/i.test(
             license
         ) ||
-        /^cc[- ]?by[- ]?sa(?:[- ]?4\\.0|[- ]?3\\.0|)?$/i.test(
+        /^cc[- ]?by[- ]?sa(?:[- ]?4\.0|[- ]?3\.0|)?$/i.test(
             license
         )
     ) {
@@ -6431,13 +6431,13 @@ function isOpenverseCommercialLicense(
     }
 
     return (
-        /creativecommons\\.org\\/publicdomain/i.test(
+        /creativecommons\.org\/publicdomain/i.test(
             licenseUrl
         ) ||
-        /creativecommons\\.org\\/licenses\\/by(?:\\/|$)/i.test(
+        /creativecommons\.org\/licenses\/by(?:\/|$)/i.test(
             licenseUrl
         ) ||
-        /creativecommons\\.org\\/licenses\\/by-sa(?:\\/|$)/i.test(
+        /creativecommons\.org\/licenses\/by-sa(?:\/|$)/i.test(
             licenseUrl
         )
     );
