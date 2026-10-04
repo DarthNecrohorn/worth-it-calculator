@@ -15033,3 +15033,27 @@ html[data-theme="light"] .nav-calculator-btn:focus-visible{
     background:rgba(15,23,42,.075) !important;
     border-color:rgba(124,92,255,.4) !important;
 }
+
+
+/* FINAL: A+ / A++ hamburger must stay completely hidden until opened. */
+@media(min-width:901px){
+    html[data-ui-scale="large"] .nav-links:not(.open),
+    html[data-ui-scale="xl"] .nav-links:not(.open){
+        display:none !important;
+    }
+
+    html[data-ui-scale="large"] .nav-links.open,
+    html[data-ui-scale="xl"] .nav-links.open{
+        display:flex !important;
+    }
+}
+
+html[data-ui-scale="large"] .nav-overflow-items,
+html[data-ui-scale="xl"] .nav-overflow-items{
+    display:none !important;
+}
+
+html[data-ui-scale="large"] .nav-links.open .nav-overflow-items,
+html[data-ui-scale="xl"] .nav-links.open .nav-overflow-items{
+    display:flex !important;
+}
