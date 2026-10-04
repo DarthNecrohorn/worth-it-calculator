@@ -168,7 +168,9 @@ function openWeather(){
     const navLinks = $("navLinks");
 
     if(navLinks){
-        navLinks.classList.remove("open");
+        if(typeof closeNavMenuUnlessPreserved === "function"){
+            closeNavMenuUnlessPreserved(navLinks);
+        }
     }
 
     document.documentElement.style.overflowY = "auto";
