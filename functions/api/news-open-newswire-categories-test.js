@@ -171,6 +171,7 @@ export async function onRequestGet({ request }) {
     const text = " " + title + " " + content + " ";
     const source = sourceInfo(article);
     const sourceText = (source.name + " " + source.url).toLowerCase();
+    const articleUrl = clean(article.link || "").toLowerCase();
 
     let score = 0;
     let titleHits = 0;
@@ -195,15 +196,32 @@ export async function onRequestGet({ request }) {
       if (text.includes(term)) score -= 4;
     }
 
-    // Strong source/path hints are useful, but never enough on their own.
-    if (category === "sports" && /sport|football|soccer|basketball|tennis|cricket/.test(sourceText)) score += 5;
-    if (category === "technology" && /tech|technology|ai|science/.test(sourceText)) score += 3;
-    if (category === "science" && /science|nasa|space/.test(sourceText)) score += 3;
-    if (category === "health" && /health|medical|medicine/.test(sourceText)) score += 3;
-    if (category === "environment" && /environment|climate|nature|wildlife/.test(sourceText)) score += 3;
-    if (category === "business" && /business|economy|market|finance/.test(sourceText)) score += 3;
-    if (category === "travel" && /travel|tourism|tourist/.test(sourceText)) score += 3;
-    if (category === "entertainment" && /entertainment|culture|music|film|movie/.test(sourceText)) score += 3;
+    // Source and article-path hints are strong evidence because many publishers
+    // expose their editorial section directly in the canonical URL.
+    const pathHints = {
+      sports: /\/sports?\b|\/football\b|\/soccer\b|\/basketball\b|\/tennis\b|\/cricket\b/,
+      technology: /\/tech(nology)?\b|\/science\/technology\b|\/ai\b|\/digital\b/,
+      science: /\/science\b|\/space\b|\/nasa\b/,
+      health: /\/health\b|\/medical\b|\/medicine\b/,
+      environment: /\/environment\b|\/climate\b|\/nature\b|\/wildlife\b/,
+      business: /\/business\b|\/economy\b|\/markets?\b|\/finance\b/,
+      travel: /\/travel\b|\/tourism\b|\/tourist\b/,
+      entertainment: /\/entertainment\b|\/culture\b|\/music\b|\/film\b|\/movie\b|\/arts?\b/
+    };
+
+    const sourceHints = {
+      sports: /sport|football|soccer|basketball|tennis|cricket/,
+      technology: /tech|technology|ai|science/,
+      science: /science|nasa|space/,
+      health: /health|medical|medicine/,
+      environment: /environment|climate|nature|wildlife/,
+      business: /business|economy|market|finance/,
+      travel: /travel|tourism|tourist/,
+      entertainment: /entertainment|culture|music|film|movie/
+    };
+
+    if (pathHints[category]?.test(articleUrl)) score += 9;
+    if (sourceHints[category]?.test(sourceText)) score += 3;
 
     return { score, titleHits, bodyHits };
   }
@@ -229,13 +247,36 @@ export async function onRequestGet({ request }) {
       return { category: null, score: best.score, secondScore: second?.score || 0, scores };
     }
 
-    // Reject close calls unless the winner has a very strong headline signal.
-    if (
-      second &&
-      second.score >= best.score - 2 &&
-      best.titleHits === 0
-    ) {
+    // A path-confirmed category can beat a weak keyword collision.
+    const articleUrl = clean(article.link || "").toLowerCase();
+    const pathConfirmed = {
+      sports: /\/sports?\b|\/football\b|\/soccer\b|\/basketball\b|\/tennis\b|\/cricket\b/,
+      technology: /\/tech(nology)?\b|\/science\/technology\b|\/ai\b|\/digital\b/,
+      science: /\/science\b|\/space\b|\/nasa\b/,
+      health: /\/health\b|\/medical\b|\/medicine\b/,
+      environment: /\/environment\b|\/climate\b|\/nature\b|\/wildlife\b/,
+      business: /\/business\b|\/economy\b|\/markets?\b|\/finance\b/,
+      travel: /\/travel\b|\/tourism\b|\/tourist\b/,
+      entertainment: /\/entertainment\b|\/culture\b|\/music\b|\/film\b|\/movie\b|\/arts?\b/
+    };
+
+    if (second && second.score >= best.score - 4 && !pathConfirmed[best.category]?.test(articleUrl)) {
       return { category: null, score: best.score, secondScore: second.score, scores };
+    }
+
+    // Never let a weak incidental keyword beat an explicit path/category signal.
+    const confirmed = categories
+      .filter(category => pathConfirmed[category]?.test(articleUrl))
+      .map(category => ({ category, score: scores[category].score }))
+      .sort((a, b) => b.score - a.score);
+
+    if (confirmed.length && confirmed[0].score >= 7) {
+      return {
+        category: confirmed[0].category,
+        score: confirmed[0].score,
+        secondScore: second?.score || 0,
+        scores
+      };
     }
 
     return {
@@ -326,7 +367,7 @@ export async function onRequestGet({ request }) {
   }
 
   const pages = [];
-  for (let page = 1; page <= 5; page++) {
+  for (let page = 1; page <= 10; page++) {
     const result = await fetchPage(page);
     pages.push({ page, ...result });
     if (!result.ok) break;
@@ -421,7 +462,7 @@ export async function onRequestGet({ request }) {
     purpose: "Stronger deterministic Open Newswire category and quality diagnostic; production /api/news is untouched.",
     source: "Open Newswire",
     endpoint: apiUrl.toString(),
-    pagesRequested: 5,
+    pagesRequested: 10,
     pagesFetched: pages.length,
     pageStatuses: pages.map(page => ({
       page: page.page,
