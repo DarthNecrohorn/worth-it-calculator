@@ -15,38 +15,20 @@ function normalizeNewsImageUrl(value) {
 
 export async function onRequestGet(context) {
 
-    const db =
-        context.env.DB;
-
-
-    if (!db) {
-
-        return Response.json(
-            {
-                error:
-                    "D1 database binding DB is not configured."
-            },
-            {
-                status: 500
-            }
-        );
-
-    }
-
-
     /* =========================================================
        CACHE
     ========================================================= */
 
     /*
-     * 4 hours.
+     * 12 hours.
      *
-     * Open Newswire is only contacted when the Cloudflare
-     * cache expires.
+     * News is served from the Cloudflare cache between refreshes.
+     * A longer TTL reduces upstream traffic and D1 usage while
+     * still keeping the feed refreshed regularly.
      */
 
     const CACHE_TTL =
-        4 * 60 * 60;
+        12 * 60 * 60;
 
 
     const cache =
@@ -66,7 +48,7 @@ export async function onRequestGet(context) {
 
 
     const cacheKeyUrl =
-        `${requestUrl.origin}${requestUrl.pathname}/?news-cache=v21`;
+        `${requestUrl.origin}${requestUrl.pathname}/?news-cache=v22`;
 
 
     const cacheKey =
@@ -157,6 +139,14 @@ export async function onRequestGet(context) {
         queries: ["education", "school", "university"]
     }
 };
+
+    /*
+     * Count actual Open Newswire requests made during a cache refresh.
+     * Admin usage is recorded once at the end of the refresh instead
+     * of once per provider request, greatly reducing D1 writes.
+     */
+    let newsUpstreamRequestsMade =
+        0;
     
     try {
 
@@ -218,11 +208,7 @@ export async function onRequestGet(context) {
                 );
 
 
-                recordAdminApiUsage(context, {
-                    apiKey: "news",
-                    provider: "Open Newswire"
-                });
-
+                newsUpstreamRequestsMade++;
 
                 const response =
                     await fetch(
@@ -1898,7 +1884,7 @@ export async function onRequestGet(context) {
                 );
 
             /*
-             * Rank fresh candidates before they enter D1.
+             * Rank fresh candidates before they enter the edge cache.
              */
 
             articles =
@@ -1940,8 +1926,8 @@ export async function onRequestGet(context) {
              * Return the quality-ranked result of the
              * single Open Newswire request.
              *
-             * D1 will merge these with the existing
-             * persistent article history.
+             * The category result is stored in the edge cache
+             * as part of the complete News response.
              */
 
             articles =
@@ -2079,432 +2065,18 @@ export async function onRequestGet(context) {
         }
 
 
-        /* =====================================================
-           PERSISTENT NEWS HISTORY
-        ===================================================== */
-
-        async function persistCategory(
-            category,
-            freshArticles
-        ) {
-
-            /*
-             * Get the current persistent
-             * history for this category.
-             */
-
-            const existingResult =
-                await db
-                    .prepare(
-                        `
-                        SELECT
-                            category,
-                            url,
-                            title,
-                            description,
-                            image,
-                            published_at,
-                            source,
-                            added_at
-                        FROM news_articles
-                        WHERE category = ?
-                        ORDER BY added_at DESC
-                        LIMIT 50
-                        `
-                    )
-                    .bind(
-                        category
-                    )
-                    .all();
-
-
-            const existingRows =
-                Array.isArray(
-                    existingResult.results
-                )
-                    ? existingResult.results
-                    : [];
-
-
-            /*
-             * Convert D1 rows to the same
-             * frontend article structure.
-             */
-
-            const relevantExistingRows =
-                existingRows.filter(
-                    row =>
-                        isRelevantNewsCategory(
-                            {
-                                title: row.title || "",
-                                description: row.description || ""
-                            },
-                            category
-                        )
-                );
-
-            const invalidExistingRows =
-                existingRows.filter(
-                    row =>
-                        !isRelevantNewsCategory(
-                            {
-                                title: row.title || "",
-                                description: row.description || ""
-                            },
-                            category
-                        )
-                );
-
-            if (invalidExistingRows.length) {
-                await db.batch(
-                    invalidExistingRows.map(
-                        row =>
-                            db
-                                .prepare(
-                                    "DELETE FROM news_articles WHERE category = ? AND url = ?"
-                                )
-                                .bind(
-                                    category,
-                                    row.url || ""
-                                )
-                    )
-                );
-            }
-
-            const existingArticles =
-                relevantExistingRows.map(
-                    row => ({
-
-                        title:
-                            row.title ||
-                            "",
-
-                        description:
-                            row.description ||
-                            "",
-
-                        url:
-                            row.url ||
-                            "",
-
-                        image:
-                            normalizeNewsImageUrl(
-                                row.image
-                            ),
-
-                        publishedAt:
-                            row.published_at ||
-                            "",
-
-                        source:
-                            row.source ||
-                            ""
-
-                    })
-                );
-
-
-            /*
-             * Fresh articles first.
-             *
-             * Existing articles follow.
-             *
-             * Fresh candidates have already been
-             * quality-ranked above.
-             */
-
-            const merged =
-                removeDuplicateFormattedArticles(
-                    [
-                        ...freshArticles,
-                        ...existingArticles
-                    ]
-                );
-
-
-            /*
-             * Keep the persistent feed current.
-             */
-
-            const currentArticles =
-                merged.filter(
-                    article => {
-
-                        const age =
-                            articleAgeMs(
-                                article
-                            );
-
-                        return (
-                            !age ||
-                            age <= NEWS_MAX_AGE_MS
-                        );
-
-                    }
-                );
-
-
-            /*
-             * Rank the combined current pool so that
-             * strong fresh stories can outrank mediocre
-             * older stories already stored in D1.
-             */
-
-            const finalArticles =
-                rankNewsArticles(
-                    currentArticles,
-                    category
-                ).slice(
-                    0,
-                    12
-                );
-
-
-            /*
-             * Existing URLs.
-             *
-             * Existing articles must keep
-             * their original added_at value.
-             */
-
-            const existingUrls =
-                new Set(
-                    relevantExistingRows
-                        .map(
-                            row =>
-                                String(
-                                    row.url || ""
-                                )
-                                    .trim()
-                                    .toLowerCase()
-                        )
-                        .filter(
-                            Boolean
-                        )
-                );
-
-
-            /* =================================================
-               INSERT NEW ARTICLES
-            ================================================= */
-
-            const statements =
-                [];
-
-
-            const now =
-                Date.now();
-
-
-            let newArticleIndex =
-                0;
-
-
-            for (
-                const article
-                of finalArticles
-            ) {
-
-                const articleUrl =
-                    String(
-                        article.url || ""
-                    )
-                        .trim();
-
-
-                if (!articleUrl) {
-
-                    continue;
-
-                }
-
-
-                const normalizedUrl =
-                    articleUrl.toLowerCase();
-
-
-                /*
-                 * Existing article:
-                 *
-                 * do not insert again.
-                 * Its original added_at
-                 * remains unchanged.
-                 */
-
-                if (
-                    existingUrls.has(
-                        normalizedUrl
-                    )
-                ) {
-
-                    continue;
-
-                }
-
-
-                statements.push(
-                    db
-                        .prepare(
-                            `
-                            INSERT OR IGNORE INTO news_articles
-                            (
-                                category,
-                                url,
-                                title,
-                                description,
-                                image,
-                                published_at,
-                                source,
-                                added_at
-                            )
-                            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                            `
-                        )
-                        .bind(
-                            category,
-                            articleUrl,
-                            article.title || "",
-                            article.description || "",
-                            normalizeNewsImageUrl(
-                                article.image
-                            ),
-                            article.publishedAt || "",
-                            article.source || "",
-                            now - newArticleIndex++
-                        )
-                );
-
-            }
-
-
-            /*
-             * Execute inserts.
-             */
-
-            if (
-                statements.length
-            ) {
-
-                await db.batch(
-                    statements
-                );
-
-            }
-
-
-            /* =================================================
-               REMOVE ARTICLES OUTSIDE NEWEST 12
-            ================================================= */
-
-            await db
-                .prepare(
-                    `
-                    DELETE FROM news_articles
-                    WHERE category = ?
-                    AND url NOT IN (
-                        SELECT url
-                        FROM news_articles
-                        WHERE category = ?
-                        ORDER BY added_at DESC
-                        LIMIT 12
-                    )
-                    `
-                )
-                .bind(
-                    category,
-                    category
-                )
-                .run();
-
-
-            /* =================================================
-               READ FINAL PERSISTENT STATE
-            ================================================= */
-
-            const finalResult =
-                await db
-                    .prepare(
-                        `
-                        SELECT
-                            title,
-                            description,
-                            url,
-                            image,
-                            published_at,
-                            source
-                        FROM news_articles
-                        WHERE category = ?
-                        ORDER BY added_at DESC
-                        LIMIT 12
-                        `
-                    )
-                    .bind(
-                        category
-                    )
-                    .all();
-
-
-            const finalRows =
-                Array.isArray(
-                    finalResult.results
-                )
-                    ? finalResult.results
-                    : [];
-
-
-            return rankNewsArticles(
-                finalRows
-                    .filter(
-                        row =>
-                            isRelevantNewsCategory(
-                                {
-                                    title: row.title || "",
-                                    description: row.description || ""
-                                },
-                                category
-                            )
-                    )
-                    .map(
-                        row => ({
-
-                        title:
-                            row.title ||
-                            "",
-
-                        description:
-                            row.description ||
-                            "",
-
-                        url:
-                            row.url ||
-                            "",
-
-                        image:
-                            normalizeNewsImageUrl(
-                                row.image
-                            ),
-
-                        publishedAt:
-                            row.published_at ||
-                            "",
-
-                        source:
-                            row.source ||
-                            ""
-
-                    })
-                ),
-                category
-            ).slice(
-                0,
-                12
-            );
-
-        }
-
+        /*
+         * News intentionally has no D1 article persistence.
+         *
+         * The edge cache is the persistence layer for this feed.
+         * This avoids per-category D1 reads, writes and cleanup work.
+         *
+         * The existing news_articles table is left untouched so it
+         * can be retained for historical data or future migration.
+         */
 
         /* =====================================================
-           LOAD + PERSIST ALL CATEGORIES
+           LOAD ALL CATEGORIES
         ===================================================== */
 
         const results =
@@ -2521,32 +2093,11 @@ export async function onRequestGet(context) {
 
                         try {
 
-                            /*
-                             * Fetch newly discovered
-                             * articles from Open Newswire.
-                             *
-                             * Exactly ONE API request
-                             * for this category.
-                             */
-
-                            const freshArticles =
+                            const articles =
                                 await loadCategory(
                                     category,
                                     settings
                                 );
-
-
-                            /*
-                             * Merge with persistent
-                             * D1 history.
-                             */
-
-                            const articles =
-                                await persistCategory(
-                                    category,
-                                    freshArticles
-                                );
-
 
                             return [
                                 category,
@@ -2560,115 +2111,10 @@ export async function onRequestGet(context) {
                                 error
                             );
 
-
-                            /*
-                             * If Open Newswire fails,
-                             * return existing D1 history.
-                             */
-
-                            try {
-
-                                const fallbackResult =
-                                    await db
-                                        .prepare(
-                                            `
-                                            SELECT
-                                                title,
-                                                description,
-                                                url,
-                                                image,
-                                                published_at,
-                                                source
-                                            FROM news_articles
-                                            WHERE category = ?
-                                            ORDER BY added_at DESC
-                                            LIMIT 12
-                                            `
-                                        )
-                                        .bind(
-                                            category
-                                        )
-                                        .all();
-
-
-                                const fallbackRows =
-                                    Array.isArray(
-                                        fallbackResult.results
-                                    )
-                                        ? fallbackResult.results
-                                        : [];
-
-
-                                const fallbackArticles =
-                                    rankNewsArticles(
-                                        fallbackRows
-                                            .filter(
-                                                row =>
-                                                    isRelevantNewsCategory(
-                                                        {
-                                                            title: row.title || "",
-                                                            description: row.description || ""
-                                                        },
-                                                        category
-                                                    )
-                                            )
-                                            .map(
-                                                row => ({
-
-                                                title:
-                                                    row.title ||
-                                                    "",
-
-                                                description:
-                                                    row.description ||
-                                                    "",
-
-                                                url:
-                                                    row.url ||
-                                                    "",
-
-                                                image:
-                                                    normalizeNewsImageUrl(
-                                                        row.image
-                                                    ),
-
-                                                publishedAt:
-                                                    row.published_at ||
-                                                    "",
-
-                                                source:
-                                                    row.source ||
-                                                    ""
-
-                                            })
-                                        ),
-                                        category
-                                    ).slice(
-                                        0,
-                                        12
-                                    );
-
-                                return [
-                                    category,
-                                    fallbackArticles
-                                ];
-
-                            } catch (
-                                fallbackError
-                            ) {
-
-                                console.error(
-                                    `${category} D1 fallback error:`,
-                                    fallbackError
-                                );
-
-
-                                return [
-                                    category,
-                                    []
-                                ];
-
-                            }
+                            return [
+                                category,
+                                []
+                            ];
 
                         }
 
@@ -2706,6 +2152,28 @@ export async function onRequestGet(context) {
 
                 }
             );
+
+
+        /*
+         * Record provider usage once per News cache refresh.
+         * This preserves Admin API Usage without one D1 write per
+         * Open Newswire request.
+         */
+        if (
+            newsUpstreamRequestsMade > 0
+        ) {
+            recordAdminApiUsage(
+                context,
+                {
+                    apiKey:
+                        "news",
+                    provider:
+                        "Open Newswire",
+                    requests:
+                        newsUpstreamRequestsMade
+                }
+            );
+        }
 
 
         /* =====================================================
