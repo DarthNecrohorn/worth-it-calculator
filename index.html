@@ -15,6 +15,15 @@
 <nav class="nav">
     <div class="container nav-inner">
 
+        <button
+            type="button"
+            class="menu-btn"
+            onclick="toggleMenu()"
+            aria-label="Open navigation menu"
+            aria-expanded="false"
+            title="Navigation menu"
+        >☰</button>
+
         <a href="#" class="logo" onclick="showHome();return false;">
             <span class="logo-mark">✓</span>
             <span>Worth It</span>
@@ -22,16 +31,16 @@
 
 <div class="nav-links" id="navLinks">
     <div class="nav-scroll-content" id="navScrollContent">
-    <button onclick="showHome()">Home</button>
-    <button onclick="showCategory('cars')">Cars</button>
-    <button onclick="showCategory('money')">Currencies</button>
-    <button onclick="showCategory('technology')">Technology</button>
-    <button onclick="showCategory('home')">Home Costs</button>
-    <button onclick="scrollToFAQ()">FAQ</button>
+    <button class="nav-primary-item" onclick="showHome()">Home</button>
+    <button class="nav-primary-item" onclick="showCategory('cars')">Cars</button>
+    <button class="nav-primary-item" onclick="showCategory('money')">Currencies</button>
+    <button class="nav-primary-item" onclick="showCategory('technology')">Technology</button>
+    <button class="nav-primary-item" onclick="showCategory('home')">Home Costs</button>
+    <button class="nav-primary-item" onclick="scrollToFAQ()">FAQ</button>
 
-    <button onclick="openWeather()">🌤️ Weather</button>
-    <button onclick="openNews()">📰 News</button>
-    <button onclick="openDiscounts()">🛒 Shop</button>
+    <button class="nav-secondary-item" onclick="openWeather()">🌤️ Weather</button>
+    <button class="nav-secondary-item" onclick="openNews()">📰 News</button>
+    <button class="nav-secondary-item" onclick="openDiscounts()">🛒 Shop</button>
 
     <!--
         MOBILE / A+ / A++ navigation extensions.
@@ -114,23 +123,16 @@
         </button>
     </div>
     
-    <button
-    type="button"
-    class="more-menu-btn"
-    onclick="toggleMoreMenu()"
-    title="More"
-    aria-label="More"
->
-    ☰
-
-    </button>
     <span class="nav-calculator-spacer"></span>
 
        </div>
-    <button onclick="openCalculator('basic')">🧮 Calculator</button>
 </div>
 
-        <button class="menu-btn" onclick="toggleMenu()">☰</button>
+        <button
+            type="button"
+            class="nav-calculator-btn"
+            onclick="openCalculator('basic')"
+        >🧮 Calculator</button>
 
         <div class="nav-actions">
 
@@ -198,84 +200,84 @@
 
         <div class="more-menu" id="moreMenu" aria-hidden="true">
     <div class="more-menu-header">
-        <strong>More</strong>
-        <button type="button" onclick="closeMoreMenu()">✕</button>
+        <strong>Explore</strong>
+        <button type="button" onclick="closeMoreMenu()" aria-label="Close">✕</button>
     </div>
 
     <div class="more-menu-items">
 
-  <button
-    type="button"
-    class="more-menu-item"
-    onclick="openCarsFromMenu()"
->
-    <span>🚗</span>
-    <span>
-        <strong>Compare cars</strong>
-        <small>Explore, discover &amp; compare cars</small>
-    </span>
-</button>
-        
- <button
-    type="button"
-    class="more-menu-item"
-    onclick="openMarketsFromMenu()"
->
-    <span>📊</span>
-    <span>
-        <strong>Markets</strong>
-        <small>Materials & currency movement</small>
-    </span>
-</button>
+        <button type="button" class="more-menu-item" onclick="closeMoreMenu();openWeather()">
+            <span>🌤️</span>
+            <span>
+                <strong>Weather</strong>
+                <small>Current conditions &amp; forecast</small>
+            </span>
+        </button>
 
-      <button
-    type="button"
-    class="more-menu-item"
-    onclick="openMoneyFromMenu()"
->
-    <span>💱</span>
-    <span>
-        <strong>Currencies</strong>
-        <small>Popular currencies & exchange rates</small>
-    </span>
-</button>
+        <button type="button" class="more-menu-item" onclick="closeMoreMenu();openNews()">
+            <span>📰</span>
+            <span>
+                <strong>News</strong>
+                <small>Latest news &amp; stories</small>
+            </span>
+        </button>
 
-      <button
-    type="button"
-    class="more-menu-item"
-    onclick="openCryptoFromMenu()"
->
-    <span>🪙</span>
-    <span>
-        <strong>Cryptocurrencies</strong>
-        <small>Explore &amp; compare cryptocurrencies</small>
-    </span>
-</button>
+        <button type="button" class="more-menu-item" onclick="closeMoreMenu();openDiscounts()">
+            <span>🛒</span>
+            <span>
+                <strong>Shop</strong>
+                <small>Curated deals &amp; affiliate offers</small>
+            </span>
+        </button>
 
-      <button
-    type="button"
-    class="more-menu-item"
-    onclick="openWaterLevelsFromMenu()"
->
-    <span>💧</span>
-    <span>
-        <strong>Water levels</strong>
-        <small>Explore water level data</small>
-    </span>
-</button>
+        <button type="button" class="more-menu-item" onclick="openCarsFromMenu()">
+            <span>🚗</span>
+            <span>
+                <strong>Compare cars</strong>
+                <small>Explore, discover &amp; compare cars</small>
+            </span>
+        </button>
 
-      <button
-    type="button"
-    class="more-menu-item"
-    onclick="openShipTrackingFromMenu()"
->
-    <span>🚢</span>
-    <span>
-        <strong>Ship tracking</strong>
-        <small>Explore ships &amp; vessel movement</small>
-    </span>
-</button>
-        
+        <button type="button" class="more-menu-item" onclick="openMarketsFromMenu()">
+            <span>📊</span>
+            <span>
+                <strong>Markets</strong>
+                <small>Materials &amp; currency movement</small>
+            </span>
+        </button>
+
+        <button type="button" class="more-menu-item" onclick="openMoneyFromMenu()">
+            <span>💱</span>
+            <span>
+                <strong>Currencies</strong>
+                <small>Popular currencies &amp; exchange rates</small>
+            </span>
+        </button>
+
+        <button type="button" class="more-menu-item" onclick="openCryptoFromMenu()">
+            <span>🪙</span>
+            <span>
+                <strong>Cryptocurrencies</strong>
+                <small>Explore &amp; compare cryptocurrencies</small>
+            </span>
+        </button>
+
+        <button type="button" class="more-menu-item" onclick="openWaterLevelsFromMenu()">
+            <span>💧</span>
+            <span>
+                <strong>Water levels</strong>
+                <small>Explore water level data</small>
+            </span>
+        </button>
+
+        <button type="button" class="more-menu-item" onclick="openShipTrackingFromMenu()">
+            <span>🚢</span>
+            <span>
+                <strong>Ship tracking</strong>
+                <small>Explore ships &amp; vessel movement</small>
+            </span>
+        </button>
+
     </div>
 </div>
 
