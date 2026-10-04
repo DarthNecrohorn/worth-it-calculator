@@ -66,7 +66,7 @@ export async function onRequestGet(context) {
 
 
     const cacheKeyUrl =
-        `${requestUrl.origin}${requestUrl.pathname}/?news-cache=v19`;
+        `${requestUrl.origin}${requestUrl.pathname}/?news-cache=v20`;
 
 
     const cacheKey =
@@ -1040,6 +1040,60 @@ export async function onRequestGet(context) {
                     bestScore = score;
                     bestTitleScore = titleScore;
                 }
+            }
+
+            /*
+             * Topic-specific headline overrides for common cross-category
+             * collisions observed in Open Newswire.
+             */
+            if (
+                title.includes("environmental") ||
+                title.includes("river cleanup") ||
+                title.includes("power plant emissions") ||
+                title.includes("fossil fuel companies")
+            ) {
+                return "environment";
+            }
+
+            if (
+                title.includes("hybrid aggression") ||
+                title.includes("hybrid warfare") ||
+                title.includes("cyberattacks")
+            ) {
+                return "world";
+            }
+
+            if (
+                title.includes("vaccinated") &&
+                (
+                    title.includes("lion") ||
+                    title.includes("tamarin") ||
+                    title.includes("wildlife") ||
+                    title.includes("animal")
+                )
+            ) {
+                return "environment";
+            }
+
+            if (
+                title.includes("testosterone") &&
+                (
+                    text.includes("menopause") ||
+                    text.includes("symptoms") ||
+                    text.includes("women")
+                )
+            ) {
+                return "health";
+            }
+
+            if (
+                title.includes("study") &&
+                (
+                    title.includes("diet drinks") ||
+                    title.includes("weight loss")
+                )
+            ) {
+                return "health";
             }
 
             const titleHas = terms =>
