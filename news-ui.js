@@ -150,23 +150,38 @@ function renderNewsCategory(
         card.className =
             "news-card";
 
+        card.dataset.newsUrl =
+            articleUrl;
+
+
+        const articleUrl =
+            String(
+                article?.url || ""
+            ).trim();
 
         const image =
-        article.image
-        ? `
-            <img
-                class="news-card-image"
-                src="${escapeNewsHtml(article.image)}"
-                alt=""
-                loading="lazy"
-                onerror="this.outerHTML='<div class=&quot;news-card-image news-card-placeholder&quot;>📰</div>'"
-            >
-        `
-        : `
-            <div class="news-card-image news-card-placeholder">
-                📰
-            </div>
-        `;
+            isUsableDirectNewsImage(
+                article?.image
+            )
+                ? `
+                    <img
+                        class="news-card-image"
+                        src="${escapeNewsHtml(article.image)}"
+                        alt=""
+                        loading="lazy"
+                        decoding="async"
+                        referrerpolicy="no-referrer"
+                        onerror="this.outerHTML='<div class=&quot;news-card-image news-card-placeholder news-image-pending&quot; data-news-image-state=&quot;pending&quot;>📰</div>'"
+                    >
+                `
+                : `
+                    <div
+                        class="news-card-image news-card-placeholder news-image-pending"
+                        data-news-image-state="pending"
+                    >
+                        📰
+                    </div>
+                `;
 
 
         const source =
@@ -225,6 +240,1079 @@ function renderNewsCategory(
     });
 
 }
+
+
+/* =========================================================
+   NEWS IMAGE RESOLVER
+========================================================= */
+
+const NEWS_OPENVERSE_ENDPOINT =
+    "https://api.openverse.org/v1/images/";
+
+const NEWS_IMAGE_CACHE_KEY =
+    "worth-it-news-images-v1";
+
+const NEWS_IMAGE_MAX_CONCURRENT =
+    3;
+
+const NEWS_IMAGE_MIN_WIDTH =
+    640;
+
+const NEWS_IMAGE_MIN_HEIGHT =
+    360;
+
+const NEWS_IMAGE_ALLOWED_LICENSES =
+    new Set([
+        "by",
+        "by-sa",
+        "by-nd",
+        "cc0",
+        "pdm"
+    ]);
+
+const NEWS_IMAGE_CATEGORY_QUERIES = {
+    world:
+        "world news current events",
+
+    technology:
+        "technology innovation computer",
+
+    business:
+        "business economy finance",
+
+    science:
+        "science research discovery",
+
+    sports:
+        "sports competition athlete",
+
+    crime:
+        "crime police investigation court",
+
+    entertainment:
+        "entertainment film music television",
+
+    culture:
+        "art culture museum heritage",
+
+    health:
+        "health medicine healthcare",
+
+    environment:
+        "environment nature conservation",
+
+    food:
+        "food restaurant cooking",
+
+    education:
+        "education school university"
+};
+
+const newsImageMemoryCache =
+    new Map();
+
+const newsImageInFlight =
+    new Map();
+
+const newsImageQueue =
+    [];
+
+let newsImageActiveRequests =
+    0;
+
+const newsImageUsedUrls =
+    new Set();
+
+let newsImageLocalStorageLoaded =
+    false;
+
+
+function isUsableDirectNewsImage(
+    value
+) {
+
+    const url =
+        String(
+            value || ""
+        ).trim();
+
+    return (
+        /^https:\/\//i.test(url) &&
+        !/^data:/i.test(url) &&
+        !/^blob:/i.test(url)
+    );
+
+}
+
+
+function normalizeNewsImageLicense(
+    value
+) {
+
+    return String(
+        value || ""
+    )
+        .trim()
+        .toLowerCase()
+        .replace(
+            /\s+/g,
+            "-"
+        )
+        .replace(
+            /-\d+(?:\.\d+)?$/,
+            ""
+        );
+
+}
+
+
+function isGoodOpenverseImage(
+    item
+) {
+
+    if (!item) {
+        return false;
+    }
+
+    if (
+        item.watermarked === true ||
+        item.mature === true ||
+        item.sensitive_image === true
+    ) {
+        return false;
+    }
+
+    const license =
+        normalizeNewsImageLicense(
+            item.license
+        );
+
+    if (
+        !NEWS_IMAGE_ALLOWED_LICENSES.has(
+            license
+        )
+    ) {
+        return false;
+    }
+
+    const width =
+        Number(
+            item.width || 0
+        );
+
+    const height =
+        Number(
+            item.height || 0
+        );
+
+    if (
+        width > 0 &&
+        height > 0
+    ) {
+
+        if (
+            width < NEWS_IMAGE_MIN_WIDTH ||
+            height < NEWS_IMAGE_MIN_HEIGHT
+        ) {
+            return false;
+        }
+
+        const ratio =
+            width / height;
+
+        if (
+            ratio < 0.75 ||
+            ratio > 2.25
+        ) {
+            return false;
+        }
+
+    }
+
+    const imageUrl =
+        String(
+            item.thumbnail ||
+            item.url ||
+            ""
+        ).trim();
+
+    if (
+        !/^https:\/\//i.test(
+            imageUrl
+        )
+    ) {
+        return false;
+    }
+
+    const title =
+        String(
+            item.title || ""
+        ).toLowerCase();
+
+    if (
+        /\b(logo|icon|screenshot|watermark|banner ad|advertisement)\b/.test(
+            title
+        )
+    ) {
+        return false;
+    }
+
+    return true;
+
+}
+
+
+function getNewsImageQuery(
+    article,
+    category
+) {
+
+    const title =
+        String(
+            article?.title || ""
+        )
+            .replace(
+                /[^a-z0-9\s-]/gi,
+                " "
+            )
+            .replace(
+                /\s+/g,
+                " "
+            )
+            .trim();
+
+    const categoryQuery =
+        NEWS_IMAGE_CATEGORY_QUERIES[
+            category
+        ] ||
+        "news current events";
+
+    return (
+        title.slice(
+            0,
+            140
+        ) ||
+        categoryQuery
+    );
+
+}
+
+
+function readNewsImageCache() {
+
+    if (
+        newsImageLocalStorageLoaded
+    ) {
+        return;
+    }
+
+    newsImageLocalStorageLoaded =
+        true;
+
+    try {
+
+        const raw =
+            localStorage.getItem(
+                NEWS_IMAGE_CACHE_KEY
+            );
+
+        if (!raw) {
+            return;
+        }
+
+        const parsed =
+            JSON.parse(raw);
+
+        if (
+            !parsed ||
+            typeof parsed !== "object"
+        ) {
+            return;
+        }
+
+        Object.entries(
+            parsed
+        ).forEach(
+            ([key, value]) => {
+
+                if (
+                    value &&
+                    Array.isArray(
+                        value.images
+                    )
+                ) {
+
+                    newsImageMemoryCache.set(
+                        key,
+                        value
+                    );
+
+                }
+
+            }
+        );
+
+    } catch (error) {
+
+        console.debug(
+            "News image cache read skipped:",
+            error
+        );
+
+    }
+
+}
+
+
+function writeNewsImageCache() {
+
+    try {
+
+        const entries =
+            [...newsImageMemoryCache.entries()]
+                .slice(
+                    -250
+                );
+
+        localStorage.setItem(
+            NEWS_IMAGE_CACHE_KEY,
+            JSON.stringify(
+                Object.fromEntries(
+                    entries
+                )
+            )
+        );
+
+    } catch (error) {
+
+        console.debug(
+            "News image cache write skipped:",
+            error
+        );
+
+    }
+
+}
+
+
+async function searchOpenverseImages(
+    query
+) {
+
+    const url =
+        new URL(
+            NEWS_OPENVERSE_ENDPOINT
+        );
+
+    url.searchParams.set(
+        "q",
+        query
+    );
+
+    url.searchParams.set(
+        "page_size",
+        "10"
+    );
+
+    url.searchParams.set(
+        "mature",
+        "false"
+    );
+
+    const response =
+        await fetch(
+            url.toString(),
+            {
+                headers: {
+                    "Accept":
+                        "application/json"
+                },
+                referrerPolicy:
+                    "no-referrer"
+            }
+        );
+
+    if (!response.ok) {
+        throw new Error(
+            `Openverse image search failed: ${response.status}`
+        );
+    }
+
+    const data =
+        await response.json();
+
+    return (
+        Array.isArray(
+            data?.results
+        )
+            ? data.results
+            : []
+    )
+        .filter(
+            isGoodOpenverseImage
+        )
+        .map(
+            item => ({
+                url:
+                    String(
+                        item.thumbnail ||
+                        item.url ||
+                        ""
+                    ).trim(),
+
+                title:
+                    String(
+                        item.title ||
+                        ""
+                    ).trim(),
+
+                creator:
+                    String(
+                        item.creator ||
+                        ""
+                    ).trim(),
+
+                license:
+                    String(
+                        item.license ||
+                        ""
+                    ).trim(),
+
+                licenseUrl:
+                    String(
+                        item.license_url ||
+                        item.license_url ||
+                        ""
+                    ).trim(),
+
+                landingUrl:
+                    String(
+                        item.foreign_landing_url ||
+                        ""
+                    ).trim(),
+
+                width:
+                    Number(
+                        item.width ||
+                        0
+                    ),
+
+                height:
+                    Number(
+                        item.height ||
+                        0
+                    )
+            })
+        );
+
+}
+
+
+async function getOpenverseImages(
+    query
+) {
+
+    readNewsImageCache();
+
+    const cacheKey =
+        `search:${query.toLowerCase()}`;
+
+    if (
+        newsImageMemoryCache.has(
+            cacheKey
+        )
+    ) {
+
+        return (
+            newsImageMemoryCache.get(
+                cacheKey
+            )?.images ||
+            []
+        );
+
+    }
+
+    if (
+        newsImageInFlight.has(
+            cacheKey
+        )
+    ) {
+
+        return newsImageInFlight.get(
+            cacheKey
+        );
+
+    }
+
+    const promise =
+        searchOpenverseImages(
+            query
+        )
+            .then(
+                images => {
+
+                    newsImageMemoryCache.set(
+                        cacheKey,
+                        {
+                            images,
+                            savedAt:
+                                Date.now()
+                        }
+                    );
+
+                    writeNewsImageCache();
+
+                    return images;
+
+                }
+            )
+            .catch(
+                error => {
+
+                    newsImageMemoryCache.set(
+                        cacheKey,
+                        {
+                            images: [],
+                            savedAt:
+                                Date.now()
+                        }
+                    );
+
+                    writeNewsImageCache();
+
+                    throw error;
+
+                }
+            )
+            .finally(
+                () => {
+
+                    newsImageInFlight.delete(
+                        cacheKey
+                    );
+
+                }
+            );
+
+    newsImageInFlight.set(
+        cacheKey,
+        promise
+    );
+
+    return promise;
+
+}
+
+
+function pickUnusedNewsImage(
+    images
+) {
+
+    if (
+        !Array.isArray(images) ||
+        !images.length
+    ) {
+        return null;
+    }
+
+    return (
+        images.find(
+            image =>
+                image?.url &&
+                !newsImageUsedUrls.has(
+                    image.url
+                )
+        ) ||
+        images[0] ||
+        null
+    );
+
+}
+
+
+function imageCreditText(
+    image
+) {
+
+    const creator =
+        String(
+            image?.creator || ""
+        ).trim();
+
+    const license =
+        String(
+            image?.license || ""
+        ).trim();
+
+    if (
+        creator &&
+        license
+    ) {
+        return `Openverse · ${creator} · ${license}`;
+    }
+
+    if (license) {
+        return `Openverse · ${license}`;
+    }
+
+    return "Openverse";
+}
+
+
+function applyNewsImageToCard(
+    card,
+    image
+) {
+
+    const imageBox =
+        card?.querySelector(
+            '[data-news-image-state="pending"]'
+        );
+
+    if (
+        !imageBox ||
+        !image?.url
+    ) {
+        return;
+    }
+
+    newsImageUsedUrls.add(
+        image.url
+    );
+
+    const alt =
+        image.title ||
+        "Related news image";
+
+    imageBox.classList.remove(
+        "news-card-placeholder",
+        "news-image-pending"
+    );
+
+    imageBox.classList.add(
+        "news-card-image-loaded"
+    );
+
+    imageBox.removeAttribute(
+        "data-news-image-state"
+    );
+
+    imageBox.innerHTML = `
+        <img
+            class="news-card-image-inner"
+            src="${escapeNewsHtml(image.url)}"
+            alt="${escapeNewsHtml(alt)}"
+            loading="lazy"
+            decoding="async"
+            referrerpolicy="no-referrer"
+        >
+        <span
+            class="news-card-image-credit"
+            title="${escapeNewsHtml(imageCreditText(image))}"
+        >
+            ${escapeNewsHtml(imageCreditText(image))}
+        </span>
+    `;
+
+    const imageElement =
+        imageBox.querySelector(
+            ".news-card-image-inner"
+        );
+
+    if (
+        imageElement
+    ) {
+
+        imageElement.addEventListener(
+            "error",
+            () => {
+
+                imageBox.classList.remove(
+                    "news-card-image-loaded"
+                );
+
+                imageBox.classList.add(
+                    "news-card-placeholder"
+                );
+
+                imageBox.innerHTML =
+                    "📰";
+
+                imageBox.dataset.newsImageState =
+                    "failed";
+
+            },
+            {
+                once: true
+            }
+        );
+
+    }
+
+}
+
+
+async function resolveNewsImage(
+    article,
+    category
+) {
+
+    const articleKey =
+        String(
+            article?.url || ""
+        )
+            .trim()
+            .toLowerCase();
+
+    if (!articleKey) {
+        return null;
+    }
+
+    readNewsImageCache();
+
+    const cacheKey =
+        `article:${articleKey}`;
+
+    if (
+        newsImageMemoryCache.has(
+            cacheKey
+        )
+    ) {
+
+        return pickUnusedNewsImage(
+            newsImageMemoryCache.get(
+                cacheKey
+            )?.images || []
+        );
+
+    }
+
+    try {
+
+        const images =
+            await getOpenverseImages(
+                getNewsImageQuery(
+                    article,
+                    category
+                )
+            );
+
+        if (images.length) {
+
+            newsImageMemoryCache.set(
+                cacheKey,
+                {
+                    images,
+                    savedAt:
+                        Date.now()
+                }
+            );
+
+            writeNewsImageCache();
+
+            const selected =
+                pickUnusedNewsImage(
+                    images
+                );
+
+            if (selected) {
+                return selected;
+            }
+
+        }
+
+    } catch (error) {
+
+        console.debug(
+            "Openverse article image skipped:",
+            error
+        );
+
+    }
+
+    /*
+     * One topic-level fallback per category. It is intentionally
+     * separate from the article search so the UI still has a visual
+     * even when a very specific story has no suitable open image.
+     */
+    try {
+
+        const fallbackImages =
+            await getOpenverseImages(
+                NEWS_IMAGE_CATEGORY_QUERIES[
+                    category
+                ] ||
+                "news current events"
+            );
+
+        return pickUnusedNewsImage(
+            fallbackImages
+        );
+
+    } catch (error) {
+
+        console.debug(
+            "Openverse topic image skipped:",
+            error
+        );
+
+        return null;
+
+    }
+
+}
+
+
+async function hydrateOneNewsImage(
+    card,
+    article,
+    category
+) {
+
+    const image =
+        await resolveNewsImage(
+            article,
+            category
+        );
+
+    if (
+        image
+    ) {
+
+        applyNewsImageToCard(
+            card,
+            image
+        );
+
+    } else {
+
+        const imageBox =
+            card?.querySelector(
+                '[data-news-image-state="pending"]'
+            );
+
+        if (imageBox) {
+
+            imageBox.dataset.newsImageState =
+                "failed";
+
+        }
+
+    }
+
+}
+
+
+function processNewsImageQueue() {
+
+    while (
+        newsImageActiveRequests <
+            NEWS_IMAGE_MAX_CONCURRENT &&
+        newsImageQueue.length
+    ) {
+
+        const task =
+            newsImageQueue.shift();
+
+        newsImageActiveRequests++;
+
+        hydrateOneNewsImage(
+            task.card,
+            task.article,
+            task.category
+        )
+            .catch(
+                error => {
+
+                    console.debug(
+                        "News image hydration skipped:",
+                        error
+                    );
+
+                }
+            )
+            .finally(
+                () => {
+
+                    newsImageActiveRequests--;
+
+                    processNewsImageQueue();
+
+                }
+            );
+
+    }
+
+}
+
+
+function queueNewsImage(
+    card,
+    article,
+    category
+) {
+
+    if (
+        !card ||
+        !article
+    ) {
+        return;
+    }
+
+    const pending =
+        card.querySelector(
+            '[data-news-image-state="pending"]'
+        );
+
+    if (!pending) {
+        return;
+    }
+
+    newsImageQueue.push({
+        card,
+        article,
+        category
+    });
+
+    processNewsImageQueue();
+
+}
+
+
+function hydrateNewsImages(
+    articles,
+    category
+) {
+
+    if (
+        !Array.isArray(articles) ||
+        !articles.length
+    ) {
+        return;
+    }
+
+    const cards =
+        [
+            ...document.querySelectorAll(
+                ".news-card[data-news-url]"
+            )
+        ];
+
+    const byUrl =
+        new Map(
+            articles.map(
+                article => [
+                    String(
+                        article?.url || ""
+                    )
+                        .trim()
+                        .toLowerCase(),
+                    article
+                ]
+            )
+        );
+
+    const loadCard =
+        card => {
+
+            const url =
+                String(
+                    card.dataset.newsUrl || ""
+                )
+                    .trim()
+                    .toLowerCase();
+
+            const article =
+                byUrl.get(
+                    url
+                );
+
+            if (
+                article
+            ) {
+
+                queueNewsImage(
+                    card,
+                    article,
+                    category
+                );
+
+            }
+
+        };
+
+    if (
+        "IntersectionObserver" in window
+    ) {
+
+        const observer =
+            new IntersectionObserver(
+                entries => {
+
+                    entries.forEach(
+                        entry => {
+
+                            if (
+                                !entry.isIntersecting
+                            ) {
+                                return;
+                            }
+
+                            observer.unobserve(
+                                entry.target
+                            );
+
+                            loadCard(
+                                entry.target
+                            );
+
+                        }
+                    );
+
+                },
+                {
+                    rootMargin:
+                        "700px 0px"
+                }
+            );
+
+        cards.forEach(
+            loadCardObserver => {
+
+                if (
+                    loadCardObserver.querySelector(
+                        '[data-news-image-state="pending"]'
+                    )
+                ) {
+
+                    observer.observe(
+                        loadCardObserver
+                    );
+
+                }
+
+            }
+        );
+
+    } else {
+
+        cards
+            .slice(
+                0,
+                12
+            )
+            .forEach(
+                loadCard
+            );
+
+    }
+
+}
+
+
+/* =========================================================
+   NEWS HTML ESCAPE
+========================================================= */
 
 
 /* =========================================================
@@ -574,6 +1662,11 @@ function showNewsCategory(
         categoryName === "all"
             ? null
             : 12
+    );
+
+    hydrateNewsImages(
+        articles,
+        categoryName
     );
 
 
