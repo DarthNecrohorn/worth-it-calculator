@@ -20,7 +20,7 @@ export async function onRequestGet() {
       .replace(/&#39;/gi, "'")
       .replace(/&lt;/gi, "<")
       .replace(/&gt;/gi, ">")
-      .replace(/\\s+/g, " ")
+      .replace(/\s+/g, " ")
       .trim();
   }
 
@@ -191,10 +191,13 @@ export async function onRequestGet() {
       url.searchParams.set("languages", "en");
       url.searchParams.set("size", "100");
       url.searchParams.set("search", query);
+      url.searchParams.set("_diagnostic", String(Date.now()));
 
       const response = await fetch(url.toString(), {
-        headers: { "User-Agent": "Worth-It-OpenNewswire-Travel-Diagnostic/1.0" },
-        cf: { cacheTtl: 300, cacheEverything: true }
+        headers: {
+          "User-Agent": "Worth-It-OpenNewswire-Travel-Diagnostic/1.0",
+          "Cache-Control": "no-cache"
+        }
       });
 
       const text = await response.text();
@@ -205,11 +208,13 @@ export async function onRequestGet() {
       }
 
       const data = JSON.parse(text);
-      const articles = Array.isArray(data?.articles)
-        ? data.articles
-        : Array.isArray(data?.data)
-          ? data.data
-          : [];
+      const articles = Array.isArray(data?.results)
+        ? data.results
+        : Array.isArray(data?.articles)
+          ? data.articles
+          : Array.isArray(data?.data)
+            ? data.data
+            : [];
 
       for (const article of articles) {
         const key = clean(article?.link || article?.id || article?.title).toLowerCase();
