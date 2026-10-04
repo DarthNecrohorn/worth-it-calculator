@@ -321,14 +321,14 @@ const NEWS_CATEGORY_LABELS = {
     gaming:
         "🎮 Gaming",
 
-    travel:
-        "✈️ Travel",
+    crime:
+        "🕵️ Crime",
 
     entertainment:
         "🎬 Entertainment",
 
-    lifestyle:
-        "🌿 Lifestyle"
+    culture:
+        "🎨 Culture"
 
 };
 
