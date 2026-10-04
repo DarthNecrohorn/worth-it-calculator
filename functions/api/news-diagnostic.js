@@ -166,7 +166,7 @@ function licenseAllowed(article) {
 
 function getPrimaryNewsCategory(article) {
     const title = clean(article?.title).toLowerCase();
-    const description = clean(article?.content).toLowerCase();
+    const description = clean(article?.content).slice(0, 500).toLowerCase();
     const text = title + " " + description;
 
     const rules = {
@@ -437,7 +437,7 @@ function travelDetails(article) {
 async function fetchQuery(query) {
     const url = new URL("https://feed.opennewswire.org/api/articles");
     url.searchParams.set("languages", "en");
-    url.searchParams.set("size", "60");
+    url.searchParams.set("size", "20");
     url.searchParams.set("search", query);
 
     const started = Date.now();
@@ -488,17 +488,10 @@ function summarizeArticle(article, category, query) {
         source: clean(article?.feed?.title),
         publishedAt: article?.date || "",
         query,
-        classifierCategory: classifier.category || null,
-        classifierReason: classifier.reason,
-        classifierScores: classifier.scores || null,
-        travelCheck: travel,
+        classifiedAs: classifier.category || null,
+        travelRelevant: travel?.relevant ?? null,
         accepted,
-        url: clean(article?.link),
-        license: clean(
-            article?.feed?.license?.name ||
-            article?.feed?.license?.slug ||
-            ""
-        )
+        url: clean(article?.link)
     };
 }
 
@@ -581,13 +574,18 @@ export async function onRequestGet(context) {
             const allowed = result.raw.filter(licenseAllowed);
             const unique = removeDuplicates(allowed);
 
-            const accepted = unique.filter(article =>
-                summarizeArticle(article, category, query).accepted
-            );
+            const accepted = [];
+            const rejected = [];
 
-            const rejected = unique.filter(article =>
-                !summarizeArticle(article, category, query).accepted
-            );
+            for (const article of unique) {
+                const summary = summarizeArticle(article, category, query);
+
+                if (summary.accepted) {
+                    accepted.push(summary);
+                } else {
+                    rejected.push(summary);
+                }
+            }
 
             allAllowed.push(...unique);
 
@@ -600,12 +598,8 @@ export async function onRequestGet(context) {
                 uniqueCount: unique.length,
                 passCurrentFilterCount: accepted.length,
                 rejectedCount: rejected.length,
-                accepted: accepted.map(article =>
-                    summarizeArticle(article, category, query)
-                ),
-                rejected: rejected.map(article =>
-                    summarizeArticle(article, category, query)
-                )
+                accepted,
+                rejected
             });
         }
 
