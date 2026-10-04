@@ -15,27 +15,8 @@ function normalizeNewsImageUrl(value) {
 
 export async function onRequestGet(context) {
 
-    const apiKey =
-        context.env.NEWSDATA_API_KEY;
-
-
     const db =
         context.env.DB;
-
-
-    if (!apiKey) {
-
-        return Response.json(
-            {
-                error:
-                    "NEWSDATA_API_KEY is not configured."
-            },
-            {
-                status: 500
-            }
-        );
-
-    }
 
 
     if (!db) {
@@ -60,7 +41,7 @@ export async function onRequestGet(context) {
     /*
      * 4 hours.
      *
-     * NewsData is only contacted when the Cloudflare
+     * Open Newswire is only contacted when the Cloudflare
      * cache expires.
      */
 
@@ -73,9 +54,9 @@ export async function onRequestGet(context) {
 
 
     /*
-     * v10 = optimized NewsData usage.
+     * v10 = optimized Open Newswire usage.
      *
-     * Only one NewsData request is made per category.
+     * Only one Open Newswire request is made per category.
      */
 
     const requestUrl =
@@ -129,63 +110,51 @@ export async function onRequestGet(context) {
 
     const categories = {
     world: {
-        category: "world",
-        q: "international global countries diplomacy geopolitics world events"
+        q: "world"
     },
 
     technology: {
-        category: "technology",
-        q: "technology tech software hardware internet smartphones computers innovation AI artificial intelligence"
+        q: "technology"
     },
 
     business: {
-        category: "business",
-        q: "business companies economy markets finance stocks investment trade industry startups"
+        q: "business"
     },
 
     science: {
-        category: "science",
-        q: "science research discoveries space physics biology chemistry astronomy technology experiments"
+        q: "science"
     },
 
     sports: {
-        category: "sports",
-        q: "sports football soccer basketball tennis baseball athletics motorsport championships tournaments"
+        q: "sports"
     },
 
     travel: {
-        category: "tourism",
-        q: "travel tourism destinations hotels flights airlines vacation holidays tourism attractions"
+        q: "travel"
     },
 
     entertainment: {
-        category: "entertainment",
-        q: "entertainment movies films music celebrities television streaming actors awards concerts"
+        q: "entertainment"
     },
 
     lifestyle: {
-        category: "lifestyle",
-        q: "lifestyle wellness fashion relationships home personal life trends culture leisure"
+        q: "lifestyle"
     },
 
     health: {
-        category: "health",
-        q: "health medicine medical healthcare diseases treatments doctors hospitals nutrition wellness"
+        q: "health"
     },
 
     environment: {
-        category: "environment",
-        q: "environment climate nature pollution conservation biodiversity sustainability renewable energy"
+        q: "environment"
     },
 
     food: {
-        category: "food",
-        q: "food cooking recipes restaurants cuisine nutrition ingredients chefs dining food industry"
+        q: "food"
     },
 
     education: {
-        category: "education",
-        q: "education schools universities colleges students teachers learning academic research training"
+        q: "education"
     }
 };
     
@@ -203,52 +172,26 @@ export async function onRequestGet(context) {
 
             const url =
                 new URL(
-                    "https://newsdata.io/api/1/latest"
+                    "https://feed.opennewswire.org/api/articles"
                 );
 
 
             url.searchParams.set(
-                "apikey",
-                apiKey
-            );
-
-
-            url.searchParams.set(
-                "language",
+                "languages",
                 "en"
             );
 
 
-            /*
-             * NewsData free response limit.
-             */
-
             url.searchParams.set(
                 "size",
-                "10"
+                "100"
             );
-
-
-            url.searchParams.set(
-                "removeduplicate",
-                "1"
-            );
-
-
-            if (params.category) {
-
-                url.searchParams.set(
-                    "category",
-                    params.category
-                );
-
-            }
 
 
             if (params.q) {
 
                 url.searchParams.set(
-                    "q",
+                    "search",
                     params.q
                 );
 
@@ -257,17 +200,42 @@ export async function onRequestGet(context) {
 
             recordAdminApiUsage(context, {
                 apiKey: "news",
-                provider: "NewsData.io"
+                provider: "Open Newswire"
             });
+
 
             const response =
                 await fetch(
-                    url.toString()
+                    url.toString(),
+                    {
+                        headers: {
+                            "User-Agent":
+                                "Worth-It-News/1.0"
+                        }
+                    }
                 );
 
 
-            const data =
-                await response.json();
+            const rawText =
+                await response.text();
+
+
+            let data;
+
+            try {
+
+                data =
+                    JSON.parse(
+                        rawText
+                    );
+
+            } catch (error) {
+
+                throw new Error(
+                    `Open Newswire returned invalid JSON for ${category}`
+                );
+
+            }
 
 
             if (!response.ok) {
@@ -279,19 +247,183 @@ export async function onRequestGet(context) {
             }
 
 
-            return {
+            const results =
+                Array.isArray(
+                    data?.results
+                )
+                    ? data.results
+                    : [];
 
-                articles:
-                    Array.isArray(
-                        data.results
+
+            function cleanText(
+                value
+            ) {
+
+                return String(
+                    value || ""
+                )
+                    .replace(
+                        /<[^>]*>/g,
+                        " "
                     )
-                        ? data.results
-                        : []
+                    .replace(
+                        /&amp;/gi,
+                        "&"
+                    )
+                    .replace(
+                        /&quot;/gi,
+                        '"'
+                    )
+                    .replace(
+                        /&#39;/gi,
+                        "'"
+                    )
+                    .replace(
+                        /&lt;/gi,
+                        "<"
+                    )
+                    .replace(
+                        /&gt;/gi,
+                        ">"
+                    )
+                    .replace(
+                        /\s+/g,
+                        " "
+                    )
+                    .trim();
 
+            }
+
+
+            function isAllowedCommercialLicense(
+                article
+            ) {
+
+                const license =
+                    article?.feed?.license || {};
+
+                const name =
+                    cleanText(
+                        license.name || ""
+                    ).toLowerCase();
+
+                const slug =
+                    cleanText(
+                        license.slug || ""
+                    ).toLowerCase();
+
+                if (
+                    slug.includes("nc") ||
+                    name.includes("non-commercial") ||
+                    name.includes("noncommercial")
+                ) {
+
+                    return false;
+
+                }
+
+                if (
+                    slug.includes("public-domain") ||
+                    slug === "cc0" ||
+                    name.includes("public domain") ||
+                    name.includes("cc0")
+                ) {
+
+                    return true;
+
+                }
+
+                if (
+                    slug.includes("by") ||
+                    name.includes("creative commons") ||
+                    name.includes("attribution")
+                ) {
+
+                    return true;
+
+                }
+
+                return false;
+
+            }
+
+
+            const articles =
+                results
+                    .filter(
+                        isAllowedCommercialLicense
+                    )
+                    .map(
+                        article => {
+
+                            const feed =
+                                article?.feed || {};
+
+                            const license =
+                                feed.license || {};
+
+                            const content =
+                                cleanText(
+                                    article?.content || ""
+                                );
+
+                            return {
+
+                                title:
+                                    cleanText(
+                                        article?.title || ""
+                                    ),
+
+                                description:
+                                    content.slice(
+                                        0,
+                                        600
+                                    ),
+
+                                link:
+                                    cleanText(
+                                        article?.link || ""
+                                    ),
+
+                                image_url:
+                                    "",
+
+                                pubDate:
+                                    article?.date || "",
+
+                                source_name:
+                                    cleanText(
+                                        feed.title || ""
+                                    ),
+
+                                license:
+                                    cleanText(
+                                        license.name ||
+                                        license.slug ||
+                                        ""
+                                    ),
+
+                                licenseUrl:
+                                    cleanText(
+                                        feed.licenseUrl || ""
+                                    )
+
+                            };
+
+                        }
+                    )
+                    .filter(
+                        article =>
+                            article.title &&
+                            article.link
+                    );
+
+
+            return {
+                articles
             };
 
         }
-
 
         /* =====================================================
            NORMALIZE TITLE
@@ -768,6 +900,119 @@ export async function onRequestGet(context) {
         }
 
 
+        function isRelevantTravelArticle(
+            article
+        ) {
+
+            const title =
+                String(
+                    article?.title || ""
+                ).toLowerCase();
+
+            const description =
+                String(
+                    article?.description || ""
+                ).toLowerCase();
+
+            const text =
+                `${title} ${description}`;
+
+            const strongTerms = [
+                "tourism",
+                "tourist",
+                "travel industry",
+                "travel advisory",
+                "travel warning",
+                "airline",
+                "airport",
+                "flight",
+                "hotel",
+                "resort",
+                "destination",
+                "cruise",
+                "vacation",
+                "holiday",
+                "hospitality",
+                "tour operator",
+                "travel disruption",
+                "travel restrictions"
+            ];
+
+            const secondaryTerms = [
+                "traveler",
+                "travellers",
+                "travellers",
+                "visa",
+                "border",
+                "lodging",
+                "passenger",
+                "tourism sector",
+                "visitor"
+            ];
+
+            const falsePositivePatterns = [
+                "space travel",
+                "space traveler",
+                "space traveller",
+                "nasa",
+                "astronaut",
+                "traveled to",
+                "travelled to",
+                "travels to",
+                "travels from",
+                "traveling to",
+                "travelling to",
+                "traveling from",
+                "travelling from"
+            ];
+
+            if (
+                falsePositivePatterns.some(
+                    pattern =>
+                        title.includes(pattern)
+                )
+            ) {
+
+                return false;
+
+            }
+
+            const strongHits =
+                strongTerms.filter(
+                    term =>
+                        title.includes(term) ||
+                        description.includes(term)
+                ).length;
+
+            const secondaryHits =
+                secondaryTerms.filter(
+                    term =>
+                        title.includes(term) ||
+                        description.includes(term)
+                ).length;
+
+            if (
+                strongHits >= 1
+            ) {
+
+                return true;
+
+            }
+
+            return (
+                strongHits >= 0 &&
+                secondaryHits >= 2 &&
+                (
+                    title.includes("travel") ||
+                    description.includes("travel") ||
+                    title.includes("tourism") ||
+                    description.includes("tourism")
+                )
+            );
+
+        }
+
+
         /* =====================================================
            FORMAT ARTICLES
         ===================================================== */
@@ -942,7 +1187,7 @@ export async function onRequestGet(context) {
             /*
              * IMPORTANT:
              *
-             * Only ONE NewsData request per category.
+             * Only ONE Open Newswire request per category.
              *
              * Previously this function could request up to
              * four pages, which greatly increased API usage.
@@ -977,6 +1222,19 @@ export async function onRequestGet(context) {
                 removeDuplicateArticles(
                     articles
                 );
+
+
+            if (category === "travel") {
+
+                articles =
+                    articles.filter(
+                        article =>
+                            isRelevantTravelArticle(
+                                article
+                            )
+                    );
+
+            }
 
 
             /*
@@ -1020,7 +1278,7 @@ export async function onRequestGet(context) {
 
             /*
              * Return the quality-ranked result of the
-             * single NewsData request.
+             * single Open Newswire request.
              *
              * D1 will merge these with the existing
              * persistent article history.
@@ -1554,7 +1812,7 @@ export async function onRequestGet(context) {
 
                             /*
                              * Fetch newly discovered
-                             * articles from NewsData.
+                             * articles from Open Newswire.
                              *
                              * Exactly ONE API request
                              * for this category.
@@ -1593,7 +1851,7 @@ export async function onRequestGet(context) {
 
 
                             /*
-                             * If NewsData fails,
+                             * If Open Newswire fails,
                              * return existing D1 history.
                              */
 
@@ -1758,7 +2016,7 @@ export async function onRequestGet(context) {
     } catch (error) {
 
         console.error(
-            "NewsData API error:",
+            "Open Newswire API error:",
             error
         );
 
