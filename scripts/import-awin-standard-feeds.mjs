@@ -119,7 +119,7 @@ function validateShippingProfiles(profiles) {
   for (const [partnerId, profile] of Object.entries(profiles)) {
     const type = String(profile?.type || "");
 
-    if (!["exact", "regional"].includes(type)) {
+    if (!["exact", "regional", "digital"].includes(type)) {
       throw new Error(
         `Invalid shipping profile type for ${partnerId}: ${type || "missing"}`
       );
@@ -150,6 +150,12 @@ function validateShippingProfiles(profiles) {
     if (type === "exact" && !normalized.length) {
       throw new Error(
         `Exact shipping profile has no countries: ${partnerId}`
+      );
+    }
+
+    if (type === "digital" && normalized.length) {
+      throw new Error(
+        `Digital availability profile should not contain physical shipping countries: ${partnerId}`
       );
     }
 
