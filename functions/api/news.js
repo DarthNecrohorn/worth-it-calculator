@@ -129,16 +129,16 @@ export async function onRequestGet(context) {
         queries: ["sports", "football", "basketball"]
     },
 
-    travel: {
-        queries: ["travel", "tourism", "airline", "airport", "hotel", "destination", "cruise", "hospitality"]
+    crime: {
+        queries: ["crime", "criminal justice", "police", "court"]
     },
 
     entertainment: {
         queries: ["entertainment", "movies", "music", "celebrity"]
     },
 
-    lifestyle: {
-        queries: ["lifestyle", "fashion", "beauty"]
+    culture: {
+        queries: ["culture", "arts", "museum", "heritage"]
     },
 
     health: {
@@ -1008,9 +1008,9 @@ export async function onRequestGet(context) {
                 business: ["business","economy","economic","markets","market","stocks","shares","finance","financial","investment","investors","company","companies","merger","acquisition","trade","tariff","bank","banking","jobs","employment","inflation","interest rates","earnings","revenue","industry","corporate","manufacturing","fuel economy","tax"],
                 science: ["science","scientist","scientists","research","researchers","study","discovery","discovered","experiment","astronomy","planet","galaxy","space mission","nasa","biology","genetics","physics","chemistry","species","ecosystem","laboratory","clinical trial","scientific"],
                 sports: ["sports","sport","football","soccer","basketball","baseball","tennis","cricket","rugby","hockey","golf","boxing","formula 1","grand prix","fifa","uefa","nfl","nba","nhl","mlb","championship","tournament","league","playoffs","world cup","athlete","coach","transfer","match","season","games","game"],
-                travel: ["tourism","tourist","travel industry","travel advisory","travel warning","airline","airport","flight","hotel","resort","destination","cruise","vacation","holiday","hospitality","tour operator","travel disruption","travel restrictions","visa","traveler","travellers","lodging","passenger"],
+                crime: ["crime","criminal","criminal investigation","police","police chief","sheriff","law enforcement","detective","homicide","murder","killing","shooting","shooter","robbery","burglary","theft","fraud","scam","bribery","corruption","arson","assault","kidnapping","abduction","suspect","suspects","arrest","arrested","charged","charges","indictment","indicted","prosecution","prosecutor","trial","convicted","conviction","sentenced","sentencing","jail","prison","inmate","victim","victims","forensic","evidence","warrant","firearm","firearms","gunfire","weapon","weapons","court","judge","detention","detained","misconduct"],
+                culture: ["culture","cultural","arts","art","artist","artists","artwork","artworks","museum","museums","gallery","galleries","exhibition","exhibit","heritage","unesco","architecture","architect","architects","literature","literary","poetry","poem","theatre","theater","opera","ballet","dance","dancer","dancers","painting","paintings","sculpture","sculptures","ceramics","photography","photographer","design","public art","art history","cultural heritage","cultural institution","cultural institutions","cultural scene","live music scene","music scene","film history","film criticism","book festival","literary festival","manuscript","manuscripts","archive","archives","fashion","wardrobe","costume"],
                 entertainment: ["entertainment","movie","movies","film","films","cinema","music","concert","singer","album","actor","actress","celebrity","director","hollywood","television","tv series","streaming","festival","box office","premiere","performance","artist","show"],
-                lifestyle: ["lifestyle","fashion","wellness","beauty","skincare","makeup","cosmetics","relationships","dating","home decor","interior design","home improvement","fitness","parenting","family life","personal style","self-care","hobbies","leisure","personal finance","shopping","consumer trends"],
                 health: ["health","healthcare","health care","medical","medicine","disease","illness","hospital","doctor","doctors","patient","patients","vaccine","vaccination","virus","infection","outbreak","treatment","therapy","diagnosis","mental health","public health","clinical","pregnant","pregnancy","medication","symptoms","ptsd","post-traumatic stress","trauma","weight loss","weight-loss","diet drinks","prenatal","adhd"],
                 environment: ["environment","climate change","global warming","greenhouse gas","emissions","pollution","wildfire","drought","flood","storm surge","permafrost","conservation","biodiversity","renewable energy","clean energy","ecosystem","wetland","ocean warming","deforestation","wildlife","habitat","carbon","sustainability","endangered species","food waste"],
                 food: ["food","restaurant","cooking","recipe","chef","cuisine","meal","dish","grocery","supermarket","food safety","food prices","ingredients","bakery","coffee","wine","beer","dining","kitchen","menu","appetite","flavor"],
@@ -1123,41 +1123,149 @@ export async function onRequestGet(context) {
             }
 
             /*
-             * Lifestyle headline anchors.
-             * Clear lifestyle topics win over broad body-level matches.
+             * Clear crime headlines must stay in Crime when they describe
+             * an actual criminal incident, case or investigation.
              */
             if (
-                title.includes("lifestyle") ||
-                title.includes("fashion") ||
-                title.includes("wardrobe") ||
-                title.includes("clothing") ||
-                title.includes("beauty") ||
-                title.includes("skincare") ||
-                title.includes("skin care") ||
-                title.includes("makeup") ||
-                title.includes("cosmetic") ||
-                title.includes("manicure") ||
-                title.includes("pedicure") ||
-                title.includes("fragrance") ||
-                title.includes("perfume") ||
-                title.includes("personal style") ||
-                title.includes("street style") ||
-                title.includes("wellness") ||
-                title.includes("fitness") ||
-                title.includes("home decor") ||
-                title.includes("interior design") ||
-                title.includes("home improvement") ||
-                title.includes("relationships") ||
-                title.includes("dating") ||
-                title.includes("parenting") ||
-                title.includes("self-care") ||
-                title.includes("hobbies") ||
-                title.includes("leisure") ||
-                title.includes("shopping") ||
-                title.includes("personal finance") ||
-                title.includes("consumer trends")
+                [
+                    "criminal investigation",
+                    "criminal charges",
+                    "arrest",
+                    "arrested",
+                    "charged",
+                    "charges",
+                    "indictment",
+                    "indicted",
+                    "homicide",
+                    "murder",
+                    "shooting",
+                    "shooter",
+                    "robbery",
+                    "burglary",
+                    "theft",
+                    "fraud",
+                    "scam",
+                    "bribery",
+                    "corruption",
+                    "arson",
+                    "assault",
+                    "kidnapping",
+                    "abduction",
+                    "suspect",
+                    "prosecutor",
+                    "prosecution",
+                    "trial",
+                    "convicted",
+                    "conviction",
+                    "sentenced",
+                    "sentencing",
+                    "jail",
+                    "prison",
+                    "inmate",
+                    "law enforcement",
+                    "sheriff",
+                    "detective",
+                    "forensic",
+                    "gunfire",
+                    "firearm",
+                    "firearms",
+                    "weapons",
+                    "weapon",
+                    "court appearance",
+                    "arraignment",
+                    "detention",
+                    "detained",
+                    "misconduct"
+                ].some(
+                    term => title.includes(term)
+                )
             ) {
-                return "lifestyle";
+                return "crime";
+            }
+
+            if (
+                (
+                    title.includes("court") ||
+                    title.includes("judge")
+                ) &&
+                [
+                    "charged",
+                    "charges",
+                    "accused",
+                    "defendant",
+                    "trial",
+                    "convicted",
+                    "sentenced",
+                    "detention",
+                    "detained",
+                    "arraignment",
+                    "indictment"
+                ].some(
+                    term => title.includes(term)
+                )
+            ) {
+                return "crime";
+            }
+
+            /*
+             * Culture headline anchors. Require an actual cultural,
+             * artistic or heritage subject from the headline.
+             */
+            if (
+                [
+                    "culture",
+                    "cultural",
+                    "arts",
+                    "art",
+                    "artist",
+                    "artists",
+                    "artwork",
+                    "museum",
+                    "gallery",
+                    "exhibition",
+                    "exhibit",
+                    "heritage",
+                    "unesco",
+                    "architecture",
+                    "architect",
+                    "literature",
+                    "literary",
+                    "poetry",
+                    "theatre",
+                    "theater",
+                    "opera",
+                    "ballet",
+                    "dance",
+                    "dancer",
+                    "painting",
+                    "sculpture",
+                    "ceramics",
+                    "photography",
+                    "photographer",
+                    "design",
+                    "public art",
+                    "art history",
+                    "cultural heritage",
+                    "cultural institution",
+                    "cultural scene",
+                    "live music scene",
+                    "music scene",
+                    "film history",
+                    "film criticism",
+                    "book festival",
+                    "literary festival",
+                    "manuscript",
+                    "manuscripts",
+                    "archive",
+                    "archives",
+                    "fashion",
+                    "wardrobe",
+                    "costume"
+                ].some(
+                    term => title.includes(term)
+                )
+            ) {
+                return "culture";
             }
 
             /*
@@ -1389,15 +1497,26 @@ export async function onRequestGet(context) {
             category
         ) {
 
-            if (category === "travel") {
-                return getPrimaryNewsCategory(article) === "travel" && isRelevantTravelArticle(article);
+            if (category === "crime") {
+                return (
+                    getPrimaryNewsCategory(article) === "crime" &&
+                    isRelevantCrimeArticle(article)
+                );
+            }
+
+            if (category === "culture") {
+                return (
+                    getPrimaryNewsCategory(article) === "culture" &&
+                    isRelevantCultureArticle(article)
+                );
             }
 
             return getPrimaryNewsCategory(article) === category;
 
         }
 
-        function isRelevantTravelArticle(
+
+        function isRelevantCrimeArticle(
             article
         ) {
 
@@ -1414,133 +1533,144 @@ export async function onRequestGet(context) {
             const text =
                 `${title} ${description}`;
 
-            const strongTerms = [
-                "tourism",
-                "tourist",
-                "travel industry",
-                "travel advisory",
-                "travel warning",
-                "airline",
-                "airport",
-                "flight",
-                "hotel",
-                "resort",
-                "destination",
-                "cruise",
-                "vacation",
-                "holiday",
-                "hospitality",
-                "tour operator",
-                "travel disruption",
-                "travel restrictions",
-                "inn",
-                "inns"
+            const titleCrimeTerms = [
+                "crime","criminal","criminal investigation","criminal charges","police",
+                "sheriff","law enforcement","detective","homicide","murder","killing",
+                "shooting","shooter","robbery","burglary","theft","fraud","scam",
+                "bribery","corruption","arson","assault","kidnapping","abduction",
+                "suspect","suspects","arrest","arrested","charged","charges","indictment",
+                "indicted","prosecution","prosecutor","trial","convicted","conviction",
+                "sentenced","sentencing","jail","prison","inmate","victim","victims",
+                "forensic","firearm","firearms","gunfire","weapon","weapons","detention",
+                "detained","misconduct"
             ];
 
-            const secondaryTerms = [
-                "traveler",
-                "travellers",
-                "travellers",
-                "visa",
-                "border",
-                "lodging",
-                "passenger",
-                "tourism sector",
-                "visitor"
+            const proceduralTerms = [
+                "charged","charges","accused","defendant","trial","convicted",
+                "sentenced","detention","detained","arraignment","indictment","criminal"
             ];
 
-            const falsePositivePatterns = [
-                "space travel",
-                "space traveler",
-                "space traveller",
-                "nasa",
-                "astronaut",
-                "airport sabotage",
-                "airport parking",
-                "airport attack",
-                "airport incident",
-                "airstrike",
-                "air strike",
-                "flight 93",
-                "tom cruise",
-                "detained at airport",
-                "arrested at airport",
-                "political researcher",
-                "undocumented migrants",
-                "refugees",
-                "legal status",
-                "migration policy",
-                "child abduction",
-                "traveled to",
-                "travelled to",
-                "travels to",
-                "travels from",
-                "traveling to",
-                "travelling to",
-                "traveling from",
-                "travelling from"
+            const administrativeFalsePositives = [
+                /\bpolice chief (candidates?|search)\b/,
+                /\bpolice (budget|funding|staffing|recruitment|reform)\b/,
+                /\b(cops?|officers?) (budget|funding|staffing|recruitment)\b/,
+                /\bpledges? \$[\d,.]+.*\b(cops?|police|officers?)\b/,
+                /\bcommunity forums?\b/,
+                /\bpension rules?\b/
             ];
 
             if (
-                falsePositivePatterns.some(
-                    pattern =>
-                        title.includes(pattern)
+                administrativeFalsePositives.some(
+                    pattern => pattern.test(title)
                 )
             ) {
-
                 return false;
-
             }
 
-            const strongHits =
-                strongTerms.filter(
-                    term =>
-                        title.includes(term) ||
-                        description.includes(term)
+            const titleCrimeHits =
+                titleCrimeTerms.filter(
+                    term => title.includes(term)
                 ).length;
 
-            const secondaryHits =
-                secondaryTerms.filter(
-                    term =>
-                        title.includes(term) ||
-                        description.includes(term)
-                ).length;
+            const hasCourtContext =
+                title.includes("court") ||
+                title.includes("judge");
 
-            const titleStrongTerms = [
-                "tourism",
-                "tourist",
-                "travel",
-                "airline",
-                "airport",
-                "flight",
-                "hotel",
-                "resort",
-                "destination",
-                "cruise",
-                "vacation",
-                "holiday",
-                "hospitality",
-                "tour operator",
-                "visa",
-                "lodging",
-                "passenger",
-                "inn",
-                "inns"
-            ];
+            const hasCrimeProcedure =
+                proceduralTerms.some(
+                    term => title.includes(term)
+                );
 
-            const titleStrongHits =
-                titleStrongTerms.filter(
-                    term =>
-                        title.includes(term)
+            const bodyCrimeHits =
+                titleCrimeTerms.filter(
+                    term => text.includes(term)
                 ).length;
 
             return (
-                titleStrongHits >= 1 ||
+                titleCrimeHits > 0 ||
                 (
-                    strongHits >= 2 &&
-                    secondaryHits >= 1
+                    hasCourtContext &&
+                    hasCrimeProcedure &&
+                    bodyCrimeHits >= 2
                 )
             );
+
+        }
+
+
+        function isRelevantCultureArticle(
+            article
+        ) {
+
+            const title =
+                String(
+                    article?.title || ""
+                ).toLowerCase();
+
+            const titleCultureTerms = [
+                "culture","cultural","arts","art","artist","artists","artwork","artworks",
+                "museum","museums","gallery","galleries","exhibition","exhibit","heritage",
+                "unesco","architecture","architect","architects","literature","literary",
+                "poetry","poem","theatre","theater","opera","ballet","dance","dancer","dancers",
+                "painting","paintings","sculpture","sculptures","ceramics","photography",
+                "photographer","design","public art","art history","cultural heritage",
+                "cultural institution","cultural institutions","cultural scene","live music scene",
+                "music scene","film history","film criticism","book festival","literary festival",
+                "manuscript","manuscripts","archive","archives","fashion","wardrobe","costume"
+            ];
+
+            const titleCultureHits =
+                titleCultureTerms.filter(
+                    term => title.includes(term)
+                ).length;
+
+            if (!titleCultureHits) {
+                return false;
+            }
+
+            if (
+                (
+                    title.includes("climate") ||
+                    title.includes("global heating") ||
+                    title.includes("global warming") ||
+                    title.includes("emissions") ||
+                    title.includes("wildfire")
+                ) &&
+                (
+                    title.includes("heritage") ||
+                    title.includes("unesco")
+                )
+            ) {
+                return false;
+            }
+
+            if (
+                [
+                    "student","students","school","schools","university",
+                    "college","education","literacy","reading"
+                ].some(term => title.includes(term)) &&
+                ![
+                    "literary","literature","poetry","arts","art","museum"
+                ].some(term => title.includes(term))
+            ) {
+                return false;
+            }
+
+            if (
+                [
+                    "movie","movies","film","films","cinema","actor","actress",
+                    "celebrity","hollywood","tv series","television","streaming",
+                    "sitcom","box office","premiere","episode","episodes"
+                ].some(term => title.includes(term)) &&
+                ![
+                    "museum","exhibition","gallery","heritage","architecture",
+                    "art history","cultural"
+                ].some(term => title.includes(term))
+            ) {
+                return false;
+            }
+
+            return true;
 
         }
 
@@ -1676,9 +1806,9 @@ export async function onRequestGet(context) {
                 business: ["markets", "stocks", "economy", "tariff", "trade", "merger", "acquisition", "investment", "jobs", "interest rates"],
                 science: ["discovery", "research", "scientists", "space", "nasa", "planet", "astronomy", "climate", "study"],
                 sports: ["final", "championship", "tournament", "record", "transfer", "league", "grand prix", "playoffs"],
-                travel: ["airline", "airport", "flight", "border", "visa", "destination", "travel warning", "tourism", "tourist", "hotel", "resort", "cruise", "vacation", "holiday", "hospitality"],
+                crime: ["crime", "criminal", "police", "sheriff", "law enforcement", "homicide", "murder", "shooting", "robbery", "burglary", "theft", "fraud", "scam", "arson", "assault", "kidnapping", "arrest", "arrested", "charged", "indictment", "prosecution", "prosecutor", "trial", "convicted", "sentenced", "jail", "prison", "victim", "forensic", "gunfire", "weapon", "weapons", "court", "detention", "misconduct"],
                 entertainment: ["film", "movie", "music", "concert", "actor", "actress", "album", "festival", "award"],
-                lifestyle: ["lifestyle", "fashion", "wardrobe", "clothing", "beauty", "skincare", "makeup", "cosmetics", "relationships", "dating", "home decor", "wellness", "fitness", "parenting", "personal style", "self-care", "hobbies", "leisure", "shopping", "consumer trends"],
+                culture: ["culture", "cultural", "arts", "art", "artist", "artwork", "museum", "gallery", "exhibition", "exhibit", "heritage", "unesco", "architecture", "architect", "literature", "literary", "poetry", "theatre", "theater", "opera", "ballet", "dance", "painting", "sculpture", "ceramics", "photography", "design", "public art", "art history", "cultural heritage", "cultural institution", "cultural scene", "live music scene", "music scene", "manuscript", "archive", "fashion", "wardrobe", "costume"],
                 health: ["disease", "treatment", "drug", "hospital", "doctors", "study", "outbreak", "vaccine"],
                 environment: ["climate", "wildfire", "flood", "storm", "pollution", "emissions", "conservation", "renewable"]
             };
@@ -1768,19 +1898,6 @@ export async function onRequestGet(context) {
                             category
                         )
                 );
-
-            if (category === "travel") {
-
-                articles =
-                    articles.filter(
-                        article =>
-                            isRelevantTravelArticle(
-                                article
-                            )
-                    );
-
-            }
-
 
             /*
              * Rank fresh candidates before they enter D1.
