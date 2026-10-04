@@ -15115,6 +15115,7 @@ html[data-ui-scale="xl"] .nav-links.open .nav-overflow-items{
 /* FINAL: keep Calculator directly next to FAQ at A- and normal A size. */
 @media(min-width:901px){
     html[data-ui-scale="small"] .nav-calculator-btn,
+    html[data-ui-scale="normal"] .nav-calculator-btn,
     html:not([data-ui-scale]) .nav-calculator-btn{
         margin-left:-12px !important;
     }
