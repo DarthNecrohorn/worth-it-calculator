@@ -1,4 +1,86 @@
 /* =========================================================
+   NEWS QUALITY + TITLE CLEANUP
+========================================================= */
+
+function isLowQualityNewsArticle(article) {
+    const title = String(article?.title || "").trim();
+    const description = String(article?.description || "").trim();
+    const text = `${title} ${description}`.toLowerCase();
+
+    if (!title) return true;
+
+    const junkTitlePatterns = [
+        /^environmental-management-[a-z0-9-]+$/i,
+        /^french-irish-[a-z0-9-]+$/i,
+        /^english-[a-z-]+-[a-z0-9]+$/i,
+        /^politics-philosophy-economics-[a-z0-9-]+$/i,
+        /^accounting-major-[a-z0-9-]+$/i,
+        /^social-policy-sociology-[a-z0-9-]+$/i,
+        /^law-senior-status-[a-z0-9-]+$/i,
+        /^international-business-major-[a-z0-9-]+$/i,
+        /^daily buzz:/i,
+        /^commission some research$/i,
+        /^pacnews one,/i
+    ];
+
+    if (junkTitlePatterns.some(pattern => pattern.test(title))) {
+        return true;
+    }
+
+    if (/\bshort interest\b/i.test(text)) return true;
+    if (/\binsider selling\b/i.test(text)) return true;
+    if (/\bpatch \d+(?:\.\d+)* .*ptr\b/i.test(title)) return true;
+    if (/\bat no reserve\b/i.test(title)) return true;
+    if (/\bno reserve\b/i.test(title) && /\b\d{4}\b/.test(title)) return true;
+
+    return false;
+}
+
+function cleanNewsTitle(title) {
+    let value = String(title || "")
+        .replace(/\s+/g, " ")
+        .trim();
+
+    if (!value) return "Untitled story";
+
+    const letters = value.replace(/[^A-Za-z]/g, "");
+    if (
+        letters.length >= 12 &&
+        letters === letters.toUpperCase() &&
+        letters !== letters.toLowerCase()
+    ) {
+        value = value
+            .toLowerCase()
+            .replace(/(^|[.!?]\s+)([a-z])/g, (_, prefix, letter) =>
+                prefix + letter.toUpperCase()
+            );
+    }
+
+    const MAX_LENGTH = 120;
+
+    if (value.length <= MAX_LENGTH) {
+        return value;
+    }
+
+    const shortened = value.slice(0, MAX_LENGTH);
+
+    const punctuationCut = Math.max(
+        shortened.lastIndexOf(". "),
+        shortened.lastIndexOf(" — "),
+        shortened.lastIndexOf(" – "),
+        shortened.lastIndexOf(": "),
+        shortened.lastIndexOf(" - ")
+    );
+
+    if (punctuationCut >= 55) {
+        return shortened.slice(0, punctuationCut).trim();
+    }
+
+    const wordCut = shortened.lastIndexOf(" ");
+    return (wordCut >= 70 ? shortened.slice(0, wordCut) : shortened).trim() + "…";
+}
+
+/* =========================================================
    NEWS CATEGORY RENDER
 ========================================================= */
 
@@ -93,8 +175,7 @@ function renderNewsCategory(
 
 
         const title =
-            article.title ||
-            "Untitled story";
+            cleanNewsTitle(article.title);
 
 
         const description =
@@ -428,6 +509,19 @@ function showNewsCategory(
             )
             .slice(0, 12);
 
+    }
+
+
+    /* =====================================================
+       NEWS QUALITY FILTER
+    ===================================================== */
+
+    articles = articles.filter(
+        article => !isLowQualityNewsArticle(article)
+    );
+
+    if (categoryName !== "all") {
+        articles = articles.slice(0, 12);
     }
 
 
