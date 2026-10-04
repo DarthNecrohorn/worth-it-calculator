@@ -328,7 +328,19 @@ const NEWS_CATEGORY_LABELS = {
         "🎬 Entertainment",
 
     culture:
-        "🎨 Culture"
+        "🎨 Culture",
+
+    health:
+        "❤️ Health",
+
+    environment:
+        "🌱 Environment",
+
+    food:
+        "🍽️ Food",
+
+    education:
+        "🎓 Education"
 
 };
 
