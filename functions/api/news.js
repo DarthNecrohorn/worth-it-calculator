@@ -66,7 +66,7 @@ export async function onRequestGet(context) {
 
 
     const cacheKeyUrl =
-        `${requestUrl.origin}${requestUrl.pathname}/?news-cache=v16`;
+        `${requestUrl.origin}${requestUrl.pathname}/?news-cache=v17`;
 
 
     const cacheKey =
@@ -1115,10 +1115,14 @@ export async function onRequestGet(context) {
             if (!rule) return true;
 
             const hasTerm = (value, term) => {
+                if (!term) return false;
+                const escaped = term.replace(/[.*+?^${}()|[\]\\]/g, "\\            const hasTerm = (value, term) => {
                 if (term === "ai") {
                     return /\bai\b/i.test(value);
                 }
                 return value.includes(term);
+            };");
+                return new RegExp("(^|[^a-z0-9])" + escaped + "([^a-z0-9]|$)", "i").test(value);
             };
 
             const strongTitleHits = rule.strong.filter(term => hasTerm(title, term)).length;
