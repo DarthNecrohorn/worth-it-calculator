@@ -14992,3 +14992,44 @@ html[data-ui-scale="xl"] .water-levels-detail-card{
     font-size:11px !important;
     line-height:1.25 !important;
 }
+
+
+/* FINAL: keep Calculator visually consistent with the header navigation buttons. */
+.nav-calculator-btn{
+    border:1px solid var(--border) !important;
+    background:rgba(255,255,255,.05) !important;
+    color:var(--muted) !important;
+    border-radius:10px !important;
+    padding:9px 12px !important;
+    font:inherit;
+    font-weight:600;
+    line-height:1.2;
+    cursor:pointer;
+    transition:
+        color .2s ease,
+        background .2s ease,
+        border-color .2s ease,
+        transform .2s ease;
+}
+
+.nav-calculator-btn:hover,
+.nav-calculator-btn:focus-visible{
+    color:var(--text) !important;
+    background:rgba(255,255,255,.09) !important;
+    border-color:rgba(124,92,255,.4) !important;
+    outline:none;
+    transform:translateY(-2px);
+}
+
+html[data-theme="light"] .nav-calculator-btn{
+    color:#475569 !important;
+    background:rgba(15,23,42,.045) !important;
+    border-color:rgba(15,23,42,.11) !important;
+}
+
+html[data-theme="light"] .nav-calculator-btn:hover,
+html[data-theme="light"] .nav-calculator-btn:focus-visible{
+    color:#0f172a !important;
+    background:rgba(15,23,42,.075) !important;
+    border-color:rgba(124,92,255,.4) !important;
+}
