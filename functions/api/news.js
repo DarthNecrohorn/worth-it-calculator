@@ -66,7 +66,7 @@ export async function onRequestGet(context) {
 
 
     const cacheKeyUrl =
-        `${requestUrl.origin}${requestUrl.pathname}/?news-cache=v21`;
+        `${requestUrl.origin}${requestUrl.pathname}/?news-cache=v20`;
 
 
     const cacheKey =
@@ -1095,29 +1095,6 @@ export async function onRequestGet(context) {
             ) {
                 return "health";
             }
-
-            /*
-             * Specific topic overrides for remaining live-feed collisions.
-             */
-            if (title.includes("mangrove")) {
-                return "environment";
-            }
-
-            if (
-                title.includes("isle royale") &&
-                title.includes("wolf")
-            ) {
-                return "environment";
-            }
-
-            if (
-                title.includes("pileup") ||
-                title.includes("multi-vehicle crash") ||
-                title.includes("vehicle pileup")
-            ) {
-                return "world";
-            }
-
 
             const titleHas = terms =>
                 terms.some(
