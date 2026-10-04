@@ -66,7 +66,7 @@ export async function onRequestGet(context) {
 
 
     const cacheKeyUrl =
-        `${requestUrl.origin}${requestUrl.pathname}/?news-cache=v18`;
+        `${requestUrl.origin}${requestUrl.pathname}/?news-cache=v19`;
 
 
     const cacheKey =
@@ -1003,16 +1003,16 @@ export async function onRequestGet(context) {
             const text = title + " " + description;
 
             const rules = {
-                world: ["war","conflict","ceasefire","diplomacy","diplomatic","election","president","prime minister","foreign minister","parliament","government","sanctions","treaty","geopolit","protest","coup","military","border dispute","international","congress","senate","political","policy"],
+                world: ["war","conflict","ceasefire","diplomacy","diplomatic","election","president","prime minister","foreign minister","parliament","government","sanctions","treaty","geopolit","protest","coup","military","border dispute","international","congress","senate","political","policy","campaign","candidate","ballot","voters","congressional race","congressional district","midterm","lawmaker","governor","minister","legislation","referendum"],
                 technology: ["technology","tech","software","artificial intelligence","ai","cybersecurity","cyber attack","chip","chips","semiconductor","robot","robotics","smartphone","computer","internet","app","cloud computing","data center","quantum computing","biometric","digital platform","machine learning","programming","developer"],
-                business: ["business","economy","economic","markets","market","stocks","shares","finance","financial","investment","investors","company","companies","merger","acquisition","trade","tariff","bank","banking","jobs","employment","inflation","interest rates","earnings","revenue","industry","corporate","manufacturing"],
+                business: ["business","economy","economic","markets","market","stocks","shares","finance","financial","investment","investors","company","companies","merger","acquisition","trade","tariff","bank","banking","jobs","employment","inflation","interest rates","earnings","revenue","industry","corporate","manufacturing","fuel economy","tax"],
                 science: ["science","scientist","scientists","research","researchers","study","discovery","discovered","experiment","astronomy","planet","galaxy","space mission","nasa","biology","genetics","physics","chemistry","species","ecosystem","laboratory","clinical trial","scientific"],
                 sports: ["sports","sport","football","soccer","basketball","baseball","tennis","cricket","rugby","hockey","golf","boxing","formula 1","grand prix","fifa","uefa","nfl","nba","nhl","mlb","championship","tournament","league","playoffs","world cup","athlete","coach","transfer","match","season","games","game"],
                 travel: ["tourism","tourist","travel industry","travel advisory","travel warning","airline","airport","flight","hotel","resort","destination","cruise","vacation","holiday","hospitality","tour operator","travel disruption","travel restrictions","visa","traveler","travellers","lodging","passenger"],
                 entertainment: ["entertainment","movie","movies","film","films","cinema","music","concert","singer","album","actor","actress","celebrity","director","hollywood","television","tv series","streaming","festival","box office","premiere","performance","artist","show"],
                 lifestyle: ["lifestyle","fashion","wellness","beauty","relationships","home decor","interior design","fitness","parenting","family life","personal style","food culture","self-care","hobbies","leisure"],
-                health: ["health","healthcare","health care","medical","medicine","disease","illness","hospital","doctor","doctors","patient","patients","vaccine","vaccination","virus","infection","outbreak","treatment","therapy","diagnosis","mental health","public health","clinical","pregnant","pregnancy","medication","symptoms"],
-                environment: ["environment","climate change","global warming","greenhouse gas","emissions","pollution","wildfire","drought","flood","storm surge","permafrost","conservation","biodiversity","renewable energy","clean energy","ecosystem","wetland","ocean warming","deforestation","wildlife","habitat","carbon","sustainability"],
+                health: ["health","healthcare","health care","medical","medicine","disease","illness","hospital","doctor","doctors","patient","patients","vaccine","vaccination","virus","infection","outbreak","treatment","therapy","diagnosis","mental health","public health","clinical","pregnant","pregnancy","medication","symptoms","ptsd","post-traumatic stress","trauma","weight loss","weight-loss","diet drinks","prenatal","adhd"],
+                environment: ["environment","climate change","global warming","greenhouse gas","emissions","pollution","wildfire","drought","flood","storm surge","permafrost","conservation","biodiversity","renewable energy","clean energy","ecosystem","wetland","ocean warming","deforestation","wildlife","habitat","carbon","sustainability","endangered species","food waste"],
                 food: ["food","restaurant","cooking","recipe","chef","cuisine","meal","dish","grocery","supermarket","food safety","food prices","ingredients","bakery","coffee","wine","beer","dining","kitchen","menu","appetite","flavor"],
                 education: ["education","school","schools","university","universities","college","colleges","student","students","teacher","teachers","classroom","curriculum","literacy","scholarship","campus","academic","school district","higher education","learning","lesson","degree","faculty"]
             };
@@ -1040,6 +1040,204 @@ export async function onRequestGet(context) {
                     bestScore = score;
                     bestTitleScore = titleScore;
                 }
+            }
+
+            const titleHas = terms =>
+                terms.some(
+                    term =>
+                        title.includes(term)
+                );
+
+            const textHas = terms =>
+                terms.some(
+                    term =>
+                        text.includes(term)
+                );
+
+            /*
+             * Hard headline anchors. These stop generic terms such as
+             * "study", "food", or "director" from overriding the real topic.
+             */
+            if (
+                titleHas([
+                    "election",
+                    "campaign",
+                    "candidate",
+                    "ballot",
+                    "voters",
+                    "congressional race",
+                    "congressional district",
+                    "midterm",
+                    "referendum"
+                ])
+            ) {
+                return "world";
+            }
+
+            if (
+                titleHas([
+                    "greenhouse gas",
+                    "greenhouse gases",
+                    "climate change",
+                    "global warming",
+                    "emissions",
+                    "permafrost",
+                    "wildfire",
+                    "conservation",
+                    "biodiversity",
+                    "endangered species",
+                    "wildlife",
+                    "habitat",
+                    "renewable energy"
+                ])
+            ) {
+                return "environment";
+            }
+
+            if (
+                titleHas([
+                    "ptsd",
+                    "post-traumatic stress",
+                    "mental health",
+                    "vaccination",
+                    "vaccine",
+                    "pregnancy",
+                    "pregnant",
+                    "adhd",
+                    "weight loss",
+                    "weight-loss",
+                    "prenatal",
+                    "medical",
+                    "medicine",
+                    "health",
+                    "healthcare",
+                    "disease",
+                    "hospital"
+                ])
+            ) {
+                return "health";
+            }
+
+            if (
+                titleHas([
+                    "artificial intelligence",
+                    "ai",
+                    "cybersecurity",
+                    "cyber attack",
+                    "software",
+                    "semiconductor",
+                    "biometric",
+                    "data center",
+                    "robotics",
+                    "smartphone"
+                ])
+            ) {
+                return "technology";
+            }
+
+            /*
+             * A political story that only scored as Business because words
+             * such as economy/manufacturing appeared in the description.
+             */
+            if (
+                bestCategory === "business" &&
+                !titleHas([
+                    "business","economy","economic","markets","market","stocks",
+                    "shares","finance","financial","investment","investors",
+                    "company","companies","merger","acquisition","trade","tariff",
+                    "bank","banking","jobs","employment","inflation","interest rates",
+                    "earnings","revenue","industry","corporate","manufacturing",
+                    "fuel economy","tax"
+                ]) &&
+                textHas([
+                    "president","prime minister","governor","senator","lawmaker",
+                    "parliament","congress","political","campaign","candidate"
+                ])
+            ) {
+                return "world";
+            }
+
+            /*
+             * Food insecurity/aid/crisis is World news rather than a food story.
+             */
+            if (
+                bestCategory === "food" &&
+                (
+                    text.includes("food insecurity") ||
+                    text.includes("food security crisis") ||
+                    text.includes("food crisis") ||
+                    text.includes("food aid") ||
+                    text.includes("food assistance")
+                ) &&
+                !titleHas([
+                    "restaurant","cooking","recipe","chef","cuisine","meal","dish",
+                    "grocery","supermarket","bakery","coffee","beer","dining"
+                ])
+            ) {
+                return "world";
+            }
+
+            /*
+             * Food waste articles about emissions/climate belong to Environment.
+             */
+            if (
+                bestCategory === "food" &&
+                text.includes("food waste") &&
+                textHas([
+                    "greenhouse gas",
+                    "greenhouse gases",
+                    "emissions",
+                    "climate change",
+                    "global warming",
+                    "methane",
+                    "carbon"
+                ])
+            ) {
+                return "environment";
+            }
+
+            /*
+             * Conservation/ecology and medical stories should not be pulled
+             * into Science merely because the headline says "study".
+             */
+            if (
+                bestCategory === "science" &&
+                titleHas([
+                    "endangered species",
+                    "wildlife",
+                    "habitat",
+                    "conservation",
+                    "biodiversity",
+                    "ecosystem",
+                    "permafrost",
+                    "emissions",
+                    "climate change"
+                ])
+            ) {
+                return "environment";
+            }
+
+            if (
+                bestCategory === "science" &&
+                titleHas([
+                    "ptsd",
+                    "mental health",
+                    "pregnancy",
+                    "pregnant",
+                    "adhd",
+                    "vaccine",
+                    "vaccination",
+                    "weight loss",
+                    "medical",
+                    "medicine",
+                    "health",
+                    "disease",
+                    "hospital",
+                    "doctor",
+                    "trauma"
+                ])
+            ) {
+                return "health";
             }
 
             return bestScore >= 4 ? bestCategory : "";
