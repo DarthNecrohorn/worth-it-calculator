@@ -2437,7 +2437,7 @@ function closeNavMenuUnlessPreserved(navLinks) {
     if (!navLinks) return;
 
     if (navLinks.dataset.preserveOpen !== "true") {
-        closeNavMenuUnlessPreserved(navLinks);
+        navLinks.classList.remove("open");
     }
 }
 
