@@ -66,7 +66,7 @@ export async function onRequestGet(context) {
 
 
     const cacheKeyUrl =
-        `${requestUrl.origin}${requestUrl.pathname}/?news-cache=v15`;
+        `${requestUrl.origin}${requestUrl.pathname}/?news-cache=v16`;
 
 
     const cacheKey =
@@ -1125,6 +1125,10 @@ export async function onRequestGet(context) {
             const strongTextHits = rule.strong.filter(term => hasTerm(text, term)).length;
             const weakHits = rule.weak.filter(term => hasTerm(text, term)).length;
 
+            if (category === "travel") {
+                return isRelevantTravelArticle(article);
+            }
+
             if (strongTitleHits >= 1) return true;
             if (strongTextHits >= 2) return true;
             if (strongTextHits >= 1 && weakHits >= 2) return true;
@@ -1437,7 +1441,7 @@ export async function onRequestGet(context) {
         }
 
         /* =====================================================
-           LOAD CATEGORY FROM NEWSDATA
+           LOAD CATEGORY FROM OPEN NEWSWIRE
         ===================================================== */
 
         async function loadCategory(
@@ -2214,8 +2218,19 @@ export async function onRequestGet(context) {
 
                                 const fallbackArticles =
                                     rankNewsArticles(
-                                        fallbackRows.map(
-                                            row => ({
+                                        fallbackRows
+                                            .filter(
+                                                row =>
+                                                    isRelevantNewsCategory(
+                                                        {
+                                                            title: row.title || "",
+                                                            description: row.description || ""
+                                                        },
+                                                        category
+                                                    )
+                                            )
+                                            .map(
+                                                row => ({
 
                                                 title:
                                                     row.title ||
