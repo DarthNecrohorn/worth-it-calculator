@@ -15057,3 +15057,56 @@ html[data-ui-scale="large"] .nav-links.open .nav-overflow-items,
 html[data-ui-scale="xl"] .nav-links.open .nav-overflow-items{
     display:flex !important;
 }
+
+
+/* FINAL: A+ / A++ keep FAQ and Calculator together in the header. */
+@media(min-width:901px){
+    html[data-ui-scale="large"] .nav-links:not(.open),
+    html[data-ui-scale="xl"] .nav-links:not(.open){
+        display:flex !important;
+        flex:0 0 auto !important;
+        width:auto !important;
+        min-width:0 !important;
+        overflow:visible !important;
+    }
+
+    html[data-ui-scale="large"] .nav-links:not(.open) > .nav-scroll-content,
+    html[data-ui-scale="xl"] .nav-links:not(.open) > .nav-scroll-content{
+        display:flex !important;
+        align-items:center !important;
+        width:auto !important;
+        min-width:0 !important;
+        overflow:visible !important;
+        gap:2px !important;
+    }
+
+    html[data-ui-scale="large"] .nav-links:not(.open) .nav-primary-item,
+    html[data-ui-scale="xl"] .nav-links:not(.open) .nav-primary-item{
+        display:none !important;
+    }
+
+    html[data-ui-scale="large"] .nav-links:not(.open) .nav-primary-item[onclick="scrollToFAQ()"],
+    html[data-ui-scale="xl"] .nav-links:not(.open) .nav-primary-item[onclick="scrollToFAQ()"]{
+        display:inline-flex !important;
+        align-items:center !important;
+        justify-content:center !important;
+        width:auto !important;
+        flex:0 0 auto !important;
+        white-space:nowrap !important;
+    }
+
+    html[data-ui-scale="large"] .nav-links:not(.open) .nav-secondary-item,
+    html[data-ui-scale="xl"] .nav-links:not(.open) .nav-secondary-item,
+    html[data-ui-scale="large"] .nav-links:not(.open) .nav-overflow-items,
+    html[data-ui-scale="xl"] .nav-links:not(.open) .nav-overflow-items,
+    html[data-ui-scale="large"] .nav-links:not(.open) .nav-calculator-spacer,
+    html[data-ui-scale="xl"] .nav-links:not(.open) .nav-calculator-spacer{
+        display:none !important;
+    }
+
+    html[data-ui-scale="large"] .nav-calculator-btn,
+    html[data-ui-scale="xl"] .nav-calculator-btn{
+        flex:0 0 auto !important;
+        margin-left:0 !important;
+    }
+}
