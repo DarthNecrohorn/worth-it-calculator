@@ -4,12 +4,18 @@ const SITE_ORIGIN = "https://worth-it-calculator.pages.dev";
 const ADMIN_EMAIL = "pedjasebez3545@gmail.com";
 
 const CANDIDATE_QUERIES = {
-    politics: ["politics", "elections"],
-    crime: ["crime", "criminal justice"],
-    culture: ["culture", "arts"],
-    gaming: ["gaming", "video games"],
-    nature: ["nature", "wildlife"],
-    society: ["society", "community"]
+    crime: [
+        "crime",
+        "criminal justice",
+        "police",
+        "court"
+    ],
+    culture: [
+        "culture",
+        "arts",
+        "museum",
+        "heritage"
+    ]
 };
 
 function json(data, status = 200) {
