@@ -38,9 +38,29 @@
     <button class="nav-primary-item" onclick="showCategory('home')">Home Costs</button>
     <button class="nav-primary-item" onclick="scrollToFAQ()">FAQ</button>
 
-    <button class="nav-secondary-item" onclick="openWeather()">🌤️ Weather</button>
-    <button class="nav-secondary-item" onclick="openNews()">📰 News</button>
-    <button class="nav-secondary-item" onclick="openDiscounts()">🛒 Shop</button>
+    <button type="button" class="nav-secondary-item" onclick="openWeather()">
+        <span>🌤️</span>
+        <span>
+            <strong>Weather</strong>
+            <small>Current weather &amp; forecast</small>
+        </span>
+    </button>
+
+    <button type="button" class="nav-secondary-item" onclick="openNews()">
+        <span>📰</span>
+        <span>
+            <strong>News</strong>
+            <small>Latest news &amp; stories</small>
+        </span>
+    </button>
+
+    <button type="button" class="nav-secondary-item" onclick="openDiscounts()">
+        <span>🛒</span>
+        <span>
+            <strong>Shop</strong>
+            <small>Curated deals &amp; affiliate offers</small>
+        </span>
+    </button>
 
     <!--
         MOBILE / A+ / A++ navigation extensions.
