@@ -394,6 +394,13 @@ const FEEDS = [
     category: "fashion-accessories",
     env: "AWIN_LUNZO_PL_FEED_URL",
     shippingCountries: ["PL"]
+  },
+  {
+    partnerId: "alison-us-ca",
+    name: "Alison US CA",
+    category: "education-online-courses",
+    env: "AWIN_ALISON_US_CA_FEED_URL",
+    shippingCountries: []
   }
 ]
 
