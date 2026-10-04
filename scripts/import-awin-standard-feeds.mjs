@@ -542,14 +542,16 @@ function categoryFor(feed, row) {
 
 function toProduct(row, feed, importedAt) {
   const title = normalizeText(
-    firstValue(row, ["product_name", "title"])
+    firstValue(row, ["product_name", "title", "name"])
   );
 
   const affiliateUrl = normalizeText(
     firstValue(row, [
       "aw_deep_link",
       "awin_deep_link",
-      "deep_link"
+      "deep_link",
+      "purl",
+      "link"
     ])
   );
 
@@ -560,7 +562,10 @@ function toProduct(row, feed, importedAt) {
       "large_image",
       "aw_thumb_url",
       "image_url",
-      "image_link"
+      "image_link",
+      "imgurl",
+      "merchant_thumb",
+      "thumburl"
     ])
   );
 
@@ -583,10 +588,13 @@ function toProduct(row, feed, importedAt) {
     ])
   );
 
+  const isDigitalProduct =
+    SHIPPING_PROFILES[feed.partnerId]?.type === "digital";
+
   const price =
     Number.isFinite(feedSalePrice) &&
     Number.isFinite(feedPrice) &&
-    feedSalePrice > 0 &&
+    feedSalePrice >= 0 &&
     feedSalePrice < feedPrice
       ? feedSalePrice
       : feedPrice;
@@ -619,7 +627,8 @@ function toProduct(row, feed, importedAt) {
     !/^https?:\/\//i.test(affiliateUrl) ||
     !image ||
     !Number.isFinite(price) ||
-    price <= 0
+    (!isDigitalProduct && price <= 0) ||
+    (isDigitalProduct && price < 0)
   ) {
     return null;
   }
