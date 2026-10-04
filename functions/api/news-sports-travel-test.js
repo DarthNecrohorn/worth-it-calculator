@@ -72,7 +72,7 @@ export async function onRequestGet() {
         }));
       }
 
- items
+      const normalized = items
         .map((item) => ({
           ...item,
           title: clean(item.title),
