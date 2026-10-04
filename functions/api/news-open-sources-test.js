@@ -140,28 +140,53 @@ export async function onRequestGet() {
   const openLicenseMatches = [...open.body.matchAll(/CC BY(?:-[A-Z]+)?|Attribution\+|Public Domain/gi)]
     .map(match => match[0]);
 
-  const openItems = [];
-  const articleBlocks = open.body.match(/<article\b[\s\S]*?<\/article>/gi) || [];
+  function parseOpenNewswire(html) {
+    const items = [];
+    const seen = new Set();
 
-  for (const block of articleBlocks) {
-    const title = clean(
-      (block.match(/<h[1-6][^>]*>([\s\S]*?)<\/h[1-6]>/i) || ["", ""])[1]
-      || (block.match(/<a[^>]*>([\s\S]*?)<\/a>/i) || ["", ""])[1]
-    );
+    // Open Newswire is a Next.js page rather than an <article>-tag feed.
+    // The rendered page contains internal /article/<id> links, often twice
+    // (desktop + mobile). Extract those links directly and deduplicate them.
+    const linkRe = /<a\b[^>]*href=["']([^"']*\/article\/[^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi;
 
-    if (!title || title.length < 10) continue;
+    for (const match of html.matchAll(linkRe)) {
+      const rawLink = match[1] || "";
+      const title = clean(match[2] || "");
+      if (!title || title.length < 10) continue;
 
-    const link = (block.match(/<a[^>]+href=["']([^"']+)["']/i) || ["", ""])[1];
-    const license = (block.match(/CC BY(?:-[A-Z]+)?|Attribution\+|Public Domain/i) || [""])[0];
+      const link = rawLink.startsWith("http")
+        ? rawLink
+        : new URL(rawLink, urls.openNewswire).href;
 
-    openItems.push({
-      title,
-      link,
-      domain: domain(link),
-      license
-    });
+      const key = link + "|" + title.toLowerCase();
+      if (seen.has(key)) continue;
+      seen.add(key);
+
+      // License badges and source metadata are rendered close to the article
+      // link. Inspect a bounded neighborhood instead of assuming a fixed tag.
+      const matchIndex = match.index || 0;
+      const startIndex = Math.max(0, matchIndex - 2500);
+      const endIndex = Math.min(html.length, matchIndex + match[0].length + 2500);
+      const neighborhood = html.slice(startIndex, endIndex);
+
+      const license = (
+        neighborhood.match(
+          /CC BY(?:-[A-Z]+)?|Attribution\+|Public Domain|public domain/gi
+        ) || []
+      )[0] || "";
+
+      items.push({
+        title,
+        link,
+        domain: domain(link),
+        license
+      });
+    }
+
+    return items;
   }
 
+  const openItems = parseOpenNewswire(open.body);
   const stormItems = parseStorm(storm.body);
   const wikiItems = wiki.ok ? parseAtom(wiki.body) : [];
 
