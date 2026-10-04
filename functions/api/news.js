@@ -815,6 +815,122 @@ export async function onRequestGet(context) {
 
 
         /* =====================================================
+           NEWS QUALITY + FRESHNESS
+        ===================================================== */
+
+        const NEWS_MAX_AGE_MS =
+            96 * 60 * 60 * 1000;
+
+        function articleAgeMs(article) {
+            const publishedAt = Date.parse(
+                article.publishedAt || article.pubDate || ""
+            );
+            if (!Number.isFinite(publishedAt)) return 0;
+            return Math.max(0, Date.now() - publishedAt);
+        }
+
+        function newsQualityScore(article, category) {
+            const title = String(article.title || "").trim();
+            const description = String(article.description || "").trim();
+            const text = (title + " " + description).toLowerCase();
+            let score = 50;
+
+            const age = articleAgeMs(article);
+            if (age > 0) {
+                const hours = age / 3600000;
+                if (hours <= 6) score += 28;
+                else if (hours <= 24) score += 22;
+                else if (hours <= 48) score += 12;
+                else if (hours <= 96) score += 3;
+                else score -= 30;
+            }
+
+            const timelyTerms = [
+                "today", "tonight", "latest", "new", "announces",
+                "announced", "launches", "launched", "reports",
+                "reported", "confirms", "confirmed", "reveals",
+                "revealed", "after", "amid", "following", "breaking"
+            ];
+            score += timelyTerms.reduce((total, term) =>
+                total + (text.includes(term) ? 2 : 0), 0);
+
+            const titleWords = title.split(/\s+/).filter(Boolean);
+            if (titleWords.length >= 6 && titleWords.length <= 22) score += 8;
+            if (titleWords.length < 4) score -= 12;
+
+            const lowValuePatterns = [
+                /\bpress release\b/, /\bpress releases\b/, /\bpr newswire\b/,
+                /\bgrant (awarded|received|funding)\b/, /\bawarded .*grant\b/,
+                /\breceives? \$[\d,.]+[km]?\b/, /\bpartners? with\b/,
+                /\bpartnership\b/, /\bstrategic review\b/, /\bappointed interim\b/,
+                /\bchief business officer\b/, /\bproven track record\b/,
+                /\blong-standing staff\b/, /\bhighlights .* track record\b/,
+                /\bwhat sets .* apart\b/, /\bworth a pilot\b/,
+                /\bseek(s|ing) .* ideas\b/, /\bdrives? tourist spending\b/,
+                /\bmichelin guide recommendations\b/, /\bphoto gallery\b/,
+                /\bscoreboard\b/, /\bhigh school .* (wins|upsets|defeats)\b/,
+                /\bunder 21 world championship\b/, /\bcar auction\b/,
+                /\bat no reserve\b/, /\bdeferred share units\b/,
+                /\bstatic gradient survey\b/
+            ];
+            if (lowValuePatterns.some(pattern => pattern.test(text))) score -= 45;
+
+            const promotionalPatterns = [
+                /\b(unmissable|must-see|dream|best in|leading .* center|families weigh)\b/,
+                /\b(book now|shop now|learn more)\b/, /\btop \d+\b/,
+                /\bhow to .* (save|choose|buy)\b/
+            ];
+            if (promotionalPatterns.some(pattern => pattern.test(text))) score -= 25;
+
+            const eventTerms = [
+                "war", "attack", "crash", "fire", "wildfire", "earthquake",
+                "storm", "flood", "election", "government", "president",
+                "minister", "sanctions", "tariff", "agreement", "deal",
+                "investigation", "court", "law", "ai", "artificial intelligence",
+                "space", "nasa", "discovery", "researchers", "scientists",
+                "championship", "final", "tournament", "airline", "airport"
+            ];
+            score += eventTerms.reduce((total, term) =>
+                total + (text.includes(term) ? 2 : 0), 0);
+
+            const categoryTerms = {
+                world: ["war", "conflict", "election", "diplomacy", "sanctions", "ceasefire", "president", "prime minister", "government", "protest"],
+                technology: ["ai", "artificial intelligence", "chip", "robot", "cybersecurity", "software", "smartphone", "space", "data center"],
+                business: ["markets", "stocks", "economy", "tariff", "trade", "merger", "acquisition", "investment", "jobs", "interest rates"],
+                science: ["discovery", "research", "scientists", "space", "nasa", "planet", "astronomy", "climate", "study"],
+                sports: ["final", "championship", "tournament", "record", "transfer", "league", "grand prix", "playoffs"],
+                travel: ["airline", "airport", "flight", "border", "visa", "destination", "travel warning"],
+                entertainment: ["film", "movie", "music", "concert", "actor", "actress", "album", "festival", "award"],
+                health: ["disease", "treatment", "drug", "hospital", "doctors", "study", "outbreak", "vaccine"],
+                environment: ["climate", "wildfire", "flood", "storm", "pollution", "emissions", "conservation", "renewable"]
+            };
+            score += (categoryTerms[category] || []).reduce((total, term) =>
+                total + (text.includes(term) ? 3 : 0), 0);
+            return score;
+        }
+
+        function rankNewsArticles(articles, category) {
+            return articles
+                .filter(article => {
+                    const age = articleAgeMs(article);
+                    return !age || age <= NEWS_MAX_AGE_MS;
+                })
+                .map((article, index) => ({
+                    article,
+                    index,
+                    score: newsQualityScore(article, category)
+                }))
+                .sort((a, b) => {
+                    if (b.score !== a.score) return b.score - a.score;
+                    const dateA = Date.parse(a.article.publishedAt || a.article.pubDate || "") || 0;
+                    const dateB = Date.parse(b.article.publishedAt || b.article.pubDate || "") || 0;
+                    if (dateB !== dateA) return dateB - dateA;
+                    return a.index - b.index;
+                })
+                .map(item => item.article);
+        }
+
+        /* =====================================================
            LOAD CATEGORY FROM NEWSDATA
         ===================================================== */
 
@@ -864,6 +980,17 @@ export async function onRequestGet(context) {
 
 
             /*
+             * Rank fresh candidates before they enter D1.
+             */
+
+            articles =
+                rankNewsArticles(
+                    articles,
+                    category
+                );
+
+
+            /*
              * Special categories need
              * additional relevance filtering.
              */
@@ -892,12 +1019,18 @@ export async function onRequestGet(context) {
 
 
             /*
-             * Return the complete result of the
+             * Return the quality-ranked result of the
              * single NewsData request.
              *
              * D1 will merge these with the existing
              * persistent article history.
              */
+
+            articles =
+                rankNewsArticles(
+                    articles,
+                    category
+                );
 
             return formatArticles(
                 articles
@@ -1118,8 +1251,8 @@ export async function onRequestGet(context) {
              *
              * Existing articles follow.
              *
-             * Therefore new discoveries are
-             * always considered before old ones.
+             * Fresh candidates have already been
+             * quality-ranked above.
              */
 
             const merged =
@@ -1132,11 +1265,38 @@ export async function onRequestGet(context) {
 
 
             /*
-             * Only the newest 12 survive.
+             * Keep the persistent feed current.
+             */
+
+            const currentArticles =
+                merged.filter(
+                    article => {
+
+                        const age =
+                            articleAgeMs(
+                                article
+                            );
+
+                        return (
+                            !age ||
+                            age <= NEWS_MAX_AGE_MS
+                        );
+
+                    }
+                );
+
+
+            /*
+             * Rank the combined current pool so that
+             * strong fresh stories can outrank mediocre
+             * older stories already stored in D1.
              */
 
             const finalArticles =
-                merged.slice(
+                rankNewsArticles(
+                    currentArticles,
+                    category
+                ).slice(
                     0,
                     12
                 );
@@ -1334,35 +1494,41 @@ export async function onRequestGet(context) {
                     : [];
 
 
-            return finalRows.map(
-                row => ({
+            return rankNewsArticles(
+                finalRows.map(
+                    row => ({
 
-                    title:
-                        row.title ||
-                        "",
+                        title:
+                            row.title ||
+                            "",
 
-                    description:
-                        row.description ||
-                        "",
+                        description:
+                            row.description ||
+                            "",
 
-                    url:
-                        row.url ||
-                        "",
+                        url:
+                            row.url ||
+                            "",
 
-                    image:
-                        normalizeNewsImageUrl(
-                            row.image
-                        ),
+                        image:
+                            normalizeNewsImageUrl(
+                                row.image
+                            ),
 
-                    publishedAt:
-                        row.published_at ||
-                        "",
+                        publishedAt:
+                            row.published_at ||
+                            "",
 
-                    source:
-                        row.source ||
-                        ""
+                        source:
+                            row.source ||
+                            ""
 
-                })
+                    })
+                ),
+                category
+            ).slice(
+                0,
+                12
             );
 
         }
