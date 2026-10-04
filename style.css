@@ -15129,6 +15129,6 @@ html[data-ui-scale="xl"] .nav-links.open .nav-overflow-items{
     html[data-ui-scale="normal"] .nav-links.open + .nav-calculator-btn,
     html:not([data-ui-scale]) .nav-links.open + .nav-calculator-btn{
         position:relative !important;
-        left:24px !important;
+        left:56px !important;
     }
 }
