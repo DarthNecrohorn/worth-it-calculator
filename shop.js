@@ -1633,11 +1633,9 @@ window.openShop = function(){
 
 
         if(navLinks){
-
-            navLinks.classList.remove(
-                "open"
-            );
-
+            if(typeof closeNavMenuUnlessPreserved === "function"){
+                closeNavMenuUnlessPreserved(navLinks);
+            }
         }
 
 
