@@ -1223,77 +1223,15 @@ export async function onRequestGet(context) {
                 "manuscripts","archive","archives","fashion","wardrobe","costume"
             ];
 
+            const titlePadded =
+                ` ${title.replace(/[^a-z0-9]+/g, " ")} `;
+
             const cultureHeadlineHas =
                 cultureHeadlineTerms.some(
-                    term => {
-                        const escaped =
-                            term.replace(
-                                /[.*+?^$()|[\]\\]/g,
-                                "\\            if (
-                [
-                    "culture",
-                    "cultural",
-                    "arts",
-                    "art",
-                    "artist",
-                    "artists",
-                    "artwork",
-                    "museum",
-                    "gallery",
-                    "exhibition",
-                    "exhibit",
-                    "heritage",
-                    "unesco",
-                    "architecture",
-                    "architect",
-                    "literature",
-                    "literary",
-                    "poetry",
-                    "theatre",
-                    "theater",
-                    "opera",
-                    "ballet",
-                    "dance",
-                    "dancer",
-                    "painting",
-                    "sculpture",
-                    "ceramics",
-                    "photography",
-                    "photographer",
-                    "design",
-                    "public art",
-                    "art history",
-                    "cultural heritage",
-                    "cultural institution",
-                    "cultural scene",
-                    "live music scene",
-                    "music scene",
-                    "film history",
-                    "film criticism",
-                    "book festival",
-                    "literary festival",
-                    "manuscript",
-                    "manuscripts",
-                    "archive",
-                    "archives",
-                    "fashion",
-                    "wardrobe",
-                    "costume"
-                ].some(
-                    term => title.includes(term)
-                )
-            ) {
-                return "culture";
-            }"
-                            );
-
-                        return new RegExp(
-                            "(^|[^a-z0-9])" +
-                            escaped +
-                            "([^a-z0-9]|$)",
-                            "i"
-                        ).test(title);
-                    }
+                    term =>
+                        titlePadded.includes(
+                            ` ${term} `
+                        )
                 );
 
             if (cultureHeadlineHas) {
