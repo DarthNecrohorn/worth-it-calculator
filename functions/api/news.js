@@ -1211,7 +1211,25 @@ export async function onRequestGet(context) {
              * Culture headline anchors. Require an actual cultural,
              * artistic or heritage subject from the headline.
              */
-            if (
+            const cultureHeadlineTerms = [
+                "culture","cultural","arts","art","artist","artists","artwork",
+                "museum","gallery","exhibition","exhibit","heritage","unesco",
+                "architecture","architect","literature","literary","poetry",
+                "theatre","theater","opera","ballet","dance","dancer","painting",
+                "sculpture","ceramics","photography","photographer","design",
+                "public art","art history","cultural heritage","cultural institution",
+                "cultural scene","live music scene","music scene","film history",
+                "film criticism","book festival","literary festival","manuscript",
+                "manuscripts","archive","archives","fashion","wardrobe","costume"
+            ];
+
+            const cultureHeadlineHas =
+                cultureHeadlineTerms.some(
+                    term => {
+                        const escaped =
+                            term.replace(
+                                /[.*+?^$()|[\]\\]/g,
+                                "\\            if (
                 [
                     "culture",
                     "cultural",
@@ -1265,6 +1283,20 @@ export async function onRequestGet(context) {
                     term => title.includes(term)
                 )
             ) {
+                return "culture";
+            }"
+                            );
+
+                        return new RegExp(
+                            "(^|[^a-z0-9])" +
+                            escaped +
+                            "([^a-z0-9]|$)",
+                            "i"
+                        ).test(title);
+                    }
+                );
+
+            if (cultureHeadlineHas) {
                 return "culture";
             }
 
@@ -1619,9 +1651,25 @@ export async function onRequestGet(context) {
                 "manuscript","manuscripts","archive","archives","fashion","wardrobe","costume"
             ];
 
+            const titleContainsCultureTerm =
+                term => {
+                    const escaped =
+                        term.replace(
+                            /[.*+?^$()|[\]\\]/g,
+                            "\\$&"
+                        );
+
+                    return new RegExp(
+                        "(^|[^a-z0-9])" +
+                        escaped +
+                        "([^a-z0-9]|$)",
+                        "i"
+                    ).test(title);
+                };
+
             const titleCultureHits =
                 titleCultureTerms.filter(
-                    term => title.includes(term)
+                    titleContainsCultureTerm
                 ).length;
 
             if (!titleCultureHits) {
@@ -1648,10 +1696,10 @@ export async function onRequestGet(context) {
                 [
                     "student","students","school","schools","university",
                     "college","education","literacy","reading"
-                ].some(term => title.includes(term)) &&
+                ].some(titleContainsCultureTerm) &&
                 ![
                     "literary","literature","poetry","arts","art","museum"
-                ].some(term => title.includes(term))
+                ].some(titleContainsCultureTerm)
             ) {
                 return false;
             }
@@ -1661,11 +1709,11 @@ export async function onRequestGet(context) {
                     "movie","movies","film","films","cinema","actor","actress",
                     "celebrity","hollywood","tv series","television","streaming",
                     "sitcom","box office","premiere","episode","episodes"
-                ].some(term => title.includes(term)) &&
+                ].some(titleContainsCultureTerm) &&
                 ![
                     "museum","exhibition","gallery","heritage","architecture",
                     "art history","cultural"
-                ].some(term => title.includes(term))
+                ].some(titleContainsCultureTerm)
             ) {
                 return false;
             }
@@ -1673,7 +1721,6 @@ export async function onRequestGet(context) {
             return true;
 
         }
-
 
         /* =====================================================
            FORMAT ARTICLES
