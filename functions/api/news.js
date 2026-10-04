@@ -138,7 +138,7 @@ export async function onRequestGet(context) {
     },
 
     lifestyle: {
-        queries: ["lifestyle", "fashion", "wellness"]
+        queries: ["lifestyle", "fashion", "beauty"]
     },
 
     health: {
@@ -1010,7 +1010,7 @@ export async function onRequestGet(context) {
                 sports: ["sports","sport","football","soccer","basketball","baseball","tennis","cricket","rugby","hockey","golf","boxing","formula 1","grand prix","fifa","uefa","nfl","nba","nhl","mlb","championship","tournament","league","playoffs","world cup","athlete","coach","transfer","match","season","games","game"],
                 travel: ["tourism","tourist","travel industry","travel advisory","travel warning","airline","airport","flight","hotel","resort","destination","cruise","vacation","holiday","hospitality","tour operator","travel disruption","travel restrictions","visa","traveler","travellers","lodging","passenger"],
                 entertainment: ["entertainment","movie","movies","film","films","cinema","music","concert","singer","album","actor","actress","celebrity","director","hollywood","television","tv series","streaming","festival","box office","premiere","performance","artist","show"],
-                lifestyle: ["lifestyle","fashion","wellness","beauty","relationships","home decor","interior design","fitness","parenting","family life","personal style","food culture","self-care","hobbies","leisure"],
+                lifestyle: ["lifestyle","fashion","wellness","beauty","skincare","makeup","cosmetics","relationships","dating","home decor","interior design","home improvement","fitness","parenting","family life","personal style","self-care","hobbies","leisure","personal finance","shopping","consumer trends"],
                 health: ["health","healthcare","health care","medical","medicine","disease","illness","hospital","doctor","doctors","patient","patients","vaccine","vaccination","virus","infection","outbreak","treatment","therapy","diagnosis","mental health","public health","clinical","pregnant","pregnancy","medication","symptoms","ptsd","post-traumatic stress","trauma","weight loss","weight-loss","diet drinks","prenatal","adhd"],
                 environment: ["environment","climate change","global warming","greenhouse gas","emissions","pollution","wildfire","drought","flood","storm surge","permafrost","conservation","biodiversity","renewable energy","clean energy","ecosystem","wetland","ocean warming","deforestation","wildlife","habitat","carbon","sustainability","endangered species","food waste"],
                 food: ["food","restaurant","cooking","recipe","chef","cuisine","meal","dish","grocery","supermarket","food safety","food prices","ingredients","bakery","coffee","wine","beer","dining","kitchen","menu","appetite","flavor"],
@@ -1094,6 +1094,29 @@ export async function onRequestGet(context) {
                 )
             ) {
                 return "health";
+            }
+
+            /*
+             * Lifestyle headline anchors.
+             * Keep clear lifestyle stories out of broader categories.
+             */
+            if (
+                title.includes("fashion") ||
+                title.includes("beauty") ||
+                title.includes("skincare") ||
+                title.includes("makeup") ||
+                title.includes("cosmetics") ||
+                title.includes("personal style") ||
+                title.includes("home decor") ||
+                title.includes("interior design") ||
+                title.includes("relationships") ||
+                title.includes("dating") ||
+                title.includes("parenting") ||
+                title.includes("self-care") ||
+                title.includes("hobbies") ||
+                title.includes("leisure")
+            ) {
+                return "lifestyle";
             }
 
             /*
@@ -1458,23 +1481,19 @@ export async function onRequestGet(context) {
                         description.includes(term)
                 ).length;
 
-            if (
-                strongHits >= 1 &&
-                commercialTravelHits >= 1
-            ) {
+            if (strongHits >= 1) {
                 return true;
             }
 
             return (
-                strongHits >= 2 ||
+                secondaryHits >= 1 &&
                 (
-                    secondaryHits >= 2 &&
-                    (
-                        title.includes("travel") ||
-                        description.includes("travel") ||
-                        title.includes("tourism") ||
-                        description.includes("tourism")
-                    )
+                    title.includes("travel") ||
+                    description.includes("travel") ||
+                    title.includes("tourism") ||
+                    description.includes("tourism") ||
+                    title.includes("visa") ||
+                    description.includes("visa")
                 )
             );
 
