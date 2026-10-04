@@ -14923,3 +14923,72 @@ html[data-ui-scale="xl"] .water-levels-detail-card{
     font-size:11px !important;
     line-height:1.35 !important;
 }
+
+
+/* FINAL: identical geometry and surface for every hamburger destination. */
+.nav-links.open .nav-secondary-item,
+.nav-links.open .nav-overflow-item{
+    box-sizing:border-box !important;
+    width:100% !important;
+    min-width:0 !important;
+    min-height:58px !important;
+    height:58px !important;
+    margin:0 !important;
+    padding:10px 12px !important;
+    display:flex !important;
+    align-items:center !important;
+    gap:12px !important;
+    border:1px solid var(--border) !important;
+    border-radius:12px !important;
+    background:rgba(255,255,255,.045) !important;
+    color:var(--text) !important;
+    text-align:left !important;
+    box-shadow:none !important;
+    flex:0 0 58px !important;
+    transform:none !important;
+}
+
+.nav-links.open .nav-secondary-item:hover,
+.nav-links.open .nav-overflow-item:hover{
+    background:rgba(255,255,255,.07) !important;
+    border-color:rgba(124,92,255,.35) !important;
+    transform:none !important;
+}
+
+.nav-links.open .nav-secondary-item > span:first-child,
+.nav-links.open .nav-overflow-item > span:first-child{
+    width:36px !important;
+    min-width:36px !important;
+    height:36px !important;
+    min-height:36px !important;
+    flex:0 0 36px !important;
+    display:grid !important;
+    place-items:center !important;
+    border-radius:10px !important;
+    background:rgba(124,92,255,.12) !important;
+    font-size:19px !important;
+    line-height:1 !important;
+}
+
+.nav-links.open .nav-secondary-item > span:last-child,
+.nav-links.open .nav-overflow-item > span:last-child{
+    min-width:0 !important;
+    flex:1 1 auto !important;
+}
+
+.nav-links.open .nav-secondary-item strong,
+.nav-links.open .nav-overflow-item strong{
+    display:block !important;
+    margin:0 !important;
+    font-size:14px !important;
+    line-height:1.2 !important;
+}
+
+.nav-links.open .nav-secondary-item small,
+.nav-links.open .nav-overflow-item small{
+    display:block !important;
+    margin:3px 0 0 !important;
+    color:var(--muted) !important;
+    font-size:11px !important;
+    line-height:1.25 !important;
+}
