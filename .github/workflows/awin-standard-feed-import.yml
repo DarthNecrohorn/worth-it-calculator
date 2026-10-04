@@ -34,6 +34,7 @@ jobs:
           AWIN_EVERBLOG_US_FEED_URL: ${{ secrets.AWIN_EVERBLOG_US_FEED_URL }}
           AWIN_PERSONALHOUR_FEED_URL: ${{ secrets.AWIN_PERSONALHOUR_FEED_URL }}
           AWIN_SIMPLE_PROJECT_FEED_URL: ${{ secrets.AWIN_SIMPLE_PROJECT_FEED_URL }}
+          AWIN_ALISON_US_CA_FEED_URL: ${{ secrets.AWIN_ALISON_US_CA_FEED_URL }}
         run: |
           node scripts/import-awin-standard-feeds.mjs
 
