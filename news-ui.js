@@ -747,9 +747,10 @@ function openNews() {
         "block";
 
 
-    $("navLinks").classList.remove(
-        "open"
-    );
+    const navLinks = $("navLinks");
+    if(typeof closeNavMenuUnlessPreserved === "function"){
+        closeNavMenuUnlessPreserved(navLinks);
+    }
 
 
     document.documentElement.style.overflowY =
