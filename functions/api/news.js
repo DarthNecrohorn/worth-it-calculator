@@ -1116,12 +1116,7 @@ export async function onRequestGet(context) {
 
             const hasTerm = (value, term) => {
                 if (!term) return false;
-                const escaped = term.replace(/[.*+?^${}()|[\]\\]/g, "\\            const hasTerm = (value, term) => {
-                if (term === "ai") {
-                    return /\bai\b/i.test(value);
-                }
-                return value.includes(term);
-            };");
+                const escaped = term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
                 return new RegExp("(^|[^a-z0-9])" + escaped + "([^a-z0-9]|$)", "i").test(value);
             };
 
