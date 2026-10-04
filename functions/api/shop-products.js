@@ -12,7 +12,7 @@ import { recordAdminApiUsage } from "../lib/admin-usage.js";
  * unbounded product catalogue.
  */
 
-const RESPONSE_CACHE_SECONDS = 300;
+const RESPONSE_CACHE_SECONDS = 0;
 const MAX_PRODUCTS_PER_CATEGORY = 200;
 
 async function readImportedAwinProducts(context) {
