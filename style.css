@@ -15120,3 +15120,15 @@ html[data-ui-scale="xl"] .nav-links.open .nav-overflow-items{
         margin-left:-24px !important;
     }
 }
+
+
+/* FINAL: when the A- / A hamburger is open, move Calculator slightly right.
+   The closed-header position remains completely unchanged. */
+@media(min-width:901px){
+    html[data-ui-scale="small"] .nav-links.open + .nav-calculator-btn,
+    html[data-ui-scale="normal"] .nav-links.open + .nav-calculator-btn,
+    html:not([data-ui-scale]) .nav-links.open + .nav-calculator-btn{
+        position:relative !important;
+        left:24px !important;
+    }
+}
