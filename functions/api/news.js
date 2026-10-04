@@ -54,9 +54,9 @@ export async function onRequestGet(context) {
 
 
     /*
-     * v10 = optimized Open Newswire usage.
+     * v13 = Open Newswire multi-query source with a fresh cache namespace.
      *
-     * Only one Open Newswire request is made per category.
+     * Multiple focused Open Newswire requests may be merged per category.
      */
 
     const requestUrl =
@@ -66,7 +66,7 @@ export async function onRequestGet(context) {
 
 
     const cacheKeyUrl =
-        `${requestUrl.origin}${requestUrl.pathname}/?news-cache=v12`;
+        `${requestUrl.origin}${requestUrl.pathname}/?news-cache=v13`;
 
 
     const cacheKey =
