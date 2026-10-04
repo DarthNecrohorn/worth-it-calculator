@@ -66,7 +66,7 @@ export async function onRequestGet(context) {
 
 
     const cacheKeyUrl =
-        `${requestUrl.origin}${requestUrl.pathname}/?news-cache=v14`;
+        `${requestUrl.origin}${requestUrl.pathname}/?news-cache=v15`;
 
 
     const cacheKey =
@@ -1015,7 +1015,7 @@ export async function onRequestGet(context) {
                 },
                 technology: {
                     strong: [
-                        "technology", "tech", "software", "artificial intelligence", "\bai\b",
+                        "technology", "tech", "software", "artificial intelligence", "ai",
                         "cybersecurity", "cyber attack", "chip", "chips", "semiconductor",
                         "robot", "robotics", "smartphone", "computer", "internet", "app",
                         "cloud computing", "data center", "quantum computing", "biometric",
@@ -1115,8 +1115,8 @@ export async function onRequestGet(context) {
             if (!rule) return true;
 
             const hasTerm = (value, term) => {
-                if (term.startsWith("\\b") || term.endsWith("\\b")) {
-                    return new RegExp(term, "i").test(value);
+                if (term === "ai") {
+                    return /\bai\b/i.test(value);
                 }
                 return value.includes(term);
             };
@@ -1127,7 +1127,7 @@ export async function onRequestGet(context) {
 
             if (strongTitleHits >= 1) return true;
             if (strongTextHits >= 2) return true;
-            if (strongTextHits >= 1 && weakHits >= 1) return true;
+            if (strongTextHits >= 1 && weakHits >= 2) return true;
 
             return false;
 
@@ -1190,6 +1190,10 @@ export async function onRequestGet(context) {
                 "space traveller",
                 "nasa",
                 "astronaut",
+                "airport sabotage",
+                "airport parking",
+                "detained at airport",
+                "arrested at airport",
                 "traveled to",
                 "travelled to",
                 "travels to",
@@ -1225,22 +1229,45 @@ export async function onRequestGet(context) {
                         description.includes(term)
                 ).length;
 
+            const commercialTravelTerms = [
+                "inn",
+                "inns",
+                "lodging",
+                "hotel",
+                "resort",
+                "tour operator",
+                "hospitality",
+                "tourism sector",
+                "airline",
+                "cruise",
+                "vacation",
+                "destination"
+            ];
+
+            const commercialTravelHits =
+                commercialTravelTerms.filter(
+                    term =>
+                        title.includes(term) ||
+                        description.includes(term)
+                ).length;
+
             if (
-                strongHits >= 1
+                strongHits >= 1 &&
+                commercialTravelHits >= 1
             ) {
-
                 return true;
-
             }
 
             return (
-                strongHits >= 0 &&
-                secondaryHits >= 2 &&
+                strongHits >= 2 ||
                 (
-                    title.includes("travel") ||
-                    description.includes("travel") ||
-                    title.includes("tourism") ||
-                    description.includes("tourism")
+                    secondaryHits >= 2 &&
+                    (
+                        title.includes("travel") ||
+                        description.includes("travel") ||
+                        title.includes("tourism") ||
+                        description.includes("tourism")
+                    )
                 )
             );
 
@@ -1695,7 +1722,7 @@ export async function onRequestGet(context) {
                         FROM news_articles
                         WHERE category = ?
                         ORDER BY added_at DESC
-                        LIMIT 12
+                        LIMIT 50
                         `
                     )
                     .bind(
@@ -1728,6 +1755,34 @@ export async function onRequestGet(context) {
                             category
                         )
                 );
+
+            const invalidExistingRows =
+                existingRows.filter(
+                    row =>
+                        !isRelevantNewsCategory(
+                            {
+                                title: row.title || "",
+                                description: row.description || ""
+                            },
+                            category
+                        )
+                );
+
+            if (invalidExistingRows.length) {
+                await db.batch(
+                    invalidExistingRows.map(
+                        row =>
+                            db
+                                .prepare(
+                                    "DELETE FROM news_articles WHERE category = ? AND url = ?"
+                                )
+                                .bind(
+                                    category,
+                                    row.url || ""
+                                )
+                    )
+                );
+            }
 
             const existingArticles =
                 relevantExistingRows.map(
