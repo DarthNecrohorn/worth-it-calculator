@@ -15117,6 +15117,6 @@ html[data-ui-scale="xl"] .nav-links.open .nav-overflow-items{
     html[data-ui-scale="small"] .nav-calculator-btn,
     html[data-ui-scale="normal"] .nav-calculator-btn,
     html:not([data-ui-scale]) .nav-calculator-btn{
-        margin-left:-18px !important;
+        margin-left:-24px !important;
     }
 }
