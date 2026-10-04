@@ -679,4 +679,5 @@ export async function onRequestGet(context) {
             stack: error instanceof Error ? error.stack : null
         }, 500);
 
+    }
 }
