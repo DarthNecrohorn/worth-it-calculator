@@ -63,16 +63,16 @@ export async function onRequestGet() {
           description: a.description || a.excerpt || a.summary || "",
         }));
       } else {
-        const blocks = text.match(new RegExp("<item[\\\\s\\\\S]*?</item>", "gi")) || [];
+        const blocks = extractRssItems(text);
         items = blocks.map((block) => ({
-          title: decodeXml((block.match(/<title[^>]*>([\s\S]*?)</title>/i) || [,""])[1]),
-          link: decodeXml((block.match(/<link[^>]*>([\s\S]*?)</link>/i) || [,""])[1]),
-          date: decodeXml((block.match(/<pubDate[^>]*>([\s\S]*?)</pubDate>/i) || [,""])[1]),
-          description: decodeXml((block.match(/<description[^>]*>([\s\S]*?)</description>/i) || [,""])[1]),
+          title: decodeXml(extractXmlTag(block, "title")),
+          link: decodeXml(extractXmlTag(block, "link")),
+          date: decodeXml(extractXmlTag(block, "pubDate")),
+          description: decodeXml(extractXmlTag(block, "description")),
         }));
       }
 
-      const normalized = items
+ items
         .map((item) => ({
           ...item,
           title: clean(item.title),
@@ -153,6 +153,40 @@ function clean(value) {
 
 function stripHtml(value) {
   return value.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+}
+
+function extractRssItems(text) {
+  const items = [];
+  let cursor = 0;
+
+  while (cursor < text.length) {
+    const start = text.indexOf("<item", cursor);
+    if (start === -1) break;
+
+    const end = text.indexOf("</item>", start);
+    if (end === -1) break;
+
+    items.push(text.slice(start, end + 7));
+    cursor = end + 7;
+  }
+
+  return items;
+}
+
+function extractXmlTag(block, tagName) {
+  const lower = block.toLowerCase();
+  const openPrefix = "<" + tagName.toLowerCase();
+  const start = lower.indexOf(openPrefix);
+  if (start === -1) return "";
+
+  const openEnd = block.indexOf(">", start);
+  if (openEnd === -1) return "";
+
+  const close = "</" + tagName.toLowerCase() + ">";
+  const end = lower.indexOf(close, openEnd + 1);
+  if (end === -1) return "";
+
+  return block.slice(openEnd + 1, end);
 }
 
 function decodeXml(value) {
