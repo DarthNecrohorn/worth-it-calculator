@@ -994,6 +994,146 @@ export async function onRequestGet(context) {
         }
 
 
+        function isRelevantNewsCategory(
+            article,
+            category
+        ) {
+
+            const title = String(article?.title || "").toLowerCase();
+            const description = String(article?.description || "").toLowerCase();
+            const text = title + " " + description;
+
+            const rules = {
+                world: {
+                    strong: [
+                        "war", "conflict", "ceasefire", "diplomacy", "diplomatic",
+                        "election", "president", "prime minister", "foreign minister",
+                        "parliament", "government", "sanctions", "treaty", "geopolit",
+                        "protest", "coup", "military", "border dispute", "international"
+                    ],
+                    weak: ["minister", "congress", "senate", "political", "policy"]
+                },
+                technology: {
+                    strong: [
+                        "technology", "tech", "software", "artificial intelligence", "\bai\b",
+                        "cybersecurity", "cyber attack", "chip", "chips", "semiconductor",
+                        "robot", "robotics", "smartphone", "computer", "internet", "app",
+                        "cloud computing", "data center", "quantum computing", "biometric",
+                        "digital platform", "machine learning"
+                    ],
+                    weak: ["device", "processor", "algorithm", "startup", "programming", "developer"]
+                },
+                business: {
+                    strong: [
+                        "business", "economy", "economic", "markets", "market", "stocks", "shares",
+                        "finance", "financial", "investment", "investors", "company", "companies",
+                        "merger", "acquisition", "trade", "tariff", "bank", "banking", "jobs",
+                        "employment", "inflation", "interest rates", "earnings", "revenue"
+                    ],
+                    weak: ["industry", "corporate", "workers", "manufacturing"]
+                },
+                science: {
+                    strong: [
+                        "science", "scientist", "scientists", "research", "researchers", "study",
+                        "discovery", "discovered", "experiment", "astronomy", "planet", "galaxy",
+                        "space mission", "nasa", "biology", "genetics", "physics", "chemistry",
+                        "species", "ecosystem", "laboratory", "clinical trial"
+                    ],
+                    weak: ["new findings", "scientific", "observations", "evidence"]
+                },
+                sports: {
+                    strong: [
+                        "sports", "sport", "football", "soccer", "basketball", "baseball", "tennis",
+                        "cricket", "rugby", "hockey", "golf", "boxing", "formula 1", "grand prix",
+                        "fifa", "uefa", "nfl", "nba", "nhl", "mlb", "championship", "tournament",
+                        "league", "playoffs", "world cup", "athlete", "coach", "transfer"
+                    ],
+                    weak: ["game", "games", "match", "final", "season"]
+                },
+                travel: {
+                    strong: [
+                        "tourism", "tourist", "travel industry", "travel advisory", "travel warning",
+                        "airline", "airport", "flight", "hotel", "resort", "destination", "cruise",
+                        "vacation", "holiday", "hospitality", "tour operator", "travel disruption",
+                        "travel restrictions", "visa", "traveler", "travellers"
+                    ],
+                    weak: ["passenger", "lodging", "tourism sector", "visitor"]
+                },
+                entertainment: {
+                    strong: [
+                        "entertainment", "movie", "movies", "film", "films", "cinema", "music", "concert",
+                        "singer", "album", "actor", "actress", "celebrity", "director", "hollywood",
+                        "television", "tv series", "streaming", "festival", "box office", "premiere"
+                    ],
+                    weak: ["star", "artist", "performance", "show"]
+                },
+                lifestyle: {
+                    strong: [
+                        "lifestyle", "fashion", "wellness", "beauty", "relationships", "home decor",
+                        "interior design", "fitness", "parenting", "family life", "personal style",
+                        "food culture", "self-care"
+                    ],
+                    weak: ["fashion", "style", "hobbies", "leisure"]
+                },
+                health: {
+                    strong: [
+                        "health", "healthcare", "medical", "medicine", "disease", "illness", "hospital",
+                        "doctor", "doctors", "patient", "patients", "vaccine", "vaccination", "virus",
+                        "infection", "outbreak", "treatment", "therapy", "diagnosis", "mental health",
+                        "public health", "clinical"
+                    ],
+                    weak: ["pregnant", "pregnancy", "drug", "medication", "symptoms"]
+                },
+                environment: {
+                    strong: [
+                        "environment", "climate change", "global warming", "greenhouse gas", "emissions",
+                        "pollution", "wildfire", "drought", "flood", "storm surge", "permafrost",
+                        "conservation", "biodiversity", "renewable energy", "clean energy", "ecosystem",
+                        "wetland", "ocean warming", "deforestation"
+                    ],
+                    weak: ["wildlife", "habitat", "carbon", "sustainability"]
+                },
+                food: {
+                    strong: [
+                        "food", "restaurant", "cooking", "recipe", "chef", "cuisine", "meal", "dish",
+                        "grocery", "supermarket", "food safety", "food prices", "ingredients", "bakery",
+                        "coffee", "wine", "beer", "dining"
+                    ],
+                    weak: ["kitchen", "appetite", "flavor", "menu"]
+                },
+                education: {
+                    strong: [
+                        "education", "school", "schools", "university", "universities", "college", "colleges",
+                        "student", "students", "teacher", "teachers", "classroom", "curriculum", "literacy",
+                        "scholarship", "campus", "academic", "school district", "higher education"
+                    ],
+                    weak: ["learning", "lesson", "degree", "faculty"]
+                }
+            };
+
+            const rule = rules[category];
+            if (!rule) return true;
+
+            const hasTerm = (value, term) => {
+                if (term.startsWith("\\b") || term.endsWith("\\b")) {
+                    return new RegExp(term, "i").test(value);
+                }
+                return value.includes(term);
+            };
+
+            const strongTitleHits = rule.strong.filter(term => hasTerm(title, term)).length;
+            const strongTextHits = rule.strong.filter(term => hasTerm(text, term)).length;
+            const weakHits = rule.weak.filter(term => hasTerm(text, term)).length;
+
+            if (strongTitleHits >= 1) return true;
+            if (strongTextHits >= 2) return true;
+            if (strongTextHits >= 1 && weakHits >= 1) return true;
+
+            return false;
+
+        }
+
+
         function isRelevantTravelArticle(
             article
         ) {
@@ -1321,6 +1461,15 @@ export async function onRequestGet(context) {
                 );
 
 
+            articles =
+                articles.filter(
+                    article =>
+                        isRelevantNewsCategory(
+                            article,
+                            category
+                        )
+                );
+
             if (category === "travel") {
 
                 articles =
@@ -1568,8 +1717,20 @@ export async function onRequestGet(context) {
              * frontend article structure.
              */
 
+            const relevantExistingRows =
+                existingRows.filter(
+                    row =>
+                        isRelevantNewsCategory(
+                            {
+                                title: row.title || "",
+                                description: row.description || ""
+                            },
+                            category
+                        )
+                );
+
             const existingArticles =
-                existingRows.map(
+                relevantExistingRows.map(
                     row => ({
 
                         title:
@@ -1666,7 +1827,7 @@ export async function onRequestGet(context) {
 
             const existingUrls =
                 new Set(
-                    existingRows
+                    relevantExistingRows
                         .map(
                             row =>
                                 String(
@@ -1850,8 +2011,19 @@ export async function onRequestGet(context) {
 
 
             return rankNewsArticles(
-                finalRows.map(
-                    row => ({
+                finalRows
+                    .filter(
+                        row =>
+                            isRelevantNewsCategory(
+                                {
+                                    title: row.title || "",
+                                    description: row.description || ""
+                                },
+                                category
+                            )
+                    )
+                    .map(
+                        row => ({
 
                         title:
                             row.title ||
