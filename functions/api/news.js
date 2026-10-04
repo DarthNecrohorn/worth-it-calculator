@@ -208,7 +208,7 @@ export async function onRequestGet(context) {
 
                 url.searchParams.set(
                     "size",
-                    "60"
+                    "40"
                 );
 
 
@@ -276,9 +276,22 @@ export async function onRequestGet(context) {
             }
 
 
+            /*
+             * Resource protection:
+             * use only the primary query for each category.
+             * This keeps a cold /api/news request within Worker
+             * resource limits while retaining one fresh feed
+             * pull for every category.
+             */
+            const requestQueries =
+                queries.slice(
+                    0,
+                    1
+                );
+
             const settled =
                 await Promise.allSettled(
-                    queries.map(
+                    requestQueries.map(
                         query =>
                             fetchQuery(
                                 query
@@ -313,7 +326,7 @@ export async function onRequestGet(context) {
                         errors.push(
                             {
                                 query:
-                                    queries[index],
+                                    requestQueries[index],
 
                                 error:
                                     result.reason instanceof Error
