@@ -453,7 +453,44 @@ export async function onRequestGet({ request }) {
         out[reason] = (out[reason] || 0) + 1;
       }
       return out;
-    }, {})
+    }, {}),
+    sourceAnalysis: Object.values(
+      all.reduce((out, article) => {
+        const key = article.source || "Unknown source";
+        if (!out[key]) {
+          out[key] = {
+            source: key,
+            fetched: 0,
+            suitable: 0,
+            fresh24h: 0,
+            fresh48h: 0,
+            commercialLicenses: 0,
+            categories: Object.fromEntries(categories.map(category => [category, 0])),
+            licenses: {}
+          };
+        }
+
+        const row = out[key];
+        row.fetched++;
+
+        if (article.suitable) {
+          row.suitable++;
+          if (article.ageHours !== null && article.ageHours <= 24) row.fresh24h++;
+          if (article.ageHours !== null && article.ageHours <= 48) row.fresh48h++;
+          if (article.category) row.categories[article.category]++;
+        }
+
+        if (article.commercialLicense === true) row.commercialLicenses++;
+
+        row.licenses[article.license] = (row.licenses[article.license] || 0) + 1;
+
+        return out;
+      }, {})
+    ).sort((a, b) => {
+      if (b.suitable !== a.suitable) return b.suitable - a.suitable;
+      if (b.fresh24h !== a.fresh24h) return b.fresh24h - a.fresh24h;
+      return b.commercialLicenses - a.commercialLicenses;
+    }).slice(0, 100)
   };
 
   const response = {
