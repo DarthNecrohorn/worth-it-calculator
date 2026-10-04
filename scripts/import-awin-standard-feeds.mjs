@@ -548,7 +548,8 @@ function toProduct(row, feed, importedAt) {
   const affiliateUrl = normalizeText(
     firstValue(row, [
       "aw_deep_link",
-      "awin_deep_link"
+      "awin_deep_link",
+      "deep_link"
     ])
   );
 
