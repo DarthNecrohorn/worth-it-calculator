@@ -1121,7 +1121,6 @@ export async function onRequestGet(context) {
             if (
                 titleHas([
                     "artificial intelligence",
-                    "ai",
                     "cybersecurity",
                     "cyber attack",
                     "software",
