@@ -124,15 +124,13 @@
         "HK",
         "TW",
         "IE",
-        "AU",
-        "GB",
-        "JP"
+        "GB"
       ],
       "coverageLabel": "Worldwide — most countries",
       "sourceLabel": "Giftlab official shipping policy",
       "sourceUrl": "https://www.giftlab.com/pages/shipping-policy",
       "verifiedAt": "2026-10-04",
-      "note": "Giftlab states that it provides worldwide shipping and international orders, while its current support pages explicitly document the destinations listed here. This is representative country coverage, not an exhaustive worldwide country list; checkout remains the final authority."
+      "note": "Giftlab states that it provides worldwide shipping and international orders. The listed countries are destinations explicitly documented across its current official shipping/support pages and are representative rather than exhaustive; checkout remains the final authority."
     },
     "personalhour": {
       "type": "exact",
@@ -149,10 +147,10 @@
       "type": "digital",
       "countries": [],
       "coverageLabel": "Worldwide digital access",
-      "sourceLabel": "Alison official platform",
+      "sourceLabel": "Alison official affiliate programme",
       "sourceUrl": "https://helpcenter.alison.com/en/articles/8206757-how-does-the-alison-affiliate-programme-work",
       "verifiedAt": "2026-10-04",
-      "note": "Alison courses are digital services rather than physical shipped products. Worth It therefore presents worldwide digital access instead of inventing physical shipping destinations."
+      "note": "Alison courses are digital services rather than physical shipped products. Worth It therefore reports worldwide digital access instead of inventing physical shipping destinations."
     }
   }
 }
