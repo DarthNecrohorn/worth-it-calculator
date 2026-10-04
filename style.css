@@ -14862,3 +14862,13 @@ html[data-ui-scale="xl"] .water-levels-detail-card{
         height:30px;
     }
 }
+
+
+@media(min-width:901px){
+    html[data-ui-scale="large"] .nav-links,
+    html[data-ui-scale="xl"] .nav-links{
+        display:flex !important;
+        flex:0 1 auto !important;
+        min-width:0 !important;
+    }
+}
