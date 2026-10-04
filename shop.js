@@ -79,6 +79,10 @@
                 ? rawCurrency + " "
                 : rawCurrency);
 
+        if (Number(value) === 0) {
+            return "Free";
+        }
+
         return prefix +
             Number(value).toFixed(2);
     }
@@ -1949,6 +1953,10 @@ function renderShop(container){
         const isOnDiscount =
             discount > 0;
 
+        const isFreeDigital =
+            deal?.shippingCoverageType === "digital" &&
+            Number(bestPrice) === 0;
+
 
         const partner =
             getPartner(deal);
@@ -2255,7 +2263,7 @@ function renderShop(container){
             SAVINGS
         --------------------------------------------- */
 
-        const savingsHTML = `
+        const savingsHTML = isFreeDigital ? "" : `
 
             <div class="shop-savings">
 
@@ -2410,7 +2418,7 @@ function renderShop(container){
 
                     <div class="shop-prices">
 
-                        <span class="shop-old-price">
+                        <span class="shop-old-price" style="${isFreeDigital ? "display:none;" : ""}">
 
                             ${formatPrice(
                                 deal.oldPrice,
@@ -2422,7 +2430,7 @@ function renderShop(container){
 
                         <span class="shop-new-price">
 
-                            ${formatPrice(
+                            ${isFreeDigital ? "Free course" : formatPrice(
                                 bestPrice,
                                 deal.currency
                             )}
