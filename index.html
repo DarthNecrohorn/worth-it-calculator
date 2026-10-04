@@ -6,7 +6,20 @@
 <meta name="description" content="Worth It Calculator - smart calculators for cars, money, technology, home and everyday purchases.">
 <title>Worth It — Smart Decision Calculators</title>
 
-    <link rel="stylesheet" href="style.css?v=headercards20261004f">
+    <script>
+/* Apply the saved UI scale before the first paint to prevent header layout shift. */
+(function(){
+    try{
+        const SCALE = {small:.82, normal:1, large:1.16, xl:1.32};
+        const saved = localStorage.getItem("worthItUIScale") || "normal";
+        const value = Object.prototype.hasOwnProperty.call(SCALE, saved) ? saved : "normal";
+        document.documentElement.dataset.uiScale = value;
+        document.documentElement.style.setProperty("--ui-scale", SCALE[value]);
+    }catch(e){}
+})();
+</script>
+
+<link rel="stylesheet" href="style.css?v=headercards20261004f">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 </head>
 
