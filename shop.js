@@ -296,6 +296,7 @@
     function getPartnerShippingCoverage(partnerId, items){
         const countries = new Set();
         const regionalLabels = new Set();
+        const digitalLabels = new Set();
 
         items
             .filter(
@@ -304,7 +305,6 @@
             )
             .forEach(
                 deal => {
-
                     normalizeCountries(deal)
                         .forEach(
                             code =>
@@ -321,21 +321,76 @@
                         regionalLabels.add(
                             String(
                                 availability.coverageLabel
-                            )
-                                .trim()
+                            ).trim()
+                        );
+                    }
+
+                    if(
+                        availability?.coverageType === "digital" &&
+                        availability.coverageLabel
+                    ){
+                        digitalLabels.add(
+                            String(
+                                availability.coverageLabel
+                            ).trim()
                         );
                     }
                 }
             );
 
+        const profile =
+            shopShippingProfiles[partnerId];
+
+        if(
+            profile &&
+            countries.size === 0 &&
+            regionalLabels.size === 0 &&
+            digitalLabels.size === 0
+        ){
+            (Array.isArray(profile.countries)
+                ? profile.countries
+                : []
+            ).forEach(
+                code => {
+                    const normalized =
+                        String(code || "")
+                            .trim()
+                            .toUpperCase();
+
+                    if(/^[A-Z]{2}$/.test(normalized)){
+                        countries.add(normalized);
+                    }
+                }
+            );
+
+            if(
+                profile.type === "regional" &&
+                profile.coverageLabel
+            ){
+                regionalLabels.add(
+                    String(profile.coverageLabel).trim()
+                );
+            }
+
+            if(
+                profile.type === "digital" &&
+                profile.coverageLabel
+            ){
+                digitalLabels.add(
+                    String(profile.coverageLabel).trim()
+                );
+            }
+        }
+
         return {
             countryCount:
                 countries.size,
             regionalLabels:
-                [...regionalLabels]
+                [...regionalLabels],
+            digitalLabels:
+                [...digitalLabels]
         };
     }
-
     function getCategoryDefinition(categoryId){
         if(!categoryId || !Array.isArray(SHOP_CATEGORIES)){
             return null;
@@ -676,7 +731,35 @@
                     : "From merchant feed";
 
         if(
+            coverageType === "digital"
+        ){
+            return `
+                <div class="shop-availability shop-availability-service">
+                    <div class="shop-availability-head">
+                        <div>
+                            <span class="shop-info-label">🌐 Access</span>
+                            <strong>${escapeHTML(
+                                availability.coverageLabel ||
+                                "Worldwide digital access"
+                            )}</strong>
+                        </div>
+                        <span class="shop-availability-verified">${sourceLabel}</span>
+                    </div>
+
+                    <p class="shop-availability-note">
+                        ${escapeHTML(
+                            availability.note ||
+                            "This programme provides digital access rather than physical shipping."
+                        )}
+                    </p>
+                </div>
+            `;
+        }
+
+        if(
             coverageType === "regional" &&
+            !countryCodes.length
+        ){            coverageType === "regional" &&
             !countryCodes.length
         ){
             return `
@@ -1664,13 +1747,15 @@ function renderShop(container){
                         );
 
                     const coverageText =
-                        shippingCoverage.countryCount > 0
-                            ? `${shippingCoverage.countryCount} currently represented shipping destination${shippingCoverage.countryCount === 1 ? "" : "s"}`
-                            : shippingCoverage.regionalLabels.length
-                                ? shippingCoverage.regionalLabels.join(" / ")
-                                : partner.status === "not-published"
-                                    ? "No verified shipping destinations — programme not published"
-                                    : "No verified shipping destinations yet";
+                        shippingCoverage.digitalLabels.length
+                            ? shippingCoverage.digitalLabels.join(" / ")
+                            : shippingCoverage.countryCount > 0
+                                ? `${shippingCoverage.countryCount} currently represented shipping destination${shippingCoverage.countryCount === 1 ? "" : "s"}`
+                                : shippingCoverage.regionalLabels.length
+                                    ? shippingCoverage.regionalLabels.join(" / ")
+                                    : partner.status === "not-published"
+                                        ? "No verified shipping destinations — programme not published"
+                                        : "No verified shipping destinations yet";
 
                     const status =
                         productCount > 0
