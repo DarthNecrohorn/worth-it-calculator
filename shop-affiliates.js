@@ -51,7 +51,8 @@ const SHOP_CATEGORIES = [
     { id: "fitness-wellness", label: "Fitness & Wellness", icon: "🧘" },
     { id: "family-experiences", label: "Family & Experiences", icon: "👨‍👩‍👧" },
     { id: "family-tech", label: "Family Tech", icon: "📅" },
-    { id: "fashion-accessories", label: "Fashion & Accessories", icon: "👗" }
+    { id: "fashion-accessories", label: "Fashion & Accessories", icon: "👗" },
+    { id: "education-online-courses", label: "Education & Online Courses", icon: "🎓" }
 ];
 
 const SHOP_PARTNERS = [
@@ -153,6 +154,15 @@ const SHOP_PARTNERS = [
         status: "ready-to-connect",
         coverage: "Lunzo.pl product catalogue",
         note: "Awin source joined; product data feed will be used when available."
+    },
+    {
+        id: "alison-us-ca",
+        name: "Alison US CA",
+        categoryIds: ["education-online-courses"],
+        icon: "🎓",
+        status: "ready-to-connect",
+        coverage: "Online courses & professional learning",
+        note: "Awin source joined; products will be published only with verified affiliate URLs and destination information."
     }
 ];
 
