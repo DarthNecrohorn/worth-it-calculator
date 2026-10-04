@@ -17,12 +17,11 @@ const API_REGISTRY = [
         key: "news",
         name: "News",
         emoji: "📰",
-        provider: "NewsData.io",
+        provider: "Open Newswire",
         endpoint: "/api/news",
         category: "News",
-        quotaType: "daily",
-        quotaLimit: 200,
-        quotaLabel: "200 credits/day"
+        quotaType: "dynamic",
+        quotaLabel: "Provider dependent"
     },
     {
         key: "currencies",
