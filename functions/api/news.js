@@ -1097,24 +1097,65 @@ export async function onRequestGet(context) {
             }
 
             /*
-             * Lifestyle headline anchors.
-             * Keep clear lifestyle stories out of broader categories.
+             * Clear health headlines must stay in Health even when
+             * "lifestyle" or another lifestyle term appears in the title.
              */
             if (
+                title.includes("fatigue") ||
+                title.includes("heavy periods") ||
+                title.includes("iron deficiency") ||
+                title.includes("obesity") ||
+                title.includes("medical") ||
+                title.includes("medicine") ||
+                title.includes("health") ||
+                title.includes("healthcare") ||
+                title.includes("disease") ||
+                title.includes("illness") ||
+                title.includes("patient") ||
+                title.includes("patients") ||
+                title.includes("vaccine") ||
+                title.includes("vaccination") ||
+                title.includes("hospital") ||
+                title.includes("doctor") ||
+                title.includes("doctors")
+            ) {
+                return "health";
+            }
+
+            /*
+             * Lifestyle headline anchors.
+             * Clear lifestyle topics win over broad body-level matches.
+             */
+            if (
+                title.includes("lifestyle") ||
                 title.includes("fashion") ||
+                title.includes("wardrobe") ||
+                title.includes("clothing") ||
                 title.includes("beauty") ||
                 title.includes("skincare") ||
+                title.includes("skin care") ||
                 title.includes("makeup") ||
-                title.includes("cosmetics") ||
+                title.includes("cosmetic") ||
+                title.includes("manicure") ||
+                title.includes("pedicure") ||
+                title.includes("fragrance") ||
+                title.includes("perfume") ||
                 title.includes("personal style") ||
+                title.includes("street style") ||
+                title.includes("wellness") ||
+                title.includes("fitness") ||
                 title.includes("home decor") ||
                 title.includes("interior design") ||
+                title.includes("home improvement") ||
                 title.includes("relationships") ||
                 title.includes("dating") ||
                 title.includes("parenting") ||
                 title.includes("self-care") ||
                 title.includes("hobbies") ||
-                title.includes("leisure")
+                title.includes("leisure") ||
+                title.includes("shopping") ||
+                title.includes("personal finance") ||
+                title.includes("consumer trends")
             ) {
                 return "lifestyle";
             }
@@ -1391,7 +1432,9 @@ export async function onRequestGet(context) {
                 "hospitality",
                 "tour operator",
                 "travel disruption",
-                "travel restrictions"
+                "travel restrictions",
+                "inn",
+                "inns"
             ];
 
             const secondaryTerms = [
@@ -1416,6 +1459,10 @@ export async function onRequestGet(context) {
                 "airport parking",
                 "airport attack",
                 "airport incident",
+                "airstrike",
+                "air strike",
+                "flight 93",
+                "tom cruise",
                 "detained at airport",
                 "arrested at airport",
                 "political researcher",
@@ -1459,6 +1506,43 @@ export async function onRequestGet(context) {
                         description.includes(term)
                 ).length;
 
+            const titleStrongTerms = [
+                "tourism",
+                "tourist",
+                "travel",
+                "airline",
+                "airport",
+                "flight",
+                "hotel",
+                "resort",
+                "destination",
+                "cruise",
+                "vacation",
+                "holiday",
+                "hospitality",
+                "tour operator",
+                "visa",
+                "lodging",
+                "passenger",
+                "inn",
+                "inns"
+            ];
+
+            const titleStrongHits =
+                titleStrongTerms.filter(
+                    term =>
+                        title.includes(term)
+                ).length;
+
+            if (titleStrongHits >= 1) {
+                return true;
+            }
+
+            return (
+                strongHits >= 2 &&
+                secondaryHits >= 1
+            );
+
             const commercialTravelTerms = [
                 "inn",
                 "inns",
@@ -1474,26 +1558,11 @@ export async function onRequestGet(context) {
                 "destination"
             ];
 
-            const commercialTravelHits =
-                commercialTravelTerms.filter(
-                    term =>
-                        title.includes(term) ||
-                        description.includes(term)
-                ).length;
-
-            if (strongHits >= 1) {
-                return true;
-            }
-
             return (
-                secondaryHits >= 1 &&
+                titleStrongHits >= 1 ||
                 (
-                    title.includes("travel") ||
-                    description.includes("travel") ||
-                    title.includes("tourism") ||
-                    description.includes("tourism") ||
-                    title.includes("visa") ||
-                    description.includes("visa")
+                    strongHits >= 2 &&
+                    secondaryHits >= 1
                 )
             );
 
@@ -1631,8 +1700,9 @@ export async function onRequestGet(context) {
                 business: ["markets", "stocks", "economy", "tariff", "trade", "merger", "acquisition", "investment", "jobs", "interest rates"],
                 science: ["discovery", "research", "scientists", "space", "nasa", "planet", "astronomy", "climate", "study"],
                 sports: ["final", "championship", "tournament", "record", "transfer", "league", "grand prix", "playoffs"],
-                travel: ["airline", "airport", "flight", "border", "visa", "destination", "travel warning"],
+                travel: ["airline", "airport", "flight", "border", "visa", "destination", "travel warning", "tourism", "tourist", "hotel", "resort", "cruise", "vacation", "holiday", "hospitality"],
                 entertainment: ["film", "movie", "music", "concert", "actor", "actress", "album", "festival", "award"],
+                lifestyle: ["lifestyle", "fashion", "wardrobe", "clothing", "beauty", "skincare", "makeup", "cosmetics", "relationships", "dating", "home decor", "wellness", "fitness", "parenting", "personal style", "self-care", "hobbies", "leisure", "shopping", "consumer trends"],
                 health: ["disease", "treatment", "drug", "hospital", "doctors", "study", "outbreak", "vaccine"],
                 environment: ["climate", "wildfire", "flood", "storm", "pollution", "emissions", "conservation", "renewable"]
             };
