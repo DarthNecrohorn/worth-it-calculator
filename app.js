@@ -2203,9 +2203,7 @@ if (cryptoSection) {
 
     if (navLinks) {
 
-        navLinks.classList.remove(
-            "open"
-        );
+        closeNavMenuUnlessPreserved(navLinks);
 
     }
 
@@ -2435,6 +2433,14 @@ function decimal(value) {
 
 window.decimal = decimal;
 
+function closeNavMenuUnlessPreserved(navLinks) {
+    if (!navLinks) return;
+
+    if (navLinks.dataset.preserveOpen !== "true") {
+        closeNavMenuUnlessPreserved(navLinks);
+    }
+}
+
 function toggleMenu() {
     const navLinks =
         document.getElementById("navLinks");
@@ -2443,6 +2449,12 @@ function toggleMenu() {
 
     const isOpen =
         navLinks.classList.toggle("open");
+
+    if (isOpen) {
+        navLinks.dataset.preserveOpen = "true";
+    } else {
+        delete navLinks.dataset.preserveOpen;
+    }
 
     navLinks.setAttribute(
         "aria-hidden",
@@ -2617,7 +2629,7 @@ function openWaterLevels() {
     }
 
     const navLinks = document.getElementById("navLinks");
-    if (navLinks) navLinks.classList.remove("open");
+    if (navLinks) closeNavMenuUnlessPreserved(navLinks);
 
     html.style.overflowY = "auto";
     body.style.overflowY = "auto";
@@ -2682,7 +2694,7 @@ function openShipTracking(){
     }
 
     const navLinks = document.getElementById("navLinks");
-    if(navLinks) navLinks.classList.remove("open");
+    if(navLinks) closeNavMenuUnlessPreserved(navLinks);
 
     document.documentElement.style.overflowY = "auto";
     document.body.style.overflowY = "auto";
@@ -2754,7 +2766,7 @@ function openCrypto() {
     if (cryptoSection) cryptoSection.style.display = "block";
 
     const navLinks = document.getElementById("navLinks");
-    if (navLinks) navLinks.classList.remove("open");
+    if (navLinks) closeNavMenuUnlessPreserved(navLinks);
 
     document.documentElement.style.overflowY = "auto";
     document.body.style.overflowY = "auto";
@@ -2859,7 +2871,7 @@ if (moneySection) {
         document.getElementById("navLinks");
 
     if (navLinks) {
-        navLinks.classList.remove("open");
+        closeNavMenuUnlessPreserved(navLinks);
     }
 
     document.documentElement.style.overflowY = "auto";
@@ -2954,7 +2966,7 @@ const navLinks =
     document.getElementById("navLinks");
 
 if (navLinks) {
-    navLinks.classList.remove("open");
+    closeNavMenuUnlessPreserved(navLinks);
 }
 
 document.documentElement.style.overflowY = "auto";
