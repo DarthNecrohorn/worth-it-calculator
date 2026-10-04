@@ -1295,7 +1295,10 @@ export async function onRequestGet(context) {
                             settings.category,
 
                         q:
-                            settings.q
+                            settings.q,
+
+                        queries:
+                            settings.queries
                     }
                 );
 
