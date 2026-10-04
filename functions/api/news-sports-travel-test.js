@@ -63,12 +63,12 @@ export async function onRequestGet() {
           description: a.description || a.excerpt || a.summary || "",
         }));
       } else {
-        const blocks = text.match(/<item[\\s\\S]*?<\\/item>/gi) || [];
+        const blocks = text.match(/<item[\s\S]*?<\\/item>/gi) || [];
         items = blocks.map((block) => ({
-          title: decodeXml((block.match(/<title[^>]*>([\\s\\S]*?)<\\/title>/i) || [,""])[1]),
-          link: decodeXml((block.match(/<link[^>]*>([\\s\\S]*?)<\\/link>/i) || [,""])[1]),
-          date: decodeXml((block.match(/<pubDate[^>]*>([\\s\\S]*?)<\\/pubDate>/i) || [,""])[1]),
-          description: decodeXml((block.match(/<description[^>]*>([\\s\\S]*?)<\\/description>/i) || [,""])[1]),
+          title: decodeXml((block.match(/<title[^>]*>([\s\S]*?)<\\/title>/i) || [,""])[1]),
+          link: decodeXml((block.match(/<link[^>]*>([\s\S]*?)<\\/link>/i) || [,""])[1]),
+          date: decodeXml((block.match(/<pubDate[^>]*>([\s\S]*?)<\\/pubDate>/i) || [,""])[1]),
+          description: decodeXml((block.match(/<description[^>]*>([\s\S]*?)<\\/description>/i) || [,""])[1]),
         }));
       }
 
@@ -140,19 +140,19 @@ export async function onRequestGet() {
 
 function clean(value) {
   return String(value || "")
-    .replace(/<!\\[CDATA\\[/gi, "")
-    .replace(/\\]\\]>/g, "")
+    .replace(/<!\[CDATA\[/gi, "")
+    .replace(/\]\]>/g, "")
     .replace(/&amp;/gi, "&")
     .replace(/&lt;/gi, "<")
     .replace(/&gt;/gi, ">")
     .replace(/&quot;/gi, '"')
     .replace(/&#39;/gi, "'")
-    .replace(/\\s+/g, " ")
+    .replace(/\s+/g, " ")
     .trim();
 }
 
 function stripHtml(value) {
-  return value.replace(/<[^>]+>/g, " ").replace(/\\s+/g, " ").trim();
+  return value.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
 }
 
 function decodeXml(value) {
