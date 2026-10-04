@@ -503,6 +503,7 @@ function summarizeArticle(article, category, query) {
 }
 
 export async function onRequestGet(context) {
+    try {
     const request = context.request;
 
     const origin = request.headers.get("Origin") || "";
@@ -671,4 +672,11 @@ export async function onRequestGet(context) {
             .reduce((sum, category) => sum + category.queries.length, 0),
         diagnostics
     });
+    } catch (error) {
+        return json({
+            ok: false,
+            error: error instanceof Error ? error.message : String(error),
+            stack: error instanceof Error ? error.stack : null
+        }, 500);
+
 }
