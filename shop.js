@@ -759,8 +759,6 @@
         if(
             coverageType === "regional" &&
             !countryCodes.length
-        ){            coverageType === "regional" &&
-            !countryCodes.length
         ){
             return `
                 <div class="shop-availability">
