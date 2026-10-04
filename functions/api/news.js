@@ -66,7 +66,7 @@ export async function onRequestGet(context) {
 
 
     const cacheKeyUrl =
-        `${requestUrl.origin}${requestUrl.pathname}/?news-cache=v13`;
+        `${requestUrl.origin}${requestUrl.pathname}/?news-cache=v14`;
 
 
     const cacheKey =
