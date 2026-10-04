@@ -66,7 +66,7 @@ export async function onRequestGet(context) {
 
 
     const cacheKeyUrl =
-        `${requestUrl.origin}${requestUrl.pathname}/?news-cache=v17`;
+        `${requestUrl.origin}${requestUrl.pathname}/?news-cache=v18`;
 
 
     const cacheKey =
@@ -994,9 +994,8 @@ export async function onRequestGet(context) {
         }
 
 
-        function isRelevantNewsCategory(
-            article,
-            category
+        function getPrimaryNewsCategory(
+            article
         ) {
 
             const title = String(article?.title || "").toLowerCase();
@@ -1004,138 +1003,62 @@ export async function onRequestGet(context) {
             const text = title + " " + description;
 
             const rules = {
-                world: {
-                    strong: [
-                        "war", "conflict", "ceasefire", "diplomacy", "diplomatic",
-                        "election", "president", "prime minister", "foreign minister",
-                        "parliament", "government", "sanctions", "treaty", "geopolit",
-                        "protest", "coup", "military", "border dispute", "international"
-                    ],
-                    weak: ["minister", "congress", "senate", "political", "policy"]
-                },
-                technology: {
-                    strong: [
-                        "technology", "tech", "software", "artificial intelligence", "ai",
-                        "cybersecurity", "cyber attack", "chip", "chips", "semiconductor",
-                        "robot", "robotics", "smartphone", "computer", "internet", "app",
-                        "cloud computing", "data center", "quantum computing", "biometric",
-                        "digital platform", "machine learning"
-                    ],
-                    weak: ["device", "processor", "algorithm", "startup", "programming", "developer"]
-                },
-                business: {
-                    strong: [
-                        "business", "economy", "economic", "markets", "market", "stocks", "shares",
-                        "finance", "financial", "investment", "investors", "company", "companies",
-                        "merger", "acquisition", "trade", "tariff", "bank", "banking", "jobs",
-                        "employment", "inflation", "interest rates", "earnings", "revenue"
-                    ],
-                    weak: ["industry", "corporate", "workers", "manufacturing"]
-                },
-                science: {
-                    strong: [
-                        "science", "scientist", "scientists", "research", "researchers", "study",
-                        "discovery", "discovered", "experiment", "astronomy", "planet", "galaxy",
-                        "space mission", "nasa", "biology", "genetics", "physics", "chemistry",
-                        "species", "ecosystem", "laboratory", "clinical trial"
-                    ],
-                    weak: ["new findings", "scientific", "observations", "evidence"]
-                },
-                sports: {
-                    strong: [
-                        "sports", "sport", "football", "soccer", "basketball", "baseball", "tennis",
-                        "cricket", "rugby", "hockey", "golf", "boxing", "formula 1", "grand prix",
-                        "fifa", "uefa", "nfl", "nba", "nhl", "mlb", "championship", "tournament",
-                        "league", "playoffs", "world cup", "athlete", "coach", "transfer"
-                    ],
-                    weak: ["game", "games", "match", "final", "season"]
-                },
-                travel: {
-                    strong: [
-                        "tourism", "tourist", "travel industry", "travel advisory", "travel warning",
-                        "airline", "airport", "flight", "hotel", "resort", "destination", "cruise",
-                        "vacation", "holiday", "hospitality", "tour operator", "travel disruption",
-                        "travel restrictions", "visa", "traveler", "travellers"
-                    ],
-                    weak: ["passenger", "lodging", "tourism sector", "visitor"]
-                },
-                entertainment: {
-                    strong: [
-                        "entertainment", "movie", "movies", "film", "films", "cinema", "music", "concert",
-                        "singer", "album", "actor", "actress", "celebrity", "director", "hollywood",
-                        "television", "tv series", "streaming", "festival", "box office", "premiere"
-                    ],
-                    weak: ["star", "artist", "performance", "show"]
-                },
-                lifestyle: {
-                    strong: [
-                        "lifestyle", "fashion", "wellness", "beauty", "relationships", "home decor",
-                        "interior design", "fitness", "parenting", "family life", "personal style",
-                        "food culture", "self-care"
-                    ],
-                    weak: ["fashion", "style", "hobbies", "leisure"]
-                },
-                health: {
-                    strong: [
-                        "health", "healthcare", "medical", "medicine", "disease", "illness", "hospital",
-                        "doctor", "doctors", "patient", "patients", "vaccine", "vaccination", "virus",
-                        "infection", "outbreak", "treatment", "therapy", "diagnosis", "mental health",
-                        "public health", "clinical"
-                    ],
-                    weak: ["pregnant", "pregnancy", "drug", "medication", "symptoms"]
-                },
-                environment: {
-                    strong: [
-                        "environment", "climate change", "global warming", "greenhouse gas", "emissions",
-                        "pollution", "wildfire", "drought", "flood", "storm surge", "permafrost",
-                        "conservation", "biodiversity", "renewable energy", "clean energy", "ecosystem",
-                        "wetland", "ocean warming", "deforestation"
-                    ],
-                    weak: ["wildlife", "habitat", "carbon", "sustainability"]
-                },
-                food: {
-                    strong: [
-                        "food", "restaurant", "cooking", "recipe", "chef", "cuisine", "meal", "dish",
-                        "grocery", "supermarket", "food safety", "food prices", "ingredients", "bakery",
-                        "coffee", "wine", "beer", "dining"
-                    ],
-                    weak: ["kitchen", "appetite", "flavor", "menu"]
-                },
-                education: {
-                    strong: [
-                        "education", "school", "schools", "university", "universities", "college", "colleges",
-                        "student", "students", "teacher", "teachers", "classroom", "curriculum", "literacy",
-                        "scholarship", "campus", "academic", "school district", "higher education"
-                    ],
-                    weak: ["learning", "lesson", "degree", "faculty"]
+                world: ["war","conflict","ceasefire","diplomacy","diplomatic","election","president","prime minister","foreign minister","parliament","government","sanctions","treaty","geopolit","protest","coup","military","border dispute","international","congress","senate","political","policy"],
+                technology: ["technology","tech","software","artificial intelligence","ai","cybersecurity","cyber attack","chip","chips","semiconductor","robot","robotics","smartphone","computer","internet","app","cloud computing","data center","quantum computing","biometric","digital platform","machine learning","programming","developer"],
+                business: ["business","economy","economic","markets","market","stocks","shares","finance","financial","investment","investors","company","companies","merger","acquisition","trade","tariff","bank","banking","jobs","employment","inflation","interest rates","earnings","revenue","industry","corporate","manufacturing"],
+                science: ["science","scientist","scientists","research","researchers","study","discovery","discovered","experiment","astronomy","planet","galaxy","space mission","nasa","biology","genetics","physics","chemistry","species","ecosystem","laboratory","clinical trial","scientific"],
+                sports: ["sports","sport","football","soccer","basketball","baseball","tennis","cricket","rugby","hockey","golf","boxing","formula 1","grand prix","fifa","uefa","nfl","nba","nhl","mlb","championship","tournament","league","playoffs","world cup","athlete","coach","transfer","match","season","games","game"],
+                travel: ["tourism","tourist","travel industry","travel advisory","travel warning","airline","airport","flight","hotel","resort","destination","cruise","vacation","holiday","hospitality","tour operator","travel disruption","travel restrictions","visa","traveler","travellers","lodging","passenger"],
+                entertainment: ["entertainment","movie","movies","film","films","cinema","music","concert","singer","album","actor","actress","celebrity","director","hollywood","television","tv series","streaming","festival","box office","premiere","performance","artist","show"],
+                lifestyle: ["lifestyle","fashion","wellness","beauty","relationships","home decor","interior design","fitness","parenting","family life","personal style","food culture","self-care","hobbies","leisure"],
+                health: ["health","healthcare","health care","medical","medicine","disease","illness","hospital","doctor","doctors","patient","patients","vaccine","vaccination","virus","infection","outbreak","treatment","therapy","diagnosis","mental health","public health","clinical","pregnant","pregnancy","medication","symptoms"],
+                environment: ["environment","climate change","global warming","greenhouse gas","emissions","pollution","wildfire","drought","flood","storm surge","permafrost","conservation","biodiversity","renewable energy","clean energy","ecosystem","wetland","ocean warming","deforestation","wildlife","habitat","carbon","sustainability"],
+                food: ["food","restaurant","cooking","recipe","chef","cuisine","meal","dish","grocery","supermarket","food safety","food prices","ingredients","bakery","coffee","wine","beer","dining","kitchen","menu","appetite","flavor"],
+                education: ["education","school","schools","university","universities","college","colleges","student","students","teacher","teachers","classroom","curriculum","literacy","scholarship","campus","academic","school district","higher education","learning","lesson","degree","faculty"]
+            };
+
+            let bestCategory = "";
+            let bestScore = 0;
+            let bestTitleScore = 0;
+
+            for (const [category, terms] of Object.entries(rules)) {
+
+                let titleScore = 0;
+                let bodyScore = 0;
+
+                for (const term of terms) {
+                    const escaped = term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+                    const pattern = new RegExp("(^|[^a-z0-9])" + escaped + "([^a-z0-9]|$)", "i");
+                    if (pattern.test(title)) titleScore += 1;
+                    if (pattern.test(text)) bodyScore += 1;
                 }
-            };
 
-            const rule = rules[category];
-            if (!rule) return true;
+                const score = (titleScore * 8) + (bodyScore * 2);
 
-            const hasTerm = (value, term) => {
-                if (!term) return false;
-                const escaped = term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-                return new RegExp("(^|[^a-z0-9])" + escaped + "([^a-z0-9]|$)", "i").test(value);
-            };
-
-            const strongTitleHits = rule.strong.filter(term => hasTerm(title, term)).length;
-            const strongTextHits = rule.strong.filter(term => hasTerm(text, term)).length;
-            const weakHits = rule.weak.filter(term => hasTerm(text, term)).length;
-
-            if (category === "travel") {
-                return isRelevantTravelArticle(article);
+                if (score > bestScore || (score === bestScore && titleScore > bestTitleScore)) {
+                    bestCategory = category;
+                    bestScore = score;
+                    bestTitleScore = titleScore;
+                }
             }
 
-            if (strongTitleHits >= 1) return true;
-            if (strongTextHits >= 2) return true;
-            if (strongTextHits >= 1 && weakHits >= 2) return true;
-
-            return false;
+            return bestScore >= 4 ? bestCategory : "";
 
         }
 
+
+        function isRelevantNewsCategory(
+            article,
+            category
+        ) {
+
+            if (category === "travel") {
+                return getPrimaryNewsCategory(article) === "travel" && isRelevantTravelArticle(article);
+            }
+
+            return getPrimaryNewsCategory(article) === category;
+
+        }
 
         function isRelevantTravelArticle(
             article
@@ -1195,8 +1118,16 @@ export async function onRequestGet(context) {
                 "astronaut",
                 "airport sabotage",
                 "airport parking",
+                "airport attack",
+                "airport incident",
                 "detained at airport",
                 "arrested at airport",
+                "political researcher",
+                "undocumented migrants",
+                "refugees",
+                "legal status",
+                "migration policy",
+                "child abduction",
                 "traveled to",
                 "travelled to",
                 "travels to",
