@@ -110,51 +110,51 @@ export async function onRequestGet(context) {
 
     const categories = {
     world: {
-        q: "world"
+        queries: ["world", "international", "government"]
     },
 
     technology: {
-        q: "technology"
+        queries: ["technology", "software", "artificial intelligence"]
     },
 
     business: {
-        q: "business"
+        queries: ["business", "economy", "markets"]
     },
 
     science: {
-        q: "science"
+        queries: ["science", "research", "space"]
     },
 
     sports: {
-        q: "sports"
+        queries: ["sports", "football", "basketball"]
     },
 
     travel: {
-        q: "travel"
+        queries: ["travel", "tourism", "airline", "airport", "hotel", "destination", "cruise", "hospitality"]
     },
 
     entertainment: {
-        q: "entertainment"
+        queries: ["entertainment", "movies", "music", "celebrity"]
     },
 
     lifestyle: {
-        q: "lifestyle"
+        queries: ["lifestyle", "fashion", "wellness"]
     },
 
     health: {
-        q: "health"
+        queries: ["health", "medical", "medicine"]
     },
 
     environment: {
-        q: "environment"
+        queries: ["environment", "climate", "wildlife"]
     },
 
     food: {
-        q: "food"
+        queries: ["food", "restaurant", "cooking"]
     },
 
     education: {
-        q: "education"
+        queries: ["education", "school", "university"]
     }
 };
     
@@ -170,89 +170,183 @@ export async function onRequestGet(context) {
             params
         ) {
 
-            const url =
-                new URL(
-                    "https://feed.opennewswire.org/api/articles"
+            const queries =
+                Array.isArray(
+                    params?.queries
+                )
+                    ? params.queries
+                    : (
+                        params?.q
+                            ? [params.q]
+                            : []
+                    );
+
+            if (!queries.length) {
+
+                return {
+                    articles: []
+                };
+
+            }
+
+
+            async function fetchQuery(
+                query
+            ) {
+
+                const url =
+                    new URL(
+                        "https://feed.opennewswire.org/api/articles"
+                    );
+
+
+                url.searchParams.set(
+                    "languages",
+                    "en"
                 );
 
 
-            url.searchParams.set(
-                "languages",
-                "en"
-            );
+                url.searchParams.set(
+                    "size",
+                    "60"
+                );
 
-
-            url.searchParams.set(
-                "size",
-                "100"
-            );
-
-
-            if (params.q) {
 
                 url.searchParams.set(
                     "search",
-                    params.q
+                    query
                 );
 
-            }
+
+                recordAdminApiUsage(context, {
+                    apiKey: "news",
+                    provider: "Open Newswire"
+                });
 
 
-            recordAdminApiUsage(context, {
-                apiKey: "news",
-                provider: "Open Newswire"
-            });
-
-
-            const response =
-                await fetch(
-                    url.toString(),
-                    {
-                        headers: {
-                            "User-Agent":
-                                "Worth-It-News/1.0"
+                const response =
+                    await fetch(
+                        url.toString(),
+                        {
+                            headers: {
+                                "User-Agent":
+                                    "Worth-It-News/1.1"
+                            }
                         }
-                    }
-                );
-
-
-            const rawText =
-                await response.text();
-
-
-            let data;
-
-            try {
-
-                data =
-                    JSON.parse(
-                        rawText
                     );
 
-            } catch (error) {
 
-                throw new Error(
-                    `Open Newswire returned invalid JSON for ${category}`
-                );
-
-            }
+                const rawText =
+                    await response.text();
 
 
-            if (!response.ok) {
+                let data;
 
-                throw new Error(
-                    `${category} request failed: ${response.status}`
-                );
+                try {
 
-            }
+                    data =
+                        JSON.parse(
+                            rawText
+                        );
+
+                } catch (error) {
+
+                    throw new Error(
+                        `Open Newswire returned invalid JSON for ${category}/${query}`
+                    );
+
+                }
 
 
-            const results =
-                Array.isArray(
+                if (!response.ok) {
+
+                    throw new Error(
+                        `${category}/${query} request failed: ${response.status}`
+                    );
+
+                }
+
+
+                return Array.isArray(
                     data?.results
                 )
                     ? data.results
                     : [];
+
+            }
+
+
+            const settled =
+                await Promise.allSettled(
+                    queries.map(
+                        query =>
+                            fetchQuery(
+                                query
+                            )
+                    )
+                );
+
+
+            const successfulResults =
+                [];
+
+            const errors =
+                [];
+
+
+            settled.forEach(
+                (
+                    result,
+                    index
+                ) => {
+
+                    if (
+                        result.status === "fulfilled"
+                    ) {
+
+                        successfulResults.push(
+                            ...result.value
+                        );
+
+                    } else {
+
+                        errors.push(
+                            {
+                                query:
+                                    queries[index],
+
+                                error:
+                                    result.reason instanceof Error
+                                        ? result.reason.message
+                                        : String(
+                                            result.reason
+                                        )
+                            }
+                        );
+
+                    }
+
+                }
+            );
+
+
+            if (
+                !successfulResults.length &&
+                errors.length
+            ) {
+
+                throw new Error(
+                    errors
+                        .map(
+                            error =>
+                                error.error
+                        )
+                        .join(
+                            " | "
+                        )
+                );
+
+            }
 
 
             function cleanText(
@@ -349,7 +443,7 @@ export async function onRequestGet(context) {
 
 
             const articles =
-                results
+                successfulResults
                     .filter(
                         isAllowedCommercialLicense
                     )
@@ -1888,38 +1982,47 @@ export async function onRequestGet(context) {
                                         : [];
 
 
+                                const fallbackArticles =
+                                    rankNewsArticles(
+                                        fallbackRows.map(
+                                            row => ({
+
+                                                title:
+                                                    row.title ||
+                                                    "",
+
+                                                description:
+                                                    row.description ||
+                                                    "",
+
+                                                url:
+                                                    row.url ||
+                                                    "",
+
+                                                image:
+                                                    normalizeNewsImageUrl(
+                                                        row.image
+                                                    ),
+
+                                                publishedAt:
+                                                    row.published_at ||
+                                                    "",
+
+                                                source:
+                                                    row.source ||
+                                                    ""
+
+                                            })
+                                        ),
+                                        category
+                                    ).slice(
+                                        0,
+                                        12
+                                    );
+
                                 return [
                                     category,
-                                    fallbackRows.map(
-                                        row => ({
-
-                                            title:
-                                                row.title ||
-                                                "",
-
-                                            description:
-                                                row.description ||
-                                                "",
-
-                                            url:
-                                                row.url ||
-                                                "",
-
-                                            image:
-                                                normalizeNewsImageUrl(
-                                                    row.image
-                                                ),
-
-                                            publishedAt:
-                                                row.published_at ||
-                                                "",
-
-                                            source:
-                                                row.source ||
-                                                ""
-
-                                        })
-                                    )
+                                    fallbackArticles
                                 ];
 
                             } catch (
