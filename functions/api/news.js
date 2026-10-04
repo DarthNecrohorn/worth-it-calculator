@@ -1534,30 +1534,6 @@ export async function onRequestGet(context) {
                         title.includes(term)
                 ).length;
 
-            if (titleStrongHits >= 1) {
-                return true;
-            }
-
-            return (
-                strongHits >= 2 &&
-                secondaryHits >= 1
-            );
-
-            const commercialTravelTerms = [
-                "inn",
-                "inns",
-                "lodging",
-                "hotel",
-                "resort",
-                "tour operator",
-                "hospitality",
-                "tourism sector",
-                "airline",
-                "cruise",
-                "vacation",
-                "destination"
-            ];
-
             return (
                 titleStrongHits >= 1 ||
                 (
