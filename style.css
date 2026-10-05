@@ -15513,32 +15513,3 @@ html[data-ui-scale="xl"] .nav-links.open .nav-overflow-items{
 }
 
 
-/* =========================================================
-   FINAL: STABLE DESKTOP HEADER AUTH TRACK
-   Keep the right-side controls in a fixed flex track while
-   Supabase/admin state is resolving. This prevents the
-   signed-in header from jumping left during first paint.
-   Desktop only; mobile/tablet layout remains unchanged.
-   ========================================================= */
-@media (min-width:1001px){
-    .nav-actions{
-        margin-left:0;
-    }
-
-    .feedback-nav-btn{
-        margin-left:auto;
-    }
-
-    .admin-panel-nav-btn,
-    .signout-nav-btn{
-        display:inline-flex !important;
-        visibility:hidden;
-        pointer-events:none;
-    }
-
-    .admin-panel-nav-btn:not([style*="display: none"]),
-    .signout-nav-btn[style*="display: inline-flex"]{
-        visibility:visible;
-        pointer-events:auto;
-    }
-}
