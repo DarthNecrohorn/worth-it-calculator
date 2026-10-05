@@ -2275,56 +2275,48 @@ function createMarketImagePlaceholder(
             .replace(/[^a-z0-9-]+/g, "-");
 
     if (!unavailable) {
-        return \`
-            <div
-                class="worth-it-market-image-placeholder"
-                style="
-                    width:100%;
-                    height:100%;
-                    min-height:120px;
-                    display:flex;
-                    align-items:center;
-                    justify-content:center;
-                    text-align:center;
-                    padding:12px;
-                    box-sizing:border-box;
-                    opacity:.62;
-                    font-size:.76rem;
-                "
-            >
-                ${escapeMarketsHtml(message)${
-            </div>
-        \`;
+        return (
+            '<div class="worth-it-market-image-placeholder" ' +
+            'style="width:100%;height:100%;min-height:120px;' +
+            'display:flex;align-items:center;justify-content:center;' +
+            'text-align:center;padding:12px;box-sizing:border-box;' +
+            'opacity:.62;font-size:.76rem;">' +
+            escapeMarketsHtml(message) +
+            '</div>'
+        );
     }
 
-    return \`
-        <div
-            class="worth-it-market-image-placeholder market-image-unavailable market-image-category-${escapeMarketsHtml(categoryClass)${"
-            role="img"
-            aria-label="Image unavailable for ${escapeMarketsHtml(meta.label)${"
-            style="
-                width:100%;
-                height:100%;
-                min-height:120px;
-                display:flex;
-                box-sizing:border-box;
-                padding:12px;
-            "
-        >
-            <span class="market-image-unavailable-icon" aria-hidden="true">
-                ${escapeMarketsHtml(meta.icon)${
-            </span>
-            <strong class="market-image-unavailable-title">
-                Image unavailable
-            </strong>
-            <small
-                class="market-image-unavailable-reason"
-                title="${escapeMarketsHtml(reason || "No suitable image passed the current image checks.")${"
-            >
-                ${escapeMarketsHtml(reason || "No suitable image passed the current image checks.")${
-            </small>
-        </div>
-    \`;
+    const safeReason =
+        escapeMarketsHtml(
+            reason ||
+            "No suitable image passed the current image checks."
+        );
+
+    return (
+        '<div class="worth-it-market-image-placeholder ' +
+        'market-image-unavailable market-image-category-' +
+        escapeMarketsHtml(categoryClass) +
+        '" role="img" aria-label="Image unavailable for ' +
+        escapeMarketsHtml(meta.label) +
+        '" style="width:100%;height:100%;min-height:120px;' +
+        'display:flex;box-sizing:border-box;padding:12px;">' +
+
+        '<span class="market-image-unavailable-icon" ' +
+        'aria-hidden="true">' +
+        escapeMarketsHtml(meta.icon) +
+        '</span>' +
+
+        '<strong class="market-image-unavailable-title">' +
+        'Image unavailable' +
+        '</strong>' +
+
+        '<small class="market-image-unavailable-reason" ' +
+        'title="' + safeReason + '">' +
+        safeReason +
+        '</small>' +
+
+        '</div>'
+    );
 }
 
 
@@ -3920,7 +3912,7 @@ function renderMarketCard(
                     data-market-category="${category}"
                     alt="${imageAlt}"
                     aria-hidden="false"
-                    data-market-image-reason="${{imageReason.replaceAll('"','&quot;')}"
+                    data-market-image-reason="${imageReason.replaceAll('"','&quot;')}"
                     style="
                         width:100%;
                         height:100%;
