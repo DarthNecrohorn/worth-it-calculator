@@ -282,7 +282,7 @@ function renderCurrenciesUI() {
                     .currency-detail-nav-main{font-size:15px}.currency-detail-nav-chevron{font-size:22px}
                     .currency-detail-nav-key{display:none}
                 }
-                @media(prefers-reduced-motion:reduce){
+                @media(min-width:1200px){body.accessibility-font-xxlarge .currency-detail-modal{padding-top:32px;padding-bottom:8px}.accessibility-font-xxlarge .currency-detail-nav{margin-top:12px}}\n                @media(prefers-reduced-motion:reduce){
                     .currency-detail-nav,.currency-detail-close{transition:none}
                 }
             </style>
