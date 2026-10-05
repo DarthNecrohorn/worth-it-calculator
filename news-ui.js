@@ -150,14 +150,15 @@ function renderNewsCategory(
         card.className =
             "news-card";
 
-        card.dataset.newsUrl =
-            articleUrl;
-
 
         const articleUrl =
             String(
                 article?.url || ""
             ).trim();
+
+
+        card.dataset.newsUrl =
+            articleUrl;
 
         const image =
             isUsableDirectNewsImage(
