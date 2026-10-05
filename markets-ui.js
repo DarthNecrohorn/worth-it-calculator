@@ -104,6 +104,16 @@ let marketsAccountImageSaveTimer =
 let marketsRenderRequestId =
     0;
 
+/*
+ * Markets commodity detail modal/navigation state.
+ * Navigation follows the currently visible filtered card order.
+ */
+let marketsDetailNavigationItems = [];
+let marketsDetailNavigationIndex = -1;
+let marketsLatestPeriod = "";
+
+
+
 
 /*
  * Frontend version used to invalidate older image request URLs.
@@ -455,6 +465,292 @@ function ensureMarketsCardStyles() {
 .market-image-category-agriculture-food { background:linear-gradient(145deg, rgba(132,204,22,.16), rgba(245,158,11,.07)) !important; }
 .market-image-category-raw-materials { background:linear-gradient(145deg, rgba(180,83,9,.14), rgba(124,58,237,.07)) !important; }
 .market-image-category-other { background:linear-gradient(145deg, rgba(124,58,237,.10), rgba(37,99,235,.08)) !important; }
+
+
+/* ================================
+   MARKET DETAIL MODAL
+================================= */
+
+.worth-it-market-detail-modal {
+    position:fixed !important;
+    inset:0 !important;
+    z-index:12000 !important;
+    display:none !important;
+    align-items:center !important;
+    justify-content:center !important;
+    padding:20px !important;
+    box-sizing:border-box !important;
+}
+
+.worth-it-market-detail-modal.is-open {
+    display:flex !important;
+}
+
+.worth-it-market-detail-backdrop {
+    position:absolute !important;
+    inset:0 !important;
+    background:rgba(5,7,12,.62) !important;
+    backdrop-filter:blur(7px) !important;
+}
+
+.worth-it-market-detail-dialog {
+    position:relative !important;
+    z-index:1 !important;
+    width:min(760px, calc(100vw - 40px)) !important;
+    max-height:min(760px, calc(100vh - 40px)) !important;
+    overflow:auto !important;
+    border:1px solid transparent !important;
+    border-radius:20px !important;
+    background:
+        linear-gradient(var(--surface, #fff), var(--surface, #fff)) padding-box,
+        linear-gradient(120deg, #7c3aed, #2563eb) border-box !important;
+    box-shadow:
+        0 24px 80px rgba(0,0,0,.28),
+        0 8px 30px rgba(37,99,235,.12) !important;
+    color:var(--text) !important;
+}
+
+.worth-it-market-detail-close {
+    position:absolute !important;
+    top:12px !important;
+    right:12px !important;
+    z-index:4 !important;
+    width:42px !important;
+    height:42px !important;
+    border:1px solid rgba(128,128,128,.22) !important;
+    border-radius:50% !important;
+    background:var(--surface-soft, rgba(128,128,128,.08)) !important;
+    color:var(--text) !important;
+    font-size:28px !important;
+    line-height:1 !important;
+    cursor:pointer !important;
+}
+
+.worth-it-market-detail-close:hover,
+.worth-it-market-detail-close:focus-visible {
+    outline:none !important;
+    background:rgba(124,58,237,.14) !important;
+    border-color:rgba(124,58,237,.48) !important;
+}
+
+.worth-it-market-detail-body {
+    padding:28px !important;
+    box-sizing:border-box !important;
+}
+
+.worth-it-market-detail-header {
+    display:flex !important;
+    align-items:flex-start !important;
+    justify-content:space-between !important;
+    gap:18px !important;
+    padding-right:46px !important;
+}
+
+.worth-it-market-detail-title {
+    margin:0 !important;
+    font-size:clamp(1.45rem, 3vw, 2rem) !important;
+    line-height:1.1 !important;
+    font-weight:850 !important;
+}
+
+.worth-it-market-detail-category {
+    display:block !important;
+    margin-top:6px !important;
+    opacity:.62 !important;
+    font-size:.82rem !important;
+}
+
+.worth-it-market-detail-price-grid {
+    display:grid !important;
+    grid-template-columns:repeat(2,minmax(0,1fr)) !important;
+    gap:10px !important;
+    margin-top:22px !important;
+}
+
+.worth-it-market-detail-stat {
+    padding:14px !important;
+    border:1px solid rgba(128,128,128,.16) !important;
+    border-radius:14px !important;
+    background:var(--surface-soft, rgba(128,128,128,.06)) !important;
+}
+
+.worth-it-market-detail-stat small {
+    display:block !important;
+    margin-bottom:5px !important;
+    opacity:.58 !important;
+    font-size:.72rem !important;
+}
+
+.worth-it-market-detail-stat strong {
+    display:block !important;
+    font-size:1rem !important;
+    line-height:1.25 !important;
+}
+
+.worth-it-market-detail-change {
+    margin-top:10px !important;
+    padding:13px 14px !important;
+    border-radius:14px !important;
+    background:linear-gradient(120deg, rgba(124,58,237,.09), rgba(37,99,235,.07)) !important;
+}
+
+.worth-it-market-detail-meta {
+    display:grid !important;
+    grid-template-columns:repeat(2,minmax(0,1fr)) !important;
+    gap:10px 16px !important;
+    margin-top:18px !important;
+    font-size:.82rem !important;
+}
+
+.worth-it-market-detail-meta div {
+    min-width:0 !important;
+    padding:10px 0 !important;
+    border-bottom:1px solid rgba(128,128,128,.12) !important;
+}
+
+.worth-it-market-detail-meta span {
+    display:block !important;
+    opacity:.55 !important;
+    font-size:.7rem !important;
+    margin-bottom:3px !important;
+}
+
+.worth-it-market-detail-meta strong {
+    overflow-wrap:anywhere !important;
+}
+
+.worth-it-market-detail-image {
+    width:100% !important;
+    height:180px !important;
+    object-fit:cover !important;
+    border-radius:14px !important;
+    margin-top:18px !important;
+    display:block !important;
+}
+
+.worth-it-market-detail-navigation {
+    position:fixed !important;
+    top:50% !important;
+    z-index:12002 !important;
+    display:grid !important;
+    place-items:center !important;
+    width:72px !important;
+    height:104px !important;
+    padding:0 0 8px !important;
+    border:1px solid rgba(255,255,255,.16) !important;
+    border-radius:18px !important;
+    background:rgba(12,14,19,.82) !important;
+    color:#fff !important;
+    font-family:Georgia,"Times New Roman",serif !important;
+    font-size:64px !important;
+    font-weight:700 !important;
+    line-height:1 !important;
+    cursor:pointer !important;
+    transform:translateY(-50%) !important;
+    box-shadow:0 14px 36px rgba(0,0,0,.32) !important;
+    backdrop-filter:blur(8px) !important;
+    transition:transform .15s ease,background .15s ease,border-color .15s ease !important;
+}
+
+.worth-it-market-detail-navigation {
+    flex-direction:column !important;
+    gap:5px !important;
+}
+
+.worth-it-market-detail-navigation-key {
+    display:block !important;
+    font-family:Inter,ui-sans-serif,system-ui,sans-serif !important;
+    font-size:16px !important;
+    font-weight:800 !important;
+    line-height:1 !important;
+    opacity:.85 !important;
+}
+
+.worth-it-market-detail-navigation-arrow {
+    display:block !important;
+    font-family:Georgia,"Times New Roman",serif !important;
+    font-size:64px !important;
+    font-weight:700 !important;
+    line-height:.8 !important;
+}
+
+.worth-it-market-detail-navigation-previous {
+    left:max(8px,calc(50% - 560px)) !important;
+}
+
+.worth-it-market-detail-navigation-next {
+    right:max(8px,calc(50% - 560px)) !important;
+}
+
+.worth-it-market-detail-navigation:hover,
+.worth-it-market-detail-navigation:focus-visible {
+    background:rgba(124,92,255,.24) !important;
+    border-color:rgba(124,92,255,.62) !important;
+    outline:none !important;
+    transform:translateY(-50%) !important;
+}
+
+.worth-it-market-detail-navigation[hidden] {
+    display:none !important;
+}
+
+html[data-theme="light"] .worth-it-market-detail-navigation {
+    border-color:rgba(0,0,0,.12) !important;
+    background:rgba(255,255,255,.9) !important;
+    color:#16181d !important;
+    box-shadow:0 14px 36px rgba(0,0,0,.18) !important;
+}
+
+body.worth-it-market-detail-modal-open {
+    overflow:hidden !important;
+}
+
+@media (max-width:700px) {
+    .worth-it-market-detail-modal {
+        padding:10px !important;
+    }
+
+    .worth-it-market-detail-dialog {
+        width:calc(100vw - 20px) !important;
+        max-height:calc(100vh - 20px) !important;
+        border-radius:16px !important;
+    }
+
+    .worth-it-market-detail-body {
+        padding:18px !important;
+    }
+
+    .worth-it-market-detail-navigation {
+        width:58px !important;
+        height:88px !important;
+        font-size:50px !important;
+    }
+
+    .worth-it-market-detail-navigation-key {
+        font-size:13px !important;
+    }
+
+    .worth-it-market-detail-navigation-arrow {
+        font-size:50px !important;
+    }
+
+    .worth-it-market-detail-navigation-previous {
+        left:4px !important;
+    }
+
+    .worth-it-market-detail-navigation-next {
+        right:4px !important;
+    }
+
+    .worth-it-market-detail-price-grid,
+    .worth-it-market-detail-meta {
+        grid-template-columns:1fr !important;
+    }
+
+    .worth-it-market-detail-image {
+        height:150px !important;
+    }
+}
 
 
 /* ================================
@@ -3733,6 +4029,309 @@ function initialiseMarketImageObserver() {
 
 
 /* =========================================================
+   MARKET DETAIL MODAL / NAVIGATION
+========================================================= */
+
+function createMarketDetailModal() {
+    let modal = document.getElementById("worthItMarketDetailModal");
+    if (modal) return modal;
+
+    modal = document.createElement("div");
+    modal.id = "worthItMarketDetailModal";
+    modal.className = "worth-it-market-detail-modal";
+    modal.setAttribute("aria-hidden", "true");
+
+    modal.innerHTML = `
+        <div class="worth-it-market-detail-backdrop" data-market-detail-close></div>
+
+        <div
+            class="worth-it-market-detail-dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="worthItMarketDetailTitle"
+        >
+            <button
+                type="button"
+                class="worth-it-market-detail-close"
+                aria-label="Close commodity details"
+                title="Close"
+                data-market-detail-close
+            >×</button>
+
+            <div
+                class="worth-it-market-detail-body"
+                id="worthItMarketDetailBody"
+            ></div>
+        </div>
+
+        <button
+            type="button"
+            class="worth-it-market-detail-navigation worth-it-market-detail-navigation-previous"
+            data-market-navigation="previous"
+            aria-label="Previous commodity — A or ←"
+            title="Previous commodity — A or ←"
+            hidden
+        >
+            <span class="worth-it-market-detail-navigation-key">A</span>
+            <span class="worth-it-market-detail-navigation-arrow">❮</span>
+            <span class="worth-it-market-detail-navigation-key">←</span>
+        </button>
+
+        <button
+            type="button"
+            class="worth-it-market-detail-navigation worth-it-market-detail-navigation-next"
+            data-market-navigation="next"
+            aria-label="Next commodity — D or →"
+            title="Next commodity — D or →"
+            hidden
+        >
+            <span class="worth-it-market-detail-navigation-key">D</span>
+            <span class="worth-it-market-detail-navigation-arrow">❯</span>
+            <span class="worth-it-market-detail-navigation-key">→</span>
+        </button>
+    `;
+
+    document.body.appendChild(modal);
+
+    modal.querySelectorAll("[data-market-detail-close]").forEach(button => {
+        button.addEventListener("click", () => closeMarketDetailModal());
+    });
+
+    modal.querySelector('[data-market-navigation="previous"]')?.addEventListener("click", event => {
+        event.preventDefault();
+        event.stopPropagation();
+        navigateMarketDetail("previous");
+    });
+
+    modal.querySelector('[data-market-navigation="next"]')?.addEventListener("click", event => {
+        event.preventDefault();
+        event.stopPropagation();
+        navigateMarketDetail("next");
+    });
+
+    return modal;
+}
+
+function refreshMarketDetailNavigationControls() {
+    const modal = document.getElementById("worthItMarketDetailModal");
+    if (!modal) return;
+
+    const controls = modal.querySelectorAll("[data-market-navigation]");
+    const hasMultiple = marketsDetailNavigationItems.length > 1 &&
+        marketsDetailNavigationIndex >= 0;
+
+    controls.forEach(control => {
+        control.hidden = !hasMultiple;
+    });
+}
+
+function getMarketDetailNavigationItems() {
+    const grid = document.getElementById("materialsGrid");
+    if (!grid) return [];
+
+    return Array.from(
+        grid.querySelectorAll('.market-card[data-market-card="true"]')
+    )
+        .map(card => ({
+            item: card._worthItMarketItem || null,
+            image: card._worthItMarketImage || null
+        }))
+        .filter(entry => entry.item);
+}
+
+function renderMarketDetail(item, image = null) {
+    const modal = createMarketDetailModal();
+    const body = modal.querySelector("#worthItMarketDetailBody");
+    if (!body) return;
+
+    const config = getMarketConfigFallback(item);
+    const displaySpec = getMarketDisplaySpec(item);
+    const rawName = cleanMarketDisplayName(config.name);
+    const category = item?.category || "other";
+    const categoryLabel = item?.category_label || getCategoryMeta(category).label;
+
+    const usdPrice = Number(item?.price);
+    const eurPrice =
+        Number.isFinite(usdPrice) &&
+        Number.isFinite(marketsExchangeRate) &&
+        marketsExchangeRate > 0 &&
+        Number.isFinite(displaySpec.eurConversion)
+            ? usdPrice * marketsExchangeRate * displaySpec.eurConversion
+            : null;
+
+    const usdDisplay =
+        Number.isFinite(usdPrice)
+            ? "$" + formatMarketPrice(usdPrice * displaySpec.usConversion) + " / " + displaySpec.usUnit
+            : "—";
+
+    const eurDisplay =
+        Number.isFinite(eurPrice)
+            ? "€" + formatMarketPrice(eurPrice) + " / " + displaySpec.eurUnit
+            : "—";
+
+    const monthlyChange = Number(item?.changes?.monthly?.percent);
+    const changeText = formatMarketChange(monthlyChange);
+    const changeClass =
+        monthlyChange > 0 ? "market-up" :
+        monthlyChange < 0 ? "market-down" :
+        "market-flat";
+
+    const imageUrl = image?.url || "";
+    const imageHtml = imageUrl
+        ? `<img class="worth-it-market-detail-image" src="${escapeMarketsHtml(imageUrl)}" alt="${escapeMarketsHtml(rawName)}">`
+        : "";
+
+    body.innerHTML = `
+        <div class="worth-it-market-detail-header">
+            <div>
+                <h2 class="worth-it-market-detail-title" id="worthItMarketDetailTitle">
+                    ${escapeMarketsHtml(rawName)}
+                </h2>
+                <span class="worth-it-market-detail-category">
+                    ${escapeMarketsHtml(categoryLabel)}
+                </span>
+            </div>
+        </div>
+
+        ${imageHtml}
+
+        <div class="worth-it-market-detail-price-grid">
+            <div class="worth-it-market-detail-stat">
+                <small>Price in EUR</small>
+                <strong>${escapeMarketsHtml(eurDisplay)}</strong>
+            </div>
+            <div class="worth-it-market-detail-stat">
+                <small>Price in USD</small>
+                <strong>${escapeMarketsHtml(usdDisplay)}</strong>
+            </div>
+        </div>
+
+        <div class="worth-it-market-detail-change">
+            <small>Monthly change</small>
+            <strong class="${changeClass}">
+                ${monthlyChange > 0 ? "▲ " : monthlyChange < 0 ? "▼ " : "— "}
+                ${escapeMarketsHtml(changeText)}
+            </strong>
+        </div>
+
+        <div class="worth-it-market-detail-meta">
+            <div>
+                <span>Latest period</span>
+                <strong>${escapeMarketsHtml(formatMarketPeriod(marketsLatestPeriod))}</strong>
+            </div>
+            <div>
+                <span>Commodity code</span>
+                <strong>${escapeMarketsHtml(config.symbol || "—")}</strong>
+            </div>
+            <div>
+                <span>EUR unit</span>
+                <strong>${escapeMarketsHtml(displaySpec.eurUnit || "—")}</strong>
+            </div>
+            <div>
+                <span>US unit</span>
+                <strong>${escapeMarketsHtml(displaySpec.usUnit || "—")}</strong>
+            </div>
+            <div>
+                <span>Category</span>
+                <strong>${escapeMarketsHtml(categoryLabel)}</strong>
+            </div>
+            <div>
+                <span>Source</span>
+                <strong>World Bank Pink Sheet</strong>
+            </div>
+        </div>
+    `;
+
+    refreshMarketDetailNavigationControls();
+}
+
+function openMarketDetailModal(item, image = null) {
+    const modal = createMarketDetailModal();
+    marketsDetailNavigationItems = getMarketDetailNavigationItems();
+
+    const key = marketsDetailNavigationItems.findIndex(
+        entry => entry.item === item
+    );
+
+    marketsDetailNavigationIndex =
+        key >= 0 ? key : 0;
+
+    renderMarketDetail(item, image);
+
+    modal.classList.add("is-open");
+    modal.setAttribute("aria-hidden", "false");
+    document.body.classList.add("worth-it-market-detail-modal-open");
+    refreshMarketDetailNavigationControls();
+}
+
+function closeMarketDetailModal() {
+    const modal = document.getElementById("worthItMarketDetailModal");
+    if (!modal) return;
+
+    modal.classList.remove("is-open");
+    modal.setAttribute("aria-hidden", "true");
+    document.body.classList.remove("worth-it-market-detail-modal-open");
+}
+
+function navigateMarketDetail(direction) {
+    if (
+        marketsDetailNavigationItems.length < 2 ||
+        marketsDetailNavigationIndex < 0
+    ) {
+        return;
+    }
+
+    const offset = direction === "previous" ? -1 : 1;
+    const nextIndex =
+        (marketsDetailNavigationIndex + offset + marketsDetailNavigationItems.length) %
+        marketsDetailNavigationItems.length;
+
+    marketsDetailNavigationIndex = nextIndex;
+
+    const target = marketsDetailNavigationItems[nextIndex];
+    if (!target?.item) return;
+
+    renderMarketDetail(target.item, target.image);
+}
+
+if (!window.__worthItMarketDetailNavigationBound) {
+    window.__worthItMarketDetailNavigationBound = true;
+
+    document.addEventListener("keydown", event => {
+        const modal = document.getElementById("worthItMarketDetailModal");
+        if (!modal || !modal.classList.contains("is-open")) return;
+
+        const target = event.target;
+
+        if (
+            target instanceof HTMLElement &&
+            (
+                target.isContentEditable ||
+                ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName)
+            )
+        ) {
+            return;
+        }
+
+        if (event.ctrlKey || event.metaKey || event.altKey) return;
+
+        const key = String(event.key || "").toLowerCase();
+
+        if (key === "escape") {
+            event.preventDefault();
+            closeMarketDetailModal();
+        } else if (key === "arrowleft" || key === "a") {
+            event.preventDefault();
+            navigateMarketDetail("previous");
+        } else if (key === "arrowright" || key === "d") {
+            event.preventDefault();
+            navigateMarketDetail("next");
+        }
+    });
+}
+
+
+/* =========================================================
    CARD
 ========================================================= */
 
@@ -4439,6 +5038,9 @@ async function refreshMarkets() {
                 : [];
 
 
+        marketsLatestPeriod =
+            String(data?.data?.latest_period || "");
+
         marketsExchangeRate =
             exchangeRate;
 
@@ -4524,6 +5126,31 @@ document.addEventListener(
         ensureMarketsCardStyles();
 
         ensureMarketsGoBackUpButton();
+
+        const marketsGrid =
+            document.getElementById("materialsGrid");
+
+        if (marketsGrid && !marketsGrid.__worthItMarketDetailBound) {
+            marketsGrid.__worthItMarketDetailBound = true;
+
+            marketsGrid.addEventListener("click", event => {
+                const card = event.target.closest(
+                    '.market-card[data-market-card="true"]'
+                );
+
+                if (!card || !marketsGrid.contains(card)) return;
+
+                const item = card._worthItMarketItem;
+                if (!item) return;
+
+                event.preventDefault();
+
+                openMarketDetailModal(
+                    item,
+                    card._worthItMarketImage || null
+                );
+            });
+        }
 
 
         window.addEventListener(
