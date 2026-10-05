@@ -160,29 +160,45 @@ function renderNewsCategory(
         card.dataset.newsUrl =
             articleUrl;
 
+        const imageDecision =
+            article?.newsImage &&
+            typeof article.newsImage === "object"
+                ? article.newsImage
+                : null;
+
         const image =
+            imageDecision?.status === "allowed" &&
             isUsableDirectNewsImage(
-                article?.image
+                imageDecision.image
             )
-                ? `
-                    <img
-                        class="news-card-image"
-                        src="${escapeNewsHtml(article.image)}"
-                        alt=""
-                        loading="lazy"
-                        decoding="async"
-                        referrerpolicy="no-referrer"
-                        onerror="this.outerHTML='<div class=&quot;news-card-image news-card-placeholder news-image-pending&quot; data-news-image-state=&quot;pending&quot;>📰</div>'"
-                    >
-                `
-                : `
-                    <div
-                        class="news-card-image news-card-placeholder news-image-pending"
-                        data-news-image-state="pending"
-                    >
-                        📰
-                    </div>
-                `;
+                ? 
+                    '<div class="news-card-image-loaded">' +
+                        '<img class="news-card-image-inner" src="' +
+                            escapeNewsHtml(
+                                imageDecision.image
+                            ) +
+                            '" alt="' +
+                            escapeNewsHtml(
+                                imageDecision.alt ||
+                                article.title ||
+                                "News image"
+                            ) +
+                            '" loading="lazy" decoding="async" referrerpolicy="no-referrer">' +
+                        '<span class="news-card-image-credit" title="' +
+                            escapeNewsHtml(
+                                imageDecision.license ||
+                                "Commercially permitted source image"
+                            ) +
+                            '">Source · ' +
+                            escapeNewsHtml(
+                                imageDecision.license ||
+                                "Commercially permitted"
+                            ) +
+                        '</span>' +
+                    '</div>'
+                : newsImagePlaceholderHtml(
+                    imageDecision
+                );
 
 
         const source =
@@ -853,6 +869,149 @@ function formatNewsTime(date) {
 
 let newsData = {};
 
+const NEWS_FEED_CACHE_PREFIX =
+    "worth-it-news-feed-v2:";
+
+let newsFeedAccountScope =
+    "guest";
+
+function getNewsFeedStorageKey(
+    scope
+) {
+    return NEWS_FEED_CACHE_PREFIX +
+        String(
+            scope || "guest"
+        );
+}
+
+async function getNewsAccountScope() {
+    try {
+        const result =
+            await window.supabaseClient?.auth?.getUser();
+
+        const id =
+            result?.data?.user?.id;
+
+        return id
+            ? "user:" + id
+            : "guest";
+
+    } catch (error) {
+        console.debug(
+            "News account scope unavailable:",
+            error
+        );
+        return "guest";
+    }
+}
+
+function readNewsFeedSnapshot(
+    scope
+) {
+    try {
+        const raw =
+            localStorage.getItem(
+                getNewsFeedStorageKey(
+                    scope
+                )
+            );
+
+        if (!raw) {
+            return null;
+        }
+
+        const parsed =
+            JSON.parse(raw);
+
+        if (
+            !parsed ||
+            typeof parsed !== "object" ||
+            !parsed.data ||
+            typeof parsed.data !== "object"
+        ) {
+            return null;
+        }
+
+        return parsed;
+
+    } catch (error) {
+        console.debug(
+            "News snapshot read skipped:",
+            error
+        );
+        return null;
+    }
+}
+
+function writeNewsFeedSnapshot(
+    scope,
+    generatedAt
+) {
+    try {
+        localStorage.setItem(
+            getNewsFeedStorageKey(
+                scope
+            ),
+            JSON.stringify({
+                generatedAt:
+                    generatedAt ||
+                    new Date().toISOString(),
+                savedAt:
+                    Date.now(),
+                data:
+                    newsData
+            })
+        );
+    } catch (error) {
+        console.debug(
+            "News snapshot write skipped:",
+            error
+        );
+    }
+}
+
+function seedNewsImageUsageFromSnapshot() {
+    newsImageUsedUrls.clear();
+    newsImageReservedKeys.clear();
+
+    Object.values(
+        newsData || {}
+    ).forEach(
+        categoryArticles => {
+
+            if (!Array.isArray(categoryArticles)) {
+                return;
+            }
+
+            categoryArticles.forEach(
+                article => {
+                    const image =
+                        article?.newsImage;
+
+                    if (
+                        image?.status === "allowed" &&
+                        isUsableDirectNewsImage(
+                            image.image
+                        )
+                    ) {
+                        const key =
+                            getNewsImageUsageKey(
+                                image.image
+                            );
+
+                        newsImageUsedUrls.add(
+                            image.image
+                        );
+                        newsImageReservedKeys.add(
+                            key
+                        );
+                    }
+                }
+            );
+        }
+    );
+}
+
 
 /*
  * Prevent duplicate category event listeners
@@ -1244,50 +1403,92 @@ async function loadNews() {
             "newsGrid"
         );
 
+    if (!grid) {
+        return;
+    }
 
-    if (!grid) return;
+    newsFeedAccountScope =
+        await getNewsAccountScope();
 
+    const snapshot =
+        readNewsFeedSnapshot(
+            newsFeedAccountScope
+        );
 
-    grid.innerHTML = `
-        <div class="news-loading">
-            Loading news...
-        </div>
-    `;
-
-
-    try {
-
-        const response =
-            await fetch(
-                "/api/news"
-            );
-
-
-        if (!response.ok) {
-
-            throw new Error(
-                `News API error: ${response.status}`
-            );
-
-        }
-
-
-        const data =
-            await response.json();
-
+    if (snapshot?.data) {
 
         newsData =
-            data || {};
+            snapshot.data;
 
-
-        /*
-         * Show All News by default.
-         */
+        seedNewsImageUsageFromSnapshot();
 
         showNewsCategory(
             "all"
         );
 
+    } else {
+
+        grid.innerHTML =
+            '<div class="news-loading">Loading news...</div>';
+
+    }
+
+    try {
+
+        const response =
+            await fetch(
+                "/api/news",
+                {
+                    cache:
+                        "no-store"
+                }
+            );
+
+        if (!response.ok) {
+            throw new Error(
+                "News API error: " +
+                response.status
+            );
+        }
+
+        const generatedAt =
+            response.headers.get(
+                "X-News-Generated-At"
+            );
+
+        if (
+            snapshot?.generatedAt &&
+            generatedAt &&
+            snapshot.generatedAt ===
+                generatedAt
+        ) {
+            return;
+        }
+
+        const data =
+            await response.json();
+
+        if (!data || typeof data !== "object") {
+            throw new Error(
+                "News API returned invalid data."
+            );
+        }
+
+        newsData =
+            data;
+
+        seedNewsImageUsageFromSnapshot();
+
+        writeNewsFeedSnapshot(
+            newsFeedAccountScope,
+            newsData?.__meta?.generatedAt ||
+                generatedAt ||
+                new Date().toISOString()
+        );
+
+        showNewsCategory(
+            "all"
+        );
 
     } catch (error) {
 
@@ -1296,25 +1497,21 @@ async function loadNews() {
             error
         );
 
+        if (snapshot?.data) {
+            return;
+        }
 
-        grid.innerHTML = `
-            <div class="news-loading">
-                Failed to load news.
-            </div>
-        `;
-
+        grid.innerHTML =
+            '<div class="news-loading">Failed to load news.</div>';
 
         const count =
             document.getElementById(
                 "newsCategoryCount"
             );
 
-
         if (count) {
-
             count.textContent =
                 "";
-
         }
 
     }
