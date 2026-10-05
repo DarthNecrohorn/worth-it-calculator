@@ -805,6 +805,25 @@ async function getOpenverseImages(
 }
 
 
+function getNewsImageUsageKey(
+    image
+) {
+
+    return String(
+        image?.landingUrl ||
+        image?.url ||
+        ""
+    )
+        .trim()
+        .toLowerCase();
+
+}
+
+
+const newsImageReservedKeys =
+    new Set();
+
+
 function pickUnusedNewsImage(
     images
 ) {
@@ -816,17 +835,40 @@ function pickUnusedNewsImage(
         return null;
     }
 
-    return (
+    const selected =
         images.find(
-            image =>
-                image?.url &&
-                !newsImageUsedUrls.has(
-                    image.url
-                )
+            image => {
+
+                const key =
+                    getNewsImageUsageKey(
+                        image
+                    );
+
+                return (
+                    Boolean(key) &&
+                    !newsImageReservedKeys.has(key)
+                );
+
+            }
         ) ||
-        images[0] ||
-        null
-    );
+        null;
+
+    if (!selected) {
+        return null;
+    }
+
+    const key =
+        getNewsImageUsageKey(
+            selected
+        );
+
+    if (key) {
+        newsImageReservedKeys.add(
+            key
+        );
+    }
+
+    return selected;
 
 }
 
@@ -880,6 +922,17 @@ function applyNewsImageToCard(
     newsImageUsedUrls.add(
         image.url
     );
+
+    const imageUsageKey =
+        getNewsImageUsageKey(
+            image
+        );
+
+    if (imageUsageKey) {
+        newsImageReservedKeys.add(
+            imageUsageKey
+        );
+    }
 
     const alt =
         image.title ||
