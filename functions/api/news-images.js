@@ -416,7 +416,7 @@ function getImageTagCandidates(
         const explicitLicenseContext =
             (
                 localContext.match(
-                    /(?:public\\s+domain|creative\\s+commons|creativecommons\\.org\\/licenses\\/[^\\s"'<>]+|cc[-\\s]*(?:by|by-sa|by-nd)|attribution(?:\\s*[- ]?no[- ]?derivatives|[- ]?sharealike)?(?:\\s+4(?:\\.0)?)?)/gi
+                    /(?:public\s+domain|creative\s+commons|creativecommons\.org\/licenses\/[^\s"'<>]+|cc[-\s]*(?:by|by-sa|by-nd)|attribution(?:\s*[- ]?no[- ]?derivatives|[- ]?sharealike)?(?:\s+4(?:\.0)?)?)/gi
                 ) || []
             );
 
