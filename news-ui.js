@@ -186,12 +186,22 @@ function renderNewsCategory(
                             '" loading="lazy" decoding="async" referrerpolicy="no-referrer">' +
                         '<span class="news-card-image-credit" title="' +
                             escapeNewsHtml(
-                                imageDecision.license ||
+                                [
+                                    imageDecision.license,
+                                    imageDecision.credit
+                                ]
+                                    .filter(Boolean)
+                                    .join(" · ") ||
                                 "Commercially permitted source image"
                             ) +
                             '">Source · ' +
                             escapeNewsHtml(
-                                imageDecision.license ||
+                                [
+                                    imageDecision.license,
+                                    imageDecision.credit
+                                ]
+                                    .filter(Boolean)
+                                    .join(" · ") ||
                                 "Commercially permitted"
                             ) +
                         '</span>' +
