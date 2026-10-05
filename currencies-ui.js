@@ -298,6 +298,13 @@ function renderCurrenciesUI() {
                 .currency-detail-change{padding:15px 17px;border-radius:14px;border:1px solid var(--border);background:var(--surface-soft)}
                 .currency-detail-change span{display:block;color:var(--muted);font-size:.78rem;margin-bottom:4px}
                 .currency-detail-change strong{font-size:1.08rem}
+                .currency-detail-wikipedia{margin-top:16px;padding:18px 20px;border:1px solid var(--border);border-radius:16px;background:var(--surface-soft)}
+                .currency-detail-wikipedia-label{display:block;color:var(--muted);font-size:.78rem;text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px}
+                .currency-detail-wikipedia-description{margin:0;color:var(--text);font-size:.94rem;line-height:1.55}
+                .currency-detail-wikipedia-description:not(.is-loaded){color:var(--muted)}
+                .currency-detail-wikipedia-link{display:inline-block;margin-top:12px;color:var(--primary);font-weight:700;text-decoration:none}
+                .currency-detail-wikipedia-link:hover{text-decoration:underline}
+                .currency-detail-wikipedia-link:not(.is-loaded),.currency-detail-wikipedia-link.is-unavailable{display:none}
                 .currency-detail-nav{position:fixed;top:50%;transform:translateY(-50%);width:62px;height:82px;border:1px solid var(--border);border-radius:17px;background:var(--card-solid,var(--card));color:var(--text);box-shadow:0 16px 42px rgba(0,0,0,.22);z-index:3;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px}.currency-detail-nav-key{order:1;align-self:center;margin:0;font-size:.82rem;font-weight:800;color:var(--muted)}.currency-detail-nav-chevron{order:2;font-size:34px;line-height:.75;font-weight:400}.currency-detail-nav-main{order:3;font-size:22px;line-height:.8;font-weight:300}
                 .currency-detail-nav:hover{transform:translateY(-50%) !important}
                 .currency-detail-nav:disabled{opacity:.28;cursor:default}
@@ -457,7 +464,50 @@ function renderCurrencyDetail() {
             <span>Change vs previous available rate</span>
             <strong>${currencyEscapeHtml(changeText)}</strong>
         </div>
+        <div class="currency-detail-wikipedia">
+            <span class="currency-detail-wikipedia-label">About this currency</span>
+            <p class="currency-detail-wikipedia-description">Loading Wikipedia description…</p>
+            <a class="currency-detail-wikipedia-link" href="#" target="_blank" rel="noopener noreferrer">View on Wikipedia ↗</a>
+        </div>
     `;
+
+    const wikipediaTitle = isMajor ? item.targetName : item.name;
+    const wikipediaDescription = content.querySelector(".currency-detail-wikipedia-description");
+    const wikipediaLink = content.querySelector(".currency-detail-wikipedia-link");
+
+    if (wikipediaDescription && wikipediaLink) {
+        const requestedCode = String(code || "").toUpperCase();
+        const requestedTitle = String(wikipediaTitle || "").trim().toLowerCase();
+
+        fetchCurrencyWikipedia(wikipediaTitle, code).then(info => {
+            const modal = document.getElementById("currencyDetailModal");
+            if (!modal || currencyDetailIndex < 0) return;
+
+            const currentItem = currencyDetailItems[currencyDetailIndex];
+            const currentCode = currentItem?.kind === "major" ? currentItem?.target : currentItem?.code;
+            const currentTitle = currentItem?.kind === "major" ? currentItem?.targetName : currentItem?.name;
+
+            if (
+                String(currentCode || "").toUpperCase() !== requestedCode ||
+                String(currentTitle || "").trim().toLowerCase() !== requestedTitle
+            ) return;
+
+            if (info?.extract && info?.url) {
+                wikipediaDescription.textContent = info.extract;
+                wikipediaDescription.classList.add("is-loaded");
+                wikipediaLink.href = info.url;
+                wikipediaLink.classList.add("is-loaded");
+            } else {
+                wikipediaDescription.textContent = "Wikipedia information is currently unavailable.";
+                wikipediaDescription.classList.add("is-loaded");
+                wikipediaLink.classList.add("is-unavailable");
+            }
+        }).catch(() => {
+            wikipediaDescription.textContent = "Wikipedia information is currently unavailable.";
+            wikipediaDescription.classList.add("is-loaded");
+            wikipediaLink.classList.add("is-unavailable");
+        });
+    }
 
     const prev = document.getElementById("currencyDetailPrev");
     const next = document.getElementById("currencyDetailNext");
@@ -797,14 +847,14 @@ function renderMajorCurrencies() {
                 </strong>
             </div>
             ${renderCurrencyMovement(change)}
-            <div class="worth-it-currency-wikipedia"><p class="worth-it-currency-wikipedia-description">Loading Wikipedia description…</p><a class="worth-it-currency-wikipedia-link" href="#" target="_blank" rel="noopener noreferrer">View on Wikipedia ↗</a></div>
+            
         `;
 
         fragment.appendChild(card);
     });
 
     grid.appendChild(fragment);
-    initialiseCurrencyWikipediaObserver();
+
 }
 
 function renderAllCurrencies(currencies) {
@@ -862,14 +912,14 @@ function renderAllCurrencies(currencies) {
                 </strong>
             </div>
             ${renderCurrencyMovement(change)}
-            <div class="worth-it-currency-wikipedia"><p class="worth-it-currency-wikipedia-description">Loading Wikipedia description…</p><a class="worth-it-currency-wikipedia-link" href="#" target="_blank" rel="noopener noreferrer">View on Wikipedia ↗</a></div>
+            
         `;
 
         fragment.appendChild(card);
     });
 
     grid.appendChild(fragment);
-    initialiseCurrencyWikipediaObserver();
+
 }
 
 /* =========================================================
