@@ -12513,19 +12513,19 @@ html[data-theme="light"] .water-level-card{
 
 /* Keep the navigation controls at the same visual gap from the detail card at each accessibility scale. */
 html[data-ui-scale="large"] .water-levels-detail-nav-prev{
-    left:calc(50% - 450px);
+    left:calc(50% - 440px);
 }
 
 html[data-ui-scale="large"] .water-levels-detail-nav-next{
-    right:calc(50% - 450px);
+    right:calc(50% - 440px);
 }
 
 html[data-ui-scale="xl"] .water-levels-detail-nav-prev{
-    left:calc(50% - 425px);
+    left:calc(50% - 410px);
 }
 
 html[data-ui-scale="xl"] .water-levels-detail-nav-next{
-    right:calc(50% - 425px);
+    right:calc(50% - 410px);
 }
 
 .water-levels-detail-nav-key{
