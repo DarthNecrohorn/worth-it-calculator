@@ -14,6 +14,8 @@
     let activeHistoryRange = "MAX";
     let activeStationId = null;
     let activeStation = null;
+    let activeDetailIndex = -1;
+    let activeDetailStations = [];
     let searchTimer = null;
     let stationsRequest = null;
     let stationsRequestTimer = null;
@@ -4040,6 +4042,12 @@
         activeStation =
             station;
 
+        activeDetailStations = getRenderedDetailStations();
+        activeDetailIndex = activeDetailStations.findIndex(function(item){
+            return item.id === station.id;
+        });
+        updateDetailNavigation();
+
         setDetailText(
             "waterLevelsDetailIcon",
             stationIcon(station.type)
@@ -4079,6 +4087,12 @@
 
         const controls =
             get("waterLevelsHistoryControls");
+
+        const prev =
+            get("waterLevelsDetailPrev");
+
+        const next =
+            get("waterLevelsDetailNext");
 
         if(controls){
             controls.querySelectorAll(
@@ -4131,6 +4145,56 @@
         loadDetails(
             station,
             detailMode
+        );
+    }
+
+    function getRenderedDetailStations(){
+        const grid = get("waterLevelsGrid");
+        if(!grid) return [];
+
+        const ids = [];
+        grid.querySelectorAll("[data-water-station-id]").forEach(function(card){
+            const id = String(card.dataset.waterStationId || "").trim();
+            if(id && ids.indexOf(id) === -1) ids.push(id);
+        });
+
+        return ids.map(function(id){
+            return state.stations.find(function(item){
+                return String(item.id) === id;
+            });
+        }).filter(Boolean);
+    }
+
+    function updateDetailNavigation(){
+        const prev = get("waterLevelsDetailPrev");
+        const next = get("waterLevelsDetailNext");
+        const hasItems = activeDetailStations.length > 0 && activeDetailIndex >= 0;
+
+        if(prev){
+            prev.disabled = !hasItems || activeDetailIndex <= 0;
+        }
+        if(next){
+            next.disabled = !hasItems || activeDetailIndex >= activeDetailStations.length - 1;
+        }
+    }
+
+    function navigateDetailStation(direction){
+        if(!activeDetailStations.length || activeDetailIndex < 0) return;
+
+        const nextIndex = activeDetailIndex + direction;
+        if(nextIndex < 0 || nextIndex >= activeDetailStations.length) return;
+
+        const station = activeDetailStations[nextIndex];
+        if(!station) return;
+
+        activeDetailIndex = nextIndex;
+        activeStation = station;
+        activeStationId = station.id;
+        updateDetailNavigation();
+
+        openDetails(
+            station,
+            get("waterLevelsDetailOverlay")?.dataset.viewMode || "details"
         );
     }
 
@@ -4553,6 +4617,9 @@
 
         activeStationId = null;
         activeStation = null;
+        activeDetailIndex = -1;
+        activeDetailStations = [];
+        updateDetailNavigation();
     }
 
     function setupFilters(){
@@ -4790,6 +4857,20 @@
 
         }
 
+        if(prev && prev.dataset.ready !== "true"){
+            prev.dataset.ready = "true";
+            prev.addEventListener("click", function(){
+                navigateDetailStation(-1);
+            });
+        }
+
+        if(next && next.dataset.ready !== "true"){
+            next.dataset.ready = "true";
+            next.addEventListener("click", function(){
+                navigateDetailStation(1);
+            });
+        }
+
         if(
             controls &&
             controls.dataset.ready !== "true"
@@ -4879,11 +4960,26 @@
                     get("waterLevelsDetailOverlay");
 
                 if(
-                    event.key === "Escape" &&
-                    overlay &&
-                    overlay.classList.contains("open")
+                    !overlay ||
+                    !overlay.classList.contains("open")
                 ){
+                    return;
+                }
+
+                if(event.key === "Escape"){
                     closeDetails();
+                    return;
+                }
+
+                if(event.key === "a" || event.key === "A" || event.key === "ArrowLeft"){
+                    event.preventDefault();
+                    navigateDetailStation(-1);
+                    return;
+                }
+
+                if(event.key === "d" || event.key === "D" || event.key === "ArrowRight"){
+                    event.preventDefault();
+                    navigateDetailStation(1);
                 }
 
             }
