@@ -502,12 +502,38 @@ function ensureMarketsCardStyles() {
     border:1px solid transparent !important;
     border-radius:20px !important;
     background:
-        linear-gradient(var(--surface, #fff), var(--surface, #fff)) padding-box,
+        linear-gradient(#ffffff, #ffffff) padding-box,
         linear-gradient(120deg, #7c3aed, #2563eb) border-box !important;
     box-shadow:
         0 24px 80px rgba(0,0,0,.28),
         0 8px 30px rgba(37,99,235,.12) !important;
-    color:var(--text) !important;
+    color:#171923 !important;
+}
+
+html[data-theme="dark"] .worth-it-market-detail-dialog {
+    background:
+        linear-gradient(#171923, #171923) padding-box,
+        linear-gradient(120deg, #7c3aed, #2563eb) border-box !important;
+    color:#f5f7fa !important;
+}
+
+html[data-theme="dark"] .worth-it-market-detail-close {
+    background:rgba(255,255,255,.08) !important;
+    border-color:rgba(255,255,255,.14) !important;
+    color:#fff !important;
+}
+
+html[data-theme="dark"] .worth-it-market-detail-stat {
+    background:rgba(255,255,255,.055) !important;
+    border-color:rgba(255,255,255,.12) !important;
+}
+
+html[data-theme="dark"] .worth-it-market-detail-meta div {
+    border-bottom-color:rgba(255,255,255,.10) !important;
+}
+
+html[data-theme="dark"] .worth-it-market-detail-change {
+    background:linear-gradient(120deg, rgba(124,58,237,.18), rgba(37,99,235,.14)) !important;
 }
 
 .worth-it-market-detail-close {
@@ -675,11 +701,21 @@ function ensureMarketsCardStyles() {
 }
 
 .worth-it-market-detail-navigation-previous {
-    left:max(8px,calc(50% - 560px)) !important;
+    left:calc(50% - 472px) !important;
 }
 
 .worth-it-market-detail-navigation-next {
-    right:max(8px,calc(50% - 560px)) !important;
+    right:calc(50% - 472px) !important;
+}
+
+@media (max-width:1100px) {
+    .worth-it-market-detail-navigation-previous {
+        left:6px !important;
+    }
+
+    .worth-it-market-detail-navigation-next {
+        right:6px !important;
+    }
 }
 
 .worth-it-market-detail-navigation:hover,
@@ -1578,13 +1614,19 @@ function formatMarketPeriod(
     period
 ) {
 
+    const rawPeriod =
+        String(period || "").trim();
+
     const match =
-        String(
-            period || ""
-        )
-            .match(
-                /^(\d{4})M(\d{2})$/
-            );
+        rawPeriod.match(
+            /^(\d{4})M(\d{2})$/
+        ) ||
+        rawPeriod.match(
+            /^(\d{4})-(\d{2})(?:-\d{2})?$/
+        ) ||
+        rawPeriod.match(
+            /^(\d{4})\/(\d{2})$/
+        );
 
 
     if (!match) {
