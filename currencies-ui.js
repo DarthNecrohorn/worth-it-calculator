@@ -757,12 +757,13 @@ function renderMajorCurrencies() {
     MAJOR_CURRENCY_PAIRS.forEach(pair => {
         const card = document.createElement("div");
         card.className = "money-card";
-        card.dataset.wikipediaTitle = targetName;
-        card.dataset.wikipediaCode = pair.target;
 
         const rate = getCrossRate(pair.base, pair.target);
         const targetCurrency = currenciesMap.get(pair.target);
         const targetName = targetCurrency?.name || pair.target;
+
+        card.dataset.wikipediaTitle = targetName;
+        card.dataset.wikipediaCode = pair.target;
         const change = getCrossRateChange(pair.base, pair.target);
 
         const detailIndex = majorCurrencyDetailItems.length;
@@ -803,6 +804,7 @@ function renderMajorCurrencies() {
     });
 
     grid.appendChild(fragment);
+    initialiseCurrencyWikipediaObserver();
 }
 
 function renderAllCurrencies(currencies) {
