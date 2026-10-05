@@ -12464,6 +12464,105 @@ html[data-theme="light"] .water-level-card{
     line-height:1.4;
 }
 
+
+.water-levels-detail-nav{
+    position:fixed;
+    top:50%;
+    z-index:1202;
+    width:62px;
+    height:82px;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    gap:3px;
+    padding:0;
+    border:1px solid var(--border);
+    border-radius:16px;
+    background:var(--card-solid,var(--card));
+    color:var(--text);
+    box-shadow:0 14px 40px rgba(0,0,0,.24);
+    cursor:pointer;
+    transform:translateY(-50%);
+    transition:background .16s ease,border-color .16s ease,opacity .16s ease;
+}
+
+.water-levels-detail-nav:hover{
+    background:var(--surface-soft);
+    border-color:rgba(124,92,255,.42);
+    transform:translateY(-50%);
+}
+
+.water-levels-detail-nav:disabled{
+    opacity:.28;
+    cursor:default;
+}
+
+.water-levels-detail-nav:disabled:hover{
+    transform:translateY(-50%);
+}
+
+.water-levels-detail-nav-prev{
+    left:calc(50% - 540px);
+}
+
+.water-levels-detail-nav-next{
+    right:calc(50% - 540px);
+}
+
+.water-levels-detail-nav-key{
+    order:1;
+    font-size:.82rem;
+    line-height:1;
+    font-weight:800;
+    color:var(--muted);
+}
+
+.water-levels-detail-nav-chevron{
+    order:2;
+    font-size:34px;
+    line-height:.75;
+    font-weight:400;
+}
+
+.water-levels-detail-nav-main{
+    order:3;
+    font-size:22px;
+    line-height:.8;
+    font-weight:300;
+}
+
+@media(max-width:1080px){
+    .water-levels-detail-nav-prev{left:8px}
+    .water-levels-detail-nav-next{right:8px}
+}
+
+@media(max-width:650px){
+    .water-levels-detail-nav{
+        width:48px;
+        height:66px;
+        border-radius:14px;
+    }
+
+    .water-levels-detail-nav-prev{left:3px}
+    .water-levels-detail-nav-next{right:3px}
+
+    .water-levels-detail-nav-main{font-size:16px}
+    .water-levels-detail-nav-chevron{font-size:24px}
+    .water-levels-detail-nav-key{font-size:.58rem}
+}
+
+@media(max-width:420px){
+    .water-levels-detail-nav{
+        width:42px;
+        height:60px;
+    }
+
+    .water-levels-detail-nav-main{font-size:15px}
+    .water-levels-detail-nav-chevron{font-size:22px}
+    .water-levels-detail-nav-key{display:none}
+}
+
 body.water-levels-modal-open{
     overflow:hidden;
 }
