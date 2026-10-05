@@ -15817,3 +15817,16 @@ html[data-theme="light"] #calculatorApp .calculator-key.equals{
     border-color:transparent;
     box-shadow:0 6px 16px rgba(79,70,229,.22);
 }
+
+/* Wikipedia informational descriptions — Markets & Currencies. */
+.markets-grid .market-card{height:190px !important;min-height:190px !important;max-height:190px !important;}
+.markets-grid .worth-it-market-image-wrap,.markets-grid .worth-it-market-image,.markets-grid .worth-it-market-image-placeholder{min-height:190px !important;}
+.worth-it-market-card-content{height:190px !important;min-height:190px !important;max-height:190px !important;padding:10px 13px 9px !important;}
+.worth-it-market-wikipedia,.worth-it-currency-wikipedia{min-width:0;margin-top:auto;display:flex;flex-direction:column;align-items:flex-start;gap:4px;padding-top:5px;border-top:1px solid var(--border);}
+.worth-it-market-wikipedia-description,.worth-it-currency-wikipedia-description{margin:0;color:var(--muted);font-size:.68rem;line-height:1.3;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:3;overflow:hidden;min-height:2.55em;}
+.worth-it-market-wikipedia-link,.worth-it-currency-wikipedia-link{align-self:flex-end;color:var(--primary2);font-size:.68rem;font-weight:800;text-decoration:none;white-space:nowrap;opacity:.75;pointer-events:none;}
+.worth-it-market-wikipedia-link.is-loaded,.worth-it-currency-wikipedia-link.is-loaded{opacity:1;pointer-events:auto;}
+.worth-it-market-wikipedia-link:hover,.worth-it-currency-wikipedia-link:hover{text-decoration:underline;text-underline-offset:2px;}
+.worth-it-market-wikipedia-link.is-unavailable,.worth-it-currency-wikipedia-link.is-unavailable{display:none;}
+@media(max-width:900px){.markets-grid .market-card{height:205px !important;min-height:205px !important;max-height:205px !important;}.markets-grid .worth-it-market-image-wrap,.markets-grid .worth-it-market-image,.markets-grid .worth-it-market-image-placeholder{min-height:205px !important;}.worth-it-market-card-content{height:205px !important;min-height:205px !important;max-height:205px !important;}.money-card{grid-template-columns:1fr !important;gap:10px !important;}}
+@media(max-width:700px){.markets-grid .market-card{grid-template-columns:95px minmax(0,1fr) !important;height:205px !important;min-height:205px !important;max-height:205px !important;}.markets-grid .worth-it-market-image-wrap,.markets-grid .worth-it-market-image,.markets-grid .worth-it-market-image-placeholder{min-width:95px !important;width:95px !important;min-height:205px !important;}}
