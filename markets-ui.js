@@ -701,11 +701,11 @@ html[data-theme="dark"] .worth-it-market-detail-change {
 }
 
 .worth-it-market-detail-navigation-previous {
-    left:calc(50% - 472px) !important;
+    left:calc(50% - 462px) !important;
 }
 
 .worth-it-market-detail-navigation-next {
-    right:calc(50% - 472px) !important;
+    right:calc(50% - 462px) !important;
 }
 
 @media (max-width:1100px) {
