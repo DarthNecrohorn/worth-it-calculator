@@ -7334,91 +7334,198 @@ function appendStablePopularVehicleCards(
     displayState.showAll =
         Boolean(showAll);
 
-    const existingCards =
-        grid.querySelectorAll(
-            ".car-card[data-popular-stable-card=\"true\"]"
-        ).length;
+    /*
+     * Show all can contain hundreds of already-validated cards. Building
+     * every DOM node in one synchronous task makes the browser appear frozen
+     * for several seconds. Keep the cached data path unchanged, but yield
+     * between small DOM batches so the page opens immediately and the cards
+     * fill in progressively.
+     */
+    const appendBatch =
+        (batchVehicles, state, initialCardCount) => {
 
-    const visibleLimit =
-        Math.max(
-            1,
-            getVehiclesPerRow() *
-            getPopularInitialVisibleRows(kind)
-        );
+            if (
+                currentVehicleKind !== kind ||
+                currentVehicleMode !== "popular" ||
+                getStablePopularDisplayState(kind) !== state
+            ) {
+                return;
+            }
 
-    const fragment =
-        document.createDocumentFragment();
+            const currentGrid =
+                document.getElementById(
+                    "popularCarsGrid"
+                );
 
-    let appendedCount = 0;
+            if (!currentGrid) {
+                return;
+            }
 
-    for (const vehicle of vehicles) {
+            const existingCards =
+                currentGrid.querySelectorAll(
+                    ".car-card[data-popular-stable-card=\"true\"]"
+                ).length;
 
-        const key =
-            getPopularVehicleQualityKey(
-                vehicle,
+            const visibleLimit =
+                Math.max(
+                    1,
+                    getVehiclesPerRow() *
+                    getPopularInitialVisibleRows(kind)
+                );
+
+            const fragment =
+                document.createDocumentFragment();
+
+            let appendedCount = 0;
+
+            for (const vehicle of batchVehicles) {
+
+                const key =
+                    getPopularVehicleQualityKey(
+                        vehicle,
+                        kind
+                    );
+
+                if (
+                    state.renderedKeys.has(key)
+                ) {
+                    continue;
+                }
+
+                const card =
+                    createVehicleCard(
+                        vehicle,
+                        kind
+                    );
+
+                card.dataset.popularStableCard =
+                    "true";
+
+                state.renderedKeys.add(
+                    key
+                );
+
+                const shouldShow =
+                    showAll ||
+                    (
+                        existingCards +
+                        appendedCount
+                    ) < visibleLimit;
+
+                card.style.display =
+                    shouldShow
+                        ? ""
+                        : "none";
+
+                card.dataset.popularDeferred =
+                    shouldShow
+                        ? "false"
+                        : "true";
+
+                fragment.appendChild(
+                    card
+                );
+
+                appendedCount++;
+            }
+
+            if (fragment.childNodes.length) {
+                currentGrid.appendChild(
+                    fragment
+                );
+            }
+
+            reorderPopularVehicleCardsByImageAvailability(
                 kind
             );
 
-        if (
-            displayState.renderedKeys.has(key)
-        ) {
-            continue;
-        }
-
-        const card =
-            createVehicleCard(
-                vehicle,
+            refreshStablePopularResults(
                 kind
             );
 
-        card.dataset.popularStableCard =
-            "true";
+            hideOrShowStablePopularCards(
+                kind,
+                showAll
+            );
+        };
 
-        displayState.renderedKeys.add(
-            key
+    /*
+     * The initial cached batch is deliberately small. This makes the
+     * Show all click visibly respond on the first frame while the remaining
+     * cached cards are inserted in idle animation frames.
+     */
+    if (
+        showAll &&
+        Array.isArray(vehicles) &&
+        vehicles.length > 48
+    ) {
+
+        const state =
+            displayState;
+
+        const firstBatch =
+            vehicles.slice(
+                0,
+                48
+            );
+
+        appendBatch(
+            firstBatch,
+            state,
+            0
         );
 
-        const shouldShow =
-            showAll ||
-            (
-                existingCards +
-                appendedCount
-            ) < visibleLimit;
+        let offset = 48;
 
-        card.style.display =
-            shouldShow
-                ? ""
-                : "none";
+        const scheduleNextBatch = () => {
 
-        card.dataset.popularDeferred =
-            shouldShow
-                ? "false"
-                : "true";
+            if (
+                currentVehicleKind !== kind ||
+                currentVehicleMode !== "popular" ||
+                getStablePopularDisplayState(kind) !== state
+            ) {
+                return;
+            }
 
-        fragment.appendChild(
-            card
+            if (offset >= vehicles.length) {
+                return;
+            }
+
+            const batch =
+                vehicles.slice(
+                    offset,
+                    offset + 32
+                );
+
+            offset +=
+                batch.length;
+
+            appendBatch(
+                batch,
+                state,
+                0
+            );
+
+            if (offset < vehicles.length) {
+                window.requestAnimationFrame(
+                    scheduleNextBatch
+                );
+            }
+        };
+
+        window.requestAnimationFrame(
+            scheduleNextBatch
         );
 
-        appendedCount++;
+        return;
     }
 
-    if (fragment.childNodes.length) {
-        grid.appendChild(
-            fragment
-        );
-    }
-
-    reorderPopularVehicleCardsByImageAvailability(
-        kind
-    );
-
-    refreshStablePopularResults(
-        kind
-    );
-
-    hideOrShowStablePopularCards(
-        kind,
-        showAll
+    appendBatch(
+        Array.isArray(vehicles)
+            ? vehicles
+            : [],
+        displayState,
+        0
     );
 
 }
