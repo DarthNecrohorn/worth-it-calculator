@@ -53,6 +53,10 @@ let majorPreviousRates = {};
 let currenciesInitialized = false;
 let searchDebounceTimeout = null;
 
+let currencyDetailItems = [];
+let currencyDetailIndex = -1;
+let currencyDetailSource = null;
+
 /* =========================================================
    HELPERS
 ========================================================= */
@@ -213,12 +217,83 @@ function renderCurrenciesUI() {
                 Last updated: <span id="moneyLastUpdated">—</span>
             </div>
         </div>
+    
+            <div id="currencyDetailModal" class="currency-detail-modal" aria-hidden="true">
+                <div class="currency-detail-backdrop" data-currency-detail-close></div>
+                <button type="button" class="currency-detail-nav currency-detail-nav-prev" id="currencyDetailPrev" aria-label="Previous currency">
+                    <span class="currency-detail-nav-key">A</span><span class="currency-detail-nav-arrow">←</span>
+                </button>
+                <button type="button" class="currency-detail-nav currency-detail-nav-next" id="currencyDetailNext" aria-label="Next currency">
+                    <span class="currency-detail-nav-arrow">→</span><span class="currency-detail-nav-key">D</span>
+                </button>
+                <div class="currency-detail-dialog" role="dialog" aria-modal="true" aria-labelledby="currencyDetailTitle">
+                    <button type="button" class="currency-detail-close" data-currency-detail-close aria-label="Close">×</button>
+                    <div class="currency-detail-content" id="currencyDetailContent"></div>
+                </div>
+            </div>
+            <style id="currency-detail-styles">
+                .money-grid .money-card{cursor:pointer}
+                .money-grid .money-card:focus-visible{outline:2px solid currentColor;outline-offset:3px}
+                .currency-detail-modal{position:fixed;inset:0;display:none;align-items:center;justify-content:center;padding:20px;z-index:1600}
+                .currency-detail-modal.is-open{display:flex}
+                .currency-detail-backdrop{position:absolute;inset:0;background:rgba(10,14,24,.62);backdrop-filter:blur(7px)}
+                .currency-detail-dialog{position:relative;width:min(650px,calc(100vw - 44px));max-height:min(720px,calc(100vh - 44px));overflow:auto;border:1px solid color-mix(in srgb,var(--border) 82%,transparent);border-radius:22px;background:var(--card-solid,var(--card));box-shadow:0 28px 90px rgba(0,0,0,.34);color:var(--text);z-index:2}
+                .currency-detail-close{position:absolute;top:12px;right:12px;width:38px;height:38px;border:1px solid var(--border);border-radius:12px;background:var(--surface-soft);color:var(--text);font-size:25px;line-height:1;cursor:pointer;z-index:3}
+                .currency-detail-close:hover{transform:translateY(-1px)}
+                .currency-detail-content{padding:34px 34px 30px}
+                .currency-detail-heading{display:flex;align-items:center;gap:16px;padding-right:42px;margin-bottom:24px}
+                .currency-detail-flag{width:64px;height:44px;border-radius:10px;object-fit:cover;box-shadow:0 5px 18px rgba(0,0,0,.14);background:var(--surface-soft)}
+                .currency-detail-title{margin:0;font-size:clamp(1.55rem,3vw,2.15rem);line-height:1.1}
+                .currency-detail-subtitle{margin:6px 0 0;color:var(--muted);font-size:.96rem}
+                .currency-detail-rate{padding:20px;border:1px solid var(--border);border-radius:16px;background:var(--surface-soft);margin-bottom:16px}
+                .currency-detail-rate-label{display:block;color:var(--muted);font-size:.82rem;text-transform:uppercase;letter-spacing:.07em;margin-bottom:7px}
+                .currency-detail-rate-value{font-size:clamp(1.25rem,3vw,1.7rem);font-weight:800;line-height:1.25}
+                .currency-detail-stats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-bottom:16px}
+                .currency-detail-stat{padding:15px;border:1px solid var(--border);border-radius:14px;background:var(--card)}
+                .currency-detail-stat span{display:block;color:var(--muted);font-size:.78rem;margin-bottom:5px}
+                .currency-detail-stat strong{font-size:1rem}
+                .currency-detail-change{padding:15px 17px;border-radius:14px;border:1px solid var(--border);background:var(--surface-soft)}
+                .currency-detail-change span{display:block;color:var(--muted);font-size:.78rem;margin-bottom:4px}
+                .currency-detail-change strong{font-size:1.08rem}
+                .currency-detail-nav{position:fixed;top:50%;transform:translateY(-50%);width:62px;height:82px;border:1px solid var(--border);border-radius:17px;background:var(--card-solid,var(--card));color:var(--text);box-shadow:0 16px 42px rgba(0,0,0,.22);z-index:3;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:5px}
+                .currency-detail-nav:hover{transform:translateY(-50%) scale(1.035)}
+                .currency-detail-nav:disabled{opacity:.28;cursor:default}
+                .currency-detail-nav:disabled:hover{transform:translateY(-50%)}
+                .currency-detail-nav-prev{left:calc(50% - 414px)}
+                .currency-detail-nav-next{right:calc(50% - 414px)}
+                .currency-detail-nav-arrow{font-size:38px;line-height:1;font-weight:300}
+                .currency-detail-nav-key{font-size:.72rem;font-weight:800;color:var(--muted);align-self:flex-start;margin-top:13px}
+                @media(max-width:1050px){
+                    .currency-detail-nav-prev{left:8px}.currency-detail-nav-next{right:8px}
+                }
+                @media(max-width:700px){
+                    .currency-detail-modal{padding:10px}
+                    .currency-detail-dialog{width:calc(100vw - 20px);max-height:calc(100vh - 20px);border-radius:18px}
+                    .currency-detail-content{padding:28px 20px 22px}
+                    .currency-detail-heading{gap:12px;margin-bottom:20px}
+                    .currency-detail-flag{width:54px;height:38px}
+                    .currency-detail-stats{grid-template-columns:1fr}
+                    .currency-detail-nav{width:48px;height:66px;border-radius:14px}
+                    .currency-detail-nav-prev{left:3px}.currency-detail-nav-next{right:3px}
+                    .currency-detail-nav-arrow{font-size:30px}.currency-detail-nav-key{font-size:.62rem;margin-top:10px}
+                }
+                @media(max-width:420px){
+                    .currency-detail-nav{width:42px;height:60px}
+                    .currency-detail-nav-arrow{font-size:27px}
+                    .currency-detail-nav-key{display:none}
+                }
+                @media(prefers-reduced-motion:reduce){
+                    .currency-detail-nav,.currency-detail-close{transition:none}
+                }
+            </style>
     `;
 
     const search = document.getElementById("currencySearch");
     if (search) {
         search.addEventListener("input", handleCurrencySearch);
     }
+
+    bindCurrencyDetailEvents();
 }
 
 function filterAndRenderCurrencies(queryText) {
@@ -244,6 +319,190 @@ function handleCurrencySearch(e) {
         filterAndRenderCurrencies(query);
     }, 150);
 }
+
+
+/* =========================================================
+   CURRENCY DETAIL PANEL
+   Separate visual language from Markets; same navigation principle.
+========================================================= */
+
+function getCurrencyDetailName(code) {
+    const item = currenciesMap.get(String(code || "").toUpperCase());
+    return item?.name || code;
+}
+
+function buildCurrencyDetailItems(source, items) {
+    currencyDetailSource = source;
+    currencyDetailItems = Array.isArray(items) ? items : [];
+    currencyDetailIndex = -1;
+}
+
+function openCurrencyDetail(index) {
+    if (!Array.isArray(currencyDetailItems) || index < 0 || index >= currencyDetailItems.length) return;
+    currencyDetailIndex = index;
+    const modal = document.getElementById("currencyDetailModal");
+    if (!modal) return;
+    modal.classList.add("is-open");
+    modal.setAttribute("aria-hidden", "false");
+    document.body.classList.add("currency-detail-open");
+    renderCurrencyDetail();
+}
+
+function closeCurrencyDetail() {
+    const modal = document.getElementById("currencyDetailModal");
+    if (!modal) return;
+    modal.classList.remove("is-open");
+    modal.setAttribute("aria-hidden", "true");
+    document.body.classList.remove("currency-detail-open");
+}
+
+function renderCurrencyDetail() {
+    const content = document.getElementById("currencyDetailContent");
+    if (!content || currencyDetailIndex < 0) return;
+
+    const item = currencyDetailItems[currencyDetailIndex];
+    if (!item) return;
+
+    const isMajor = item.kind === "major";
+    const code = isMajor ? item.target : item.code;
+    const title = isMajor ? `${item.base} / ${item.target}` : `EUR / ${item.code}`;
+    const name = isMajor
+        ? `${getCurrencyDetailName(item.base)} / ${item.targetName}`
+        : item.name;
+    const rateText = Number.isFinite(item.rate)
+        ? `1 ${item.base || "EUR"} = ${formatRate(item.rate)} ${item.target || item.code}`
+        : "Exchange rate unavailable";
+    const change = item.change;
+    const changeText = Number.isFinite(change)
+        ? (Math.abs(change) < 0.005 ? "0.00%" : (change > 0 ? "+" : "") + change.toFixed(2) + "%")
+        : "—";
+    const movement = Number.isFinite(change)
+        ? (change > 0.005 ? "▲ Up" : change < -0.005 ? "▼ Down" : "— Flat")
+        : "Unavailable";
+
+    content.innerHTML = `
+        <div class="currency-detail-heading">
+            ${getCurrencyFlag(code).replace("currency-card-flag-image","currency-detail-flag")}
+            <div>
+                <h2 class="currency-detail-title" id="currencyDetailTitle">${currencyEscapeHtml(title)}</h2>
+                <p class="currency-detail-subtitle">${currencyEscapeHtml(name)}</p>
+            </div>
+        </div>
+        <div class="currency-detail-rate">
+            <span class="currency-detail-rate-label">Exchange rate</span>
+            <div class="currency-detail-rate-value">${currencyEscapeHtml(rateText)}</div>
+        </div>
+        <div class="currency-detail-stats">
+            <div class="currency-detail-stat">
+                <span>Currency code</span>
+                <strong>${currencyEscapeHtml(code)}</strong>
+            </div>
+            <div class="currency-detail-stat">
+                <span>Pair</span>
+                <strong>${currencyEscapeHtml(isMajor ? `${item.base} / ${item.target}` : "EUR / " + item.code)}</strong>
+            </div>
+            <div class="currency-detail-stat">
+                <span>Direction</span>
+                <strong>${currencyEscapeHtml(movement)}</strong>
+            </div>
+            <div class="currency-detail-stat">
+                <span>Current value</span>
+                <strong>${Number.isFinite(item.rate) ? currencyEscapeHtml(formatRate(item.rate)) : "—"}</strong>
+            </div>
+        </div>
+        <div class="currency-detail-change">
+            <span>Change vs previous available rate</span>
+            <strong>${currencyEscapeHtml(changeText)}</strong>
+        </div>
+    `;
+
+    const prev = document.getElementById("currencyDetailPrev");
+    const next = document.getElementById("currencyDetailNext");
+    if (prev) {
+        prev.disabled = currencyDetailIndex <= 0;
+        prev.setAttribute("aria-label", `Previous currency`);
+    }
+    if (next) {
+        next.disabled = currencyDetailIndex >= currencyDetailItems.length - 1;
+        next.setAttribute("aria-label", `Next currency`);
+    }
+}
+
+function navigateCurrencyDetail(direction) {
+    if (!document.getElementById("currencyDetailModal")?.classList.contains("is-open")) return;
+    const nextIndex = currencyDetailIndex + direction;
+    if (nextIndex < 0 || nextIndex >= currencyDetailItems.length) return;
+    currencyDetailIndex = nextIndex;
+    renderCurrencyDetail();
+}
+
+function bindCurrencyDetailEvents() {
+    const app = document.getElementById("currenciesApp");
+    if (!app || app.dataset.currencyDetailBound === "1") return;
+    app.dataset.currencyDetailBound = "1";
+
+    app.addEventListener("click", event => {
+        const closeTarget = event.target.closest("[data-currency-detail-close]");
+        if (closeTarget) {
+            closeCurrencyDetail();
+            return;
+        }
+
+        if (event.target.closest("#currencyDetailPrev")) {
+            navigateCurrencyDetail(-1);
+            return;
+        }
+
+        if (event.target.closest("#currencyDetailNext")) {
+            navigateCurrencyDetail(1);
+            return;
+        }
+
+        const card = event.target.closest(".money-card");
+        if (!card || !app.contains(card)) return;
+
+        if (card.closest("#majorCurrenciesGrid") && card._currencyDetailIndex !== undefined) {
+            buildCurrencyDetailItems("major", majorCurrencyDetailItems);
+            openCurrencyDetail(card._currencyDetailIndex);
+        } else if (card.closest("#allCurrenciesGrid") && card._currencyDetailIndex !== undefined) {
+            buildCurrencyDetailItems("all", allCurrencyDetailItems);
+            openCurrencyDetail(card._currencyDetailIndex);
+        }
+    });
+
+    app.addEventListener("keydown", event => {
+        if (event.target?.classList?.contains("money-card") && (event.key === "Enter" || event.key === " ")) {
+            event.preventDefault();
+            const card = event.target;
+            if (card.closest("#majorCurrenciesGrid") && card._currencyDetailIndex !== undefined) {
+                buildCurrencyDetailItems("major", majorCurrencyDetailItems);
+                openCurrencyDetail(card._currencyDetailIndex);
+            } else if (card.closest("#allCurrenciesGrid") && card._currencyDetailIndex !== undefined) {
+                buildCurrencyDetailItems("all", allCurrencyDetailItems);
+                openCurrencyDetail(card._currencyDetailIndex);
+            }
+        }
+    });
+
+    document.addEventListener("keydown", event => {
+        const modal = document.getElementById("currencyDetailModal");
+        if (!modal?.classList.contains("is-open")) return;
+
+        if (event.key === "Escape") {
+            event.preventDefault();
+            closeCurrencyDetail();
+        } else if (event.key === "ArrowLeft" || event.key.toLowerCase() === "a") {
+            event.preventDefault();
+            navigateCurrencyDetail(-1);
+        } else if (event.key === "ArrowRight" || event.key.toLowerCase() === "d") {
+            event.preventDefault();
+            navigateCurrencyDetail(1);
+        }
+    });
+}
+
+let majorCurrencyDetailItems = [];
+let allCurrencyDetailItems = [];
 
 /* =========================================================
    LOAD CURRENCIES API
@@ -450,6 +709,7 @@ function renderMajorCurrencies() {
 
     grid.innerHTML = "";
     const fragment = document.createDocumentFragment();
+    majorCurrencyDetailItems = [];
 
     MAJOR_CURRENCY_PAIRS.forEach(pair => {
         const card = document.createElement("div");
@@ -459,6 +719,33 @@ function renderMajorCurrencies() {
         const targetCurrency = currenciesMap.get(pair.target);
         const targetName = targetCurrency?.name || pair.target;
         const change = getCrossRateChange(pair.base, pair.target);
+
+        const detailIndex = majorCurrencyDetailItems.length;
+        majorCurrencyDetailItems.push({
+            kind: "major",
+            base: pair.base,
+            target: pair.target,
+            targetName,
+            rate,
+            change
+        });
+        card._currencyDetailIndex = detailIndex;
+        card.setAttribute("tabindex", "0");
+        card.setAttribute("role", "button");
+        card.setAttribute("aria-label", `View details for ${pair.base} / ${pair.target}`);
+
+        const detailIndex = allCurrencyDetailItems.length;
+        allCurrencyDetailItems.push({
+            kind: "all",
+            code,
+            name: currency.name || code,
+            rate,
+            change
+        });
+        card._currencyDetailIndex = detailIndex;
+        card.setAttribute("tabindex", "0");
+        card.setAttribute("role", "button");
+        card.setAttribute("aria-label", `View details for EUR / ${code}`);
 
         card.innerHTML = `
             <div class="money-card-main">
@@ -496,6 +783,7 @@ function renderAllCurrencies(currencies) {
 
     grid.innerHTML = "";
     const fragment = document.createDocumentFragment();
+    allCurrencyDetailItems = [];
 
     currencies.forEach(currency => {
         const code = String(currency?.iso_code || currency?.code || "").trim().toUpperCase();
