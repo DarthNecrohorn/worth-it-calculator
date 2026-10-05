@@ -87,7 +87,8 @@ function cleanNewsTitle(title) {
 function renderNewsCategory(
     container,
     articles,
-    limit = null
+    limit = null,
+    categoryName = ""
 ) {
 
     if (!container) return;
@@ -143,6 +144,13 @@ function renderNewsCategory(
 
     visibleArticles.forEach(article => {
 
+        if (article && !article.newsCategory) {
+            article.newsCategory =
+                String(
+                    categoryName || ""
+                ).trim().toLowerCase();
+        }
+
         const card =
             document.createElement("article");
 
@@ -159,6 +167,12 @@ function renderNewsCategory(
 
         card.dataset.newsUrl =
             articleUrl;
+
+        card.dataset.newsCategory =
+            String(
+                article?.newsCategory ||
+                ""
+            ).trim().toLowerCase();
 
         const imageDecision =
             article?.newsImage &&
@@ -207,7 +221,8 @@ function renderNewsCategory(
                         '</span>' +
                     '</div>'
                 : newsImagePlaceholderHtml(
-                    imageDecision
+                    imageDecision,
+                    card.dataset.newsCategory
                 );
 
 
@@ -359,8 +374,71 @@ function resetNewsImageUsage() {
     );
 }
 
-function newsImagePlaceholderHtml(
+function getNewsFallbackReason(
     decision
+) {
+    const reason =
+        String(
+            decision?.reason || ""
+        ).trim();
+
+    if (
+        /commercial-use copyright permission/i.test(
+            reason
+        )
+    ) {
+        return "Publisher image license could not be verified.";
+    }
+
+    if (
+        /no public lead image/i.test(
+            reason
+        )
+    ) {
+        return "No public lead image was found.";
+    }
+
+    if (
+        /source website could not be checked/i.test(
+            reason
+        )
+    ) {
+        return "Publisher page could not be checked.";
+    }
+
+    if (
+        /took too long to respond/i.test(
+            reason
+        )
+    ) {
+        return "Publisher page took too long to respond.";
+    }
+
+    if (
+        /non-commercial/i.test(
+            reason
+        )
+    ) {
+        return "The source image is marked non-commercial.";
+    }
+
+    if (
+        /could not be loaded/i.test(
+            reason
+        )
+    ) {
+        return "The licensed source image could not be loaded.";
+    }
+
+    return (
+        reason ||
+        "Source image cannot be safely reused."
+    );
+}
+
+function newsImagePlaceholderHtml(
+    decision,
+    categoryName = ""
 ) {
     const status =
         String(
@@ -368,34 +446,44 @@ function newsImagePlaceholderHtml(
             "pending"
         );
 
-    const reason =
-        decision?.reason ||
-        "Checking the source image and commercial-use license…";
+    const category =
+        String(
+            categoryName ||
+            "world"
+        )
+            .trim()
+            .toLowerCase();
 
-    const statusLabel =
-        status === "allowed"
-            ? "Licensed article image"
-            : "Automatic fallback visual";
+    const reason =
+        getNewsFallbackReason(
+            decision
+        );
 
     return (
-        '<div class="news-card-image news-card-placeholder news-image-status news-card-fallback-visual"' +
+        '<div class="news-card-image news-card-placeholder news-image-status news-card-fallback-visual news-fallback-category-' +
+        escapeNewsHtml(category) +
+        '"' +
         ' data-news-image-state="' +
         escapeNewsHtml(status) +
+        '"' +
+        ' data-news-fallback-category="' +
+        escapeNewsHtml(category) +
         '">' +
         '<div class="news-fallback-art" aria-hidden="true">' +
-            '<div class="news-fallback-glow"></div>' +
-            '<div class="news-fallback-mark">W</div>' +
-            '<div class="news-fallback-lines">' +
-                '<span></span><span></span><span></span>' +
+            '<div class="news-fallback-orbit news-fallback-orbit-one"></div>' +
+            '<div class="news-fallback-orbit news-fallback-orbit-two"></div>' +
+            '<div class="news-fallback-icon">' +
+                escapeNewsHtml(
+                    NEWS_CATEGORY_LABELS?.[category]
+                        ?.split(" ")[0] ||
+                    "📰"
+                ) +
             '</div>' +
+            '<div class="news-fallback-accent"></div>' +
         '</div>' +
         '<div class="news-fallback-caption">' +
-            '<strong>' +
-                escapeNewsHtml(statusLabel) +
-            '</strong>' +
-            '<span>' +
-                'Not the article image' +
-            '</span>' +
+            '<strong>Automatic fallback visual</strong>' +
+            '<span>Not the article image</span>' +
             '<small>' +
                 escapeNewsHtml(reason) +
             '</small>' +
@@ -580,7 +668,8 @@ function applyNewsImageDecisionToCard(
 
     imageBox.outerHTML =
         newsImagePlaceholderHtml(
-            decision
+            decision,
+            card?.dataset?.newsCategory || ""
         );
 }
 
@@ -1529,7 +1618,8 @@ function showNewsCategory(
         articles,
         categoryName === "all"
             ? null
-            : 12
+            : 12,
+        categoryName
     );
 
     hydrateNewsImages(
