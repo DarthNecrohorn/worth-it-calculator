@@ -811,6 +811,12 @@ html[data-theme="dark"] .worth-it-market-detail-change {
     display:none !important;
 }
 
+@media (min-width:1200px) {
+    html[data-ui-scale="xl"] .worth-it-market-detail-body {
+        padding:18px 28px !important;
+    }
+}
+
 html[data-theme="light"] .worth-it-market-detail-navigation {
     border-color:rgba(0,0,0,.12) !important;
     background:rgba(255,255,255,.9) !important;
