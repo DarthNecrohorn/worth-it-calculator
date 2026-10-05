@@ -4821,6 +4821,12 @@
         const controls =
             get("waterLevelsHistoryControls");
 
+        const prev =
+            get("waterLevelsDetailPrev");
+
+        const next =
+            get("waterLevelsDetailNext");
+
         if(
             close &&
             close.dataset.ready !== "true"
