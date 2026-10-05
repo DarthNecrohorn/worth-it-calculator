@@ -860,6 +860,7 @@ function renderAllCurrencies(currencies) {
                 </strong>
             </div>
             ${renderCurrencyMovement(change)}
+            <div class="worth-it-currency-wikipedia"><p class="worth-it-currency-wikipedia-description">Loading Wikipedia description…</p><a class="worth-it-currency-wikipedia-link" href="#" target="_blank" rel="noopener noreferrer">View on Wikipedia ↗</a></div>
         `;
 
         fragment.appendChild(card);
