@@ -282,7 +282,7 @@ function renderCurrenciesUI() {
                     .currency-detail-nav-main{font-size:15px}.currency-detail-nav-chevron{font-size:22px}
                     .currency-detail-nav-key{display:none}
                 }
-                @media(min-width:1200px){body.accessibility-font-xxlarge .currency-detail-dialog{transform:translateY(12px)}body.accessibility-font-xxlarge .currency-detail-nav{top:calc(50% + 12px)}}\n                @media(prefers-reduced-motion:reduce){
+                @media(min-width:1200px){body.accessibility-font-xxlarge .currency-detail-modal{align-items:flex-start;padding-top:clamp(84px,10vh,120px)}body.accessibility-font-xxlarge .currency-detail-nav{top:calc(50% + 12px)}}\n                @media(prefers-reduced-motion:reduce){
                     .currency-detail-nav,.currency-detail-close{transition:none}
                 }
             </style>
