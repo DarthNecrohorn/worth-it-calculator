@@ -259,8 +259,8 @@ function renderCurrenciesUI() {
                 .currency-detail-nav:hover{transform:translateY(-50%) !important}
                 .currency-detail-nav:disabled{opacity:.28;cursor:default}
                 .currency-detail-nav:disabled:hover{transform:none !important}
-                .currency-detail-nav-prev{left:calc(50% - 414px)}
-                .currency-detail-nav-next{right:calc(50% - 414px)}
+                .currency-detail-nav-prev{left:calc(50% - 390px)}
+                .currency-detail-nav-next{right:calc(50% - 390px)}
                 
                 
                 @media(max-width:1050px){
