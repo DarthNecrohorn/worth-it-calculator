@@ -548,9 +548,14 @@ html[data-theme="dark"] .worth-it-market-detail-change {
     background:var(--surface-soft, rgba(128,128,128,.08)) !important;
     color:var(--text) !important;
     font-size:28px !important;
-    line-height:0 !important;
-    transform:translateY(-3px) !important;
+    line-height:1 !important;
+    display:flex !important;
+    align-items:center !important;
+    justify-content:center !important;
+    padding:0 !important;
+    transform:none !important;
     cursor:pointer !important;
+    transition:transform .16s ease, background .16s ease, border-color .16s ease !important;
 }
 
 .worth-it-market-detail-close:hover,
@@ -558,6 +563,9 @@ html[data-theme="dark"] .worth-it-market-detail-change {
     outline:none !important;
     background:rgba(124,58,237,.14) !important;
     border-color:rgba(124,58,237,.48) !important;
+}
+.worth-it-market-detail-close:hover {
+    transform:scale(1.06) !important;
 }
 
 .worth-it-market-detail-body {
