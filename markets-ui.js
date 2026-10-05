@@ -549,6 +549,7 @@ html[data-theme="dark"] .worth-it-market-detail-change {
     color:var(--text) !important;
     font-size:28px !important;
     line-height:0 !important;
+    transform:translateY(-1px) !important;
     cursor:pointer !important;
 }
 
