@@ -48,7 +48,7 @@ export async function onRequestGet(context) {
 
 
     const cacheKeyUrl =
-        `${requestUrl.origin}${requestUrl.pathname}/?news-cache=v24`;
+        `${requestUrl.origin}${requestUrl.pathname}/?news-cache=v25`;
 
 
     const cacheKey =
@@ -1876,48 +1876,123 @@ export async function onRequestGet(context) {
             settings
         ) {
 
-            /*
-             * IMPORTANT:
-             *
-             * Only ONE Open Newswire request per category.
-             *
-             * Previously this function could request up to
-             * four pages, which greatly increased API usage.
-             */
+            const multiQueryCategories =
+                new Set([
+                    "sports",
+                    "entertainment",
+                    "science"
+                ]);
 
-            let result =
-                await fetchNews(
-                    category,
-                    {
-                        category:
-                            settings.category,
-
-                        q:
-                            settings.q,
-
-                        queries:
-                            settings.queries
-                    }
-                );
-
-
-            let articles =
-                Array.isArray(
-                    result.articles
-                )
-                    ? result.articles
+            const queries =
+                Array.isArray(settings.queries)
+                    ? settings.queries
                     : [];
 
+            const queryLimit =
+                multiQueryCategories.has(category)
+                    ? Math.min(
+                        3,
+                        queries.length
+                    )
+                    : Math.min(
+                        1,
+                        queries.length
+                    );
 
-            /*
-             * Remove duplicates first.
-             */
+            let collectedArticles = [];
 
-            articles =
+            for (
+                const query
+                of queries.slice(
+                    0,
+                    queryLimit
+                )
+            ) {
+
+                const result =
+                    await fetchNews(
+                        category,
+                        {
+                            category:
+                                settings.category,
+
+                            q:
+                                query,
+
+                            queries:
+                                [query]
+                        }
+                    );
+
+                if (
+                    Array.isArray(
+                        result.articles
+                    )
+                ) {
+                    collectedArticles.push(
+                        ...result.articles
+                    );
+                }
+
+                let qualifyingArticles =
+                    removeDuplicateArticles(
+                        collectedArticles
+                    );
+
+                qualifyingArticles =
+                    qualifyingArticles.filter(
+                        article =>
+                            isRelevantNewsCategory(
+                                article,
+                                category
+                            )
+                    );
+
+                if (
+                    [
+                        "gaming",
+                        "weird",
+                        "awesome",
+                        "underrated"
+                    ].includes(
+                        category
+                    )
+                ) {
+
+                    qualifyingArticles =
+                        qualifyingArticles.filter(
+                            article =>
+                                isRelevantSpecialCategory(
+                                    article,
+                                    category
+                                )
+                        );
+
+                }
+
+                qualifyingArticles =
+                    rankNewsArticles(
+                        qualifyingArticles,
+                        category
+                    );
+
+                if (
+                    qualifyingArticles.length >= 12
+                ) {
+
+                    collectedArticles =
+                        qualifyingArticles;
+
+                    break;
+
+                }
+
+            }
+
+            let articles =
                 removeDuplicateArticles(
-                    articles
+                    collectedArticles
                 );
-
 
             articles =
                 articles.filter(
@@ -1927,22 +2002,6 @@ export async function onRequestGet(context) {
                             category
                         )
                 );
-
-            /*
-             * Rank fresh candidates before they enter the edge cache.
-             */
-
-            articles =
-                rankNewsArticles(
-                    articles,
-                    category
-                );
-
-
-            /*
-             * Special categories need
-             * additional relevance filtering.
-             */
 
             if (
                 [
@@ -1965,15 +2024,6 @@ export async function onRequestGet(context) {
                     );
 
             }
-
-
-            /*
-             * Return the quality-ranked result of the
-             * single Open Newswire request.
-             *
-             * The category result is stored in the edge cache
-             * as part of the complete News response.
-             */
 
             articles =
                 rankNewsArticles(
@@ -2124,48 +2174,74 @@ export async function onRequestGet(context) {
            LOAD ALL CATEGORIES
         ===================================================== */
 
-        const results =
-            await Promise.all(
-                Object.entries(
-                    categories
-                ).map(
-                    async (
-                        [
-                            category,
-                            settings
-                        ]
-                    ) => {
+        const categoryEntries =
+            Object.entries(
+                categories
+            );
 
-                        try {
+        const results = [];
 
-                            const articles =
-                                await loadCategory(
+        const CATEGORY_REFRESH_CONCURRENCY = 3;
+
+        for (
+            let offset = 0;
+            offset < categoryEntries.length;
+            offset += CATEGORY_REFRESH_CONCURRENCY
+        ) {
+
+            const batch =
+                categoryEntries.slice(
+                    offset,
+                    offset + CATEGORY_REFRESH_CONCURRENCY
+                );
+
+            const batchResults =
+                await Promise.all(
+                    batch.map(
+                        async (
+                            [
+                                category,
+                                settings
+                            ]
+                        ) => {
+
+                            try {
+
+                                const articles =
+                                    await loadCategory(
+                                        category,
+                                        settings
+                                    );
+
+                                return [
                                     category,
-                                    settings
+                                    articles
+                                ];
+
+                            } catch (error) {
+
+                                console.error(
+                                    "News category error:",
+                                    category,
+                                    error
                                 );
 
-                            return [
-                                category,
-                                articles
-                            ];
+                                return [
+                                    category,
+                                    []
+                                ];
 
-                        } catch (error) {
-
-                            console.error(
-                                `${category} error:`,
-                                error
-                            );
-
-                            return [
-                                category,
-                                []
-                            ];
+                            }
 
                         }
+                    )
+                );
 
-                    }
-                )
+            results.push(
+                ...batchResults
             );
+
+        }
 
 
         /* =====================================================
@@ -2225,9 +2301,19 @@ export async function onRequestGet(context) {
            RESPONSE
         ===================================================== */
 
+        const generatedAt =
+            new Date().toISOString();
+
         const response =
             Response.json(
-                output,
+                {
+                    ...output,
+                    __meta: {
+                        generatedAt,
+                        cacheTtlSeconds:
+                            CACHE_TTL
+                    }
+                },
                 {
                     headers: {
 
@@ -2235,7 +2321,10 @@ export async function onRequestGet(context) {
                             `public, max-age=0, s-maxage=${CACHE_TTL}`,
 
                         "X-News-Cache":
-                            "MISS"
+                            "MISS",
+
+                        "X-News-Generated-At":
+                            generatedAt
 
                     }
                 }
