@@ -2958,16 +2958,47 @@ html[data-theme="light"] .admin-usage-metrics > div{
 }
 
 .news-card-placeholder{
-    display:grid;
-    place-items:center;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    gap:8px;
+
+    width:100%;
+    min-height:190px;
+
+    padding:18px;
+
+    box-sizing:border-box;
 
     background:rgba(255,255,255,.035);
 
     color:rgba(255,255,255,.35);
 
-    font-size:64px;
-
     overflow:hidden;
+}
+
+.news-card-image-emoji{
+    display:block;
+    font-size:54px;
+    line-height:1;
+}
+
+.news-card-image-reason{
+    display:block;
+    width:100%;
+    max-width:92%;
+
+    color:rgba(255,255,255,.62);
+
+    font-size:11px;
+    line-height:1.35;
+    font-weight:600;
+    text-align:center;
+}
+
+.news-image-status[data-news-image-state="pending"] .news-card-image-reason{
+    color:rgba(255,255,255,.48);
 }
 
 .news-card-image-loaded{
