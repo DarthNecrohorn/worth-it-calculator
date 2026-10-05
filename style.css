@@ -1455,9 +1455,9 @@ footer{
 }
 
 .calculator-key.clear{
-    color:#dc2626;
-    background:#fee2e2;
-    border-color:#fca5a5;
+    color:#fca5a5;
+    background:#4a151c;
+    border-color:#7f1d1d;
 }
 
 .calculator-key.function,
