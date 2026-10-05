@@ -15748,3 +15748,64 @@ html[data-ui-scale="xl"] .nav-links.open .nav-overflow-items{
     }
 }
 
+
+
+/* Calculator buttons — stronger colors in Light theme only. */
+html[data-theme="light"] #calculatorApp .calculator-mode-btn{
+    color:#3730a3;
+    background:#eef2ff;
+    border-color:#c7d2fe;
+    box-shadow:0 3px 10px rgba(79,70,229,.08);
+}
+
+html[data-theme="light"] #calculatorApp .calculator-mode-btn:hover{
+    color:#312e81;
+    background:#e0e7ff;
+    border-color:#a5b4fc;
+}
+
+html[data-theme="light"] #calculatorApp .calculator-mode-btn.active{
+    color:#fff;
+    background:linear-gradient(135deg,#6d5dfc,#2563eb);
+    border-color:transparent;
+    box-shadow:0 7px 18px rgba(79,70,229,.24);
+}
+
+html[data-theme="light"] #calculatorApp .calculator-key{
+    color:#1e293b;
+    background:#f1f5f9;
+    border-color:#cbd5e1;
+    box-shadow:0 2px 7px rgba(15,23,42,.06);
+}
+
+html[data-theme="light"] #calculatorApp .calculator-key:hover{
+    background:#e2e8f0;
+    border-color:#94a3b8;
+    box-shadow:0 4px 12px rgba(15,23,42,.09);
+}
+
+html[data-theme="light"] #calculatorApp .calculator-key.operator{
+    color:#4338ca;
+    background:#e0e7ff;
+    border-color:#a5b4fc;
+}
+
+html[data-theme="light"] #calculatorApp .calculator-key.function,
+html[data-theme="light"] #calculatorApp .calculator-key.constant{
+    color:#0369a1;
+    background:#e0f2fe;
+    border-color:#7dd3fc;
+}
+
+html[data-theme="light"] #calculatorApp .calculator-key.clear{
+    color:#dc2626;
+    background:#fee2e2;
+    border-color:#fca5a5;
+}
+
+html[data-theme="light"] #calculatorApp .calculator-key.equals{
+    color:#fff;
+    background:linear-gradient(135deg,#6d5dfc,#2563eb);
+    border-color:transparent;
+    box-shadow:0 6px 16px rgba(79,70,229,.22);
+}
