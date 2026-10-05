@@ -2306,10 +2306,6 @@ function createMarketImagePlaceholder(
         escapeMarketsHtml(meta.icon) +
         '</span>' +
 
-        '<strong class="market-image-unavailable-title">' +
-        'Image unavailable' +
-        '</strong>' +
-
         '<small class="market-image-unavailable-reason" ' +
         'title="' + safeReason + '">' +
         safeReason +
