@@ -63,6 +63,66 @@ const marketsImageCache =
 const marketsImageLoading =
     new Set();
 
+const marketsWikipediaCache = new Map();
+const marketsWikipediaQueue = [];
+let marketsWikipediaActive = 0;
+const MARKETS_WIKIPEDIA_CONCURRENCY = 3;
+async function fetchWikipediaSummary(title) {
+    const cleanTitle = String(title || "").trim();
+    if (!cleanTitle) return null;
+    const key = cleanTitle.toLowerCase();
+    if (marketsWikipediaCache.has(key)) return marketsWikipediaCache.get(key);
+    try {
+        let result = null;
+        const response = await fetch("https://en.wikipedia.org/api/rest_v1/page/summary/" + encodeURIComponent(cleanTitle.replace(/\s+/g, "_")));
+        if (response.ok) {
+            const data = await response.json();
+            if (data?.extract && data?.content_urls?.desktop?.page) result = {extract:data.extract,url:data.content_urls.desktop.page};
+        }
+        if (!result) {
+            const search = await fetch("https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=" + encodeURIComponent(cleanTitle) + "&utf8=1&format=json&origin=*");
+            const data = search.ok ? await search.json() : null;
+            const hit = data?.query?.search?.[0];
+            if (hit?.title) {
+                const fallback = await fetch("https://en.wikipedia.org/api/rest_v1/page/summary/" + encodeURIComponent(hit.title.replace(/\s+/g, "_")));
+                if (fallback.ok) {
+                    const info = await fallback.json();
+                    if (info?.extract && info?.content_urls?.desktop?.page) result = {extract:info.extract,url:info.content_urls.desktop.page};
+                }
+            }
+        }
+        marketsWikipediaCache.set(key,result);
+        return result;
+    } catch { marketsWikipediaCache.set(key,null); return null; }
+}
+function queueMarketWikipedia(card) {
+    if (!card || card.dataset.wikipediaLoaded === "1" || card.dataset.wikipediaQueued === "1") return;
+    card.dataset.wikipediaQueued = "1";
+    marketsWikipediaQueue.push(card);
+    processMarketWikipediaQueue();
+}
+function processMarketWikipediaQueue() {
+    while (marketsWikipediaActive < MARKETS_WIKIPEDIA_CONCURRENCY && marketsWikipediaQueue.length) {
+        const card = marketsWikipediaQueue.shift();
+        marketsWikipediaActive++;
+        fetchWikipediaSummary(card.dataset.marketWikipediaTitle || card.dataset.marketName || "").then(info => {
+            const description=card.querySelector(".worth-it-market-wikipedia-description");
+            const link=card.querySelector(".worth-it-market-wikipedia-link");
+            if (!description || !link) return;
+            if (info?.extract && info?.url) { description.textContent=info.extract; description.classList.add("is-loaded"); link.href=info.url; link.classList.add("is-loaded"); }
+            else { description.textContent="Wikipedia information is currently unavailable."; description.classList.add("is-loaded"); link.classList.add("is-unavailable"); }
+            card.dataset.wikipediaLoaded="1";
+        }).finally(()=>{marketsWikipediaActive--;processMarketWikipediaQueue();});
+    }
+}
+function initialiseMarketWikipediaObserver() {
+    const grid=document.getElementById("materialsGrid"); if(!grid)return;
+    const cards=grid.querySelectorAll('.market-card[data-market-card="true"]');
+    if(!("IntersectionObserver" in window)){cards.forEach(queueMarketWikipedia);return;}
+    const observer=new IntersectionObserver(entries=>entries.forEach(entry=>{if(entry.isIntersecting){queueMarketWikipedia(entry.target);observer.unobserve(entry.target);}}),{rootMargin:"500px 0px",threshold:0.01});
+    cards.forEach(card=>observer.observe(card));
+}
+
 const marketsImageFailed =
     new Set();
 
@@ -4547,6 +4607,7 @@ function renderMarketCard(
             data-market-card="true"
             data-market-name="${name}"
             data-market-category="${category}"
+            data-market-wikipedia-title="${name}"
         >
 
             <div
@@ -4711,6 +4772,8 @@ function renderMarketCard(
                         min-height:15px;
                     "
                 ></div>
+
+                <div class="worth-it-market-wikipedia"><p class="worth-it-market-wikipedia-description">Loading Wikipedia description…</p><a class="worth-it-market-wikipedia-link" href="#" target="_blank" rel="noopener noreferrer">View on Wikipedia ↗</a></div>
 
             </div>
 
@@ -4944,6 +5007,7 @@ async function renderMarkets() {
 
 
     initialiseMarketImageObserver();
+    initialiseMarketWikipediaObserver();
 }
 
 
