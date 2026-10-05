@@ -74,6 +74,30 @@ const marketsImagePromiseCache =
     new Map();
 
 /*
+ * Persistent authenticated-account image state.
+ */
+const marketsAccountImageCache =
+    new Map();
+
+const marketsImageReasonCache =
+    new Map();
+
+let marketsAccountImageCacheLoaded =
+    false;
+
+let marketsAccountImageCacheUserId =
+    "";
+
+let marketsAccountImageCachePromise =
+    null;
+
+const marketsAccountImageSaveQueue =
+    new Map();
+
+let marketsAccountImageSaveTimer =
+    null;
+
+/*
  * Prevent an older asynchronous render from replacing a newer
  * search/category selection.
  */
@@ -370,6 +394,67 @@ function ensureMarketsCardStyles() {
     font-size:.72rem !important;
     line-height:1.15 !important;
 }
+
+
+/* ================================
+   IMAGE-UNAVAILABLE MARKET ART
+================================= */
+
+.worth-it-market-image-placeholder.market-image-unavailable {
+    position:relative !important;
+    overflow:hidden !important;
+    justify-content:center !important;
+    align-items:center !important;
+    flex-direction:column !important;
+    gap:5px !important;
+    opacity:1 !important;
+    color:var(--text) !important;
+    border-right:1px solid rgba(128,128,128,.10) !important;
+    background:linear-gradient(145deg, rgba(124,58,237,.10), rgba(37,99,235,.06)) !important;
+}
+.worth-it-market-image-placeholder.market-image-unavailable::before {
+    content:"" !important;
+    position:absolute !important;
+    inset:0 !important;
+    opacity:.45 !important;
+    pointer-events:none !important;
+    background-image:
+        radial-gradient(circle at 18% 20%, rgba(255,255,255,.35) 0 2px, transparent 2.5px),
+        linear-gradient(135deg, transparent 0 45%, rgba(128,128,128,.10) 45% 46%, transparent 46% 100%) !important;
+    background-size:18px 18px, 100% 100% !important;
+}
+.worth-it-market-image-placeholder .market-image-unavailable-icon,
+.worth-it-market-image-placeholder .market-image-unavailable-title,
+.worth-it-market-image-placeholder .market-image-unavailable-reason {
+    position:relative !important;
+    z-index:1 !important;
+}
+.market-image-unavailable-icon { font-size:1.55rem !important; line-height:1 !important; }
+.market-image-unavailable-title {
+    font-size:.68rem !important;
+    line-height:1.1 !important;
+    font-weight:800 !important;
+    text-transform:uppercase !important;
+    letter-spacing:.045em !important;
+}
+.market-image-unavailable-reason {
+    max-width:100% !important;
+    font-size:.56rem !important;
+    line-height:1.25 !important;
+    opacity:.62 !important;
+    text-align:center !important;
+    overflow:hidden !important;
+    display:-webkit-box !important;
+    -webkit-line-clamp:3 !important;
+    -webkit-box-orient:vertical !important;
+}
+.market-image-category-precious-metals { background:linear-gradient(145deg, rgba(212,175,55,.18), rgba(124,58,237,.07)) !important; }
+.market-image-category-metals-minerals { background:linear-gradient(145deg, rgba(100,116,139,.17), rgba(37,99,235,.07)) !important; }
+.market-image-category-energy { background:linear-gradient(145deg, rgba(245,158,11,.17), rgba(37,99,235,.07)) !important; }
+.market-image-category-fertilizers { background:linear-gradient(145deg, rgba(34,197,94,.16), rgba(37,99,235,.06)) !important; }
+.market-image-category-agriculture-food { background:linear-gradient(145deg, rgba(132,204,22,.16), rgba(245,158,11,.07)) !important; }
+.market-image-category-raw-materials { background:linear-gradient(145deg, rgba(180,83,9,.14), rgba(124,58,237,.07)) !important; }
+.market-image-category-other { background:linear-gradient(145deg, rgba(124,58,237,.10), rgba(37,99,235,.08)) !important; }
 
 
 /* ================================
@@ -2168,38 +2253,78 @@ function getFilteredMarkets() {
 ========================================================= */
 
 function createMarketImagePlaceholder(
-    message =
-        "Loading image..."
+    message = "Loading image...",
+    category = "other",
+    reason = ""
 ) {
 
-    return `
+    const unavailable =
+        message === "Image unavailable";
 
+    const meta =
+        getCategoryMeta(
+            category
+        );
+
+    const categoryClass =
+        String(
+            category || "other"
+        )
+            .trim()
+            .toLowerCase()
+            .replace(/[^a-z0-9-]+/g, "-");
+
+    if (!unavailable) {
+        return \`
+            <div
+                class="worth-it-market-image-placeholder"
+                style="
+                    width:100%;
+                    height:100%;
+                    min-height:120px;
+                    display:flex;
+                    align-items:center;
+                    justify-content:center;
+                    text-align:center;
+                    padding:12px;
+                    box-sizing:border-box;
+                    opacity:.62;
+                    font-size:.76rem;
+                "
+            >
+                ${escapeMarketsHtml(message)${
+            </div>
+        \`;
+    }
+
+    return \`
         <div
-            class="worth-it-market-image-placeholder"
+            class="worth-it-market-image-placeholder market-image-unavailable market-image-category-${escapeMarketsHtml(categoryClass)${"
+            role="img"
+            aria-label="Image unavailable for ${escapeMarketsHtml(meta.label)${"
             style="
                 width:100%;
                 height:100%;
                 min-height:120px;
                 display:flex;
-                align-items:center;
-                justify-content:center;
-                text-align:center;
-                padding:12px;
                 box-sizing:border-box;
-                opacity:.62;
-                font-size:.76rem;
+                padding:12px;
             "
         >
-
-            ${
-                escapeMarketsHtml(
-                    message
-                )
-            }
-
+            <span class="market-image-unavailable-icon" aria-hidden="true">
+                ${escapeMarketsHtml(meta.icon)${
+            </span>
+            <strong class="market-image-unavailable-title">
+                Image unavailable
+            </strong>
+            <small
+                class="market-image-unavailable-reason"
+                title="${escapeMarketsHtml(reason || "No suitable image passed the current image checks.")${"
+            >
+                ${escapeMarketsHtml(reason || "No suitable image passed the current image checks.")${
+            </small>
         </div>
-
-    `;
+    \`;
 }
 
 
@@ -2237,12 +2362,44 @@ function showMarketImageUnavailable(
 
         if (placeholder) {
 
-            placeholder.textContent =
-                "Image unavailable";
+            const category =
+                imageElement.dataset
+                    .marketCategory ||
+                "other";
 
+            const reason =
+                imageElement.dataset
+                    .marketImageReason ||
+                marketsImageReasonCache.get(
+                    getMarketAccountImageKey(
+                        imageElement.dataset.marketName || "",
+                        category
+                    )
+                ) ||
+                "No suitable image passed the current image checks.";
 
-            placeholder.style.display =
-                "flex";
+            const wrapper =
+                document.createElement(
+                    "div"
+                );
+
+            wrapper.innerHTML =
+                createMarketImagePlaceholder(
+                    "Image unavailable",
+                    category,
+                    reason
+                );
+
+            const replacement =
+                wrapper.firstElementChild;
+
+            if (replacement) {
+                placeholder.replaceWith(
+                    replacement
+                );
+            }
+
+            return;
 
         }
 
@@ -2260,6 +2417,319 @@ function showMarketImageUnavailable(
 
 
     imageElement.remove();
+}
+
+
+/* =========================================================
+   ACCOUNT IMAGE CACHE
+========================================================= */
+
+function getMarketAccountImageKey(
+    name,
+    category
+) {
+    return [
+        cleanMarketDisplayName(name)
+            .trim()
+            .toLowerCase(),
+        String(category || "other")
+            .trim()
+            .toLowerCase()
+    ]
+        .filter(Boolean)
+        .join("|");
+}
+
+async function getMarketAuthSession() {
+    try {
+        if (!window.supabaseClient?.auth) {
+            return null;
+        }
+
+        const { data, error } =
+            await window.supabaseClient.auth.getSession();
+
+        if (error) {
+            return null;
+        }
+
+        return data?.session || null;
+
+    } catch {
+        return null;
+    }
+}
+
+async function loadMarketAccountImageCache() {
+
+    const session =
+        await getMarketAuthSession();
+
+    const userId =
+        String(session?.user?.id || "").trim();
+
+    if (!userId) {
+        marketsAccountImageCache.clear();
+        marketsImageReasonCache.clear();
+        marketsAccountImageCacheLoaded = true;
+        marketsAccountImageCacheUserId = "";
+        return;
+    }
+
+    if (
+        marketsAccountImageCacheLoaded &&
+        marketsAccountImageCacheUserId === userId
+    ) {
+        return;
+    }
+
+    if (
+        marketsAccountImageCachePromise &&
+        marketsAccountImageCacheUserId === userId
+    ) {
+        return marketsAccountImageCachePromise;
+    }
+
+    marketsAccountImageCache.clear();
+    marketsImageReasonCache.clear();
+    marketsAccountImageCacheLoaded = false;
+    marketsAccountImageCacheUserId = userId;
+
+    marketsAccountImageCachePromise =
+        (async () => {
+
+            try {
+                const response =
+                    await fetch(
+                        "/api/markets?action=account-image-cache-get",
+                        {
+                            method:"GET",
+                            cache:"no-store",
+                            headers:{
+                                "Authorization":
+                                    "Bearer " +
+                                    session.access_token
+                            }
+                        }
+                    );
+
+                if (!response.ok) {
+                    return;
+                }
+
+                const data =
+                    await response.json();
+
+                const records =
+                    Array.isArray(data?.records)
+                        ? data.records
+                        : [];
+
+                records.forEach(
+                    record => {
+
+                        const key =
+                            record?.imageKey ||
+                            getMarketAccountImageKey(
+                                record?.commodityName,
+                                record?.category
+                            );
+
+                        if (!key) {
+                            return;
+                        }
+
+                        const image =
+                            record?.found &&
+                            hasValidMarketImage(record?.image)
+                                ? record.image
+                                : null;
+
+                        marketsImageCache.set(
+                            key,
+                            image
+                        );
+
+                        if (image) {
+                            marketsImageFailed.delete(key);
+                        }
+                        else {
+                            marketsImageFailed.add(key);
+                        }
+
+                        if (record?.reason) {
+                            marketsImageReasonCache.set(
+                                key,
+                                String(record.reason)
+                            );
+                        }
+                    }
+                );
+
+            }
+            catch (error) {
+                console.warn(
+                    "Markets account image cache load failed:",
+                    error
+                );
+            }
+            finally {
+                marketsAccountImageCacheLoaded = true;
+                marketsAccountImageCachePromise = null;
+            }
+
+        })();
+
+    return marketsAccountImageCachePromise;
+}
+
+function queueMarketAccountImageSave(
+    name,
+    category,
+    image,
+    reason = ""
+) {
+
+    if (
+        !marketsAccountImageCacheLoaded ||
+        !marketsAccountImageCacheUserId
+    ) {
+        return;
+    }
+
+    const key =
+        getMarketAccountImageKey(
+            name,
+            category
+        );
+
+    if (!key) {
+        return;
+    }
+
+    const found =
+        hasValidMarketImage(image);
+
+    const record = {
+        imageKey:key,
+        commodityName:
+            cleanMarketDisplayName(name),
+        category:category || "other",
+        found,
+        image:found ? image : null,
+        reason:found
+            ? ""
+            : String(reason || "").slice(0, 500)
+    };
+
+    marketsAccountImageCache.set(
+        key,
+        found ? image : null
+    );
+
+    if (found) {
+        marketsImageFailed.delete(key);
+        marketsImageReasonCache.delete(key);
+    }
+    else {
+        marketsImageFailed.add(key);
+        if (record.reason) {
+            marketsImageReasonCache.set(key, record.reason);
+        }
+    }
+
+    marketsAccountImageSaveQueue.set(
+        key,
+        record
+    );
+
+    if (!marketsAccountImageSaveTimer) {
+        marketsAccountImageSaveTimer =
+            setTimeout(
+                flushMarketAccountImageSaveQueue,
+                1200
+            );
+    }
+}
+
+async function flushMarketAccountImageSaveQueue() {
+
+    marketsAccountImageSaveTimer = null;
+
+    if (!marketsAccountImageSaveQueue.size) {
+        return;
+    }
+
+    const session =
+        await getMarketAuthSession();
+
+    if (
+        !session?.access_token ||
+        !session?.user?.id ||
+        session.user.id !== marketsAccountImageCacheUserId
+    ) {
+        return;
+    }
+
+    const records =
+        Array.from(
+            marketsAccountImageSaveQueue.values()
+        ).slice(0, 100);
+
+    records.forEach(
+        record => {
+            marketsAccountImageSaveQueue.delete(record.imageKey);
+        }
+    );
+
+    try {
+        const response =
+            await fetch(
+                "/api/markets?action=account-image-cache-upsert",
+                {
+                    method:"POST",
+                    cache:"no-store",
+                    headers:{
+                        "Content-Type":"application/json",
+                        "Authorization":
+                            "Bearer " +
+                            session.access_token
+                    },
+                    body:
+                        JSON.stringify({
+                            records
+                        })
+                }
+            );
+
+        if (!response.ok) {
+            throw new Error("HTTP " + response.status);
+        }
+
+    }
+    catch (error) {
+        console.warn(
+            "Markets account image cache save failed:",
+            error
+        );
+
+        records.forEach(
+            record => {
+                marketsAccountImageSaveQueue.set(
+                    record.imageKey,
+                    record
+                );
+            }
+        );
+
+        if (!marketsAccountImageSaveTimer) {
+            marketsAccountImageSaveTimer =
+                setTimeout(
+                    flushMarketAccountImageSaveQueue,
+                    2500
+                );
+        }
+    }
 }
 
 
@@ -2283,6 +2753,20 @@ async function fetchMarketImage(
             cleanName,
             category
         );
+
+
+    if (
+        marketsAccountImageCacheLoaded &&
+        marketsImageCache.has(
+            key
+        )
+    ) {
+
+        return marketsImageCache.get(
+            key
+        );
+
+    }
 
 
     if (
@@ -2412,6 +2896,41 @@ async function fetchMarketImage(
                         key
                     );
 
+                    const reason =
+                        String(
+                            data?.note ||
+                            "No suitable image passed the current image checks."
+                        );
+
+                    marketsImageReasonCache.set(
+                        key,
+                        reason
+                    );
+
+                    queueMarketAccountImageSave(
+                        cleanName,
+                        category,
+                        null,
+                        reason
+                    );
+
+                }
+                else {
+
+                    marketsImageFailed.delete(
+                        key
+                    );
+
+                    marketsImageReasonCache.delete(
+                        key
+                    );
+
+                    queueMarketAccountImageSave(
+                        cleanName,
+                        category,
+                        image
+                    );
+
                 }
 
 
@@ -2511,14 +3030,36 @@ async function resolveMarketsWithValidImages(
      * Wikimedia image availability.
      */
     return items.map(
-        item => ({
+        item => {
 
-            item,
+            const category =
+                item?.category ||
+                "other";
 
-            image:
-                null
+            const cleanName =
+                cleanMarketDisplayName(
+                    item?.name
+                );
 
-        })
+            const key =
+                getMarketAccountImageKey(
+                    cleanName,
+                    category
+                );
+
+            const cached =
+                marketsImageCache.has(key)
+                    ? marketsImageCache.get(key)
+                    : null;
+
+            return {
+                item,
+                image:cached || null,
+                imageReason:
+                    marketsImageReasonCache.get(key) || ""
+            };
+
+        }
     );
 }
 
@@ -2847,6 +3388,15 @@ async function loadMarketCardImage(
             .marketImageState =
             "unavailable";
 
+        imageElement.dataset
+            .marketImageReason =
+            marketsImageReasonCache.get(
+                getMarketAccountImageKey(
+                    name,
+                    category
+                )
+            ) ||
+            "No suitable image passed the current image checks.";
 
         showMarketImageUnavailable(
             imageElement
@@ -3196,6 +3746,12 @@ function renderMarketCard(
         resolved?.image ||
         null;
 
+    const imageReason =
+        String(
+            resolved?.imageReason ||
+            ""
+        );
+
     const config =
         getMarketConfigFallback(
             item
@@ -3349,7 +3905,11 @@ function renderMarketCard(
                     createMarketImagePlaceholder(
                         image
                             ? "Loading image..."
-                            : "Loading image..."
+                            : imageReason
+                                ? "Image unavailable"
+                                : "Loading image...",
+                        item.category || "other",
+                        imageReason
                     )
                 }
 
@@ -3360,6 +3920,7 @@ function renderMarketCard(
                     data-market-category="${category}"
                     alt="${imageAlt}"
                     aria-hidden="false"
+                    data-market-image-reason="${{imageReason.replaceAll('"','&quot;')}"
                     style="
                         width:100%;
                         height:100%;
@@ -3818,6 +4379,13 @@ async function refreshMarkets() {
 
 
     try {
+
+        /*
+         * Restore the signed-in user's validated image decisions
+         * before filtering/rendering. Known image results are
+         * therefore reused by category/search filters.
+         */
+        await loadMarketAccountImageCache();
 
         const [
 
