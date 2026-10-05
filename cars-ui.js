@@ -722,7 +722,7 @@ const popularVehicleHydrationState =
 
 const POPULAR_DETAILS_CONCURRENCY = 4;
 
-const POPULAR_NONCAR_DETAILS_CONCURRENCY = 3;
+const POPULAR_NONCAR_DETAILS_CONCURRENCY = 2;
 const POPULAR_NONCAR_QUALITY_BATCH_SIZE = 16;
 const POPULAR_NONCAR_INITIAL_MAX_CHECKS = 300;
 
@@ -737,6 +737,22 @@ const POPULAR_REFRESH_CONCURRENCY = 4;
 const PERSISTENT_VEHICLE_DETAILS_MAX_ENTRIES = 600;
 const POPULAR_INITIAL_DETAILS_PREFETCH = 6;
 const POPULAR_DETAILS_PREFETCH_CONCURRENCY = 3;
+
+/*
+ * Temporary HTTP failures from the Cars details endpoint must not be
+ * hammered repeatedly by the background quality scanner. A short
+ * per-vehicle cooldown keeps the warmup active without generating a
+ * burst of identical 502/503/504/429 requests.
+ */
+const vehicleDetailsTransientFailures =
+    new Map();
+
+const VEHICLE_DETAILS_TRANSIENT_COOLDOWN_MS = {
+    429: 60 * 1000,
+    502: 45 * 1000,
+    503: 45 * 1000,
+    504: 30 * 1000
+};
 
 function getPopularDetailsConcurrency(kind) {
     return kind === "car"
@@ -1901,6 +1917,24 @@ async function fetchVehicleDetails(
             mode
         );
 
+    const transientFailure =
+        vehicleDetailsTransientFailures.get(
+            cacheKey
+        );
+
+    if (transientFailure) {
+        if (
+            Date.now() <
+            transientFailure.until
+        ) {
+            return null;
+        }
+
+        vehicleDetailsTransientFailures.delete(
+            cacheKey
+        );
+    }
+
 
     /*
      * Browser memory cache.
@@ -2227,15 +2261,40 @@ async function fetchVehicleDetails(
 
             } catch (error) {
 
+                const failureStatus =
+                    Number(
+                        error?.status
+                    );
+
+                const transientCooldown =
+                    VEHICLE_DETAILS_TRANSIENT_COOLDOWN_MS[
+                        failureStatus
+                    ];
+
+                if (
+                    transientCooldown
+                ) {
+                    vehicleDetailsTransientFailures.set(
+                        cacheKey,
+                        {
+                            status:
+                                failureStatus,
+                            until:
+                                Date.now() +
+                                transientCooldown
+                        }
+                    );
+                }
+
                 /*
-                 * Image hydration is best-effort. A transient 5xx, timeout
-                 * or rate-limit should silently fall back to the card
-                 * placeholder/recovery path instead of flooding the console.
+                 * Image/detail hydration is best-effort. Temporary
+                 * upstream failures are handled by the short cooldown
+                 * above and are intentionally not logged as warnings.
                  */
                 if (
                     mode !== "image" &&
                     error?.name !== "AbortError" &&
-                    ![429, 502, 503, 504].includes(Number(error?.status))
+                    !transientCooldown
                 ) {
                     console.warn(
                         "Vehicle details request failed:",
@@ -2245,11 +2304,6 @@ async function fetchVehicleDetails(
                         error
                     );
                 }
-
-                /*
-                  * Do not cache failed requests.
-                  * A later attempt should be allowed to retry.
-                                                               */
 
                 return null;
 
@@ -6266,7 +6320,7 @@ async function evaluatePopularVehicleCandidate(
     const detailsRetryAttempts =
         detailKind === "car"
             ? 2
-            : 3;
+            : 2;
 
     const detailsRetryDelayMs =
         detailKind === "car"
