@@ -1796,6 +1796,7 @@ html[data-theme="light"] .ai-chat-nav-btn{color:#0f172a;background:rgba(15,23,42
 }
 
 @media(max-width:560px){
+    .auth-wrap{flex-basis:36px;width:36px;height:36px}
     .nav-inner{gap:6px}
     .logo{font-size:17px;gap:7px}
     .logo-mark{width:34px;height:34px}
