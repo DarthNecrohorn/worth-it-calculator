@@ -44,20 +44,64 @@ function decodeHtml(value) {
 }
 
 function getAttribute(tag, name) {
-    const match =
-        String(tag || "").match(
-            new RegExp(
-                "\\b" +
-                name +
-                "\\s*=\\s*([\\"'])([\\s\\S]*?)\\1",
-                "i"
-            )
+    const input =
+        String(tag || "");
+
+    const lower =
+        input.toLowerCase();
+
+    const needle =
+        String(name || "").toLowerCase() +
+        "=";
+
+    const index =
+        lower.indexOf(
+            needle
         );
 
-    return match
-        ? decodeHtml(match[2])
-        : "";
+    if (index < 0) {
+        return "";
+    }
+
+    const rest =
+        input.slice(
+            index + needle.length
+        ).trimStart();
+
+    if (!rest) {
+        return "";
+    }
+
+    const quote =
+        rest.charAt(0);
+
+    if (
+        quote === '"' ||
+        quote === "'"
+    ) {
+
+        const endIndex =
+            rest.indexOf(
+                quote,
+                1
+            );
+
+        if (endIndex >= 0) {
+            return decodeHtml(
+                rest.slice(
+                    1,
+                    endIndex
+                )
+            );
+        }
+
+    }
+
+    return decodeHtml(
+        rest.split(/\s+/)[0]
+    );
 }
+
 
 function getMetaValues(html, names) {
     const wanted =
@@ -72,7 +116,7 @@ function getMetaValues(html, names) {
 
     const out = [];
     const regex =
-        /<meta\\b[^>]*>/gi;
+        /<meta\b[^>]*>/gi;
 
     let match;
 
@@ -123,7 +167,7 @@ function getMetaValues(html, names) {
 function parseJsonLd(html) {
     const out = [];
     const regex =
-        /<script\\b[^>]*type\\s*=\\s*["']application\\/ld\\+json["'][^>]*>([\\s\\S]*?)<\\/script>/gi;
+        /<script\b[^>]*type\s*=\s*["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi;
 
     let match;
 
@@ -290,7 +334,7 @@ function licenseKind(value) {
     if (
         text === "cc by" ||
         text === "cc-by" ||
-        /creativecommons.org/licenses/cc-by(?:[/?#\\s]|$)/i.test(text)
+        /creativecommons\.org\/licenses\/cc-by(?:[/?#\s]|$)/i.test(text)
     ) {
         return "CC BY";
     }
@@ -307,7 +351,7 @@ function licenseKind(value) {
     if (
         text.includes("non-commercial") ||
         text.includes("noncommercial") ||
-        /(?:^|[-\\s])nc(?:[-\\s]|$)/i.test(text)
+        /(?:^|[-\s])nc(?:[-\s]|$)/i.test(text)
     ) {
         return "NON-COMMERCIAL";
     }
@@ -359,11 +403,11 @@ function validateArticleUrl(value) {
             host === "localhost" ||
             host.endsWith(".local") ||
             host.endsWith(".internal") ||
-            /^127\\./.test(host) ||
-            /^10\\./.test(host) ||
-            /^192\\.168\\./.test(host) ||
-            /^169\\.254\\./.test(host) ||
-            /^172\\.(1[6-9]|2[0-9]|3[0-1])\\./.test(host)
+            /^127\./.test(host) ||
+            /^10\./.test(host) ||
+            /^192\.168\./.test(host) ||
+            /^169\.254\./.test(host) ||
+            /^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(host)
         ) {
             return null;
         }
