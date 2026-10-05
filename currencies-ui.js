@@ -256,9 +256,9 @@ function renderCurrenciesUI() {
                 .currency-detail-change span{display:block;color:var(--muted);font-size:.78rem;margin-bottom:4px}
                 .currency-detail-change strong{font-size:1.08rem}
                 .currency-detail-nav{position:fixed;top:50%;transform:translateY(-50%);width:62px;height:82px;border:1px solid var(--border);border-radius:17px;background:var(--card-solid,var(--card));color:var(--text);box-shadow:0 16px 42px rgba(0,0,0,.22);z-index:3;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:5px}
-                .currency-detail-nav:hover{transform:translateY(-50%)}
+                .currency-detail-nav:hover{transform:translateY(-50%) !important}
                 .currency-detail-nav:disabled{opacity:.28;cursor:default}
-                .currency-detail-nav:disabled:hover{transform:translateY(-50%)}
+                .currency-detail-nav:disabled:hover{transform:translateY(-50%) !important}
                 .currency-detail-nav-prev{left:calc(50% - 414px)}
                 .currency-detail-nav-next{right:calc(50% - 414px)}
                 .currency-detail-nav-arrow{font-size:38px;line-height:1;font-weight:300}
