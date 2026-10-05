@@ -15805,6 +15805,12 @@ html[data-theme="light"] #calculatorApp .calculator-key.clear{
     border-color:#fca5a5;
 }
 
+html[data-theme="dark"] #calculatorApp .calculator-key.clear{
+    color:#ff8a8a;
+    background:#4a151b;
+    border-color:#7f1d1d;
+}
+
 html[data-theme="light"] #calculatorApp .calculator-key.equals{
     color:#fff;
     background:linear-gradient(135deg,#6d5dfc,#2563eb);
