@@ -290,10 +290,23 @@ function inspectJsonLd(
                     if (
                         imageUrls.length
                     ) {
+                        const creator =
+                            normalize(
+                                value.creator?.name ||
+                                value.creator ||
+                                value.author?.name ||
+                                value.author ||
+                                value.creditText ||
+                                value.copyrightHolder?.name ||
+                                value.copyrightHolder ||
+                                ""
+                            );
+
                         imageObjects.push({
                             images:
                                 imageUrls,
-                            license
+                            license,
+                            creator
                         });
                     }
 
@@ -586,19 +599,39 @@ async function inspectArticle(articleUrl) {
                             ]
                         );
 
-                    const selectedJsonLdLicenses =
+                    const selectedJsonLdObjects =
                         jsonLdImages
                             .filter(
                                 item =>
                                     item.images.includes(
                                         imageUrl
-                                    ) &&
-                                    item.license
-                            )
+                                    )
+                            );
+
+                    const selectedJsonLdLicenses =
+                        selectedJsonLdObjects
                             .map(
                                 item =>
                                     item.license
-                            );
+                            )
+                            .filter(Boolean);
+
+                    const imageCredit =
+                        selectedJsonLdObjects
+                            .map(
+                                item =>
+                                    item.creator
+                            )
+                            .find(Boolean) ||
+                        getMetaValues(
+                            html,
+                            [
+                                "image:credit",
+                                "og:image:credit",
+                                "twitter:image:credit"
+                            ]
+                        )[0] ||
+                        url.hostname;
 
                     const licenses = [
                         ...metaLicenses,
@@ -672,6 +705,10 @@ async function inspectArticle(articleUrl) {
                                 allowedLicense.kind,
                             licenseSource:
                                 allowedLicense.raw,
+                            credit:
+                                normalize(
+                                    imageCredit
+                                ),
                             sourceArticle:
                                 url.toString()
                         };
