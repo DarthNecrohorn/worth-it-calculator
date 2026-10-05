@@ -254,6 +254,11 @@ function renderNewsCategory(
 
         container.appendChild(card);
 
+        bindNewsImageError(
+            card,
+            article
+        );
+
     });
 
 }
@@ -367,6 +372,61 @@ function newsImagePlaceholderHtml(
     );
 }
 
+function bindNewsImageError(
+    card,
+    article
+) {
+    const image =
+        card?.querySelector(
+            ".news-card-image-inner"
+        );
+
+    if (!image) {
+        return;
+    }
+
+    image.addEventListener(
+        "error",
+        () => {
+
+            const decision = {
+                status:
+                    "unavailable",
+                image: "",
+                reason:
+                    "The licensed source image could not be loaded from the publisher website."
+            };
+
+            if (article) {
+                article.newsImage =
+                    decision;
+            }
+
+            const imageBox =
+                card.querySelector(
+                    ".news-card-image-loaded"
+                );
+
+            if (imageBox) {
+                imageBox.outerHTML =
+                    newsImagePlaceholderHtml(
+                        decision
+                    );
+            }
+
+            writeNewsFeedSnapshot(
+                newsFeedAccountScope,
+                newsData?.__meta?.generatedAt
+            );
+
+        },
+        {
+            once: true
+        }
+    );
+}
+
+
 function applyNewsImageDecisionToCard(
     card,
     article,
@@ -421,6 +481,12 @@ function applyNewsImageDecisionToCard(
                 newsImagePlaceholderHtml(
                     duplicateDecision
                 );
+
+
+        bindNewsImageError(
+            card,
+            article
+        );
 
             return;
 
