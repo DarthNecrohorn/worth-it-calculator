@@ -183,7 +183,7 @@ function renderNewsCategory(
                                 article.title ||
                                 "News image"
                             ) +
-                            '" loading="lazy" decoding="async" referrerpolicy="no-referrer">' +
+                            '" loading="lazy" decoding="async" fetchpriority="high" referrerpolicy="no-referrer">' +
                         '<span class="news-card-image-credit" title="' +
                             escapeNewsHtml(
                                 [
