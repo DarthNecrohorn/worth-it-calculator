@@ -8613,6 +8613,418 @@ async function getCommodityImage(
 }
 
 
+
+/* =========================================================
+   AUTHENTICATED MARKET IMAGE ACCOUNT CACHE
+
+   Stores only the validated Wikimedia image record (or a
+   validated negative result) for the signed-in user. The actual
+   image file remains on Wikimedia/browser cache; D1 stores the
+   reusable decision and attribution metadata.
+========================================================= */
+
+const MARKET_IMAGE_ACCOUNT_CACHE_TABLE =
+    "market_image_account_cache_v1";
+
+const CREATE_MARKET_IMAGE_ACCOUNT_CACHE_SQL =
+    "CREATE TABLE IF NOT EXISTS " +
+    MARKET_IMAGE_ACCOUNT_CACHE_TABLE +
+    " (" +
+    "user_id TEXT NOT NULL, " +
+    "image_key TEXT NOT NULL, " +
+    "commodity_name TEXT NOT NULL, " +
+    "category TEXT NOT NULL, " +
+    "found INTEGER NOT NULL, " +
+    "image_json TEXT, " +
+    "reason TEXT, " +
+    "saved_at TEXT NOT NULL, " +
+    "PRIMARY KEY (user_id, image_key)" +
+    ")";
+
+const MARKET_SUPABASE_URL =
+    "https://diutcnylnubljvpezhmq.supabase.co";
+
+const MARKET_SUPABASE_PUBLISHABLE_KEY =
+    "sb_publishable_AzgPXyMrDpruSqGt-al9gg_9gsiCopw";
+
+function getMarketAuthenticatedUser(context) {
+    const authorization =
+        context.request.headers.get("Authorization") ||
+        (
+            context.request.headers.get(
+                "X-Supabase-Access-Token"
+            )
+                ? "Bearer " +
+                    context.request.headers.get(
+                        "X-Supabase-Access-Token"
+                    )
+                : ""
+        );
+
+    if (!/^Bearer\\s+/i.test(authorization)) {
+        return Promise.resolve(null);
+    }
+
+    const projectUrl =
+        String(
+            context?.env?.SUPABASE_URL ||
+            MARKET_SUPABASE_URL
+        ).trim().replace(/\\/$/, "");
+
+    const publishableKey =
+        String(
+            context?.env?.SUPABASE_PUBLISHABLE_KEY ||
+            MARKET_SUPABASE_PUBLISHABLE_KEY
+        ).trim();
+
+    if (!projectUrl || !publishableKey) {
+        return Promise.resolve(null);
+    }
+
+    return fetch(
+        projectUrl + "/auth/v1/user",
+        {
+            method: "GET",
+            headers: {
+                "apikey": publishableKey,
+                "Authorization": authorization,
+                "Accept": "application/json"
+            }
+        }
+    )
+        .then(async response => {
+            if (!response.ok) {
+                return null;
+            }
+
+            const user =
+                await response.json();
+
+            return user?.id
+                ? user
+                : null;
+        })
+        .catch(() => null);
+}
+
+function getMarketImageAccountKey(
+    name,
+    category
+) {
+    return [
+        normalizeText(name),
+        normalizeText(category) || "other"
+    ]
+        .filter(Boolean)
+        .join("|")
+        .slice(0, 240);
+}
+
+async function ensureMarketImageAccountCacheTable(
+    db
+) {
+    await db.prepare(
+        CREATE_MARKET_IMAGE_ACCOUNT_CACHE_SQL
+    ).run();
+}
+
+async function handleMarketImageAccountCacheGet(
+    context
+) {
+    const db =
+        context?.env?.DB;
+
+    if (!db) {
+        return privateJsonResponse(
+            {
+                success: false,
+                error:
+                    "Market image account cache is not configured."
+            },
+            503,
+            30
+        );
+    }
+
+    const user =
+        await getMarketAuthenticatedUser(
+            context
+        );
+
+    if (!user) {
+        return privateJsonResponse(
+            {
+                success: false,
+                error: "Authentication required."
+            },
+            401,
+            30
+        );
+    }
+
+    try {
+        await ensureMarketImageAccountCacheTable(
+            db
+        );
+
+        const { results = [] } =
+            await db.prepare(
+                "SELECT image_key, commodity_name, category, found, image_json, reason, saved_at " +
+                "FROM " +
+                MARKET_IMAGE_ACCOUNT_CACHE_TABLE +
+                " WHERE user_id = ? " +
+                "ORDER BY commodity_name ASC " +
+                "LIMIT 250"
+            )
+                .bind(user.id)
+                .all();
+
+        const records =
+            results
+                .map(row => {
+                    let image = null;
+
+                    try {
+                        image =
+                            row?.image_json
+                                ? JSON.parse(
+                                    row.image_json
+                                )
+                                : null;
+                    } catch {
+                        image = null;
+                    }
+
+                    return {
+                        imageKey:
+                            row?.image_key || "",
+                        commodityName:
+                            row?.commodity_name || "",
+                        category:
+                            row?.category || "other",
+                        found:
+                            Number(row?.found) === 1,
+                        image,
+                        reason:
+                            row?.reason || "",
+                        savedAt:
+                            row?.saved_at || null
+                    };
+                })
+                .filter(
+                    record =>
+                        record.imageKey &&
+                        record.commodityName
+                );
+
+        return privateJsonResponse(
+            {
+                success: true,
+                records
+            },
+            200,
+            30
+        );
+
+    } catch (error) {
+        console.error(
+            "Market image account cache read failed:",
+            error
+        );
+
+        return privateJsonResponse(
+            {
+                success: false,
+                error:
+                    "Market image account cache read failed."
+            },
+            500,
+            30
+        );
+    }
+}
+
+async function handleMarketImageAccountCacheUpsert(
+    context
+) {
+    const db =
+        context?.env?.DB;
+
+    if (!db) {
+        return privateJsonResponse(
+            {
+                success: false,
+                error:
+                    "Market image account cache is not configured."
+            },
+            503,
+            30
+        );
+    }
+
+    const user =
+        await getMarketAuthenticatedUser(
+            context
+        );
+
+    if (!user) {
+        return privateJsonResponse(
+            {
+                success: false,
+                error: "Authentication required."
+            },
+            401,
+            30
+        );
+    }
+
+    let payload;
+
+    try {
+        payload =
+            await context.request.json();
+    } catch {
+        return privateJsonResponse(
+            {
+                success: false,
+                error:
+                    "Invalid JSON request body."
+            },
+            400,
+            30
+        );
+    }
+
+    const records =
+        Array.isArray(payload?.records)
+            ? payload.records.slice(0, 100)
+            : [];
+
+    if (!records.length) {
+        return privateJsonResponse(
+            {
+                success: false,
+                error:
+                    "Missing image records."
+            },
+            400,
+            30
+        );
+    }
+
+    try {
+        await ensureMarketImageAccountCacheTable(
+            db
+        );
+
+        const savedAt =
+            new Date().toISOString();
+
+        const statements = [];
+
+        for (const record of records) {
+            const commodityName =
+                String(
+                    record?.commodityName || ""
+                ).trim().slice(0, 240);
+
+            const category =
+                String(
+                    record?.category || "other"
+                ).trim().slice(0, 80) ||
+                "other";
+
+            const imageKey =
+                getMarketImageAccountKey(
+                    commodityName,
+                    category
+                );
+
+            if (!commodityName || !imageKey) {
+                continue;
+            }
+
+            const found =
+                record?.found === true;
+
+            const image =
+                found &&
+                record?.image &&
+                (
+                    record.image.url ||
+                    record.image.thumbnailUrl
+                )
+                    ? record.image
+                    : null;
+
+            const reason =
+                String(
+                    record?.reason || ""
+                ).trim().slice(0, 500);
+
+            statements.push(
+                db.prepare(
+                    "INSERT INTO " +
+                    MARKET_IMAGE_ACCOUNT_CACHE_TABLE +
+                    " (user_id, image_key, commodity_name, category, found, image_json, reason, saved_at) " +
+                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?) " +
+                    "ON CONFLICT(user_id, image_key) DO UPDATE SET " +
+                    "commodity_name = excluded.commodity_name, " +
+                    "category = excluded.category, " +
+                    "found = excluded.found, " +
+                    "image_json = excluded.image_json, " +
+                    "reason = excluded.reason, " +
+                    "saved_at = excluded.saved_at"
+                ).bind(
+                    user.id,
+                    imageKey,
+                    commodityName,
+                    category,
+                    found ? 1 : 0,
+                    image
+                        ? JSON.stringify(image)
+                        : null,
+                    reason,
+                    savedAt
+                )
+            );
+        }
+
+        if (statements.length) {
+            await db.batch(
+                statements
+            );
+        }
+
+        return privateJsonResponse(
+            {
+                success: true,
+                saved:
+                    statements.length
+            },
+            200,
+            30
+        );
+
+    } catch (error) {
+        console.error(
+            "Market image account cache upsert failed:",
+            error
+        );
+
+        return privateJsonResponse(
+            {
+                success: false,
+                error:
+                    "Market image account cache upsert failed."
+            },
+            500,
+            30
+        );
+    }
+}
+
+
 /* =========================================================
    IMAGE ACTION
 ========================================================= */
@@ -8728,6 +9140,43 @@ async function handleImageAction(
 /* =========================================================
    MAIN HANDLER
 ========================================================= */
+
+export async function onRequestPost(
+    context
+) {
+    const requestUrl =
+        new URL(
+            context.request.url
+        );
+
+    const action =
+        String(
+            requestUrl.searchParams.get(
+                "action"
+            ) || ""
+        )
+            .trim()
+            .toLowerCase();
+
+    if (
+        action ===
+        "account-image-cache-upsert"
+    ) {
+        return handleMarketImageAccountCacheUpsert(
+            context
+        );
+    }
+
+    return privateJsonResponse(
+        {
+            success: false,
+            error: "Invalid POST action."
+        },
+        400,
+        30
+    );
+}
+
 
 export async function onRequestGet(
     context
@@ -8974,6 +9423,20 @@ export async function onRequestGet(
             0
         );
 
+    }
+
+
+    /* ---------------------------------------------------------
+       AUTHENTICATED MARKET IMAGE ACCOUNT CACHE
+    --------------------------------------------------------- */
+
+    if (
+        action ===
+        "account-image-cache-get"
+    ) {
+        return handleMarketImageAccountCacheGet(
+            context
+        );
     }
 
 
