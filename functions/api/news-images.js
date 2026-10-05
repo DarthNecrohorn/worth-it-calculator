@@ -4,9 +4,8 @@
  * Extract the lead image from the original article page.
  * Only explicitly commercially reusable CC/public-domain images are returned.
  *
- * v4: use image-specific JSON-LD credit/license evidence and tightly
- * local HTML license hints so explicit Public Domain / CC credits are
- * not missed while generic article copyright still remains insufficient.
+ * v4: use image-specific JSON-LD license/credit evidence while keeping
+ * generic article copyright insufficient on its own.
  */
 
 const CACHE_TTL_SECONDS = 7 * 24 * 60 * 60;
@@ -400,26 +399,6 @@ function getImageTagCandidates(
                 )
                 : "";
 
-        const localContext =
-            input.slice(
-                Math.max(
-                    0,
-                    index - 1400
-                ),
-                Math.min(
-                    input.length,
-                    index +
-                    2200
-                )
-            );
-
-        const explicitLicenseContext =
-            (
-                localContext.match(
-                    /(?:public\s+domain|creative\s+commons|creativecommons\.org\/licenses\/[^\s"'<>]+|cc[-\s]*(?:by|by-sa|by-nd)|attribution(?:\s*[- ]?no[- ]?derivatives|[- ]?sharealike)?(?:\s+4(?:\.0)?)?)/gi
-                ) || []
-            );
-
         const licenseHints = [
             getAttribute(
                 tag,
@@ -441,8 +420,7 @@ function getImageTagCandidates(
                 tag,
                 "data-copyright"
             ),
-            figureCaption,
-            ...explicitLicenseContext
+            figureCaption
         ]
             .map(
                 value =>
