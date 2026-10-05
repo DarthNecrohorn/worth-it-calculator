@@ -208,9 +208,11 @@ function isImageObject(value) {
     );
 }
 
-function inspectJsonLd(blocks) {
-    const images = [];
-    const licenses = [];
+function inspectJsonLd(
+    blocks,
+    articleUrl
+) {
+    const imageObjects = [];
 
     blocks.forEach(
         block => {
@@ -223,33 +225,32 @@ function inspectJsonLd(blocks) {
                         return;
                     }
 
-                    [
+                    const imageUrls = [
                         value.contentUrl,
                         value.url
-                    ].forEach(
-                        item => {
-
-                            const normalized =
-                                normalize(item);
-
-                            if (normalized) {
-                                images.push(
-                                    normalized
-                                );
-                            }
-
-                        }
-                    );
+                    ]
+                        .map(
+                            item =>
+                                resolveImageUrl(
+                                    item,
+                                    articleUrl
+                                )
+                        )
+                        .filter(Boolean);
 
                     const license =
                         normalize(
                             value.license
                         );
 
-                    if (license) {
-                        licenses.push(
+                    if (
+                        imageUrls.length
+                    ) {
+                        imageObjects.push({
+                            images:
+                                imageUrls,
                             license
-                        );
+                        });
                     }
 
                 }
@@ -258,10 +259,7 @@ function inspectJsonLd(blocks) {
         }
     );
 
-    return {
-        images,
-        licenses
-    };
+    return imageObjects;
 }
 
 function licenseKind(value) {
@@ -500,26 +498,28 @@ async function inspectArticle(articleUrl) {
                         ]
                     );
 
-                const jsonLdInfo =
+                const jsonLdImages =
                     inspectJsonLd(
-                        parseJsonLd(html)
+                        parseJsonLd(html),
+                        url.toString()
                     );
 
                 const candidates = [
-                    ...metaImages,
-                    ...jsonLdInfo.images
-                ];
+                    ...metaImages.map(
+                        candidate =>
+                            resolveImageUrl(
+                                candidate,
+                                url.toString()
+                            )
+                    ),
+                    ...jsonLdImages.flatMap(
+                        item =>
+                            item.images
+                    )
+                ].filter(Boolean);
 
                 const imageUrl =
-                    candidates
-                        .map(
-                            candidate =>
-                                resolveImageUrl(
-                                    candidate,
-                                    url.toString()
-                                )
-                        )
-                        .find(Boolean);
+                    candidates[0] || "";
 
                 if (!imageUrl) {
 
@@ -542,9 +542,23 @@ async function inspectArticle(articleUrl) {
                             ]
                         );
 
+                    const selectedJsonLdLicenses =
+                        jsonLdImages
+                            .filter(
+                                item =>
+                                    item.images.includes(
+                                        imageUrl
+                                    ) &&
+                                    item.license
+                            )
+                            .map(
+                                item =>
+                                    item.license
+                            );
+
                     const licenses = [
                         ...metaLicenses,
-                        ...jsonLdInfo.licenses
+                        ...selectedJsonLdLicenses
                     ];
 
                     const allowedLicense =
