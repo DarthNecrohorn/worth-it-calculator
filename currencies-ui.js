@@ -734,19 +734,6 @@ function renderMajorCurrencies() {
         card.setAttribute("role", "button");
         card.setAttribute("aria-label", `View details for ${pair.base} / ${pair.target}`);
 
-        const detailIndex = allCurrencyDetailItems.length;
-        allCurrencyDetailItems.push({
-            kind: "all",
-            code,
-            name: currency.name || code,
-            rate,
-            change
-        });
-        card._currencyDetailIndex = detailIndex;
-        card.setAttribute("tabindex", "0");
-        card.setAttribute("role", "button");
-        card.setAttribute("aria-label", `View details for EUR / ${code}`);
-
         card.innerHTML = `
             <div class="money-card-main">
                 <div class="money-icon">
@@ -794,6 +781,19 @@ function renderAllCurrencies(currencies) {
 
         const card = document.createElement("div");
         card.className = "money-card";
+
+        const detailIndex = allCurrencyDetailItems.length;
+        allCurrencyDetailItems.push({
+            kind: "all",
+            code,
+            name: currency.name || code,
+            rate,
+            change
+        });
+        card._currencyDetailIndex = detailIndex;
+        card.setAttribute("tabindex", "0");
+        card.setAttribute("role", "button");
+        card.setAttribute("aria-label", `View details for EUR / ${code}`);
 
         card.innerHTML = `
             <div class="money-card-main">
