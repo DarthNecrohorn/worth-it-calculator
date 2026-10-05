@@ -15513,3 +15513,30 @@ html[data-ui-scale="xl"] .nav-links.open .nav-overflow-items{
 }
 
 
+
+
+/* CLS FIX — reserve signed-in navigation slots before auth/admin state resolves. */
+@media (min-width:701px){
+    /*
+     * Keep the signed-in header geometry stable during the first paint.
+     * These controls reserve their final width immediately, while their
+     * visibility still follows the existing auth/admin state.
+     */
+    .nav-actions .signout-nav-btn{
+        display:inline-flex !important;
+    }
+
+    .nav-actions:not(:has(.profile-nav-btn[style*="inline-flex"])) .signout-nav-btn{
+        visibility:hidden !important;
+        pointer-events:none !important;
+    }
+
+    .nav-actions .admin-panel-nav-btn{
+        display:inline-flex !important;
+    }
+
+    .nav-actions .admin-panel-nav-btn[style*="display: none"]{
+        visibility:hidden !important;
+        pointer-events:none !important;
+    }
+}
