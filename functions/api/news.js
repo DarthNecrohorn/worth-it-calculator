@@ -48,7 +48,7 @@ export async function onRequestGet(context) {
 
 
     const cacheKeyUrl =
-        `${requestUrl.origin}${requestUrl.pathname}/?news-cache=v25`;
+        `${requestUrl.origin}${requestUrl.pathname}/?news-cache=v24`;
 
 
     const cacheKey =
@@ -68,19 +68,2166 @@ export async function onRequestGet(context) {
 
     if (cachedResponse) {
 
-const generatedAt =
-            new Date().toISOString();
+        const response =
+            new Response(
+                cachedResponse.body,
+                cachedResponse
+            );
+
+
+        response.headers.set(
+            "X-News-Cache",
+            "HIT"
+        );
+
+
+        return response;
+
+    }
+
+
+    /* =========================================================
+       NEWS CATEGORIES
+    ========================================================= */
+
+    const categories = {
+    world: {
+        queries: ["world", "international", "government"]
+    },
+
+    technology: {
+        queries: ["technology", "software", "artificial intelligence"]
+    },
+
+    business: {
+        queries: ["business", "economy", "markets"]
+    },
+
+    science: {
+        queries: ["science", "research", "space"]
+    },
+
+    sports: {
+        queries: ["sports", "football", "basketball"]
+    },
+
+    crime: {
+        queries: ["crime", "criminal justice", "police", "court"]
+    },
+
+    entertainment: {
+        queries: ["entertainment", "movies", "music", "celebrity"]
+    },
+
+    culture: {
+        queries: ["culture", "arts", "museum", "heritage"]
+    },
+
+    health: {
+        queries: ["health", "medical", "medicine"]
+    },
+
+    environment: {
+        queries: ["environment", "climate", "wildlife"]
+    },
+
+    food: {
+        queries: ["food", "restaurant", "cooking"]
+    },
+
+    education: {
+        queries: ["education", "school", "university"]
+    }
+};
+
+    /*
+     * Count actual Open Newswire requests made during a cache refresh.
+     * Admin usage is recorded once at the end of the refresh instead
+     * of once per provider request, greatly reducing D1 writes.
+     */
+    let newsUpstreamRequestsMade =
+        0;
+    
+    try {
+
+
+        /* =====================================================
+           FETCH NEWS
+        ===================================================== */
+
+        async function fetchNews(
+            category,
+            params
+        ) {
+
+            const queries =
+                Array.isArray(
+                    params?.queries
+                )
+                    ? params.queries
+                    : (
+                        params?.q
+                            ? [params.q]
+                            : []
+                    );
+
+            if (!queries.length) {
+
+                return {
+                    articles: []
+                };
+
+            }
+
+
+            async function fetchQuery(
+                query
+            ) {
+
+                const url =
+                    new URL(
+                        "https://feed.opennewswire.org/api/articles"
+                    );
+
+
+                url.searchParams.set(
+                    "languages",
+                    "en"
+                );
+
+
+                url.searchParams.set(
+                    "size",
+                    "40"
+                );
+
+
+                url.searchParams.set(
+                    "search",
+                    query
+                );
+
+
+                newsUpstreamRequestsMade++;
+
+                const response =
+                    await fetch(
+                        url.toString(),
+                        {
+                            headers: {
+                                "User-Agent":
+                                    "Worth-It-News/1.1"
+                            }
+                        }
+                    );
+
+
+                const rawText =
+                    await response.text();
+
+
+                let data;
+
+                try {
+
+                    data =
+                        JSON.parse(
+                            rawText
+                        );
+
+                } catch (error) {
+
+                    throw new Error(
+                        `Open Newswire returned invalid JSON for ${category}/${query}`
+                    );
+
+                }
+
+
+                if (!response.ok) {
+
+                    throw new Error(
+                        `${category}/${query} request failed: ${response.status}`
+                    );
+
+                }
+
+
+                return Array.isArray(
+                    data?.results
+                )
+                    ? data.results
+                    : [];
+
+            }
+
+
+            /*
+             * Resource protection:
+             * use only the primary query for each category.
+             * This keeps a cold /api/news request within Worker
+             * resource limits while retaining one fresh feed
+             * pull for every category.
+             */
+            const requestQueries =
+                queries.slice(
+                    0,
+                    1
+                );
+
+            const settled =
+                await Promise.allSettled(
+                    requestQueries.map(
+                        query =>
+                            fetchQuery(
+                                query
+                            )
+                    )
+                );
+
+
+            const successfulResults =
+                [];
+
+            const errors =
+                [];
+
+
+            settled.forEach(
+                (
+                    result,
+                    index
+                ) => {
+
+                    if (
+                        result.status === "fulfilled"
+                    ) {
+
+                        successfulResults.push(
+                            ...result.value
+                        );
+
+                    } else {
+
+                        errors.push(
+                            {
+                                query:
+                                    requestQueries[index],
+
+                                error:
+                                    result.reason instanceof Error
+                                        ? result.reason.message
+                                        : String(
+                                            result.reason
+                                        )
+                            }
+                        );
+
+                    }
+
+                }
+            );
+
+
+            if (
+                !successfulResults.length &&
+                errors.length
+            ) {
+
+                throw new Error(
+                    errors
+                        .map(
+                            error =>
+                                error.error
+                        )
+                        .join(
+                            " | "
+                        )
+                );
+
+            }
+
+
+            function cleanText(
+                value
+            ) {
+
+                return String(
+                    value || ""
+                )
+                    .replace(
+                        /<[^>]*>/g,
+                        " "
+                    )
+                    .replace(
+                        /&amp;/gi,
+                        "&"
+                    )
+                    .replace(
+                        /&quot;/gi,
+                        '"'
+                    )
+                    .replace(
+                        /&#39;/gi,
+                        "'"
+                    )
+                    .replace(
+                        /&lt;/gi,
+                        "<"
+                    )
+                    .replace(
+                        /&gt;/gi,
+                        ">"
+                    )
+                    .replace(
+                        /\s+/g,
+                        " "
+                    )
+                    .trim();
+
+            }
+
+
+            function isAllowedCommercialLicense(
+                article
+            ) {
+
+                const license =
+                    article?.feed?.license || {};
+
+                const name =
+                    cleanText(
+                        license.name || ""
+                    ).toLowerCase();
+
+                const slug =
+                    cleanText(
+                        license.slug || ""
+                    ).toLowerCase();
+
+                if (
+                    slug.includes("nc") ||
+                    name.includes("non-commercial") ||
+                    name.includes("noncommercial")
+                ) {
+
+                    return false;
+
+                }
+
+                if (
+                    slug.includes("public-domain") ||
+                    slug === "cc0" ||
+                    name.includes("public domain") ||
+                    name.includes("cc0")
+                ) {
+
+                    return true;
+
+                }
+
+                if (
+                    slug.includes("by") ||
+                    name.includes("creative commons") ||
+                    name.includes("attribution")
+                ) {
+
+                    return true;
+
+                }
+
+                return false;
+
+            }
+
+
+            const articles =
+                successfulResults
+                    .filter(
+                        isAllowedCommercialLicense
+                    )
+                    .map(
+                        article => {
+
+                            const feed =
+                                article?.feed || {};
+
+                            const license =
+                                feed.license || {};
+
+                            const content =
+                                cleanText(
+                                    article?.content || ""
+                                );
+
+                            return {
+
+                                title:
+                                    cleanText(
+                                        article?.title || ""
+                                    ),
+
+                                description:
+                                    content.slice(
+                                        0,
+                                        600
+                                    ),
+
+                                link:
+                                    cleanText(
+                                        article?.link || ""
+                                    ),
+
+                                image_url:
+                                    "",
+
+                                pubDate:
+                                    article?.date || "",
+
+                                source_name:
+                                    cleanText(
+                                        feed.title || ""
+                                    ),
+
+                                license:
+                                    cleanText(
+                                        license.name ||
+                                        license.slug ||
+                                        ""
+                                    ),
+
+                                licenseUrl:
+                                    cleanText(
+                                        feed.licenseUrl || ""
+                                    )
+
+                            };
+
+                        }
+                    )
+                    .filter(
+                        article =>
+                            article.title &&
+                            article.link
+                    );
+
+
+            return {
+                articles
+            };
+
+        }
+
+        /* =====================================================
+           NORMALIZE TITLE
+        ===================================================== */
+
+        function normalizeTitle(
+            title
+        ) {
+
+            return (title || "")
+                .trim()
+                .toLowerCase()
+                .replace(
+                    /[^\p{L}\p{N}\s]/gu,
+                    " "
+                )
+                .replace(
+                    /\b(reuters|ap|associated press|breaking|update|news)\b/g,
+                    ""
+                )
+                .replace(
+                    /\s+/g,
+                    " "
+                )
+                .trim();
+
+        }
+
+
+        /* =====================================================
+           TITLE SIMILARITY
+        ===================================================== */
+
+        function titleSimilarity(
+            titleA,
+            titleB
+        ) {
+
+            const wordsA =
+                new Set(
+                    normalizeTitle(
+                        titleA
+                    )
+                        .split(" ")
+                        .filter(
+                            word =>
+                                word.length >= 4
+                        )
+                );
+
+
+            const wordsB =
+                new Set(
+                    normalizeTitle(
+                        titleB
+                    )
+                        .split(" ")
+                        .filter(
+                            word =>
+                                word.length >= 4
+                        )
+                );
+
+
+            if (
+                !wordsA.size ||
+                !wordsB.size
+            ) {
+
+                return 0;
+
+            }
+
+
+            let commonWords =
+                0;
+
+
+            for (
+                const word of wordsA
+            ) {
+
+                if (
+                    wordsB.has(
+                        word
+                    )
+                ) {
+
+                    commonWords++;
+
+                }
+
+            }
+
+
+            return (
+                commonWords /
+                Math.max(
+                    wordsA.size,
+                    wordsB.size
+                )
+            );
+
+        }
+
+
+        /* =====================================================
+           REMOVE DUPLICATES
+        ===================================================== */
+
+        function removeDuplicateArticles(
+            articles
+        ) {
+
+            const uniqueArticles =
+                [];
+
+
+            const seenUrls =
+                new Set();
+
+
+            const seenTitles =
+                [];
+
+
+            for (
+                const article of articles
+            ) {
+
+                const articleUrl =
+                    (
+                        article.link ||
+                        ""
+                    )
+                        .trim()
+                        .toLowerCase();
+
+
+                const articleTitle =
+                    normalizeTitle(
+                        article.title
+                    );
+
+
+                /*
+                 * Duplicate URL.
+                 */
+
+                if (
+                    articleUrl &&
+                    seenUrls.has(
+                        articleUrl
+                    )
+                ) {
+
+                    continue;
+
+                }
+
+
+                /*
+                 * Duplicate / very similar title.
+                 */
+
+                let duplicate =
+                    false;
+
+
+                for (
+                    const existingTitle
+                    of seenTitles
+                ) {
+
+                    if (
+                        titleSimilarity(
+                            articleTitle,
+                            existingTitle
+                        ) >= 0.65
+                    ) {
+
+                        duplicate =
+                            true;
+
+                        break;
+
+                    }
+
+                }
+
+
+                if (duplicate) {
+
+                    continue;
+
+                }
+
+
+                if (articleUrl) {
+
+                    seenUrls.add(
+                        articleUrl
+                    );
+
+                }
+
+
+                if (articleTitle) {
+
+                    seenTitles.push(
+                        articleTitle
+                    );
+
+                }
+
+
+                uniqueArticles.push(
+                    article
+                );
+
+            }
+
+
+            return uniqueArticles;
+
+        }
+
+
+        /* =====================================================
+           SPECIAL CATEGORY RELEVANCE
+        ===================================================== */
+
+        function isRelevantSpecialCategory(
+            article,
+            category
+        ) {
+
+            const title =
+                String(
+                    article.title || ""
+                )
+                    .toLowerCase();
+
+
+            const description =
+                String(
+                    article.description || ""
+                )
+                    .toLowerCase();
+
+
+            const text =
+                `${title} ${description}`;
+
+
+            const rules = {
+
+                gaming: [
+
+                    "gaming",
+                    "gamer",
+                    "gamers",
+
+                    "video game",
+                    "video games",
+                    "videogame",
+
+                    "gameplay",
+
+                    "playstation",
+                    "xbox",
+                    "nintendo",
+                    "nintendo switch",
+
+                    "steam",
+                    "pc gaming",
+
+                    "esports",
+
+                    "ps5",
+                    "ps4",
+                    "xbox series",
+                    "switch",
+
+                    "console",
+                    "consoles",
+
+                    "game developer",
+                    "game studio",
+                    "game release",
+                    "new game",
+
+                    "rpg",
+
+                    "fortnite",
+                    "minecraft",
+                    "roblox",
+                    "gta"
+
+                ],
+
+
+                weird: [
+
+                    "weird",
+                    "strange",
+                    "bizarre",
+                    "unusual",
+                    "odd",
+                    "peculiar",
+
+                    "mysterious",
+                    "mystery",
+
+                    "unexpected",
+                    "unbelievable",
+                    "unexplained",
+
+                    "rare",
+
+                    "strange event",
+                    "unusual event",
+
+                    "strange discovery",
+                    "unusual discovery",
+
+                    "rare discovery",
+                    "unexpected discovery"
+
+                ],
+
+
+                awesome: [
+
+                    "cute",
+                    "adorable",
+
+                    "heartwarming",
+                    "heart-warming",
+                    "wholesome",
+                    "uplifting",
+                    "inspiring",
+
+                    "kindness",
+                    "kind act",
+                    "kindness story",
+                    "acts of kindness",
+
+                    "good deed",
+                    "good deeds",
+
+                    "help",
+                    "helping",
+                    "helped",
+                    "helps",
+
+                    "rescue",
+                    "rescued",
+                    "rescuing",
+
+                    "saving",
+                    "saved",
+                    "saves",
+
+                    "good news",
+                    "feel good",
+                    "feel-good",
+
+                    "happy ending",
+                    "happy story",
+
+                    "positive story",
+                    "positive news",
+
+                    "human kindness",
+
+                    "local hero",
+                    "hero",
+                    "heroes",
+
+                    "volunteer",
+                    "volunteers",
+                    "volunteering",
+
+                    "donation",
+                    "donations",
+                    "donated",
+
+                    "charity",
+                    "charities",
+
+                    "reunited",
+                    "reunion",
+
+                    "adoption",
+                    "adopted",
+                    "shelter",
+
+                    "cat",
+                    "cats",
+                    "kitten",
+                    "kittens",
+
+                    "dog",
+                    "dogs",
+                    "puppy",
+                    "puppies",
+
+                    "pet",
+                    "pets",
+
+                    "animal",
+                    "animals",
+
+                    "wildlife"
+
+                ],
+
+
+                underrated: [
+
+                    "underrated",
+                    "overlooked",
+
+                    "little known",
+                    "little-known",
+
+                    "hidden gem",
+                    "hidden gems",
+
+                    "unknown",
+                    "forgotten",
+
+                    "under the radar",
+                    "under-the-radar",
+
+                    "off the radar",
+
+                    "lesser known",
+                    "lesser-known",
+
+                    "unsung",
+                    "unsung hero",
+
+                    "obscure",
+
+                    "rarely known",
+                    "rarely visited",
+
+                    "overlooked destination",
+                    "overlooked place",
+                    "overlooked artist",
+                    "overlooked game",
+
+                    "hidden destination",
+                    "hidden place"
+
+                ]
+
+            };
+
+
+            const keywords =
+                rules[category] || [];
+
+
+            return keywords.some(
+                keyword =>
+                    text.includes(
+                        keyword
+                    )
+            );
+
+        }
+
+
+        function getPrimaryNewsCategory(
+            article
+        ) {
+
+            const title = String(article?.title || "").toLowerCase();
+            const description = String(article?.description || "").toLowerCase();
+            const text = title + " " + description;
+
+            const rules = {
+                world: ["war","conflict","ceasefire","diplomacy","diplomatic","election","president","prime minister","foreign minister","parliament","government","sanctions","treaty","geopolit","protest","coup","military","border dispute","international","congress","senate","political","policy","campaign","candidate","ballot","voters","congressional race","congressional district","midterm","lawmaker","governor","minister","legislation","referendum"],
+                technology: ["technology","tech","software","artificial intelligence","ai","cybersecurity","cyber attack","chip","chips","semiconductor","robot","robotics","smartphone","computer","internet","app","cloud computing","data center","quantum computing","biometric","digital platform","machine learning","programming","developer"],
+                business: ["business","economy","economic","markets","market","stocks","shares","finance","financial","investment","investors","company","companies","merger","acquisition","trade","tariff","bank","banking","jobs","employment","inflation","interest rates","earnings","revenue","industry","corporate","manufacturing","fuel economy","tax"],
+                science: ["science","scientist","scientists","research","researchers","study","discovery","discovered","experiment","astronomy","planet","galaxy","space mission","nasa","biology","genetics","physics","chemistry","species","ecosystem","laboratory","clinical trial","scientific"],
+                sports: ["sports","sport","football","soccer","basketball","baseball","tennis","cricket","rugby","hockey","golf","boxing","formula 1","grand prix","fifa","uefa","nfl","nba","nhl","mlb","championship","tournament","league","playoffs","world cup","athlete","coach","transfer","match","season","games","game"],
+                crime: ["crime","criminal","criminal investigation","police","police chief","sheriff","law enforcement","detective","homicide","murder","killing","shooting","shooter","robbery","burglary","theft","fraud","scam","bribery","corruption","arson","assault","kidnapping","abduction","suspect","suspects","arrest","arrested","charged","charges","indictment","indicted","prosecution","prosecutor","trial","convicted","conviction","sentenced","sentencing","jail","prison","inmate","victim","victims","forensic","evidence","warrant","firearm","firearms","gunfire","weapon","weapons","court","judge","detention","detained","misconduct"],
+                culture: ["culture","cultural","arts","art","artist","artists","artwork","artworks","museum","museums","gallery","galleries","exhibition","exhibit","heritage","unesco","architecture","architect","architects","literature","literary","poetry","poem","theatre","theater","opera","ballet","dance","dancer","dancers","painting","paintings","sculpture","sculptures","ceramics","photography","photographer","design","public art","art history","cultural heritage","cultural institution","cultural institutions","cultural scene","live music scene","music scene","film history","film criticism","book festival","literary festival","manuscript","manuscripts","archive","archives","fashion","wardrobe","costume"],
+                entertainment: ["entertainment","movie","movies","film","films","cinema","music","concert","singer","album","actor","actress","celebrity","director","hollywood","television","tv series","streaming","festival","box office","premiere","performance","artist","show"],
+                health: ["health","healthcare","health care","medical","medicine","disease","illness","hospital","doctor","doctors","patient","patients","vaccine","vaccination","virus","infection","outbreak","treatment","therapy","diagnosis","mental health","public health","clinical","pregnant","pregnancy","medication","symptoms","ptsd","post-traumatic stress","trauma","weight loss","weight-loss","diet drinks","prenatal","adhd"],
+                environment: ["environment","climate change","global warming","greenhouse gas","emissions","pollution","wildfire","drought","flood","storm surge","permafrost","conservation","biodiversity","renewable energy","clean energy","ecosystem","wetland","ocean warming","deforestation","wildlife","habitat","carbon","sustainability","endangered species","food waste"],
+                food: ["food","restaurant","cooking","recipe","chef","cuisine","meal","dish","grocery","supermarket","food safety","food prices","ingredients","bakery","coffee","wine","beer","dining","kitchen","menu","appetite","flavor"],
+                education: ["education","school","schools","university","universities","college","colleges","student","students","teacher","teachers","classroom","curriculum","literacy","scholarship","campus","academic","school district","higher education","learning","lesson","degree","faculty"]
+            };
+
+            let bestCategory = "";
+            let bestScore = 0;
+            let bestTitleScore = 0;
+
+            for (const [category, terms] of Object.entries(rules)) {
+
+                let titleScore = 0;
+                let bodyScore = 0;
+
+                for (const term of terms) {
+                    const escaped = term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+                    const pattern = new RegExp("(^|[^a-z0-9])" + escaped + "([^a-z0-9]|$)", "i");
+                    if (pattern.test(title)) titleScore += 1;
+                    if (pattern.test(text)) bodyScore += 1;
+                }
+
+                const score = (titleScore * 8) + (bodyScore * 2);
+
+                if (score > bestScore || (score === bestScore && titleScore > bestTitleScore)) {
+                    bestCategory = category;
+                    bestScore = score;
+                    bestTitleScore = titleScore;
+                }
+            }
+
+            /*
+             * Topic-specific headline overrides for common cross-category
+             * collisions observed in Open Newswire.
+             */
+            if (
+                title.includes("environmental") ||
+                title.includes("river cleanup") ||
+                title.includes("power plant emissions") ||
+                title.includes("fossil fuel companies")
+            ) {
+                return "environment";
+            }
+
+            if (
+                title.includes("hybrid aggression") ||
+                title.includes("hybrid warfare") ||
+                title.includes("cyberattacks")
+            ) {
+                return "world";
+            }
+
+            if (
+                title.includes("vaccinated") &&
+                (
+                    title.includes("lion") ||
+                    title.includes("tamarin") ||
+                    title.includes("wildlife") ||
+                    title.includes("animal")
+                )
+            ) {
+                return "environment";
+            }
+
+            if (
+                title.includes("testosterone") &&
+                (
+                    text.includes("menopause") ||
+                    text.includes("symptoms") ||
+                    text.includes("women")
+                )
+            ) {
+                return "health";
+            }
+
+            if (
+                title.includes("study") &&
+                (
+                    title.includes("diet drinks") ||
+                    title.includes("weight loss")
+                )
+            ) {
+                return "health";
+            }
+
+            /*
+             * Clear health headlines must stay in Health even when
+             * "lifestyle" or another lifestyle term appears in the title.
+             */
+            if (
+                title.includes("fatigue") ||
+                title.includes("heavy periods") ||
+                title.includes("iron deficiency") ||
+                title.includes("obesity") ||
+                title.includes("medical") ||
+                title.includes("medicine") ||
+                title.includes("health") ||
+                title.includes("healthcare") ||
+                title.includes("disease") ||
+                title.includes("illness") ||
+                title.includes("patient") ||
+                title.includes("patients") ||
+                title.includes("vaccine") ||
+                title.includes("vaccination") ||
+                title.includes("hospital") ||
+                title.includes("doctor") ||
+                title.includes("doctors")
+            ) {
+                return "health";
+            }
+
+            /*
+             * Clear crime headlines must stay in Crime when they describe
+             * an actual criminal incident, case or investigation.
+             */
+            if (
+                [
+                    "criminal investigation",
+                    "criminal charges",
+                    "arrest",
+                    "arrested",
+                    "charged",
+                    "charges",
+                    "indictment",
+                    "indicted",
+                    "homicide",
+                    "murder",
+                    "shooting",
+                    "shooter",
+                    "robbery",
+                    "burglary",
+                    "theft",
+                    "fraud",
+                    "scam",
+                    "bribery",
+                    "corruption",
+                    "arson",
+                    "assault",
+                    "kidnapping",
+                    "abduction",
+                    "suspect",
+                    "prosecutor",
+                    "prosecution",
+                    "trial",
+                    "convicted",
+                    "conviction",
+                    "sentenced",
+                    "sentencing",
+                    "jail",
+                    "prison",
+                    "inmate",
+                    "law enforcement",
+                    "sheriff",
+                    "detective",
+                    "forensic",
+                    "gunfire",
+                    "firearm",
+                    "firearms",
+                    "weapons",
+                    "weapon",
+                    "court appearance",
+                    "arraignment",
+                    "detention",
+                    "detained",
+                    "misconduct"
+                ].some(
+                    term => title.includes(term)
+                )
+            ) {
+                return "crime";
+            }
+
+            if (
+                (
+                    title.includes("court") ||
+                    title.includes("judge")
+                ) &&
+                [
+                    "charged",
+                    "charges",
+                    "accused",
+                    "defendant",
+                    "trial",
+                    "convicted",
+                    "sentenced",
+                    "detention",
+                    "detained",
+                    "arraignment",
+                    "indictment"
+                ].some(
+                    term => title.includes(term)
+                )
+            ) {
+                return "crime";
+            }
+
+            /*
+             * Strong entertainment headline anchors. These take priority
+             * over shared words such as "artist", "performance" or "design"
+             * when the headline is clearly about film, music, television
+             * or celebrity entertainment.
+             */
+            if (
+                [
+                    "movie",
+                    "movies",
+                    "film",
+                    "films",
+                    "cinema",
+                    "actor",
+                    "actress",
+                    "celebrity",
+                    "celebrities",
+                    "hollywood",
+                    "box office",
+                    "premiere",
+                    "red carpet",
+                    "singer",
+                    "album",
+                    "concert",
+                    "tour",
+                    "television",
+                    "tv series",
+                    "streaming",
+                    "sitcom",
+                    "episode",
+                    "episodes",
+                    "director",
+                    "star",
+                    "stars",
+                    "show business",
+                    "showbiz",
+                    "entertainment"
+                ].some(
+                    term =>
+                        title.includes(term)
+                )
+            ) {
+                return "entertainment";
+            }
+
+            /*
+             * Culture headline anchors. Require an actual cultural,
+             * artistic or heritage subject from the headline.
+             */
+            const cultureHeadlineTerms = [
+                "culture","cultural","arts","art","artist","artists","artwork",
+                "museum","gallery","exhibition","exhibit","heritage","unesco",
+                "architecture","architect","literature","literary","poetry",
+                "theatre","theater","opera","ballet","dance","dancer","painting",
+                "sculpture","ceramics","photography","photographer","design",
+                "public art","art history","cultural heritage","cultural institution",
+                "cultural scene","live music scene","music scene","film history",
+                "film criticism","book festival","literary festival","manuscript",
+                "manuscripts","archive","archives","fashion","wardrobe","costume"
+            ];
+
+            const titlePadded =
+                ` ${title.replace(/[^a-z0-9]+/g, " ")} `;
+
+            const cultureHeadlineHas =
+                cultureHeadlineTerms.some(
+                    term =>
+                        titlePadded.includes(
+                            ` ${term} `
+                        )
+                );
+
+            if (cultureHeadlineHas) {
+                return "culture";
+            }
+
+            /*
+             * Specific topic overrides for remaining live-feed collisions.
+             */
+            if (title.includes("mangrove")) {
+                return "environment";
+            }
+
+            if (
+                title.includes("isle royale") &&
+                title.includes("wolf")
+            ) {
+                return "environment";
+            }
+
+            if (
+                title.includes("pileup") ||
+                title.includes("vehicle pileup")
+            ) {
+                return "world";
+            }
+
+
+            const titleHas = terms =>
+                terms.some(
+                    term =>
+                        title.includes(term)
+                );
+
+            const textHas = terms =>
+                terms.some(
+                    term =>
+                        text.includes(term)
+                );
+
+            /*
+             * Hard headline anchors. These stop generic terms such as
+             * "study", "food", or "director" from overriding the real topic.
+             */
+            if (
+                titleHas([
+                    "election",
+                    "campaign",
+                    "candidate",
+                    "ballot",
+                    "voters",
+                    "congressional race",
+                    "congressional district",
+                    "midterm",
+                    "referendum"
+                ])
+            ) {
+                return "world";
+            }
+
+            if (
+                titleHas([
+                    "greenhouse gas",
+                    "greenhouse gases",
+                    "climate change",
+                    "global warming",
+                    "emissions",
+                    "permafrost",
+                    "wildfire",
+                    "conservation",
+                    "biodiversity",
+                    "endangered species",
+                    "wildlife",
+                    "habitat",
+                    "renewable energy"
+                ])
+            ) {
+                return "environment";
+            }
+
+            if (
+                titleHas([
+                    "ptsd",
+                    "post-traumatic stress",
+                    "mental health",
+                    "vaccination",
+                    "vaccine",
+                    "pregnancy",
+                    "pregnant",
+                    "adhd",
+                    "weight loss",
+                    "weight-loss",
+                    "prenatal",
+                    "medical",
+                    "medicine",
+                    "health",
+                    "healthcare",
+                    "disease",
+                    "hospital"
+                ])
+            ) {
+                return "health";
+            }
+
+            if (
+                titleHas([
+                    "artificial intelligence",
+                    "cybersecurity",
+                    "cyber attack",
+                    "software",
+                    "semiconductor",
+                    "biometric",
+                    "data center",
+                    "robotics",
+                    "smartphone"
+                ])
+            ) {
+                return "technology";
+            }
+
+            /*
+             * A political story that only scored as Business because words
+             * such as economy/manufacturing appeared in the description.
+             */
+            if (
+                bestCategory === "business" &&
+                !titleHas([
+                    "business","economy","economic","markets","market","stocks",
+                    "shares","finance","financial","investment","investors",
+                    "company","companies","merger","acquisition","trade","tariff",
+                    "bank","banking","jobs","employment","inflation","interest rates",
+                    "earnings","revenue","industry","corporate","manufacturing",
+                    "fuel economy","tax"
+                ]) &&
+                textHas([
+                    "president","prime minister","governor","senator","lawmaker",
+                    "parliament","congress","political","campaign","candidate"
+                ])
+            ) {
+                return "world";
+            }
+
+            /*
+             * Food insecurity/aid/crisis is World news rather than a food story.
+             */
+            if (
+                bestCategory === "food" &&
+                (
+                    text.includes("food insecurity") ||
+                    text.includes("food security crisis") ||
+                    text.includes("food crisis") ||
+                    text.includes("food aid") ||
+                    text.includes("food assistance")
+                ) &&
+                !titleHas([
+                    "restaurant","cooking","recipe","chef","cuisine","meal","dish",
+                    "grocery","supermarket","bakery","coffee","beer","dining"
+                ])
+            ) {
+                return "world";
+            }
+
+            /*
+             * Food waste articles about emissions/climate belong to Environment.
+             */
+            if (
+                bestCategory === "food" &&
+                text.includes("food waste") &&
+                textHas([
+                    "greenhouse gas",
+                    "greenhouse gases",
+                    "emissions",
+                    "climate change",
+                    "global warming",
+                    "methane",
+                    "carbon"
+                ])
+            ) {
+                return "environment";
+            }
+
+            /*
+             * Conservation/ecology and medical stories should not be pulled
+             * into Science merely because the headline says "study".
+             */
+            if (
+                bestCategory === "science" &&
+                titleHas([
+                    "endangered species",
+                    "wildlife",
+                    "habitat",
+                    "conservation",
+                    "biodiversity",
+                    "ecosystem",
+                    "permafrost",
+                    "emissions",
+                    "climate change"
+                ])
+            ) {
+                return "environment";
+            }
+
+            if (
+                bestCategory === "science" &&
+                titleHas([
+                    "ptsd",
+                    "mental health",
+                    "pregnancy",
+                    "pregnant",
+                    "adhd",
+                    "vaccine",
+                    "vaccination",
+                    "weight loss",
+                    "medical",
+                    "medicine",
+                    "health",
+                    "disease",
+                    "hospital",
+                    "doctor",
+                    "trauma"
+                ])
+            ) {
+                return "health";
+            }
+
+            return bestScore >= 4 ? bestCategory : "";
+
+        }
+
+
+        function isRelevantNewsCategory(
+            article,
+            category
+        ) {
+
+            if (category === "crime") {
+                return (
+                    getPrimaryNewsCategory(article) === "crime" &&
+                    isRelevantCrimeArticle(article)
+                );
+            }
+
+            if (category === "culture") {
+                return (
+                    getPrimaryNewsCategory(article) === "culture" &&
+                    isRelevantCultureArticle(article)
+                );
+            }
+
+            return getPrimaryNewsCategory(article) === category;
+
+        }
+
+
+        function isRelevantCrimeArticle(
+            article
+        ) {
+
+            const title =
+                String(
+                    article?.title || ""
+                ).toLowerCase();
+
+            const description =
+                String(
+                    article?.description || ""
+                ).toLowerCase();
+
+            const text =
+                `${title} ${description}`;
+
+            const titleCrimeTerms = [
+                "crime","criminal","criminal investigation","criminal charges","police",
+                "sheriff","law enforcement","detective","homicide","murder","killing",
+                "shooting","shooter","robbery","burglary","theft","fraud","scam",
+                "bribery","corruption","arson","assault","kidnapping","abduction",
+                "suspect","suspects","arrest","arrested","charged","charges","indictment",
+                "indicted","prosecution","prosecutor","trial","convicted","conviction",
+                "sentenced","sentencing","jail","prison","inmate","victim","victims",
+                "forensic","firearm","firearms","gunfire","weapon","weapons","detention",
+                "detained","misconduct"
+            ];
+
+            const proceduralTerms = [
+                "charged","charges","accused","defendant","trial","convicted",
+                "sentenced","detention","detained","arraignment","indictment","criminal"
+            ];
+
+            const administrativeFalsePositives = [
+                /\bpolice chief (candidates?|search)\b/,
+                /\bpolice (budget|funding|staffing|recruitment|reform)\b/,
+                /\b(cops?|officers?) (budget|funding|staffing|recruitment)\b/,
+                /\bpledges? \$[\d,.]+.*\b(cops?|police|officers?)\b/,
+                /\bcommunity forums?\b/,
+                /\bpension rules?\b/
+            ];
+
+            if (
+                administrativeFalsePositives.some(
+                    pattern => pattern.test(title)
+                )
+            ) {
+                return false;
+            }
+
+            const titleCrimeHits =
+                titleCrimeTerms.filter(
+                    term => title.includes(term)
+                ).length;
+
+            const hasCourtContext =
+                title.includes("court") ||
+                title.includes("judge");
+
+            const hasCrimeProcedure =
+                proceduralTerms.some(
+                    term => title.includes(term)
+                );
+
+            const bodyCrimeHits =
+                titleCrimeTerms.filter(
+                    term => text.includes(term)
+                ).length;
+
+            return (
+                titleCrimeHits > 0 ||
+                (
+                    hasCourtContext &&
+                    hasCrimeProcedure &&
+                    bodyCrimeHits >= 2
+                )
+            );
+
+        }
+
+
+        function isRelevantCultureArticle(
+            article
+        ) {
+
+            const title =
+                String(
+                    article?.title || ""
+                ).toLowerCase();
+
+            const titleCultureTerms = [
+                "culture","cultural","arts","art","artist","artists","artwork","artworks",
+                "museum","museums","gallery","galleries","exhibition","exhibit","heritage",
+                "unesco","architecture","architect","architects","literature","literary",
+                "poetry","poem","theatre","theater","opera","ballet","dance","dancer","dancers",
+                "painting","paintings","sculpture","sculptures","ceramics","photography",
+                "photographer","design","public art","art history","cultural heritage",
+                "cultural institution","cultural institutions","cultural scene","live music scene",
+                "music scene","film history","film criticism","book festival","literary festival",
+                "manuscript","manuscripts","archive","archives","fashion","wardrobe","costume"
+            ];
+
+            const titleContainsCultureTerm =
+                term => {
+                    const escaped =
+                        term.replace(
+                            /[.*+?^$()|[\]\\]/g,
+                            "\\$&"
+                        );
+
+                    return new RegExp(
+                        "(^|[^a-z0-9])" +
+                        escaped +
+                        "([^a-z0-9]|$)",
+                        "i"
+                    ).test(title);
+                };
+
+            const titleCultureHits =
+                titleCultureTerms.filter(
+                    titleContainsCultureTerm
+                ).length;
+
+            if (!titleCultureHits) {
+                return false;
+            }
+
+            if (
+                (
+                    title.includes("climate") ||
+                    title.includes("global heating") ||
+                    title.includes("global warming") ||
+                    title.includes("emissions") ||
+                    title.includes("wildfire")
+                ) &&
+                (
+                    title.includes("heritage") ||
+                    title.includes("unesco")
+                )
+            ) {
+                return false;
+            }
+
+            if (
+                [
+                    "student","students","school","schools","university",
+                    "college","education","literacy","reading"
+                ].some(titleContainsCultureTerm) &&
+                ![
+                    "literary","literature","poetry","arts","art","museum"
+                ].some(titleContainsCultureTerm)
+            ) {
+                return false;
+            }
+
+            if (
+                [
+                    "movie","movies","film","films","cinema","actor","actress",
+                    "celebrity","hollywood","tv series","television","streaming",
+                    "sitcom","box office","premiere","episode","episodes"
+                ].some(titleContainsCultureTerm) &&
+                ![
+                    "museum","exhibition","gallery","heritage","architecture",
+                    "art history","cultural"
+                ].some(titleContainsCultureTerm)
+            ) {
+                return false;
+            }
+
+            return true;
+
+        }
+
+        /* =====================================================
+           FORMAT ARTICLES
+        ===================================================== */
+
+        function formatArticles(
+            articles
+        ) {
+
+            return articles.map(
+                article => ({
+
+                    title:
+                        article.title ||
+                        "",
+
+                    description:
+                        article.description ||
+                        "",
+
+                    url:
+                        article.link ||
+                        "",
+
+                    image:
+                        String(
+                            article.image_url ||
+                            ""
+                        ).replace(
+                            /^http:\/\//i,
+                            "https://"
+                        ),
+
+                    publishedAt:
+                        article.pubDate ||
+                        "",
+
+                    source:
+                        article.source_name ||
+                        ""
+
+                })
+            );
+
+        }
+
+
+        /* =====================================================
+           NEWS QUALITY + FRESHNESS
+        ===================================================== */
+
+        const NEWS_MAX_AGE_MS =
+            96 * 60 * 60 * 1000;
+
+        function articleAgeMs(article) {
+            const publishedAt = Date.parse(
+                article.publishedAt || article.pubDate || ""
+            );
+            if (!Number.isFinite(publishedAt)) return 0;
+            return Math.max(0, Date.now() - publishedAt);
+        }
+
+        function newsQualityScore(article, category) {
+            const title = String(article.title || "").trim();
+            const description = String(article.description || "").trim();
+            const text = (title + " " + description).toLowerCase();
+            let score = 50;
+
+            const age = articleAgeMs(article);
+            if (age > 0) {
+                const hours = age / 3600000;
+                if (hours <= 6) score += 28;
+                else if (hours <= 24) score += 22;
+                else if (hours <= 48) score += 12;
+                else if (hours <= 96) score += 3;
+                else score -= 30;
+            }
+
+            const timelyTerms = [
+                "today", "tonight", "latest", "new", "announces",
+                "announced", "launches", "launched", "reports",
+                "reported", "confirms", "confirmed", "reveals",
+                "revealed", "after", "amid", "following", "breaking"
+            ];
+            score += timelyTerms.reduce((total, term) =>
+                total + (text.includes(term) ? 2 : 0), 0);
+
+            const titleWords = title.split(/\s+/).filter(Boolean);
+            if (titleWords.length >= 6 && titleWords.length <= 22) score += 8;
+            if (titleWords.length < 4) score -= 12;
+
+            const lowValuePatterns = [
+                /\bpress release\b/, /\bpress releases\b/, /\bpr newswire\b/,
+                /\bgrant (awarded|received|funding)\b/, /\bawarded .*grant\b/,
+                /\breceives? \$[\d,.]+[km]?\b/, /\bpartners? with\b/,
+                /\bpartnership\b/, /\bstrategic review\b/, /\bappointed interim\b/,
+                /\bchief business officer\b/, /\bproven track record\b/,
+                /\blong-standing staff\b/, /\bhighlights .* track record\b/,
+                /\bwhat sets .* apart\b/, /\bworth a pilot\b/,
+                /\bseek(s|ing) .* ideas\b/, /\bdrives? tourist spending\b/,
+                /\bmichelin guide recommendations\b/, /\bphoto gallery\b/,
+                /\bscoreboard\b/, /\bhigh school .* (wins|upsets|defeats)\b/,
+                /\bunder 21 world championship\b/, /\bcar auction\b/,
+                /\bat no reserve\b/, /\bdeferred share units\b/,
+                /\bstatic gradient survey\b/
+            ];
+            if (lowValuePatterns.some(pattern => pattern.test(text))) score -= 45;
+
+            const promotionalPatterns = [
+                /\b(unmissable|must-see|dream|best in|leading .* center|families weigh)\b/,
+                /\b(book now|shop now|learn more)\b/, /\btop \d+\b/,
+                /\bhow to .* (save|choose|buy)\b/
+            ];
+            if (promotionalPatterns.some(pattern => pattern.test(text))) score -= 25;
+
+            const eventTerms = [
+                "war", "attack", "crash", "fire", "wildfire", "earthquake",
+                "storm", "flood", "election", "government", "president",
+                "minister", "sanctions", "tariff", "agreement", "deal",
+                "investigation", "court", "law", "ai", "artificial intelligence",
+                "space", "nasa", "discovery", "researchers", "scientists",
+                "championship", "final", "tournament", "airline", "airport"
+            ];
+            score += eventTerms.reduce((total, term) =>
+                total + (text.includes(term) ? 2 : 0), 0);
+
+            const categoryTerms = {
+                world: ["war", "conflict", "election", "diplomacy", "sanctions", "ceasefire", "president", "prime minister", "government", "protest"],
+                technology: ["ai", "artificial intelligence", "chip", "robot", "cybersecurity", "software", "smartphone", "space", "data center"],
+                business: ["markets", "stocks", "economy", "tariff", "trade", "merger", "acquisition", "investment", "jobs", "interest rates"],
+                science: ["discovery", "research", "scientists", "space", "nasa", "planet", "astronomy", "climate", "study"],
+                sports: ["final", "championship", "tournament", "record", "transfer", "league", "grand prix", "playoffs"],
+                crime: ["crime", "criminal", "police", "sheriff", "law enforcement", "homicide", "murder", "shooting", "robbery", "burglary", "theft", "fraud", "scam", "arson", "assault", "kidnapping", "arrest", "arrested", "charged", "indictment", "prosecution", "prosecutor", "trial", "convicted", "sentenced", "jail", "prison", "victim", "forensic", "gunfire", "weapon", "weapons", "court", "detention", "misconduct"],
+                entertainment: ["film", "movie", "music", "concert", "actor", "actress", "album", "festival", "award"],
+                culture: ["culture", "cultural", "arts", "art", "artist", "artwork", "museum", "gallery", "exhibition", "exhibit", "heritage", "unesco", "architecture", "architect", "literature", "literary", "poetry", "theatre", "theater", "opera", "ballet", "dance", "painting", "sculpture", "ceramics", "photography", "design", "public art", "art history", "cultural heritage", "cultural institution", "cultural scene", "live music scene", "music scene", "manuscript", "archive", "fashion", "wardrobe", "costume"],
+                health: ["disease", "treatment", "drug", "hospital", "doctors", "study", "outbreak", "vaccine"],
+                environment: ["climate", "wildfire", "flood", "storm", "pollution", "emissions", "conservation", "renewable"]
+            };
+            score += (categoryTerms[category] || []).reduce((total, term) =>
+                total + (text.includes(term) ? 3 : 0), 0);
+            return score;
+        }
+
+        function rankNewsArticles(articles, category) {
+            return articles
+                .filter(article => {
+                    const age = articleAgeMs(article);
+                    return !age || age <= NEWS_MAX_AGE_MS;
+                })
+                .map((article, index) => ({
+                    article,
+                    index,
+                    score: newsQualityScore(article, category)
+                }))
+                .sort((a, b) => {
+                    if (b.score !== a.score) return b.score - a.score;
+                    const dateA = Date.parse(a.article.publishedAt || a.article.pubDate || "") || 0;
+                    const dateB = Date.parse(b.article.publishedAt || b.article.pubDate || "") || 0;
+                    if (dateB !== dateA) return dateB - dateA;
+                    return a.index - b.index;
+                })
+                .map(item => item.article);
+        }
+
+        /* =====================================================
+           LOAD CATEGORY FROM OPEN NEWSWIRE
+        ===================================================== */
+
+        async function loadCategory(
+            category,
+            settings
+        ) {
+
+            /*
+             * IMPORTANT:
+             *
+             * Only ONE Open Newswire request per category.
+             *
+             * Previously this function could request up to
+             * four pages, which greatly increased API usage.
+             */
+
+            let result =
+                await fetchNews(
+                    category,
+                    {
+                        category:
+                            settings.category,
+
+                        q:
+                            settings.q,
+
+                        queries:
+                            settings.queries
+                    }
+                );
+
+
+            let articles =
+                Array.isArray(
+                    result.articles
+                )
+                    ? result.articles
+                    : [];
+
+
+            /*
+             * Remove duplicates first.
+             */
+
+            articles =
+                removeDuplicateArticles(
+                    articles
+                );
+
+
+            articles =
+                articles.filter(
+                    article =>
+                        isRelevantNewsCategory(
+                            article,
+                            category
+                        )
+                );
+
+            /*
+             * Rank fresh candidates before they enter the edge cache.
+             */
+
+            articles =
+                rankNewsArticles(
+                    articles,
+                    category
+                );
+
+
+            /*
+             * Special categories need
+             * additional relevance filtering.
+             */
+
+            if (
+                [
+                    "gaming",
+                    "weird",
+                    "awesome",
+                    "underrated"
+                ].includes(
+                    category
+                )
+            ) {
+
+                articles =
+                    articles.filter(
+                        article =>
+                            isRelevantSpecialCategory(
+                                article,
+                                category
+                            )
+                    );
+
+            }
+
+
+            /*
+             * Return the quality-ranked result of the
+             * single Open Newswire request.
+             *
+             * The category result is stored in the edge cache
+             * as part of the complete News response.
+             */
+
+            articles =
+                rankNewsArticles(
+                    articles,
+                    category
+                );
+
+            return formatArticles(
+                articles
+            );
+
+        }
+
+
+        /* =====================================================
+           REMOVE DUPLICATES FROM FORMATTED ARTICLES
+        ===================================================== */
+
+        function removeDuplicateFormattedArticles(
+            articles
+        ) {
+
+            const uniqueArticles =
+                [];
+
+
+            const seenUrls =
+                new Set();
+
+
+            const seenTitles =
+                [];
+
+
+            for (
+                const article
+                of articles
+            ) {
+
+                const articleUrl =
+                    String(
+                        article.url || ""
+                    )
+                        .trim()
+                        .toLowerCase();
+
+
+                const articleTitle =
+                    normalizeTitle(
+                        article.title
+                    );
+
+
+                /*
+                 * Duplicate URL.
+                 */
+
+                if (
+                    articleUrl &&
+                    seenUrls.has(
+                        articleUrl
+                    )
+                ) {
+
+                    continue;
+
+                }
+
+
+                /*
+                 * Duplicate / very similar title.
+                 */
+
+                let duplicate =
+                    false;
+
+
+                for (
+                    const existingTitle
+                    of seenTitles
+                ) {
+
+                    if (
+                        titleSimilarity(
+                            articleTitle,
+                            existingTitle
+                        ) >= 0.65
+                    ) {
+
+                        duplicate =
+                            true;
+
+                        break;
+
+                    }
+
+                }
+
+
+                if (duplicate) {
+
+                    continue;
+
+                }
+
+
+                if (articleUrl) {
+
+                    seenUrls.add(
+                        articleUrl
+                    );
+
+                }
+
+
+                if (articleTitle) {
+
+                    seenTitles.push(
+                        articleTitle
+                    );
+
+                }
+
+
+                uniqueArticles.push(
+                    article
+                );
+
+            }
+
+
+            return uniqueArticles;
+
+        }
+
+
+        /*
+         * News intentionally has no D1 article persistence.
+         *
+         * The edge cache is the persistence layer for this feed.
+         * This avoids per-category D1 reads, writes and cleanup work.
+         *
+         * The existing news_articles table is left untouched so it
+         * can be retained for historical data or future migration.
+         */
+
+        /* =====================================================
+           LOAD ALL CATEGORIES
+        ===================================================== */
+
+        const results =
+            await Promise.all(
+                Object.entries(
+                    categories
+                ).map(
+                    async (
+                        [
+                            category,
+                            settings
+                        ]
+                    ) => {
+
+                        try {
+
+                            const articles =
+                                await loadCategory(
+                                    category,
+                                    settings
+                                );
+
+                            return [
+                                category,
+                                articles
+                            ];
+
+                        } catch (error) {
+
+                            console.error(
+                                `${category} error:`,
+                                error
+                            );
+
+                            return [
+                                category,
+                                []
+                            ];
+
+                        }
+
+                    }
+                )
+            );
+
+
+        /* =====================================================
+           BUILD OUTPUT
+        ===================================================== */
+
+        const output =
+            Object.fromEntries(
+                results
+            );
+
+
+        /*
+         * Make sure every category exists.
+         */
+
+        Object.keys(
+            categories
+        )
+            .forEach(
+                category => {
+
+                    output[category] =
+                        Array.isArray(
+                            output[category]
+                        )
+                            ? output[category]
+                            : [];
+
+                }
+            );
+
+
+        /*
+         * Record provider usage once per News cache refresh.
+         * This preserves Admin API Usage without one D1 write per
+         * Open Newswire request.
+         */
+        if (
+            newsUpstreamRequestsMade > 0
+        ) {
+            recordAdminApiUsage(
+                context,
+                {
+                    apiKey:
+                        "news",
+                    provider:
+                        "Open Newswire",
+                    requests:
+                        newsUpstreamRequestsMade
+                }
+            );
+        }
+
+
+        /* =====================================================
+           RESPONSE
+        ===================================================== */
 
         const response =
             Response.json(
-                {
-                    ...output,
-                    __meta: {
-                        generatedAt,
-                        cacheTtlSeconds:
-                            CACHE_TTL
-                    }
-                },
+                output,
                 {
                     headers: {
 
@@ -88,10 +2235,7 @@ const generatedAt =
                             `public, max-age=0, s-maxage=${CACHE_TTL}`,
 
                         "X-News-Cache":
-                            "MISS",
-
-                        "X-News-Generated-At":
-                            generatedAt
+                            "MISS"
 
                     }
                 }
