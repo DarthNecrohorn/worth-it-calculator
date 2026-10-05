@@ -103,6 +103,54 @@ function getAttribute(tag, name) {
 }
 
 
+function getLinkLicenseValues(html) {
+    const values = [];
+    const regex =
+        /<link\b[^>]*>/gi;
+
+    let match;
+
+    while (
+        (match = regex.exec(
+            String(html || "")
+        )) !== null
+    ) {
+
+        const tag =
+            match[0];
+
+        const rel =
+            getAttribute(
+                tag,
+                "rel"
+            )
+                .toLowerCase();
+
+        if (
+            !rel
+                .split(/\s+/)
+                .includes("license")
+        ) {
+            continue;
+        }
+
+        const href =
+            getAttribute(
+                tag,
+                "href"
+            );
+
+        if (href) {
+            values.push(
+                href
+            );
+        }
+
+    }
+
+    return values;
+}
+
 function getMetaValues(html, names) {
     const wanted =
         new Set(
@@ -331,7 +379,8 @@ function licenseKind(value) {
     if (
         text.includes("cc-by-sa") ||
         text.includes("cc by-sa") ||
-        text.includes("creativecommons.org/licenses/cc-by-sa")
+        text.includes("creativecommons.org/licenses/cc-by-sa") ||
+        text.includes("creativecommons.org/licenses/by-sa/")
     ) {
         return "CC BY-SA";
     }
@@ -339,7 +388,8 @@ function licenseKind(value) {
     if (
         text.includes("cc-by-nd") ||
         text.includes("cc by-nd") ||
-        text.includes("creativecommons.org/licenses/cc-by-nd")
+        text.includes("creativecommons.org/licenses/cc-by-nd") ||
+        text.includes("creativecommons.org/licenses/by-nd/")
     ) {
         return "CC BY-ND";
     }
@@ -347,7 +397,7 @@ function licenseKind(value) {
     if (
         text === "cc by" ||
         text === "cc-by" ||
-        /creativecommons\.org\/licenses\/cc-by(?:[/?#\s]|$)/i.test(text)
+        /creativecommons\.org\/licenses\/(?:cc-)?by(?:[/?#\s]|$)/i.test(text)
     ) {
         return "CC BY";
     }
@@ -595,8 +645,17 @@ async function inspectArticle(articleUrl) {
                             [
                                 "og:image:license",
                                 "image:license",
-                                "twitter:image:license"
+                                "twitter:image:license",
+                                "license",
+                                "rights",
+                                "dc.rights",
+                                "copyright"
                             ]
+                        );
+
+                    const linkLicenses =
+                        getLinkLicenseValues(
+                            html
                         );
 
                     const selectedJsonLdObjects =
@@ -635,6 +694,7 @@ async function inspectArticle(articleUrl) {
 
                     const licenses = [
                         ...metaLicenses,
+                        ...linkLicenses,
                         ...selectedJsonLdLicenses
                     ];
 
@@ -705,6 +765,12 @@ async function inspectArticle(articleUrl) {
                                 allowedLicense.kind,
                             licenseSource:
                                 allowedLicense.raw,
+                            licenseUrl:
+                                /^https:\/\//i.test(
+                                    allowedLicense.raw
+                                )
+                                    ? allowedLicense.raw
+                                    : "",
                             credit:
                                 normalize(
                                     imageCredit
