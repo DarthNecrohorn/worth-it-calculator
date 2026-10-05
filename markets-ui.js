@@ -2326,6 +2326,20 @@ function showMarketImageUnavailable(
 
     }
 
+    /*
+     * Hide the actual <img> element when Wikimedia has no
+     * acceptable image. This prevents the browser from showing
+     * the image icon + commodity alt text (for example "DAP")
+     * on top of the custom unavailable-image artwork.
+     *
+     * IMPORTANT:
+     * Keep the custom placeholder itself visible.
+     */
+    imageElement.style.display =
+        "none";
+
+    imageElement.style.visibility =
+        "hidden";
 
     const card =
         imageElement.closest(
