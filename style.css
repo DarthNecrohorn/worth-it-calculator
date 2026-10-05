@@ -15613,6 +15613,18 @@ html[data-ui-scale="xl"] .nav-links.open .nav-overflow-items{
         display:none !important;
     }
 
+    html[data-ui-scale="large"] .nav-links:not(.open) .nav-primary-item:first-child,
+    html[data-ui-scale="xl"] .nav-links:not(.open) .nav-primary-item:first-child{
+        display:inline-flex !important;
+        align-items:center !important;
+        justify-content:center !important;
+        width:auto !important;
+        flex:0 0 auto !important;
+        white-space:nowrap !important;
+    }
+
+    
+
     html[data-ui-scale="large"] .nav-links:not(.open) .nav-primary-item[onclick="scrollToFAQ()"],
     html[data-ui-scale="xl"] .nav-links:not(.open) .nav-primary-item[onclick="scrollToFAQ()"]{
         display:inline-flex !important;
