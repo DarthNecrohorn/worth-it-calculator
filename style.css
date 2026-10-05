@@ -12507,7 +12507,24 @@ html[data-theme="light"] .water-level-card{
 }
 
 .water-levels-detail-nav-next{
-    right:calc(50% - 540px);
+    right:calc(50% - 560px);
+}
+
+/* Keep the navigation controls at the same visual gap from the detail card at each accessibility scale. */
+html[data-ui-scale="large"] .water-levels-detail-nav-prev{
+    left:calc(50% - 460px);
+}
+
+html[data-ui-scale="large"] .water-levels-detail-nav-next{
+    right:calc(50% - 460px);
+}
+
+html[data-ui-scale="xl"] .water-levels-detail-nav-prev{
+    left:calc(50% - 440px);
+}
+
+html[data-ui-scale="xl"] .water-levels-detail-nav-next{
+    right:calc(50% - 440px);
 }
 
 .water-levels-detail-nav-key{
