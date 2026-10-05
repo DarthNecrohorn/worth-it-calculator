@@ -12521,11 +12521,11 @@ html[data-ui-scale="large"] .water-levels-detail-nav-next{
 }
 
 html[data-ui-scale="xl"] .water-levels-detail-nav-prev{
-    left:calc(50% - 394px);
+    left:calc(50% - 388px);
 }
 
 html[data-ui-scale="xl"] .water-levels-detail-nav-next{
-    right:calc(50% - 394px);
+    right:calc(50% - 388px);
 }
 
 .water-levels-detail-nav-key{
