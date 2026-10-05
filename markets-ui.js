@@ -64,9 +64,6 @@ const marketsImageLoading =
     new Set();
 
 const marketsWikipediaCache = new Map();
-const marketsWikipediaQueue = [];
-let marketsWikipediaActive = 0;
-const MARKETS_WIKIPEDIA_CONCURRENCY = 3;
 async function fetchWikipediaSummary(title) {
     const cleanTitle = String(title || "").trim();
     if (!cleanTitle) return null;
@@ -95,37 +92,6 @@ async function fetchWikipediaSummary(title) {
         return result;
     } catch { marketsWikipediaCache.set(key,null); return null; }
 }
-function queueMarketWikipedia(card) {
-    if (!card || card.dataset.wikipediaLoaded === "1" || card.dataset.wikipediaQueued === "1") return;
-    card.dataset.wikipediaQueued = "1";
-    marketsWikipediaQueue.push(card);
-    processMarketWikipediaQueue();
-}
-function processMarketWikipediaQueue() {
-    while (marketsWikipediaActive < MARKETS_WIKIPEDIA_CONCURRENCY && marketsWikipediaQueue.length) {
-        const card = marketsWikipediaQueue.shift();
-        marketsWikipediaActive++;
-        fetchWikipediaSummary(card.dataset.marketWikipediaTitle || card.dataset.marketName || "").then(info => {
-            const description=card.querySelector(".worth-it-market-wikipedia-description");
-            const link=card.querySelector(".worth-it-market-wikipedia-link");
-            if (!description || !link) return;
-            if (info?.extract && info?.url) { description.textContent=info.extract; description.classList.add("is-loaded"); link.href=info.url; link.classList.add("is-loaded"); }
-            else { description.textContent="Wikipedia information is currently unavailable."; description.classList.add("is-loaded"); link.classList.add("is-unavailable"); }
-            card.dataset.wikipediaLoaded="1";
-        }).finally(()=>{marketsWikipediaActive--;processMarketWikipediaQueue();});
-    }
-}
-function initialiseMarketWikipediaObserver() {
-    const grid=document.getElementById("materialsGrid"); if(!grid)return;
-    const cards=grid.querySelectorAll('.market-card[data-market-card="true"]');
-    if(!("IntersectionObserver" in window)){cards.forEach(queueMarketWikipedia);return;}
-    const observer=new IntersectionObserver(entries=>entries.forEach(entry=>{if(entry.isIntersecting){queueMarketWikipedia(entry.target);observer.unobserve(entry.target);}}),{rootMargin:"500px 0px",threshold:0.01});
-    cards.forEach(card=>observer.observe(card));
-}
-
-const marketsImageFailed =
-    new Set();
-
 /*
  * Share the same in-flight request when the same commodity is
  * encountered more than once during image loading.
@@ -712,6 +678,52 @@ html[data-theme="dark"] .worth-it-market-detail-change {
 
 .worth-it-market-detail-meta strong {
     overflow-wrap:anywhere !important;
+}
+
+.worth-it-market-detail-wikipedia {
+    margin-top:18px !important;
+    padding:18px 20px !important;
+    border:1px solid rgba(128,128,128,.16) !important;
+    border-radius:14px !important;
+    background:var(--surface-soft, rgba(128,128,128,.06)) !important;
+}
+
+.worth-it-market-detail-wikipedia-label {
+    display:block !important;
+    margin-bottom:8px !important;
+    opacity:.58 !important;
+    font-size:.72rem !important;
+    text-transform:uppercase !important;
+    letter-spacing:.07em !important;
+}
+
+.worth-it-market-detail-wikipedia-description {
+    margin:0 !important;
+    font-size:.92rem !important;
+    line-height:1.58 !important;
+    overflow-wrap:anywhere !important;
+}
+
+.worth-it-market-detail-wikipedia-link {
+    display:none !important;
+    margin-top:12px !important;
+    color:var(--primary) !important;
+    font-weight:750 !important;
+    text-decoration:none !important;
+}
+
+.worth-it-market-detail-wikipedia-link.is-loaded {
+    display:inline-block !important;
+}
+
+.worth-it-market-detail-wikipedia-link:hover,
+.worth-it-market-detail-wikipedia-link:focus-visible {
+    text-decoration:underline !important;
+}
+
+.worth-it-market-detail-dialog {
+    overscroll-behavior:contain !important;
+    -webkit-overflow-scrolling:touch !important;
 }
 
 .worth-it-market-detail-image {
@@ -4351,7 +4363,41 @@ function renderMarketDetail(item, image = null) {
                 <strong>World Bank Pink Sheet</strong>
             </div>
         </div>
+
+        <div class="worth-it-market-detail-wikipedia">
+            <span class="worth-it-market-detail-wikipedia-label">About this market</span>
+            <p class="worth-it-market-detail-wikipedia-description">Loading Wikipedia description…</p>
+            <a class="worth-it-market-detail-wikipedia-link" href="#" target="_blank" rel="noopener noreferrer">View on Wikipedia ↗</a>
+        </div>
     `;
+
+    const wikipediaDescription = body.querySelector(".worth-it-market-detail-wikipedia-description");
+    const wikipediaLink = body.querySelector(".worth-it-market-detail-wikipedia-link");
+
+    if (wikipediaDescription && wikipediaLink) {
+        fetchWikipediaSummary(rawName).then(info => {
+            const modalNow = document.getElementById("worthItMarketDetailModal");
+            const currentItem = marketsDetailNavigationItems[marketsDetailNavigationIndex]?.item;
+            if (!modalNow?.classList.contains("is-open") || currentItem !== item) return;
+
+            if (info?.extract && info?.url) {
+                wikipediaDescription.textContent = info.extract;
+                wikipediaDescription.classList.add("is-loaded");
+                wikipediaLink.href = info.url;
+                wikipediaLink.classList.add("is-loaded");
+            } else {
+                wikipediaDescription.textContent = "Wikipedia information is currently unavailable.";
+                wikipediaDescription.classList.add("is-loaded");
+                wikipediaLink.classList.add("is-unavailable");
+            }
+        }).catch(() => {
+            wikipediaDescription.textContent = "Wikipedia information is currently unavailable.";
+            wikipediaDescription.classList.add("is-loaded");
+            wikipediaLink.classList.add("is-unavailable");
+        });
+
+        body.scrollTop = 0;
+    }
 
     refreshMarketDetailNavigationControls();
 }
@@ -4607,7 +4653,6 @@ function renderMarketCard(
             data-market-card="true"
             data-market-name="${name}"
             data-market-category="${category}"
-            data-market-wikipedia-title="${name}"
         >
 
             <div
@@ -4773,7 +4818,7 @@ function renderMarketCard(
                     "
                 ></div>
 
-                <div class="worth-it-market-wikipedia"><p class="worth-it-market-wikipedia-description">Loading Wikipedia description…</p><a class="worth-it-market-wikipedia-link" href="#" target="_blank" rel="noopener noreferrer">View on Wikipedia ↗</a></div>
+                
 
             </div>
 
@@ -5007,7 +5052,6 @@ async function renderMarkets() {
 
 
     initialiseMarketImageObserver();
-    initialiseMarketWikipediaObserver();
 }
 
 
