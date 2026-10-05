@@ -1497,22 +1497,46 @@ function showNewsCategory(
         categoryName === "all"
     ) {
 
-        Object.values(newsData)
-            .forEach(categoryArticles => {
+        Object.entries(newsData)
+            .forEach(
+                ([
+                    sourceCategory,
+                    categoryArticles
+                ]) => {
 
-                if (
-                    Array.isArray(
-                        categoryArticles
-                    )
-                ) {
+                    if (
+                        !Array.isArray(
+                            categoryArticles
+                        )
+                    ) {
+                        return;
+                    }
 
-                    articles.push(
-                        ...categoryArticles
+                    categoryArticles.forEach(
+                        article => {
+
+                            if (
+                                article &&
+                                !article.newsCategory &&
+                                sourceCategory !== "__meta"
+                            ) {
+                                article.newsCategory =
+                                    String(
+                                        sourceCategory
+                                    )
+                                        .trim()
+                                        .toLowerCase();
+                            }
+
+                            articles.push(
+                                article
+                            );
+
+                        }
                     );
 
                 }
-
-            });
+            );
 
 
         /*
