@@ -48,7 +48,7 @@ export async function onRequestGet(context) {
 
 
     const cacheKeyUrl =
-        `${requestUrl.origin}${requestUrl.pathname}/?news-cache=v23`;
+        `${requestUrl.origin}${requestUrl.pathname}/?news-cache=v24`;
 
 
     const cacheKey =
@@ -1213,7 +1213,7 @@ export async function onRequestGet(context) {
              * or celebrity entertainment.
              */
             if (
-                titleHas([
+                [
                     "movie",
                     "movies",
                     "film",
@@ -1243,7 +1243,10 @@ export async function onRequestGet(context) {
                     "show business",
                     "showbiz",
                     "entertainment"
-                ])
+                ].some(
+                    term =>
+                        title.includes(term)
+                )
             ) {
                 return "entertainment";
             }
