@@ -3029,82 +3029,175 @@ html[data-theme="light"] .admin-usage-metrics > div{
     overflow:hidden;
 }
 
-.news-fallback-glow{
+.news-fallback-orbit{
     position:absolute;
 
-    width:155px;
-    height:155px;
+    width:150px;
+    height:150px;
 
+    border:1px solid rgba(255,255,255,.17);
     border-radius:50%;
 
-    background:
-        radial-gradient(
-            circle,
-            rgba(255,255,255,.22),
-            rgba(255,255,255,.03) 58%,
-            transparent 72%
-        );
-
-    filter:blur(1px);
+    transform:rotate(-22deg);
 }
 
-.news-fallback-mark{
-    position:relative;
-    z-index:2;
+.news-fallback-orbit-one{
+    width:145px;
+    height:62px;
+}
 
-    width:78px;
-    height:78px;
+.news-fallback-orbit-two{
+    width:175px;
+    height:80px;
+
+    transform:
+        rotate(54deg);
+}
+
+.news-fallback-icon{
+    position:relative;
+    z-index:3;
+
+    width:82px;
+    height:82px;
 
     display:grid;
     place-items:center;
 
-    border:1px solid rgba(255,255,255,.25);
-    border-radius:22px;
+    border:1px solid rgba(255,255,255,.28);
+    border-radius:24px;
 
     background:
         linear-gradient(
             135deg,
-            rgba(255,255,255,.18),
+            rgba(255,255,255,.20),
             rgba(255,255,255,.055)
         );
 
     box-shadow:
-        0 20px 55px rgba(0,0,0,.22),
+        0 18px 55px rgba(0,0,0,.22),
         inset 0 1px 0 rgba(255,255,255,.16);
 
-    color:white;
-
-    font-size:34px;
-    font-weight:900;
-    letter-spacing:-2px;
+    font-size:35px;
+    line-height:1;
 }
 
-.news-fallback-lines{
+.news-fallback-accent{
     position:absolute;
-    left:50%;
-    top:50%;
+    right:18%;
+    top:22%;
 
-    width:190px;
+    width:9px;
+    height:9px;
 
-    transform:
-        translate(-50%, 48px);
+    border-radius:50%;
 
-    display:flex;
-    justify-content:center;
-    gap:7px;
+    background:rgba(255,255,255,.78);
 
-    opacity:.28;
+    box-shadow:
+        -46px 58px 0 rgba(255,255,255,.34),
+        57px 46px 0 rgba(255,255,255,.27),
+        28px -34px 0 rgba(255,255,255,.20);
 }
 
-.news-fallback-lines span{
-    display:block;
+.news-card-fallback-visual{
+    --news-fallback-a:rgba(124,92,255,.34);
+    --news-fallback-b:rgba(56,189,248,.25);
+    --news-fallback-c:#102d47;
+}
 
-    width:32px;
-    height:4px;
+.news-card-fallback-visual{
+    background:
+        radial-gradient(
+            circle at 22% 18%,
+            var(--news-fallback-a),
+            transparent 34%
+        ),
+        radial-gradient(
+            circle at 82% 28%,
+            var(--news-fallback-b),
+            transparent 38%
+        ),
+        linear-gradient(
+            135deg,
+            #16133a,
+            #111b3b 54%,
+            var(--news-fallback-c)
+        );
+}
 
-    border-radius:99px;
+/* Category-specific neutral visuals. These are abstract UI motifs,
+   not depictions of the article or its subject. */
+.news-fallback-category-world{
+    --news-fallback-a:rgba(59,130,246,.38);
+    --news-fallback-b:rgba(45,212,191,.24);
+    --news-fallback-c:#123b55;
+}
 
-    background:rgba(255,255,255,.9);
+.news-fallback-category-technology{
+    --news-fallback-a:rgba(124,92,255,.40);
+    --news-fallback-b:rgba(56,189,248,.28);
+    --news-fallback-c:#182354;
+}
+
+.news-fallback-category-business{
+    --news-fallback-a:rgba(34,197,94,.26);
+    --news-fallback-b:rgba(250,204,21,.22);
+    --news-fallback-c:#173c36;
+}
+
+.news-fallback-category-science{
+    --news-fallback-a:rgba(14,165,233,.30);
+    --news-fallback-b:rgba(139,92,246,.30);
+    --news-fallback-c:#20245c;
+}
+
+.news-fallback-category-sports{
+    --news-fallback-a:rgba(249,115,22,.35);
+    --news-fallback-b:rgba(245,158,11,.24);
+    --news-fallback-c:#4a2815;
+}
+
+.news-fallback-category-crime{
+    --news-fallback-a:rgba(148,163,184,.24);
+    --news-fallback-b:rgba(244,63,94,.20);
+    --news-fallback-c:#202536;
+}
+
+.news-fallback-category-entertainment{
+    --news-fallback-a:rgba(236,72,153,.34);
+    --news-fallback-b:rgba(168,85,247,.28);
+    --news-fallback-c:#351d55;
+}
+
+.news-fallback-category-culture{
+    --news-fallback-a:rgba(217,70,239,.30);
+    --news-fallback-b:rgba(251,191,36,.24);
+    --news-fallback-c:#3b2450;
+}
+
+.news-fallback-category-health{
+    --news-fallback-a:rgba(244,63,94,.28);
+    --news-fallback-b:rgba(45,212,191,.22);
+    --news-fallback-c:#253448;
+}
+
+.news-fallback-category-environment{
+    --news-fallback-a:rgba(34,197,94,.34);
+    --news-fallback-b:rgba(20,184,166,.24);
+    --news-fallback-c:#123b34;
+}
+
+.news-fallback-category-food{
+    --news-fallback-a:rgba(251,146,60,.34);
+    --news-fallback-b:rgba(250,204,21,.22);
+    --news-fallback-c:#4a311a;
+}
+
+.news-fallback-category-education{
+    --news-fallback-a:rgba(99,102,241,.34);
+    --news-fallback-b:rgba(14,165,233,.23);
+    --news-fallback-c:#1d3156;
 }
 
 .news-fallback-caption{
@@ -3129,7 +3222,7 @@ html[data-theme="light"] .admin-usage-metrics > div{
         linear-gradient(
             180deg,
             rgba(3,7,18,.04),
-            rgba(3,7,18,.84)
+            rgba(3,7,18,.86)
         );
 
     text-align:left;
