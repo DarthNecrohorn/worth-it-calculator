@@ -1906,6 +1906,9 @@ async function fetchVehicleDetails(
     const isFastMode =
         mode === "fast";
 
+    const isQualityMode =
+        mode === "quality";
+
     const isImageMode =
         mode === "image";
 
@@ -2033,6 +2036,10 @@ async function fetchVehicleDetails(
 
                 if (isFastMode) {
                     params.set("fast", "1");
+                }
+
+                if (isQualityMode) {
+                    params.set("quality", "1");
                 }
 
                 if (isImageMode) {
@@ -6315,7 +6322,7 @@ async function evaluatePopularVehicleCandidate(
      * commercial-image, information and comparison gates are applied
      * before a vehicle is allowed to occupy a Popular card.
      */
-    const evaluationMode = "full";
+    const evaluationMode = "quality";
 
     const detailsRetryAttempts =
         detailKind === "car"
