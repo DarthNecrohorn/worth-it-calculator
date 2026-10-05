@@ -15540,3 +15540,34 @@ html[data-ui-scale="xl"] .nav-links.open .nav-overflow-items{
         pointer-events:none !important;
     }
 }
+
+/* Cars — image attribution / license */
+.worth-it-vehicle-image-attribution {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.3rem 0.5rem;
+    margin-top: 0.55rem;
+    padding: 0.45rem 0.65rem;
+    border-radius: 0.65rem;
+    font-size: 0.76rem;
+    line-height: 1.35;
+    opacity: 0.82;
+}
+
+.worth-it-vehicle-image-attribution a {
+    text-decoration: underline;
+    text-underline-offset: 2px;
+}
+
+.worth-it-vehicle-image-attribution a:hover {
+    opacity: 0.9;
+}
+
+@media (max-width: 640px) {
+    .worth-it-vehicle-image-attribution {
+        font-size: 0.72rem;
+        padding: 0.4rem 0.55rem;
+    }
+}
+
