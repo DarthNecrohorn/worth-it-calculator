@@ -10728,6 +10728,33 @@ function renderVehicleDetailsPanel(
         details.image?.url ||
         "";
 
+    const imageAttribution =
+        details.image &&
+        (
+            details.image.author ||
+            details.image.license ||
+            details.image.source_url
+        )
+            ? `
+                <div class="worth-it-vehicle-image-attribution">
+                    <span>Image source:</span>
+                    ${details.image.author
+                        ? `<span>${escapeVehicleHtml(details.image.author)}</span>`
+                        : ""}
+                    ${details.image.license
+                        ? (
+                            details.image.license_url
+                                ? `<a href="${escapeVehicleHtml(details.image.license_url)}" target="_blank" rel="noopener noreferrer">${escapeVehicleHtml(details.image.license)}</a>`
+                                : `<span>${escapeVehicleHtml(details.image.license)}</span>`
+                        )
+                        : ""}
+                    ${details.image.source_url
+                        ? `<a href="${escapeVehicleHtml(details.image.source_url)}" target="_blank" rel="noopener noreferrer">Wikimedia Commons ↗</a>`
+                        : ""}
+                </div>
+            `
+            : "";
+
     const imageHtml =
         imageUrl
             ? `
@@ -10822,6 +10849,7 @@ function renderVehicleDetailsPanel(
         <div class="worth-it-vehicle-detail-header">
             <div class="worth-it-vehicle-detail-image-wrap">
                 ${imageHtml}
+                ${imageAttribution}
             </div>
 
             <div class="worth-it-vehicle-detail-heading">
