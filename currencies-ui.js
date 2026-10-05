@@ -57,6 +57,49 @@ let currencyDetailItems = [];
 let currencyDetailIndex = -1;
 let currencyDetailSource = null;
 
+const currenciesWikipediaCache = new Map();
+const currenciesWikipediaQueue = [];
+let currenciesWikipediaActive = 0;
+const CURRENCIES_WIKIPEDIA_CONCURRENCY = 3;
+async function fetchCurrencyWikipedia(title, code = "") {
+    const cleanTitle=String(title||"").trim(), fallbackTitle=cleanTitle||(code+" currency");
+    if(!fallbackTitle)return null;
+    const key=fallbackTitle.toLowerCase();
+    if(currenciesWikipediaCache.has(key))return currenciesWikipediaCache.get(key);
+    try{
+        let result=null;
+        const response=await fetch("https://en.wikipedia.org/api/rest_v1/page/summary/"+encodeURIComponent(fallbackTitle.replace(/\s+/g,"_")));
+        if(response.ok){const data=await response.json();if(data?.extract&&data?.content_urls?.desktop?.page)result={extract:data.extract,url:data.content_urls.desktop.page};}
+        if(!result){
+            const search=await fetch("https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch="+encodeURIComponent(fallbackTitle+" currency")+"&utf8=1&format=json&origin=*");
+            const data=search.ok?await search.json():null,hit=data?.query?.search?.[0];
+            if(hit?.title){const fallback=await fetch("https://en.wikipedia.org/api/rest_v1/page/summary/"+encodeURIComponent(hit.title.replace(/\s+/g,"_")));if(fallback.ok){const info=await fallback.json();if(info?.extract&&info?.content_urls?.desktop?.page)result={extract:info.extract,url:info.content_urls.desktop.page};}}
+        }
+        currenciesWikipediaCache.set(key,result);return result;
+    }catch{currenciesWikipediaCache.set(key,null);return null;}
+}
+function queueCurrencyWikipedia(card,title,code){if(!card||card.dataset.wikipediaLoaded==="1"||card.dataset.wikipediaQueued==="1")return;card.dataset.wikipediaQueued="1";currenciesWikipediaQueue.push({card,title,code});processCurrencyWikipediaQueue();}
+function processCurrencyWikipediaQueue(){
+    while(currenciesWikipediaActive<CURRENCIES_WIKIPEDIA_CONCURRENCY&&currenciesWikipediaQueue.length){
+        const entry=currenciesWikipediaQueue.shift();currenciesWikipediaActive++;
+        fetchCurrencyWikipedia(entry.title,entry.code).then(info=>{
+            const description=entry.card.querySelector(".worth-it-currency-wikipedia-description"),link=entry.card.querySelector(".worth-it-currency-wikipedia-link");
+            if(!description||!link)return;
+            if(info?.extract&&info?.url){description.textContent=info.extract;description.classList.add("is-loaded");link.href=info.url;link.classList.add("is-loaded");}
+            else{description.textContent="Wikipedia information is currently unavailable.";description.classList.add("is-loaded");link.classList.add("is-unavailable");}
+            entry.card.dataset.wikipediaLoaded="1";
+        }).finally(()=>{currenciesWikipediaActive--;processCurrencyWikipediaQueue();});
+    }
+}
+function initialiseCurrencyWikipediaObserver(){
+    const app=document.getElementById("currenciesApp");if(!app)return;
+    const cards=app.querySelectorAll(".money-grid .money-card[data-wikipedia-title]");
+    if(!("IntersectionObserver" in window)){cards.forEach(card=>queueCurrencyWikipedia(card,card.dataset.wikipediaTitle,card.dataset.wikipediaCode));return;}
+    const observer=new IntersectionObserver(entries=>entries.forEach(entry=>{if(entry.isIntersecting){queueCurrencyWikipedia(entry.target,entry.target.dataset.wikipediaTitle,entry.target.dataset.wikipediaCode);observer.unobserve(entry.target);}}),{rootMargin:"500px 0px",threshold:0.01});
+    cards.forEach(card=>observer.observe(card));
+}
+
+
 /* =========================================================
    HELPERS
 ========================================================= */
@@ -714,6 +757,8 @@ function renderMajorCurrencies() {
     MAJOR_CURRENCY_PAIRS.forEach(pair => {
         const card = document.createElement("div");
         card.className = "money-card";
+        card.dataset.wikipediaTitle = targetName;
+        card.dataset.wikipediaCode = pair.target;
 
         const rate = getCrossRate(pair.base, pair.target);
         const targetCurrency = currenciesMap.get(pair.target);
@@ -751,6 +796,7 @@ function renderMajorCurrencies() {
                 </strong>
             </div>
             ${renderCurrencyMovement(change)}
+            <div class="worth-it-currency-wikipedia"><p class="worth-it-currency-wikipedia-description">Loading Wikipedia description…</p><a class="worth-it-currency-wikipedia-link" href="#" target="_blank" rel="noopener noreferrer">View on Wikipedia ↗</a></div>
         `;
 
         fragment.appendChild(card);
@@ -781,6 +827,8 @@ function renderAllCurrencies(currencies) {
 
         const card = document.createElement("div");
         card.className = "money-card";
+        card.dataset.wikipediaTitle = currency.name || code;
+        card.dataset.wikipediaCode = code;
 
         const detailIndex = allCurrencyDetailItems.length;
         allCurrencyDetailItems.push({
@@ -818,6 +866,7 @@ function renderAllCurrencies(currencies) {
     });
 
     grid.appendChild(fragment);
+    initialiseCurrencyWikipediaObserver();
 }
 
 /* =========================================================
