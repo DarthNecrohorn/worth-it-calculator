@@ -362,22 +362,44 @@ function resetNewsImageUsage() {
 function newsImagePlaceholderHtml(
     decision
 ) {
+    const status =
+        String(
+            decision?.status ||
+            "pending"
+        );
+
     const reason =
         decision?.reason ||
         "Checking the source image and commercial-use license…";
 
+    const statusLabel =
+        status === "allowed"
+            ? "Licensed article image"
+            : "Automatic fallback visual";
+
     return (
-        '<div class="news-card-image news-card-placeholder news-image-status"' +
+        '<div class="news-card-image news-card-placeholder news-image-status news-card-fallback-visual"' +
         ' data-news-image-state="' +
-        escapeNewsHtml(
-            decision?.status ||
-            "pending"
-        ) +
+        escapeNewsHtml(status) +
         '">' +
-        '<span class="news-card-image-emoji">📰</span>' +
-        '<span class="news-card-image-reason">' +
-        escapeNewsHtml(reason) +
-        '</span>' +
+        '<div class="news-fallback-art" aria-hidden="true">' +
+            '<div class="news-fallback-glow"></div>' +
+            '<div class="news-fallback-mark">W</div>' +
+            '<div class="news-fallback-lines">' +
+                '<span></span><span></span><span></span>' +
+            '</div>' +
+        '</div>' +
+        '<div class="news-fallback-caption">' +
+            '<strong>' +
+                escapeNewsHtml(statusLabel) +
+            '</strong>' +
+            '<span>' +
+                'Not the article image' +
+            '</span>' +
+            '<small>' +
+                escapeNewsHtml(reason) +
+            '</small>' +
+        '</div>' +
         '</div>'
     );
 }
@@ -949,7 +971,7 @@ const NEWS_FEED_CACHE_PREFIX =
     "worth-it-news-feed-v3:";
 
 const NEWS_IMAGE_POLICY_VERSION =
-    "v2";
+    "v3";
 
 let newsFeedAccountScope =
     "guest";
@@ -1590,6 +1612,156 @@ function initNewsCategoryButtons() {
 
 
 /* =========================================================
+   ROLLING NEWS SNAPSHOT
+========================================================= */
+
+function newsArticleMergeKey(article) {
+    const url =
+        String(
+            article?.url || ""
+        )
+            .trim()
+            .toLowerCase();
+
+    if (url) {
+        return "url:" + url;
+    }
+
+    const title =
+        String(
+            article?.title || ""
+        )
+            .trim()
+            .toLowerCase()
+            .replace(/\\s+/g, " ");
+
+    return title
+        ? "title:" + title
+        : "";
+}
+
+function sortNewsByPublishedAt(articles) {
+    return [...articles].sort(
+        (a, b) => {
+            const aTime =
+                Date.parse(
+                    a?.publishedAt || ""
+                ) || 0;
+
+            const bTime =
+                Date.parse(
+                    b?.publishedAt || ""
+                ) || 0;
+
+            return bTime - aTime;
+        }
+    );
+}
+
+function mergeRollingNewsCategory(
+    previousArticles,
+    freshArticles,
+    limit = 12
+) {
+    const merged = new Map();
+
+    [
+        ...(Array.isArray(freshArticles)
+            ? freshArticles
+            : []),
+        ...(Array.isArray(previousArticles)
+            ? previousArticles
+            : [])
+    ].forEach(
+        article => {
+            const key =
+                newsArticleMergeKey(
+                    article
+                );
+
+            if (!key) {
+                return;
+            }
+
+            const existing =
+                merged.get(key);
+
+            if (!existing) {
+                merged.set(
+                    key,
+                    article
+                );
+                return;
+            }
+
+            /*
+             * Prefer the fresh article metadata, but retain a
+             * previously verified image decision when the article
+             * itself is the same story.
+             */
+            merged.set(
+                key,
+                {
+                    ...existing,
+                    ...article,
+                    newsImage:
+                        article?.newsImage ||
+                        existing?.newsImage
+                }
+            );
+        }
+    );
+
+    return removeNewsDuplicates(
+        sortNewsByPublishedAt(
+            [...merged.values()]
+        )
+    ).slice(
+        0,
+        limit
+    );
+}
+
+function mergeRollingNewsData(
+    previousData,
+    freshData
+) {
+    const merged = {
+        ...(freshData || {})
+    };
+
+    const categoryNames =
+        Object.keys(
+            NEWS_CATEGORY_LABELS || {}
+        ).filter(
+            category =>
+                category !== "all"
+        );
+
+    categoryNames.forEach(
+        category => {
+            merged[category] =
+                mergeRollingNewsCategory(
+                    previousData?.[category],
+                    freshData?.[category],
+                    12
+                );
+        }
+    );
+
+    /*
+     * Metadata always comes from the newest upstream refresh.
+     */
+    merged.__meta =
+        freshData?.__meta ||
+        previousData?.__meta ||
+        {};
+
+    return merged;
+}
+
+
+/* =========================================================
    LOAD NEWS
 ========================================================= */
 
@@ -1672,7 +1844,12 @@ async function loadNews() {
         }
 
         newsData =
-            data;
+            snapshot?.data
+                ? mergeRollingNewsData(
+                    snapshot.data,
+                    data
+                )
+                : data;
 
         seedNewsImageUsageFromSnapshot();
 
