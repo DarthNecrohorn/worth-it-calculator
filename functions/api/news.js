@@ -48,7 +48,7 @@ export async function onRequestGet(context) {
 
 
     const cacheKeyUrl =
-        `${requestUrl.origin}${requestUrl.pathname}/?news-cache=v22`;
+        `${requestUrl.origin}${requestUrl.pathname}/?news-cache=v23`;
 
 
     const cacheKey =
@@ -1204,6 +1204,48 @@ export async function onRequestGet(context) {
                 )
             ) {
                 return "crime";
+            }
+
+            /*
+             * Strong entertainment headline anchors. These take priority
+             * over shared words such as "artist", "performance" or "design"
+             * when the headline is clearly about film, music, television
+             * or celebrity entertainment.
+             */
+            if (
+                titleHas([
+                    "movie",
+                    "movies",
+                    "film",
+                    "films",
+                    "cinema",
+                    "actor",
+                    "actress",
+                    "celebrity",
+                    "celebrities",
+                    "hollywood",
+                    "box office",
+                    "premiere",
+                    "red carpet",
+                    "singer",
+                    "album",
+                    "concert",
+                    "tour",
+                    "television",
+                    "tv series",
+                    "streaming",
+                    "sitcom",
+                    "episode",
+                    "episodes",
+                    "director",
+                    "star",
+                    "stars",
+                    "show business",
+                    "showbiz",
+                    "entertainment"
+                ])
+            ) {
+                return "entertainment";
             }
 
             /*
