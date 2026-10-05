@@ -946,7 +946,10 @@ function formatNewsTime(date) {
 let newsData = {};
 
 const NEWS_FEED_CACHE_PREFIX =
-    "worth-it-news-feed-v2:";
+    "worth-it-news-feed-v3:";
+
+const NEWS_IMAGE_POLICY_VERSION =
+    "v2";
 
 let newsFeedAccountScope =
     "guest";
@@ -1008,6 +1011,34 @@ function readNewsFeedSnapshot(
             return null;
         }
 
+        if (
+            parsed.imagePolicyVersion !==
+            NEWS_IMAGE_POLICY_VERSION
+        ) {
+            /*
+             * Keep the News cards themselves locked, but re-evaluate
+             * image permissions once after an image-policy update.
+             */
+            Object.values(
+                parsed.data || {}
+            ).forEach(
+                categoryArticles => {
+                    if (!Array.isArray(categoryArticles)) {
+                        return;
+                    }
+
+                    categoryArticles.forEach(
+                        article => {
+                            delete article.newsImage;
+                        }
+                    );
+                }
+            );
+
+            parsed.imagePolicyVersion =
+                NEWS_IMAGE_POLICY_VERSION;
+        }
+
         return parsed;
 
     } catch (error) {
@@ -1034,6 +1065,8 @@ function writeNewsFeedSnapshot(
                     new Date().toISOString(),
                 savedAt:
                     Date.now(),
+                imagePolicyVersion:
+                    NEWS_IMAGE_POLICY_VERSION,
                 data:
                     newsData
             })
