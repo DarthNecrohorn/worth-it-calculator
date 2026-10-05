@@ -12487,10 +12487,13 @@ html[data-theme="light"] .water-level-card{
     transition:background .16s ease,border-color .16s ease,opacity .16s ease;
 }
 
-.water-levels-detail-nav:hover{
+.water-levels-detail-nav:hover,
+.water-levels-detail-nav:focus-visible,
+.water-levels-detail-nav:active,
+.water-levels-detail-nav:disabled:hover{
     background:var(--surface-soft);
     border-color:rgba(124,92,255,.42);
-    transform:translateY(-50%) !important;
+    transform:translate3d(0,-50%,0) !important;
 }
 
 .water-levels-detail-nav:disabled{
@@ -12498,9 +12501,7 @@ html[data-theme="light"] .water-level-card{
     cursor:default;
 }
 
-.water-levels-detail-nav:disabled:hover{
-    transform:translateY(-50%);
-}
+
 
 .water-levels-detail-nav-prev{
     left:calc(50% - 560px);
