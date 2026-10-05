@@ -103,53 +103,442 @@ function getAttribute(tag, name) {
 }
 
 
-function getLinkLicenseValues(html) {
-    const values = [];
-    const regex =
-        /<link\b[^>]*>/gi;
+function getFirstSrcsetUrl(value, articleUrl) {
+    const raw = String(value || "").trim();
+    if (!raw) return "";
 
+    const first = raw
+        .split(",")
+        .map(item => item.trim())
+        .filter(Boolean)[0] || "";
+
+    const candidate = first
+        .replace(/\s+(?:\d+(?:\.\d+)?x|\d+w)$/i, "")
+        .trim();
+
+    return resolveImageUrl(
+        candidate,
+        articleUrl
+    );
+}
+
+function extractEnclosingFigure(html, index) {
+    const input = String(html || "");
+    const open = input.lastIndexOf("<figure", index);
+    const close = input.lastIndexOf("</figure", index);
+
+    if (open < 0 || close > open) {
+        return "";
+    }
+
+    const end = input.indexOf("</figure", index);
+    if (end < 0) {
+        return "";
+    }
+
+    return input.slice(
+        open,
+        end + 8
+    );
+}
+
+function extractEnclosingPicture(html, index) {
+    const input = String(html || "");
+    const open = input.lastIndexOf("<picture", index);
+    const close = input.lastIndexOf("</picture", index);
+
+    if (open < 0 || close > open) {
+        return "";
+    }
+
+    const end = input.indexOf("</picture", index);
+    if (end < 0) {
+        return "";
+    }
+
+    return input.slice(
+        open,
+        end + 9
+    );
+}
+
+function getImageTagCandidates(
+    html,
+    articleUrl
+) {
+    const out = [];
+    const input = String(html || "");
+    const regex = /<img\b[^>]*>/gi;
     let match;
 
     while (
-        (match = regex.exec(
-            String(html || "")
-        )) !== null
+        (match = regex.exec(input)) !== null
     ) {
+        const tag = match[0];
+        const index = match.index;
 
-        const tag =
-            match[0];
-
-        const rel =
+        const className =
             getAttribute(
                 tag,
-                "rel"
-            )
-                .toLowerCase();
+                "class"
+            ).toLowerCase();
+
+        const id =
+            getAttribute(
+                tag,
+                "id"
+            ).toLowerCase();
+
+        const alt =
+            getAttribute(
+                tag,
+                "alt"
+            );
+
+        const title =
+            getAttribute(
+                tag,
+                "title"
+            );
+
+        const width =
+            Number.parseInt(
+                getAttribute(
+                    tag,
+                    "width"
+                ),
+                10
+            );
+
+        const height =
+            Number.parseInt(
+                getAttribute(
+                    tag,
+                    "height"
+                ),
+                10
+            );
 
         if (
-            !rel
-                .split(/\s+/)
-                .includes("license")
+            Number.isFinite(width) &&
+            width > 0 &&
+            width < 140
         ) {
             continue;
         }
 
-        const href =
+        if (
+            Number.isFinite(height) &&
+            height > 0 &&
+            height < 140
+        ) {
+            continue;
+        }
+
+        const identity =
+            (
+                className +
+                " " +
+                id +
+                " " +
+                alt +
+                " " +
+                title
+            ).toLowerCase();
+
+        if (
+            /(logo|favicon|sprite|avatar|icon|emoji|tracking|pixel|advert|adsbygoogle)/i.test(
+                identity
+            )
+        ) {
+            continue;
+        }
+
+        const urls = [
             getAttribute(
                 tag,
-                "href"
+                "src"
+            ),
+            getAttribute(
+                tag,
+                "data-src"
+            ),
+            getAttribute(
+                tag,
+                "data-original"
+            ),
+            getAttribute(
+                tag,
+                "data-lazy-src"
+            ),
+            getAttribute(
+                tag,
+                "data-lazyload"
+            ),
+            getAttribute(
+                tag,
+                "data-image"
+            ),
+            getFirstSrcsetUrl(
+                getAttribute(
+                    tag,
+                    "srcset"
+                ),
+                articleUrl
+            ),
+            getFirstSrcsetUrl(
+                getAttribute(
+                    tag,
+                    "data-srcset"
+                ),
+                articleUrl
+            )
+        ]
+            .map(
+                value =>
+                    resolveImageUrl(
+                        value,
+                        articleUrl
+                    )
+            )
+            .filter(Boolean);
+
+        const picture =
+            extractEnclosingPicture(
+                input,
+                index
             );
 
-        if (href) {
-            values.push(
-                href
+        if (picture) {
+            urls.push(
+                ...[
+                    ...Array.from(
+                        picture.matchAll(
+                            /<(?:source|img)\b[^>]*>/gi
+                        )
+                    )
+                ]
+                    .map(
+                        sourceMatch => {
+                            const sourceTag =
+                                sourceMatch[0];
+
+                            return [
+                                getAttribute(
+                                    sourceTag,
+                                    "src"
+                                ),
+                                getAttribute(
+                                    sourceTag,
+                                    "data-src"
+                                ),
+                                getFirstSrcsetUrl(
+                                    getAttribute(
+                                        sourceTag,
+                                        "srcset"
+                                    ),
+                                    articleUrl
+                                ),
+                                getFirstSrcsetUrl(
+                                    getAttribute(
+                                        sourceTag,
+                                        "data-srcset"
+                                    ),
+                                    articleUrl
+                                )
+                            ]
+                                .map(
+                                    value =>
+                                        resolveImageUrl(
+                                            value,
+                                            articleUrl
+                                        )
+                                )
+                                .filter(Boolean);
+                        }
+                    )
+                    .flat()
             );
         }
 
+        const uniqueUrls = [
+            ...new Set(
+                urls
+                    .map(
+                        value =>
+                            String(
+                                value || ""
+                            ).trim()
+                    )
+                    .filter(Boolean)
+            )
+        ];
+
+        if (!uniqueUrls.length) {
+            continue;
+        }
+
+        const figure =
+            extractEnclosingFigure(
+                input,
+                index
+            );
+
+        const figureCaptionMatch =
+            figure.match(
+                /<figcaption\b[^>]*>([\s\S]*?)<\/figcaption>/i
+            );
+
+        const figureCaption =
+            figureCaptionMatch
+                ? decodeHtml(
+                    figureCaptionMatch[1]
+                )
+                : "";
+
+        const licenseHints = [
+            getAttribute(
+                tag,
+                "data-license"
+            ),
+            getAttribute(
+                tag,
+                "data-image-license"
+            ),
+            getAttribute(
+                tag,
+                "data-rights"
+            ),
+            getAttribute(
+                tag,
+                "data-image-rights"
+            ),
+            getAttribute(
+                tag,
+                "data-copyright"
+            ),
+            figureCaption
+        ]
+            .map(
+                value =>
+                    normalize(value)
+            )
+            .filter(Boolean);
+
+        const credit =
+            normalize(
+                getAttribute(
+                    tag,
+                    "data-credit"
+                ) ||
+                getAttribute(
+                    tag,
+                    "data-image-credit"
+                ) ||
+                figureCaption
+            );
+
+        out.push({
+            images: uniqueUrls,
+            licenses: licenseHints,
+            credit
+        });
+
+        if (out.length >= 50) {
+            break;
+        }
     }
 
-    return values;
+    return out;
 }
+
+function imageUrlKey(value) {
+    try {
+        const url =
+            new URL(
+                String(value || "").trim()
+            );
+
+        url.hash = "";
+
+        return url.toString();
+    } catch {
+        return String(value || "")
+            .trim()
+            .toLowerCase();
+    }
+}
+
+function collectImageEvidence(
+    imageObjects,
+    htmlImageObjects,
+    targetImage
+) {
+    const targetKey =
+        imageUrlKey(
+            targetImage
+        );
+
+    const matchingJsonLd =
+        imageObjects.filter(
+            item =>
+                item.images.some(
+                    image =>
+                        imageUrlKey(
+                            image
+                        ) === targetKey
+                )
+        );
+
+    const matchingHtml =
+        htmlImageObjects.filter(
+            item =>
+                item.images.some(
+                    image =>
+                        imageUrlKey(
+                            image
+                        ) === targetKey
+                )
+        );
+
+    return {
+        licenses: [
+            ...matchingJsonLd.flatMap(
+                item =>
+                    item.licenses ||
+                    (
+                        item.license
+                            ? [item.license]
+                            : []
+                    )
+            ),
+            ...matchingHtml.flatMap(
+                item =>
+                    item.licenses || []
+            )
+        ]
+            .map(
+                value =>
+                    normalize(value)
+            )
+            .filter(Boolean),
+        credit:
+            matchingJsonLd
+                .map(
+                    item =>
+                        item.creator
+                )
+                .find(Boolean) ||
+            matchingHtml
+                .map(
+                    item =>
+                        item.credit
+                )
+                .find(Boolean) ||
+            ""
+    };
+}
+
 
 function getMetaValues(html, names) {
     const wanted =
@@ -308,11 +697,9 @@ function inspectJsonLd(
 
     blocks.forEach(
         block => {
-
             walkJson(
                 block,
                 value => {
-
                     if (!isImageObject(value)) {
                         return;
                     }
@@ -330,37 +717,45 @@ function inspectJsonLd(
                         )
                         .filter(Boolean);
 
-                    const license =
-                        normalize(
-                            value.license
-                        );
-
-                    if (
-                        imageUrls.length
-                    ) {
-                        const creator =
-                            normalize(
-                                value.creator?.name ||
-                                value.creator ||
-                                value.author?.name ||
-                                value.author ||
-                                value.creditText ||
-                                value.copyrightHolder?.name ||
-                                value.copyrightHolder ||
-                                ""
-                            );
-
-                        imageObjects.push({
-                            images:
-                                imageUrls,
-                            license,
-                            creator
-                        });
+                    if (!imageUrls.length) {
+                        return;
                     }
 
+                    const creator =
+                        normalize(
+                            value.creator?.name ||
+                            value.creator ||
+                            value.author?.name ||
+                            value.author ||
+                            value.creditText ||
+                            value.copyrightHolder?.name ||
+                            value.copyrightHolder ||
+                            ""
+                        );
+
+                    const licenses = [
+                        value.license,
+                        value.copyrightNotice
+                    ]
+                        .map(
+                            item =>
+                                normalize(item)
+                        )
+                        .filter(Boolean);
+
+                    imageObjects.push({
+                        images: [
+                            ...new Set(
+                                imageUrls
+                            )
+                        ],
+                        licenses,
+                        license:
+                            licenses[0] || "",
+                        creator
+                    });
                 }
             );
-
         }
     );
 
@@ -370,17 +765,33 @@ function inspectJsonLd(
 function licenseKind(value) {
     const text =
         normalize(value)
-            .toLowerCase();
+            .toLowerCase()
+            .replace(/[\u2010-\u2015]/g, "-");
 
     if (!text) {
         return null;
     }
 
     if (
+        text.includes("non-commercial") ||
+        text.includes("noncommercial") ||
+        /(?:^|[-\s_/])nc(?:[-\s_/]|$)/i.test(text)
+    ) {
+        return "NON-COMMERCIAL";
+    }
+
+    if (
         text.includes("cc-by-sa") ||
         text.includes("cc by-sa") ||
-        text.includes("creativecommons.org/licenses/cc-by-sa") ||
-        text.includes("creativecommons.org/licenses/by-sa/")
+        text.includes(
+            "creativecommons.org/licenses/cc-by-sa"
+        ) ||
+        text.includes(
+            "creativecommons.org/licenses/by-sa/"
+        ) ||
+        text.includes(
+            "attribution-sharealike"
+        )
     ) {
         return "CC BY-SA";
     }
@@ -388,8 +799,18 @@ function licenseKind(value) {
     if (
         text.includes("cc-by-nd") ||
         text.includes("cc by-nd") ||
-        text.includes("creativecommons.org/licenses/cc-by-nd") ||
-        text.includes("creativecommons.org/licenses/by-nd/")
+        text.includes(
+            "creativecommons.org/licenses/cc-by-nd"
+        ) ||
+        text.includes(
+            "creativecommons.org/licenses/by-nd/"
+        ) ||
+        text.includes(
+            "attribution-noderivatives"
+        ) ||
+        text.includes(
+            "attribution-no-derivatives"
+        )
     ) {
         return "CC BY-ND";
     }
@@ -397,7 +818,18 @@ function licenseKind(value) {
     if (
         text === "cc by" ||
         text === "cc-by" ||
-        /creativecommons\.org\/licenses\/(?:cc-)?by(?:[/?#\s]|$)/i.test(text)
+        text.includes(
+            "creative commons attribution 4.0"
+        ) ||
+        text.includes(
+            "creative commons attribution 3.0"
+        ) ||
+        text.includes(
+            "creativecommons.org/licenses/cc-by"
+        ) ||
+        /creativecommons\.org\/licenses\/(?:cc-)?by(?:[/?#\s]|$)/i.test(
+            text
+        )
     ) {
         return "CC BY";
     }
@@ -406,17 +838,15 @@ function licenseKind(value) {
         text.includes("cc0") ||
         text.includes("public domain") ||
         text.includes("public-domain") ||
-        text.includes("creativecommons.org/publicdomain/zero")
+        text.includes("publicdomain") ||
+        text.includes(
+            "creativecommons.org/publicdomain/zero"
+        ) ||
+        text.includes(
+            "creative commons zero"
+        )
     ) {
         return "CC0 / Public Domain";
-    }
-
-    if (
-        text.includes("non-commercial") ||
-        text.includes("noncommercial") ||
-        /(?:^|[-\s])nc(?:[-\s]|$)/i.test(text)
-    ) {
-        return "NON-COMMERCIAL";
     }
 
     return null;
@@ -502,7 +932,7 @@ async function inspectArticle(articleUrl) {
 
     const cacheKey =
         new Request(
-            "https://worth-it-news-image-cache.local/?article=" +
+            "https://worth-it-news-image-cache.local/?v=3&article=" +
             encodeURIComponent(
                 url.toString()
             )
@@ -603,7 +1033,15 @@ async function inspectArticle(articleUrl) {
                             "twitter:image",
                             "twitter:image:src"
                         ]
-                    );
+                    )
+                        .map(
+                            candidate =>
+                                resolveImageUrl(
+                                    candidate,
+                                    url.toString()
+                                )
+                        )
+                        .filter(Boolean);
 
                 const jsonLdImages =
                     inspectJsonLd(
@@ -611,22 +1049,61 @@ async function inspectArticle(articleUrl) {
                         url.toString()
                     );
 
+                const htmlImageObjects =
+                    getImageTagCandidates(
+                        html,
+                        url.toString()
+                    );
+
+                /*
+                 * Preserve source lead-image priority:
+                 * 1. Open Graph / Twitter lead image
+                 * 2. JSON-LD ImageObject
+                 * 3. First plausible HTML image
+                 *
+                 * We only permit a decision when licensing evidence
+                 * is attached to that exact selected image.
+                 */
                 const candidates = [
                     ...metaImages.map(
-                        candidate =>
-                            resolveImageUrl(
-                                candidate,
-                                url.toString()
-                            )
+                        image => ({
+                            image,
+                            priority: 1
+                        })
                     ),
                     ...jsonLdImages.flatMap(
                         item =>
-                            item.images
+                            item.images.map(
+                                image => ({
+                                    image,
+                                    priority: 2
+                                })
+                            )
+                    ),
+                    ...htmlImageObjects.flatMap(
+                        item =>
+                            item.images.map(
+                                image => ({
+                                    image,
+                                    priority: 3
+                                })
+                            )
                     )
-                ].filter(Boolean);
+                ]
+                    .sort(
+                        (a, b) =>
+                            a.priority -
+                            b.priority
+                    );
 
                 const imageUrl =
-                    candidates[0] || "";
+                    candidates
+                        .map(
+                            item =>
+                                item.image
+                        )
+                        .find(Boolean) ||
+                    "";
 
                 if (!imageUrl) {
 
@@ -639,64 +1116,37 @@ async function inspectArticle(articleUrl) {
 
                 } else {
 
-                    const metaLicenses =
+                    /*
+                     * Only image-specific license signals count.
+                     * A generic page/article CC license does not
+                     * automatically grant rights to third-party images.
+                     */
+                    const imageSpecificMetaLicenses =
                         getMetaValues(
                             html,
                             [
                                 "og:image:license",
                                 "image:license",
-                                "twitter:image:license",
-                                "license",
-                                "rights",
-                                "dc.rights",
-                                "copyright"
+                                "twitter:image:license"
                             ]
                         );
 
-                    const linkLicenses =
-                        getLinkLicenseValues(
-                            html
+                    const evidence =
+                        collectImageEvidence(
+                            jsonLdImages,
+                            htmlImageObjects,
+                            imageUrl
                         );
-
-                    const selectedJsonLdObjects =
-                        jsonLdImages
-                            .filter(
-                                item =>
-                                    item.images.includes(
-                                        imageUrl
-                                    )
-                            );
-
-                    const selectedJsonLdLicenses =
-                        selectedJsonLdObjects
-                            .map(
-                                item =>
-                                    item.license
-                            )
-                            .filter(Boolean);
-
-                    const imageCredit =
-                        selectedJsonLdObjects
-                            .map(
-                                item =>
-                                    item.creator
-                            )
-                            .find(Boolean) ||
-                        getMetaValues(
-                            html,
-                            [
-                                "image:credit",
-                                "og:image:credit",
-                                "twitter:image:credit"
-                            ]
-                        )[0] ||
-                        url.hostname;
 
                     const licenses = [
-                        ...metaLicenses,
-                        ...linkLicenses,
-                        ...selectedJsonLdLicenses
-                    ];
+                        ...imageSpecificMetaLicenses,
+                        ...evidence.licenses
+                    ]
+                        .map(
+                            value =>
+                                normalize(value)
+                        )
+                        .filter(Boolean);
 
                     const allowedLicense =
                         licenses
@@ -730,6 +1180,17 @@ async function inspectArticle(articleUrl) {
                                 ) ===
                                 "NON-COMMERCIAL"
                         );
+
+                    const imageCredit =
+                        evidence.credit ||
+                        getMetaValues(
+                            html,
+                            [
+                                "og:image:credit",
+                                "twitter:image:credit"
+                            ]
+                        )[0] ||
+                        "";
 
                     if (
                         nonCommercial &&
@@ -782,11 +1243,8 @@ async function inspectArticle(articleUrl) {
                     }
 
                 }
-
             }
-
         }
-
     } catch (error) {
 
         result = {
