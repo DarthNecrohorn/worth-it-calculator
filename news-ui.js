@@ -1274,6 +1274,82 @@ function removeNewsDuplicates(
    RENDER SELECTED NEWS CATEGORY
 ========================================================= */
 
+/* =========================================================
+   ALL NEWS SOURCE BALANCE
+========================================================= */
+
+function newsSourceKey(article) {
+    const raw =
+        String(
+            article?.source ||
+            article?.source_name ||
+            ""
+        )
+            .trim()
+            .toLowerCase();
+
+    if (raw) {
+        return raw.replace(
+            /^www\./,
+            ""
+        );
+    }
+
+    try {
+        return new URL(
+            article?.url || ""
+        ).hostname
+            .toLowerCase()
+            .replace(
+                /^www\./,
+                ""
+            );
+    } catch {
+        return "unknown-source";
+    }
+}
+
+function balanceAllNewsSources(
+    articles,
+    maxPerSource = 5
+) {
+    const selected = [];
+    const counts = new Map();
+
+    for (
+        const article
+        of articles
+    ) {
+        const key =
+            newsSourceKey(
+                article
+            );
+
+        const count =
+            counts.get(
+                key
+            ) || 0;
+
+        if (
+            count >= maxPerSource
+        ) {
+            continue;
+        }
+
+        selected.push(
+            article
+        );
+
+        counts.set(
+            key,
+            count + 1
+        );
+    }
+
+    return selected;
+}
+
+
 function showNewsCategory(
     categoryName
 ) {
@@ -1378,8 +1454,20 @@ function showNewsCategory(
         article => !isLowQualityNewsArticle(article)
     );
 
-    if (categoryName !== "all") {
-        articles = articles.slice(0, 12);
+    /*
+     * All News keeps its full feed, but prevents one
+     * publisher from occupying most of the page.
+     * Individual categories remain unchanged.
+     */
+    if (categoryName === "all") {
+        articles =
+            balanceAllNewsSources(
+                articles,
+                5
+            );
+    } else {
+        articles =
+            articles.slice(0, 12);
     }
 
 
