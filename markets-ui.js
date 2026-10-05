@@ -4854,6 +4854,21 @@ async function renderMarkets() {
             )
             .join("");
 
+    const marketCards =
+        grid.querySelectorAll(
+            '.market-card[data-market-card="true"]'
+        );
+
+    marketCards.forEach(
+        (card, index) => {
+            card._worthItMarketItem =
+                resolved[index]?.item || null;
+
+            card._worthItMarketImage =
+                rendered[index]?.image || null;
+        }
+    );
+
 
     /*
      * Attach any already-available image object directly to the
@@ -5139,6 +5154,10 @@ document.addEventListener(
                 );
 
                 if (!card || !marketsGrid.contains(card)) return;
+
+                if (event.target.closest("a, button, input, select, textarea")) {
+                    return;
+                }
 
                 const item = card._worthItMarketItem;
                 if (!item) return;
