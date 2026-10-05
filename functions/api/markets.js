@@ -8661,7 +8661,7 @@ function getMarketAuthenticatedUser(context) {
                 : ""
         );
 
-    if (!/^Bearer\\s+/i.test(authorization)) {
+    if (!/^Bearer\s+/i.test(authorization)) {
         return Promise.resolve(null);
     }
 
@@ -8669,7 +8669,7 @@ function getMarketAuthenticatedUser(context) {
         String(
             context?.env?.SUPABASE_URL ||
             MARKET_SUPABASE_URL
-        ).trim().replace(/\\/$/, "");
+        ).trim().replace(/\/$/, "");
 
     const publishableKey =
         String(
