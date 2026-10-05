@@ -12490,7 +12490,7 @@ html[data-theme="light"] .water-level-card{
 .water-levels-detail-nav:hover{
     background:var(--surface-soft);
     border-color:rgba(124,92,255,.42);
-    transform:translateY(-50%);
+    transform:translateY(-50%) !important;
 }
 
 .water-levels-detail-nav:disabled{
