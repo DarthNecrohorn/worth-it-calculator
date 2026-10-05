@@ -7459,9 +7459,11 @@ async function handleDetails(
        const detailsMode =
         requestUrl.searchParams.get("image_only") === "1"
             ? "image"
-            : requestUrl.searchParams.get("fast") === "1"
-                ? "fast"
-                : "full";
+            : requestUrl.searchParams.get("quality") === "1"
+                ? "quality"
+                : requestUrl.searchParams.get("fast") === "1"
+                    ? "fast"
+                    : "full";
 
     /*
      * Keep the server-side details cache scoped to the VehiclesDB
@@ -7982,6 +7984,126 @@ async function handleDetails(
             WIKIPEDIA_CACHE_TTL
         );
     }
+
+    if (
+        requestUrl.searchParams.get("quality") === "1"
+    ) {
+
+        let wikipediaData;
+
+        try {
+
+            wikipediaData =
+                await getWikipediaInfoboxData(
+                    page.title,
+                    {
+                        make: vehicle.make,
+                        model: vehicle.model,
+                        kind
+                    }
+                );
+
+        } catch (error) {
+
+            console.error(
+                "Lightweight vehicle quality details lookup failed:",
+                page.title,
+                error
+            );
+
+            wikipediaData = {
+                specifications:
+                    createEmptyWikipediaSpecifications(),
+                latestGenerationTitle: null,
+                latestGenerationLabel: null,
+                latestGenerationSpecifications:
+                    createEmptyWikipediaSpecifications()
+            };
+        }
+
+        let image = null;
+
+        try {
+
+            image =
+                await getCommercialWikimediaImage(
+                    page.imageTitle,
+                    vehicle.make,
+                    vehicle.model,
+                    vehicle.kind
+                );
+
+            if (!image) {
+                image =
+                    await searchCommercialWikimediaImage(
+                        vehicle.make,
+                        vehicle.model,
+                        vehicle.kind
+                    );
+            }
+
+        } catch (error) {
+
+            console.warn(
+                "Lightweight vehicle quality image lookup failed:",
+                vehicle.make,
+                vehicle.model,
+                vehicle.kind,
+                error
+            );
+
+        }
+
+        const specifications =
+            mergeCatalogFallbackSpecifications(
+                wikipediaData?.specifications ||
+                    createEmptyWikipediaSpecifications(),
+                vehicle
+            );
+
+        return respondDetails(
+            {
+                success: true,
+                source: {
+                    catalog:
+                        "VehiclesDB Open Dataset",
+                    information:
+                        "Wikipedia"
+                },
+                kind,
+                vehicle: {
+                    make: vehicle.make,
+                    model: vehicle.model,
+                    kind: vehicle.kind,
+                    body_type: vehicle.bodyType,
+                    body_types: vehicle.bodyTypes,
+                    year_start: vehicle.yearStart,
+                    year_end: vehicle.yearEnd,
+                    global_decile: vehicle.globalDecile
+                },
+                wikipedia: {
+                    title: page.title,
+                    url: page.url,
+                    description:
+                        page.description ||
+                        "No Information"
+                },
+                image,
+                external: {
+                    fuelEconomy: null
+                },
+                specifications,
+                comparisonAvailable:
+                    hasWikipediaVehicleInformation(
+                        specifications
+                    )
+            },
+            200,
+            WIKIPEDIA_CACHE_TTL
+        );
+
+    }
+
 
     if (
         requestUrl.searchParams.get("fast") === "1"
