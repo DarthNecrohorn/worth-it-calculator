@@ -813,11 +813,11 @@ html[data-theme="dark"] .worth-it-market-detail-change {
 
 @media (min-width:1200px) {
     html[data-ui-scale="xl"] .worth-it-market-detail-dialog {
-        max-height:min(660px, calc(100vh - 80px)) !important;
+        max-height:min(520px, calc(100vh - 100px)) !important;
     }
 
     html[data-ui-scale="xl"] .worth-it-market-detail-body {
-        padding:18px 28px !important;
+        padding:14px 24px !important;
     }
 }
 
