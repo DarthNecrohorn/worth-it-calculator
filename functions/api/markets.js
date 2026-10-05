@@ -311,6 +311,26 @@ function jsonResponse(
 }
 
 
+function privateJsonResponse(
+    data,
+    status = 200
+) {
+
+    return new Response(
+        JSON.stringify(data),
+        {
+            status,
+            headers: {
+                "Content-Type":
+                    "application/json; charset=UTF-8",
+                "Cache-Control":
+                    "private, no-store"
+            }
+        }
+    );
+}
+
+
 function responseWithCacheTimestamp(
     response,
     cacheSeconds
