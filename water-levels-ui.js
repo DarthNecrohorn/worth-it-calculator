@@ -4947,6 +4947,50 @@
 
     }
 
+    function ensureWaterLevelsBackUpButton(){
+        let button =
+            get("waterLevelsBackUp");
+
+        if(button){
+            return button;
+        }
+
+        button = document.createElement("button");
+        button.type = "button";
+        button.id = "waterLevelsBackUp";
+        button.className = "water-levels-back-up";
+        button.textContent = "Go back up ↑";
+        button.setAttribute("aria-label","Go back up");
+
+        button.addEventListener("click",function(){
+            window.scrollTo({
+                top:0,
+                behavior:"smooth"
+            });
+        });
+
+        document.body.appendChild(button);
+        return button;
+    }
+
+    function syncWaterLevelsBackUpButton(){
+        const button = ensureWaterLevelsBackUpButton();
+        const section = get("waterLevelsSection");
+
+        if(!button || !section){
+            return;
+        }
+
+        const visible =
+            section.style.display !== "none" &&
+            window.getComputedStyle(section).display !== "none";
+
+        button.classList.toggle(
+            "visible",
+            visible && window.scrollY > 180
+        );
+    }
+
     function setupKeyboard(){
         if(
             document.documentElement.dataset.waterLevelsKeyboard ===
@@ -5005,6 +5049,15 @@
         setupCardActions();
         setupDetailModal();
         setupKeyboard();
+        ensureWaterLevelsBackUpButton();
+        syncWaterLevelsBackUpButton();
+
+        if(!document.documentElement.dataset.waterLevelsBackUpBound){
+            document.documentElement.dataset.waterLevelsBackUpBound = "true";
+            window.addEventListener("scroll",syncWaterLevelsBackUpButton,{passive:true});
+            window.addEventListener("resize",syncWaterLevelsBackUpButton);
+            window.addEventListener("worthitsettingschange",syncWaterLevelsBackUpButton);
+        }
 
         if(
             state.stations.length === 0 &&
