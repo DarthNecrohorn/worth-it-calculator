@@ -11197,6 +11197,27 @@ html[data-theme="light"] .crypto-detail-card{background:#fff}
     }
 }
 
+/* CRYPTO DETAIL — DESKTOP ACCESSIBILITY SIZE
+ * Keep the detail dialog physically smaller at A, A+ and A++.
+ * A− remains unchanged.
+ */
+@media(min-width:701px){
+    html[data-ui-scale="normal"] .crypto-detail-card{
+        transform:scale(.95) !important;
+        transform-origin:center center !important;
+    }
+
+    html[data-ui-scale="large"] .crypto-detail-card{
+        transform:scale(.90) !important;
+        transform-origin:center center !important;
+    }
+
+    html[data-ui-scale="xl"] .crypto-detail-card{
+        transform:scale(.82) !important;
+        transform-origin:center center !important;
+    }
+}
+
 /* =========================================================
    GLOBAL HEADER — ALWAYS FOLLOWS THE VIEWPORT
    The navigation remains visible while scrolling through every
