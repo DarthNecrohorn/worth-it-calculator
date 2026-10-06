@@ -12339,6 +12339,26 @@ html[data-theme="light"] .water-levels-back-up{
     color:var(--text) !important;
 }
 
+/* Water Levels "Go back up" — scale-specific desktop positioning. */
+@media(min-width:701px){
+    html[data-ui-scale="small"] .water-levels-back-up{
+        right:max(8px, calc((100vw - 1180px) / 2 - 220px)) !important;
+    }
+
+    html[data-ui-scale="normal"] .water-levels-back-up,
+    html:not([data-ui-scale]) .water-levels-back-up{
+        right:max(8px, calc((100vw - 1180px) / 2 - 180px)) !important;
+    }
+
+    html[data-ui-scale="large"] .water-levels-back-up{
+        right:max(8px, calc((100vw - 1180px) / 2 - 110px)) !important;
+    }
+
+    html[data-ui-scale="xl"] .water-levels-back-up{
+        right:max(8px, calc((100vw - 1180px) / 2 - 40px)) !important;
+    }
+}
+
 @media(max-width:700px){
     .water-levels-back-up{
         right:8px !important;
