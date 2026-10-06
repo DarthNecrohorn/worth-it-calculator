@@ -360,7 +360,12 @@
       document.body.appendChild(button);
     }
 
-    const shouldShow=window.scrollY>180;
+    const cryptoSection = $("cryptoSection");
+    const cryptoVisible =
+      cryptoSection &&
+      cryptoSection.style.display !== "none" &&
+      window.getComputedStyle(cryptoSection).display !== "none";
+    const shouldShow=cryptoVisible && window.scrollY>180;
     if(shouldShow){
       positionCryptoFloatingShowLess(
         button,
