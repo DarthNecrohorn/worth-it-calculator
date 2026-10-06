@@ -15830,3 +15830,15 @@ html[data-theme="light"] #calculatorApp .calculator-key.equals{
 .worth-it-market-wikipedia-link.is-unavailable,.worth-it-currency-wikipedia-link.is-unavailable{display:none;}
 @media(max-width:900px){.markets-grid .market-card{height:205px !important;min-height:205px !important;max-height:205px !important;}.markets-grid .worth-it-market-image-wrap,.markets-grid .worth-it-market-image,.markets-grid .worth-it-market-image-placeholder{min-height:205px !important;}.worth-it-market-card-content{height:205px !important;min-height:205px !important;max-height:205px !important;}.money-card{grid-template-columns:1fr !important;gap:10px !important;}}
 @media(max-width:700px){.markets-grid .market-card{grid-template-columns:95px minmax(0,1fr) !important;height:205px !important;min-height:205px !important;max-height:205px !important;}.markets-grid .worth-it-market-image-wrap,.markets-grid .worth-it-market-image,.markets-grid .worth-it-market-image-placeholder{min-width:95px !important;width:95px !important;min-height:205px !important;}}
+
+/* Keep Water Levels and Currencies detail navigation buttons solid on hover/focus. */
+.water-levels-detail-nav:hover,
+.water-levels-detail-nav:focus-visible,
+.water-levels-detail-nav:active,
+.water-levels-detail-nav:disabled:hover,
+.currency-detail-nav:hover,
+.currency-detail-nav:focus-visible,
+.currency-detail-nav:active,
+.currency-detail-nav:disabled:hover{
+    background:var(--card-solid,var(--card)) !important;
+}
