@@ -11203,7 +11203,7 @@ html[data-theme="light"] .crypto-detail-card{background:#fff}
  */
 @media(min-width:701px){
     html[data-ui-scale="normal"] .crypto-detail-card{
-        transform:scale(.95) !important;
+        transform:scaleX(.95) scaleY(.93) !important;
         transform-origin:center center !important;
     }
 
