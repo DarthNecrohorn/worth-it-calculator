@@ -60,6 +60,11 @@ const marketsImageQueue =
 const marketsImageCache =
     new Map();
 
+/* Tracks validated image lookups that already failed, so the same
+ * commodity is not repeatedly searched during the current session. */
+const marketsImageFailed =
+    new Set();
+
 const marketsImageLoading =
     new Set();
 
@@ -105,7 +110,16 @@ const marketsImagePromiseCache =
 const marketsAccountImageCache =
     new Map();
 
+/* Stable user-level lookup by commodity name, independent of category.
+ * This lets an unchanged card reuse its saved image even when the
+ * refreshed dataset changes its category label. */
+const marketsAccountImageNameCache =
+    new Map();
+
 const marketsImageReasonCache =
+    new Map();
+
+const marketsAccountImageReasonNameCache =
     new Map();
 
 let marketsAccountImageCacheLoaded =
@@ -2901,7 +2915,9 @@ async function loadMarketAccountImageCache() {
 
     if (!userId) {
         marketsAccountImageCache.clear();
+        marketsAccountImageNameCache.clear();
         marketsImageReasonCache.clear();
+        marketsAccountImageReasonNameCache.clear();
         marketsAccountImageCacheLoaded = true;
         marketsAccountImageCacheUserId = "";
         return;
@@ -2922,7 +2938,9 @@ async function loadMarketAccountImageCache() {
     }
 
     marketsAccountImageCache.clear();
+    marketsAccountImageNameCache.clear();
     marketsImageReasonCache.clear();
+    marketsAccountImageReasonNameCache.clear();
     marketsAccountImageCacheLoaded = false;
     marketsAccountImageCacheUserId = userId;
 
@@ -2981,6 +2999,25 @@ async function loadMarketAccountImageCache() {
                             image
                         );
 
+                        marketsAccountImageCache.set(
+                            key,
+                            image
+                        );
+
+                        const nameKey =
+                            normalizeMarketsSearch(
+                                cleanMarketDisplayName(
+                                    record?.commodityName
+                                )
+                            );
+
+                        if (nameKey) {
+                            marketsAccountImageNameCache.set(
+                                nameKey,
+                                image
+                            );
+                        }
+
                         if (image) {
                             marketsImageFailed.delete(key);
                         }
@@ -2989,10 +3026,17 @@ async function loadMarketAccountImageCache() {
                         }
 
                         if (record?.reason) {
+                            const reason = String(record.reason);
                             marketsImageReasonCache.set(
                                 key,
-                                String(record.reason)
+                                reason
                             );
+                            if (nameKey) {
+                                marketsAccountImageReasonNameCache.set(
+                                    nameKey,
+                                    reason
+                                );
+                            }
                         }
                     }
                 );
@@ -3058,14 +3102,35 @@ function queueMarketAccountImageSave(
         found ? image : null
     );
 
+    const nameKey =
+        normalizeMarketsSearch(
+            cleanMarketDisplayName(name)
+        );
+
+    if (nameKey) {
+        marketsAccountImageNameCache.set(
+            nameKey,
+            found ? image : null
+        );
+    }
+
     if (found) {
         marketsImageFailed.delete(key);
         marketsImageReasonCache.delete(key);
+        if (nameKey) {
+            marketsAccountImageReasonNameCache.delete(nameKey);
+        }
     }
     else {
         marketsImageFailed.add(key);
         if (record.reason) {
             marketsImageReasonCache.set(key, record.reason);
+            if (nameKey) {
+                marketsAccountImageReasonNameCache.set(
+                    nameKey,
+                    record.reason
+                );
+            }
         }
     }
 
@@ -3186,17 +3251,21 @@ async function fetchMarketImage(
         );
 
 
-    if (
-        marketsAccountImageCacheLoaded &&
-        marketsImageCache.has(
-            key
-        )
-    ) {
-
-        return marketsImageCache.get(
-            key
+    const accountKey =
+        getMarketAccountImageKey(
+            cleanName,
+            category
         );
 
+    if (marketsAccountImageCache.has(accountKey)) {
+        return marketsAccountImageCache.get(accountKey);
+    }
+
+    const accountNameKey =
+        normalizeMarketsSearch(cleanName);
+
+    if (marketsAccountImageNameCache.has(accountNameKey)) {
+        return marketsAccountImageNameCache.get(accountNameKey);
     }
 
 
@@ -3478,16 +3547,38 @@ async function resolveMarketsWithValidImages(
                     category
                 );
 
-            const cached =
-                marketsImageCache.has(key)
-                    ? marketsImageCache.get(key)
-                    : null;
+            const accountKey =
+                getMarketAccountImageKey(
+                    cleanName,
+                    category
+                );
+
+            let cached = null;
+            if (marketsImageCache.has(key)) {
+                cached = marketsImageCache.get(key);
+            }
+            else if (marketsAccountImageCache.has(accountKey)) {
+                cached = marketsAccountImageCache.get(accountKey);
+            }
+            else {
+                const accountNameKey =
+                    normalizeMarketsSearch(cleanName);
+                if (marketsAccountImageNameCache.has(accountNameKey)) {
+                    cached = marketsAccountImageNameCache.get(accountNameKey);
+                }
+            }
+
+            const accountNameKey =
+                normalizeMarketsSearch(cleanName);
 
             return {
                 item,
                 image:cached || null,
                 imageReason:
-                    marketsImageReasonCache.get(key) || ""
+                    marketsImageReasonCache.get(key) ||
+                    marketsImageReasonCache.get(accountKey) ||
+                    marketsAccountImageReasonNameCache.get(accountNameKey) ||
+                    ""
             };
 
         }
