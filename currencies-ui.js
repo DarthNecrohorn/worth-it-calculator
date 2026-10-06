@@ -306,7 +306,7 @@ function renderCurrenciesUI() {
                 .currency-detail-wikipedia-link:hover{text-decoration:underline}
                 .currency-detail-wikipedia-link:not(.is-loaded),.currency-detail-wikipedia-link.is-unavailable{display:none}
                 .currency-detail-nav{position:fixed;top:50%;transform:translateY(-50%);width:62px;height:82px;border:1px solid var(--border);border-radius:17px;background:var(--card-solid,var(--card));color:var(--text);box-shadow:0 16px 42px rgba(0,0,0,.22);z-index:3;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px}.currency-detail-nav-key{order:1;align-self:center;margin:0;font-size:.82rem;font-weight:800;color:var(--muted)}.currency-detail-nav-chevron{order:2;font-size:34px;line-height:.75;font-weight:400}.currency-detail-nav-main{order:3;font-size:22px;line-height:.8;font-weight:300}
-                .currency-detail-nav:hover{transform:translateY(-50%) !important}
+                .currency-detail-nav:hover{background:var(--surface-soft);border-color:rgba(124,92,255,.42);transform:translateY(-50%) !important}
                 .currency-detail-nav:disabled{opacity:.28;cursor:default}
                 .currency-detail-nav:disabled:hover{transform:none !important}
                 .currency-detail-nav-prev{left:calc(50% - 390px)}
@@ -332,7 +332,34 @@ function renderCurrenciesUI() {
                     .currency-detail-nav-main{font-size:15px}.currency-detail-nav-chevron{font-size:22px}
                     .currency-detail-nav-key{display:none}
                 }
-                @media(min-width:1200px){html[data-ui-scale="xl"] .currency-detail-dialog{width:min(580px,calc(100vw - 60px))}html[data-ui-scale="xl"] .currency-detail-content{padding:30px 30px 26px}html[data-ui-scale="xl"] .currency-detail-nav-prev{left:calc(50% - 365px)}html[data-ui-scale="xl"] .currency-detail-nav-next{right:calc(50% - 365px)}}\n                @media(prefers-reduced-motion:reduce){
+                @media(min-width:1200px){html[data-ui-scale="xl"] .currency-detail-dialog{width:min(580px,calc(100vw - 60px))}html[data-ui-scale="xl"] .currency-detail-content{padding:30px 30px 26px}html[data-ui-scale="xl"] .currency-detail-nav-prev{left:calc(50% - 365px)}html[data-ui-scale="xl"] .currency-detail-nav-next{right:calc(50% - 365px)}}\n                /* Keep currency detail modal compact at larger accessibility scales, matching the Water Levels modal geometry. */
+                html[data-ui-scale="large"] .currency-detail-dialog{
+                    transform:scale(.90) !important;
+                    transform-origin:center center !important;
+                    max-height:70dvh !important;
+                }
+
+                html[data-ui-scale="xl"] .currency-detail-dialog{
+                    transform:scale(.82) !important;
+                    transform-origin:center center !important;
+                    max-height:65dvh !important;
+                }
+
+                @media(max-width:760px){
+                    html[data-ui-scale="large"] .currency-detail-dialog{
+                        transform:scale(.88) !important;
+                        transform-origin:center center !important;
+                        max-height:68dvh !important;
+                    }
+
+                    html[data-ui-scale="xl"] .currency-detail-dialog{
+                        transform:scale(.80) !important;
+                        transform-origin:center center !important;
+                        max-height:62dvh !important;
+                    }
+                }
+
+                @media(prefers-reduced-motion:reduce){
                     .currency-detail-nav,.currency-detail-close{transition:none}
                 }
             </style>
