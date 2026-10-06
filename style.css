@@ -12303,6 +12303,51 @@ html[data-theme="light"] .water-level-card{
     50%{transform:rotate(2deg) scale(.98)}
 }
 
+.water-levels-back-up{
+    position:fixed !important;
+    right:max(8px, calc((100vw - 1180px) / 2 - 140px)) !important;
+    top:50% !important;
+    z-index:10050 !important;
+    min-height:46px !important;
+    padding:10px 16px !important;
+    border:1px solid var(--border) !important;
+    border-radius:12px !important;
+    background:var(--surface-soft) !important;
+    color:var(--text) !important;
+    box-shadow:0 14px 34px rgba(0,0,0,.16) !important;
+    opacity:0 !important;
+    visibility:hidden !important;
+    pointer-events:none !important;
+    transform:translateY(-50%) !important;
+    transition:opacity .18s ease,visibility .18s ease,background .18s ease,border-color .18s ease,transform .18s ease !important;
+}
+
+.water-levels-back-up.visible{
+    opacity:1 !important;
+    visibility:visible !important;
+    pointer-events:auto !important;
+}
+
+.water-levels-back-up:hover{
+    background:var(--surface-soft) !important;
+    border-color:rgba(124,92,255,.48) !important;
+    transform:translateY(-50%) scale(1.018) !important;
+}
+
+html[data-theme="light"] .water-levels-back-up{
+    background:var(--card-solid,#fff) !important;
+    color:var(--text) !important;
+}
+
+@media(max-width:700px){
+    .water-levels-back-up{
+        right:8px !important;
+        min-height:46px !important;
+        padding:10px 14px !important;
+        border-radius:12px !important;
+    }
+}
+
 .water-levels-detail-overlay{
     position:fixed;
     inset:0;
