@@ -842,6 +842,39 @@ html[data-theme="light"] .worth-it-market-detail-navigation {
     box-shadow:0 14px 36px rgba(0,0,0,.18) !important;
 }
 
+/* Match the Markets floating control to the active site theme. */
+html[data-theme="light"] .worth-it-markets-back-up {
+    background:
+        linear-gradient(
+            rgba(255,255,255,.96),
+            rgba(255,255,255,.96)
+        ) padding-box,
+        linear-gradient(
+            120deg,
+            rgba(15,23,42,.14),
+            rgba(15,23,42,.10)
+        ) border-box !important;
+    color:#0f172a !important;
+    box-shadow:0 7px 20px rgba(15,23,42,.12) !important;
+}
+
+html[data-theme="light"] .worth-it-markets-back-up:hover {
+    background:
+        linear-gradient(
+            rgba(245,247,251,.98),
+            rgba(245,247,251,.98)
+        ) padding-box,
+        linear-gradient(
+            120deg,
+            #7c3aed,
+            #2563eb
+        ) border-box !important;
+    color:#0f172a !important;
+    box-shadow:
+        0 8px 24px rgba(37,99,235,.12),
+        0 3px 11px rgba(124,58,237,.10) !important;
+}
+
 body.worth-it-market-detail-modal-open {
     overflow:hidden !important;
 }
