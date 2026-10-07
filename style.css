@@ -16743,3 +16743,102 @@ html[data-ui-scale="large"] .legal-modal-head h2,
 html[data-ui-scale="xl"] .legal-modal-head h2{
     font-size:22px;
 }
+/* =========================================================
+   LEGAL MODAL — ABOVE AUTH + HEADER / BUTTON LAYOUT FIX
+========================================================= */
+
+.legal-overlay{
+    z-index:60000 !important;
+}
+
+.legal-modal{
+    width:min(860px,calc(100vw - 32px));
+}
+
+.legal-nav{
+    display:grid;
+    grid-template-columns:repeat(3,minmax(0,1fr));
+    gap:8px;
+    overflow:visible;
+}
+
+.legal-nav button{
+    width:100%;
+    min-width:0;
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    text-align:center;
+    line-height:1.25;
+}
+
+@media(max-width:700px){
+    .legal-overlay{
+        padding:10px;
+    }
+
+    .legal-modal{
+        width:100%;
+        max-width:100%;
+        max-height:calc(100dvh - 20px);
+    }
+
+    .legal-nav{
+        grid-template-columns:repeat(2,minmax(0,1fr));
+        gap:7px;
+        padding:10px 14px;
+    }
+
+    .legal-nav button{
+        min-height:36px;
+        padding:7px 8px;
+        font-size:11px;
+    }
+
+    .legal-content{
+        min-height:0;
+        max-height:none;
+    }
+}
+
+@media(max-width:380px){
+    .legal-modal{
+        border-radius:18px;
+    }
+
+    .legal-modal-head{
+        padding:15px 15px 12px;
+    }
+
+    .legal-modal-head h2{
+        font-size:20px;
+    }
+
+    .legal-nav{
+        padding:8px 11px;
+    }
+
+    .legal-nav button{
+        font-size:10px;
+        min-height:34px;
+        padding:6px 5px;
+    }
+
+    .legal-content{
+        padding:15px;
+        font-size:12.5px;
+    }
+}
+
+html[data-ui-scale="large"] .legal-modal{
+    width:min(820px,calc(100vw - 32px));
+}
+
+html[data-ui-scale="xl"] .legal-modal{
+    width:min(800px,calc(100vw - 28px));
+}
+
+html[data-ui-scale="large"] .legal-nav,
+html[data-ui-scale="xl"] .legal-nav{
+    gap:7px;
+}
