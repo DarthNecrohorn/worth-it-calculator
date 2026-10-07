@@ -12347,7 +12347,7 @@ html[data-theme="light"] .water-levels-back-up{
 
     html[data-ui-scale="normal"] .water-levels-back-up,
     html:not([data-ui-scale]) .water-levels-back-up{
-        right:max(24px, calc((100vw - 1040px) / 2 - 160px)) !important;
+        right:max(24px, calc((100vw - 1040px) / 2 - 150px)) !important;
     }
 
     html[data-ui-scale="large"] .water-levels-back-up{
