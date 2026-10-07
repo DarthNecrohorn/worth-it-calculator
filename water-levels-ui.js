@@ -4139,6 +4139,11 @@
             "water-levels-modal-open"
         );
 
+        const backUpButton = get("waterLevelsBackUp");
+        if(backUpButton){
+            backUpButton.classList.remove("visible");
+        }
+
         overlay.dataset.viewMode =
             detailMode;
 
@@ -4601,6 +4606,8 @@
         document.body.classList.remove(
             "water-levels-modal-open"
         );
+
+        syncWaterLevelsBackUpButton();
 
         delete overlay.dataset.viewMode;
 
