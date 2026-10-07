@@ -1,7 +1,7 @@
 /* WORTH IT — CRYPTOCURRENCIES UI */
 (() => {
   "use strict";
-  const state={loaded:false,loading:false,coins:[],global:null,filter:"popular",search:"",sort:"rank",queue:[],active:0,max:5,showAll:false,chartPeriod:"MAX",detailCoin:null,history:null};
+  const state={loaded:false,loading:false,coins:[],global:null,filter:"popular",search:"",sort:"rank",queue:[],active:0,max:5,showAll:false,chartPeriod:"MAX",detailCoin:null,history:null,detailIndex:-1,detailList:[]};
   const CACHE_KEY="worthit.crypto.market.v1";
   const BROWSER_FRESH_MS=5*60*1000;
   const BROWSER_STALE_MS=30*60*1000;
@@ -258,6 +258,10 @@
   }
 
   async function openDetail(coin){
+    const detailList=filtered();
+    state.detailList=detailList;
+    state.detailIndex=detailList.findIndex(x=>String(x.id)===String(coin.id));
+    updateDetailNavigation();
     const overlay=$("cryptoDetailOverlay");
     if(!overlay)return;
     const backUpButton=$("cryptoFloatingShowLess");
@@ -302,11 +306,33 @@
     }
   }
 
+  function updateDetailNavigation(){
+    const prev=$("cryptoDetailPrev");
+    const next=$("cryptoDetailNext");
+    if(!prev||!next)return;
+    const list=state.detailList||[];
+    const index=state.detailIndex;
+    prev.disabled=index<=0;
+    next.disabled=index<0||index>=list.length-1;
+  }
+
+  function navigateDetail(direction){
+    const list=state.detailList||[];
+    const nextIndex=state.detailIndex+direction;
+    if(nextIndex<0||nextIndex>=list.length)return;
+    state.detailIndex=nextIndex;
+    updateDetailNavigation();
+    openDetail(list[nextIndex]);
+  }
+
   function closeDetail(){
     const overlay=$("cryptoDetailOverlay");
     if(!overlay)return;
     overlay.classList.remove("open");
     overlay.setAttribute("aria-hidden","true");
+    state.detailIndex=-1;
+    state.detailList=[];
+    updateDetailNavigation();
     syncFloatingShowLess();
   }
 
@@ -530,8 +556,17 @@
     document.addEventListener("click",e=>{if(e.target.closest(".nav,.more-menu"))closeDetail();},true);
 
     $("cryptoDetailClose")?.addEventListener("click",closeDetail);
+    $("cryptoDetailPrev")?.addEventListener("click",()=>navigateDetail(-1));
+    $("cryptoDetailNext")?.addEventListener("click",()=>navigateDetail(1));
     $("cryptoDetailOverlay")?.addEventListener("click",e=>{if(e.target===e.currentTarget)closeDetail();});
-    document.addEventListener("keydown",e=>{if(e.key==="Escape")closeDetail();});
+    document.addEventListener("keydown",e=>{
+      if(e.key==="Escape")closeDetail();
+      if(!$("cryptoDetailOverlay")?.classList.contains("open"))return;
+      if(e.key.toLowerCase()==="a")navigateDetail(-1);
+      if(e.key.toLowerCase()==="d")navigateDetail(1);
+      if(e.key==="ArrowLeft")navigateDetail(-1);
+      if(e.key==="ArrowRight")navigateDetail(1);
+    });
 const s=$("cryptoSection");if(!s||s.dataset.cryptoBound==="1")return;s.dataset.cryptoBound="1";$("cryptoFilters")?.addEventListener("click",e=>{const b=e.target.closest("button[data-crypto-filter]");if(!b)return;state.filter=b.dataset.cryptoFilter;state.sort=state.filter==="gainers"?"gainers":state.filter==="losers"?"losers":state.filter==="volume"?"volume":state.filter==="marketCap"?"marketCap":"rank";renderFilters();render();});$("cryptoSearch")?.addEventListener("input",e=>{state.search=e.target.value.trim();render();});$("cryptoRefresh")?.addEventListener("click",()=>{state.loaded=false;load(true);});}
   window.initCryptoUI=()=>{bind();if(!state.loaded)load();else{renderGlobal();renderFilters();render();}};
 })();
