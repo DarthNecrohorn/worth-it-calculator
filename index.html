@@ -2085,6 +2085,20 @@
         <span id="footerNote">Results are estimates for informational purposes and should not be
         considered professional financial advice.</span>
 
+        <br><br>
+
+        <nav class="footer-legal-links" aria-label="Legal">
+            <button type="button" onclick="openLegalPage('privacy')">Privacy Policy</button>
+            <span aria-hidden="true">·</span>
+            <button type="button" onclick="openLegalPage('terms')">Terms of Use</button>
+            <span aria-hidden="true">·</span>
+            <button type="button" onclick="openLegalPage('cookies')">Cookie &amp; Storage Policy</button>
+            <span aria-hidden="true">·</span>
+            <button type="button" onclick="openLegalPage('affiliate')">Affiliate Disclosure</button>
+            <span aria-hidden="true">·</span>
+            <button type="button" onclick="openLegalPage('disclaimer')">Disclaimer</button>
+        </nav>
+
         <br>
 
         <button type="button" class="feedback-trigger" onclick="openFeedback()" style="display:none;">🐞 <span>Bugs &amp; Suggestions</span></button>
@@ -2304,6 +2318,20 @@ try{
                     >
                         <label for="authWebsite">Website</label>
                         <input id="authWebsite" name="website" type="text" tabindex="-1" autocomplete="off">
+                    </div>
+
+                    <div class="auth-legal-wrap" id="authLegalWrap" style="display:none;">
+                        <label class="auth-legal-check">
+                            <input type="checkbox" id="authLegalCheck">
+                            <span>
+                                I agree to the
+                                <button type="button" class="auth-inline-link" onclick="openLegalPage('terms')">Terms of Use</button>
+                                and
+                                <button type="button" class="auth-inline-link" onclick="openLegalPage('community')">Community Rules</button>,
+                                and I acknowledge that I have read the
+                                <button type="button" class="auth-inline-link" onclick="openLegalPage('privacy')">Privacy Policy</button>.
+                            </span>
+                        </label>
                     </div>
 
                     <div class="auth-turnstile-wrap" id="authTurnstileWrap">
