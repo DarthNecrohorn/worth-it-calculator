@@ -1,3 +1,5 @@
+import { recordAdminApiUsage } from "../lib/admin-usage.js";
+
 /*
  * WORTH IT — NEWS SOURCE IMAGE RESOLVER
  *
@@ -1360,6 +1362,14 @@ async function mapWithConcurrency(
 export async function onRequestPost(
     context
 ) {
+
+    recordAdminApiUsage(
+        context,
+        {
+            apiKey: "news-images",
+            provider: "Original article source pages"
+        }
+    );
 
     let body;
 
