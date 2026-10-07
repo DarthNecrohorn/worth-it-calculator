@@ -16441,11 +16441,6 @@ html[data-theme="light"] :where(
     box-shadow:var(--ui-button-shadow);
 }
 
-html[data-theme="dark"] .markets-section,
-html[data-theme="light"] .markets-section{
-    border-radius:24px;
-}
-
 html[data-theme="dark"] .markets-section{
     background:
         radial-gradient(circle at 15% 0%,rgba(124,92,255,.055),transparent 30%),
