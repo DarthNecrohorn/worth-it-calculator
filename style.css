@@ -16075,3 +16075,66 @@ html[data-theme="light"] #calculatorApp .calculator-key.equals{
 .ai-chat-overlay{
     z-index:40000 !important;
 }
+
+
+
+/* =========================================================
+   DETAIL PANELS — KEEP GLOBAL HEADER INTERACTIVE
+   When a card-detail panel is open, the main navigation and
+   its utility menus stay above the detail backdrop so they
+   remain sharp and clickable. The detail panel stays open.
+========================================================= */
+
+html:has(
+    #cryptoDetailOverlay.open,
+    #currencyDetailModal.is-open,
+    #worthItMarketDetailModal.is-open,
+    #waterLevelsDetailOverlay.open,
+    #worthItVehicleDetailsModal.is-open
+) .nav{
+    z-index:13000 !important;
+}
+
+html:has(
+    #cryptoDetailOverlay.open,
+    #currencyDetailModal.is-open,
+    #worthItMarketDetailModal.is-open,
+    #waterLevelsDetailOverlay.open,
+    #worthItVehicleDetailsModal.is-open
+) .more-menu,
+html:has(
+    #cryptoDetailOverlay.open,
+    #currencyDetailModal.is-open,
+    #worthItMarketDetailModal.is-open,
+    #waterLevelsDetailOverlay.open,
+    #worthItVehicleDetailsModal.is-open
+) .settings-panel{
+    z-index:13020 !important;
+}
+
+html:has(
+    #cryptoDetailOverlay.open,
+    #currencyDetailModal.is-open,
+    #worthItMarketDetailModal.is-open,
+    #waterLevelsDetailOverlay.open,
+    #worthItVehicleDetailsModal.is-open
+) .ai-chat-overlay,
+html:has(
+    #cryptoDetailOverlay.open,
+    #currencyDetailModal.is-open,
+    #worthItMarketDetailModal.is-open,
+    #waterLevelsDetailOverlay.open,
+    #worthItVehicleDetailsModal.is-open
+) .feedback-overlay{
+    z-index:13040 !important;
+}
+
+html:has(
+    #cryptoDetailOverlay.open,
+    #currencyDetailModal.is-open,
+    #worthItMarketDetailModal.is-open,
+    #waterLevelsDetailOverlay.open,
+    #worthItVehicleDetailsModal.is-open
+) .admin-panel-overlay{
+    z-index:13050 !important;
+}
