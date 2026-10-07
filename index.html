@@ -2093,6 +2093,31 @@
 
 </footer>
 
+<div class="legal-overlay" id="legalOverlay" aria-hidden="true">
+    <div class="legal-modal" role="dialog" aria-modal="true" aria-labelledby="legalModalTitle">
+        <div class="legal-modal-head">
+            <div>
+                <div class="legal-kicker">WORTH IT LEGAL</div>
+                <h2 id="legalModalTitle">Terms of Use</h2>
+                <p id="legalModalUpdated">Last Updated: October 7, 2026</p>
+            </div>
+            <button type="button" class="legal-close" onclick="closeLegalPage()" aria-label="Close">✕</button>
+        </div>
+
+        <nav class="legal-nav" aria-label="Legal documents">
+            <button type="button" data-legal-tab="terms" onclick="openLegalPage('terms')">Terms of Use</button>
+            <button type="button" data-legal-tab="community" onclick="openLegalPage('community')">Community Rules</button>
+            <button type="button" data-legal-tab="privacy" onclick="openLegalPage('privacy')">Privacy Policy</button>
+            <button type="button" data-legal-tab="cookies" onclick="openLegalPage('cookies')">Cookie &amp; Storage</button>
+            <button type="button" data-legal-tab="affiliate" onclick="openLegalPage('affiliate')">Affiliate Disclosure</button>
+            <button type="button" data-legal-tab="disclaimer" onclick="openLegalPage('disclaimer')">Disclaimer</button>
+        </nav>
+
+        <div class="legal-content" id="legalContent" tabindex="0"></div>
+    </div>
+</div>
+
+
 <div class="feedback-overlay" id="feedbackOverlay" role="dialog" aria-modal="true">
     <div class="feedback-modal-card">
         <div class="feedback-head">
