@@ -16992,6 +16992,17 @@ html[data-ui-scale="xl"] .auth-modal-overlay.signup-mode .auth-modal-card{
 .auth-modal-overlay:not(.signup-mode) .auth-modal-close:active{
     transform:translate(10px,-10px) !important;
 }
+/* Create account close button: 10px upward from its current position. */
+.auth-modal-overlay.signup-mode .auth-modal-close{
+    transform:translate(10px,0) !important;
+}
+
+.auth-modal-overlay.signup-mode .auth-modal-close:hover,
+.auth-modal-overlay.signup-mode .auth-modal-close:focus,
+.auth-modal-overlay.signup-mode .auth-modal-close:focus-visible,
+.auth-modal-overlay.signup-mode .auth-modal-close:active{
+    transform:translate(10px,0) !important;
+}
 /* Auth username field alignment */
 #authUsernameWrap{
     transform:translateY(10px);
