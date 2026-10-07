@@ -10783,30 +10783,30 @@ html[data-theme="light"] .crypto-show-btn{
         right:max(12px,calc(50% - 450px));
     }
 
-    /* A: 10px further inward */
+    /* A: 20px further inward */
     html[data-ui-scale="normal"] .crypto-detail-nav-prev,
     html:not([data-ui-scale]) .crypto-detail-nav-prev{
-        left:max(12px,calc(50% - 440px));
+        left:max(12px,calc(50% - 430px));
     }
     html[data-ui-scale="normal"] .crypto-detail-nav-next,
     html:not([data-ui-scale]) .crypto-detail-nav-next{
-        right:max(12px,calc(50% - 440px));
-    }
-
-    /* A+: 20px further inward */
-    html[data-ui-scale="large"] .crypto-detail-nav-prev{
-        left:max(12px,calc(50% - 430px));
-    }
-    html[data-ui-scale="large"] .crypto-detail-nav-next{
         right:max(12px,calc(50% - 430px));
     }
 
-    /* A++: 30px further inward */
+    /* A+: 40px further inward */
+    html[data-ui-scale="large"] .crypto-detail-nav-prev{
+        left:max(12px,calc(50% - 410px));
+    }
+    html[data-ui-scale="large"] .crypto-detail-nav-next{
+        right:max(12px,calc(50% - 410px));
+    }
+
+    /* A++: 60px further inward */
     html[data-ui-scale="xl"] .crypto-detail-nav-prev{
-        left:max(12px,calc(50% - 420px));
+        left:max(12px,calc(50% - 390px));
     }
     html[data-ui-scale="xl"] .crypto-detail-nav-next{
-        right:max(12px,calc(50% - 420px));
+        right:max(12px,calc(50% - 390px));
     }
 }
 .crypto-detail-nav-key{
