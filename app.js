@@ -814,6 +814,9 @@ function setAuthStatus(message = "", type = "") {
 
 function openAuthModal(mode = "signin") {
 
+    authReturnedToSignin =
+        false;
+
     const overlay =
         $("authModalOverlay");
 
@@ -1214,6 +1217,12 @@ function renderAuthModal() {
 
         forgot.style.display =
             "inline-flex";
+
+        legalWrap.style.display =
+            "none";
+
+        legalCheck.checked =
+            false;
 
     }
 
