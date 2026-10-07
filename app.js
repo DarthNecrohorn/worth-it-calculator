@@ -349,6 +349,11 @@ function updateAuthUI(user) {
 
 
     } else {
+        legalWrap.style.display =
+            "none";
+
+        legalCheck.checked =
+            false;
 
         btn.style.display =
             "inline-flex";
@@ -851,6 +856,19 @@ function renderAuthModal() {
     const passwordLabel =
         $("authPasswordLabel");
 
+    if (
+        authModalMode === "signup" &&
+        !legalCheck?.checked
+    ) {
+        setAuthStatus(
+            "You must agree to the Terms of Use and Community Rules before creating an account.",
+            "error"
+        );
+        legalCheck?.focus();
+        return;
+    }
+
+
     const submit =
         $("authSubmitBtn");
 
@@ -859,6 +877,12 @@ function renderAuthModal() {
 
     const forgot =
         $("authForgotPassword");
+
+    const legalWrap =
+        $("authLegalWrap");
+
+    const legalCheck =
+        $("authLegalCheck");
 
     if (
         !title ||
@@ -873,7 +897,9 @@ function renderAuthModal() {
         !passwordLabel ||
         !submit ||
         !toggle ||
-        !forgot
+        !forgot ||
+        !legalWrap ||
+        !legalCheck
     ) {
         return;
     }
@@ -926,7 +952,15 @@ function renderAuthModal() {
         forgot.style.display =
             "none";
 
+        legalWrap.style.display =
+            "block";
+
     } else if (authModalMode === "forgot") {
+        legalWrap.style.display =
+            "none";
+
+        legalCheck.checked =
+            false;
 
         title.textContent =
             "Reset your Worth It password";
@@ -972,6 +1006,11 @@ function renderAuthModal() {
 
 
     } else if (authModalMode === "reset") {
+        legalWrap.style.display =
+            "none";
+
+        legalCheck.checked =
+            false;
 
         title.textContent =
             "Set a new password";
@@ -1085,6 +1124,9 @@ async function submitAuthForm(event) {
 
     const passwordConfirm =
         $("authPasswordConfirm")?.value || "";
+
+    const legalCheck =
+        $("authLegalCheck");
 
 
     if (!authPassedBasicBotChecks()) {
@@ -1237,7 +1279,15 @@ async function submitAuthForm(event) {
                                 getAuthTurnstileToken() || undefined,
                             data: {
                                 username,
-                                full_name: username
+                                full_name: username,
+                                terms_version:
+                                    WORTH_IT_LEGAL_VERSION,
+                                community_rules_version:
+                                    WORTH_IT_LEGAL_VERSION,
+                                privacy_policy_acknowledged:
+                                    true,
+                                legal_accepted_at:
+                                    new Date().toISOString()
                             },
                             emailRedirectTo:
                                 window.location.origin + "/"
@@ -2208,6 +2258,214 @@ if (cryptoSection) {
     }
 
 }
+
+
+
+/* =========================================================
+   LEGAL DOCUMENTS
+========================================================= */
+
+const WORTH_IT_LEGAL_VERSION = "2026-10-07";
+
+const WORTH_IT_LEGAL_DOCUMENTS = {
+    terms: {
+        title: "Terms of Use",
+        content: `
+            <h3>1. Acceptance</h3>
+            <p>By using Worth It or creating an account, you agree to these Terms of Use and the Community Rules.</p>
+            <h3>2. The Service</h3>
+            <p>Worth It provides calculators, comparisons, informational tools, market and currency data, vehicle information, news-related features, weather and other data features, shopping and affiliate links, and other services that may be added over time.</p>
+            <h3>3. Informational Use</h3>
+            <p>Calculations, estimates, prices, forecasts, vehicle details, articles, product information, and other results are provided for general informational purposes. We do not guarantee that they are complete, current, accurate, or suitable for your circumstances.</p>
+            <h3>4. Accounts</h3>
+            <p>You are responsible for the accuracy of your account information and for keeping your credentials secure. Accounts may not be used for fraud, impersonation, abuse, or ban evasion.</p>
+            <h3>5. Community Rules</h3>
+            <p>When Worth It provides profiles, messaging, comments, ratings, followers, friends, or other community features, you must follow the Community Rules. Dating and sexual solicitation are not permitted on Worth It.</p>
+            <h3>6. Moderation and Bans</h3>
+            <p>Worth It may restrict, suspend, or permanently terminate accounts when we reasonably believe that these Terms, the Community Rules, applicable law, or platform safety requirements have been violated. Serious misconduct may result in immediate action without a warning.</p>
+            <p>Worth It is not responsible for losses, inconvenience, or other consequences resulting from an account suspension, restriction, or ban, to the extent permitted by applicable law. We will make a genuine effort to be fair, reasonable, and consistent when reviewing moderation decisions.</p>
+            <h3>7. Owner and Administrative Testing</h3>
+            <p>The site owner and authorized administrators may perform controlled tests that would otherwise resemble prohibited activity when reasonably necessary to test moderation, safety, blocking, reporting, account restrictions, bugs, or other website functionality. This limited exception does not grant ordinary users permission to break the Community Rules.</p>
+            <h3>8. Third-Party Services</h3>
+            <p>Some features depend on third-party services and data providers. Those services may have separate terms, privacy practices, limits, and availability. Worth It does not control independent third-party acts or omissions.</p>
+            <h3>9. Affiliate Links</h3>
+            <p>Some shopping links may be affiliate links. Worth It or an affiliate partner may receive a commission or other compensation from a qualifying action at no additional cost to you, where applicable.</p>
+            <h3>10. Intellectual Property</h3>
+            <p>Worth It software, branding, interface, original text, and other original materials are owned by or licensed to Worth It unless otherwise indicated. Protected materials may not be copied or commercially exploited except where permitted by law or authorized by us.</p>
+            <h3>11. Availability and Changes</h3>
+            <p>Features, data sources, limits, and parts of the service may be changed, suspended, or discontinued as Worth It evolves.</p>
+            <h3>12. Disclaimers and Liability</h3>
+            <p>To the extent permitted by applicable law, Worth It is provided on an “as is” and “as available” basis. We do not guarantee uninterrupted, error-free, secure, complete, or accurate service.</p>
+            <p>To the extent permitted by applicable law, Worth It and its operators will not be liable for indirect, incidental, special, consequential, or similar losses arising from use of the service, reliance on its information, third-party services, or moderation actions. Nothing here excludes liability that cannot lawfully be excluded.</p>
+            <h3>13. Privacy</h3>
+            <p>Your use of Worth It is also subject to the Privacy Policy and Cookie &amp; Storage Policy.</p>
+            <h3>14. Changes</h3>
+            <p>We may update these Terms as the service evolves. The current version is the version published on Worth It.</p>
+            <p class="legal-final-note"><strong>Use Worth It responsibly and respect other users and the service.</strong></p>
+        `
+    },
+    community: {
+        title: "Community Rules",
+        content: `
+            <h3>1. Respect Everyone</h3>
+            <p>No harassment, bullying, personal attacks, directed abuse, degrading insults, threats, intimidation, repeated unwanted contact, or deliberate humiliation and antagonizing.</p>
+            <p>Casual profanity is not automatically treated the same as directed abuse, but aggressive, abusive, or repeated swearing at another person is not permitted.</p>
+            <h3>2. No Racism, Hate Speech, or Discrimination</h3>
+            <p>Worth It has zero tolerance for racism or hateful behavior. No attacks, threats, demeaning content, slurs, hateful stereotypes, or encouragement of hostility based on race, ethnicity, nationality, national origin, religion, sex, gender, sexual orientation, disability, age, or another protected or personal characteristic.</p>
+            <h3>3. Worth It Is Not a Dating Platform</h3>
+            <p><strong>Dating is not permitted on Worth It.</strong> Worth It is not a dating, matchmaking, romantic, or hookup platform. Do not use profiles or community features to look for dates, romantic partners, or sexual partners.</p>
+            <p>Dating and personal relationships are allowed <strong>outside of Worth It</strong>. What consenting adults choose to do outside the website is their own personal matter.</p>
+            <h3>4. No Unwanted Sexual or Nude Content</h3>
+            <p>Do not send, request, post, upload, or distribute sexual or nude content to other users. This includes unsolicited sexual messages, propositions, requests for nude images, and sexually explicit photographs.</p>
+            <p>Sending unsolicited <strong>18+ nude or sexually explicit images</strong> to another user may result in an immediate and permanent ban.</p>
+            <p>Any sexual content involving minors is strictly prohibited and may be reported to appropriate authorities where required.</p>
+            <h3>5. No Harassment or Repeated Unwanted Messages</h3>
+            <p>Do not repeatedly contact someone who has asked you to stop. Repeated inappropriate messages, ban evasion, coordinated harassment, or creating new accounts to continue unwanted contact may result in a permanent ban.</p>
+            <h3>6. No Threats, Violence, Illegal Activity, Scams, or Malicious Abuse</h3>
+            <p>Threats of violence, credible intimidation, serious illegal activity, fraud, impersonation, phishing, malware, scams, or deliberate abuse of platform functionality are not allowed.</p>
+            <h3>7. No Doxxing or Privacy Abuse</h3>
+            <p>Do not publish, distribute, threaten to reveal, or otherwise misuse another person's private or sensitive information without appropriate authorization.</p>
+            <h3>8. Moderation and Bans</h3>
+            <p>Worth It may suspend, restrict, or permanently terminate accounts that violate these rules or create a serious risk to the community or service.</p>
+            <p><strong>Worth It is not responsible for losses, inconvenience, or other consequences resulting from a suspension, restriction, or ban, to the extent permitted by applicable law.</strong> We will nevertheless make a genuine effort to be fair, reasonable, and consistent and may consider context, severity, history, intent, evidence, and repeated behavior.</p>
+            <h3>9. Owner and Administrative Testing Exception</h3>
+            <p>The site owner and authorized administrators may perform controlled tests that would otherwise resemble prohibited activity when needed to test moderation, reports, blocks, bans, safety protections, bugs, or other functionality. This is a limited testing and administration exception and does not permit the owner or administrators to use Worth It as a dating platform.</p>
+            <h3>10. Appeals</h3>
+            <p>Where an appeal or review process is available, users may request reconsideration. A review does not guarantee that a decision will be reversed.</p>
+            <p class="legal-final-note"><strong>Be respectful. Do not harass people, use Worth It for dating or sexual solicitation, send unwanted nude or explicit content, or engage in racism, hate, threats, scams, or serious abuse.</strong></p>
+        `
+    },
+    privacy: {
+        title: "Privacy Policy",
+        content: `
+            <h3>1. What We Collect</h3>
+            <p>Depending on the features you use, Worth It may receive information you provide directly, such as your email address, Worth It username, account information, feedback, bug reports, suggestions, and other information you choose to submit.</p>
+            <h3>2. Authentication</h3>
+            <p>Worth It currently uses email-and-password authentication through Supabase. The authentication session is stored using browser storage so the website can maintain your signed-in state.</p>
+            <h3>3. Browser Storage</h3>
+            <p>Worth It uses browser storage for legitimate functions such as remembering theme and UI scale preferences, language or translation state, caching certain information, and maintaining authentication state.</p>
+            <h3>4. Security</h3>
+            <p>Cloudflare Turnstile is used for anti-bot protection on account-related flows where configured. Security services may process technical signals needed to protect the service from automated abuse.</p>
+            <h3>5. How Information Is Used</h3>
+            <p>Information may be used to provide and secure the service, authenticate accounts, respond to feedback, investigate bugs and abuse, enforce the Terms and Community Rules, maintain the website, and improve reliability and functionality.</p>
+            <h3>6. Service Providers</h3>
+            <p>Worth It uses third-party infrastructure and service providers, including Supabase for authentication and related account services and Cloudflare for hosting, delivery, and security, as well as providers required for particular site features.</p>
+            <h3>7. Affiliate and Merchant Links</h3>
+            <p>When you leave Worth It through a merchant or affiliate link, the third party may collect information under its own privacy policy and may use cookies or similar technologies.</p>
+            <h3>8. Data Sharing</h3>
+            <p>Information may be disclosed when reasonably necessary to operate the service, protect users, comply with legal obligations, investigate abuse, or work with service providers processing information on our behalf. Worth It is not currently designed as an advertising-profile or data-broker service.</p>
+            <h3>9. Retention and Your Rights</h3>
+            <p>Information may be retained as reasonably necessary for the relevant feature, security, account records, disputes, abuse investigations, legal obligations, and operation of the service. Depending on applicable law, you may have rights to access, correct, delete, restrict, object to, or otherwise control personal information.</p>
+            <h3>10. Changes</h3>
+            <p>This Privacy Policy may be updated as Worth It evolves or legal requirements change.</p>
+            <p class="legal-final-note"><strong>For privacy-related requests, please use the contact or feedback channel made available on Worth It.</strong></p>
+        `
+    },
+    cookies: {
+        title: "Cookie & Storage Policy",
+        content: `
+            <h3>1. Current Approach</h3>
+            <p>Worth It currently does not intentionally operate an advertising or analytics cookie system. We are not adding a generic “Accept all cookies” banner merely for necessary functionality.</p>
+            <h3>2. Browser Storage</h3>
+            <p>Worth It uses local browser storage for legitimate service functions including theme and UI scale preferences, language or translation state, caching certain information, and maintaining the Supabase authentication session.</p>
+            <h3>3. Security and Third-Party Technologies</h3>
+            <p>Cloudflare Turnstile is used for anti-bot protection where configured. Third-party infrastructure or security services may use cookies, local storage, or other technical signals required to provide their services.</p>
+            <h3>4. Affiliate Links</h3>
+            <p>After you leave Worth It through an affiliate or merchant link, the destination website or affiliate network may use cookies or similar technologies according to its own policies.</p>
+            <h3>5. Clearing Storage</h3>
+            <p>You can clear cookies and browser storage through your browser controls. This may sign you out, remove preferences, or clear cached state.</p>
+            <h3>6. Future Changes</h3>
+            <p>If Worth It later introduces non-essential analytics, advertising, behavioral tracking, or another technology that requires consent, the consent experience and this policy will be updated.</p>
+        `
+    },
+    affiliate: {
+        title: "Affiliate Disclosure",
+        content: `
+            <h3>1. Affiliate Relationships</h3>
+            <p>Worth It may participate in affiliate programs, including the Awin affiliate network and participating merchants.</p>
+            <h3>2. Compensation</h3>
+            <p>Some shopping links may be affiliate links. If you click one and make a qualifying purchase or other qualifying action, Worth It may receive a commission or other compensation at no additional cost to you, where applicable.</p>
+            <h3>3. Worth It Picks First</h3>
+            <p>Affiliate availability does not automatically make a product a recommendation. Worth It is designed around the principle <strong>“Worth It picks first.”</strong> Affiliate relationships help support the website but do not automatically determine which products are presented.</p>
+            <h3>4. Merchant Information</h3>
+            <p>Prices, discounts, stock, shipping, ratings, warranties, and other merchant information can change. The merchant website is the final source for current purchase terms.</p>
+            <h3>5. No Guarantee</h3>
+            <p>An affiliate link does not guarantee the quality, safety, legality, availability, or suitability of a product or merchant.</p>
+        `
+    },
+    disclaimer: {
+        title: "Disclaimer",
+        content: `
+            <h3>1. General Information Only</h3>
+            <p>Worth It provides calculators, comparisons, forecasts, data summaries, product information, news-related content, and other tools for general informational and educational purposes.</p>
+            <h3>2. Financial Information</h3>
+            <p>Calculator outputs and financial comparisons are estimates. They are not financial, investment, tax, accounting, legal, or other professional advice.</p>
+            <h3>3. External Data</h3>
+            <p>Market prices, exchange rates, weather forecasts, news, vehicle information, water or shipping information, and other external data may be delayed, incomplete, unavailable, or inaccurate.</p>
+            <h3>4. Products</h3>
+            <p>Product listings, ratings, prices, shipping information, discounts, and availability can change. Verify important purchase information on the merchant website before buying.</p>
+            <h3>5. Your Decisions</h3>
+            <p>You are responsible for your own decisions and for checking whether a result is appropriate for your circumstances. Using a Worth It calculation or recommendation does not transfer that responsibility to Worth It.</p>
+            <h3>6. Third-Party Content</h3>
+            <p>Worth It may display, summarize, or link to third-party information. We do not control all third-party content and cannot guarantee its accuracy, legality, or continued availability.</p>
+            <p class="legal-final-note"><strong>For decisions with meaningful financial, legal, medical, safety, or other serious consequences, independently verify the information and obtain qualified professional advice where appropriate.</strong></p>
+        `
+    }
+};
+
+function openLegalPage(type = "terms") {
+    const overlay = $("legalOverlay");
+    const title = $("legalModalTitle");
+    const content = $("legalContent");
+    if (!overlay || !title || !content) return;
+
+    const key =
+        Object.prototype.hasOwnProperty.call(WORTH_IT_LEGAL_DOCUMENTS, type)
+            ? type
+            : "terms";
+
+    title.textContent =
+        WORTH_IT_LEGAL_DOCUMENTS[key].title;
+
+    content.innerHTML =
+        WORTH_IT_LEGAL_DOCUMENTS[key].content;
+
+    overlay.classList.add("open");
+    overlay.setAttribute("aria-hidden", "false");
+    document.documentElement.classList.add("legal-open");
+
+    document.querySelectorAll("[data-legal-tab]").forEach(button => {
+        const active =
+            button.getAttribute("data-legal-tab") === key;
+        button.classList.toggle("active", active);
+        button.setAttribute("aria-current", active ? "page" : "false");
+    });
+
+    content.scrollTop = 0;
+    window.setTimeout(() => {
+        content.focus({preventScroll:true});
+    }, 0);
+}
+
+function closeLegalPage() {
+    const overlay = $("legalOverlay");
+    if (!overlay) return;
+    overlay.classList.remove("open");
+    overlay.setAttribute("aria-hidden", "true");
+    document.documentElement.classList.remove("legal-open");
+}
+
+window.openLegalPage = openLegalPage;
+window.closeLegalPage = closeLegalPage;
+
+document.addEventListener("keydown", event => {
+    if (
+        event.key === "Escape" &&
+        $("legalOverlay")?.classList.contains("open")
+    ) {
+        closeLegalPage();
+    }
+});
 
 
 window.openCalculator =
