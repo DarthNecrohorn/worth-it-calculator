@@ -255,7 +255,6 @@
     }
     overlay.classList.add("open");
     overlay.setAttribute("aria-hidden","false");
-    document.body.style.overflow="hidden";
   }
 
   async function openDetail(coin){
@@ -276,7 +275,6 @@
 
     overlay.classList.add("open");
     overlay.setAttribute("aria-hidden","false");
-    document.body.style.overflow="hidden";
     $("cryptoDetailTitle").textContent=coin.name;
     $("cryptoDetailSymbol").textContent=coin.symbol;
     $("cryptoDetailRank").textContent=coin.rank?"Rank #"+coin.rank:"";
@@ -306,7 +304,7 @@
     if(!overlay)return;
     overlay.classList.remove("open");
     overlay.setAttribute("aria-hidden","true");
-    document.body.style.overflow="";
+    syncFloatingShowLess();
   }
 
   function positionCryptoFloatingShowLess(button,anchor){
@@ -346,7 +344,7 @@
       button.type="button";
       button.id="cryptoFloatingShowLess";
       button.className="crypto-floating-show-less";
-      button.innerHTML='Show Less <span>↑</span>';
+      button.innerHTML='Go back up <span>↑</span>';
       button.addEventListener("click",()=>{
         state.showAll=false;
         render();
@@ -365,7 +363,9 @@
       cryptoSection &&
       cryptoSection.style.display !== "none" &&
       window.getComputedStyle(cryptoSection).display !== "none";
-    const shouldShow=cryptoVisible && window.scrollY>180;
+    const detailOverlay=$("cryptoDetailOverlay");
+    const detailsOpen=detailOverlay && detailOverlay.classList.contains("open");
+    const shouldShow=cryptoVisible && !detailsOpen && window.scrollY>180;
     if(shouldShow){
       positionCryptoFloatingShowLess(
         button,
