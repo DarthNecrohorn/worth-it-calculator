@@ -16852,3 +16852,23 @@ html[data-ui-scale="large"] .legal-modal{
 html[data-ui-scale="xl"] .legal-modal{
     max-height:min(720px,calc(100dvh - 240px));
 }
+/* Signup/auth modal height tuning:
+   A: top -20px
+   A+: top -70px, bottom -20px
+   A++: top -100px, bottom -60px */
+@media(max-width:700px){
+    html[data-ui-scale="normal"] .auth-modal-card{
+        max-height:calc((100dvh - 16px) / var(--ui-scale,1) - 20px) !important;
+        transform:translateY(10px);
+    }
+
+    html[data-ui-scale="large"] .auth-modal-card{
+        max-height:calc((100dvh - 16px) / var(--ui-scale,1) - 90px) !important;
+        transform:translateY(25px);
+    }
+
+    html[data-ui-scale="xl"] .auth-modal-card{
+        max-height:calc((100dvh - 16px) / var(--ui-scale,1) - 160px) !important;
+        transform:translateY(20px);
+    }
+}
