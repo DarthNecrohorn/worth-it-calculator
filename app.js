@@ -349,11 +349,6 @@ function updateAuthUI(user) {
 
 
     } else {
-        legalWrap.style.display =
-            "none";
-
-        legalCheck.checked =
-            false;
 
         btn.style.display =
             "inline-flex";
