@@ -8843,7 +8843,7 @@ async function handleVehicleAccountCacheGet(
 
     const limit =
         Math.min(
-            250,
+            500,
             Math.max(
                 1,
                 Number.parseInt(
