@@ -16958,23 +16958,22 @@ html[data-ui-scale="xl"] .auth-modal-card:has(#authLegalWrap[style*="block"]){
    AUTH MODAL POSITIONING — SCALE-SPECIFIC
 ========================================================= */
 
-/* A: move the whole Sign up / auth field 20px downward */
-html[data-ui-scale="normal"] .auth-modal-card,
-html:not([data-ui-scale]) .auth-modal-card{
+/* Move the whole Create account modal downward in A and A++. */
+html[data-ui-scale="normal"] .auth-modal-overlay.signup-mode .auth-modal-card,
+html:not([data-ui-scale]) .auth-modal-overlay.signup-mode .auth-modal-card{
     transform:translateY(20px);
 }
 
-/* A++: move the whole Sign up / auth field 20px downward */
-html[data-ui-scale="xl"] .auth-modal-card{
+html[data-ui-scale="xl"] .auth-modal-overlay.signup-mode .auth-modal-card{
     transform:translateY(20px);
 }
 
-/* Keep the close button 10px lower in every UI size */
+/* Close button: 10px down + 10px right in every UI size. */
 .auth-modal-close{
-    transform:translateY(10px);
+    transform:translate(10px,10px);
 }
 
 .auth-modal-close:hover,
 .auth-modal-close:focus-visible{
-    transform:translateY(10px) scale(1.04);
+    transform:translate(10px,10px) scale(1.04);
 }
