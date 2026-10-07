@@ -16263,3 +16263,22 @@ html:has(
         flex-basis:28px !important;
     }
 }
+
+
+/* =========================================================
+   MOBILE HEADER — CANCEL PAGE ZOOM AT A+ / A++
+   The page keeps accessibility zoom, but the closed top header
+   keeps the same physical size and full phone width as A / A-.
+   This prevents header buttons from growing or being pushed
+   into the wrong positions when A+ / A++ narrows the layout.
+   ========================================================= */
+@media(max-width:700px){
+    html[data-ui-scale="large"] .nav,
+    html[data-ui-scale="xl"] .nav{
+        zoom:calc(1 / var(--ui-scale, 1)) !important;
+        width:calc(100% * var(--ui-scale, 1)) !important;
+        left:0 !important;
+        right:auto !important;
+        box-sizing:border-box !important;
+    }
+}
