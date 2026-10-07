@@ -16512,7 +16512,7 @@ html.legal-open body{
 
 .legal-modal{
     width:min(860px,100%);
-    max-height:min(860px,calc(100vh - 28px));
+    max-height:min(790px,calc(100dvh - 98px));
     display:flex;
     flex-direction:column;
     overflow:hidden;
@@ -16575,9 +16575,11 @@ html.legal-open body{
 
 .legal-nav{
     display:flex;
-    gap:8px;
+    flex-wrap:wrap;
+    align-items:center;
+    gap:10px;
     padding:12px 24px;
-    overflow-x:auto;
+    overflow:visible;
     border-bottom:1px solid var(--border);
     scrollbar-width:thin;
 }
@@ -16699,7 +16701,7 @@ html.legal-open body{
     }
 
     .legal-modal{
-        max-height:calc(100vh - 20px);
+        max-height:calc(100dvh - 90px);
         border-radius:20px;
     }
 
@@ -16712,6 +16714,7 @@ html.legal-open body{
     }
 
     .legal-nav{
+        gap:7px;
         padding:10px 14px;
     }
 
@@ -16742,4 +16745,12 @@ html[data-ui-scale="xl"] .legal-content{
 html[data-ui-scale="large"] .legal-modal-head h2,
 html[data-ui-scale="xl"] .legal-modal-head h2{
     font-size:22px;
+}
+/* Legal modal height by UI scale: A = -70px, A+ = -100px, A++ = -130px */
+html[data-ui-scale="large"] .legal-modal{
+    max-height:min(760px,calc(100dvh - 128px));
+}
+
+html[data-ui-scale="xl"] .legal-modal{
+    max-height:min(730px,calc(100dvh - 158px));
 }
