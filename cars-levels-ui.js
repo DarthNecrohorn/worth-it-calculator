@@ -763,4 +763,82 @@
         forceShowAll
       );
     };
+
+    /*
+     * The server accepts 500 account-cache rows per page. The existing Cars
+     * reader was written with a 250-row constant; temporarily rewrite only
+     * those authenticated account-cache GETs while that reader runs.
+     * This cuts a full 2,000-item restore from 8 requests to 4.
+     */
+    const originalReadCloud =
+        readCloudVehicleAccountCache;
+
+    readCloudVehicleAccountCache =
+        async function(datasetVersion) {
+            const originalFetch =
+                window.fetch;
+
+            const interceptedFetch =
+                async function(...args) {
+                    let url = "";
+
+                    try {
+                        url =
+                            typeof args[0] === "string"
+                                ? args[0]
+                                : args[0]?.url ||
+                                    String(args[0]);
+                    } catch {
+                        url =
+                            String(args[0]);
+                    }
+
+                    if (
+                        /\/api\/cars\?/.test(url) &&
+                        /[?&]action=account-cache-get(?:&|$)/.test(
+                            url
+                        ) &&
+                        /[?&]limit=250(?:&|$)/.test(
+                            url
+                        )
+                    ) {
+                        const nextUrl =
+                            new URL(
+                                url,
+                                window.location.href
+                            );
+
+                        nextUrl.searchParams.set(
+                            "limit",
+                            "500"
+                        );
+
+                        args[0] =
+                            nextUrl.toString();
+                    }
+
+                    return originalFetch.apply(
+                        this,
+                        args
+                    );
+                };
+
+            window.fetch =
+                interceptedFetch;
+
+            try {
+                return await originalReadCloud(
+                    datasetVersion
+                );
+            } finally {
+                if (
+                    window.fetch ===
+                    interceptedFetch
+                ) {
+                    window.fetch =
+                        originalFetch;
+                }
+            }
+        };
+
 })();
