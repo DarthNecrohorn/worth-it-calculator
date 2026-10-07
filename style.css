@@ -7534,6 +7534,11 @@ html[data-ui-scale="xl"] .calculator-toolbar{
     grid-template-columns:1fr;
 }
 
+/* A++: keep the Currencies search field inside the viewport. */
+html[data-ui-scale="xl"] .money-container .calculator-search{
+    width:calc(100% + 120px);
+}
+
 /* Standard calculator stays comfortably readable at every scale. */
 html[data-ui-scale="xl"] .calculator-panel{
     width:min(520px,100%);
