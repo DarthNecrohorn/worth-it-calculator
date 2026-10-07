@@ -16148,3 +16148,118 @@ html:has(
 ) .admin-panel-overlay{
     z-index:13050 !important;
 }
+
+
+/* =========================================================
+   MOBILE HEADER — LOCKED TO BASE PHONE SIZE
+   A+ / A++ must not enlarge the top header row. Accessibility
+   scaling continues to affect the page content and the opened
+   navigation menu, but the closed header keeps the same compact
+   geometry as A / A- so future header actions have stable space.
+   ========================================================= */
+@media(max-width:700px){
+    html[data-ui-scale="large"] body,
+    html[data-ui-scale="xl"] body{
+        padding-top:60px !important;
+    }
+
+    html[data-ui-scale="large"] .nav-inner,
+    html[data-ui-scale="xl"] .nav-inner{
+        height:60px !important;
+        gap:5px !important;
+    }
+
+    html[data-ui-scale="large"] .nav > .container,
+    html[data-ui-scale="xl"] .nav > .container{
+        padding-left:8px !important;
+        padding-right:8px !important;
+    }
+
+    html[data-ui-scale="large"] .logo,
+    html[data-ui-scale="xl"] .logo{
+        min-width:0 !important;
+        flex:0 1 auto !important;
+        gap:6px !important;
+        font-size:16px !important;
+    }
+
+    html[data-ui-scale="large"] .logo-mark,
+    html[data-ui-scale="xl"] .logo-mark{
+        width:34px !important;
+        height:34px !important;
+        flex:0 0 34px !important;
+        border-radius:10px !important;
+    }
+
+    html[data-ui-scale="large"] .menu-btn,
+    html[data-ui-scale="xl"] .menu-btn{
+        width:34px !important;
+        height:34px !important;
+        min-width:34px !important;
+        min-height:34px !important;
+        flex:0 0 34px !important;
+        padding:5px !important;
+        font-size:17px !important;
+    }
+
+    html[data-ui-scale="large"] .nav-actions,
+    html[data-ui-scale="xl"] .nav-actions{
+        min-width:0 !important;
+        flex:1 1 auto !important;
+        gap:3px !important;
+    }
+
+    html[data-ui-scale="large"] .nav-actions > *,
+    html[data-ui-scale="xl"] .nav-actions > *{
+        min-width:0 !important;
+    }
+
+    html[data-ui-scale="large"] .auth-btn,
+    html[data-ui-scale="large"] .feedback-nav-btn,
+    html[data-ui-scale="large"] .admin-panel-nav-btn,
+    html[data-ui-scale="large"] .signout-nav-btn,
+    html[data-ui-scale="large"] .settings-btn,
+    html[data-ui-scale="large"] .ai-chat-nav-btn,
+    html[data-ui-scale="xl"] .auth-btn,
+    html[data-ui-scale="xl"] .feedback-nav-btn,
+    html[data-ui-scale="xl"] .admin-panel-nav-btn,
+    html[data-ui-scale="xl"] .signout-nav-btn,
+    html[data-ui-scale="xl"] .settings-btn,
+    html[data-ui-scale="xl"] .ai-chat-nav-btn{
+        width:32px !important;
+        height:32px !important;
+        min-width:32px !important;
+        min-height:32px !important;
+        flex:0 0 32px !important;
+        padding:4px !important;
+        border-radius:9px !important;
+        font-size:15px !important;
+        line-height:1 !important;
+    }
+
+    html[data-ui-scale="large"] .profile-nav-btn,
+    html[data-ui-scale="xl"] .profile-nav-btn{
+        width:34px !important;
+        height:34px !important;
+        min-width:34px !important;
+        min-height:34px !important;
+        flex:0 0 34px !important;
+        padding:2px !important;
+    }
+
+    html[data-ui-scale="large"] .profile-nav-btn > #profileNavIcon,
+    html[data-ui-scale="xl"] .profile-nav-btn > #profileNavIcon{
+        width:28px !important;
+        height:28px !important;
+        flex-basis:28px !important;
+    }
+
+    html[data-ui-scale="large"] .profile-nav-btn .auth-avatar,
+    html[data-ui-scale="large"] .profile-nav-btn .auth-avatar-fallback,
+    html[data-ui-scale="xl"] .profile-nav-btn .auth-avatar,
+    html[data-ui-scale="xl"] .profile-nav-btn .auth-avatar-fallback{
+        width:28px !important;
+        height:28px !important;
+        flex-basis:28px !important;
+    }
+}
