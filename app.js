@@ -568,6 +568,94 @@ function authPassedBasicBotChecks() {
 }
 
 
+const WORTH_IT_USERNAME_BANNED_STEMS = [
+    "fuck","shit","bitch","cunt","dick","cock","pussy","whore","slut",
+    "bastard","asshole","arsehole","motherfucker","bullshit","dumbass",
+    "jackass","nigger","nigga","faggot","retard","retarded","pedo",
+    "pedophile","porn","xxx","blowjob","handjob","jizz","rape","rapist",
+    "nazi","hitler","kkk"
+];
+
+const WORTH_IT_RESERVED_USERNAME_PREFIXES = [
+    "admin","administrator","moderator","mod","staff","support",
+    "official","security","owner","root","worthit"
+];
+
+function normalizeWorthItUsernameForModeration(username) {
+    return String(username || "")
+        .toLowerCase()
+        .replace(/_/g, "")
+        .replace(/[01345789]/g, character => ({
+            "0":"o","1":"i","3":"e","4":"a","5":"s","7":"t",
+            "8":"b","9":"g"
+        }[character] || character));
+}
+
+function validateWorthItUsernameRules(username) {
+    const value = String(username || "").trim();
+
+    if (!/^(?=.*[A-Za-z0-9])[A-Za-z0-9_]{3,20}$/.test(value)) {
+        return {
+            ok: false,
+            message: "Username must be 3–20 characters and use only letters, numbers, and up to one _."
+        };
+    }
+
+    if ((value.match(/_/g) || []).length > 1) {
+        return {
+            ok: false,
+            message: "Username can contain only one _."
+        };
+    }
+
+    const normalized =
+        normalizeWorthItUsernameForModeration(value);
+
+    if (
+        WORTH_IT_USERNAME_BANNED_STEMS.some(
+            term => normalized.includes(term)
+        )
+    ) {
+        return {
+            ok: false,
+            message: "This username contains language that isn't allowed on Worth It."
+        };
+    }
+
+    if (
+        WORTH_IT_RESERVED_USERNAME_PREFIXES.some(prefix =>
+            normalized === prefix ||
+            normalized.startsWith(prefix + "0") ||
+            normalized.startsWith(prefix + "1") ||
+            normalized.startsWith(prefix + "2") ||
+            normalized.startsWith(prefix + "3") ||
+            normalized.startsWith(prefix + "4") ||
+            normalized.startsWith(prefix + "5") ||
+            normalized.startsWith(prefix + "6") ||
+            normalized.startsWith(prefix + "7") ||
+            normalized.startsWith(prefix + "8") ||
+            normalized.startsWith(prefix + "9")
+        )
+    ) {
+        return {
+            ok: false,
+            message: "This username is reserved and cannot be used."
+        };
+    }
+
+    if ((value.match(/[0-9]/g) || []).length >= 7) {
+        return {
+            ok: false,
+            message: "Usernames cannot contain phone numbers or other long numeric identifiers."
+        };
+    }
+
+    return {
+        ok: true,
+        message: ""
+    };
+}
+
 function handleUsernameInput(input) {
 
     if (!input) return;
@@ -621,9 +709,14 @@ function updateUsernameAvailabilityMessage(input) {
         return;
     }
 
-    if ((username.match(/_/g) || []).length > 1) {
-        message.textContent = "Username can contain only one _."; 
-        message.className = "auth-username-availability error";
+    const usernameRules =
+        validateWorthItUsernameRules(username);
+
+    if (!usernameRules.ok) {
+        message.textContent =
+            usernameRules.message;
+        message.className =
+            "auth-username-availability error";
         return;
     }
 
@@ -1198,6 +1291,19 @@ async function submitAuthForm(event) {
 
     }
 
+    if (authModalMode === "signup") {
+        const usernameRules =
+            validateWorthItUsernameRules(username);
+
+        if (!usernameRules.ok) {
+            setAuthStatus(
+                usernameRules.message,
+                "error"
+            );
+            return;
+        }
+    }
+
 
     if (
         !password &&
@@ -1216,11 +1322,11 @@ async function submitAuthForm(event) {
 
     if (
         authModalMode === "signup" &&
-        password.length < 6
+        password.length < 8
     ) {
 
         setAuthStatus(
-            "Password must be at least 6 characters.",
+            "Password must be at least 8 characters.",
             "error"
         );
 
