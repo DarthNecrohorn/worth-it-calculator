@@ -222,6 +222,7 @@ function renderCurrenciesUI() {
                     <div>
                         <h3>💱 Currencies</h3>
                         <p>Popular currencies & exchange rates</p>
+                        <small class="currencies-auto-update">Auto-updates every hour</small>
                     </div>
                 </div>
             </div>
@@ -277,6 +278,13 @@ function renderCurrenciesUI() {
             <style id="currency-detail-styles">
                 .money-grid .money-card{cursor:pointer}
                 .money-grid .money-card:focus-visible{outline:2px solid currentColor;outline-offset:3px}
+                .currencies-auto-update{
+                    display:block;
+                    margin-top:5px;
+                    color:var(--muted);
+                    font-size:.72rem;
+                    font-weight:700;
+                }
                 .currency-detail-modal{position:fixed;inset:0;display:none;align-items:center;justify-content:center;padding:20px;z-index:1600}
                 .currency-detail-modal.is-open{display:flex}
                 .currency-detail-backdrop{position:absolute;inset:0;background:rgba(10,14,24,.62);backdrop-filter:blur(7px)}
