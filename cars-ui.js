@@ -39,7 +39,7 @@ const VEHICLE_CATALOG_BASE_URL =
 const VEHICLE_DATASET_MANIFEST_URL =
     "https://cdn.jsdelivr.net/gh/vehiclesdb/vehiclesdb@latest/manifest.json";
 
-const VEHICLE_DETAILS_CACHE_VERSION = "v28";
+const VEHICLE_DETAILS_CACHE_VERSION = "v29";
 
 const MAX_VEHICLES_PER_CATEGORY = 300;
 
@@ -168,7 +168,7 @@ const VEHICLE_KINDS = [
 ];
 
 const VEHICLE_ALL_KIND = "all";
-const MAX_UNIFIED_VEHICLES = 1000;
+const MAX_UNIFIED_VEHICLES = 2000;
 const UNIFIED_BACKGROUND_CANDIDATE_POOL_LIMIT = 6000;
 const VEHICLE_FAVORITES_STORAGE_KEY = "worth-it-vehicle-favorites-v1";
 const VEHICLE_RECENT_STORAGE_KEY = "worth-it-vehicle-recent-v1";
@@ -201,7 +201,7 @@ const VEHICLE_KIND_INFO = {
         plural: "Vehicles",
         title: "🚗 All Vehicles",
         description:
-            "Explore up to 1000 vehicles from the connected VehiclesDB dataset."
+            "Explore up to 2,000 vehicles from the connected VehiclesDB dataset."
     },
 
     car: {
@@ -8874,7 +8874,88 @@ function getVehicleAccountLists() {
     }
 }
 
-let vehicleAccountListsSyncPromise = null;
+const VEHICLE_ACCOUNT_LISTS_SYNC_DEBOUNCE_MS = 2500;
+const VEHICLE_ACCOUNT_LISTS_SYNC_RETRY_MS = 60 * 1000;
+
+let vehicleAccountListsSyncPromise = Promise.resolve();
+let vehicleAccountListsSyncTimer = null;
+let vehicleAccountListsPendingPayload = null;
+let vehicleAccountListsLastSignature = "";
+
+async function flushVehicleAccountListsSync() {
+    if (vehicleAccountListsSyncTimer !== null) {
+        window.clearTimeout(vehicleAccountListsSyncTimer);
+        vehicleAccountListsSyncTimer = null;
+    }
+
+    const payload = vehicleAccountListsPendingPayload;
+    vehicleAccountListsPendingPayload = null;
+
+    if (!payload) return;
+
+    const signature = JSON.stringify(payload);
+
+    if (signature === vehicleAccountListsLastSignature) {
+        return;
+    }
+
+    vehicleAccountListsSyncPromise =
+        vehicleAccountListsSyncPromise
+            .catch(() => {})
+            .then(async () => {
+                try {
+                    if (!window.supabaseClient?.auth) {
+                        return;
+                    }
+
+                    const { data: sessionData } =
+                        await window.supabaseClient.auth.getSession();
+
+                    if (!sessionData?.session?.user) {
+                        return;
+                    }
+
+                    await window.supabaseClient.auth.updateUser({
+                        data: {
+                            [VEHICLE_ACCOUNT_METADATA_KEY]: payload
+                        }
+                    });
+
+                    vehicleAccountListsLastSignature = signature;
+                } catch (error) {
+                    const status =
+                        Number(error?.status) ||
+                        Number(error?.code) ||
+                        0;
+
+                    const message =
+                        String(
+                            error?.message ||
+                            error ||
+                            ""
+                        );
+
+                    if (
+                        status === 429 ||
+                        /(?:^|\D)429(?:\D|$)|too many requests/i.test(
+                            message
+                        )
+                    ) {
+                        vehicleAccountListsPendingPayload = payload;
+
+                        vehicleAccountListsSyncTimer =
+                            window.setTimeout(
+                                () => {
+                                    void flushVehicleAccountListsSync();
+                                },
+                                VEHICLE_ACCOUNT_LISTS_SYNC_RETRY_MS
+                            );
+                    }
+                }
+            });
+
+    await vehicleAccountListsSyncPromise;
+}
 
 async function loadVehicleAccountLists() {
     try {
@@ -8889,6 +8970,8 @@ async function loadVehicleAccountLists() {
         const recent = Array.isArray(metadata.recent) ? metadata.recent.slice(0, VEHICLE_RECENT_LIMIT) : [];
 
         window.__worthItVehicleAccountLists = { favorites, recent };
+        vehicleAccountListsLastSignature =
+            JSON.stringify({ favorites, recent });
         writeVehiclePersonalList(VEHICLE_FAVORITES_STORAGE_KEY, favorites);
         writeVehiclePersonalList(VEHICLE_RECENT_STORAGE_KEY, recent);
         renderVehiclePersonalPanels();
@@ -8898,35 +8981,30 @@ async function loadVehicleAccountLists() {
     }
 }
 
-async function saveVehicleAccountLists(favorites, recent) {
-    try {
-        if (!window.supabaseClient?.auth) return;
+function saveVehicleAccountLists(favorites, recent) {
+    const payload = {
+        favorites: Array.isArray(favorites) ? favorites : [],
+        recent: Array.isArray(recent)
+            ? recent.slice(0, VEHICLE_RECENT_LIMIT)
+            : []
+    };
 
-        const { data: sessionData } = await window.supabaseClient.auth.getSession();
-        if (!sessionData?.session?.user) return;
+    window.__worthItVehicleAccountLists = payload;
+    vehicleAccountListsPendingPayload = payload;
 
-        const payload = {
-            favorites: Array.isArray(favorites) ? favorites : [],
-            recent: Array.isArray(recent) ? recent.slice(0, VEHICLE_RECENT_LIMIT) : []
-        };
-
-        window.__worthItVehicleAccountLists = payload;
-
-        vehicleAccountListsSyncPromise =
-            (vehicleAccountListsSyncPromise || Promise.resolve())
-                .catch(() => {})
-                .then(async () => {
-                    await window.supabaseClient.auth.updateUser({
-                        data: {
-                            [VEHICLE_ACCOUNT_METADATA_KEY]: payload
-                        }
-                    });
-                });
-
-        await vehicleAccountListsSyncPromise;
-    } catch {
-        /* Do not break the vehicle UI if account persistence is temporarily unavailable. */
+    if (vehicleAccountListsSyncTimer !== null) {
+        window.clearTimeout(
+            vehicleAccountListsSyncTimer
+        );
     }
+
+    vehicleAccountListsSyncTimer =
+        window.setTimeout(
+            () => {
+                void flushVehicleAccountListsSync();
+            },
+            VEHICLE_ACCOUNT_LISTS_SYNC_DEBOUNCE_MS
+        );
 }
 
 function isVehicleFavorite(vehicle, kind = currentVehicleKind) {
@@ -14248,7 +14326,7 @@ function updateCarsCategoryHeader(
         '<span class="cars-results-description-text">' +
         escapeVehicleHtml(
             kind === VEHICLE_ALL_KIND
-                ? "Up to 1,000 verified cars, motorcycles, vans, trucks and buses from the connected VehiclesDB dataset."
+                ? "Up to 2,000 verified cars, motorcycles, vans, trucks and buses from the connected VehiclesDB dataset."
                 : info.description
         ) +
         '</span>' +

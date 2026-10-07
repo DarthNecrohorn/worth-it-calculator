@@ -36,7 +36,7 @@ const WIKIDATA_CANDIDATE_LIMIT = 600;
 const WIKIDATA_NONCAR_CANDIDATE_LIMIT = 1000;
 const DBPEDIA_CANDIDATE_LIMIT = 600;
 const DBPEDIA_NONCAR_CANDIDATE_LIMIT = 1000;
-const WIKIPEDIA_CACHE_VERSION = "v33";
+const WIKIPEDIA_CACHE_VERSION = "v34";
 const WIKIMEDIA_IMAGE_LOOKUP_TIMEOUT_MS = 3500;
 
 const WIKIPEDIA_API =
@@ -128,7 +128,7 @@ function jsonResponse(
                     "application/json; charset=UTF-8",
 
                 "Cache-Control":
-                    `public, max-age=${cacheSeconds}`
+                    `public, max-age=${cacheSeconds}, s-maxage=${cacheSeconds}, stale-while-revalidate=${Math.min(Math.max(cacheSeconds * 7, 300), 604800)}`
             }
         }
     );
