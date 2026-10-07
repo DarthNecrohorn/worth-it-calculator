@@ -10109,7 +10109,7 @@ function createVehicleDetailsModal() {
     modal.setAttribute("aria-hidden", "true");
 
     modal.innerHTML = `
-        <div class="worth-it-vehicle-modal-backdrop" data-vehicle-modal-close></div>
+        <div class="worth-it-vehicle-modal-backdrop"></div>
 
         <div
             class="worth-it-vehicle-modal-dialog"
