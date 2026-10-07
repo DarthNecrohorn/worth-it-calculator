@@ -16980,3 +16980,15 @@ html[data-ui-scale="xl"] .auth-modal-overlay.signup-mode .auth-modal-card{
 .auth-modal-close:active{
     transform:translate(10px,10px) !important;
 }
+
+/* Sign in close button: move 20px upward from the current position. */
+.auth-modal-overlay:not(.signup-mode) .auth-modal-close{
+    transform:translate(10px,-10px);
+}
+
+.auth-modal-overlay:not(.signup-mode) .auth-modal-close:hover,
+.auth-modal-overlay:not(.signup-mode) .auth-modal-close:focus,
+.auth-modal-overlay:not(.signup-mode) .auth-modal-close:focus-visible,
+.auth-modal-overlay:not(.signup-mode) .auth-modal-close:active{
+    transform:translate(10px,-10px) !important;
+}
