@@ -827,7 +827,8 @@ html[data-theme="dark"] .worth-it-market-detail-change {
 
 @media (min-width:761px) {
     html[data-ui-scale="large"] .worth-it-market-detail-dialog {
-        transform:translateY(50px) !important;
+        max-height:min(680px, calc(100vh - 120px)) !important;
+        transform:translateY(40px) !important;
     }
 }
 
