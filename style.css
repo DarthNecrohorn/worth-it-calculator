@@ -10742,9 +10742,9 @@ html[data-theme="light"] .crypto-show-btn{
 }
 
 .crypto-detail-nav{
-    position:fixed;
+    position:absolute;
     top:50%;
-    z-index:1202;
+    z-index:2202;
     width:62px;
     height:82px;
     display:flex;
@@ -10768,14 +10768,18 @@ html[data-theme="light"] .crypto-show-btn{
 .crypto-detail-nav:disabled:hover{
     background:var(--surface-soft);
     border-color:rgba(124,92,255,.42);
-    transform:translate3d(0,-50%,0) !important;
+    transform:translateY(-50%) !important;
 }
 .crypto-detail-nav:disabled{
     opacity:.28;
     cursor:default;
 }
-.crypto-detail-nav-prev{left:calc(50% - 560px)}
-.crypto-detail-nav-next{right:calc(50% - 560px)}
+.crypto-detail-nav-prev{
+    left:max(12px,calc(50% - 500px));
+}
+.crypto-detail-nav-next{
+    right:max(12px,calc(50% - 500px));
+}
 .crypto-detail-nav-key{
     order:1;
     font-size:.82rem;
