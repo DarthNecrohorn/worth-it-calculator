@@ -765,6 +765,14 @@ function closeAuthModal() {
 
     resetAuthTurnstile();
 
+    const legalCheck =
+        $("authLegalCheck");
+
+    if (legalCheck) {
+        legalCheck.checked =
+            false;
+    }
+
     const overlay =
         $("authModalOverlay");
 
