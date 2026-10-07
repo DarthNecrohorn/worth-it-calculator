@@ -4859,27 +4859,8 @@
 
         }
 
-        if(
-            overlay &&
-            overlay.dataset.ready !== "true"
-        ){
-
-            overlay.dataset.ready = "true";
-
-            overlay.addEventListener(
-                "click",
-                function(event){
-
-                    if(
-                        event.target === overlay
-                    ){
-                        closeDetails();
-                    }
-
-                }
-            );
-
-        }
+        /* Background clicks intentionally do not close the detail panel.
+         * Only the explicit X control closes it. */
 
         if(prev && prev.dataset.ready !== "true"){
             prev.dataset.ready = "true";
