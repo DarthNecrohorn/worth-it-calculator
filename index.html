@@ -2286,6 +2286,9 @@ try{
                             oninput="handleUsernameInput(this)"
                         >
                         <div id="authUsernameAvailability" class="auth-username-availability" aria-live="polite"></div>
+                        <div class="auth-username-rules">
+                            3–20 characters · letters and numbers · up to one _ · no profanity, hate, sexual terms, impersonation, or personal information.
+                        </div>
                     </div>
 
                     <div class="auth-field" id="authEmailWrap">
@@ -2299,7 +2302,7 @@ try{
                             <button type="button" class="auth-modal-link auth-forgot-link" id="authForgotPassword" onclick="switchAuthMode('forgot')">Forgot password?</button>
                         </div>
                         <div class="auth-password-input-wrap">
-                            <input id="authPassword" type="password" autocomplete="current-password" minlength="6" placeholder="At least 6 characters" required>
+                            <input id="authPassword" type="password" autocomplete="current-password" minlength="8" placeholder="At least 8 characters" required>
                             <button type="button" class="auth-password-toggle" id="authPasswordToggle" onclick="togglePasswordVisibility('authPassword')" aria-label="Show password" title="Show password">🙉</button>
                         </div>
                     </div>
