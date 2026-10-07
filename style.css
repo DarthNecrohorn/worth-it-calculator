@@ -17028,3 +17028,9 @@ html[data-ui-scale="xl"] .auth-modal-overlay.signup-mode .auth-modal-card{
 .auth-modal-overlay.returned-signin-mode .auth-modal-close:focus-visible{
     transform:translateY(30px);
 }
+.auth-username-rules{
+    margin-top:4px;
+    color:var(--muted);
+    font-size:9px;
+    line-height:1.4;
+}
