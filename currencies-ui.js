@@ -221,8 +221,9 @@ function renderCurrenciesUI() {
                 <div class="money-block-header">
                     <div>
                         <h3>💱 Currencies</h3>
-                        <p>Popular currencies & exchange rates</p>
-                        <small class="currencies-auto-update">Auto-updates every hour</small>
+                        <h2 class="currency-section-title">Explore &amp; compare currencies</h2>
+                        <p>Live exchange rates, major currencies and global currency discovery.</p>
+                        <div class="currencies-last-updated" id="currencyLastUpdated">Last updated: — · Updates about every hour</div>
                     </div>
                 </div>
             </div>
@@ -257,9 +258,6 @@ function renderCurrenciesUI() {
                 </div>
             </div>
 
-            <div class="money-updated">
-                Last updated: <span id="moneyLastUpdated">—</span>
-            </div>
         </div>
     
             <div id="currencyDetailModal" class="currency-detail-modal" aria-hidden="true">
@@ -278,12 +276,20 @@ function renderCurrenciesUI() {
             <style id="currency-detail-styles">
                 .money-grid .money-card{cursor:pointer}
                 .money-grid .money-card:focus-visible{outline:2px solid currentColor;outline-offset:3px}
-                .currencies-auto-update{
+                .currency-section-title{
+                    margin:2px 0 5px;
+                    font-size:clamp(28px,4vw,42px);
+                    line-height:1.1;
+                    letter-spacing:-1px;
+                }
+                .currencies-last-updated{
                     display:block;
-                    margin-top:5px;
+                    margin-top:6px;
                     color:var(--muted);
-                    font-size:.72rem;
-                    font-weight:700;
+                    font-size:.78rem;
+                    line-height:1.45;
+                    opacity:.72;
+                    font-weight:600;
                 }
                 .currency-detail-modal{position:fixed;inset:0;display:none;align-items:center;justify-content:center;padding:20px;z-index:1600}
                 .currency-detail-modal.is-open{display:flex}
@@ -708,8 +714,25 @@ async function loadCurrencies() {
             renderAllCurrencies(currenciesData);
         }
 
-        const updated = document.getElementById("moneyLastUpdated");
-        if (updated) updated.textContent = data.date || "—";
+        const updated = document.getElementById("currencyLastUpdated");
+        if (updated) {
+            const dateValue = data.date || "—";
+            let displayDate = dateValue;
+            try {
+                const parsed = new Date(dateValue + "T00:00:00Z");
+                if (!Number.isNaN(parsed.getTime())) {
+                    displayDate = parsed.toLocaleDateString("en-GB", {
+                        day: "numeric",
+                        month: "short",
+                        year: "numeric",
+                        timeZone: "UTC"
+                    });
+                }
+            } catch(e) {}
+            updated.textContent =
+                "Last updated: " + displayDate +
+                " · Updates about every hour";
+        }
 
         return true;
 
