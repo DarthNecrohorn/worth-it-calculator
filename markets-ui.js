@@ -825,6 +825,12 @@ html[data-theme="dark"] .worth-it-market-detail-change {
     display:none !important;
 }
 
+@media (min-width:761px) {
+    html[data-ui-scale="large"] .worth-it-market-detail-dialog {
+        transform:translateY(50px) !important;
+    }
+}
+
 @media (min-width:1200px) {
     html[data-ui-scale="xl"] .worth-it-market-detail-dialog {
         max-height:min(520px, calc(100vh - 100px)) !important;
