@@ -423,6 +423,7 @@ EMAIL / PASSWORD AUTH
 ========================================================= */
 
 let authModalMode = "signin";
+let authReturnedToSignin = false;
 
 const SUPABASE_TURNSTILE_SITE_KEY =
     "0x4AAAAAAFCI9dgWOsaff0q-";
@@ -729,6 +730,9 @@ function openAuthModal(mode = "signin") {
             ? mode
             : "signin";
 
+    authReturnedToSignin =
+        false;
+
     renderAuthModal();
 
     overlay.classList.add("open");
@@ -798,6 +802,10 @@ window.openLoginModal = openAuthModal;
 window.closeLoginModal = closeAuthModal;
 
 function switchAuthMode(mode) {
+
+    authReturnedToSignin =
+        authModalMode === "signup" &&
+        mode === "signin";
 
     resetAuthTurnstile();
 
@@ -885,6 +893,12 @@ function renderAuthModal() {
     authOverlay?.classList.toggle(
         "signup-mode",
         authModalMode === "signup"
+    );
+
+    authOverlay?.classList.toggle(
+        "returned-signin-mode",
+        authReturnedToSignin &&
+        authModalMode === "signin"
     );
 
     if (
