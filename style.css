@@ -16282,3 +16282,185 @@ html:has(
         box-sizing:border-box !important;
     }
 }
+
+/* =========================================================
+   THEME VISUAL POLISH — NON-MARKETS UI ONLY
+   Markets category/card/detail buttons keep their existing
+   visual treatment. This pass improves the surrounding page,
+   shared neutral controls and common UI surfaces without
+   changing layout or functionality.
+========================================================= */
+
+:root{
+    --ui-button-bg:linear-gradient(145deg,rgba(255,255,255,.075),rgba(255,255,255,.035));
+    --ui-button-bg-hover:linear-gradient(145deg,rgba(255,255,255,.105),rgba(255,255,255,.055));
+    --ui-button-border:rgba(148,163,184,.24);
+    --ui-button-shadow:0 7px 20px rgba(0,0,0,.14),0 1px 0 rgba(255,255,255,.045) inset;
+    --ui-button-shadow-hover:0 10px 26px rgba(0,0,0,.18),0 1px 0 rgba(255,255,255,.06) inset;
+}
+
+body{
+    background:
+        radial-gradient(circle at 8% -5%,rgba(124,92,255,.19),transparent 31%),
+        radial-gradient(circle at 94% 7%,rgba(56,189,248,.13),transparent 29%),
+        radial-gradient(circle at 52% 115%,rgba(124,92,255,.06),transparent 32%),
+        linear-gradient(145deg,#060a13,#0a1020 54%,#0a1120);
+}
+
+:where(
+    .btn-secondary,
+    .menu-btn,
+    .feedback-nav-btn,
+    .signout-nav-btn,
+    .settings-btn,
+    .auth-btn,
+    .profile-nav-btn,
+    .ai-chat-nav-btn,
+    .more-menu-btn,
+    .money-refresh-btn,
+    .settings-header button,
+    .close-btn,
+    .settings-option,
+    .feedback-trigger,
+    .feedback-close,
+    .translate-close,
+    .translate-tab,
+    .calculator-mode-btn,
+    .news-category-btn,
+    .crypto-filters button,
+    .crypto-chart-controls button,
+    .water-levels-filters button,
+    .water-levels-info-button,
+    .water-levels-history-controls button,
+    .ship-tracking-filters button,
+    .ship-tracking-map-switcher-btn,
+    .admin-panel-back-button,
+    .admin-panel-inline-button,
+    .admin-panel-section-button,
+    .cars-personal-tab,
+    .more-menu-header button
+):not(.markets-section button){
+    background:var(--ui-button-bg);
+    border-color:var(--ui-button-border);
+    box-shadow:var(--ui-button-shadow);
+    transition:
+        background .18s ease,
+        border-color .18s ease,
+        box-shadow .18s ease,
+        transform .18s ease,
+        color .18s ease;
+}
+
+:where(
+    .btn-secondary,
+    .menu-btn,
+    .feedback-nav-btn,
+    .signout-nav-btn,
+    .settings-btn,
+    .auth-btn,
+    .profile-nav-btn,
+    .ai-chat-nav-btn,
+    .more-menu-btn,
+    .money-refresh-btn,
+    .settings-header button,
+    .close-btn,
+    .settings-option,
+    .feedback-trigger,
+    .feedback-close,
+    .translate-close,
+    .translate-tab,
+    .calculator-mode-btn,
+    .news-category-btn,
+    .crypto-filters button,
+    .crypto-chart-controls button,
+    .water-levels-filters button,
+    .water-levels-info-button,
+    .water-levels-history-controls button,
+    .ship-tracking-filters button,
+    .ship-tracking-map-switcher-btn,
+    .admin-panel-back-button,
+    .admin-panel-inline-button,
+    .admin-panel-section-button,
+    .cars-personal-tab,
+    .more-menu-header button
+):not(.markets-section button):not(.active):not(.is-active):not([aria-expanded="true"]):hover{
+    background:var(--ui-button-bg-hover);
+    border-color:rgba(124,92,255,.38);
+    box-shadow:var(--ui-button-shadow-hover);
+}
+
+html[data-theme="light"] body{
+    background:
+        radial-gradient(circle at 8% -5%,rgba(124,92,255,.11),transparent 31%),
+        radial-gradient(circle at 94% 7%,rgba(56,189,248,.10),transparent 29%),
+        radial-gradient(circle at 52% 115%,rgba(124,92,255,.045),transparent 32%),
+        linear-gradient(145deg,#f7f8fc,#eef3f9 55%,#edf2f8);
+}
+
+html[data-theme="light"]{
+    --ui-button-bg:linear-gradient(145deg,rgba(255,255,255,.96),rgba(248,250,252,.86));
+    --ui-button-bg-hover:linear-gradient(145deg,#ffffff,rgba(248,250,252,.96));
+    --ui-button-border:rgba(15,23,42,.13);
+    --ui-button-shadow:0 6px 18px rgba(15,23,42,.07),0 1px 0 rgba(255,255,255,.86) inset;
+    --ui-button-shadow-hover:0 9px 24px rgba(15,23,42,.10),0 1px 0 rgba(255,255,255,.96) inset;
+}
+
+html[data-theme="light"] :where(
+    .btn-secondary,
+    .menu-btn,
+    .feedback-nav-btn,
+    .signout-nav-btn,
+    .settings-btn,
+    .auth-btn,
+    .profile-nav-btn,
+    .ai-chat-nav-btn,
+    .more-menu-btn,
+    .money-refresh-btn,
+    .settings-header button,
+    .close-btn,
+    .settings-option,
+    .feedback-trigger,
+    .feedback-close,
+    .translate-close,
+    .translate-tab,
+    .calculator-mode-btn,
+    .news-category-btn,
+    .crypto-filters button,
+    .crypto-chart-controls button,
+    .water-levels-filters button,
+    .water-levels-info-button,
+    .water-levels-history-controls button,
+    .ship-tracking-filters button,
+    .ship-tracking-map-switcher-btn,
+    .admin-panel-back-button,
+    .admin-panel-inline-button,
+    .admin-panel-section-button,
+    .cars-personal-tab,
+    .more-menu-header button
+):not(.markets-section button){
+    box-shadow:var(--ui-button-shadow);
+}
+
+html[data-theme="dark"] .markets-section,
+html[data-theme="light"] .markets-section{
+    border-radius:24px;
+}
+
+html[data-theme="dark"] .markets-section{
+    background:
+        radial-gradient(circle at 15% 0%,rgba(124,92,255,.055),transparent 30%),
+        linear-gradient(180deg,rgba(255,255,255,.012),rgba(255,255,255,.005));
+}
+
+html[data-theme="light"] .markets-section{
+    background:
+        radial-gradient(circle at 15% 0%,rgba(124,92,255,.045),transparent 30%),
+        linear-gradient(180deg,rgba(255,255,255,.38),rgba(255,255,255,.16));
+}
+
+/* Keep Markets' own buttons visually independent from this pass. */
+.markets-section .markets-refresh-btn,
+.markets-section .worth-it-market-category-button{
+    box-shadow:none;
+}
+
