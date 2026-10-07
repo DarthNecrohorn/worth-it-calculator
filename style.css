@@ -16850,5 +16850,5 @@ html[data-ui-scale="large"] .legal-modal{
 }
 
 html[data-ui-scale="xl"] .legal-modal{
-    max-height:min(720px,calc(100dvh - 220px));
+    max-height:min(720px,calc(100dvh - 240px));
 }
