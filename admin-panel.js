@@ -398,9 +398,17 @@
     async function refreshAdminUsage(){ usageLoaded = false; await loadUsage(); }
 
     async function updateAdminPanelButton(){
+        const admin = await isAdmin();
+
         const button = $('adminPanelButton');
-        if(!button) return;
-        button.style.display = (await isAdmin()) ? '' : 'none';
+        if(button){
+            button.style.display = admin ? '' : 'none';
+        }
+
+        /* Bugs & Suggestions is a private admin control on the header/footer. */
+        document.querySelectorAll('.feedback-nav-btn, .feedback-trigger').forEach(function(element){
+            element.style.display = admin ? '' : 'none';
+        });
     }
 
     window.openAdminPanel = openAdminPanel;
