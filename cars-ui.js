@@ -12435,6 +12435,25 @@ function injectVehicleUiStyles() {
             display: flex;
         }
 
+        /*
+         * Vehicle details must stay below the global header so the
+         * navigation, Settings, menus and utility controls remain
+         * clickable while the details panel is open.
+         */
+        #worthItVehicleDetailsModal {
+            z-index: 1200;
+        }
+
+        #worthItVehicleDetailsModal .worth-it-vehicle-modal-backdrop {
+            position: absolute;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.72);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
         .worth-it-vehicle-modal-backdrop {
             position: absolute;
             inset: 0;
