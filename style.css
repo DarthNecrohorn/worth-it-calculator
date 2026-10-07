@@ -12351,11 +12351,11 @@ html[data-theme="light"] .water-levels-back-up{
     }
 
     html[data-ui-scale="large"] .water-levels-back-up{
-        right:max(8px, calc((100vw - 1180px) / 2 - 170px)) !important;
+        right:max(8px, calc((100vw - 1180px) / 2 - 200px)) !important;
     }
 
     html[data-ui-scale="xl"] .water-levels-back-up{
-        right:max(8px, calc((100vw - 1180px) / 2 - 140px)) !important;
+        right:max(8px, calc((100vw - 1180px) / 2 - 200px)) !important;
     }
 }
 
