@@ -12722,6 +12722,7 @@ html[data-ui-scale="xl"] .water-levels-detail-nav-next{
     .water-levels-detail-nav-key{display:none}
 }
 
+html.water-levels-modal-open,
 body.water-levels-modal-open{
     overflow:hidden;
 }
