@@ -553,12 +553,10 @@
       }
     });
 
-    document.addEventListener("click",e=>{if(e.target.closest(".nav,.more-menu"))closeDetail();},true);
 
     $("cryptoDetailClose")?.addEventListener("click",closeDetail);
     $("cryptoDetailPrev")?.addEventListener("click",()=>navigateDetail(-1));
     $("cryptoDetailNext")?.addEventListener("click",()=>navigateDetail(1));
-    $("cryptoDetailOverlay")?.addEventListener("click",e=>{if(e.target===e.currentTarget)closeDetail();});
     document.addEventListener("keydown",e=>{
       if(e.key==="Escape")closeDetail();
       if(!$("cryptoDetailOverlay")?.classList.contains("open"))return;
