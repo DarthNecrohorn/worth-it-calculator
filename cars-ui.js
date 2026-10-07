@@ -12546,7 +12546,7 @@ function injectVehicleUiStyles() {
             height: 42px;
             padding: 0 0 2px;
             border: 1px solid rgba(255, 255, 255, 0.12);
-            border-radius: 50%;
+            border-radius: 10px;
             background: rgba(17, 19, 24, 0.86);
             color: #fff;
             font-size: 28px;
