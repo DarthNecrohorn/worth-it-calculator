@@ -16872,3 +16872,85 @@ html[data-ui-scale="xl"] .legal-modal{
         transform:translateY(20px);
     }
 }
+/* Signup modal — targeted vertical compression */
+.auth-modal-card:has(#authLegalWrap[style*="block"]){
+    padding-top:4px !important;
+}
+
+html[data-ui-scale="large"] .auth-modal-card:has(#authLegalWrap[style*="block"]){
+    padding-top:0 !important;
+    padding-bottom:4px !important;
+}
+
+html[data-ui-scale="xl"] .auth-modal-card:has(#authLegalWrap[style*="block"]){
+    padding-top:0 !important;
+    padding-bottom:0 !important;
+}
+
+html[data-ui-scale="large"] .auth-modal-card:has(#authLegalWrap[style*="block"]) .auth-modal-head{
+    margin-bottom:10px !important;
+}
+
+html[data-ui-scale="xl"] .auth-modal-card:has(#authLegalWrap[style*="block"]) .auth-modal-head{
+    margin-bottom:4px !important;
+}
+
+html[data-ui-scale="large"] .auth-modal-card:has(#authLegalWrap[style*="block"]) .auth-modal-head p,
+html[data-ui-scale="xl"] .auth-modal-card:has(#authLegalWrap[style*="block"]) .auth-modal-head p{
+    margin-top:4px !important;
+}
+
+html[data-ui-scale="large"] .auth-modal-card:has(#authLegalWrap[style*="block"]) .auth-field{
+    margin-bottom:5px !important;
+}
+
+html[data-ui-scale="xl"] .auth-modal-card:has(#authLegalWrap[style*="block"]) .auth-field{
+    margin-bottom:2px !important;
+}
+
+html[data-ui-scale="large"] .auth-modal-card:has(#authLegalWrap[style*="block"]) .auth-field input{
+    padding-top:4px !important;
+    padding-bottom:4px !important;
+}
+
+html[data-ui-scale="xl"] .auth-modal-card:has(#authLegalWrap[style*="block"]) .auth-field input{
+    padding-top:3px !important;
+    padding-bottom:3px !important;
+}
+
+html[data-ui-scale="large"] .auth-modal-card:has(#authLegalWrap[style*="block"]) .auth-turnstile-wrap{
+    margin-top:2px !important;
+    margin-bottom:2px !important;
+}
+
+html[data-ui-scale="xl"] .auth-modal-card:has(#authLegalWrap[style*="block"]) .auth-turnstile-wrap{
+    margin-top:0 !important;
+    margin-bottom:0 !important;
+}
+
+html[data-ui-scale="large"] .auth-modal-card:has(#authLegalWrap[style*="block"]) .auth-modal-submit{
+    margin-top:0 !important;
+    padding-top:4px !important;
+    padding-bottom:4px !important;
+}
+
+html[data-ui-scale="xl"] .auth-modal-card:has(#authLegalWrap[style*="block"]) .auth-modal-submit{
+    margin-top:0 !important;
+    padding-top:3px !important;
+    padding-bottom:3px !important;
+}
+
+html[data-ui-scale="large"] .auth-modal-card:has(#authLegalWrap[style*="block"]) .auth-modal-mode{
+    margin-top:5px !important;
+}
+
+html[data-ui-scale="xl"] .auth-modal-card:has(#authLegalWrap[style*="block"]) .auth-modal-mode{
+    margin-top:2px !important;
+}
+
+/* Keep the compressed signup card inside the viewport. */
+html[data-ui-scale="large"] .auth-modal-card:has(#authLegalWrap[style*="block"]),
+html[data-ui-scale="xl"] .auth-modal-card:has(#authLegalWrap[style*="block"]){
+    max-height:calc(100dvh - 24px) !important;
+    overflow-y:auto !important;
+}
