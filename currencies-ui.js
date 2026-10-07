@@ -261,7 +261,7 @@ function renderCurrenciesUI() {
         </div>
     
             <div id="currencyDetailModal" class="currency-detail-modal" aria-hidden="true">
-                <div class="currency-detail-backdrop" data-currency-detail-close></div>
+                <div class="currency-detail-backdrop"></div>
                 <button type="button" class="currency-detail-nav currency-detail-nav-prev" id="currencyDetailPrev" aria-label="Previous currency">
                     <span class="currency-detail-nav-key">A</span><span class="currency-detail-nav-arrow currency-detail-nav-chevron">❮</span><span class="currency-detail-nav-arrow currency-detail-nav-main">←</span>
                 </button>
