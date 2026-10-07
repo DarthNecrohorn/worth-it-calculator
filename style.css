@@ -17034,3 +17034,6 @@ html[data-ui-scale="xl"] .auth-modal-overlay.signup-mode .auth-modal-card{
     font-size:9px;
     line-height:1.4;
 }
+.auth-modal-overlay:not(.signup-mode) .auth-username-rules{
+    display:none;
+}
