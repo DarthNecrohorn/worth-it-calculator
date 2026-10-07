@@ -12355,7 +12355,7 @@ html[data-theme="light"] .water-levels-back-up{
     }
 
     html[data-ui-scale="xl"] .water-levels-back-up{
-        right:max(8px, calc((100vw - 1180px) / 2 - 320px)) !important;
+        right:max(8px, calc((100vw - 1180px) / 2 - 300px)) !important;
     }
 }
 
