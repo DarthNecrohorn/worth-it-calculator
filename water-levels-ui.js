@@ -5003,9 +5003,18 @@
             section.style.display !== "none" &&
             window.getComputedStyle(section).display !== "none";
 
+        const detailOverlay =
+            get("waterLevelsDetailOverlay");
+
+        const detailsOpen =
+            detailOverlay &&
+            detailOverlay.classList.contains("open");
+
         button.classList.toggle(
             "visible",
-            visible && window.scrollY > 180
+            visible &&
+            !detailsOpen &&
+            window.scrollY > 180
         );
     }
 
