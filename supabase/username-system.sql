@@ -1,5 +1,5 @@
--- Worth It username uniqueness
--- Run this once in Supabase SQL Editor.
+-- Worth It username uniqueness and moderation
+-- Run this in the Supabase SQL Editor after reviewing it.
 -- Database-level reservation prevents two users from claiming the same username.
 
 create table if not exists public.usernames (
@@ -42,85 +42,31 @@ begin
         return new;
     end if;
 
-    if desired_username !~ '^(?=.{3,20}$)(?=.*[A-Za-z0-9])[A-Za-z0-9]+(?:_[A-Za-z0-9]+)?
-    values (desired_username, new.id);
-
-    return new;
-exception
-    when unique_violation then
-        raise exception 'Username is already taken';
-end;
-$$;
-
-drop trigger if exists on_auth_user_username_reservation on auth.users;
-
-create trigger on_auth_user_username_reservation
-after insert on auth.users
-for each row
-execute function public.reserve_worth_it_username();
-
--- Backfill usernames for accounts that already exist.
--- Duplicate usernames are skipped; the existing account keeps the reservation.
-insert into public.usernames (username, user_id)
-select
-    raw_user_meta_data ->> 'username',
-    id
-from auth.users
-where coalesce(raw_user_meta_data ->> 'username', '') ~ '^(?=.{3,20}$)(?=.*[A-Za-z0-9])[A-Za-z0-9]+(?:_[A-Za-z0-9]+)?$'
-on conflict (username_lower) do nothing;
- then
+    if desired_username !~ '^(?=.{3,20}$)(?=.*[A-Za-z0-9])[A-Za-z0-9]+(?:_[A-Za-z0-9]+)?$' then
         raise exception 'Invalid username';
     end if;
 
-    -- Normalize common leetspeak and remove the supported underscore
-    -- before checking profanity, sexual, hateful, or extremist terms.
     moderated_username := lower(replace(desired_username, '_', ''));
-        moderated_username := replace(moderated_username, '0', 'o');
-        moderated_username := replace(moderated_username, '1', 'i');
-        moderated_username := replace(moderated_username, '3', 'e');
-        moderated_username := replace(moderated_username, '4', 'a');
-        moderated_username := replace(moderated_username, '5', 's');
-        moderated_username := replace(moderated_username, '7', 't');
-        moderated_username := replace(moderated_username, '8', 'b');
-        moderated_username := replace(moderated_username, '9', 'g');
+    moderated_username := replace(moderated_username, '0', 'o');
+    moderated_username := replace(moderated_username, '1', 'i');
+    moderated_username := replace(moderated_username, '3', 'e');
+    moderated_username := replace(moderated_username, '4', 'a');
+    moderated_username := replace(moderated_username, '5', 's');
+    moderated_username := replace(moderated_username, '7', 't');
+    moderated_username := replace(moderated_username, '8', 'b');
+    moderated_username := replace(moderated_username, '9', 'g');
 
-        if moderated_username ~ '(fuck|shit|bitch|cunt|dick|cock|pussy|whore|slut|bastard|asshole|arsehole|motherfucker|bullshit|dumbass|jackass|nigger|nigga|faggot|retard|retarded|pedo|pedophile|porn|xxx|blowjob|handjob|jizz|rape|rapist|nazi|hitler|kkk)' then
-            raise exception 'Username contains prohibited language';
-        end if;
+    if moderated_username ~ '(fuck|shit|bitch|cunt|dick|cock|pussy|whore|slut|bastard|asshole|arsehole|motherfucker|bullshit|dumbass|jackass|nigger|nigga|faggot|retard|retarded|pedo|pedophile|porn|xxx|blowjob|handjob|jizz|rape|rapist|nazi|hitler|kkk)' then
+        raise exception 'Username contains prohibited language';
+    end if;
 
-        if moderated_username ~ '^(admin|administrator|moderator|mod|staff|support|official|security|owner|root|worthit)([0-9]+)?
-    values (desired_username, new.id);
+    if moderated_username ~ '^(admin|administrator|moderator|mod|staff|support|official|security|owner|root|worthit)([0-9]+)?$' then
+        raise exception 'Username is reserved';
+    end if;
 
-    return new;
-exception
-    when unique_violation then
-        raise exception 'Username is already taken';
-end;
-$$;
-
-drop trigger if exists on_auth_user_username_reservation on auth.users;
-
-create trigger on_auth_user_username_reservation
-after insert on auth.users
-for each row
-execute function public.reserve_worth_it_username();
-
--- Backfill usernames for accounts that already exist.
--- Duplicate usernames are skipped; the existing account keeps the reservation.
-insert into public.usernames (username, user_id)
-select
-    raw_user_meta_data ->> 'username',
-    id
-from auth.users
-where coalesce(raw_user_meta_data ->> 'username', '') ~ '^(?=.{3,20}$)(?=.*[A-Za-z0-9])[A-Za-z0-9]+(?:_[A-Za-z0-9]+)?$'
-on conflict (username_lower) do nothing;
- then
-            raise exception 'Username is reserved';
-        end if;
-
-        if length(regexp_replace(desired_username, '[^0-9]', '', 'g')) >= 7 then
-            raise exception 'Username contains a long numeric identifier';
-        end if;
+    if length(regexp_replace(desired_username, '[^0-9]', '', 'g')) >= 7 then
+        raise exception 'Username contains a long numeric identifier';
+    end if;
 
     insert into public.usernames (username, user_id)
     values (desired_username, new.id);
