@@ -17022,11 +17022,11 @@ html[data-ui-scale="xl"] .auth-modal-overlay.signup-mode .auth-modal-card{
 }
 /* Sign-in reached after Create account: move only its close button down 30px. */
 .auth-modal-overlay.returned-signin-mode .auth-modal-close{
-    transform:translateY(30px);
+    transform:translate(10px,30px);
 }
 .auth-modal-overlay.returned-signin-mode .auth-modal-close:hover,
 .auth-modal-overlay.returned-signin-mode .auth-modal-close:focus-visible{
-    transform:translateY(30px);
+    transform:translate(10px,30px) !important;
 }
 .auth-username-rules{
     margin-top:4px;
