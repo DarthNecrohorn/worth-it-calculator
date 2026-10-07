@@ -12339,6 +12339,11 @@ html[data-theme="light"] .water-levels-back-up{
     color:var(--text) !important;
 }
 
+/* Hide Water Levels "Go back up" while Settings is open so it never overlaps the panel. */
+html.settings-open .water-levels-back-up{
+    display:none !important;
+}
+
 /* Water Levels "Go back up" — scale-specific desktop positioning. */
 @media(min-width:701px){
     html[data-ui-scale="small"] .water-levels-back-up{
