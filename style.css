@@ -16842,3 +16842,13 @@ html[data-ui-scale="large"] .legal-nav,
 html[data-ui-scale="xl"] .legal-nav{
     gap:7px;
 }
+/* Legal modal compact height for larger UI scales:
+   A+ closes 50px from top and 50px from bottom.
+   A++ closes 100px from top and 100px from bottom. */
+html[data-ui-scale="large"] .legal-modal{
+    max-height:min(760px,calc(100dvh - 120px));
+}
+
+html[data-ui-scale="xl"] .legal-modal{
+    max-height:min(720px,calc(100dvh - 220px));
+}
