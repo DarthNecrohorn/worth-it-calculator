@@ -856,19 +856,6 @@ function renderAuthModal() {
     const passwordLabel =
         $("authPasswordLabel");
 
-    if (
-        authModalMode === "signup" &&
-        !legalCheck?.checked
-    ) {
-        setAuthStatus(
-            "You must agree to the Terms of Use and Community Rules before creating an account.",
-            "error"
-        );
-        legalCheck?.focus();
-        return;
-    }
-
-
     const submit =
         $("authSubmitBtn");
 
@@ -1226,6 +1213,23 @@ async function submitAuthForm(event) {
             "The two passwords do not match.",
             "error"
         );
+
+        return;
+
+    }
+
+
+    if (
+        authModalMode === "signup" &&
+        !legalCheck?.checked
+    ) {
+
+        setAuthStatus(
+            "You must agree to the Terms of Use and Community Rules before creating an account.",
+            "error"
+        );
+
+        legalCheck?.focus();
 
         return;
 
