@@ -260,6 +260,9 @@
   async function openDetail(coin){
     const overlay=$("cryptoDetailOverlay");
     if(!overlay)return;
+    const backUpButton=$("cryptoFloatingShowLess");
+    if(backUpButton)backUpButton.classList.remove("visible");
+
     const key=DETAIL_BROWSER_CACHE+coin.id;
 
     try{
