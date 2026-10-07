@@ -14933,6 +14933,11 @@ html[data-ui-scale="xl"] .water-levels-detail-card{
 }
 
 @media (min-width:761px){
+    html[data-ui-scale="normal"] .worth-it-vehicle-modal-dialog,
+    html:not([data-ui-scale]) .worth-it-vehicle-modal-dialog{
+        max-height:min(900px,calc(100vh - 88px)) !important;
+    }
+
     html[data-ui-scale="large"] .worth-it-vehicle-modal-dialog{
         width:min(880px,calc((100vw - 120px) / var(--ui-scale,1))) !important;
         max-height:76dvh !important;
