@@ -879,6 +879,14 @@ function renderAuthModal() {
     const legalCheck =
         $("authLegalCheck");
 
+    const authOverlay =
+        $("authModalOverlay");
+
+    authOverlay?.classList.toggle(
+        "signup-mode",
+        authModalMode === "signup"
+    );
+
     if (
         !title ||
         !subtitle ||
