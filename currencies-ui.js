@@ -270,7 +270,7 @@ function renderCurrenciesUI() {
                     <span class="currency-detail-nav-key">D</span><span class="currency-detail-nav-arrow currency-detail-nav-chevron">❯</span><span class="currency-detail-nav-arrow currency-detail-nav-main">→</span>
                 </button>
                 <div class="currency-detail-dialog" role="dialog" aria-modal="true" aria-labelledby="currencyDetailTitle">
-                    <button type="button" class="currency-detail-close" data-currency-detail-close aria-label="Close">×</button>
+                    <button type="button" class="currency-detail-close" data-currency-detail-close aria-label="Close"><span>×</span></button>
                     <div class="currency-detail-content" id="currencyDetailContent"></div>
                 </div>
             </div>
@@ -282,6 +282,7 @@ function renderCurrenciesUI() {
                 .currency-detail-backdrop{position:absolute;inset:0;background:rgba(10,14,24,.62);backdrop-filter:blur(7px)}
                 .currency-detail-dialog{position:relative;width:min(650px,calc(100vw - 44px));max-height:min(720px,calc(100vh - 44px));overflow:auto;border:1px solid color-mix(in srgb,var(--border) 82%,transparent);border-radius:22px;background:var(--card-solid,var(--card));box-shadow:0 28px 90px rgba(0,0,0,.34);color:var(--text);z-index:2}
                 .currency-detail-close{position:absolute;top:12px;right:12px;width:38px;height:38px;border:1px solid var(--border);border-radius:12px;background:var(--surface-soft);color:var(--text);font-size:25px;line-height:0;cursor:pointer;z-index:3}
+                .currency-detail-close span{display:block;transform:translateY(-3px)}
                 .currency-detail-close:hover{transform:translateY(-1px)}
                 .currency-detail-content{padding:34px 34px 30px}
                 .currency-detail-heading{display:flex;align-items:center;gap:16px;padding-right:42px;margin-bottom:24px}
