@@ -10793,20 +10793,20 @@ html[data-theme="light"] .crypto-show-btn{
         right:max(12px,calc(50% - 430px));
     }
 
-    /* A+: 40px further inward */
+    /* A+: 5px outward from the current position */
     html[data-ui-scale="large"] .crypto-detail-nav-prev{
-        left:max(12px,calc(50% - 410px));
+        left:max(12px,calc(50% - 415px));
     }
     html[data-ui-scale="large"] .crypto-detail-nav-next{
-        right:max(12px,calc(50% - 410px));
+        right:max(12px,calc(50% - 415px));
     }
 
-    /* A++: 60px further inward */
+    /* A++: 10px further inward from the current position */
     html[data-ui-scale="xl"] .crypto-detail-nav-prev{
-        left:max(12px,calc(50% - 390px));
+        left:max(12px,calc(50% - 380px));
     }
     html[data-ui-scale="xl"] .crypto-detail-nav-next{
-        right:max(12px,calc(50% - 390px));
+        right:max(12px,calc(50% - 380px));
     }
 }
 .crypto-detail-nav-key{
