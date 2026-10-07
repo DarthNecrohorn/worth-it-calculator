@@ -311,7 +311,20 @@ function renderCurrenciesUI() {
                 .currency-detail-nav:disabled:hover{transform:none !important}
                 .currency-detail-nav-prev{left:calc(50% - 390px)}
                 .currency-detail-nav-next{right:calc(50% - 390px)}
-                
+
+                /* A− and A: move the navigation 10px farther outward. */
+                @media(min-width:1051px){
+                    html[data-ui-scale="small"] .currency-detail-nav-prev,
+                    html[data-ui-scale="normal"] .currency-detail-nav-prev,
+                    html:not([data-ui-scale]) .currency-detail-nav-prev{
+                        left:calc(50% - 400px);
+                    }
+                    html[data-ui-scale="small"] .currency-detail-nav-next,
+                    html[data-ui-scale="normal"] .currency-detail-nav-next,
+                    html:not([data-ui-scale]) .currency-detail-nav-next{
+                        right:calc(50% - 400px);
+                    }
+                }
                 
                 @media(max-width:1050px){
                     .currency-detail-nav-prev{left:8px}.currency-detail-nav-next{right:8px}
