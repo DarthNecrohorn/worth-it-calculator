@@ -4564,10 +4564,21 @@
             if(focusHistory){
                 window.setTimeout(
                     function(){
-                        historySection.scrollIntoView({
-                            behavior:"smooth",
-                            block:"start"
-                        });
+                        const detailCard =
+                            historySection.closest(
+                                ".water-levels-detail-card"
+                            );
+
+                        if(detailCard){
+                            detailCard.scrollTo({
+                                top:Math.max(
+                                    0,
+                                    historySection.offsetTop -
+                                    10
+                                ),
+                                behavior:"smooth"
+                            });
+                        }
                     },
                     60
                 );
