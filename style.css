@@ -16971,9 +16971,12 @@ html[data-ui-scale="xl"] .auth-modal-overlay.signup-mode .auth-modal-card{
 /* Close button: 10px down + 10px right in every UI size. */
 .auth-modal-close{
     transform:translate(10px,10px);
+    transition:none !important;
 }
 
 .auth-modal-close:hover,
-.auth-modal-close:focus-visible{
-    transform:translate(10px,10px) scale(1.04);
+.auth-modal-close:focus,
+.auth-modal-close:focus-visible,
+.auth-modal-close:active{
+    transform:translate(10px,10px) !important;
 }
