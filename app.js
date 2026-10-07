@@ -2457,25 +2457,25 @@ const WORTH_IT_LEGAL_DOCUMENTS = {
             <p>Usernames must be appropriate for a general-audience community. Usernames may not contain profanity, sexual content, hate speech, slurs, extremist references, misleading impersonation, staff or official-style names, or personal information such as phone numbers. Usernames must use the allowed format and must be unique.</p>
             <p>Attempting to bypass username filtering by disguising prohibited terms with numbers, underscores, or other variations is also prohibited.</p>
 
-            <h3>3. Worth It Is Not a Dating Platform</h3>
+            <h3>4. Worth It Is Not a Dating Platform</h3>
             <p><strong>Dating is not permitted on Worth It.</strong> Worth It is not a dating, matchmaking, romantic, or hookup platform. Do not use profiles or community features to look for dates, romantic partners, or sexual partners.</p>
             <p>Dating and personal relationships are allowed <strong>outside of Worth It</strong>. What consenting adults choose to do outside the website is their own personal matter.</p>
-            <h3>4. No Unwanted Sexual or Nude Content</h3>
+            <h3>5. No Unwanted Sexual or Nude Content</h3>
             <p>Do not send, request, post, upload, or distribute sexual or nude content to other users. This includes unsolicited sexual messages, propositions, requests for nude images, and sexually explicit photographs.</p>
             <p>Sending unsolicited <strong>18+ nude or sexually explicit images</strong> to another user may result in an immediate and permanent ban.</p>
             <p>Any sexual content involving minors is strictly prohibited and may be reported to appropriate authorities where required.</p>
-            <h3>5. No Harassment or Repeated Unwanted Messages</h3>
+            <h3>6. No Harassment or Repeated Unwanted Messages</h3>
             <p>Do not repeatedly contact someone who has asked you to stop. Repeated inappropriate messages, ban evasion, coordinated harassment, or creating new accounts to continue unwanted contact may result in a permanent ban.</p>
-            <h3>6. No Threats, Violence, Illegal Activity, Scams, or Malicious Abuse</h3>
+            <h3>7. No Threats, Violence, Illegal Activity, Scams, or Malicious Abuse</h3>
             <p>Threats of violence, credible intimidation, serious illegal activity, fraud, impersonation, phishing, malware, scams, or deliberate abuse of platform functionality are not allowed.</p>
-            <h3>7. No Doxxing or Privacy Abuse</h3>
+            <h3>8. No Doxxing or Privacy Abuse</h3>
             <p>Do not publish, distribute, threaten to reveal, or otherwise misuse another person's private or sensitive information without appropriate authorization.</p>
-            <h3>8. Moderation and Bans</h3>
+            <h3>9. Moderation and Bans</h3>
             <p>Worth It may suspend, restrict, or permanently terminate accounts that violate these rules or create a serious risk to the community or service.</p>
             <p><strong>Worth It is not responsible for losses, inconvenience, or other consequences resulting from a suspension, restriction, or ban, to the extent permitted by applicable law.</strong> We will nevertheless make a genuine effort to be fair, reasonable, and consistent and may consider context, severity, history, intent, evidence, and repeated behavior.</p>
-            <h3>9. Owner and Administrative Testing Exception</h3>
+            <h3>10. Owner and Administrative Testing Exception</h3>
             <p>The site owner and authorized administrators may perform controlled tests that would otherwise resemble prohibited activity when needed to test moderation, reports, blocks, bans, safety protections, bugs, or other functionality. This is a limited testing and administration exception and does not permit the owner or administrators to use Worth It as a dating platform.</p>
-            <h3>10. Appeals</h3>
+            <h3>11. Appeals</h3>
             <p>Where an appeal or review process is available, users may request reconsideration. A review does not guarantee that a decision will be reversed.</p>
             <p class="legal-final-note"><strong>Be respectful. Do not harass people, use Worth It for dating or sexual solicitation, send unwanted nude or explicit content, or engage in racism, hate, threats, scams, or serious abuse.</strong></p>
         `
