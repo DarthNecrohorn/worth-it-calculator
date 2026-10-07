@@ -144,6 +144,26 @@ const API_REGISTRY = [
         quotaLabel: "Project/plan dependent"
     },
     {
+        key: "news-images",
+        name: "News Image Resolver",
+        emoji: "🖼️",
+        provider: "Original article source pages",
+        endpoint: "/api/news-images",
+        category: "News",
+        quotaType: "dynamic",
+        quotaLabel: "Provider/source-site dependent"
+    },
+    {
+        key: "shop-affiliate-feed",
+        name: "Shop Affiliate Feed",
+        emoji: "🛒",
+        provider: "Awin Standard Feeds — GitHub Actions",
+        endpoint: "/api/shop-products",
+        category: "Shop",
+        quotaType: "dynamic",
+        quotaLabel: "Feed/provider dependent"
+    },
+    {
         key: "feedback",
         name: "Feedback",
         emoji: "🐞",
@@ -782,8 +802,13 @@ function getApiConfigurationLabel(
     env,
     apiKey
 ) {
+    if (apiKey === "shop-affiliate-feed") {
+        return "Configured via GitHub Actions";
+    }
+
     const noKeyRequired = new Set([
         "currencies",
+        "news-images",
         "exchange-rate",
         "cars",
         "vehiclesdb",
@@ -917,6 +942,9 @@ function isApiConfigured(
                     ""
                 ).trim()
             );
+
+        case "shop-affiliate-feed":
+            return true;
 
         case "feedback":
         case "supabase-platform":
