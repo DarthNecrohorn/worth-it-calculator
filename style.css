@@ -16996,3 +16996,8 @@ html[data-ui-scale="xl"] .auth-modal-overlay.signup-mode .auth-modal-card{
 #authUsernameWrap{
     transform:translateY(10px);
 }
+/* Create account heading alignment */
+.auth-modal-overlay.signup-mode .auth-modal-head{
+    transform:translateY(10px);
+}
+
