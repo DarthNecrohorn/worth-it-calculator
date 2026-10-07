@@ -680,7 +680,11 @@ async function checkUsernameAvailability(username) {
 
     return {
         available: payload?.available === true,
-        valid: payload?.valid !== false
+        valid: payload?.valid !== false,
+        reason:
+            typeof payload?.reason === "string"
+                ? payload.reason
+                : ""
     };
 }
 
@@ -734,9 +738,11 @@ function updateUsernameAvailabilityMessage(input) {
         try {
             const result = await checkUsernameAvailability(username);
             if (input.value.trim() !== username || authModalMode !== "signup") return;
-            message.textContent = result.available
-                ? "✓ Username is available"
-                : "This username isn't available";
+            message.textContent =
+                result.available
+                    ? "✓ Username is available"
+                    : result.reason ||
+                        "This username isn't available";
             message.className = "auth-username-availability " +
                 (result.available ? "success" : "error");
         } catch (error) {
