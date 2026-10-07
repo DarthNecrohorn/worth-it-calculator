@@ -557,10 +557,23 @@
         return button;
       };
 
+    /*
+     * When fewer than one full 200-vehicle level remains in the currently
+     * validated set, stop offering another "next 200" step and expose
+     * "Show all" instead. This also handles the case where quality scanning
+     * has temporarily found no additional valid vehicles (e.g. 800 -> 800)
+     * without changing the underlying Cars loading logic.
+     */
+    const nextLevelTarget =
+      Math.max(
+        CHUNK,
+        (Math.max(0, level) + 1) * CHUNK
+      );
+
     const finalStep =
-      !hasMore &&
-      remaining > 0 &&
-      remaining <= CHUNK;
+      level > 0 &&
+      totalVehicles.length <
+        nextLevelTarget;
 
     if (level === Infinity) {
       addButton(
