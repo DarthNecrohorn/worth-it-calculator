@@ -3,6 +3,70 @@ import { recordAdminApiUsage } from "../lib/admin-usage.js";
 const SITE_ORIGIN = "https://worth-it-calculator.pages.dev";
 const USERNAME_PATTERN = /^(?=.{3,20}$)(?=.*[A-Za-z0-9])[A-Za-z0-9]+(?:_[A-Za-z0-9]+)?$/;
 const MAX_USERNAME_LENGTH = 20;
+const USERNAME_BANNED_STEMS = [
+    "fuck","shit","bitch","cunt","dick","cock","pussy","whore","slut",
+    "bastard","asshole","arsehole","motherfucker","bullshit","dumbass",
+    "jackass","nigger","nigga","faggot","retard","retarded","pedo",
+    "pedophile","porn","xxx","blowjob","handjob","jizz","rape","rapist",
+    "nazi","hitler","kkk"
+];
+
+const RESERVED_USERNAME_PREFIXES = [
+    "admin","administrator","moderator","mod","staff","support",
+    "official","security","owner","root","worthit"
+];
+
+function normalizeUsernameForModeration(username) {
+    return String(username || "")
+        .toLowerCase()
+        .replace(/_/g, "")
+        .replace(/[01345789]/g, character => ({
+            "0":"o","1":"i","3":"e","4":"a","5":"s","7":"t",
+            "8":"b","9":"g"
+        }[character] || character));
+}
+
+function validateUsernameModeration(username) {
+    const normalized =
+        normalizeUsernameForModeration(username);
+
+    if (
+        USERNAME_BANNED_STEMS.some(
+            term => normalized.includes(term)
+        )
+    ) {
+        return {
+            valid: false,
+            reason: "This username contains language that isn't allowed on Worth It."
+        };
+    }
+
+    if (
+        RESERVED_USERNAME_PREFIXES.some(prefix =>
+            normalized === prefix ||
+            /^\d+$/.test(normalized.slice(prefix.length)) &&
+            normalized.startsWith(prefix)
+        )
+    ) {
+        return {
+            valid: false,
+            reason: "This username is reserved and cannot be used."
+        };
+    }
+
+    if ((String(username).match(/[0-9]/g) || []).length >= 7) {
+        return {
+            valid: false,
+            reason: "Usernames cannot contain phone numbers or other long numeric identifiers."
+        };
+    }
+
+    return {
+        valid: true,
+        reason: ""
+    };
+}
+
 
 function jsonResponse(data, status = 200) {
     return new Response(JSON.stringify(data), {
@@ -94,7 +158,19 @@ export async function onRequestGet(context) {
     if (!USERNAME_PATTERN.test(username)) {
         return jsonResponse({
             available: false,
-            valid: false
+            valid: false,
+            reason: "Username must be 3–20 characters, use only letters, numbers, and up to one _."
+        }, 200);
+    }
+
+    const moderation =
+        validateUsernameModeration(username);
+
+    if (!moderation.valid) {
+        return jsonResponse({
+            available: false,
+            valid: false,
+            reason: moderation.reason
         }, 200);
     }
 
