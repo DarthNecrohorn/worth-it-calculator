@@ -2453,6 +2453,10 @@ const WORTH_IT_LEGAL_DOCUMENTS = {
             <p>Casual profanity is not automatically treated the same as directed abuse, but aggressive, abusive, or repeated swearing at another person is not permitted.</p>
             <h3>2. No Racism, Hate Speech, or Discrimination</h3>
             <p>Worth It has zero tolerance for racism or hateful behavior. No attacks, threats, demeaning content, slurs, hateful stereotypes, or encouragement of hostility based on race, ethnicity, nationality, national origin, religion, sex, gender, sexual orientation, disability, age, or another protected or personal characteristic.</p>
+            <h3>3. Username Rules</h3>
+            <p>Usernames must be appropriate for a general-audience community. Usernames may not contain profanity, sexual content, hate speech, slurs, extremist references, misleading impersonation, staff or official-style names, or personal information such as phone numbers. Usernames must use the allowed format and must be unique.</p>
+            <p>Attempting to bypass username filtering by disguising prohibited terms with numbers, underscores, or other variations is also prohibited.</p>
+
             <h3>3. Worth It Is Not a Dating Platform</h3>
             <p><strong>Dating is not permitted on Worth It.</strong> Worth It is not a dating, matchmaking, romantic, or hookup platform. Do not use profiles or community features to look for dates, romantic partners, or sexual partners.</p>
             <p>Dating and personal relationships are allowed <strong>outside of Worth It</strong>. What consenting adults choose to do outside the website is their own personal matter.</p>
