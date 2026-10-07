@@ -10873,6 +10873,16 @@ html[data-theme="light"] .crypto-show-btn{
 
 html[data-theme="light"] .crypto-detail-card{background:#fff}
 
+/* Cryptocurrencies A+ detail panel and side navigation sit 30px lower. */
+html[data-ui-scale="large"] .crypto-detail-card{
+    position:relative;
+    top:30px;
+}
+
+html[data-ui-scale="large"] .crypto-detail-nav{
+    top:calc(50% + 30px);
+}
+
 .crypto-detail-head{
     display:flex;
     align-items:flex-start;
