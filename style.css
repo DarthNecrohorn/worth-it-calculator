@@ -16050,3 +16050,28 @@ html[data-theme="light"] #calculatorApp .calculator-key.equals{
 .currency-detail-nav:disabled:hover{
     background:var(--card-solid,var(--card)) !important;
 }
+
+
+/* =========================================================
+   DETAIL MODALS — KEEP GLOBAL HEADER INTERACTIVE
+   Detail backdrops stay below the global header, menus and
+   utility panels so those controls remain sharp and clickable.
+   ========================================================= */
+.nav{
+    z-index:50000 !important;
+}
+
+.more-menu{
+    z-index:50010 !important;
+}
+
+.settings-panel{
+    z-index:50020 !important;
+}
+
+.feedback-overlay,
+.admin-panel-overlay,
+.auth-modal-overlay,
+.ai-chat-overlay{
+    z-index:40000 !important;
+}
