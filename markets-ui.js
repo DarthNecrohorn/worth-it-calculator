@@ -4299,7 +4299,7 @@ function createMarketDetailModal() {
     modal.setAttribute("aria-hidden", "true");
 
     modal.innerHTML = `
-        <div class="worth-it-market-detail-backdrop" data-market-detail-close></div>
+        <div class="worth-it-market-detail-backdrop"></div>
 
         <div
             class="worth-it-market-detail-dialog"
