@@ -2577,7 +2577,7 @@ const WORTH_IT_LEGAL_PATHS = {
 };
 
 function getLegalKeyFromLocation() {
-    const path = window.location.pathname.replace(/\\/+$/, "") || "/";
+    const path = window.location.pathname.replace(/\/+$/, "") || "/";
     const pathMatch = Object.entries(WORTH_IT_LEGAL_PATHS)
         .find(([, legalPath]) => legalPath === path);
 
