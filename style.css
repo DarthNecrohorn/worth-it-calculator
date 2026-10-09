@@ -204,7 +204,10 @@ a{text-decoration:none;color:inherit}
 .auth-btn:hover{
     background:rgba(255,255,255,.09);
     border-color:rgba(124,92,255,.4);
-    transform:translateY(-2px);
+    transform:translateY(-50%) !important;
+}
+.auth-btn:active{
+    transform:translateY(-50%) !important;
 }
 
 .profile-nav-btn{
@@ -17430,10 +17433,4 @@ html[data-ui-scale="xl"] .auth-modal-overlay.signup-mode .auth-modal-card{
     #authModalOverlay.signup-mode .auth-modal-card{
         transform:translateY(50px) !important;
     }
-}
-
-/* Sign-in submit button: disable vertical movement on hover/press. */
-.auth-modal-submit:hover,
-.auth-modal-submit:active{
-    transform:none !important;
 }
