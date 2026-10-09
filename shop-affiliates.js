@@ -4,11 +4,15 @@
 ===================================================== */
 
 const SHOP_COUNTRIES = [
+    { code: "AE", name: "United Arab Emirates" },
     { code: "AU", name: "Australia" },
+    { code: "AT", name: "Austria" },
+    { code: "BE", name: "Belgium" },
     { code: "BR", name: "Brazil" },
     { code: "BG", name: "Bulgaria" },
     { code: "BN", name: "Brunei" },
     { code: "CA", name: "Canada" },
+    { code: "CL", name: "Chile" },
     { code: "CO", name: "Colombia" },
     { code: "HR", name: "Croatia" },
     { code: "CY", name: "Cyprus" },
@@ -16,16 +20,24 @@ const SHOP_COUNTRIES = [
     { code: "DK", name: "Denmark" },
     { code: "EE", name: "Estonia" },
     { code: "FI", name: "Finland" },
+    { code: "FR", name: "France" },
+    { code: "DE", name: "Germany" },
     { code: "GR", name: "Greece" },
+    { code: "HK", name: "Hong Kong" },
     { code: "HU", name: "Hungary" },
     { code: "IE", name: "Ireland" },
+    { code: "IL", name: "Israel" },
     { code: "IT", name: "Italy" },
     { code: "LV", name: "Latvia" },
     { code: "LT", name: "Lithuania" },
+    { code: "LU", name: "Luxembourg" },
+    { code: "MY", name: "Malaysia" },
     { code: "MT", name: "Malta" },
+    { code: "MX", name: "Mexico" },
     { code: "NL", name: "Netherlands" },
     { code: "NZ", name: "New Zealand" },
     { code: "NO", name: "Norway" },
+    { code: "PE", name: "Peru" },
     { code: "PH", name: "Philippines" },
     { code: "PL", name: "Poland" },
     { code: "PT", name: "Portugal" },
@@ -36,6 +48,7 @@ const SHOP_COUNTRIES = [
     { code: "ZA", name: "South Africa" },
     { code: "ES", name: "Spain" },
     { code: "SE", name: "Sweden" },
+    { code: "CH", name: "Switzerland" },
     { code: "GB", name: "United Kingdom" },
     { code: "US", name: "United States" },
     { code: "VN", name: "Vietnam" }
@@ -173,10 +186,11 @@ const SHOP_PARTNERS = [
  * final authority for a specific item and address.
  */
 const STYLEVANA_SHIPPING_COUNTRIES = [
-    "AU", "BR", "BN", "BG", "CA", "CO", "HR", "CY", "CZ", "DK",
-    "EE", "FI", "GR", "HU", "IE", "IT", "LV", "LT",
-    "MT", "NL", "NZ", "NO", "PH", "PL", "PT", "RO", "SG", "SK",
-    "SI", "ZA", "ES", "SE", "GB", "US", "VN"
+    "AU", "AT", "BE", "BR", "BN", "BG", "CA", "CL", "CO", "HR",
+    "CY", "CZ", "DK", "EE", "FI", "FR", "DE", "GR", "HK", "HU",
+    "IE", "IL", "IT", "LV", "LT", "LU", "MY", "MT", "MX", "NL",
+    "NZ", "NO", "PH", "PL", "PT", "RO", "SG", "SK", "SI", "ZA",
+    "ES", "SE", "CH", "GB", "AE", "US", "VN", "PE"
 ];
 
 const affiliateProducts = {
