@@ -17431,3 +17431,9 @@ html[data-ui-scale="xl"] .auth-modal-overlay.signup-mode .auth-modal-card{
         transform:translateY(50px) !important;
     }
 }
+
+/* Sign-in submit button: disable vertical movement on hover/press. */
+.auth-modal-submit:hover,
+.auth-modal-submit:active{
+    transform:none !important;
+}
