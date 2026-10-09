@@ -17498,14 +17498,14 @@ html.legal-page-mode #legalOverlay{
 html.legal-page-mode #legalOverlay .legal-modal{
     width:min(900px,100%) !important;
     max-height:none !important;
-    min-height:calc(100vh - 80px);
+    min-height:0 !important;
     margin:0 auto;
     overflow:hidden;
 }
 
 html.legal-page-mode #legalOverlay .legal-content{
     overflow:visible !important;
-    flex:1 0 auto;
+    flex:0 0 auto !important;
 }
 
 @media(max-width:700px){
@@ -17514,7 +17514,7 @@ html.legal-page-mode #legalOverlay .legal-content{
     }
 
     html.legal-page-mode #legalOverlay .legal-modal{
-        min-height:calc(100vh - 24px);
+        min-height:0 !important;
         border-radius:18px;
     }
 
