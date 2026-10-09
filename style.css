@@ -204,10 +204,10 @@ a{text-decoration:none;color:inherit}
 .auth-btn:hover{
     background:rgba(255,255,255,.09);
     border-color:rgba(124,92,255,.4);
-    transform:translateY(-50%) !important;
+    transform:translateY(calc(-50% - 2px)) !important;
 }
 .auth-btn:active{
-    transform:translateY(-50%) !important;
+    transform:translateY(calc(-50% - 2px)) !important;
 }
 
 .profile-nav-btn{
