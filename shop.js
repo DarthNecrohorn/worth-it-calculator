@@ -301,6 +301,7 @@
         const countries = new Set();
         const regionalLabels = new Set();
         const digitalLabels = new Set();
+        const coverageLabels = new Set();
 
         items
             .filter(
@@ -318,26 +319,25 @@
                     const availability =
                         deal?.availability;
 
-                    if(
-                        availability?.coverageType === "regional" &&
-                        availability.coverageLabel
-                    ){
-                        regionalLabels.add(
-                            String(
-                                availability.coverageLabel
-                            ).trim()
-                        );
-                    }
+                    const coverageLabel =
+                        String(
+                            availability?.coverageLabel || ""
+                        ).trim();
 
                     if(
-                        availability?.coverageType === "digital" &&
-                        availability.coverageLabel
+                        availability?.coverageType === "regional" &&
+                        coverageLabel
                     ){
-                        digitalLabels.add(
-                            String(
-                                availability.coverageLabel
-                            ).trim()
-                        );
+                        regionalLabels.add(coverageLabel);
+                    }
+                    else if(
+                        availability?.coverageType === "digital" &&
+                        coverageLabel
+                    ){
+                        digitalLabels.add(coverageLabel);
+                    }
+                    else if(coverageLabel){
+                        coverageLabels.add(coverageLabel);
                     }
                 }
             );
@@ -349,7 +349,8 @@
             profile &&
             countries.size === 0 &&
             regionalLabels.size === 0 &&
-            digitalLabels.size === 0
+            digitalLabels.size === 0 &&
+            coverageLabels.size === 0
         ){
             (Array.isArray(profile.countries)
                 ? profile.countries
@@ -367,22 +368,17 @@
                 }
             );
 
-            if(
-                profile.type === "regional" &&
-                profile.coverageLabel
-            ){
-                regionalLabels.add(
-                    String(profile.coverageLabel).trim()
-                );
-            }
+            const profileCoverageLabel =
+                String(profile.coverageLabel || "").trim();
 
-            if(
-                profile.type === "digital" &&
-                profile.coverageLabel
-            ){
-                digitalLabels.add(
-                    String(profile.coverageLabel).trim()
-                );
+            if(profile.type === "regional" && profileCoverageLabel){
+                regionalLabels.add(profileCoverageLabel);
+            }
+            else if(profile.type === "digital" && profileCoverageLabel){
+                digitalLabels.add(profileCoverageLabel);
+            }
+            else if(profileCoverageLabel){
+                coverageLabels.add(profileCoverageLabel);
             }
         }
 
@@ -392,9 +388,12 @@
             regionalLabels:
                 [...regionalLabels],
             digitalLabels:
-                [...digitalLabels]
+                [...digitalLabels],
+            coverageLabels:
+                [...coverageLabels]
         };
     }
+
     function getCategoryDefinition(categoryId){
         if(!categoryId || !Array.isArray(SHOP_CATEGORIES)){
             return null;
@@ -1749,13 +1748,15 @@ function renderShop(container){
                     const coverageText =
                         shippingCoverage.digitalLabels.length
                             ? shippingCoverage.digitalLabels.join(" / ")
-                            : shippingCoverage.countryCount > 0
-                                ? `${shippingCoverage.countryCount} currently represented shipping destination${shippingCoverage.countryCount === 1 ? "" : "s"}`
-                                : shippingCoverage.regionalLabels.length
-                                    ? shippingCoverage.regionalLabels.join(" / ")
-                                    : partner.status === "not-published"
-                                        ? "No verified shipping destinations — programme not published"
-                                        : "No verified shipping destinations yet";
+                            : shippingCoverage.regionalLabels.length
+                                ? `${shippingCoverage.regionalLabels.join(" / ")}${shippingCoverage.countryCount > 0 ? ` · ${shippingCoverage.countryCount} listed destinations` : ""}`
+                                : shippingCoverage.coverageLabels.length
+                                    ? shippingCoverage.coverageLabels.join(" / ")
+                                    : shippingCoverage.countryCount > 0
+                                        ? `${shippingCoverage.countryCount} currently represented shipping destination${shippingCoverage.countryCount === 1 ? "" : "s"}`
+                                        : partner.status === "not-published"
+                                            ? "No verified shipping destinations — programme not published"
+                                            : "No verified shipping destinations yet";
 
                     const status =
                         productCount > 0
