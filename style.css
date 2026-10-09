@@ -17039,3 +17039,227 @@ html[data-ui-scale="xl"] .auth-modal-overlay.signup-mode .auth-modal-card{
 .auth-modal-overlay:not(.signup-mode) .auth-username-rules{
     display:none;
 }
+
+
+/* PHONE-ONLY AUTH MODAL POLISH — Sign in, Create account, and returned Sign in. */
+@media (max-width:700px){
+    /* Keep the dialog physically inside the phone viewport at every UI scale. */
+    #authModalOverlay{
+        padding:calc(12px / var(--ui-scale,1)) !important;
+        align-items:center !important;
+        justify-content:center !important;
+        overflow-y:auto !important;
+        overscroll-behavior:contain;
+    }
+
+    #authModalOverlay .auth-modal-card{
+        width:min(
+            calc(430px / var(--ui-scale,1)),
+            calc((100vw - 24px) / var(--ui-scale,1))
+        ) !important;
+        max-width:100% !important;
+        max-height:calc((100dvh - 24px) / var(--ui-scale,1)) !important;
+        box-sizing:border-box !important;
+        padding:
+            calc(22px / var(--ui-scale,1))
+            calc(20px / var(--ui-scale,1))
+            calc(18px / var(--ui-scale,1)) !important;
+        border-radius:20px !important;
+        overflow-x:hidden !important;
+        overflow-y:auto !important;
+        overscroll-behavior:contain;
+        -webkit-overflow-scrolling:touch;
+        transform:none !important;
+    }
+
+    #authModalOverlay .auth-modal-head{
+        display:flex !important;
+        align-items:flex-start !important;
+        justify-content:space-between !important;
+        gap:calc(12px / var(--ui-scale,1)) !important;
+        margin-bottom:calc(18px / var(--ui-scale,1)) !important;
+        transform:none !important;
+    }
+
+    #authModalOverlay .auth-modal-head > div{
+        flex:1 1 auto !important;
+        min-width:0 !important;
+    }
+
+    #authModalOverlay .auth-modal-head h2{
+        font-size:clamp(20px,5.7vw,24px) !important;
+        line-height:1.16 !important;
+        letter-spacing:-.035em;
+        overflow-wrap:normal;
+    }
+
+    #authModalOverlay .auth-modal-head p{
+        margin-top:calc(7px / var(--ui-scale,1)) !important;
+        font-size:12px !important;
+        line-height:1.45 !important;
+    }
+
+    /* Keep the close control inside the card; no desktop-only offsets on phones. */
+    #authModalOverlay .auth-modal-close,
+    #authModalOverlay .auth-modal-close:hover,
+    #authModalOverlay .auth-modal-close:focus,
+    #authModalOverlay .auth-modal-close:focus-visible,
+    #authModalOverlay .auth-modal-close:active{
+        width:36px !important;
+        height:36px !important;
+        flex:0 0 36px !important;
+        display:inline-flex !important;
+        align-items:center !important;
+        justify-content:center !important;
+        padding:0 !important;
+        font-size:18px !important;
+        line-height:1 !important;
+        transform:none !important;
+    }
+
+    #authModalOverlay #authForm{
+        min-width:0;
+    }
+
+    #authModalOverlay .auth-field{
+        margin-bottom:calc(14px / var(--ui-scale,1)) !important;
+        min-width:0;
+    }
+
+    #authModalOverlay .auth-field > label,
+    #authModalOverlay .auth-password-label-row label{
+        margin-bottom:calc(6px / var(--ui-scale,1)) !important;
+        font-size:12px !important;
+        line-height:1.35 !important;
+    }
+
+    #authModalOverlay .auth-field input{
+        min-height:calc(46px / var(--ui-scale,1)) !important;
+        padding:
+            calc(10px / var(--ui-scale,1))
+            calc(12px / var(--ui-scale,1)) !important;
+        border-radius:12px !important;
+        font-size:15px !important;
+        line-height:1.35 !important;
+    }
+
+    #authModalOverlay .auth-password-label-row{
+        gap:8px !important;
+        margin-bottom:calc(6px / var(--ui-scale,1)) !important;
+    }
+
+    #authModalOverlay .auth-forgot-link{
+        font-size:11px !important;
+        white-space:nowrap;
+    }
+
+    #authModalOverlay .auth-password-input-wrap input{
+        padding-right:calc(48px / var(--ui-scale,1)) !important;
+    }
+
+    #authModalOverlay .auth-password-toggle{
+        width:calc(38px / var(--ui-scale,1)) !important;
+        height:calc(38px / var(--ui-scale,1)) !important;
+        right:calc(5px / var(--ui-scale,1)) !important;
+        font-size:25px !important;
+    }
+
+    #authModalOverlay #authUsernameWrap{
+        transform:none !important;
+    }
+
+    #authModalOverlay .auth-username-availability{
+        min-height:0 !important;
+        margin-top:calc(5px / var(--ui-scale,1)) !important;
+        font-size:10px !important;
+        line-height:1.4 !important;
+    }
+
+    #authModalOverlay .auth-username-rules{
+        margin-top:calc(5px / var(--ui-scale,1)) !important;
+        font-size:10px !important;
+        line-height:1.45 !important;
+    }
+
+    #authModalOverlay .auth-legal-wrap{
+        margin:0 0 calc(12px / var(--ui-scale,1)) !important;
+    }
+
+    #authModalOverlay .auth-legal-check{
+        gap:calc(9px / var(--ui-scale,1)) !important;
+        font-size:11px !important;
+        line-height:1.5 !important;
+    }
+
+    #authModalOverlay .auth-legal-check input{
+        width:16px !important;
+        height:16px !important;
+        flex:0 0 16px !important;
+    }
+
+    #authModalOverlay .auth-turnstile-wrap{
+        width:100% !important;
+        min-height:0 !important;
+        margin:
+            calc(8px / var(--ui-scale,1))
+            0
+            calc(14px / var(--ui-scale,1)) !important;
+    }
+
+    /* Counteract page zoom for the fixed-size Cloudflare verification widget. */
+    #authModalOverlay #authTurnstile{
+        max-width:100%;
+        zoom:calc(1 / var(--ui-scale,1));
+    }
+
+    #authModalOverlay #authTurnstile iframe{
+        max-width:100% !important;
+    }
+
+    #authModalOverlay .auth-modal-submit{
+        min-height:calc(46px / var(--ui-scale,1)) !important;
+        margin-top:calc(4px / var(--ui-scale,1)) !important;
+        padding:
+            calc(11px / var(--ui-scale,1))
+            calc(14px / var(--ui-scale,1)) !important;
+        border-radius:12px !important;
+        font-size:14px !important;
+    }
+
+    #authModalOverlay .auth-modal-status{
+        min-height:20px !important;
+        margin-top:calc(10px / var(--ui-scale,1)) !important;
+        font-size:11px !important;
+        line-height:1.45 !important;
+    }
+
+    #authModalOverlay .auth-modal-mode{
+        margin-top:calc(14px / var(--ui-scale,1)) !important;
+        font-size:12px !important;
+        line-height:1.5 !important;
+    }
+
+    /* Undo signup-only desktop offsets and compression on phones. */
+    #authModalOverlay.signup-mode .auth-modal-head{
+        transform:none !important;
+    }
+
+    #authModalOverlay.signup-mode .auth-modal-card:has(#authLegalWrap[style*="block"]){
+        padding:
+            calc(22px / var(--ui-scale,1))
+            calc(20px / var(--ui-scale,1))
+            calc(18px / var(--ui-scale,1)) !important;
+        max-height:calc((100dvh - 24px) / var(--ui-scale,1)) !important;
+        overflow-y:auto !important;
+    }
+}
+
+@media (max-width:360px){
+    /* Fit the fixed-size Cloudflare widget on especially narrow phones. */
+    #authModalOverlay #authTurnstile{
+        width:calc(100% / .82);
+        transform:scale(.82);
+        transform-origin:top left;
+        margin-bottom:-12px;
+    }
+}
