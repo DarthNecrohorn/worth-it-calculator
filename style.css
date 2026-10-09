@@ -17467,3 +17467,67 @@ html[data-ui-scale="xl"] .auth-modal-overlay.signup-mode .auth-modal-card{
         transform:translateY(-2px) !important;
     }
 }
+
+/* URL-addressable legal documents: render as a full page, not a modal overlay. */
+html.legal-page-mode,
+html.legal-page-mode body{
+    min-height:100%;
+    overflow-x:hidden !important;
+    overflow-y:auto !important;
+}
+
+html.legal-page-mode body > :not(#legalOverlay){
+    display:none !important;
+}
+
+html.legal-page-mode #legalOverlay{
+    position:relative !important;
+    inset:auto !important;
+    z-index:1 !important;
+    width:100%;
+    min-height:100vh;
+    box-sizing:border-box;
+    display:flex !important;
+    align-items:flex-start !important;
+    justify-content:center !important;
+    padding:clamp(16px,4vh,40px) 16px !important;
+    background:transparent !important;
+    backdrop-filter:none !important;
+}
+
+html.legal-page-mode #legalOverlay .legal-modal{
+    width:min(900px,100%) !important;
+    max-height:none !important;
+    min-height:calc(100vh - 80px);
+    margin:0 auto;
+    overflow:hidden;
+}
+
+html.legal-page-mode #legalOverlay .legal-content{
+    overflow:visible !important;
+    flex:1 0 auto;
+}
+
+@media(max-width:700px){
+    html.legal-page-mode #legalOverlay{
+        padding:12px !important;
+    }
+
+    html.legal-page-mode #legalOverlay .legal-modal{
+        min-height:calc(100vh - 24px);
+        border-radius:18px;
+    }
+
+    html.legal-page-mode #legalOverlay .legal-modal-head{
+        padding:18px 16px 14px;
+    }
+
+    html.legal-page-mode #legalOverlay .legal-nav{
+        padding:10px 14px;
+    }
+
+    html.legal-page-mode #legalOverlay .legal-content{
+        padding:18px 16px;
+        font-size:13px;
+    }
+}
