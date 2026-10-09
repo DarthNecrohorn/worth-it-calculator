@@ -1,0 +1,8 @@
+# Public, shareable legal-document URLs. Keep the requested URL in the browser
+# while serving the single-page app that renders the matching document.
+/terms-of-use /index.html 200
+/community-rules /index.html 200
+/privacy-policy /index.html 200
+/cookie-storage-policy /index.html 200
+/affiliate-disclosure /index.html 200
+/disclaimer /index.html 200
