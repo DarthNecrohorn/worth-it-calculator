@@ -2567,7 +2567,39 @@ const WORTH_IT_LEGAL_DOCUMENTS = {
     }
 };
 
-function openLegalPage(type = "terms") {
+const WORTH_IT_LEGAL_PATHS = {
+    terms: "/terms-of-use",
+    community: "/community-rules",
+    privacy: "/privacy-policy",
+    cookies: "/cookie-storage-policy",
+    affiliate: "/affiliate-disclosure",
+    disclaimer: "/disclaimer"
+};
+
+function getLegalKeyFromLocation() {
+    const path = window.location.pathname.replace(/\\/+$/, "") || "/";
+    const pathMatch = Object.entries(WORTH_IT_LEGAL_PATHS)
+        .find(([, legalPath]) => legalPath === path);
+
+    if (pathMatch) return pathMatch[0];
+
+    const queryKey = new URLSearchParams(window.location.search).get("legal");
+    return Object.prototype.hasOwnProperty.call(WORTH_IT_LEGAL_DOCUMENTS, queryKey)
+        ? queryKey
+        : null;
+}
+
+function deactivateLegalPage({fromHistory = false} = {}) {
+    const overlay = $("legalOverlay");
+    if (overlay) {
+        overlay.classList.remove("open");
+        overlay.setAttribute("aria-hidden", "true");
+    }
+
+    document.documentElement.classList.remove("legal-open", "legal-page-mode");
+}
+
+function openLegalPage(type = "terms", options = {}) {
     const overlay = $("legalOverlay");
     const title = $("legalModalTitle");
     const content = $("legalContent");
@@ -2577,40 +2609,82 @@ function openLegalPage(type = "terms") {
         Object.prototype.hasOwnProperty.call(WORTH_IT_LEGAL_DOCUMENTS, type)
             ? type
             : "terms";
+    const legalPath = WORTH_IT_LEGAL_PATHS[key];
+    const isAlreadyLegalPage =
+        document.documentElement.classList.contains("legal-page-mode") ||
+        Boolean(getLegalKeyFromLocation());
 
-    title.textContent =
-        WORTH_IT_LEGAL_DOCUMENTS[key].title;
+    if (!options.fromUrl) {
+        if (isAlreadyLegalPage) {
+            const oldState = window.history.state || {};
+            window.history.replaceState({
+                ...oldState,
+                worthItLegalRoute: true,
+                worthItLegalCanReturn: oldState.worthItLegalCanReturn === true,
+                worthItLegalReturnUrl: oldState.worthItLegalReturnUrl || "/"
+            }, "", legalPath);
+        } else {
+            const returnUrl =
+                window.location.pathname + window.location.search + window.location.hash;
+            window.history.pushState({
+                worthItLegalRoute: true,
+                worthItLegalCanReturn: true,
+                worthItLegalReturnUrl: returnUrl
+            }, "", legalPath);
+        }
+    }
 
-    content.innerHTML =
-        WORTH_IT_LEGAL_DOCUMENTS[key].content;
+    title.textContent = WORTH_IT_LEGAL_DOCUMENTS[key].title;
+    content.innerHTML = WORTH_IT_LEGAL_DOCUMENTS[key].content;
 
     overlay.classList.add("open");
     overlay.setAttribute("aria-hidden", "false");
-    document.documentElement.classList.add("legal-open");
+    document.documentElement.classList.add("legal-open", "legal-page-mode");
 
     document.querySelectorAll("[data-legal-tab]").forEach(button => {
-        const active =
-            button.getAttribute("data-legal-tab") === key;
+        const active = button.getAttribute("data-legal-tab") === key;
         button.classList.toggle("active", active);
         button.setAttribute("aria-current", active ? "page" : "false");
     });
 
     content.scrollTop = 0;
+    window.scrollTo({top:0, behavior:"auto"});
     window.setTimeout(() => {
         content.focus({preventScroll:true});
     }, 0);
 }
 
-function closeLegalPage() {
+function closeLegalPage(options = {}) {
     const overlay = $("legalOverlay");
     if (!overlay) return;
-    overlay.classList.remove("open");
-    overlay.setAttribute("aria-hidden", "true");
-    document.documentElement.classList.remove("legal-open");
+
+    if (!options.fromHistory) {
+        const state = window.history.state || {};
+        if (state.worthItLegalRoute && state.worthItLegalCanReturn) {
+            window.history.back();
+            return;
+        }
+
+        const url = new URL(window.location.href);
+        url.pathname = "/";
+        url.searchParams.delete("legal");
+        window.history.replaceState(null, "", url.pathname + url.search + url.hash);
+    }
+
+    deactivateLegalPage(options);
 }
 
 window.openLegalPage = openLegalPage;
 window.closeLegalPage = closeLegalPage;
+
+window.addEventListener("popstate", () => {
+    const key = getLegalKeyFromLocation();
+    if (key) {
+        openLegalPage(key, {fromUrl:true});
+    } else {
+        closeLegalPage({fromHistory:true});
+    }
+});
 
 document.addEventListener("keydown", event => {
     if (
@@ -2620,6 +2694,11 @@ document.addEventListener("keydown", event => {
         closeLegalPage();
     }
 });
+
+const initialLegalKey = getLegalKeyFromLocation();
+if (initialLegalKey) {
+    openLegalPage(initialLegalKey, {fromUrl:true});
+}
 
 
 window.openCalculator =
