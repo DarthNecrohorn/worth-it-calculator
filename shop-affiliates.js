@@ -62,7 +62,7 @@ const SHOP_PARTNERS = [
         categoryIds: ["beauty-skincare", "fashion-accessories"],
         icon: "💄",
         status: "products-connected",
-        coverage: "35 currently verified shipping destinations",
+        coverage: "48 currently verified shipping destinations",
         note: "Current Shop products use verified Stylevana affiliate links."
     },
     {
@@ -70,18 +70,18 @@ const SHOP_PARTNERS = [
         name: "Shenzhen Feinuote Electronic Technology Co., Ltd.",
         categoryIds: ["phone-accessories"],
         icon: "📱",
-        status: "ready-to-connect",
-        coverage: "Mobile phone cases & accessories",
-        note: "Awin source identified; only products with verified affiliate URLs will be published."
+        status: "products-connected",
+        coverage: "Most of Europe & North America",
+        note: "200 products are imported from the approved Awin feed. The merchant describes regional shipping coverage but does not publish a complete country list."
     },
     {
         id: "dowinx-eu",
         name: "Dowinx (EU)",
         categoryIds: ["gaming-office"],
         icon: "🎮",
-        status: "ready-to-connect",
-        coverage: "European gaming & office chairs",
-        note: "Awin source identified; country availability will be attached per product."
+        status: "products-connected",
+        coverage: "Most of Europe",
+        note: "183 products are imported from the approved Awin feed. The listed shipping destinations are representative, not an exhaustive country list."
     },
     {
         id: "king-koil",
@@ -104,20 +104,20 @@ const SHOP_PARTNERS = [
     {
         id: "giftlab",
         name: "Giftlab",
-        categoryIds: ["personalized-gifts", "fashion-accessories"],
+        categoryIds: ["personalized-gifts"],
         icon: "🎁",
-        status: "ready-to-connect",
-        coverage: "Personalized gifts, fashion & accessories",
-        note: "Products will be curated before publication."
+        status: "products-connected",
+        coverage: "Worldwide — most countries",
+        note: "200 personalized-gift products are live from the approved Awin feed. Shipping coverage is regional and the representative country list is not exhaustive."
     },
     {
         id: "personalhour",
         name: "PersonalHour",
         categoryIds: ["fitness-wellness"],
         icon: "🧘",
-        status: "ready-to-connect",
-        coverage: "Fitness, Pilates & wellness",
-        note: "Destination availability will be attached per product."
+        status: "products-connected",
+        coverage: "United States — all 50 states",
+        note: "200 fitness, Pilates and wellness products are live from the approved Awin feed. Shipping coverage is based on the merchant's official policy; final delivery options can vary by product."
     },
     {
         id: "everblog-us",
@@ -160,9 +160,9 @@ const SHOP_PARTNERS = [
         name: "Alison US CA",
         categoryIds: ["education-online-courses"],
         icon: "🎓",
-        status: "ready-to-connect",
-        coverage: "Online courses & professional learning",
-        note: "Awin source joined; products will be published only with verified affiliate URLs and destination information."
+        status: "products-connected",
+        coverage: "Worldwide digital access",
+        note: "200 online-course products are live from the approved Awin feed. This is digital access, not physical shipping."
     }
 ];
 
