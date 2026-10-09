@@ -17020,13 +17020,15 @@ html[data-ui-scale="xl"] .auth-modal-overlay.signup-mode .auth-modal-card{
 .auth-modal-overlay.signup-mode .auth-modal-head{
     transform:translateY(10px);
 }
-/* Sign-in reached after Create account: move only its close button down 10px. */
+/* Sign-in reached after Create account: keep the close button aligned with the initial Sign in position. */
 .auth-modal-overlay.returned-signin-mode .auth-modal-close{
-    transform:translate(10px,10px);
+    transform:translate(10px,-10px);
 }
 .auth-modal-overlay.returned-signin-mode .auth-modal-close:hover,
-.auth-modal-overlay.returned-signin-mode .auth-modal-close:focus-visible{
-    transform:translate(10px,10px) !important;
+.auth-modal-overlay.returned-signin-mode .auth-modal-close:focus,
+.auth-modal-overlay.returned-signin-mode .auth-modal-close:focus-visible,
+.auth-modal-overlay.returned-signin-mode .auth-modal-close:active{
+    transform:translate(10px,-10px) !important;
 }
 .auth-username-rules{
     margin-top:4px;
