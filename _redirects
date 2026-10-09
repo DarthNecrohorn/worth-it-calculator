@@ -1,5 +1,11 @@
 # Public, shareable legal-document URLs. Keep the requested URL in the browser
 # while serving the single-page app that renders the matching document.
+/terms-of-use/ /terms-of-use 301
+/community-rules/ /community-rules 301
+/privacy-policy/ /privacy-policy 301
+/cookie-storage-policy/ /cookie-storage-policy 301
+/affiliate-disclosure/ /affiliate-disclosure 301
+/disclaimer/ /disclaimer 301
 /terms-of-use /index.html 200
 /community-rules /index.html 200
 /privacy-policy /index.html 200
