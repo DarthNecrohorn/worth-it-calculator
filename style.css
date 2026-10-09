@@ -17423,3 +17423,11 @@ html[data-ui-scale="xl"] .auth-modal-overlay.signup-mode .auth-modal-card{
         max-height:calc((100dvh - 24px) / var(--ui-scale,1)) !important;
     }
 }
+
+
+/* PHONE-ONLY SIGNUP MODAL: move the whole Create account card down by 50px. */
+@media (max-width:700px){
+    #authModalOverlay.signup-mode .auth-modal-card{
+        transform:translateY(50px) !important;
+    }
+}
