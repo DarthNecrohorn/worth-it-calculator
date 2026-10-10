@@ -3358,6 +3358,10 @@ if (moneySection) {
         marketsSection.style.display = "block";
     }
 
+    if (typeof window.refreshMarkets === "function") {
+        window.refreshMarkets();
+    }
+
     const navLinks =
         document.getElementById("navLinks");
 
@@ -3449,8 +3453,8 @@ if (moneySection) {
     moneySection.style.display = "block";
 }
 
-if (typeof initCurrenciesUI === "function") {
-    initCurrenciesUI();
+if (typeof window.initCurrenciesUI === "function") {
+    window.initCurrenciesUI();
 }
     
 const navLinks =
