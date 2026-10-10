@@ -76,6 +76,7 @@ const SHOP_PARTNERS = [
         icon: "💄",
         status: "products-connected",
         coverage: "48 currently verified shipping destinations",
+        details: "Beauty and skincare products, plus selected fashion items. The current Worth It catalogue uses verified Stylevana affiliate links; destination eligibility can vary by item.",
         note: "Current Shop products use verified Stylevana affiliate links."
     },
     {
@@ -85,6 +86,7 @@ const SHOP_PARTNERS = [
         icon: "📱",
         status: "products-connected",
         coverage: "Most of Europe & North America",
+        details: "Phone cases and related phone accessories. Worth It imports selected products from the approved Awin feed; shipping is described as regional and the merchant does not publish a complete destination list.",
         note: "200 products are imported from the approved Awin feed. The merchant describes regional shipping coverage but does not publish a complete country list."
     },
     {
@@ -94,6 +96,7 @@ const SHOP_PARTNERS = [
         icon: "🎮",
         status: "products-connected",
         coverage: "Most of Europe",
+        details: "Gaming and office seating for customers served by the EU programme. Selected products are imported from the approved Awin feed; listed destinations are representative rather than exhaustive.",
         note: "183 products are imported from the approved Awin feed. The listed shipping destinations are representative, not an exhaustive country list."
     },
     {
@@ -103,6 +106,7 @@ const SHOP_PARTNERS = [
         icon: "🛏️",
         status: "ready-to-connect",
         coverage: "Mattresses & sleep products",
+        details: "A potential source for mattresses and sleep-related products. Worth It will only list individual items after product information, affiliate tracking and shipping eligibility can be checked.",
         note: "Product availability will be verified item by item."
     },
     {
@@ -112,6 +116,7 @@ const SHOP_PARTNERS = [
         icon: "🚿",
         status: "ready-to-connect",
         coverage: "Bathroom & home",
+        details: "A potential source for bathroom and home products. No items will be listed until usable product data, tracked links and destination rules are verified.",
         note: "Simple Project products will be published only with verified destination rules."
     },
     {
@@ -121,6 +126,7 @@ const SHOP_PARTNERS = [
         icon: "🎁",
         status: "products-connected",
         coverage: "Worldwide — most countries",
+        details: "Personalized gifts for different occasions. Worth It currently lists selected products from the approved Awin feed. Shipping coverage is regional, and the displayed destination list is not exhaustive.",
         note: "200 personalized-gift products are live from the approved Awin feed. Shipping coverage is regional and the representative country list is not exhaustive."
     },
     {
@@ -130,7 +136,28 @@ const SHOP_PARTNERS = [
         icon: "🧘",
         status: "products-connected",
         coverage: "United States — all 50 states",
+        details: "Fitness, Pilates and wellness products. Worth It currently lists selected products from the approved Awin feed. The stated US coverage is based on merchant policy; final delivery options may vary by item.",
         note: "200 fitness, Pilates and wellness products are live from the approved Awin feed. Shipping coverage is based on the merchant's official policy; final delivery options can vary by product."
+    },
+    {
+        id: "toputure-us",
+        name: "Toputure - US",
+        categoryIds: ["fitness-wellness"],
+        icon: "🏃",
+        status: "offer-pending",
+        cardStatus: "Code pending",
+        cardSubtitle: "US programme · 10% code pending",
+        coverage: "United States (US affiliate programme)",
+        market: "United States (US affiliate programme)",
+        programStatus: "Joined on Awin; product feed and discount code are still pending.",
+        details: "Toputure sells at-home fitness equipment, including walking pads, treadmills and exercise bikes. Its US affiliate programme has welcomed Worth It. Product listings will be added only after the product feed and verified affiliate links are connected.",
+        shopStatusDetail: "No Toputure products are live yet. Worth It is awaiting the product feed and verified affiliate links before publishing products.",
+        specialOffer: {
+            title: "Exclusive 10% discount code",
+            statusLabel: "Code not issued yet",
+            status: "pending",
+            description: "Toputure has offered Worth It an exclusive 10% discount code for eligible Toputure products, excluding accessories. The actual code has not yet been issued to Worth It, so customers cannot redeem this offer through Worth It at this time."
+        }
     },
     {
         id: "everblog-us",
@@ -139,6 +166,7 @@ const SHOP_PARTNERS = [
         icon: "📅",
         status: "ready-to-connect",
         coverage: "United States family calendar",
+        details: "A family-tech source focused on calendar and family-organization products. It is being prepared for Worth It; products will be listed only after verified affiliate URLs and suitable product data are available.",
         note: "Awin source joined; products will be published only with verified affiliate URLs."
     },
     {
@@ -148,6 +176,7 @@ const SHOP_PARTNERS = [
         icon: "👨‍👩‍👧",
         status: "not-published",
         coverage: "Family entertainment & local experiences",
+        details: "A family-entertainment and local-experiences source. It is not currently published in Worth It because the programme relationship is not active.",
         note: "Awin source is listed, but the current account relationship is not joined; no products will be published until access is active."
     },
     {
@@ -157,6 +186,7 @@ const SHOP_PARTNERS = [
         icon: "🇭🇺",
         status: "ready-to-connect",
         coverage: "Lunzo.hu product catalogue",
+        details: "A fashion and accessories catalogue for the Hungarian market. Products will be added only when the feed and trackable affiliate links are available and checked.",
         note: "Awin source joined; product data feed will be used when available."
     },
     {
@@ -166,6 +196,7 @@ const SHOP_PARTNERS = [
         icon: "🇵🇱",
         status: "ready-to-connect",
         coverage: "Lunzo.pl product catalogue",
+        details: "A fashion and accessories catalogue for the Polish market. Products will be added only when the feed and trackable affiliate links are available and checked.",
         note: "Awin source joined; product data feed will be used when available."
     },
     {
@@ -175,6 +206,7 @@ const SHOP_PARTNERS = [
         icon: "🎓",
         status: "products-connected",
         coverage: "Worldwide digital access",
+        details: "Online learning and course products. Worth It currently lists selected products from the approved Awin feed. Access is digital, not physical shipping.",
         note: "200 online-course products are live from the approved Awin feed. This is digital access, not physical shipping."
     }
 ];
