@@ -61,11 +61,33 @@ const currenciesWikipediaCache = new Map();
 const currenciesWikipediaQueue = [];
 let currenciesWikipediaActive = 0;
 const CURRENCIES_WIKIPEDIA_CONCURRENCY = 3;
+/* Reuse currency descriptions across visits instead of querying Wikipedia
+   again every time the Currencies section is reopened or the page reloads. */
+const CURRENCIES_WIKIPEDIA_CACHE_PREFIX = "worthit.currencies.wikipedia.v1.";
+const CURRENCIES_WIKIPEDIA_CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+const CURRENCIES_WIKIPEDIA_NEGATIVE_TTL_MS = 6 * 60 * 60 * 1000;
 async function fetchCurrencyWikipedia(title, code = "") {
     const cleanTitle=String(title||"").trim(), fallbackTitle=cleanTitle||(code+" currency");
     if(!fallbackTitle)return null;
     const key=fallbackTitle.toLowerCase();
     if(currenciesWikipediaCache.has(key))return currenciesWikipediaCache.get(key);
+
+    const storageKey = CURRENCIES_WIKIPEDIA_CACHE_PREFIX + key;
+    try {
+        const raw = localStorage.getItem(storageKey);
+        if (raw) {
+            const cached = JSON.parse(raw);
+            const age = Date.now() - Number(cached?.savedAt || 0);
+            const ttl = cached?.info ? CURRENCIES_WIKIPEDIA_CACHE_TTL_MS : CURRENCIES_WIKIPEDIA_NEGATIVE_TTL_MS;
+            if (age >= 0 && age < ttl) {
+                const info = cached.info || null;
+                currenciesWikipediaCache.set(key, info);
+                return info;
+            }
+            localStorage.removeItem(storageKey);
+        }
+    } catch (_) {}
+
     try{
         let result=null;
         const response=await fetch("https://en.wikipedia.org/api/rest_v1/page/summary/"+encodeURIComponent(fallbackTitle.replace(/\s+/g,"_")));
@@ -75,8 +97,18 @@ async function fetchCurrencyWikipedia(title, code = "") {
             const data=search.ok?await search.json():null,hit=data?.query?.search?.[0];
             if(hit?.title){const fallback=await fetch("https://en.wikipedia.org/api/rest_v1/page/summary/"+encodeURIComponent(hit.title.replace(/\s+/g,"_")));if(fallback.ok){const info=await fallback.json();if(info?.extract&&info?.content_urls?.desktop?.page)result={extract:info.extract,url:info.content_urls.desktop.page};}}
         }
-        currenciesWikipediaCache.set(key,result);return result;
-    }catch{currenciesWikipediaCache.set(key,null);return null;}
+        currenciesWikipediaCache.set(key,result);
+        try {
+            localStorage.setItem(storageKey, JSON.stringify({ savedAt: Date.now(), info: result }));
+        } catch (_) {}
+        return result;
+    }catch{
+        currenciesWikipediaCache.set(key,null);
+        try {
+            localStorage.setItem(storageKey, JSON.stringify({ savedAt: Date.now(), info: null }));
+        } catch (_) {}
+        return null;
+    }
 }
 function queueCurrencyWikipedia(card,title,code){if(!card||card.dataset.wikipediaLoaded==="1"||card.dataset.wikipediaQueued==="1")return;card.dataset.wikipediaQueued="1";currenciesWikipediaQueue.push({card,title,code});processCurrencyWikipediaQueue();}
 function processCurrencyWikipediaQueue(){
@@ -95,7 +127,7 @@ function initialiseCurrencyWikipediaObserver(){
     const app=document.getElementById("currenciesApp");if(!app)return;
     const cards=app.querySelectorAll(".money-grid .money-card[data-wikipedia-title]");
     if(!("IntersectionObserver" in window)){cards.forEach(card=>queueCurrencyWikipedia(card,card.dataset.wikipediaTitle,card.dataset.wikipediaCode));return;}
-    const observer=new IntersectionObserver(entries=>entries.forEach(entry=>{if(entry.isIntersecting){queueCurrencyWikipedia(entry.target,entry.target.dataset.wikipediaTitle,entry.target.dataset.wikipediaCode);observer.unobserve(entry.target);}}),{rootMargin:"500px 0px",threshold:0.01});
+    const observer=new IntersectionObserver(entries=>entries.forEach(entry=>{if(entry.isIntersecting){queueCurrencyWikipedia(entry.target,entry.target.dataset.wikipediaTitle,entry.target.dataset.wikipediaCode);observer.unobserve(entry.target);}}),{rootMargin:"200px 0px",threshold:0.01});
     cards.forEach(card=>observer.observe(card));
 }
 
