@@ -211,6 +211,24 @@ const SHOP_PARTNERS = [
     }
 ];
 
+const SHOP_HIDDEN_SOURCE_IDS = new Set([
+    "king-koil",
+    "simple-project",
+    "getout",
+    "lunzo-hu",
+    "lunzo-pl",
+    "everblog-us"
+]);
+
+/*
+ * Keep hidden sources in SHOP_PARTNERS so product metadata and
+ * future reactivation remain intact; only omit them from the
+ * public "Affiliate sources we're curating" directory.
+ */
+const SHOP_VISIBLE_PARTNERS = SHOP_PARTNERS.filter(
+    partner => !SHOP_HIDDEN_SOURCE_IDS.has(partner.id)
+);
+
 /*
  * Current Stylevana destination coverage verified against
  * Stylevana's country-specific shipping pages on 2026-09-29.
