@@ -69,13 +69,17 @@
         setupSearch();
         setupGridEvents();
         setupDetailModal();
-        startAutoRefresh();
 
         /*
-         * Leaflet must be initialized only after the section is visible.
-         * Ship Tracking is hidden on first page load.
+         * Do not keep auto-refresh timers alive for a hidden map. The
+         * section's opener calls init() again after it becomes visible.
          */
-        if(section.style.display !== "none"){
+        if(
+            !section.hidden &&
+            section.style.display !== "none" &&
+            window.getComputedStyle(section).display !== "none"
+        ){
+            startAutoRefresh();
             prepareVisibleMap();
         }
     }
