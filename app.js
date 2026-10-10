@@ -3017,6 +3017,10 @@ function hideShipTrackingSection() {
     if(shipTrackingSection){
         shipTrackingSection.style.display = "none";
     }
+
+    if(typeof window.stopShipTrackingAutoRefresh === "function"){
+        window.stopShipTrackingAutoRefresh();
+    }
 }
 window.hideShipTrackingSection = hideShipTrackingSection;
 
