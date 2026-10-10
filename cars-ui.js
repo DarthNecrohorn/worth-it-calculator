@@ -15318,6 +15318,8 @@ const UNIFIED_BACKGROUND_WARMUP_MAX_PER_SESSION =
 
 let unifiedVehicleBackgroundWarmupPromise = null;
 let unifiedVehicleBackgroundWarmupActive = false;
+let unifiedVehicleBackgroundWarmupRestartRequested = false;
+let unifiedVehicleBackgroundWarmupAuthUserId = null;
 
 function buildUnifiedBackgroundWarmupCandidates(
     catalog
@@ -15449,6 +15451,17 @@ function getUnifiedBackgroundWarmupPause() {
 }
 
 async function startUnifiedVehicleBackgroundWarmup() {
+
+    /*
+     * Auth events can arrive while a warmup is still running. Never
+     * start a second full catalogue scan until the active run has
+     * finished; SIGNED_IN can request one queued run if the account
+     * genuinely changed while the current scan was anonymous.
+     */
+    if (unifiedVehicleBackgroundWarmupActive) {
+        return unifiedVehicleBackgroundWarmupPromise ||
+            Promise.resolve();
+    }
 
     if (unifiedVehicleBackgroundWarmupPromise) {
         return unifiedVehicleBackgroundWarmupPromise;
@@ -16220,6 +16233,28 @@ async function startUnifiedVehicleBackgroundWarmup() {
 
                 unifiedVehicleBackgroundWarmupActive = false;
 
+                /*
+                 * If a real sign-in happened during an anonymous warmup,
+                 * run the account-aware pass once after the current pass
+                 * settles. Multiple auth notifications are coalesced into
+                 * this single queued restart.
+                 */
+                if (
+                    unifiedVehicleBackgroundWarmupRestartRequested
+                ) {
+                    unifiedVehicleBackgroundWarmupRestartRequested =
+                        false;
+
+                    unifiedVehicleBackgroundWarmupPromise = null;
+
+                    window.setTimeout(
+                        () => {
+                            void startUnifiedVehicleBackgroundWarmup();
+                        },
+                        0
+                    );
+                }
+
             }
 
         })();
@@ -16589,34 +16624,89 @@ document.addEventListener(
         ) {
 
             window.supabaseClient.auth.onAuthStateChange(
-                (event) => {
+                (event, session) => {
+
+                    const nextUserId =
+                        session?.user?.id || null;
 
                     /*
-                     * TOKEN_REFRESHED is normal background Supabase
-                     * activity. It must not restart the entire vehicle
-                     * warmup, otherwise every refresh can create another
-                     * cache read/write wave.
+                     * INITIAL_SESSION describes the session already
+                     * available when this page loads. The initial warmup
+                     * is started below, so this event must not clear its
+                     * lock or schedule another catalogue pass.
+                     */
+                    if (event === "INITIAL_SESSION") {
+                        unifiedVehicleBackgroundWarmupAuthUserId =
+                            nextUserId;
+                        return;
+                    }
+
+                    /*
+                     * Token refreshes are routine. They must not start
+                     * another full vehicle scan or cloud-cache sync.
                      */
                     if (event === "TOKEN_REFRESHED") {
                         return;
                     }
 
-                    vehicleAccountCacheOwnerPromise =
-                        null;
-
-                    unifiedVehicleBackgroundWarmupPromise =
-                        null;
-
-                    unifiedVehicleBackgroundWarmupActive =
-                        false;
-
                     if (event === "SIGNED_IN") {
+
+                        /*
+                         * Supabase can notify SIGNED_IN more than once
+                         * for the same account. Only a genuinely new
+                         * account session needs a warmup pass.
+                         */
+                        if (
+                            !nextUserId ||
+                            nextUserId ===
+                                unifiedVehicleBackgroundWarmupAuthUserId
+                        ) {
+                            return;
+                        }
+
+                        unifiedVehicleBackgroundWarmupAuthUserId =
+                            nextUserId;
+
+                        vehicleAccountCacheOwnerPromise =
+                            null;
+
+                        if (unifiedVehicleBackgroundWarmupActive) {
+                            unifiedVehicleBackgroundWarmupRestartRequested =
+                                true;
+                            return;
+                        }
+
+                        unifiedVehicleBackgroundWarmupPromise =
+                            null;
+
                         window.setTimeout(
                             () => {
                                 void startUnifiedVehicleBackgroundWarmup();
                             },
                             0
                         );
+
+                        return;
+                    }
+
+                    if (event === "SIGNED_OUT") {
+
+                        unifiedVehicleBackgroundWarmupAuthUserId =
+                            null;
+
+                        vehicleAccountCacheOwnerPromise =
+                            null;
+
+                        /*
+                         * Do not release the active-run lock from inside
+                         * the auth callback. The running task owns its
+                         * lock until its finally block completes.
+                         */
+                        if (!unifiedVehicleBackgroundWarmupActive) {
+                            unifiedVehicleBackgroundWarmupPromise =
+                                null;
+                        }
+
                     }
 
                 }
