@@ -15946,9 +15946,15 @@ async function startUnifiedVehicleBackgroundWarmup() {
 
                 let nextIndex = 0;
 
+                /*
+                 * Stop as soon as the 2000-item target is filled. The
+                 * candidate pool is deliberately larger to replace missing
+                 * records, but scanning the remaining pool after the target
+                 * is reached only creates unnecessary details requests.
+                 */
                 while (
-                    nextIndex <
-                        candidates.length
+                    nextIndex < candidates.length &&
+                    validVehicles.length < MAX_UNIFIED_VEHICLES
                 ) {
 
                     if (!canRunUnifiedVehicleBackgroundWarmup()) {
@@ -15956,13 +15962,17 @@ async function startUnifiedVehicleBackgroundWarmup() {
                         return;
                     }
 
+                    const remainingSlots =
+                        MAX_UNIFIED_VEHICLES - validVehicles.length;
+                    const batchLimit = Math.min(
+                        UNIFIED_BACKGROUND_WARMUP_BATCH_SIZE,
+                        Math.max(4, remainingSlots)
+                    );
                     const batch = [];
 
                     while (
-                        nextIndex <
-                            candidates.length &&
-                        batch.length <
-                            UNIFIED_BACKGROUND_WARMUP_BATCH_SIZE
+                        nextIndex < candidates.length &&
+                        batch.length < batchLimit
                     ) {
 
                         const vehicle =
@@ -16006,6 +16016,12 @@ async function startUnifiedVehicleBackgroundWarmup() {
                     let cloudRecords = [];
 
                     for (const result of results) {
+
+                        if (
+                            validVehicles.length >= MAX_UNIFIED_VEHICLES
+                        ) {
+                            break;
+                        }
 
                         if (
                             result?.usable !== true
