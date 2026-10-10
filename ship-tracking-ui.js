@@ -3509,6 +3509,20 @@
         }, CONFIG.MAP_BASE_REFRESH_MS);
     }
 
+    function stopAutoRefresh(){
+        if(autoRefreshTimer){
+            window.clearInterval(autoRefreshTimer);
+            autoRefreshTimer = null;
+        }
+
+        if(mapBaseRefreshTimer){
+            window.clearInterval(mapBaseRefreshTimer);
+            mapBaseRefreshTimer = null;
+        }
+    }
+
+    window.stopShipTrackingAutoRefresh = stopAutoRefresh;
+
     function updateAttribution(attributions){
         const target = get("shipTrackingAttributionText");
 
