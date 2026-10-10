@@ -1,15 +1,29 @@
 const TOTALS_TABLE = "admin_api_usage_totals_v2";
 const DAILY_TABLE = "admin_api_usage_daily_v2";
 
-const CREATE_TOTALS_SQL =
-    "CREATE TABLE IF NOT EXISTS " +
-    TOTALS_TABLE +
-    " (api_key TEXT PRIMARY KEY, provider TEXT NOT NULL, total_requests INTEGER NOT NULL DEFAULT 0, first_seen_at TEXT NOT NULL, last_seen_at TEXT NOT NULL)";
-
 const CREATE_DAILY_SQL =
     "CREATE TABLE IF NOT EXISTS " +
     DAILY_TABLE +
     " (api_key TEXT NOT NULL, provider TEXT NOT NULL, usage_date TEXT NOT NULL, requests INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (api_key, usage_date))";
+
+/*
+ * D1 should not execute CREATE TABLE statements and update two tables
+ * for every API request. Ensure the daily table once per Worker isolate;
+ * admin-stats also provisions it as a recovery path.
+ */
+let dailyTableReadyPromise = null;
+
+function ensureDailyTable(db) {
+    if (!dailyTableReadyPromise) {
+        dailyTableReadyPromise =
+            db.prepare(CREATE_DAILY_SQL).run().catch(error => {
+                dailyTableReadyPromise = null;
+                throw error;
+            });
+    }
+
+    return dailyTableReadyPromise;
+}
 
 function normalizeEntry(entry) {
     const apiKey =
@@ -61,44 +75,19 @@ export function recordAdminApiUsage(
         return;
     }
 
-    const now =
-        new Date();
-
     const timestamp =
-        now.toISOString();
+        new Date().toISOString();
 
     const usageDate =
-        timestamp.slice(
-            0,
-            10
-        );
+        timestamp.slice(0, 10);
 
-    const statements = [
-        db.prepare(CREATE_TOTALS_SQL),
-        db.prepare(CREATE_DAILY_SQL)
-    ];
-
-    for (const entry of normalizedEntries) {
-        statements.push(
-            db.prepare(
-                "INSERT INTO " +
-                TOTALS_TABLE +
-                " (api_key, provider, total_requests, first_seen_at, last_seen_at) " +
-                "VALUES (?, ?, ?, ?, ?) " +
-                "ON CONFLICT(api_key) DO UPDATE SET " +
-                "provider = excluded.provider, " +
-                "total_requests = total_requests + excluded.total_requests, " +
-                "last_seen_at = excluded.last_seen_at"
-            ).bind(
-                entry.apiKey,
-                entry.provider,
-                entry.requests,
-                timestamp,
-                timestamp
-            )
-        );
-
-        statements.push(
+    /*
+     * Daily rows are the source of truth. Lifetime totals are calculated
+     * by aggregating these compact rows in admin-stats.js, so each tracked
+     * event writes only one daily row instead of both totals and daily.
+     */
+    const statements =
+        normalizedEntries.map(entry =>
             db.prepare(
                 "INSERT INTO " +
                 DAILY_TABLE +
@@ -114,17 +103,16 @@ export function recordAdminApiUsage(
                 entry.requests
             )
         );
-    }
 
     const task =
-        db.batch(
-            statements
-        ).catch(error => {
-            console.error(
-                "Admin API usage tracking failed:",
-                error
-            );
-        });
+        ensureDailyTable(db)
+            .then(() => db.batch(statements))
+            .catch(error => {
+                console.error(
+                    "Admin API usage tracking failed:",
+                    error
+                );
+            });
 
     if (
         typeof context?.waitUntil === "function"
