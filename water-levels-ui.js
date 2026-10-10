@@ -4743,7 +4743,8 @@
         if(
             !section ||
             section.hidden ||
-            section.style.display === "none"
+            section.style.display === "none" ||
+            window.getComputedStyle(section).display === "none"
         ){
             return false;
         }
@@ -4759,10 +4760,12 @@
         waterAutoRefreshTimer =
             window.setTimeout(
                 async function(){
-                    if(
-                        !state.loading &&
-                        isWaterLevelsAutoRefreshAllowed()
-                    ){
+                    if (!isWaterLevelsAutoRefreshAllowed()) {
+                        waterAutoRefreshTimer = null;
+                        return;
+                    }
+
+                    if (!state.loading) {
                         try{
                             await loadStations({
                                 force:false,
@@ -4778,7 +4781,11 @@
                         }
                     }
 
-                    scheduleWaterLevelsAutoRefresh();
+                    if (isWaterLevelsAutoRefreshAllowed()) {
+                        scheduleWaterLevelsAutoRefresh();
+                    } else {
+                        waterAutoRefreshTimer = null;
+                    }
                 },
                 WATER_AUTO_REFRESH_INTERVAL_MS
             );
@@ -5053,7 +5060,11 @@
 
         setupFilters();
         setupSearch();
-        scheduleWaterLevelsAutoRefresh();
+
+        if (isWaterLevelsAutoRefreshAllowed()) {
+            scheduleWaterLevelsAutoRefresh();
+        }
+
         setupCardActions();
         setupDetailModal();
         setupKeyboard();
@@ -5071,7 +5082,9 @@
             state.stations.length === 0 &&
             !state.loading
         ){
-            loadStations();
+            if (isWaterLevelsAutoRefreshAllowed()) {
+                loadStations();
+            }
         }else{
             renderCards();
         }
