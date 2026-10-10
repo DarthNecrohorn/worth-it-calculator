@@ -394,6 +394,228 @@
         };
     }
 
+
+    function getPartnerCoverageText(partner, items){
+        const shippingCoverage =
+            getPartnerShippingCoverage(partner.id, items);
+
+        if(partner.cardSubtitle){
+            return partner.cardSubtitle;
+        }
+
+        if(shippingCoverage.digitalLabels.length){
+            return shippingCoverage.digitalLabels.join(" / ");
+        }
+
+        if(shippingCoverage.regionalLabels.length){
+            return shippingCoverage.regionalLabels.join(" / ") +
+                (shippingCoverage.countryCount > 0
+                    ? " · " + shippingCoverage.countryCount + " listed destinations"
+                    : "");
+        }
+
+        if(shippingCoverage.coverageLabels.length){
+            return shippingCoverage.coverageLabels.join(" / ");
+        }
+
+        if(shippingCoverage.countryCount > 0){
+            return shippingCoverage.countryCount +
+                " currently represented shipping destination" +
+                (shippingCoverage.countryCount === 1 ? "" : "s");
+        }
+
+        if(partner.status === "not-published"){
+            return "No verified shipping destinations — programme not published";
+        }
+
+        return partner.coverage || "Shipping details not verified yet";
+    }
+
+    function getPartnerDetailsHTML(partner, allItems){
+        const productCount =
+            allItems.filter(deal => deal?.partnerId === partner.id).length;
+
+        const categoryNames =
+            (Array.isArray(partner.categoryIds) ? partner.categoryIds : [])
+                .map(id => getCategoryDefinition(id)?.label)
+                .filter(Boolean)
+                .join(", ") || "Not yet assigned";
+
+        const coverage =
+            partner.market ||
+            getPartnerCoverageText(partner, allItems);
+
+        const description =
+            partner.details ||
+            partner.note ||
+            "Worth It is reviewing this affiliate source before publishing products.";
+
+        const programmeStatus =
+            partner.programStatus ||
+            (productCount > 0
+                ? "Products connected"
+                : partner.status === "not-published"
+                    ? "Not currently published"
+                    : "Products being curated");
+
+        const shopStatus =
+            productCount > 0
+                ? productCount + " curated product" +
+                    (productCount === 1 ? "" : "s") +
+                    " currently available in Worth It Shop."
+                : partner.shopStatusDetail ||
+                    "No products from this source are currently listed in Worth It Shop.";
+
+        const specialOfferHTML =
+            partner.specialOffer
+                ? '<section class="shop-partner-special-offer">' +
+                    '<div class="shop-partner-special-offer-head">' +
+                        '<h4>' + escapeHTML(partner.specialOffer.title || "Special offer") + '</h4>' +
+                        '<span>' + escapeHTML(partner.specialOffer.statusLabel || "Offer details pending") + '</span>' +
+                    '</div>' +
+                    '<p>' + escapeHTML(partner.specialOffer.description || "") + '</p>' +
+                  '</section>'
+                : "";
+
+        return [
+            '<div class="shop-partner-detail-summary">',
+                '<p id="shopPartnerModalIntro">' + escapeHTML(description) + '</p>',
+            '</div>',
+            '<div class="shop-partner-detail-grid">',
+                '<div class="shop-partner-detail-item">',
+                    '<span class="shop-partner-detail-label">Category</span>',
+                    '<strong>' + escapeHTML(categoryNames) + '</strong>',
+                '</div>',
+                '<div class="shop-partner-detail-item">',
+                    '<span class="shop-partner-detail-label">Market / coverage</span>',
+                    '<strong>' + escapeHTML(coverage) + '</strong>',
+                '</div>',
+                '<div class="shop-partner-detail-item">',
+                    '<span class="shop-partner-detail-label">Programme status</span>',
+                    '<strong>' + escapeHTML(programmeStatus) + '</strong>',
+                '</div>',
+                '<div class="shop-partner-detail-item">',
+                    '<span class="shop-partner-detail-label">Worth It Shop</span>',
+                    '<strong>' + escapeHTML(shopStatus) + '</strong>',
+                '</div>',
+            '</div>',
+            specialOfferHTML,
+            '<p class="shop-partner-modal-disclosure">Worth It may earn a commission when you buy through an affiliate link. Product availability, prices, shipping eligibility and offer terms can change. Confirm the final details with the retailer before purchasing.</p>'
+        ].join("");
+    }
+
+    function setupShopPartnerDetails(container, allItems){
+        const overlay =
+            container.querySelector("#shopPartnerModal");
+
+        const dialog =
+            overlay?.querySelector(".shop-partner-modal");
+
+        const body =
+            overlay?.querySelector("#shopPartnerModalBody");
+
+        const title =
+            overlay?.querySelector("#shopPartnerModalTitle");
+
+        const icon =
+            overlay?.querySelector("#shopPartnerModalIcon");
+
+        const closeButton =
+            overlay?.querySelector("[data-shop-partner-close='true']");
+
+        if(!overlay || !dialog || !body || !title || !closeButton){
+            return;
+        }
+
+        let lastTrigger = null;
+
+        function closeModal(){
+            overlay.hidden = true;
+            overlay.classList.remove("open");
+            overlay.setAttribute("aria-hidden", "true");
+            document.body.classList.remove("shop-partner-modal-open");
+
+            if(lastTrigger && lastTrigger.isConnected){
+                lastTrigger.focus();
+            }
+
+            lastTrigger = null;
+        }
+
+        function openModal(partnerId, trigger){
+            const partner =
+                SHOP_PARTNERS.find(item => item.id === partnerId);
+
+            if(!partner){
+                return;
+            }
+
+            lastTrigger = trigger;
+            title.textContent = partner.name;
+            if(icon){
+                icon.textContent = partner.icon || "🏷️";
+            }
+
+            body.innerHTML =
+                getPartnerDetailsHTML(partner, allItems);
+
+            overlay.hidden = false;
+            overlay.classList.add("open");
+            overlay.setAttribute("aria-hidden", "false");
+            document.body.classList.add("shop-partner-modal-open");
+            closeButton.focus();
+        }
+
+        container
+            .querySelectorAll("[data-shop-partner-id]")
+            .forEach(button => {
+                button.addEventListener("click", function(){
+                    openModal(button.dataset.shopPartnerId, button);
+                });
+            });
+
+        closeButton.addEventListener("click", closeModal);
+
+        overlay.addEventListener("click", function(event){
+            if(event.target === overlay){
+                closeModal();
+            }
+        });
+
+        dialog.addEventListener("keydown", function(event){
+            if(event.key === "Escape"){
+                event.preventDefault();
+                closeModal();
+                return;
+            }
+
+            if(event.key === "Tab"){
+                const focusable =
+                    Array.from(
+                        dialog.querySelectorAll(
+                            "button:not([disabled]), a[href], input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex='-1'])"
+                        )
+                    );
+
+                if(!focusable.length){
+                    return;
+                }
+
+                const first = focusable[0];
+                const last = focusable[focusable.length - 1];
+
+                if(event.shiftKey && document.activeElement === first){
+                    event.preventDefault();
+                    last.focus();
+                }
+                else if(!event.shiftKey && document.activeElement === last){
+                    event.preventDefault();
+                    first.focus();
+                }
+            }
+        });
+    }
+
     function getCategoryDefinition(categoryId){
         if(!categoryId || !Array.isArray(SHOP_CATEGORIES)){
             return null;
@@ -1746,27 +1968,18 @@ function renderShop(container){
                         );
 
                     const coverageText =
-                        shippingCoverage.digitalLabels.length
-                            ? shippingCoverage.digitalLabels.join(" / ")
-                            : shippingCoverage.regionalLabels.length
-                                ? `${shippingCoverage.regionalLabels.join(" / ")}${shippingCoverage.countryCount > 0 ? ` · ${shippingCoverage.countryCount} listed destinations` : ""}`
-                                : shippingCoverage.coverageLabels.length
-                                    ? shippingCoverage.coverageLabels.join(" / ")
-                                    : shippingCoverage.countryCount > 0
-                                        ? `${shippingCoverage.countryCount} currently represented shipping destination${shippingCoverage.countryCount === 1 ? "" : "s"}`
-                                        : partner.status === "not-published"
-                                            ? "No verified shipping destinations — programme not published"
-                                            : "No verified shipping destinations yet";
+                        getPartnerCoverageText(partner, allItems);
 
                     const status =
                         productCount > 0
                             ? "Live now"
-                            : partner.status === "not-published"
-                                ? "Not published"
-                                : "Curating";
+                            : partner.cardStatus ||
+                                (partner.status === "not-published"
+                                    ? "Not published"
+                                    : "Curating");
 
                     return `
-                        <div class="shop-partner-card">
+                        <button type="button" class="shop-partner-card" data-shop-partner-id="${escapeHTML(partner.id)}" data-shop-partner-coverage="${escapeHTML(coverageText)}" aria-haspopup="dialog" aria-controls="shopPartnerModal" aria-label="View details for ${escapeHTML(partner.name)}" title="View partner details">
                             <div class="shop-partner-icon">
                                 ${partner.icon}
                             </div>
@@ -1774,10 +1987,10 @@ function renderShop(container){
                                 <strong>${escapeHTML(partner.name)}</strong>
                                 <span>${escapeHTML(coverageText)}</span>
                             </div>
-                            <span class="shop-partner-status ${productCount > 0 ? "live" : ""}">
+                            <span class="shop-partner-status ${productCount > 0 ? "live" : partner.status === "offer-pending" ? "pending" : ""}">
                                 ${escapeHTML(status)}
                             </span>
-                        </div>
+                        </button>
                     `;
                 }
             )
@@ -1893,10 +2106,27 @@ function renderShop(container){
             Prices, stock, shipping costs and destination eligibility can change at the merchant.
             Always confirm the final details at checkout.
         </div>
+
+        <div class="shop-partner-modal-overlay" id="shopPartnerModal" hidden aria-hidden="true">
+            <div class="shop-partner-modal" role="dialog" aria-modal="true" aria-labelledby="shopPartnerModalTitle" aria-describedby="shopPartnerModalIntro" tabindex="-1">
+                <div class="shop-partner-modal-header">
+                    <div class="shop-partner-modal-brand">
+                        <div class="shop-partner-modal-icon" id="shopPartnerModalIcon" aria-hidden="true">🤝</div>
+                        <div class="shop-partner-modal-title-wrap">
+                            <span>Affiliate programme</span>
+                            <h3 id="shopPartnerModalTitle">Partner details</h3>
+                        </div>
+                    </div>
+                    <button type="button" class="shop-partner-modal-close" data-shop-partner-close="true" aria-label="Close partner details">×</button>
+                </div>
+                <div class="shop-partner-modal-body" id="shopPartnerModalBody"></div>
+            </div>
+        </div>
     `;
 
     setupShopFilters();
     renderShopGrid();
+    setupShopPartnerDetails(container, allItems);
 }
 
     /* =================================================
