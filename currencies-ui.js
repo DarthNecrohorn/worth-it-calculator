@@ -72,6 +72,8 @@ async function fetchCurrencyWikipedia(title, code = "") {
     const key=fallbackTitle.toLowerCase();
     if(currenciesWikipediaCache.has(key))return currenciesWikipediaCache.get(key);
 
+    /* Wikipedia's canonical title uses lowercase "kwanza" for Angola. */
+    const directTitle = key === "angolan kwanza" ? "Angolan kwanza" : fallbackTitle;
     const storageKey = CURRENCIES_WIKIPEDIA_CACHE_PREFIX + key;
     try {
         const raw = localStorage.getItem(storageKey);
@@ -90,7 +92,7 @@ async function fetchCurrencyWikipedia(title, code = "") {
 
     try{
         let result=null;
-        const response=await fetch("https://en.wikipedia.org/api/rest_v1/page/summary/"+encodeURIComponent(fallbackTitle.replace(/\s+/g,"_")));
+        const response=await fetch("https://en.wikipedia.org/api/rest_v1/page/summary/"+encodeURIComponent(directTitle.replace(/\s+/g,"_")));
         if(response.ok){const data=await response.json();if(data?.extract&&data?.content_urls?.desktop?.page)result={extract:data.extract,url:data.content_urls.desktop.page};}
         if(!result){
             const search=await fetch("https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch="+encodeURIComponent(fallbackTitle+" currency")+"&utf8=1&format=json&origin=*");
