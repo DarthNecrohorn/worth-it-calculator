@@ -16307,6 +16307,25 @@ async function startUnifiedVehicleBackgroundWarmup() {
 }
 
 /*
+ * Resume a paused Cars warmup when the browser tab becomes visible
+ * again, but only if the Cars section itself is still open.
+ */
+if (!window.__worthitCarsWarmupVisibilityBound) {
+    window.__worthitCarsWarmupVisibilityBound = true;
+
+    document.addEventListener("visibilitychange", function(){
+        if (
+            document.visibilityState !== "hidden" &&
+            canRunUnifiedVehicleBackgroundWarmup() &&
+            !unifiedVehicleBackgroundWarmupActive &&
+            !unifiedVehicleBackgroundWarmupPromise
+        ) {
+            void startUnifiedVehicleBackgroundWarmup();
+        }
+    });
+}
+
+/*
  * ============================================================
  * OPEN CARS
  * ============================================================
