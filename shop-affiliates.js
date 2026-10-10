@@ -139,26 +139,7 @@ const SHOP_PARTNERS = [
         details: "Fitness, Pilates and wellness products. Worth It currently lists selected products from the approved Awin feed. The stated US coverage is based on merchant policy; final delivery options may vary by item.",
         note: "200 fitness, Pilates and wellness products are live from the approved Awin feed. Shipping coverage is based on the merchant's official policy; final delivery options can vary by product."
     },
-    {
-        id: "toputure-us",
-        name: "Toputure - US",
-        categoryIds: ["fitness-wellness"],
-        icon: "🏃",
-        status: "offer-pending",
-        cardStatus: "Code pending",
-        cardSubtitle: "US programme · 10% code pending",
-        coverage: "United States (US affiliate programme)",
-        market: "United States (US affiliate programme)",
-        programStatus: "Joined on Awin; product-feed integration and the discount code are not yet complete.",
-        details: "Toputure sells at-home fitness equipment, including walking pads, treadmills and exercise bikes. Its US affiliate programme has welcomed Worth It. Product listings will be added only after product data and verified affiliate links are connected.",
-        shopStatusDetail: "No Toputure products are live yet. Worth It has not yet connected product data and verified affiliate links for this programme.",
-        specialOffer: {
-            title: "Exclusive 10% discount code",
-            statusLabel: "Code not issued yet",
-            status: "pending",
-            description: "Toputure has offered Worth It an exclusive 10% discount code for eligible Toputure products, excluding accessories. The actual code has not yet been issued to Worth It, so customers cannot redeem this offer through Worth It at this time."
-        }
-    },
+
     {
         id: "everblog-us",
         name: "Everblog US",
