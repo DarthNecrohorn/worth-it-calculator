@@ -533,12 +533,24 @@ export async function onRequestGet(
             )
             .run();
 
+        /*
+         * Daily usage rows are the source of truth. Derive lifetime
+         * totals from them to avoid a second D1 write for every tracked
+         * API event. First/last-seen precision is intentionally day-level.
+         */
         const totalResult =
             await db
                 .prepare(
-                    "SELECT api_key, provider, total_requests, first_seen_at, last_seen_at " +
-                    "FROM admin_api_usage_totals_v2 " +
-                    "ORDER BY total_requests DESC"
+                    "SELECT latest.api_key, latest.provider, totals.total_requests, " +
+                    "totals.first_seen_at, totals.last_seen_at " +
+                    "FROM admin_api_usage_daily_v2 AS latest " +
+                    "JOIN (" +
+                    "SELECT api_key, SUM(requests) AS total_requests, " +
+                    "MIN(usage_date) AS first_seen_at, MAX(usage_date) AS last_seen_at " +
+                    "FROM admin_api_usage_daily_v2 GROUP BY api_key" +
+                    ") AS totals ON totals.api_key = latest.api_key " +
+                    "AND totals.last_seen_at = latest.usage_date " +
+                    "ORDER BY totals.total_requests DESC"
                 )
                 .all();
 
