@@ -5,6 +5,10 @@
   const CACHE_KEY="worthit.crypto.market.v1";
   const BROWSER_FRESH_MS=5*60*1000;
   const BROWSER_STALE_MS=30*60*1000;
+  const CRYPTO_IMAGE_CACHE_PREFIX="worthit.crypto.image.v1.";
+  const CRYPTO_IMAGE_CACHE_TTL_MS=7*24*60*60*1000;
+  const CRYPTO_IMAGE_NEGATIVE_TTL_MS=6*60*60*1000;
+  const cryptoImagePromises=new Map();
   const DETAIL_BROWSER_CACHE="worthit.crypto.detail.v6.";
   const $=id=>document.getElementById(id);
   const esc=v=>String(v==null?"":v).replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;");
@@ -445,9 +449,49 @@
       g.after(pager);
     }
   }
-  async function loadImage(img){try{const r=await fetch("/api/crypto?action=image&name="+encodeURIComponent(img.dataset.coinName)+"&symbol="+encodeURIComponent(img.dataset.coinSymbol),{cache:"force-cache"});if(!r.ok)return;const d=await r.json();if(d.image&&d.image.url){img.src=d.image.url;img.alt=img.dataset.coinName+" logo";img.onload=()=>img.classList.add("loaded");}}catch(e){console.warn("Crypto image load failed",e);}}
+  function applyCryptoImage(img,image){if(!image||!image.url)return false;img.src=image.url;img.alt=img.dataset.coinName+" logo";img.onload=()=>img.classList.add("loaded");return true;}
+  function cryptoImageCacheKey(img){const card=img.closest(".crypto-card");const id=String(card?.dataset.cryptoId||"").trim();const symbol=String(img.dataset.coinSymbol||"").trim().toUpperCase();return CRYPTO_IMAGE_CACHE_PREFIX+(id||symbol||String(img.dataset.coinName||"").trim().toLowerCase());}
+  async function loadImage(img){
+    const key=cryptoImageCacheKey(img);
+    const now=Date.now();
+    try{
+      const raw=localStorage.getItem(key);
+      if(raw){
+        const cached=JSON.parse(raw);
+        const age=now-Number(cached?.savedAt||0);
+        const ttl=cached?.image?.url?CRYPTO_IMAGE_CACHE_TTL_MS:CRYPTO_IMAGE_NEGATIVE_TTL_MS;
+        if(age>=0&&age<ttl){
+          applyCryptoImage(img,cached.image);
+          return;
+        }
+        localStorage.removeItem(key);
+      }
+    }catch(e){}
+    let promise=cryptoImagePromises.get(key);
+    if(!promise){
+      promise=(async()=>{
+        const r=await fetch("/api/crypto?action=image&name="+encodeURIComponent(img.dataset.coinName)+"&symbol="+encodeURIComponent(img.dataset.coinSymbol),{cache:"force-cache"});
+        if(!r.ok)return null;
+        const d=await r.json();
+        const image=d?.image&&d.image.url?d.image:null;
+        try{
+          localStorage.setItem(key,JSON.stringify({savedAt:Date.now(),image}));
+        }catch(e){}
+        return image;
+      })();
+      cryptoImagePromises.set(key,promise);
+    }
+    try{
+      const image=await promise;
+      applyCryptoImage(img,image);
+    }catch(e){
+      console.warn("Crypto image load failed",e);
+    }finally{
+      if(cryptoImagePromises.get(key)===promise)cryptoImagePromises.delete(key);
+    }
+  }
   function runQueue(){while(state.active<state.max&&state.queue.length){const img=state.queue.shift();if(!img||img.dataset.queued==="1")continue;img.dataset.queued="1";state.active++;loadImage(img).finally(()=>{state.active--;runQueue();});}}
-  function observeImages(){state.queue=[];const imgs=[...document.querySelectorAll("#cryptoGrid .crypto-image")];if(!imgs.length)return;if(!("IntersectionObserver"in window)){state.queue=imgs;runQueue();return;}const o=new IntersectionObserver(es=>{es.forEach(e=>{if(e.isIntersecting){o.unobserve(e.target);if(e.target.dataset.queued!=="1")state.queue.push(e.target);}});runQueue();},{rootMargin:"500px 0px"});imgs.forEach(i=>o.observe(i));}
+  function observeImages(){state.queue=[];const imgs=[...document.querySelectorAll("#cryptoGrid .crypto-image")];if(!imgs.length)return;if(!("IntersectionObserver"in window)){state.queue=imgs;runQueue();return;}const o=new IntersectionObserver(es=>{es.forEach(e=>{if(e.isIntersecting){o.unobserve(e.target);if(e.target.dataset.queued!=="1")state.queue.push(e.target);}});runQueue();},{rootMargin:"150px 0px"});imgs.forEach(i=>o.observe(i));}
   function readBrowserCache(allowStale){
     try{
       const raw=localStorage.getItem(CACHE_KEY);
