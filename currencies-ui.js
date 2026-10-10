@@ -1010,8 +1010,8 @@ async function initCurrenciesApp() {
     }
 }
 
-if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", initCurrenciesApp);
-} else {
-    initCurrenciesApp();
-}
+/*
+ * Currencies are loaded lazily when the visitor opens the Currencies
+ * section. This avoids an API request for people who never use it.
+ */
+window.initCurrenciesUI = initCurrenciesApp;
