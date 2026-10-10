@@ -32,6 +32,15 @@
 
 let marketsData = [];
 
+/*
+ * Markets data changes monthly. Avoid duplicate/hidden-page work:
+ * one refresh at a time and at most one refresh every 30 minutes
+ * unless a future explicit force refresh is introduced.
+ */
+let marketsRefreshInProgress = false;
+let marketsLastRefreshAt = 0;
+const MARKETS_MIN_REFRESH_INTERVAL_MS = 30 * 60 * 1000;
+
 let marketsExchangeRate = null;
 
 let marketsCurrentCategory =
@@ -5286,13 +5295,32 @@ async function refreshMarkets() {
             "materialsGrid"
         );
 
+    const section =
+        document.getElementById("marketsSection");
 
-    if (!grid) {
-
+    if (
+        !grid ||
+        !section ||
+        section.hidden ||
+        window.getComputedStyle(section).display === "none" ||
+        document.visibilityState === "hidden"
+    ) {
         return;
-
     }
 
+    if (marketsRefreshInProgress) {
+        return;
+    }
+
+    if (
+        marketsData.length &&
+        Date.now() - marketsLastRefreshAt <
+            MARKETS_MIN_REFRESH_INTERVAL_MS
+    ) {
+        return;
+    }
+
+    marketsRefreshInProgress = true;
 
     try {
 
@@ -5405,6 +5433,8 @@ async function refreshMarkets() {
 
         }
 
+        marketsLastRefreshAt = Date.now();
+
     }
     catch (error) {
 
@@ -5418,6 +5448,9 @@ async function refreshMarkets() {
             "Could not load World Bank market data."
         );
 
+    }
+    finally {
+        marketsRefreshInProgress = false;
     }
 }
 
@@ -5492,8 +5525,10 @@ document.addEventListener(
 
         updateMarketsGoBackUpButton();
 
-
-        refreshMarkets();
+        /*
+         * Do not fetch market data on every homepage visit.
+         * openMarkets() triggers the first refresh when needed.
+         */
 
     }
 );
@@ -5508,10 +5543,17 @@ document.addEventListener(
 
 setInterval(
     () => {
+        const section =
+            document.getElementById("marketsSection");
 
-        refreshMarkets();
-
+        if (
+            section &&
+            !section.hidden &&
+            window.getComputedStyle(section).display !== "none" &&
+            document.visibilityState !== "hidden"
+        ) {
+            refreshMarkets();
+        }
     },
-
     60 * 60 * 1000
 );
