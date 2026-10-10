@@ -149,9 +149,9 @@ const SHOP_PARTNERS = [
         cardSubtitle: "US programme · 10% code pending",
         coverage: "United States (US affiliate programme)",
         market: "United States (US affiliate programme)",
-        programStatus: "Joined on Awin; product feed and discount code are still pending.",
-        details: "Toputure sells at-home fitness equipment, including walking pads, treadmills and exercise bikes. Its US affiliate programme has welcomed Worth It. Product listings will be added only after the product feed and verified affiliate links are connected.",
-        shopStatusDetail: "No Toputure products are live yet. Worth It is awaiting the product feed and verified affiliate links before publishing products.",
+        programStatus: "Joined on Awin; product-feed integration and the discount code are not yet complete.",
+        details: "Toputure sells at-home fitness equipment, including walking pads, treadmills and exercise bikes. Its US affiliate programme has welcomed Worth It. Product listings will be added only after product data and verified affiliate links are connected.",
+        shopStatusDetail: "No Toputure products are live yet. Worth It has not yet connected product data and verified affiliate links for this programme.",
         specialOffer: {
             title: "Exclusive 10% discount code",
             statusLabel: "Code not issued yet",
