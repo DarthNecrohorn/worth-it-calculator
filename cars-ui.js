@@ -16431,6 +16431,13 @@ async function openCars() {
         : [];
     updateCarsLastUpdated(VEHICLE_ALL_KIND);
     await loadAndRenderPopularVehicles(VEHICLE_ALL_KIND, false);
+
+    /*
+     * Begin the optional account-scoped warmup only after Cars has been
+     * opened and its first useful view has rendered.
+     */
+    void startUnifiedVehicleBackgroundWarmup();
+
     /*
      * Scroll to Cars.
      */
@@ -16688,12 +16695,22 @@ document.addEventListener(
                         unifiedVehicleBackgroundWarmupPromise =
                             null;
 
-                        window.setTimeout(
-                            () => {
-                                void startUnifiedVehicleBackgroundWarmup();
-                            },
-                            0
-                        );
+                        const carsSection =
+                            document.getElementById("carsSection");
+
+                        const carsIsVisible =
+                            !!carsSection &&
+                            !carsSection.hidden &&
+                            window.getComputedStyle(carsSection).display !== "none";
+
+                        if (carsIsVisible) {
+                            window.setTimeout(
+                                () => {
+                                    void startUnifiedVehicleBackgroundWarmup();
+                                },
+                                0
+                            );
+                        }
 
                         return;
                     }
@@ -16727,13 +16744,12 @@ document.addEventListener(
         }
 
         /*
-         * Initialize the unified Vehicles UI and begin warming the
-         * account-scoped catalog/details in the background.
+         * Initialize the unified Vehicles UI without starting a large
+         * background catalogue scan on every page visit. The cache
+         * warmup starts after the visitor actually opens Cars.
          */
 
         renderVehicleCategoryButtons();
-
-        void startUnifiedVehicleBackgroundWarmup();
 
 
         /*
