@@ -23,6 +23,7 @@
     let latestObserver = null;
 
     const stationMetadataCache = new Map();
+    const stationMetadataInFlight = new Set();
     const stationLatestCache = new Map();
     const stationPlaceCache = new Map();
     const ALL_STATION_LIMIT = 24;
@@ -31,6 +32,63 @@
     const STATION_LATEST_CONCURRENCY = 4;
     const STATION_PLACE_CONCURRENCY = 3;
     const WATER_API_VERSION = "waterlevels53";
+
+    const WATER_METADATA_BROWSER_CACHE_PREFIX =
+        "worthIt.waterLevels.metadata.v1.";
+    const WATER_METADATA_BROWSER_CACHE_TTL_MS =
+        6 * 60 * 60 * 1000;
+    const WATER_LATEST_BROWSER_CACHE_PREFIX =
+        "worthIt.waterLevels.latest.v1.";
+    const WATER_LATEST_BROWSER_CACHE_TTL_MS =
+        60 * 60 * 1000;
+
+    function readWaterBrowserCache(prefix, stationId, ttlMs) {
+        try {
+            const key =
+                prefix +
+                WATER_API_VERSION +
+                "." +
+                String(stationId || "");
+
+            const raw = localStorage.getItem(key);
+            if (!raw) return null;
+
+            const cached = JSON.parse(raw);
+            const age = Date.now() - Number(cached?.savedAt || 0);
+
+            if (
+                !cached ||
+                !cached.data ||
+                age < 0 ||
+                age >= ttlMs
+            ) {
+                localStorage.removeItem(key);
+                return null;
+            }
+
+            return cached.data;
+        } catch (_) {
+            return null;
+        }
+    }
+
+    function writeWaterBrowserCache(prefix, stationId, data) {
+        try {
+            const key =
+                prefix +
+                WATER_API_VERSION +
+                "." +
+                String(stationId || "");
+
+            localStorage.setItem(
+                key,
+                JSON.stringify({
+                    savedAt: Date.now(),
+                    data
+                })
+            );
+        } catch (_) {}
+    }
 
     const WATER_STATION_PLACE_CACHE = {
         CACHE_KEY: "worthIt.waterLevels.stationPlaces.v2",
@@ -2208,6 +2266,28 @@
                     continue;
                 }
 
+                const browserMetadata =
+                    readWaterBrowserCache(
+                        WATER_METADATA_BROWSER_CACHE_PREFIX,
+                        station.id,
+                        WATER_METADATA_BROWSER_CACHE_TTL_MS
+                    );
+
+                if (browserMetadata) {
+                    stationMetadataCache.set(
+                        station.id,
+                        browserMetadata
+                    );
+                    applyStationMetadata(station, browserMetadata);
+                    continue;
+                }
+
+                if (stationMetadataInFlight.has(station.id)) {
+                    continue;
+                }
+
+                stationMetadataInFlight.add(station.id);
+
                 try{
                     const params = new URLSearchParams();
                     params.set("action","metadata");
@@ -2263,6 +2343,12 @@
                         data
                     );
 
+                    writeWaterBrowserCache(
+                        WATER_METADATA_BROWSER_CACHE_PREFIX,
+                        station.id,
+                        data
+                    );
+
                     const current = state.stations.find(function(item){
                         return item.id === station.id;
                     });
@@ -2278,6 +2364,9 @@
                         station.id,
                         error
                     );
+                }
+                finally {
+                    stationMetadataInFlight.delete(station.id);
                 }
             }
         }
@@ -2310,6 +2399,22 @@
             while(cursor < stations.length){
                 const station = stations[cursor++];
                 if(!station || !station.id) continue;
+
+                if (!stationLatestCache.has(station.id)) {
+                    const browserLatest =
+                        readWaterBrowserCache(
+                            WATER_LATEST_BROWSER_CACHE_PREFIX,
+                            station.id,
+                            WATER_LATEST_BROWSER_CACHE_TTL_MS
+                        );
+
+                    if (browserLatest) {
+                        stationLatestCache.set(
+                            station.id,
+                            browserLatest
+                        );
+                    }
+                }
 
                 if(stationLatestCache.has(station.id)){
                     const cached = stationLatestCache.get(station.id);
@@ -2409,6 +2514,11 @@
 
                     if(cached.height != null){
                         stationLatestCache.set(station.id,cached);
+                        writeWaterBrowserCache(
+                            WATER_LATEST_BROWSER_CACHE_PREFIX,
+                            station.id,
+                            cached
+                        );
                     }
 
                     const current = state.stations.find(function(item){
@@ -2488,6 +2598,61 @@
         await Promise.all(workers);
     }
 
+    function observeMetadataCards(stations){
+        const grid = get("waterLevelsGrid");
+        if(!grid || !Array.isArray(stations) || !stations.length) return;
+
+        if(metadataObserver){
+            try{ metadataObserver.disconnect(); }catch(_){}
+            metadataObserver = null;
+        }
+
+        const cards = grid.querySelectorAll(
+            ".water-level-card[data-water-station-id]"
+        );
+
+        const stationById = new Map(
+            stations.map(station => [String(station.id), station])
+        );
+
+        if(!("IntersectionObserver" in window)){
+            void loadStationMetadata(stations.slice(12, 24));
+            return;
+        }
+
+        metadataObserver = new IntersectionObserver(function(entries){
+            const batch = [];
+
+            entries.forEach(function(entry){
+                if(!entry.isIntersecting) return;
+
+                metadataObserver.unobserve(entry.target);
+
+                const station =
+                    stationById.get(
+                        String(entry.target.dataset.waterStationId || "")
+                    );
+
+                if(
+                    station &&
+                    !station.metadataLoaded &&
+                    !stationMetadataCache.has(station.id) &&
+                    !stationMetadataInFlight.has(station.id)
+                ){
+                    batch.push(station);
+                }
+            });
+
+            if(batch.length){
+                void loadStationMetadata(batch);
+            }
+        }, {rootMargin:"150px 0px"});
+
+        cards.forEach(function(card){
+            metadataObserver.observe(card);
+        });
+    }
+
     function observeLatestCards(){
         const grid = get("waterLevelsGrid");
         if(!grid) return;
@@ -2560,7 +2725,7 @@
                     }
                 },
                 {
-                    rootMargin:"500px 0px"
+                    rootMargin:"200px 0px"
                 }
             );
 
@@ -2782,7 +2947,11 @@
          * heavier Copernicus metadata request after the cards are rendered.
          */
         void loadStationMetadata(
-            visible.slice(0,24)
+            visible.slice(0,12)
+        );
+
+        observeMetadataCards(
+            visible
         );
 
         /*
