@@ -1990,6 +1990,7 @@ function renderShop(container){
                             <span class="shop-partner-status ${productCount > 0 ? "live" : partner.status === "offer-pending" ? "pending" : ""}">
                                 ${escapeHTML(status)}
                             </span>
+                            <span class="shop-partner-open-indicator" aria-hidden="true">↗</span>
                         </button>
                     `;
                 }
