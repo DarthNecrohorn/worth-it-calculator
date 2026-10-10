@@ -16638,6 +16638,15 @@ document.addEventListener(
                     if (event === "INITIAL_SESSION") {
                         unifiedVehicleBackgroundWarmupAuthUserId =
                             nextUserId;
+
+                        /*
+                         * The initial session can arrive after the UI
+                         * starts. Refresh only the owner lookup; keep the
+                         * active warmup lock intact.
+                         */
+                        vehicleAccountCacheOwnerPromise =
+                            null;
+
                         return;
                     }
 
@@ -16696,6 +16705,9 @@ document.addEventListener(
 
                         vehicleAccountCacheOwnerPromise =
                             null;
+
+                        unifiedVehicleBackgroundWarmupRestartRequested =
+                            false;
 
                         /*
                          * Do not release the active-run lock from inside
