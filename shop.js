@@ -1952,7 +1952,7 @@ function renderShop(container){
             .join("");
 
     const partnerHTML =
-        SHOP_PARTNERS
+        SHOP_VISIBLE_PARTNERS
             .map(
                 partner => {
                     const productCount =
@@ -2092,7 +2092,7 @@ function renderShop(container){
                         A category becomes live only after we have a real tracked product link and verified destination information.
                     </p>
                 </div>
-                <span>${SHOP_PARTNERS.length} sources</span>
+                <span>${SHOP_VISIBLE_PARTNERS.length} sources</span>
             </div>
             <div class="shop-partners-grid">
                 ${partnerHTML}
