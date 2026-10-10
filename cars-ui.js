@@ -16638,9 +16638,9 @@ document.addEventListener(
 
                     /*
                      * INITIAL_SESSION describes the session already
-                     * available when this page loads. The initial warmup
-                     * is started below, so this event must not clear its
-                     * lock or schedule another catalogue pass.
+                     * available when this page loads. Cars warmup is
+                     * started on demand when the Cars section is opened,
+                     * so this event must not schedule another catalogue pass.
                      */
                     if (event === "INITIAL_SESSION") {
                         unifiedVehicleBackgroundWarmupAuthUserId =
