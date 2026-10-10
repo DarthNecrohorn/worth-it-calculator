@@ -1056,6 +1056,15 @@ function formatNewsTime(date) {
 
 let newsData = {};
 
+/*
+ * Avoid refetching the same news payload every time visitors switch
+ * away from and back to News. The snapshot remains available locally;
+ * a fresh API check is allowed at most once per five minutes per tab.
+ */
+let newsLoadInProgress = false;
+let newsLastSuccessfulLoadAt = 0;
+const NEWS_MIN_REFRESH_INTERVAL_MS = 5 * 60 * 1000;
+
 const NEWS_FEED_CACHE_PREFIX =
     "worth-it-news-feed-v3:";
 
@@ -1890,6 +1899,22 @@ async function loadNews() {
         return;
     }
 
+    if (newsLoadInProgress) {
+        return;
+    }
+
+    if (
+        Object.keys(newsData || {}).length &&
+        newsLastSuccessfulLoadAt &&
+        Date.now() - newsLastSuccessfulLoadAt <
+            NEWS_MIN_REFRESH_INTERVAL_MS
+    ) {
+        showNewsCategory("all");
+        return;
+    }
+
+    newsLoadInProgress = true;
+
     newsFeedAccountScope =
         await getNewsAccountScope();
 
@@ -1945,6 +1970,7 @@ async function loadNews() {
             snapshot.generatedAt ===
                 generatedAt
         ) {
+            newsLastSuccessfulLoadAt = Date.now();
             return;
         }
 
@@ -1974,6 +2000,8 @@ async function loadNews() {
                 new Date().toISOString()
         );
 
+        newsLastSuccessfulLoadAt = Date.now();
+
         showNewsCategory(
             "all"
         );
@@ -1986,6 +2014,7 @@ async function loadNews() {
         );
 
         if (snapshot?.data) {
+            newsLastSuccessfulLoadAt = Date.now();
             return;
         }
 
@@ -2002,6 +2031,8 @@ async function loadNews() {
                 "";
         }
 
+    } finally {
+        newsLoadInProgress = false;
     }
 
 }
