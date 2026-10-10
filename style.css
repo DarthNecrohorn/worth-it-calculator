@@ -17531,3 +17531,292 @@ html.legal-page-mode #legalOverlay .legal-content{
         font-size:13px;
     }
 }
+
+
+/* Clickable affiliate-source cards and the partner information dialog. */
+.shop-partner-card{
+    appearance:none;
+    width:100%;
+    text-align:left;
+    font-family:inherit;
+    color:var(--text);
+    cursor:pointer;
+    transition:transform .18s ease,border-color .18s ease,background .18s ease,box-shadow .18s ease;
+}
+
+.shop-partner-card:hover{
+    transform:translateY(-1px);
+    border-color:rgba(124,92,255,.48);
+    background:rgba(124,92,255,.055);
+}
+
+.shop-partner-card:focus-visible{
+    outline:2px solid var(--primary2);
+    outline-offset:2px;
+    border-color:rgba(124,92,255,.58);
+    box-shadow:var(--focus-ring);
+}
+
+.shop-partner-status.pending{
+    color:var(--warning);
+    border-color:rgba(251,191,36,.34);
+    background:rgba(251,191,36,.075);
+}
+
+.shop-partner-modal-overlay{
+    position:fixed;
+    inset:0;
+    z-index:15000;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:20px;
+    background:rgba(2,6,23,.74);
+    backdrop-filter:blur(12px);
+}
+
+.shop-partner-modal-overlay[hidden]{
+    display:none !important;
+}
+
+.shop-partner-modal{
+    width:min(620px,100%);
+    max-height:min(800px,calc(100vh - 40px));
+    overflow:auto;
+    padding:24px;
+    border:1px solid var(--border);
+    border-radius:24px;
+    background:var(--card-solid,var(--bg2));
+    color:var(--text);
+    box-shadow:0 30px 90px rgba(0,0,0,.42);
+    overscroll-behavior:contain;
+}
+
+.shop-partner-modal-header,
+.shop-partner-modal-brand{
+    display:flex;
+    align-items:center;
+    min-width:0;
+}
+
+.shop-partner-modal-header{
+    justify-content:space-between;
+    gap:14px;
+    margin-bottom:18px;
+}
+
+.shop-partner-modal-brand{
+    gap:12px;
+}
+
+.shop-partner-modal-icon{
+    display:grid;
+    place-items:center;
+    flex:0 0 46px;
+    width:46px;
+    height:46px;
+    border:1px solid rgba(124,92,255,.2);
+    border-radius:14px;
+    background:rgba(124,92,255,.1);
+    font-size:22px;
+}
+
+.shop-partner-modal-title-wrap{
+    min-width:0;
+}
+
+.shop-partner-modal-title-wrap > span{
+    display:block;
+    margin-bottom:2px;
+    color:var(--muted2);
+    font-size:10px;
+    font-weight:900;
+    letter-spacing:.7px;
+    text-transform:uppercase;
+}
+
+.shop-partner-modal-title-wrap h3{
+    color:var(--text);
+    font-size:clamp(18px,3vw,23px);
+    font-weight:900;
+    line-height:1.2;
+    overflow-wrap:anywhere;
+}
+
+.shop-partner-modal-close{
+    display:grid;
+    place-items:center;
+    flex:0 0 38px;
+    width:38px;
+    height:38px;
+    border:1px solid var(--border);
+    border-radius:12px;
+    background:var(--surface-soft);
+    color:var(--text);
+    font-size:24px;
+    line-height:1;
+    transition:transform .18s ease,border-color .18s ease;
+}
+
+.shop-partner-modal-close:hover{
+    transform:translateY(-1px) scale(1.035);
+    border-color:rgba(124,92,255,.45);
+}
+
+.shop-partner-modal-body{
+    display:grid;
+    gap:14px;
+}
+
+.shop-partner-detail-summary{
+    padding:14px 15px;
+    border:1px solid var(--border);
+    border-radius:16px;
+    background:var(--surface-soft);
+}
+
+.shop-partner-detail-summary p{
+    color:var(--text);
+    font-size:13px;
+    line-height:1.65;
+}
+
+.shop-partner-detail-grid{
+    display:grid;
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:10px;
+}
+
+.shop-partner-detail-item{
+    min-width:0;
+    padding:13px 14px;
+    border:1px solid var(--border);
+    border-radius:14px;
+    background:rgba(255,255,255,.025);
+}
+
+.shop-partner-detail-label{
+    display:block;
+    margin-bottom:5px;
+    color:var(--muted2);
+    font-size:9px;
+    font-weight:900;
+    letter-spacing:.65px;
+    text-transform:uppercase;
+}
+
+.shop-partner-detail-item strong{
+    display:block;
+    color:var(--text);
+    font-size:12px;
+    line-height:1.5;
+    overflow-wrap:anywhere;
+}
+
+.shop-partner-special-offer{
+    padding:15px;
+    border:1px solid rgba(251,191,36,.28);
+    border-radius:16px;
+    background:rgba(251,191,36,.045);
+}
+
+.shop-partner-special-offer-head{
+    display:flex;
+    align-items:flex-start;
+    justify-content:space-between;
+    gap:12px;
+    margin-bottom:8px;
+}
+
+.shop-partner-special-offer h4{
+    color:var(--text);
+    font-size:14px;
+    font-weight:900;
+    line-height:1.4;
+}
+
+.shop-partner-special-offer-head > span{
+    flex:0 0 auto;
+    max-width:45%;
+    padding:5px 8px;
+    border:1px solid rgba(251,191,36,.28);
+    border-radius:999px;
+    color:var(--warning);
+    font-size:9px;
+    font-weight:900;
+    text-align:center;
+}
+
+.shop-partner-special-offer p{
+    color:var(--muted);
+    font-size:12px;
+    line-height:1.65;
+}
+
+.shop-partner-modal-disclosure{
+    color:var(--muted2);
+    font-size:10px;
+    line-height:1.6;
+}
+
+body.shop-partner-modal-open{
+    overflow:hidden;
+}
+
+html[data-theme="light"] .shop-partner-card:hover{
+    background:rgba(124,92,255,.055);
+}
+
+html[data-theme="light"] .shop-partner-modal{
+    background:#ffffff;
+    color:#0f172a;
+}
+
+html[data-theme="light"] .shop-partner-modal-title-wrap h3,
+html[data-theme="light"] .shop-partner-detail-summary p,
+html[data-theme="light"] .shop-partner-detail-item strong,
+html[data-theme="light"] .shop-partner-special-offer h4{
+    color:#0f172a;
+}
+
+html[data-theme="light"] .shop-partner-detail-item{
+    background:rgba(15,23,42,.025);
+}
+
+@media(max-width:700px){
+    .shop-partner-modal-overlay{
+        padding:12px;
+    }
+
+    .shop-partner-modal{
+        max-height:calc(100vh - 24px);
+        padding:18px;
+        border-radius:20px;
+    }
+
+    .shop-partner-modal-header{
+        gap:9px;
+        margin-bottom:14px;
+    }
+
+    .shop-partner-modal-icon{
+        flex-basis:40px;
+        width:40px;
+        height:40px;
+        border-radius:12px;
+    }
+
+    .shop-partner-detail-grid{
+        grid-template-columns:1fr;
+        gap:8px;
+    }
+
+    .shop-partner-special-offer-head{
+        flex-direction:column;
+        gap:6px;
+    }
+
+    .shop-partner-special-offer-head > span{
+        max-width:100%;
+    }
+}
