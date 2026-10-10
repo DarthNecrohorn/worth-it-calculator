@@ -15305,7 +15305,7 @@ function handleVehicleSearch(
  * ============================================================
  */
 
-const UNIFIED_BACKGROUND_WARMUP_BATCH_SIZE = 24;
+const UNIFIED_BACKGROUND_WARMUP_BATCH_SIZE = 8;
 /*
  * Scan beyond the public 2000-card limit so failed/missing records can
  * be replaced by the next valid popular vehicle.
