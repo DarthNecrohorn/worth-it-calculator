@@ -17820,3 +17820,18 @@ html[data-theme="light"] .shop-partner-detail-item{
         max-width:100%;
     }
 }
+
+.shop-partner-open-indicator{
+    flex:0 0 auto;
+    margin-left:1px;
+    color:var(--muted2);
+    font-size:11px;
+    font-weight:900;
+    line-height:1;
+    transition:color .18s ease,transform .18s ease;
+}
+
+.shop-partner-card:hover .shop-partner-open-indicator{
+    color:var(--primary2);
+    transform:translate(1px,-1px);
+}
