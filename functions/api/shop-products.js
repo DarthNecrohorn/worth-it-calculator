@@ -12,7 +12,13 @@ import { recordAdminApiUsage } from "../lib/admin-usage.js";
  * unbounded product catalogue.
  */
 
-const RESPONSE_CACHE_SECONDS = 0;
+/*
+ * The imported Awin snapshot changes only when the GitHub Actions
+ * feed importer commits a new catalogue (normally every six hours).
+ * Cache the public response briefly so requests do not parse the
+ * 2 MB JSON snapshot for every visitor.
+ */
+const RESPONSE_CACHE_SECONDS = 300;
 const MAX_PRODUCTS_PER_CATEGORY = 200;
 
 async function readImportedAwinProducts(context) {
