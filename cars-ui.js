@@ -15450,7 +15450,37 @@ function getUnifiedBackgroundWarmupPause() {
     });
 }
 
+function canRunUnifiedVehicleBackgroundWarmup() {
+    const section =
+        document.getElementById("carsSection");
+
+    if (
+        !section ||
+        section.hidden ||
+        document.visibilityState === "hidden"
+    ) {
+        return false;
+    }
+
+    const style = window.getComputedStyle(section);
+
+    return (
+        style.display !== "none" &&
+        style.visibility !== "hidden" &&
+        section.getClientRects().length > 0
+    );
+}
+
 async function startUnifiedVehicleBackgroundWarmup() {
+
+    /*
+     * Do not run thousands of background detail checks while Cars is
+     * hidden or the browser tab is in the background. The next visit
+     * can resume from the validated browser/account caches.
+     */
+    if (!canRunUnifiedVehicleBackgroundWarmup()) {
+        return Promise.resolve();
+    }
 
     /*
      * Auth events can arrive while a warmup is still running. Never
@@ -15468,6 +15498,8 @@ async function startUnifiedVehicleBackgroundWarmup() {
     }
 
     unifiedVehicleBackgroundWarmupActive = true;
+
+    let pausedForVisibility = false;
 
     unifiedVehicleBackgroundWarmupPromise =
         (async () => {
@@ -15919,6 +15951,11 @@ async function startUnifiedVehicleBackgroundWarmup() {
                         candidates.length
                 ) {
 
+                    if (!canRunUnifiedVehicleBackgroundWarmup()) {
+                        pausedForVisibility = true;
+                        return;
+                    }
+
                     const batch = [];
 
                     while (
@@ -16253,6 +16290,13 @@ async function startUnifiedVehicleBackgroundWarmup() {
                         },
                         0
                     );
+                } else if (pausedForVisibility) {
+                    /*
+                     * Release the fulfilled promise so the next visit to
+                     * Cars may continue the warmup rather than reusing a
+                     * completed-but-paused promise forever.
+                     */
+                    unifiedVehicleBackgroundWarmupPromise = null;
                 }
 
             }
