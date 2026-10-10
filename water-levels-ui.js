@@ -20,6 +20,7 @@
     let stationsRequest = null;
     let stationsRequestTimer = null;
     let stationMetadataRun = 0;
+    let metadataObserver = null;
     let latestObserver = null;
 
     const stationMetadataCache = new Map();
@@ -2250,43 +2251,56 @@
             return;
         }
 
-        const runId = ++stationMetadataRun;
+        stationMetadataRun += 1;
+        const work = [];
+
+        /*
+         * Claim each missing station up front. If the viewport observer
+         * fires during the same render, it can reuse these requests
+         * instead of issuing duplicate metadata fetches.
+         */
+        for(const station of stations){
+            if(!station || !station.id) continue;
+
+            if(stationMetadataCache.has(station.id)){
+                applyStationMetadata(
+                    station,
+                    stationMetadataCache.get(station.id)
+                );
+                continue;
+            }
+
+            const browserMetadata =
+                readWaterBrowserCache(
+                    WATER_METADATA_BROWSER_CACHE_PREFIX,
+                    station.id,
+                    WATER_METADATA_BROWSER_CACHE_TTL_MS
+                );
+
+            if(browserMetadata){
+                stationMetadataCache.set(
+                    station.id,
+                    browserMetadata
+                );
+                applyStationMetadata(station,browserMetadata);
+                continue;
+            }
+
+            if(stationMetadataInFlight.has(station.id)){
+                continue;
+            }
+
+            stationMetadataInFlight.add(station.id);
+            work.push(station);
+        }
+
+        if(!work.length) return;
+
         let cursor = 0;
 
         async function worker(){
-            while(cursor < stations.length){
-                const station = stations[cursor++];
-                if(!station || !station.id) continue;
-
-                if(stationMetadataCache.has(station.id)){
-                    applyStationMetadata(
-                        station,
-                        stationMetadataCache.get(station.id)
-                    );
-                    continue;
-                }
-
-                const browserMetadata =
-                    readWaterBrowserCache(
-                        WATER_METADATA_BROWSER_CACHE_PREFIX,
-                        station.id,
-                        WATER_METADATA_BROWSER_CACHE_TTL_MS
-                    );
-
-                if (browserMetadata) {
-                    stationMetadataCache.set(
-                        station.id,
-                        browserMetadata
-                    );
-                    applyStationMetadata(station, browserMetadata);
-                    continue;
-                }
-
-                if (stationMetadataInFlight.has(station.id)) {
-                    continue;
-                }
-
-                stationMetadataInFlight.add(station.id);
+            while(cursor < work.length){
+                const station = work[cursor++];
 
                 try{
                     const params = new URLSearchParams();
@@ -2295,16 +2309,13 @@
                     params.set("type",station.type);
                     params.set("_v",WATER_API_VERSION);
 
-                    const metadataController =
-                        new AbortController();
-
-                    const metadataTimer =
-                        window.setTimeout(
-                            function(){
-                                metadataController.abort();
-                            },
-                            20000
-                        );
+                    const metadataController = new AbortController();
+                    const metadataTimer = window.setTimeout(
+                        function(){
+                            metadataController.abort();
+                        },
+                        20000
+                    );
 
                     let response;
 
@@ -2338,11 +2349,7 @@
                         );
                     }
 
-                    stationMetadataCache.set(
-                        station.id,
-                        data
-                    );
-
+                    stationMetadataCache.set(station.id,data);
                     writeWaterBrowserCache(
                         WATER_METADATA_BROWSER_CACHE_PREFIX,
                         station.id,
@@ -2356,7 +2363,6 @@
                     if(current){
                         applyStationMetadata(current,data);
                     }
-
                 }
                 catch(error){
                     console.warn(
@@ -2365,27 +2371,20 @@
                         error
                     );
                 }
-                finally {
+                finally{
                     stationMetadataInFlight.delete(station.id);
                 }
             }
         }
 
-        const workers = [];
         const count = Math.min(
             STATION_METADATA_CONCURRENCY,
-            stations.length
+            work.length
         );
 
-        for(let index = 0; index < count; index++){
-            workers.push(worker());
-        }
-
-        await Promise.all(workers);
-
-        if(runId !== stationMetadataRun){
-            return;
-        }
+        await Promise.all(
+            Array.from({length:count},() => worker())
+        );
     }
 
     async function loadStationLatest(stations){
