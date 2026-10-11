@@ -167,6 +167,74 @@ const USDA_NASS_PRICE_FILE_CACHE_PREFIX =
 const MARKETS_RESULT_CACHE_KEY =
     "https://worth-it-internal-cache.local/markets-multisource-v8.json";
 
+/*
+ * Keep one merged-dataset refresh per Worker isolate. If the cached
+ * result has expired, return that last known-good result immediately
+ * while attempting a refresh in the background.
+ */
+let marketsResultRefreshPromise = null;
+
+async function refreshMarketsResultCache(context, cache, resultCacheKey) {
+    if (marketsResultRefreshPromise) {
+        return marketsResultRefreshPromise;
+    }
+
+    marketsResultRefreshPromise = (async () => {
+        try {
+            try {
+                recordAdminApiUsage(context, {
+                    apiKey: "markets",
+                    provider: "World Bank + USGS + EIA + USDA NASS + Voltlas + Wikimedia Commons"
+                });
+            } catch (error) {
+                // Analytics must never interrupt the public Markets endpoint.
+                console.warn("Markets usage tracking failed:", error);
+            }
+
+            const parsed = await buildCombinedMarketsDataset(context);
+            const response = jsonResponse(
+                { success: true, data: parsed },
+                200,
+                RESULT_CACHE_TTL
+            );
+
+            if (cache) {
+                try {
+                    await putTimestampedCache(
+                        cache,
+                        resultCacheKey,
+                        response,
+                        RESULT_CACHE_TTL
+                    );
+                } catch (error) {
+                    // A cache-write failure must not discard successfully loaded market data.
+                    console.warn("Markets result cache write failed:", error);
+                }
+            }
+
+            return response;
+        } catch (error) {
+            console.error("Markets dataset refresh failed:", error);
+            return null;
+        } finally {
+            marketsResultRefreshPromise = null;
+        }
+    })();
+
+    return marketsResultRefreshPromise;
+}
+
+function createMarketsStaleFallback(staleResult) {
+    const headers = new Headers(staleResult.headers);
+    headers.set("X-Worth-It-Stale-Fallback", "1");
+    headers.set("Cache-Control", "no-store");
+
+    return new Response(staleResult.body, {
+        status: 200,
+        headers
+    });
+}
+
 
 /* =========================================================
    CATEGORY SOURCE MAP
@@ -9513,138 +9581,90 @@ export async function onRequestGet(
 
 
     const cache =
-        caches.default;
-
+        typeof caches !== "undefined"
+            ? caches.default
+            : null;
 
     const resultCacheKey =
-        new Request(
-            MARKETS_RESULT_CACHE_KEY
-        );
+        new Request(MARKETS_RESULT_CACHE_KEY);
 
+    let staleResult = null;
+    let cacheAgeSeconds = Infinity;
 
-    const cachedResult =
-        await getFreshCache(
-            cache,
-            resultCacheKey,
-            RESULT_CACHE_TTL
-        );
+    /*
+     * Cache API failures must not escape before the handler's error
+     * response. A stale result is still useful even after its normal TTL.
+     */
+    if (cache) {
+        try {
+            staleResult = await cache.match(resultCacheKey);
 
+            if (staleResult) {
+                cacheAgeSeconds = getRequestCacheAgeSeconds(staleResult);
 
-    if (
-        cachedResult
-    ) {
-
-        return cachedResult;
-
-    }
-
-
-    try {
-
-        recordAdminApiUsage(context, {
-            apiKey: "markets",
-            provider: "World Bank + USGS + EIA + USDA NASS + Voltlas + Wikimedia Commons"
-        });
-
-        const parsed =
-            await buildCombinedMarketsDataset(
-                context
-            );
-
-
-        const response =
-            jsonResponse(
-                {
-
-                    success:
-                        true,
-
-                    data:
-                        parsed
-
-                },
-
-                200,
-
-                RESULT_CACHE_TTL
-            );
-
-
-        const cachedResponse =
-            await putTimestampedCache(
-                cache,
-                resultCacheKey,
-                response,
-                RESULT_CACHE_TTL
-            );
-
-
-        return cachedResponse;
-
-    }
-    catch (error) {
-
-        console.error(
-            "Markets API error:",
-            error
-        );
-
-        /*
-         * A temporary upstream outage must not blank Markets when
-         * an earlier successful merged result is still available.
-         */
-        const staleResult =
-            await cache.match(
-                resultCacheKey
-            );
-
-        if (
-            staleResult
-        ) {
-
-            const headers =
-                new Headers(
-                    staleResult.headers
-                );
-
-            headers.set(
-                "X-Worth-It-Stale-Fallback",
-                "1"
-            );
-
-            headers.set(
-                "Cache-Control",
-                "no-store"
-            );
-
-            return new Response(
-                staleResult.body,
-                {
-                    status:
-                        200,
-                    headers
+                if (
+                    Number.isFinite(cacheAgeSeconds) &&
+                    cacheAgeSeconds >= 0 &&
+                    cacheAgeSeconds <= RESULT_CACHE_TTL
+                ) {
+                    return staleResult;
                 }
+            }
+        } catch (error) {
+            staleResult = null;
+            console.warn("Markets result cache lookup failed:", error);
+        }
+    }
+
+    if (staleResult) {
+        /*
+         * Serve the last good dataset immediately. Refresh the data without
+         * making visitors wait for all upstream APIs or a CPU-heavy merge.
+         */
+        if (typeof context?.waitUntil === "function") {
+            context.waitUntil(
+                refreshMarketsResultCache(
+                    context,
+                    cache,
+                    resultCacheKey
+                ).then(() => undefined)
             );
 
+            return createMarketsStaleFallback(staleResult);
         }
 
-        return jsonResponse(
-            {
-
-                success:
-                    false,
-
-                error:
-                    "Unable to load multi-source commodity data."
-
-            },
-
-            500,
-
-            0
+        const refreshedResult = await refreshMarketsResultCache(
+            context,
+            cache,
+            resultCacheKey
         );
 
+        return refreshedResult || createMarketsStaleFallback(staleResult);
     }
+
+    /*
+     * Cold-cache path: build a fresh result. The refresh helper protects
+     * the response from analytics/cache-write errors and returns JSON-safe
+     * failure handling when a source or merge fails.
+     */
+    const refreshedResult = await refreshMarketsResultCache(
+        context,
+        cache,
+        resultCacheKey
+    );
+
+    if (refreshedResult) {
+        return refreshedResult;
+    }
+
+    return jsonResponse(
+        {
+            success: false,
+            error: "Unable to load multi-source commodity data."
+        },
+        500,
+        0
+    );
 
 }
 
