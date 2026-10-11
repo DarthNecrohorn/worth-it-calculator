@@ -37,6 +37,7 @@ const WIKIDATA_NONCAR_CANDIDATE_LIMIT = 1000;
 const DBPEDIA_CANDIDATE_LIMIT = 600;
 const DBPEDIA_NONCAR_CANDIDATE_LIMIT = 1000;
 const WIKIPEDIA_CACHE_VERSION = "v34";
+const WIKIPEDIA_IMAGE_CACHE_VERSION = "v2";
 const WIKIMEDIA_IMAGE_LOOKUP_TIMEOUT_MS = 3500;
 
 const WIKIPEDIA_API =
@@ -7480,10 +7481,15 @@ async function handleDetails(
             .replace(/[^a-zA-Z0-9._-]/g, "_")
             .slice(0, 80);
 
+    const detailsCacheVersion =
+        detailsMode === "image"
+            ? WIKIPEDIA_CACHE_VERSION + "-image-" + WIKIPEDIA_IMAGE_CACHE_VERSION
+            : WIKIPEDIA_CACHE_VERSION;
+
     const detailsCacheKey =
         new Request(
             "https://worth-it-vehicle-details-cache.local/" +
-            WIKIPEDIA_CACHE_VERSION + "/" +
+            detailsCacheVersion + "/" +
             detailsMode + "/" +
             encodeURIComponent(kind) + "/" +
             encodeURIComponent(datasetVersion) + "/" +
@@ -7527,17 +7533,25 @@ async function handleDetails(
     const respondDetails = async (
         data,
         status = 200,
-        cacheSeconds = CACHE_TTL
+        cacheSeconds = CACHE_TTL,
+        shouldCache = true
     ) => {
-        const response =
-            jsonResponse(
-                data,
-                status,
-                cacheSeconds
+        const response = shouldCache
+            ? jsonResponse(data, status, cacheSeconds)
+            : new Response(
+                JSON.stringify(data),
+                {
+                    status,
+                    headers: {
+                        "Content-Type": "application/json; charset=UTF-8",
+                        "Cache-Control": "no-store"
+                    }
+                }
             );
 
         if (
             detailsCache &&
+            shouldCache &&
             status >= 200 &&
             status < 300
         ) {
@@ -7992,7 +8006,8 @@ async function handleDetails(
                 comparisonAvailable: false
             },
             200,
-            WIKIPEDIA_CACHE_TTL
+            WIKIPEDIA_CACHE_TTL,
+            Boolean(image?.url)
         );
     }
 
