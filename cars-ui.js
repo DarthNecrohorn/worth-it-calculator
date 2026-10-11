@@ -15974,10 +15974,25 @@ async function startUnifiedVehicleBackgroundWarmup() {
                     return;
                 }
 
-                vehicleCatalogCache.set(
-                    VEHICLE_ALL_KIND,
-                    warmupCatalog
-                );
+                /*
+                 * Do not let a smaller persisted warmup snapshot overwrite
+                 * a larger freshly loaded search catalog. The quality pass
+                 * can use warmupCatalog locally without shrinking Search.
+                 */
+                const currentSearchCatalog =
+                    vehicleCatalogCache.get(
+                        VEHICLE_ALL_KIND
+                    );
+
+                if (
+                    !Array.isArray(currentSearchCatalog) ||
+                    currentSearchCatalog.length < warmupCatalog.length
+                ) {
+                    vehicleCatalogCache.set(
+                        VEHICLE_ALL_KIND,
+                        warmupCatalog
+                    );
+                }
 
                 void writePersistentVehicleCatalog(
                     VEHICLE_ALL_KIND,
