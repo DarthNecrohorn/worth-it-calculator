@@ -2499,6 +2499,167 @@ html[data-theme="light"] .ai-chat-nav-btn{color:#0f172a;background:rgba(15,23,42
     text-align:center;
 }
 
+.admin-platform-section-title{
+    display:flex;
+    align-items:flex-end;
+    justify-content:space-between;
+    gap:12px;
+    margin:20px 0 11px;
+}
+.admin-platform-section-title h5{
+    font-size:15px;
+    margin:0;
+}
+.admin-platform-section-title small{
+    color:var(--muted2);
+    font-size:10px;
+    text-align:right;
+}
+.admin-platform-periods{
+    display:grid;
+    grid-template-columns:repeat(3,minmax(0,1fr));
+    gap:11px;
+    margin:0 0 15px;
+}
+.admin-platform-period-card{
+    min-width:0;
+    padding:13px;
+    border:1px solid var(--border);
+    border-radius:14px;
+    background:rgba(255,255,255,.025);
+}
+.admin-platform-period-card h6{
+    margin:0 0 9px;
+    font-size:12px;
+}
+.admin-platform-metric-grid{
+    display:grid;
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:7px;
+    margin-top:11px;
+}
+.admin-platform-metric{
+    min-width:0;
+    padding:9px;
+    border:1px solid var(--border);
+    border-radius:10px;
+    background:rgba(255,255,255,.025);
+}
+.admin-platform-metric span,
+.admin-platform-metric small{
+    display:block;
+    color:var(--muted);
+    font-size:10px;
+    line-height:1.4;
+}
+.admin-platform-metric strong{
+    display:block;
+    margin-top:4px;
+    font-size:14px;
+    line-height:1.35;
+    overflow-wrap:anywhere;
+}
+.admin-platform-metric small{
+    margin-top:3px;
+    font-size:9px;
+    color:var(--muted2);
+}
+.admin-platform-database{
+    padding:15px;
+    margin:0 0 13px;
+    border:1px solid var(--border);
+    border-radius:16px;
+    background:rgba(255,255,255,.02);
+}
+.admin-platform-database-head{
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-start;
+    gap:12px;
+    margin-bottom:13px;
+}
+.admin-platform-database-head h5{
+    margin:4px 0;
+    font-size:15px;
+    overflow-wrap:anywhere;
+}
+.admin-platform-database-head small{
+    color:var(--muted2);
+    font-size:10px;
+    overflow-wrap:anywhere;
+}
+.admin-platform-database-size{
+    flex:0 0 auto;
+    text-align:right;
+}
+.admin-platform-database-size span,
+.admin-platform-database-size small{
+    display:block;
+    color:var(--muted);
+    font-size:10px;
+}
+.admin-platform-database-size strong{
+    display:block;
+    margin:4px 0;
+    font-size:18px;
+}
+.admin-platform-warning{
+    padding:12px 14px;
+    margin:12px 0;
+    border:1px solid rgba(245,158,11,.28);
+    border-radius:12px;
+    color:var(--text);
+    background:rgba(245,158,11,.05);
+    font-size:11px;
+    line-height:1.55;
+    overflow-wrap:anywhere;
+}
+.admin-platform-warning p{
+    margin-top:5px;
+    color:var(--muted);
+}
+.admin-platform-setup{
+    padding:20px;
+    border:1px solid var(--border);
+    border-radius:17px;
+    background:rgba(255,255,255,.025);
+}
+.admin-platform-setup-icon{
+    font-size:28px;
+    margin-bottom:8px;
+}
+.admin-platform-setup h5{
+    margin:0 0 8px;
+    font-size:16px;
+}
+.admin-platform-setup p,
+.admin-platform-setup li{
+    color:var(--muted);
+    font-size:11px;
+    line-height:1.6;
+}
+.admin-platform-setup ol{
+    margin:12px 0 14px;
+    padding-left:20px;
+}
+.admin-platform-setup li{
+    padding-left:3px;
+    margin:5px 0;
+}
+.admin-platform-setup strong{
+    color:var(--text);
+}
+.admin-platform-setup code,
+.admin-platform-warning code{
+    word-break:break-word;
+    padding:2px 4px;
+    border-radius:4px;
+    background:rgba(127,127,127,.12);
+}
+.admin-platform-setup-footnote{
+    margin:12px 0 !important;
+}
+
 html[data-theme="light"] .admin-panel-overlay{
     background:rgba(15,23,42,.42);
 }
@@ -2560,8 +2721,26 @@ html[data-theme="light"] .admin-usage-metrics > div{
         grid-template-columns:1fr;
     }
 
-    .admin-usage-summary-grid{
+    .admin-usage-summary-grid,
+    .admin-platform-periods{
         grid-template-columns:1fr;
+    }
+
+    .admin-platform-section-title{
+        align-items:flex-start;
+        flex-direction:column;
+    }
+
+    .admin-platform-section-title small{
+        text-align:left;
+    }
+
+    .admin-platform-database-head{
+        flex-direction:column;
+    }
+
+    .admin-platform-database-size{
+        text-align:left;
     }
 
     .admin-usage-summary-card{
