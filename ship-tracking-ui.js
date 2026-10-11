@@ -34,6 +34,7 @@
     let mapRateLimitUntil = 0;
     let lastSuccessfulViewport = null;
     let selectedMmsi = "";
+    let detailReturnFocus = null;
     let activeFilter = "all";
     let vessels = [];
     let lastViewportKey = "";
@@ -294,11 +295,108 @@
         );
     }
 
+    function rememberDetailReturnFocus(){
+        const detail = get("shipTrackingDetail");
+        const activeElement = document.activeElement;
+
+        /*
+         * When moving between details inside the open dialog, preserve the
+         * original outside trigger so closing the dialog returns focus
+         * outside the hidden dialog.
+         */
+        if(
+            detail &&
+            detail.classList.contains("open") &&
+            detail.contains(activeElement)
+        ){
+            if(
+                !detailReturnFocus ||
+                !detailReturnFocus.isConnected ||
+                detail.contains(detailReturnFocus) ||
+                typeof detailReturnFocus.focus !== "function"
+            ){
+                detailReturnFocus = get("shipTrackingSearch");
+            }
+
+            return;
+        }
+
+        const canRestoreActiveFocus =
+            activeElement &&
+            activeElement !== document.body &&
+            activeElement !== document.documentElement &&
+            (!detail || !detail.contains(activeElement)) &&
+            typeof activeElement.focus === "function";
+
+        detailReturnFocus =
+            canRestoreActiveFocus
+                ? activeElement
+                : get("shipTrackingSearch");
+
+        if(
+            detail &&
+            detailReturnFocus &&
+            detail.contains(detailReturnFocus)
+        ){
+            detailReturnFocus = get("shipTrackingSearch");
+        }
+    }
+
     function closeDetailModal(){
         const detail = get("shipTrackingDetail");
 
         if(!detail){
             return;
+        }
+
+        const activeElement = document.activeElement;
+
+        /*
+         * Move focus outside the dialog before hiding it from assistive
+         * technology. Fall back to vessel search if the original trigger
+         * has been removed by a live list refresh.
+         */
+        if(activeElement && detail.contains(activeElement)){
+            const fallbackFocusTarget = get("shipTrackingSearch");
+            let focusTarget = detailReturnFocus;
+
+            if(
+                !focusTarget ||
+                !focusTarget.isConnected ||
+                detail.contains(focusTarget) ||
+                focusTarget.disabled ||
+                typeof focusTarget.focus !== "function"
+            ){
+                focusTarget = fallbackFocusTarget;
+            }
+
+            try{
+                if(focusTarget && !detail.contains(focusTarget)){
+                    focusTarget.focus({ preventScroll: true });
+                }
+            }catch(error){
+                /* Fall back below if focus restoration fails. */
+            }
+
+            if(
+                detail.contains(document.activeElement) &&
+                fallbackFocusTarget &&
+                !detail.contains(fallbackFocusTarget)
+            ){
+                try{
+                    fallbackFocusTarget.focus({ preventScroll: true });
+                }catch(error){
+                    /* Blurring is the final fallback. */
+                }
+            }
+
+            if(
+                detail.contains(document.activeElement) &&
+                document.activeElement &&
+                typeof document.activeElement.blur === "function"
+            ){
+                document.activeElement.blur();
+            }
         }
 
         detail.classList.remove("open");
@@ -309,6 +407,7 @@
             "ship-tracking-modal-open"
         );
 
+        detailReturnFocus = null;
         selectedMmsi = "";
         renderMarkers();
     }
@@ -3157,6 +3256,8 @@
             return;
         }
 
+        rememberDetailReturnFocus();
+
         const localVessel =
             findLoadedVessel(
                 vesselId
@@ -3274,6 +3375,7 @@
             return;
         }
 
+        rememberDetailReturnFocus();
         showDetailLoading("Loading recent vessel track…");
 
         const to = new Date();
