@@ -575,11 +575,17 @@
                 return total;
             }, { rowsRead: 0, rowsWritten: 0, queryTimeMs: 0, readQueries: 0, writeQueries: 0 });
 
+            const workerAvailabilityLabel = workers.available
+                ? ''
+                : 'Metric unavailable — Worker script was not detected';
+            const d1AvailabilityLabel = d1.available
+                ? ''
+                : 'Metric unavailable — no D1 analytics returned';
             const summary = [
                 '<div class="admin-usage-summary-grid">',
-                    '<div class="admin-usage-summary-card"><span>Worker requests today</span><strong>' + formatNumber(workerToday.requests) + '</strong><small>Cloudflare Functions invocations</small></div>',
-                    '<div class="admin-usage-summary-card"><span>CPU time today</span><strong>' + formatDecimal(workerToday.cpuTimeMs, 2) + ' ms</strong><small>Actual Worker CPU time reported by Cloudflare</small></div>',
-                    '<div class="admin-usage-summary-card"><span>D1 rows read today</span><strong>' + formatNumber(d1Today.rowsRead) + '</strong><small>' + formatNumber(d1Today.rowsWritten) + ' rows written · ' + formatNumber(d1Today.readQueries + d1Today.writeQueries) + ' queries</small></div>',
+                    '<div class="admin-usage-summary-card"><span>Worker requests today</span><strong>' + (workers.available ? formatNumber(workerToday.requests) : 'Unavailable') + '</strong><small>' + (workers.available ? 'Cloudflare Functions invocations' : escapeHtml(workerAvailabilityLabel)) + '</small></div>',
+                    '<div class="admin-usage-summary-card"><span>CPU time today</span><strong>' + (workers.available ? formatDecimal(workerToday.cpuTimeMs, 2) + ' ms' : 'Unavailable') + '</strong><small>' + (workers.available ? 'Actual Worker CPU time reported by Cloudflare' : escapeHtml(workerAvailabilityLabel)) + '</small></div>',
+                    '<div class="admin-usage-summary-card"><span>D1 rows read today</span><strong>' + (d1.available ? formatNumber(d1Today.rowsRead) : 'Unavailable') + '</strong><small>' + (d1.available ? formatNumber(d1Today.rowsWritten) + ' rows written · ' + formatNumber(d1Today.readQueries + d1Today.writeQueries) + ' queries' : escapeHtml(d1AvailabilityLabel)) + '</small></div>',
                 '</div>'
             ].join('');
 
