@@ -2721,8 +2721,26 @@ html[data-theme="light"] .admin-usage-metrics > div{
         grid-template-columns:1fr;
     }
 
-    .admin-usage-summary-grid{
+    .admin-usage-summary-grid,
+    .admin-platform-periods{
         grid-template-columns:1fr;
+    }
+
+    .admin-platform-section-title{
+        align-items:flex-start;
+        flex-direction:column;
+    }
+
+    .admin-platform-section-title small{
+        text-align:left;
+    }
+
+    .admin-platform-database-head{
+        flex-direction:column;
+    }
+
+    .admin-platform-database-size{
+        text-align:left;
     }
 
     .admin-usage-summary-card{
