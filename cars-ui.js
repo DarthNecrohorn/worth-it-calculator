@@ -10650,7 +10650,7 @@ async function openVehicleDetailsPanel(
                 }
 
                 return fastDetails;
-            });
+            }).catch(() => fastDetailsResult);
     }
 
     let details =
@@ -10663,6 +10663,44 @@ async function openVehicleDetailsPanel(
         );
 
     fullDetailsSettled = true;
+
+    /*
+     * If the full endpoint completed with a negative/no-article response but
+     * the lightweight lookup found a valid Wikipedia page, keep the useful
+     * page summary instead of presenting the negative response as final.
+     */
+    const hasFastWikipediaText =
+        Boolean(
+            isUsefulVehicleDetailValue(
+                fastDetailsResult?.wikipedia?.description
+            ) &&
+            String(
+                fastDetailsResult?.wikipedia?.url || ""
+            ).trim() &&
+            !/^no information$/i.test(
+                String(
+                    fastDetailsResult?.wikipedia?.title || ""
+                ).trim()
+            )
+        );
+
+    const fullHasWikipediaReference =
+        Boolean(
+            String(details?.wikipedia?.url || "").trim() &&
+            String(details?.wikipedia?.title || "").trim() &&
+            !/^no information$/i.test(
+                String(details?.wikipedia?.title || "").trim()
+            )
+        );
+
+    if (
+        details &&
+        !fullHasWikipediaReference &&
+        hasFastWikipediaText
+    ) {
+        details = fastDetailsResult;
+        detailsFallbackMode = "fast";
+    }
 
     /*
      * A previous quality pass may already have produced an image-verified
