@@ -1009,7 +1009,9 @@ async function writePersistentVehicleCatalog(
             vehicles
                 .slice(
                     0,
-                    VEHICLE_PERSISTENT_CATALOG_LIMIT
+                    kind === VEHICLE_ALL_KIND
+                        ? vehicles.length
+                        : VEHICLE_PERSISTENT_CATALOG_LIMIT
                 )
                 .map(vehicle => ({
                     make: vehicle?.make || "",
@@ -4420,17 +4422,12 @@ async function buildFreshUnifiedVehicleCatalog() {
     });
 
     /*
-     * Keep a hidden popularity-ordered verification pool larger than the
-     * public 1000-card limit. This gives the quality gate enough candidates
-     * to replace entries that lack reliable information or a verified image.
+     * Keep the complete lightweight metadata catalog available for search.
+     * The public Popular list and its background quality scan still use a
+     * separate bounded candidate pool, so this does not cause Wikipedia/image
+     * requests for every catalog item.
      */
-    return vehicles.slice(
-        0,
-        Math.max(
-            UNIFIED_BACKGROUND_CANDIDATE_POOL_LIMIT,
-            MAX_UNIFIED_VEHICLES
-        )
-    );
+    return vehicles;
 }
 
 async function fetchUnifiedVehicleCatalog() {
@@ -4440,18 +4437,37 @@ async function fetchUnifiedVehicleCatalog() {
 
     const saved = await readPersistentVehicleCatalog(VEHICLE_ALL_KIND);
     if (Array.isArray(saved) && saved.length) {
-        const limited = saved.slice(
-            0,
-            Math.max(
-                UNIFIED_BACKGROUND_CANDIDATE_POOL_LIMIT,
-                MAX_UNIFIED_VEHICLES
-            )
-        );
+        /*
+         * Older saved catalogs may still contain only the previous bounded
+         * candidate pool. Use them for an immediate first paint, then the
+         * fresh full catalog below replaces them and refreshes active search.
+         */
+        const limited = saved;
         vehicleCatalogCache.set(VEHICLE_ALL_KIND, limited);
         void buildFreshUnifiedVehicleCatalog().then(fresh => {
             if (fresh.length) {
                 vehicleCatalogCache.set(VEHICLE_ALL_KIND, fresh);
                 void writePersistentVehicleCatalog(VEHICLE_ALL_KIND, fresh);
+
+                /*
+                 * A returning user's first search can happen before the
+                 * refreshed full catalog is ready. Re-run that same query
+                 * once the complete metadata pool arrives, so results are
+                 * not limited to the older saved subset or opened cards.
+                 */
+                if (
+                    currentVehicleKind === VEHICLE_ALL_KIND &&
+                    currentVehicleMode === "search"
+                ) {
+                    const searchInput =
+                        document.getElementById("carsSearchInput");
+                    const activeQuery =
+                        String(searchInput?.value || "").trim();
+
+                    if (activeQuery) {
+                        handleVehicleSearch(activeQuery);
+                    }
+                }
             }
         }).catch(error => console.warn("Background unified catalog refresh failed:", error));
         return limited;
@@ -9262,16 +9278,36 @@ function searchVehicleCatalog(vehicles, query) {
         const make = normalizeVehicleText(vehicle?.make || "");
         const model = normalizeVehicleText(vehicle?.model || "");
         const body = normalizeVehicleText(vehicle?.bodyType || "");
-        const full = (make + " " + model + " " + body).trim();
+        const wikipediaTitle = normalizeVehicleText(vehicle?.wikipediaTitle || "");
+        const makeSlug = normalizeVehicleText(vehicle?.makeSlug || "");
+        const modelSlug = normalizeVehicleText(vehicle?.modelSlug || "");
+        const full = [
+            make,
+            model,
+            body,
+            wikipediaTitle,
+            makeSlug.replace(/-/g, " "),
+            modelSlug.replace(/-/g, " ")
+        ].filter(Boolean).join(" ").trim();
         let score = 0;
         if (full === normalizedQuery) score += 1000;
         if (make === normalizedQuery) score += 850;
         if (model === normalizedQuery) score += 800;
+        if (wikipediaTitle === normalizedQuery) score += 780;
         if (make.startsWith(normalizedQuery)) score += 500;
         if (model.startsWith(normalizedQuery)) score += 450;
+        if (wikipediaTitle.startsWith(normalizedQuery)) score += 420;
         if (full.startsWith(normalizedQuery)) score += 350;
         if (full.includes(normalizedQuery)) score += 250;
-        for (const token of tokens) { if (make === token) score += 180; else if (make.startsWith(token)) score += 120; else if (model.startsWith(token)) score += 110; else if (model.includes(token)) score += 80; else if (body.includes(token)) score += 40; }
+        for (const token of tokens) {
+            if (make === token) score += 180;
+            else if (make.startsWith(token)) score += 120;
+            else if (model.startsWith(token)) score += 110;
+            else if (model.includes(token)) score += 80;
+            else if (wikipediaTitle.includes(token)) score += 65;
+            else if (body.includes(token)) score += 40;
+            else if (makeSlug.includes(token) || modelSlug.includes(token)) score += 35;
+        }
         return {vehicle, score};
     }).filter(item => item.score > 0).sort((a,b) => b.score - a.score).slice(0, MAX_SEARCH_RESULTS).map(item => item.vehicle);
 }
