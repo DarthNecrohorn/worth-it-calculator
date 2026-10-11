@@ -10681,12 +10681,25 @@ async function openVehicleDetailsPanel(
                     image: null
                 };
 
+        /*
+         * This is only a preview while the full details request is still
+         * running. An absent image in cached quality data is not a final
+         * miss, so keep the loading label until image enrichment settles.
+         */
+        const cachedQualityPreview =
+            safeCachedQuality?.image?.url
+                ? safeCachedQuality
+                : {
+                    ...safeCachedQuality,
+                    imageLoading: true
+                };
+
         renderVehicleDetailsPanel(
             body,
-            safeCachedQuality,
+            cachedQualityPreview,
             vehicle,
             kind,
-            safeCachedQuality.comparisonAvailable !== false
+            cachedQualityPreview.comparisonAvailable !== false
         );
     } else if (!cachedFullDetails) {
         /*
@@ -10794,9 +10807,23 @@ async function openVehicleDetailsPanel(
                     modal.classList.contains("is-open") &&
                     modal.dataset.vehicleRequestToken === requestToken
                 ) {
+                    /*
+                     * The fast Wikipedia response is a partial panel
+                     * refresh, not a completed image lookup. Do not let it
+                     * replace the initial loading state with "Image not
+                     * available" while the full details request is pending.
+                     */
+                    const fastDetailsPreview =
+                        fastDetails?.image?.url
+                            ? fastDetails
+                            : {
+                                ...fastDetails,
+                                imageLoading: true
+                            };
+
                     renderVehicleDetailsPanel(
                         body,
-                        fastDetails,
+                        fastDetailsPreview,
                         vehicle,
                         kind,
                         false
