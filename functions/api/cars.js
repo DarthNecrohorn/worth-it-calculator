@@ -1794,20 +1794,48 @@ async function fetchWikipediaCached(url) {
     const cache =
         caches.default;
 
+    let parsedUrl = null;
+    try {
+        parsedUrl = new URL(url);
+    } catch {
+        parsedUrl = null;
+    }
+
+    const isCommonsImageInfo =
+        parsedUrl?.hostname === "commons.wikimedia.org" &&
+        parsedUrl.searchParams.get("prop") === "imageinfo";
+
+    /*
+     * Wikimedia search results can be incomplete or temporarily return no
+     * relevant vehicle image. Do not reuse those search responses from the
+     * edge cache; the vehicle-specific details response already caches a
+     * verified positive image. Use a separate namespace for direct image
+     * metadata so older no-image cache entries are bypassed.
+     */
+    const isCommonsImageSearch =
+        parsedUrl?.hostname === "commons.wikimedia.org" &&
+        parsedUrl.searchParams.get("generator") === "search" &&
+        isCommonsImageInfo;
+
+    const cacheVersion =
+        isCommonsImageInfo
+            ? WIKIPEDIA_CACHE_VERSION + "-image-v2"
+            : WIKIPEDIA_CACHE_VERSION;
+
     const cacheKey =
         new Request(
-            `https://worth-it-internal-cache.local/wikipedia/${WIKIPEDIA_CACHE_VERSION}/${url}`
+            `https://worth-it-internal-cache.local/wikipedia/${cacheVersion}/${url}`
         );
 
-    const cached =
-        await cache.match(cacheKey);
+    if (!isCommonsImageSearch) {
+        const cached = await cache.match(cacheKey);
 
-    if (cached) {
-
-        try {
-            return await cached.json();
-        } catch {
-            // Ignore invalid cached response.
+        if (cached) {
+            try {
+                return await cached.json();
+            } catch {
+                // Ignore invalid cached response.
+            }
         }
     }
 
@@ -1824,7 +1852,6 @@ async function fetchWikipediaCached(url) {
         );
 
     if (!response.ok) {
-
         throw new Error(
             `Wikipedia returned ${response.status}`
         );
@@ -1834,40 +1861,61 @@ async function fetchWikipediaCached(url) {
         await response.json();
 
     if (data?.error) {
-
         throw new Error(
             data.error.info ||
             "Wikipedia API error"
         );
     }
 
-    try {
+    let shouldCacheResponse = !isCommonsImageSearch;
 
-        const cacheResponse =
-            new Response(
-                JSON.stringify(data),
-                {
-                    status: 200,
-                    headers: {
-                        "Content-Type":
-                            "application/json; charset=UTF-8",
-                        "Cache-Control":
-                            `public, max-age=${WIKIPEDIA_CACHE_TTL}`
+    if (isCommonsImageInfo) {
+        const pagesValue = data?.query?.pages;
+        const pages = Array.isArray(pagesValue)
+            ? pagesValue
+            : Object.values(pagesValue || {});
+        const containsImageInfo = pages.some(page =>
+            Array.isArray(page?.imageinfo) &&
+            page.imageinfo.some(info =>
+                Boolean(String(info?.url || "").trim())
+            )
+        );
+
+        /*
+         * A successful HTTP response with no image URL is still a negative
+         * lookup. Do not retain it for a week; another attempt must be able
+         * to consult Wikimedia again.
+         */
+        shouldCacheResponse =
+            shouldCacheResponse && containsImageInfo;
+    }
+
+    if (shouldCacheResponse) {
+        try {
+            const cacheResponse =
+                new Response(
+                    JSON.stringify(data),
+                    {
+                        status: 200,
+                        headers: {
+                            "Content-Type":
+                                "application/json; charset=UTF-8",
+                            "Cache-Control":
+                                `public, max-age=${WIKIPEDIA_CACHE_TTL}`
+                        }
                     }
-                }
+                );
+
+            await cache.put(
+                cacheKey,
+                cacheResponse
             );
-
-        await cache.put(
-            cacheKey,
-            cacheResponse
-        );
-
-    } catch (error) {
-
-        console.error(
-            "Wikipedia cache write failed:",
-            error
-        );
+        } catch (error) {
+            console.error(
+                "Wikipedia cache write failed:",
+                error
+            );
+        }
     }
 
     return data;
