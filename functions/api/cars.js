@@ -1819,7 +1819,7 @@ async function fetchWikipediaCached(url) {
 
     const cacheVersion =
         isCommonsImageInfo
-            ? WIKIPEDIA_CACHE_VERSION + "-image-v2"
+            ? WIKIPEDIA_CACHE_VERSION + "-image-" + WIKIPEDIA_IMAGE_CACHE_VERSION
             : WIKIPEDIA_CACHE_VERSION;
 
     const cacheKey =
