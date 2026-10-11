@@ -15825,9 +15825,7 @@ function bindCarsWarmupInteractionListeners() {
     vehicleWarmupInteractionListenersBound = true;
 
     const recordInteraction = () => {
-        if (canRunUnifiedVehicleBackgroundWarmup()) {
-            vehicleWarmupLastInteractionAt = Date.now();
-        }
+        vehicleWarmupLastInteractionAt = Date.now();
     };
 
     document.addEventListener("pointerdown", recordInteraction, { passive: true });
