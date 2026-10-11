@@ -2579,13 +2579,15 @@ function createVehicleImagePlaceholder(
     placeholder.style.borderRadius = "12px 12px 0 0";
     placeholder.style.background = "rgba(128,128,128,0.10)";
 
+    placeholder.style.cursor = "pointer";
+
     placeholder.innerHTML = `
-        <div style="font-size:2.2rem;opacity:0.75;">
+        <div style="font-size:2.2rem;opacity:0.85;">
             ${info.icon}
         </div>
         <small
             class="car-image-loading-text"
-            style="font-size:0.75rem;opacity:0.55;"
+            style="font-size:0.8rem;opacity:0.85;text-align:center;padding:0 12px;"
         >
             ${message}
         </small>
@@ -9752,11 +9754,10 @@ function createVehicleCard(
     }
 
     /*
-     * Popular cards are quality-gated before they reach the DOM. Their
-     * full details response is therefore already cached here, including
-     * the image that passed the backend's identity/licensing checks.
-     * Render that verified image directly instead of showing an emoji
-     * placeholder and trying to hydrate it later.
+     * Do not load image files in catalog cards. Keep the image slot as a
+     * lightweight prompt; the full-size image is loaded by the details
+     * panel only after the user opens this vehicle. Popular-catalog
+     * validation still checks image identity/licensing in its data pass.
      */
     const cachedDetails =
         vehicleDetailsCache.get(
@@ -9768,32 +9769,12 @@ function createVehicleCard(
             )
         );
 
-    const verifiedImage =
-        currentVehicleMode === "popular" &&
-        hasPopularVehicleImageRelevance(
-            cachedDetails,
-            vehicle
-        )
-            ? String(cachedDetails.image.url)
-            : "";
-
     const visual =
-        verifiedImage
-            ? createVehicleImageElement(
-                vehicle,
-                kind
-            )
-            : createVehicleImagePlaceholder(
-                vehicle,
-                kind,
-                "Verified image loading..."
-            );
-
-    if (verifiedImage) {
-        visual.src = verifiedImage;
-        visual.dataset.verifiedImage = "true";
-        visual.style.opacity = "1";
-    }
+        createVehicleImagePlaceholder(
+            vehicle,
+            kind,
+            "Click to see image and details"
+        );
 
     const textContainer =
         document.createElement(
@@ -16065,25 +16046,11 @@ async function startUnifiedVehicleBackgroundWarmup() {
 
                         }
 
-                        const cachedDetails =
-                            vehicleDetailsCache.get(
-                                getVehicleDetailsCacheKey(
-                                    vehicle.make,
-                                    vehicle.model,
-                                    vehicle.sourceKind ||
-                                        vehicle.kind ||
-                                        "car",
-                                    "full"
-                                )
-                            );
-
-                        if (
-                            cachedDetails?.image?.url
-                        ) {
-                            void cacheVehicleImageResponse(
-                                cachedDetails.image.url
-                            );
-                        }
+                        /*
+                         * Do not download/cache the actual image bytes
+                         * while warming the vehicle catalog. The image is
+                         * loaded on demand by the vehicle details panel.
+                         */
 
                         added = true;
                     }
