@@ -4420,18 +4420,16 @@ async function buildFreshUnifiedVehicleCatalog() {
     });
 
     /*
-     * Keep a hidden popularity-ordered verification pool larger than the
-     * public 1000-card limit. This gives the quality gate enough candidates
-     * to replace entries that lack reliable information or a verified image.
+     * Keep the entire loaded VehiclesDB metadata catalog available for
+     * search, including models that are not currently rendered or included
+     * in the public 1000 verified cards. The Popular/All Vehicles quality
+     * scanner applies its own bounded candidate pool separately, so this
+     * does not increase Wikipedia/image validation work.
      */
-    return vehicles.slice(
-        0,
-        Math.max(
-            UNIFIED_BACKGROUND_CANDIDATE_POOL_LIMIT,
-            MAX_UNIFIED_VEHICLES
-        )
-    );
+    return vehicles;
 }
+
+let unifiedVehicleCatalogSearchRefreshPromise = null;
 
 async function fetchUnifiedVehicleCatalog() {
     if (vehicleCatalogCache.has(VEHICLE_ALL_KIND)) {
@@ -4448,12 +4446,39 @@ async function fetchUnifiedVehicleCatalog() {
             )
         );
         vehicleCatalogCache.set(VEHICLE_ALL_KIND, limited);
-        void buildFreshUnifiedVehicleCatalog().then(fresh => {
-            if (fresh.length) {
-                vehicleCatalogCache.set(VEHICLE_ALL_KIND, fresh);
-                void writePersistentVehicleCatalog(VEHICLE_ALL_KIND, fresh);
-            }
-        }).catch(error => console.warn("Background unified catalog refresh failed:", error));
+
+        /*
+         * Keep the cached page fast, but also expose the in-flight full
+         * catalog refresh to Search. If a user searches before it completes,
+         * the result list is re-evaluated once the complete metadata catalog
+         * is available.
+         */
+        unifiedVehicleCatalogSearchRefreshPromise =
+            buildFreshUnifiedVehicleCatalog()
+                .then(fresh => {
+                    if (fresh.length) {
+                        vehicleCatalogCache.set(
+                            VEHICLE_ALL_KIND,
+                            fresh
+                        );
+                        void writePersistentVehicleCatalog(
+                            VEHICLE_ALL_KIND,
+                            fresh
+                        );
+                    }
+                    return fresh;
+                })
+                .catch(error => {
+                    console.warn(
+                        "Background unified catalog refresh failed:",
+                        error
+                    );
+                    return [];
+                })
+                .finally(() => {
+                    unifiedVehicleCatalogSearchRefreshPromise = null;
+                });
+
         return limited;
     }
 
@@ -15618,12 +15643,41 @@ function handleVehicleSearch(
             currentVehicleKind
         );
 
-
         renderVehicleCards(
             results,
             currentVehicleKind,
             true
         );
+
+        /*
+         * A returning user may initially receive the saved, limited catalog
+         * while the fresh VehiclesDB metadata loads in the background. When
+         * that refresh completes, rerun the current query only if the user
+         * has not changed it and Cars is still in Search mode.
+         */
+        const catalogRefreshPromise =
+            currentVehicleKind === VEHICLE_ALL_KIND
+                ? unifiedVehicleCatalogSearchRefreshPromise
+                : null;
+
+        if (catalogRefreshPromise) {
+            const submittedQuery =
+                String(query || "").trim();
+
+            void catalogRefreshPromise.then(() => {
+                const input =
+                    document.getElementById("carsSearchInput");
+
+                if (
+                    currentVehicleKind === VEHICLE_ALL_KIND &&
+                    currentVehicleMode === "search" &&
+                    input &&
+                    input.value.trim() === submittedQuery
+                ) {
+                    handleVehicleSearch(submittedQuery);
+                }
+            });
+        }
 
     } else {
 
@@ -15920,10 +15974,25 @@ async function startUnifiedVehicleBackgroundWarmup() {
                     return;
                 }
 
-                vehicleCatalogCache.set(
-                    VEHICLE_ALL_KIND,
-                    warmupCatalog
-                );
+                /*
+                 * Do not let a smaller persisted warmup snapshot overwrite
+                 * a larger freshly loaded search catalog. The quality pass
+                 * can use warmupCatalog locally without shrinking Search.
+                 */
+                const currentSearchCatalog =
+                    vehicleCatalogCache.get(
+                        VEHICLE_ALL_KIND
+                    );
+
+                if (
+                    !Array.isArray(currentSearchCatalog) ||
+                    currentSearchCatalog.length < warmupCatalog.length
+                ) {
+                    vehicleCatalogCache.set(
+                        VEHICLE_ALL_KIND,
+                        warmupCatalog
+                    );
+                }
 
                 void writePersistentVehicleCatalog(
                     VEHICLE_ALL_KIND,
