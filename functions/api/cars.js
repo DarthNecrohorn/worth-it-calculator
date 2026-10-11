@@ -9213,9 +9213,16 @@ async function handleVehicleAccountCacheFinalize(
         await db.prepare(
             "DELETE FROM " +
             VEHICLE_ACCOUNT_CACHE_TABLE +
-            " WHERE user_id = ? AND dataset_version = ? AND rank_index >= ?"
+            " WHERE user_id = ? AND dataset_version = ? AND vehicle_key NOT IN (" +
+            "SELECT vehicle_key FROM " +
+            VEHICLE_ACCOUNT_CACHE_TABLE +
+            " WHERE user_id = ? AND dataset_version = ? " +
+            "ORDER BY rank_index ASC, vehicle_key ASC LIMIT ?" +
+            ")"
         )
             .bind(
+                user.id,
+                datasetVersion,
                 user.id,
                 datasetVersion,
                 1000
