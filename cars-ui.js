@@ -169,7 +169,7 @@ const VEHICLE_KINDS = [
 ];
 
 const VEHICLE_ALL_KIND = "all";
-const MAX_UNIFIED_VEHICLES = 2000;
+const MAX_UNIFIED_VEHICLES = 1000;
 const UNIFIED_BACKGROUND_CANDIDATE_POOL_LIMIT = 6000;
 const VEHICLE_FAVORITES_STORAGE_KEY = "worth-it-vehicle-favorites-v1";
 const VEHICLE_RECENT_STORAGE_KEY = "worth-it-vehicle-recent-v1";
@@ -202,7 +202,7 @@ const VEHICLE_KIND_INFO = {
         plural: "Vehicles",
         title: "🚗 All Vehicles",
         description:
-            "Explore up to 2,000 vehicles from the connected VehiclesDB dataset."
+            "Explore up to 1,000 verified vehicles from the connected VehiclesDB dataset."
     },
 
     car: {
@@ -696,7 +696,7 @@ const VEHICLE_PERSISTENT_CATALOG_VERSION =
     "v7";
 
 const VEHICLE_PERSISTENT_POPULAR_VERSION =
-    "v12";
+    "v13";
 
 const VEHICLE_PERSISTENT_CATEGORY_TTL_MS =
     7 * 24 * 60 * 60 * 1000;
@@ -2947,7 +2947,9 @@ function updateUnifiedVehicleCardPresentation(
 }
 
 function hasUnifiedVehicleDisplayInformation(
-    details
+    details,
+    vehicle = null,
+    kind = null
 ) {
 
     if (
@@ -2957,31 +2959,49 @@ function hasUnifiedVehicleDisplayInformation(
         return false;
     }
 
-    const description =
+    const wikipediaUrl =
         String(
-            details?.wikipedia?.description ||
-            ""
+            details?.wikipedia?.url || ""
         ).trim();
 
-    const hasDescription =
-        isUsefulVehicleDetailValue(description) &&
-        !/^no information$/i.test(description);
+    const description =
+        String(
+            details?.wikipedia?.description || ""
+        ).trim();
 
-    const specificationCount =
-        Object.values(
-            details?.specifications || {}
-        ).filter(value =>
-            isUsefulVehicleDetailValue(value)
-        ).length;
+    const detailKind =
+        vehicle?.sourceKind ||
+        vehicle?.kind ||
+        kind ||
+        details?.kind ||
+        details?.vehicle?.kind ||
+        "";
+
+    const minimumDescriptionLength =
+        detailKind === "car"
+            ? POPULAR_MIN_DESCRIPTION_LENGTH
+            : 40;
+
+    const hasReliableDescription =
+        Boolean(
+            wikipediaUrl &&
+            isUsefulVehicleDetailValue(description) &&
+            !/^no information$/i.test(description) &&
+            normalizePopularQualityText(description).length >=
+                minimumDescriptionLength
+        );
 
     /*
-     * Catalog body type/year alone do not count. The card is considered
-     * informative only when the details API returned a real description
-     * or at least one real technical specification.
+     * A title/summary by itself is not sufficient for a verified Popular
+     * card. The public list requires a real Wikipedia article, enough
+     * technical specifications to make comparison meaningful, a verified
+     * reusable image, and comparison data (checked by the shared gate).
+     * Catalog body type/year alone never count as specifications.
      */
     return (
-        hasDescription ||
-        specificationCount > 0
+        hasReliableDescription &&
+        getPopularVehicleSpecificationCount(details) >=
+            POPULAR_MIN_SPECIFICATION_FIELDS
     );
 
 }
@@ -3009,7 +3029,11 @@ function hasRequiredVehicleCardQuality(
 
     const informationAvailable =
         kind === VEHICLE_ALL_KIND
-            ? hasUnifiedVehicleDisplayInformation(details)
+            ? hasUnifiedVehicleDisplayInformation(
+                details,
+                vehicle,
+                detailKind
+            )
             : hasUsablePopularVehicleDetails(
                 details,
                 vehicle,
@@ -3086,7 +3110,9 @@ function applyUnifiedVehicleCardDetailsState(
 
     const infoAvailable =
         hasUnifiedVehicleDisplayInformation(
-            details
+            details,
+            vehicle,
+            vehicle?.sourceKind || vehicle?.kind || currentVehicleKind
         );
 
     const comparisonAvailable =
@@ -3514,7 +3540,11 @@ async function findNextPopularCardRecoveryCandidate(
         const informationAvailable =
             kind === VEHICLE_ALL_KIND
                 ? (
-                    hasUnifiedVehicleDisplayInformation(details) &&
+                    hasUnifiedVehicleDisplayInformation(
+                        details,
+                        candidate,
+                        candidateKind
+                    ) &&
                     (
                         hasPopularVehicleIdentityMatch(
                             details,
@@ -6130,7 +6160,7 @@ function hasUsablePopularVehicleDetails(
             details
         );
 
-    const minimumSpecificationFields = 0;
+    const minimumSpecificationFields = POPULAR_MIN_SPECIFICATION_FIELDS;
 
     if (
         specificationCount <
@@ -8520,7 +8550,7 @@ async function renderPopularCatalogImmediately(kind, showAll = false) {
 
         /*
          * On a first-ever visit there may be no background result yet.
-         * Do only one small starter batch; never wait for the full 2000.
+         * Do only one small starter batch; never wait for the full 1000.
          */
         if (
             !validVehicles.length &&
@@ -10708,9 +10738,21 @@ async function openVehicleDetailsPanel(
      * replacing a useful panel with a generic failure message.
      */
     if (
-        !details &&
-        canShowCachedQuality
+        canShowCachedQuality &&
+        (
+            !details ||
+            !hasRequiredVehicleCardQuality(
+                details,
+                vehicle,
+                currentVehicleKind
+            )
+        )
     ) {
+        /*
+         * Different endpoint modes can have uneven image/spec enrichment.
+         * Preserve a complete, quality-verified cached response rather than
+         * replacing it with a partial full-mode response.
+         */
         details = cachedQualityDetails;
         detailsFallbackMode = "quality";
     }
@@ -10773,8 +10815,7 @@ async function openVehicleDetailsPanel(
      * and stop here.
      */
     if (
-        currentVehicleMode === "popular" &&
-        detailsFallbackMode !== "fast"
+        currentVehicleMode === "popular"
     ) {
         const card =
             findUnifiedVehicleCard(vehicle) ||
@@ -14635,7 +14676,7 @@ function updateCarsCategoryHeader(
         '<span class="cars-results-description-text">' +
         escapeVehicleHtml(
             kind === VEHICLE_ALL_KIND
-                ? "Up to 2,000 verified cars, motorcycles, vans, trucks and buses from the connected VehiclesDB dataset."
+                ? "Up to 1,000 verified cars, motorcycles, vans, trucks and buses from the connected VehiclesDB dataset."
                 : info.description
         ) +
         '</span>' +
@@ -15618,7 +15659,7 @@ const UNIFIED_BACKGROUND_WARMUP_BATCH_SIZE = 8;
 const UNIFIED_BACKGROUND_WARMUP_PERSIST_EVERY_BATCHES = 8;
 const UNIFIED_BACKGROUND_WARMUP_CLOUD_SYNC_MIN_RECORDS = 32;
 /*
- * Scan beyond the public 2000-card limit so failed/missing records can
+ * Scan beyond the public 1000-card limit so failed/missing records can
  * be replaced by the next valid popular vehicle.
  */
 const UNIFIED_BACKGROUND_WARMUP_MAX_PER_SESSION =
@@ -16313,7 +16354,7 @@ async function startUnifiedVehicleBackgroundWarmup() {
                 };
 
                 /*
-                 * Stop as soon as the 2000-item target is filled. The
+                 * Stop as soon as the 1000-item target is filled. The
                  * candidate pool is deliberately larger to replace missing
                  * records, but scanning the remaining pool after the target
                  * is reached only creates unnecessary details requests.
@@ -16548,7 +16589,7 @@ async function startUnifiedVehicleBackgroundWarmup() {
                 flushPendingCloudRecords(true);
 
                 /*
-                 * Keep a final 2000-item account-scoped quality snapshot.
+                 * Keep a final 1000-item account-scoped quality snapshot.
                  */
                 validVehicles.sort(
                     (a, b) =>
@@ -16612,7 +16653,7 @@ async function startUnifiedVehicleBackgroundWarmup() {
 
                 /*
                  * Finalize the authenticated cloud snapshot only after
-                 * the current dataset has been scanned or 2000 valid
+                 * the current dataset has been scanned or 1000 valid
                  * vehicles have been collected. Older datasets are then
                  * removed automatically.
                  */
@@ -16852,7 +16893,7 @@ async function openCars() {
             '<div class="cars-empty-state">' +
                 '<div class="cars-empty-icon">🚗</div>' +
                 '<strong>Loading vehicles...</strong>' +
-                '<p>Loading the 2000-vehicle catalog. Returning users can restore previously loaded cards from their account cache.</p>' +
+                '<p>Loading the 1000-vehicle catalog. Returning users can restore previously loaded cards from their account cache.</p>' +
             '</div>';
     }
 
