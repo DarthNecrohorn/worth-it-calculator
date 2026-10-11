@@ -15587,9 +15587,26 @@ function handleVehicleSearch(
 
     hideVehicleFloatingCollapseButton();
 
+    /*
+     * Search the complete catalog candidate pool, not only the first 1000
+     * entries copied into currentVehicleCatalog for the public All Vehicles
+     * view. More popular vehicles may be loaded/validated when the user
+     * expands the list, but they must already be searchable by make/model.
+     * This performs a local metadata search and starts no extra API requests.
+     */
+    const searchCatalog =
+        currentVehicleKind === VEHICLE_ALL_KIND
+            ? (
+                vehicleCatalogCache.get(
+                    VEHICLE_ALL_KIND
+                ) ||
+                currentVehicleCatalog
+            )
+            : currentVehicleCatalog;
+
     const results =
         searchVehicleCatalog(
-            currentVehicleCatalog,
+            searchCatalog,
             query
         );
 
