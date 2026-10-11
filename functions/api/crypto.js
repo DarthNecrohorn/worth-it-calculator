@@ -666,7 +666,7 @@ async function getUsdToEurRate(env) {
     : null;
 }
 
-async function market(env) {
+async function market(env, context) {
   const resultCache =
     caches.default;
 
@@ -695,6 +695,11 @@ async function market(env) {
 
     return response;
   }
+
+  recordAdminApiUsage(context, {
+    apiKey: "crypto",
+    provider: "CoinMarketCap"
+  });
 
   /*
    * Use one conversion only on the main listings request.
@@ -795,20 +800,45 @@ async function market(env) {
   return resultResponse;
 }
 
-async function detail(url, env) {
+async function detail(url, env, context) {
   const id = url.searchParams.get("id");
   if (!id || !/^\d+$/.test(id)) return json({error:"Invalid cryptocurrency id."},400);
+
+  const requestedName =
+    String(url.searchParams.get("name") || "").trim() || null;
+
+  const requestedSymbol =
+    String(url.searchParams.get("symbol") || "").trim() || null;
+
+  const detailCache =
+    typeof caches !== "undefined" ? caches.default : null;
+
+  const detailCacheKey = new Request(
+    "https://worth-it-internal-cache.local/crypto-detail-v1/" +
+    encodeURIComponent(id) + "/" +
+    encodeURIComponent(norm(requestedName || "")) + "/" +
+    encodeURIComponent(norm(requestedSymbol || ""))
+  );
+
+  if (detailCache) {
+    try {
+      const cachedDetail = await detailCache.match(detailCacheKey);
+      if (cachedDetail) return cachedDetail;
+    } catch (error) {
+      console.warn("Crypto detail response cache read failed:", error);
+    }
+  }
+
+  recordAdminApiUsage(context, {
+    apiKey: "crypto",
+    provider: "CoinMarketCap"
+  });
 
   /*
    * Use the coin name/symbol from the market listing as the primary
    * Wikipedia lookup input. This keeps the description lookup working
    * even when CMC's separate metadata endpoint is unavailable.
    */
-  const requestedName =
-    String(url.searchParams.get("name") || "").trim() || null;
-
-  const requestedSymbol =
-    String(url.searchParams.get("symbol") || "").trim() || null;
 
   /*
    * Use the same current CMC v2 metadata endpoint through the shared
@@ -883,7 +913,7 @@ async function detail(url, env) {
     };
   };
 
-  return json({
+  const response = json({
     id:Number(id),
     metadata:{
       name:meta.name || null,
@@ -931,6 +961,16 @@ async function detail(url, env) {
   },200,{
     "cache-control":"public, max-age=" + DETAIL_PERFORMANCE_CACHE_SECONDS + ", s-maxage=" + DETAIL_PERFORMANCE_CACHE_SECONDS
   });
+
+  if (detailCache) {
+    try {
+      await detailCache.put(detailCacheKey, response.clone());
+    } catch (error) {
+      console.warn("Crypto detail response cache write failed:", error);
+    }
+  }
+
+  return response;
 }
 
 async function image(url) {
@@ -957,11 +997,7 @@ export async function onRequestGet(context) {
   const url = new URL(request.url);
   try {
     if (url.searchParams.get("action") === "detail") {
-      recordAdminApiUsage(context, {
-        apiKey: "crypto",
-        provider: "CoinMarketCap"
-      });
-      return await detail(url, env);
+      return await detail(url, env, context);
     }
 
     if (url.searchParams.get("action") === "image") {
@@ -969,11 +1005,7 @@ export async function onRequestGet(context) {
     }
 
     if (!url.searchParams.get("action") || url.searchParams.get("action") === "market") {
-      recordAdminApiUsage(context, {
-        apiKey: "crypto",
-        provider: "CoinMarketCap"
-      });
-      return await market(env);
+      return await market(env, context);
     }
 
     return json(

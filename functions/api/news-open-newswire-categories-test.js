@@ -1,4 +1,8 @@
-export async function onRequestGet({ request }) {
+import { isWorthItAdminRequest, adminRequiredResponse } from "../lib/admin-auth.js";
+
+export async function onRequestGet(context) {
+  if (!await isWorthItAdminRequest(context)) return adminRequiredResponse();
+  const { request } = context;
   const started = Date.now();
 
   const categories = [

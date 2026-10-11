@@ -1,3 +1,5 @@
+import { isWorthItAdminRequest, adminRequiredResponse } from "../lib/admin-auth.js";
+
 const GDELT_BASE = "https://api.gdeltproject.org/api/v2/doc/doc";
 
 const CATEGORIES = {
@@ -128,7 +130,8 @@ async function fetchGdelt(query) {
   };
 }
 
-export async function onRequestGet() {
+export async function onRequestGet(context) {
+  if (!await isWorthItAdminRequest(context)) return adminRequiredResponse();
   const started = Date.now();
   const results = {};
 

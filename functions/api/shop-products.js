@@ -218,16 +218,6 @@ function jsonResponse(
 export async function onRequestGet(
     context
 ) {
-    recordAdminApiUsage(
-        context,
-        {
-            apiKey:
-                "shop-affiliate-feed",
-            provider:
-                "Awin Standard Feeds — GitHub Actions"
-        }
-    );
-
     const requestUrl =
         new URL(
             context.request.url
@@ -237,6 +227,24 @@ export async function onRequestGet(
         requestUrl.searchParams.get(
             "debug"
         ) === "1";
+
+    const responseCache = caches.default;
+    const responseCacheKey = new Request(
+        "https://worth-it-internal-cache.local/shop-products/response-v1"
+    );
+
+    if (!debugMode) {
+        const cachedResponse = await responseCache.match(responseCacheKey);
+        if (cachedResponse) return cachedResponse;
+    }
+
+    recordAdminApiUsage(
+        context,
+        {
+            apiKey: "shop-affiliate-feed",
+            provider: "Awin Standard Feeds — GitHub Actions"
+        }
+    );
 
     const snapshot =
         await readImportedAwinProducts(
@@ -266,7 +274,7 @@ export async function onRequestGet(
         loadedFeedCount > 0 ||
         products.length > 0;
 
-    return jsonResponse(
+    const response = jsonResponse(
         {
             ok: true,
             configured,
@@ -293,6 +301,16 @@ export async function onRequestGet(
         200,
         RESPONSE_CACHE_SECONDS
     );
+
+    if (!debugMode) {
+        try {
+            await responseCache.put(responseCacheKey, response.clone());
+        } catch {
+            // Keep the endpoint usable if the optional response cache is unavailable.
+        }
+    }
+
+    return response;
 }
 
 export async function onRequestOptions() {
