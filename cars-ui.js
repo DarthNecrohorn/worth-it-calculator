@@ -484,6 +484,8 @@ const vehicleCompareSelection =
 let vehicleModalScrollY =
     0;
 
+let vehicleModalReturnFocus = null;
+
 let vehicleModalNavigationItems = [];
 let vehicleModalNavigationIndex = -1;
 
@@ -10507,6 +10509,21 @@ function setVehicleModalOpen(
 
     if (open) {
 
+        if (!modal.classList.contains("is-open")) {
+            const activeElement = document.activeElement;
+            const fallbackFocusTarget =
+                document.getElementById("carsSearchInput");
+
+            vehicleModalReturnFocus =
+                activeElement &&
+                activeElement !== document.body &&
+                activeElement !== document.documentElement &&
+                !modal.contains(activeElement) &&
+                typeof activeElement.focus === "function"
+                    ? activeElement
+                    : fallbackFocusTarget;
+        }
+
         vehicleModalScrollY =
             window.scrollY ||
             window.pageYOffset ||
@@ -10544,11 +10561,60 @@ function closeVehicleDetailsPanel(restoreScroll = true) {
         return;
     }
 
+    const activeElement = document.activeElement;
+
+    if (activeElement && modal.contains(activeElement)) {
+        const fallbackFocusTarget =
+            document.getElementById("carsSearchInput");
+
+        let focusTarget = vehicleModalReturnFocus;
+
+        if (
+            !focusTarget ||
+            !focusTarget.isConnected ||
+            modal.contains(focusTarget) ||
+            focusTarget.disabled ||
+            typeof focusTarget.focus !== "function"
+        ) {
+            focusTarget = fallbackFocusTarget;
+        }
+
+        try {
+            if (focusTarget && !modal.contains(focusTarget)) {
+                focusTarget.focus({ preventScroll: true });
+            }
+        } catch (error) {
+            /* Use the fallback below if focus restoration fails. */
+        }
+
+        if (
+            modal.contains(document.activeElement) &&
+            fallbackFocusTarget &&
+            !modal.contains(fallbackFocusTarget)
+        ) {
+            try {
+                fallbackFocusTarget.focus({ preventScroll: true });
+            } catch (error) {
+                /* Blurring the active control below is the final fallback. */
+            }
+        }
+
+        if (
+            modal.contains(document.activeElement) &&
+            document.activeElement &&
+            typeof document.activeElement.blur === "function"
+        ) {
+            document.activeElement.blur();
+        }
+    }
+
     modal.classList.remove("is-open");
     modal.setAttribute("aria-hidden", "true");
     document.body.classList.remove(
         "worth-it-vehicle-modal-open"
     );
+
+    vehicleModalReturnFocus = null;
 
     if (
         restoreScroll &&
