@@ -1,3 +1,5 @@
+import { isWorthItAdminRequest, adminRequiredResponse } from "../lib/admin-auth.js";
+
 const USGS_PID = "USGS:69837e43b66b01367d7ec7c7";
 const DOI_URL = "https://doi.org/10.5066/P1WKQ63T";
 
@@ -284,7 +286,8 @@ async function probe(url, options = {}) {
     };
 }
 
-export async function onRequestGet() {
+export async function onRequestGet(context) {
+    if (!await isWorthItAdminRequest(context)) return adminRequiredResponse();
     const results = {
         success: true,
         pid: USGS_PID,

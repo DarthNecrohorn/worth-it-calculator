@@ -736,6 +736,22 @@ async function handleMetadata(
         );
     }
 
+    const metadataCacheKey = createCacheRequest(
+        url,
+        ["metadata", WATER_CACHE_VERSION, type, productId].join("/")
+    );
+    const metadataCache = caches.default;
+
+    if (!forceRefresh) {
+        const cachedMetadata = await metadataCache.match(metadataCacheKey);
+        if (cachedMetadata) {
+            return responseWithHeaders(cachedMetadata, {
+                "X-Water-Cache": "HIT",
+                "X-Water-Cache-TTL": PRODUCT_CACHE_TTL_SECONDS + "s"
+            });
+        }
+    }
+
     recordAdminApiUsage(context, {
         apiKey: "water-levels",
         provider: "Copernicus CLMS / CDSE"
@@ -792,7 +808,7 @@ async function handleMetadata(
             latestResult = null;
         }
 
-        return jsonResponse(
+        const response = jsonResponse(
             {
                 ok: true,
                 productId,
@@ -838,6 +854,9 @@ async function handleMetadata(
                     PRODUCT_STALE_TTL_SECONDS
             }
         );
+
+        await safeCachePut(metadataCache, metadataCacheKey, response.clone());
+        return response;
 
     }
     catch (error) {

@@ -411,11 +411,6 @@ function createCurrencyResponse(data, cacheSeconds, extraHeaders = {}) {
 
 export async function onRequest(context) {
 
-    recordAdminApiUsage(context, {
-        apiKey: "currencies",
-        provider: "Frankfurter"
-    });
-
     const corsHeaders = {
         "Access-Control-Allow-Origin": "*",
         "Access-Control-Allow-Methods": "GET, OPTIONS",
@@ -531,6 +526,11 @@ export async function onRequest(context) {
            The latest and previous rates are both
            calculated from the same rates response.
         ================================================= */
+
+        recordAdminApiUsage(context, {
+            apiKey: "currencies",
+            provider: "Frankfurter"
+        });
 
         let [
             currenciesRaw,

@@ -1,4 +1,5 @@
 import { recordAdminApiUsage } from "../lib/admin-usage.js";
+import { isWorthItAdminRequest, adminRequiredResponse } from "../lib/admin-auth.js";
 
 /* =========================================================
    WORTH IT — MARKETS API
@@ -8499,7 +8500,8 @@ async function searchWikimediaImage(
 async function getCommodityImage(
     cache,
     commodityName,
-    category
+    category,
+    context
 ) {
 
     const cacheKey =
@@ -8565,6 +8567,11 @@ async function getCommodityImage(
 
     }
 
+
+    recordAdminApiUsage(context, {
+        apiKey: "markets",
+        provider: "World Bank + USGS + EIA + USDA NASS + Voltlas + Wikimedia Commons"
+    });
 
     const image =
         await searchWikimediaImage(
@@ -9104,7 +9111,8 @@ async function handleImageAction(
             await getCommodityImage(
                 caches.default,
                 name,
-                category
+                category,
+                context
             );
 
 
@@ -9202,11 +9210,6 @@ export async function onRequestGet(
     context
 ) {
 
-    recordAdminApiUsage(context, {
-        apiKey: "markets",
-        provider: "World Bank + USGS + EIA + USDA NASS + Voltlas + Wikimedia Commons"
-    });
-
     const requestUrl =
         new URL(
             context.request.url
@@ -9233,6 +9236,10 @@ export async function onRequestGet(
         action ===
         "usgs-diagnostic"
     ) {
+
+        if (!await isWorthItAdminRequest(context)) {
+            return adminRequiredResponse();
+        }
 
         const year =
             new Date().getUTCFullYear();
@@ -9533,6 +9540,11 @@ export async function onRequestGet(
 
 
     try {
+
+        recordAdminApiUsage(context, {
+            apiKey: "markets",
+            provider: "World Bank + USGS + EIA + USDA NASS + Voltlas + Wikimedia Commons"
+        });
 
         const parsed =
             await buildCombinedMarketsDataset(

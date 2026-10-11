@@ -1,3 +1,5 @@
+import { isWorthItAdminRequest, adminRequiredResponse } from "../lib/admin-auth.js";
+
 const API_BASE = "https://api.thenewsapi.com/v1/news/top";
 
 const CATEGORIES = {
@@ -84,6 +86,7 @@ async function fetchCategory(apiKey, category) {
 }
 
 export async function onRequestGet(context) {
+  if (!await isWorthItAdminRequest(context)) return adminRequiredResponse();
   const apiKey = context.env.THE_NEWS_API_KEY;
 
   if (!apiKey) {

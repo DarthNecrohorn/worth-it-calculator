@@ -7418,6 +7418,7 @@ function createWikipediaNoInformation(
  */
 
 async function handleDetails(
+    context,
     requestUrl
 ) {
 
@@ -7512,6 +7513,11 @@ async function handleDetails(
             );
         }
     }
+
+    recordAdminApiUsage(context, {
+        apiKey: "cars",
+        provider: "VehiclesDB + Wikidata + DBpedia + Wikipedia + Wikimedia Commons"
+    });
 
     const respondDetails = async (
         data,
@@ -9442,12 +9448,51 @@ export async function onRequestPost(context) {
     }
 }
 
-export async function onRequestGet(context) {
+async function handleCachedCarCandidateResponse(
+    context,
+    requestUrl,
+    source,
+    handler
+) {
+    const kind = getRequestedKind(requestUrl);
+    if (!kind) return handler(requestUrl);
+
+    const cache = typeof caches !== "undefined" ? caches.default : null;
+    const cacheKey = new Request(
+        "https://worth-it-internal-cache.local/cars-candidates-response/" +
+        WIKIPEDIA_CACHE_VERSION + "/" +
+        encodeURIComponent(source) + "/" +
+        encodeURIComponent(kind)
+    );
+
+    if (cache) {
+        try {
+            const cached = await cache.match(cacheKey);
+            if (cached) return cached;
+        } catch (error) {
+            console.warn("Cars candidate response cache read failed:", error);
+        }
+    }
 
     recordAdminApiUsage(context, {
         apiKey: "cars",
         provider: "VehiclesDB + Wikidata + DBpedia + Wikipedia + Wikimedia Commons"
     });
+
+    const response = await handler(requestUrl);
+
+    if (cache && response.ok) {
+        try {
+            await cache.put(cacheKey, response.clone());
+        } catch (error) {
+            console.warn("Cars candidate response cache write failed:", error);
+        }
+    }
+
+    return response;
+}
+
+export async function onRequestGet(context) {
 
     try {
 
@@ -9545,13 +9590,19 @@ export async function onRequestGet(context) {
             }
 
             case "wikidata":
-                return handleWikidataCandidates(
-                    requestUrl
+                return handleCachedCarCandidateResponse(
+                    context,
+                    requestUrl,
+                    "wikidata",
+                    handleWikidataCandidates
                 );
 
             case "dbpedia":
-                return handleDbpediaCandidates(
-                    requestUrl
+                return handleCachedCarCandidateResponse(
+                    context,
+                    requestUrl,
+                    "dbpedia",
+                    handleDbpediaCandidates
                 );
 
             case "images":
@@ -9561,6 +9612,7 @@ export async function onRequestGet(context) {
 
             case "details":
                 return handleDetails(
+                    context,
                     requestUrl
                 );
 

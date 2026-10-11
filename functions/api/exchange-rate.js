@@ -2,10 +2,6 @@ import { recordAdminApiUsage } from "../lib/admin-usage.js";
 
 export async function onRequestGet(context) {
 
-    recordAdminApiUsage(context, {
-        apiKey: "exchange-rate",
-        provider: "Frankfurter"
-    });
     const cache = caches.default;
 
     const cacheUrl = new URL(context.request.url);
@@ -21,6 +17,11 @@ export async function onRequestGet(context) {
     if (cachedResponse) {
         return cachedResponse;
     }
+
+    recordAdminApiUsage(context, {
+        apiKey: "exchange-rate",
+        provider: "Frankfurter"
+    });
 
     try {
         const response = await fetch(
