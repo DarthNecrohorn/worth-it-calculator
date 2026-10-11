@@ -418,6 +418,7 @@ export async function onRequestGet(context) {
         const last30Start = new Date(
             Date.parse(today + "T00:00:00.000Z") - 29 * 24 * 60 * 60 * 1000
         ).toISOString().slice(0, 10);
+        const d1Start = monthStart < last30Start ? monthStart : last30Start;
         const dayStart = today + "T00:00:00.000Z";
         const monthDateTimeStart = monthStart + "T00:00:00.000Z";
         const last30DateTimeStart = last30Start + "T00:00:00.000Z";
@@ -441,7 +442,7 @@ export async function onRequestGet(context) {
             d1Usage: d1AnalyticsAdaptiveGroups(
                 limit: ${D1_QUERY_LIMIT}
                 filter: {
-                    date_geq: ${graphQLString(last30Start)}
+                    date_geq: ${graphQLString(d1Start)}
                     date_leq: ${graphQLString(today)}
                 }
             ) {
@@ -458,7 +459,7 @@ export async function onRequestGet(context) {
             d1Storage: d1StorageAdaptiveGroups(
                 limit: ${D1_QUERY_LIMIT}
                 filter: {
-                    date_geq: ${graphQLString(last30Start)}
+                    date_geq: ${graphQLString(d1Start)}
                     date_leq: ${graphQLString(today)}
                 }
             ) {
