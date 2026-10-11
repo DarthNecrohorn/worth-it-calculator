@@ -15,6 +15,7 @@
         MAP_REQUEST_MIN_INTERVAL_MS: 9000,
         MAP_REUSE_CENTER_RATIO: 0.25,
         AUTO_REFRESH_MS: 45000,
+        CANVAS_MIN_REDRAW_INTERVAL_MS: 33,
         MAP_BASE_REFRESH_MS: 21600000,
         SEARCH_DEBOUNCE_MS: 220,
         REQUEST_TIMEOUT_MS: 20000,
@@ -47,6 +48,9 @@
     let shipCanvasHitGrid = new Map();
     let shipCanvasRenderToken = 0;
     let shipCanvasRenderFrame = null;
+    let shipCanvasDrawTimer = null;
+    let shipCanvasLastDrawAt = 0;
+    let shipCanvasFilteredVessels = [];
     let shipCanvasHoverFrame = null;
     let shipCanvasPointerEvent = null;
     let shipCanvasHoverMmsi = "";
@@ -111,6 +115,7 @@
                     pan: false
                 });
 
+                scheduleShipCanvasDraw();
                 loadWorldMapLayer();
                 scheduleMapLoad(true);
             }, 120);
@@ -1528,78 +1533,87 @@
             return;
         }
 
-        if(
-            !Array.isArray(filtered)
-        ){
-            filtered =
-                getFilteredVessels();
+        /*
+         * The vessel/filter list changes only when data or filter controls
+         * change. Reuse it during map movement rather than rebuilding it
+         * for every Leaflet "move" event.
+         */
+        if(Array.isArray(filtered)){
+            shipCanvasFilteredVessels =
+                filtered.filter(function(vessel){
+                    const lat = Number(vessel.lat);
+                    const lon = Number(vessel.lon);
+
+                    return (
+                        Number.isFinite(lat) &&
+                        Number.isFinite(lon)
+                    );
+                });
         }
 
-        const items =
-            filtered.filter(function(vessel){
-                const lat =
-                    Number(vessel.lat);
-
-                const lon =
-                    Number(vessel.lon);
-
-                return (
-                    Number.isFinite(lat) &&
-                    Number.isFinite(lon)
-                );
-            });
-
-        shipCanvasRenderToken += 1;
-
+        /*
+         * Coalesce map events and redraw at most about 30 times per second.
+         * The draw reads the latest cached vessels and current map position,
+         * so rapid pointer/zoom events do not enqueue redundant work.
+         */
         if(
-            shipCanvasRenderFrame !==
-            null &&
-            typeof window.cancelAnimationFrame ===
-            "function"
+            shipCanvasDrawTimer !== null ||
+            shipCanvasRenderFrame !== null
         ){
-            window.cancelAnimationFrame(
-                shipCanvasRenderFrame
+            return;
+        }
+
+        const elapsed =
+            performance.now() - shipCanvasLastDrawAt;
+
+        const delay =
+            Math.max(
+                0,
+                CONFIG.CANVAS_MIN_REDRAW_INTERVAL_MS - elapsed
             );
 
-            shipCanvasRenderFrame =
-                null;
-        }
+        const scheduleFrame = function(){
+            shipCanvasDrawTimer = null;
 
-        const token =
-            shipCanvasRenderToken;
+            if(
+                !map ||
+                !shipCanvas ||
+                shipCanvasRenderFrame !== null
+            ){
+                return;
+            }
 
-        const draw =
-            function(){
-                shipCanvasRenderFrame =
-                    null;
+            const token = ++shipCanvasRenderToken;
 
-                if(
-                    token !==
-                    shipCanvasRenderToken
-                ){
+            const draw = function(){
+                shipCanvasRenderFrame = null;
+
+                if(token !== shipCanvasRenderToken){
                     return;
                 }
 
-                drawShipCanvas(
-                    items
-                );
+                shipCanvasLastDrawAt = performance.now();
+                drawShipCanvas(shipCanvasFilteredVessels);
             };
 
-        if(
-            typeof window.requestAnimationFrame ===
-            "function"
-        ){
-            shipCanvasRenderFrame =
-                window.requestAnimationFrame(
-                    draw
-                );
-        }else{
-            shipCanvasRenderFrame =
-                window.setTimeout(
-                    draw,
-                    16
-                );
+            if(
+                typeof window.requestAnimationFrame === "function"
+            ){
+                shipCanvasRenderFrame =
+                    window.requestAnimationFrame(draw);
+            }else{
+                shipCanvasRenderFrame =
+                    window.setTimeout(draw, 16);
+            }
+        };
+
+        if(delay > 0){
+            shipCanvasDrawTimer =
+                window.setTimeout(scheduleFrame, delay);
+            return;
         }
+
+        scheduleFrame();
     }
 
     function getShipCanvasPixelRatio(){
@@ -3030,6 +3044,13 @@
     function clearMarkers(){
         shipCanvasRenderToken += 1;
 
+        if(shipCanvasDrawTimer !== null){
+            window.clearTimeout(shipCanvasDrawTimer);
+            shipCanvasDrawTimer = null;
+        }
+
+        shipCanvasFilteredVessels = [];
+
         if(
             shipCanvasRenderFrame !== null &&
             typeof window.cancelAnimationFrame ===
@@ -3518,6 +3539,27 @@
         if(mapBaseRefreshTimer){
             window.clearInterval(mapBaseRefreshTimer);
             mapBaseRefreshTimer = null;
+        }
+
+        if(mapLoadTimer !== null){
+            window.clearTimeout(mapLoadTimer);
+            mapLoadTimer = null;
+        }
+
+        if(shipCanvasDrawTimer !== null){
+            window.clearTimeout(shipCanvasDrawTimer);
+            shipCanvasDrawTimer = null;
+        }
+
+        shipCanvasRenderToken += 1;
+
+        if(shipCanvasRenderFrame !== null){
+            if(typeof window.cancelAnimationFrame === "function"){
+                window.cancelAnimationFrame(shipCanvasRenderFrame);
+            }else{
+                window.clearTimeout(shipCanvasRenderFrame);
+            }
+            shipCanvasRenderFrame = null;
         }
     }
 
