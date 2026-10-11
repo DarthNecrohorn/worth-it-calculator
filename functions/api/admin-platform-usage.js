@@ -328,6 +328,25 @@ function groupD1Usage(usageRows, storageRows, databaseDirectory, env, today, mon
         }
     });
 
+    const knownD1Databases = Array.from(databaseDirectory.byId.values());
+    let seedIds = [];
+
+    if (env.CLOUDFLARE_D1_DATABASE_ID) {
+        seedIds = [String(env.CLOUDFLARE_D1_DATABASE_ID).trim()];
+    } else {
+        const namedWorthItDatabases = knownD1Databases.filter(database =>
+            /worth\\s*[-_]?\\s*it|worth-it-calculator/i.test(database.name)
+        );
+
+        if (namedWorthItDatabases.length) {
+            seedIds = namedWorthItDatabases.map(database => database.id);
+        } else if (knownD1Databases.length === 1) {
+            seedIds = [knownD1Databases[0].id];
+        }
+    }
+
+    seedIds.forEach(ensureDatabase);
+
     let databases = Array.from(usageByDatabase.values());
 
     if (!env.CLOUDFLARE_D1_DATABASE_ID) {
