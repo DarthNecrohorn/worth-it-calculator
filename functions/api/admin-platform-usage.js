@@ -250,11 +250,17 @@ function createEmptyD1Period() {
 
 function addD1Row(target, row) {
     const sum = row?.sum || {};
-    target.readQueries += number(sum.readQueries);
-    target.writeQueries += number(sum.writeQueries);
+    const readQueries = number(sum.readQueries);
+    const writeQueries = number(sum.writeQueries);
+    target.readQueries += readQueries;
+    target.writeQueries += writeQueries;
     target.rowsRead += number(sum.rowsRead);
     target.rowsWritten += number(sum.rowsWritten);
-    target.queryTimeMs += number(sum.queryBatchTimeMs);
+
+    // D1's GraphQL schema exposes queryBatchTimeMs under avg, not sum.
+    // Estimate total query time by weighting each group's average by its read/write query count.
+    const queryCount = readQueries + writeQueries;
+    target.queryTimeMs += number(row?.avg?.queryBatchTimeMs) * queryCount;
     target.responseBytes += number(sum.queryBatchResponseBytes);
 }
 
@@ -451,8 +457,10 @@ export async function onRequestGet(context) {
                     writeQueries
                     rowsRead
                     rowsWritten
-                    queryBatchTimeMs
                     queryBatchResponseBytes
+                }
+                avg {
+                    queryBatchTimeMs
                 }
                 dimensions { date databaseId }
             }
