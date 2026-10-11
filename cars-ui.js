@@ -39,7 +39,7 @@ const VEHICLE_CATALOG_BASE_URL =
 const VEHICLE_DATASET_MANIFEST_URL =
     "https://cdn.jsdelivr.net/gh/vehiclesdb/vehiclesdb@latest/manifest.json";
 
-const VEHICLE_DETAILS_CACHE_VERSION = "v29";
+const VEHICLE_DETAILS_CACHE_VERSION = "v30";
 
 const MAX_VEHICLES_PER_CATEGORY = 300;
 
@@ -11026,60 +11026,47 @@ async function openVehicleDetailsPanel(
     );
 
     /*
-     * Image enrichment is best-effort only after the lightweight text
-     * fallback is needed. Keep the text/specification response intact and
-     * replace only the image when a matching reusable image is verified.
+     * A missing image in the first response is not proof that no reusable
+     * image exists. Ask the image-only endpoint in the background for every
+     * usable detail response and keep the UI in a loading state meanwhile.
      */
-    if (detailsFallbackMode === "fast") {
-        void fetchVehicleDetailsWithRetry(
-            vehicle.make,
-            vehicle.model,
-            detailKind,
-            1,
-            0,
-            "image"
-        ).then(imageDetails => {
-            if (
-                !imageDetails?.image?.url ||
-                !modal.classList.contains("is-open") ||
-                modal.dataset.vehicleRequestToken !== requestToken
-            ) {
-                return;
-            }
+    if (!safeDetails?.image?.url) {
+        const imagePendingDetails = { ...safeDetails, imageLoading: true };
+        renderVehicleDetailsPanel(
+            body, imagePendingDetails, vehicle, kind,
+            detailsFallbackMode === "fast"
+                ? false
+                : imagePendingDetails.comparisonAvailable !== false
+        );
 
+        void fetchVehicleDetailsWithRetry(
+            vehicle.make, vehicle.model, detailKind, 1, 0, "image"
+        ).then(imageDetails => {
+            if (!modal.classList.contains("is-open") || modal.dataset.vehicleRequestToken !== requestToken) return;
+            const dialog = modal.querySelector(".worth-it-vehicle-modal-dialog");
+            const previousScrollTop = dialog?.scrollTop || 0;
+            const candidate = { ...safeDetails, image: imageDetails?.image || null };
             const enrichedDetails = {
                 ...safeDetails,
-                image: imageDetails.image
+                imageLoading: false,
+                image: imageDetails?.image?.url && hasPopularVehicleImageRelevance(candidate, vehicle)
+                    ? imageDetails.image
+                    : null
             };
-
-            if (
-                !hasPopularVehicleImageRelevance(
-                    enrichedDetails,
-                    vehicle
-                )
-            ) {
-                return;
-            }
-
-            const dialog =
-                modal.querySelector(
-                    ".worth-it-vehicle-modal-dialog"
-                );
-
-            const previousScrollTop =
-                dialog?.scrollTop || 0;
-
             renderVehicleDetailsPanel(
-                body,
-                enrichedDetails,
-                vehicle,
-                kind,
-                false
+                body, enrichedDetails, vehicle, kind,
+                detailsFallbackMode === "fast" ? false : enrichedDetails.comparisonAvailable !== false
             );
-
-            if (dialog) {
-                dialog.scrollTop = previousScrollTop;
-            }
+            if (dialog) dialog.scrollTop = previousScrollTop;
+        }).catch(() => {
+            if (!modal.classList.contains("is-open") || modal.dataset.vehicleRequestToken !== requestToken) return;
+            const dialog = modal.querySelector(".worth-it-vehicle-modal-dialog");
+            const previousScrollTop = dialog?.scrollTop || 0;
+            renderVehicleDetailsPanel(
+                body, { ...safeDetails, imageLoading: false, image: null }, vehicle, kind,
+                detailsFallbackMode !== "fast" && safeDetails.comparisonAvailable !== false
+            );
+            if (dialog) dialog.scrollTop = previousScrollTop;
         });
     }
 
@@ -11219,7 +11206,7 @@ function renderVehicleDetailsPanel(
             : `
                 <div class="worth-it-vehicle-detail-image-placeholder">
                     <span>${info.icon}</span>
-                    <small>${details.loading ? "Checking reusable image…" : "No image available"}</small>
+                    <small>${details.loading || details.imageLoading ? "Loading image…" : "Image not available"}</small>
                 </div>
             `;
 
@@ -15852,23 +15839,21 @@ function buildUnifiedBackgroundWarmupCandidates(
 
 function getUnifiedBackgroundWarmupPause() {
     return new Promise(resolve => {
-        if (
-            typeof window.requestIdleCallback ===
-            "function"
-        ) {
+        /* Prioritize responsiveness over optional background enrichment on
+         * lower-end devices after the first useful Cars view is rendered. */
+        const memory = Number(navigator.deviceMemory || 0);
+        const cores = Number(navigator.hardwareConcurrency || 0);
+        const lowEndDevice = (memory > 0 && memory <= 4) || (cores > 0 && cores <= 4);
+        if (typeof window.requestIdleCallback === "function") {
             window.requestIdleCallback(
                 () => resolve(),
-                { timeout: 1200 }
+                { timeout: lowEndDevice ? 2200 : 1200 }
             );
             return;
         }
-
         window.setTimeout(
             resolve,
-            Math.min(
-                UNIFIED_BACKGROUND_WARMUP_DELAY_MS,
-                250
-            )
+            lowEndDevice ? 650 : Math.min(UNIFIED_BACKGROUND_WARMUP_DELAY_MS, 250)
         );
     });
 }
