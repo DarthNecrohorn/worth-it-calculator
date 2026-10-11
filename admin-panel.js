@@ -606,7 +606,7 @@
                         renderWorkerPeriod('Last 30 days', workers.last30Days),
                     '</div>',
                     workers.last30Days?.possiblyTruncated
-                        ? '<p class="admin-platform-warning">Cloudflare returned the maximum number of Worker metric rows for the last 30 days. Historical totals may be incomplete; set CLOUDFLARE_WORKER_SCRIPT_NAME if needed.</p>'
+                        ? '<p class="admin-platform-warning">Cloudflare returned the maximum number of Pages Functions metric rows for the last 30 days. Historical totals may be incomplete; check CLOUDFLARE_PAGES_FUNCTION_SCRIPT_NAME if needed.</p>'
                         : ''
                 ].join('');
             }else{
