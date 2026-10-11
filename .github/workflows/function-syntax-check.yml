@@ -5,6 +5,7 @@ on:
     paths:
       - "functions/**/*.js"
       - "cars-ui.js"
+      - "ship-tracking-ui.js"
       - ".github/workflows/function-syntax-check.yml"
 
 jobs:
@@ -31,4 +32,8 @@ jobs:
           if [[ -f "cars-ui.js" ]]; then
             echo "Checking cars-ui.js"
             node --input-type=module --check < "cars-ui.js"
+          fi
+          if [[ -f "ship-tracking-ui.js" ]]; then
+            echo "Checking ship-tracking-ui.js"
+            node --input-type=module --check < "ship-tracking-ui.js"
           fi
