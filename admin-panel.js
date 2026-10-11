@@ -486,7 +486,7 @@
                     renderPlatformMetric('Write queries', formatNumber(period?.writeQueries)),
                     renderPlatformMetric('Rows read', formatNumber(period?.rowsRead)),
                     renderPlatformMetric('Rows written', formatNumber(period?.rowsWritten)),
-                    renderPlatformMetric('Query time', formatDecimal(period?.queryTimeMs, 2) + ' ms', formatDecimal(period?.averageQueryTimeMs, 4) + ' ms average per query'),
+                    renderPlatformMetric('Estimated query time', formatDecimal(period?.queryTimeMs, 2) + ' ms', formatDecimal(period?.averageQueryTimeMs, 4) + ' ms weighted average per query'),
                     renderPlatformMetric('Query response', formatBytes(period?.responseBytes)),
                 '</div>',
             '</article>'
