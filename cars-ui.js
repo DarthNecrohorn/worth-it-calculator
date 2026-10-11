@@ -81,6 +81,7 @@ const VEHICLE_NONCAR_DETAILS_REQUEST_TIMEOUT_MS = 15000;
 const UNIFIED_BACKGROUND_WARMUP_DELAY_MS = 250;
 const VEHICLE_FAST_DETAILS_REQUEST_TIMEOUT_MS = 5000;
 const VEHICLE_IMAGE_DETAILS_REQUEST_TIMEOUT_MS = 8000;
+const VEHICLE_QUALITY_DETAILS_REQUEST_TIMEOUT_MS = 10000;
 const POPULAR_NONCAR_PROGRESSIVE_BUDGET_MS = 7000;
 const POPULAR_NONCAR_EARLY_BASE_COUNT = 120;
 const POPULAR_NONCAR_EARLY_SUPPLEMENTAL_COUNT = 400;
@@ -748,6 +749,7 @@ const vehicleDetailsTransientFailures =
     new Map();
 
 const VEHICLE_DETAILS_TRANSIENT_COOLDOWN_MS = {
+    408: 45 * 1000,
     429: 60 * 1000,
     502: 45 * 1000,
     503: 45 * 1000,
@@ -2130,12 +2132,16 @@ async function fetchVehicleDetails(
                     isImageMode
                         ? VEHICLE_IMAGE_DETAILS_REQUEST_TIMEOUT_MS
                         : (
-                            isFastMode
-                                ? VEHICLE_FAST_DETAILS_REQUEST_TIMEOUT_MS
+                            isQualityMode
+                                ? VEHICLE_QUALITY_DETAILS_REQUEST_TIMEOUT_MS
                                 : (
-                                    kind === "car"
-                                        ? VEHICLE_DETAILS_REQUEST_TIMEOUT_MS
-                                        : VEHICLE_NONCAR_DETAILS_REQUEST_TIMEOUT_MS
+                                    isFastMode
+                                        ? VEHICLE_FAST_DETAILS_REQUEST_TIMEOUT_MS
+                                        : (
+                                            kind === "car"
+                                                ? VEHICLE_DETAILS_REQUEST_TIMEOUT_MS
+                                                : VEHICLE_NONCAR_DETAILS_REQUEST_TIMEOUT_MS
+                                        )
                                 )
                         );
 
@@ -2268,10 +2274,23 @@ async function fetchVehicleDetails(
 
             } catch (error) {
 
-                const failureStatus =
-                    Number(
-                        error?.status
+                const qualityRequestTimedOut =
+                    isQualityMode &&
+                    (
+                        error?.name === "AbortError" ||
+                        /abort/i.test(
+                            String(
+                                error?.message || ""
+                            )
+                        )
                     );
+
+                const failureStatus =
+                    qualityRequestTimedOut
+                        ? 408
+                        : Number(
+                            error?.status
+                        );
 
                 const transientCooldown =
                     VEHICLE_DETAILS_TRANSIENT_COOLDOWN_MS[
@@ -15287,6 +15306,8 @@ function handleVehicleSearch(
  */
 
 const UNIFIED_BACKGROUND_WARMUP_BATCH_SIZE = 8;
+const UNIFIED_BACKGROUND_WARMUP_PERSIST_EVERY_BATCHES = 8;
+const UNIFIED_BACKGROUND_WARMUP_CLOUD_SYNC_MIN_RECORDS = 32;
 /*
  * Scan beyond the public 2000-card limit so failed/missing records can
  * be replaced by the next valid popular vehicle.
@@ -15926,6 +15947,61 @@ async function startUnifiedVehicleBackgroundWarmup() {
                 warmupQualityState.exhausted = false;
 
                 let nextIndex = 0;
+                let successfulBatchesSincePersistentSnapshot = 0;
+                let pendingCloudRecords = [];
+
+                const flushPendingCloudRecords = (force = false) => {
+                    if (
+                        !pendingCloudRecords.length ||
+                        (
+                            !force &&
+                            pendingCloudRecords.length <
+                                UNIFIED_BACKGROUND_WARMUP_CLOUD_SYNC_MIN_RECORDS
+                        )
+                    ) {
+                        return;
+                    }
+
+                    const records =
+                        pendingCloudRecords.filter(record =>
+                            validKeys.has(
+                                getPopularVehicleQualityKey(
+                                    record.vehicle,
+                                    VEHICLE_ALL_KIND
+                                )
+                            )
+                        );
+
+                    pendingCloudRecords = [];
+
+                    if (records.length) {
+                        queueCloudVehicleAccountCacheUpsert(
+                            vehicleDetailsDatasetVersion,
+                            records
+                        );
+                    }
+                };
+
+                const persistWarmupSnapshot = async (force = false) => {
+                    if (
+                        !validVehicles.length ||
+                        successfulBatchesSincePersistentSnapshot === 0 ||
+                        (
+                            !force &&
+                            successfulBatchesSincePersistentSnapshot <
+                                UNIFIED_BACKGROUND_WARMUP_PERSIST_EVERY_BATCHES
+                        )
+                    ) {
+                        return;
+                    }
+
+                    await writePersistentPopularVehicles(
+                        VEHICLE_ALL_KIND,
+                        validVehicles
+                    );
+
+                    successfulBatchesSincePersistentSnapshot = 0;
+                };
 
                 /*
                  * Stop as soon as the 2000-item target is filled. The
@@ -15940,6 +16016,8 @@ async function startUnifiedVehicleBackgroundWarmup() {
 
                     if (!canRunUnifiedVehicleBackgroundWarmup()) {
                         pausedForVisibility = true;
+                        flushPendingCloudRecords(true);
+                        await persistWarmupSnapshot(true);
                         return;
                     }
 
@@ -16076,22 +16154,19 @@ async function startUnifiedVehicleBackgroundWarmup() {
                             );
 
                         if (cloudRecords.length) {
-                            queueCloudVehicleAccountCacheUpsert(
-                                vehicleDetailsDatasetVersion,
-                                cloudRecords
+                            pendingCloudRecords.push(
+                                ...cloudRecords
                             );
                         }
 
                         /*
-                         * Persist after every successful batch. If the
-                         * browser is closed midway, the next visit resumes
-                         * from the already verified vehicles instead of
-                         * starting over.
+                         * Avoid repeatedly serializing and writing the full
+                         * growing catalog after every small batch. Progress
+                         * is persisted periodically and immediately on pause.
                          */
-                        await writePersistentPopularVehicles(
-                            VEHICLE_ALL_KIND,
-                            validVehicles
-                        );
+                        successfulBatchesSincePersistentSnapshot += 1;
+                        flushPendingCloudRecords();
+                        await persistWarmupSnapshot();
 
                     }
 
@@ -16155,6 +16230,13 @@ async function startUnifiedVehicleBackgroundWarmup() {
                     await getUnifiedBackgroundWarmupPause();
 
                 }
+
+                /*
+                 * Flush the final partial cloud batch. The final persistent
+                 * snapshot below also saves any progress since the last
+                 * periodic snapshot.
+                 */
+                flushPendingCloudRecords(true);
 
                 /*
                  * Keep a final 2000-item account-scoped quality snapshot.
