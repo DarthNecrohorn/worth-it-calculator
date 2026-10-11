@@ -51,29 +51,43 @@ function sumValues(rows, fields) {
     return totals;
 }
 
-function aggregateWorkerRows(rows) {
+function aggregatePagesFunctionRows(rows) {
     const totals = sumValues(rows, [
         "requests",
         "errors",
         "subrequests",
-        "cpuTimeUs",
         "wallTime"
     ]);
 
     const requests = totals.requests;
-    const cpuTimeMs = totals.cpuTimeUs / 1000;
+    const cpuRows = Array.isArray(rows) ? rows : [];
+    let weightedCpuP50Us = 0;
+    let weightedCpuP99Us = 0;
+    let cpuWeight = 0;
+
+    cpuRows.forEach(row => {
+        const rowRequests = number(row?.sum?.requests);
+        const quantiles = row?.quantiles || {};
+        if (rowRequests <= 0 || quantiles.cpuTimeP50 == null) return;
+        weightedCpuP50Us += number(quantiles.cpuTimeP50) * rowRequests;
+        weightedCpuP99Us += number(quantiles.cpuTimeP99) * rowRequests;
+        cpuWeight += rowRequests;
+    });
+
+    const cpuTimeP50Ms = cpuWeight ? weightedCpuP50Us / cpuWeight / 1000 : null;
+    const cpuTimeP99Ms = cpuWeight ? weightedCpuP99Us / cpuWeight / 1000 : null;
     const wallTimeMs = totals.wallTime / 1000;
 
     return {
         requests,
         errors: totals.errors,
         subrequests: totals.subrequests,
-        cpuTimeMs: round(cpuTimeMs, 2),
-        averageCpuTimeMs: round(requests ? cpuTimeMs / requests : 0, 4),
+        cpuTimeP50Ms: cpuTimeP50Ms == null ? null : round(cpuTimeP50Ms, 3),
+        cpuTimeP99Ms: cpuTimeP99Ms == null ? null : round(cpuTimeP99Ms, 3),
         wallTimeMs: round(wallTimeMs, 2),
         averageWallTimeMs: round(requests ? wallTimeMs / requests : 0, 3),
-        sampledRows: Array.isArray(rows) ? rows.length : 0,
-        possiblyTruncated: Array.isArray(rows) && rows.length >= WORKER_QUERY_LIMIT
+        sampledRows: cpuRows.length,
+        possiblyTruncated: cpuRows.length >= WORKER_QUERY_LIMIT
     };
 }
 
@@ -86,27 +100,28 @@ function graphQLString(value) {
     return JSON.stringify(String(value ?? ""));
 }
 
-function createWorkerFields(alias, start, end, scriptName) {
+function createPagesFunctionFields(alias, startDate, endDate, scriptName) {
     return `
-        ${alias}: workersInvocationsAdaptive(
-            limit: ${WORKER_QUERY_LIMIT}
+        ${alias}: pagesFunctionsInvocationsAdaptiveGroups(
+            limit: 1000
             filter: {
                 scriptName: ${graphQLString(scriptName)}
-                datetime_geq: ${graphQLString(start)}
-                datetime_leq: ${graphQLString(end)}
+                date_geq: ${graphQLString(startDate)}
+                date_leq: ${graphQLString(endDate)}
             }
         ) {
             sum {
                 requests
                 errors
                 subrequests
-                cpuTimeUs
                 wallTime
             }
+            quantiles {
+                cpuTimeP50
+                cpuTimeP99
+            }
             dimensions {
-                datetime
                 scriptName
-                status
             }
         }
     `;
@@ -144,17 +159,19 @@ async function callGraphQL(apiToken, query) {
     return result.data.viewer.accounts[0];
 }
 
-async function discoverWorkerScript(apiToken, accountId, nowIso) {
-    const start = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+async function discoverPagesFunctionScript(apiToken, accountId, nowIso) {
+    const startDate = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
+        .toISOString().slice(0, 10);
+    const endDate = String(nowIso).slice(0, 10);
     const query = `
-        query WorthItWorkerScriptDiscovery {
+        query WorthItPagesFunctionScriptDiscovery {
             viewer {
                 accounts(filter: { accountTag: ${graphQLString(accountId)} }) {
-                    workersInvocationsAdaptive(
+                    pagesFunctionsInvocationsAdaptiveGroups(
                         limit: 500
                         filter: {
-                            datetime_geq: ${graphQLString(start)}
-                            datetime_leq: ${graphQLString(nowIso)}
+                            date_geq: ${graphQLString(startDate)}
+                            date_leq: ${graphQLString(endDate)}
                         }
                     ) {
                         sum { requests }
@@ -166,8 +183,8 @@ async function discoverWorkerScript(apiToken, accountId, nowIso) {
     `;
 
     const account = await callGraphQL(apiToken, query);
-    const rows = Array.isArray(account.workersInvocationsAdaptive)
-        ? account.workersInvocationsAdaptive
+    const rows = Array.isArray(account.pagesFunctionsInvocationsAdaptiveGroups)
+        ? account.pagesFunctionsInvocationsAdaptiveGroups
         : [];
 
     const requestCounts = new Map();
@@ -187,7 +204,7 @@ async function discoverWorkerScript(apiToken, accountId, nowIso) {
         item.name.toLowerCase().includes("worth-it-calculator")
     ) || candidates.find(item =>
         item.name.toLowerCase().includes("worth-it")
-    );
+    ) || (candidates.length === 1 ? candidates[0] : null);
 
     return {
         scriptName: known?.name || "",
@@ -413,7 +430,7 @@ export async function onRequestGet(context) {
                 code: "configuration_required",
                 error: "Cloudflare platform analytics has not been configured.",
                 required: ["CLOUDFLARE_ACCOUNT_ID", "CLOUDFLARE_API_TOKEN"],
-                optional: ["CLOUDFLARE_WORKER_SCRIPT_NAME", "CLOUDFLARE_D1_DATABASE_ID"]
+                optional: ["CLOUDFLARE_PAGES_FUNCTION_SCRIPT_NAME", "CLOUDFLARE_D1_DATABASE_ID"]
             }, 503);
         }
 
@@ -425,16 +442,16 @@ export async function onRequestGet(context) {
             Date.parse(today + "T00:00:00.000Z") - 29 * 24 * 60 * 60 * 1000
         ).toISOString().slice(0, 10);
         const d1Start = monthStart < last30Start ? monthStart : last30Start;
-        const dayStart = today + "T00:00:00.000Z";
-        const monthDateTimeStart = monthStart + "T00:00:00.000Z";
-        const last30DateTimeStart = last30Start + "T00:00:00.000Z";
-
-        let scriptName = String(env.CLOUDFLARE_WORKER_SCRIPT_NAME || "").trim();
+        let scriptName = String(
+            env.CLOUDFLARE_PAGES_FUNCTION_SCRIPT_NAME ||
+            env.CLOUDFLARE_WORKER_SCRIPT_NAME ||
+            ""
+        ).trim();
         let workerCandidates = [];
 
         if (!scriptName) {
             try {
-                const discovery = await discoverWorkerScript(apiToken, accountId, nowIso);
+                const discovery = await discoverPagesFunctionScript(apiToken, accountId, nowIso);
                 scriptName = discovery.scriptName;
                 workerCandidates = discovery.candidates;
             } catch (error) {
@@ -478,9 +495,9 @@ export async function onRequestGet(context) {
 
         const workerQuery = scriptName
             ? [
-                createWorkerFields("workersToday", dayStart, nowIso, scriptName),
-                createWorkerFields("workersMonth", monthDateTimeStart, nowIso, scriptName),
-                createWorkerFields("workers30Days", last30DateTimeStart, nowIso, scriptName)
+                createPagesFunctionFields("workersToday", today, today, scriptName),
+                createPagesFunctionFields("workersMonth", monthStart, today, scriptName),
+                createPagesFunctionFields("workers30Days", last30Start, today, scriptName)
             ].join("\n")
             : "";
 
@@ -503,16 +520,16 @@ export async function onRequestGet(context) {
         const workerMetricsAvailable = Boolean(scriptName);
         const workers = workerMetricsAvailable ? {
             scriptName,
-            today: aggregateWorkerRows(analyticsResult.workersToday),
-            month: aggregateWorkerRows(analyticsResult.workersMonth),
-            last30Days: aggregateWorkerRows(analyticsResult.workers30Days),
+            today: aggregatePagesFunctionRows(analyticsResult.workersToday),
+            month: aggregatePagesFunctionRows(analyticsResult.workersMonth),
+            last30Days: aggregatePagesFunctionRows(analyticsResult.workers30Days),
             limitRows: WORKER_QUERY_LIMIT,
             candidates: workerCandidates
         } : {
             scriptName: "",
-            today: aggregateWorkerRows([]),
-            month: aggregateWorkerRows([]),
-            last30Days: aggregateWorkerRows([]),
+            today: aggregatePagesFunctionRows([]),
+            month: aggregatePagesFunctionRows([]),
+            last30Days: aggregatePagesFunctionRows([]),
             limitRows: WORKER_QUERY_LIMIT,
             candidates: workerCandidates
         };
@@ -549,7 +566,7 @@ export async function onRequestGet(context) {
             },
             notes: [
                 "These are Cloudflare platform metrics, separate from external-provider API Usage.",
-                "CPU time is reported in milliseconds after converting Cloudflare's microsecond totals.",
+                "Pages Functions CPU time is shown as P50 (median) and P99 execution percentiles, converted from microseconds to milliseconds.",
                 "D1 figures cover the selected database(s), not a breakdown by individual signed-in user.",
                 "Cloudflare analytics can have ingestion delay or adaptive sampling; values are shown as returned by Cloudflare.",
                 "This feature reads Cloudflare analytics and does not write telemetry rows into D1."
