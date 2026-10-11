@@ -76,7 +76,7 @@ const POPULAR_NONCAR_SUPPLEMENTAL_CANDIDATE_LIMIT = 2200;
 const POPULAR_QUALITY_BATCH_SIZE = 10;
 const POPULAR_INITIAL_MAX_CHECKS = 40;
 const POPULAR_SHOW_ALL_MAX_NEW_CHECKS = 1500;
-const VEHICLE_DETAILS_REQUEST_TIMEOUT_MS = 30000;
+const VEHICLE_DETAILS_REQUEST_TIMEOUT_MS = 15000;
 const VEHICLE_NONCAR_DETAILS_REQUEST_TIMEOUT_MS = 15000;
 const UNIFIED_BACKGROUND_WARMUP_DELAY_MS = 250;
 const VEHICLE_FAST_DETAILS_REQUEST_TIMEOUT_MS = 5000;
@@ -2274,8 +2274,8 @@ async function fetchVehicleDetails(
 
             } catch (error) {
 
-                const qualityRequestTimedOut =
-                    isQualityMode &&
+                const detailsRequestTimedOut =
+                    !isImageMode &&
                     (
                         error?.name === "AbortError" ||
                         /abort/i.test(
@@ -2286,7 +2286,7 @@ async function fetchVehicleDetails(
                     );
 
                 const failureStatus =
-                    qualityRequestTimedOut
+                    detailsRequestTimedOut
                         ? 408
                         : Number(
                             error?.status
