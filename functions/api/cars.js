@@ -7514,10 +7514,15 @@ async function handleDetails(
         }
     }
 
-    recordAdminApiUsage(context, {
-        apiKey: "cars",
-        provider: "VehiclesDB + Wikidata + DBpedia + Wikipedia + Wikimedia Commons"
-    });
+    try {
+        recordAdminApiUsage(context, {
+            apiKey: "cars",
+            provider: "VehiclesDB + Wikidata + DBpedia + Wikipedia + Wikimedia Commons"
+        });
+    } catch (error) {
+        // API usage analytics must never interrupt vehicle information requests.
+        console.warn("Cars API usage tracking failed:", error);
+    }
 
     const respondDetails = async (
         data,
@@ -9474,10 +9479,15 @@ async function handleCachedCarCandidateResponse(
         }
     }
 
-    recordAdminApiUsage(context, {
-        apiKey: "cars",
-        provider: "VehiclesDB + Wikidata + DBpedia + Wikipedia + Wikimedia Commons"
-    });
+    try {
+        recordAdminApiUsage(context, {
+            apiKey: "cars",
+            provider: "VehiclesDB + Wikidata + DBpedia + Wikipedia + Wikimedia Commons"
+        });
+    } catch (error) {
+        // API usage analytics must never interrupt vehicle information requests.
+        console.warn("Cars API usage tracking failed:", error);
+    }
 
     const response = await handler(requestUrl);
 
