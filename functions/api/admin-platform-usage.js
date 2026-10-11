@@ -348,6 +348,9 @@ function groupD1Usage(usageRows, storageRows, databaseDirectory, env, today, mon
     seedIds.forEach(ensureDatabase);
 
     let databases = Array.from(usageByDatabase.values());
+    let scope = env.CLOUDFLARE_D1_DATABASE_ID
+        ? "configured-database"
+        : "automatic";
 
     if (!env.CLOUDFLARE_D1_DATABASE_ID) {
         const namedWorthItDatabases = databases.filter(database =>
@@ -356,9 +359,12 @@ function groupD1Usage(usageRows, storageRows, databaseDirectory, env, today, mon
 
         if (namedWorthItDatabases.length) {
             databases = namedWorthItDatabases;
+            if (databases.length > 1) {
+                scope = "multiple-named-worth-it-databases";
+            }
         } else if (databases.length > 1) {
             // Keep all databases visible rather than silently omitting usage.
-            databases = databases;
+            scope = "multiple-databases";
         }
     }
 
@@ -374,11 +380,7 @@ function groupD1Usage(usageRows, storageRows, databaseDirectory, env, today, mon
         })),
         lookupAvailable: databaseDirectory.available,
         accountDatabaseCount: databaseDirectory.byId.size,
-        scope: env.CLOUDFLARE_D1_DATABASE_ID
-            ? "configured-database"
-            : databases.length > 1
-                ? "multiple-databases"
-                : "automatic"
+        scope
     };
 }
 
