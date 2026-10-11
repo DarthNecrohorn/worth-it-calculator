@@ -1529,7 +1529,15 @@
     }
 
     function scheduleShipCanvasDraw(filtered){
-        if(!map || !shipCanvas){
+        const section = get("shipTrackingSection");
+
+        if(
+            !map ||
+            !shipCanvas ||
+            !section ||
+            section.hidden ||
+            section.style.display === "none"
+        ){
             return;
         }
 
