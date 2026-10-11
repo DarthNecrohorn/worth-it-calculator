@@ -39,7 +39,7 @@ const VEHICLE_CATALOG_BASE_URL =
 const VEHICLE_DATASET_MANIFEST_URL =
     "https://cdn.jsdelivr.net/gh/vehiclesdb/vehiclesdb@latest/manifest.json";
 
-const VEHICLE_DETAILS_CACHE_VERSION = "v30";
+const VEHICLE_DETAILS_CACHE_VERSION = "v31";
 
 const MAX_VEHICLES_PER_CATEGORY = 300;
 
@@ -755,6 +755,34 @@ const VEHICLE_DETAILS_TRANSIENT_COOLDOWN_MS = {
     503: 45 * 1000,
     504: 30 * 1000
 };
+
+function getCarsDevicePerformanceProfile() {
+    const nav =
+        typeof navigator !== "undefined"
+            ? navigator
+            : {};
+
+    const connection =
+        nav.connection ||
+        nav.mozConnection ||
+        nav.webkitConnection ||
+        {};
+
+    const memory = Number(nav.deviceMemory || 0);
+    const cores = Number(nav.hardwareConcurrency || 0);
+    const effectiveType =
+        String(connection.effectiveType || "").toLowerCase();
+
+    return {
+        lowEnd:
+            (memory > 0 && memory <= 4) ||
+            (cores > 0 && cores <= 4),
+        constrainedNetwork:
+            Boolean(connection.saveData) ||
+            effectiveType === "slow-2g" ||
+            effectiveType === "2g"
+    };
+}
 
 function getPopularDetailsConcurrency(kind) {
     return kind === "car"
@@ -15789,6 +15817,24 @@ function handleVehicleSearch(
 
 const UNIFIED_BACKGROUND_WARMUP_BATCH_SIZE = 8;
 const UNIFIED_BACKGROUND_WARMUP_PERSIST_EVERY_BATCHES = 8;
+let vehicleWarmupLastInteractionAt = 0;
+let vehicleWarmupInteractionListenersBound = false;
+
+function bindCarsWarmupInteractionListeners() {
+    if (vehicleWarmupInteractionListenersBound) return;
+    vehicleWarmupInteractionListenersBound = true;
+
+    const recordInteraction = () => {
+        if (canRunUnifiedVehicleBackgroundWarmup()) {
+            vehicleWarmupLastInteractionAt = Date.now();
+        }
+    };
+
+    document.addEventListener("pointerdown", recordInteraction, { passive: true });
+    document.addEventListener("keydown", recordInteraction);
+    document.addEventListener("wheel", recordInteraction, { passive: true });
+    document.addEventListener("touchstart", recordInteraction, { passive: true });
+}
 const UNIFIED_BACKGROUND_WARMUP_CLOUD_SYNC_MIN_RECORDS = 32;
 /*
  * Scan beyond the public 1000-card limit so failed/missing records can
@@ -15911,25 +15957,50 @@ function buildUnifiedBackgroundWarmupCandidates(
     return result;
 }
 
-function getUnifiedBackgroundWarmupPause() {
-    return new Promise(resolve => {
-        /* Prioritize responsiveness over optional background enrichment on
-         * lower-end devices after the first useful Cars view is rendered. */
-        const memory = Number(navigator.deviceMemory || 0);
-        const cores = Number(navigator.hardwareConcurrency || 0);
-        const lowEndDevice = (memory > 0 && memory <= 4) || (cores > 0 && cores <= 4);
-        if (typeof window.requestIdleCallback === "function") {
-            window.requestIdleCallback(
-                () => resolve(),
-                { timeout: lowEndDevice ? 2200 : 1200 }
-            );
+async function getUnifiedBackgroundWarmupPause() {
+    const profile = getCarsDevicePerformanceProfile();
+    const constrained =
+        profile.lowEnd || profile.constrainedNetwork;
+    const idleTimeout = constrained ? 2200 : 1200;
+    const quietPeriodMs = constrained ? 2400 : 1400;
+
+    /*
+     * Pause optional catalogue work while the user interacts with Cars or
+     * has a details panel open. Once the panel closes and the UI is quiet,
+     * the warmup can continue from its current candidate index.
+     */
+    while (true) {
+        await new Promise(resolve => {
+            if (typeof window.requestIdleCallback === "function") {
+                window.requestIdleCallback(
+                    () => resolve(),
+                    { timeout: idleTimeout }
+                );
+            } else {
+                window.setTimeout(
+                    resolve,
+                    constrained ? 650 : Math.min(UNIFIED_BACKGROUND_WARMUP_DELAY_MS, 250)
+                );
+            }
+        });
+
+        if (!canRunUnifiedVehicleBackgroundWarmup()) return;
+
+        const modal =
+            document.getElementById("worthItVehicleDetailsModal");
+        const detailsOpen =
+            Boolean(modal && modal.classList.contains("is-open"));
+        const quietForMs =
+            Date.now() - vehicleWarmupLastInteractionAt;
+
+        if (!detailsOpen && quietForMs >= quietPeriodMs) {
             return;
         }
-        window.setTimeout(
-            resolve,
-            lowEndDevice ? 650 : Math.min(UNIFIED_BACKGROUND_WARMUP_DELAY_MS, 250)
+
+        await new Promise(resolve =>
+            window.setTimeout(resolve, constrained ? 650 : 350)
         );
-    });
+    }
 }
 
 function canRunUnifiedVehicleBackgroundWarmup() {
@@ -17217,6 +17288,7 @@ document.addEventListener(
     "DOMContentLoaded",
     function () {
 
+        bindCarsWarmupInteractionListeners();
         injectVehicleUiStyles();
         createVehicleDetailsModal();
         createVehicleComparisonModal();
