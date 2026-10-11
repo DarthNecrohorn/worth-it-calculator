@@ -560,7 +560,9 @@
             }
 
             if(!response.ok || !result.success){
-                throw new Error(result.error || 'Could not load Cloudflare platform usage.');
+                const message = result.error || 'Could not load Cloudflare platform usage.';
+                const detail = typeof result.detail === 'string' ? result.detail.trim().slice(0, 600) : '';
+                throw new Error(detail && detail !== message ? message + ' — ' + detail : message);
             }
 
             const workers = result.workers || {};
