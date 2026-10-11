@@ -335,7 +335,7 @@ function groupD1Usage(usageRows, storageRows, databaseDirectory, env, today, mon
         seedIds = [String(env.CLOUDFLARE_D1_DATABASE_ID).trim()];
     } else {
         const namedWorthItDatabases = knownD1Databases.filter(database =>
-            /worth\\s*[-_]?\\s*it|worth-it-calculator/i.test(database.name)
+            /worth\s*[-_]?\s*it|worth-it-calculator/i.test(database.name)
         );
 
         if (namedWorthItDatabases.length) {
