@@ -1,0 +1,29 @@
+name: Pages Functions syntax check
+
+on:
+  pull_request:
+    paths:
+      - "functions/**/*.js"
+      - ".github/workflows/function-syntax-check.yml"
+
+jobs:
+  syntax:
+    name: Parse Pages Functions
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Check JavaScript syntax
+        shell: bash
+        run: |
+          set -euo pipefail
+          while IFS= read -r -d '' file; do
+            echo "Checking $file"
+            node --input-type=module --check < "$file"
+          done < <(find functions -type f -name '*.js' -print0)
