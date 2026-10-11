@@ -461,17 +461,18 @@
     }
 
     function renderWorkerPeriod(title, period){
-        const cpuTime = Number(period?.cpuTimeMs || 0);
         const wallTime = Number(period?.wallTimeMs || 0);
+        const cpuMedian = period?.cpuTimeP50Ms;
+        const cpuP99 = period?.cpuTimeP99Ms;
         return [
             '<article class="admin-usage-card admin-platform-period-card">',
-                '<div class="admin-usage-card-top"><div><span class="admin-usage-category">Workers &amp; Pages Functions</span><h5>' + escapeHtml(title) + '</h5></div></div>',
+                '<div class="admin-usage-card-top"><div><span class="admin-usage-category">Pages Functions</span><h5>' + escapeHtml(title) + '</h5></div></div>',
                 '<div class="admin-platform-metric-grid">',
-                    renderPlatformMetric('API / Worker requests', formatNumber(period?.requests)),
+                    renderPlatformMetric('Function requests', formatNumber(period?.requests)),
                     renderPlatformMetric('Errors', formatNumber(period?.errors)),
                     renderPlatformMetric('Subrequests', formatNumber(period?.subrequests), 'Outbound requests from Functions'),
-                    renderPlatformMetric('CPU time', formatDecimal(cpuTime, 2) + ' ms', formatDecimal(period?.averageCpuTimeMs, 4) + ' ms / request average'),
-                    renderPlatformMetric('Wall time', formatDecimal(wallTime, 2) + ' ms', formatDecimal(period?.averageWallTimeMs, 3) + ' ms / request average'),
+                    renderPlatformMetric('CPU time (P50 median)', cpuMedian == null ? 'Unavailable' : formatDecimal(cpuMedian, 3) + ' ms', 'P99: ' + (cpuP99 == null ? 'Unavailable' : formatDecimal(cpuP99, 3) + ' ms') + ' per execution'),
+                    renderPlatformMetric('Wall time total', formatDecimal(wallTime, 2) + ' ms', formatDecimal(period?.averageWallTimeMs, 3) + ' ms / request average'),
                 '</div>',
             '</article>'
         ].join('');
@@ -526,7 +527,7 @@
                     '<li>In <strong>Workers &amp; Pages → worth-it-calculator → Settings → Variables and Secrets</strong>, add <code>CLOUDFLARE_ACCOUNT_ID</code> as a plain-text variable and <code>CLOUDFLARE_API_TOKEN</code> as a secret.</li>',
                     '<li>Save the settings and redeploy the Pages project so the Functions receive the new values.</li>',
                 '</ol>',
-                '<p class="admin-platform-setup-footnote">Optional: set <code>CLOUDFLARE_WORKER_SCRIPT_NAME</code> if the Worker cannot be detected automatically, or <code>CLOUDFLARE_D1_DATABASE_ID</code> to restrict metrics to one database.</p>',
+                '<p class="admin-platform-setup-footnote">Optional: set <code>CLOUDFLARE_PAGES_FUNCTION_SCRIPT_NAME</code> if the Pages Functions script cannot be detected automatically, or <code>CLOUDFLARE_D1_DATABASE_ID</code> to restrict metrics to one database.</p>',
                 '<button type="button" class="admin-panel-inline-button" onclick="refreshAdminPlatformUsage()">↻ Check again</button>',
             '</div>'
         ].join('');
@@ -586,32 +587,32 @@
             const summary = [
                 '<div class="admin-usage-summary-grid">',
                     '<div class="admin-usage-summary-card"><span>Worker requests today</span><strong>' + (workers.available ? formatNumber(workerToday.requests) : 'Unavailable') + '</strong><small>' + (workers.available ? 'Cloudflare Functions invocations' : escapeHtml(workerAvailabilityLabel)) + '</small></div>',
-                    '<div class="admin-usage-summary-card"><span>CPU time today</span><strong>' + (workers.available ? formatDecimal(workerToday.cpuTimeMs, 2) + ' ms' : 'Unavailable') + '</strong><small>' + (workers.available ? 'Actual Worker CPU time reported by Cloudflare' : escapeHtml(workerAvailabilityLabel)) + '</small></div>',
+                    '<div class="admin-usage-summary-card"><span>Median CPU time today</span><strong>' + (workers.available && workerToday.cpuTimeP50Ms != null ? formatDecimal(workerToday.cpuTimeP50Ms, 3) + ' ms' : 'Unavailable') + '</strong><small>' + (workers.available && workerToday.cpuTimeP99Ms != null ? 'P99: ' + formatDecimal(workerToday.cpuTimeP99Ms, 3) + ' ms per execution' : escapeHtml(workerAvailabilityLabel)) + '</small></div>',
                     '<div class="admin-usage-summary-card"><span>D1 rows read today</span><strong>' + (d1.available ? formatNumber(d1Today.rowsRead) : 'Unavailable') + '</strong><small>' + (d1.available ? formatNumber(d1Today.rowsWritten) + ' rows written · ' + formatNumber(d1Today.readQueries + d1Today.writeQueries) + ' queries' : escapeHtml(d1AvailabilityLabel)) + '</small></div>',
                 '</div>'
             ].join('');
 
             const notes = [
-                '<div class="admin-usage-note admin-platform-note"><span>ℹ️</span><div><strong>Cloudflare platform metrics — separate from API Usage</strong><p>Requests count Worker / Pages Function invocations, subrequests count outbound calls from those functions, and CPU time is not the same as total response latency. D1 metrics are database-wide, not attributed to each individual signed-in user. Cloudflare retains D1 analytics for up to 31 days; ingestion delay and adaptive sampling can affect reported values.</p></div></div>'
+                '<div class="admin-usage-note admin-platform-note"><span>ℹ️</span><div><strong>Cloudflare platform metrics — separate from API Usage</strong><p>Requests count Pages Functions invocations, subrequests count outbound calls from those functions, and CPU time is shown as P50 (median) and P99 per-execution percentiles rather than a summed total. D1 metrics are database-wide, not attributed to each individual signed-in user. Cloudflare retains D1 analytics for up to 31 days; ingestion delay and adaptive sampling can affect reported values.</p></div></div>'
             ].join('');
 
             let workerContent = '';
             if(workers.available){
                 workerContent = [
-                    '<div class="admin-platform-section-title"><h5>⚡ Workers &amp; Pages Functions</h5><small>Script: ' + escapeHtml(workers.scriptName || 'worth-it-calculator') + '</small></div>',
+                    '<div class="admin-platform-section-title"><h5>⚡ Pages Functions</h5><small>Script: ' + escapeHtml(workers.scriptName || 'worth-it-calculator') + '</small></div>',
                     '<div class="admin-platform-periods">',
                         renderWorkerPeriod('Today (UTC)', workers.today),
                         renderWorkerPeriod('This month (UTC)', workers.month),
                         renderWorkerPeriod('Last 30 days', workers.last30Days),
                     '</div>',
                     workers.last30Days?.possiblyTruncated
-                        ? '<p class="admin-platform-warning">Cloudflare returned the maximum number of Worker metric rows for the last 30 days. Historical totals may be incomplete; set CLOUDFLARE_WORKER_SCRIPT_NAME if needed.</p>'
+                        ? '<p class="admin-platform-warning">Cloudflare returned the maximum number of Pages Functions metric rows for the last 30 days. Historical totals may be incomplete; check CLOUDFLARE_PAGES_FUNCTION_SCRIPT_NAME if needed.</p>'
                         : ''
                 ].join('');
             }else{
                 const candidates = Array.isArray(workers.candidates) ? workers.candidates : [];
                 workerContent = [
-                    '<div class="admin-platform-warning"><strong>Worker script not detected automatically.</strong><p>Set <code>CLOUDFLARE_WORKER_SCRIPT_NAME</code> to the exact script name from Cloudflare Workers &amp; Pages.</p>',
+                    '<div class="admin-platform-warning"><strong>Pages Functions script not detected automatically.</strong><p>Set <code>CLOUDFLARE_PAGES_FUNCTION_SCRIPT_NAME</code> to the exact script name from Cloudflare Pages Functions Metrics.</p>',
                     candidates.length
                         ? '<p>Recently active scripts: ' + candidates.map(item => escapeHtml(item.name)).join(', ') + '</p>'
                         : '<p>No recent Worker script names were returned by Cloudflare.</p>',
