@@ -1898,6 +1898,42 @@ async function fetchVehicleDetailsWithRetry(
 }
 
 
+/*
+ * Image-only requests can finish without an image even though a later
+ * Wikimedia/Openverse lookup succeeds. Retry only missing-image results
+ * with a short backoff before the panel reports a final miss.
+ */
+async function fetchVehicleImageWithRetry(
+    make,
+    model,
+    kind,
+    attempts = 3
+) {
+    const maxAttempts = Math.max(1, Number(attempts) || 1);
+    const retryDelays = [1200, 3500];
+    let lastResult = null;
+
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+        lastResult = await fetchVehicleDetails(make, model, kind, "image");
+
+        if (lastResult?.image?.url) {
+            return lastResult;
+        }
+
+        if (attempt < maxAttempts) {
+            await new Promise(resolve =>
+                window.setTimeout(
+                    resolve,
+                    retryDelays[attempt - 1] ?? 3500
+                )
+            );
+        }
+    }
+
+    return lastResult;
+}
+
+
 async function fetchVehicleDetails(
     make,
     model,
@@ -2240,8 +2276,12 @@ async function fetchVehicleDetails(
                  * remain cached normally.
                  */
                 const cacheableDetails =
-                    hasWikipediaPage ||
-                    hasUsableImage;
+                    isImageMode
+                        ? hasUsableImage
+                        : (
+                            hasWikipediaPage ||
+                            hasUsableImage
+                        );
 
                 /*
                  * Never persist a negative "No Information" response.
@@ -6462,7 +6502,8 @@ async function evaluatePopularVehicleCandidate(
 
 async function runPopularVehicleQualityBatch(
     batch,
-    kind
+    kind,
+    options = {}
 ) {
 
     const results =
@@ -6470,9 +6511,31 @@ async function runPopularVehicleQualityBatch(
 
     let cursor = 0;
 
+    const deviceProfile =
+        options.background
+            ? getCarsDevicePerformanceProfile()
+            : null;
+
+    const baseConcurrency =
+        getPopularDetailsConcurrency(kind);
+
+    /*
+     * Background checks are optional and should not compete with scrolling,
+     * panel rendering, or user-triggered details on constrained devices.
+     * Foreground checks keep their existing concurrency.
+     */
+    const effectiveConcurrency =
+        options.background &&
+        (
+            deviceProfile?.lowEnd ||
+            deviceProfile?.constrainedNetwork
+        )
+            ? 1
+            : baseConcurrency;
+
     const workerCount =
         Math.min(
-            getPopularDetailsConcurrency(kind),
+            effectiveConcurrency,
             batch.length
         );
 
@@ -9757,6 +9820,14 @@ function createVehicleCard(
     card.className =
         "car-card";
 
+    /*
+     * Let modern browsers skip rendering far-offscreen results in large
+     * searches / Show all views. Unsupported browsers simply ignore these
+     * properties; the card DOM and interactions stay unchanged.
+     */
+    card.style.contentVisibility = "auto";
+    card.style.containIntrinsicSize = "auto 340px";
+
     card.dataset.infoState =
         "pending";
 
@@ -11039,8 +11110,11 @@ async function openVehicleDetailsPanel(
                 : imagePendingDetails.comparisonAvailable !== false
         );
 
-        void fetchVehicleDetailsWithRetry(
-            vehicle.make, vehicle.model, detailKind, 1, 0, "image"
+        void fetchVehicleImageWithRetry(
+            vehicle.make,
+            vehicle.model,
+            detailKind,
+            3
         ).then(imageDetails => {
             if (!modal.classList.contains("is-open") || modal.dataset.vehicleRequestToken !== requestToken) return;
             const dialog = modal.querySelector(".worth-it-vehicle-modal-dialog");
@@ -16489,7 +16563,8 @@ async function startUnifiedVehicleBackgroundWarmup() {
                     const results =
                         await runPopularVehicleQualityBatch(
                             batch,
-                            VEHICLE_ALL_KIND
+                            VEHICLE_ALL_KIND,
+                            { background: true }
                         );
 
                     let added = false;
