@@ -10589,7 +10589,71 @@ async function openVehicleDetailsPanel(
         );
     }
 
-    const details =
+    /*
+     * When neither a complete nor a verified quality response is cached,
+     * request lightweight Wikipedia text alongside the full request. It can
+     * populate the panel quickly if technical/image enrichment stalls, while
+     * the full response remains the preferred result.
+     */
+    let fastDetailsResult = null;
+    let fastDetailsPromise = Promise.resolve(null);
+    let fullDetailsSettled = Boolean(cachedFullDetails);
+    let detailsFallbackMode = "full";
+
+    if (
+        !cachedFullDetails &&
+        !canShowCachedQuality
+    ) {
+        fastDetailsPromise =
+            fetchVehicleDetailsWithRetry(
+                vehicle.make,
+                vehicle.model,
+                detailKind,
+                1,
+                0,
+                "fast"
+            ).then(fastDetails => {
+                if (!fastDetails) {
+                    return null;
+                }
+
+                fastDetailsResult = fastDetails;
+
+                const hasFastWikipediaText =
+                    Boolean(
+                        isUsefulVehicleDetailValue(
+                            fastDetails?.wikipedia?.description
+                        ) &&
+                        String(
+                            fastDetails?.wikipedia?.url || ""
+                        ).trim() &&
+                        !/^no information$/i.test(
+                            String(
+                                fastDetails?.wikipedia?.title || ""
+                            ).trim()
+                        )
+                    );
+
+                if (
+                    hasFastWikipediaText &&
+                    !fullDetailsSettled &&
+                    modal.classList.contains("is-open") &&
+                    modal.dataset.vehicleRequestToken === requestToken
+                ) {
+                    renderVehicleDetailsPanel(
+                        body,
+                        fastDetails,
+                        vehicle,
+                        kind,
+                        false
+                    );
+                }
+
+                return fastDetails;
+            });
+    }
+
+    let details =
         cachedFullDetails ||
         await fetchVehicleDetailsWithRetry(
             vehicle.make,
@@ -10597,6 +10661,36 @@ async function openVehicleDetailsPanel(
             detailKind,
             2
         );
+
+    fullDetailsSettled = true;
+
+    /*
+     * A previous quality pass may already have produced an image-verified
+     * response. Prefer it over a temporary full-request timeout rather than
+     * replacing a useful panel with a generic failure message.
+     */
+    if (
+        !details &&
+        canShowCachedQuality
+    ) {
+        details = cachedQualityDetails;
+        detailsFallbackMode = "quality";
+    }
+
+    /*
+     * If full enrichment fails, wait for the lightweight Wikipedia result
+     * before giving up. This path is display-only; it never enables compare
+     * or passes the Popular-card quality gate.
+     */
+    if (!details) {
+        details =
+            fastDetailsResult ||
+            await fastDetailsPromise;
+
+        if (details) {
+            detailsFallbackMode = "fast";
+        }
+    }
 
     if (
         !modal.classList.contains("is-open") ||
@@ -10641,7 +10735,8 @@ async function openVehicleDetailsPanel(
      * and stop here.
      */
     if (
-        currentVehicleMode === "popular"
+        currentVehicleMode === "popular" &&
+        detailsFallbackMode !== "fast"
     ) {
         const card =
             findUnifiedVehicleCard(vehicle) ||
@@ -10821,8 +10916,68 @@ async function openVehicleDetailsPanel(
         safeDetails,
         vehicle,
         kind,
-        safeDetails.comparisonAvailable !== false
+        detailsFallbackMode === "fast"
+            ? false
+            : safeDetails.comparisonAvailable !== false
     );
+
+    /*
+     * Image enrichment is best-effort only after the lightweight text
+     * fallback is needed. Keep the text/specification response intact and
+     * replace only the image when a matching reusable image is verified.
+     */
+    if (detailsFallbackMode === "fast") {
+        void fetchVehicleDetailsWithRetry(
+            vehicle.make,
+            vehicle.model,
+            detailKind,
+            1,
+            0,
+            "image"
+        ).then(imageDetails => {
+            if (
+                !imageDetails?.image?.url ||
+                !modal.classList.contains("is-open") ||
+                modal.dataset.vehicleRequestToken !== requestToken
+            ) {
+                return;
+            }
+
+            const enrichedDetails = {
+                ...safeDetails,
+                image: imageDetails.image
+            };
+
+            if (
+                !hasPopularVehicleImageRelevance(
+                    enrichedDetails,
+                    vehicle
+                )
+            ) {
+                return;
+            }
+
+            const dialog =
+                modal.querySelector(
+                    ".worth-it-vehicle-modal-dialog"
+                );
+
+            const previousScrollTop =
+                dialog?.scrollTop || 0;
+
+            renderVehicleDetailsPanel(
+                body,
+                enrichedDetails,
+                vehicle,
+                kind,
+                false
+            );
+
+            if (dialog) {
+                dialog.scrollTop = previousScrollTop;
+            }
+        });
+    }
 
 }
 
