@@ -10468,27 +10468,129 @@ async function openVehicleDetailsPanel(
 
     setVehicleModalOpen(true);
 
-    const info =
-        getVehicleKindInfo(kind);
-
     const title =
         `${vehicle.make || ""} ${vehicle.model || ""}`.trim();
 
     recordRecentlyViewedVehicle(vehicle, kind);
 
-    body.innerHTML = `
-        <div class="worth-it-vehicle-detail-loading">
-            <div class="worth-it-vehicle-detail-loading-icon">${info.icon}</div>
-            <strong>Loading ${escapeVehicleHtml(title)}…</strong>
-            <span>Getting the latest available Wikipedia information.</span>
-        </div>
-    `;
-
     const detailKind =
         vehicle.sourceKind ||
         kind;
 
+    /*
+     * Reuse details that the Popular-card quality pass has already loaded.
+     * This is only an instant preview: the full details response below still
+     * refreshes the panel, so this does not weaken the existing validation.
+     */
+    const cachedFullDetails =
+        vehicleDetailsCache.get(
+            getVehicleDetailsCacheKey(
+                vehicle.make,
+                vehicle.model,
+                detailKind,
+                "full"
+            )
+        ) || null;
+
+    const cachedQualityDetails =
+        vehicleDetailsCache.get(
+            getVehicleDetailsCacheKey(
+                vehicle.make,
+                vehicle.model,
+                detailKind,
+                "quality"
+            )
+        ) || null;
+
+    const canShowCachedQuality =
+        Boolean(
+            cachedQualityDetails &&
+            hasRequiredVehicleCardQuality(
+                cachedQualityDetails,
+                vehicle,
+                currentVehicleKind
+            )
+        );
+
+    if (
+        !cachedFullDetails &&
+        canShowCachedQuality
+    ) {
+        const safeCachedQuality =
+            hasPopularVehicleImageRelevance(
+                cachedQualityDetails,
+                vehicle
+            )
+                ? cachedQualityDetails
+                : {
+                    ...cachedQualityDetails,
+                    image: null
+                };
+
+        renderVehicleDetailsPanel(
+            body,
+            safeCachedQuality,
+            vehicle,
+            kind,
+            safeCachedQuality.comparisonAvailable !== false
+        );
+    } else if (!cachedFullDetails) {
+        /*
+         * Draw the modal immediately from the catalog metadata instead of
+         * leaving a full-panel spinner on screen while remote sources load.
+         * The real Wikipedia/specification response replaces this preview.
+         */
+        renderVehicleDetailsPanel(
+            body,
+            {
+                success: true,
+                kind: detailKind,
+                vehicle: {
+                    make: vehicle.make,
+                    model: vehicle.model,
+                    kind: detailKind,
+                    body_type:
+                        vehicle.bodyType ||
+                        vehicle.body_type ||
+                        "",
+                    body_types:
+                        vehicle.bodyTypes ||
+                        vehicle.body_types ||
+                        [],
+                    year_start:
+                        vehicle.yearStart ??
+                        vehicle.year_start ??
+                        null,
+                    year_end:
+                        vehicle.yearEnd ??
+                        vehicle.year_end ??
+                        null,
+                    global_decile:
+                        vehicle.globalDecile ??
+                        vehicle.global_decile ??
+                        null
+                },
+                wikipedia: {
+                    title: title || "Vehicle information",
+                    url: "",
+                    description: "Loading verified vehicle information…"
+                },
+                image: null,
+                external: {
+                    fuelEconomy: null
+                },
+                specifications: {},
+                comparisonAvailable: false,
+                loading: true
+            },
+            vehicle,
+            kind,
+            false
+        );
+    }
+
     const details =
+        cachedFullDetails ||
         await fetchVehicleDetailsWithRetry(
             vehicle.make,
             vehicle.model,
@@ -10789,11 +10891,13 @@ function renderVehicleDetailsPanel(
     ].filter(Boolean);
 
     const aboutDescription =
-        isUsefulVehicleDetailValue(wikipedia.description)
-            ? String(wikipedia.description).trim()
-            : fallbackAboutParts.length
-                ? fallbackAboutParts.join(" • ")
-                : "Couldn't find informations on wikipedia and online";
+        details.loading
+            ? "Loading verified vehicle information…"
+            : isUsefulVehicleDetailValue(wikipedia.description)
+                ? String(wikipedia.description).trim()
+                : fallbackAboutParts.length
+                    ? fallbackAboutParts.join(" • ")
+                    : "Couldn't find informations on wikipedia and online";
 
     const entries =
         getVehicleSpecificationEntries(
@@ -10856,7 +10960,7 @@ function renderVehicleDetailsPanel(
             : `
                 <div class="worth-it-vehicle-detail-image-placeholder">
                     <span>${info.icon}</span>
-                    <small>No image available</small>
+                    <small>${details.loading ? "Checking reusable image…" : "No image available"}</small>
                 </div>
             `;
 
@@ -10911,8 +11015,14 @@ function renderVehicleDetailsPanel(
             : "";
 
     const specsHtml =
-        entries.length
+        details.loading
             ? `
+                <div class="worth-it-vehicle-no-specs">
+                    Loading technical specifications…
+                </div>
+            `
+            : entries.length
+                ? `
                 <div class="worth-it-vehicle-spec-grid">
                     ${entries.map(entry => `
                         <div class="worth-it-vehicle-spec-item">
@@ -10986,8 +11096,10 @@ function renderVehicleDetailsPanel(
         ${externalHtml}
 
         <div class="worth-it-vehicle-detail-verification">
-    <span class="worth-it-vehicle-verified-badge">✓ Verified information</span>
-    ${hasPopularVehicleImageRelevance(details, catalogVehicle) ? '<span class="worth-it-vehicle-verified-badge">✓ Verified reusable image</span>' : ""}
+    ${details.loading
+        ? '<span class="worth-it-vehicle-verified-badge">Loading verified information…</span>'
+        : '<span class="worth-it-vehicle-verified-badge">✓ Verified information</span>'}
+    ${!details.loading && hasPopularVehicleImageRelevance(details, catalogVehicle) ? '<span class="worth-it-vehicle-verified-badge">✓ Verified reusable image</span>' : ""}
 </div>
 
 <div class="worth-it-vehicle-detail-actions">
@@ -11001,22 +11113,26 @@ function renderVehicleDetailsPanel(
 
     <button
         type="button"
-        class="worth-it-vehicle-compare-button${alreadyCompared ? " is-added" : ""}${!allowCompare ? " is-disabled" : ""}"
+        class="worth-it-vehicle-compare-button${alreadyCompared ? " is-added" : ""}${(!allowCompare || details.loading) ? " is-disabled" : ""}"
                 data-vehicle-compare
                 data-vehicle-key="${escapeVehicleHtml(compareKey)}"
-                ${allowCompare ? "" : "disabled"}
+                ${allowCompare && !details.loading ? "" : "disabled"}
             >
-                ${alreadyCompared
-                    ? "✓ Added to compare"
-                    : allowCompare
-                        ? "Add to compare"
-                        : "Not available for comparison"}
+                ${details.loading
+                    ? "Loading comparison data…"
+                    : alreadyCompared
+                        ? "✓ Added to compare"
+                        : allowCompare
+                            ? "Add to compare"
+                            : "Not available for comparison"}
             </button>
 
             <div class="worth-it-vehicle-source">
                 ${wikipedia.url
                     ? `<a href="${escapeVehicleHtml(wikipedia.url)}" target="_blank" rel="noopener noreferrer">View on Wikipedia ↗</a>`
-                    : "Wikipedia information unavailable"}
+                    : details.loading
+                        ? "Loading Wikipedia reference…"
+                        : "Wikipedia information unavailable"}
             </div>
         </div>
     `;
