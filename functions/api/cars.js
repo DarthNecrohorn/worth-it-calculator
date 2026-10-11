@@ -9218,7 +9218,7 @@ async function handleVehicleAccountCacheFinalize(
             .bind(
                 user.id,
                 datasetVersion,
-                2000
+                1000
             )
             .run();
 
