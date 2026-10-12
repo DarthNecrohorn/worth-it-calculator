@@ -41,7 +41,11 @@
       if (level <= 0) {
         return Math.min(
           count,
-          UNIFIED_MAIN_LIST_INITIAL_COUNT
+          Math.max(
+            1,
+            getVehiclesPerRow() *
+              getPopularInitialVisibleRows(kind)
+          )
         );
       }
 
@@ -635,10 +639,10 @@
       };
 
     /*
-     * All Vehicles has a staged 500-vehicle cap: 100 initially, then 200
-     * and 400 after the two "Show next 200" steps. "Show all remaining
-     * vehicles (100)" reveals any additional verified vehicles up to 500.
-     * Other vehicle categories retain their existing reveal-step behavior.
+     * All Vehicles initially shows the normal viewport (three desktop rows
+     * or three mobile cards), then the buttons reveal 200, 400 and finally
+     * up to 500 verified vehicles total. Other vehicle categories retain
+     * their existing reveal-step behavior.
      */
     const nextLevelTarget =
       Math.max(
