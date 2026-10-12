@@ -3398,7 +3398,7 @@ async function fetchMarketImage(
                                 "GET",
 
                             cache:
-                                "no-store"
+                                "default"
 
                         }
                     );
@@ -5347,7 +5347,7 @@ async function refreshMarkets() {
                         "GET",
 
                     cache:
-                        "no-store"
+                        "default"
 
                 }
             ),
