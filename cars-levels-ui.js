@@ -33,6 +33,23 @@
 
     if (level === Infinity) return count;
 
+    if (kind === "all") {
+      if (level <= 0) {
+        return Math.min(
+          count,
+          UNIFIED_MAIN_LIST_INITIAL_COUNT
+        );
+      }
+
+      return Math.min(
+        count,
+        Math.min(
+          UNIFIED_MAIN_LIST_LIMIT,
+          UNIFIED_MAIN_LIST_INITIAL_COUNT + level * CHUNK
+        )
+      );
+    }
+
     if (level <= 0) {
       return Math.min(
         count,
@@ -255,7 +272,13 @@
     const targetCount =
       Math.max(
         1,
-        targetLevel * CHUNK
+        kind === "all"
+          ? Math.min(
+              UNIFIED_MAIN_LIST_LIMIT,
+              UNIFIED_MAIN_LIST_INITIAL_COUNT +
+                targetLevel * CHUNK
+            )
+          : targetLevel * CHUNK
       );
 
     if (
@@ -599,11 +622,10 @@
       };
 
     /*
-     * When fewer than one full 200-vehicle level remains in the currently
-     * validated set, stop offering another "next 200" step and expose
-     * "Show all" instead. This also handles the case where quality scanning
-     * has temporarily found no additional valid vehicles (e.g. 800 -> 800)
-     * without changing the underlying Cars loading logic.
+     * All Vehicles has a deliberate staged browse flow: 100 initially,
+     * then 300 and 500 after two 200-vehicle expansions. "Show all cars"
+     * then reveals up to 500 additional verified vehicles. Other vehicle
+     * categories retain their existing reveal-step behavior.
      */
     const nextLevelTarget =
       Math.max(
@@ -612,9 +634,11 @@
       );
 
     const finalStep =
-      level > 0 &&
-      totalVehicles.length <
-        nextLevelTarget;
+      kind === "all"
+        ? level >= 2
+        : level > 0 &&
+          totalVehicles.length <
+            nextLevelTarget;
 
     if (level === Infinity) {
       addButton(
@@ -630,9 +654,13 @@
       if (canExpand) {
         addButton(
           finalStep
-            ? "Show all " +
-              info.plural.toLowerCase() +
-              " ↓"
+            ? (
+                kind === "all"
+                  ? "Show all cars ↓"
+                  : "Show all " +
+                    info.plural.toLowerCase() +
+                    " ↓"
+              )
             : "Show next " +
               CHUNK +
               " " +
@@ -655,7 +683,11 @@
 
             button.textContent =
               finalStep
-                ? "Loading remaining vehicles…"
+                ? (
+                    kind === "all"
+                      ? "Loading remaining 500 vehicles…"
+                      : "Loading remaining vehicles…"
+                  )
                 : "Loading next 200 vehicles…";
 
             try {
@@ -674,9 +706,13 @@
 
               button.textContent =
                 finalStep
-                  ? "Show all " +
-                    info.plural.toLowerCase() +
-                    " ↓"
+                  ? (
+                      kind === "all"
+                        ? "Show all cars ↓"
+                        : "Show all " +
+                          info.plural.toLowerCase() +
+                          " ↓"
+                    )
                   : "Show next " +
                     CHUNK +
                     " " +
