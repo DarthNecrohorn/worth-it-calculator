@@ -170,9 +170,9 @@ const VEHICLE_KINDS = [
 
 const VEHICLE_ALL_KIND = "all";
 const MAX_UNIFIED_VEHICLES = 500;
-// All Vehicles opens with 100 verified cards, then reveals 200, 400 and at most 500.
+// All Vehicles initially shows the normal viewport (three rows on desktop,
+// three cards on mobile), then reveals 200, 400 and at most 500 in total.
 // Search still uses the separate full VehiclesDB metadata catalog (up to 6,000 candidates).
-const UNIFIED_MAIN_LIST_INITIAL_COUNT = 100;
 const UNIFIED_MAIN_LIST_LIMIT = MAX_UNIFIED_VEHICLES;
 const UNIFIED_BACKGROUND_CANDIDATE_POOL_LIMIT = 6000;
 const VEHICLE_FAVORITES_STORAGE_KEY = "worth-it-vehicle-favorites-v1";
@@ -8633,12 +8633,7 @@ async function renderPopularCatalogImmediately(kind, showAll = false) {
     }
 
     const initialCount =
-        kind === VEHICLE_ALL_KIND
-            ? Math.min(
-                UNIFIED_MAIN_LIST_INITIAL_COUNT,
-                unique.length
-            )
-            : getInitialVehicleLimit(unique);
+        getInitialVehicleLimit(unique);
 
     const desiredCount =
         showAll
@@ -8795,6 +8790,21 @@ async function renderPopularCatalogImmediately(kind, showAll = false) {
                     currentVehicleResults =
                         batchVehicles.slice();
 
+                    const activeRevealLevel =
+                        activeDisplayState.revealLevel ?? 0;
+
+                    const visibleLimit =
+                        activeRevealLevel === Infinity
+                            ? UNIFIED_MAIN_LIST_LIMIT
+                            : activeRevealLevel > 0
+                                ? Math.min(
+                                    UNIFIED_MAIN_LIST_LIMIT,
+                                    activeRevealLevel * 200
+                                )
+                                : getInitialVehicleLimit(
+                                    currentVehicleResults
+                                );
+
                     const expandWrapper =
                         document.getElementById(
                             "carsVehicleExpandButton"
@@ -8818,18 +8828,12 @@ async function renderPopularCatalogImmediately(kind, showAll = false) {
                             currentVehicleResults,
                             currentVehicleResults.slice(
                                 0,
-                                visibleCount(
-                                    kind,
-                                    currentVehicleResults.length
-                                )
+                                visibleLimit
                             ),
                             kind,
                             stablePopularHasMoreVehicles(
                                 kind,
-                                visibleCount(
-                                    kind,
-                                    currentVehicleResults.length
-                                )
+                                visibleLimit
                             )
                         );
                     }
