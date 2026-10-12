@@ -700,7 +700,7 @@ async function loadCurrencies() {
 
         const response = await fetch(`${CURRENCIES_API}?base=EUR`, {
             method: "GET",
-            cache: "no-store",
+            cache: "default",
             headers: { "Accept": "application/json" }
         });
 
