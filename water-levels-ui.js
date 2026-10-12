@@ -127,6 +127,7 @@
         2 * 60 * 60 * 1000;
 
     let waterAutoRefreshTimer = null;
+    let waterMeasurementAvailabilityPromise = null;
 
     const state = {
         stations: [],
@@ -213,6 +214,75 @@
             );
         }
         catch(error){}
+    }
+
+    async function resolveWaterMeasurementAvailability(){
+        if(typeof state.measurementsAvailable === "boolean"){
+            return state.measurementsAvailable;
+        }
+
+        if(waterMeasurementAvailabilityPromise){
+            return await waterMeasurementAvailabilityPromise;
+        }
+
+        waterMeasurementAvailabilityPromise =
+            (async function(){
+                try{
+                    const response = await fetch(
+                        "/api/water-levels?action=capabilities",
+                        {
+                            method:"GET",
+                            headers:{"Accept":"application/json"},
+                            cache:"no-store"
+                        }
+                    );
+
+                    const data = await response.json().catch(function(){
+                        return null;
+                    });
+
+                    if(
+                        !response.ok ||
+                        !data ||
+                        typeof data.measurementsAvailable !== "boolean"
+                    ){
+                        return null;
+                    }
+
+                    state.measurementsAvailable =
+                        data.measurementsAvailable;
+
+                    try{
+                        saveStationsCache(
+                            currentQuery(),
+                            state.stations,
+                            state.location
+                        );
+                    }catch(_){}
+
+                    if(state.measurementsAvailable){
+                        observeLatestCards();
+                    }else{
+                        state.stations.forEach(function(station){
+                            if(station.latestHeight == null){
+                                applyLatestToCard(station);
+                            }
+                        });
+                    }
+
+                    return state.measurementsAvailable;
+                }
+                catch(error){
+                    return null;
+                }
+            })();
+
+        try{
+            return await waterMeasurementAvailabilityPromise;
+        }
+        finally{
+            waterMeasurementAvailabilityPromise = null;
+        }
     }
 
     function get(id){
@@ -2423,7 +2493,7 @@
 
     async function loadStationLatest(stations){
         if(
-            state.measurementsAvailable === false ||
+            state.measurementsAvailable !== true ||
             !Array.isArray(stations) ||
             !stations.length
         ){
@@ -2435,7 +2505,7 @@
         async function worker(){
             while(
                 cursor < stations.length &&
-                state.measurementsAvailable !== false
+                state.measurementsAvailable === true
             ){
                 const station = stations[cursor++];
                 if(!station || !station.id) continue;
@@ -2732,7 +2802,7 @@
             );
 
         if(!cards.length) return;
-        if(state.measurementsAvailable === false) return;
+        if(state.measurementsAvailable !== true) return;
 
         function stationForCard(card){
             return state.stations.find(function(item){
@@ -3021,9 +3091,22 @@
         );
 
         /*
-         * Latest measurements remain viewport-driven.
+         * Latest measurements remain viewport-driven. If the station list
+         * came from an older browser snapshot without a capability flag,
+         * resolve that flag with one lightweight request before asking for
+         * any measurements.
          */
         observeLatestCards();
+
+        if(state.measurementsAvailable === false){
+            visible.forEach(function(station){
+                if(station.latestHeight == null){
+                    applyLatestToCard(station);
+                }
+            });
+        }else if(state.measurementsAvailable === null){
+            void resolveWaterMeasurementAvailability();
+        }
     }
 
     async function fetchNearbyWaterCategory({
