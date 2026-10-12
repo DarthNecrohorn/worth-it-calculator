@@ -8681,7 +8681,7 @@ async function renderPopularCatalogImmediately(kind, showAll = false) {
         );
 
     /*
-     * "Show all" must never wait for the entire 1000-vehicle quality scan.
+     * "Show all" must never wait for the entire 500-vehicle quality scan.
      * The initial scan may already be running in the background. Reuse the
      * validated vehicles that are available right now, render them
      * immediately, and let the same quality scanner append further valid
@@ -16753,11 +16753,11 @@ async function startUnifiedVehicleBackgroundWarmup() {
                  *
                  * Existing cached vehicles remain eligible, but when a
                  * newly verified candidate is more popular than the least
-                 * popular vehicle currently in the 1000-item catalog, the
+                 * popular vehicle currently in the 500-item catalog, the
                  * least popular entry is replaced. Because candidates are
                  * ordered by the current VehiclesDB popularity order, the
                  * catalog can evolve on every dataset refresh instead of
-                 * permanently freezing its original 1000 entries.
+                 * permanently freezing its original 500 entries.
                  */
                 function sortAndTrimUnifiedCatalog() {
                     validVehicles.sort(
@@ -16874,7 +16874,7 @@ async function startUnifiedVehicleBackgroundWarmup() {
                 };
 
                 /*
-                 * Stop as soon as the 1000-item target is filled. The
+                 * Stop as soon as the 500-item target is filled. The
                  * candidate pool is deliberately larger to replace missing
                  * records, but scanning the remaining pool after the target
                  * is reached only creates unnecessary details requests.
@@ -17110,7 +17110,7 @@ async function startUnifiedVehicleBackgroundWarmup() {
                 flushPendingCloudRecords(true);
 
                 /*
-                 * Keep a final 1000-item account-scoped quality snapshot.
+                 * Keep a final 500-item account-scoped quality snapshot.
                  */
                 validVehicles.sort(
                     (a, b) =>
@@ -17414,7 +17414,7 @@ async function openCars() {
             '<div class="cars-empty-state">' +
                 '<div class="cars-empty-icon">🚗</div>' +
                 '<strong>Loading vehicles...</strong>' +
-                '<p>Loading the 1000-vehicle catalog. Returning users can restore previously loaded cards from their account cache.</p>' +
+                '<p>Loading verified vehicles. Search can still cover the full VehiclesDB dataset (up to 6,000 vehicles).</p>' +
             '</div>';
     }
 
@@ -17523,7 +17523,7 @@ function ensureVehiclesDBAttribution() {
         </a>
 
         · CC BY 4.0
-        · Up to 1,000 verified vehicles are selected and refreshed as the VehiclesDB dataset updates
+        · Up to 500 verified vehicles are selected and refreshed as the VehiclesDB dataset updates
         · Supplemental candidates from
         <a
             href="https://www.wikidata.org/"
