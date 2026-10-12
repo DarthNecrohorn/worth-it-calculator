@@ -2670,7 +2670,7 @@
 
         if(!("IntersectionObserver" in window)){
             void loadStationMetadata(stations.slice(12, 24));
-            void loadStationPlaceLabels(stations.slice(0, 24));
+            void loadStationPlaceLabels(stations);
             return;
         }
 
