@@ -10014,12 +10014,67 @@ function createVehicleCard(
             event.preventDefault();
             event.stopPropagation();
 
+            const clickedScrollY = window.scrollY;
+
             /*
-             * A card must always open its own details, even if building the
-             * navigation list fails for one malformed/late-loaded catalog
-             * entry. Navigation is a convenience and must never block the
-             * primary card action.
+             * Catch rejected promises as well as synchronous navigation
+             * errors. openVehicleDetailsPanel is async, so its setup errors
+             * are promise rejections and cannot be caught by this handler's
+             * outer try/catch alone.
              */
+            const openDetailsSafely = (items, index) => {
+                void openVehicleDetailsPanel(
+                    vehicle,
+                    kind,
+                    { items, index }
+                ).catch(error => {
+                    const modal =
+                        document.getElementById(
+                            "worthItVehicleDetailsModal"
+                        );
+
+                    /*
+                     * If the modal did open, do not issue a duplicate
+                     * details request merely because later enrichment failed.
+                     */
+                    if (modal?.classList.contains("is-open")) {
+                        console.warn(
+                            "Vehicle details enrichment failed after the panel opened.",
+                            error
+                        );
+                        return;
+                    }
+
+                    console.warn(
+                        "Vehicle details setup failed; retrying without navigation.",
+                        error
+                    );
+
+                    void openVehicleDetailsPanel(
+                        vehicle,
+                        kind,
+                        { items: [vehicle], index: 0 }
+                    ).catch(fallbackError => {
+                        console.error(
+                            "Could not open vehicle details panel.",
+                            fallbackError
+                        );
+
+                        const fallbackModal =
+                            document.getElementById(
+                                "worthItVehicleDetailsModal"
+                            );
+
+                        if (!fallbackModal?.classList.contains("is-open")) {
+                            window.scrollTo({
+                                top: clickedScrollY,
+                                behavior: "auto"
+                            });
+                        }
+                    });
+                });
+            };
+
             try {
                 const navigationItems =
                     getVehicleModalNavigationListFromCards();
@@ -10036,13 +10091,9 @@ function createVehicleCard(
                             ) === selectedKey
                     );
 
-                void openVehicleDetailsPanel(
-                    vehicle,
-                    kind,
-                    {
-                        items: navigationItems,
-                        index: selectedIndex
-                    }
+                openDetailsSafely(
+                    navigationItems,
+                    selectedIndex
                 );
             } catch (error) {
                 console.warn(
@@ -10050,14 +10101,7 @@ function createVehicleCard(
                     error
                 );
 
-                void openVehicleDetailsPanel(
-                    vehicle,
-                    kind,
-                    {
-                        items: [vehicle],
-                        index: 0
-                    }
-                );
+                openDetailsSafely([vehicle], 0);
             }
         }
     );
