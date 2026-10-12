@@ -169,11 +169,11 @@ const VEHICLE_KINDS = [
 ];
 
 const VEHICLE_ALL_KIND = "all";
-const MAX_UNIFIED_VEHICLES = 1000;
-// All Vehicles opens with 100 verified cards, then reveals 200 at a time
-// until the normal list reaches 500. "Show all cars" may reveal up to 500 more.
+const MAX_UNIFIED_VEHICLES = 500;
+// All Vehicles opens with 100 verified cards, then reveals 200, 400 and at most 500.
+// Search still uses the separate full VehiclesDB metadata catalog (up to 6,000 candidates).
 const UNIFIED_MAIN_LIST_INITIAL_COUNT = 100;
-const UNIFIED_MAIN_LIST_LIMIT = 500;
+const UNIFIED_MAIN_LIST_LIMIT = MAX_UNIFIED_VEHICLES;
 const UNIFIED_BACKGROUND_CANDIDATE_POOL_LIMIT = 6000;
 const VEHICLE_FAVORITES_STORAGE_KEY = "worth-it-vehicle-favorites-v1";
 const VEHICLE_RECENT_STORAGE_KEY = "worth-it-vehicle-recent-v1";
@@ -855,17 +855,15 @@ function getPopularBackgroundTargetCount(
         );
 
     /*
-     * The unified All Vehicles view is capped at 1000 PUBLIC cards,
-     * but it must be allowed to keep validating candidates until it
-     * can fill that public limit. The old small background target
-     * silently stopped the unified list after a small fraction of the
-     * connected dataset.
+     * The unified All Vehicles view is capped at 500 verified cards.
+     * The searchable metadata catalog remains separate and includes up to
+     * 6,000 VehiclesDB candidates.
      *
      * Category-specific views keep their existing 100-card target.
      */
     if (kind === VEHICLE_ALL_KIND) {
         return Math.min(
-            MAX_UNIFIED_VEHICLES,
+            UNIFIED_MAIN_LIST_LIMIT,
             available
         );
     }
@@ -7539,6 +7537,12 @@ function appendStablePopularVehicleCards(
         return;
     }
 
+    if (kind === VEHICLE_ALL_KIND) {
+        vehicles = Array.isArray(vehicles)
+            ? vehicles.slice(0, UNIFIED_MAIN_LIST_LIMIT)
+            : [];
+    }
+
     displayState.showAll =
         Boolean(showAll);
 
@@ -8745,7 +8749,7 @@ async function renderPopularCatalogImmediately(kind, showAll = false) {
                 unique,
                 desiredCount,
                 maxChecks,
-                async batchVehicles => {
+                kind === VEHICLE_ALL_KIND ? async batchVehicles => {
                     if (
                         currentVehicleKind !== kind ||
                         currentVehicleMode !== "popular"
@@ -8829,7 +8833,7 @@ async function renderPopularCatalogImmediately(kind, showAll = false) {
                             )
                         );
                     }
-                }
+                } : null
             );
     }
 
@@ -8853,15 +8857,28 @@ async function renderPopularCatalogImmediately(kind, showAll = false) {
      * cards during Show all expansion; this avoids a visible blank/loading
      * phase while the persistent snapshot is being restored.
      */
-    if (validVehicles.length) {
-        grid
-            .querySelector(".cars-empty-state")
-            ?.remove();
-    } else if (
-        showAll &&
-        !hasRenderedVehicleCards &&
-        !grid.querySelector(".cars-empty-state")
-    ) {
+    if (kind === VEHICLE_ALL_KIND) {
+        if (validVehicles.length) {
+            grid
+                .querySelector(".cars-empty-state")
+                ?.remove();
+        } else if (
+            showAll &&
+            !hasRenderedVehicleCards &&
+            !grid.querySelector(".cars-empty-state")
+        ) {
+            grid.innerHTML =
+                '<div class="cars-empty-state">' +
+                    '<div class="cars-empty-icon">' +
+                        getVehicleKindInfo(kind).icon +
+                    '</div>' +
+                    '<strong>Checking vehicle information...</strong>' +
+                    '<p>Only vehicles with reliable information and a verified reusable image will be shown.</p>' +
+                '</div>';
+        }
+    } else if (!showAll) {
+        grid.innerHTML = "";
+    } else if (!validVehicles.length) {
         grid.innerHTML =
             '<div class="cars-empty-state">' +
                 '<div class="cars-empty-icon">' +
