@@ -526,8 +526,8 @@
     }catch(e){}
   }
 
-  async function fetchFresh(){
-    const r=await fetch("/api/crypto?action=market",{cache:"no-store"});
+  async function fetchFresh(forceNetwork = false){
+    const r=await fetch("/api/crypto?action=market",{cache:forceNetwork ? "no-store" : "default"});
     if(!r.ok)throw new Error("Crypto API request failed");
     const d=await r.json();
     saveBrowserCache(d);
@@ -560,7 +560,7 @@
     }
 
     try{
-      await fetchFresh();
+      await fetchFresh(force);
     }catch(e){
       console.error(e);
 
