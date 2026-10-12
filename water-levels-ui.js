@@ -3871,7 +3871,8 @@
              * locate the user before requesting the country-aware catalogue.
              * Any stale cards rendered above remain visible during this work.
              */
-            state.loading = false;
+            state.loading =
+                !(quickCached && quickCached.stations.length);
 
             const location =
                 !query
