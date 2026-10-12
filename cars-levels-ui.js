@@ -673,7 +673,7 @@
           finalStep
             ? (
                 kind === "all"
-                  ? "Show all remaining vehicles (100) ↓"
+                  ? "Show remaining vehicles (100) ↓"
                   : "Show all " +
                     info.plural.toLowerCase() +
                     " ↓"
@@ -725,7 +725,7 @@
                 finalStep
                   ? (
                       kind === "all"
-                        ? "Show all remaining vehicles (100) ↓"
+                        ? "Show remaining vehicles (100) ↓"
                         : "Show all " +
                           info.plural.toLowerCase() +
                           " ↓"
