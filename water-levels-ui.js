@@ -101,10 +101,16 @@
             "worthIt.waterLevels.location.v1",
         CACHE_TTL_MS:
             30 * 60 * 1000,
+        /*
+         * Prefer a quick approximate location to blocking the entire
+         * section on a long browser geolocation timeout. A cached browser
+         * position is still returned immediately; IP reverse-geocoding is
+         * the existing fallback when precise coordinates are unavailable.
+         */
         GELOCATION_TIMEOUT_MS:
-            10000,
+            2500,
         REVERSE_GEOCODE_TIMEOUT_MS:
-            8000,
+            4000,
         COUNTRY_BOUNDARY_URL:
             "https://cdn.jsdelivr.net/npm/world-atlas@2.0.2/countries-110m.json",
         US_STATE_BOUNDARY_URL:
@@ -192,6 +198,59 @@
         catch(error){
             return null;
         }
+    }
+
+    /*
+     * The landing cache is keyed by country, but we must not wait for
+     * geolocation just to discover which cache key to read. Reuse the
+     * newest unexpired landing snapshot immediately; loadStations can
+     * validate the current location in the background afterward.
+     */
+    function readMostRecentLandingStationsCache(){
+        const prefix =
+            WATER_STATIONS_CACHE.CACHE_KEY + "::";
+        const suffix = "::all";
+        let best = null;
+
+        try{
+            for(let index = 0; index < localStorage.length; index++){
+                const key = localStorage.key(index);
+
+                if(
+                    !key ||
+                    !key.startsWith(prefix) ||
+                    !key.endsWith(suffix)
+                ){
+                    continue;
+                }
+
+                const country =
+                    key.slice(
+                        prefix.length,
+                        key.length - suffix.length
+                    );
+
+                const candidate =
+                    readStationsCache("",country);
+
+                if(
+                    !candidate ||
+                    !candidate.stations.length
+                ){
+                    continue;
+                }
+
+                if(
+                    !best ||
+                    candidate.timestamp > best.timestamp
+                ){
+                    best = candidate;
+                }
+            }
+        }
+        catch(error){}
+
+        return best;
     }
 
     function saveStationsCache(query,stations,location){
@@ -3726,10 +3785,94 @@
         try{
 
             /*
-             * Search is global. The normal landing view is location-aware:
-             * Serbia/other countries use country-filtered Copernicus data;
-             * Canada uses country + city proximity.
+             * Render a known station snapshot before any geolocation or
+             * reverse-geocoding wait. This is especially important when the
+             * location cache has expired: station data may still be fresh.
              */
+            const quickCached =
+                !options.force
+                    ? (
+                        query
+                            ? readStationsCache(query,null)
+                            : readMostRecentLandingStationsCache()
+                    )
+                    : null;
+
+            if(
+                quickCached &&
+                quickCached.stations.length
+            ){
+                state.stations =
+                    quickCached.stations;
+
+                state.location =
+                    quickCached.location ||
+                    null;
+
+                if(
+                    typeof quickCached.measurementsAvailable === "boolean"
+                ){
+                    state.measurementsAvailable =
+                        quickCached.measurementsAvailable;
+                }
+
+                state.error = "";
+                state.loading = false;
+                renderCards();
+
+                if(quickCached.fresh){
+                    scheduleWaterLevelsAutoRefresh();
+
+                    /*
+                     * A fresh snapshot is enough for the first view. Check
+                     * whether the country has changed in the background, but
+                     * do not hold the rendered cards while location resolves.
+                     */
+                    if(!query){
+                        const displayedCountry =
+                            String(
+                                quickCached.location?.countryName || ""
+                            ).trim().toLowerCase();
+
+                        void resolveWaterLocation().then(function(location){
+                            if(
+                                !location ||
+                                !location.countryName ||
+                                currentQuery() ||
+                                !isWaterLevelsAutoRefreshAllowed() ||
+                                state.loading
+                            ){
+                                return;
+                            }
+
+                            const currentCountry =
+                                String(location.countryName)
+                                    .trim()
+                                    .toLowerCase();
+
+                            if(
+                                currentCountry &&
+                                currentCountry !== displayedCountry
+                            ){
+                                void loadStations({
+                                    force:false,
+                                    preserveCards:true
+                                });
+                            }
+                        }).catch(function(){});
+                    }
+
+                    return;
+                }
+            }
+
+            /*
+             * Search is global. When no fresh station snapshot is available,
+             * locate the user before requesting the country-aware catalogue.
+             * Any stale cards rendered above remain visible during this work.
+             */
+            state.loading = false;
+
             const location =
                 !query
                     ? await resolveWaterLocation()
