@@ -1948,7 +1948,7 @@ async function loadNews() {
                 "/api/news",
                 {
                     cache:
-                        "no-store"
+                        "default"
                 }
             );
 
