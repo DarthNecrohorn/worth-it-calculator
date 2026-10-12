@@ -170,6 +170,10 @@ const VEHICLE_KINDS = [
 
 const VEHICLE_ALL_KIND = "all";
 const MAX_UNIFIED_VEHICLES = 1000;
+// All Vehicles opens with 100 verified cards, then reveals 200 at a time
+// until the normal list reaches 500. "Show all cars" may reveal up to 500 more.
+const UNIFIED_MAIN_LIST_INITIAL_COUNT = 100;
+const UNIFIED_MAIN_LIST_LIMIT = 500;
 const UNIFIED_BACKGROUND_CANDIDATE_POOL_LIMIT = 6000;
 const VEHICLE_FAVORITES_STORAGE_KEY = "worth-it-vehicle-favorites-v1";
 const VEHICLE_RECENT_STORAGE_KEY = "worth-it-vehicle-recent-v1";
@@ -6409,7 +6413,8 @@ function getPopularVehicleQualityState(
             validVehicles: preservedValidVehicles,
             checkedCount: existing.checkedCount,
             exhausted: false,
-            loadingPromise: null
+            loadingPromise: null,
+            progressCallbacks: new Set()
         };
 
         popularVehicleQualityState.set(kind, state);
@@ -6424,7 +6429,8 @@ function getPopularVehicleQualityState(
         validVehicles: [],
         checkedCount: 0,
         exhausted: false,
-        loadingPromise: null
+        loadingPromise: null,
+        progressCallbacks: new Set()
     };
 
     popularVehicleQualityState.set(kind, state);
@@ -7246,9 +7252,28 @@ async function ensurePopularVehicleQuality(
 
     }
 
+    const progressCallback =
+        typeof onProgress === "function"
+            ? onProgress
+            : null;
+
+    if (!(state.progressCallbacks instanceof Set)) {
+        state.progressCallbacks = new Set();
+    }
+
+    if (progressCallback) {
+        state.progressCallbacks.add(progressCallback);
+    }
+
     if (state.loadingPromise) {
 
-        await state.loadingPromise;
+        try {
+            await state.loadingPromise;
+        } finally {
+            if (progressCallback) {
+                state.progressCallbacks.delete(progressCallback);
+            }
+        }
 
         return state.validVehicles.slice(
             0,
@@ -7357,15 +7382,16 @@ async function ensurePopularVehicleQuality(
                                 )
                         );
 
-                    if (
-                        typeof onProgress === "function"
-                    ) {
+                    const progressCallbacks =
+                        state.progressCallbacks instanceof Set
+                            ? Array.from(state.progressCallbacks)
+                            : [];
 
-                        await onProgress(
+                    for (const progressCallback of progressCallbacks) {
+                        await progressCallback(
                             state.validVehicles.slice(),
                             state
                         );
-
                     }
 
                 }
@@ -7386,7 +7412,13 @@ async function ensurePopularVehicleQuality(
 
         })();
 
-    await state.loadingPromise;
+    try {
+        await state.loadingPromise;
+    } finally {
+        if (progressCallback) {
+            state.progressCallbacks.delete(progressCallback);
+        }
+    }
 
     if (
         kind !== "car" &&
@@ -8597,7 +8629,12 @@ async function renderPopularCatalogImmediately(kind, showAll = false) {
     }
 
     const initialCount =
-        getInitialVehicleLimit(unique);
+        kind === VEHICLE_ALL_KIND
+            ? Math.min(
+                UNIFIED_MAIN_LIST_INITIAL_COUNT,
+                unique.length
+            )
+            : getInitialVehicleLimit(unique);
 
     const desiredCount =
         showAll
@@ -8707,7 +8744,59 @@ async function renderPopularCatalogImmediately(kind, showAll = false) {
                 kind,
                 unique,
                 desiredCount,
-                maxChecks
+                maxChecks,
+                async batchVehicles => {
+                    if (
+                        currentVehicleKind !== kind ||
+                        currentVehicleMode !== "popular"
+                    ) {
+                        return;
+                    }
+
+                    const activeGrid =
+                        document.getElementById("popularCarsGrid");
+
+                    const activeDisplayState =
+                        getStablePopularDisplayState(kind);
+
+                    if (!activeGrid || !activeDisplayState) {
+                        return;
+                    }
+
+                    if (batchVehicles.length) {
+                        activeGrid
+                            .querySelector(".cars-empty-state")
+                            ?.remove();
+                    }
+
+                    appendStablePopularVehicleCards(
+                        kind,
+                        batchVehicles,
+                        activeDisplayState.showAll
+                    );
+
+                    currentVehicleResults =
+                        batchVehicles.slice();
+
+                    renderVehicleExpandButton(
+                        currentVehicleResults,
+                        currentVehicleResults.slice(
+                            0,
+                            visibleCount(
+                                kind,
+                                currentVehicleResults.length
+                            )
+                        ),
+                        kind,
+                        stablePopularHasMoreVehicles(
+                            kind,
+                            visibleCount(
+                                kind,
+                                currentVehicleResults.length
+                            )
+                        )
+                    );
+                }
             );
     }
 
@@ -8731,9 +8820,15 @@ async function renderPopularCatalogImmediately(kind, showAll = false) {
      * cards during Show all expansion; this avoids a visible blank/loading
      * phase while the persistent snapshot is being restored.
      */
-    if (!showAll) {
-        grid.innerHTML = "";
-    } else if (!validVehicles.length) {
+    if (validVehicles.length) {
+        grid
+            .querySelector(".cars-empty-state")
+            ?.remove();
+    } else if (
+        showAll &&
+        !hasRenderedVehicleCards &&
+        !grid.querySelector(".cars-empty-state")
+    ) {
         grid.innerHTML =
             '<div class="cars-empty-state">' +
                 '<div class="cars-empty-icon">' +
@@ -14930,7 +15025,7 @@ function updateCarsCategoryHeader(
         description.innerHTML =
             '<span class="cars-results-description-text">' +
             escapeVehicleHtml(
-                "Search all vehicle types from the connected VehiclesDB catalog."
+                "Search the complete VehiclesDB dataset across all vehicle types (up to 6,000 vehicles)."
             ) +
             '</span>';
         updateCarsLastUpdated(kind);
@@ -14948,7 +15043,7 @@ function updateCarsCategoryHeader(
         '<span class="cars-results-description-text">' +
         escapeVehicleHtml(
             kind === VEHICLE_ALL_KIND
-                ? "Up to 1,000 verified cars, motorcycles, vans, trucks and buses from the connected VehiclesDB dataset."
+                ? "Up to 500 verified cars, motorcycles, vans, trucks and buses in the main list. Show all cars reveals up to 500 more verified vehicles."
                 : info.description
         ) +
         '</span>' +
@@ -14965,7 +15060,10 @@ function updateCarsCategoryHeader(
                 '<strong>Popularity note</strong>' +
                 '<span>' + escapeVehicleHtml(VEHICLE_POPULARITY_NOTE) + '</span>' +
             '</span>' +
-        '</span>';
+        '</span>' +
+        (kind === VEHICLE_ALL_KIND
+            ? '<span class="cars-search-catalog-note" style="display:block;flex-basis:100%;margin-top:2px;">Search the full VehiclesDB dataset to find vehicles beyond the main list (up to 6,000 vehicles).</span>'
+            : '');
 
     updateCarsLastUpdated(kind);
 
