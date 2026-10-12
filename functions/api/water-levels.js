@@ -2287,7 +2287,50 @@ const LATEST_RANGE_STEPS = [
     8 * 1024 * 1024
 ];
 
-async function getLatestMeasurementByRange(
+/*
+ * Both the station-metadata endpoint and the latest-measurement endpoint
+ * may need this same Copernicus read at the same time. Share the in-flight
+ * work by station so concurrent callers do not repeat the expensive download
+ * and parsing steps. Normal and explicit forced refreshes remain separate.
+ */
+async function getLatestMeasurementByRange(context, options) {
+    const productId = String(options && options.productId || "").trim();
+    const type = String(options && options.type || "").trim();
+    const forceRefresh = Boolean(options && options.forceRefresh);
+    const requestKey = [
+        "latest-measurement",
+        WATER_CACHE_VERSION,
+        type,
+        productId,
+        forceRefresh ? "force" : "normal"
+    ].join(":");
+
+    if (inFlightRequests.has(requestKey)) {
+        return inFlightRequests.get(requestKey);
+    }
+
+    const requestPromise = getLatestMeasurementByRangeInternal(
+        context,
+        {
+            productId,
+            type,
+            forceRefresh
+        }
+    );
+
+    inFlightRequests.set(requestKey, requestPromise);
+
+    try {
+        return await requestPromise;
+    }
+    finally {
+        if (inFlightRequests.get(requestKey) === requestPromise) {
+            inFlightRequests.delete(requestKey);
+        }
+    }
+}
+
+async function getLatestMeasurementByRangeInternal(
     context,
     {
         productId,
