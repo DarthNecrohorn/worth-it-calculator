@@ -263,6 +263,9 @@
         targetCount &&
       !quality.exhausted
     ) {
+      const previousLevel =
+        getLevel(kind);
+
       const wrapper =
         document.getElementById(
           "carsVehicleExpandButton"
@@ -281,15 +284,53 @@
           "Loading next 200 vehicles…";
       }
 
-      await ensurePopularVehicleQuality(
+      /*
+       * Reveal the requested level before waiting for the quality scan.
+       * If a background scan is already running, ensurePopularVehicleQuality
+       * joins that same promise rather than starting another set of API calls.
+       * Marking the display state now lets its existing progress callback
+       * append newly verified cards as each batch completes instead of leaving
+       * the user staring at a disabled button until the whole scan finishes.
+       */
+      setLevel(
         kind,
-        quality.candidates,
-        targetCount,
-        Math.max(
-          getPopularMaxNewChecks(kind),
-          targetCount
-        )
+        targetLevel
       );
+
+      state.revealLevel =
+        targetLevel;
+
+      state.showAll =
+        true;
+
+      applyVisibility(kind);
+
+      try {
+        await ensurePopularVehicleQuality(
+          kind,
+          quality.candidates,
+          targetCount,
+          Math.max(
+            getPopularMaxNewChecks(kind),
+            targetCount
+          )
+        );
+      } catch (error) {
+        setLevel(
+          kind,
+          previousLevel
+        );
+
+        state.revealLevel =
+          previousLevel;
+
+        state.showAll =
+          previousLevel > 0;
+
+        applyVisibility(kind);
+
+        throw error;
+      }
     }
 
     if (
