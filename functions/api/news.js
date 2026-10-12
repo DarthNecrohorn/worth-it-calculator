@@ -2318,7 +2318,7 @@ export async function onRequestGet(context) {
                     headers: {
 
                         "Cache-Control":
-                            `public, max-age=0, s-maxage=${CACHE_TTL}`,
+                            `public, max-age=300, s-maxage=${CACHE_TTL}`,
 
                         "X-News-Cache":
                             "MISS",
