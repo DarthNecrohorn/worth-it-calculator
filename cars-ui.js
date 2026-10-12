@@ -10014,30 +10014,51 @@ function createVehicleCard(
             event.preventDefault();
             event.stopPropagation();
 
-            const navigationItems =
-                getVehicleModalNavigationListFromCards();
+            /*
+             * A card must always open its own details, even if building the
+             * navigation list fails for one malformed/late-loaded catalog
+             * entry. Navigation is a convenience and must never block the
+             * primary card action.
+             */
+            try {
+                const navigationItems =
+                    getVehicleModalNavigationListFromCards();
 
-            const selectedIndex =
-                navigationItems.findIndex(
-                    item =>
-                        getVehicleNavigationKey(
-                            item,
-                            item.kind || kind
-                        ) ===
-                        getVehicleNavigationKey(
-                            vehicle,
-                            kind
-                        )
+                const selectedKey =
+                    getVehicleNavigationKey(vehicle, kind);
+
+                const selectedIndex =
+                    navigationItems.findIndex(
+                        item =>
+                            getVehicleNavigationKey(
+                                item,
+                                item.kind || kind
+                            ) === selectedKey
+                    );
+
+                void openVehicleDetailsPanel(
+                    vehicle,
+                    kind,
+                    {
+                        items: navigationItems,
+                        index: selectedIndex
+                    }
+                );
+            } catch (error) {
+                console.warn(
+                    "Vehicle navigation list failed; opening selected vehicle without navigation.",
+                    error
                 );
 
-            void openVehicleDetailsPanel(
-                vehicle,
-                kind,
-                {
-                    items: navigationItems,
-                    index: selectedIndex
-                }
-            );
+                void openVehicleDetailsPanel(
+                    vehicle,
+                    kind,
+                    {
+                        items: [vehicle],
+                        index: 0
+                    }
+                );
+            }
         }
     );
 
