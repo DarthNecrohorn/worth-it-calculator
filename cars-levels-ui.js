@@ -31,7 +31,11 @@
     const count = Math.max(0, Number(total) || 0);
     const level = getLevel(kind);
 
-    if (level === Infinity) return count;
+    if (level === Infinity) {
+      return kind === "all"
+        ? Math.min(count, UNIFIED_MAIN_LIST_LIMIT)
+        : count;
+    }
 
     if (kind === "all") {
       if (level <= 0) {
@@ -45,7 +49,7 @@
         count,
         Math.min(
           UNIFIED_MAIN_LIST_LIMIT,
-          UNIFIED_MAIN_LIST_INITIAL_COUNT + level * CHUNK
+          level * CHUNK
         )
       );
     }
@@ -92,7 +96,6 @@
 
     cards.forEach((card, index) => {
       const show =
-        level === Infinity ||
         index < limit;
 
       card.style.display =
@@ -206,7 +209,12 @@
       );
 
       currentVehicleResults =
-        quality.validVehicles.slice();
+        kind === "all"
+          ? quality.validVehicles.slice(
+              0,
+              UNIFIED_MAIN_LIST_LIMIT
+            )
+          : quality.validVehicles.slice();
 
       renderVehicleCollapseButton(
         kind
@@ -275,8 +283,7 @@
         kind === "all"
           ? Math.min(
               UNIFIED_MAIN_LIST_LIMIT,
-              UNIFIED_MAIN_LIST_INITIAL_COUNT +
-                targetLevel * CHUNK
+              targetLevel * CHUNK
             )
           : targetLevel * CHUNK
       );
@@ -656,7 +663,7 @@
           finalStep
             ? (
                 kind === "all"
-                  ? "Show all cars ↓"
+                  ? "Show all remaining vehicles (100) ↓"
                   : "Show all " +
                     info.plural.toLowerCase() +
                     " ↓"
@@ -685,7 +692,7 @@
               finalStep
                 ? (
                     kind === "all"
-                      ? "Loading remaining 500 vehicles…"
+                      ? "Loading remaining vehicles (100)…"
                       : "Loading remaining vehicles…"
                   )
                 : "Loading next 200 vehicles…";
@@ -708,7 +715,7 @@
                 finalStep
                   ? (
                       kind === "all"
-                        ? "Show all cars ↓"
+                        ? "Show all remaining vehicles (100) ↓"
                         : "Show all " +
                           info.plural.toLowerCase() +
                           " ↓"
