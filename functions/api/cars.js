@@ -7471,6 +7471,8 @@ async function handleDetails(
     requestUrl
 ) {
 
+    const detailsStartedAt = Date.now();
+
     const kind =
         getRequestedKind(requestUrl);
 
@@ -7550,6 +7552,33 @@ async function handleDetails(
             ? caches.default
             : null;
 
+    /*
+     * Temporary, low-overhead diagnostics for distinguishing detail modes
+     * and Cloudflare Cache API hits from requests that reach this handler.
+     * These headers expose no vehicle or user-specific information.
+     */
+    const withCarsDetailsDiagnostics = (
+        response,
+        cacheStatus
+    ) => {
+        const headers = new Headers(response.headers);
+        headers.set("X-Worth-It-Cars-Mode", detailsMode);
+        headers.set("X-Worth-It-Cars-Cache", cacheStatus);
+
+        if (cacheStatus === "MISS") {
+            headers.set(
+                "Server-Timing",
+                "cars;dur=" + Math.max(0, Date.now() - detailsStartedAt)
+            );
+        }
+
+        return new Response(response.body, {
+            status: response.status,
+            statusText: response.statusText,
+            headers
+        });
+    };
+
     if (detailsCache) {
         try {
             const cachedResponse =
@@ -7558,7 +7587,10 @@ async function handleDetails(
                 );
 
             if (cachedResponse) {
-                return cachedResponse;
+                return withCarsDetailsDiagnostics(
+                    cachedResponse,
+                    "HIT"
+                );
             }
         } catch (error) {
             console.warn(
@@ -7616,7 +7648,10 @@ async function handleDetails(
             }
         }
 
-        return response;
+        return withCarsDetailsDiagnostics(
+            response,
+            "MISS"
+        );
     };
 
     /* /*
