@@ -31,7 +31,32 @@
     const count = Math.max(0, Number(total) || 0);
     const level = getLevel(kind);
 
-    if (level === Infinity) return count;
+    if (level === Infinity) {
+      return kind === "all"
+        ? Math.min(count, UNIFIED_MAIN_LIST_LIMIT)
+        : count;
+    }
+
+    if (kind === "all") {
+      if (level <= 0) {
+        return Math.min(
+          count,
+          Math.max(
+            1,
+            getVehiclesPerRow() *
+              getPopularInitialVisibleRows(kind)
+          )
+        );
+      }
+
+      return Math.min(
+        count,
+        Math.min(
+          UNIFIED_MAIN_LIST_LIMIT,
+          level * CHUNK
+        )
+      );
+    }
 
     if (level <= 0) {
       return Math.min(
@@ -75,7 +100,6 @@
 
     cards.forEach((card, index) => {
       const show =
-        level === Infinity ||
         index < limit;
 
       card.style.display =
@@ -189,7 +213,12 @@
       );
 
       currentVehicleResults =
-        quality.validVehicles.slice();
+        kind === "all"
+          ? quality.validVehicles.slice(
+              0,
+              UNIFIED_MAIN_LIST_LIMIT
+            )
+          : quality.validVehicles.slice();
 
       renderVehicleCollapseButton(
         kind
@@ -230,7 +259,9 @@
                 : [];
 
             currentVehicleResults =
-              vehicles.slice();
+              kind === "all"
+                ? vehicles.slice(0, UNIFIED_MAIN_LIST_LIMIT)
+                : vehicles.slice();
 
             appendStablePopularVehicleCards(
               kind,
@@ -255,7 +286,12 @@
     const targetCount =
       Math.max(
         1,
-        targetLevel * CHUNK
+        kind === "all"
+          ? Math.min(
+              UNIFIED_MAIN_LIST_LIMIT,
+              targetLevel * CHUNK
+            )
+          : targetLevel * CHUNK
       );
 
     if (
@@ -263,6 +299,9 @@
         targetCount &&
       !quality.exhausted
     ) {
+      const previousLevel =
+        getLevel(kind);
+
       const wrapper =
         document.getElementById(
           "carsVehicleExpandButton"
@@ -281,15 +320,53 @@
           "Loading next 200 vehicles…";
       }
 
-      await ensurePopularVehicleQuality(
+      /*
+       * Reveal the requested level before waiting for the quality scan.
+       * If a background scan is already running, ensurePopularVehicleQuality
+       * joins that same promise rather than starting another set of API calls.
+       * Marking the display state now lets its existing progress callback
+       * append newly verified cards as each batch completes instead of leaving
+       * the user staring at a disabled button until the whole scan finishes.
+       */
+      setLevel(
         kind,
-        quality.candidates,
-        targetCount,
-        Math.max(
-          getPopularMaxNewChecks(kind),
-          targetCount
-        )
+        targetLevel
       );
+
+      state.revealLevel =
+        targetLevel;
+
+      state.showAll =
+        true;
+
+      applyVisibility(kind);
+
+      try {
+        await ensurePopularVehicleQuality(
+          kind,
+          quality.candidates,
+          targetCount,
+          Math.max(
+            getPopularMaxNewChecks(kind),
+            targetCount
+          )
+        );
+      } catch (error) {
+        setLevel(
+          kind,
+          previousLevel
+        );
+
+        state.revealLevel =
+          previousLevel;
+
+        state.showAll =
+          previousLevel > 0;
+
+        applyVisibility(kind);
+
+        throw error;
+      }
     }
 
     if (
@@ -314,7 +391,9 @@
       true;
 
     currentVehicleResults =
-      latest.validVehicles.slice();
+      kind === "all"
+        ? latest.validVehicles.slice(0, UNIFIED_MAIN_LIST_LIMIT)
+        : latest.validVehicles.slice();
 
     appendStablePopularVehicleCards(
       kind,
@@ -399,7 +478,9 @@
       next > 0;
 
     currentVehicleResults =
-      quality.validVehicles.slice();
+      kind === "all"
+        ? quality.validVehicles.slice(0, UNIFIED_MAIN_LIST_LIMIT)
+        : quality.validVehicles.slice();
 
     applyVisibility(
       kind
@@ -558,11 +639,10 @@
       };
 
     /*
-     * When fewer than one full 200-vehicle level remains in the currently
-     * validated set, stop offering another "next 200" step and expose
-     * "Show all" instead. This also handles the case where quality scanning
-     * has temporarily found no additional valid vehicles (e.g. 800 -> 800)
-     * without changing the underlying Cars loading logic.
+     * All Vehicles initially shows the normal viewport (three desktop rows
+     * or three mobile cards), then the buttons reveal 200, 400 and finally
+     * up to 500 verified vehicles total. Other vehicle categories retain
+     * their existing reveal-step behavior.
      */
     const nextLevelTarget =
       Math.max(
@@ -571,9 +651,11 @@
       );
 
     const finalStep =
-      level > 0 &&
-      totalVehicles.length <
-        nextLevelTarget;
+      kind === "all"
+        ? level >= 2
+        : level > 0 &&
+          totalVehicles.length <
+            nextLevelTarget;
 
     if (level === Infinity) {
       addButton(
@@ -589,9 +671,13 @@
       if (canExpand) {
         addButton(
           finalStep
-            ? "Show all " +
-              info.plural.toLowerCase() +
-              " ↓"
+            ? (
+                kind === "all"
+                  ? "Show remaining vehicles (100) ↓"
+                  : "Show all " +
+                    info.plural.toLowerCase() +
+                    " ↓"
+              )
             : "Show next " +
               CHUNK +
               " " +
@@ -614,7 +700,11 @@
 
             button.textContent =
               finalStep
-                ? "Loading remaining vehicles…"
+                ? (
+                    kind === "all"
+                      ? "Loading remaining vehicles (100)…"
+                      : "Loading remaining vehicles…"
+                  )
                 : "Loading next 200 vehicles…";
 
             try {
@@ -633,9 +723,13 @@
 
               button.textContent =
                 finalStep
-                  ? "Show all " +
-                    info.plural.toLowerCase() +
-                    " ↓"
+                  ? (
+                      kind === "all"
+                        ? "Show remaining vehicles (100) ↓"
+                        : "Show all " +
+                          info.plural.toLowerCase() +
+                          " ↓"
+                    )
                   : "Show next " +
                     CHUNK +
                     " " +

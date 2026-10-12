@@ -169,7 +169,11 @@ const VEHICLE_KINDS = [
 ];
 
 const VEHICLE_ALL_KIND = "all";
-const MAX_UNIFIED_VEHICLES = 1000;
+const MAX_UNIFIED_VEHICLES = 500;
+// All Vehicles initially shows the normal viewport (three rows on desktop,
+// three cards on mobile), then reveals 200, 400 and at most 500 in total.
+// Search still uses the separate full VehiclesDB metadata catalog (up to 6,000 candidates).
+const UNIFIED_MAIN_LIST_LIMIT = MAX_UNIFIED_VEHICLES;
 const UNIFIED_BACKGROUND_CANDIDATE_POOL_LIMIT = 6000;
 const VEHICLE_FAVORITES_STORAGE_KEY = "worth-it-vehicle-favorites-v1";
 const VEHICLE_RECENT_STORAGE_KEY = "worth-it-vehicle-recent-v1";
@@ -851,17 +855,15 @@ function getPopularBackgroundTargetCount(
         );
 
     /*
-     * The unified All Vehicles view is capped at 1000 PUBLIC cards,
-     * but it must be allowed to keep validating candidates until it
-     * can fill that public limit. The old small background target
-     * silently stopped the unified list after a small fraction of the
-     * connected dataset.
+     * The unified All Vehicles view is capped at 500 verified cards.
+     * The searchable metadata catalog remains separate and includes up to
+     * 6,000 VehiclesDB candidates.
      *
      * Category-specific views keep their existing 100-card target.
      */
     if (kind === VEHICLE_ALL_KIND) {
         return Math.min(
-            MAX_UNIFIED_VEHICLES,
+            UNIFIED_MAIN_LIST_LIMIT,
             available
         );
     }
@@ -6409,7 +6411,8 @@ function getPopularVehicleQualityState(
             validVehicles: preservedValidVehicles,
             checkedCount: existing.checkedCount,
             exhausted: false,
-            loadingPromise: null
+            loadingPromise: null,
+            progressCallbacks: new Set()
         };
 
         popularVehicleQualityState.set(kind, state);
@@ -6424,7 +6427,8 @@ function getPopularVehicleQualityState(
         validVehicles: [],
         checkedCount: 0,
         exhausted: false,
-        loadingPromise: null
+        loadingPromise: null,
+        progressCallbacks: new Set()
     };
 
     popularVehicleQualityState.set(kind, state);
@@ -7246,9 +7250,28 @@ async function ensurePopularVehicleQuality(
 
     }
 
+    const progressCallback =
+        typeof onProgress === "function"
+            ? onProgress
+            : null;
+
+    if (!(state.progressCallbacks instanceof Set)) {
+        state.progressCallbacks = new Set();
+    }
+
+    if (progressCallback) {
+        state.progressCallbacks.add(progressCallback);
+    }
+
     if (state.loadingPromise) {
 
-        await state.loadingPromise;
+        try {
+            await state.loadingPromise;
+        } finally {
+            if (progressCallback) {
+                state.progressCallbacks.delete(progressCallback);
+            }
+        }
 
         return state.validVehicles.slice(
             0,
@@ -7357,15 +7380,16 @@ async function ensurePopularVehicleQuality(
                                 )
                         );
 
-                    if (
-                        typeof onProgress === "function"
-                    ) {
+                    const progressCallbacks =
+                        state.progressCallbacks instanceof Set
+                            ? Array.from(state.progressCallbacks)
+                            : [];
 
-                        await onProgress(
+                    for (const progressCallback of progressCallbacks) {
+                        await progressCallback(
                             state.validVehicles.slice(),
                             state
                         );
-
                     }
 
                 }
@@ -7386,7 +7410,13 @@ async function ensurePopularVehicleQuality(
 
         })();
 
-    await state.loadingPromise;
+    try {
+        await state.loadingPromise;
+    } finally {
+        if (progressCallback) {
+            state.progressCallbacks.delete(progressCallback);
+        }
+    }
 
     if (
         kind !== "car" &&
@@ -7505,6 +7535,12 @@ function appendStablePopularVehicleCards(
 
     if (!displayState) {
         return;
+    }
+
+    if (kind === VEHICLE_ALL_KIND) {
+        vehicles = Array.isArray(vehicles)
+            ? vehicles.slice(0, UNIFIED_MAIN_LIST_LIMIT)
+            : [];
     }
 
     displayState.showAll =
@@ -8640,7 +8676,7 @@ async function renderPopularCatalogImmediately(kind, showAll = false) {
         );
 
     /*
-     * "Show all" must never wait for the entire 1000-vehicle quality scan.
+     * "Show all" must never wait for the entire 500-vehicle quality scan.
      * The initial scan may already be running in the background. Reuse the
      * validated vehicles that are available right now, render them
      * immediately, and let the same quality scanner append further valid
@@ -8707,7 +8743,101 @@ async function renderPopularCatalogImmediately(kind, showAll = false) {
                 kind,
                 unique,
                 desiredCount,
-                maxChecks
+                maxChecks,
+                kind === VEHICLE_ALL_KIND ? async batchVehicles => {
+                    if (
+                        currentVehicleKind !== kind ||
+                        currentVehicleMode !== "popular"
+                    ) {
+                        return;
+                    }
+
+                    const activeGrid =
+                        document.getElementById("popularCarsGrid");
+
+                    const activeDisplayState =
+                        getStablePopularDisplayState(kind);
+
+                    if (!activeGrid || !activeDisplayState) {
+                        return;
+                    }
+
+                    if (batchVehicles.length) {
+                        activeGrid
+                            .querySelector(".cars-empty-state")
+                            ?.remove();
+                    }
+
+                    const hasUnrenderedVehicles =
+                        batchVehicles.some(
+                            vehicle =>
+                                !activeDisplayState.renderedKeys.has(
+                                    getPopularVehicleQualityKey(
+                                        vehicle,
+                                        kind
+                                    )
+                                )
+                        );
+
+                    if (hasUnrenderedVehicles) {
+                        appendStablePopularVehicleCards(
+                            kind,
+                            batchVehicles,
+                            activeDisplayState.showAll
+                        );
+                    }
+
+                    currentVehicleResults =
+                        batchVehicles.slice();
+
+                    const activeRevealLevel =
+                        activeDisplayState.revealLevel ?? 0;
+
+                    const visibleLimit =
+                        activeRevealLevel === Infinity
+                            ? UNIFIED_MAIN_LIST_LIMIT
+                            : activeRevealLevel > 0
+                                ? Math.min(
+                                    UNIFIED_MAIN_LIST_LIMIT,
+                                    activeRevealLevel * 200
+                                )
+                                : getInitialVehicleLimit(
+                                    currentVehicleResults
+                                );
+
+                    const expandWrapper =
+                        document.getElementById(
+                            "carsVehicleExpandButton"
+                        );
+
+                    const expandButton =
+                        expandWrapper?.querySelector(
+                            ".cars-expand-button"
+                        );
+
+                    const expansionInProgress =
+                        Boolean(
+                            expandButton?.disabled ||
+                            /^(Loading|Checking)/i.test(
+                                String(expandButton?.textContent || "").trim()
+                            )
+                        );
+
+                    if (!expansionInProgress) {
+                        renderVehicleExpandButton(
+                            currentVehicleResults,
+                            currentVehicleResults.slice(
+                                0,
+                                visibleLimit
+                            ),
+                            kind,
+                            stablePopularHasMoreVehicles(
+                                kind,
+                                visibleLimit
+                            )
+                        );
+                    }
+                } : null
             );
     }
 
@@ -8731,7 +8861,26 @@ async function renderPopularCatalogImmediately(kind, showAll = false) {
      * cards during Show all expansion; this avoids a visible blank/loading
      * phase while the persistent snapshot is being restored.
      */
-    if (!showAll) {
+    if (kind === VEHICLE_ALL_KIND) {
+        if (validVehicles.length) {
+            grid
+                .querySelector(".cars-empty-state")
+                ?.remove();
+        } else if (
+            showAll &&
+            !hasRenderedVehicleCards &&
+            !grid.querySelector(".cars-empty-state")
+        ) {
+            grid.innerHTML =
+                '<div class="cars-empty-state">' +
+                    '<div class="cars-empty-icon">' +
+                        getVehicleKindInfo(kind).icon +
+                    '</div>' +
+                    '<strong>Checking vehicle information...</strong>' +
+                    '<p>Only vehicles with reliable information and a verified reusable image will be shown.</p>' +
+                '</div>';
+        }
+    } else if (!showAll) {
         grid.innerHTML = "";
     } else if (!validVehicles.length) {
         grid.innerHTML =
@@ -10014,30 +10163,95 @@ function createVehicleCard(
             event.preventDefault();
             event.stopPropagation();
 
-            const navigationItems =
-                getVehicleModalNavigationListFromCards();
+            const clickedScrollY = window.scrollY;
 
-            const selectedIndex =
-                navigationItems.findIndex(
-                    item =>
-                        getVehicleNavigationKey(
-                            item,
-                            item.kind || kind
-                        ) ===
-                        getVehicleNavigationKey(
-                            vehicle,
-                            kind
-                        )
+            /*
+             * Catch rejected promises as well as synchronous navigation
+             * errors. openVehicleDetailsPanel is async, so its setup errors
+             * are promise rejections and cannot be caught by this handler's
+             * outer try/catch alone.
+             */
+            const openDetailsSafely = (items, index) => {
+                void openVehicleDetailsPanel(
+                    vehicle,
+                    kind,
+                    { items, index }
+                ).catch(error => {
+                    const modal =
+                        document.getElementById(
+                            "worthItVehicleDetailsModal"
+                        );
+
+                    /*
+                     * If the modal did open, do not issue a duplicate
+                     * details request merely because later enrichment failed.
+                     */
+                    if (modal?.classList.contains("is-open")) {
+                        console.warn(
+                            "Vehicle details enrichment failed after the panel opened.",
+                            error
+                        );
+                        return;
+                    }
+
+                    console.warn(
+                        "Vehicle details setup failed; retrying without navigation.",
+                        error
+                    );
+
+                    void openVehicleDetailsPanel(
+                        vehicle,
+                        kind,
+                        { items: [vehicle], index: 0 }
+                    ).catch(fallbackError => {
+                        console.error(
+                            "Could not open vehicle details panel.",
+                            fallbackError
+                        );
+
+                        const fallbackModal =
+                            document.getElementById(
+                                "worthItVehicleDetailsModal"
+                            );
+
+                        if (!fallbackModal?.classList.contains("is-open")) {
+                            window.scrollTo({
+                                top: clickedScrollY,
+                                behavior: "auto"
+                            });
+                        }
+                    });
+                });
+            };
+
+            try {
+                const navigationItems =
+                    getVehicleModalNavigationListFromCards();
+
+                const selectedKey =
+                    getVehicleNavigationKey(vehicle, kind);
+
+                const selectedIndex =
+                    navigationItems.findIndex(
+                        item =>
+                            getVehicleNavigationKey(
+                                item,
+                                item.kind || kind
+                            ) === selectedKey
+                    );
+
+                openDetailsSafely(
+                    navigationItems,
+                    selectedIndex
+                );
+            } catch (error) {
+                console.warn(
+                    "Vehicle navigation list failed; opening selected vehicle without navigation.",
+                    error
                 );
 
-            void openVehicleDetailsPanel(
-                vehicle,
-                kind,
-                {
-                    items: navigationItems,
-                    index: selectedIndex
-                }
-            );
+                openDetailsSafely([vehicle], 0);
+            }
         }
     );
 
@@ -14865,7 +15079,7 @@ function updateCarsCategoryHeader(
         description.innerHTML =
             '<span class="cars-results-description-text">' +
             escapeVehicleHtml(
-                "Search all vehicle types from the connected VehiclesDB catalog."
+                "Search the complete VehiclesDB dataset across all vehicle types (up to 6,000 vehicles)."
             ) +
             '</span>';
         updateCarsLastUpdated(kind);
@@ -14883,7 +15097,7 @@ function updateCarsCategoryHeader(
         '<span class="cars-results-description-text">' +
         escapeVehicleHtml(
             kind === VEHICLE_ALL_KIND
-                ? "Up to 1,000 verified cars, motorcycles, vans, trucks and buses from the connected VehiclesDB dataset."
+                ? "Up to 500 verified cars, motorcycles, vans, trucks and buses in the main list."
                 : info.description
         ) +
         '</span>' +
@@ -14900,7 +15114,10 @@ function updateCarsCategoryHeader(
                 '<strong>Popularity note</strong>' +
                 '<span>' + escapeVehicleHtml(VEHICLE_POPULARITY_NOTE) + '</span>' +
             '</span>' +
-        '</span>';
+        '</span>' +
+        (kind === VEHICLE_ALL_KIND
+            ? '<span class="cars-search-catalog-note" style="display:block;flex-basis:100%;margin-top:2px;">Search the full VehiclesDB dataset to find vehicles beyond the main list (up to 6,000 vehicles).</span>'
+            : '');
 
     updateCarsLastUpdated(kind);
 
@@ -16540,11 +16757,11 @@ async function startUnifiedVehicleBackgroundWarmup() {
                  *
                  * Existing cached vehicles remain eligible, but when a
                  * newly verified candidate is more popular than the least
-                 * popular vehicle currently in the 1000-item catalog, the
+                 * popular vehicle currently in the 500-item catalog, the
                  * least popular entry is replaced. Because candidates are
                  * ordered by the current VehiclesDB popularity order, the
                  * catalog can evolve on every dataset refresh instead of
-                 * permanently freezing its original 1000 entries.
+                 * permanently freezing its original 500 entries.
                  */
                 function sortAndTrimUnifiedCatalog() {
                     validVehicles.sort(
@@ -16661,7 +16878,7 @@ async function startUnifiedVehicleBackgroundWarmup() {
                 };
 
                 /*
-                 * Stop as soon as the 1000-item target is filled. The
+                 * Stop as soon as the 500-item target is filled. The
                  * candidate pool is deliberately larger to replace missing
                  * records, but scanning the remaining pool after the target
                  * is reached only creates unnecessary details requests.
@@ -16897,7 +17114,7 @@ async function startUnifiedVehicleBackgroundWarmup() {
                 flushPendingCloudRecords(true);
 
                 /*
-                 * Keep a final 1000-item account-scoped quality snapshot.
+                 * Keep a final 500-item account-scoped quality snapshot.
                  */
                 validVehicles.sort(
                     (a, b) =>
@@ -17201,7 +17418,7 @@ async function openCars() {
             '<div class="cars-empty-state">' +
                 '<div class="cars-empty-icon">🚗</div>' +
                 '<strong>Loading vehicles...</strong>' +
-                '<p>Loading the 1000-vehicle catalog. Returning users can restore previously loaded cards from their account cache.</p>' +
+                '<p>Loading verified vehicles. Search can still cover the full VehiclesDB dataset (up to 6,000 vehicles).</p>' +
             '</div>';
     }
 
@@ -17310,7 +17527,7 @@ function ensureVehiclesDBAttribution() {
         </a>
 
         · CC BY 4.0
-        · Up to 1,000 verified vehicles are selected and refreshed as the VehiclesDB dataset updates
+        · Up to 500 verified vehicles are selected and refreshed as the VehiclesDB dataset updates
         · Supplemental candidates from
         <a
             href="https://www.wikidata.org/"
