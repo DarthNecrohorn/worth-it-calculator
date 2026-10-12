@@ -255,7 +255,9 @@
                 : [];
 
             currentVehicleResults =
-              vehicles.slice();
+              kind === "all"
+                ? vehicles.slice(0, UNIFIED_MAIN_LIST_LIMIT)
+                : vehicles.slice();
 
             appendStablePopularVehicleCards(
               kind,
@@ -385,7 +387,9 @@
       true;
 
     currentVehicleResults =
-      latest.validVehicles.slice();
+      kind === "all"
+        ? latest.validVehicles.slice(0, UNIFIED_MAIN_LIST_LIMIT)
+        : latest.validVehicles.slice();
 
     appendStablePopularVehicleCards(
       kind,
@@ -470,7 +474,9 @@
       next > 0;
 
     currentVehicleResults =
-      quality.validVehicles.slice();
+      kind === "all"
+        ? quality.validVehicles.slice(0, UNIFIED_MAIN_LIST_LIMIT)
+        : quality.validVehicles.slice();
 
     applyVisibility(
       kind
@@ -629,10 +635,10 @@
       };
 
     /*
-     * All Vehicles has a deliberate staged browse flow: 100 initially,
-     * then 300 and 500 after two 200-vehicle expansions. "Show all cars"
-     * then reveals up to 500 additional verified vehicles. Other vehicle
-     * categories retain their existing reveal-step behavior.
+     * All Vehicles has a staged 500-vehicle cap: 100 initially, then 200
+     * and 400 after the two "Show next 200" steps. "Show all remaining
+     * vehicles (100)" reveals any additional verified vehicles up to 500.
+     * Other vehicle categories retain their existing reveal-step behavior.
      */
     const nextLevelTarget =
       Math.max(
