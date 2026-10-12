@@ -913,7 +913,7 @@
                 headers: {
                     "Accept": "application/json"
                 },
-                cache: "no-store",
+                cache: "default",
                 signal: currentRequestController.signal
             });
 
@@ -3312,7 +3312,7 @@
                     headers: {
                         "Accept": "application/json"
                     },
-                    cache: "no-store"
+                    cache: "default"
                 }
             );
 
