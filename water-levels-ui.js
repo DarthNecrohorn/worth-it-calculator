@@ -135,6 +135,8 @@
 
     let waterAutoRefreshTimer = null;
     let waterMeasurementAvailabilityPromise = null;
+    let waterMeasurementAvailabilityCheckedAt = 0;
+    const WATER_MEASUREMENT_AVAILABILITY_CACHE_TTL_MS = 60 * 1000;
 
     const state = {
         stations: [],
@@ -277,7 +279,11 @@
     }
 
     async function resolveWaterMeasurementAvailability(){
-        if(typeof state.measurementsAvailable === "boolean"){
+        if(
+            typeof state.measurementsAvailable === "boolean" &&
+            Date.now() - waterMeasurementAvailabilityCheckedAt <
+                WATER_MEASUREMENT_AVAILABILITY_CACHE_TTL_MS
+        ){
             return state.measurementsAvailable;
         }
 
@@ -311,6 +317,7 @@
 
                     state.measurementsAvailable =
                         data.measurementsAvailable;
+                    waterMeasurementAvailabilityCheckedAt = Date.now();
 
                     try{
                         saveStationsCache(
@@ -3244,7 +3251,17 @@
                     applyLatestToCard(station);
                 }
             });
-        }else if(state.measurementsAvailable === null){
+        }
+
+        /*
+         * A cached capability value can outlive a Preview/Production
+         * configuration change. Revalidate it occasionally without
+         * delaying the already-rendered station cards.
+         */
+        if(
+            Date.now() - waterMeasurementAvailabilityCheckedAt >=
+            WATER_MEASUREMENT_AVAILABILITY_CACHE_TTL_MS
+        ){
             void resolveWaterMeasurementAvailability();
         }
     }
@@ -4700,6 +4717,39 @@
     }
 
     async function loadDetails(station,mode){
+        /*
+         * Do not issue a details request that is guaranteed to fail in an
+         * environment without Copernicus download credentials. Recheck the
+         * lightweight, no-store capability flag first; this also lets a
+         * Preview start working after its secrets have been configured.
+         */
+        if(state.measurementsAvailable !== true){
+            const measurementsAvailable =
+                await resolveWaterMeasurementAvailability();
+
+            if(measurementsAvailable === false){
+                const message =
+                    "Live Copernicus measurements are not configured in this environment.";
+
+                setDetailText(
+                    "waterLevelsDetailStatus",
+                    message
+                );
+
+                const chart = get("waterLevelsHistoryChart");
+                if(chart){
+                    chart.innerHTML =
+                        '<div class="water-levels-history-placeholder">' +
+                            '<span>⚠️</span>' +
+                            '<strong>Measurements unavailable</strong>' +
+                            '<small>' + escapeHtml(message) + '</small>' +
+                        '</div>';
+                }
+
+                return;
+            }
+        }
+
         const params =
             new URLSearchParams();
 
