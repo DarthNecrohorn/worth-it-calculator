@@ -1509,7 +1509,7 @@
                             "/api/shop-products",
                             {
                                 method: "GET",
-                                cache: "no-store",
+                                cache: "default",
                                 headers:
                                     headers
                             }
