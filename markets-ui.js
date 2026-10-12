@@ -5325,11 +5325,10 @@ async function refreshMarkets() {
     try {
 
         /*
-         * Restore the signed-in user's validated image decisions
-         * before filtering/rendering. Known image results are
-         * therefore reused by category/search filters.
+         * Load the user's image decisions alongside the public market
+         * dataset and exchange rate. Promise.all still waits for all three
+         * before rendering, so filtering sees the same validated decisions.
          */
-        await loadMarketAccountImageCache();
 
         const [
 
@@ -5352,7 +5351,9 @@ async function refreshMarkets() {
                 }
             ),
 
-            getUsdToEurRate()
+            getUsdToEurRate(),
+
+            loadMarketAccountImageCache()
 
         ]);
 
