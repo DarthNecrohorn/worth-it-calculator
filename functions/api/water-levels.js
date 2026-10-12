@@ -97,6 +97,20 @@ export async function onRequestGet(context) {
         const forceRefresh =
             url.searchParams.get("refresh") === "1";
 
+        if (action === "capabilities") {
+            return jsonResponse(
+                {
+                    ok: true,
+                    measurementsAvailable:
+                        hasCopernicusDownloadCredentials(context.env)
+                },
+                200,
+                {
+                    "Cache-Control": "no-store"
+                }
+            );
+        }
+
         if (action === "stations") {
             const response = await handleStations(
                 context,
