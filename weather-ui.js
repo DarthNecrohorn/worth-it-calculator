@@ -362,7 +362,7 @@ async function loadWeatherInternal(){
                     headers: {
                         "Accept": "application/json"
                     },
-                    cache: "no-store",
+                    cache: "default",
                     signal: controller.signal
                 }
             );
