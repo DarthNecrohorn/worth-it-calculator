@@ -122,6 +122,7 @@
     let waterUsStateFeaturesPromise = null;
     const waterStationGeoCache = new Map();
     const waterUserCountryFeatureCache = new Map();
+    const waterGeometryBoundsCache = new WeakMap();
 
     const WATER_STATIONS_CACHE = {
         CACHE_KEY: "worthIt.waterLevels.stations.v8",
@@ -1565,19 +1566,99 @@
         return await waterUsStateFeaturesPromise;
     }
 
+    function getWaterGeometryBounds(geometry){
+        if(!geometry || typeof geometry !== "object"){
+            return null;
+        }
+
+        if(waterGeometryBoundsCache.has(geometry)){
+            return waterGeometryBoundsCache.get(geometry);
+        }
+
+        const bounds = {
+            minLongitude: Infinity,
+            maxLongitude: -Infinity,
+            minLatitude: Infinity,
+            maxLatitude: -Infinity
+        };
+
+        function visit(value){
+            if(Array.isArray(value)){
+                if(
+                    value.length >= 2 &&
+                    typeof value[0] === "number" &&
+                    typeof value[1] === "number"
+                ){
+                    bounds.minLongitude = Math.min(bounds.minLongitude,value[0]);
+                    bounds.maxLongitude = Math.max(bounds.maxLongitude,value[0]);
+                    bounds.minLatitude = Math.min(bounds.minLatitude,value[1]);
+                    bounds.maxLatitude = Math.max(bounds.maxLatitude,value[1]);
+                    return;
+                }
+
+                for(const child of value){
+                    visit(child);
+                }
+                return;
+            }
+
+            if(value && typeof value === "object"){
+                if(Array.isArray(value.coordinates)){
+                    visit(value.coordinates);
+                }
+                if(Array.isArray(value.geometries)){
+                    visit(value.geometries);
+                }
+            }
+        }
+
+        visit(geometry);
+
+        const result =
+            Number.isFinite(bounds.minLongitude) &&
+            Number.isFinite(bounds.maxLongitude) &&
+            Number.isFinite(bounds.minLatitude) &&
+            Number.isFinite(bounds.maxLatitude)
+                ? bounds
+                : null;
+
+        waterGeometryBoundsCache.set(geometry,result);
+        return result;
+    }
+
     function featureContainsPoint(
         feature,
         longitude,
         latitude
     ){
-        return !!(
-            feature &&
-            feature.geometry &&
-            pointInGeometry(
-                longitude,
-                latitude,
-                feature.geometry
+        if(!feature || !feature.geometry){
+            return false;
+        }
+
+        /*
+         * Most stations are outside most country/state polygons. Reject
+         * those cases cheaply using a cached bounding box, then retain the
+         * existing point-in-polygon test for all possible matches.
+         */
+        const bounds =
+            getWaterGeometryBounds(feature.geometry);
+
+        if(
+            bounds &&
+            (
+                longitude < bounds.minLongitude ||
+                longitude > bounds.maxLongitude ||
+                latitude < bounds.minLatitude ||
+                latitude > bounds.maxLatitude
             )
+        ){
+            return false;
+        }
+
+        return pointInGeometry(
+            longitude,
+            latitude,
+            feature.geometry
         );
     }
 
