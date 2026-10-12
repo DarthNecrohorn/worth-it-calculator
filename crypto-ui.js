@@ -527,7 +527,7 @@
   }
 
   async function fetchFresh(){
-    const r=await fetch("/api/crypto?action=market",{cache:"no-store"});
+    const r=await fetch("/api/crypto?action=market",{cache:"default"});
     if(!r.ok)throw new Error("Crypto API request failed");
     const d=await r.json();
     saveBrowserCache(d);
