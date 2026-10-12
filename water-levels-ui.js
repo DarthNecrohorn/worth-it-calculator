@@ -115,6 +115,7 @@
     let waterCountryFeaturesPromise = null;
     let waterUsStateFeaturesPromise = null;
     const waterStationGeoCache = new Map();
+    const waterUserCountryFeatureCache = new Map();
 
     const WATER_STATIONS_CACHE = {
         CACHE_KEY: "worthIt.waterLevels.stations.v8",
@@ -131,7 +132,8 @@
         stations: [],
         loading: false,
         error: "",
-        location: null
+        location: null,
+        measurementsAvailable: null
     };
 
     function stationCacheKey(query,country){
@@ -176,6 +178,10 @@
             return {
                 stations: parsed.stations,
                 location: parsed.location || null,
+                measurementsAvailable:
+                    typeof parsed.measurementsAvailable === "boolean"
+                        ? parsed.measurementsAvailable
+                        : null,
                 timestamp: Number(parsed.timestamp),
                 ageMs: age,
                 fresh:
@@ -198,7 +204,11 @@
                 JSON.stringify({
                     timestamp: Date.now(),
                     stations,
-                    location: location || null
+                    location: location || null,
+                    measurementsAvailable:
+                        typeof state.measurementsAvailable === "boolean"
+                            ? state.measurementsAvailable
+                            : null
                 })
             );
         }
@@ -1515,32 +1525,56 @@
          * translations or variants from the reverse-geocoder (for example
          * different names for the same country).
          */
-        let userCountryFeatureName = "";
-
-        if(
-            Number.isFinite(Number(location.latitude)) &&
+        const userCountryCacheKey = [
+            userCountryCode,
+            Number.isFinite(Number(location.latitude))
+                ? Number(location.latitude).toFixed(3)
+                : "",
             Number.isFinite(Number(location.longitude))
-        ){
-            for(
-                const feature of countryFeatures
+                ? Number(location.longitude).toFixed(3)
+                : ""
+        ].join("|");
+
+        let userCountryFeatureName;
+        if(waterUserCountryFeatureCache.has(userCountryCacheKey)){
+            userCountryFeatureName =
+                waterUserCountryFeatureCache.get(userCountryCacheKey);
+        }else{
+            userCountryFeatureName = "";
+
+            if(
+                Number.isFinite(Number(location.latitude)) &&
+                Number.isFinite(Number(location.longitude))
             ){
-                if(
-                    !featureContainsPoint(
-                        feature,
-                        Number(location.longitude),
-                        Number(location.latitude)
-                    )
-                ){
-                    continue;
+                for(const feature of countryFeatures){
+                    if(
+                        !featureContainsPoint(
+                            feature,
+                            Number(location.longitude),
+                            Number(location.latitude)
+                        )
+                    ){
+                        continue;
+                    }
+
+                    userCountryFeatureName =
+                        normalizeGeoName(
+                            feature.properties &&
+                            feature.properties.name
+                        );
+
+                    break;
                 }
+            }
 
-                userCountryFeatureName =
-                    normalizeGeoName(
-                        feature.properties &&
-                        feature.properties.name
-                    );
+            waterUserCountryFeatureCache.set(
+                userCountryCacheKey,
+                userCountryFeatureName
+            );
 
-                break;
+            if(waterUserCountryFeatureCache.size > 24){
+                const firstKey = waterUserCountryFeatureCache.keys().next().value;
+                waterUserCountryFeatureCache.delete(firstKey);
             }
         }
 
@@ -2388,14 +2422,21 @@
     }
 
     async function loadStationLatest(stations){
-        if(!Array.isArray(stations) || !stations.length){
+        if(
+            state.measurementsAvailable === false ||
+            !Array.isArray(stations) ||
+            !stations.length
+        ){
             return;
         }
 
         let cursor = 0;
 
         async function worker(){
-            while(cursor < stations.length){
+            while(
+                cursor < stations.length &&
+                state.measurementsAvailable !== false
+            ){
                 const station = stations[cursor++];
                 if(!station || !station.id) continue;
 
@@ -2578,6 +2619,19 @@
 
                         current.latestErrorCode = code;
                         current.latestErrorMessage = message;
+
+                        if(code === "CDSE_CONFIGURATION"){
+                            state.measurementsAvailable = false;
+
+                            try{
+                                saveStationsCache(
+                                    currentQuery(),
+                                    state.stations,
+                                    state.location
+                                );
+                            }catch(_){}
+                        }
+
                         applyLatestToCard(current);
                     }
                 }
@@ -2616,11 +2670,13 @@
 
         if(!("IntersectionObserver" in window)){
             void loadStationMetadata(stations.slice(12, 24));
+            void loadStationPlaceLabels(stations.slice(0, 24));
             return;
         }
 
         metadataObserver = new IntersectionObserver(function(entries){
             const batch = [];
+            const placeBatch = [];
 
             entries.forEach(function(entry){
                 if(!entry.isIntersecting) return;
@@ -2632,8 +2688,11 @@
                         String(entry.target.dataset.waterStationId || "")
                     );
 
+                if(!station) return;
+
+                placeBatch.push(station);
+
                 if(
-                    station &&
                     !station.metadataLoaded &&
                     !stationMetadataCache.has(station.id) &&
                     !stationMetadataInFlight.has(station.id)
@@ -2644,6 +2703,10 @@
 
             if(batch.length){
                 void loadStationMetadata(batch);
+            }
+
+            if(placeBatch.length){
+                void loadStationPlaceLabels(placeBatch);
             }
         }, {rootMargin:"150px 0px"});
 
@@ -2669,6 +2732,7 @@
             );
 
         if(!cards.length) return;
+        if(state.measurementsAvailable === false) return;
 
         function stationForCard(card){
             return state.stations.find(function(item){
@@ -2762,6 +2826,9 @@
             }
             else if(station.latestHeight != null){
                 note.textContent = "Latest satellite observation";
+            }
+            else if(state.measurementsAvailable === false){
+                note.textContent = "Live measurements are not configured in this environment";
             }
             else if(station.latestErrorCode === "CDSE_CONFIGURATION"){
                 note.textContent = "Copernicus download credentials are not configured";
@@ -2954,15 +3021,6 @@
         );
 
         /*
-         * Add a city beside every visible river/lake name so
-         * individual station locations are identifiable globally. When
-         * reverse geocoding cannot resolve a city, the title shows "No city".
-         */
-        void loadStationPlaceLabels(
-            visible
-        );
-
-        /*
          * Latest measurements remain viewport-driven.
          */
         observeLatestCards();
@@ -2987,6 +3045,7 @@
 
         const byStation = new Map();
         let usedStaleCache = false;
+        let measurementsAvailable = null;
 
         function candidateIdentity(station){
             if(!station) return "";
@@ -3046,6 +3105,14 @@
                     signal:controller.signal
                 }
             );
+
+            const capabilityHeader =
+                response.headers.get("X-Water-Measurements-Available");
+            if(capabilityHeader === "0"){
+                measurementsAvailable = false;
+            }else if(capabilityHeader === "1" && measurementsAvailable !== false){
+                measurementsAvailable = true;
+            }
 
             const cacheState =
                 String(
@@ -3107,7 +3174,8 @@
 
         return {
             stations: Array.from(byStation.values()),
-            usedStaleCache
+            usedStaleCache,
+            measurementsAvailable
         };
     }
 
@@ -3147,7 +3215,13 @@
         if(!candidates.length){
             return {
                 stations: [],
-                usedStaleCache
+                usedStaleCache,
+                measurementsAvailable:
+                    results.some(result => result?.measurementsAvailable === false)
+                        ? false
+                        : results.some(result => result?.measurementsAvailable === true)
+                            ? true
+                            : null
             };
         }
 
@@ -3356,123 +3430,44 @@
                 : stationIdentity(station);
         }
 
-        async function dedupeSameWaterbodyPlace(items){
-            const counts = new Map();
-
-            items.forEach(function(item){
-                const body = normalizeGeoName(
-                    item.station.waterBody ||
-                    item.station.title ||
-                    item.station.productName ||
-                    ""
-                );
-
-                if(body){
-                    counts.set(
-                        body,
-                        (counts.get(body) || 0) + 1
-                    );
-                }
-            });
-
-            const targets = items.filter(function(item){
-                const body = normalizeGeoName(
-                    item.station.waterBody ||
-                    item.station.title ||
-                    item.station.productName ||
-                    ""
-                );
-
-                return counts.get(body) > 1;
-            });
-
-            let cursor = 0;
-
-            async function worker(){
-                while(cursor < targets.length){
-                    const item = targets[cursor++];
-                    const station = item.station;
-
-                    if(station.placeName){
-                        station.placeName = localizeWaterPlaceName(
-                            station.placeName,
-                            location
-                        );
-                        continue;
-                    }
-
-                    const coordinates = station.coordinates;
-                    const lat = Number(coordinates && coordinates.latitude);
-                    const lon = Number(coordinates && coordinates.longitude);
-
-                    if(!Number.isFinite(lat) || !Number.isFinite(lon)){
-                        continue;
-                    }
-
-                    const cacheKey = lat.toFixed(4) + "|" + lon.toFixed(4);
-                    let placeName = stationPlaceCache.get(cacheKey) || readStationPlaceCache(cacheKey);
-
-                    if(!placeName){
-                        placeName = await reverseGeocodeStationPlace({
-                            latitude:lat,
-                            longitude:lon
-                        });
-                    }
-
-                    if(placeName){
-                        placeName = localizeWaterPlaceName(placeName,location);
-                        station.placeName = placeName;
-                        stationPlaceCache.set(cacheKey,placeName);
-                        saveStationPlaceCache(cacheKey,placeName);
-                    }
-                }
-            }
-
-            const workers = [];
-            const workerCount = Math.min(
-                STATION_PLACE_CONCURRENCY,
-                targets.length
-            );
-
-            for(let index = 0; index < workerCount; index++){
-                workers.push(worker());
-            }
-
-            await Promise.all(workers);
-
+        function dedupeSameWaterbodyPlace(items){
+            /*
+             * Do not reverse-geocode dozens of duplicate water-body names
+             * before displaying any cards. Use cached place names when
+             * available and coordinates otherwise; city labels are fetched
+             * asynchronously by the card viewport observer after first paint.
+             */
             const seen = new Set();
             const unique = [];
 
             for(const item of sortByDistance(items)){
-                const station = item.station;
+                const station = item && item.station || {};
                 const body = normalizeGeoName(
                     station.waterBody ||
                     station.title ||
                     station.productName ||
                     ""
                 );
-                const place = normalizeGeoName(
-                    station.placeName || ""
-                );
 
-                const coordinates = station.coordinates || {};
-                const lat = Number(coordinates.latitude);
-                const lon = Number(coordinates.longitude);
-                const coordinateKey = Number.isFinite(lat) && Number.isFinite(lon)
-                    ? lat.toFixed(4) + "|" + lon.toFixed(4)
-                    : stationIdentity(station);
+                if(station.placeName){
+                    station.placeName = localizeWaterPlaceName(
+                        station.placeName,
+                        location
+                    );
+                }
+
+                const place =
+                    normalizeGeoName(station.placeName || "") ||
+                    fallbackPlaceKey(station);
 
                 const key =
                     (station.type || "river") +
                     "|" +
                     body +
                     "|" +
-                    (place || coordinateKey);
+                    place;
 
-                if(seen.has(key)){
-                    continue;
-                }
-
+                if(seen.has(key)) continue;
                 seen.add(key);
                 unique.push(item);
             }
@@ -3593,7 +3588,13 @@
             stations: finalItems.map(function(item){
                 return item.station;
             }),
-            usedStaleCache
+            usedStaleCache,
+            measurementsAvailable:
+                results.some(result => result?.measurementsAvailable === false)
+                    ? false
+                    : results.some(result => result?.measurementsAvailable === true)
+                        ? true
+                        : null
         };
     }
 
@@ -3683,6 +3684,11 @@
                     location ||
                     null;
 
+                if(typeof cached.measurementsAvailable === "boolean"){
+                    state.measurementsAvailable =
+                        cached.measurementsAvailable;
+                }
+
                 state.error = "";
                 state.loading = false;
 
@@ -3753,6 +3759,11 @@
 
                 state.location =
                     location;
+                state.measurementsAvailable =
+                    personalizedResult &&
+                    typeof personalizedResult.measurementsAvailable === "boolean"
+                        ? personalizedResult.measurementsAvailable
+                        : null;
 
                 state.error = "";
                 state.loading = false;
@@ -3816,6 +3827,15 @@
                             controller.signal
                     }
                 );
+
+            const capabilityHeader =
+                response.headers.get("X-Water-Measurements-Available");
+            state.measurementsAvailable =
+                capabilityHeader === "0"
+                    ? false
+                    : capabilityHeader === "1"
+                        ? true
+                        : null;
 
             const data =
                 await response.json()
