@@ -15093,7 +15093,7 @@ function updateCarsCategoryHeader(
         '<span class="cars-results-description-text">' +
         escapeVehicleHtml(
             kind === VEHICLE_ALL_KIND
-                ? "Up to 500 verified cars, motorcycles, vans, trucks and buses in the main list. Show all cars reveals up to 500 more verified vehicles."
+                ? "Up to 500 verified cars, motorcycles, vans, trucks and buses in the main list."
                 : info.description
         ) +
         '</span>' +
