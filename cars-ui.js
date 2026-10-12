@@ -8738,6 +8738,13 @@ async function renderPopularCatalogImmediately(kind, showAll = false) {
                     : [];
         }
     } else {
+        /*
+         * Restore previously verified cards before starting new quality checks.
+         * This keeps repeat Cars visits from re-requesting details for vehicles
+         * already validated and saved in the persistent browser cache.
+         */
+        await restorePromise;
+
         validVehicles =
             await ensurePopularVehicleQuality(
                 kind,
