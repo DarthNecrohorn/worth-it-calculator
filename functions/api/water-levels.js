@@ -61,6 +61,20 @@ let tokenPromise = null;
 
 const inFlightRequests = new Map();
 
+/*
+ * Measurement downloads require either a static CDSE access token or a
+ * username/password pair. Expose only the availability bit to the station
+ * UI; never expose credentials. This lets a preview without secrets avoid
+ * issuing a burst of requests that can only return 503.
+ */
+function hasCopernicusDownloadCredentials(env) {
+    const token = String(env?.CDSE_ACCESS_TOKEN || "").trim();
+    const username = String(env?.CDSE_USERNAME || "").trim();
+    const password = String(env?.CDSE_PASSWORD || "");
+    return Boolean(token || (username && password));
+}
+
+
 
 /* =========================================================
    MAIN GET HANDLER
@@ -84,19 +98,27 @@ export async function onRequestGet(context) {
             url.searchParams.get("refresh") === "1";
 
         if (action === "stations") {
-            return await handleStations(
+            const response = await handleStations(
                 context,
                 url,
                 forceRefresh
             );
+            return responseWithHeaders(response, {
+                "X-Water-Measurements-Available":
+                    hasCopernicusDownloadCredentials(context.env) ? "1" : "0"
+            });
         }
 
         if (action === "nearby") {
-            return await handleNearby(
+            const response = await handleNearby(
                 context,
                 url,
                 forceRefresh
             );
+            return responseWithHeaders(response, {
+                "X-Water-Measurements-Available":
+                    hasCopernicusDownloadCredentials(context.env) ? "1" : "0"
+            });
         }
 
         if (action === "metadata") {
@@ -782,30 +804,37 @@ async function handleMetadata(
          */
         let latestResult = null;
 
-        try{
-            latestResult =
-                await getLatestMeasurementByRange(
-                    context,
-                    {
-                        productId,
-                        type,
-                        forceRefresh
-                    }
+        /*
+         * Do not attempt optional measurement enrichment when this
+         * deployment has no CDSE download credentials. Metadata remains
+         * useful on its own, and this avoids one guaranteed failed request
+         * for every station card in an unconfigured preview.
+         */
+        if (hasCopernicusDownloadCredentials(context.env)) {
+            try{
+                latestResult =
+                    await getLatestMeasurementByRange(
+                        context,
+                        {
+                            productId,
+                            type,
+                            forceRefresh
+                        }
+                    );
+            }
+            catch(error){
+                /*
+                 * Station metadata must remain usable even when optional
+                 * live-measurement enrichment is temporarily unavailable.
+                 */
+                console.warn(
+                    "Water-level latest enrichment failed:",
+                    productId,
+                    error
                 );
-        }
-        catch(error){
-            /*
-             * Station metadata must remain usable even when the
-             * optional live-measurement enrichment is temporarily
-             * unavailable. The dedicated /latest endpoint can retry it.
-             */
-            console.warn(
-                "Water-level latest enrichment failed:",
-                productId,
-                error
-            );
 
-            latestResult = null;
+                latestResult = null;
+            }
         }
 
         const response = jsonResponse(
