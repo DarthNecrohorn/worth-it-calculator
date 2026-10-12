@@ -8769,33 +8769,66 @@ async function renderPopularCatalogImmediately(kind, showAll = false) {
                             ?.remove();
                     }
 
-                    appendStablePopularVehicleCards(
-                        kind,
-                        batchVehicles,
-                        activeDisplayState.showAll
-                    );
+                    const hasUnrenderedVehicles =
+                        batchVehicles.some(
+                            vehicle =>
+                                !activeDisplayState.renderedKeys.has(
+                                    getPopularVehicleQualityKey(
+                                        vehicle,
+                                        kind
+                                    )
+                                )
+                        );
+
+                    if (hasUnrenderedVehicles) {
+                        appendStablePopularVehicleCards(
+                            kind,
+                            batchVehicles,
+                            activeDisplayState.showAll
+                        );
+                    }
 
                     currentVehicleResults =
                         batchVehicles.slice();
 
-                    renderVehicleExpandButton(
-                        currentVehicleResults,
-                        currentVehicleResults.slice(
-                            0,
-                            visibleCount(
-                                kind,
-                                currentVehicleResults.length
+                    const expandWrapper =
+                        document.getElementById(
+                            "carsVehicleExpandButton"
+                        );
+
+                    const expandButton =
+                        expandWrapper?.querySelector(
+                            ".cars-expand-button"
+                        );
+
+                    const expansionInProgress =
+                        Boolean(
+                            expandButton?.disabled ||
+                            /^(Loading|Checking)/i.test(
+                                String(expandButton?.textContent || "").trim()
                             )
-                        ),
-                        kind,
-                        stablePopularHasMoreVehicles(
+                        );
+
+                    if (!expansionInProgress) {
+                        renderVehicleExpandButton(
+                            currentVehicleResults,
+                            currentVehicleResults.slice(
+                                0,
+                                visibleCount(
+                                    kind,
+                                    currentVehicleResults.length
+                                )
+                            ),
                             kind,
-                            visibleCount(
+                            stablePopularHasMoreVehicles(
                                 kind,
-                                currentVehicleResults.length
+                                visibleCount(
+                                    kind,
+                                    currentVehicleResults.length
+                                )
                             )
-                        )
-                    );
+                        );
+                    }
                 }
             );
     }
