@@ -161,10 +161,12 @@ function renderConversations() {
     if (!host) return;
     host.replaceChildren();
     if (!chatUser) return;
-    if (!chatConversations.length) {
-        const p = document.createElement("p"); p.className = "worth-it-chat-muted"; p.textContent = "Your private and group chats will appear here."; host.appendChild(p); return;
+    // Keep this list focused on group conversations; direct chats are opened from Your Friends.
+    const visibleConversations = chatConversations.filter(conversation => conversation.type === "group");
+    if (!visibleConversations.length) {
+        const p = document.createElement("p"); p.className = "worth-it-chat-muted"; p.textContent = "Your group chats will appear here."; host.appendChild(p); return;
     }
-    chatConversations.forEach(conversation => {
+    visibleConversations.forEach(conversation => {
         const row = document.createElement("button");
         row.type = "button";
         row.className = "worth-it-chat-person-btn" + (activeConversationId === conversation.id ? " is-active" : "");
