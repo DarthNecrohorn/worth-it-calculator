@@ -21,13 +21,21 @@ function getWorthItPresenceInfo(person){
 }
 function updateWorthItPresenceNode(node,lastSeenAt){
  if(!node)return;const info=getWorthItPresenceInfo({worth_it_id:node.dataset.worthItPresenceId,last_seen_at:lastSeenAt||null});
- node.classList.toggle("is-online",info.online);node.classList.toggle("is-offline",!info.online);node.dataset.lastSeenAt=lastSeenAt||"";node.title=info.label;node.setAttribute("aria-label",info.label);
+ node.classList.toggle("is-online",info.online);node.classList.toggle("is-offline",!info.online);node.dataset.lastSeenAt=lastSeenAt||"";
+ const presenceLabel=info.online?"Online":"Offline";
+ if(node.classList.contains("worth-it-presence-indicator")){node.dataset.presenceStatus=presenceLabel;node.title=presenceLabel;node.setAttribute("aria-label",presenceLabel);const tooltip=node.querySelector(".worth-it-presence-tooltip");if(tooltip)tooltip.textContent=presenceLabel;}
+ else{node.title=info.label;node.setAttribute("aria-label",info.label);}
  if(node.classList.contains("worth-it-profile-presence-text")){const dot=node.querySelector(".worth-it-presence-status-dot"),label=node.querySelector(".worth-it-presence-label");if(dot){dot.classList.toggle("is-online",info.online);dot.classList.toggle("is-offline",!info.online);}if(label)label.textContent=info.label;}
  if(node.classList.contains("worth-it-person-presence-label")||node.classList.contains("worth-it-chat-person-presence")||node.classList.contains("worth-it-user-search-presence"))node.textContent=info.label;
 }
 function appendWorthItPresenceIndicator(host,person){
  if(!host||!person||person.worth_it_id==null)return;host.classList.add("worth-it-presence-host");host.querySelectorAll(":scope > .worth-it-presence-indicator").forEach(node=>node.remove());
- const marker=document.createElement("span");marker.className="worth-it-presence-indicator";marker.dataset.worthItPresenceId=String(person.worth_it_id);marker.dataset.lastSeenAt=person.last_seen_at||"";marker.setAttribute("role","img");
+ const marker=document.createElement("span");marker.className="worth-it-presence-indicator";marker.dataset.worthItPresenceId=String(person.worth_it_id);marker.dataset.lastSeenAt=person.last_seen_at||"";marker.setAttribute("role","button");marker.setAttribute("tabindex","0");
+ const tooltip=document.createElement("span");tooltip.className="worth-it-presence-tooltip";tooltip.setAttribute("aria-hidden","true");marker.appendChild(tooltip);
+ const toggleTooltip=event=>{event?.stopPropagation?.();event?.preventDefault?.();marker.classList.toggle("is-tooltip-open");};
+ marker.addEventListener("click",toggleTooltip);
+ marker.addEventListener("keydown",event=>{if(event.key==="Enter"||event.key===" "){toggleTooltip(event);}else if(event.key==="Escape")marker.classList.remove("is-tooltip-open");});
+ marker.addEventListener("blur",()=>marker.classList.remove("is-tooltip-open"));
  updateWorthItPresenceNode(marker,person.last_seen_at);host.appendChild(marker);
 }
 function renderWorthItProfilePresence(person){
