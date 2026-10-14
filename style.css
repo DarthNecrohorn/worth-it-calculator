@@ -19563,3 +19563,9 @@ html[data-theme="light"] .worth-it-user-search-result-info small{color:#64748b}
  .worth-it-profile-avatar-column{flex-basis:66px;width:66px;gap:5px}
  .worth-it-profile-avatar-column #worthItProfilePresence{gap:3px;font-size:9px}
 }
+
+
+/* Reposition the three profile statistic buttons only for signed-in visitors viewing someone else's profile. */
+@media(min-width:1051px){
+ #profileSection.signed-in-other-profile-view .worth-it-profile-social-column .worth-it-profile-stats{transform:translate(-30px,50px)}
+}
