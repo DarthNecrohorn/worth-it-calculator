@@ -32,6 +32,7 @@ function openFullSettings(){
     document.documentElement.style.overflowY = "auto";
     document.body.style.overflowY = "auto";
     if (typeof window.updateSettingsUI === "function") window.updateSettingsUI();
+    if (typeof window.loadAccountSettings === "function") window.loadAccountSettings();
     window.scrollTo({ top: 0, behavior: "auto" });
 }
 
@@ -128,6 +129,295 @@ window.openSettings = openFullSettings;
         setTheme("dark");
         setUIScale("normal");
         showToast("Settings reset.");
+    };
+
+    let accountUsernameStatus = null;
+    let accountDisplayNameStatus = null;
+    let accountSettingsLoadGeneration = 0;
+
+    function accountStatus(id, message, isError) {
+        const node = $(id);
+        if (!node) return;
+        node.textContent = message || "";
+        node.classList.toggle("is-error", Boolean(isError));
+        node.classList.toggle("is-success", Boolean(message && !isError));
+    }
+
+    function formatAccountDate(value) {
+        const date = value ? new Date(value) : null;
+        return date && Number.isFinite(date.getTime())
+            ? date.toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })
+            : "";
+    }
+
+    async function getAccountSession() {
+        const client = window.supabaseClient;
+        if (!client?.auth) return null;
+        const result = await client.auth.getSession();
+        return result?.data?.session || null;
+    }
+
+    async function accountApi(url, options, token) {
+        const headers = Object.assign({ Accept: "application/json" }, options?.headers || {}, {
+            Authorization: "Bearer " + token
+        });
+        if (options?.body && !headers["Content-Type"]) headers["Content-Type"] = "application/json";
+        const response = await fetch(url, Object.assign({}, options || {}, { headers }));
+        let payload = {};
+        try { payload = await response.json(); } catch (_) {}
+        return { response, payload };
+    }
+
+    function updateAccountSaveButtons() {
+        const usernameInput = $("accountUsernameInput");
+        const usernameSave = $("accountUsernameSave");
+        if (usernameSave && usernameInput) {
+            usernameSave.disabled = !accountUsernameStatus ||
+                !accountUsernameStatus.success ||
+                !accountUsernameStatus.email_verified ||
+                !accountUsernameStatus.can_change ||
+                usernameInput.value.trim() === accountUsernameStatus.username ||
+                !usernameInput.value.trim();
+        }
+        const displayInput = $("accountDisplayNameInput");
+        const displaySave = $("accountDisplayNameSave");
+        if (displaySave && displayInput) {
+            displaySave.disabled = !accountDisplayNameStatus ||
+                !accountDisplayNameStatus.success ||
+                !accountDisplayNameStatus.can_change ||
+                displayInput.value.trim() === accountDisplayNameStatus.display_name ||
+                !displayInput.value.trim();
+        }
+    }
+
+    window.loadAccountSettings = async function() {
+        const generation = ++accountSettingsLoadGeneration;
+        const loading = $("accountSettingsLoading");
+        const signedOut = $("accountSettingsSignedOut");
+        const content = $("accountSettingsContent");
+        if (!loading || !signedOut || !content) return;
+        loading.hidden = false;
+        loading.textContent = "Loading your account settings…";
+        signedOut.hidden = true;
+        content.hidden = true;
+        accountUsernameStatus = null;
+        accountDisplayNameStatus = null;
+
+        let session;
+        try { session = await getAccountSession(); }
+        catch (_) { session = null; }
+        if (generation !== accountSettingsLoadGeneration) return;
+
+        if (!session?.user || !session.access_token) {
+            loading.hidden = true;
+            signedOut.hidden = false;
+            return;
+        }
+
+        const user = session.user;
+        $("accountCurrentEmail").textContent = user.email || "No email address is attached to this account.";
+        $("accountEmailVerified").textContent = user.email_confirmed_at || user.confirmed_at ? "Verified" : "Not verified";
+        $("accountEmailVerified").classList.toggle("is-success", Boolean(user.email_confirmed_at || user.confirmed_at));
+        $("accountEmailVerified").classList.toggle("is-error", !(user.email_confirmed_at || user.confirmed_at));
+        $("accountNewEmailInput").value = "";
+        $("accountEmailStatus").textContent = "Changing your email requires confirmation through Supabase Auth. Your current address remains active until confirmation is completed.";
+
+        loading.hidden = true;
+        content.hidden = false;
+        $("accountUsernameInput").value = user.user_metadata?.username || "";
+        $("accountUsernameCurrent").textContent = "@" + (user.user_metadata?.username || "—");
+        $("accountDisplayNameInput").value = user.user_metadata?.full_name || user.user_metadata?.name || user.user_metadata?.username || "";
+        $("accountDisplayNameCurrent").textContent = $("accountDisplayNameInput").value || "—";
+        accountStatus("accountUsernameStatus", "Checking username availability and change limit…", false);
+        accountStatus("accountDisplayNameStatus", "Loading display-name change limit…", false);
+
+        const [usernameResult, displayResult] = await Promise.all([
+            accountApi("/api/account-username", {}, session.access_token).catch(() => null),
+            accountApi("/api/profile-display-name", {}, session.access_token).catch(() => null)
+        ]);
+        if (generation !== accountSettingsLoadGeneration) return;
+
+        if (usernameResult?.response.ok && usernameResult.payload?.success) {
+            accountUsernameStatus = usernameResult.payload;
+            $("accountUsernameInput").value = accountUsernameStatus.username || $("accountUsernameInput").value;
+            $("accountUsernameCurrent").textContent = "@" + (accountUsernameStatus.username || "—");
+            if (!accountUsernameStatus.email_verified) {
+                accountStatus("accountUsernameStatus", "Verify your email address before changing your username.", true);
+            } else if (!accountUsernameStatus.can_change && accountUsernameStatus.next_change_at) {
+                accountStatus("accountUsernameStatus", "You can change your username again after " + formatAccountDate(accountUsernameStatus.next_change_at) + ".", true);
+            } else {
+                accountStatus("accountUsernameStatus", "Username changes are limited to once every 14 days. Your email must be verified.", false);
+            }
+        } else if (usernameResult?.payload?.code === "USERNAME_SETTINGS_SETUP_REQUIRED") {
+            accountStatus("accountUsernameStatus", "Database setup required: run supabase/username-change-settings.sql in the Supabase SQL Editor, then reload this page.", true);
+        } else if (usernameResult?.response.status === 401) {
+            accountStatus("accountUsernameStatus", "Your session expired. Sign in again to manage your username.", true);
+        } else {
+            accountStatus("accountUsernameStatus", usernameResult?.payload?.error || "Username settings could not be loaded. Try refreshing the page.", true);
+        }
+
+        if (displayResult?.response.ok && displayResult.payload?.success) {
+            accountDisplayNameStatus = displayResult.payload;
+            $("accountDisplayNameInput").value = displayResult.payload.display_name || "";
+            $("accountDisplayNameCurrent").textContent = displayResult.payload.display_name || "—";
+            if (!displayResult.payload.can_change && displayResult.payload.next_change_at) {
+                accountStatus("accountDisplayNameStatus", "You can change your display name again after " + formatAccountDate(displayResult.payload.next_change_at) + ".", true);
+            } else {
+                accountStatus("accountDisplayNameStatus", "Display names can be changed once every 7 days.", false);
+            }
+        } else if (displayResult?.payload?.code === "DISPLAY_NAME_SETUP_REQUIRED") {
+            accountStatus("accountDisplayNameStatus", "Display-name database setup is required. Existing profile editing remains available from your profile page.", true);
+        } else {
+            accountStatus("accountDisplayNameStatus", displayResult?.payload?.error || "Could not load display-name settings. Existing profile editing remains available from your profile page.", true);
+        }
+        updateAccountSaveButtons();
+    };
+
+    window.saveAccountUsername = async function() {
+        const input = $("accountUsernameInput");
+        const button = $("accountUsernameSave");
+        const username = input?.value?.trim() || "";
+        if (!input || !button || button.disabled) return;
+        button.disabled = true;
+        accountStatus("accountUsernameStatus", "Saving your username…", false);
+        try {
+            const session = await getAccountSession();
+            if (!session?.access_token) throw new Error("Sign in again to change your username.");
+            const result = await accountApi("/api/account-username", {
+                method: "POST",
+                body: JSON.stringify({ username })
+            }, session.access_token);
+            if (!result.response.ok || !result.payload?.success) {
+                accountStatus("accountUsernameStatus", result.payload?.error || "Could not save your username.", true);
+                if (result.response.status === 429 && result.payload?.next_change_at) {
+                    accountStatus("accountUsernameStatus", "You can change your username again after " + formatAccountDate(result.payload.next_change_at) + ".", true);
+                }
+                updateAccountSaveButtons();
+                return;
+            }
+            accountUsernameStatus = Object.assign({}, accountUsernameStatus || {}, result.payload, {
+                success: true,
+                username: result.payload.username || username,
+                email_verified: true,
+                can_change: false
+            });
+            if (window.supabaseClient?.auth?.refreshSession) {
+                await window.supabaseClient.auth.refreshSession().catch(() => {});
+            }
+            $("accountUsernameInput").value = accountUsernameStatus.username;
+            $("accountUsernameCurrent").textContent = "@" + accountUsernameStatus.username;
+            accountStatus("accountUsernameStatus", result.payload.unchanged
+                ? "That is already your current username."
+                : "Username updated. You can change it again after " + formatAccountDate(result.payload.next_change_at) + ".", false);
+            updateAccountSaveButtons();
+        } catch (error) {
+            accountStatus("accountUsernameStatus", error?.message || "Could not save your username. Please try again.", true);
+            updateAccountSaveButtons();
+        }
+    };
+
+    window.saveAccountDisplayName = async function() {
+        const input = $("accountDisplayNameInput");
+        const button = $("accountDisplayNameSave");
+        const displayName = input?.value?.trim() || "";
+        if (!input || !button || button.disabled) return;
+        button.disabled = true;
+        accountStatus("accountDisplayNameStatus", "Saving your display name…", false);
+        try {
+            const session = await getAccountSession();
+            if (!session?.access_token) throw new Error("Sign in again to change your display name.");
+            const result = await accountApi("/api/profile-display-name", {
+                method: "POST",
+                body: JSON.stringify({ display_name: displayName })
+            }, session.access_token);
+            if (!result.response.ok || !result.payload?.success) {
+                accountStatus("accountDisplayNameStatus", result.payload?.error || "Could not save your display name.", true);
+                updateAccountSaveButtons();
+                return;
+            }
+            accountDisplayNameStatus = Object.assign({}, accountDisplayNameStatus || {}, result.payload, {
+                success: true,
+                display_name: result.payload.display_name || displayName,
+                can_change: Boolean(result.payload.can_change)
+            });
+            $("accountDisplayNameCurrent").textContent = accountDisplayNameStatus.display_name;
+            $("accountDisplayNameInput").value = accountDisplayNameStatus.display_name;
+            accountStatus("accountDisplayNameStatus", result.payload.unchanged
+                ? "That is already your current display name."
+                : "Display name updated successfully. Your profile will show the new name.", false);
+            updateAccountSaveButtons();
+        } catch (error) {
+            accountStatus("accountDisplayNameStatus", error?.message || "Could not save your display name.", true);
+            updateAccountSaveButtons();
+        }
+    };
+
+    window.changeAccountEmail = async function() {
+        const input = $("accountNewEmailInput");
+        const button = $("accountEmailSave");
+        const email = input?.value?.trim() || "";
+        if (!input || !button || !email) {
+            accountStatus("accountEmailStatus", "Enter the new email address first.", true);
+            input?.focus();
+            return;
+        }
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+            accountStatus("accountEmailStatus", "Enter a valid email address.", true);
+            input.focus();
+            return;
+        }
+        const session = await getAccountSession();
+        if (!session?.access_token) {
+            accountStatus("accountEmailStatus", "Sign in again to change your email address.", true);
+            return;
+        }
+        button.disabled = true;
+        accountStatus("accountEmailStatus", "Requesting email change…", false);
+        try {
+            const client = window.supabaseClient;
+            const result = await client.auth.updateUser({ email });
+            if (result?.error) throw result.error;
+            accountStatus("accountEmailStatus", "Confirmation instructions have been requested. Check your inbox and follow Supabase's confirmation email(s). Your current email remains in use until confirmation finishes.", false);
+            input.value = "";
+        } catch (error) {
+            accountStatus("accountEmailStatus", error?.message || "Could not request the email change. Please try again.", true);
+        } finally {
+            button.disabled = false;
+        }
+    };
+
+    window.openOwnWorthItProfileFromSettings = async function() {
+        const client = window.supabaseClient;
+        if (!client?.auth) {
+            if (typeof window.handleAuthButton === "function") window.handleAuthButton();
+            return;
+        }
+        try {
+            const { data } = await client.auth.getSession();
+            const userId = data?.session?.user?.id;
+            if (!userId) {
+                if (typeof window.handleAuthButton === "function") window.handleAuthButton();
+                return;
+            }
+            const response = await fetch("/api/profile-display-name", {
+                headers: { Authorization: "Bearer " + data.session.access_token, Accept: "application/json" }
+            });
+            if (!response.ok) throw new Error("Could not load your profile link.");
+            const info = await response.json();
+            const worthItId = Number(info.worth_it_id);
+            if (Number.isSafeInteger(worthItId) && worthItId > 0 && typeof window.openWorthItProfile === "function") {
+                window.openWorthItProfile(worthItId);
+                return;
+            }
+            const profileResponse = await client.from("worth_it_profiles").select("worth_it_id").eq("user_id", userId).maybeSingle();
+            if (profileResponse?.data?.worth_it_id && typeof window.openWorthItProfile === "function") {
+                window.openWorthItProfile(Number(profileResponse.data.worth_it_id));
+                return;
+            }
+            accountStatus("accountDisplayNameStatus", "Your profile link could not be resolved. Open your profile from the navigation menu.", true);
+        } catch (_) {
+            accountStatus("accountDisplayNameStatus", "Your profile link could not be resolved. Open your profile from the navigation menu.", true);
+        }
     };
 
     function cardType(card){
@@ -264,6 +554,8 @@ window.openSettings = openFullSettings;
 
     /* Admin Panel functionality lives in admin-panel.js. */
 
+    $("accountUsernameInput")?.addEventListener("input", updateAccountSaveButtons);
+    $("accountDisplayNameInput")?.addEventListener("input", updateAccountSaveButtons);
     $("calculatorSearch")?.addEventListener("input", applyFilters);
     $("categoryFilter")?.addEventListener("change", applyFilters);
     $("clearCalculatorFilters")?.addEventListener("click", ()=>{
@@ -272,15 +564,11 @@ window.openSettings = openFullSettings;
         applyFilters();
     });
 
-    $("translateTutorial")?.addEventListener("click", e=>{
-        if(e.target === e.currentTarget) closeTranslateTutorial();
-    });
     $("feedbackOverlay")?.addEventListener("click", e=>{
         if(e.target === e.currentTarget) closeFeedback();
     });
     document.addEventListener("keydown", e=>{
         if(e.key === "Escape"){
-            closeTranslateTutorial();
             closeFeedback();
         }
     });
