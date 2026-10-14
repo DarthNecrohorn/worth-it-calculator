@@ -347,7 +347,7 @@ begin
 
     return jsonb_build_object('success', true, 'request_id', new_request_id, 'status', 'pending');
 end;
-$;
+$$;
 
 create or replace function public.respond_worth_it_friend_request(p_request_id uuid, p_accept boolean)
 returns jsonb
