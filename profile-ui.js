@@ -124,8 +124,19 @@ function setAssetControlsBusy(busy,target){
 window.triggerWorthItAvatarUpload=function(){triggerWorthItAssetUpload("avatar");};
 window.triggerWorthItBannerUpload=function(){triggerWorthItAssetUpload("banner");};
 function triggerWorthItAssetUpload(target){if(!currentDisplayedProfileIsOwn||avatarOperationInProgress)return;const input=$(target==="banner"?"worthItProfileBannerInput":"worthItProfileAvatarInput");if(input)input.click();}
-async function encodeProfileImage(file,target){
- if(file.type==="image/gif")return{blob:file,mimeType:"image/gif"};
+async function detectProfileImageFormat(file){
+ const bytes=new Uint8Array(await file.slice(0,12).arrayBuffer());
+ if(bytes.length>=6&&["GIF87a","GIF89a"].includes(String.fromCharCode(...bytes.subarray(0,6))))return"gif";
+ if(bytes.length>=8&&bytes[0]===0x89&&bytes[1]===0x50&&bytes[2]===0x4e&&bytes[3]===0x47&&bytes[4]===0x0d&&bytes[5]===0x0a&&bytes[6]===0x1a&&bytes[7]===0x0a)return"png";
+ if(bytes.length>=3&&bytes[0]===0xff&&bytes[1]===0xd8&&bytes[2]===0xff)return"jpeg";
+ if(bytes.length>=12&&bytes[0]===0x52&&bytes[1]===0x49&&bytes[2]===0x46&&bytes[3]===0x46&&bytes[8]===0x57&&bytes[9]===0x45&&bytes[10]===0x42&&bytes[11]===0x50)return"webp";
+ return"";
+}
+function profileImageFormatName(format){
+ return format==="webp"?"WebP":format==="png"?"PNG":format==="jpeg"?"JPEG":format==="gif"?"GIF":"unknown";
+}
+async function encodeProfileImage(file,target,format){
+ if(format==="gif")return{blob:file,mimeType:"image/gif"};
  const bitmap=await createImageBitmap(file,{imageOrientation:"from-image"});
  try{
   const presets=target==="banner"?[{width:1200,height:400},{width:960,height:320},{width:720,height:240}]:[{width:512,height:512},{width:384,height:384},{width:256,height:256}];
@@ -171,10 +182,18 @@ async function handleAssetInputChange(event,target){
  if(!currentDisplayedProfileIsOwn){if(input)input.value="";return;}
  setAssetControlsBusy(true,target);
  try{
-  if(!["image/jpeg","image/png","image/webp","image/gif"].includes(file.type))throw new Error("Choose a JPG, PNG, WebP or GIF image.");
+  const detectedFormat=await detectProfileImageFormat(file);
+  const declaredGif=String(file.type||"").toLowerCase()==="image/gif"||/\\.gif$/i.test(String(file.name||""));
+  if(declaredGif&&detectedFormat!=="gif"){
+   const actual=detectedFormat?profileImageFormatName(detectedFormat):"unknown";
+   throw new Error(detectedFormat
+    ?"This file contains "+actual+" data, not GIF data. It may be a still preview from a website. Download the original animated GIF and try again."
+    :"This file is labeled or named as a GIF, but its contents are not a valid GIF. Download the original animated GIF rather than a preview or renamed image.");
+  }
+  if(!detectedFormat)throw new Error("The file contents do not match a supported JPG, PNG, WebP or GIF image. Please download the original image and try again.");
   if(file.size>8*1024*1024)throw new Error("Choose an image smaller than 8 MB.");
   setStatus("Preparing your "+(target==="banner"?"banner":"profile picture")+" for a safety check…",false);
-  const prepared=await encodeProfileImage(file,target);
+  const prepared=await encodeProfileImage(file,target,detectedFormat);
   setStatus("Checking "+(target==="banner"?"the banner":"the profile picture")+" for nudity, hate symbols and extremist content…",false);
   const data=await sendAssetAction("upload",target,prepared);
   setStatus("Image approved. Updating your profile…",false);

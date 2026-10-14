@@ -320,8 +320,8 @@ export async function onRequestPost(context) {
             const formRequest = new Request(request.url, { method: "POST", headers: formHeaders, body: bodyBytes });
             const form = await formRequest.formData();
             const file = form.get("file");
-            if (!file || typeof file.arrayBuffer !== "function" || file.type !== "image/gif") {
-                return json({ error: "Animated uploads must be GIF files." }, 415);
+            if (!file || typeof file.arrayBuffer !== "function") {
+                return json({ error: "Choose a valid animated GIF file." }, 415);
             }
             if (!file.size || file.size > MAX_GIF_BYTES) return json({ error: "GIF files must be no larger than 8 MB." }, 413);
             bytes = new Uint8Array(await file.arrayBuffer());
