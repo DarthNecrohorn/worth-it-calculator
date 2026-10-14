@@ -88,12 +88,12 @@ const oldToggle=window.toggleAccountPanel;
 window.toggleAccountPanel=function(event){const result=typeof oldToggle==="function"?oldToggle.apply(this,arguments):undefined;if($("accountPanel")?.classList.contains("open")){setPanelLoading();refreshAccountPanelCounts(true);}return result;};
 function renderProfile(p,s,isOwn){
  const id=Number(p.worth_it_id),name=String(p.display_name||p.username||"Worth It member"),username=String(p.username||""),link=BASE_URL+"/profile/"+id;currentProfileLink=link;
- renderAvatar(p.avatar_url,name);renderBanner(p.banner_url,name);setText("worthItProfileName",name);setText("worthItProfileUsername",username?"@"+username:"Worth It member");setText("worthItProfileId","#"+id);
+ renderAvatar(p.avatar_url,name);renderBanner(p.banner_url,name);setText("worthItProfileName",name);setText("worthItProfileUsername",username?"@"+username:"Worth It member");
  const displayNameEdit=$("worthItProfileDisplayNameEdit");if(displayNameEdit)displayNameEdit.hidden=!isOwn;
  if(!isOwn)closeWorthItDisplayNameEditor();
  setCount("worthItProfileFriends",s.friends);setCount("worthItProfileFollowers",s.followers);setCount("worthItProfileFollowing",s.following);
  const email=$("worthItProfileEmail");if(email){email.textContent=isOwn&&currentUser?.email?currentUser.email:"";email.hidden=!(isOwn&&currentUser?.email);}
- const linkNode=$("worthItProfileLink");if(linkNode){linkNode.href=link;linkNode.textContent=link;}setText("worthItProfileLinkLabel",isOwn?"YOUR PROFILE LINK":"PROFILE LINK");
+ const linkNode=$("worthItProfileLink");if(linkNode){linkNode.href=link;linkNode.textContent=link;}setText("worthItProfileLinkLabel",isOwn?"YOUR PROFILE LINK":"THIS USER'S PROFILE");
  const member=$("worthItProfileMemberSince");if(member){const date=p.created_at?new Date(p.created_at):null;if(date&&!Number.isNaN(date.getTime())){const parts=new Intl.DateTimeFormat("en-GB",{day:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit",hourCycle:"h23"}).formatToParts(date);const part=type=>parts.find(x=>x.type===type)?.value||"";const month=new Intl.DateTimeFormat("en-US",{month:"short"}).format(date);member.textContent="Joined "+part("day")+" "+month+", "+part("year")+" "+part("hour")+":"+part("minute");}else{member.textContent="";}}
  hideAllAssetLimitNotices();
  currentDisplayedProfileId=id;currentDisplayedProfileIsOwn=Boolean(isOwn);
@@ -237,14 +237,14 @@ if($("worthItDisplayNameInput"))$("worthItDisplayNameInput").addEventListener("i
 function hideProfileAssetControls(){const avatarControls=$("worthItProfileAvatarControls"),bannerControls=$("worthItProfileBannerControls");if(avatarControls)avatarControls.hidden=true;if(bannerControls)bannerControls.hidden=true;}
 function renderError(message){
  currentDisplayedProfileId=0;currentDisplayedProfileIsOwn=false;hideProfileAssetControls();clearProfileBannerBackdrop(true);const displayNameEdit=$("worthItProfileDisplayNameEdit");if(displayNameEdit)displayNameEdit.hidden=true;closeWorthItDisplayNameEditor();
- renderAvatar("","W");setText("worthItProfileName","Profile unavailable");setText("worthItProfileUsername","");setText("worthItProfileId","—");
+ renderAvatar("","W");setText("worthItProfileName","Profile unavailable");setText("worthItProfileUsername","");
  ["worthItProfileFriends","worthItProfileFollowers","worthItProfileFollowing"].forEach(id=>setText(id,"—"));
  const email=$("worthItProfileEmail");if(email){email.textContent="";email.hidden=true;}
  setText("worthItProfileLink","Profile link unavailable");if($("worthItProfileLink"))$("worthItProfileLink").removeAttribute("href");currentProfileLink="";setText("worthItProfileMemberSince","");setStatus(message,true);
 }
 window.openWorthItProfile=async function(idValue,options){
  const id=Number(idValue);if(!Number.isSafeInteger(id)||id<1){showProfileSection();renderError("This profile link is invalid.");return;}
- showProfileSection();currentDisplayedProfileId=id;currentDisplayedProfileIsOwn=false;hideProfileAssetControls();const displayNameEdit=$("worthItProfileDisplayNameEdit");if(displayNameEdit)displayNameEdit.hidden=true;closeWorthItDisplayNameEditor();setStatus("Loading profile…",false);setText("worthItProfileName","Loading profile…");setText("worthItProfileId","#"+id);["worthItProfileFriends","worthItProfileFollowers","worthItProfileFollowing"].forEach(x=>setText(x,"…"));
+ showProfileSection();currentDisplayedProfileId=id;currentDisplayedProfileIsOwn=false;hideProfileAssetControls();const displayNameEdit=$("worthItProfileDisplayNameEdit");if(displayNameEdit)displayNameEdit.hidden=true;closeWorthItDisplayNameEditor();setStatus("Loading profile…",false);setText("worthItProfileName","Loading profile…");["worthItProfileFriends","worthItProfileFollowers","worthItProfileFollowing"].forEach(x=>setText(x,"…"));
  const requestId=++activeProfileRequest;
  try{
   const sb=client();if(!sb)throw new Error("Supabase not ready");
@@ -395,11 +395,13 @@ window.copyWorthItProfileLink=async function(){
 };
 window.addEventListener("resize",syncProfileBannerBackdropPosition,{passive:true});
 if(client()?.auth){client().auth.onAuthStateChange((_event,session)=>{
- const nextUser=session?.user||null,previousUserId=currentUser?.id||"";
+ const nextUser=session?.user||null,previousUserId=currentUser?.id||"",nextUserId=nextUser?.id||"",profileToRefresh=currentDisplayedProfileId;
  currentUser=nextUser;currentOwnProfile=null;currentOwnProfileRequest=null;
- if(previousUserId!==(currentUser?.id||"")){
+ if(previousUserId!==nextUserId){
   currentDisplayedProfileIsOwn=false;hideProfileAssetControls();closeWorthItDisplayNameEditor();const displayNameEdit=$("worthItProfileDisplayNameEdit");if(displayNameEdit)displayNameEdit.hidden=true;
   const email=$("worthItProfileEmail");if(email){email.textContent="";email.hidden=true;}
+  const linkLabel=$("worthItProfileLinkLabel");if(linkLabel)linkLabel.textContent=profileToRefresh?"THIS USER'S PROFILE":"PROFILE LINK";
+  if(profileToRefresh)setTimeout(()=>{if(currentDisplayedProfileId===profileToRefresh)window.openWorthItProfile(profileToRefresh);},0);
  }
  if(!currentUser)setPanelUnavailable();
 });client().auth.getSession().then(({data})=>{currentUser=data?.session?.user||null;if(currentUser)refreshAccountPanelCounts(false);}).catch(()=>{});}
