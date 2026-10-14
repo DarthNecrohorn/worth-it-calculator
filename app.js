@@ -125,11 +125,30 @@ async function ensureMfaVerificationIfNeeded(authClient, options) {
             return failClosed("Two-factor authentication is required, but no verified method could be loaded. Please try signing in again.");
         }
 
+        // A restored AAL1 session must not remain usable while a second factor
+        // is requested. Discard it locally and restart through the temporary
+        // sign-in client, which does not persist a session until AAL2 succeeds.
+        if (!pendingLogin) {
+            const signedOut = await authClient.signOut({ scope: "local" });
+            if (signedOut?.error) {
+                return failClosed("For safety, Worth It could not reset this session for two-factor verification. Please sign out and sign in again.", signedOut.error);
+            }
+            authPendingMfaFactorId = "";
+            authPendingMfaFactorType = "totp";
+            authMfaPendingClient = null;
+            authMfaRequired = false;
+            updateAuthUI(null);
+            openAuthModal("signin");
+            setAuthStatus(
+                "This session needs a fresh sign-in to complete two-factor verification. Sign in again with your username and password.",
+                "error"
+            );
+            return false;
+        }
+
         authPendingMfaFactorId = factor.id;
         authPendingMfaFactorType = factor.factor_type || (totp ? "totp" : "phone");
-        authMfaPendingClient = pendingLogin
-            ? (options?.pendingClient || null)
-            : window.supabaseClient;
+        authMfaPendingClient = options?.pendingClient || null;
         if (!authMfaPendingClient) {
             authPendingMfaFactorId = "";
             return failClosed("The secure sign-in session could not be prepared. Please try again.");
