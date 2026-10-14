@@ -480,24 +480,20 @@ window.closeWorthItGroupChatDialog = function () {
 function renderGroupFriendChoices() {
     const host = $("worthItChatGroupFriends");
     if (!host) return;
-    const selectedIds = new Set(Array.from(host.querySelectorAll('input[type="checkbox"]:checked')).map(input => input.value));
     host.replaceChildren();
     if (!chatFriends.length) {
         const p = document.createElement("p"); p.className = "worth-it-chat-muted"; p.textContent = "Add at least two friends before creating a group."; host.appendChild(p); return;
     }
     const search = String($("worthItChatGroupSearch")?.value || "").trim().toLocaleLowerCase();
-    const matches = chatFriends.filter(friend => {
-        const username = escapeText(friend.username).toLocaleLowerCase();
-        const displayName = escapeText(friend.display_name).toLocaleLowerCase();
-        return !search || username.includes(search) || displayName.includes(search);
-    });
-    if (!matches.length) {
-        const p = document.createElement("p"); p.className = "worth-it-chat-group-no-results"; p.textContent = "No friends match that name."; host.appendChild(p); return;
-    }
-    matches.forEach(friend => {
+    let visibleCount = 0;
+    chatFriends.forEach(friend => {
+        const usernameText = escapeText(friend.username);
+        const displayNameText = escapeText(friend.display_name);
+        const matches = !search || usernameText.toLocaleLowerCase().includes(search) || displayNameText.toLocaleLowerCase().includes(search);
+        if (matches) visibleCount++;
         const label = document.createElement("label"); label.className = "worth-it-chat-group-friend-option";
+        label.hidden = !matches;
         const checkbox = document.createElement("input"); checkbox.type = "checkbox"; checkbox.value = String(friend.worth_it_id);
-        checkbox.checked = selectedIds.has(checkbox.value);
         const details = document.createElement("span"); details.className = "worth-it-chat-group-friend-details";
         const name = document.createElement("strong"); name.textContent = friend.display_name || friend.username || "Worth It member";
         details.appendChild(name);
@@ -507,6 +503,11 @@ function renderGroupFriendChoices() {
         }
         label.append(checkbox, makeAvatar(friend), details); host.appendChild(label);
     });
+    const empty = document.createElement("p");
+    empty.className = "worth-it-chat-group-no-results";
+    empty.textContent = "No friends match that name.";
+    empty.hidden = visibleCount > 0;
+    host.appendChild(empty);
 }
 async function createWorthItGroupChat(event) {
     event.preventDefault();
