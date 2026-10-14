@@ -18952,3 +18952,5 @@ html[data-theme="light"] .worth-it-chat-group-friend-option:hover{background:#ee
 html[data-theme="light"] .worth-it-chat-group-friend-option:has(input:checked){background:#e0e7ff;border-color:#818cf8}
 html[data-theme="light"] .worth-it-chat-group-friend-option .worth-it-chat-group-friend-details small{color:#64748b}
 @media(max-width:540px){.worth-it-chat-group-friend-list{max-height:30dvh}.worth-it-chat-group-list-heading{align-items:flex-start;flex-direction:column;gap:3px}}
+
+.worth-it-chat-group-friend-option[hidden],.worth-it-chat-no-results[hidden],.worth-it-chat-group-no-results[hidden]{display:none!important}
