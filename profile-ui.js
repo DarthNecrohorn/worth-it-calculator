@@ -500,6 +500,7 @@ async function dismissWorthItNotification(kind,notificationId,button){
  button.disabled=true;
  try{
   await callSocialRpc("dismiss_worth_it_notification",{p_notification_kind:kind,p_notification_id:String(notificationId)});
+  worthItNotificationRefreshId++;
   if(kind==="friend_request")worthItNotificationRequests=worthItNotificationRequests.filter(item=>String(item.request_id)!==String(notificationId));
   else worthItSocialNotifications=worthItSocialNotifications.filter(item=>String(item.id)!==String(notificationId));
   updateWorthItNotificationBadge();renderWorthItNotificationRequests();renderWorthItOtherNotifications();
@@ -569,7 +570,7 @@ async function refreshWorthItNotifications(markRead){
  const sb=client(),userId=currentUser?.id;if(!sb?.auth||!userId)return;
  const requestId=++worthItNotificationRefreshId;
  const [requestsResult,notificationsResult]=await Promise.allSettled([
-  sb.rpc("get_worth_it_pending_friend_requests"),
+  sb.rpc("get_worth_it_pending_friend_request_notifications"),
   sb.rpc("get_worth_it_social_notifications")
  ]);
  if(requestId!==worthItNotificationRefreshId||currentUser?.id!==userId)return;
