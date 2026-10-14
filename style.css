@@ -19575,3 +19575,8 @@ html[data-theme="light"] .worth-it-user-search-result-info small{color:#64748b}
 @media(min-width:1051px){
  #profileSection.signed-in-other-profile-view .worth-it-profile-social-actions{transform:translate(-28px,0)}
 }
+
+
+/* Let status dots protrude beyond the circular friend avatars without unrounding the photos. */
+.worth-it-profile-friend-avatar{position:relative;overflow:visible}
+.worth-it-profile-friend-avatar>img{border-radius:50%}
