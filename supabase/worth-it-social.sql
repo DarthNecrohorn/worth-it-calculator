@@ -172,7 +172,7 @@ declare
     target_user_id uuid;
     connections jsonb := '[]'::jsonb;
 begin
-    if connection_type not in ('friends', 'followers', 'following') then
+    if connection_type is null or connection_type not in ('friends', 'followers', 'following') then
         return jsonb_build_object('success', false, 'code', 'INVALID_CONNECTION_TYPE');
     end if;
 
@@ -305,6 +305,7 @@ declare
     low_id uuid;
     high_id uuid;
     existing public.worth_it_friend_requests%rowtype;
+    new_request_id uuid;
 begin
     if actor_id is null then raise exception 'Authentication required'; end if;
     select user_id into target_user_id from public.worth_it_profiles where worth_it_id = target_worth_it_id;
@@ -339,14 +340,14 @@ begin
     begin
         insert into public.worth_it_friend_requests(user_low_id, user_high_id, requester_user_id, recipient_user_id)
         values(low_id, high_id, actor_id, target_user_id)
-        returning id into existing.id;
+        returning id into new_request_id;
     exception when unique_violation then
         return jsonb_build_object('success', false, 'code', 'REQUEST_RACE');
     end;
 
-    return jsonb_build_object('success', true, 'request_id', existing.id, 'status', 'pending');
+    return jsonb_build_object('success', true, 'request_id', new_request_id, 'status', 'pending');
 end;
-$$;
+$;
 
 create or replace function public.respond_worth_it_friend_request(p_request_id uuid, p_accept boolean)
 returns jsonb
