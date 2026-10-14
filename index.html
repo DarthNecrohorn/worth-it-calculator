@@ -22,6 +22,13 @@
         if (/^\/profile\/[1-9]\d*(?:\/(?:friends|followers|following))?$/.test(path)) {
             root.classList.add("worth-it-profile-route-pending");
         }
+        // Chat routes contain private conversations or bearer invite tokens and should not be indexed.
+        if (path === "/chat" || path.startsWith("/chat/")) {
+            const robots = document.createElement("meta");
+            robots.name = "robots";
+            robots.content = "noindex, nofollow, noarchive";
+            document.head.appendChild(robots);
+        }
     } catch (_) {}
 })();
 </script>
@@ -54,7 +61,7 @@ html[data-theme="light"].worth-it-initial-paint::before {
 })();
 </script>
 
-<link rel="stylesheet" href="style.css?v=chatnotificationstyle20261014">
+<link rel="stylesheet" href="style.css?v=chatgroupinvites20261014">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 </head>
 
@@ -246,7 +253,7 @@ html[data-theme="light"].worth-it-initial-paint::before {
                         </div>
                         <div class="worth-it-chat-header-actions">
                             <button type="button" class="worth-it-chat-notification-btn is-enabled worth-it-chat-header-notifications" id="worthItChatHeaderNotifications" title="Turn off notifications" aria-label="Turn off notifications" aria-pressed="false"><span class="worth-it-chat-notification-icon" aria-hidden="true">🔔</span><span class="worth-it-chat-notification-label">Turn off notifications</span></button>
-                            <button type="button" class="worth-it-chat-icon-btn" id="worthItChatFullscreenBtn" onclick="toggleWorthItChatFullscreen()" title="Open full screen" aria-label="Open full screen">⛶</button>
+                            <button type="button" class="worth-it-chat-icon-btn" id="worthItChatShareInviteBtn" title="Copy group invite link" aria-label="Copy group invite link" hidden>🔗</button>
                             <button type="button" class="worth-it-chat-icon-btn" onclick="toggleWorthItChat(event)" title="Close chat" aria-label="Close chat">✕</button>
                         </div>
                     </header>
@@ -278,6 +285,20 @@ html[data-theme="light"].worth-it-initial-paint::before {
                 <p class="worth-it-chat-compose-status" id="worthItChatGroupStatus" role="status"></p>
                 <button type="submit" class="worth-it-chat-send-btn">Create group <span>➤</span></button>
             </form>
+        </div>
+
+        <div class="worth-it-chat-invite-dialog" id="worthItChatInviteDialog" hidden aria-hidden="true">
+            <section class="worth-it-chat-invite-card" role="dialog" aria-modal="true" aria-labelledby="worthItChatInviteTitle">
+                <span class="worth-it-chat-modal-kicker" id="worthItChatInviteKicker">✦ WORTH IT COMMUNITY</span>
+                <div class="worth-it-chat-invite-icon" aria-hidden="true">👥</div>
+                <h2 id="worthItChatInviteTitle">You have been invited</h2>
+                <p id="worthItChatInviteCopy">You have been invited to join this group chat. Do you want to join?</p>
+                <div class="worth-it-chat-invite-actions">
+                    <button type="button" class="worth-it-chat-send-btn" id="worthItChatInviteAcceptBtn">Join group</button>
+                    <button type="button" class="worth-it-chat-invite-cancel" id="worthItChatInviteCancelBtn">Not now</button>
+                </div>
+                <p class="worth-it-chat-compose-status" id="worthItChatInviteStatus" role="status" aria-live="polite"></p>
+            </section>
         </div>
 
         <div class="auth-wrap" id="authWrap">
@@ -2345,6 +2366,8 @@ html[data-theme="light"].worth-it-initial-paint::before {
         considered professional financial advice.</span>
 
         <br><br>
+
+        <p class="worth-it-community-footer-link"><a href="/community">✦ Worth It Community</a></p>
 
         <nav class="footer-legal-links" aria-label="Legal">
             <button type="button" onclick="openLegalPage('privacy')">Privacy Policy</button>
@@ -4637,7 +4660,7 @@ if($("carResults")){
 
 </script>
 <script src="/profile-ui.js?v=friendlimit20261014a"></script>
-<script src="/chat-ui.js?v=chatnotificationposition20261014"></script>
+<script src="/chat-ui.js?v=chatroutesinvites20261014"></script>
 <script src="/routing.js?v=themebootlightprofile20261014a"></script>
 
 </body>
