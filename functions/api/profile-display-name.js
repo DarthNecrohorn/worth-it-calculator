@@ -58,7 +58,7 @@ async function verifyUser(config, token) {
 function validDisplayName(value) {
     const name = String(value || "").trim();
     const length = Array.from(name).length;
-    return length >= 1 && length <= MAX_DISPLAY_NAME_LENGTH && !/[\\u0000-\\u001F\\u007F]/.test(name);
+    return length >= 1 && length <= MAX_DISPLAY_NAME_LENGTH && !/[\x00-\x1F\x7F]/.test(name);
 }
 
 async function readProfile(config, userId) {
