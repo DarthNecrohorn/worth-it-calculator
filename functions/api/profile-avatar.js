@@ -1,6 +1,7 @@
 const SITE_ORIGIN = "https://worth-it-calculator.pages.dev";
 const MAX_UPLOAD_BYTES = 512 * 1024;
 const COOLDOWN_MS = 30 * 1000;
+const DAILY_CHANGE_LIMIT_MS = 24 * 60 * 60 * 1000;
 const BUCKET = "worth-it-avatars";
 
 function json(data, status) {
@@ -55,7 +56,7 @@ function serviceHeaders(config, extra) {
 
 async function readProfile(config, userId) {
     const url = config.supabaseUrl + "/rest/v1/worth_it_profiles?user_id=eq." +
-        encodeURIComponent(userId) + "&select=user_id,avatar_url,avatar_is_custom,avatar_last_attempt_at,worth_it_id";
+        encodeURIComponent(userId) + "&select=user_id,avatar_url,avatar_is_custom,avatar_last_attempt_at,avatar_changed_at,worth_it_id";
     const response = await fetch(url, { headers: serviceHeaders(config, { "Accept": "application/json" }) });
     if (!response.ok) throw new Error("Could not read the profile.");
     const rows = await response.json();
@@ -79,13 +80,13 @@ async function updateProfile(config, userId, data) {
     }
 }
 
-function publicAvatarUrl(config, userId, version) {
+function publicAvatarUrl(config, userId, filename) {
     return config.supabaseUrl + "/storage/v1/object/public/" + BUCKET + "/" +
-        encodeURIComponent(userId) + "/avatar.webp?v=" + encodeURIComponent(version);
+        encodeURIComponent(userId) + "/" + encodeURIComponent(filename);
 }
 
-async function uploadObject(config, userId, bytes) {
-    const path = encodeURIComponent(userId) + "/avatar.webp";
+async function uploadObject(config, userId, filename, bytes) {
+    const path = encodeURIComponent(userId) + "/" + encodeURIComponent(filename);
     const response = await fetch(config.supabaseUrl + "/storage/v1/object/" + BUCKET + "/" + path, {
         method: "POST",
         headers: serviceHeaders(config, {
@@ -102,16 +103,74 @@ async function uploadObject(config, userId, bytes) {
     }
 }
 
-async function deleteObject(config, userId) {
+async function deleteObject(config, objectPath) {
+    if (!objectPath) return;
     const response = await fetch(config.supabaseUrl + "/storage/v1/object/" + BUCKET, {
         method: "DELETE",
         headers: serviceHeaders(config, { "Content-Type": "application/json" }),
-        body: JSON.stringify({ prefixes: [userId + "/avatar.webp"] })
+        body: JSON.stringify({ prefixes: [objectPath] })
     });
     if (!response.ok && response.status !== 404) {
         const details = await response.text().catch(() => "");
         console.warn("Could not delete old avatar file:", response.status, details.slice(0, 300));
     }
+}
+
+function getStoredAvatarPath(config, avatarUrl, userId) {
+    const prefix = config.supabaseUrl + "/storage/v1/object/public/" + BUCKET + "/";
+    if (typeof avatarUrl !== "string" || !avatarUrl.startsWith(prefix)) return "";
+    try {
+        const path = decodeURIComponent(avatarUrl.slice(prefix.length).split("?")[0]);
+        return path.startsWith(userId + "/") ? path : "";
+    } catch (_) {
+        return "";
+    }
+}
+
+function getDailyLimit(profile, now) {
+    const changedAt = Date.parse(profile && profile.avatar_changed_at || "");
+    if (!Number.isFinite(changedAt)) return null;
+    const retryAt = changedAt + DAILY_CHANGE_LIMIT_MS;
+    const remaining = retryAt - (now == null ? Date.now() : now);
+    if (remaining <= 0) return null;
+    return json({
+        success: false,
+        code: "AVATAR_DAILY_LIMIT",
+        error: "You can change your profile picture only once every 24 hours.",
+        remaining_ms: remaining,
+        retry_at: new Date(retryAt).toISOString()
+    }, 429);
+}
+
+async function commitAvatarChange(config, userId, previousChangedAt, changes) {
+    const url = new URL(config.supabaseUrl + "/rest/v1/worth_it_profiles");
+    url.searchParams.set("user_id", "eq." + userId);
+    url.searchParams.set("select", "user_id,avatar_changed_at");
+    url.searchParams.set("avatar_changed_at", previousChangedAt ? "eq." + previousChangedAt : "is.null");
+    const changedAt = new Date().toISOString();
+    const response = await fetch(url.toString(), {
+        method: "PATCH",
+        headers: serviceHeaders(config, {
+            "Content-Type": "application/json",
+            "Prefer": "return=representation"
+        }),
+        body: JSON.stringify(Object.assign({}, changes, {
+            avatar_changed_at: changedAt,
+            updated_at: changedAt
+        }))
+    });
+    if (!response.ok) {
+        const details = await response.text().catch(() => "");
+        console.error("Avatar change commit failed:", response.status, details.slice(0, 500));
+        throw new Error("Could not save the profile picture. Please try again.");
+    }
+    const rows = await response.json();
+    return { applied: Array.isArray(rows) && rows.length > 0, changedAt };
+}
+
+async function getLatestDailyLimit(config, userId) {
+    const profile = await readProfile(config, userId);
+    return profile ? getDailyLimit(profile) : null;
 }
 
 async function readLimitedBody(request, maximumBytes) {
@@ -266,6 +325,11 @@ export async function onRequestPost(context) {
 
         const profile = await readProfile(config, user.id);
         if (!profile) return json({ error: "Your Worth It profile is not ready yet. Refresh the page and try again." }, 404);
+
+        // Check the daily rule first so users receive the countdown instead of a short anti-spam message.
+        const dailyLimit = getDailyLimit(profile);
+        if (dailyLimit) return dailyLimit;
+
         if (profile.avatar_last_attempt_at) {
             const lastAttempt = Date.parse(profile.avatar_last_attempt_at);
             if (Number.isFinite(lastAttempt) && Date.now() - lastAttempt < COOLDOWN_MS) {
@@ -275,15 +339,47 @@ export async function onRequestPost(context) {
         await updateProfile(config, user.id, { avatar_last_attempt_at: new Date().toISOString() });
 
         if (action === "remove") {
-            await deleteObject(config, user.id);
-            await updateProfile(config, user.id, { avatar_url: null, avatar_is_custom: false });
+            const oldObjectPath = getStoredAvatarPath(config, profile.avatar_url, user.id);
+            const removalCommit = await commitAvatarChange(config, user.id, profile.avatar_changed_at, {
+                avatar_url: null,
+                avatar_is_custom: false
+            });
+            if (!removalCommit.applied) {
+                const latestLimit = await getLatestDailyLimit(config, user.id);
+                return latestLimit || json({
+                    error: "Your profile picture changed in another request. Please refresh and try again.",
+                    code: "AVATAR_DAILY_LIMIT",
+                    remaining_ms: DAILY_CHANGE_LIMIT_MS
+                }, 429);
+            }
+            if (oldObjectPath) await deleteObject(config, oldObjectPath);
             return json({ success: true, avatar_url: null, message: "Profile picture removed." });
         }
 
         await moderateAvatar(config, bytes);
-        await uploadObject(config, user.id, bytes);
-        const avatarUrl = publicAvatarUrl(config, user.id, Date.now());
-        await updateProfile(config, user.id, { avatar_url: avatarUrl, avatar_is_custom: true });
+        const filename = Date.now() + "-" + crypto.randomUUID() + ".webp";
+        const objectPath = user.id + "/" + filename;
+        await uploadObject(config, user.id, filename, bytes);
+        const avatarUrl = publicAvatarUrl(config, user.id, filename);
+        let uploadCommit;
+        try {
+            uploadCommit = await commitAvatarChange(config, user.id, profile.avatar_changed_at, {
+                avatar_url: avatarUrl,
+                avatar_is_custom: true
+            });
+        } catch (error) {
+            await deleteObject(config, objectPath);
+            throw error;
+        }
+        if (!uploadCommit.applied) {
+            await deleteObject(config, objectPath);
+            const latestLimit = await getLatestDailyLimit(config, user.id);
+            return latestLimit || json({
+                error: "Your profile picture changed in another request. Please refresh and try again.",
+                code: "AVATAR_DAILY_LIMIT",
+                remaining_ms: DAILY_CHANGE_LIMIT_MS
+            }, 429);
+        }
         return json({ success: true, avatar_url: avatarUrl, message: "Profile picture updated." });
     } catch (error) {
         console.error("Profile avatar request failed:", error);

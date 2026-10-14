@@ -18057,6 +18057,8 @@ html[data-theme="light"] .shop-partner-detail-item{
 .worth-it-profile-avatar-action:disabled{opacity:.6;cursor:wait;transform:none}
 .worth-it-profile-avatar-remove{color:var(--danger)}
 .worth-it-profile-avatar-guidance{margin:8px 0 0;color:var(--muted);font-size:11px;line-height:1.5;max-width:440px}
+.worth-it-profile-avatar-limit{margin:8px 0 0;color:#ef4444;font-size:12px;font-weight:800;line-height:1.5}
+.worth-it-profile-avatar-limit[hidden]{display:none!important}
 
 .worth-it-profile-member-since{margin:16px 0 0;color:var(--muted);font-size:12px}
 html[data-theme="light"] .worth-it-profile-card{background:#fff}

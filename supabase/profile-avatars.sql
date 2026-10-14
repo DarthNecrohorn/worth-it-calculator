@@ -6,6 +6,8 @@ alter table public.worth_it_profiles
     add column if not exists avatar_is_custom boolean not null default false;
 alter table public.worth_it_profiles
     add column if not exists avatar_last_attempt_at timestamptz;
+alter table public.worth_it_profiles
+    add column if not exists avatar_changed_at timestamptz;
 
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 values ('worth-it-avatars', 'worth-it-avatars', true, 524288, array['image/webp'])

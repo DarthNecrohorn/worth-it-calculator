@@ -3,7 +3,7 @@
 "use strict";
 const $=id=>document.getElementById(id);
 const BASE_URL="https://worth-it-calculator.pages.dev";
-let currentUser=null,currentOwnProfile=null,currentOwnProfileRequest=null,activeProfileRequest=0,currentProfileLink="",currentDisplayedProfileId=0,currentDisplayedProfileIsOwn=false,avatarOperationInProgress=false;
+let currentUser=null,currentOwnProfile=null,currentOwnProfileRequest=null,activeProfileRequest=0,currentProfileLink="",currentDisplayedProfileId=0,currentDisplayedProfileIsOwn=false,avatarOperationInProgress=false,avatarLimitTimer=null;
 const client=()=>window.supabaseClient||null;
 function setText(id,value){const n=$(id);if(n)n.textContent=value==null?"":String(value);}
 function setCount(id,value){const n=$(id);if(!n)return;const v=Number(value);n.textContent=Number.isFinite(v)&&v>=0?Math.trunc(v).toLocaleString():"—";}
@@ -60,6 +60,7 @@ function renderProfile(p,s,isOwn){
  const email=$("worthItProfileEmail");if(email){email.textContent=isOwn&&currentUser?.email?currentUser.email:"";email.hidden=!(isOwn&&currentUser?.email);}
  const linkNode=$("worthItProfileLink");if(linkNode){linkNode.href=link;linkNode.textContent=link;}setText("worthItProfileLinkLabel",isOwn?"YOUR PROFILE LINK":"PROFILE LINK");
  const member=$("worthItProfileMemberSince");if(member){const date=p.created_at?new Date(p.created_at):null;if(date&&!Number.isNaN(date.getTime())){const parts=new Intl.DateTimeFormat("en-GB",{day:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit",hourCycle:"h23"}).formatToParts(date);const part=type=>parts.find(x=>x.type===type)?.value||"";const month=new Intl.DateTimeFormat("en-US",{month:"short"}).format(date);member.textContent="Joined "+part("day")+" "+month+", "+part("year")+" "+part("hour")+":"+part("minute");}else{member.textContent="";}}
+ hideAvatarLimitNotice();
  currentDisplayedProfileId=id;currentDisplayedProfileIsOwn=Boolean(isOwn);
  const avatarControls=$("worthItProfileAvatarControls");if(avatarControls)avatarControls.hidden=!isOwn;
  const removePhoto=$("worthItProfileAvatarRemove");if(removePhoto)removePhoto.hidden=!isOwn||!safeAvatarUrl(p.avatar_url);
@@ -85,6 +86,27 @@ window.openWorthItProfile=async function(idValue,options){
  }catch(e){if(requestId!==activeProfileRequest)return;console.error("Worth It profile load failed.",e);renderError("The profile database is not ready or could not be reached. Run supabase/worth-it-profiles.sql in Supabase, then refresh this page.");}
 };
 
+function hideAvatarLimitNotice(){
+ if(avatarLimitTimer!==null){clearInterval(avatarLimitTimer);avatarLimitTimer=null;}
+ const node=$("worthItProfileAvatarLimit");if(node){node.hidden=true;node.textContent="";}
+}
+function showAvatarLimitNotice(remainingMs){
+ const node=$("worthItProfileAvatarLimit");if(!node)return;
+ if(avatarLimitTimer!==null){clearInterval(avatarLimitTimer);avatarLimitTimer=null;}
+ const endAt=Date.now()+Math.max(0,Number(remainingMs)||0);
+ const update=()=>{
+  const left=endAt-Date.now();
+  if(left<=0){hideAvatarLimitNotice();return;}
+  const totalMinutes=Math.max(1,Math.ceil(left/60000));
+  const hours=Math.floor(totalMinutes/60),minutes=totalMinutes%60;
+  const hoursText=hours+" "+(hours===1?"hour":"hours");
+  const minutesText=minutes+" "+(minutes===1?"minute":"minutes");
+  node.textContent="You can change your profile picture only once every 24 hours. Try again in "+hoursText+" and "+minutesText+".";
+  node.hidden=false;
+ };
+ update();
+ if(endAt>Date.now())avatarLimitTimer=setInterval(update,15000);
+}
 function setAvatarControlsBusy(busy){avatarOperationInProgress=Boolean(busy);const change=$("worthItProfileAvatarChange");const remove=$("worthItProfileAvatarRemove");if(change){change.disabled=avatarOperationInProgress;change.textContent=avatarOperationInProgress?"Checking image…":"Change photo";}if(remove)remove.disabled=avatarOperationInProgress;const input=$("worthItProfileAvatarInput");if(input)input.disabled=avatarOperationInProgress;}
 window.triggerWorthItAvatarUpload=function(){if(!currentDisplayedProfileIsOwn||avatarOperationInProgress)return;const input=$("worthItProfileAvatarInput");if(input)input.click();};
 async function encodeAvatarImage(file){
@@ -109,7 +131,7 @@ async function sendAvatarAction(action,payload){
  if(sessionResult.error||!token)throw new Error("Your login session has expired. Please sign in again.");
  const response=await fetch("/api/profile-avatar",{method:"POST",headers:{"Authorization":"Bearer "+token,...(action==="upload"?{"Content-Type":"image/webp"}:{"Content-Type":"application/json"})},body:action==="upload"?payload:JSON.stringify({action:action})});
  let data={};try{data=await response.json();}catch(_){}
- if(!response.ok||!data.success)throw new Error(data.error||"The profile picture could not be changed.");
+ if(!response.ok||!data.success){const error=new Error(data.error||"The profile picture could not be changed.");error.code=data.code||"";error.remainingMs=Number(data.remaining_ms)||0;error.retryAt=data.retry_at||"";throw error;}
  return data;
 }
 async function finishAvatarAction(data){
@@ -132,7 +154,7 @@ async function handleAvatarInputChange(event){
   const data=await sendAvatarAction("upload",blob);
   setStatus("Image approved. Updating your profile…",false);
   await finishAvatarAction(data);
- }catch(error){setStatus(error?.message||"The image couldn't be uploaded. Please try another image.",true);}
+ }catch(error){if(error?.code==="AVATAR_DAILY_LIMIT"){setStatus("",false);showAvatarLimitNotice(error.remainingMs);}else{hideAvatarLimitNotice();setStatus(error?.message||"The image couldn't be uploaded. Please try another image.",true);}}
  finally{setAvatarControlsBusy(false);if(input)input.value="";}
 }
 window.removeWorthItProfilePhoto=async function(){
@@ -140,7 +162,7 @@ window.removeWorthItProfilePhoto=async function(){
  if(!window.confirm("Remove your current profile picture?"))return;
  setAvatarControlsBusy(true);setStatus("Removing your profile picture…",false);
  try{const data=await sendAvatarAction("remove");await finishAvatarAction(data);}
- catch(error){setStatus(error?.message||"The profile picture couldn't be removed.",true);}
+ catch(error){if(error?.code==="AVATAR_DAILY_LIMIT"){setStatus("",false);showAvatarLimitNotice(error.remainingMs);}else{hideAvatarLimitNotice();setStatus(error?.message||"The profile picture couldn't be removed.",true);}}
  finally{setAvatarControlsBusy(false);}
 };
 
