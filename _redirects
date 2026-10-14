@@ -45,3 +45,7 @@
 
 # Public shareable user profile URLs.
 /profile/* /index.html 200
+
+# Full account settings page.
+/settings/ /settings 301
+/settings /index.html 200
