@@ -19591,3 +19591,48 @@ html[data-theme="light"] .worth-it-user-search-result-info small{color:#64748b}
 html[data-theme="light"] .worth-it-notification-expiry-note{color:#64748b;border-color:rgba(15,23,42,.08)}
 html[data-theme="light"] .worth-it-notification-dismiss{border-color:rgba(15,23,42,.14);background:rgba(15,23,42,.035);color:#475569}
 html[data-theme="light"] .worth-it-notification-dismiss:hover,html[data-theme="light"] .worth-it-notification-dismiss:focus-visible{border-color:rgba(220,38,38,.4);background:rgba(239,68,68,.08);color:#b91c1c}
+
+
+/* FULL ACCOUNT SETTINGS PAGE */
+.worth-it-settings-page{min-height:calc(100vh - 72px);padding:34px 0 76px;color:var(--text)}
+.worth-it-settings-container{max-width:1040px}
+.worth-it-settings-toolbar{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:34px}
+.worth-it-settings-overline,.worth-it-settings-kicker{color:var(--muted);font-size:11px;font-weight:800;letter-spacing:.13em}
+.worth-it-settings-hero{display:flex;align-items:flex-end;justify-content:space-between;gap:24px;padding:0 0 28px;border-bottom:1px solid var(--border);margin-bottom:26px}
+.worth-it-settings-kicker{margin-bottom:8px;color:var(--primary2)}
+.worth-it-settings-hero h1{font-size:clamp(30px,4vw,42px);line-height:1.15;letter-spacing:-.04em;margin-bottom:10px}
+.worth-it-settings-hero p:not(.worth-it-settings-kicker){color:var(--muted);max-width:620px}
+.worth-it-settings-save-note{display:inline-flex;align-items:center;gap:8px;white-space:nowrap;color:var(--muted);font-size:12px;border:1px solid var(--border);border-radius:999px;padding:9px 13px;background:var(--surface-soft)}
+.worth-it-settings-save-note span{color:var(--success);font-weight:900}
+.worth-it-settings-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-bottom:22px}
+.worth-it-settings-card,.worth-it-settings-panel{min-width:0;border:1px solid var(--border);border-radius:18px;background:var(--card);box-shadow:0 12px 34px rgba(0,0,0,.08)}
+.worth-it-settings-card{display:grid;grid-template-columns:44px minmax(0,1fr) auto;align-items:start;gap:14px;padding:20px}
+.worth-it-settings-card-icon{width:44px;height:44px;display:grid;place-items:center;flex:0 0 auto;border-radius:13px;border:1px solid rgba(124,92,255,.22);background:rgba(124,92,255,.1);font-size:21px}
+.worth-it-settings-card-copy{min-width:0}
+.worth-it-settings-card h2,.worth-it-settings-panel h2{font-size:16px;line-height:1.35;margin:2px 0 7px}
+.worth-it-settings-card p,.worth-it-settings-panel-heading p{font-size:13px;line-height:1.6;color:var(--muted)}
+.worth-it-settings-status{align-self:start;margin-top:3px;padding:4px 8px;border-radius:999px;border:1px solid var(--border);font-size:10px;font-weight:800;color:var(--muted);white-space:nowrap}
+.worth-it-settings-panel{padding:24px}
+.worth-it-settings-panel-heading{display:flex;align-items:center;gap:14px;margin-bottom:24px}
+.worth-it-settings-panel-heading h2{font-size:18px;margin-bottom:5px}
+.worth-it-settings-control-group{display:flex;flex-direction:column;gap:9px;margin-top:20px}
+.worth-it-settings-control-group>label{font-size:13px;font-weight:700;color:var(--text)}
+.worth-it-settings-page-options{max-width:560px}
+.worth-it-settings-reset{display:flex;align-items:center;justify-content:space-between;gap:20px;border-top:1px solid var(--border);margin-top:25px;padding-top:20px}
+.worth-it-settings-reset strong{font-size:13px}
+.worth-it-settings-reset p{font-size:12px;color:var(--muted);margin-top:4px}
+.worth-it-settings-reset .settings-option{flex:0 0 auto}
+.worth-it-settings-roadmap{margin:16px 3px 0;color:var(--muted2);font-size:11px;line-height:1.6}
+.settings-more-option{width:100%;background:linear-gradient(110deg,rgba(124,92,255,.12),rgba(56,189,248,.09));border-color:rgba(124,92,255,.32)}
+@media(max-width:700px){
+ .worth-it-settings-page{padding:22px 0 48px}
+ .worth-it-settings-toolbar{align-items:flex-start;flex-direction:column;margin-bottom:26px}
+ .worth-it-settings-hero{align-items:flex-start;flex-direction:column;gap:16px;padding-bottom:22px}
+ .worth-it-settings-grid{grid-template-columns:minmax(0,1fr);gap:10px}
+ .worth-it-settings-card{padding:16px;grid-template-columns:40px minmax(0,1fr);gap:12px}
+ .worth-it-settings-card-icon{width:40px;height:40px;font-size:19px}
+ .worth-it-settings-status{grid-column:2;grid-row:2;justify-self:start;margin-top:-4px}
+ .worth-it-settings-panel{padding:18px}
+ .worth-it-settings-reset{align-items:stretch;flex-direction:column;gap:12px}
+ .worth-it-settings-reset .settings-option{width:100%}
+}
