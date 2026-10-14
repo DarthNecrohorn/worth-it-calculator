@@ -83,7 +83,7 @@ function setupRequired() {
 }
 
 function isSetupFailure(details) {
-    return /username_changed_at|update_worth_it_username|schema cache|could not find the function|column .* does not exist|function .* does not exist|relation .*usernames.* does not exist/i.test(String(details || ""));
+    return /username_changed_at|update_worth_it_username|schema cache|could not find the function|column .* does not exist|function .* does not exist|relation .*usernames.* does not exist|permission denied|insufficient privilege/i.test(String(details || ""));
 }
 
 async function getUsernameRow(config, userId) {
