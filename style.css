@@ -18335,3 +18335,7 @@ html.profile-banner-active .worth-it-profile-section.has-banner:before{backgroun
 @media(prefers-reduced-transparency:reduce){
  .worth-it-profile-pending-requests,.worth-it-profile-connections-status,.worth-it-profile-connection-card{backdrop-filter:none}
 }
+
+/* Prevent the home screen and signed-out header from flashing on direct profile refreshes. */
+html.worth-it-profile-route-pending #homePage{display:none!important}
+html.worth-it-profile-route-pending #authWrap{visibility:hidden}
