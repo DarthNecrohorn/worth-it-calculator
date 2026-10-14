@@ -172,9 +172,24 @@ function renderFriends() {
         const name = document.createElement("strong"); name.textContent = friend.display_name || friend.username || "Worth It member";
         const username = document.createElement("small"); username.textContent = friend.username ? "@" + friend.username : "Friend";
         info.append(name, username); row.appendChild(info);
+
+        const directConversation = chatConversations.find(conversation =>
+            conversation.type === "direct" &&
+            Array.isArray(conversation.members) &&
+            conversation.members.some(member => String(member.worth_it_id) === String(friend.worth_it_id))
+        );
+        const friendKey = chatNotificationKeyForFriend(friend);
+        const unread = chatNotificationsEnabled(friendKey) ? Number(directConversation?.unread_count || 0) : 0;
+        if (unread > 0) {
+            const count = document.createElement("span");
+            count.className = "worth-it-chat-person-count";
+            count.textContent = unread > 99 ? "99+" : String(unread);
+            count.setAttribute("aria-label", unread + " unread messages");
+            row.appendChild(count);
+        }
         row.addEventListener("click", () => openWorthItFriendChat(friend.worth_it_id));
 
-        item.append(row, makeChatNotificationButton(chatNotificationKeyForFriend(friend)));
+        item.append(row, makeChatNotificationButton(friendKey));
         host.appendChild(item);
     });
 }
@@ -225,6 +240,7 @@ function chatNotificationKeyForFriend(friend) {
 }
 function chatNotificationKeyForConversation(conversation) {
     if (!conversation) return "";
+    if (conversation.type === "global") return "global";
     if (conversation.type === "group" && conversation.id) return "group:" + String(conversation.id);
     const member = Array.isArray(conversation.members) ? conversation.members[0] : null;
     return member?.worth_it_id == null ? "" : "direct:" + String(member.worth_it_id);
@@ -294,8 +310,17 @@ async function toggleWorthItChatNotifications(chatKey) {
         setStatus(rpcError(error), true);
     }
 }
+function updateGlobalChatUnreadBadge() {
+    const badge = $("worthItGlobalChatUnreadCount");
+    if (!badge) return;
+    const globalConversation = chatConversations.find(item => item.type === "global");
+    const count = chatNotificationsEnabled("global") ? Number(globalConversation?.unread_count || 0) : 0;
+    badge.hidden = count < 1;
+    badge.textContent = count > 99 ? "99+" : String(count);
+}
 function updateUnreadBadge() {
     const badge = $("worthItChatNavBadge");
+    updateGlobalChatUnreadBadge();
     if (!badge) return;
     const total = chatConversations.reduce((sum, item) => {
         const key = chatNotificationKeyForConversation(item);
@@ -427,11 +452,13 @@ async function loadWorthItChatMessages(scrollToBottom) {
     const newLastId = rows.length ? rows[rows.length - 1].id : null;
     chatMessages = rows;
     renderMessages(Boolean(scrollToBottom || (previousLastId !== newLastId && $("worthItChatMessages") && $("worthItChatMessages").scrollHeight - $("worthItChatMessages").scrollTop - $("worthItChatMessages").clientHeight < 550)));
-    if (activeConversationType !== "global") {
-        const conversation = chatConversations.find(item => item.id === activeConversationId);
-        if (conversation) conversation.unread_count = 0;
-        updateUnreadBadge(); renderConversations();
-    }
+    const readConversation = activeConversationType === "global"
+        ? chatConversations.find(item => item.type === "global")
+        : chatConversations.find(item => item.id === activeConversationId);
+    if (readConversation) readConversation.unread_count = 0;
+    updateUnreadBadge();
+    renderFriends();
+    renderConversations();
 }
 async function activateConversation(id, type, title, person) {
     activeConversationId = id || null;
