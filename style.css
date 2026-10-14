@@ -18059,22 +18059,27 @@ html[data-theme="light"] .shop-partner-detail-item{
 .worth-it-profile-share-copy a:hover{text-decoration:underline}
 .worth-it-profile-copy{flex:0 0 auto;white-space:nowrap}
 
-.worth-it-profile-avatar-controls{margin-top:12px;max-width:100%}
+.worth-it-profile-avatar-controls{margin-top:12px;max-width:100%;display:grid;grid-template-columns:max-content minmax(0,1fr);column-gap:12px;align-items:center}
 .worth-it-profile-banner-controls{margin-top:14px;padding-top:12px;border-top:1px solid var(--border)}
 .worth-it-profile-cover.has-banner .worth-it-profile-banner-controls{border-top-color:rgba(255,255,255,.28)}
 .worth-it-profile-avatar-controls[hidden],.worth-it-profile-avatar-action[hidden]{display:none!important}
-.worth-it-profile-avatar-actions{display:flex;align-items:center;flex-wrap:wrap;gap:7px}
+.worth-it-profile-avatar-actions{grid-column:1;grid-row:1;display:flex;align-items:center;flex-wrap:wrap;gap:7px}
 .worth-it-profile-avatar-action{appearance:none;border:1px solid var(--border);border-radius:9px;background:var(--surface-soft);color:var(--text);padding:7px 10px;font:inherit;font-size:12px;font-weight:750;cursor:pointer;transition:border-color .18s ease,background .18s ease,transform .18s ease}
 .worth-it-profile-avatar-action:hover,.worth-it-profile-avatar-action:focus-visible{border-color:var(--primary);transform:translateY(-1px)}
 .worth-it-profile-avatar-action:disabled{opacity:.6;cursor:wait;transform:none}
 .worth-it-profile-avatar-remove{color:var(--danger)}
-.worth-it-profile-avatar-guidance{margin:8px 0 0;color:var(--muted);font-size:11px;line-height:1.5;max-width:440px}
-.worth-it-profile-avatar-limit{margin:8px 0 0;color:#ef4444;font-size:12px;font-weight:800;line-height:1.5}
+.worth-it-profile-avatar-guidance{grid-column:1/-1;grid-row:2;margin:8px 0 0;color:var(--muted);font-size:11px;line-height:1.5;max-width:440px}
+.worth-it-profile-avatar-limit{grid-column:2;grid-row:1;align-self:center;margin:0;color:#ef4444;font-size:12px;font-weight:800;line-height:1.5;min-width:0;overflow-wrap:anywhere}
 .worth-it-profile-avatar-limit[hidden]{display:none!important}
 
 .worth-it-profile-member-since{margin:16px 0 0;color:var(--muted);font-size:12px}
 html[data-theme="light"] .worth-it-profile-card{background:#fff}
 @media(max-width:520px){
+ .worth-it-profile-avatar-controls{grid-template-columns:minmax(0,1fr);row-gap:0}
+ .worth-it-profile-avatar-actions{grid-column:1;grid-row:1}
+ .worth-it-profile-avatar-limit{grid-column:1;grid-row:2;margin-top:8px}
+ .worth-it-profile-avatar-guidance{grid-column:1;grid-row:3}
+ .worth-it-profile-banner-controls{margin-top:14px}
  .worth-it-profile-section{padding:18px 0 44px}
  .worth-it-profile-toolbar{align-items:flex-start}
  .worth-it-profile-header{gap:13px}
