@@ -2032,7 +2032,7 @@ window.updateAuthUI =
 INITIAL SESSION
 ========================================================= */
 
-(async function initializeSupabaseAuth() {
+window.worthItAuthReady = (async function initializeSupabaseAuth() {
 
     try {
 
