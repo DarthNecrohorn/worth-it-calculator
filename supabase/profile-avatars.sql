@@ -8,9 +8,15 @@ alter table public.worth_it_profiles
     add column if not exists avatar_last_attempt_at timestamptz;
 alter table public.worth_it_profiles
     add column if not exists avatar_changed_at timestamptz;
+alter table public.worth_it_profiles
+    add column if not exists banner_url text;
+alter table public.worth_it_profiles
+    add column if not exists banner_last_attempt_at timestamptz;
+alter table public.worth_it_profiles
+    add column if not exists banner_changed_at timestamptz;
 
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
-values ('worth-it-avatars', 'worth-it-avatars', true, 524288, array['image/webp'])
+values ('worth-it-avatars', 'worth-it-avatars', true, 8388608, array['image/webp','image/gif'])
 on conflict (id) do update set
     public = excluded.public,
     file_size_limit = excluded.file_size_limit,
@@ -76,3 +82,10 @@ drop trigger if exists on_auth_user_worth_it_profile on auth.users;
 create trigger on_auth_user_worth_it_profile
 after insert or update of raw_user_meta_data, email on auth.users
 for each row execute function public.sync_worth_it_profile_from_auth_user();
+
+-- Add the banner URL at the end of the existing public view so existing column order stays stable.
+create or replace view public.worth_it_public_profiles as
+select worth_it_id,username,coalesce(display_name,username,'Worth It member') as display_name,avatar_url,created_at,banner_url
+from public.worth_it_profiles;
+grant select on public.worth_it_public_profiles to anon,authenticated;
+

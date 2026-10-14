@@ -20,7 +20,7 @@
 })();
 </script>
 
-<link rel="stylesheet" href="style.css?v=profileavatars20261014b">
+<link rel="stylesheet" href="style.css?v=profilecovergifs20261014a">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 </head>
 
@@ -2075,20 +2075,32 @@
       <span class="worth-it-profile-eyebrow">WORTH IT COMMUNITY</span>
     </div>
     <article class="worth-it-profile-card">
-      <div class="worth-it-profile-header">
-        <div id="worthItProfileAvatar" class="worth-it-profile-avatar-wrap"><div class="worth-it-profile-avatar-fallback">W</div></div>
-        <div class="worth-it-profile-heading">
-          <h1 id="worthItProfileName">Profile</h1>
-          <p id="worthItProfileUsername" class="worth-it-profile-username"></p>
-          <p id="worthItProfileEmail" class="worth-it-profile-email" hidden></p>
-          <div id="worthItProfileAvatarControls" class="worth-it-profile-avatar-controls" hidden>
-            <div class="worth-it-profile-avatar-actions">
-              <button type="button" class="worth-it-profile-avatar-action" id="worthItProfileAvatarChange" onclick="triggerWorthItAvatarUpload()">Change photo</button>
-              <button type="button" class="worth-it-profile-avatar-action worth-it-profile-avatar-remove" id="worthItProfileAvatarRemove" onclick="removeWorthItProfilePhoto()" hidden>Remove photo</button>
-              <input type="file" id="worthItProfileAvatarInput" accept="image/jpeg,image/png,image/webp" hidden>
+      <div id="worthItProfileCover" class="worth-it-profile-cover">
+        <img id="worthItProfileBannerImage" class="worth-it-profile-banner-image" alt="" aria-hidden="true" hidden>
+        <div class="worth-it-profile-header">
+          <div id="worthItProfileAvatar" class="worth-it-profile-avatar-wrap"><div class="worth-it-profile-avatar-fallback">W</div></div>
+          <div class="worth-it-profile-heading">
+            <h1 id="worthItProfileName">Profile</h1>
+            <p id="worthItProfileUsername" class="worth-it-profile-username"></p>
+            <p id="worthItProfileEmail" class="worth-it-profile-email" hidden></p>
+            <div id="worthItProfileAvatarControls" class="worth-it-profile-avatar-controls" hidden>
+              <div class="worth-it-profile-avatar-actions">
+                <button type="button" class="worth-it-profile-avatar-action" id="worthItProfileAvatarChange" onclick="triggerWorthItAvatarUpload()">Change photo</button>
+                <button type="button" class="worth-it-profile-avatar-action worth-it-profile-avatar-remove" id="worthItProfileAvatarRemove" onclick="removeWorthItProfilePhoto()" hidden>Remove photo</button>
+                <input type="file" id="worthItProfileAvatarInput" accept="image/jpeg,image/png,image/webp,image/gif" hidden>
+              </div>
+              <p class="worth-it-profile-avatar-guidance">JPG, PNG, WebP or animated GIF · max 8 MB. Images and GIF frames are sent to Google Gemini for automated safety screening before display. Nudity, hate and extremist symbols are blocked. Fictional characters and fan art are allowed when otherwise safe; copyright rules still apply.</p>
+              <p id="worthItProfileAvatarLimit" class="worth-it-profile-avatar-limit" role="status" aria-live="polite" hidden></p>
             </div>
-            <p class="worth-it-profile-avatar-guidance">JPG, PNG or WebP · max 8 MB. Uploads are sent to Google Gemini for an automated safety check before display. Nudity, hate and extremist symbols are blocked. Fictional characters and fan art are allowed when otherwise safe; copyright rules still apply.</p>
-            <p id="worthItProfileAvatarLimit" class="worth-it-profile-avatar-limit" role="status" aria-live="polite" hidden></p>
+            <div id="worthItProfileBannerControls" class="worth-it-profile-avatar-controls worth-it-profile-banner-controls" hidden>
+              <div class="worth-it-profile-avatar-actions">
+                <button type="button" class="worth-it-profile-avatar-action" id="worthItProfileBannerChange" onclick="triggerWorthItBannerUpload()">Change banner</button>
+                <button type="button" class="worth-it-profile-avatar-action worth-it-profile-avatar-remove" id="worthItProfileBannerRemove" onclick="removeWorthItProfileBanner()" hidden>Remove banner</button>
+                <input type="file" id="worthItProfileBannerInput" accept="image/jpeg,image/png,image/webp,image/gif" hidden>
+              </div>
+              <p class="worth-it-profile-avatar-guidance">Profile banner · JPG, PNG, WebP or animated GIF · max 8 MB. Banners receive the same automatic safety checks as profile pictures. Banners and profile pictures have separate 24-hour change limits.</p>
+              <p id="worthItProfileBannerLimit" class="worth-it-profile-avatar-limit" role="status" aria-live="polite" hidden></p>
+            </div>
           </div>
         </div>
       </div>
@@ -4420,7 +4432,7 @@ if($("carResults")){
 }
 
 </script>
-<script src="/profile-ui.js?v=profileavatars20261014d"></script>
+<script src="/profile-ui.js?v=profilecovergifs20261014a"></script>
 <script src="/routing.js?v=shareablepaths20261014a"></script>
 
 </body>
