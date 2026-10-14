@@ -82,23 +82,23 @@ begin
     end if;
 
     masked_body:=clean_body;
-    if masked_body ~ '(ε⥰|\\\\(‿ˠ‿\\\\)|Ɑ͞|لں͞|⎛₎╰\\\\(☫\\\\)╯₍⎞)' then
-        masked_body:=regexp_replace(masked_body,'(ε⥰|\\\\(‿ˠ‿\\\\)|Ɑ͞|لں͞|⎛₎╰\\\\(☫\\\\)╯₍⎞)','***','gi');
+    if masked_body ~ '(ε⥰|\\(‿ˠ‿\\)|Ɑ͞|لں͞|⎛₎╰\\(☫\\)╯₍⎞)' then
+        masked_body:=regexp_replace(masked_body,'(ε⥰|\\(‿ˠ‿\\)|Ɑ͞|لں͞|⎛₎╰\\(☫\\)╯₍⎞)','***','gi');
         filter_reason:= 'Glitch-style or potentially harmful symbols were filtered.';
     end if;
     if masked_body ~ '[卐卍☫]' then
         masked_body:=regexp_replace(masked_body,'[卐卍☫]','*','g');
         filter_reason:= 'Hate symbols or potentially harmful imagery were filtered.';
     end if;
-    if masked_body ~ U&'[\\0300-\\036F\\0483-\\0489\\0591-\\05BD\\0610-\\061A\\064B-\\065F\\1AB0-\\1AFF\\1DC0-\\1DFF\\20D0-\\20FF\\FE20-\\FE2F]' then
-        masked_body:=regexp_replace(masked_body,U&'[\\0300-\\036F\\0483-\\0489\\0591-\\061A\\064B-\\065F\\1AB0-\\1AFF\\1DC0-\\1DFF\\20D0-\\20FF\\FE20-\\FE2F]','*','g');
+    if masked_body ~ U&'[\0300-\036F\0483-\0489\0591-\05BD\0610-\061A\064B-\065F\1AB0-\1AFF\1DC0-\1DFF\20D0-\20FF\FE20-\FE2F]' then
+        masked_body:=regexp_replace(masked_body,U&'[\0300-\036F\0483-\0489\0591-\061A\064B-\065F\1AB0-\1AFF\1DC0-\1DFF\20D0-\20FF\FE20-\FE2F]','*','g');
         filter_reason:=coalesce(filter_reason||' ', '') || 'Glitch/combining Unicode characters were filtered.';
     end if;
     for term_row in select term,reason from public.worth_it_chat_filter_terms where enabled order by char_length(term) desc loop
         if masked_body ~* ('(^|[^[:alnum:]_])'||term_row.term||'([^[:alnum:]_]|$)') then
             masked_body:=regexp_replace(masked_body,
                 '(^|[^[:alnum:]_])('||term_row.term||')([^[:alnum:]_]|$)',
-                E'\\\\1'||repeat('*',greatest(3,char_length(term_row.term)))||E'\\\\3','gi');
+                E'\\1'||repeat('*',greatest(3,char_length(term_row.term)))||E'\\3','gi');
             filter_reason:=coalesce(filter_reason||' ', '')||term_row.reason||' was filtered.';
         end if;
     end loop;
