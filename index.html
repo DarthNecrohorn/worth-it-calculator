@@ -54,7 +54,7 @@ html[data-theme="light"].worth-it-initial-paint::before {
 })();
 </script>
 
-<link rel="stylesheet" href="style.css?v=chatnotificationmute20261014b">
+<link rel="stylesheet" href="style.css?v=chatnotificationposition20261014">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 </head>
 
@@ -230,7 +230,7 @@ html[data-theme="light"].worth-it-initial-paint::before {
                         <div><span class="worth-it-chat-brand-mark">✦</span><div><strong>Worth It Chat</strong><small>Stay connected</small></div></div>
                         <button type="button" class="worth-it-chat-icon-btn worth-it-chat-mobile-close" onclick="toggleWorthItChat(event)" aria-label="Close chat">✕</button>
                     </div>
-                    <div class="worth-it-chat-list-row worth-it-chat-global-row"><button type="button" class="worth-it-chat-side-item is-active" id="worthItGlobalChatBtn" onclick="openWorthItGlobalChat()"><span>🌐</span><span><strong>Global Chat</strong><small>Talk with the community</small></span><i>↗</i><span class="worth-it-chat-person-count worth-it-chat-global-count" id="worthItGlobalChatUnreadCount" hidden aria-label="Unread messages in Global Chat">0</span></button><button type="button" class="worth-it-chat-notification-btn is-enabled" id="worthItGlobalChatNotifications" title="Turn off notifications" aria-label="Turn off notifications" aria-pressed="false"><span class="worth-it-chat-notification-icon" aria-hidden="true">🔔</span><span class="worth-it-chat-notification-label">Turn off notifications</span></button></div>
+                    <div class="worth-it-chat-list-row worth-it-chat-global-row"><button type="button" class="worth-it-chat-side-item is-active" id="worthItGlobalChatBtn" onclick="openWorthItGlobalChat()"><span>🌐</span><span><strong>Global Chat</strong><small>Talk with the community</small></span><i>↗</i><span class="worth-it-chat-person-count worth-it-chat-global-count" id="worthItGlobalChatUnreadCount" hidden aria-label="Unread messages in Global Chat">0</span></button></div>
                     <div class="worth-it-chat-side-heading"><span>YOUR FRIENDS</span><button type="button" class="worth-it-chat-text-btn" onclick="refreshWorthItChatData()">Refresh</button></div>
                     <div class="worth-it-chat-friends" id="worthItChatFriends"><p class="worth-it-chat-muted">Loading friends…</p></div>
                     <div class="worth-it-chat-side-heading"><span>GROUPS & CHATS</span><button type="button" class="worth-it-chat-text-btn" onclick="openWorthItGroupChatDialog()">＋ New group</button></div>
@@ -245,6 +245,7 @@ html[data-theme="light"].worth-it-initial-paint::before {
                             <div><h2 id="worthItChatTitle">Global Chat</h2><p id="worthItChatSubtitle">A shared space for the Worth It community</p></div>
                         </div>
                         <div class="worth-it-chat-header-actions">
+                            <button type="button" class="worth-it-chat-notification-btn is-enabled worth-it-chat-header-notifications" id="worthItChatHeaderNotifications" title="Turn off notifications" aria-label="Turn off notifications" aria-pressed="false"><span class="worth-it-chat-notification-icon" aria-hidden="true">🔔</span><span class="worth-it-chat-notification-label">Turn off notifications</span></button>
                             <button type="button" class="worth-it-chat-icon-btn" id="worthItChatFullscreenBtn" onclick="toggleWorthItChatFullscreen()" title="Open full screen" aria-label="Open full screen">⛶</button>
                             <button type="button" class="worth-it-chat-icon-btn" onclick="toggleWorthItChat(event)" title="Close chat" aria-label="Close chat">✕</button>
                         </div>
@@ -4636,7 +4637,7 @@ if($("carResults")){
 
 </script>
 <script src="/profile-ui.js?v=friendlimit20261014a"></script>
-<script src="/chat-ui.js?v=chatnotificationmute20261014c"></script>
+<script src="/chat-ui.js?v=chatnotificationposition20261014"></script>
 <script src="/routing.js?v=themebootlightprofile20261014a"></script>
 
 </body>
