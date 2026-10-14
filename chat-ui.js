@@ -44,7 +44,7 @@ function isChatRoutePath(path) {
 function parseWorthItChatRoute() {
     const path = window.location.pathname.replace(/\/+$/, "") || "/";
     if (path === "/chat" || path === "/chat/global") return {type:"global"};
-    let match = path.match(/^\/chat\/direct\/([1-9][0-9]{0,17})$/);
+    let match = path.match(/^\/chat\/direct\/([1-9][0-9]{0,18})$/);
     if (match) return {type:"direct", worthItId:Number(match[1])};
     match = path.match(/^\/chat\/group\/([0-9a-fA-F]{64})$/);
     if (match) return {type:"group", token:match[1].toLowerCase()};
@@ -188,6 +188,9 @@ function niceDay(value) {
 }
 function rpcError(error) {
     const message = String(error?.message || error?.details || "");
+    if (/get_worth_it_group_invite_preview|accept_worth_it_group_invite/i.test(message) && /does not exist|schema cache|could not find/i.test(message)) {
+        return "Group invitation links are not set up yet. Run supabase/worth-it-chat-invitation-links.sql in Supabase, then refresh.";
+    }
     if (/get_worth_it_chat_notification_preferences|set_worth_it_chat_notifications/i.test(message) && /does not exist|schema cache|could not find/i.test(message)) {
         return "Chat notification settings are not set up yet. Run supabase/worth-it-chat-notifications-and-member-limit.sql in Supabase, then refresh.";
     }
