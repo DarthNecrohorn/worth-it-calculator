@@ -117,6 +117,12 @@ function formatProfileDescriptionRemaining(ms){
  const total=Math.max(0,Math.ceil(Number(ms||0)/1000)),minutes=Math.floor(total/60),seconds=total%60;
  return minutes+"m "+String(seconds).padStart(2,"0")+"s";
 }
+function profileDescriptionDeadlineFromResponse(data,requestStartedAt){
+ const remaining=Number(data?.remaining_ms);
+ if(Number.isFinite(remaining)&&remaining>=0)return Date.now()+Math.max(0,remaining-Math.max(0,Date.now()-requestStartedAt));
+ const timestamp=Date.parse(data?.next_save_at||"");
+ return Number.isFinite(timestamp)?timestamp:0;
+}
 function updateProfileDescriptionSaveButton(){
  const input=$("worthItProfileDescriptionInput"),button=$("worthItProfileDescriptionSave");if(!input||!button)return;
  const changed=String(input.value||"").trim()!==profileDescriptionSavedValue,remaining=Math.max(0,profileDescriptionNextSaveAt-Date.now());
@@ -146,6 +152,7 @@ async function loadProfileDescriptionStatus(profileId,fallbackDescription){
   const sb=client();if(!sb?.auth)throw new Error("Please sign in again to edit your profile description.");
   const sessionResult=await sb.auth.getSession(),token=sessionResult?.data?.session?.access_token||"";
   if(!token)throw new Error("Your login session has expired. Please sign in again.");
+  const requestStartedAt=Date.now();
   const response=await fetch("/api/profile-description",{method:"GET",headers:{"Authorization":"Bearer "+token,"Accept":"application/json"}});
   let data=null;try{data=await response.json();}catch(_){}
   if(requestId!==profileDescriptionStatusRequest||currentDisplayedProfileId!==Number(profileId)||!currentDisplayedProfileIsOwn)return;
@@ -158,7 +165,7 @@ async function loadProfileDescriptionStatus(profileId,fallbackDescription){
   profileDescriptionSavedValue=saved;const input=$("worthItProfileDescriptionInput");if(input)input.value=saved;
   const display=$("worthItProfileDescriptionText");if(display)display.textContent=saved;
   const empty=$("worthItProfileDescriptionEmpty");if(empty)empty.hidden=true;
-  const next=Date.parse(data.next_save_at||"");profileDescriptionNextSaveAt=Number.isFinite(next)&&next>Date.now()?next:0;
+  profileDescriptionNextSaveAt=profileDescriptionDeadlineFromResponse(data,requestStartedAt);if(profileDescriptionNextSaveAt<=Date.now())profileDescriptionNextSaveAt=0;
   profileDescriptionStatusReady=true;updateProfileDescriptionSaveButton();
   if(profileDescriptionNextSaveAt>Date.now())startProfileDescriptionCooldownTimer();
   else setProfileDescriptionStatus("Write what you'd like others to know about you. You can save a new description once every 10 minutes.",false);
@@ -189,11 +196,12 @@ window.saveWorthItProfileDescription=async function(){
  try{
   const sessionResult=await sb.auth.getSession(),token=sessionResult?.data?.session?.access_token||"";
   if(!token)throw new Error("Your login session has expired. Please sign in again.");
+  const requestStartedAt=Date.now();
   const response=await fetch("/api/profile-description",{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+token,"Accept":"application/json"},body:JSON.stringify({description:description})});
   let data=null;try{data=await response.json();}catch(_){}
   if(!response.ok||!data?.success){
    if(data?.code==="PROFILE_DESCRIPTION_COOLDOWN"){
-    const retryAt=Date.parse(data.next_save_at||"");profileDescriptionNextSaveAt=Number.isFinite(retryAt)&&retryAt>Date.now()?retryAt:Date.now()+Math.max(0,Number(data.remaining_ms)||600000);
+    profileDescriptionNextSaveAt=profileDescriptionDeadlineFromResponse(data,requestStartedAt);if(profileDescriptionNextSaveAt<=Date.now())profileDescriptionNextSaveAt=Date.now()+Math.max(0,Number(data.remaining_ms)||0);
     profileDescriptionStatusReady=true;startProfileDescriptionCooldownTimer();
    }else{
     if(data?.code==="PROFILE_DESCRIPTION_SETUP_REQUIRED")profileDescriptionStatusReady=false;
@@ -203,7 +211,7 @@ window.saveWorthItProfileDescription=async function(){
   }
   profileDescriptionSavedValue=String(data.description==null?description:data.description).trim();input.value=profileDescriptionSavedValue;
   const display=$("worthItProfileDescriptionText");if(display)display.textContent=profileDescriptionSavedValue;
-  const next=Date.parse(data.next_save_at||"");profileDescriptionNextSaveAt=Number.isFinite(next)&&next>Date.now()?next:0;
+  profileDescriptionNextSaveAt=profileDescriptionDeadlineFromResponse(data,requestStartedAt);if(profileDescriptionNextSaveAt<=Date.now())profileDescriptionNextSaveAt=0;
   profileDescriptionStatusReady=true;updateProfileDescriptionSaveButton();
   if(profileDescriptionNextSaveAt>Date.now())startProfileDescriptionCooldownTimer();else setProfileDescriptionStatus("Description saved.",false);
  }catch(error){setProfileDescriptionStatus(error?.message||"Could not save your description. Please try again.",true);}
