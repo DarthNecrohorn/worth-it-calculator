@@ -18918,3 +18918,9 @@ body.worth-it-chat-open{overflow:hidden}
   border-radius: 0 !important;
   flex: none !important;
 }
+
+
+/* Position the New Group dialog lower as requested. */
+.worth-it-chat-group-card {
+  transform: translateY(200px);
+}
