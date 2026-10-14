@@ -20,7 +20,7 @@
 })();
 </script>
 
-<link rel="stylesheet" href="style.css?v=publicprofilelabel20261014a">
+<link rel="stylesheet" href="style.css?v=profilesocial20261014a">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 </head>
 
@@ -2075,7 +2075,7 @@
       <button type="button" class="btn btn-secondary" onclick="showHome()">← Back</button>
       <span class="worth-it-profile-eyebrow">WORTH IT COMMUNITY</span>
     </div>
-    <article class="worth-it-profile-card">
+    <article id="worthItProfileCard" class="worth-it-profile-card">
       <div id="worthItProfileCover" class="worth-it-profile-cover">
         <img id="worthItProfileBannerImage" class="worth-it-profile-banner-image" alt="" aria-hidden="true" hidden>
         <div class="worth-it-profile-header">
@@ -2106,13 +2106,42 @@
               <p id="worthItProfileBannerLimit" class="worth-it-profile-avatar-limit" role="status" aria-live="polite" hidden></p>
             </div>
           </div>
+          <div class="worth-it-profile-social-column">
+            <div class="worth-it-profile-stats" aria-label="Profile statistics">
+              <button type="button" class="worth-it-profile-stat" onclick="openWorthItProfileConnectionsForCurrent('friends')" aria-label="View friends">
+                <strong id="worthItProfileFriends">—</strong><span>Friends</span>
+              </button>
+              <button type="button" class="worth-it-profile-stat" onclick="openWorthItProfileConnectionsForCurrent('followers')" aria-label="View followers">
+                <strong id="worthItProfileFollowers">—</strong><span>Followers</span>
+              </button>
+              <button type="button" class="worth-it-profile-stat" onclick="openWorthItProfileConnectionsForCurrent('following')" aria-label="View following">
+                <strong id="worthItProfileFollowing">—</strong><span>Following</span>
+              </button>
+            </div>
+            <div id="worthItProfileSocialActions" class="worth-it-profile-social-actions" hidden>
+              <button type="button" id="worthItProfileFriendAction" class="worth-it-profile-social-button primary" onclick="performWorthItSocialAction('friend')">Add friend</button>
+              <button type="button" id="worthItProfileFollowAction" class="worth-it-profile-social-button secondary" onclick="performWorthItSocialAction('follow')">Follow</button>
+              <button type="button" id="worthItProfileFriendSecondary" class="worth-it-profile-social-button quiet" onclick="performWorthItSocialAction('secondary')" hidden>Cancel request</button>
+              <p id="worthItProfileSocialHint" class="worth-it-profile-social-hint" hidden></p>
+            </div>
+          </div>
         </div>
       </div>
-      <div class="worth-it-profile-stats" aria-label="Profile statistics">
-        <div class="worth-it-profile-stat"><strong id="worthItProfileFriends">—</strong><span>Friends</span></div>
-        <div class="worth-it-profile-stat"><strong id="worthItProfileFollowers">—</strong><span>Followers</span></div>
-        <div class="worth-it-profile-stat"><strong id="worthItProfileFollowing">—</strong><span>Following</span></div>
-      </div>
+      <section id="worthItProfileFriendsPreview" class="worth-it-profile-friends-preview" aria-label="Friends preview">
+        <div class="worth-it-profile-friends-title">
+          <strong>Friends:</strong>
+          <span id="worthItProfileFriendsMood" aria-label="Friend count mood">😭</span>
+          <span id="worthItProfileFriendsPreviewCount" class="worth-it-profile-friends-count">(0)</span>
+          <button type="button" class="worth-it-profile-view-all" onclick="openWorthItProfileConnectionsForCurrent('friends')">View all →</button>
+        </div>
+        <div id="worthItProfileFriendsStrip" class="worth-it-profile-friends-strip" aria-label="Friends" role="list">
+          <span class="worth-it-profile-friends-empty">Loading friends…</span>
+        </div>
+      </section>
+      <section id="worthItProfilePendingRequests" class="worth-it-profile-pending-requests" aria-label="Incoming friend requests" hidden>
+        <h2>Friend requests</h2>
+        <div id="worthItProfilePendingRequestsList" class="worth-it-profile-pending-list"></div>
+      </section>
       <div id="worthItProfileStatus" class="worth-it-profile-status" role="status" aria-live="polite" hidden></div>
       <div class="worth-it-profile-share">
         <div class="worth-it-profile-share-copy">
@@ -2123,6 +2152,22 @@
       </div>
       <p id="worthItProfileMemberSince" class="worth-it-profile-member-since"></p>
     </article>
+    <section id="worthItProfileConnectionsPage" class="worth-it-profile-connections-page" aria-label="Profile connections" hidden>
+      <div class="worth-it-profile-connections-head">
+        <button type="button" class="btn btn-secondary" onclick="openWorthItProfileConnectionsBack()">← Back to profile</button>
+        <div>
+          <h1 id="worthItProfileConnectionsTitle">Friends</h1>
+          <p id="worthItProfileConnectionsSubtitle"></p>
+        </div>
+      </div>
+      <nav class="worth-it-profile-connection-tabs" aria-label="Connection types">
+        <button type="button" data-connection-tab="friends" onclick="openWorthItProfileConnectionsForCurrent('friends')">Friends</button>
+        <button type="button" data-connection-tab="followers" onclick="openWorthItProfileConnectionsForCurrent('followers')">Followers</button>
+        <button type="button" data-connection-tab="following" onclick="openWorthItProfileConnectionsForCurrent('following')">Following</button>
+      </nav>
+      <div id="worthItProfileConnectionsStatus" class="worth-it-profile-connections-status" role="status" aria-live="polite">Loading…</div>
+      <div id="worthItProfileConnectionsList" class="worth-it-profile-connections-list"></div>
+    </section>
   </div>
 </section>
 
@@ -4452,7 +4497,7 @@ if($("carResults")){
 }
 
 </script>
-<script src="/profile-ui.js?v=publicprofilelabel20261014a"></script>
+<script src="/profile-ui.js?v=profilesocial20261014a"></script>
 <script src="/routing.js?v=shareablepaths20261014a"></script>
 
 </body>
