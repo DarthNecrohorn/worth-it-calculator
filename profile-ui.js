@@ -23,7 +23,15 @@ window.hideWorthItProfileSection=function(){const n=$("profileSection");if(n)n.s
 function fallbackAvatar(name){const n=document.createElement("div");n.className="worth-it-profile-avatar-fallback";n.textContent=String(name||"W").trim().charAt(0).toUpperCase()||"W";return n;}
 function safeAvatarUrl(url){return typeof url==="string"&&/^https?:\/\//i.test(url)?url:"";}
 function renderAvatar(url,name){const host=$("worthItProfileAvatar");if(!host)return;host.replaceChildren();const safe=safeAvatarUrl(url);if(!safe){host.appendChild(fallbackAvatar(name));return;}const img=document.createElement("img");img.className="worth-it-profile-avatar";img.alt="";img.referrerPolicy="no-referrer";img.src=safe;img.addEventListener("error",()=>host.replaceChildren(fallbackAvatar(name)),{once:true});host.appendChild(img);}
-function renderBanner(url){const cover=$("worthItProfileCover"),image=$("worthItProfileBannerImage");if(!cover||!image)return;const safe=safeAvatarUrl(url);if(!safe){image.removeAttribute("src");image.hidden=true;cover.classList.remove("has-banner");return;}image.onerror=()=>{image.hidden=true;cover.classList.remove("has-banner");image.removeAttribute("src");};image.src=safe;image.hidden=false;cover.classList.add("has-banner");}
+function renderBanner(url){
+ const cover=$("worthItProfileCover"),image=$("worthItProfileBannerImage"),card=cover?.closest(".worth-it-profile-card");
+ if(!cover||!image||!card)return;
+ if(image.parentElement!==card)card.prepend(image);
+ const safe=safeAvatarUrl(url);
+ if(!safe){image.removeAttribute("src");image.hidden=true;cover.classList.remove("has-banner");card.classList.remove("has-banner");return;}
+ image.onerror=()=>{image.hidden=true;cover.classList.remove("has-banner");card.classList.remove("has-banner");image.removeAttribute("src");};
+ image.src=safe;image.hidden=false;cover.classList.add("has-banner");card.classList.add("has-banner");
+}
 function renderSmallAvatar(host,url,name,imageClass,fallbackClass){if(!host)return;host.replaceChildren();const safe=safeAvatarUrl(url);if(!safe){const fallback=document.createElement("div");fallback.className=fallbackClass;fallback.textContent=String(name||"W").trim().charAt(0).toUpperCase()||"W";host.appendChild(fallback);return;}const img=document.createElement("img");img.className=imageClass;img.alt="";img.referrerPolicy="no-referrer";img.src=safe;img.addEventListener("error",()=>{host.replaceChildren();const fallback=document.createElement("div");fallback.className=fallbackClass;fallback.textContent=String(name||"W").trim().charAt(0).toUpperCase()||"W";host.appendChild(fallback);},{once:true});host.appendChild(img);}
 function syncHeaderAvatar(profile){const name=profile?.display_name||profile?.username||currentUser?.user_metadata?.full_name||currentUser?.email?.split("@")[0]||"Worth It";renderSmallAvatar($("profileNavIcon"),profile?.avatar_url,name,"auth-avatar","auth-avatar-fallback");renderSmallAvatar($("accountHeadAvatar"),profile?.avatar_url,name,"account-head-avatar","account-head-fallback");}
 function normalizeStats(data){let d=Array.isArray(data)?data[0]:data;d=d&&typeof d==="object"?d:{};return{friends:Number(d.friends)||0,followers:Number(d.followers)||0,following:Number(d.following)||0};}
