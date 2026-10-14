@@ -19567,5 +19567,5 @@ html[data-theme="light"] .worth-it-user-search-result-info small{color:#64748b}
 
 /* Reposition the three profile statistic buttons only for signed-in visitors viewing someone else's profile. */
 @media(min-width:1051px){
- #profileSection.signed-in-other-profile-view .worth-it-profile-social-column .worth-it-profile-stats{transform:translate(-30px,50px)}
+ #profileSection.signed-in-other-profile-view .worth-it-profile-social-column .worth-it-profile-stats{transform:translate(-30px,0px)}
 }
