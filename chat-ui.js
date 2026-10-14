@@ -442,6 +442,10 @@ async function sendWorthItChatMessage() {
             if (result.data?.code === "CHAT_COOLDOWN") {
                 const wait = Math.max(0.1, Number(result.data.retry_after_ms || 2000) / 1000);
                 setStatus("Please wait " + wait.toFixed(1) + " seconds before sending another message.", true);
+            } else if (result.data?.code === "SPAM_DUPLICATE") {
+                setStatus("Message blocked — please don't repeat the same message in Global Chat.", true);
+            } else if (result.data?.code === "SPAM_PROMOTION") {
+                setStatus("Message blocked — unsolicited self-promotion isn't allowed in Global Chat.", true);
             } else if (result.data?.code === "MESSAGE_TOO_LONG") setStatus("Messages are limited to 500 characters.", true);
             else if (result.data?.code === "FRIENDS_ONLY") setStatus("Private chats are only available between friends.", true);
             else setStatus(result.data?.code || "Message could not be sent.", true);
