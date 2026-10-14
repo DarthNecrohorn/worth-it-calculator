@@ -85,8 +85,9 @@ function renderProfile(p,s,isOwn){
  const removeBanner=$("worthItProfileBannerRemove");if(removeBanner)removeBanner.hidden=!isOwn||!safeAvatarUrl(p.banner_url);
  setAssetControlsBusy(false);setStatus("",false);
 }
+function hideProfileAssetControls(){const avatarControls=$("worthItProfileAvatarControls"),bannerControls=$("worthItProfileBannerControls");if(avatarControls)avatarControls.hidden=true;if(bannerControls)bannerControls.hidden=true;}
 function renderError(message){
- currentDisplayedProfileId=0;currentDisplayedProfileIsOwn=false;const avatarControls=$("worthItProfileAvatarControls");if(avatarControls)avatarControls.hidden=true;
+ currentDisplayedProfileId=0;currentDisplayedProfileIsOwn=false;hideProfileAssetControls();
  renderAvatar("","W");setText("worthItProfileName","Profile unavailable");setText("worthItProfileUsername","");setText("worthItProfileId","—");
  ["worthItProfileFriends","worthItProfileFollowers","worthItProfileFollowing"].forEach(id=>setText(id,"—"));
  const email=$("worthItProfileEmail");if(email){email.textContent="";email.hidden=true;}
@@ -94,7 +95,7 @@ function renderError(message){
 }
 window.openWorthItProfile=async function(idValue,options){
  const id=Number(idValue);if(!Number.isSafeInteger(id)||id<1){showProfileSection();renderError("This profile link is invalid.");return;}
- showProfileSection();currentDisplayedProfileId=id;currentDisplayedProfileIsOwn=false;const avatarControls=$("worthItProfileAvatarControls");if(avatarControls)avatarControls.hidden=true;setStatus("Loading profile…",false);setText("worthItProfileName","Loading profile…");setText("worthItProfileId","#"+id);["worthItProfileFriends","worthItProfileFollowers","worthItProfileFollowing"].forEach(x=>setText(x,"…"));
+ showProfileSection();currentDisplayedProfileId=id;currentDisplayedProfileIsOwn=false;hideProfileAssetControls();setStatus("Loading profile…",false);setText("worthItProfileName","Loading profile…");setText("worthItProfileId","#"+id);["worthItProfileFriends","worthItProfileFollowers","worthItProfileFollowing"].forEach(x=>setText(x,"…"));
  const requestId=++activeProfileRequest;
  try{
   const sb=client();if(!sb)throw new Error("Supabase not ready");
@@ -243,7 +244,15 @@ window.copyWorthItProfileLink=async function(){
  try{if(navigator.clipboard?.writeText)await navigator.clipboard.writeText(link);else{const t=document.createElement("textarea");t.value=link;t.style.position="fixed";t.style.opacity="0";document.body.appendChild(t);t.select();const copied=document.execCommand("copy");t.remove();if(!copied)throw new Error("copy failed");}if(typeof window.showToast==="function")window.showToast("Profile link copied!");}
  catch(_){if(typeof window.showToast==="function")window.showToast("Could not copy the link. Select and copy it manually.");}
 };
-if(client()?.auth){client().auth.onAuthStateChange((_event,session)=>{currentUser=session?.user||null;currentOwnProfile=null;currentOwnProfileRequest=null;if(!currentUser)setPanelUnavailable();});client().auth.getSession().then(({data})=>{currentUser=data?.session?.user||null;if(currentUser)refreshAccountPanelCounts(false);}).catch(()=>{});}
+if(client()?.auth){client().auth.onAuthStateChange((_event,session)=>{
+ const nextUser=session?.user||null,previousUserId=currentUser?.id||"";
+ currentUser=nextUser;currentOwnProfile=null;currentOwnProfileRequest=null;
+ if(previousUserId!==(currentUser?.id||"")){
+  currentDisplayedProfileIsOwn=false;hideProfileAssetControls();
+  const email=$("worthItProfileEmail");if(email){email.textContent="";email.hidden=true;}
+ }
+ if(!currentUser)setPanelUnavailable();
+});client().auth.getSession().then(({data})=>{currentUser=data?.session?.user||null;if(currentUser)refreshAccountPanelCounts(false);}).catch(()=>{});}
 if($("worthItProfileAvatarInput"))$("worthItProfileAvatarInput").addEventListener("change",event=>handleAssetInputChange(event,"avatar"));
 if($("worthItProfileBannerInput"))$("worthItProfileBannerInput").addEventListener("change",event=>handleAssetInputChange(event,"banner"));
 })();
