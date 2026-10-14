@@ -288,10 +288,10 @@ function makeChatNotificationButton(chatKey) {
 }
 async function toggleWorthItChatNotifications(chatKey, button) {
     if (!chatUser || !chatKey || button?.disabled) return;
-    const nextEnabled = !chatNotificationsEnabled(chatKey);
-    if (button) button.disabled = true;
     const client = sb();
     if (!client) return;
+    const nextEnabled = !chatNotificationsEnabled(chatKey);
+    if (button) button.disabled = true;
     try {
         const result = await client.rpc("set_worth_it_chat_notifications", {
             p_chat_key: chatKey,
