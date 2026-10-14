@@ -18928,5 +18928,5 @@ body.worth-it-chat-open{overflow:hidden}
 .worth-it-chat-group-card {
   position: relative;
   z-index: 1;
-  transform: translateY(400px);
+  transform: translateY(0);
 }
