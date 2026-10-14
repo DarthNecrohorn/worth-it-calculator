@@ -105,8 +105,27 @@ function renderProfile(p,s,isOwn){
 }
 
 let displayNameInitialValue="",displayNameCanChange=false,displayNameSaving=false,displayNameRequestId=0;
-const DISPLAY_NAME_MAX_LENGTH=32;
-function displayNameIsValid(value){const name=String(value||"").trim();return [...name].length>0&&[...name].length<=DISPLAY_NAME_MAX_LENGTH&&!/[\x00-\x1F\x7F]/.test(name);}
+const DISPLAY_NAME_MIN_LENGTH=3,DISPLAY_NAME_MAX_LENGTH=20;
+const DISPLAY_NAME_PATTERN=/^[A-Za-z0-9]+(?:_[A-Za-z0-9]+)?$/;
+const DISPLAY_NAME_BANNED_STEMS=[
+ "fuck","shit","bitch","cunt","dick","cock","pussy","whore","slut",
+ "bastard","asshole","arsehole","motherfucker","bullshit","dumbass",
+ "jackass","nigger","nigga","faggot","retard","retarded","pedo",
+ "pedophile","porn","xxx","blowjob","handjob","jizz","rape","rapist",
+ "nazi","hitler","kkk"
+];
+const RESERVED_DISPLAY_NAME_PREFIXES=["admin","administrator","moderator","mod","staff","support","official","security","owner","root","worthit"];
+function normalizeDisplayNameForModeration(value){return String(value||"").toLowerCase().replace(/_/g,"").replace(/[01345789]/g,character=>({"0":"o","1":"i","3":"e","4":"a","5":"s","7":"t","8":"b","9":"g"}[character]||character));}
+function validateDisplayName(value){
+ const name=String(value||"").trim(),length=Array.from(name).length;
+ if(length<DISPLAY_NAME_MIN_LENGTH||length>DISPLAY_NAME_MAX_LENGTH||!DISPLAY_NAME_PATTERN.test(name))return{valid:false,reason:"Use 3–20 letters or numbers, with at most one underscore between them. No spaces or other symbols."};
+ const normalized=normalizeDisplayNameForModeration(name);
+ if(DISPLAY_NAME_BANNED_STEMS.some(term=>normalized.includes(term)))return{valid:false,reason:"This display name contains language that isn't allowed on Worth It."};
+ if(RESERVED_DISPLAY_NAME_PREFIXES.some(prefix=>normalized===prefix||(normalized.startsWith(prefix)&&/^[0-9]+$/.test(normalized.slice(prefix.length)))))return{valid:false,reason:"This display name is reserved and cannot be used."};
+ if((name.match(/[0-9]/g)||[]).length>=7)return{valid:false,reason:"Display names cannot contain phone numbers or other long numeric identifiers."};
+ return{valid:true,reason:""};
+}
+function displayNameIsValid(value){return validateDisplayName(value).valid;}
 function setDisplayNameStatus(message,isError){
  const n=$("worthItDisplayNameStatus");if(!n)return;
  n.textContent=message||"";n.classList.toggle("is-error",Boolean(isError));
@@ -172,7 +191,7 @@ window.saveWorthItDisplayName=async function(){
  if(!currentDisplayedProfileIsOwn||!currentUser||!displayNameCanChange||displayNameSaving)return;
  const input=$("worthItDisplayNameInput"),save=$("worthItDisplayNameSave");
  const name=String(input?.value||"").trim();
- if(!displayNameIsValid(name)){setDisplayNameStatus("Enter a display name containing 1–32 characters.",true);return;}
+ const validation=validateDisplayName(name);if(!validation.valid){setDisplayNameStatus(validation.reason,true);return;}
  if(name===displayNameInitialValue){setDisplayNameStatus("Your display name hasn't changed.",false);return;}
  displayNameSaving=true;if(save)save.disabled=true;
  setDisplayNameStatus("Saving your display name…",false);
@@ -206,7 +225,14 @@ document.addEventListener("click",event=>{
 document.addEventListener("keydown",event=>{
  if(event.key==="Escape"&&!$("worthItDisplayNameOverlay")?.hidden)closeWorthItDisplayNameEditor();
 });
-if($("worthItDisplayNameInput"))$("worthItDisplayNameInput").addEventListener("input",refreshDisplayNameSaveButton);
+if($("worthItDisplayNameInput"))$("worthItDisplayNameInput").addEventListener("input",()=>{
+ refreshDisplayNameSaveButton();
+ if(!displayNameCanChange)return;
+ const next=String($("worthItDisplayNameInput").value||"").trim();
+ if(!next||next===displayNameInitialValue){setDisplayNameStatus("",false);return;}
+ const validation=validateDisplayName(next);
+ setDisplayNameStatus(validation.valid?"This display name meets the format rules.":validation.reason,!validation.valid);
+});
 
 function hideProfileAssetControls(){const avatarControls=$("worthItProfileAvatarControls"),bannerControls=$("worthItProfileBannerControls");if(avatarControls)avatarControls.hidden=true;if(bannerControls)bannerControls.hidden=true;}
 function renderError(message){
