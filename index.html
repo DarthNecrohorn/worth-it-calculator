@@ -61,7 +61,7 @@ html[data-theme="light"].worth-it-initial-paint::before {
 })();
 </script>
 
-<link rel="stylesheet" href="style.css?v=settings-page-20261014a">
+<link rel="stylesheet" href="style.css?v=account-settings-20261014a">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 </head>
 
@@ -2347,7 +2347,7 @@ html[data-theme="light"].worth-it-initial-paint::before {
           <h2>Account &amp; Profile</h2>
           <p>Username, display name, email address, verified phone number and profile details.</p>
         </div>
-        <span class="worth-it-settings-status">Planned</span>
+        <span class="worth-it-settings-status">Available</span>
       </article>
       <article class="worth-it-settings-card" id="settingsSecurity">
         <div class="worth-it-settings-card-icon" aria-hidden="true">🛡️</div>
@@ -2382,6 +2382,74 @@ html[data-theme="light"].worth-it-initial-paint::before {
         <span class="worth-it-settings-status">Planned</span>
       </article>
     </div>
+
+    <section class="worth-it-settings-panel" id="accountProfilePanel" aria-labelledby="settingsAccountTitle">
+      <div class="worth-it-settings-panel-heading">
+        <div class="worth-it-settings-card-icon" aria-hidden="true">👤</div>
+        <div>
+          <h2 id="settingsAccountTitle">Account &amp; Profile</h2>
+          <p>Manage the details connected to your Worth It account.</p>
+        </div>
+      </div>
+      <div id="accountSettingsLoading" class="account-settings-status" role="status" aria-live="polite">Loading your account settings…</div>
+      <div id="accountSettingsSignedOut" class="account-settings-status" hidden>
+        <strong>Sign in to manage your account</strong>
+        <p>Your account details and profile changes are available after signing in.</p>
+        <button type="button" class="settings-option" onclick="handleAuthButton()">Sign in to Worth It</button>
+      </div>
+      <div id="accountSettingsContent" hidden>
+        <div class="account-settings-field">
+          <div class="account-settings-label-row">
+            <label for="accountUsernameInput">Worth It username</label>
+            <span id="accountUsernameCurrent" class="account-settings-current-value">@—</span>
+          </div>
+          <p class="account-settings-help">Your unique @username is used to identify and find your account. You can change it once every 14 days. A verified email address is required.</p>
+          <div class="account-settings-input-row">
+            <input id="accountUsernameInput" type="text" minlength="3" maxlength="20" pattern="[A-Za-z0-9]+(_[A-Za-z0-9]+)?" autocomplete="username" spellcheck="false" autocapitalize="off" placeholder="New username" aria-describedby="accountUsernameStatus">
+            <button type="button" class="settings-option account-settings-save" id="accountUsernameSave" onclick="saveAccountUsername()" disabled>Save username</button>
+          </div>
+          <p id="accountUsernameStatus" class="account-settings-status" role="status" aria-live="polite"></p>
+        </div>
+        <div class="account-settings-field">
+          <div class="account-settings-label-row">
+            <label for="accountDisplayNameInput">Display name</label>
+            <span id="accountDisplayNameCurrent" class="account-settings-current-value">—</span>
+          </div>
+          <p class="account-settings-help">The name shown on your Worth It profile. It is separate from your @username and can be changed once every 7 days.</p>
+          <div class="account-settings-input-row">
+            <input id="accountDisplayNameInput" type="text" minlength="3" maxlength="20" pattern="[A-Za-z0-9]+(_[A-Za-z0-9]+)?" autocomplete="nickname" spellcheck="false" autocapitalize="off" placeholder="Display name" aria-describedby="accountDisplayNameStatus">
+            <button type="button" class="settings-option account-settings-save" id="accountDisplayNameSave" onclick="saveAccountDisplayName()" disabled>Save name</button>
+          </div>
+          <p id="accountDisplayNameStatus" class="account-settings-status" role="status" aria-live="polite"></p>
+        </div>
+        <div class="account-settings-field">
+          <div class="account-settings-label-row">
+            <label for="accountNewEmailInput">Email address</label>
+            <span id="accountEmailVerified" class="account-settings-current-value">—</span>
+          </div>
+          <p id="accountCurrentEmail" class="account-settings-help">—</p>
+          <div class="account-settings-input-row">
+            <input id="accountNewEmailInput" type="email" maxlength="254" autocomplete="email" placeholder="New email address" aria-describedby="accountEmailStatus">
+            <button type="button" class="settings-option account-settings-save" id="accountEmailSave" onclick="changeAccountEmail()">Change email</button>
+          </div>
+          <p id="accountEmailStatus" class="account-settings-status" role="status" aria-live="polite">Supabase will send the required confirmation email. Your address does not change until the confirmation step is completed.</p>
+        </div>
+        <div class="account-settings-field">
+          <div class="account-settings-label-row">
+            <label>Phone number for recovery</label>
+            <span class="account-settings-current-value">Not enabled</span>
+          </div>
+          <p class="account-settings-help">Phone recovery will appear here after Worth It’s SMS provider and verification flow are configured. A phone number will not be used for recovery until it has been verified.</p>
+        </div>
+        <div class="account-settings-profile-link">
+          <div>
+            <strong>Profile picture, banner and description</strong>
+            <p>Manage your public profile and community details on your profile page.</p>
+          </div>
+          <button type="button" class="settings-option account-settings-save" onclick="openOwnWorthItProfileFromSettings()">Open profile →</button>
+        </div>
+      </div>
+    </section>
 
     <section class="worth-it-settings-panel" aria-labelledby="settingsAppearanceTitle">
       <div class="worth-it-settings-panel-heading">
@@ -2726,7 +2794,7 @@ try{
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.1"></script>
 
 
-<script src="app.js?v=settings-page-20261014a"></script>
+<script src="app.js?v=account-settings-20261014a"></script>
 <script src="ai-ui.js"></script>
 <script src="calculators.js"></script>
 <script src="cars-ui.js?v=carsperf20261012a"></script>
@@ -2735,7 +2803,7 @@ try{
 <script src="news-ui.js?v=newscache20261012a"></script>
 <script src="shop-affiliates.js?v=shopdetails20261010d"></script>
 <script src="shop.js?v=shopcache20261012a"></script>
-<script src="settings.js?v=settings-page-20261014a"></script>
+<script src="settings.js?v=account-settings-20261014a"></script>
 <script src="admin-panel.js?v=adminpanel16"></script>
 <script src="markets-ui.js?v=marketsperf20261012b"></script>
 <script src="crypto-ui.js?v=cryptoimage20261012a"></script>
@@ -4750,7 +4818,7 @@ if($("carResults")){
 <script src="/profile-ui.js?v=notifications-dismiss-24h-20261014b"></script>
 <script src="/chat-ui.js?v=communitytools20261014a"></script>
 <script src="/user-search.js?v=worthitusersearch20261014a"></script>
-<script src="/routing.js?v=settings-page-20261014a"></script>
+<script src="/routing.js?v=account-settings-20261014a"></script>
 
 </body>
 </html>
