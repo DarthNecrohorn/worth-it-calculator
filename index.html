@@ -268,10 +268,11 @@ html[data-theme="light"].worth-it-initial-paint::before {
             <form class="worth-it-chat-group-card" id="worthItChatGroupForm">
                 <button type="button" class="worth-it-chat-icon-btn worth-it-chat-group-close" onclick="closeWorthItGroupChatDialog()" aria-label="Close group dialog">✕</button>
                 <span class="worth-it-chat-modal-kicker">✦ WORTH IT COMMUNITY</span>
-                <h2>Create a group chat</h2><p>Give your group a name and choose at least two of your friends.</p>
+                <h2>Create a group chat</h2><p>Give your group a name, then invite at least two friends. Search by display name or username to find the right people.</p>
                 <label for="worthItChatGroupName">Group name</label><input id="worthItChatGroupName" maxlength="60" required placeholder="e.g. Weekend plans">
                 <label for="worthItChatGroupSearch">Find friends</label><input id="worthItChatGroupSearch" type="search" autocomplete="off" placeholder="Search username or display name" aria-label="Search friends by username or display name">
-                <div class="worth-it-chat-group-list-heading">Select at least 2 friends <span>Scroll to see more</span></div>
+                <div class="worth-it-chat-group-list-heading"><span class="worth-it-chat-group-list-title">Invite friends</span><span>Up to 49 friends</span></div>
+                <div class="worth-it-chat-group-selection-summary" aria-live="polite"><strong id="worthItChatGroupSelectionCount">0 friends selected</strong><span id="worthItChatGroupSelectionHelp">Choose 2 friends to continue.</span></div>
                 <div class="worth-it-chat-group-friend-list" id="worthItChatGroupFriends" aria-label="Friends to add to group"></div>
                 <p class="worth-it-chat-compose-status" id="worthItChatGroupStatus" role="status"></p>
                 <button type="submit" class="worth-it-chat-send-btn">Create group <span>➤</span></button>
@@ -4635,7 +4636,7 @@ if($("carResults")){
 
 </script>
 <script src="/profile-ui.js?v=friendlimit20261014a"></script>
-<script src="/chat-ui.js?v=globalchatspamfilter20261014"></script>
+<script src="/chat-ui.js?v=groupchatpolish20261014"></script>
 <script src="/routing.js?v=themebootlightprofile20261014a"></script>
 
 </body>
