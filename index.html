@@ -61,7 +61,7 @@ html[data-theme="light"].worth-it-initial-paint::before {
 })();
 </script>
 
-<link rel="stylesheet" href="style.css?v=account-settings-20261014a">
+<link rel="stylesheet" href="style.css?v=security-settings-20261014a">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 </head>
 
@@ -2451,6 +2451,86 @@ html[data-theme="light"].worth-it-initial-paint::before {
       </div>
     </section>
 
+    <section class="worth-it-settings-panel worth-it-security-panel" id="securitySettingsPanel" aria-labelledby="settingsSecurityTitle">
+      <div class="worth-it-settings-panel-heading">
+        <div class="worth-it-settings-card-icon" aria-hidden="true">🛡️</div>
+        <div>
+          <h2 id="settingsSecurityTitle">Security &amp; Login</h2>
+          <p>Protect your account, strengthen sign-in and manage other sessions.</p>
+        </div>
+      </div>
+      <div id="securitySettingsLoading" class="account-settings-status" role="status" aria-live="polite">Loading security settings…</div>
+      <div id="securitySettingsSignedOut" class="account-settings-status" hidden>
+        <strong>Sign in to manage security</strong>
+        <p>Security controls are available only while you are signed in.</p>
+        <button type="button" class="settings-option" onclick="handleAuthButton()">Sign in to Worth It</button>
+      </div>
+      <div id="securitySettingsContent" hidden>
+        <div class="account-settings-field">
+          <div class="account-settings-label-row">
+            <label>Password</label>
+            <span class="account-settings-current-value">Email recovery</span>
+          </div>
+          <p class="account-settings-help">Use Worth It's verified email flow to set a new password. A private reset link is sent to your account email; passwords are never displayed or stored by this page.</p>
+          <div class="account-settings-actions-row">
+            <button type="button" class="settings-option account-settings-save" onclick="openPasswordResetFromSettings()">Send password reset email</button>
+          </div>
+          <p id="securityPasswordStatus" class="account-settings-status" role="status" aria-live="polite"></p>
+        </div>
+
+        <div class="account-settings-field">
+          <div class="account-settings-label-row">
+            <label>Two-factor authentication</label>
+            <span id="securityMfaBadge" class="account-settings-current-value">Checking…</span>
+          </div>
+          <p class="account-settings-help">Add a time-based code from an authenticator app such as Google Authenticator, Microsoft Authenticator or 1Password. This is separate from SMS recovery.</p>
+          <p id="securityMfaStatus" class="account-settings-status" role="status" aria-live="polite">Checking authenticator status…</p>
+          <div id="securityMfaActions" class="account-settings-actions-row">
+            <button type="button" class="settings-option account-settings-save" id="securityMfaStart" onclick="startTotpEnrollment()" hidden>Set up authenticator</button>
+          </div>
+          <div id="securityMfaEnroll" class="security-mfa-enroll" hidden>
+            <h3>Connect your authenticator app</h3>
+            <p>Scan this QR code with your authenticator app. If scanning is unavailable, enter the setup key manually. Keep this key private.</p>
+            <img id="securityMfaQr" class="security-mfa-qr" alt="Authenticator setup QR code" hidden>
+            <div class="security-mfa-secret-wrap">
+              <label for="securityMfaSecret">Manual setup key</label>
+              <code id="securityMfaSecret"></code>
+              <button type="button" class="settings-option" onclick="copyTotpSecret()">Copy setup key</button>
+            </div>
+            <label for="securityMfaEnrollCode">6-digit authenticator code</label>
+            <input id="securityMfaEnrollCode" class="security-mfa-code" type="text" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" placeholder="000000">
+            <div class="account-settings-actions-row">
+              <button type="button" class="settings-option account-settings-save" id="securityMfaVerify" onclick="verifyTotpEnrollment()">Verify and enable</button>
+              <button type="button" class="settings-option" onclick="cancelTotpEnrollment()">Cancel setup</button>
+            </div>
+          </div>
+          <div id="securityMfaDisable" class="security-mfa-disable" hidden>
+            <label for="securityMfaDisableCode">Authenticator code to disable 2FA</label>
+            <input id="securityMfaDisableCode" class="security-mfa-code" type="text" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" placeholder="000000">
+            <div class="account-settings-actions-row">
+              <button type="button" class="settings-option security-danger-button" id="securityMfaDisableButton" onclick="disableTotpFactor()">Verify and disable 2FA</button>
+            </div>
+          </div>
+          <div id="securityMfaPending" class="security-mfa-disable" hidden>
+            <p>An unfinished authenticator setup is attached to this account.</p>
+            <button type="button" class="settings-option" onclick="removePendingTotpEnrollment()">Remove unfinished setup</button>
+          </div>
+        </div>
+
+        <div class="account-settings-field">
+          <div class="account-settings-label-row">
+            <label>Other signed-in devices</label>
+            <span class="account-settings-current-value">Session management</span>
+          </div>
+          <p class="account-settings-help">Sign out other sessions if you think you left your account open on another device. This keeps this browser signed in. Access tokens on other devices can remain valid until they expire.</p>
+          <div class="account-settings-actions-row">
+            <button type="button" class="settings-option security-danger-button" id="securitySignOutOthers" onclick="signOutOtherSessions()">Sign out other sessions</button>
+          </div>
+          <p id="securitySessionsStatus" class="account-settings-status" role="status" aria-live="polite"></p>
+        </div>
+      </div>
+    </section>
+
     <section class="worth-it-settings-panel" aria-labelledby="settingsAppearanceTitle">
       <div class="worth-it-settings-panel-heading">
         <div class="worth-it-settings-card-icon" aria-hidden="true">🎨</div>
@@ -2794,7 +2874,7 @@ try{
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.1"></script>
 
 
-<script src="app.js?v=account-settings-20261014a"></script>
+<script src="app.js?v=security-settings-20261014a"></script>
 <script src="ai-ui.js"></script>
 <script src="calculators.js"></script>
 <script src="cars-ui.js?v=carsperf20261012a"></script>
@@ -2803,7 +2883,7 @@ try{
 <script src="news-ui.js?v=newscache20261012a"></script>
 <script src="shop-affiliates.js?v=shopdetails20261010d"></script>
 <script src="shop.js?v=shopcache20261012a"></script>
-<script src="settings.js?v=account-settings-20261014b"></script>
+<script src="settings.js?v=security-settings-20261014a"></script>
 <script src="admin-panel.js?v=adminpanel16"></script>
 <script src="markets-ui.js?v=marketsperf20261012b"></script>
 <script src="crypto-ui.js?v=cryptoimage20261012a"></script>
@@ -4818,7 +4898,7 @@ if($("carResults")){
 <script src="/profile-ui.js?v=notifications-dismiss-24h-20261014b"></script>
 <script src="/chat-ui.js?v=communitytools20261014a"></script>
 <script src="/user-search.js?v=worthitusersearch20261014a"></script>
-<script src="/routing.js?v=account-settings-20261014a"></script>
+<script src="/routing.js?v=security-settings-20261014a"></script>
 
 </body>
 </html>
