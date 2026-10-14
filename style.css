@@ -19573,5 +19573,5 @@ html[data-theme="light"] .worth-it-user-search-result-info small{color:#64748b}
 
 /* Shift the signed-in other-profile friend/follow action buttons left by 20px on desktop. */
 @media(min-width:1051px){
- #profileSection.signed-in-other-profile-view .worth-it-profile-social-actions{transform:translate(-27px,0)}
+ #profileSection.signed-in-other-profile-view .worth-it-profile-social-actions{transform:translate(-28px,0)}
 }
