@@ -560,7 +560,9 @@ function openWorthItChatProfile(worthItId, event) {
     event?.preventDefault?.(); event?.stopPropagation?.();
     const id = Number(worthItId);
     if (!Number.isSafeInteger(id) || id < 1) return;
-    showChatOverlay(false);
+    // Keep the current chat URL in browser history. Opening a profile should
+    // add the profile route after this chat so browser Back returns here.
+    showChatOverlay(false, {skipRouteSync:true});
     if (typeof window.openWorthItProfile === "function") window.openWorthItProfile(id);
     else window.location.href = "/profile/" + id;
 }
@@ -1094,6 +1096,9 @@ async function routeWorthItChatFromLocation() {
         if (chatOpen) showChatOverlay(false, {skipRouteSync:true});
         return;
     }
+    // Browser Back from a profile restores the originating chat route. Hide the
+    // profile section before reopening the chat overlay so it cannot sit behind it.
+    if (typeof window.hideWorthItProfileSection === "function") window.hideWorthItProfileSection();
     if (!chatReturnPath || isChatRoutePath(chatReturnPath)) chatReturnPath = "/";
     showChatOverlay(true, {skipRouteSync:true});
     if (route.type === "invalid") {
