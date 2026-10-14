@@ -54,7 +54,7 @@ html[data-theme="light"].worth-it-initial-paint::before {
 })();
 </script>
 
-<link rel="stylesheet" href="style.css?v=profilelightsharelight20261014c">
+<link rel="stylesheet" href="style.css?v=profiledescription20261014a">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 </head>
 
@@ -2161,6 +2161,24 @@ html[data-theme="light"].worth-it-initial-paint::before {
           </div>
         </div>
       </div>
+
+      <section id="worthItProfileDescriptionSection" class="worth-it-profile-description" aria-label="Profile description">
+        <div class="worth-it-profile-description-heading"><h2>Profile description</h2></div>
+        <p id="worthItProfileDescriptionText" class="worth-it-profile-description-text" hidden></p>
+        <p id="worthItProfileDescriptionEmpty" class="worth-it-profile-description-empty" hidden>No description yet.</p>
+        <div id="worthItProfileDescriptionEditor" class="worth-it-profile-description-editor" hidden>
+          <label for="worthItProfileDescriptionInput">Write what you'd like others to know about you</label>
+          <textarea id="worthItProfileDescriptionInput" rows="4" maxlength="500" placeholder="Write something about yourself..." aria-describedby="worthItProfileDescriptionStatus worthItProfileDescriptionCharacterCount"></textarea>
+          <div class="worth-it-profile-description-actions">
+            <div class="worth-it-profile-description-meta">
+              <span id="worthItProfileDescriptionCharacterCount" class="worth-it-profile-description-character-count">0/500</span>
+              <span id="worthItProfileDescriptionStatus" class="worth-it-profile-description-status" role="status" aria-live="polite">You can update your description once every 10 minutes.</span>
+            </div>
+            <button type="button" id="worthItProfileDescriptionSave" class="btn btn-primary worth-it-profile-description-save" onclick="saveWorthItProfileDescription()" disabled>Save description</button>
+          </div>
+        </div>
+      </section>
+
       <section id="worthItProfileFriendsPreview" class="worth-it-profile-friends-preview" aria-label="Friends preview">
         <div class="worth-it-profile-friends-title">
           <strong>Friends:</strong>
@@ -4531,7 +4549,7 @@ if($("carResults")){
 }
 
 </script>
-<script src="/profile-ui.js?v=profilesocial20261014b"></script>
+<script src="/profile-ui.js?v=profiledescription20261014a"></script>
 <script src="/routing.js?v=themebootlightprofile20261014a"></script>
 
 </body>

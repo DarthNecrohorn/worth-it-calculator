@@ -3,7 +3,7 @@
 "use strict";
 const $=id=>document.getElementById(id);
 const BASE_URL="https://worth-it-calculator.pages.dev";
-let currentUser=null,currentOwnProfile=null,currentOwnProfileRequest=null,activeProfileRequest=0,currentProfileLink="",currentDisplayedProfileId=0,currentDisplayedProfileIsOwn=false,avatarOperationInProgress=false,assetLimitTimers={avatar:null,banner:null},currentSocialContext=null,activeSocialRefresh=0,activeConnectionsRequest=0,socialActionInProgress=false;
+let currentUser=null,currentOwnProfile=null,currentOwnProfileRequest=null,activeProfileRequest=0,currentProfileLink="",currentDisplayedProfileId=0,currentDisplayedProfileIsOwn=false,avatarOperationInProgress=false,assetLimitTimers={avatar:null,banner:null},currentSocialContext=null,activeSocialRefresh=0,activeConnectionsRequest=0,socialActionInProgress=false,profileDescriptionStatusRequest=0,profileDescriptionSaving=false,profileDescriptionStatusReady=false,profileDescriptionSavedValue="",profileDescriptionNextSaveAt=0,profileDescriptionCooldownTimer=null;
 const client=()=>window.supabaseClient||null;
 function setText(id,value){const n=$(id);if(n)n.textContent=value==null?"":String(value);}
 function setCount(id,value){const n=$(id);if(!n)return;const v=Number(value);n.textContent=Number.isFinite(v)&&v>=0?Math.trunc(v).toLocaleString():"—";}
@@ -98,6 +98,7 @@ function renderProfile(p,s,isOwn){
  const member=$("worthItProfileMemberSince");if(member){const date=p.created_at?new Date(p.created_at):null;if(date&&!Number.isNaN(date.getTime())){const parts=new Intl.DateTimeFormat("en-GB",{day:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit",hourCycle:"h23"}).formatToParts(date);const part=type=>parts.find(x=>x.type===type)?.value||"";const month=new Intl.DateTimeFormat("en-US",{month:"short"}).format(date);member.textContent="Joined "+part("day")+" "+month+", "+part("year")+" "+part("hour")+":"+part("minute");}else{member.textContent="";}}
  hideAllAssetLimitNotices();
  currentDisplayedProfileId=id;currentDisplayedProfileIsOwn=Boolean(isOwn);
+ renderProfileDescription(p.description,id,Boolean(isOwn));
  const avatarControls=$("worthItProfileAvatarControls");if(avatarControls)avatarControls.hidden=!isOwn;
  const bannerControls=$("worthItProfileBannerControls");if(bannerControls)bannerControls.hidden=!isOwn;
  const removePhoto=$("worthItProfileAvatarRemove");if(removePhoto)removePhoto.hidden=!isOwn||!safeAvatarUrl(p.avatar_url);
@@ -105,6 +106,109 @@ function renderProfile(p,s,isOwn){
  setAssetControlsBusy(false);setStatus("",false);refreshProfileSocial(id,Boolean(isOwn));
 }
 
+
+
+function setProfileDescriptionStatus(message,isError){
+ const node=$("worthItProfileDescriptionStatus");if(!node)return;
+ node.textContent=String(message||"");node.classList.toggle("is-error",Boolean(isError));
+}
+function clearProfileDescriptionTimer(){if(profileDescriptionCooldownTimer!==null){clearInterval(profileDescriptionCooldownTimer);profileDescriptionCooldownTimer=null;}}
+function formatProfileDescriptionRemaining(ms){
+ const total=Math.max(0,Math.ceil(Number(ms||0)/1000)),minutes=Math.floor(total/60),seconds=total%60;
+ return minutes+"m "+String(seconds).padStart(2,"0")+"s";
+}
+function updateProfileDescriptionSaveButton(){
+ const input=$("worthItProfileDescriptionInput"),button=$("worthItProfileDescriptionSave");if(!input||!button)return;
+ const changed=String(input.value||"").trim()!==profileDescriptionSavedValue,remaining=Math.max(0,profileDescriptionNextSaveAt-Date.now());
+ button.disabled=profileDescriptionSaving||!profileDescriptionStatusReady||!changed||remaining>0;
+ const count=$("worthItProfileDescriptionCharacterCount");if(count)count.textContent=Array.from(String(input.value||"")).length+"/500";
+}
+function startProfileDescriptionCooldownTimer(){
+ clearProfileDescriptionTimer();
+ const tick=function(){
+  const remaining=profileDescriptionNextSaveAt-Date.now();updateProfileDescriptionSaveButton();
+  if(remaining>0){setProfileDescriptionStatus("You can save another description in "+formatProfileDescriptionRemaining(remaining)+".",false);return;}
+  clearProfileDescriptionTimer();profileDescriptionNextSaveAt=0;updateProfileDescriptionSaveButton();
+  setProfileDescriptionStatus("You can now save a new description.",false);
+ };
+ tick();if(profileDescriptionNextSaveAt>Date.now())profileDescriptionCooldownTimer=setInterval(tick,1000);
+}
+function resetProfileDescriptionPanel(){
+ profileDescriptionStatusRequest++;clearProfileDescriptionTimer();profileDescriptionSaving=false;profileDescriptionStatusReady=false;
+ profileDescriptionSavedValue="";profileDescriptionNextSaveAt=0;
+ const editor=$("worthItProfileDescriptionEditor"),display=$("worthItProfileDescriptionText"),empty=$("worthItProfileDescriptionEmpty"),input=$("worthItProfileDescriptionInput");
+ if(editor)editor.hidden=true;if(display){display.textContent="";display.hidden=true;}if(empty)empty.hidden=true;if(input)input.value="";
+ updateProfileDescriptionSaveButton();
+}
+async function loadProfileDescriptionStatus(profileId,fallbackDescription){
+ const requestId=++profileDescriptionStatusRequest;clearProfileDescriptionTimer();
+ try{
+  const sb=client();if(!sb?.auth)throw new Error("Please sign in again to edit your profile description.");
+  const sessionResult=await sb.auth.getSession(),token=sessionResult?.data?.session?.access_token||"";
+  if(!token)throw new Error("Your login session has expired. Please sign in again.");
+  const response=await fetch("/api/profile-description",{method:"GET",headers:{"Authorization":"Bearer "+token,"Accept":"application/json"}});
+  let data=null;try{data=await response.json();}catch(_){}
+  if(requestId!==profileDescriptionStatusRequest||currentDisplayedProfileId!==Number(profileId)||!currentDisplayedProfileIsOwn)return;
+  if(!response.ok||!data?.success){
+   profileDescriptionStatusReady=false;updateProfileDescriptionSaveButton();
+   setProfileDescriptionStatus(data?.code==="PROFILE_DESCRIPTION_SETUP_REQUIRED"?"Description saving needs a one-time database setup. Run supabase/profile-description.sql in the Supabase SQL Editor.":data?.error||"Could not check the description save limit. Please refresh and try again.",true);
+   return;
+  }
+  const saved=String(data.description==null?(fallbackDescription||""):data.description).trim();
+  profileDescriptionSavedValue=saved;const input=$("worthItProfileDescriptionInput");if(input)input.value=saved;
+  const display=$("worthItProfileDescriptionText");if(display)display.textContent=saved;
+  const empty=$("worthItProfileDescriptionEmpty");if(empty)empty.hidden=true;
+  const next=Date.parse(data.next_save_at||"");profileDescriptionNextSaveAt=Number.isFinite(next)&&next>Date.now()?next:0;
+  profileDescriptionStatusReady=true;updateProfileDescriptionSaveButton();
+  if(profileDescriptionNextSaveAt>Date.now())startProfileDescriptionCooldownTimer();
+  else setProfileDescriptionStatus("Write what you'd like others to know about you. You can save a new description once every 10 minutes.",false);
+ }catch(error){
+  if(requestId!==profileDescriptionStatusRequest||currentDisplayedProfileId!==Number(profileId)||!currentDisplayedProfileIsOwn)return;
+  profileDescriptionStatusReady=false;updateProfileDescriptionSaveButton();
+  setProfileDescriptionStatus(error?.message||"Could not check the description save limit.",true);
+ }
+}
+function renderProfileDescription(value,profileId,isOwn){
+ clearProfileDescriptionTimer();const saved=String(value||"").trim();
+ const editor=$("worthItProfileDescriptionEditor"),display=$("worthItProfileDescriptionText"),empty=$("worthItProfileDescriptionEmpty"),input=$("worthItProfileDescriptionInput");
+ if(editor)editor.hidden=!isOwn;if(display){display.textContent=saved;display.hidden=Boolean(isOwn)||!saved;}if(empty)empty.hidden=Boolean(isOwn)||Boolean(saved);
+ profileDescriptionSaving=false;profileDescriptionStatusReady=false;profileDescriptionNextSaveAt=0;profileDescriptionSavedValue=saved;if(input)input.value=saved;
+ updateProfileDescriptionSaveButton();
+ if(isOwn){setProfileDescriptionStatus("Checking when you can next save...",false);loadProfileDescriptionStatus(profileId,saved);}
+ else{profileDescriptionStatusRequest++;}
+}
+window.saveWorthItProfileDescription=async function(){
+ const input=$("worthItProfileDescriptionInput");if(!input||profileDescriptionSaving)return;
+ const description=String(input.value||"").trim();
+ if(Array.from(description).length>500){setProfileDescriptionStatus("Your description can contain up to 500 characters.",true);return;}
+ if(!profileDescriptionStatusReady){setProfileDescriptionStatus("The description save limit is not ready yet. Please try again in a moment.",true);return;}
+ if(Date.now()<profileDescriptionNextSaveAt){startProfileDescriptionCooldownTimer();return;}
+ if(description===profileDescriptionSavedValue){setProfileDescriptionStatus("There are no changes to save.",false);updateProfileDescriptionSaveButton();return;}
+ const sb=client();if(!sb?.auth){setProfileDescriptionStatus("Please sign in to save your description.",true);return;}
+ profileDescriptionSaving=true;updateProfileDescriptionSaveButton();setProfileDescriptionStatus("Saving your description...",false);
+ try{
+  const sessionResult=await sb.auth.getSession(),token=sessionResult?.data?.session?.access_token||"";
+  if(!token)throw new Error("Your login session has expired. Please sign in again.");
+  const response=await fetch("/api/profile-description",{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+token,"Accept":"application/json"},body:JSON.stringify({description:description})});
+  let data=null;try{data=await response.json();}catch(_){}
+  if(!response.ok||!data?.success){
+   if(data?.code==="PROFILE_DESCRIPTION_COOLDOWN"){
+    const retryAt=Date.parse(data.next_save_at||"");profileDescriptionNextSaveAt=Number.isFinite(retryAt)&&retryAt>Date.now()?retryAt:Date.now()+Math.max(0,Number(data.remaining_ms)||600000);
+    profileDescriptionStatusReady=true;startProfileDescriptionCooldownTimer();
+   }else{
+    if(data?.code==="PROFILE_DESCRIPTION_SETUP_REQUIRED")profileDescriptionStatusReady=false;
+    setProfileDescriptionStatus(data?.error||"Could not save your description. Please try again.",true);
+   }
+   return;
+  }
+  profileDescriptionSavedValue=String(data.description==null?description:data.description).trim();input.value=profileDescriptionSavedValue;
+  const display=$("worthItProfileDescriptionText");if(display)display.textContent=profileDescriptionSavedValue;
+  const next=Date.parse(data.next_save_at||"");profileDescriptionNextSaveAt=Number.isFinite(next)&&next>Date.now()?next:0;
+  profileDescriptionStatusReady=true;updateProfileDescriptionSaveButton();
+  if(profileDescriptionNextSaveAt>Date.now())startProfileDescriptionCooldownTimer();else setProfileDescriptionStatus("Description saved.",false);
+ }catch(error){setProfileDescriptionStatus(error?.message||"Could not save your description. Please try again.",true);}
+ finally{profileDescriptionSaving=false;updateProfileDescriptionSaveButton();}
+};
 
 const FRIEND_MOOD_THRESHOLDS = [
  { count: 100, emoji: "🤯" },
@@ -551,10 +655,18 @@ if($("worthItDisplayNameInput"))$("worthItDisplayNameInput").addEventListener("i
  setDisplayNameStatus(validation.valid?"This display name meets the format rules.":validation.reason,!validation.valid);
 });
 
+
+if($("worthItProfileDescriptionInput"))$("worthItProfileDescriptionInput").addEventListener("input",function(){
+ updateProfileDescriptionSaveButton();if(!profileDescriptionStatusReady)return;
+ const remaining=Math.max(0,profileDescriptionNextSaveAt-Date.now());
+ if(remaining>0)setProfileDescriptionStatus("You can save another description in "+formatProfileDescriptionRemaining(remaining)+".",false);
+ else if(String(this.value||"").trim()===profileDescriptionSavedValue)setProfileDescriptionStatus("There are no changes to save.",false);
+ else setProfileDescriptionStatus("Ready to save.",false);
+});
 function hideProfileAssetControls(){const avatarControls=$("worthItProfileAvatarControls"),bannerControls=$("worthItProfileBannerControls");if(avatarControls)avatarControls.hidden=true;if(bannerControls)bannerControls.hidden=true;}
 function renderError(message){
  const profileCard=$("worthItProfileCard"),connectionsPage=$("worthItProfileConnectionsPage");if(profileCard)profileCard.hidden=false;if(connectionsPage)connectionsPage.hidden=true;
- currentDisplayedProfileId=0;currentDisplayedProfileIsOwn=false;hideProfileAssetControls();clearProfileBannerBackdrop(true);const displayNameEdit=$("worthItProfileDisplayNameEdit");if(displayNameEdit)displayNameEdit.hidden=true;closeWorthItDisplayNameEditor();
+ currentDisplayedProfileId=0;currentDisplayedProfileIsOwn=false;resetProfileDescriptionPanel();hideProfileAssetControls();clearProfileBannerBackdrop(true);const displayNameEdit=$("worthItProfileDisplayNameEdit");if(displayNameEdit)displayNameEdit.hidden=true;closeWorthItDisplayNameEditor();
  renderAvatar("","W");setText("worthItProfileName","Profile unavailable");setText("worthItProfileUsername","");
  ["worthItProfileFriends","worthItProfileFollowers","worthItProfileFollowing"].forEach(id=>setText(id,"—"));
  const email=$("worthItProfileEmail");if(email){email.textContent="";email.hidden=true;}
@@ -562,13 +674,14 @@ function renderError(message){
 }
 window.openWorthItProfile=async function(idValue,options){
  const id=Number(idValue);if(!Number.isSafeInteger(id)||id<1){showProfileSection();renderError("This profile link is invalid.");return;}
- showProfileSection();const profileCard=$("worthItProfileCard"),connectionsPage=$("worthItProfileConnectionsPage");if(profileCard)profileCard.hidden=false;if(connectionsPage)connectionsPage.hidden=true;activeConnectionsRequest++;currentSocialContext=null;currentDisplayedProfileId=id;currentDisplayedProfileIsOwn=false;hideProfileAssetControls();const displayNameEdit=$("worthItProfileDisplayNameEdit");if(displayNameEdit)displayNameEdit.hidden=true;closeWorthItDisplayNameEditor();setStatus("Loading profile…",false);setText("worthItProfileName","Loading profile…");["worthItProfileFriends","worthItProfileFollowers","worthItProfileFollowing"].forEach(x=>setText(x,"…"));
+ showProfileSection();const profileCard=$("worthItProfileCard"),connectionsPage=$("worthItProfileConnectionsPage");if(profileCard)profileCard.hidden=false;if(connectionsPage)connectionsPage.hidden=true;activeConnectionsRequest++;currentSocialContext=null;currentDisplayedProfileId=id;currentDisplayedProfileIsOwn=false;resetProfileDescriptionPanel();hideProfileAssetControls();const displayNameEdit=$("worthItProfileDisplayNameEdit");if(displayNameEdit)displayNameEdit.hidden=true;closeWorthItDisplayNameEditor();setStatus("Loading profile…",false);setText("worthItProfileName","Loading profile…");["worthItProfileFriends","worthItProfileFollowers","worthItProfileFollowing"].forEach(x=>setText(x,"…"));
  const requestId=++activeProfileRequest;
  try{
   const sb=client();if(!sb)throw new Error("Supabase not ready");
-  const [publicResult,user]=await Promise.all([sb.from("worth_it_public_profiles").select("worth_it_id,username,display_name,avatar_url,banner_url,created_at").eq("worth_it_id",id).maybeSingle(),getCurrentUser().catch(()=>null)]);
+  const [publicResult,user,descriptionResult]=await Promise.all([sb.from("worth_it_public_profiles").select("worth_it_id,username,display_name,avatar_url,banner_url,created_at").eq("worth_it_id",id).maybeSingle(),getCurrentUser().catch(()=>null),sb.from("worth_it_public_profiles").select("description").eq("worth_it_id",id).maybeSingle().catch(()=>({data:null,error:true}))]);
   if(requestId!==activeProfileRequest)return;if(publicResult.error)throw publicResult.error;if(!publicResult.data){renderError("This Worth It profile could not be found.");return;}
-  currentUser=user||null;let own=null;if(currentUser){try{own=await getOwnProfileRow(currentUser,false);}catch(_){own=null;}}
+  publicResult.data.description=descriptionResult&&!descriptionResult.error?String(descriptionResult.data?.description||""):"";
+   currentUser=user||null;let own=null;if(currentUser){try{own=await getOwnProfileRow(currentUser,false);}catch(_){own=null;}}
   const isOwn=Number(own?.worth_it_id)===id;const stats=await getStats(id);if(requestId!==activeProfileRequest)return;renderProfile(publicResult.data,stats,isOwn);
  }catch(e){if(requestId!==activeProfileRequest)return;console.error("Worth It profile load failed.",e);renderError("The profile database is not ready or could not be reached. Run supabase/worth-it-profiles.sql in Supabase, then refresh this page.");}
 };
