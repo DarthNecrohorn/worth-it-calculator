@@ -4,7 +4,7 @@
 alter table public.worth_it_profiles
     add column if not exists display_name_changed_at timestamptz;
 
--- Preserve a user-chosen display name when the identity provider refreshes auth metadata.
+-- Preserve an existing profile display name when auth metadata is refreshed; new profiles seed it from auth metadata.
 create or replace function public.sync_worth_it_profile_from_auth_user()
 returns trigger language plpgsql security definer set search_path=public
 as $$
@@ -29,10 +29,7 @@ begin
     if tg_op = 'UPDATE' then
         update public.worth_it_profiles as profile
         set username = coalesce(desired_username, profile.username),
-            display_name = case
-                when profile.display_name_changed_at is not null then profile.display_name
-                else coalesce(desired_display_name, profile.display_name)
-            end,
+            display_name = profile.display_name,
             avatar_url = case
                 when profile.avatar_is_custom then profile.avatar_url
                 else coalesce(desired_avatar_url, profile.avatar_url)
@@ -53,10 +50,7 @@ begin
     )
     on conflict (user_id) do update set
         username = coalesce(excluded.username, public.worth_it_profiles.username),
-        display_name = case
-            when public.worth_it_profiles.display_name_changed_at is not null then public.worth_it_profiles.display_name
-            else coalesce(excluded.display_name, public.worth_it_profiles.display_name)
-        end,
+        display_name = public.worth_it_profiles.display_name,
         avatar_url = case
             when public.worth_it_profiles.avatar_is_custom then public.worth_it_profiles.avatar_url
             else coalesce(excluded.avatar_url, public.worth_it_profiles.avatar_url)
