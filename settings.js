@@ -445,6 +445,8 @@ window.openSettings = openFullSettings;
         content.hidden = true;
         activeTotpFactorId = "";
         pendingTotpFactorId = "";
+        const startButton = $("securityMfaStart");
+        if (startButton) startButton.disabled = false;
 
         let session;
         try { session = await currentSecuritySession(); } catch (_) { session = null; }
