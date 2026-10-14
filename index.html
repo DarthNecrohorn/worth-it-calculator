@@ -229,6 +229,9 @@ html[data-theme="light"].worth-it-initial-paint::before {
                 <span class="worth-it-chat-nav-badge" id="worthItChatNavBadge" hidden></span>
             </button>
         </div>
+        <button type="button" class="worth-it-user-search-btn" id="worthItUserSearchBtn" onclick="openWorthItUserSearch(event)" aria-label="Search Worth It users" aria-controls="worthItUserSearchDialog" title="Search users by Worth It ID or username">
+            <svg aria-hidden="true" viewBox="0 0 24 24" fill="none"><circle cx="10.8" cy="10.8" r="6.8"></circle><path d="m16 16 4.5 4.5"></path></svg>
+        </button>
 
         <div class="worth-it-chat-overlay" id="worthItChatOverlay" hidden aria-hidden="true">
             <section class="worth-it-chat-window" id="worthItChatWindow" role="dialog" aria-modal="true" aria-labelledby="worthItChatTitle">
@@ -285,6 +288,38 @@ html[data-theme="light"].worth-it-initial-paint::before {
                 <p class="worth-it-chat-compose-status" id="worthItChatGroupStatus" role="status"></p>
                 <button type="submit" class="worth-it-chat-send-btn">Create group <span>➤</span></button>
             </form>
+        </div>
+
+        <div class="worth-it-chat-manage-dialog" id="worthItChatGroupManageDialog" hidden aria-hidden="true">
+            <section class="worth-it-chat-manage-card" role="dialog" aria-modal="true" aria-labelledby="worthItChatGroupManageTitle">
+                <span class="worth-it-chat-modal-kicker">✦ WORTH IT COMMUNITY</span>
+                <div class="worth-it-chat-manage-icon" aria-hidden="true">👥</div>
+                <h2 id="worthItChatGroupManageTitle">Group options</h2>
+                <p id="worthItChatGroupManageCopy">Manage this group chat.</p>
+                <div class="worth-it-chat-manage-actions">
+                    <button type="button" class="worth-it-chat-manage-leave" id="worthItChatGroupLeaveBtn" onclick="performWorthItGroupAction('leave')">Leave group</button>
+                    <button type="button" class="worth-it-chat-manage-delete" id="worthItChatGroupDeleteBtn" onclick="performWorthItGroupAction('delete')" hidden>Delete group permanently</button>
+                    <button type="button" class="worth-it-chat-manage-cancel" id="worthItChatGroupManageCancelBtn" onclick="closeWorthItGroupManageDialog()">Cancel</button>
+                </div>
+                <p class="worth-it-chat-compose-status" id="worthItChatGroupManageStatus" role="status" aria-live="polite"></p>
+            </section>
+        </div>
+
+        <div class="worth-it-user-search-overlay" id="worthItUserSearchDialog" hidden aria-hidden="true">
+            <section class="worth-it-user-search-card" role="dialog" aria-modal="true" aria-labelledby="worthItUserSearchTitle">
+                <div class="worth-it-user-search-head">
+                    <div class="worth-it-user-search-symbol" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" fill="none"><circle cx="10.8" cy="10.8" r="6.8"></circle><path d="m16 16 4.5 4.5"></path></svg>
+                    </div>
+                    <div><h2 id="worthItUserSearchTitle">Find people</h2><p>Search by Worth It ID or username.</p></div>
+                    <button type="button" class="worth-it-user-search-close" id="worthItUserSearchCloseBtn" aria-label="Close user search">✕</button>
+                </div>
+                <label class="worth-it-user-search-label" for="worthItUserSearchInput">Worth It ID or username</label>
+                <input type="search" id="worthItUserSearchInput" class="worth-it-user-search-input" autocomplete="off" spellcheck="false" maxlength="50" placeholder="e.g. 1 or @username" aria-describedby="worthItUserSearchHint">
+                <p id="worthItUserSearchHint" class="worth-it-user-search-hint">An ID searches for one exact profile. Usernames can be matched partially.</p>
+                <p id="worthItUserSearchStatus" class="worth-it-user-search-status" role="status" aria-live="polite">Start typing to find a Worth It member.</p>
+                <div id="worthItUserSearchResults" class="worth-it-user-search-results" aria-label="User search results"></div>
+            </section>
         </div>
 
         <div class="worth-it-chat-invite-dialog" id="worthItChatInviteDialog" hidden aria-hidden="true">
@@ -4661,7 +4696,8 @@ if($("carResults")){
 
 </script>
 <script src="/profile-ui.js?v=presence20261014a"></script>
-<script src="/chat-ui.js?v=presence20261014a"></script>
+<script src="/chat-ui.js?v=communitytools20261014a"></script>
+<script src="/user-search.js?v=worthitusersearch20261014a"></script>
 <script src="/routing.js?v=themebootlightprofile20261014a"></script>
 
 </body>

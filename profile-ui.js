@@ -23,7 +23,7 @@ function updateWorthItPresenceNode(node,lastSeenAt){
  if(!node)return;const info=getWorthItPresenceInfo({worth_it_id:node.dataset.worthItPresenceId,last_seen_at:lastSeenAt||null});
  node.classList.toggle("is-online",info.online);node.classList.toggle("is-offline",!info.online);node.dataset.lastSeenAt=lastSeenAt||"";node.title=info.label;node.setAttribute("aria-label",info.label);
  if(node.classList.contains("worth-it-profile-presence-text")){const dot=node.querySelector(".worth-it-presence-status-dot"),label=node.querySelector(".worth-it-presence-label");if(dot){dot.classList.toggle("is-online",info.online);dot.classList.toggle("is-offline",!info.online);}if(label)label.textContent=info.label;}
- if(node.classList.contains("worth-it-person-presence-label")||node.classList.contains("worth-it-chat-person-presence"))node.textContent=info.label;
+ if(node.classList.contains("worth-it-person-presence-label")||node.classList.contains("worth-it-chat-person-presence")||node.classList.contains("worth-it-user-search-presence"))node.textContent=info.label;
 }
 function appendWorthItPresenceIndicator(host,person){
  if(!host||!person||person.worth_it_id==null)return;host.classList.add("worth-it-presence-host");host.querySelectorAll(":scope > .worth-it-presence-indicator").forEach(node=>node.remove());
