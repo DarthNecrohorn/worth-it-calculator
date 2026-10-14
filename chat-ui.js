@@ -366,6 +366,7 @@ window.toggleWorthItChat = async function (event) {
 window.toggleWorthItChatFullscreen = function () {
     chatFullscreen = !chatFullscreen;
     $("worthItChatWindow")?.classList.toggle("is-fullscreen", chatFullscreen);
+    $("worthItChatOverlay")?.classList.toggle("is-fullscreen", chatFullscreen);
     const button = $("worthItChatFullscreenBtn");
     if (button) {
         button.textContent = chatFullscreen ? "⛶" : "⛶";
