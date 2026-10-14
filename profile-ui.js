@@ -170,7 +170,7 @@ window.openAccountInfo=function(section){if(!section||section==="profile"){close
 const oldToggle=window.toggleAccountPanel;
 window.toggleAccountPanel=function(event){const result=typeof oldToggle==="function"?oldToggle.apply(this,arguments):undefined;if($("accountPanel")?.classList.contains("open")){setPanelLoading();refreshAccountPanelCounts(true);}return result;};
 function renderProfile(p,s,isOwn){
- const profileSection=$("profileSection");if(profileSection)profileSection.classList.toggle("signed-out-profile-view",!currentUser);
+ const profileSection=$("profileSection");if(profileSection){profileSection.classList.toggle("signed-out-profile-view",!currentUser);profileSection.classList.toggle("signed-in-other-profile-view",Boolean(currentUser)&&!isOwn);}
  const id=Number(p.worth_it_id),name=String(p.display_name||p.username||"Worth It member"),username=String(p.username||""),link=BASE_URL+"/profile/"+id;currentProfileLink=link;
  renderAvatar(p.avatar_url,name,p);renderWorthItProfilePresence(p);renderBanner(p.banner_url,name);setText("worthItProfileName",name);setText("worthItProfileUsername",username?"@"+username:"Worth It member");
  const displayNameEdit=$("worthItProfileDisplayNameEdit");if(displayNameEdit)displayNameEdit.hidden=!isOwn;
