@@ -282,13 +282,14 @@ function makeChatNotificationButton(chatKey) {
     button.addEventListener("click", event => {
         event.preventDefault();
         event.stopPropagation();
-        toggleWorthItChatNotifications(chatKey);
+        toggleWorthItChatNotifications(chatKey, button);
     });
     return button;
 }
-async function toggleWorthItChatNotifications(chatKey) {
-    if (!chatUser || !chatKey) return;
+async function toggleWorthItChatNotifications(chatKey, button) {
+    if (!chatUser || !chatKey || button?.disabled) return;
     const nextEnabled = !chatNotificationsEnabled(chatKey);
+    if (button) button.disabled = true;
     const client = sb();
     if (!client) return;
     try {
@@ -308,6 +309,8 @@ async function toggleWorthItChatNotifications(chatKey) {
         setStatus(nextEnabled ? "Notifications turned on for this chat." : "Notifications turned off for this chat.", false);
     } catch (error) {
         setStatus(rpcError(error), true);
+    } finally {
+        if (button?.isConnected) button.disabled = false;
     }
 }
 function updateGlobalChatUnreadBadge() {
@@ -781,7 +784,7 @@ function setupChatUI() {
     $("worthItGlobalChatNotifications")?.addEventListener("click", event => {
         event.preventDefault();
         event.stopPropagation();
-        toggleWorthItChatNotifications("global");
+        toggleWorthItChatNotifications("global", event.currentTarget);
     });
     $("worthItChatGroupForm")?.addEventListener("submit", createWorthItGroupChat);
     $("worthItChatGroupSearch")?.addEventListener("input", renderGroupFriendChoices);
