@@ -25,7 +25,7 @@ function getConfig(env) {
     return {
         supabaseUrl: String(env.SUPABASE_URL || "").trim().replace(/\/$/, ""),
         publishableKey: String(env.SUPABASE_PUBLISHABLE_KEY || "").trim(),
-        serviceKey: String(env.SUPABASE_SERVICE_ROLE_KEY || env.SUPABASE_SECRET_KEY || "").trim(),
+        serviceKey: String(env.supabase_secret_key || env.SUPABASE_SECRET_KEY || env.SUPABASE_SERVICE_ROLE_KEY || "").trim(),
         geminiKey: String(env.GEMINI_API_KEY || "").trim(),
         model: String(env.AVATAR_MODERATION_MODEL || "gemini-3.1-flash-lite").trim()
     };
