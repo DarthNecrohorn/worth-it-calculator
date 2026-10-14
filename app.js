@@ -3533,3 +3533,5 @@ window.scrollTo({
 }
 
 window.openMoney = openMoney;
+
+// Temporary comment-only syntax validation.
