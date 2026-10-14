@@ -228,6 +228,21 @@ function chatNotificationKeyForConversation(conversation) {
 function chatNotificationsEnabled(chatKey) {
     return !chatKey || chatNotificationPreferences[chatKey] !== false;
 }
+function updateGlobalChatNotificationButton() {
+    const button = $("worthItGlobalChatNotifications");
+    if (!button) return;
+    const enabled = chatNotificationsEnabled("global");
+    const labelText = enabled ? "Turn off notifications" : "Turn on notifications";
+    button.classList.toggle("is-enabled", enabled);
+    button.classList.toggle("is-muted", !enabled);
+    button.title = labelText;
+    button.setAttribute("aria-label", labelText);
+    button.setAttribute("aria-pressed", String(!enabled));
+    const icon = button.querySelector(".worth-it-chat-notification-icon");
+    const label = button.querySelector(".worth-it-chat-notification-label");
+    if (icon) icon.textContent = enabled ? "🔔" : "🔕";
+    if (label) label.textContent = labelText;
+}
 function makeChatNotificationButton(chatKey) {
     const enabled = chatNotificationsEnabled(chatKey);
     const button = document.createElement("button");
@@ -268,6 +283,7 @@ async function toggleWorthItChatNotifications(chatKey) {
         });
         renderFriends();
         renderConversations();
+        updateGlobalChatNotificationButton();
         updateUnreadBadge();
         setStatus(nextEnabled ? "Notifications turned on for this chat." : "Notifications turned off for this chat.", false);
     } catch (error) {
@@ -316,7 +332,7 @@ async function refreshWorthItChatData() {
         !Array.isArray(notificationPrefsResult.value.data)) {
         chatNotificationPreferences = Object.assign(Object.create(null), notificationPrefsResult.value.data);
     }
-    renderFriends(); renderConversations(); updateUnreadBadge();
+    renderFriends(); renderConversations(); updateGlobalChatNotificationButton(); updateUnreadBadge();
     if ($("worthItChatGroupDialog") && !$("worthItChatGroupDialog").hidden) renderGroupFriendChoices();
 }
 function renderLinkedText(host, value) {
@@ -725,6 +741,11 @@ function setupChatUI() {
         setPendingMedia(file, objectUrl, file.type === "image/gif" ? "gif" : "image");
         setStatus("",false);
     });
+    $("worthItGlobalChatNotifications")?.addEventListener("click", event => {
+        event.preventDefault();
+        event.stopPropagation();
+        toggleWorthItChatNotifications("global");
+    });
     $("worthItChatGroupForm")?.addEventListener("submit", createWorthItGroupChat);
     $("worthItChatGroupSearch")?.addEventListener("input", renderGroupFriendChoices);
     $("worthItChatGroupName")?.addEventListener("input", () => { setGroupStatus("", false); updateGroupSelectionUI(); });
@@ -739,6 +760,7 @@ function setupChatUI() {
     });
     updateCharacterCount();
     updateGroupSelectionUI();
+    updateGlobalChatNotificationButton();
 }
 setupChatUI();
 if (sb()?.auth) {
