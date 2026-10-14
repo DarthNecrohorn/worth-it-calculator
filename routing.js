@@ -30,7 +30,8 @@
         "/currencies": "openMoney",
         "/cryptocurrencies": "openCrypto",
         "/water-levels": "openWaterLevels",
-        "/ship-tracking": "openShipTracking"
+        "/ship-tracking": "openShipTracking",
+        "/settings": "openFullSettings"
     };
 
     const LEGAL_PATHS = new Set([
@@ -79,6 +80,10 @@
 
         originalFunctions[name] = original;
         window[name] = function () {
+            if (name !== "openFullSettings") {
+                const settingsPage = document.getElementById("settingsPage");
+                if (settingsPage) settingsPage.style.display = "none";
+            }
             if (name !== "openWorthItProfile" && typeof window.hideWorthItProfileSection === "function") {
                 window.hideWorthItProfileSection();
             }
