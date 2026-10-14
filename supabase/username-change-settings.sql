@@ -111,3 +111,13 @@ $$;
 
 revoke all on function public.update_worth_it_username(uuid, text) from public, anon, authenticated;
 grant execute on function public.update_worth_it_username(uuid, text) to service_role;
+
+-- The Cloudflare API uses the service role to read the cooldown and calls the
+-- SECURITY DEFINER function to write the change. Make the required privileges
+-- explicit in projects where default privileges were customised.
+grant usage on schema public to service_role;
+grant select on table public.usernames to service_role;
+grant execute on function public.update_worth_it_username(uuid, text) to service_role;
+
+-- Ask PostgREST to refresh its cached table/function schema after this migration.
+notify pgrst, 'reload schema';
