@@ -7,6 +7,8 @@ on:
       - "cars-ui.js"
       - "ship-tracking-ui.js"
       - "profile-ui.js"
+      - "app.js"
+      - "settings.js"
       - "chat-ui.js"
       - "routing.js"
       - ".github/workflows/function-syntax-check.yml"
@@ -40,7 +42,7 @@ jobs:
             echo "Checking ship-tracking-ui.js"
             node --input-type=module --check < "ship-tracking-ui.js"
           fi
-          for file in profile-ui.js chat-ui.js routing.js; do
+          for file in app.js settings.js profile-ui.js chat-ui.js routing.js; do
             if [[ -f "$file" ]]; then
               echo "Checking $file"
               node --input-type=module --check < "$file"
