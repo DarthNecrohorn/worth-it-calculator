@@ -238,8 +238,25 @@
 
     // Respect the existing legal-document router. Otherwise dispatch a direct URL.
     const initialPath = normalizePath(window.location.pathname);
-    if (!LEGAL_PATHS.has(initialPath) && initialPath !== "/") {
+    const initialRoute = resolveRoute(initialPath);
+    const isInitialProfileRoute = initialRoute &&
+        (initialRoute.kind === "profile" || initialRoute.kind === "profile-connections");
+
+    if (isInitialProfileRoute && document.documentElement.classList.contains("worth-it-profile-route-pending")) {
+        // Supabase resolves the persisted session asynchronously. Wait until updateAuthUI has
+        // reflected that result before opening the profile, avoiding a transient signed-out view.
+        Promise.resolve(window.worthItAuthReady)
+            .catch(function () {})
+            .then(function () {
+                try {
+                    applyRoute(window.location.pathname, { initial: true });
+                } finally {
+                    document.documentElement.classList.remove("worth-it-profile-route-pending");
+                }
+            });
+    } else if (!LEGAL_PATHS.has(initialPath) && initialPath !== "/") {
         applyRoute(initialPath, { initial: true });
+        document.documentElement.classList.remove("worth-it-profile-route-pending");
     } else if (window.location.pathname === "/index.html") {
         window.history.replaceState(window.history.state || null, "", "/");
     }
