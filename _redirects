@@ -12,3 +12,33 @@
 /cookie-storage-policy /index.html 200
 /affiliate-disclosure /index.html 200
 /disclaimer /index.html 200
+
+# Shareable section and calculator URLs. These rewrite to the existing single-page app.
+/compare-cars/ /compare-cars 301
+/weather/ /weather 301
+/news/ /news 301
+/shop/ /shop 301
+/markets/ /markets 301
+/currencies/ /currencies 301
+/cryptocurrencies/ /cryptocurrencies 301
+/water-levels/ /water-levels 301
+/ship-tracking/ /ship-tracking 301
+/calculators/ /calculators 301
+/faq/ /faq 301
+/cars/ /compare-cars 301
+/cars /compare-cars 301
+/crypto/ /cryptocurrencies 301
+/crypto /cryptocurrencies 301
+
+/calculator/* /index.html 200
+/compare-cars /index.html 200
+/weather /index.html 200
+/news /index.html 200
+/shop /index.html 200
+/markets /index.html 200
+/currencies /index.html 200
+/cryptocurrencies /index.html 200
+/water-levels /index.html 200
+/ship-tracking /index.html 200
+/calculators /index.html 200
+/faq /index.html 200
