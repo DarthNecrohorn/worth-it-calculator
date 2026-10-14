@@ -18930,3 +18930,25 @@ body.worth-it-chat-open{overflow:hidden}
   z-index: 1;
   transform: translateY(0);
 }
+
+
+/* Searchable, scrollable friend picker for New Group. */
+.worth-it-chat-group-list-heading{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:14px 0 7px;color:var(--chat-muted,#94a3b8);font-size:11px;font-weight:800}
+.worth-it-chat-group-list-heading span{font-size:10px;font-weight:500;opacity:.8}
+.worth-it-chat-group-card #worthItChatGroupSearch{margin-bottom:2px}
+.worth-it-chat-group-friend-list{display:grid;gap:5px;max-height:min(290px,34dvh);overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin;scrollbar-color:rgba(129,140,248,.65) rgba(148,163,184,.1);padding:5px;margin:4px -5px 12px;border:1px solid rgba(148,163,184,.16);border-radius:14px}
+.worth-it-chat-group-friend-option{display:flex!important;align-items:center;gap:11px;padding:10px 11px!important;margin:0!important;border:1px solid transparent;background:rgba(148,163,184,.06);transition:background .15s,border-color .15s}
+.worth-it-chat-group-friend-option:hover{background:rgba(129,140,248,.11);border-color:rgba(129,140,248,.24)}
+.worth-it-chat-group-friend-option:has(input:checked){background:rgba(99,102,241,.15);border-color:rgba(129,140,248,.55)}
+.worth-it-chat-group-friend-option input[type=checkbox]{width:17px;height:17px;flex:0 0 17px;margin:0;accent-color:#818cf8;cursor:pointer}
+.worth-it-chat-group-friend-option .worth-it-chat-person-avatar{flex:0 0 34px;width:34px;height:34px}
+.worth-it-chat-group-friend-option .worth-it-chat-group-friend-details{display:flex;flex:1;min-width:0;flex-direction:column;gap:3px}
+.worth-it-chat-group-friend-option .worth-it-chat-group-friend-details strong{overflow:hidden;color:inherit;font-size:12px;font-weight:750!important;text-overflow:ellipsis;white-space:nowrap}
+.worth-it-chat-group-friend-option .worth-it-chat-group-friend-details small{overflow:hidden;color:var(--chat-muted,#94a3b8);font-size:10px;font-weight:500;text-overflow:ellipsis;white-space:nowrap}
+.worth-it-chat-group-no-results{padding:18px 10px!important;margin:0!important;text-align:center;color:var(--chat-muted,#94a3b8)!important;font-size:12px}
+html[data-theme="light"] .worth-it-chat-group-friend-list{border-color:rgba(100,116,139,.2);background:rgba(226,232,240,.4)}
+html[data-theme="light"] .worth-it-chat-group-friend-option{background:rgba(255,255,255,.82)}
+html[data-theme="light"] .worth-it-chat-group-friend-option:hover{background:#eef2ff}
+html[data-theme="light"] .worth-it-chat-group-friend-option:has(input:checked){background:#e0e7ff;border-color:#818cf8}
+html[data-theme="light"] .worth-it-chat-group-friend-option .worth-it-chat-group-friend-details small{color:#64748b}
+@media(max-width:540px){.worth-it-chat-group-friend-list{max-height:30dvh}.worth-it-chat-group-list-heading{align-items:flex-start;flex-direction:column;gap:3px}}
