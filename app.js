@@ -1208,6 +1208,9 @@ function renderAuthModal() {
             "block";
 
     } else if (authModalMode === "forgot") {
+        passwordWrap.style.display =
+            "none";
+
         legalWrap.style.display =
             "none";
 
