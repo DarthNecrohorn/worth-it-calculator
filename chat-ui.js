@@ -24,6 +24,7 @@ let chatRefreshToken = 0;
 let pendingMediaFile = null;
 let pendingMediaUrl = "";
 let pendingMediaType = "";
+let chatNotificationPreferences = Object.create(null);
 const selectedGroupFriendIds = new Set();
 let groupCreateInProgress = false;
 const sb = () => window.supabaseClient || null;
@@ -70,7 +71,9 @@ function showChatOverlay(open) {
     }
 }
 function setAuthState(user) {
+    const previousUserId = chatUser?.id || null;
     chatUser = user || null;
+    if (!chatUser || previousUserId !== chatUser.id) chatNotificationPreferences = Object.create(null);
     const wrap = $("worthItChatNavWrap");
     if (wrap) wrap.hidden = !chatUser;
     if (!chatUser) {
@@ -134,6 +137,9 @@ function niceDay(value) {
 }
 function rpcError(error) {
     const message = String(error?.message || error?.details || "");
+    if (/get_worth_it_chat_notification_preferences|set_worth_it_chat_notifications/i.test(message) && /does not exist|schema cache|could not find/i.test(message)) {
+        return "Chat notification settings are not set up yet. Run supabase/worth-it-chat-notifications-and-member-limit.sql in Supabase, then refresh.";
+    }
     if (/get_worth_it_chat|open_worth_it_friend_chat|send_worth_it_chat_message|worth_it_chat_/i.test(message) && /does not exist|schema cache|could not find/i.test(message)) {
         return "Chat setup is not complete. Run supabase/worth-it-chat.sql in Supabase, then refresh.";
     }
@@ -150,9 +156,12 @@ function renderFriends() {
         const p = document.createElement("p"); p.className = "worth-it-chat-muted"; p.textContent = "Your friends will appear here. Add friends from their profiles."; host.appendChild(p); return;
     }
     chatFriends.forEach(friend => {
+        const item = document.createElement("div");
+        item.className = "worth-it-chat-list-row worth-it-chat-friend-row";
+
         const row = document.createElement("button");
         row.type = "button";
-        row.className = "worth-it-chat-person-btn" + (activeConversationType === "direct" && activeConversationPerson?.worth_it_id === friend.worth_it_id ? " is-active" : "");
+        row.className = "worth-it-chat-person-btn" + (activeConversationType === "direct" && String(activeConversationPerson?.worth_it_id) === String(friend.worth_it_id) ? " is-active" : "");
         row.title = "Chat with " + (friend.display_name || friend.username || "friend");
         row.appendChild(makeAvatar(friend));
         const info = document.createElement("span"); info.className = "worth-it-chat-person-info";
@@ -160,7 +169,9 @@ function renderFriends() {
         const username = document.createElement("small"); username.textContent = friend.username ? "@" + friend.username : "Friend";
         info.append(name, username); row.appendChild(info);
         row.addEventListener("click", () => openWorthItFriendChat(friend.worth_it_id));
-        host.appendChild(row);
+
+        item.append(row, makeChatNotificationButton(chatNotificationKeyForFriend(friend)));
+        host.appendChild(item);
     });
 }
 function conversationLabel(conversation) {
@@ -180,6 +191,9 @@ function renderConversations() {
         const p = document.createElement("p"); p.className = "worth-it-chat-muted"; p.textContent = "Your group chats will appear here."; host.appendChild(p); return;
     }
     visibleConversations.forEach(conversation => {
+        const item = document.createElement("div");
+        item.className = "worth-it-chat-list-row worth-it-chat-group-row";
+
         const row = document.createElement("button");
         row.type = "button";
         row.className = "worth-it-chat-person-btn" + (activeConversationId === conversation.id ? " is-active" : "");
@@ -192,16 +206,81 @@ function renderConversations() {
         const last = document.createElement("small");
         last.textContent = conversation.last_message?.body || (conversation.last_message?.media_type ? "📷 Media" : "Start a conversation");
         info.append(name, last); row.appendChild(info);
-        const unread = Number(conversation.unread_count || 0);
+        const notificationKey = chatNotificationKeyForConversation(conversation);
+        const unread = chatNotificationsEnabled(notificationKey) ? Number(conversation.unread_count || 0) : 0;
         if (unread > 0) { const count = document.createElement("span"); count.className = "worth-it-chat-person-count"; count.textContent = unread > 99 ? "99+" : String(unread); row.appendChild(count); }
         row.addEventListener("click", () => openWorthItSavedConversation(conversation));
-        host.appendChild(row);
+
+        item.append(row, makeChatNotificationButton(notificationKey));
+        host.appendChild(item);
     });
+}
+function chatNotificationKeyForFriend(friend) {
+    if (friend?.worth_it_id == null) return "";
+    return "direct:" + String(friend.worth_it_id);
+}
+function chatNotificationKeyForConversation(conversation) {
+    if (!conversation) return "";
+    if (conversation.type === "group" && conversation.id) return "group:" + String(conversation.id);
+    const member = Array.isArray(conversation.members) ? conversation.members[0] : null;
+    return member?.worth_it_id == null ? "" : "direct:" + String(member.worth_it_id);
+}
+function chatNotificationsEnabled(chatKey) {
+    return !chatKey || chatNotificationPreferences[chatKey] !== false;
+}
+function makeChatNotificationButton(chatKey) {
+    const enabled = chatNotificationsEnabled(chatKey);
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "worth-it-chat-notification-btn" + (enabled ? " is-enabled" : " is-muted");
+    button.title = enabled ? "Turn off notifications" : "Turn on notifications";
+    button.setAttribute("aria-label", button.title);
+    button.setAttribute("aria-pressed", String(!enabled));
+    const icon = document.createElement("span");
+    icon.className = "worth-it-chat-notification-icon";
+    icon.setAttribute("aria-hidden", "true");
+    icon.textContent = enabled ? "🔔" : "🔕";
+    const label = document.createElement("span");
+    label.className = "worth-it-chat-notification-label";
+    label.textContent = button.title;
+    button.append(icon, label);
+    button.addEventListener("click", event => {
+        event.preventDefault();
+        event.stopPropagation();
+        toggleWorthItChatNotifications(chatKey);
+    });
+    return button;
+}
+async function toggleWorthItChatNotifications(chatKey) {
+    if (!chatUser || !chatKey) return;
+    const nextEnabled = !chatNotificationsEnabled(chatKey);
+    const client = sb();
+    if (!client) return;
+    try {
+        const result = await client.rpc("set_worth_it_chat_notifications", {
+            p_chat_key: chatKey,
+            p_enabled: nextEnabled
+        });
+        if (result.error) throw result.error;
+        if (!result.data?.success) throw new Error(result.data?.code || "Could not update notification settings.");
+        chatNotificationPreferences = Object.assign(Object.create(null), chatNotificationPreferences, {
+            [chatKey]: nextEnabled
+        });
+        renderFriends();
+        renderConversations();
+        updateUnreadBadge();
+        setStatus(nextEnabled ? "Notifications turned on for this chat." : "Notifications turned off for this chat.", false);
+    } catch (error) {
+        setStatus(rpcError(error), true);
+    }
 }
 function updateUnreadBadge() {
     const badge = $("worthItChatNavBadge");
     if (!badge) return;
-    const total = chatConversations.reduce((sum, item) => sum + Number(item.unread_count || 0), 0);
+    const total = chatConversations.reduce((sum, item) => {
+        const key = chatNotificationKeyForConversation(item);
+        return sum + (chatNotificationsEnabled(key) ? Number(item.unread_count || 0) : 0);
+    }, 0);
     badge.hidden = total < 1;
     badge.textContent = total > 99 ? "99+" : String(total);
 }
@@ -212,11 +291,13 @@ async function refreshWorthItChatData() {
     const token = ++chatRefreshToken;
     const results = await Promise.allSettled([
         client.rpc("get_worth_it_chat_friends"),
-        client.rpc("get_worth_it_chat_conversations")
+        client.rpc("get_worth_it_chat_conversations"),
+        client.rpc("get_worth_it_chat_notification_preferences")
     ]);
     if (token !== chatRefreshToken || chatUser?.id !== userId) return;
     const friendsResult = results[0];
     const chatsResult = results[1];
+    const notificationPrefsResult = results[2];
     if (friendsResult.status === "fulfilled" && !friendsResult.value.error) {
         chatFriends = Array.isArray(friendsResult.value.data) ? friendsResult.value.data : [];
     } else {
@@ -228,6 +309,12 @@ async function refreshWorthItChatData() {
     } else {
         chatConversations = [];
         if (chatOpen) setStatus(rpcError(chatsResult.status === "rejected" ? chatsResult.reason : chatsResult.value.error), true);
+    }
+    // Until the settings migration is installed, preserve the default (all enabled) behavior.
+    if (notificationPrefsResult.status === "fulfilled" && !notificationPrefsResult.value.error &&
+        notificationPrefsResult.value.data && typeof notificationPrefsResult.value.data === "object" &&
+        !Array.isArray(notificationPrefsResult.value.data)) {
+        chatNotificationPreferences = Object.assign(Object.create(null), notificationPrefsResult.value.data);
     }
     renderFriends(); renderConversations(); updateUnreadBadge();
     if ($("worthItChatGroupDialog") && !$("worthItChatGroupDialog").hidden) renderGroupFriendChoices();
@@ -502,17 +589,17 @@ function updateGroupSelectionUI() {
     const helpNode = $("worthItChatGroupSelectionHelp");
     const title = String($("worthItChatGroupName")?.value || "").trim();
     const count = selectedGroupFriendIds.size;
-    const validCount = count >= 2 && count <= 49;
+    const validCount = count >= 2 && count <= 29;
     const validTitle = Boolean(title) && title.length <= 60;
 
     if (countNode) {
         countNode.textContent = count + (count === 1 ? " friend selected" : " friends selected");
         countNode.classList.toggle("is-ready", validCount);
-        countNode.classList.toggle("is-over-limit", count > 49);
+        countNode.classList.toggle("is-over-limit", count > 29);
     }
     if (helpNode) {
         let message = "";
-        if (count > 49) message = "Maximum 49 friends plus you. Remove a selection to continue.";
+        if (count > 29) message = "Maximum 30 members including you. Remove a selection to continue.";
         else if (count < 2) message = "Choose " + (2 - count) + " more friend" + (2 - count === 1 ? "" : "s") + " to continue.";
         else if (!validTitle) message = "Add a group name to continue.";
         else message = "Everything is ready — create your group.";
@@ -592,7 +679,7 @@ async function createWorthItGroupChat(event) {
     const ids = Array.from(selectedGroupFriendIds).map(Number).filter(Number.isSafeInteger);
     if (!title || title.length > 60) { setGroupStatus("Enter a group name up to 60 characters.", true); updateGroupSelectionUI(); return; }
     if (ids.length < 2) { setGroupStatus("Choose at least two friends for the group.", true); updateGroupSelectionUI(); return; }
-    if (ids.length > 49) { setGroupStatus("A group can include up to 49 friends plus you.", true); updateGroupSelectionUI(); return; }
+    if (ids.length > 29) { setGroupStatus("A group can include up to 30 members including you.", true); updateGroupSelectionUI(); return; }
 
     const form = $("worthItChatGroupForm");
     const submit = form?.querySelector('button[type="submit"]');
