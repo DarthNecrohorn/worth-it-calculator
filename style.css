@@ -18470,3 +18470,180 @@ html[data-theme="light"] .worth-it-profile-connection-text strong {
 html[data-theme="light"] .worth-it-profile-connection-text small {
     color: #64748b;
 }
+
+
+/* =========================================================
+   LIGHT THEME — PROFILE CONTROLS INCLUDING ACTIVE BANNERS
+   UI surfaces follow the selected theme; uploaded profile and
+   banner images themselves are deliberately not modified.
+   ========================================================= */
+
+/* A custom profile banner must not force the site navigation back to dark mode. */
+html[data-theme="light"] .nav {
+    color: #0f172a !important;
+    background: rgba(255,255,255,.94) !important;
+    border-bottom-color: rgba(15,23,42,.12) !important;
+}
+html[data-theme="light"] .nav .logo {
+    color: #0f172a !important;
+}
+html[data-theme="light"] .nav .menu-btn,
+html[data-theme="light"] .nav .auth-btn,
+html[data-theme="light"] .nav .settings-btn,
+html[data-theme="light"] .nav .ai-chat-nav-btn,
+html[data-theme="light"] .nav .signout-nav-btn,
+html[data-theme="light"] .nav .feedback-nav-btn {
+    color: #0f172a !important;
+    background: rgba(15,23,42,.045) !important;
+    border-color: rgba(15,23,42,.13) !important;
+}
+html[data-theme="light"] .nav .ai-chat-nav-btn {
+    background: linear-gradient(135deg,rgba(124,92,255,.09),rgba(56,189,248,.10)) !important;
+}
+html[data-theme="light"] .nav .menu-btn:hover,
+html[data-theme="light"] .nav .auth-btn:hover,
+html[data-theme="light"] .nav .settings-btn:hover,
+html[data-theme="light"] .nav .ai-chat-nav-btn:hover,
+html[data-theme="light"] .nav .signout-nav-btn:hover,
+html[data-theme="light"] .nav .feedback-nav-btn:hover {
+    color: #0f172a !important;
+    background: rgba(15,23,42,.085) !important;
+    border-color: rgba(124,92,255,.42) !important;
+}
+/* Keep the existing avatar frame/image treatment; only the nav surface changes. */
+
+/* Profile statistics are real controls, so render them as light cards even over a banner. */
+html[data-theme="light"] .worth-it-profile-section .worth-it-profile-social-column .worth-it-profile-stat {
+    color: #0f172a !important;
+    background: rgba(255,255,255,.96) !important;
+    border-color: rgba(15,23,42,.13) !important;
+    box-shadow: 0 6px 18px rgba(15,23,42,.09) !important;
+    backdrop-filter: none !important;
+}
+html[data-theme="light"] .worth-it-profile-section .worth-it-profile-social-column .worth-it-profile-stat strong {
+    color: #0f172a !important;
+}
+html[data-theme="light"] .worth-it-profile-section .worth-it-profile-social-column .worth-it-profile-stat span {
+    color: #64748b !important;
+}
+html[data-theme="light"] .worth-it-profile-section .worth-it-profile-social-column .worth-it-profile-stat:hover,
+html[data-theme="light"] .worth-it-profile-section .worth-it-profile-social-column .worth-it-profile-stat:focus-visible {
+    color: #0f172a !important;
+    background: #fff !important;
+    border-color: rgba(124,92,255,.5) !important;
+    box-shadow: 0 8px 22px rgba(15,23,42,.12) !important;
+}
+
+/* Friend/follow and other profile controls use light surfaces; the primary action keeps its brand gradient. */
+html[data-theme="light"] .worth-it-profile-section .worth-it-profile-social-button:not(.primary) {
+    color: #1e293b !important;
+    background: rgba(255,255,255,.97) !important;
+    border-color: rgba(15,23,42,.14) !important;
+}
+html[data-theme="light"] .worth-it-profile-section .worth-it-profile-social-button.primary {
+    color: #fff !important;
+    background: linear-gradient(115deg,rgba(124,92,255,.95),rgba(56,189,248,.88)) !important;
+    border-color: rgba(124,92,255,.34) !important;
+}
+html[data-theme="light"] .worth-it-profile-section .worth-it-profile-view-all {
+    color: #334155 !important;
+    background: rgba(255,255,255,.97) !important;
+    border-color: rgba(15,23,42,.14) !important;
+}
+html[data-theme="light"] .worth-it-profile-section .worth-it-profile-pending-requests {
+    color: #0f172a !important;
+    background: rgba(255,255,255,.96) !important;
+    border-color: rgba(15,23,42,.13) !important;
+    box-shadow: 0 8px 26px rgba(15,23,42,.07) !important;
+    backdrop-filter: none !important;
+}
+html[data-theme="light"] .worth-it-profile-section .worth-it-profile-pending-requests h2 {
+    color: #0f172a !important;
+}
+html[data-theme="light"] .worth-it-profile-section .worth-it-profile-friends-empty {
+    color: #64748b !important;
+}
+/* The back buttons on both profile and connection views must match the selected light theme. */
+html[data-theme="light"] .worth-it-profile-toolbar .btn-secondary,
+html[data-theme="light"] .worth-it-profile-connections-page .btn-secondary {
+    color: #334155 !important;
+    background: rgba(255,255,255,.96) !important;
+    border-color: rgba(15,23,42,.14) !important;
+}
+html[data-theme="light"] .worth-it-profile-toolbar .btn-secondary:hover,
+html[data-theme="light"] .worth-it-profile-connections-page .btn-secondary:hover {
+    color: #0f172a !important;
+    background: #f1f5f9 !important;
+    border-color: rgba(124,92,255,.4) !important;
+}
+
+/* Give Friends / Followers / Following a real light-theme surface, even with a banner behind the section. */
+html[data-theme="light"] .worth-it-profile-connections-page {
+    color: #0f172a !important;
+    background: rgba(255,255,255,.97) !important;
+    border: 1px solid rgba(15,23,42,.12) !important;
+    border-radius: 20px !important;
+    padding: 24px !important;
+    box-shadow: 0 12px 36px rgba(15,23,42,.08) !important;
+}
+html[data-theme="light"] .worth-it-profile-connections-head h1 {
+    color: #0f172a !important;
+}
+html[data-theme="light"] .worth-it-profile-connections-head p {
+    color: #64748b !important;
+}
+html[data-theme="light"] .worth-it-profile-connection-tabs button {
+    color: #334155 !important;
+    background: #f8fafc !important;
+    border-color: rgba(15,23,42,.14) !important;
+}
+html[data-theme="light"] .worth-it-profile-connection-tabs button:hover,
+html[data-theme="light"] .worth-it-profile-connection-tabs button:focus-visible {
+    color: #0f172a !important;
+    background: #f1f5f9 !important;
+    border-color: rgba(124,92,255,.45) !important;
+}
+html[data-theme="light"] .worth-it-profile-connection-tabs button.active,
+html[data-theme="light"] .worth-it-profile-connection-tabs button[aria-current="page"] {
+    color: #fff !important;
+    background: linear-gradient(115deg,rgba(124,92,255,.95),rgba(56,189,248,.88)) !important;
+    border-color: rgba(124,92,255,.35) !important;
+}
+html[data-theme="light"] .worth-it-profile-connections-status {
+    color: #334155 !important;
+    background: #f8fafc !important;
+    border-color: rgba(15,23,42,.12) !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+}
+html[data-theme="light"] .worth-it-profile-connections-status.is-error {
+    color: #b91c1c !important;
+    background: #fef2f2 !important;
+    border-color: #fecaca !important;
+}
+html[data-theme="light"] .worth-it-profile-connection-card {
+    color: #0f172a !important;
+    background: #fff !important;
+    border-color: rgba(15,23,42,.13) !important;
+    box-shadow: 0 7px 22px rgba(15,23,42,.07) !important;
+    backdrop-filter: none !important;
+}
+html[data-theme="light"] .worth-it-profile-connection-card:hover,
+html[data-theme="light"] .worth-it-profile-connection-card:focus-visible {
+    color: #0f172a !important;
+    background: #fdfcff !important;
+    border-color: rgba(124,92,255,.5) !important;
+    box-shadow: 0 10px 28px rgba(15,23,42,.1) !important;
+}
+html[data-theme="light"] .worth-it-profile-connection-text strong {
+    color: #0f172a !important;
+}
+html[data-theme="light"] .worth-it-profile-connection-text small {
+    color: #64748b !important;
+}
+@media(max-width:600px) {
+    html[data-theme="light"] .worth-it-profile-connections-page {
+        padding: 16px 12px 20px !important;
+        border-radius: 16px !important;
+    }
+}
