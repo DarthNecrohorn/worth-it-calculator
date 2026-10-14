@@ -2528,6 +2528,15 @@ html[data-theme="light"].worth-it-initial-paint::before {
           </div>
           <p id="securitySessionsStatus" class="account-settings-status" role="status" aria-live="polite"></p>
         </div>
+
+        <div class="account-settings-field">
+          <div class="account-settings-label-row">
+            <label>Security email alerts</label>
+            <span class="account-settings-current-value">Supabase Auth</span>
+          </div>
+          <p class="account-settings-help">Supabase Auth supports email notifications for sensitive changes, including password or email changes and adding or removing an authenticator method. These notifications are controlled by the Worth It project's Auth notification settings, rather than by a per-account switch here.</p>
+          <p id="securityAlertsStatus" class="account-settings-status" role="status" aria-live="polite">Whether each security email alert is enabled still needs to be confirmed in the Supabase project settings. This page does not claim those alerts are active until that configuration is verified.</p>
+        </div>
       </div>
     </section>
 
@@ -2879,7 +2888,7 @@ try{
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.1"></script>
 
 
-<script src="app.js?v=security-settings-20261014i"></script>
+<script src="app.js?v=security-settings-20261014j"></script>
 <script src="ai-ui.js"></script>
 <script src="calculators.js"></script>
 <script src="cars-ui.js?v=carsperf20261012a"></script>
