@@ -45,10 +45,12 @@ async function verifyUser(config, token) {
 }
 
 function serviceHeaders(config, extra) {
-    return Object.assign({
-        "apikey": config.serviceKey,
-        "Authorization": "Bearer " + config.serviceKey
-    }, extra || {});
+    const headers = { "apikey": config.serviceKey };
+    // New sb_secret_* keys must be sent only as apikey, not as Bearer JWTs.
+    if (!config.serviceKey.startsWith("sb_secret_")) {
+        headers.Authorization = "Bearer " + config.serviceKey;
+    }
+    return Object.assign(headers, extra || {});
 }
 
 async function readProfile(config, userId) {
