@@ -86,14 +86,12 @@ window.supabaseClient.auth.onAuthStateChange((event, session) => {
 async function ensureMfaVerificationIfNeeded(authClient, options) {
     const pendingLogin = Boolean(options?.pendingLogin);
     const failClosed = (message, error) => {
-        if (pendingLogin) {
-            throw (error || new Error(message));
-        }
-        return false;
+        throw (error || new Error(message));
     };
 
+    // Ignore a duplicate notification while an MFA transition is already running.
     if (authMfaRequired || authMfaLoginInProgress || authMfaEnforcementCheckInProgress) {
-        return failClosed("Two-factor verification is already in progress. Please try signing in again.");
+        return false;
     }
     if (!authClient?.mfa) {
         return failClosed("Two-factor verification is unavailable. Please try signing in again.");
@@ -151,6 +149,28 @@ async function ensureMfaVerificationIfNeeded(authClient, options) {
         return true;
     } catch (error) {
         if (pendingLogin) throw error;
+
+        // A persisted AAL1 session must not silently continue if the required
+        // MFA step cannot be evaluated. Sign out locally and require a fresh login.
+        authMfaRequired = false;
+        authPendingMfaFactorId = "";
+        authPendingMfaFactorType = "totp";
+        const pendingClient = authMfaPendingClient;
+        authMfaPendingClient = null;
+        try {
+            if (pendingClient && pendingClient !== window.supabaseClient) {
+                await pendingClient.auth.signOut({ scope: "local" });
+            }
+        } catch (_) {}
+        try {
+            await window.supabaseClient.auth.signOut({ scope: "local" });
+        } catch (_) {}
+        updateAuthUI(null);
+        openAuthModal("signin");
+        setAuthStatus(
+            "We couldn't confirm your account's sign-in security level. You have been signed out for safety. Please sign in again.",
+            "error"
+        );
         return false;
     } finally {
         authMfaEnforcementCheckInProgress = false;
