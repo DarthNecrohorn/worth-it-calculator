@@ -33,6 +33,7 @@ function openFullSettings(){
     document.body.style.overflowY = "auto";
     if (typeof window.updateSettingsUI === "function") window.updateSettingsUI();
     if (typeof window.loadAccountSettings === "function") window.loadAccountSettings();
+    if (typeof window.loadSecuritySettings === "function") window.loadSecuritySettings();
     window.scrollTo({ top: 0, behavior: "auto" });
 }
 
@@ -407,6 +408,294 @@ window.openSettings = openFullSettings;
             accountStatus("accountDisplayNameStatus", "Your profile link could not be resolved. Open your profile from the navigation menu.", true);
         } catch (_) {
             accountStatus("accountDisplayNameStatus", "Your profile link could not be resolved. Open your profile from the navigation menu.", true);
+        }
+    };
+
+    let securityLoadGeneration = 0;
+    let activeTotpFactorId = "";
+    let pendingTotpFactorId = "";
+    let enrollmentTotpFactorId = "";
+    let enrollmentTotpSecret = "";
+
+    function securityMessage(id, message, isError) {
+        const node = $(id);
+        if (!node) return;
+        node.textContent = message || "";
+        node.classList.toggle("is-error", Boolean(isError));
+        node.classList.toggle("is-success", Boolean(message && !isError));
+    }
+
+    async function currentSecuritySession() {
+        const client = window.supabaseClient;
+        if (!client?.auth) return null;
+        const result = await client.auth.getSession();
+        return result?.data?.session || null;
+    }
+
+    window.loadSecuritySettings = async function() {
+        const generation = ++securityLoadGeneration;
+        const loading = $("securitySettingsLoading");
+        const signedOut = $("securitySettingsSignedOut");
+        const content = $("securitySettingsContent");
+        if (!loading || !signedOut || !content) return;
+
+        loading.hidden = false;
+        loading.textContent = "Loading security settings…";
+        signedOut.hidden = true;
+        content.hidden = true;
+        activeTotpFactorId = "";
+        pendingTotpFactorId = "";
+
+        let session;
+        try { session = await currentSecuritySession(); } catch (_) { session = null; }
+        if (generation !== securityLoadGeneration) return;
+        if (!session?.user || !session.access_token) {
+            loading.hidden = true;
+            signedOut.hidden = false;
+            $("securityMfaBadge").textContent = "Sign in required";
+            return;
+        }
+
+        loading.hidden = true;
+        content.hidden = false;
+        $("securityPasswordStatus").textContent = "Account email: " + (session.user.email || "not available") + ".";
+        securityMessage("securitySessionsStatus", "The current browser session is active.", false);
+        securityMessage("securityMfaStatus", "Checking authenticator status…", false);
+        $("securityMfaStart").hidden = true;
+        $("securityMfaEnroll").hidden = true;
+        $("securityMfaDisable").hidden = true;
+        $("securityMfaPending").hidden = true;
+        $("securityMfaBadge").textContent = "Checking…";
+
+        try {
+            const result = await window.supabaseClient.auth.mfa.listFactors();
+            if (generation !== securityLoadGeneration) return;
+            if (result?.error) throw result.error;
+            const factors = result?.data?.totp || [];
+            const active = factors.find(factor => factor.status === "verified");
+            const pending = factors.find(factor => factor.status !== "verified");
+
+            if (active) {
+                activeTotpFactorId = active.id;
+                $("securityMfaBadge").textContent = "Enabled";
+                $("securityMfaBadge").classList.add("is-success");
+                securityMessage("securityMfaStatus", "Authenticator two-factor authentication is enabled for this account.", false);
+                $("securityMfaDisable").hidden = false;
+                $("securityMfaDisableButton").disabled = false;
+                $("securityMfaStart").hidden = true;
+            } else if (pending) {
+                pendingTotpFactorId = pending.id;
+                $("securityMfaBadge").textContent = "Setup unfinished";
+                $("securityMfaBadge").classList.remove("is-success");
+                securityMessage("securityMfaStatus", "A previous setup has not been verified. Remove it before starting again.", true);
+                $("securityMfaPending").hidden = false;
+                $("securityMfaStart").hidden = true;
+            } else {
+                $("securityMfaBadge").textContent = "Not enabled";
+                $("securityMfaBadge").classList.remove("is-success");
+                securityMessage("securityMfaStatus", "Two-factor authentication is not enabled. You can set up an authenticator app below.", false);
+                $("securityMfaStart").hidden = false;
+            }
+        } catch (error) {
+            $("securityMfaBadge").textContent = "Unavailable";
+            $("securityMfaBadge").classList.remove("is-success");
+            securityMessage("securityMfaStatus", error?.message || "Could not check authenticator status. Verify that MFA is enabled in Supabase Auth settings.", true);
+            $("securityMfaStart").hidden = true;
+        }
+    };
+
+    window.openPasswordResetFromSettings = async function() {
+        let session;
+        try { session = await currentSecuritySession(); } catch (_) { session = null; }
+        if (!session?.user?.email) {
+            securityMessage("securityPasswordStatus", "Sign in again to request a password reset.", true);
+            return;
+        }
+        if (typeof window.openLoginModal !== "function") {
+            securityMessage("securityPasswordStatus", "Password reset is unavailable right now. Please use Forgot password on the sign-in screen.", true);
+            return;
+        }
+        window.openLoginModal("forgot");
+        window.setTimeout(function() {
+            const emailInput = $("authEmail");
+            if (emailInput) {
+                emailInput.value = session.user.email;
+                emailInput.readOnly = true;
+            }
+            const subtitle = $("authModalSubtitle");
+            if (subtitle) subtitle.textContent = "We will send a password-reset link to your verified account email.";
+        }, 60);
+    };
+
+    window.startTotpEnrollment = async function() {
+        const button = $("securityMfaStart");
+        if (button) button.disabled = true;
+        securityMessage("securityMfaStatus", "Creating a private authenticator setup…", false);
+        try {
+            const session = await currentSecuritySession();
+            if (!session?.access_token) throw new Error("Sign in again to set up two-factor authentication.");
+            const result = await window.supabaseClient.auth.mfa.enroll({
+                factorType: "totp",
+                friendlyName: "Worth It authenticator"
+            });
+            if (result?.error) throw result.error;
+            const factor = result?.data;
+            if (!factor?.id || !factor?.totp?.secret || !factor?.totp?.qr_code) {
+                throw new Error("Supabase did not return the full authenticator setup information.");
+            }
+            enrollmentTotpFactorId = factor.id;
+            enrollmentTotpSecret = factor.totp.secret;
+            const qr = $("securityMfaQr");
+            qr.src = factor.totp.qr_code;
+            qr.hidden = false;
+            $("securityMfaSecret").textContent = enrollmentTotpSecret;
+            $("securityMfaEnrollCode").value = "";
+            $("securityMfaEnroll").hidden = false;
+            $("securityMfaStart").hidden = true;
+            $("securityMfaBadge").textContent = "Setup in progress";
+            securityMessage("securityMfaStatus", "Scan the QR code or enter the private setup key, then enter the current 6-digit code to verify it.", false);
+        } catch (error) {
+            securityMessage("securityMfaStatus", error?.message || "Could not start authenticator setup.", true);
+            if (button) button.disabled = false;
+        }
+    };
+
+    window.copyTotpSecret = async function() {
+        if (!enrollmentTotpSecret) return;
+        try {
+            await navigator.clipboard.writeText(enrollmentTotpSecret);
+            securityMessage("securityMfaStatus", "Setup key copied. Keep it private and do not share it.", false);
+        } catch (_) {
+            securityMessage("securityMfaStatus", "Copy is unavailable in this browser. Select the setup key and copy it manually.", true);
+        }
+    };
+
+    window.verifyTotpEnrollment = async function() {
+        const code = ($("securityMfaEnrollCode")?.value || "").replace(/\s/g, "");
+        const button = $("securityMfaVerify");
+        if (!enrollmentTotpFactorId) {
+            securityMessage("securityMfaStatus", "Start authenticator setup first.", true);
+            return;
+        }
+        if (!/^\d{6}$/.test(code)) {
+            securityMessage("securityMfaStatus", "Enter the current 6-digit code from your authenticator app.", true);
+            $("securityMfaEnrollCode")?.focus();
+            return;
+        }
+        button.disabled = true;
+        try {
+            const auth = window.supabaseClient.auth;
+            const challenge = await auth.mfa.challenge({ factorId: enrollmentTotpFactorId });
+            if (challenge?.error) throw challenge.error;
+            const result = await auth.mfa.verify({
+                factorId: enrollmentTotpFactorId,
+                challengeId: challenge.data.id,
+                code
+            });
+            if (result?.error) throw result.error;
+            enrollmentTotpFactorId = "";
+            enrollmentTotpSecret = "";
+            $("securityMfaEnroll").hidden = true;
+            $("securityMfaQr").removeAttribute("src");
+            $("securityMfaSecret").textContent = "";
+            $("securityMfaEnrollCode").value = "";
+            securityMessage("securityMfaStatus", "Two-factor authentication is enabled. Store your authenticator safely and keep access to it.", false);
+            await window.loadSecuritySettings();
+        } catch (error) {
+            securityMessage("securityMfaStatus", error?.message || "The code could not be verified. Check the time on your phone and try again.", true);
+        } finally {
+            button.disabled = false;
+        }
+    };
+
+    window.cancelTotpEnrollment = async function() {
+        const factorId = enrollmentTotpFactorId;
+        if (!factorId) {
+            $("securityMfaEnroll").hidden = true;
+            return;
+        }
+        const button = $("securityMfaVerify");
+        if (button) button.disabled = true;
+        try {
+            const result = await window.supabaseClient.auth.mfa.unenroll({ factorId });
+            if (result?.error) throw result.error;
+            enrollmentTotpFactorId = "";
+            enrollmentTotpSecret = "";
+            $("securityMfaEnroll").hidden = true;
+            $("securityMfaQr").removeAttribute("src");
+            $("securityMfaSecret").textContent = "";
+            securityMessage("securityMfaStatus", "Authenticator setup cancelled.", false);
+            await window.loadSecuritySettings();
+        } catch (error) {
+            securityMessage("securityMfaStatus", error?.message || "Could not cancel setup. Refresh security settings and try again.", true);
+        } finally {
+            if (button) button.disabled = false;
+        }
+    };
+
+    window.removePendingTotpEnrollment = async function() {
+        if (!pendingTotpFactorId) return;
+        try {
+            const result = await window.supabaseClient.auth.mfa.unenroll({ factorId: pendingTotpFactorId });
+            if (result?.error) throw result.error;
+            pendingTotpFactorId = "";
+            securityMessage("securityMfaStatus", "Unfinished authenticator setup removed.", false);
+            await window.loadSecuritySettings();
+        } catch (error) {
+            securityMessage("securityMfaStatus", error?.message || "Could not remove the unfinished setup.", true);
+        }
+    };
+
+    window.disableTotpFactor = async function() {
+        if (!activeTotpFactorId) {
+            securityMessage("securityMfaStatus", "No verified authenticator factor was found.", true);
+            return;
+        }
+        const code = ($("securityMfaDisableCode")?.value || "").replace(/\s/g, "");
+        if (!/^\d{6}$/.test(code)) {
+            securityMessage("securityMfaStatus", "Enter a valid 6-digit authenticator code to confirm disabling 2FA.", true);
+            $("securityMfaDisableCode")?.focus();
+            return;
+        }
+        if (!window.confirm("Disable authenticator two-factor authentication for this account? This reduces sign-in security.")) return;
+        const button = $("securityMfaDisableButton");
+        button.disabled = true;
+        try {
+            const auth = window.supabaseClient.auth;
+            const challenge = await auth.mfa.challenge({ factorId: activeTotpFactorId });
+            if (challenge?.error) throw challenge.error;
+            const verification = await auth.mfa.verify({
+                factorId: activeTotpFactorId,
+                challengeId: challenge.data.id,
+                code
+            });
+            if (verification?.error) throw verification.error;
+            const result = await auth.mfa.unenroll({ factorId: activeTotpFactorId });
+            if (result?.error) throw result.error;
+            activeTotpFactorId = "";
+            $("securityMfaDisableCode").value = "";
+            securityMessage("securityMfaStatus", "Authenticator two-factor authentication has been disabled.", false);
+            await window.loadSecuritySettings();
+        } catch (error) {
+            securityMessage("securityMfaStatus", error?.message || "Could not disable 2FA. Check your code and try again.", true);
+        } finally {
+            button.disabled = false;
+        }
+    };
+
+    window.signOutOtherSessions = async function() {
+        if (!window.confirm("Sign out all other Worth It sessions? This browser will remain signed in.")) return;
+        const button = $("securitySignOutOthers");
+        button.disabled = true;
+        securityMessage("securitySessionsStatus", "Signing out other sessions…", false);
+        try {
+            const result = await window.supabaseClient.auth.signOut({ scope: "others" });
+            if (result?.error) throw result.error;
+            securityMessage("securitySessionsStatus", "A sign-out request for other sessions completed. Other access tokens can remain valid until they expire.", false);
+        } catch (error) {
+            securityMessage("securitySessionsStatus", error?.message || "Could not sign out other sessions. Please try again.", true);
+        } finally {
+            button.disabled = false;
         }
     };
 
