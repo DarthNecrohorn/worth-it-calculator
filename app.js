@@ -93,12 +93,12 @@ async function ensureMfaVerificationIfNeeded(authClient, options) {
     if (authMfaRequired || authMfaLoginInProgress || authMfaEnforcementCheckInProgress) {
         return false;
     }
-    if (!authClient?.mfa) {
-        return failClosed("Two-factor verification is unavailable. Please try signing in again.");
-    }
-
     authMfaEnforcementCheckInProgress = true;
     try {
+        if (!authClient?.mfa) {
+            return failClosed("Two-factor verification is unavailable. Please try signing in again.");
+        }
+
         const assurance = await authClient.mfa.getAuthenticatorAssuranceLevel();
         if (assurance?.error) {
             return failClosed("Could not verify the account's sign-in security level. Please try again.", assurance.error);
