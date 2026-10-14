@@ -68,7 +68,7 @@ async function refreshWorthItPresenceDisplay(){
  }catch(_){}finally{presenceDisplayBusy=false;}
 }
 async function touchWorthItPresence(force){
- if(!currentUser?.id||!client()||document.visibilityState==="hidden"||presenceHeartbeatBusy)return;if(!force&&Date.now()-presenceLastHeartbeatAt<55000)return;
+ if(!currentUser?.id||!client()||presenceHeartbeatBusy)return;if(!force&&Date.now()-presenceLastHeartbeatAt<55000)return;
  presenceHeartbeatBusy=true;presenceLastHeartbeatAt=Date.now();try{const result=await client().rpc("touch_worth_it_presence");if(result.error)presenceLastHeartbeatAt=0;}catch(_){presenceLastHeartbeatAt=0;}finally{presenceHeartbeatBusy=false;}
 }
 function startWorthItPresenceTimers(){if(presenceHeartbeatTimer===null)presenceHeartbeatTimer=window.setInterval(()=>touchWorthItPresence(false),60000);if(presenceDisplayTimer===null)presenceDisplayTimer=window.setInterval(()=>refreshWorthItPresenceDisplay(),30000);}
