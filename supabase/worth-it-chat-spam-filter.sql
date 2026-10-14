@@ -62,14 +62,14 @@ begin
     -- Global Chat duplicate detection: case, whitespace and punctuation variations are normalized.
     -- Only compare recent text messages from this sender; media-only messages are unaffected.
     if target_type='global' and char_length(btrim(clean_body))>0 then
-        normalized_body := lower(regexp_replace(btrim(clean_body), '[[:space:][:punct:]]+', ' ', 'g'));
+        normalized_body := lower(btrim(regexp_replace(btrim(clean_body), '[[:space:][:punct:]]+', ' ', 'g')));
         if char_length(normalized_body)>0 and exists (
             select 1 from public.worth_it_chat_messages m
             where m.conversation_id=target_id
               and m.sender_user_id=actor_id
               and m.created_at > now()-interval '10 minutes'
               and char_length(btrim(m.body))>0
-              and lower(regexp_replace(btrim(m.body), '[[:space:][:punct:]]+', ' ', 'g'))=normalized_body
+              and lower(btrim(regexp_replace(btrim(m.body), '[[:space:][:punct:]]+', ' ', 'g')))=normalized_body
         ) then
             return jsonb_build_object('success',false,'code','SPAM_DUPLICATE');
         end if;
