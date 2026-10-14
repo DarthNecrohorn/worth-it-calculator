@@ -2,6 +2,13 @@
 -- Run this migration once in the Supabase SQL Editor for the existing project.
 begin;
 
+alter table public.worth_it_chat_conversations add column if not exists invite_token text;
+update public.worth_it_chat_conversations
+   set invite_token = lower(replace(gen_random_uuid()::text || gen_random_uuid()::text, '-', ''))
+ where conversation_type = 'group' and invite_token is null;
+create unique index if not exists worth_it_chat_group_invite_token_idx
+    on public.worth_it_chat_conversations(invite_token) where invite_token is not null;
+
 create table if not exists public.worth_it_chat_notification_preferences (
     user_id uuid not null references auth.users(id) on delete cascade,
     chat_key text not null,
@@ -49,6 +56,7 @@ begin
     select coalesce(jsonb_agg(jsonb_build_object(
         'id', c.id, 'type', c.conversation_type, 'title', c.title,
         'created_at', c.created_at,
+        'invite_token', case when c.conversation_type = 'group' then c.invite_token else null end,
         'members', case
             when c.conversation_type = 'global' then '[]'::jsonb
             else (
@@ -196,6 +204,7 @@ declare
     member_user uuid;
     clean_title text := nullif(btrim(coalesce(p_title, '')), '');
     requested_count integer := 0;
+    generated_invite_token text := lower(replace(gen_random_uuid()::text || gen_random_uuid()::text, '-', ''));
 begin
     if actor_id is null then
         raise exception 'Authentication required';
@@ -212,8 +221,8 @@ begin
         return jsonb_build_object('success', false, 'code', 'INVALID_GROUP_SIZE', 'max_members', 30);
     end if;
 
-    insert into public.worth_it_chat_conversations(conversation_type, title, created_by)
-    values ('group', clean_title, actor_id)
+    insert into public.worth_it_chat_conversations(conversation_type, title, created_by, invite_token)
+    values ('group', clean_title, actor_id, generated_invite_token)
     returning id into conversation;
 
     insert into public.worth_it_chat_members(conversation_id, user_id)
@@ -250,9 +259,9 @@ begin
         raise exception 'A group chat can have no more than 30 members';
     end if;
 
-    return jsonb_build_object('success', true, 'conversation_id', conversation);
+    return jsonb_build_object('success', true, 'conversation_id', conversation, 'invite_token', generated_invite_token);
 end;
-$$;
+$;
 
 revoke all on function public.get_worth_it_chat_notification_preferences() from public, anon;
 revoke all on function public.set_worth_it_chat_notifications(text, boolean) from public, anon;
