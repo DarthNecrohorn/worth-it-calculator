@@ -20,7 +20,7 @@
 })();
 </script>
 
-<link rel="stylesheet" href="style.css?v=displaynameweekly20261014a">
+<link rel="stylesheet" href="style.css?v=displaynamefilters20261014a">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 </head>
 
@@ -2140,8 +2140,8 @@
       <button type="button" class="worth-it-display-name-close" onclick="closeWorthItDisplayNameEditor()" aria-label="Close">✕</button>
     </div>
     <label class="worth-it-display-name-label" for="worthItDisplayNameInput">Display name</label>
-    <input id="worthItDisplayNameInput" class="worth-it-display-name-input" type="text" maxlength="32" autocomplete="nickname" required>
-    <p class="worth-it-display-name-hint">You can change your display name once every 7 days. Your @username will not change.</p>
+    <input id="worthItDisplayNameInput" class="worth-it-display-name-input" type="text" minlength="3" maxlength="20" pattern="[A-Za-z0-9]+(_[A-Za-z0-9]+)?" autocomplete="nickname" spellcheck="false" autocapitalize="off" required>
+    <p class="worth-it-display-name-hint">Use 3–20 English letters or numbers, with at most one underscore between them. No spaces or other symbols. Offensive words, reserved names and long numeric identifiers are not allowed. You can change your display name once every 7 days. Your @username will not change.</p>
     <p id="worthItDisplayNameStatus" class="worth-it-display-name-status" role="status" aria-live="polite"></p>
     <div class="worth-it-display-name-actions">
       <button type="button" class="worth-it-display-name-cancel" onclick="closeWorthItDisplayNameEditor()">Cancel</button>
@@ -4456,7 +4456,7 @@ if($("carResults")){
 }
 
 </script>
-<script src="/profile-ui.js?v=displaynameweekly20261014a"></script>
+<script src="/profile-ui.js?v=displaynamefilters20261014a"></script>
 <script src="/routing.js?v=shareablepaths20261014a"></script>
 
 </body>

@@ -73,6 +73,7 @@ set search_path=public
 as $$
 declare
     v_name text;
+    v_moderated_name text;
     v_current public.worth_it_profiles%rowtype;
     v_now timestamptz;
     v_next timestamptz;
@@ -80,11 +81,39 @@ declare
 begin
     v_name := btrim(coalesce(p_display_name, ''));
 
-    if v_name = '' or char_length(v_name) > 32 or v_name ~ '[[:cntrl:]]' then
+    if char_length(v_name) < 3
+       or char_length(v_name) > 20
+       or v_name !~ '^[A-Za-z0-9]+(_[A-Za-z0-9]+)?$' then
         return jsonb_build_object(
             'success', false,
             'code', 'INVALID_DISPLAY_NAME',
-            'error', 'Display name must contain 1–32 characters without control characters.'
+            'error', 'Display name must be 3–20 characters using only letters, numbers, and at most one underscore between them. Spaces and other symbols are not allowed.'
+        );
+    end if;
+
+    v_moderated_name := translate(lower(replace(v_name, '_', '')), '01345789', 'oieastbg');
+
+    if v_moderated_name ~ '(fuck|shit|bitch|cunt|dick|cock|pussy|whore|slut|bastard|asshole|arsehole|motherfucker|bullshit|dumbass|jackass|nigger|nigga|faggot|retard|retarded|pedo|pedophile|porn|xxx|blowjob|handjob|jizz|rape|rapist|nazi|hitler|kkk)' then
+        return jsonb_build_object(
+            'success', false,
+            'code', 'INVALID_DISPLAY_NAME',
+            'error', 'This display name contains language that is not allowed on Worth It.'
+        );
+    end if;
+
+    if v_moderated_name ~ '^(admin|administrator|moderator|mod|staff|support|official|security|owner|root|worthit)([0-9]+)?$' then
+        return jsonb_build_object(
+            'success', false,
+            'code', 'INVALID_DISPLAY_NAME',
+            'error', 'This display name is reserved and cannot be used.'
+        );
+    end if;
+
+    if length(regexp_replace(v_name, '[^0-9]', '', 'g')) >= 7 then
+        return jsonb_build_object(
+            'success', false,
+            'code', 'INVALID_DISPLAY_NAME',
+            'error', 'Display names cannot contain phone numbers or other long numeric identifiers.'
         );
     end if;
 
