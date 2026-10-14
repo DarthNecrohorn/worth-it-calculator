@@ -134,8 +134,10 @@ function setAuthState(user) {
         renderConversations();
         renderMessages();
         updateUnreadBadge();
+        updateChatHeaderShareButton();
         if (parseWorthItChatRoute()) routeWorthItChatFromLocation();
     } else {
+        updateChatHeaderShareButton();
         refreshWorthItChatData();
         if (parseWorthItChatRoute()) routeWorthItChatFromLocation();
     }
@@ -931,12 +933,19 @@ async function routeWorthItChatFromLocation() {
         if (chatOpen) showChatOverlay(false, {skipRouteSync:true});
         return;
     }
-    if (!isChatRoutePath(chatReturnPath)) chatReturnPath = "/";
+    if (!chatReturnPath || isChatRoutePath(chatReturnPath)) chatReturnPath = "/";
     showChatOverlay(true, {skipRouteSync:true});
     if (route.type === "invalid") {
         closeWorthItGroupInviteDialog();
-        setStatus("This chat link is invalid.", true);
+        activeConversationId = null;
+        activeConversationType = "global";
+        activeConversationTitle = GLOBAL_TITLE;
+        activeConversationPerson = null;
+        activeConversationInviteToken = "";
+        setHeader(GLOBAL_TITLE, "A shared space for the Worth It community", null);
+        chatMessages = [];
         renderMessages();
+        setStatus("This chat link is invalid.", true);
         return;
     }
     if (route.type === "group") {
