@@ -19,19 +19,34 @@ function showProfileSection(){
  const nav=$("navLinks");if(nav&&typeof window.closeNavMenuUnlessPreserved==="function")window.closeNavMenuUnlessPreserved(nav);else if(typeof window.closeMoreMenu==="function")window.closeMoreMenu();
  document.documentElement.classList.remove("settings-open");document.documentElement.style.overflowY="auto";document.body.style.overflowY="auto";window.scrollTo({top:0,behavior:"auto"});
 }
-window.hideWorthItProfileSection=function(){const n=$("profileSection");if(n)n.style.display="none";};
+window.hideWorthItProfileSection=function(){const n=$("profileSection");if(n)n.style.display="none";clearProfileBannerBackdrop(false);};
 function fallbackAvatar(name){const n=document.createElement("div");n.className="worth-it-profile-avatar-fallback";n.textContent=String(name||"W").trim().charAt(0).toUpperCase()||"W";return n;}
 function safeAvatarUrl(url){return typeof url==="string"&&/^https?:\/\//i.test(url)?url:"";}
 function renderAvatar(url,name){const host=$("worthItProfileAvatar");if(!host)return;host.replaceChildren();const safe=safeAvatarUrl(url);if(!safe){host.appendChild(fallbackAvatar(name));return;}const img=document.createElement("img");img.className="worth-it-profile-avatar";img.alt="";img.referrerPolicy="no-referrer";img.src=safe;img.addEventListener("error",()=>host.replaceChildren(fallbackAvatar(name)),{once:true});host.appendChild(img);}
+function syncProfileBannerBackdropPosition(){
+ if(!document.documentElement.classList.contains("profile-banner-active"))return;
+ const nav=document.querySelector(".nav");
+ const bottom=nav?nav.getBoundingClientRect().bottom:0;
+ document.documentElement.style.setProperty("--profile-banner-top",Math.max(0,Math.round(bottom))+"px");
+}
+function clearProfileBannerBackdrop(removeSource){
+ const section=$("profileSection"),cover=$("worthItProfileCover"),card=cover?.closest(".worth-it-profile-card"),image=$("worthItProfileBannerImage");
+ document.documentElement.classList.remove("profile-banner-active");
+ if(image){image.onerror=null;image.hidden=true;if(removeSource)image.removeAttribute("src");}
+ section?.classList.remove("has-banner");cover?.classList.remove("has-banner");card?.classList.remove("has-banner");
+}
 function renderBanner(url){
  const section=$("profileSection"),cover=$("worthItProfileCover"),image=$("worthItProfileBannerImage"),card=cover?.closest(".worth-it-profile-card");
  if(!section||!cover||!image||!card)return;
- if(image.parentElement!==section)section.prepend(image);
- card.classList.remove("has-banner");
  const safe=safeAvatarUrl(url);
- if(!safe){image.onerror=null;image.removeAttribute("src");image.hidden=true;cover.classList.remove("has-banner");section.classList.remove("has-banner");return;}
- image.onerror=()=>{image.hidden=true;cover.classList.remove("has-banner");section.classList.remove("has-banner");image.removeAttribute("src");image.onerror=null;};
- image.src=safe;image.hidden=false;cover.classList.add("has-banner");section.classList.add("has-banner");
+ if(!safe){clearProfileBannerBackdrop(true);return;}
+ if(image.parentElement!==document.body)document.body.prepend(image);
+ image.classList.add("profile-banner-backdrop");
+ image.onerror=()=>{clearProfileBannerBackdrop(true);image.onerror=null;};
+ image.src=safe;image.hidden=false;
+ section.classList.add("has-banner");cover.classList.add("has-banner");
+ syncProfileBannerBackdropPosition();
+ document.documentElement.classList.add("profile-banner-active");
 }
 function renderSmallAvatar(host,url,name,imageClass,fallbackClass){if(!host)return;host.replaceChildren();const safe=safeAvatarUrl(url);if(!safe){const fallback=document.createElement("div");fallback.className=fallbackClass;fallback.textContent=String(name||"W").trim().charAt(0).toUpperCase()||"W";host.appendChild(fallback);return;}const img=document.createElement("img");img.className=imageClass;img.alt="";img.referrerPolicy="no-referrer";img.src=safe;img.addEventListener("error",()=>{host.replaceChildren();const fallback=document.createElement("div");fallback.className=fallbackClass;fallback.textContent=String(name||"W").trim().charAt(0).toUpperCase()||"W";host.appendChild(fallback);},{once:true});host.appendChild(img);}
 function renderAccountPanelBanner(url){
@@ -88,7 +103,7 @@ function renderProfile(p,s,isOwn){
 }
 function hideProfileAssetControls(){const avatarControls=$("worthItProfileAvatarControls"),bannerControls=$("worthItProfileBannerControls");if(avatarControls)avatarControls.hidden=true;if(bannerControls)bannerControls.hidden=true;}
 function renderError(message){
- currentDisplayedProfileId=0;currentDisplayedProfileIsOwn=false;hideProfileAssetControls();
+ currentDisplayedProfileId=0;currentDisplayedProfileIsOwn=false;hideProfileAssetControls();clearProfileBannerBackdrop(true);
  renderAvatar("","W");setText("worthItProfileName","Profile unavailable");setText("worthItProfileUsername","");setText("worthItProfileId","—");
  ["worthItProfileFriends","worthItProfileFollowers","worthItProfileFollowing"].forEach(id=>setText(id,"—"));
  const email=$("worthItProfileEmail");if(email){email.textContent="";email.hidden=true;}
@@ -245,6 +260,7 @@ window.copyWorthItProfileLink=async function(){
  try{if(navigator.clipboard?.writeText)await navigator.clipboard.writeText(link);else{const t=document.createElement("textarea");t.value=link;t.style.position="fixed";t.style.opacity="0";document.body.appendChild(t);t.select();const copied=document.execCommand("copy");t.remove();if(!copied)throw new Error("copy failed");}if(typeof window.showToast==="function")window.showToast("Profile link copied!");}
  catch(_){if(typeof window.showToast==="function")window.showToast("Could not copy the link. Select and copy it manually.");}
 };
+window.addEventListener("resize",syncProfileBannerBackdropPosition,{passive:true});
 if(client()?.auth){client().auth.onAuthStateChange((_event,session)=>{
  const nextUser=session?.user||null,previousUserId=currentUser?.id||"";
  currentUser=nextUser;currentOwnProfile=null;currentOwnProfileRequest=null;
