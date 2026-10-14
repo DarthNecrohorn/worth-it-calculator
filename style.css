@@ -18920,7 +18920,13 @@ body.worth-it-chat-open{overflow:hidden}
 }
 
 
-/* Position the New Group dialog 400px lower as requested. */
+/* Keep the New Group dialog above the chat overlay and preserve its requested vertical offset. */
+.worth-it-chat-group-dialog {
+  z-index: 2147483647 !important;
+  isolation: isolate;
+}
 .worth-it-chat-group-card {
+  position: relative;
+  z-index: 1;
   transform: translateY(400px);
 }
