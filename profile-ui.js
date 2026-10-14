@@ -570,6 +570,10 @@ function socialErrorMessage(result) {
  if (code === "REQUEST_NOT_AVAILABLE") return "This friend request is no longer available.";
  if (code === "PROFILE_NOT_FOUND") return "This profile could not be found.";
  if (code === "CANNOT_FRIEND_SELF") return "You cannot send yourself a friend request.";
+ if (code === "FRIEND_LIMIT_SELF_REACHED") return "You already have 100 friends. Remove a friend before sending or accepting another friend request.";
+ if (code === "FRIEND_LIMIT_TARGET_REACHED") return "This user already has 100 friends and cannot accept more friend requests.";
+ if (code === "FRIEND_LIMIT_RECIPIENT_REACHED") return "You already have 100 friends. Remove a friend before accepting another request.";
+ if (code === "FRIEND_LIMIT_REQUESTER_REACHED") return "The person who sent this request already has 100 friends and cannot accept another friend request.";
  return String(result?.error || "The social action could not be completed. Please try again.");
 }
 async function callSocialRpc(name, args) {
