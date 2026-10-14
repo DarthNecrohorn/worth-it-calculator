@@ -18879,5 +18879,5 @@ body.worth-it-chat-open{overflow:hidden}
 @media(max-width:540px){.worth-it-chat-mobile-list-btn{display:grid}}
 
 /* Keep the chat panel lower on desktop when opened from the header button. */
-.worth-it-chat-window:not(.is-fullscreen){transform:translateY(300px)}
+.worth-it-chat-window:not(.is-fullscreen){transform:translateY(500px)}
 @media(max-width:760px){.worth-it-chat-window:not(.is-fullscreen){transform:none}}
