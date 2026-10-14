@@ -6,10 +6,13 @@ create table if not exists public.worth_it_chat_conversations (
     conversation_type text not null check (conversation_type in ('global','direct','group')),
     title text,
     created_by uuid references auth.users(id) on delete set null,
+    invite_token text,
     created_at timestamptz not null default now()
 );
 create unique index if not exists worth_it_chat_one_global_idx
     on public.worth_it_chat_conversations(conversation_type) where conversation_type = 'global';
+create unique index if not exists worth_it_chat_group_invite_token_idx
+    on public.worth_it_chat_conversations(invite_token) where invite_token is not null;
 insert into public.worth_it_chat_conversations(id, conversation_type, title)
 values ('00000000-0000-4000-8000-000000000001', 'global', 'Global Chat')
 on conflict (id) do nothing;
@@ -142,6 +145,7 @@ begin
     select coalesce(jsonb_agg(jsonb_build_object(
         'id', c.id, 'type', c.conversation_type, 'title', c.title,
         'created_at', c.created_at,
+        'invite_token', case when c.conversation_type = 'group' then c.invite_token else null end,
         'members', case
             when c.conversation_type = 'global' then '[]'::jsonb
             else (
@@ -259,6 +263,7 @@ returns jsonb language plpgsql security definer set search_path = public as $$
 declare
     actor_id uuid := auth.uid(); conversation uuid; member_id bigint; member_user uuid;
     clean_title text := nullif(btrim(coalesce(p_title,'')),''); requested_count integer := 0;
+    generated_invite_token text := lower(replace(gen_random_uuid()::text || gen_random_uuid()::text, '-', ''));
 begin
     if actor_id is null then raise exception 'Authentication required'; end if;
     if clean_title is null or char_length(clean_title)>60 then
@@ -268,8 +273,8 @@ begin
     if requested_count < 2 or requested_count > 29 then
         return jsonb_build_object('success',false,'code','INVALID_GROUP_SIZE','max_members',30);
     end if;
-    insert into public.worth_it_chat_conversations(conversation_type,title,created_by)
-    values('group',clean_title,actor_id) returning id into conversation;
+    insert into public.worth_it_chat_conversations(conversation_type,title,created_by,invite_token)
+    values('group',clean_title,actor_id,generated_invite_token) returning id into conversation;
     insert into public.worth_it_chat_members(conversation_id,user_id) values(conversation,actor_id);
     foreach member_id in array p_member_worth_it_ids loop
         select user_id into member_user from public.worth_it_profiles where worth_it_id=member_id;
@@ -287,8 +292,8 @@ begin
     if (select count(*) from public.worth_it_chat_members where conversation_id=conversation)<3 then
         raise exception 'Choose at least two friends for a group chat';
     end if;
-    return jsonb_build_object('success',true,'conversation_id',conversation);
-end; $$;
+    return jsonb_build_object('success',true,'conversation_id',conversation,'invite_token',generated_invite_token);
+end; $;
 
 create or replace function public.send_worth_it_chat_message(
     p_body text default '',
