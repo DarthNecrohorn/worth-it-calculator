@@ -194,6 +194,7 @@ function renderSocialActionButtons(context, isOwn) {
  currentSocialContext = context || null;
  if (isOwn || !context || context.success !== true) { host.hidden = true; return; }
  host.hidden = false;
+ host.classList.toggle("is-logged-out", !currentUser);
  [friend, follow, secondary].forEach(button => { button.disabled = false; });
  secondary.hidden = true; secondary.dataset.action = "";
  friend.dataset.stateDisabled = "false"; follow.dataset.stateDisabled = "false";

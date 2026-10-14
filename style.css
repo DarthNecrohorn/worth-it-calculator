@@ -18343,3 +18343,13 @@ html.profile-banner-active .worth-it-profile-section.has-banner:before{backgroun
 /* Prevent the home screen and signed-out header from flashing on direct profile refreshes. */
 html.worth-it-profile-route-pending #homePage{display:none!important}
 html.worth-it-profile-route-pending #authWrap{visibility:hidden}
+
+
+/* Logged-out profile social controls: requested precise offsets only when signed out. */
+.worth-it-profile-social-actions.is-logged-out {
+ transform: translate(30px, 10px);
+}
+.worth-it-profile-social-actions.is-logged-out .worth-it-profile-social-hint {
+ /* Parent adds (+30px, +10px); this offsets it to a net (-20px, +30px). */
+ transform: translate(-50px, 20px);
+}
