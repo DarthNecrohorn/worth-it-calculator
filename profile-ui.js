@@ -57,7 +57,7 @@ function renderAccountPanelBanner(url){
  image.onerror=()=>{image.hidden=true;panel.classList.remove("has-banner");image.removeAttribute("src");image.onerror=null;};
  image.src=safe;image.hidden=false;panel.classList.add("has-banner");
 }
-function syncHeaderAvatar(profile){const name=profile?.display_name||profile?.username||currentUser?.user_metadata?.full_name||currentUser?.email?.split("@")[0]||"Worth It";renderSmallAvatar($("profileNavIcon"),profile?.avatar_url,name,"auth-avatar","auth-avatar-fallback");renderSmallAvatar($("accountHeadAvatar"),profile?.avatar_url,name,"account-head-avatar","account-head-fallback");renderAccountPanelBanner(profile?.banner_url);}
+function syncHeaderAvatar(profile){const name=profile?.display_name||profile?.username||currentUser?.user_metadata?.full_name||currentUser?.email?.split("@")[0]||"Worth It";renderSmallAvatar($("profileNavIcon"),profile?.avatar_url,name,"auth-avatar","auth-avatar-fallback");renderSmallAvatar($("accountHeadAvatar"),profile?.avatar_url,name,"account-head-avatar","account-head-fallback");const accountName=$("accountName");if(accountName)accountName.textContent=name;renderAccountPanelBanner(profile?.banner_url);}
 function normalizeStats(data){let d=Array.isArray(data)?data[0]:data;d=d&&typeof d==="object"?d:{};return{friends:Number(d.friends)||0,followers:Number(d.followers)||0,following:Number(d.following)||0};}
 async function getStats(id){const sb=client();if(!sb||!Number.isSafeInteger(Number(id)))throw new Error("Stats unavailable");const r=await sb.rpc("get_worth_it_profile_stats",{target_worth_it_id:Number(id)});if(r.error)throw r.error;return normalizeStats(r.data);}
 async function getOwnProfileRow(user,force){
@@ -89,6 +89,8 @@ window.toggleAccountPanel=function(event){const result=typeof oldToggle==="funct
 function renderProfile(p,s,isOwn){
  const id=Number(p.worth_it_id),name=String(p.display_name||p.username||"Worth It member"),username=String(p.username||""),link=BASE_URL+"/profile/"+id;currentProfileLink=link;
  renderAvatar(p.avatar_url,name);renderBanner(p.banner_url,name);setText("worthItProfileName",name);setText("worthItProfileUsername",username?"@"+username:"Worth It member");setText("worthItProfileId","#"+id);
+ const displayNameEdit=$("worthItProfileDisplayNameEdit");if(displayNameEdit)displayNameEdit.hidden=!isOwn;
+ if(!isOwn)closeWorthItDisplayNameEditor();
  setCount("worthItProfileFriends",s.friends);setCount("worthItProfileFollowers",s.followers);setCount("worthItProfileFollowing",s.following);
  const email=$("worthItProfileEmail");if(email){email.textContent=isOwn&&currentUser?.email?currentUser.email:"";email.hidden=!(isOwn&&currentUser?.email);}
  const linkNode=$("worthItProfileLink");if(linkNode){linkNode.href=link;linkNode.textContent=link;}setText("worthItProfileLinkLabel",isOwn?"YOUR PROFILE LINK":"PROFILE LINK");
@@ -101,9 +103,114 @@ function renderProfile(p,s,isOwn){
  const removeBanner=$("worthItProfileBannerRemove");if(removeBanner)removeBanner.hidden=!isOwn||!safeAvatarUrl(p.banner_url);
  setAssetControlsBusy(false);setStatus("",false);
 }
+
+let displayNameInitialValue="",displayNameCanChange=false,displayNameSaving=false,displayNameRequestId=0;
+const DISPLAY_NAME_MAX_LENGTH=32;
+function displayNameIsValid(value){const name=String(value||"").trim();return [...name].length>0&&[...name].length<=DISPLAY_NAME_MAX_LENGTH&&!/[\x00-\x1F\x7F]/.test(name);}
+function setDisplayNameStatus(message,isError){
+ const n=$("worthItDisplayNameStatus");if(!n)return;
+ n.textContent=message||"";n.classList.toggle("is-error",Boolean(isError));
+}
+function refreshDisplayNameSaveButton(){
+ const button=$("worthItDisplayNameSave"),input=$("worthItDisplayNameInput");
+ if(!button||!input)return;
+ const next=String(input.value||"").trim();
+ button.disabled=displayNameSaving||!displayNameCanChange||!displayNameIsValid(next)||next===displayNameInitialValue;
+}
+function closeWorthItDisplayNameEditor(){
+ const overlay=$("worthItDisplayNameOverlay");
+ if(!overlay)return;
+ overlay.hidden=true;overlay.setAttribute("aria-hidden","true");
+ displayNameRequestId++;displayNameCanChange=false;
+ const button=$("worthItDisplayNameSave");if(button)button.disabled=true;
+ displayNameSaving=false;
+}
+window.closeWorthItDisplayNameEditor=closeWorthItDisplayNameEditor;
+async function getDisplayNameToken(){
+ const sb=client();if(!sb?.auth)throw new Error("Please sign in to change your display name.");
+ const sessionResult=await sb.auth.getSession(),token=sessionResult.data?.session?.access_token;
+ if(sessionResult.error||!token)throw new Error("Your login session has expired. Please sign in again.");
+ return token;
+}
+async function fetchDisplayNameStatus(){
+ const token=await getDisplayNameToken();
+ const response=await fetch("/api/profile-display-name",{headers:{"Authorization":"Bearer "+token,"Accept":"application/json"},cache:"no-store"});
+ let data={};try{data=await response.json();}catch(_){}
+ if(!response.ok||!data.success)throw new Error(data.error||"Could not load display-name settings.");
+ return data;
+}
+window.openWorthItDisplayNameEditor=async function(){
+ if(!currentDisplayedProfileIsOwn||!currentUser||!currentDisplayedProfileId)return;
+ const overlay=$("worthItDisplayNameOverlay"),input=$("worthItDisplayNameInput"),save=$("worthItDisplayNameSave");
+ if(!overlay||!input||!save)return;
+ const requestId=++displayNameRequestId;
+ displayNameInitialValue=String($("worthItProfileName")?.textContent||"").trim();
+ input.value=displayNameInitialValue;displayNameCanChange=false;displayNameSaving=false;
+ overlay.hidden=false;overlay.setAttribute("aria-hidden","false");
+ setDisplayNameStatus("Checking your 7-day change limit…",false);save.disabled=true;
+ try{input.focus();input.setSelectionRange(0,input.value.length);}catch(_){}
+ try{
+  const status=await fetchDisplayNameStatus();
+  if(requestId!==displayNameRequestId||overlay.hidden||!currentDisplayedProfileIsOwn)return;
+  displayNameInitialValue=String(status.display_name||displayNameInitialValue).trim();
+  input.value=displayNameInitialValue;
+  displayNameCanChange=Boolean(status.can_change);
+  if(displayNameCanChange){
+   setDisplayNameStatus("Your display name is available to change. You can change it again after 7 days.",false);
+  }else{
+   const next=status.next_change_at?new Date(status.next_change_at):null;
+   const when=next&&!Number.isNaN(next.getTime())?new Intl.DateTimeFormat("en-GB",{dateStyle:"medium",timeStyle:"short"}).format(next):"the end of the 7-day limit";
+   setDisplayNameStatus("You've already changed your display name recently. You can change it again on "+when+".",false);
+  }
+  refreshDisplayNameSaveButton();
+ }catch(error){
+  if(requestId!==displayNameRequestId||overlay.hidden)return;
+  displayNameCanChange=false;setDisplayNameStatus(error?.message||"Could not load display-name settings.",true);refreshDisplayNameSaveButton();
+ }
+};
+window.saveWorthItDisplayName=async function(){
+ if(!currentDisplayedProfileIsOwn||!currentUser||!displayNameCanChange||displayNameSaving)return;
+ const input=$("worthItDisplayNameInput"),save=$("worthItDisplayNameSave");
+ const name=String(input?.value||"").trim();
+ if(!displayNameIsValid(name)){setDisplayNameStatus("Enter a display name containing 1–32 characters.",true);return;}
+ if(name===displayNameInitialValue){setDisplayNameStatus("Your display name hasn't changed.",false);return;}
+ displayNameSaving=true;if(save)save.disabled=true;
+ setDisplayNameStatus("Saving your display name…",false);
+ try{
+  const token=await getDisplayNameToken();
+  const response=await fetch("/api/profile-display-name",{method:"POST",headers:{"Authorization":"Bearer "+token,"Content-Type":"application/json","Accept":"application/json"},body:JSON.stringify({display_name:name})});
+  let data={};try{data=await response.json();}catch(_){}
+  if(!response.ok||!data.success){
+   if(data.code==="DISPLAY_NAME_COOLDOWN"&&data.next_change_at){
+    const next=new Date(data.next_change_at),when=!Number.isNaN(next.getTime())?new Intl.DateTimeFormat("en-GB",{dateStyle:"medium",timeStyle:"short"}).format(next):"after 7 days";
+    displayNameCanChange=false;setDisplayNameStatus("You've already changed your display name recently. You can change it again on "+when+".",false);
+   }else setDisplayNameStatus(data.error||"Could not save your display name.",true);
+   return;
+  }
+  const id=currentDisplayedProfileId;
+  currentOwnProfile=null;currentOwnProfileRequest=null;
+  closeWorthItDisplayNameEditor();
+  if(id)await window.openWorthItProfile(id);
+  if(typeof window.showToast==="function")window.showToast(data.unchanged?"Your display name is unchanged.":"Display name updated successfully.");
+ }catch(error){
+  setDisplayNameStatus(error?.message||"Could not save your display name.",true);
+ }finally{
+  displayNameSaving=false;
+  if($("worthItDisplayNameOverlay")&&!$("worthItDisplayNameOverlay").hidden)refreshDisplayNameSaveButton();
+ }
+};
+document.addEventListener("click",event=>{
+ const overlay=$("worthItDisplayNameOverlay");
+ if(overlay&&!overlay.hidden&&event.target===overlay)closeWorthItDisplayNameEditor();
+});
+document.addEventListener("keydown",event=>{
+ if(event.key==="Escape"&&!$("worthItDisplayNameOverlay")?.hidden)closeWorthItDisplayNameEditor();
+});
+if($("worthItDisplayNameInput"))$("worthItDisplayNameInput").addEventListener("input",refreshDisplayNameSaveButton);
+
 function hideProfileAssetControls(){const avatarControls=$("worthItProfileAvatarControls"),bannerControls=$("worthItProfileBannerControls");if(avatarControls)avatarControls.hidden=true;if(bannerControls)bannerControls.hidden=true;}
 function renderError(message){
- currentDisplayedProfileId=0;currentDisplayedProfileIsOwn=false;hideProfileAssetControls();clearProfileBannerBackdrop(true);
+ currentDisplayedProfileId=0;currentDisplayedProfileIsOwn=false;hideProfileAssetControls();clearProfileBannerBackdrop(true);const displayNameEdit=$("worthItProfileDisplayNameEdit");if(displayNameEdit)displayNameEdit.hidden=true;closeWorthItDisplayNameEditor();
  renderAvatar("","W");setText("worthItProfileName","Profile unavailable");setText("worthItProfileUsername","");setText("worthItProfileId","—");
  ["worthItProfileFriends","worthItProfileFollowers","worthItProfileFollowing"].forEach(id=>setText(id,"—"));
  const email=$("worthItProfileEmail");if(email){email.textContent="";email.hidden=true;}
@@ -111,7 +218,7 @@ function renderError(message){
 }
 window.openWorthItProfile=async function(idValue,options){
  const id=Number(idValue);if(!Number.isSafeInteger(id)||id<1){showProfileSection();renderError("This profile link is invalid.");return;}
- showProfileSection();currentDisplayedProfileId=id;currentDisplayedProfileIsOwn=false;hideProfileAssetControls();setStatus("Loading profile…",false);setText("worthItProfileName","Loading profile…");setText("worthItProfileId","#"+id);["worthItProfileFriends","worthItProfileFollowers","worthItProfileFollowing"].forEach(x=>setText(x,"…"));
+ showProfileSection();currentDisplayedProfileId=id;currentDisplayedProfileIsOwn=false;hideProfileAssetControls();const displayNameEdit=$("worthItProfileDisplayNameEdit");if(displayNameEdit)displayNameEdit.hidden=true;closeWorthItDisplayNameEditor();setStatus("Loading profile…",false);setText("worthItProfileName","Loading profile…");setText("worthItProfileId","#"+id);["worthItProfileFriends","worthItProfileFollowers","worthItProfileFollowing"].forEach(x=>setText(x,"…"));
  const requestId=++activeProfileRequest;
  try{
   const sb=client();if(!sb)throw new Error("Supabase not ready");
@@ -265,7 +372,7 @@ if(client()?.auth){client().auth.onAuthStateChange((_event,session)=>{
  const nextUser=session?.user||null,previousUserId=currentUser?.id||"";
  currentUser=nextUser;currentOwnProfile=null;currentOwnProfileRequest=null;
  if(previousUserId!==(currentUser?.id||"")){
-  currentDisplayedProfileIsOwn=false;hideProfileAssetControls();
+  currentDisplayedProfileIsOwn=false;hideProfileAssetControls();closeWorthItDisplayNameEditor();const displayNameEdit=$("worthItProfileDisplayNameEdit");if(displayNameEdit)displayNameEdit.hidden=true;
   const email=$("worthItProfileEmail");if(email){email.textContent="";email.hidden=true;}
  }
  if(!currentUser)setPanelUnavailable();

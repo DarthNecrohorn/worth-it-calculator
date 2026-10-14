@@ -20,7 +20,7 @@
 })();
 </script>
 
-<link rel="stylesheet" href="style.css?v=profilefooterbanner20261014a">
+<link rel="stylesheet" href="style.css?v=displaynameweekly20261014a">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 </head>
 
@@ -2081,7 +2081,10 @@
         <div class="worth-it-profile-header">
           <div id="worthItProfileAvatar" class="worth-it-profile-avatar-wrap"><div class="worth-it-profile-avatar-fallback">W</div></div>
           <div class="worth-it-profile-heading">
-            <h1 id="worthItProfileName">Profile</h1>
+            <div class="worth-it-profile-name-row">
+              <h1 id="worthItProfileName">Profile</h1>
+              <button type="button" id="worthItProfileDisplayNameEdit" class="worth-it-profile-display-name-edit" onclick="openWorthItDisplayNameEditor()" aria-label="Change display name" title="Change display name" hidden>✎</button>
+            </div>
             <p id="worthItProfileUsername" class="worth-it-profile-username"></p>
             <p id="worthItProfileEmail" class="worth-it-profile-email" hidden></p>
             <div id="worthItProfileAvatarControls" class="worth-it-profile-avatar-controls" hidden>
@@ -2126,6 +2129,26 @@
     </article>
   </div>
 </section>
+
+<div id="worthItDisplayNameOverlay" class="worth-it-display-name-overlay" role="dialog" aria-modal="true" aria-labelledby="worthItDisplayNameTitle" aria-hidden="true" hidden>
+  <div class="worth-it-display-name-modal">
+    <div class="worth-it-display-name-modal-head">
+      <div>
+        <h2 id="worthItDisplayNameTitle">Change display name</h2>
+        <p>Your username stays the same.</p>
+      </div>
+      <button type="button" class="worth-it-display-name-close" onclick="closeWorthItDisplayNameEditor()" aria-label="Close">✕</button>
+    </div>
+    <label class="worth-it-display-name-label" for="worthItDisplayNameInput">Display name</label>
+    <input id="worthItDisplayNameInput" class="worth-it-display-name-input" type="text" maxlength="32" autocomplete="nickname" required>
+    <p class="worth-it-display-name-hint">You can change your display name once every 7 days. Your @username will not change.</p>
+    <p id="worthItDisplayNameStatus" class="worth-it-display-name-status" role="status" aria-live="polite"></p>
+    <div class="worth-it-display-name-actions">
+      <button type="button" class="worth-it-display-name-cancel" onclick="closeWorthItDisplayNameEditor()">Cancel</button>
+      <button type="button" class="worth-it-display-name-save" id="worthItDisplayNameSave" onclick="saveWorthItDisplayName()" disabled>Save changes</button>
+    </div>
+  </div>
+</div>
 
 </main>
 
@@ -4433,7 +4456,7 @@ if($("carResults")){
 }
 
 </script>
-<script src="/profile-ui.js?v=profilefooterbanner20261014a"></script>
+<script src="/profile-ui.js?v=displaynameweekly20261014a"></script>
 <script src="/routing.js?v=shareablepaths20261014a"></script>
 
 </body>
