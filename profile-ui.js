@@ -193,6 +193,7 @@ function renderSocialActionButtons(context, isOwn) {
  currentSocialContext = context || null;
  if (isOwn || !context || context.success !== true) { host.hidden = true; return; }
  host.hidden = false;
+ [friend, follow, secondary].forEach(button => { button.disabled = false; });
  secondary.hidden = true; secondary.dataset.action = "";
  friend.dataset.stateDisabled = "false"; follow.dataset.stateDisabled = "false";
  if (!currentUser) {
@@ -218,6 +219,7 @@ function renderSocialActionButtons(context, isOwn) {
   if (context.are_friends) messages.push("You are friends");
   hint.textContent = messages.join(" · "); hint.hidden = messages.length === 0;
  }
+ setSocialControlsBusy(socialActionInProgress);
 }
 async function refreshProfileSocial(targetId, isOwn) {
  const refreshId = ++activeSocialRefresh;
@@ -333,7 +335,7 @@ window.performWorthItSocialAction = async function(action) {
   if (typeof window.showToast === "function") window.showToast(error?.message || "The social action could not be completed.");
   else console.warn("Worth It social action failed.", error);
  } finally {
-  socialActionInProgress = false;
+  setSocialControlsBusy(false);
  }
 };
 window.performWorthItPendingRequestAction = async function(requestId, accept) {
