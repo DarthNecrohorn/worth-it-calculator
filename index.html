@@ -216,6 +216,65 @@ html[data-theme="light"].worth-it-initial-paint::before {
             </div>
         </div>
 
+        <div class="worth-it-chat-nav-wrap" id="worthItChatNavWrap" hidden>
+            <button type="button" class="worth-it-chat-nav-btn" id="worthItChatNavBtn" onclick="toggleWorthItChat(event)" aria-label="Open chat" aria-expanded="false" aria-controls="worthItChatOverlay" title="Messages and Global Chat">
+                <span aria-hidden="true">💬</span>
+                <span class="worth-it-chat-nav-badge" id="worthItChatNavBadge" hidden></span>
+            </button>
+        </div>
+
+        <div class="worth-it-chat-overlay" id="worthItChatOverlay" hidden aria-hidden="true">
+            <section class="worth-it-chat-window" id="worthItChatWindow" role="dialog" aria-modal="true" aria-labelledby="worthItChatTitle">
+                <aside class="worth-it-chat-sidebar">
+                    <div class="worth-it-chat-brand">
+                        <div><span class="worth-it-chat-brand-mark">✦</span><div><strong>Worth It Chat</strong><small>Stay connected</small></div></div>
+                        <button type="button" class="worth-it-chat-icon-btn worth-it-chat-mobile-close" onclick="toggleWorthItChat(event)" aria-label="Close chat">✕</button>
+                    </div>
+                    <button type="button" class="worth-it-chat-side-item is-active" id="worthItGlobalChatBtn" onclick="openWorthItGlobalChat()"><span>🌐</span><span><strong>Global Chat</strong><small>Talk with the community</small></span><i>↗</i></button>
+                    <div class="worth-it-chat-side-heading"><span>YOUR FRIENDS</span><button type="button" class="worth-it-chat-text-btn" onclick="refreshWorthItChatData()">Refresh</button></div>
+                    <div class="worth-it-chat-friends" id="worthItChatFriends"><p class="worth-it-chat-muted">Loading friends…</p></div>
+                    <div class="worth-it-chat-side-heading"><span>GROUPS & CHATS</span><button type="button" class="worth-it-chat-text-btn" onclick="openWorthItGroupChatDialog()">＋ New group</button></div>
+                    <div class="worth-it-chat-conversations" id="worthItChatConversations"><p class="worth-it-chat-muted">Loading conversations…</p></div>
+                    <div class="worth-it-chat-sidebar-footer"><span class="worth-it-chat-status-dot"></span> Keep it kind. Keep it Worth It.</div>
+                </aside>
+                <main class="worth-it-chat-main">
+                    <header class="worth-it-chat-header">
+                        <div class="worth-it-chat-header-person">
+                            <div class="worth-it-chat-header-avatar" id="worthItChatHeaderAvatar">🌐</div>
+                            <div><h2 id="worthItChatTitle">Global Chat</h2><p id="worthItChatSubtitle">A shared space for the Worth It community</p></div>
+                        </div>
+                        <div class="worth-it-chat-header-actions">
+                            <button type="button" class="worth-it-chat-icon-btn" id="worthItChatFullscreenBtn" onclick="toggleWorthItChatFullscreen()" title="Open full screen" aria-label="Open full screen">⛶</button>
+                            <button type="button" class="worth-it-chat-icon-btn" onclick="toggleWorthItChat(event)" title="Close chat" aria-label="Close chat">✕</button>
+                        </div>
+                    </header>
+                    <div class="worth-it-chat-safety-note"><span>✦</span> Be respectful. Messages are filtered for abusive language, extremist symbols and glitch text.</div>
+                    <div class="worth-it-chat-messages" id="worthItChatMessages" aria-live="polite"><div class="worth-it-chat-empty"><span>✦</span><strong>Welcome to Worth It Chat</strong><p>Choose a friend or start a conversation with the community.</p></div></div>
+                    <div class="worth-it-chat-compose-wrap">
+                        <div class="worth-it-chat-attachment-preview" id="worthItChatAttachmentPreview" hidden></div>
+                        <div class="worth-it-chat-compose">
+                            <label class="worth-it-chat-attach-btn" title="Attach an image or GIF" aria-label="Attach an image or GIF">＋<input type="file" id="worthItChatFileInput" accept="image/png,image/jpeg,image/webp,image/gif" hidden></label>
+                            <textarea id="worthItChatInput" maxlength="500" rows="1" placeholder="Write a message…" aria-label="Chat message"></textarea>
+                            <button type="button" class="worth-it-chat-send-btn" id="worthItChatSendBtn" onclick="sendWorthItChatMessage()">Send <span>➤</span></button>
+                        </div>
+                        <div class="worth-it-chat-compose-meta"><span>Images, GIFs and links supported</span><span><strong id="worthItChatCharCount">0</strong>/500 characters</span></div>
+                        <p class="worth-it-chat-compose-status" id="worthItChatStatus" role="status" aria-live="polite"></p>
+                    </div>
+                </main>
+            </section>
+        </div>
+        <div class="worth-it-chat-group-dialog" id="worthItChatGroupDialog" hidden aria-hidden="true">
+            <form class="worth-it-chat-group-card" id="worthItChatGroupForm">
+                <button type="button" class="worth-it-chat-icon-btn worth-it-chat-group-close" onclick="closeWorthItGroupChatDialog()" aria-label="Close group dialog">✕</button>
+                <span class="worth-it-chat-modal-kicker">✦ WORTH IT COMMUNITY</span>
+                <h2>Create a group chat</h2><p>Give your group a name and choose at least two of your friends.</p>
+                <label for="worthItChatGroupName">Group name</label><input id="worthItChatGroupName" maxlength="60" required placeholder="e.g. Weekend plans">
+                <div class="worth-it-chat-group-friend-list" id="worthItChatGroupFriends"></div>
+                <p class="worth-it-chat-compose-status" id="worthItChatGroupStatus" role="status"></p>
+                <button type="submit" class="worth-it-chat-send-btn">Create group <span>➤</span></button>
+            </form>
+        </div>
+
         <div class="auth-wrap" id="authWrap">
             <button class="auth-btn" id="authBtn" onclick="handleAuthButton()" title="Sign in or create a Worth It account">
                 <span id="authIcon">🔐</span>
@@ -4573,6 +4632,7 @@ if($("carResults")){
 
 </script>
 <script src="/profile-ui.js?v=friendlimit20261014a"></script>
+<script src="/chat-ui.js?v=worthitchat20261014a"></script>
 <script src="/routing.js?v=themebootlightprofile20261014a"></script>
 
 </body>
