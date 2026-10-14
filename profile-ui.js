@@ -711,13 +711,13 @@ window.copyWorthItProfileLink=async function(){
 };
 window.addEventListener("resize",syncProfileBannerBackdropPosition,{passive:true});
 if(client()?.auth){client().auth.onAuthStateChange((_event,session)=>{
- const nextUser=session?.user||null,previousUserId=currentUser?.id||"",nextUserId=nextUser?.id||"",profileToRefresh=currentDisplayedProfileId;
+ const nextUser=session?.user||null,previousUserId=currentUser?.id||"",nextUserId=nextUser?.id||"",profileToRefresh=currentDisplayedProfileId,connectionsPage=$("worthItProfileConnectionsPage"),connectionTab=document.querySelector("[data-connection-tab].active")?.getAttribute("data-connection-tab");
  currentUser=nextUser;currentOwnProfile=null;currentOwnProfileRequest=null;
  if(previousUserId!==nextUserId){
   currentDisplayedProfileIsOwn=false;hideProfileAssetControls();closeWorthItDisplayNameEditor();const displayNameEdit=$("worthItProfileDisplayNameEdit");if(displayNameEdit)displayNameEdit.hidden=true;
   const email=$("worthItProfileEmail");if(email){email.textContent="";email.hidden=true;}
   const linkLabel=$("worthItProfileLinkLabel");if(linkLabel)linkLabel.textContent=profileToRefresh?"THIS USER'S PROFILE":"PROFILE LINK";
-  if(profileToRefresh)setTimeout(()=>{if(currentDisplayedProfileId===profileToRefresh)window.openWorthItProfile(profileToRefresh);},0);
+  if(profileToRefresh)setTimeout(()=>{if(currentDisplayedProfileId===profileToRefresh){if(connectionsPage&&!connectionsPage.hidden&&["friends","followers","following"].includes(connectionTab))window.openWorthItProfileConnections(profileToRefresh,connectionTab);else window.openWorthItProfile(profileToRefresh);}},0);
  }
  if(!currentUser)setPanelUnavailable();
 });client().auth.getSession().then(({data})=>{currentUser=data?.session?.user||null;if(currentUser)refreshAccountPanelCounts(false);}).catch(()=>{});}
