@@ -164,3 +164,174 @@ grant execute on function public.get_worth_it_social_notifications() to authenti
 grant execute on function public.mark_worth_it_social_notifications_read() to authenticated;
 grant execute on function public.unfriend_worth_it_user_with_reason(bigint, text) to authenticated;
 grant execute on function public.unfriend_worth_it_user(bigint) to authenticated;
+
+-- Notification inbox retention and dismiss actions: notifications expire after 24 hours.
+
+create table if not exists public.worth_it_notification_dismissals (
+    user_id uuid not null references auth.users(id) on delete cascade,
+    notification_kind text not null check (notification_kind in ('friend_request')),
+    notification_id text not null,
+    dismissed_at timestamptz not null default now(),
+    primary key (user_id, notification_kind, notification_id)
+);
+
+create index if not exists worth_it_notification_dismissals_expiry_idx
+    on public.worth_it_notification_dismissals(user_id, dismissed_at);
+
+alter table public.worth_it_notification_dismissals enable row level security;
+revoke all on public.worth_it_notification_dismissals from anon, authenticated;
+
+-- In the inbox, a pending request is a notification; hiding it does not decline the actual request.
+create or replace function public.get_worth_it_pending_friend_requests()
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+    actor_id uuid := auth.uid();
+    requests jsonb;
+begin
+    if actor_id is null then
+        raise exception 'Authentication required';
+    end if;
+
+    delete from public.worth_it_notification_dismissals
+    where user_id = actor_id
+      and dismissed_at <= statement_timestamp() - interval '24 hours';
+
+    select coalesce(jsonb_agg(jsonb_build_object(
+        'request_id', r.id,
+        'requested_at', r.created_at,
+        'worth_it_id', p.worth_it_id,
+        'username', p.username,
+        'display_name', coalesce(p.display_name, p.username, 'Worth It member'),
+        'avatar_url', p.avatar_url
+    ) order by r.created_at desc), '[]'::jsonb)
+    into requests
+    from public.worth_it_friend_requests r
+    join public.worth_it_profiles p on p.user_id = r.requester_user_id
+    where r.recipient_user_id = actor_id
+      and r.status = 'pending'
+      and r.created_at > statement_timestamp() - interval '24 hours'
+      and not exists (
+          select 1
+          from public.worth_it_notification_dismissals d
+          where d.user_id = actor_id
+            and d.notification_kind = 'friend_request'
+            and d.notification_id = r.id::text
+      );
+
+    return requests;
+end;
+$$;
+
+-- Expire old social notifications on read, not just in the visual layer.
+create or replace function public.get_worth_it_social_notifications()
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+    actor_id uuid := auth.uid();
+    result jsonb;
+begin
+    if actor_id is null then
+        raise exception 'Authentication required';
+    end if;
+
+    delete from public.worth_it_social_notifications
+    where recipient_user_id = actor_id
+      and created_at <= statement_timestamp() - interval '24 hours';
+
+    delete from public.worth_it_notification_dismissals
+    where user_id = actor_id
+      and dismissed_at <= statement_timestamp() - interval '24 hours';
+
+    select coalesce(jsonb_agg(jsonb_build_object(
+        'id', n.id,
+        'type', n.notification_type,
+        'reason', n.reason,
+        'created_at', n.created_at,
+        'read_at', n.read_at,
+        'worth_it_id', p.worth_it_id,
+        'username', p.username,
+        'display_name', coalesce(p.display_name, p.username, 'Worth It member'),
+        'avatar_url', p.avatar_url
+    ) order by n.created_at desc), '[]'::jsonb)
+    into result
+    from public.worth_it_social_notifications n
+    left join public.worth_it_profiles p on p.user_id = n.actor_user_id
+    where n.recipient_user_id = actor_id
+      and n.created_at > statement_timestamp() - interval '24 hours';
+
+    return result;
+end;
+$$;
+
+create or replace function public.dismiss_worth_it_notification(
+    p_notification_kind text,
+    p_notification_id text
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+    actor_id uuid := auth.uid();
+    kind text := lower(btrim(coalesce(p_notification_kind, '')));
+    target_id text := btrim(coalesce(p_notification_id, ''));
+    affected_count integer := 0;
+begin
+    if actor_id is null then
+        raise exception 'Authentication required';
+    end if;
+
+    if target_id = '' then
+        return jsonb_build_object('success', false, 'code', 'INVALID_NOTIFICATION_ID');
+    end if;
+
+    if kind = 'social' then
+        delete from public.worth_it_social_notifications
+        where id::text = target_id
+          and recipient_user_id = actor_id;
+        get diagnostics affected_count = row_count;
+        if affected_count = 0 then
+            return jsonb_build_object('success', false, 'code', 'NOTIFICATION_NOT_FOUND');
+        end if;
+        return jsonb_build_object('success', true, 'dismissed', true);
+    elsif kind = 'friend_request' then
+        if not exists (
+            select 1 from public.worth_it_friend_requests r
+            where r.id::text = target_id
+              and r.recipient_user_id = actor_id
+              and r.status = 'pending'
+              and r.created_at > statement_timestamp() - interval '24 hours'
+        ) then
+            return jsonb_build_object('success', false, 'code', 'NOTIFICATION_NOT_FOUND');
+        end if;
+
+        insert into public.worth_it_notification_dismissals (
+            user_id, notification_kind, notification_id, dismissed_at
+        ) values (
+            actor_id, 'friend_request', target_id, statement_timestamp()
+        )
+        on conflict (user_id, notification_kind, notification_id)
+        do update set dismissed_at = excluded.dismissed_at;
+
+        return jsonb_build_object('success', true, 'dismissed', true);
+    end if;
+
+    return jsonb_build_object('success', false, 'code', 'INVALID_NOTIFICATION_KIND');
+end;
+$$;
+
+revoke all on function public.get_worth_it_pending_friend_requests() from public, anon;
+revoke all on function public.get_worth_it_social_notifications() from public, anon;
+revoke all on function public.dismiss_worth_it_notification(text, text) from public, anon;
+
+grant execute on function public.get_worth_it_pending_friend_requests() to authenticated;
+grant execute on function public.get_worth_it_social_notifications() to authenticated;
+grant execute on function public.dismiss_worth_it_notification(text, text) to authenticated;
