@@ -54,7 +54,7 @@ html[data-theme="light"].worth-it-initial-paint::before {
 })();
 </script>
 
-<link rel="stylesheet" href="style.css?v=worthitgroupchatpolish20261014">
+<link rel="stylesheet" href="style.css?v=chatpernotification20261014">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 </head>
 
@@ -230,7 +230,7 @@ html[data-theme="light"].worth-it-initial-paint::before {
                         <div><span class="worth-it-chat-brand-mark">✦</span><div><strong>Worth It Chat</strong><small>Stay connected</small></div></div>
                         <button type="button" class="worth-it-chat-icon-btn worth-it-chat-mobile-close" onclick="toggleWorthItChat(event)" aria-label="Close chat">✕</button>
                     </div>
-                    <button type="button" class="worth-it-chat-side-item is-active" id="worthItGlobalChatBtn" onclick="openWorthItGlobalChat()"><span>🌐</span><span><strong>Global Chat</strong><small>Talk with the community</small></span><i>↗</i></button>
+                    <div class="worth-it-chat-list-row worth-it-chat-global-row"><button type="button" class="worth-it-chat-side-item is-active" id="worthItGlobalChatBtn" onclick="openWorthItGlobalChat()"><span>🌐</span><span><strong>Global Chat</strong><small>Talk with the community</small></span><i>↗</i></button><button type="button" class="worth-it-chat-notification-btn is-enabled" id="worthItGlobalChatNotifications" title="Turn off notifications" aria-label="Turn off notifications" aria-pressed="false"><span class="worth-it-chat-notification-icon" aria-hidden="true">🔔</span><span class="worth-it-chat-notification-label">Turn off notifications</span></button></div>
                     <div class="worth-it-chat-side-heading"><span>YOUR FRIENDS</span><button type="button" class="worth-it-chat-text-btn" onclick="refreshWorthItChatData()">Refresh</button></div>
                     <div class="worth-it-chat-friends" id="worthItChatFriends"><p class="worth-it-chat-muted">Loading friends…</p></div>
                     <div class="worth-it-chat-side-heading"><span>GROUPS & CHATS</span><button type="button" class="worth-it-chat-text-btn" onclick="openWorthItGroupChatDialog()">＋ New group</button></div>
@@ -271,7 +271,7 @@ html[data-theme="light"].worth-it-initial-paint::before {
                 <h2>Create a group chat</h2><p>Give your group a name, then invite at least two friends. Search by display name or username to find the right people.</p>
                 <label for="worthItChatGroupName">Group name</label><input id="worthItChatGroupName" maxlength="60" required placeholder="e.g. Weekend plans">
                 <label for="worthItChatGroupSearch">Find friends</label><input id="worthItChatGroupSearch" type="search" autocomplete="off" placeholder="Search username or display name" aria-label="Search friends by username or display name">
-                <div class="worth-it-chat-group-list-heading"><span class="worth-it-chat-group-list-title">Invite friends</span><span>Up to 49 friends</span></div>
+                <div class="worth-it-chat-group-list-heading"><span class="worth-it-chat-group-list-title">Invite friends</span><span>Up to 30 members</span></div>
                 <div class="worth-it-chat-group-selection-summary" aria-live="polite"><strong id="worthItChatGroupSelectionCount">0 friends selected</strong><span id="worthItChatGroupSelectionHelp">Choose 2 friends to continue.</span></div>
                 <div class="worth-it-chat-group-friend-list" id="worthItChatGroupFriends" aria-label="Friends to add to group"></div>
                 <p class="worth-it-chat-compose-status" id="worthItChatGroupStatus" role="status"></p>
@@ -4636,7 +4636,7 @@ if($("carResults")){
 
 </script>
 <script src="/profile-ui.js?v=friendlimit20261014a"></script>
-<script src="/chat-ui.js?v=groupchatpolish20261014"></script>
+<script src="/chat-ui.js?v=chatpernotification20261014"></script>
 <script src="/routing.js?v=themebootlightprofile20261014a"></script>
 
 </body>
