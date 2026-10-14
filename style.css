@@ -18181,3 +18181,21 @@ html[data-theme="light"] .worth-it-profile-section .worth-it-profile-card{backgr
  .worth-it-profile-section.has-banner .worth-it-profile-share,
  .worth-it-profile-section.has-banner .worth-it-profile-status{backdrop-filter:none}
 }
+
+
+/* Extend the profile banner visually behind the footer while keeping the sticky site header clear. */
+.profile-banner-backdrop{position:fixed!important;top:var(--profile-banner-top,72px)!important;right:0!important;bottom:0!important;left:0!important;z-index:0!important;display:block;width:100%!important;height:calc(100vh - var(--profile-banner-top,72px))!important;height:calc(100dvh - var(--profile-banner-top,72px))!important;max-width:none!important;object-fit:cover;object-position:center;pointer-events:none}
+.profile-banner-backdrop[hidden]{display:none!important}
+html.profile-banner-active body:before{content:"";position:fixed;top:var(--profile-banner-top,72px);right:0;bottom:0;left:0;z-index:1;pointer-events:none;background:linear-gradient(120deg,rgba(3,6,18,.82),rgba(3,6,18,.65) 48%,rgba(3,6,18,.82))}
+html.profile-banner-active .nav{background:rgba(7,11,20,.97)}
+html.profile-banner-active #profileSection{position:relative;z-index:2;background:transparent}
+html.profile-banner-active footer{position:relative;z-index:2;background:transparent!important;border-top-color:rgba(255,255,255,.28);color:rgba(255,255,255,.9)}
+html.profile-banner-active footer .footer-legal-links{color:rgba(255,255,255,.82)}
+html.profile-banner-active footer .footer-legal-links button{color:rgba(255,255,255,.82)}
+html.profile-banner-active footer .footer-legal-links button:hover,
+html.profile-banner-active footer .footer-legal-links button:focus-visible{color:#fff}
+html.profile-banner-active footer .feedback-trigger{color:#fff}
+html.profile-banner-active .worth-it-profile-section.has-banner:before{background:transparent}
+@media(prefers-reduced-transparency:reduce){
+ html.profile-banner-active body:before{background:rgba(3,6,18,.76)}
+}
