@@ -1,6 +1,7 @@
 -- Worth It presence and direct-message read receipts.
 -- Apply after worth-it-profiles.sql, profile-avatars.sql, profile-description.sql,
--- worth-it-chat.sql and worth-it-chat-invitation-links.sql have been applied.
+-- worth-it-social.sql, worth-it-notifications.sql, worth-it-chat.sql,
+-- worth-it-chat-notifications-and-member-limit.sql and worth-it-chat-invitation-links.sql.
 begin;
 
 alter table public.worth_it_profiles add column if not exists last_seen_at timestamptz;
@@ -38,7 +39,7 @@ begin
         select m.id as message_id,jsonb_build_object(
             'id',m.id,'body',m.body,'media_url',m.media_url,'media_type',m.media_type,'filtered_reason',m.filtered_reason,
             'created_at',m.created_at,'sender_user_id',m.sender_user_id,'worth_it_id',p.worth_it_id,'username',p.username,
-            'display_name',coalesce(p.display_name,p.username,'Worth It member'),'avatar_url',p.avatar_url,
+            'display_name',coalesce(p.display_name,p.username,'Worth It member'),'avatar_url',p.avatar_url,'last_seen_at',p.last_seen_at,
             'is_seen',case when target_type='direct' and m.sender_user_id=actor_id then exists(
                 select 1 from public.worth_it_chat_members recipient
                 where recipient.conversation_id=target_id and recipient.user_id<>actor_id and recipient.last_read_at>=m.created_at
