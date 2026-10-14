@@ -427,7 +427,7 @@ function setWorthItNotificationTab(tab){
  });
  document.querySelectorAll("[data-notification-view]").forEach(view=>{view.hidden=view.getAttribute("data-notification-view")!==tab;});
 }
-window.showWorthItNotificationTab=setWorthItNotificationTab;
+window.showWorthItNotificationTab=function(tab){setWorthItNotificationTab(tab);if(tab==="other"&&currentUser)refreshWorthItNotifications(true);};
 function createWorthItNotificationPerson(person){
  const anchor=document.createElement("a"),id=Number(person?.worth_it_id);
  anchor.className="worth-it-notification-person";
@@ -527,7 +527,7 @@ window.toggleWorthItNotifications=async function(event){
  const requestsHost=$("worthItNotificationRequestsList"),otherHost=$("worthItNotificationOtherList");
  if(requestsHost){requestsHost.replaceChildren();const loading=document.createElement("p");loading.className="worth-it-notification-empty";loading.textContent="Loading friend requests…";requestsHost.appendChild(loading);}
  if(otherHost){otherHost.replaceChildren();const loading=document.createElement("p");loading.className="worth-it-notification-empty";loading.textContent="Loading notifications…";otherHost.appendChild(loading);}
- await refreshWorthItNotifications(true);
+ await refreshWorthItNotifications(worthItNotificationTab==="other");
 };
 let worthItUnfriendReasonResolver=null;
 function finishWorthItUnfriendDialog(value){
