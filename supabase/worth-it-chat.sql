@@ -146,7 +146,7 @@ begin
 end; $$;
 
 create or replace function public.get_worth_it_chat_messages(p_conversation_id uuid default null, p_limit integer default 100)
-returns jsonb language plpgsql security definer set search_path = public as $
+returns jsonb language plpgsql security definer set search_path = public as $$
 declare
     actor_id uuid := auth.uid();
     target_id uuid := coalesce(p_conversation_id, '00000000-0000-4000-8000-000000000001'::uuid);
