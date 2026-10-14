@@ -25,6 +25,7 @@ let pendingMediaFile = null;
 let pendingMediaUrl = "";
 let pendingMediaType = "";
 let chatNotificationPreferences = Object.create(null);
+let chatNotificationPreferencesLoadedForUser = null;
 const selectedGroupFriendIds = new Set();
 let groupCreateInProgress = false;
 const sb = () => window.supabaseClient || null;
@@ -73,7 +74,10 @@ function showChatOverlay(open) {
 function setAuthState(user) {
     const previousUserId = chatUser?.id || null;
     chatUser = user || null;
-    if (!chatUser || previousUserId !== chatUser.id) chatNotificationPreferences = Object.create(null);
+    if (!chatUser || previousUserId !== chatUser.id) {
+        chatNotificationPreferences = Object.create(null);
+        chatNotificationPreferencesLoadedForUser = null;
+    }
     const wrap = $("worthItChatNavWrap");
     if (wrap) wrap.hidden = !chatUser;
     if (!chatUser) {
@@ -305,15 +309,17 @@ async function refreshWorthItChatData() {
     if (!chatUser || !client) return;
     const userId = chatUser.id;
     const token = ++chatRefreshToken;
-    const results = await Promise.allSettled([
+    const shouldLoadNotificationPreferences = chatNotificationPreferencesLoadedForUser !== userId;
+    const requests = [
         client.rpc("get_worth_it_chat_friends"),
-        client.rpc("get_worth_it_chat_conversations"),
-        client.rpc("get_worth_it_chat_notification_preferences")
-    ]);
+        client.rpc("get_worth_it_chat_conversations")
+    ];
+    if (shouldLoadNotificationPreferences) requests.push(client.rpc("get_worth_it_chat_notification_preferences"));
+    const results = await Promise.allSettled(requests);
     if (token !== chatRefreshToken || chatUser?.id !== userId) return;
     const friendsResult = results[0];
     const chatsResult = results[1];
-    const notificationPrefsResult = results[2];
+    const notificationPrefsResult = shouldLoadNotificationPreferences ? results[2] : null;
     if (friendsResult.status === "fulfilled" && !friendsResult.value.error) {
         chatFriends = Array.isArray(friendsResult.value.data) ? friendsResult.value.data : [];
     } else {
@@ -327,10 +333,14 @@ async function refreshWorthItChatData() {
         if (chatOpen) setStatus(rpcError(chatsResult.status === "rejected" ? chatsResult.reason : chatsResult.value.error), true);
     }
     // Until the settings migration is installed, preserve the default (all enabled) behavior.
-    if (notificationPrefsResult.status === "fulfilled" && !notificationPrefsResult.value.error &&
-        notificationPrefsResult.value.data && typeof notificationPrefsResult.value.data === "object" &&
-        !Array.isArray(notificationPrefsResult.value.data)) {
-        chatNotificationPreferences = Object.assign(Object.create(null), notificationPrefsResult.value.data);
+    if (shouldLoadNotificationPreferences) {
+        if (notificationPrefsResult?.status === "fulfilled" && !notificationPrefsResult.value.error &&
+            notificationPrefsResult.value.data && typeof notificationPrefsResult.value.data === "object" &&
+            !Array.isArray(notificationPrefsResult.value.data)) {
+            chatNotificationPreferences = Object.assign(Object.create(null), notificationPrefsResult.value.data);
+        }
+        // Preferences are fetched once per signed-in user, not on every 5-second message refresh.
+        chatNotificationPreferencesLoadedForUser = userId;
     }
     renderFriends(); renderConversations(); updateGlobalChatNotificationButton(); updateUnreadBadge();
     if ($("worthItChatGroupDialog") && !$("worthItChatGroupDialog").hidden) renderGroupFriendChoices();
