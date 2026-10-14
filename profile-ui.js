@@ -93,6 +93,12 @@ function hideAssetLimitNotice(target){
  if(assetLimitTimers[target]!==null){clearInterval(assetLimitTimers[target]);assetLimitTimers[target]=null;}
  const node=$(target==="banner"?"worthItProfileBannerLimit":"worthItProfileAvatarLimit");if(node){node.hidden=true;node.textContent="";}
 }
+function showAssetErrorNotice(target,message){
+ const node=$(target==="banner"?"worthItProfileBannerLimit":"worthItProfileAvatarLimit");if(!node)return;
+ hideAssetLimitNotice(target);
+ node.textContent=String(message||"The profile image could not be changed.");
+ node.hidden=false;
+}
 function showAssetLimitNotice(target,remainingMs){
  const node=$(target==="banner"?"worthItProfileBannerLimit":"worthItProfileAvatarLimit");if(!node)return;
  hideAssetLimitNotice(target);
@@ -180,7 +186,7 @@ async function finishAssetAction(data){
 async function handleAssetInputChange(event,target){
  const input=event?.target||$(target==="banner"?"worthItProfileBannerInput":"worthItProfileAvatarInput"),file=input?.files?.[0];if(!file)return;
  if(!currentDisplayedProfileIsOwn){if(input)input.value="";return;}
- setAssetControlsBusy(true,target);
+ setAssetControlsBusy(true,target);hideAssetLimitNotice(target);setStatus("",false);
  try{
   const detectedFormat=await detectProfileImageFormat(file);
   const declaredGif=String(file.type||"").toLowerCase()==="image/gif"||/\.gif$/i.test(String(file.name||""));
@@ -200,17 +206,17 @@ async function handleAssetInputChange(event,target){
   await finishAssetAction(data);
  }catch(error){
   if(error?.code==="AVATAR_DAILY_LIMIT"||error?.code==="BANNER_DAILY_LIMIT"){setStatus("",false);showAssetLimitNotice(target,error.remainingMs);}
-  else{hideAssetLimitNotice(target);setStatus(error?.message||"The profile image couldn't be uploaded. Please try another image.",true);}
+  else{hideAssetLimitNotice(target);setStatus("",false);showAssetErrorNotice(target,error?.message||"The profile image could not be uploaded. Please try another image.");}
  }finally{setAssetControlsBusy(false);if(input)input.value="";}
 }
 async function removeProfileAsset(target){
  if(!currentDisplayedProfileIsOwn||avatarOperationInProgress)return;
  if(!window.confirm(target==="banner"?"Remove your current profile banner?":"Remove your current profile picture?"))return;
- setAssetControlsBusy(true,target);setStatus("Removing your "+(target==="banner"?"profile banner":"profile picture")+"…",false);
+ setAssetControlsBusy(true,target);hideAssetLimitNotice(target);setStatus("Removing your "+(target==="banner"?"profile banner":"profile picture")+"…",false);
  try{const data=await sendAssetAction("remove",target);await finishAssetAction(data);}
  catch(error){
   if(error?.code==="AVATAR_DAILY_LIMIT"||error?.code==="BANNER_DAILY_LIMIT"){setStatus("",false);showAssetLimitNotice(target,error.remainingMs);}
-  else{hideAssetLimitNotice(target);setStatus(error?.message||"The profile image couldn't be removed.",true);}
+  else{hideAssetLimitNotice(target);setStatus("",false);showAssetErrorNotice(target,error?.message||"The profile image could not be removed.");}
  }finally{setAssetControlsBusy(false);}
 }
 window.removeWorthItProfilePhoto=function(){return removeProfileAsset("avatar");};
