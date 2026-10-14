@@ -450,7 +450,7 @@ async function refreshPendingFriendRequests(isOwn, targetId, refreshId) {
 }
 
 /* Header notification inbox: friend requests and unfriend events. */
-let worthItNotificationRequests=[],worthItSocialNotifications=[],worthItNotificationRequestsError=false,worthItSocialNotificationsError=false,worthItNotificationRefreshId=0,worthItNotificationTab="requests",worthItNotificationRefreshTimer=null;
+let worthItNotificationRequests=[],worthItSocialNotifications=[],worthItNotificationRequestsError=false,worthItSocialNotificationsError=false,worthItNotificationRefreshId=0,worthItNotificationTab="requests",worthItNotificationRefreshTimer=null,worthItNotificationExpiryTimer=null;
 function setWorthItNotificationAuthState(user){
  const wrap=$("worthItNotificationWrap"),panel=$("worthItNotificationPanel"),button=$("worthItNotificationBell");
  if(!wrap)return;
@@ -495,6 +495,25 @@ function createWorthItNotificationPerson(person){
  appendWorthItPresenceIndicator(avatar,person);
  const text=document.createElement("span");text.className="worth-it-notification-person-text";const strong=document.createElement("strong");strong.textContent=name;const username=document.createElement("small");username.textContent=person?.username?"@"+String(person.username):"Worth It member";text.append(strong,username);anchor.append(avatar,text);return anchor;
 }
+async function dismissWorthItNotification(kind,notificationId,button){
+ if(!currentUser?.id||!button||button.disabled)return;
+ button.disabled=true;
+ try{
+  await callSocialRpc("dismiss_worth_it_notification",{p_notification_kind:kind,p_notification_id:String(notificationId)});
+  if(kind==="friend_request")worthItNotificationRequests=worthItNotificationRequests.filter(item=>String(item.request_id)!==String(notificationId));
+  else worthItSocialNotifications=worthItSocialNotifications.filter(item=>String(item.id)!==String(notificationId));
+  updateWorthItNotificationBadge();renderWorthItNotificationRequests();renderWorthItOtherNotifications();
+ }catch(error){
+  button.disabled=false;
+  if(typeof window.showToast==="function")window.showToast(error?.message||"Could not dismiss this notification.");
+ }
+}
+function createWorthItNotificationDismissButton(kind,notificationId){
+ const button=document.createElement("button");button.type="button";button.className="worth-it-notification-dismiss";button.textContent="×";
+ button.setAttribute("aria-label","Dismiss notification");button.title="Dismiss notification";
+ button.addEventListener("click",event=>{event.preventDefault();event.stopPropagation();dismissWorthItNotification(kind,notificationId,button);});
+ return button;
+}
 function renderWorthItNotificationRequests(){
  const host=$("worthItNotificationRequestsList");if(!host)return;host.replaceChildren();
  if(worthItNotificationRequestsError){const message=document.createElement("p");message.className="worth-it-notification-empty is-error";message.textContent="Friend requests could not be loaded. Check that supabase/worth-it-social.sql has been run in Supabase.";host.appendChild(message);return;}
@@ -505,8 +524,9 @@ function renderWorthItNotificationRequests(){
   const actions=document.createElement("div");actions.className="worth-it-notification-actions";
   const accept=document.createElement("button");accept.type="button";accept.className="worth-it-notification-action primary";accept.textContent="Accept";
   const decline=document.createElement("button");decline.type="button";decline.className="worth-it-notification-action";decline.textContent="Decline";
+  const dismiss=createWorthItNotificationDismissButton("friend_request",request.request_id);
   const handle=async acceptRequest=>{
-   accept.disabled=true;decline.disabled=true;
+   accept.disabled=true;decline.disabled=true;dismiss.disabled=true;
    try{
     await callSocialRpc("respond_worth_it_friend_request",{p_request_id:request.request_id,p_accept:Boolean(acceptRequest)});
     if(typeof window.showToast==="function")window.showToast(acceptRequest?"Friend request accepted.":"Friend request declined.");
@@ -514,11 +534,11 @@ function renderWorthItNotificationRequests(){
     if(currentDisplayedProfileIsOwn&&currentDisplayedProfileId)await refreshPendingFriendRequests(true,currentDisplayedProfileId,activeSocialRefresh);
    }catch(error){
     if(typeof window.showToast==="function")window.showToast(error?.message||"Could not update friend request.");
-    accept.disabled=false;decline.disabled=false;
+    accept.disabled=false;decline.disabled=false;dismiss.disabled=false;
    }
   };
   accept.addEventListener("click",()=>handle(true));decline.addEventListener("click",()=>handle(false));
-  actions.append(accept,decline);row.append(person,actions);host.appendChild(row);
+  actions.append(accept,decline,dismiss);row.append(person,actions);host.appendChild(row);
  });
 }
 function formatWorthItNotificationDate(value){
@@ -540,7 +560,9 @@ function renderWorthItOtherNotifications(){
   if(reason){const explanation=document.createElement("p");explanation.className="worth-it-notification-reason";explanation.textContent="Reason: "+reason;body.append(title,explanation);}
   else body.appendChild(title);
   const date=document.createElement("time");date.className="worth-it-notification-date";date.dateTime=String(notification.created_at||"");date.textContent=formatWorthItNotificationDate(notification.created_at);
-  body.appendChild(date);row.append(person,body);host.appendChild(row);
+  body.appendChild(date);
+  const dismiss=createWorthItNotificationDismissButton("social",notification.id);
+  row.append(person,body,dismiss);host.appendChild(row);
  });
 }
 async function refreshWorthItNotifications(markRead){
@@ -573,6 +595,7 @@ window.toggleWorthItNotifications=async function(event){
  if(!panel||!currentUser){if(!currentUser)promptSignInForSocial();return;}
  if(!panel.hidden){closeWorthItNotifications();return;}
  closeAccountDropdown();panel.hidden=false;panel.setAttribute("aria-hidden","false");if(button)button.setAttribute("aria-expanded","true");
+ if(worthItNotificationExpiryTimer===null)worthItNotificationExpiryTimer=window.setInterval(()=>{const activePanel=$("worthItNotificationPanel");if(currentUser&&activePanel&&!activePanel.hidden)refreshWorthItNotifications(false);},60000);
  setWorthItNotificationTab(worthItNotificationTab);
  const requestsHost=$("worthItNotificationRequestsList"),otherHost=$("worthItNotificationOtherList");
  if(requestsHost){requestsHost.replaceChildren();const loading=document.createElement("p");loading.className="worth-it-notification-empty";loading.textContent="Loading friend requests…";requestsHost.appendChild(loading);}
