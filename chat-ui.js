@@ -142,8 +142,8 @@ function setAuthState(user) {
         if (parseWorthItChatRoute()) routeWorthItChatFromLocation();
     } else {
         updateChatHeaderShareButton();
-        refreshWorthItChatData();
         if (parseWorthItChatRoute()) routeWorthItChatFromLocation();
+        else refreshWorthItChatData();
     }
 }
 function initials(person) {
