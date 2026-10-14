@@ -66,6 +66,7 @@ function renderProfile(p,s,isOwn){
  setAvatarControlsBusy(false);setStatus("",false);
 }
 function renderError(message){
+ currentDisplayedProfileId=0;currentDisplayedProfileIsOwn=false;const avatarControls=$("worthItProfileAvatarControls");if(avatarControls)avatarControls.hidden=true;
  renderAvatar("","W");setText("worthItProfileName","Profile unavailable");setText("worthItProfileUsername","");setText("worthItProfileId","—");
  ["worthItProfileFriends","worthItProfileFollowers","worthItProfileFollowing"].forEach(id=>setText(id,"—"));
  const email=$("worthItProfileEmail");if(email){email.textContent="";email.hidden=true;}
@@ -73,7 +74,7 @@ function renderError(message){
 }
 window.openWorthItProfile=async function(idValue,options){
  const id=Number(idValue);if(!Number.isSafeInteger(id)||id<1){showProfileSection();renderError("This profile link is invalid.");return;}
- showProfileSection();setStatus("Loading profile…",false);setText("worthItProfileName","Loading profile…");setText("worthItProfileId","#"+id);["worthItProfileFriends","worthItProfileFollowers","worthItProfileFollowing"].forEach(x=>setText(x,"…"));
+ showProfileSection();currentDisplayedProfileId=id;currentDisplayedProfileIsOwn=false;const avatarControls=$("worthItProfileAvatarControls");if(avatarControls)avatarControls.hidden=true;setStatus("Loading profile…",false);setText("worthItProfileName","Loading profile…");setText("worthItProfileId","#"+id);["worthItProfileFriends","worthItProfileFollowers","worthItProfileFollowing"].forEach(x=>setText(x,"…"));
  const requestId=++activeProfileRequest;
  try{
   const sb=client();if(!sb)throw new Error("Supabase not ready");
@@ -149,5 +150,5 @@ window.copyWorthItProfileLink=async function(){
  catch(_){if(typeof window.showToast==="function")window.showToast("Could not copy the link. Select and copy it manually.");}
 };
 if(client()?.auth){client().auth.onAuthStateChange((_event,session)=>{currentUser=session?.user||null;currentOwnProfile=null;currentOwnProfileRequest=null;if(!currentUser)setPanelUnavailable();});client().auth.getSession().then(({data})=>{currentUser=data?.session?.user||null;if(currentUser)refreshAccountPanelCounts(false);}).catch(()=>{});}
-})();
 if($("worthItProfileAvatarInput"))$("worthItProfileAvatarInput").addEventListener("change",handleAvatarInputChange);
+})();

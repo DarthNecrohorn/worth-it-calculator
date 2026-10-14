@@ -112,6 +112,34 @@ async function deleteObject(config, userId) {
     }
 }
 
+async function readLimitedBody(request, maximumBytes) {
+    if (!request.body) return new Uint8Array();
+    const reader = request.body.getReader();
+    const chunks = [];
+    let total = 0;
+    try {
+        while (true) {
+            const result = await reader.read();
+            if (result.done) break;
+            total += result.value.byteLength;
+            if (total > maximumBytes) {
+                await reader.cancel();
+                return null;
+            }
+            chunks.push(result.value);
+        }
+    } finally {
+        try { reader.releaseLock(); } catch (_) {}
+    }
+    const bytes = new Uint8Array(total);
+    let offset = 0;
+    for (const chunk of chunks) {
+        bytes.set(chunk, offset);
+        offset += chunk.byteLength;
+    }
+    return bytes;
+}
+
 function isWebp(bytes) {
     return bytes.byteLength >= 12 &&
         bytes[0] === 0x52 && bytes[1] === 0x49 && bytes[2] === 0x46 && bytes[3] === 0x46 &&
@@ -228,8 +256,9 @@ export async function onRequestPost(context) {
             if (!contentType.startsWith("image/webp")) return json({ error: "Upload a supported JPG, PNG or WebP image." }, 415);
             const declaredLength = Number(request.headers.get("Content-Length") || 0);
             if (declaredLength > MAX_UPLOAD_BYTES) return json({ error: "The prepared profile picture is too large. Please choose another image." }, 413);
-            bytes = new Uint8Array(await request.arrayBuffer());
-            if (!bytes.byteLength || bytes.byteLength > MAX_UPLOAD_BYTES) return json({ error: "The prepared profile picture must be no larger than 512 KB." }, 413);
+            bytes = await readLimitedBody(request, MAX_UPLOAD_BYTES);
+            if (!bytes) return json({ error: "The prepared profile picture must be no larger than 512 KB." }, 413);
+            if (!bytes.byteLength) return json({ error: "The image file was empty." }, 400);
             if (!isWebp(bytes)) return json({ error: "The image could not be validated as WebP." }, 415);
         }
 
