@@ -18094,3 +18094,29 @@ html[data-theme="light"] .worth-it-profile-card{background:#fff}
  .worth-it-profile-share{align-items:stretch;flex-direction:column}
  .worth-it-profile-copy{width:100%}
 }
+
+
+/* Profile banner: use the uploaded image as the background for the entire profile card. */
+.worth-it-profile-card{position:relative;isolation:isolate;overflow:hidden}
+.worth-it-profile-card.has-banner{color:#fff;border-color:rgba(255,255,255,.25)}
+.worth-it-profile-card.has-banner:before{content:"";position:absolute;inset:0;z-index:1;pointer-events:none;background:linear-gradient(120deg,rgba(3,6,18,.84),rgba(3,6,18,.63) 48%,rgba(3,6,18,.82))}
+.worth-it-profile-card>.worth-it-profile-banner-image{position:absolute;inset:0;z-index:0;width:100%;height:100%;object-fit:cover;object-position:center;pointer-events:none}
+.worth-it-profile-card>:not(.worth-it-profile-banner-image){position:relative;z-index:2}
+.worth-it-profile-card.has-banner .worth-it-profile-cover{background:transparent}
+.worth-it-profile-cover.has-banner:before{background:transparent}
+.worth-it-profile-card.has-banner .worth-it-profile-header{border-bottom-color:rgba(255,255,255,.25)}
+.worth-it-profile-card.has-banner .worth-it-profile-id-row .worth-it-profile-overline,
+.worth-it-profile-card.has-banner .worth-it-profile-id-note,
+.worth-it-profile-card.has-banner .worth-it-profile-member-since{color:rgba(255,255,255,.82)}
+.worth-it-profile-card.has-banner .worth-it-profile-stat{background:rgba(10,16,32,.58);border-color:rgba(255,255,255,.22);color:#fff;backdrop-filter:blur(8px)}
+.worth-it-profile-card.has-banner .worth-it-profile-stat span{color:rgba(255,255,255,.78)}
+.worth-it-profile-card.has-banner .worth-it-profile-share{background:rgba(10,16,32,.58);border-color:rgba(255,255,255,.22);backdrop-filter:blur(8px)}
+.worth-it-profile-card.has-banner .worth-it-profile-share-copy a{color:#fff}
+.worth-it-profile-card.has-banner .worth-it-profile-status:not(.is-error){background:rgba(10,16,32,.62);border-color:rgba(255,255,255,.22);color:rgba(255,255,255,.9)}
+.worth-it-profile-card.has-banner .worth-it-profile-status.is-error{background:rgba(58,8,14,.78);border-color:rgba(255,125,125,.48);color:#ffc4c4}
+.worth-it-profile-card.has-banner .worth-it-profile-avatar-remove{color:#ffc4c4}
+@media(prefers-reduced-transparency:reduce){
+ .worth-it-profile-card.has-banner .worth-it-profile-stat,
+ .worth-it-profile-card.has-banner .worth-it-profile-share,
+ .worth-it-profile-card.has-banner .worth-it-profile-status{backdrop-filter:none}
+}
