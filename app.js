@@ -39,6 +39,8 @@ let authMfaLoginInProgress = false;
 let authMfaEnforcementCheckInProgress = false;
 let authMfaRequired = false;
 let authPendingMfaFactorId = "";
+let authPendingMfaFactorType = "totp";
+let authMfaPendingClient = null;
 
 
 /* =========================================================
@@ -56,6 +58,10 @@ window.supabaseClient.auth.onAuthStateChange((event, session) => {
     if (event === "PASSWORD_RECOVERY") {
         authMfaRequired = false;
         authPendingMfaFactorId = "";
+        authPendingMfaFactorType = "totp";
+        const pendingClient = authMfaPendingClient;
+        authMfaPendingClient = null;
+        try { pendingClient?.auth?.signOut({ scope: "local" }); } catch (_) {}
         setTimeout(() => openAuthModal("reset"), 0);
         return;
     }
@@ -71,37 +77,60 @@ window.supabaseClient.auth.onAuthStateChange((event, session) => {
         !authMfaEnforcementCheckInProgress &&
         ["INITIAL_SESSION", "SIGNED_IN"].includes(event)
     ) {
-        setTimeout(() => ensureMfaVerificationIfNeeded(), 0);
+        setTimeout(() => ensureMfaVerificationIfNeeded(window.supabaseClient.auth), 0);
     }
 
     if (typeof updateAIChatView === "function") updateAIChatView();
 });
 
-async function ensureMfaVerificationIfNeeded() {
+async function ensureMfaVerificationIfNeeded(authClient, options) {
     if (
         authMfaRequired ||
         authMfaLoginInProgress ||
         authMfaEnforcementCheckInProgress ||
-        !window.supabaseClient?.auth?.mfa
+        !authClient?.mfa
     ) return false;
 
+    const pendingLogin = Boolean(options?.pendingLogin);
     authMfaEnforcementCheckInProgress = true;
     try {
-        const assurance = await window.supabaseClient.auth.mfa.getAuthenticatorAssuranceLevel();
+        const assurance = await authClient.mfa.getAuthenticatorAssuranceLevel();
         if (assurance?.error) return false;
         const levels = assurance?.data;
         if (levels?.nextLevel !== "aal2" || levels?.currentLevel === "aal2") return false;
 
-        const list = await window.supabaseClient.auth.mfa.listFactors();
+        const list = await authClient.mfa.listFactors();
         if (list?.error) return false;
-        const factor = (list.data?.totp || []).find(item => item.status === "verified") ||
-            (list.data?.phone || []).find(item => item.status === "verified");
+        const totp = (list.data?.totp || []).find(item => item.status === "verified");
+        const phone = (list.data?.phone || []).find(item => item.status === "verified");
+        const factor = totp || phone;
         if (!factor?.id) return false;
 
+        if (!pendingLogin) {
+            // A previously persisted AAL1 session must not remain usable after MFA is enabled.
+            await window.supabaseClient.auth.signOut({ scope: "local" });
+            authPendingMfaFactorId = "";
+            authMfaPendingClient = null;
+            authMfaRequired = false;
+            openAuthModal("signin");
+            setAuthStatus("Two-factor authentication is enabled for this account. Sign in again and enter a verification code to continue.", "");
+            return true;
+        }
+
         authPendingMfaFactorId = factor.id;
+        authPendingMfaFactorType = factor.factor_type || (totp ? "totp" : "phone");
+        authMfaPendingClient = authClient;
         authMfaRequired = true;
         openAuthModal("mfa");
-        setAuthStatus("Two-factor authentication is enabled. Enter the current code from your authenticator app to finish signing in.", "");
+        const subtitle = $("authModalSubtitle");
+        if (subtitle) {
+            subtitle.textContent = authPendingMfaFactorType === "phone"
+                ? "Enter the verification code sent to your verified phone to complete sign-in."
+                : "Enter the current 6-digit code from your authenticator app to complete sign-in.";
+        }
+        setAuthStatus(authPendingMfaFactorType === "phone"
+            ? "Two-factor authentication is enabled. Enter the code sent to your phone."
+            : "Two-factor authentication is enabled. Enter the current code from your authenticator app.", "");
         return true;
     } catch (_) {
         return false;
@@ -990,6 +1019,10 @@ window.cancelMfaSignIn = async function() {
     authMfaRequired = false;
     authMfaLoginInProgress = false;
     authPendingMfaFactorId = "";
+    authPendingMfaFactorType = "totp";
+    const pendingClient = authMfaPendingClient;
+    authMfaPendingClient = null;
+    try { await pendingClient?.auth?.signOut({ scope: "local" }); } catch (_) {}
     try {
         await window.supabaseClient.auth.signOut({ scope: "local" });
     } catch (_) {}
@@ -1136,7 +1169,7 @@ function renderAuthModal() {
 
     if (authModalMode === "mfa") {
         title.textContent = "Verify two-factor authentication";
-        subtitle.textContent = "Enter the current 6-digit code from your authenticator app to complete sign-in.";
+        subtitle.textContent = authPendingMfaFactorType === "phone" ? "Enter the verification code sent to your verified phone to complete sign-in." : "Enter the current 6-digit code from your authenticator app to complete sign-in.";
         usernameWrap.style.display = "none";
         emailWrap.style.display = "none";
         passwordWrap.style.display = "none";
@@ -1557,25 +1590,45 @@ async function submitAuthForm(event) {
             await requestPasswordReset();
 
         } else if (authModalMode === "mfa") {
-            if (!authPendingMfaFactorId) throw new Error("No verified second factor is available. Cancel sign-in and contact support if this continues.");
+            if (!authPendingMfaFactorId || !authMfaPendingClient?.auth) {
+                throw new Error("The pending sign-in is no longer available. Cancel sign-in and try again.");
+            }
             const code = ($("authMfaCode")?.value || "").replace(/\s/g, "");
-            const auth = window.supabaseClient.auth;
-            const challenge = await auth.mfa.challenge({ factorId: authPendingMfaFactorId });
+            const pendingAuth = authMfaPendingClient.auth;
+            const challenge = await pendingAuth.mfa.challenge({ factorId: authPendingMfaFactorId });
             if (challenge?.error) throw challenge.error;
-            const verification = await auth.mfa.verify({
+            const verification = await pendingAuth.mfa.verify({
                 factorId: authPendingMfaFactorId,
                 challengeId: challenge.data.id,
                 code
             });
             if (verification?.error) throw verification.error;
+
+            const pendingResult = await pendingAuth.getSession();
+            const verifiedSession = pendingResult?.data?.session;
+            if (!verifiedSession?.access_token || !verifiedSession?.refresh_token) {
+                throw new Error("The verified session could not be retrieved. Please try signing in again.");
+            }
+
+            authMfaLoginInProgress = true;
+            const committed = await window.supabaseClient.auth.setSession({
+                access_token: verifiedSession.access_token,
+                refresh_token: verifiedSession.refresh_token
+            });
+            authMfaLoginInProgress = false;
+            if (committed?.error) throw committed.error;
+
             authMfaRequired = false;
             authPendingMfaFactorId = "";
+            authPendingMfaFactorType = "totp";
+            const pendingClientToClear = authMfaPendingClient;
+            authMfaPendingClient = null;
+            try { await pendingClientToClear.auth.signOut({ scope: "local" }); } catch (_) {}
             $("authMfaCode").value = "";
             closeAuthModal(true);
             showToast("Two-factor verification completed.");
             if (typeof window.loadAccountSettings === "function") window.loadAccountSettings();
             if (typeof window.loadSecuritySettings === "function") window.loadSecuritySettings();
-
         } else if (authModalMode === "signup") {
 
             const usernameAvailability =
@@ -1718,22 +1771,46 @@ async function submitAuthForm(event) {
             }
 
             authMfaLoginInProgress = true;
-            const {
-                error
-            } =
-                await window.supabaseClient.auth
-                    .setSession({
-                        access_token:
-                            payload.access_token,
-                        refresh_token:
-                            payload.refresh_token
-                    });
-
+            const temporaryAuthClient = window.supabase.createClient(
+                SUPABASE_URL,
+                SUPABASE_PUBLISHABLE_KEY,
+                {
+                    auth: {
+                        persistSession: false,
+                        autoRefreshToken: false,
+                        detectSessionInUrl: false,
+                        flowType: "implicit"
+                    }
+                }
+            );
+            const temporaryResult = await temporaryAuthClient.auth.setSession({
+                access_token: payload.access_token,
+                refresh_token: payload.refresh_token
+            });
             authMfaLoginInProgress = false;
-            if (error) throw error;
+            if (temporaryResult?.error) throw temporaryResult.error;
 
-            const mfaRequired = await ensureMfaVerificationIfNeeded();
-            if (!mfaRequired) closeAuthModal();
+            authMfaPendingClient = temporaryAuthClient;
+            const mfaRequired = await ensureMfaVerificationIfNeeded(temporaryAuthClient.auth, { pendingLogin: true });
+            if (mfaRequired) return;
+
+            const temporarySessionResult = await temporaryAuthClient.auth.getSession();
+            const temporarySession = temporarySessionResult?.data?.session;
+            if (!temporarySession?.access_token || !temporarySession?.refresh_token) {
+                throw new Error("Authentication response was incomplete. Please try signing in again.");
+            }
+
+            authMfaLoginInProgress = true;
+            const committed = await window.supabaseClient.auth.setSession({
+                access_token: temporarySession.access_token,
+                refresh_token: temporarySession.refresh_token
+            });
+            authMfaLoginInProgress = false;
+            if (committed?.error) throw committed.error;
+
+            authMfaPendingClient = null;
+            try { await temporaryAuthClient.auth.signOut({ scope: "local" }); } catch (_) {}
+            closeAuthModal();
 
         }
 
