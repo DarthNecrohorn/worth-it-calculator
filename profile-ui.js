@@ -200,7 +200,7 @@ function renderSocialActionButtons(context, isOwn) {
  friend.dataset.stateDisabled = "false"; follow.dataset.stateDisabled = "false";
  if (!currentUser) {
   friend.textContent = "Sign in to add friend"; follow.textContent = "Sign in to follow";
-  if (hint) { hint.textContent = "Sign in to connect with this user."; hint.hidden = false; }
+  if (hint) { hint.textContent = ""; hint.hidden = true; }
   return;
  }
  if (context.are_friends) {
