@@ -18238,6 +18238,7 @@ html.profile-banner-active .worth-it-profile-section.has-banner:before{backgroun
 }
 .worth-it-profile-social-column{display:flex;flex-direction:column;gap:10px;min-width:0;width:100%;align-self:center}
 .worth-it-profile-social-column .worth-it-profile-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:0;transform:translate(-130px,-150px)}
+#profileSection.signed-out-profile-view .worth-it-profile-social-column .worth-it-profile-stats{transform:translate(-70px,0)}
 .worth-it-profile-social-column .worth-it-profile-stat{
  appearance:none;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:70px;
  padding:12px 5px;font:inherit;color:inherit;border:1px solid var(--border);border-radius:14px;
@@ -18310,6 +18311,7 @@ html.profile-banner-active .worth-it-profile-section.has-banner:before{backgroun
 .worth-it-profile-pending-item .worth-it-profile-connection-text strong{font-size:13px}
 @media(max-width:1050px){
  .worth-it-profile-social-column .worth-it-profile-stats{transform:none}
+ #profileSection.signed-out-profile-view .worth-it-profile-social-column .worth-it-profile-stats{transform:none}
  .worth-it-profile-header{grid-template-columns:minmax(66px,88px) minmax(0,1fr)}
  .worth-it-profile-social-column{grid-column:1/-1;width:100%;max-width:none}
  .worth-it-profile-social-column .worth-it-profile-stats{grid-template-columns:repeat(3,minmax(0,1fr))}
