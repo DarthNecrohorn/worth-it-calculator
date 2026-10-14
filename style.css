@@ -18199,3 +18199,32 @@ html.profile-banner-active .worth-it-profile-section.has-banner:before{backgroun
 @media(prefers-reduced-transparency:reduce){
  html.profile-banner-active body:before{background:rgba(3,6,18,.76)}
 }
+
+
+/* Display-name editor — the username beneath it remains read-only for now. */
+.worth-it-profile-name-row{display:flex;align-items:center;gap:10px;min-width:0;max-width:100%}
+.worth-it-profile-name-row h1{min-width:0}
+.worth-it-profile-display-name-edit{width:32px;height:32px;min-width:32px;flex:0 0 32px;display:inline-grid;place-items:center;padding:0;border:1px solid var(--border);border-radius:8px;background:var(--surface-soft);color:var(--text);font-size:17px;line-height:1;cursor:pointer;transition:transform .16s ease,border-color .16s ease,background .16s ease}
+.worth-it-profile-display-name-edit:hover,.worth-it-profile-display-name-edit:focus-visible{border-color:var(--primary);background:var(--card);transform:translateY(-1px);outline:none}
+.worth-it-profile-display-name-edit[hidden]{display:none!important}
+.worth-it-profile-section.has-banner .worth-it-profile-display-name-edit{border-color:rgba(255,255,255,.38);background:rgba(15,23,42,.78);color:#fff}
+.worth-it-profile-section.has-banner .worth-it-profile-display-name-edit:hover,.worth-it-profile-section.has-banner .worth-it-profile-display-name-edit:focus-visible{background:rgba(255,255,255,.18);border-color:rgba(255,255,255,.65)}
+.worth-it-display-name-overlay{position:fixed;inset:0;z-index:65000;display:flex;align-items:center;justify-content:center;padding:16px;box-sizing:border-box;background:rgba(2,6,23,.72);backdrop-filter:blur(10px)}
+.worth-it-display-name-overlay[hidden]{display:none!important}
+.worth-it-display-name-modal{width:min(440px,100%);box-sizing:border-box;padding:24px;background:var(--card-solid,var(--card));color:var(--text);border:1px solid var(--border);border-radius:20px;box-shadow:0 30px 90px rgba(0,0,0,.42)}
+.worth-it-display-name-modal-head{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;margin-bottom:20px}
+.worth-it-display-name-modal-head h2{margin:0;font-size:22px;line-height:1.2}
+.worth-it-display-name-modal-head p{margin:7px 0 0;color:var(--muted);font-size:13px}
+.worth-it-display-name-close{width:34px;height:34px;flex:0 0 34px;display:grid;place-items:center;padding:0;border:1px solid var(--border);border-radius:9px;background:var(--surface-soft);color:var(--text);font-size:17px;cursor:pointer}
+.worth-it-display-name-label{display:block;margin:0 0 7px;font-size:13px;font-weight:800}
+.worth-it-display-name-input{width:100%;box-sizing:border-box;padding:12px 13px;border:1px solid var(--border);border-radius:11px;background:var(--surface-soft);color:var(--text);font:inherit;outline:none}
+.worth-it-display-name-input:focus{border-color:var(--primary);box-shadow:0 0 0 3px rgba(124,92,255,.14)}
+.worth-it-display-name-hint{margin:9px 0 0;color:var(--muted);font-size:12px;line-height:1.5}
+.worth-it-display-name-status{min-height:20px;margin:12px 0 0;color:var(--muted);font-size:12px;line-height:1.5;overflow-wrap:anywhere}
+.worth-it-display-name-status.is-error{color:var(--danger)}
+.worth-it-display-name-actions{display:flex;justify-content:flex-end;gap:9px;margin-top:20px}
+.worth-it-display-name-actions button{min-height:38px;padding:8px 13px;border:1px solid var(--border);border-radius:10px;font:inherit;font-size:13px;font-weight:800;cursor:pointer}
+.worth-it-display-name-cancel{background:var(--surface-soft);color:var(--text)}
+.worth-it-display-name-save{background:linear-gradient(135deg,var(--primary),var(--primary2));border-color:transparent!important;color:#fff}
+.worth-it-display-name-actions button:disabled{opacity:.52;cursor:not-allowed}
+@media(max-width:520px){.worth-it-display-name-modal{padding:19px;border-radius:17px}.worth-it-profile-display-name-edit{width:30px;height:30px;min-width:30px;flex-basis:30px}.worth-it-display-name-modal-head h2{font-size:20px}}
