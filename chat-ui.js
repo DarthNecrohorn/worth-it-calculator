@@ -15,6 +15,7 @@ let activeConversationInviteToken = "";
 let activeGroupInviteToken = "";
 let activeGroupInvitePreview = null;
 let chatReturnPath = "/";
+let profileReturnConversation = null;
 let chatRouteVersion = 0;
 let chatRouteAccessDenied = false;
 let chatMessages = [];
@@ -562,6 +563,14 @@ function openWorthItChatProfile(worthItId, event) {
     if (!Number.isSafeInteger(id) || id < 1) return;
     // Keep the current chat URL in browser history. Opening a profile should
     // add the profile route after this chat so browser Back returns here.
+    profileReturnConversation = {
+        path: currentBrowserLocation(),
+        type: activeConversationType,
+        id: activeConversationId,
+        title: activeConversationTitle,
+        person: activeConversationPerson,
+        inviteToken: activeConversationInviteToken
+    };
     showChatOverlay(false, {skipRouteSync:true});
     if (typeof window.openWorthItProfile === "function") window.openWorthItProfile(id);
     else window.location.href = "/profile/" + id;
@@ -1101,6 +1110,31 @@ async function routeWorthItChatFromLocation() {
     if (typeof window.hideWorthItProfileSection === "function") window.hideWorthItProfileSection();
     if (!chatReturnPath || isChatRoutePath(chatReturnPath)) chatReturnPath = "/";
     showChatOverlay(true, {skipRouteSync:true});
+    // Restore the exact conversation that was open before the profile was
+    // visited. This also avoids treating an active group URL as a fresh invite.
+    if (profileReturnConversation && currentBrowserLocation() === profileReturnConversation.path) {
+        const previous = profileReturnConversation;
+        profileReturnConversation = null;
+        if (!chatUser) { renderMessages(); return; }
+        await refreshWorthItChatData();
+        if (routeVersion !== chatRouteVersion) return;
+        if (previous.type === "global") {
+            await activateConversation(null, "global", GLOBAL_TITLE, null);
+            return;
+        }
+        if (previous.type === "direct") {
+            const person = chatFriends.find(item => Number(item.worth_it_id) === Number(previous.person?.worth_it_id));
+            if (person) await activateConversation(null, "direct", person.display_name || person.username || previous.title, person);
+            else { await activateConversation(null, "global", GLOBAL_TITLE, null); }
+            return;
+        }
+        if (previous.type === "group") {
+            const group = chatConversations.find(item => String(item.id) === String(previous.id));
+            if (group) await activateConversation(group.id, "group", group.title || previous.title, null, group.invite_token || previous.inviteToken);
+            else { await activateConversation(null, "global", GLOBAL_TITLE, null); }
+            return;
+        }
+    }
     if (route.type === "invalid") {
         closeWorthItGroupInviteDialog();
         chatRouteAccessDenied = true;
