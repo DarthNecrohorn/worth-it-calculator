@@ -426,6 +426,7 @@ const SUPABASE_TURNSTILE_SITE_KEY =
 let authTurnstileWidgetId = null;
 let authTurnstileToken = "";
 let authModalOpenedAt = 0;
+let authTurnstileScriptPromise = null;
 
 function isTurnstileConfigured() {
     return Boolean(
@@ -468,6 +469,40 @@ function resetAuthTurnstile() {
     }
 }
 
+function loadAuthTurnstileScript() {
+    if (window.turnstile) {
+        return Promise.resolve(window.turnstile);
+    }
+
+    if (authTurnstileScriptPromise) {
+        return authTurnstileScriptPromise;
+    }
+
+    authTurnstileScriptPromise = new Promise((resolve, reject) => {
+        const script = document.createElement("script");
+        script.src =
+            "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit";
+        script.async = true;
+        script.defer = true;
+        script.onload = () => {
+            if (window.turnstile) {
+                resolve(window.turnstile);
+            } else {
+                reject(new Error("Turnstile loaded without its API."));
+            }
+        };
+        script.onerror = () => {
+            reject(new Error("The Turnstile script request failed."));
+        };
+        document.head.appendChild(script);
+    }).catch((error) => {
+        authTurnstileScriptPromise = null;
+        throw error;
+    });
+
+    return authTurnstileScriptPromise;
+}
+
 function renderAuthTurnstile() {
     const holder = $("authTurnstile");
 
@@ -479,10 +514,29 @@ function renderAuthTurnstile() {
     }
 
     if (!window.turnstile) {
-        setTimeout(
-            renderAuthTurnstile,
-            150
-        );
+        loadAuthTurnstileScript()
+            .then(() => {
+                if (
+                    $("authModalOverlay")?.classList.contains("open")
+                ) {
+                    renderAuthTurnstile();
+                }
+            })
+            .catch((error) => {
+                if (
+                    $("authModalOverlay")?.classList.contains("open")
+                ) {
+                    setAuthStatus(
+                        "The security check could not be loaded. Check your connection and try again.",
+                        "error"
+                    );
+                }
+
+                console.warn(
+                    "Worth It Turnstile could not be loaded:",
+                    error
+                );
+            });
         return;
     }
 
