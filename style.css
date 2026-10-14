@@ -19437,8 +19437,12 @@ html[data-theme="light"] .worth-it-community-footer-link a{color:#4f46e5;}
 .worth-it-presence-indicator.is-online:after{content:"";position:absolute;inset:-4px;border:1px solid rgba(16,185,129,.52);border-radius:50%;animation:worthItPresencePulse 2.4s ease-out infinite;pointer-events:none}
 .worth-it-presence-indicator.is-offline{background:#737d8d;box-shadow:0 1px 4px rgba(0,0,0,.3)}
 .worth-it-presence-indicator.is-offline:before{background:#c0c7d2}
-.worth-it-presence-tooltip{position:absolute;left:50%;bottom:calc(100% + 7px);z-index:20;display:block;width:max-content;max-width:110px;padding:3px 7px;border:1px solid rgba(148,163,184,.3);border-radius:6px;background:#111827;color:#f8fafc;font:700 11px/1.3 Inter,ui-sans-serif,system-ui,sans-serif;white-space:nowrap;box-shadow:0 4px 12px rgba(0,0,0,.28);opacity:0;visibility:hidden;transform:translate(-50%,3px);transition:opacity .12s ease,transform .12s ease;pointer-events:none}
-.worth-it-presence-indicator:hover .worth-it-presence-tooltip,.worth-it-presence-indicator:focus-visible .worth-it-presence-tooltip,.worth-it-presence-indicator.is-tooltip-open .worth-it-presence-tooltip{opacity:1;visibility:visible;transform:translate(-50%,0)}
+.worth-it-presence-tooltip{position:absolute;left:50%;bottom:calc(100% + 7px);z-index:20;display:block;width:max-content;max-width:110px;padding:4px 8px;border:1px solid rgba(148,163,184,.35);border-radius:7px;background:#111827;color:#f8fafc;font:800 11px/1.35 Inter,ui-sans-serif,system-ui,sans-serif;letter-spacing:.01em;white-space:nowrap;box-shadow:0 5px 16px rgba(0,0,0,.36);opacity:0;visibility:hidden;transform:translate(-50%,3px);transition:opacity .12s ease,transform .12s ease;pointer-events:none}
+.worth-it-presence-tooltip.is-portal{position:fixed;left:50%;right:auto;bottom:auto;z-index:2147483647;opacity:0;visibility:hidden;transform:translate(-50%,-100%);will-change:top,left}
+.worth-it-presence-tooltip.is-portal.is-visible{opacity:1;visibility:visible;transform:translate(-50%,-100%)}
+.worth-it-presence-tooltip.is-portal.is-below{transform:translate(-50%,3px)}
+.worth-it-presence-tooltip.is-portal.is-below.is-visible{transform:translate(-50%,0)}
+.worth-it-presence-indicator:hover .worth-it-presence-tooltip:not(.is-portal),.worth-it-presence-indicator:focus-visible .worth-it-presence-tooltip:not(.is-portal),.worth-it-presence-indicator.is-tooltip-open .worth-it-presence-tooltip:not(.is-portal){opacity:1;visibility:visible;transform:translate(-50%,0)}
 .worth-it-profile-avatar-wrap .worth-it-presence-indicator{width:20px;height:20px;right:2px;bottom:2px;border-width:3px}
 .worth-it-chat-header-avatar .worth-it-presence-indicator{width:17px;height:17px;right:0;bottom:0}
 .profile-nav-btn .worth-it-presence-indicator{width:14px;height:14px;right:1px;bottom:0;border-width:2px}
