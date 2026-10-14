@@ -18120,3 +18120,25 @@ html[data-theme="light"] .worth-it-profile-card{background:#fff}
  .worth-it-profile-card.has-banner .worth-it-profile-share,
  .worth-it-profile-card.has-banner .worth-it-profile-status{backdrop-filter:none}
 }
+
+
+/* Mini account profile: reuse the saved banner (including animated GIFs) as its background. */
+.account-panel{isolation:isolate}
+.account-panel>.account-panel-banner-image{position:absolute;inset:0;z-index:0;width:100%;height:100%;display:block;object-fit:cover;object-position:center;border-radius:inherit;pointer-events:none}
+.account-panel>.account-panel-banner-image[hidden]{display:none!important}
+.account-panel.has-banner{background:rgba(7,12,25,.3);border-color:rgba(255,255,255,.3);color:#fff}
+.account-panel.has-banner:before{content:"";position:absolute;inset:0;z-index:1;border-radius:inherit;pointer-events:none;background:linear-gradient(115deg,rgba(3,6,18,.84),rgba(3,6,18,.63) 58%,rgba(3,6,18,.78))}
+.account-panel>:not(.account-panel-banner-image){position:relative;z-index:2}
+.account-panel.has-banner .account-name{color:#fff}
+.account-panel.has-banner .account-email{color:rgba(255,255,255,.82)}
+.account-panel.has-banner .account-head{border-bottom-color:rgba(255,255,255,.27)}
+.account-panel.has-banner .account-head-avatar{border-color:rgba(255,255,255,.55)}
+.account-panel.has-banner .social-preview-item{background:rgba(10,16,32,.56);border-color:rgba(255,255,255,.22);backdrop-filter:blur(6px)}
+.account-panel.has-banner .social-preview-item strong{color:#fff}
+.account-panel.has-banner .social-preview-item span{color:rgba(255,255,255,.78)}
+.account-panel.has-banner .account-divider{background:rgba(255,255,255,.25)}
+.account-panel.has-banner .account-action{color:#fff}
+.account-panel.has-banner .account-action:hover{background:rgba(255,255,255,.13);border-color:rgba(255,255,255,.26)}
+@media(prefers-reduced-transparency:reduce){
+ .account-panel.has-banner .social-preview-item{backdrop-filter:none}
+}
