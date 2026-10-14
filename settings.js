@@ -217,7 +217,7 @@ window.openSettings = openFullSettings;
         const user = session.user;
         $("accountCurrentEmail").textContent = user.email || "No email address is attached to this account.";
         $("accountEmailVerified").textContent = user.email_confirmed_at || user.confirmed_at ? "Verified" : "Not verified";
-        $("accountEmailVerified").classList.toggle("is-success", Boolean(user.email_confirmed_at || user.confirmed_at));
+        $("accountEmailVerified").classList.toggle("is-success", Boolean(user.email_confirmed_at));
         $("accountEmailVerified").classList.toggle("is-error", !(user.email_confirmed_at || user.confirmed_at));
         $("accountNewEmailInput").value = "";
         $("accountEmailStatus").textContent = "Changing your email requires confirmation through Supabase Auth. Your current address remains active until confirmation is completed.";
@@ -397,16 +397,6 @@ window.openSettings = openFullSettings;
             const userId = data?.session?.user?.id;
             if (!userId) {
                 if (typeof window.handleAuthButton === "function") window.handleAuthButton();
-                return;
-            }
-            const response = await fetch("/api/profile-display-name", {
-                headers: { Authorization: "Bearer " + data.session.access_token, Accept: "application/json" }
-            });
-            if (!response.ok) throw new Error("Could not load your profile link.");
-            const info = await response.json();
-            const worthItId = Number(info.worth_it_id);
-            if (Number.isSafeInteger(worthItId) && worthItId > 0 && typeof window.openWorthItProfile === "function") {
-                window.openWorthItProfile(worthItId);
                 return;
             }
             const profileResponse = await client.from("worth_it_profiles").select("worth_it_id").eq("user_id", userId).maybeSingle();
