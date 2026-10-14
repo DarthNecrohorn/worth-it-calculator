@@ -678,7 +678,7 @@ window.openWorthItProfile=async function(idValue,options){
  const requestId=++activeProfileRequest;
  try{
   const sb=client();if(!sb)throw new Error("Supabase not ready");
-  const [publicResult,user,descriptionResult]=await Promise.all([sb.from("worth_it_public_profiles").select("worth_it_id,username,display_name,avatar_url,banner_url,created_at").eq("worth_it_id",id).maybeSingle(),getCurrentUser().catch(()=>null),sb.from("worth_it_public_profiles").select("description").eq("worth_it_id",id).maybeSingle().catch(()=>({data:null,error:true}))]);
+  const [publicResult,user,descriptionResult]=await Promise.all([sb.from("worth_it_public_profiles").select("worth_it_id,username,display_name,avatar_url,banner_url,created_at").eq("worth_it_id",id).maybeSingle(),getCurrentUser().catch(()=>null),Promise.resolve(sb.from("worth_it_public_profiles").select("description").eq("worth_it_id",id).maybeSingle()).catch(()=>({data:null,error:true}))]);
   if(requestId!==activeProfileRequest)return;if(publicResult.error)throw publicResult.error;if(!publicResult.data){renderError("This Worth It profile could not be found.");return;}
   publicResult.data.description=descriptionResult&&!descriptionResult.error?String(descriptionResult.data?.description||""):"";
    currentUser=user||null;let own=null;if(currentUser){try{own=await getOwnProfileRow(currentUser,false);}catch(_){own=null;}}
