@@ -493,9 +493,7 @@ window.openWorthItGroupChatDialog = function () {
     if (dialog && dialog.parentElement !== document.body) document.body.appendChild(dialog);
     dialog.hidden = false; dialog.setAttribute("aria-hidden","false");
 };
-function renderGroupFriendChoices() {
-    const host = $("worthItChatGroupFriends");
- function updateGroupSelectionUI() {
+function updateGroupSelectionUI() {
     const countNode = $("worthItChatGroupSelectionCount");
     const helpNode = $("worthItChatGroupSelectionHelp");
     const title = String($("worthItChatGroupName")?.value || "").trim();
