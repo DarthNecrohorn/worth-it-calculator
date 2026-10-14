@@ -18238,8 +18238,8 @@ html.profile-banner-active .worth-it-profile-section.has-banner:before{backgroun
 }
 .worth-it-profile-social-column{display:flex;flex-direction:column;gap:10px;min-width:0;width:100%;align-self:center}
 .worth-it-profile-social-column .worth-it-profile-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:0;transform:translate(-130px,-150px)}
-#profileSection.signed-out-profile-view .worth-it-profile-social-column .worth-it-profile-stats{transform:translate(10px,20px)}
-#profileSection.signed-out-profile-view .worth-it-profile-social-actions{transform:translate(10px,20px)}
+#profileSection.signed-out-profile-view .worth-it-profile-social-column .worth-it-profile-stats{transform:translate(10px,10px)}
+#profileSection.signed-out-profile-view .worth-it-profile-social-actions{transform:translate(10px,10px)}
 .worth-it-profile-social-column .worth-it-profile-stat{
  appearance:none;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:70px;
  padding:12px 5px;font:inherit;color:inherit;border:1px solid var(--border);border-radius:14px;
@@ -18347,7 +18347,7 @@ html.worth-it-profile-route-pending #authWrap{visibility:hidden}
 
 /* Logged-out profile social controls: requested precise offsets only when signed out. */
 .worth-it-profile-social-actions.is-logged-out {
- transform: translate(30px, 10px);
+ transform: translate(30px, 0px);
 }
 .worth-it-profile-social-actions.is-logged-out .worth-it-profile-social-hint {
  /* Parent adds (+30px, +10px); this offsets it to a net (-20px, +30px). */
