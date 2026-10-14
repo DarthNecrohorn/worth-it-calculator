@@ -6,6 +6,8 @@ on:
       - "functions/**/*.js"
       - "cars-ui.js"
       - "ship-tracking-ui.js"
+      - "profile-ui.js"
+      - "routing.js"
       - ".github/workflows/function-syntax-check.yml"
 
 jobs:
@@ -37,3 +39,9 @@ jobs:
             echo "Checking ship-tracking-ui.js"
             node --input-type=module --check < "ship-tracking-ui.js"
           fi
+          for file in profile-ui.js routing.js; do
+            if [[ -f "$file" ]]; then
+              echo "Checking $file"
+              node --input-type=module --check < "$file"
+            fi
+          done
