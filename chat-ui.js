@@ -188,7 +188,7 @@ function niceDay(value) {
 }
 function rpcError(error) {
     const message = String(error?.message || error?.details || "");
-    if (/get_worth_it_group_invite_preview|accept_worth_it_group_invite/i.test(message) && /does not exist|schema cache|could not find/i.test(message)) {
+    if (/get_worth_it_group_invite_preview|accept_worth_it_group_invite|invite_token/i.test(message) && /does not exist|schema cache|could not find|column .* does not exist/i.test(message)) {
         return "Group invitation links are not set up yet. Run supabase/worth-it-chat-invitation-links.sql in Supabase, then refresh.";
     }
     if (/get_worth_it_chat_notification_preferences|set_worth_it_chat_notifications/i.test(message) && /does not exist|schema cache|could not find/i.test(message)) {
@@ -841,7 +841,11 @@ function showWorthItGroupInviteDialog(preview, token) {
         accept.disabled = !activeGroupInvitePreview.success || (activeGroupInvitePreview.is_full && !activeGroupInvitePreview.is_member);
         accept.textContent = !activeGroupInvitePreview.success ? "Invitation unavailable" : !chatUser ? "Sign in to continue" : "Join group";
     }
-    if (dialog) { dialog.hidden = false; dialog.setAttribute("aria-hidden", "false"); }
+    if (dialog) {
+        if (dialog.parentElement !== document.body) document.body.appendChild(dialog);
+        dialog.hidden = false;
+        dialog.setAttribute("aria-hidden", "false");
+    }
 }
 async function handleWorthItGroupInviteRoute(token, routeVersion) {
     activeGroupInviteToken = token;
@@ -959,7 +963,16 @@ async function routeWorthItChatFromLocation() {
     }
     if (route.type === "group") {
         chatRouteAccessDenied = true;
+        activeConversationId = null;
+        activeConversationType = "global";
+        activeConversationTitle = GLOBAL_TITLE;
+        activeConversationPerson = null;
+        activeConversationInviteToken = "";
+        setHeader(GLOBAL_TITLE, "A shared space for the Worth It community", null);
+        updateChatHeaderNotificationButton();
+        updateChatHeaderShareButton();
         chatMessages = [];
+        renderMessages();
         if (chatPollTimer) { window.clearInterval(chatPollTimer); chatPollTimer = null; }
         startWorthItChatPolling();
         await handleWorthItGroupInviteRoute(route.token, routeVersion);
