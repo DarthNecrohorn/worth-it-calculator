@@ -3,8 +3,8 @@
  */
 const MAX_FRAMES = 128;
 const MAX_DECODED_PIXELS = 24000000;
-const CELL = 96;
-const COLS = 4;
+const CELL = 128;
+const COLS = 3;
 const SHEET = CELL * COLS;
 function u16(b,o){if(o+1>=b.length)throw Error("GIF is truncated.");return b[o]|b[o+1]<<8;}
 function table(b,o,n){const len=n*3;if(o+len>b.length)throw Error("GIF color table is incomplete.");return{data:b.subarray(o,o+len),next:o+len};}
@@ -56,7 +56,7 @@ export async function decodeGifFramesToPngSheets(bytes){
   const rows=[];if(flags&64){for(let y=0;y<fh;y+=8)rows.push(y);for(let y=4;y<fh;y+=8)rows.push(y);for(let y=2;y<fh;y+=4)rows.push(y);for(let y=1;y<fh;y+=2)rows.push(y);}else for(let y=0;y<fh;y++)rows.push(y);
   for(let ri=0;ri<rows.length;ri++){const row=rows[ri],src=ri*fw,dst=((top+row)*w+left)*4;for(let x=0;x<fw;x++){const ci=idx[src+x];if(ctl.transparent&&ci===ctl.index)continue;const pi=ci*3;if(pi+2>=colors.length)throw Error("GIF references an invalid color.");const di=dst+x*4;canvas[di]=colors[pi];canvas[di+1]=colors[pi+1];canvas[di+2]=colors[pi+2];canvas[di+3]=255;}}
   count++;if(count>MAX_FRAMES)throw Error("GIF animations must contain 128 frames or fewer.");if(!sheet||slot===0){sheet=blankSheet();slot=0;}tile(sheet,canvas,w,h,slot);slot++;prev={disposal:ctl.disposal,left,top,w:fw,h:fh,snapshot};ctl={disposal:0,transparent:false,index:-1};
-  if(slot===16){sheets.push(await toPng(sheet));sheet=null;slot=0;}
+  if(slot===COLS*COLS){sheets.push(await toPng(sheet));sheet=null;slot=0;}
  }
- if(!count)throw Error("No decodable frames were found in this GIF.");if(sheet&&slot)sheets.push(await toPng(sheet));if(sheets.length>8)throw Error("GIF contains too many frames to inspect safely.");return sheets;
+ if(!count)throw Error("No decodable frames were found in this GIF.");if(sheet&&slot)sheets.push(await toPng(sheet));if(sheets.length>Math.ceil(MAX_FRAMES/(COLS*COLS)))throw Error("GIF contains too many frames to inspect safely.");return sheets;
 }
