@@ -19423,3 +19423,6 @@ html[data-theme="light"] .worth-it-community-footer-link a{color:#4f46e5;}
     .worth-it-chat-invite-actions{flex-direction:column;}
     .worth-it-chat-invite-actions .worth-it-chat-send-btn,.worth-it-chat-invite-cancel{width:100%;}
 }
+
+/* The mobile friend/group list must remain full-height while switching away from a conversation. */
+.worth-it-chat-window.is-mobile-sidebar{transform:none!important;}
