@@ -18877,3 +18877,7 @@ html[data-theme="light"] .worth-it-chat-group-card input:not([type=checkbox]){ba
 body.worth-it-chat-open{overflow:hidden}
 .worth-it-chat-mobile-list-btn{display:none}
 @media(max-width:540px){.worth-it-chat-mobile-list-btn{display:grid}}
+
+/* Keep the chat panel lower on desktop when opened from the header button. */
+.worth-it-chat-window:not(.is-fullscreen){transform:translateY(200px)}
+@media(max-width:760px){.worth-it-chat-window:not(.is-fullscreen){transform:none}}
