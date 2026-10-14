@@ -520,7 +520,6 @@ window.openSettings = openFullSettings;
             const emailInput = $("authEmail");
             if (emailInput) {
                 emailInput.value = session.user.email;
-                emailInput.readOnly = true;
             }
             const subtitle = $("authModalSubtitle");
             if (subtitle) subtitle.textContent = "We will send a password-reset link to your verified account email.";
