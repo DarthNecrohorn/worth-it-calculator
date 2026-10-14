@@ -61,7 +61,7 @@ html[data-theme="light"].worth-it-initial-paint::before {
 })();
 </script>
 
-<link rel="stylesheet" href="style.css?v=notifications-dismiss-24h-20261014a">
+<link rel="stylesheet" href="style.css?v=settings-page-20261014a">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 </head>
 
@@ -999,12 +999,8 @@ html[data-theme="light"].worth-it-initial-paint::before {
 
 
     <div class="settings-section">
-        <label>🌐 Translate this website</label>
-        <button type="button" class="settings-option" onclick="openTranslateTutorial()">
-            🌐 How to translate
-        </button>
+        <button type="button" class="settings-option settings-more-option" onclick="openFullSettings()">View more settings →</button>
     </div>
-
     <div class="settings-section">
         <label>Appearance</label>
         <div class="settings-options">
@@ -1029,47 +1025,6 @@ html[data-theme="light"].worth-it-initial-paint::before {
     </div>
 
 </div>
-
-<div class="translate-overlay" id="translateTutorial" role="dialog" aria-modal="true" aria-labelledby="translateTutorialTitle">
-    <div class="translate-modal-card">
-        <div class="translate-head">
-            <div>
-                <h3 id="translateTutorialTitle">🌐 Translate Worth It</h3>
-                <p>Use your browser's own translator. It can translate the whole page, including the calculators.</p>
-            </div>
-            <button type="button" class="translate-close" onclick="closeTranslateTutorial()">✕</button>
-        </div>
-
-        <div class="translate-browser-tabs" role="tablist" aria-label="Browser">
-            <button type="button" class="translate-tab active" id="translateTabChrome" onclick="showTranslateBrowser('chrome')">🌐 Chrome / Edge</button>
-            <button type="button" class="translate-tab" id="translateTabFirefox" onclick="showTranslateBrowser('firefox')">🦊 Firefox</button>
-            <button type="button" class="translate-tab" id="translateTabOther" onclick="showTranslateBrowser('other')">🌐 Other</button>
-        </div>
-
-        <div class="translate-steps" id="translateStepsChrome">
-            <div class="translate-step"><strong>1</strong><div><b>Open the browser menu</b><span>Click <b>⋮</b> in the top-right corner.</span></div></div>
-            <div class="translate-step"><strong>2</strong><div><b>Choose “Translate”</b><span>Your browser will offer to translate this page.</span></div></div>
-            <div class="translate-step"><strong>3</strong><div><b>Choose your language</b><span>Select the language you want.</span></div></div>
-            <div class="translate-step"><strong>4</strong><div><b>Done ✅</b><span>The whole Worth It page should be translated.</span></div></div>
-        </div>
-
-        <div class="translate-steps hidden" id="translateStepsFirefox">
-            <div class="translate-step"><strong>1</strong><div><b>Open Firefox Translate</b><span>Click the <b>Translate</b> icon in the toolbar, or open the Firefox menu and choose <b>Translate page</b>.</span></div></div>
-            <div class="translate-step"><strong>2</strong><div><b>Choose your language</b><span>Select the language you want the page translated into.</span></div></div>
-            <div class="translate-step"><strong>3</strong><div><b>Translate ✅</b><span>Firefox translates the full page.</span></div></div>
-        </div>
-
-        <div class="translate-steps hidden" id="translateStepsOther">
-            <div class="translate-step"><strong>1</strong><div><b>Look for Translate</b><span>Check the address bar or your browser's <b>⋮</b> menu.</span></div></div>
-            <div class="translate-step"><strong>2</strong><div><b>Choose a language</b><span>Select the language you want.</span></div></div>
-            <div class="translate-step"><strong>3</strong><div><b>Translate ✅</b><span>Your browser should translate the whole page.</span></div></div>
-        </div>
-
-        <div class="translate-note">💡 The exact buttons can look different depending on your browser and version. The website itself does not control the browser's translator.</div>
-        <div class="translate-actions"><button type="button" class="btn btn-primary" onclick="closeTranslateTutorial()">Got it</button></div>
-    </div>
-</div>
-
 
 <div class="ai-chat-overlay" id="aiChatOverlay" role="dialog" aria-modal="true" aria-labelledby="aiChatTitle">
     <div class="ai-chat-card">
@@ -2370,6 +2325,100 @@ html[data-theme="light"].worth-it-initial-paint::before {
   </div>
 </section>
 
+<section id="settingsPage" class="worth-it-settings-page" style="display:none;" aria-label="Account settings">
+  <div class="container worth-it-settings-container">
+    <div class="worth-it-settings-toolbar">
+      <button type="button" class="btn btn-secondary" onclick="showHome()">← Back to Worth It</button>
+      <span class="worth-it-settings-overline">WORTH IT · ACCOUNT CENTRE</span>
+    </div>
+    <header class="worth-it-settings-hero">
+      <div>
+        <p class="worth-it-settings-kicker">PERSONALISE YOUR EXPERIENCE</p>
+        <h1>Settings</h1>
+        <p>Manage your account, security, privacy and preferences in one place.</p>
+      </div>
+      <span class="worth-it-settings-save-note"><span aria-hidden="true">✓</span> Preferences save automatically</span>
+    </header>
+
+    <div class="worth-it-settings-grid" aria-label="Settings categories">
+      <article class="worth-it-settings-card" id="settingsAccount">
+        <div class="worth-it-settings-card-icon" aria-hidden="true">👤</div>
+        <div class="worth-it-settings-card-copy">
+          <h2>Account &amp; Profile</h2>
+          <p>Username, display name, email address, verified phone number and profile details.</p>
+        </div>
+        <span class="worth-it-settings-status">Planned</span>
+      </article>
+      <article class="worth-it-settings-card" id="settingsSecurity">
+        <div class="worth-it-settings-card-icon" aria-hidden="true">🛡️</div>
+        <div class="worth-it-settings-card-copy">
+          <h2>Security &amp; Login</h2>
+          <p>Password and account recovery, two-factor authentication, active sessions and security alerts.</p>
+        </div>
+        <span class="worth-it-settings-status">Planned</span>
+      </article>
+      <article class="worth-it-settings-card" id="settingsPrivacy">
+        <div class="worth-it-settings-card-icon" aria-hidden="true">🔒</div>
+        <div class="worth-it-settings-card-copy">
+          <h2>Privacy</h2>
+          <p>Profile visibility, discoverability, online status and control over public profile information.</p>
+        </div>
+        <span class="worth-it-settings-status">Planned</span>
+      </article>
+      <article class="worth-it-settings-card" id="settingsNotifications">
+        <div class="worth-it-settings-card-icon" aria-hidden="true">🔔</div>
+        <div class="worth-it-settings-card-copy">
+          <h2>Notifications</h2>
+          <p>Manage alerts for friend requests, follows, private messages, group chats and account activity.</p>
+        </div>
+        <span class="worth-it-settings-status">Planned</span>
+      </article>
+      <article class="worth-it-settings-card" id="settingsData">
+        <div class="worth-it-settings-card-icon" aria-hidden="true">🗂️</div>
+        <div class="worth-it-settings-card-copy">
+          <h2>Your Data</h2>
+          <p>Review account data, request a personal data export and manage account deletion.</p>
+        </div>
+        <span class="worth-it-settings-status">Planned</span>
+      </article>
+    </div>
+
+    <section class="worth-it-settings-panel" aria-labelledby="settingsAppearanceTitle">
+      <div class="worth-it-settings-panel-heading">
+        <div class="worth-it-settings-card-icon" aria-hidden="true">🎨</div>
+        <div>
+          <h2 id="settingsAppearanceTitle">Appearance &amp; Accessibility</h2>
+          <p>Personalise the way Worth It looks. Changes are saved automatically.</p>
+        </div>
+      </div>
+      <div class="worth-it-settings-control-group">
+        <label>Appearance</label>
+        <div class="settings-options worth-it-settings-page-options">
+          <button type="button" class="settings-option" id="settingsPageThemeDarkBtn" onclick="setTheme('dark')">🌙 Dark</button>
+          <button type="button" class="settings-option" id="settingsPageThemeLightBtn" onclick="setTheme('light')">☀️ Light</button>
+        </div>
+      </div>
+      <div class="worth-it-settings-control-group">
+        <label>Text &amp; UI size</label>
+        <div class="settings-options worth-it-settings-page-options">
+          <button type="button" class="settings-option" id="settingsPageSizeSmallBtn" onclick="setUIScale('small')">A−</button>
+          <button type="button" class="settings-option" id="settingsPageSizeNormalBtn" onclick="setUIScale('normal')">A</button>
+          <button type="button" class="settings-option" id="settingsPageSizeLargeBtn" onclick="setUIScale('large')">A+</button>
+          <button type="button" class="settings-option" id="settingsPageSizeXLBtn" onclick="setUIScale('xl')">A++</button>
+        </div>
+      </div>
+      <div class="worth-it-settings-reset">
+        <div>
+          <strong>Reset appearance settings</strong>
+          <p>Restore the default dark theme and standard text size.</p>
+        </div>
+        <button type="button" class="settings-option" onclick="resetSettings()">Reset settings</button>
+      </div>
+    </section>
+    <p class="worth-it-settings-roadmap">Account, security, privacy and notification controls will be added in stages. Sensitive account changes will only be enabled once their verification and server-side security checks are in place.</p>
+  </div>
+</section>
+
 <div id="worthItDisplayNameOverlay" class="worth-it-display-name-overlay" role="dialog" aria-modal="true" aria-labelledby="worthItDisplayNameTitle" aria-hidden="true" hidden>
   <div class="worth-it-display-name-modal">
     <div class="worth-it-display-name-modal-head">
@@ -2686,7 +2735,7 @@ try{
 <script src="news-ui.js?v=newscache20261012a"></script>
 <script src="shop-affiliates.js?v=shopdetails20261010d"></script>
 <script src="shop.js?v=shopcache20261012a"></script>
-<script src="settings.js?v=settings4"></script>
+<script src="settings.js?v=settings-page-20261014a"></script>
 <script src="admin-panel.js?v=adminpanel16"></script>
 <script src="markets-ui.js?v=marketsperf20261012b"></script>
 <script src="crypto-ui.js?v=cryptoimage20261012a"></script>
@@ -4701,7 +4750,7 @@ if($("carResults")){
 <script src="/profile-ui.js?v=notifications-dismiss-24h-20261014b"></script>
 <script src="/chat-ui.js?v=communitytools20261014a"></script>
 <script src="/user-search.js?v=worthitusersearch20261014a"></script>
-<script src="/routing.js?v=themebootlightprofile20261014a"></script>
+<script src="/routing.js?v=settings-page-20261014a"></script>
 
 </body>
 </html>
