@@ -2256,14 +2256,16 @@ html[data-theme="light"].worth-it-initial-paint::before {
       <div id="worthItProfileCover" class="worth-it-profile-cover">
         <img id="worthItProfileBannerImage" class="worth-it-profile-banner-image" alt="" aria-hidden="true" hidden>
         <div class="worth-it-profile-header">
-          <div id="worthItProfileAvatar" class="worth-it-profile-avatar-wrap"><div class="worth-it-profile-avatar-fallback">W</div></div>
+          <div class="worth-it-profile-avatar-column">
+            <div id="worthItProfileAvatar" class="worth-it-profile-avatar-wrap"><div class="worth-it-profile-avatar-fallback">W</div></div>
+            <p id="worthItProfilePresence" class="worth-it-profile-presence-text" hidden></p>
+          </div>
           <div class="worth-it-profile-heading">
             <div class="worth-it-profile-name-row">
               <h1 id="worthItProfileName">Profile</h1>
               <button type="button" id="worthItProfileDisplayNameEdit" class="worth-it-profile-display-name-edit" onclick="openWorthItDisplayNameEditor()" aria-label="Change display name" title="Change display name" hidden>✎</button>
             </div>
             <p id="worthItProfileUsername" class="worth-it-profile-username"></p>
-            <p id="worthItProfilePresence" class="worth-it-profile-presence-text" hidden></p>
             <p id="worthItProfileEmail" class="worth-it-profile-email" hidden></p>
             <div id="worthItProfileAvatarControls" class="worth-it-profile-avatar-controls" hidden>
               <div class="worth-it-profile-avatar-actions">
@@ -4695,7 +4697,7 @@ if($("carResults")){
 }
 
 </script>
-<script src="/profile-ui.js?v=presence20261014c"></script>
+<script src="/profile-ui.js?v=presence20261014d"></script>
 <script src="/chat-ui.js?v=communitytools20261014a"></script>
 <script src="/user-search.js?v=worthitusersearch20261014a"></script>
 <script src="/routing.js?v=themebootlightprofile20261014a"></script>
