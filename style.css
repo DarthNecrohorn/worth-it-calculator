@@ -19426,3 +19426,37 @@ html[data-theme="light"] .worth-it-community-footer-link a{color:#4f46e5;}
 
 /* The mobile friend/group list must remain full-height while switching away from a conversation. */
 .worth-it-chat-window.is-mobile-sidebar{transform:none!important;}
+
+
+/* Worth It presence: distinctive signal-orb indicators, consistent across all profile avatars. */
+.worth-it-presence-host{position:relative!important}
+.worth-it-presence-indicator{position:absolute;right:0;bottom:0;z-index:4;display:block;width:12px;height:12px;box-sizing:border-box;border:2px solid var(--card-solid,var(--card));border-radius:50%;background:#778196;box-shadow:0 1px 4px rgba(0,0,0,.38);pointer-events:none}
+.worth-it-presence-indicator:before{content:"";position:absolute;inset:2px;border-radius:50%;background:#c3cbd7}
+.worth-it-presence-indicator.is-online{background:#10b981;box-shadow:0 0 0 1px rgba(16,185,129,.24),0 0 10px rgba(16,185,129,.65),0 1px 4px rgba(0,0,0,.32)}
+.worth-it-presence-indicator.is-online:before{inset:2px;background:#eafff5}
+.worth-it-presence-indicator.is-online:after{content:"";position:absolute;inset:-4px;border:1px solid rgba(16,185,129,.52);border-radius:50%;animation:worthItPresencePulse 2.4s ease-out infinite}
+.worth-it-presence-indicator.is-offline{background:#737d8d;box-shadow:0 1px 4px rgba(0,0,0,.3)}
+.worth-it-presence-indicator.is-offline:before{background:#c0c7d2}
+.worth-it-profile-avatar-wrap .worth-it-presence-indicator{width:17px;height:17px;right:2px;bottom:2px;border-width:3px}
+.worth-it-chat-header-avatar .worth-it-presence-indicator{width:14px;height:14px;right:0;bottom:0}
+.profile-nav-btn .worth-it-presence-indicator{width:11px;height:11px;right:2px;bottom:1px;border-width:2px}
+#accountHeadAvatar .worth-it-presence-indicator{width:12px;height:12px}
+.worth-it-profile-friend-avatar .worth-it-presence-indicator,.worth-it-profile-connection-avatar .worth-it-presence-indicator,.worth-it-notification-avatar .worth-it-presence-indicator{width:10px;height:10px;border-width:2px;right:0;bottom:0}
+.worth-it-chat-person-avatar .worth-it-presence-indicator{width:11px;height:11px;border-width:2px;right:0;bottom:0}
+.worth-it-profile-presence-text{display:flex;align-items:center;gap:7px;margin:7px 0 0;color:var(--muted);font-size:12px;line-height:1.4}
+.worth-it-presence-status-dot{position:relative;display:inline-block;flex:0 0 9px;width:9px;height:9px;box-sizing:border-box;border-radius:50%;background:#778196;box-shadow:0 0 0 2px rgba(115,125,141,.13)}
+.worth-it-presence-status-dot:after{content:"";position:absolute;inset:2px;border-radius:50%;background:#d3d9e2}
+.worth-it-presence-status-dot.is-online{background:#10b981;box-shadow:0 0 0 3px rgba(16,185,129,.12),0 0 8px rgba(16,185,129,.36)}
+.worth-it-presence-status-dot.is-online:after{background:#eafff5}
+.worth-it-profile-presence-text.is-online .worth-it-presence-label{color:#10b981;font-weight:800}
+.worth-it-profile-section.has-banner .worth-it-profile-presence-text{color:rgba(255,255,255,.78)}
+.worth-it-profile-section.has-banner .worth-it-profile-presence-text.is-online .worth-it-presence-label{color:#86efac}
+.worth-it-person-presence-label{color:var(--muted2)!important;font-size:10px!important;font-weight:700!important}
+.worth-it-chat-person-presence{display:block;margin-top:2px;color:var(--muted2);font-size:10px;line-height:1.25}
+.worth-it-chat-message-receipt{display:block;align-self:flex-end;margin-top:-2px;padding:0 2px;color:var(--muted2);font-size:10px;font-weight:750;line-height:1.25;letter-spacing:.01em}
+.worth-it-chat-message-receipt.is-sent{color:var(--muted2)}
+.worth-it-chat-message-receipt.is-seen{color:#76a7ff}
+html[data-theme="light"] .worth-it-chat-message-receipt.is-seen{color:#3768d7}
+@keyframes worthItPresencePulse{0%{transform:scale(.74);opacity:.6}80%,100%{transform:scale(1.65);opacity:0}}
+@media(prefers-reduced-motion:reduce){.worth-it-presence-indicator.is-online:after{animation:none;inset:-2px;opacity:.4}}
+html[data-theme="light"] .worth-it-presence-indicator{border-color:#fff}

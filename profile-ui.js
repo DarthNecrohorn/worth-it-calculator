@@ -5,6 +5,52 @@ const $=id=>document.getElementById(id);
 const BASE_URL="https://worth-it-calculator.pages.dev";
 let currentUser=null,currentOwnProfile=null,currentOwnProfileRequest=null,activeProfileRequest=0,currentProfileLink="",currentDisplayedProfileId=0,currentDisplayedProfileIsOwn=false,avatarOperationInProgress=false,assetLimitTimers={avatar:null,banner:null},currentSocialContext=null,activeSocialRefresh=0,activeConnectionsRequest=0,socialActionInProgress=false,profileDescriptionStatusRequest=0,profileDescriptionSaving=false,profileDescriptionStatusReady=false,profileDescriptionSavedValue="",profileDescriptionNextSaveAt=0,profileDescriptionCooldownTimer=null;
 const client=()=>window.supabaseClient||null;
+const PRESENCE_ONLINE_WINDOW_MS=150000;
+let presenceHeartbeatTimer=null,presenceDisplayTimer=null,presenceLastHeartbeatAt=0,presenceHeartbeatBusy=false,presenceDisplayBusy=false;
+const presenceLastSeenById=new Map();
+function getWorthItPresenceInfo(person){
+ const cached=person?.worth_it_id!=null?presenceLastSeenById.get(String(person.worth_it_id)):null;
+ const raw=person?.last_seen_at||person?.lastSeenAt||cached||null,stamp=raw?new Date(raw).getTime():NaN,delta=Number.isFinite(stamp)?Date.now()-stamp:Infinity;
+ if(Number.isFinite(stamp)&&delta>=-60000&&delta<=PRESENCE_ONLINE_WINDOW_MS)return{online:true,label:"Online now",lastSeenAt:raw};
+ if(!Number.isFinite(stamp))return{online:false,label:"Offline · last seen unavailable",lastSeenAt:null};
+ const minutes=Math.max(1,Math.floor(Math.max(0,delta)/60000));let relative;
+ if(minutes<60)relative=minutes+" "+(minutes===1?"minute":"minutes");
+ else if(minutes<1440){const hours=Math.floor(minutes/60),rest=minutes%60;relative=hours+" "+(hours===1?"hour":"hours")+(rest>=10?" "+rest+" min":"");}
+ else{const days=Math.floor(minutes/1440);relative=days+" "+(days===1?"day":"days");}
+ return{online:false,label:"Last seen "+relative+" ago",lastSeenAt:raw};
+}
+function updateWorthItPresenceNode(node,lastSeenAt){
+ if(!node)return;const info=getWorthItPresenceInfo({worth_it_id:node.dataset.worthItPresenceId,last_seen_at:lastSeenAt||null});
+ node.classList.toggle("is-online",info.online);node.classList.toggle("is-offline",!info.online);node.dataset.lastSeenAt=lastSeenAt||"";node.title=info.label;node.setAttribute("aria-label",info.label);
+ if(node.classList.contains("worth-it-profile-presence-text")){const dot=node.querySelector(".worth-it-presence-status-dot"),label=node.querySelector(".worth-it-presence-label");if(dot){dot.classList.toggle("is-online",info.online);dot.classList.toggle("is-offline",!info.online);}if(label)label.textContent=info.label;}
+ if(node.classList.contains("worth-it-person-presence-label")||node.classList.contains("worth-it-chat-person-presence"))node.textContent=info.label;
+}
+function appendWorthItPresenceIndicator(host,person){
+ if(!host||!person||person.worth_it_id==null)return;host.classList.add("worth-it-presence-host");host.querySelectorAll(":scope > .worth-it-presence-indicator").forEach(node=>node.remove());
+ const marker=document.createElement("span");marker.className="worth-it-presence-indicator";marker.dataset.worthItPresenceId=String(person.worth_it_id);marker.dataset.lastSeenAt=person.last_seen_at||"";marker.setAttribute("role","img");
+ updateWorthItPresenceNode(marker,person.last_seen_at);host.appendChild(marker);
+}
+function renderWorthItProfilePresence(person){
+ const host=$("worthItProfilePresence");if(!host)return;host.replaceChildren();host.className="worth-it-profile-presence-text";host.dataset.worthItPresenceId=String(person?.worth_it_id||"");
+ const dot=document.createElement("span");dot.className="worth-it-presence-status-dot";dot.setAttribute("aria-hidden","true");const label=document.createElement("span");label.className="worth-it-presence-label";host.append(dot,label);updateWorthItPresenceNode(host,person?.last_seen_at);host.hidden=false;
+}
+async function refreshWorthItPresenceDisplay(){
+ if(presenceDisplayBusy||document.visibilityState==="hidden")return;const sb=client();if(!sb)return;
+ const nodes=Array.from(document.querySelectorAll("[data-worth-it-presence-id]")),ids=Array.from(new Set(nodes.map(node=>Number(node.dataset.worthItPresenceId)).filter(id=>Number.isSafeInteger(id)&&id>0))).slice(0,200);
+ if(!ids.length)return;presenceDisplayBusy=true;
+ try{const result=await sb.from("worth_it_public_profiles").select("worth_it_id,last_seen_at").in("worth_it_id",ids);if(result.error||!Array.isArray(result.data))return;
+  const timestamps=new Map(result.data.map(row=>[String(row.worth_it_id),row.last_seen_at||null]));timestamps.forEach((value,key)=>presenceLastSeenById.set(key,value));
+  nodes.forEach(node=>{const id=String(node.dataset.worthItPresenceId||"");if(timestamps.has(id))updateWorthItPresenceNode(node,timestamps.get(id));});
+ }catch(_){}finally{presenceDisplayBusy=false;}
+}
+async function touchWorthItPresence(force){
+ if(!currentUser?.id||!client()||document.visibilityState==="hidden"||presenceHeartbeatBusy)return;if(!force&&Date.now()-presenceLastHeartbeatAt<55000)return;
+ presenceHeartbeatBusy=true;presenceLastHeartbeatAt=Date.now();try{const result=await client().rpc("touch_worth_it_presence");if(result.error)presenceLastHeartbeatAt=0;}catch(_){presenceLastHeartbeatAt=0;}finally{presenceHeartbeatBusy=false;}
+}
+function startWorthItPresenceTimers(){if(presenceHeartbeatTimer===null)presenceHeartbeatTimer=window.setInterval(()=>touchWorthItPresence(false),60000);if(presenceDisplayTimer===null)presenceDisplayTimer=window.setInterval(()=>refreshWorthItPresenceDisplay(),30000);}
+window.getWorthItPresenceInfo=getWorthItPresenceInfo;window.renderWorthItPresenceIndicator=appendWorthItPresenceIndicator;window.refreshWorthItPresenceDisplay=refreshWorthItPresenceDisplay;
+document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible"){touchWorthItPresence(true);refreshWorthItPresenceDisplay();}});
+window.addEventListener("focus",()=>touchWorthItPresence(true),{passive:true});startWorthItPresenceTimers();
 function setText(id,value){const n=$(id);if(n)n.textContent=value==null?"":String(value);}
 function setCount(id,value){const n=$(id);if(!n)return;const v=Number(value);n.textContent=Number.isFinite(v)&&v>=0?Math.trunc(v).toLocaleString():"—";}
 function setStatus(msg,isError){const n=$("worthItProfileStatus");if(!n)return;n.textContent=msg||"";n.hidden=!msg;n.classList.toggle("is-error",Boolean(msg&&isError));}
@@ -22,7 +68,7 @@ function showProfileSection(){
 window.hideWorthItProfileSection=function(){const n=$("profileSection");if(n)n.style.display="none";clearProfileBannerBackdrop(false);};
 function fallbackAvatar(name){const n=document.createElement("div");n.className="worth-it-profile-avatar-fallback";n.textContent=String(name||"W").trim().charAt(0).toUpperCase()||"W";return n;}
 function safeAvatarUrl(url){return typeof url==="string"&&/^https?:\/\//i.test(url)?url:"";}
-function renderAvatar(url,name){const host=$("worthItProfileAvatar");if(!host)return;host.replaceChildren();const safe=safeAvatarUrl(url);if(!safe){host.appendChild(fallbackAvatar(name));return;}const img=document.createElement("img");img.className="worth-it-profile-avatar";img.alt="";img.referrerPolicy="no-referrer";img.src=safe;img.addEventListener("error",()=>host.replaceChildren(fallbackAvatar(name)),{once:true});host.appendChild(img);}
+function renderAvatar(url,name,person){const host=$("worthItProfileAvatar");if(!host)return;host.replaceChildren();const safe=safeAvatarUrl(url);if(!safe)host.appendChild(fallbackAvatar(name));else{const img=document.createElement("img");img.className="worth-it-profile-avatar";img.alt="";img.referrerPolicy="no-referrer";img.src=safe;img.addEventListener("error",()=>{host.replaceChildren(fallbackAvatar(name));appendWorthItPresenceIndicator(host,person);},{once:true});host.appendChild(img);}appendWorthItPresenceIndicator(host,person);}
 function syncProfileBannerBackdropPosition(){
  if(!document.documentElement.classList.contains("profile-banner-active"))return;
  const nav=document.querySelector(".nav");
@@ -48,7 +94,7 @@ function renderBanner(url){
  syncProfileBannerBackdropPosition();
  document.documentElement.classList.add("profile-banner-active");
 }
-function renderSmallAvatar(host,url,name,imageClass,fallbackClass){if(!host)return;host.replaceChildren();const safe=safeAvatarUrl(url);if(!safe){const fallback=document.createElement("div");fallback.className=fallbackClass;fallback.textContent=String(name||"W").trim().charAt(0).toUpperCase()||"W";host.appendChild(fallback);return;}const img=document.createElement("img");img.className=imageClass;img.alt="";img.referrerPolicy="no-referrer";img.src=safe;img.addEventListener("error",()=>{host.replaceChildren();const fallback=document.createElement("div");fallback.className=fallbackClass;fallback.textContent=String(name||"W").trim().charAt(0).toUpperCase()||"W";host.appendChild(fallback);},{once:true});host.appendChild(img);}
+function renderSmallAvatar(host,url,name,imageClass,fallbackClass,person){if(!host)return;host.replaceChildren();const fallback=()=>{const node=document.createElement("div");node.className=fallbackClass;node.textContent=String(name||"W").trim().charAt(0).toUpperCase()||"W";host.appendChild(node);};const safe=safeAvatarUrl(url);if(!safe)fallback();else{const img=document.createElement("img");img.className=imageClass;img.alt="";img.referrerPolicy="no-referrer";img.src=safe;img.addEventListener("error",()=>{host.replaceChildren();fallback();appendWorthItPresenceIndicator(host,person);},{once:true});host.appendChild(img);}appendWorthItPresenceIndicator(host,person);}
 function renderAccountPanelBanner(url){
  const panel=$("accountPanel"),image=$("accountPanelBannerImage");
  if(!panel||!image)return;
@@ -57,7 +103,7 @@ function renderAccountPanelBanner(url){
  image.onerror=()=>{image.hidden=true;panel.classList.remove("has-banner");image.removeAttribute("src");image.onerror=null;};
  image.src=safe;image.hidden=false;panel.classList.add("has-banner");
 }
-function syncHeaderAvatar(profile){const name=profile?.display_name||profile?.username||currentUser?.user_metadata?.full_name||currentUser?.email?.split("@")[0]||"Worth It";renderSmallAvatar($("profileNavIcon"),profile?.avatar_url,name,"auth-avatar","auth-avatar-fallback");renderSmallAvatar($("accountHeadAvatar"),profile?.avatar_url,name,"account-head-avatar","account-head-fallback");const accountName=$("accountName");if(accountName)accountName.textContent=name;renderAccountPanelBanner(profile?.banner_url);}
+function syncHeaderAvatar(profile){const name=profile?.display_name||profile?.username||currentUser?.user_metadata?.full_name||currentUser?.email?.split("@")[0]||"Worth It",person={...profile,worth_it_id:profile?.worth_it_id,last_seen_at:profile?.last_seen_at};renderSmallAvatar($("profileNavIcon"),profile?.avatar_url,name,"auth-avatar","auth-avatar-fallback",person);renderSmallAvatar($("accountHeadAvatar"),profile?.avatar_url,name,"account-head-avatar","account-head-fallback",person);const accountName=$("accountName");if(accountName)accountName.textContent=name;renderAccountPanelBanner(profile?.banner_url);}
 function normalizeStats(data){let d=Array.isArray(data)?data[0]:data;d=d&&typeof d==="object"?d:{};return{friends:Number(d.friends)||0,followers:Number(d.followers)||0,following:Number(d.following)||0};}
 async function getStats(id){const sb=client();if(!sb||!Number.isSafeInteger(Number(id)))throw new Error("Stats unavailable");const r=await sb.rpc("get_worth_it_profile_stats",{target_worth_it_id:Number(id)});if(r.error)throw r.error;return normalizeStats(r.data);}
 async function getOwnProfileRow(user,force){
@@ -89,7 +135,7 @@ window.toggleAccountPanel=function(event){const result=typeof oldToggle==="funct
 function renderProfile(p,s,isOwn){
  const profileSection=$("profileSection");if(profileSection)profileSection.classList.toggle("signed-out-profile-view",!currentUser);
  const id=Number(p.worth_it_id),name=String(p.display_name||p.username||"Worth It member"),username=String(p.username||""),link=BASE_URL+"/profile/"+id;currentProfileLink=link;
- renderAvatar(p.avatar_url,name);renderBanner(p.banner_url,name);setText("worthItProfileName",name);setText("worthItProfileUsername",username?"@"+username:"Worth It member");
+ renderAvatar(p.avatar_url,name,p);renderWorthItProfilePresence(p);renderBanner(p.banner_url,name);setText("worthItProfileName",name);setText("worthItProfileUsername",username?"@"+username:"Worth It member");
  const displayNameEdit=$("worthItProfileDisplayNameEdit");if(displayNameEdit)displayNameEdit.hidden=!isOwn;
  if(!isOwn)closeWorthItDisplayNameEditor();
  setCount("worthItProfileFriends",s.friends);setCount("worthItProfileFollowers",s.followers);setCount("worthItProfileFollowing",s.following);setFriendMood(s.friends);
@@ -243,40 +289,16 @@ function normalizeRpcObject(value) {
  return value;
 }
 function profilePersonLink(person, compact) {
- const id = Number(person?.worth_it_id);
- const name = String(person?.display_name || person?.username || "Worth It member");
- const username = String(person?.username || "");
- const link = document.createElement("a");
- link.href = Number.isSafeInteger(id) && id > 0 ? "/profile/" + id : "#";
- link.className = compact ? "worth-it-profile-friend-chip" : "worth-it-profile-connection-card";
- link.setAttribute("role", "listitem");
- link.title = username ? name + " (@" + username + ")" : name;
- if (compact) {
-  const avatar = document.createElement("span");
-  avatar.className = "worth-it-profile-friend-avatar";
-  const url = safeAvatarUrl(person?.avatar_url);
-  if (url) {
-   const image = document.createElement("img"); image.src = url; image.alt = ""; image.loading = "lazy"; image.referrerPolicy = "no-referrer";
-   image.addEventListener("error", () => { avatar.replaceChildren(); avatar.textContent = name.trim().charAt(0).toUpperCase() || "W"; }, { once: true });
-   avatar.appendChild(image);
-  } else avatar.textContent = name.trim().charAt(0).toUpperCase() || "W";
-  const label = document.createElement("span"); label.className = "worth-it-profile-friend-chip-name"; label.textContent = username ? "@" + username : name;
-  link.append(avatar, label);
- } else {
-  const avatar = document.createElement("span");
-  avatar.className = "worth-it-profile-connection-avatar";
-  const url = safeAvatarUrl(person?.avatar_url);
-  if (url) {
-   const image = document.createElement("img"); image.src = url; image.alt = ""; image.loading = "lazy"; image.referrerPolicy = "no-referrer";
-   image.addEventListener("error", () => { avatar.replaceChildren(); avatar.textContent = name.trim().charAt(0).toUpperCase() || "W"; }, { once: true });
-   avatar.appendChild(image);
-  } else avatar.textContent = name.trim().charAt(0).toUpperCase() || "W";
-  const text = document.createElement("span"); text.className = "worth-it-profile-connection-text";
-  const display = document.createElement("strong"); display.textContent = name;
-  const handle = document.createElement("small"); handle.textContent = username ? "@" + username : "Worth It member";
-  text.append(display, handle); link.append(avatar, text);
- }
- return link;
+  const id=Number(person?.worth_it_id),name=String(person?.display_name||person?.username||"Worth It member"),username=String(person?.username||"");
+  const link=document.createElement("a");link.href=Number.isSafeInteger(id)&&id>0?"/profile/"+id:"#";
+  link.className=compact?"worth-it-profile-friend-chip":"worth-it-profile-connection-card";link.setAttribute("role","listitem");link.title=username?name+" (@"+username+")":name;
+  const avatar=document.createElement("span");avatar.className=compact?"worth-it-profile-friend-avatar":"worth-it-profile-connection-avatar";const url=safeAvatarUrl(person?.avatar_url);
+  if(url){const image=document.createElement("img");image.src=url;image.alt="";image.loading="lazy";image.referrerPolicy="no-referrer";image.addEventListener("error",()=>{avatar.replaceChildren();avatar.textContent=name.trim().charAt(0).toUpperCase()||"W";appendWorthItPresenceIndicator(avatar,person);},{once:true});avatar.appendChild(image);}
+  else avatar.textContent=name.trim().charAt(0).toUpperCase()||"W";
+  appendWorthItPresenceIndicator(avatar,person);
+  if(compact){const label=document.createElement("span");label.className="worth-it-profile-friend-chip-name";label.textContent=username?"@"+username:name;link.append(avatar,label);}
+  else{const text=document.createElement("span");text.className="worth-it-profile-connection-text";const display=document.createElement("strong");display.textContent=name;const handle=document.createElement("small");handle.textContent=username?"@"+username:"Worth It member";const presence=document.createElement("small");presence.className="worth-it-person-presence-label";presence.dataset.worthItPresenceId=String(id);presence.textContent=getWorthItPresenceInfo(person).label;text.append(display,handle,presence);link.append(avatar,text);}
+  return link;
 }
 function renderFriendsStrip(rows) {
  const host = $("worthItProfileFriendsStrip"), preview = $("worthItProfileFriendsPreview");
@@ -429,21 +451,12 @@ function setWorthItNotificationTab(tab){
 }
 window.showWorthItNotificationTab=function(tab){setWorthItNotificationTab(tab);if(tab==="other"&&currentUser)refreshWorthItNotifications(true);};
 function createWorthItNotificationPerson(person){
- const anchor=document.createElement("a"),id=Number(person?.worth_it_id);
- anchor.className="worth-it-notification-person";
- anchor.href=Number.isSafeInteger(id)&&id>0?"/profile/"+id:"#";
- const avatar=document.createElement("span");avatar.className="worth-it-notification-avatar";
- const name=String(person?.display_name||person?.username||"Worth It member");
- const avatarUrl=safeAvatarUrl(person?.avatar_url);
- if(avatarUrl){
-  const image=document.createElement("img");image.src=avatarUrl;image.alt="";image.loading="lazy";image.referrerPolicy="no-referrer";
-  image.addEventListener("error",()=>{avatar.replaceChildren();avatar.textContent=name.trim().charAt(0).toUpperCase()||"W";},{once:true});
-  avatar.appendChild(image);
- }else avatar.textContent=name.trim().charAt(0).toUpperCase()||"W";
- const text=document.createElement("span");text.className="worth-it-notification-person-text";
- const strong=document.createElement("strong");strong.textContent=name;
- const username=document.createElement("small");username.textContent=person?.username?"@"+String(person.username):"Worth It member";
- text.append(strong,username);anchor.append(avatar,text);return anchor;
+ const anchor=document.createElement("a"),id=Number(person?.worth_it_id);anchor.className="worth-it-notification-person";anchor.href=Number.isSafeInteger(id)&&id>0?"/profile/"+id:"#";
+ const avatar=document.createElement("span");avatar.className="worth-it-notification-avatar";const name=String(person?.display_name||person?.username||"Worth It member"),avatarUrl=safeAvatarUrl(person?.avatar_url);
+ if(avatarUrl){const image=document.createElement("img");image.src=avatarUrl;image.alt="";image.loading="lazy";image.referrerPolicy="no-referrer";image.addEventListener("error",()=>{avatar.replaceChildren();avatar.textContent=name.trim().charAt(0).toUpperCase()||"W";appendWorthItPresenceIndicator(avatar,person);},{once:true});avatar.appendChild(image);}
+ else avatar.textContent=name.trim().charAt(0).toUpperCase()||"W";
+ appendWorthItPresenceIndicator(avatar,person);
+ const text=document.createElement("span");text.className="worth-it-notification-person-text";const strong=document.createElement("strong");strong.textContent=name;const username=document.createElement("small");username.textContent=person?.username?"@"+String(person.username):"Worth It member";text.append(strong,username);anchor.append(avatar,text);return anchor;
 }
 function renderWorthItNotificationRequests(){
  const host=$("worthItNotificationRequestsList");if(!host)return;host.replaceChildren();
@@ -1014,6 +1027,7 @@ window.addEventListener("resize",syncProfileBannerBackdropPosition,{passive:true
 if(client()?.auth){client().auth.onAuthStateChange((_event,session)=>{
  const nextUser=session?.user||null,previousUserId=currentUser?.id||"",nextUserId=nextUser?.id||"",profileToRefresh=currentDisplayedProfileId,connectionsPage=$("worthItProfileConnectionsPage"),connectionTab=document.querySelector("[data-connection-tab].active")?.getAttribute("data-connection-tab");
  currentUser=nextUser;currentOwnProfile=null;currentOwnProfileRequest=null;
+ if(nextUser&&(previousUserId!==nextUserId||_event==="SIGNED_IN")){presenceLastHeartbeatAt=0;touchWorthItPresence(true);}else if(!nextUser)presenceLastHeartbeatAt=0;
  setWorthItNotificationAuthState(nextUser);
  if(nextUser&&(previousUserId!==nextUserId||_event==="SIGNED_IN"))refreshWorthItNotifications(false);
  if(previousUserId!==nextUserId){
@@ -1023,7 +1037,7 @@ if(client()?.auth){client().auth.onAuthStateChange((_event,session)=>{
   if(profileToRefresh)setTimeout(()=>{if(currentDisplayedProfileId===profileToRefresh){if(connectionsPage&&!connectionsPage.hidden&&["friends","followers","following"].includes(connectionTab))window.openWorthItProfileConnections(profileToRefresh,connectionTab);else window.openWorthItProfile(profileToRefresh);}},0);
  }
  if(!currentUser)setPanelUnavailable();
-});client().auth.getSession().then(({data})=>{currentUser=data?.session?.user||null;if(currentUser){refreshAccountPanelCounts(false);setWorthItNotificationAuthState(currentUser);refreshWorthItNotifications(false);}else setWorthItNotificationAuthState(null);}).catch(()=>{});}
+});client().auth.getSession().then(({data})=>{currentUser=data?.session?.user||null;if(currentUser){refreshAccountPanelCounts(false);setWorthItNotificationAuthState(currentUser);refreshWorthItNotifications(false);presenceLastHeartbeatAt=0;touchWorthItPresence(true);}else setWorthItNotificationAuthState(null);}).catch(()=>{});}
 if($("worthItProfileAvatarInput"))$("worthItProfileAvatarInput").addEventListener("change",event=>handleAssetInputChange(event,"avatar"));
 if($("worthItProfileBannerInput"))$("worthItProfileBannerInput").addEventListener("change",event=>handleAssetInputChange(event,"banner"));
 })();

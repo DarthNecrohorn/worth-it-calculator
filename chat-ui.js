@@ -154,14 +154,11 @@ function makeAvatar(person, extraClass) {
     const avatar = document.createElement("span");
     avatar.className = "worth-it-chat-person-avatar" + (extraClass ? " " + extraClass : "");
     if (person?.avatar_url) {
-        const img = document.createElement("img");
-        img.src = String(person.avatar_url);
-        img.alt = "";
-        img.loading = "lazy";
-        img.referrerPolicy = "no-referrer";
-        img.onerror = () => { img.remove(); avatar.textContent = initials(person); };
+        const img = document.createElement("img"); img.src = String(person.avatar_url); img.alt = ""; img.loading = "lazy"; img.referrerPolicy = "no-referrer";
+        img.onerror = () => { img.remove(); avatar.insertBefore(document.createTextNode(initials(person)), avatar.querySelector(".worth-it-presence-indicator")); };
         avatar.appendChild(img);
     } else avatar.textContent = initials(person);
+    if (typeof window.renderWorthItPresenceIndicator === "function") window.renderWorthItPresenceIndicator(avatar, person);
     return avatar;
 }
 function setHeader(title, subtitle, person) {
@@ -175,9 +172,10 @@ function setHeader(title, subtitle, person) {
         img.src = String(person.avatar_url);
         img.alt = "";
         img.referrerPolicy = "no-referrer";
-        img.onerror = () => { host.textContent = initials(person); };
+        img.onerror = () => { img.remove(); host.insertBefore(document.createTextNode(initials(person)), host.querySelector(".worth-it-presence-indicator")); };
         host.appendChild(img);
     } else host.textContent = activeConversationType === "global" ? "🌐" : (activeConversationType === "group" ? "👥" : initials(person || {display_name:title}));
+    if (activeConversationType === "direct" && typeof window.renderWorthItPresenceIndicator === "function") window.renderWorthItPresenceIndicator(host, person);
 }
 function niceTime(value) {
     const date = new Date(value);
@@ -221,7 +219,8 @@ function renderFriends() {
         const info = document.createElement("span"); info.className = "worth-it-chat-person-info";
         const name = document.createElement("strong"); name.textContent = friend.display_name || friend.username || "Worth It member";
         const username = document.createElement("small"); username.textContent = friend.username ? "@" + friend.username : "Friend";
-        info.append(name, username); row.appendChild(info);
+        const presence = document.createElement("small"); presence.className = "worth-it-chat-person-presence"; presence.dataset.worthItPresenceId = String(friend.worth_it_id); presence.textContent = window.getWorthItPresenceInfo ? window.getWorthItPresenceInfo(friend).label : "";
+        info.append(name, username, presence); row.appendChild(info);
 
         const directConversation = chatConversations.find(conversation =>
             conversation.type === "direct" &&
@@ -409,6 +408,7 @@ async function refreshWorthItChatData() {
         // Preferences are fetched once per signed-in user, not on every 5-second message refresh.
         chatNotificationPreferencesLoadedForUser = userId;
     }
+    if (activeConversationType === "direct" && activeConversationPerson?.worth_it_id) { const freshPerson = chatFriends.find(item => String(item.worth_it_id) === String(activeConversationPerson.worth_it_id)); if (freshPerson) { activeConversationPerson = {...activeConversationPerson, ...freshPerson}; setHeader(activeConversationTitle, (window.getWorthItPresenceInfo ? window.getWorthItPresenceInfo(activeConversationPerson).label : "Private conversation with your friend"), activeConversationPerson); } }
     renderFriends(); renderConversations(); updateChatHeaderNotificationButton(); updateUnreadBadge();
     if ($("worthItChatGroupDialog") && !$("worthItChatGroupDialog").hidden) renderGroupFriendChoices();
 }
@@ -476,6 +476,7 @@ function renderMessages(scrollToBottom) {
             const reason = document.createElement("p"); reason.className = "worth-it-chat-filter-reason"; reason.textContent = "Filtered: " + message.filtered_reason; stack.appendChild(reason);
         }
         const time = document.createElement("time"); time.className = "worth-it-chat-message-time"; time.dateTime = escapeText(message.created_at); time.textContent = niceDay(message.created_at) + " · " + niceTime(message.created_at); stack.appendChild(time);
+        if (mine && activeConversationType === "direct") { const receipt = document.createElement("span"); receipt.className = "worth-it-chat-message-receipt " + (message.is_seen ? "is-seen" : "is-sent"); receipt.textContent = message.is_seen ? "✓✓ Seen" : "✓ Sent"; receipt.title = message.is_seen ? "Your friend has seen this message" : "Sent · waiting to be seen"; stack.appendChild(receipt); }
         row.appendChild(stack); host.appendChild(row);
     });
     if (scrollToBottom) host.scrollTop = host.scrollHeight;
@@ -519,7 +520,7 @@ async function activateConversation(id, type, title, person, inviteToken) {
     if (window.matchMedia("(max-width: 540px)").matches) $("worthItChatWindow")?.classList.remove("is-mobile-sidebar");
     document.querySelectorAll(".worth-it-chat-side-item").forEach(node => node.classList.toggle("is-active", node.id === "worthItGlobalChatBtn" && activeConversationType === "global"));
     renderFriends(); renderConversations();
-    const subtitle = activeConversationType === "global" ? "A shared space for the Worth It community" : activeConversationType === "group" ? "Group conversation · " + (chatConversations.find(c => c.id === id)?.members?.length || 2) + " members" : "Private conversation with your friend";
+    const subtitle = activeConversationType === "global" ? "A shared space for the Worth It community" : activeConversationType === "group" ? "Group conversation · " + (chatConversations.find(c => c.id === id)?.members?.length || 2) + " members" : (window.getWorthItPresenceInfo ? window.getWorthItPresenceInfo(activeConversationPerson).label : "Private conversation with your friend");
     setHeader(activeConversationTitle, subtitle, activeConversationPerson);
     updateChatHeaderNotificationButton();
     updateChatHeaderShareButton();
