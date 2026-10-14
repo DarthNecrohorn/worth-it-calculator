@@ -19669,3 +19669,17 @@ html[data-theme="light"] .worth-it-notification-dismiss:hover,html[data-theme="l
  .account-settings-profile-link{align-items:stretch;flex-direction:column;gap:12px}
  .account-settings-profile-link .settings-option{width:100%}
 }
+
+
+/* Security & Login settings */
+.account-settings-actions-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:9px}
+.security-mfa-enroll,.security-mfa-disable{margin-top:16px;padding:18px;border:1px solid var(--border);border-radius:15px;background:var(--surface-soft)}
+.security-mfa-enroll h3{font-size:15px;margin-bottom:6px}
+.security-mfa-enroll>p,.security-mfa-disable>p{font-size:12px;line-height:1.6;color:var(--muted);margin-bottom:12px}
+.security-mfa-qr{display:block;width:min(240px,100%);height:auto;aspect-ratio:1;margin:14px auto;padding:10px;background:#fff;border-radius:12px}
+.security-mfa-secret-wrap{display:flex;flex-direction:column;align-items:flex-start;gap:8px;margin:14px 0}
+.security-mfa-secret-wrap label,.security-mfa-enroll>label,.security-mfa-disable>label{font-size:12px;font-weight:800;color:var(--text)}
+.security-mfa-secret-wrap code{max-width:100%;padding:9px 10px;line-height:1.5;border:1px solid var(--border);border-radius:9px;background:var(--card);overflow-wrap:anywhere;user-select:all;color:var(--text)}
+.security-mfa-code{display:block;width:min(300px,100%);padding:12px 14px;margin:8px 0 10px;border:1px solid var(--border);border-radius:12px;background:var(--card);color:var(--text);font:inherit;font-size:18px;letter-spacing:.2em;text-align:center}
+.security-danger-button{border-color:rgba(239,68,68,.38);color:#f87171}
+.security-danger-button:hover{border-color:rgba(239,68,68,.72);background:rgba(239,68,68,.08)}
