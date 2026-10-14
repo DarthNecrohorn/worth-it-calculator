@@ -97,6 +97,13 @@
         const id = Number(worthItId);
         return Number.isSafeInteger(id) && id > 0 ? "/profile/" + id : null;
     });
+    patchRouteFunction("openWorthItProfileConnections", function (worthItId, category) {
+        const id = Number(worthItId);
+        const type = String(category || "").toLowerCase();
+        return Number.isSafeInteger(id) && id > 0 && ["friends", "followers", "following"].includes(type)
+            ? "/profile/" + id + "/" + type
+            : null;
+    });
     patchRouteFunction("openCalculator", function (type) {
         return pathForCalculator(type);
     });
@@ -134,6 +141,13 @@
         if (path === "/") return { kind: "home" };
         if (path === "/calculators") return { kind: "anchor", target: "calculators" };
         if (path === "/faq") return { kind: "anchor", target: "faq" };
+
+        const profileConnectionsMatch = path.match(/^\/profile\/(\d+)\/(friends|followers|following)$/);
+        if (profileConnectionsMatch) {
+            const id = Number(profileConnectionsMatch[1]);
+            if (Number.isSafeInteger(id) && id > 0) return { kind: "profile-connections", id: id, category: profileConnectionsMatch[2] };
+            return null;
+        }
 
         const profileMatch = path.match(/^\/profile\/(\d+)$/);
         if (profileMatch) {
@@ -176,7 +190,7 @@
 
         applyingRoute = true;
         try {
-            if (route.kind !== "profile" && typeof window.hideWorthItProfileSection === "function") {
+            if (route.kind !== "profile" && route.kind !== "profile-connections" && typeof window.hideWorthItProfileSection === "function") {
                 window.hideWorthItProfileSection();
             }
             if (route.kind === "home") {
@@ -206,6 +220,12 @@
             if (route.kind === "profile") {
                 const fn = originalFunctions.openWorthItProfile || window.openWorthItProfile;
                 if (typeof fn === "function") fn.call(window, route.id, { fromUrl: true });
+                return;
+            }
+
+            if (route.kind === "profile-connections") {
+                const fn = originalFunctions.openWorthItProfileConnections || window.openWorthItProfileConnections;
+                if (typeof fn === "function") fn.call(window, route.id, route.category, { fromUrl: true });
             }
         } finally {
             applyingRoute = false;

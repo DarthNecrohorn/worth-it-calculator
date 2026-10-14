@@ -3,7 +3,7 @@
 "use strict";
 const $=id=>document.getElementById(id);
 const BASE_URL="https://worth-it-calculator.pages.dev";
-let currentUser=null,currentOwnProfile=null,currentOwnProfileRequest=null,activeProfileRequest=0,currentProfileLink="",currentDisplayedProfileId=0,currentDisplayedProfileIsOwn=false,avatarOperationInProgress=false,assetLimitTimers={avatar:null,banner:null};
+let currentUser=null,currentOwnProfile=null,currentOwnProfileRequest=null,activeProfileRequest=0,currentProfileLink="",currentDisplayedProfileId=0,currentDisplayedProfileIsOwn=false,avatarOperationInProgress=false,assetLimitTimers={avatar:null,banner:null},currentSocialContext=null,activeSocialRefresh=0,activeConnectionsRequest=0,socialActionInProgress=false;
 const client=()=>window.supabaseClient||null;
 function setText(id,value){const n=$(id);if(n)n.textContent=value==null?"":String(value);}
 function setCount(id,value){const n=$(id);if(!n)return;const v=Number(value);n.textContent=Number.isFinite(v)&&v>=0?Math.trunc(v).toLocaleString():"—";}
@@ -91,7 +91,7 @@ function renderProfile(p,s,isOwn){
  renderAvatar(p.avatar_url,name);renderBanner(p.banner_url,name);setText("worthItProfileName",name);setText("worthItProfileUsername",username?"@"+username:"Worth It member");
  const displayNameEdit=$("worthItProfileDisplayNameEdit");if(displayNameEdit)displayNameEdit.hidden=!isOwn;
  if(!isOwn)closeWorthItDisplayNameEditor();
- setCount("worthItProfileFriends",s.friends);setCount("worthItProfileFollowers",s.followers);setCount("worthItProfileFollowing",s.following);
+ setCount("worthItProfileFriends",s.friends);setCount("worthItProfileFollowers",s.followers);setCount("worthItProfileFollowing",s.following);setFriendMood(s.friends);
  const email=$("worthItProfileEmail");if(email){email.textContent=isOwn&&currentUser?.email?currentUser.email:"";email.hidden=!(isOwn&&currentUser?.email);}
  const linkNode=$("worthItProfileLink");if(linkNode){linkNode.href=link;linkNode.textContent=link;}setText("worthItProfileLinkLabel",isOwn?"YOUR PROFILE LINK":"THIS USER'S PROFILE");
  const member=$("worthItProfileMemberSince");if(member){const date=p.created_at?new Date(p.created_at):null;if(date&&!Number.isNaN(date.getTime())){const parts=new Intl.DateTimeFormat("en-GB",{day:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit",hourCycle:"h23"}).formatToParts(date);const part=type=>parts.find(x=>x.type===type)?.value||"";const month=new Intl.DateTimeFormat("en-US",{month:"short"}).format(date);member.textContent="Joined "+part("day")+" "+month+", "+part("year")+" "+part("hour")+":"+part("minute");}else{member.textContent="";}}
@@ -101,8 +101,323 @@ function renderProfile(p,s,isOwn){
  const bannerControls=$("worthItProfileBannerControls");if(bannerControls)bannerControls.hidden=!isOwn;
  const removePhoto=$("worthItProfileAvatarRemove");if(removePhoto)removePhoto.hidden=!isOwn||!safeAvatarUrl(p.avatar_url);
  const removeBanner=$("worthItProfileBannerRemove");if(removeBanner)removeBanner.hidden=!isOwn||!safeAvatarUrl(p.banner_url);
- setAssetControlsBusy(false);setStatus("",false);
+ setAssetControlsBusy(false);setStatus("",false);refreshProfileSocial(id,Boolean(isOwn));
 }
+
+
+const FRIEND_MOOD_THRESHOLDS = [
+ { count: 100, emoji: "🤯" },
+ { count: 70, emoji: "😂🤣" },
+ { count: 50, emoji: "😂" },
+ { count: 20, emoji: "😀" },
+ { count: 10, emoji: "😁" },
+ { count: 5, emoji: "🙂" },
+ { count: 3, emoji: "😐" },
+ { count: 1, emoji: "😔" },
+ { count: 0, emoji: "😭" }
+];
+function friendMoodForCount(value) {
+ const count = Math.max(0, Number(value) || 0);
+ return FRIEND_MOOD_THRESHOLDS.find(item => count >= item.count)?.emoji || "😭";
+}
+function setFriendMood(value) {
+ const count = Math.max(0, Number(value) || 0);
+ setText("worthItProfileFriendsMood", friendMoodForCount(count));
+ setText("worthItProfileFriendsPreviewCount", "(" + count.toLocaleString() + ")");
+}
+function normalizeRpcObject(value) {
+ if (Array.isArray(value) && value.length === 1 && value[0] && typeof value[0] === "object" && !Array.isArray(value[0])) return value[0];
+ return value;
+}
+function profilePersonLink(person, compact) {
+ const id = Number(person?.worth_it_id);
+ const name = String(person?.display_name || person?.username || "Worth It member");
+ const username = String(person?.username || "");
+ const link = document.createElement("a");
+ link.href = Number.isSafeInteger(id) && id > 0 ? "/profile/" + id : "#";
+ link.className = compact ? "worth-it-profile-friend-chip" : "worth-it-profile-connection-card";
+ link.setAttribute("role", "listitem");
+ link.title = username ? name + " (@" + username + ")" : name;
+ if (compact) {
+  const avatar = document.createElement("span");
+  avatar.className = "worth-it-profile-friend-avatar";
+  const url = safeAvatarUrl(person?.avatar_url);
+  if (url) {
+   const image = document.createElement("img"); image.src = url; image.alt = ""; image.loading = "lazy"; image.referrerPolicy = "no-referrer";
+   image.addEventListener("error", () => { avatar.replaceChildren(); avatar.textContent = name.trim().charAt(0).toUpperCase() || "W"; }, { once: true });
+   avatar.appendChild(image);
+  } else avatar.textContent = name.trim().charAt(0).toUpperCase() || "W";
+  const label = document.createElement("span"); label.className = "worth-it-profile-friend-chip-name"; label.textContent = username ? "@" + username : name;
+  link.append(avatar, label);
+ } else {
+  const avatar = document.createElement("span");
+  avatar.className = "worth-it-profile-connection-avatar";
+  const url = safeAvatarUrl(person?.avatar_url);
+  if (url) {
+   const image = document.createElement("img"); image.src = url; image.alt = ""; image.loading = "lazy"; image.referrerPolicy = "no-referrer";
+   image.addEventListener("error", () => { avatar.replaceChildren(); avatar.textContent = name.trim().charAt(0).toUpperCase() || "W"; }, { once: true });
+   avatar.appendChild(image);
+  } else avatar.textContent = name.trim().charAt(0).toUpperCase() || "W";
+  const text = document.createElement("span"); text.className = "worth-it-profile-connection-text";
+  const display = document.createElement("strong"); display.textContent = name;
+  const handle = document.createElement("small"); handle.textContent = username ? "@" + username : "Worth It member";
+  text.append(display, handle); link.append(avatar, text);
+ }
+ return link;
+}
+function renderFriendsStrip(rows) {
+ const host = $("worthItProfileFriendsStrip"), preview = $("worthItProfileFriendsPreview");
+ if (!host) return;
+ host.replaceChildren();
+ if (!Array.isArray(rows)) rows = [];
+ if (!rows.length) {
+  const empty = document.createElement("span"); empty.className = "worth-it-profile-friends-empty"; empty.textContent = "No friends yet.";
+  host.appendChild(empty); if (preview) preview.hidden = false; return;
+ }
+ rows.slice(0, 100).forEach(person => host.appendChild(profilePersonLink(person, true)));
+ if (preview) preview.hidden = false;
+}
+function setSocialControlsBusy(busy) {
+ socialActionInProgress = Boolean(busy);
+ ["worthItProfileFriendAction", "worthItProfileFollowAction", "worthItProfileFriendSecondary"].forEach(id => {
+  const button = $(id); if (button) button.disabled = socialActionInProgress || button.dataset.stateDisabled === "true";
+ });
+}
+function renderSocialActionButtons(context, isOwn) {
+ const host = $("worthItProfileSocialActions");
+ const friend = $("worthItProfileFriendAction");
+ const follow = $("worthItProfileFollowAction");
+ const secondary = $("worthItProfileFriendSecondary");
+ const hint = $("worthItProfileSocialHint");
+ if (!host || !friend || !follow || !secondary) return;
+ currentSocialContext = context || null;
+ if (isOwn || !context || context.success !== true) { host.hidden = true; return; }
+ host.hidden = false;
+ [friend, follow, secondary].forEach(button => { button.disabled = false; });
+ secondary.hidden = true; secondary.dataset.action = "";
+ friend.dataset.stateDisabled = "false"; follow.dataset.stateDisabled = "false";
+ if (!currentUser) {
+  friend.textContent = "Sign in to add friend"; follow.textContent = "Sign in to follow";
+  if (hint) { hint.textContent = "Sign in to connect with this user."; hint.hidden = false; }
+  return;
+ }
+ if (context.are_friends) {
+  friend.textContent = "Unfriend";
+ } else if (context.incoming_request_pending) {
+  friend.textContent = "Accept request";
+  secondary.hidden = false; secondary.textContent = "Decline"; secondary.dataset.action = "decline";
+ } else if (context.outgoing_request_pending) {
+  friend.textContent = "Request sent"; friend.dataset.stateDisabled = "true";
+  secondary.hidden = false; secondary.textContent = "Cancel request"; secondary.dataset.action = "cancel";
+ } else {
+  friend.textContent = "Add friend";
+ }
+ follow.textContent = context.is_following ? "Following ✓" : "Follow";
+ if (hint) {
+  const messages = [];
+  if (context.follows_you) messages.push("Follows you");
+  if (context.are_friends) messages.push("You are friends");
+  hint.textContent = messages.join(" · "); hint.hidden = messages.length === 0;
+ }
+ setSocialControlsBusy(socialActionInProgress);
+}
+async function refreshProfileSocial(targetId, isOwn) {
+ const refreshId = ++activeSocialRefresh;
+ const sb = client();
+ const preview = $("worthItProfileFriendsPreview");
+ const actionHost = $("worthItProfileSocialActions");
+ if (actionHost) actionHost.hidden = true;
+ if (!sb || !Number.isSafeInteger(Number(targetId)) || Number(targetId) < 1) {
+  if (preview) preview.hidden = true;
+  const pending = $("worthItProfilePendingRequests"); if (pending) pending.hidden = true;
+  return;
+ }
+ try {
+  const [contextResult, connectionsResult] = await Promise.all([
+   sb.rpc("get_worth_it_profile_social_context", { target_worth_it_id: Number(targetId) }),
+   sb.rpc("get_worth_it_profile_connections", { target_worth_it_id: Number(targetId), connection_type: "friends" })
+  ]);
+  if (refreshId !== activeSocialRefresh || Number(targetId) !== currentDisplayedProfileId) return;
+  const context = normalizeRpcObject(contextResult.data);
+  if (!contextResult.error && context?.success === true) renderSocialActionButtons(context, Boolean(isOwn));
+  else { if (actionHost) actionHost.hidden = true; currentSocialContext = null; }
+  const connectionData = normalizeRpcObject(connectionsResult.data);
+  if (!connectionsResult.error && connectionData?.success === true && Array.isArray(connectionData.connections)) {
+   renderFriendsStrip(connectionData.connections);
+  } else if (preview) preview.hidden = true;
+ } catch (_) {
+  if (refreshId === activeSocialRefresh && preview) preview.hidden = true;
+  if (actionHost) actionHost.hidden = true;
+ }
+ await refreshPendingFriendRequests(Boolean(isOwn), targetId, refreshId);
+}
+async function refreshPendingFriendRequests(isOwn, targetId, refreshId) {
+ const section = $("worthItProfilePendingRequests"), host = $("worthItProfilePendingRequestsList"), sb = client();
+ if (!section || !host) return;
+ if (!isOwn || !currentUser || !sb) { section.hidden = true; host.replaceChildren(); return; }
+ try {
+  const result = await sb.rpc("get_worth_it_pending_friend_requests");
+  if (result.error) throw result.error;
+  if (refreshId !== activeSocialRefresh || Number(targetId) !== currentDisplayedProfileId) return;
+  const rows = Array.isArray(result.data) ? result.data : [];
+  host.replaceChildren();
+  if (!rows.length) { section.hidden = true; return; }
+  section.hidden = false;
+  rows.forEach(request => {
+   const row = document.createElement("div"); row.className = "worth-it-profile-pending-item";
+   const person = profilePersonLink(request, false);
+   const actions = document.createElement("div"); actions.className = "worth-it-profile-pending-actions";
+   const accept = document.createElement("button"); accept.type = "button"; accept.className = "worth-it-profile-social-button primary"; accept.textContent = "Accept";
+   const decline = document.createElement("button"); decline.type = "button"; decline.className = "worth-it-profile-social-button quiet"; decline.textContent = "Decline";
+   accept.addEventListener("click", () => window.performWorthItPendingRequestAction(request.request_id, true));
+   decline.addEventListener("click", () => window.performWorthItPendingRequestAction(request.request_id, false));
+   actions.append(accept, decline); row.append(person, actions); host.appendChild(row);
+  });
+ } catch (_) { section.hidden = true; host.replaceChildren(); }
+}
+function socialErrorMessage(result) {
+ const code = String(result?.code || "");
+ if (code === "ALREADY_FRIENDS") return "You are already friends with this user.";
+ if (code === "REQUEST_ALREADY_SENT") return "You have already sent this friend request.";
+ if (code === "INCOMING_REQUEST_EXISTS") return "This user has already sent you a friend request. Accept or decline it on their profile.";
+ if (code === "REQUEST_NOT_AVAILABLE") return "This friend request is no longer available.";
+ if (code === "PROFILE_NOT_FOUND") return "This profile could not be found.";
+ if (code === "CANNOT_FRIEND_SELF") return "You cannot send yourself a friend request.";
+ return String(result?.error || "The social action could not be completed. Please try again.");
+}
+async function callSocialRpc(name, args) {
+ const sb = client();
+ if (!sb) throw new Error("Profile service is unavailable.");
+ const result = await sb.rpc(name, args || {});
+ if (result.error) throw result.error;
+ const data = normalizeRpcObject(result.data);
+ if (data && data.success === false) throw new Error(socialErrorMessage(data));
+ return data;
+}
+function promptSignInForSocial() {
+ if (typeof window.openAuthModal === "function") window.openAuthModal("signin");
+ else if (typeof window.handleAuthButton === "function") window.handleAuthButton();
+ else if (typeof window.showToast === "function") window.showToast("Please sign in to use friends and follows.");
+}
+window.performWorthItSocialAction = async function(action) {
+ const targetId = Number(currentDisplayedProfileId);
+ if (!Number.isSafeInteger(targetId) || targetId < 1 || currentDisplayedProfileIsOwn || socialActionInProgress) return;
+ try {
+  if (!currentUser) currentUser = await getCurrentUser().catch(() => null);
+  if (!currentUser) { promptSignInForSocial(); return; }
+  const context = currentSocialContext || {};
+  setSocialControlsBusy(true);
+  if (action === "follow") {
+   if (context.is_following) await callSocialRpc("unfollow_worth_it_user", { target_worth_it_id: targetId });
+   else await callSocialRpc("follow_worth_it_user", { target_worth_it_id: targetId });
+  } else if (action === "secondary") {
+   const secondary = $("worthItProfileFriendSecondary");
+   if (secondary?.dataset.action === "decline" && context.incoming_request_id) {
+    await callSocialRpc("respond_worth_it_friend_request", { p_request_id: context.incoming_request_id, p_accept: false });
+   } else if (secondary?.dataset.action === "cancel" && context.outgoing_request_id) {
+    await callSocialRpc("cancel_worth_it_friend_request", { p_request_id: context.outgoing_request_id });
+   } else return;
+  } else if (action === "friend") {
+   if (context.are_friends) {
+    if (!window.confirm("Unfriend this user?")) return;
+    await callSocialRpc("unfriend_worth_it_user", { target_worth_it_id: targetId });
+   } else if (context.incoming_request_pending && context.incoming_request_id) {
+    await callSocialRpc("respond_worth_it_friend_request", { p_request_id: context.incoming_request_id, p_accept: true });
+   } else if (context.outgoing_request_pending) {
+    return;
+   } else {
+    await callSocialRpc("send_worth_it_friend_request", { target_worth_it_id: targetId });
+   }
+  }
+  await window.openWorthItProfile(targetId, { refresh: true });
+  if (typeof window.showToast === "function") window.showToast(action === "follow" ? (context.is_following ? "You unfollowed this user." : "You are now following this user.") : "Your friend connection was updated.");
+ } catch (error) {
+  if (typeof window.showToast === "function") window.showToast(error?.message || "The social action could not be completed.");
+  else console.warn("Worth It social action failed.", error);
+ } finally {
+  setSocialControlsBusy(false);
+ }
+};
+window.performWorthItPendingRequestAction = async function(requestId, accept) {
+ if (!currentUser || !requestId) { promptSignInForSocial(); return; }
+ try {
+  const data = await callSocialRpc("respond_worth_it_friend_request", { p_request_id: requestId, p_accept: Boolean(accept) });
+  if (data?.success === false) throw new Error(socialErrorMessage(data));
+  await window.openWorthItProfile(currentDisplayedProfileId, { refresh: true });
+  if (typeof window.showToast === "function") window.showToast(accept ? "Friend request accepted." : "Friend request declined.");
+ } catch (error) {
+  if (typeof window.showToast === "function") window.showToast(error?.message || "Could not update friend request.");
+ }
+};
+window.openWorthItProfileConnectionsForCurrent = function(category) {
+ const id = Number(currentDisplayedProfileId);
+ if (Number.isSafeInteger(id) && id > 0) return window.openWorthItProfileConnections(id, category);
+};
+window.openWorthItProfileConnectionsBack = function() {
+ const id = Number(currentDisplayedProfileId);
+ if (Number.isSafeInteger(id) && id > 0) return window.openWorthItProfile(id);
+};
+window.openWorthItProfileConnections = async function(idValue, categoryValue, options) {
+ const id = Number(idValue);
+ const category = String(categoryValue || "").toLowerCase();
+ const validCategories = ["friends", "followers", "following"];
+ if (!Number.isSafeInteger(id) || id < 1 || !validCategories.includes(category)) return;
+ const profileCard = $("worthItProfileCard"), page = $("worthItProfileConnectionsPage");
+ if (!page || !profileCard) return;
+ showProfileSection(); profileCard.hidden = true; page.hidden = false;
+ currentDisplayedProfileId = id; currentDisplayedProfileIsOwn = false; currentSocialContext = null;
+ const requestId = ++activeConnectionsRequest;
+ const status = $("worthItProfileConnectionsStatus"), list = $("worthItProfileConnectionsList");
+ if (status) { status.hidden = false; status.textContent = "Loading " + category + "…"; status.classList.remove("is-error"); }
+ if (list) list.replaceChildren();
+ const sb = client();
+ if (!sb) { if (status) { status.textContent = "The profile service is not ready."; status.classList.add("is-error"); } return; }
+ try {
+  const [profileResult, user] = await Promise.all([
+   sb.from("worth_it_public_profiles").select("worth_it_id,username,display_name,avatar_url,banner_url,created_at").eq("worth_it_id", id).maybeSingle(),
+   getCurrentUser().catch(() => null)
+  ]);
+  if (requestId !== activeConnectionsRequest) return;
+  if (profileResult.error) throw profileResult.error;
+  if (!profileResult.data) throw new Error("This Worth It profile could not be found.");
+  currentUser = user || null;
+  const profile = profileResult.data;
+  renderBanner(profile.banner_url);
+  const name = String(profile.display_name || profile.username || "Worth It member");
+  const username = String(profile.username || "");
+  const titleLabels = { friends: "Friends", followers: "Followers", following: "Following" };
+  setText("worthItProfileConnectionsTitle", titleLabels[category] + " of " + name);
+  setText("worthItProfileConnectionsSubtitle", username ? "@" + username : name);
+  document.querySelectorAll("[data-connection-tab]").forEach(tab => {
+   const active = tab.getAttribute("data-connection-tab") === category;
+   tab.classList.toggle("active", active);
+   if (active) tab.setAttribute("aria-current", "page"); else tab.removeAttribute("aria-current");
+  });
+  const connectionsResult = await sb.rpc("get_worth_it_profile_connections", {
+   target_worth_it_id: id, connection_type: category
+  });
+  if (requestId !== activeConnectionsRequest) return;
+  if (connectionsResult.error) throw connectionsResult.error;
+  const result = normalizeRpcObject(connectionsResult.data);
+  if (!result || result.success !== true || !Array.isArray(result.connections)) {
+   throw new Error("The connections list could not be loaded. Check the profile social database setup.");
+  }
+  list.replaceChildren();
+  if (!result.connections.length) {
+   if (status) status.textContent = category === "friends" ? "No friends yet." : "This list is empty for now.";
+   return;
+  }
+  result.connections.forEach(person => list.appendChild(profilePersonLink(person, false)));
+  if (status) status.hidden = true;
+ } catch (error) {
+  if (requestId !== activeConnectionsRequest) return;
+  if (status) {
+   status.hidden = false;
+   status.textContent = /could not be found/i.test(String(error?.message || "")) ? error.message : "This list could not be loaded. Make sure supabase/worth-it-social.sql has been run in Supabase.";
+   status.classList.add("is-error");
+  }
+ }
+};
 
 let displayNameInitialValue="",displayNameCanChange=false,displayNameSaving=false,displayNameRequestId=0;
 const DISPLAY_NAME_MIN_LENGTH=3,DISPLAY_NAME_MAX_LENGTH=20;
@@ -236,6 +551,7 @@ if($("worthItDisplayNameInput"))$("worthItDisplayNameInput").addEventListener("i
 
 function hideProfileAssetControls(){const avatarControls=$("worthItProfileAvatarControls"),bannerControls=$("worthItProfileBannerControls");if(avatarControls)avatarControls.hidden=true;if(bannerControls)bannerControls.hidden=true;}
 function renderError(message){
+ const profileCard=$("worthItProfileCard"),connectionsPage=$("worthItProfileConnectionsPage");if(profileCard)profileCard.hidden=false;if(connectionsPage)connectionsPage.hidden=true;
  currentDisplayedProfileId=0;currentDisplayedProfileIsOwn=false;hideProfileAssetControls();clearProfileBannerBackdrop(true);const displayNameEdit=$("worthItProfileDisplayNameEdit");if(displayNameEdit)displayNameEdit.hidden=true;closeWorthItDisplayNameEditor();
  renderAvatar("","W");setText("worthItProfileName","Profile unavailable");setText("worthItProfileUsername","");
  ["worthItProfileFriends","worthItProfileFollowers","worthItProfileFollowing"].forEach(id=>setText(id,"—"));
@@ -244,7 +560,7 @@ function renderError(message){
 }
 window.openWorthItProfile=async function(idValue,options){
  const id=Number(idValue);if(!Number.isSafeInteger(id)||id<1){showProfileSection();renderError("This profile link is invalid.");return;}
- showProfileSection();currentDisplayedProfileId=id;currentDisplayedProfileIsOwn=false;hideProfileAssetControls();const displayNameEdit=$("worthItProfileDisplayNameEdit");if(displayNameEdit)displayNameEdit.hidden=true;closeWorthItDisplayNameEditor();setStatus("Loading profile…",false);setText("worthItProfileName","Loading profile…");["worthItProfileFriends","worthItProfileFollowers","worthItProfileFollowing"].forEach(x=>setText(x,"…"));
+ showProfileSection();const profileCard=$("worthItProfileCard"),connectionsPage=$("worthItProfileConnectionsPage");if(profileCard)profileCard.hidden=false;if(connectionsPage)connectionsPage.hidden=true;activeConnectionsRequest++;currentSocialContext=null;currentDisplayedProfileId=id;currentDisplayedProfileIsOwn=false;hideProfileAssetControls();const displayNameEdit=$("worthItProfileDisplayNameEdit");if(displayNameEdit)displayNameEdit.hidden=true;closeWorthItDisplayNameEditor();setStatus("Loading profile…",false);setText("worthItProfileName","Loading profile…");["worthItProfileFriends","worthItProfileFollowers","worthItProfileFollowing"].forEach(x=>setText(x,"…"));
  const requestId=++activeProfileRequest;
  try{
   const sb=client();if(!sb)throw new Error("Supabase not ready");
@@ -395,13 +711,13 @@ window.copyWorthItProfileLink=async function(){
 };
 window.addEventListener("resize",syncProfileBannerBackdropPosition,{passive:true});
 if(client()?.auth){client().auth.onAuthStateChange((_event,session)=>{
- const nextUser=session?.user||null,previousUserId=currentUser?.id||"",nextUserId=nextUser?.id||"",profileToRefresh=currentDisplayedProfileId;
+ const nextUser=session?.user||null,previousUserId=currentUser?.id||"",nextUserId=nextUser?.id||"",profileToRefresh=currentDisplayedProfileId,connectionsPage=$("worthItProfileConnectionsPage"),connectionTab=document.querySelector("[data-connection-tab].active")?.getAttribute("data-connection-tab");
  currentUser=nextUser;currentOwnProfile=null;currentOwnProfileRequest=null;
  if(previousUserId!==nextUserId){
   currentDisplayedProfileIsOwn=false;hideProfileAssetControls();closeWorthItDisplayNameEditor();const displayNameEdit=$("worthItProfileDisplayNameEdit");if(displayNameEdit)displayNameEdit.hidden=true;
   const email=$("worthItProfileEmail");if(email){email.textContent="";email.hidden=true;}
   const linkLabel=$("worthItProfileLinkLabel");if(linkLabel)linkLabel.textContent=profileToRefresh?"THIS USER'S PROFILE":"PROFILE LINK";
-  if(profileToRefresh)setTimeout(()=>{if(currentDisplayedProfileId===profileToRefresh)window.openWorthItProfile(profileToRefresh);},0);
+  if(profileToRefresh)setTimeout(()=>{if(currentDisplayedProfileId===profileToRefresh){if(connectionsPage&&!connectionsPage.hidden&&["friends","followers","following"].includes(connectionTab))window.openWorthItProfileConnections(profileToRefresh,connectionTab);else window.openWorthItProfile(profileToRefresh);}},0);
  }
  if(!currentUser)setPanelUnavailable();
 });client().auth.getSession().then(({data})=>{currentUser=data?.session?.user||null;if(currentUser)refreshAccountPanelCounts(false);}).catch(()=>{});}
