@@ -216,9 +216,9 @@ window.openSettings = openFullSettings;
 
         const user = session.user;
         $("accountCurrentEmail").textContent = user.email || "No email address is attached to this account.";
-        $("accountEmailVerified").textContent = user.email_confirmed_at || user.confirmed_at ? "Verified" : "Not verified";
+        $("accountEmailVerified").textContent = user.email_confirmed_at ? "Verified" : "Not verified";
         $("accountEmailVerified").classList.toggle("is-success", Boolean(user.email_confirmed_at));
-        $("accountEmailVerified").classList.toggle("is-error", !(user.email_confirmed_at || user.confirmed_at));
+        $("accountEmailVerified").classList.toggle("is-error", !user.email_confirmed_at);
         $("accountNewEmailInput").value = "";
         $("accountEmailStatus").textContent = "Changing your email requires confirmation through Supabase Auth. Your current address remains active until confirmation is completed.";
 
