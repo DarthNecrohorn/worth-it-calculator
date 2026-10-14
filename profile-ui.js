@@ -88,7 +88,7 @@ const oldToggle=window.toggleAccountPanel;
 window.toggleAccountPanel=function(event){const result=typeof oldToggle==="function"?oldToggle.apply(this,arguments):undefined;if($("accountPanel")?.classList.contains("open")){setPanelLoading();refreshAccountPanelCounts(true);}return result;};
 function renderProfile(p,s,isOwn){
  const id=Number(p.worth_it_id),name=String(p.display_name||p.username||"Worth It member"),username=String(p.username||""),link=BASE_URL+"/profile/"+id;currentProfileLink=link;
- renderAvatar(p.avatar_url,name);renderBanner(p.banner_url,name);setText("worthItProfileName",name);setText("worthItProfileUsername",username?"@"+username:"Worth It member");setText("worthItProfileId","#"+id);setText("worthItDisplayNameInput",name);
+ renderAvatar(p.avatar_url,name);renderBanner(p.banner_url,name);setText("worthItProfileName",name);setText("worthItProfileUsername",username?"@"+username:"Worth It member");setText("worthItProfileId","#"+id);
  const displayNameEdit=$("worthItProfileDisplayNameEdit");if(displayNameEdit)displayNameEdit.hidden=!isOwn;
  if(!isOwn)closeWorthItDisplayNameEditor();
  setCount("worthItProfileFriends",s.friends);setCount("worthItProfileFollowers",s.followers);setCount("worthItProfileFollowing",s.following);
@@ -106,7 +106,7 @@ function renderProfile(p,s,isOwn){
 
 let displayNameInitialValue="",displayNameCanChange=false,displayNameSaving=false,displayNameRequestId=0;
 const DISPLAY_NAME_MAX_LENGTH=32;
-function displayNameIsValid(value){const name=String(value||"").trim();return [...name].length>0&&[...name].length<=DISPLAY_NAME_MAX_LENGTH&&!/[\\u0000-\\u001F\\u007F]/.test(name);}
+function displayNameIsValid(value){const name=String(value||"").trim();return [...name].length>0&&[...name].length<=DISPLAY_NAME_MAX_LENGTH&&!/[\x00-\x1F\x7F]/.test(name);}
 function setDisplayNameStatus(message,isError){
  const n=$("worthItDisplayNameStatus");if(!n)return;
  n.textContent=message||"";n.classList.toggle("is-error",Boolean(isError));
