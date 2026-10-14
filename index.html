@@ -7,6 +7,18 @@
 <meta name="description" content="Worth It Calculator - smart calculators for cars, money, technology, home and everyday purchases.">
 <title>Worth It — Smart Decision Calculators</title>
 
+<script>
+/* Prevent a Home/sign-in flash while a direct profile URL waits for auth and routing to initialize. */
+(function () {
+    try {
+        const path = window.location.pathname.replace(/\/+$/, "") || "/";
+        if (/^\/profile\/[1-9]\d*(?:\/(?:friends|followers|following))?$/.test(path)) {
+            document.documentElement.classList.add("worth-it-profile-route-pending");
+        }
+    } catch (_) {}
+})();
+</script>
+
     <script>
 /* Apply the saved UI scale before the first paint to prevent header layout shift. */
 (function(){
@@ -20,7 +32,7 @@
 })();
 </script>
 
-<link rel="stylesheet" href="style.css?v=profilesocial20261014g">
+<link rel="stylesheet" href="style.css?v=profilerouteboot20261014a">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 </head>
 
@@ -2476,7 +2488,7 @@ try{
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.1"></script>
 <script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit"></script>
 
-<script src="app.js?v=profileavatars20261014b"></script>
+<script src="app.js?v=profilerouteboot20261014a"></script>
 <script src="ai-ui.js"></script>
 <script src="calculators.js"></script>
 <script src="cars-ui.js?v=carsperf20261012a"></script>
@@ -4498,7 +4510,7 @@ if($("carResults")){
 
 </script>
 <script src="/profile-ui.js?v=profilesocial20261014a"></script>
-<script src="/routing.js?v=profilesocial20261014a"></script>
+<script src="/routing.js?v=profilerouteboot20261014a"></script>
 
 </body>
 </html>
