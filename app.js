@@ -106,20 +106,12 @@ async function ensureMfaVerificationIfNeeded(authClient, options) {
         const factor = totp || phone;
         if (!factor?.id) return false;
 
-        if (!pendingLogin) {
-            // A previously persisted AAL1 session must not remain usable after MFA is enabled.
-            await window.supabaseClient.auth.signOut({ scope: "local" });
-            authPendingMfaFactorId = "";
-            authMfaPendingClient = null;
-            authMfaRequired = false;
-            openAuthModal("signin");
-            setAuthStatus("Two-factor authentication is enabled for this account. Sign in again and enter a verification code to continue.", "");
-            return true;
-        }
-
         authPendingMfaFactorId = factor.id;
         authPendingMfaFactorType = factor.factor_type || (totp ? "totp" : "phone");
-        authMfaPendingClient = authClient;
+        authMfaPendingClient = pendingLogin
+            ? (options?.pendingClient || null)
+            : window.supabaseClient;
+        if (!authMfaPendingClient) return false;
         authMfaRequired = true;
         openAuthModal("mfa");
         const subtitle = $("authModalSubtitle");
@@ -1623,7 +1615,9 @@ async function submitAuthForm(event) {
             authPendingMfaFactorType = "totp";
             const pendingClientToClear = authMfaPendingClient;
             authMfaPendingClient = null;
-            try { await pendingClientToClear.auth.signOut({ scope: "local" }); } catch (_) {}
+            if (pendingClientToClear && pendingClientToClear !== window.supabaseClient) {
+                try { await pendingClientToClear.auth.signOut({ scope: "local" }); } catch (_) {}
+            }
             $("authMfaCode").value = "";
             closeAuthModal(true);
             showToast("Two-factor verification completed.");
@@ -1791,7 +1785,7 @@ async function submitAuthForm(event) {
             if (temporaryResult?.error) throw temporaryResult.error;
 
             authMfaPendingClient = temporaryAuthClient;
-            const mfaRequired = await ensureMfaVerificationIfNeeded(temporaryAuthClient.auth, { pendingLogin: true });
+            const mfaRequired = await ensureMfaVerificationIfNeeded(temporaryAuthClient.auth, { pendingLogin: true, pendingClient: temporaryAuthClient });
             if (mfaRequired) return;
 
             const temporarySessionResult = await temporaryAuthClient.auth.getSession();
