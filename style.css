@@ -18882,3 +18882,39 @@ body.worth-it-chat-open{overflow:hidden}
 /* Keep the chat panel lower on desktop when opened from the header button. */
 .worth-it-chat-window:not(.is-fullscreen){transform:translateY(400px)}
 @media(max-width:760px){.worth-it-chat-window:not(.is-fullscreen){transform:none}}
+
+
+/* Hard-pin the chat to the viewport in fullscreen; bypass the normal desktop offset and any ancestor layout constraints. */
+.worth-it-chat-overlay.is-fullscreen {
+  position: fixed !important;
+  inset: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  height: 100dvh !important;
+  max-width: none !important;
+  max-height: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  display: flex !important;
+  align-items: stretch !important;
+  justify-content: stretch !important;
+  overflow: hidden !important;
+  transform: none !important;
+}
+.worth-it-chat-overlay.is-fullscreen > .worth-it-chat-window.is-fullscreen {
+  position: fixed !important;
+  inset: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  height: 100dvh !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  max-width: none !important;
+  max-height: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  transform: none !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  flex: none !important;
+}
