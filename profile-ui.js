@@ -24,13 +24,14 @@ function fallbackAvatar(name){const n=document.createElement("div");n.className=
 function safeAvatarUrl(url){return typeof url==="string"&&/^https?:\/\//i.test(url)?url:"";}
 function renderAvatar(url,name){const host=$("worthItProfileAvatar");if(!host)return;host.replaceChildren();const safe=safeAvatarUrl(url);if(!safe){host.appendChild(fallbackAvatar(name));return;}const img=document.createElement("img");img.className="worth-it-profile-avatar";img.alt="";img.referrerPolicy="no-referrer";img.src=safe;img.addEventListener("error",()=>host.replaceChildren(fallbackAvatar(name)),{once:true});host.appendChild(img);}
 function renderBanner(url){
- const cover=$("worthItProfileCover"),image=$("worthItProfileBannerImage"),card=cover?.closest(".worth-it-profile-card");
- if(!cover||!image||!card)return;
- if(image.parentElement!==card)card.prepend(image);
+ const section=$("profileSection"),cover=$("worthItProfileCover"),image=$("worthItProfileBannerImage"),card=cover?.closest(".worth-it-profile-card");
+ if(!section||!cover||!image||!card)return;
+ if(image.parentElement!==section)section.prepend(image);
+ card.classList.remove("has-banner");
  const safe=safeAvatarUrl(url);
- if(!safe){image.removeAttribute("src");image.hidden=true;cover.classList.remove("has-banner");card.classList.remove("has-banner");return;}
- image.onerror=()=>{image.hidden=true;cover.classList.remove("has-banner");card.classList.remove("has-banner");image.removeAttribute("src");};
- image.src=safe;image.hidden=false;cover.classList.add("has-banner");card.classList.add("has-banner");
+ if(!safe){image.onerror=null;image.removeAttribute("src");image.hidden=true;cover.classList.remove("has-banner");section.classList.remove("has-banner");return;}
+ image.onerror=()=>{image.hidden=true;cover.classList.remove("has-banner");section.classList.remove("has-banner");image.removeAttribute("src");image.onerror=null;};
+ image.src=safe;image.hidden=false;cover.classList.add("has-banner");section.classList.add("has-banner");
 }
 function renderSmallAvatar(host,url,name,imageClass,fallbackClass){if(!host)return;host.replaceChildren();const safe=safeAvatarUrl(url);if(!safe){const fallback=document.createElement("div");fallback.className=fallbackClass;fallback.textContent=String(name||"W").trim().charAt(0).toUpperCase()||"W";host.appendChild(fallback);return;}const img=document.createElement("img");img.className=imageClass;img.alt="";img.referrerPolicy="no-referrer";img.src=safe;img.addEventListener("error",()=>{host.replaceChildren();const fallback=document.createElement("div");fallback.className=fallbackClass;fallback.textContent=String(name||"W").trim().charAt(0).toUpperCase()||"W";host.appendChild(fallback);},{once:true});host.appendChild(img);}
 function renderAccountPanelBanner(url){
