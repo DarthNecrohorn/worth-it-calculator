@@ -2068,6 +2068,43 @@
     </div>
 </section>
 
+<section id="profileSection" class="worth-it-profile-section" style="display:none;" aria-label="Worth It profile">
+  <div class="container worth-it-profile-container">
+    <div class="worth-it-profile-toolbar">
+      <button type="button" class="btn btn-secondary" onclick="showHome()">← Back</button>
+      <span class="worth-it-profile-eyebrow">WORTH IT COMMUNITY</span>
+    </div>
+    <article class="worth-it-profile-card">
+      <div class="worth-it-profile-header">
+        <div id="worthItProfileAvatar" class="worth-it-profile-avatar-wrap"><div class="worth-it-profile-avatar-fallback">W</div></div>
+        <div class="worth-it-profile-heading">
+          <h1 id="worthItProfileName">Profile</h1>
+          <p id="worthItProfileUsername" class="worth-it-profile-username"></p>
+          <p id="worthItProfileEmail" class="worth-it-profile-email" hidden></p>
+        </div>
+      </div>
+      <div class="worth-it-profile-id-row">
+        <div><span class="worth-it-profile-overline">WORTH IT ID</span><strong id="worthItProfileId">—</strong></div>
+        <span class="worth-it-profile-id-note">Your permanent account number</span>
+      </div>
+      <div class="worth-it-profile-stats" aria-label="Profile statistics">
+        <div class="worth-it-profile-stat"><strong id="worthItProfileFriends">—</strong><span>Friends</span></div>
+        <div class="worth-it-profile-stat"><strong id="worthItProfileFollowers">—</strong><span>Followers</span></div>
+        <div class="worth-it-profile-stat"><strong id="worthItProfileFollowing">—</strong><span>Following</span></div>
+      </div>
+      <div id="worthItProfileStatus" class="worth-it-profile-status" role="status" aria-live="polite" hidden></div>
+      <div class="worth-it-profile-share">
+        <div class="worth-it-profile-share-copy">
+          <span class="worth-it-profile-overline" id="worthItProfileLinkLabel">PROFILE LINK</span>
+          <a id="worthItProfileLink" href="/profile/1">https://worth-it-calculator.pages.dev/profile/1</a>
+        </div>
+        <button type="button" class="btn btn-primary worth-it-profile-copy" onclick="copyWorthItProfileLink()">Copy link</button>
+      </div>
+      <p id="worthItProfileMemberSince" class="worth-it-profile-member-since"></p>
+    </article>
+  </div>
+</section>
+
 </main>
 
 <footer>
@@ -2159,42 +2196,7 @@
     </div>
 </div>
 
-<section id="profileSection" class="worth-it-profile-section" style="display:none;" aria-label="Worth It profile">
-  <div class="container worth-it-profile-container">
-    <div class="worth-it-profile-toolbar">
-      <button type="button" class="btn btn-secondary" onclick="showHome()">← Back</button>
-      <span class="worth-it-profile-eyebrow">WORTH IT COMMUNITY</span>
-    </div>
-    <article class="worth-it-profile-card">
-      <div class="worth-it-profile-header">
-        <div id="worthItProfileAvatar" class="worth-it-profile-avatar-wrap"><div class="worth-it-profile-avatar-fallback">W</div></div>
-        <div class="worth-it-profile-heading">
-          <h1 id="worthItProfileName">Profile</h1>
-          <p id="worthItProfileUsername" class="worth-it-profile-username"></p>
-          <p id="worthItProfileEmail" class="worth-it-profile-email" hidden></p>
-        </div>
-      </div>
-      <div class="worth-it-profile-id-row">
-        <div><span class="worth-it-profile-overline">WORTH IT ID</span><strong id="worthItProfileId">—</strong></div>
-        <span class="worth-it-profile-id-note">Your permanent account number</span>
-      </div>
-      <div class="worth-it-profile-stats" aria-label="Profile statistics">
-        <div class="worth-it-profile-stat"><strong id="worthItProfileFriends">—</strong><span>Friends</span></div>
-        <div class="worth-it-profile-stat"><strong id="worthItProfileFollowers">—</strong><span>Followers</span></div>
-        <div class="worth-it-profile-stat"><strong id="worthItProfileFollowing">—</strong><span>Following</span></div>
-      </div>
-      <div id="worthItProfileStatus" class="worth-it-profile-status" role="status" aria-live="polite" hidden></div>
-      <div class="worth-it-profile-share">
-        <div class="worth-it-profile-share-copy">
-          <span class="worth-it-profile-overline" id="worthItProfileLinkLabel">PROFILE LINK</span>
-          <a id="worthItProfileLink" href="/profile/1">https://worth-it-calculator.pages.dev/profile/1</a>
-        </div>
-        <button type="button" class="btn btn-primary worth-it-profile-copy" onclick="copyWorthItProfileLink()">Copy link</button>
-      </div>
-      <p id="worthItProfileMemberSince" class="worth-it-profile-member-since"></p>
-    </article>
-  </div>
-</section>
+
 
 <div class="account-page-overlay" id="accountPageOverlay" role="dialog" aria-modal="true" aria-labelledby="accountPageTitle">
     <div class="account-page-card">
