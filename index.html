@@ -61,7 +61,7 @@ html[data-theme="light"].worth-it-initial-paint::before {
 })();
 </script>
 
-<link rel="stylesheet" href="style.css?v=presence-receipts-20261014j">
+<link rel="stylesheet" href="style.css?v=notifications-dismiss-24h-20261014a">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 </head>
 
@@ -214,6 +214,7 @@ html[data-theme="light"].worth-it-initial-paint::before {
                     <button type="button" class="active" id="worthItNotificationRequestsTab" data-notification-tab="requests" role="tab" aria-selected="true" onclick="showWorthItNotificationTab('requests')">Friend requests <span id="worthItNotificationRequestsCount" hidden></span></button>
                     <button type="button" id="worthItNotificationOtherTab" data-notification-tab="other" role="tab" aria-selected="false" onclick="showWorthItNotificationTab('other')">Other notifications <span id="worthItNotificationOtherCount" hidden></span></button>
                 </div>
+                <p class="worth-it-notification-expiry-note">Notifications disappear automatically after 24 hours. Use × to dismiss one sooner.</p>
                 <div class="worth-it-notification-content" id="worthItNotificationRequestsView" data-notification-view="requests" role="tabpanel" aria-labelledby="worthItNotificationRequestsTab">
                     <div class="worth-it-notification-list" id="worthItNotificationRequestsList"></div>
                 </div>
@@ -4697,7 +4698,7 @@ if($("carResults")){
 }
 
 </script>
-<script src="/profile-ui.js?v=presence20261014e"></script>
+<script src="/profile-ui.js?v=notifications-dismiss-24h-20261014a"></script>
 <script src="/chat-ui.js?v=communitytools20261014a"></script>
 <script src="/user-search.js?v=worthitusersearch20261014a"></script>
 <script src="/routing.js?v=themebootlightprofile20261014a"></script>
