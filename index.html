@@ -2473,7 +2473,7 @@ html[data-theme="light"].worth-it-initial-paint::before {
           </div>
           <p class="account-settings-help">Use Worth It's verified email flow to set a new password. A private reset link is sent to your account email; passwords are never displayed or stored by this page.</p>
           <div class="account-settings-actions-row">
-            <button type="button" class="settings-option account-settings-save" onclick="openPasswordResetFromSettings()">Send password reset email</button>
+            <button type="button" class="settings-option account-settings-save" id="securityPasswordResetButton" onclick="openPasswordResetFromSettings()">Send password reset email</button>
           </div>
           <p id="securityPasswordStatus" class="account-settings-status" role="status" aria-live="polite"></p>
         </div>
@@ -2534,8 +2534,11 @@ html[data-theme="light"].worth-it-initial-paint::before {
             <label>Security email alerts</label>
             <span class="account-settings-current-value">Supabase Auth</span>
           </div>
-          <p class="account-settings-help">Supabase Auth supports email notifications for sensitive changes, including password or email changes and adding or removing an authenticator method. These notifications are controlled by the Worth It project's Auth notification settings, rather than by a per-account switch here.</p>
-          <p id="securityAlertsStatus" class="account-settings-status" role="status" aria-live="polite">Whether each security email alert is enabled still needs to be confirmed in the Supabase project settings. This page does not claim those alerts are active until that configuration is verified.</p>
+          <p class="account-settings-help">Supabase can email you when your password, email address or phone number changes; when a sign-in method is linked or removed; and when a verification method such as an authenticator is added or removed. Each alert must be enabled in the Worth It project's Supabase Auth settings. This section does not monitor failed sign-in attempts, new-device locations or session revocations.</p>
+          <p id="securityAlertsStatus" class="account-settings-status" role="status" aria-live="polite">Project-level notification settings have not been verified from this page. Until each desired notification is enabled in Supabase, Worth It cannot guarantee that these emails will be sent.</p>
+          <div class="account-settings-actions-row">
+            <a class="settings-option" href="https://supabase.com/dashboard/project/diutcnylnubljvpezhmq/auth/templates" target="_blank" rel="noopener noreferrer">Review Supabase email notification settings ↗</a>
+          </div>
         </div>
       </div>
     </section>
