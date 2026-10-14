@@ -41,6 +41,67 @@ begin
 end;
 $$;
 
+create or replace function public.get_worth_it_chat_conversations()
+returns jsonb language plpgsql stable security definer set search_path = public as $$
+declare actor_id uuid := auth.uid(); result jsonb;
+begin
+    if actor_id is null then raise exception 'Authentication required'; end if;
+    select coalesce(jsonb_agg(jsonb_build_object(
+        'id', c.id, 'type', c.conversation_type, 'title', c.title,
+        'created_at', c.created_at,
+        'members', case
+            when c.conversation_type = 'global' then '[]'::jsonb
+            else (
+                select coalesce(jsonb_agg(jsonb_build_object(
+                    'worth_it_id', p.worth_it_id, 'username', p.username,
+                    'display_name', coalesce(p.display_name,p.username,'Worth It member'),
+                    'avatar_url', p.avatar_url
+                ) order by lower(coalesce(p.display_name,p.username,''))), '[]'::jsonb)
+                from public.worth_it_chat_members cm
+                join public.worth_it_profiles p on p.user_id = cm.user_id
+                where cm.conversation_id = c.id and cm.user_id <> actor_id
+            )
+        end,
+        'last_message', (
+            select jsonb_build_object('body', m.body, 'created_at', m.created_at,
+                'sender_user_id', m.sender_user_id, 'media_type', m.media_type)
+            from public.worth_it_chat_messages m
+            where m.conversation_id = c.id
+            order by m.id desc limit 1
+        ),
+        'unread_count', (
+            select count(*)
+            from public.worth_it_chat_messages m
+            left join public.worth_it_chat_members mine
+                on mine.conversation_id = c.id and mine.user_id = actor_id
+            where m.conversation_id = c.id
+              and m.sender_user_id <> actor_id
+              and (
+                (c.conversation_type <> 'global'
+                    and (mine.last_read_at is null or m.created_at > mine.last_read_at))
+                or
+                (c.conversation_type = 'global'
+                    and mine.last_read_at is not null
+                    and m.created_at > mine.last_read_at)
+              )
+        )
+    ) order by coalesce(
+        (select max(m2.created_at) from public.worth_it_chat_messages m2 where m2.conversation_id = c.id),
+        c.created_at
+    ) desc), '[]'::jsonb)
+    into result
+    from public.worth_it_chat_conversations c
+    left join public.worth_it_chat_members mine
+        on mine.conversation_id = c.id and mine.user_id = actor_id
+    where (c.conversation_type in ('direct','group') and mine.user_id = actor_id)
+       or c.conversation_type = 'global';
+
+    return result;
+end; $$;
+
+revoke all on function public.get_worth_it_chat_conversations() from public, anon;
+grant execute on function public.get_worth_it_chat_conversations() to authenticated;
+
 create or replace function public.set_worth_it_chat_notifications(
     p_chat_key text,
     p_enabled boolean
