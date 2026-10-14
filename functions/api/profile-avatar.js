@@ -209,6 +209,19 @@ function isGif(bytes) {
     return signature === "GIF87a" || signature === "GIF89a";
 }
 
+function invalidGifMessage(bytes) {
+    if (isWebp(bytes)) {
+        return "This file contains WebP data, not GIF data. Some websites provide a WebP preview even when an image looks like a GIF. Please download the original GIF file and try again.";
+    }
+    if (bytes.length >= 8 && bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47) {
+        return "This file contains PNG data, not GIF data. Please choose the original animated GIF file rather than a preview image.";
+    }
+    if (bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) {
+        return "This file contains JPEG data, not GIF data. Please download the original animated GIF file rather than a preview image.";
+    }
+    return "The file is labeled as a GIF, but its contents do not have a valid GIF signature. Download the original .gif file rather than a preview or renamed image, then try again.";
+}
+
 function isWebp(bytes) {
     return bytes.byteLength >= 12 &&
         bytes[0] === 0x52 && bytes[1] === 0x49 && bytes[2] === 0x46 && bytes[3] === 0x46 &&
@@ -313,7 +326,7 @@ export async function onRequestPost(context) {
             if (!file.size || file.size > MAX_GIF_BYTES) return json({ error: "GIF files must be no larger than 8 MB." }, 413);
             bytes = new Uint8Array(await file.arrayBuffer());
             mimeType = "image/gif";
-            if (!isGif(bytes)) return json({ error: "The uploaded file isn't a valid GIF." }, 415);
+            if (!isGif(bytes)) return json({ error: invalidGifMessage(bytes) }, 415);
         } else {
             if (!contentType.startsWith("image/webp")) return json({ error: "Choose a JPG, PNG, WebP or GIF image." }, 415);
             const declaredLength = Number(request.headers.get("Content-Length") || 0);
