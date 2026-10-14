@@ -389,6 +389,179 @@ async function refreshPendingFriendRequests(isOwn, targetId, refreshId) {
   });
  } catch (_) { section.hidden = true; host.replaceChildren(); }
 }
+
+/* Header notification inbox: friend requests and unfriend events. */
+let worthItNotificationRequests=[],worthItSocialNotifications=[],worthItNotificationRequestsError=false,worthItSocialNotificationsError=false,worthItNotificationRefreshId=0,worthItNotificationTab="requests",worthItNotificationRefreshTimer=null;
+function setWorthItNotificationAuthState(user){
+ const wrap=$("worthItNotificationWrap"),panel=$("worthItNotificationPanel"),button=$("worthItNotificationBell");
+ if(!wrap)return;
+ wrap.hidden=!Boolean(user);
+ if(!user){
+  worthItNotificationRefreshId++;worthItNotificationRequests=[];worthItSocialNotifications=[];
+  if(panel){panel.hidden=true;panel.setAttribute("aria-hidden","true");}
+  if(button)button.setAttribute("aria-expanded","false");
+  updateWorthItNotificationBadge();
+ }else if(worthItNotificationRefreshTimer===null){
+  worthItNotificationRefreshTimer=window.setInterval(()=>{
+   if(currentUser&&!$("worthItNotificationPanel")?.hidden)return;
+   if(currentUser)refreshWorthItNotifications(false);
+  },60000);
+ }
+}
+function updateWorthItNotificationBadge(){
+ const badge=$("worthItNotificationBadge"),button=$("worthItNotificationBell"),requestsCount=$("worthItNotificationRequestsCount"),otherCount=$("worthItNotificationOtherCount");
+ const pending=worthItNotificationRequestsError?0:worthItNotificationRequests.length;
+ const unread=worthItSocialNotificationsError?0:worthItSocialNotifications.filter(item=>!item.read_at).length;
+ const total=pending+unread;
+ if(badge){badge.textContent=total>99?"99+":String(total);badge.hidden=total===0;}
+ if(button){button.setAttribute("aria-label",total?"Notifications, "+total+" unread or pending":"Notifications");button.title=total?"Notifications ("+total+")":"Notifications";}
+ if(requestsCount){requestsCount.textContent=pending>99?"99+":String(pending);requestsCount.hidden=pending===0;}
+ if(otherCount){otherCount.textContent=unread>99?"99+":String(unread);otherCount.hidden=unread===0;}
+}
+function setWorthItNotificationTab(tab){
+ if(!["requests","other"].includes(tab))return;
+ worthItNotificationTab=tab;
+ document.querySelectorAll("[data-notification-tab]").forEach(button=>{
+  const active=button.getAttribute("data-notification-tab")===tab;
+  button.classList.toggle("active",active);button.setAttribute("aria-selected",active?"true":"false");
+ });
+ document.querySelectorAll("[data-notification-view]").forEach(view=>{view.hidden=view.getAttribute("data-notification-view")!==tab;});
+}
+window.showWorthItNotificationTab=setWorthItNotificationTab;
+function createWorthItNotificationPerson(person){
+ const anchor=document.createElement("a"),id=Number(person?.worth_it_id);
+ anchor.className="worth-it-notification-person";
+ anchor.href=Number.isSafeInteger(id)&&id>0?"/profile/"+id:"#";
+ const avatar=document.createElement("span");avatar.className="worth-it-notification-avatar";
+ const name=String(person?.display_name||person?.username||"Worth It member");
+ const avatarUrl=safeAvatarUrl(person?.avatar_url);
+ if(avatarUrl){
+  const image=document.createElement("img");image.src=avatarUrl;image.alt="";image.loading="lazy";image.referrerPolicy="no-referrer";
+  image.addEventListener("error",()=>{avatar.replaceChildren();avatar.textContent=name.trim().charAt(0).toUpperCase()||"W";},{once:true});
+  avatar.appendChild(image);
+ }else avatar.textContent=name.trim().charAt(0).toUpperCase()||"W";
+ const text=document.createElement("span");text.className="worth-it-notification-person-text";
+ const strong=document.createElement("strong");strong.textContent=name;
+ const username=document.createElement("small");username.textContent=person?.username?"@"+String(person.username):"Worth It member";
+ text.append(strong,username);anchor.append(avatar,text);return anchor;
+}
+function renderWorthItNotificationRequests(){
+ const host=$("worthItNotificationRequestsList");if(!host)return;host.replaceChildren();
+ if(worthItNotificationRequestsError){const message=document.createElement("p");message.className="worth-it-notification-empty is-error";message.textContent="Friend requests could not be loaded. Check that supabase/worth-it-social.sql has been run in Supabase.";host.appendChild(message);return;}
+ if(!worthItNotificationRequests.length){const message=document.createElement("p");message.className="worth-it-notification-empty";message.textContent="No new friend requests.";host.appendChild(message);return;}
+ worthItNotificationRequests.forEach(request=>{
+  const row=document.createElement("div");row.className="worth-it-notification-item worth-it-notification-request";
+  const person=createWorthItNotificationPerson(request);
+  const actions=document.createElement("div");actions.className="worth-it-notification-actions";
+  const accept=document.createElement("button");accept.type="button";accept.className="worth-it-notification-action primary";accept.textContent="Accept";
+  const decline=document.createElement("button");decline.type="button";decline.className="worth-it-notification-action";decline.textContent="Decline";
+  const handle=async acceptRequest=>{
+   accept.disabled=true;decline.disabled=true;
+   try{
+    await callSocialRpc("respond_worth_it_friend_request",{p_request_id:request.request_id,p_accept:Boolean(acceptRequest)});
+    if(typeof window.showToast==="function")window.showToast(acceptRequest?"Friend request accepted.":"Friend request declined.");
+    await refreshWorthItNotifications(false);
+    if(currentDisplayedProfileIsOwn&&currentDisplayedProfileId)await refreshPendingFriendRequests(true,currentDisplayedProfileId,activeSocialRefresh);
+   }catch(error){
+    if(typeof window.showToast==="function")window.showToast(error?.message||"Could not update friend request.");
+    accept.disabled=false;decline.disabled=false;
+   }
+  };
+  accept.addEventListener("click",()=>handle(true));decline.addEventListener("click",()=>handle(false));
+  actions.append(accept,decline);row.append(person,actions);host.appendChild(row);
+ });
+}
+function formatWorthItNotificationDate(value){
+ const date=new Date(value);if(Number.isNaN(date.getTime()))return "";
+ try{return new Intl.DateTimeFormat(undefined,{dateStyle:"medium",timeStyle:"short"}).format(date);}catch(_){return date.toLocaleString();}
+}
+function renderWorthItOtherNotifications(){
+ const host=$("worthItNotificationOtherList");if(!host)return;host.replaceChildren();
+ if(worthItSocialNotificationsError){const message=document.createElement("p");message.className="worth-it-notification-empty is-error";message.textContent="Other notifications need the one-time setup in supabase/worth-it-notifications.sql. Run that SQL file in Supabase, then refresh.";host.appendChild(message);return;}
+ if(!worthItSocialNotifications.length){const message=document.createElement("p");message.className="worth-it-notification-empty";message.textContent="No other notifications yet.";host.appendChild(message);return;}
+ worthItSocialNotifications.forEach(notification=>{
+  const row=document.createElement("div");row.className="worth-it-notification-item worth-it-notification-event"+(notification.read_at?"":" is-unread");
+  const person=createWorthItNotificationPerson(notification);
+  const body=document.createElement("div");body.className="worth-it-notification-event-body";
+  const title=document.createElement("p");title.className="worth-it-notification-event-title";
+  const name=String(notification.display_name||notification.username||"A Worth It member");
+  title.append(document.createTextNode(name+" unfriended you."));
+  const reason=String(notification.reason||"").trim();
+  if(reason){const explanation=document.createElement("p");explanation.className="worth-it-notification-reason";explanation.textContent="Reason: "+reason;body.append(title,explanation);}
+  else body.appendChild(title);
+  const date=document.createElement("time");date.className="worth-it-notification-date";date.dateTime=String(notification.created_at||"");date.textContent=formatWorthItNotificationDate(notification.created_at);
+  body.appendChild(date);row.append(person,body);host.appendChild(row);
+ });
+}
+async function refreshWorthItNotifications(markRead){
+ const sb=client(),userId=currentUser?.id;if(!sb?.auth||!userId)return;
+ const requestId=++worthItNotificationRefreshId;
+ const [requestsResult,notificationsResult]=await Promise.allSettled([
+  sb.rpc("get_worth_it_pending_friend_requests"),
+  sb.rpc("get_worth_it_social_notifications")
+ ]);
+ if(requestId!==worthItNotificationRefreshId||currentUser?.id!==userId)return;
+ worthItNotificationRequestsError=requestsResult.status!=="fulfilled"||Boolean(requestsResult.value?.error);
+ worthItSocialNotificationsError=notificationsResult.status!=="fulfilled"||Boolean(notificationsResult.value?.error);
+ worthItNotificationRequests=worthItNotificationRequestsError?[]:(Array.isArray(requestsResult.value.data)?requestsResult.value.data:[]);
+ worthItSocialNotifications=worthItSocialNotificationsError?[]:(Array.isArray(notificationsResult.value.data)?notificationsResult.value.data:[]);
+ if(markRead&&!worthItSocialNotificationsError&&worthItSocialNotifications.some(item=>!item.read_at)){
+  const marked=await sb.rpc("mark_worth_it_social_notifications_read");
+  if(requestId!==worthItNotificationRefreshId||currentUser?.id!==userId)return;
+  if(!marked.error){const now=new Date().toISOString();worthItSocialNotifications=worthItSocialNotifications.map(item=>item.read_at?item:{...item,read_at:now});}
+ }
+ updateWorthItNotificationBadge();renderWorthItNotificationRequests();renderWorthItOtherNotifications();
+}
+function closeWorthItNotifications(){
+ const panel=$("worthItNotificationPanel"),button=$("worthItNotificationBell");
+ if(panel){panel.hidden=true;panel.setAttribute("aria-hidden","true");}
+ if(button)button.setAttribute("aria-expanded","false");
+}
+window.toggleWorthItNotifications=async function(event){
+ event?.stopPropagation?.();
+ const panel=$("worthItNotificationPanel"),button=$("worthItNotificationBell");
+ if(!panel||!currentUser){if(!currentUser)promptSignInForSocial();return;}
+ if(!panel.hidden){closeWorthItNotifications();return;}
+ closeAccountDropdown();panel.hidden=false;panel.setAttribute("aria-hidden","false");if(button)button.setAttribute("aria-expanded","true");
+ setWorthItNotificationTab(worthItNotificationTab);
+ const requestsHost=$("worthItNotificationRequestsList"),otherHost=$("worthItNotificationOtherList");
+ if(requestsHost){requestsHost.replaceChildren();const loading=document.createElement("p");loading.className="worth-it-notification-empty";loading.textContent="Loading friend requests…";requestsHost.appendChild(loading);}
+ if(otherHost){otherHost.replaceChildren();const loading=document.createElement("p");loading.className="worth-it-notification-empty";loading.textContent="Loading notifications…";otherHost.appendChild(loading);}
+ await refreshWorthItNotifications(true);
+};
+let worthItUnfriendReasonResolver=null;
+function finishWorthItUnfriendDialog(value){
+ const overlay=$("worthItUnfriendDialog"),resolver=worthItUnfriendReasonResolver;
+ worthItUnfriendReasonResolver=null;if(overlay)overlay.hidden=true;
+ if(typeof resolver==="function")resolver(value);
+}
+function ensureWorthItUnfriendDialog(){
+ let overlay=$("worthItUnfriendDialog");if(overlay)return overlay;
+ overlay=document.createElement("div");overlay.id="worthItUnfriendDialog";overlay.className="worth-it-unfriend-overlay";overlay.hidden=true;
+ overlay.innerHTML='<div class="worth-it-unfriend-dialog" role="dialog" aria-modal="true" aria-labelledby="worthItUnfriendTitle"><button type="button" class="worth-it-unfriend-close" data-unfriend-cancel aria-label="Cancel unfriend">✕</button><h2 id="worthItUnfriendTitle">Unfriend this user?</h2><p class="worth-it-unfriend-intro">You can optionally explain why. Your message will appear in this person’s notifications.</p><form id="worthItUnfriendForm"><label for="worthItUnfriendReason">Reason (optional)</label><textarea id="worthItUnfriendReason" maxlength="500" rows="4" placeholder="Write a reason, or leave this blank…"></textarea><div class="worth-it-unfriend-char-count" id="worthItUnfriendCharCount">0 / 500</div><div class="worth-it-unfriend-actions"><button type="button" class="worth-it-unfriend-cancel" data-unfriend-cancel>Cancel</button><button type="submit" class="worth-it-unfriend-confirm">Unfriend</button></div></form></div>';
+ document.body.appendChild(overlay);
+ overlay.addEventListener("click",event=>{if(event.target===overlay)finishWorthItUnfriendDialog(null);});
+ overlay.querySelectorAll("[data-unfriend-cancel]").forEach(button=>button.addEventListener("click",()=>finishWorthItUnfriendDialog(null)));
+ const form=$("worthItUnfriendForm"),input=$("worthItUnfriendReason"),count=$("worthItUnfriendCharCount");
+ if(input)input.addEventListener("input",()=>{if(count)count.textContent=Array.from(input.value).length+" / 500";});
+ if(form)form.addEventListener("submit",event=>{event.preventDefault();finishWorthItUnfriendDialog(String(input?.value||"").trim());});
+ return overlay;
+}
+function requestWorthItUnfriendReason(targetId){
+ const overlay=ensureWorthItUnfriendDialog(),input=$("worthItUnfriendReason"),title=$("worthItUnfriendTitle");
+ if(worthItUnfriendReasonResolver)finishWorthItUnfriendDialog(null);
+ if(input){input.value="";input.maxLength=500;}
+ const count=$("worthItUnfriendCharCount");if(count)count.textContent="0 / 500";
+ const name=String($("worthItProfileName")?.textContent||"this user").trim()||"this user";
+ if(title)title.textContent="Unfriend "+name+"?";
+ overlay.hidden=false;
+ return new Promise(resolve=>{worthItUnfriendReasonResolver=resolve;input?.focus();});
+}
+document.addEventListener("click",event=>{const wrap=$("worthItNotificationWrap");if(wrap&&!wrap.contains(event.target))closeWorthItNotifications();});
+document.addEventListener("keydown",event=>{
+ if(event.key==="Escape"){closeWorthItNotifications();if(!$("worthItUnfriendDialog")?.hidden)finishWorthItUnfriendDialog(null);}
+});
+
 function socialErrorMessage(result) {
  const code = String(result?.code || "");
  if (code === "ALREADY_FRIENDS") return "You are already friends with this user.";
@@ -433,8 +606,9 @@ window.performWorthItSocialAction = async function(action) {
    } else return;
   } else if (action === "friend") {
    if (context.are_friends) {
-    if (!window.confirm("Unfriend this user?")) return;
-    await callSocialRpc("unfriend_worth_it_user", { target_worth_it_id: targetId });
+    const reason = await requestWorthItUnfriendReason(targetId);
+    if (reason === null) return;
+    await callSocialRpc("unfriend_worth_it_user_with_reason", { target_worth_it_id: targetId, p_reason: reason });
    } else if (context.incoming_request_pending && context.incoming_request_id) {
     await callSocialRpc("respond_worth_it_friend_request", { p_request_id: context.incoming_request_id, p_accept: true });
    } else if (context.outgoing_request_pending) {
@@ -836,6 +1010,8 @@ window.addEventListener("resize",syncProfileBannerBackdropPosition,{passive:true
 if(client()?.auth){client().auth.onAuthStateChange((_event,session)=>{
  const nextUser=session?.user||null,previousUserId=currentUser?.id||"",nextUserId=nextUser?.id||"",profileToRefresh=currentDisplayedProfileId,connectionsPage=$("worthItProfileConnectionsPage"),connectionTab=document.querySelector("[data-connection-tab].active")?.getAttribute("data-connection-tab");
  currentUser=nextUser;currentOwnProfile=null;currentOwnProfileRequest=null;
+ setWorthItNotificationAuthState(nextUser);
+ if(nextUser&&(previousUserId!==nextUserId||_event==="SIGNED_IN"))refreshWorthItNotifications(false);
  if(previousUserId!==nextUserId){
   currentDisplayedProfileIsOwn=false;hideProfileAssetControls();closeWorthItDisplayNameEditor();const displayNameEdit=$("worthItProfileDisplayNameEdit");if(displayNameEdit)displayNameEdit.hidden=true;
   const email=$("worthItProfileEmail");if(email){email.textContent="";email.hidden=true;}
@@ -843,7 +1019,7 @@ if(client()?.auth){client().auth.onAuthStateChange((_event,session)=>{
   if(profileToRefresh)setTimeout(()=>{if(currentDisplayedProfileId===profileToRefresh){if(connectionsPage&&!connectionsPage.hidden&&["friends","followers","following"].includes(connectionTab))window.openWorthItProfileConnections(profileToRefresh,connectionTab);else window.openWorthItProfile(profileToRefresh);}},0);
  }
  if(!currentUser)setPanelUnavailable();
-});client().auth.getSession().then(({data})=>{currentUser=data?.session?.user||null;if(currentUser)refreshAccountPanelCounts(false);}).catch(()=>{});}
+});client().auth.getSession().then(({data})=>{currentUser=data?.session?.user||null;if(currentUser){refreshAccountPanelCounts(false);setWorthItNotificationAuthState(currentUser);refreshWorthItNotifications(false);}else setWorthItNotificationAuthState(null);}).catch(()=>{});}
 if($("worthItProfileAvatarInput"))$("worthItProfileAvatarInput").addEventListener("change",event=>handleAssetInputChange(event,"avatar"));
 if($("worthItProfileBannerInput"))$("worthItProfileBannerInput").addEventListener("change",event=>handleAssetInputChange(event,"banner"));
 })();

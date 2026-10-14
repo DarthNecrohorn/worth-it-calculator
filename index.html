@@ -54,7 +54,7 @@ html[data-theme="light"].worth-it-initial-paint::before {
 })();
 </script>
 
-<link rel="stylesheet" href="style.css?v=profiledescription20261014a">
+<link rel="stylesheet" href="style.css?v=socialnotifications20261014a">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 </head>
 
@@ -192,6 +192,29 @@ html[data-theme="light"].worth-it-initial-paint::before {
 
 
         <div class="nav-actions">
+
+        <div class="worth-it-notification-wrap" id="worthItNotificationWrap" hidden>
+            <button type="button" class="worth-it-notification-bell" id="worthItNotificationBell" onclick="toggleWorthItNotifications(event)" aria-label="Notifications" aria-expanded="false" aria-controls="worthItNotificationPanel" title="Notifications">
+                <span aria-hidden="true">🔔</span>
+                <span class="worth-it-notification-badge" id="worthItNotificationBadge" hidden></span>
+            </button>
+            <div class="worth-it-notification-panel" id="worthItNotificationPanel" hidden aria-hidden="true">
+                <div class="worth-it-notification-header">
+                    <strong>Notifications</strong>
+                    <button type="button" class="worth-it-notification-close" onclick="toggleWorthItNotifications(event)" aria-label="Close notifications">✕</button>
+                </div>
+                <div class="worth-it-notification-tabs" role="tablist" aria-label="Notification categories">
+                    <button type="button" class="active" id="worthItNotificationRequestsTab" data-notification-tab="requests" role="tab" aria-selected="true" onclick="showWorthItNotificationTab('requests')">Friend requests <span id="worthItNotificationRequestsCount" hidden></span></button>
+                    <button type="button" id="worthItNotificationOtherTab" data-notification-tab="other" role="tab" aria-selected="false" onclick="showWorthItNotificationTab('other')">Other notifications <span id="worthItNotificationOtherCount" hidden></span></button>
+                </div>
+                <div class="worth-it-notification-content" id="worthItNotificationRequestsView" data-notification-view="requests" role="tabpanel" aria-labelledby="worthItNotificationRequestsTab">
+                    <div class="worth-it-notification-list" id="worthItNotificationRequestsList"></div>
+                </div>
+                <div class="worth-it-notification-content" id="worthItNotificationOtherView" data-notification-view="other" role="tabpanel" aria-labelledby="worthItNotificationOtherTab" hidden>
+                    <div class="worth-it-notification-list" id="worthItNotificationOtherList"></div>
+                </div>
+            </div>
+        </div>
 
         <div class="auth-wrap" id="authWrap">
             <button class="auth-btn" id="authBtn" onclick="handleAuthButton()" title="Sign in or create a Worth It account">
@@ -4549,7 +4572,7 @@ if($("carResults")){
 }
 
 </script>
-<script src="/profile-ui.js?v=profiledescription20261014a"></script>
+<script src="/profile-ui.js?v=socialnotifications20261014a"></script>
 <script src="/routing.js?v=themebootlightprofile20261014a"></script>
 
 </body>
