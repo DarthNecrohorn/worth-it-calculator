@@ -16,6 +16,7 @@ let activeGroupInviteToken = "";
 let activeGroupInvitePreview = null;
 let chatReturnPath = "/";
 let chatRouteVersion = 0;
+let chatRouteAccessDenied = false;
 let chatMessages = [];
 let chatOpen = false;
 let chatLoading = false;
@@ -475,7 +476,7 @@ function renderMessages(scrollToBottom) {
 }
 async function loadWorthItChatMessages(scrollToBottom) {
     const client = sb();
-    if (!client || !chatUser || chatLoading) return;
+    if (!client || !chatUser || chatLoading || chatRouteAccessDenied) return;
     chatLoading = true;
     const conversationId = activeConversationId;
     const conversationType = activeConversationType;
@@ -484,6 +485,7 @@ async function loadWorthItChatMessages(scrollToBottom) {
         p_limit: 100
     });
     chatLoading = false;
+    if (chatRouteAccessDenied) return;
     if (conversationId !== activeConversationId || conversationType !== activeConversationType) return;
     if (result.error) { setStatus(rpcError(result.error), true); return; }
     if (result.data && !Array.isArray(result.data) && result.data.success === false) { setStatus(result.data.code || "This conversation is unavailable.", true); return; }
@@ -503,6 +505,7 @@ async function loadWorthItChatMessages(scrollToBottom) {
 async function activateConversation(id, type, title, person, inviteToken) {
     activeConversationId = id || null;
     activeConversationType = type || "global";
+    chatRouteAccessDenied = false;
     activeConversationTitle = title || GLOBAL_TITLE;
     activeConversationPerson = person || null;
     activeConversationInviteToken = String(inviteToken || chatConversations.find(item => item.id === activeConversationId)?.invite_token || "");
@@ -937,19 +940,24 @@ async function routeWorthItChatFromLocation() {
     showChatOverlay(true, {skipRouteSync:true});
     if (route.type === "invalid") {
         closeWorthItGroupInviteDialog();
+        chatRouteAccessDenied = true;
         activeConversationId = null;
         activeConversationType = "global";
         activeConversationTitle = GLOBAL_TITLE;
         activeConversationPerson = null;
         activeConversationInviteToken = "";
         setHeader(GLOBAL_TITLE, "A shared space for the Worth It community", null);
+        updateChatHeaderNotificationButton();
+        updateChatHeaderShareButton();
         chatMessages = [];
         renderMessages();
         setStatus("This chat link is invalid.", true);
         return;
     }
     if (route.type === "group") {
-        if (chatPollTimer) window.clearInterval(chatPollTimer);
+        chatRouteAccessDenied = true;
+        chatMessages = [];
+        if (chatPollTimer) { window.clearInterval(chatPollTimer); chatPollTimer = null; }
         startWorthItChatPolling();
         await handleWorthItGroupInviteRoute(route.token, routeVersion);
         return;
@@ -968,8 +976,16 @@ async function routeWorthItChatFromLocation() {
     }
     const friend = chatFriends.find(item => Number(item.worth_it_id) === route.worthItId);
     if (!friend) {
+        chatRouteAccessDenied = true;
+        activeConversationId = null;
+        activeConversationType = "direct";
+        activeConversationTitle = "Private chat";
+        activeConversationPerson = null;
+        activeConversationInviteToken = "";
         setHeader("Private chat", "Private conversations are only available between friends", null);
-        setStatus("This private chat is only available to the selected user and their friend.", true);
+        updateChatHeaderNotificationButton();
+        updateChatHeaderShareButton();
+        setStatus("This private chat is only available to you and a Worth It friend.", true);
         chatMessages = [];
         renderMessages();
         return;
