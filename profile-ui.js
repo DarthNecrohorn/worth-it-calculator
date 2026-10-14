@@ -183,7 +183,7 @@ async function handleAssetInputChange(event,target){
  setAssetControlsBusy(true,target);
  try{
   const detectedFormat=await detectProfileImageFormat(file);
-  const declaredGif=String(file.type||"").toLowerCase()==="image/gif"||/\\.gif$/i.test(String(file.name||""));
+  const declaredGif=String(file.type||"").toLowerCase()==="image/gif"||/\.gif$/i.test(String(file.name||""));
   if(declaredGif&&detectedFormat!=="gif"){
    const actual=detectedFormat?profileImageFormatName(detectedFormat):"unknown";
    throw new Error(detectedFormat
