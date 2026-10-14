@@ -807,6 +807,166 @@ async function createWorthItGroupChat(event) {
     }
 }
 
+function closeWorthItGroupInviteDialog() {
+    const dialog = $("worthItChatInviteDialog");
+    if (dialog) { dialog.hidden = true; dialog.setAttribute("aria-hidden", "true"); }
+}
+function showWorthItGroupInviteDialog(preview, token) {
+    const dialog = $("worthItChatInviteDialog");
+    const title = $("worthItChatInviteTitle");
+    const copy = $("worthItChatInviteCopy");
+    const status = $("worthItChatInviteStatus");
+    const accept = $("worthItChatInviteAcceptBtn");
+    const kicker = $("worthItChatInviteKicker");
+    activeGroupInvitePreview = preview || {success:false,code:"INVITE_NOT_FOUND"};
+    activeGroupInviteToken = token || "";
+    if (title) title.textContent = activeGroupInvitePreview.success ? "You have been invited" : "Invitation unavailable";
+    if (copy) {
+        if (!activeGroupInvitePreview.success) copy.textContent = "This group invitation link is invalid or no longer available.";
+        else if (!chatUser) copy.textContent = "You have been invited to join “" + (activeGroupInvitePreview.title || "this group") + "”. Sign in or create a Worth It account, then confirm that you'd like to join.";
+        else if (activeGroupInvitePreview.is_full && !activeGroupInvitePreview.is_member) copy.textContent = "You have been invited to join “" + (activeGroupInvitePreview.title || "this group") + "”, but it has reached the 30-member limit.";
+        else copy.textContent = "You have been invited to join “" + (activeGroupInvitePreview.title || "this group") + "”. Do you want to join?";
+    }
+    if (kicker) kicker.textContent = activeGroupInvitePreview.success ? "✦ WORTH IT COMMUNITY" : "✦ GROUP INVITATION";
+    if (status) status.textContent = "";
+    if (accept) {
+        accept.disabled = !activeGroupInvitePreview.success || (activeGroupInvitePreview.is_full && !activeGroupInvitePreview.is_member);
+        accept.textContent = !activeGroupInvitePreview.success ? "Invitation unavailable" : !chatUser ? "Sign in to continue" : "Join group";
+    }
+    if (dialog) { dialog.hidden = false; dialog.setAttribute("aria-hidden", "false"); }
+}
+async function handleWorthItGroupInviteRoute(token, routeVersion) {
+    activeGroupInviteToken = token;
+    const client = sb();
+    if (!client) {
+        showWorthItGroupInviteDialog({success:false,code:"CHAT_UNAVAILABLE"}, token);
+        return;
+    }
+    let result;
+    try {
+        result = await client.rpc("get_worth_it_group_invite_preview", {p_invite_token:token});
+    } catch (error) {
+        if (routeVersion !== chatRouteVersion) return;
+        showWorthItGroupInviteDialog({success:false,code:"INVITE_NOT_FOUND"}, token);
+        const status = $("worthItChatInviteStatus");
+        if (status) status.textContent = rpcError(error);
+        return;
+    }
+    if (routeVersion !== chatRouteVersion) return;
+    if (result.error || !result.data?.success) {
+        showWorthItGroupInviteDialog({success:false,code:result.data?.code || "INVITE_NOT_FOUND"}, token);
+        if (result.error) {
+            const status = $("worthItChatInviteStatus");
+            if (status) status.textContent = rpcError(result.error);
+        }
+        return;
+    }
+    activeGroupInvitePreview = result.data;
+    if (chatUser) {
+        await refreshWorthItChatData();
+        if (routeVersion !== chatRouteVersion) return;
+        if (activeGroupInvitePreview.is_member) {
+            const conversation = chatConversations.find(item => item.id === activeGroupInvitePreview.conversation_id);
+            if (conversation) {
+                closeWorthItGroupInviteDialog();
+                await openWorthItSavedConversation(conversation);
+                return;
+            }
+            showWorthItGroupInviteDialog({success:false,code:"CHAT_NOT_FOUND"}, token);
+            const status = $("worthItChatInviteStatus");
+            if (status) status.textContent = "You're a member of this group, but the chat could not be loaded. Please refresh and try again.";
+            return;
+        }
+    }
+    showWorthItGroupInviteDialog(activeGroupInvitePreview, token);
+}
+window.acceptWorthItGroupInvite = async function () {
+    const button = $("worthItChatInviteAcceptBtn");
+    const status = $("worthItChatInviteStatus");
+    if (!activeGroupInviteToken) return;
+    if (!chatUser) {
+        if (status) status.textContent = "Sign in or create a Worth It account to accept this invitation.";
+        if (typeof window.handleAuthButton === "function") window.handleAuthButton();
+        return;
+    }
+    if (button) { button.disabled = true; button.textContent = "Joining…"; }
+    if (status) status.textContent = "";
+    try {
+        const result = await sb().rpc("accept_worth_it_group_invite", {p_invite_token:activeGroupInviteToken});
+        if (result.error) throw result.error;
+        if (!result.data?.success) {
+            if (result.data?.code === "GROUP_FULL") {
+                activeGroupInvitePreview = Object.assign({}, activeGroupInvitePreview, {is_full:true});
+                showWorthItGroupInviteDialog(activeGroupInvitePreview, activeGroupInviteToken);
+            } else {
+                if (status) status.textContent = result.data?.code === "INVITE_NOT_FOUND" ? "This invite link is invalid or has expired." : (result.data?.code || "Could not join this group.");
+                if (button) { button.disabled = false; button.textContent = "Join group"; }
+            }
+            return;
+        }
+        const token = activeGroupInviteToken;
+        closeWorthItGroupInviteDialog();
+        await refreshWorthItChatData();
+        const conversation = chatConversations.find(item => item.id === result.data.conversation_id);
+        if (conversation) await openWorthItSavedConversation(conversation);
+        else await activateConversation(result.data.conversation_id, "group", result.data.title || "Group chat", null, token);
+        setStatus("You joined the group chat.", false);
+    } catch (error) {
+        if (status) status.textContent = rpcError(error);
+        if (button) { button.disabled = false; button.textContent = "Join group"; }
+    }
+};
+window.dismissWorthItGroupInvite = async function () {
+    closeWorthItGroupInviteDialog();
+    activeGroupInvitePreview = null;
+    activeGroupInviteToken = "";
+    setChatBrowserPath("/chat", true);
+    await routeWorthItChatFromLocation();
+};
+async function routeWorthItChatFromLocation() {
+    const route = parseWorthItChatRoute();
+    const routeVersion = ++chatRouteVersion;
+    if (!route) {
+        closeWorthItGroupInviteDialog();
+        if (chatOpen) showChatOverlay(false, {skipRouteSync:true});
+        return;
+    }
+    if (!isChatRoutePath(chatReturnPath)) chatReturnPath = "/";
+    showChatOverlay(true, {skipRouteSync:true});
+    if (route.type === "invalid") {
+        closeWorthItGroupInviteDialog();
+        setStatus("This chat link is invalid.", true);
+        renderMessages();
+        return;
+    }
+    if (route.type === "group") {
+        if (chatPollTimer) window.clearInterval(chatPollTimer);
+        startWorthItChatPolling();
+        await handleWorthItGroupInviteRoute(route.token, routeVersion);
+        return;
+    }
+    closeWorthItGroupInviteDialog();
+    if (!chatUser) {
+        renderMessages();
+        return;
+    }
+    startWorthItChatPolling();
+    await refreshWorthItChatData();
+    if (routeVersion !== chatRouteVersion) return;
+    if (route.type === "global") {
+        await activateConversation(null, "global", GLOBAL_TITLE, null);
+        return;
+    }
+    const friend = chatFriends.find(item => Number(item.worth_it_id) === route.worthItId);
+    if (!friend) {
+        setHeader("Private chat", "Private conversations are only available between friends", null);
+        setStatus("This private chat is only available to the selected user and their friend.", true);
+        chatMessages = [];
+        renderMessages();
+        return;
+    }
+    await window.openWorthItFriendChat(route.worthItId);
+}
 function setupChatUI() {
     $("worthItChatInput")?.addEventListener("input", function () {
         updateCharacterCount();
@@ -832,6 +992,9 @@ function setupChatUI() {
         const button = event.currentTarget;
         toggleWorthItChatNotifications(button.dataset.chatKey || getActiveChatNotificationKey(), button);
     });
+    $("worthItChatShareInviteBtn")?.addEventListener("click", window.shareWorthItGroupInvite);
+    $("worthItChatInviteAcceptBtn")?.addEventListener("click", window.acceptWorthItGroupInvite);
+    $("worthItChatInviteCancelBtn")?.addEventListener("click", window.dismissWorthItGroupInvite);
     $("worthItChatGroupForm")?.addEventListener("submit", createWorthItGroupChat);
     $("worthItChatGroupSearch")?.addEventListener("input", renderGroupFriendChoices);
     $("worthItChatGroupName")?.addEventListener("input", () => { setGroupStatus("", false); updateGroupSelectionUI(); });
@@ -840,7 +1003,8 @@ function setupChatUI() {
     });
     document.addEventListener("keydown", function (event) {
         if (event.key === "Escape" && chatOpen) {
-            if ($("worthItChatGroupDialog") && !$("worthItChatGroupDialog").hidden) closeWorthItGroupChatDialog();
+            if ($("worthItChatInviteDialog") && !$("worthItChatInviteDialog").hidden) window.dismissWorthItGroupInvite();
+            else if ($("worthItChatGroupDialog") && !$("worthItChatGroupDialog").hidden) closeWorthItGroupChatDialog();
             else showChatOverlay(false);
         }
     });
@@ -849,6 +1013,8 @@ function setupChatUI() {
     updateChatHeaderNotificationButton();
 }
 setupChatUI();
+window.addEventListener("popstate", () => { routeWorthItChatFromLocation(); });
+routeWorthItChatFromLocation();
 if (sb()?.auth) {
     sb().auth.getSession().then(({data}) => setAuthState(data?.session?.user || null)).catch(() => setAuthState(null));
     sb().auth.onAuthStateChange((_event, session) => setAuthState(session?.user || null));
