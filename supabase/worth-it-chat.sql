@@ -43,8 +43,14 @@ create table if not exists public.worth_it_chat_filter_terms (
     term text primary key,
     reason text not null default 'Inappropriate language',
     enabled boolean not null default true,
-    constraint worth_it_chat_filter_term_len check (char_length(term) between 2 and 80)
+    constraint worth_it_chat_filter_term_len check (char_length(term) between 1 and 80)
 );
+-- Reapply the constraint so this script also repairs a table created by an earlier partial run.
+alter table public.worth_it_chat_filter_terms
+    drop constraint if exists worth_it_chat_filter_term_len;
+alter table public.worth_it_chat_filter_terms
+    add constraint worth_it_chat_filter_term_len check (char_length(term) between 1 and 80);
+
 insert into public.worth_it_chat_filter_terms(term, reason) values
  ('fuck','Inappropriate or abusive language'),('fucking','Inappropriate or abusive language'),
  ('motherfucker','Inappropriate or abusive language'),('shit','Inappropriate or abusive language'),
