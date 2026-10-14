@@ -847,3 +847,5 @@ if(client()?.auth){client().auth.onAuthStateChange((_event,session)=>{
 if($("worthItProfileAvatarInput"))$("worthItProfileAvatarInput").addEventListener("change",event=>handleAssetInputChange(event,"avatar"));
 if($("worthItProfileBannerInput"))$("worthItProfileBannerInput").addEventListener("change",event=>handleAssetInputChange(event,"banner"));
 })();
+
+// Temporary comment-only change for syntax validation.
