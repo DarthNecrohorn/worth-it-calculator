@@ -468,6 +468,8 @@ window.openWorthItGroupChatDialog = function () {
     $("worthItChatGroupName").value = "";
     setGroupStatus("", false);
     const dialog = $("worthItChatGroupDialog");
+    // Keep the fixed group-dialog backdrop attached to the document viewport, not any transformed chat container.
+    if (dialog && dialog.parentElement !== document.body) document.body.appendChild(dialog);
     dialog.hidden = false; dialog.setAttribute("aria-hidden","false");
 };
 window.closeWorthItGroupChatDialog = function () {
