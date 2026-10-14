@@ -2,37 +2,41 @@
    SETTINGS
 ========================================================= */
 
-function openSettings(){
-
-    $("homePage").style.display = "none";
-
-    document.querySelectorAll(".app")
-        .forEach(x => x.classList.remove("active"));
-
-    $("weatherSection").style.display = "none";
-    $("newsSection").style.display = "none";
-
-    const settingsPage = $("settingsPage");
-
-    if(!settingsPage){
+function openFullSettings(){
+    const settingsPage = document.getElementById("settingsPage");
+    if (!settingsPage) {
         console.error("Settings page not found: #settingsPage");
         return;
     }
 
+    const homePage = document.getElementById("homePage");
+    if (homePage) homePage.style.display = "none";
+    document.querySelectorAll(".app").forEach(function (section) {
+        section.classList.remove("active");
+        section.style.display = "none";
+    });
+    [
+        "weatherSection", "newsSection", "discountsSection", "marketsSection",
+        "moneySection", "cryptoSection", "waterLevelsSection", "shipTrackingSection",
+        "profileSection"
+    ].forEach(function (id) {
+        const section = document.getElementById(id);
+        if (section) section.style.display = "none";
+    });
+
+    const compactPanel = document.getElementById("settingsPanel");
+    if (compactPanel) compactPanel.style.display = "none";
+    document.documentElement.classList.remove("settings-open");
     settingsPage.style.display = "block";
-
-    $("navLinks").classList.remove("open");
-
+    document.getElementById("navLinks")?.classList.remove("open");
     document.documentElement.style.overflowY = "auto";
     document.body.style.overflowY = "auto";
-
-    window.scrollTo({
-        top: 0,
-        behavior: "smooth"
-    });
+    if (typeof window.updateSettingsUI === "function") window.updateSettingsUI();
+    window.scrollTo({ top: 0, behavior: "auto" });
 }
 
-window.openSettings = openSettings;
+window.openFullSettings = openFullSettings;
+window.openSettings = openFullSettings;
 
 /* =========================================================
    WORTH IT - SETTINGS / SEARCH / FEEDBACK
@@ -102,6 +106,12 @@ window.openSettings = openSettings;
         $("sizeNormalBtn")?.classList.toggle("active", size === "normal");
         $("sizeLargeBtn")?.classList.toggle("active", size === "large");
         $("sizeXLBtn")?.classList.toggle("active", size === "xl");
+        $("settingsPageThemeDarkBtn")?.classList.toggle("active", theme === "dark");
+        $("settingsPageThemeLightBtn")?.classList.toggle("active", theme === "light");
+        $("settingsPageSizeSmallBtn")?.classList.toggle("active", size === "small");
+        $("settingsPageSizeNormalBtn")?.classList.toggle("active", size === "normal");
+        $("settingsPageSizeLargeBtn")?.classList.toggle("active", size === "large");
+        $("settingsPageSizeXLBtn")?.classList.toggle("active", size === "xl");
     }
 
     function applySettings(){
@@ -151,32 +161,6 @@ window.openSettings = openSettings;
         }
     }
     window.applyCalculatorFilters = applyFilters;
-
-    function openTranslateTutorial(){
-        $("translateTutorial")?.classList.add("open");
-        detectBrowserTab();
-    }
-    function closeTranslateTutorial(){ $("translateTutorial")?.classList.remove("open"); }
-    window.openTranslateTutorial = openTranslateTutorial;
-    window.closeTranslateTutorial = closeTranslateTutorial;
-
-    function showTranslateBrowser(kind){
-        const map = {chrome:"Chrome", firefox:"Firefox", other:"Other"};
-        ["Chrome","Firefox","Other"].forEach(k=>{
-            $("translateTab"+k)?.classList.toggle("active", k.toLowerCase() === kind);
-        });
-        ["Chrome","Firefox","Other"].forEach(k=>{
-            $("translateSteps"+k)?.classList.toggle("hidden", k.toLowerCase() !== kind);
-        });
-    }
-    window.showTranslateBrowser = showTranslateBrowser;
-
-    function detectBrowserTab(){
-        const ua = navigator.userAgent;
-        if(/Firefox/i.test(ua)) showTranslateBrowser("firefox");
-        else if(/Edg\//i.test(ua) || /Chrome\//i.test(ua)) showTranslateBrowser("chrome");
-        else showTranslateBrowser("other");
-    }
 
     window.openFeedback = function(){
         $("feedbackOverlay")?.classList.add("open");
