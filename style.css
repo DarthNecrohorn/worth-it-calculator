@@ -18873,3 +18873,7 @@ html[data-theme="light"] .worth-it-chat-group-card input:not([type=checkbox]){ba
  .worth-it-chat-message .worth-it-chat-person-avatar{display:none}.worth-it-chat-message{max-width:97%}.worth-it-chat-bubble{font-size:12px;padding:10px 12px}.worth-it-chat-send-btn{padding:0 12px}.worth-it-chat-compose textarea{font-size:12px}
  .worth-it-chat-group-card{padding:23px 18px}
 }
+
+body.worth-it-chat-open{overflow:hidden}
+.worth-it-chat-mobile-list-btn{display:none}
+@media(max-width:540px){.worth-it-chat-mobile-list-btn{display:grid}}

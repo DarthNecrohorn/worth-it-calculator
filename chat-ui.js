@@ -298,7 +298,7 @@ async function loadWorthItChatMessages(scrollToBottom) {
     const previousLastId = chatMessages.length ? chatMessages[chatMessages.length - 1].id : null;
     const newLastId = rows.length ? rows[rows.length - 1].id : null;
     chatMessages = rows;
-    renderMessages(Boolean(scrollToBottom || (previousLastId !== newLastId && $("worthItChatMessages")?.scrollHeight - $("worthItChatMessages")?.scrollTop < 550)));
+    renderMessages(Boolean(scrollToBottom || (previousLastId !== newLastId && $("worthItChatMessages") && $("worthItChatMessages").scrollHeight - $("worthItChatMessages").scrollTop - $("worthItChatMessages").clientHeight < 550)));
     if (activeConversationType !== "global") {
         const conversation = chatConversations.find(item => item.id === activeConversationId);
         if (conversation) conversation.unread_count = 0;
@@ -320,6 +320,7 @@ async function activateConversation(id, type, title, person) {
     renderMessages();
     await loadWorthItChatMessages(true);
 }
+window.showWorthItChatSidebar = function () { if (window.matchMedia("(max-width: 540px)").matches) $("worthItChatWindow")?.classList.add("is-mobile-sidebar"); };
 window.openWorthItGlobalChat = async function () {
     if (!chatUser) return;
     await activateConversation(null, "global", GLOBAL_TITLE, null);

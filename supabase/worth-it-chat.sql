@@ -299,6 +299,10 @@ begin
     end if;
 
     masked_body:=clean_body;
+    if masked_body ~ '(ε⥰|\\(‿ˠ‿\\)|Ɑ͞|لں͞|⎛₎╰\\(☫\\)╯₍⎞)' then
+        masked_body:=regexp_replace(masked_body,'(ε⥰|\\(‿ˠ‿\\)|Ɑ͞|لں͞|⎛₎╰\\(☫\\)╯₍⎞)','***','gi');
+        filter_reason:= 'Glitch-style or potentially harmful symbols were filtered.';
+    end if;
     if masked_body ~ '[卐卍☫]' then
         masked_body:=regexp_replace(masked_body,'[卐卍☫]','*','g');
         filter_reason:= 'Hate symbols or potentially harmful imagery were filtered.';
