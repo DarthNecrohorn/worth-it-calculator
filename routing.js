@@ -242,23 +242,34 @@
     const isInitialProfileRoute = initialRoute &&
         (initialRoute.kind === "profile" || initialRoute.kind === "profile-connections");
 
-    if (isInitialProfileRoute && document.documentElement.classList.contains("worth-it-profile-route-pending")) {
-        // Supabase resolves the persisted session asynchronously. Wait until updateAuthUI has
-        // reflected that result before opening the profile, avoiding a transient signed-out view.
+    const root = document.documentElement;
+    const waitForProfileAuth = isInitialProfileRoute &&
+        root.classList.contains("worth-it-profile-route-pending");
+
+    if (waitForProfileAuth) {
+        // Keep the solid theme cover until auth is resolved and the requested profile route is shown.
         Promise.resolve(window.worthItAuthReady)
             .catch(function () {})
             .then(function () {
                 try {
                     applyRoute(window.location.pathname, { initial: true });
                 } finally {
-                    document.documentElement.classList.remove("worth-it-profile-route-pending");
+                    root.classList.remove("worth-it-profile-route-pending");
+                    root.classList.remove("worth-it-initial-paint");
                 }
             });
-    } else if (!LEGAL_PATHS.has(initialPath) && initialPath !== "/") {
-        applyRoute(initialPath, { initial: true });
-        document.documentElement.classList.remove("worth-it-profile-route-pending");
-    } else if (window.location.pathname === "/index.html") {
-        window.history.replaceState(window.history.state || null, "", "/");
+    } else {
+        try {
+            if (!LEGAL_PATHS.has(initialPath) && initialPath !== "/") {
+                applyRoute(initialPath, { initial: true });
+                root.classList.remove("worth-it-profile-route-pending");
+            } else if (window.location.pathname === "/index.html") {
+                window.history.replaceState(window.history.state || null, "", "/");
+            }
+        } finally {
+            // The selected initial route is now installed; reveal the page without a wrong-section flash.
+            root.classList.remove("worth-it-initial-paint");
+        }
     }
 
     // Expose the stable calculator index map for diagnostics and future additions.

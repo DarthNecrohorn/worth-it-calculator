@@ -8,16 +8,38 @@
 <title>Worth It — Smart Decision Calculators</title>
 
 <script>
-/* Prevent a Home/sign-in flash while a direct profile URL waits for auth and routing to initialize. */
+/* Apply the saved theme and cover all page content before the browser's first paint. */
 (function () {
+    const root = document.documentElement;
+    try {
+        root.dataset.theme = localStorage.getItem("worthItTheme") === "light" ? "light" : "dark";
+    } catch (_) {
+        root.dataset.theme = "dark";
+    }
+    root.classList.add("worth-it-initial-paint");
     try {
         const path = window.location.pathname.replace(/\/+$/, "") || "/";
         if (/^\/profile\/[1-9]\d*(?:\/(?:friends|followers|following))?$/.test(path)) {
-            document.documentElement.classList.add("worth-it-profile-route-pending");
+            root.classList.add("worth-it-profile-route-pending");
         }
     } catch (_) {}
 })();
 </script>
+<style>
+/* Inline boot cover: it works before the main stylesheet has downloaded. */
+html.worth-it-initial-paint::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: 2147483647;
+    display: block;
+    background: #070b14;
+    pointer-events: none;
+}
+html[data-theme="light"].worth-it-initial-paint::before {
+    background: #fff;
+}
+</style>
 
     <script>
 /* Apply the saved UI scale before the first paint to prevent header layout shift. */
@@ -32,7 +54,7 @@
 })();
 </script>
 
-<link rel="stylesheet" href="style.css?v=profilerouteboot20261014d">
+<link rel="stylesheet" href="style.css?v=themebootlightprofile20261014a">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 </head>
 
@@ -4510,7 +4532,7 @@ if($("carResults")){
 
 </script>
 <script src="/profile-ui.js?v=profilesocial20261014b"></script>
-<script src="/routing.js?v=profilerouteboot20261014a"></script>
+<script src="/routing.js?v=themebootlightprofile20261014a"></script>
 
 </body>
 </html>
