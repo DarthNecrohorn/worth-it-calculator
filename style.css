@@ -19551,3 +19551,15 @@ html[data-theme="light"] .worth-it-user-search-result-info small{color:#64748b}
 #accountHeadAvatar{width:58px!important;height:58px!important;min-width:58px!important;flex:0 0 58px!important;position:relative!important;overflow:visible!important;border-radius:16px!important}
 #accountHeadAvatar img,#accountHeadAvatar .account-head-avatar,#accountHeadAvatar .auth-avatar-fallback,#accountHeadAvatar>div{width:58px!important;height:58px!important;min-width:58px!important;border-radius:16px!important;object-fit:cover!important;font-size:24px!important}
 #accountHeadAvatar .worth-it-presence-indicator{width:17px;height:17px;right:-2px;bottom:-2px}
+
+
+/* Keep the profile presence label directly beneath the avatar, compact and readable. */
+.worth-it-profile-avatar-column{display:flex;flex:0 0 88px;flex-direction:column;align-items:center;gap:6px;min-width:0}
+.worth-it-profile-avatar-column #worthItProfilePresence{display:flex;align-items:center;justify-content:center;gap:4px;margin:0;color:var(--muted);font-size:10px;font-weight:750;line-height:1.2;white-space:nowrap;font-variant-numeric:tabular-nums}
+.worth-it-profile-avatar-column #worthItProfilePresence .worth-it-presence-status-dot{width:8px;height:8px;flex-basis:8px}
+.worth-it-profile-avatar-column #worthItProfilePresence.is-offline .worth-it-presence-label{color:var(--muted2)}
+.worth-it-profile-section.has-banner .worth-it-profile-avatar-column #worthItProfilePresence.is-online .worth-it-presence-label{color:#86efac}
+@media(max-width:520px){
+ .worth-it-profile-avatar-column{flex-basis:66px;width:66px;gap:5px}
+ .worth-it-profile-avatar-column #worthItProfilePresence{gap:3px;font-size:9px}
+}
