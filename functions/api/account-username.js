@@ -127,7 +127,7 @@ export async function onRequestGet(context) {
         const result = await getUsernameRow(config, auth.user.id);
         if (result.setupMissing) return setupRequired();
         const row = result.row;
-        const confirmed = Boolean(auth.user.email_confirmed_at || auth.user.confirmed_at);
+        const confirmed = Boolean(auth.user.email_confirmed_at);
         const changedAt = row && row.username_changed_at ? Date.parse(row.username_changed_at) : NaN;
         const nextAt = Number.isFinite(changedAt) ? changedAt + 14 * 24 * 60 * 60 * 1000 : 0;
         const remaining = nextAt - Date.now();
@@ -156,7 +156,7 @@ export async function onRequestPost(context) {
     const auth = await verifyUser(config, tokenFrom(request));
     if (auth.setupError) return setupRequired();
     if (auth.response) return auth.response;
-    if (!(auth.user.email_confirmed_at || auth.user.confirmed_at)) {
+    if (!auth.user.email_confirmed_at) {
         return json({
             success: false,
             code: "EMAIL_VERIFICATION_REQUIRED",
