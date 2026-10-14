@@ -462,6 +462,11 @@ window.openSettings = openFullSettings;
         content.hidden = false;
         $("securityPasswordStatus").textContent = "Account email: " + (session.user.email || "not available") + ".";
         securityMessage("securitySessionsStatus", "The current browser session is active.", false);
+        securityMessage(
+            "securityAlertsStatus",
+            "Supabase supports alerts for password, email and phone changes, linked or removed sign-in methods, and added or removed verification methods. The individual email switches are project-level settings and cannot be read from this browser session; review them in Supabase before relying on delivery.",
+            true
+        );
         securityMessage("securityMfaStatus", "Checking authenticator status…", false);
         $("securityMfaStart").hidden = true;
         $("securityMfaEnroll").hidden = true;
@@ -507,25 +512,58 @@ window.openSettings = openFullSettings;
     };
 
     window.openPasswordResetFromSettings = async function() {
-        let session;
-        try { session = await currentSecuritySession(); } catch (_) { session = null; }
-        if (!session?.user?.email) {
-            securityMessage("securityPasswordStatus", "Sign in again to request a password reset.", true);
-            return;
-        }
-        if (typeof window.openLoginModal !== "function") {
-            securityMessage("securityPasswordStatus", "Password reset is unavailable right now. Please use Forgot password on the sign-in screen.", true);
-            return;
-        }
-        window.openLoginModal("forgot");
-        window.setTimeout(function() {
-            const emailInput = $("authEmail");
-            if (emailInput) {
-                emailInput.value = session.user.email;
+        const button = $("securityPasswordResetButton");
+        if (button?.disabled) return;
+        if (button) button.disabled = true;
+
+        let accountEmail = "";
+        securityMessage("securityPasswordStatus", "Sending password-reset email…", false);
+        try {
+            const session = await currentSecuritySession();
+            accountEmail = session?.user?.email || "";
+            if (!accountEmail || !session?.access_token) {
+                throw new Error("Sign in again to request a password reset.");
             }
-            const subtitle = $("authModalSubtitle");
-            if (subtitle) subtitle.textContent = "We will send a password-reset link to your verified account email.";
-        }, 60);
+
+            const auth = window.supabaseClient?.auth;
+            if (typeof auth?.resetPasswordForEmail !== "function") {
+                throw new Error("Password recovery is unavailable right now. Please try again later.");
+            }
+
+            const result = await auth.resetPasswordForEmail(accountEmail, {
+                redirectTo: window.location.origin + "/",
+                captchaToken: typeof getAuthTurnstileToken === "function"
+                    ? (getAuthTurnstileToken() || undefined)
+                    : undefined
+            });
+            if (result?.error) throw result.error;
+
+            securityMessage(
+                "securityPasswordStatus",
+                "Supabase accepted the password-reset request. Check your inbox and spam folder. Use the link in the email to return to Worth It and choose a new password.",
+                false
+            );
+        } catch (error) {
+            const message = error?.message || "Could not send the password-reset email. Please try again.";
+            if (/captcha|turnstile|bot detection/i.test(message) && typeof window.openLoginModal === "function") {
+                window.openLoginModal("forgot");
+                window.setTimeout(function() {
+                    const emailInput = $("authEmail");
+                    if (emailInput && accountEmail) emailInput.value = accountEmail;
+                    const subtitle = $("authModalSubtitle");
+                    if (subtitle) subtitle.textContent = "Complete the security check, then request a password-reset link.";
+                }, 60);
+                securityMessage(
+                    "securityPasswordStatus",
+                    "This project requires an additional human-verification check. The recovery form is open; complete its check and submit the request there.",
+                    false
+                );
+            } else {
+                securityMessage("securityPasswordStatus", message, true);
+            }
+        } finally {
+            if (button) button.disabled = false;
+        }
     };
 
     window.startTotpEnrollment = async function() {
@@ -685,18 +723,42 @@ window.openSettings = openFullSettings;
     };
 
     window.signOutOtherSessions = async function() {
+        if (!window.supabaseClient?.auth) {
+            securityMessage("securitySessionsStatus", "Session management is unavailable right now. Please refresh the page and try again.", true);
+            return;
+        }
         if (!window.confirm("Sign out all other Worth It sessions? This browser will remain signed in.")) return;
+
         const button = $("securitySignOutOthers");
-        button.disabled = true;
-        securityMessage("securitySessionsStatus", "Signing out other sessions…", false);
+        if (button) button.disabled = true;
+        securityMessage("securitySessionsStatus", "Requesting sign-out for other sessions…", false);
         try {
+            const before = await window.supabaseClient.auth.getSession();
+            const currentUserId = before?.data?.session?.user?.id;
+            if (before?.error) throw before.error;
+            if (!before?.data?.session?.access_token || !currentUserId) {
+                throw new Error("Your current session could not be confirmed. Sign in again before managing sessions.");
+            }
+
             const result = await window.supabaseClient.auth.signOut({ scope: "others" });
             if (result?.error) throw result.error;
-            securityMessage("securitySessionsStatus", "A sign-out request for other sessions completed. Other access tokens can remain valid until they expire.", false);
+
+            const after = await window.supabaseClient.auth.getSession();
+            const stillSignedIn = after?.data?.session?.access_token &&
+                after?.data?.session?.user?.id === currentUserId;
+            if (!stillSignedIn) {
+                throw new Error("The request returned, but this browser's session could not be confirmed afterward. Please sign in again.");
+            }
+
+            securityMessage(
+                "securitySessionsStatus",
+                "Supabase accepted the request to revoke refresh sessions on other devices, and this browser remains signed in. Other devices may keep working until their existing access tokens expire; they will not be able to refresh those revoked sessions.",
+                false
+            );
         } catch (error) {
-            securityMessage("securitySessionsStatus", error?.message || "Could not sign out other sessions. Please try again.", true);
+            securityMessage("securitySessionsStatus", error?.message || "Could not confirm that other sessions were signed out. Please try again.", true);
         } finally {
-            button.disabled = false;
+            if (button) button.disabled = false;
         }
     };
 
