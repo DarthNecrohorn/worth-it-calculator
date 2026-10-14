@@ -9,6 +9,10 @@ const PRESENCE_ONLINE_WINDOW_MS=150000;
 let presenceHeartbeatTimer=null,presenceDisplayTimer=null,presenceLastHeartbeatAt=0,presenceHeartbeatBusy=false,presenceDisplayBusy=false;
 const presenceLastSeenById=new Map();
 function getWorthItPresenceInfo(person){
+ const ownWorthItId=currentOwnProfile?.profile?.worth_it_id;
+ if(currentUser?.id&&ownWorthItId!=null&&person?.worth_it_id!=null&&String(person.worth_it_id)===String(ownWorthItId)){
+  return{online:true,label:"Online now",lastSeenAt:person?.last_seen_at||new Date().toISOString()};
+ }
  const cached=person?.worth_it_id!=null?presenceLastSeenById.get(String(person.worth_it_id)):null;
  const raw=person?.last_seen_at||person?.lastSeenAt||cached||null,stamp=raw?new Date(raw).getTime():NaN,delta=Number.isFinite(stamp)?Date.now()-stamp:Infinity;
  if(Number.isFinite(stamp)&&delta>=-60000&&delta<=PRESENCE_ONLINE_WINDOW_MS)return{online:true,label:"Online now",lastSeenAt:raw};
@@ -23,7 +27,7 @@ function updateWorthItPresenceNode(node,lastSeenAt){
  if(!node)return;const info=getWorthItPresenceInfo({worth_it_id:node.dataset.worthItPresenceId,last_seen_at:lastSeenAt||null});
  node.classList.toggle("is-online",info.online);node.classList.toggle("is-offline",!info.online);node.dataset.lastSeenAt=lastSeenAt||"";
  const presenceLabel=info.online?"Online":"Offline";
- if(node.classList.contains("worth-it-presence-indicator")){node.dataset.presenceStatus=presenceLabel;node.title=presenceLabel;node.setAttribute("aria-label",presenceLabel);const tooltip=node.querySelector(".worth-it-presence-tooltip");if(tooltip)tooltip.textContent=presenceLabel;}
+ if(node.classList.contains("worth-it-presence-indicator")){node.dataset.presenceStatus=presenceLabel;node.title=presenceLabel;node.setAttribute("aria-label",presenceLabel);const tooltip=node._worthItPresenceTooltip||node.querySelector(".worth-it-presence-tooltip");if(tooltip)tooltip.textContent=presenceLabel;}
  else{node.title=info.label;node.setAttribute("aria-label",info.label);}
  if(node.classList.contains("worth-it-profile-presence-text")){const dot=node.querySelector(".worth-it-presence-status-dot"),label=node.querySelector(".worth-it-presence-label");if(dot){dot.classList.toggle("is-online",info.online);dot.classList.toggle("is-offline",!info.online);}if(label)label.textContent=info.label;}
  if(node.classList.contains("worth-it-person-presence-label")||node.classList.contains("worth-it-chat-person-presence")||node.classList.contains("worth-it-user-search-presence"))node.textContent=info.label;
@@ -31,11 +35,23 @@ function updateWorthItPresenceNode(node,lastSeenAt){
 function appendWorthItPresenceIndicator(host,person){
  if(!host||!person||person.worth_it_id==null)return;host.classList.add("worth-it-presence-host");host.querySelectorAll(":scope > .worth-it-presence-indicator").forEach(node=>node.remove());
  const marker=document.createElement("span");marker.className="worth-it-presence-indicator";marker.dataset.worthItPresenceId=String(person.worth_it_id);marker.dataset.lastSeenAt=person.last_seen_at||"";marker.setAttribute("role","button");marker.setAttribute("tabindex","0");
- const tooltip=document.createElement("span");tooltip.className="worth-it-presence-tooltip";tooltip.setAttribute("aria-hidden","true");marker.appendChild(tooltip);
- const toggleTooltip=event=>{event?.stopPropagation?.();event?.preventDefault?.();marker.classList.toggle("is-tooltip-open");};
- marker.addEventListener("click",toggleTooltip);
- marker.addEventListener("keydown",event=>{if(event.key==="Enter"||event.key===" "){toggleTooltip(event);}else if(event.key==="Escape")marker.classList.remove("is-tooltip-open");});
- marker.addEventListener("blur",()=>marker.classList.remove("is-tooltip-open"));
+ const tooltip=document.createElement("span");tooltip.className="worth-it-presence-tooltip";tooltip.setAttribute("aria-hidden","true");tooltip.textContent=person.last_seen_at?getWorthItPresenceInfo(person).online?"Online":"Offline":"Offline";marker._worthItPresenceTooltip=tooltip;marker.appendChild(tooltip);
+ const hideTooltip=()=>{tooltip.classList.remove("is-visible","is-portal","is-below");tooltip.setAttribute("aria-hidden","true");tooltip.remove();marker.classList.remove("is-tooltip-open");};
+ const showTooltip=()=>{
+  document.querySelectorAll(".worth-it-presence-tooltip.is-portal").forEach(other=>{if(other!==tooltip){other.classList.remove("is-visible","is-portal","is-below");other.setAttribute("aria-hidden","true");other.remove();}});
+  tooltip.classList.add("is-portal");document.body.appendChild(tooltip);
+  const rect=marker.getBoundingClientRect(),height=tooltip.getBoundingClientRect().height||22;
+  const below=rect.top<height+14,center=Math.max(58,Math.min(window.innerWidth-58,rect.left+rect.width/2));
+  tooltip.classList.toggle("is-below",below);tooltip.style.left=center+"px";tooltip.style.top=(below?rect.bottom+7:rect.top-7)+"px";
+  tooltip.classList.add("is-visible");tooltip.setAttribute("aria-hidden","false");
+ };
+ marker.addEventListener("mouseenter",showTooltip);
+ marker.addEventListener("mouseleave",hideTooltip);
+ marker.addEventListener("focus",showTooltip);
+ marker.addEventListener("blur",hideTooltip);
+ marker.addEventListener("pointerdown",event=>{if(event.pointerType!=="touch")return;event.stopPropagation();event.preventDefault();if(tooltip.classList.contains("is-visible"))hideTooltip();else{showTooltip();marker.classList.add("is-tooltip-open");}});
+ marker.addEventListener("click",event=>{event.stopPropagation();event.preventDefault();});
+ marker.addEventListener("keydown",event=>{if(event.key==="Enter"||event.key===" "){event.stopPropagation();event.preventDefault();if(tooltip.classList.contains("is-visible"))hideTooltip();else{showTooltip();marker.classList.add("is-tooltip-open");}}else if(event.key==="Escape")hideTooltip();});
  updateWorthItPresenceNode(marker,person.last_seen_at);host.appendChild(marker);
 }
 function renderWorthItProfilePresence(person){
@@ -119,7 +135,7 @@ async function getOwnProfileRow(user,force){
  if(!force&&currentOwnProfile?.userId===user.id)return currentOwnProfile.profile;
  if(!force&&currentOwnProfileRequest?.userId===user.id)return currentOwnProfileRequest.promise;
  const sb=client();if(!sb)throw new Error("Auth not ready");
- const promise=(async()=>{const r=await sb.from("worth_it_profiles").select("worth_it_id,username,display_name,avatar_url,banner_url,created_at").eq("user_id",user.id).maybeSingle();if(r.error)throw r.error;if(!r.data)throw new Error("Worth It ID has not been assigned");currentOwnProfile={userId:user.id,profile:r.data};syncHeaderAvatar(r.data);return r.data;})();
+ const promise=(async()=>{const r=await sb.from("worth_it_profiles").select("worth_it_id,username,display_name,avatar_url,banner_url,created_at").eq("user_id",user.id).maybeSingle();if(r.error)throw r.error;if(!r.data)throw new Error("Worth It ID has not been assigned");currentUser=user;currentOwnProfile={userId:user.id,profile:r.data};syncHeaderAvatar(r.data);touchWorthItPresence(true);return r.data;})();
  currentOwnProfileRequest={userId:user.id,promise};
  try{return await promise;}finally{if(currentOwnProfileRequest?.promise===promise)currentOwnProfileRequest=null;}
 }
