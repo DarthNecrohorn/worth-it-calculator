@@ -84,34 +84,59 @@ window.supabaseClient.auth.onAuthStateChange((event, session) => {
 });
 
 async function ensureMfaVerificationIfNeeded(authClient, options) {
-    if (
-        authMfaRequired ||
-        authMfaLoginInProgress ||
-        authMfaEnforcementCheckInProgress ||
-        !authClient?.mfa
-    ) return false;
-
     const pendingLogin = Boolean(options?.pendingLogin);
+    const failClosed = (message, error) => {
+        if (pendingLogin) {
+            throw (error || new Error(message));
+        }
+        return false;
+    };
+
+    if (authMfaRequired || authMfaLoginInProgress || authMfaEnforcementCheckInProgress) {
+        return failClosed("Two-factor verification is already in progress. Please try signing in again.");
+    }
+    if (!authClient?.mfa) {
+        return failClosed("Two-factor verification is unavailable. Please try signing in again.");
+    }
+
     authMfaEnforcementCheckInProgress = true;
     try {
         const assurance = await authClient.mfa.getAuthenticatorAssuranceLevel();
-        if (assurance?.error) return false;
+        if (assurance?.error) {
+            return failClosed("Could not verify the account's sign-in security level. Please try again.", assurance.error);
+        }
+
         const levels = assurance?.data;
-        if (levels?.nextLevel !== "aal2" || levels?.currentLevel === "aal2") return false;
+        const validLevels = new Set(["aal1", "aal2"]);
+        if (!validLevels.has(levels?.currentLevel) || !validLevels.has(levels?.nextLevel)) {
+            return failClosed("Could not determine the account's required sign-in security level.");
+        }
+        if (levels.currentLevel === "aal2" || levels.nextLevel !== "aal2") {
+            return false;
+        }
 
         const list = await authClient.mfa.listFactors();
-        if (list?.error) return false;
+        if (list?.error) {
+            return failClosed("Could not load a verified two-factor method. Please try again.", list.error);
+        }
+
         const totp = (list.data?.totp || []).find(item => item.status === "verified");
         const phone = (list.data?.phone || []).find(item => item.status === "verified");
         const factor = totp || phone;
-        if (!factor?.id) return false;
+        if (!factor?.id) {
+            return failClosed("Two-factor authentication is required, but no verified method could be loaded. Please try signing in again.");
+        }
 
         authPendingMfaFactorId = factor.id;
         authPendingMfaFactorType = factor.factor_type || (totp ? "totp" : "phone");
         authMfaPendingClient = pendingLogin
             ? (options?.pendingClient || null)
             : window.supabaseClient;
-        if (!authMfaPendingClient) return false;
+        if (!authMfaPendingClient) {
+            authPendingMfaFactorId = "";
+            return failClosed("The secure sign-in session could not be prepared. Please try again.");
+        }
+
         authMfaRequired = true;
         openAuthModal("mfa");
         const subtitle = $("authModalSubtitle");
@@ -124,7 +149,8 @@ async function ensureMfaVerificationIfNeeded(authClient, options) {
             ? "Two-factor authentication is enabled. Enter the code sent to your phone."
             : "Two-factor authentication is enabled. Enter the current code from your authenticator app.", "");
         return true;
-    } catch (_) {
+    } catch (error) {
+        if (pendingLogin) throw error;
         return false;
     } finally {
         authMfaEnforcementCheckInProgress = false;
@@ -1812,8 +1838,19 @@ async function submitAuthForm(event) {
     } catch (error) {
         authMfaLoginInProgress = false;
 
+        // If the primary sign-in flow failed before the MFA prompt was shown,
+        // discard the non-persistent temporary client so it cannot be reused.
+        if (authModalMode !== "mfa" && authMfaPendingClient && authMfaPendingClient !== window.supabaseClient) {
+            const abandonedMfaClient = authMfaPendingClient;
+            authMfaPendingClient = null;
+            authMfaRequired = false;
+            authPendingMfaFactorId = "";
+            authPendingMfaFactorType = "totp";
+            try { await abandonedMfaClient.auth.signOut({ scope: "local" }); } catch (_) {}
+        }
+
         console.error(
-            "Worth It email authentication error:",
+            "Worth It authentication error:",
             error
         );
 
