@@ -182,7 +182,7 @@ alter table public.worth_it_notification_dismissals enable row level security;
 revoke all on public.worth_it_notification_dismissals from anon, authenticated;
 
 -- In the inbox, a pending request is a notification; hiding it does not decline the actual request.
-create or replace function public.get_worth_it_pending_friend_requests()
+create or replace function public.get_worth_it_pending_friend_request_notifications()
 returns jsonb
 language plpgsql
 security definer
@@ -328,10 +328,10 @@ begin
 end;
 $$;
 
-revoke all on function public.get_worth_it_pending_friend_requests() from public, anon;
+revoke all on function public.get_worth_it_pending_friend_request_notifications() from public, anon;
 revoke all on function public.get_worth_it_social_notifications() from public, anon;
 revoke all on function public.dismiss_worth_it_notification(text, text) from public, anon;
 
-grant execute on function public.get_worth_it_pending_friend_requests() to authenticated;
+grant execute on function public.get_worth_it_pending_friend_request_notifications() to authenticated;
 grant execute on function public.get_worth_it_social_notifications() to authenticated;
 grant execute on function public.dismiss_worth_it_notification(text, text) to authenticated;
