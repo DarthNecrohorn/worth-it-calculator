@@ -35,6 +35,10 @@ window.supabaseClient =
 
 
 let currentAuthUser = null;
+let authMfaLoginInProgress = false;
+let authMfaEnforcementCheckInProgress = false;
+let authMfaRequired = false;
+let authPendingMfaFactorId = "";
 
 
 /* =========================================================
@@ -46,40 +50,65 @@ EARLY AUTH STATE LISTENER
  * The listener is registered immediately so account state changes
  * are reflected as soon as Supabase initializes.
  */
-window.supabaseClient.auth.onAuthStateChange(
-    (event, session) => {
+window.supabaseClient.auth.onAuthStateChange((event, session) => {
+    updateAuthUI(session?.user || null);
 
-        updateAuthUI(
-            session?.user || null
-        );
-
-
-        if (event === "PASSWORD_RECOVERY") {
-
-            setTimeout(() => {
-                openAuthModal("reset");
-            }, 0);
-
-            return;
-
-        }
-
-        if (event === "SIGNED_IN") {
-            closeAuthModal();
-        }
-
-
-        if (
-            typeof updateAIChatView ===
-            "function"
-        ) {
-
-            updateAIChatView();
-
-        }
-
+    if (event === "PASSWORD_RECOVERY") {
+        authMfaRequired = false;
+        authPendingMfaFactorId = "";
+        setTimeout(() => openAuthModal("reset"), 0);
+        return;
     }
-);
+
+    if (event === "SIGNED_IN") {
+        if (!authMfaLoginInProgress && !authMfaRequired) closeAuthModal();
+    }
+
+    if (
+        session?.user &&
+        !authMfaLoginInProgress &&
+        !authMfaRequired &&
+        !authMfaEnforcementCheckInProgress &&
+        ["INITIAL_SESSION", "SIGNED_IN"].includes(event)
+    ) {
+        setTimeout(() => ensureMfaVerificationIfNeeded(), 0);
+    }
+
+    if (typeof updateAIChatView === "function") updateAIChatView();
+});
+
+async function ensureMfaVerificationIfNeeded() {
+    if (
+        authMfaRequired ||
+        authMfaLoginInProgress ||
+        authMfaEnforcementCheckInProgress ||
+        !window.supabaseClient?.auth?.mfa
+    ) return false;
+
+    authMfaEnforcementCheckInProgress = true;
+    try {
+        const assurance = await window.supabaseClient.auth.mfa.getAuthenticatorAssuranceLevel();
+        if (assurance?.error) return false;
+        const levels = assurance?.data;
+        if (levels?.nextLevel !== "aal2" || levels?.currentLevel === "aal2") return false;
+
+        const list = await window.supabaseClient.auth.mfa.listFactors();
+        if (list?.error) return false;
+        const factor = (list.data?.totp || []).find(item => item.status === "verified") ||
+            (list.data?.phone || []).find(item => item.status === "verified");
+        if (!factor?.id) return false;
+
+        authPendingMfaFactorId = factor.id;
+        authMfaRequired = true;
+        openAuthModal("mfa");
+        setAuthStatus("Two-factor authentication is enabled. Enter the current code from your authenticator app to finish signing in.", "");
+        return true;
+    } catch (_) {
+        return false;
+    } finally {
+        authMfaEnforcementCheckInProgress = false;
+    }
+}
 
 
 /* =========================================================
@@ -877,7 +906,7 @@ function openAuthModal(mode = "signin") {
     if (!overlay) return;
 
     authModalMode =
-        ["signin", "signup", "reset", "forgot"].includes(mode)
+        ["signin", "signup", "reset", "forgot", "mfa"].includes(mode)
             ? mode
             : "signin";
 
@@ -916,7 +945,12 @@ function openAuthModal(mode = "signin") {
 }
 
 
-function closeAuthModal() {
+function closeAuthModal(force) {
+    if (authMfaRequired && !force) {
+        setAuthStatus("Complete two-factor verification to finish signing in, or choose Cancel sign in.", "error");
+        return;
+    }
+
 
     resetAuthTurnstile();
 
@@ -952,6 +986,17 @@ function closeAuthModal() {
 window.openLoginModal = openAuthModal;
 window.closeLoginModal = closeAuthModal;
 
+window.cancelMfaSignIn = async function() {
+    authMfaRequired = false;
+    authMfaLoginInProgress = false;
+    authPendingMfaFactorId = "";
+    try {
+        await window.supabaseClient.auth.signOut({ scope: "local" });
+    } catch (_) {}
+    closeAuthModal(true);
+    openAuthModal("signin");
+};
+
 function switchAuthMode(mode) {
 
     authReturnedToSignin =
@@ -982,7 +1027,7 @@ function switchAuthMode(mode) {
 function renderAuthModalMode(mode) {
 
     authModalMode =
-        ["signin", "signup", "reset", "forgot"].includes(mode)
+        ["signin", "signup", "reset", "forgot", "mfa"].includes(mode)
             ? mode
             : "signin";
 
@@ -1004,6 +1049,15 @@ function renderAuthModal() {
 
     const confirmWrap =
         $("authPasswordConfirmWrap");
+
+    const passwordWrap =
+        $("authPasswordWrap");
+
+    const mfaWrap =
+        $("authMfaWrap");
+
+    const mfaInput =
+        $("authMfaCode");
 
     const usernameInput =
         $("authUsername");
@@ -1057,6 +1111,9 @@ function renderAuthModal() {
         !subtitle ||
         !usernameWrap ||
         !confirmWrap ||
+        !passwordWrap ||
+        !mfaWrap ||
+        !mfaInput ||
         !usernameInput ||
         !emailInput ||
         !passwordInput ||
@@ -1073,6 +1130,33 @@ function renderAuthModal() {
     }
 
 
+    mfaWrap.style.display = "none";
+    mfaInput.required = false;
+    passwordWrap.style.display = "block";
+
+    if (authModalMode === "mfa") {
+        title.textContent = "Verify two-factor authentication";
+        subtitle.textContent = "Enter the current 6-digit code from your authenticator app to complete sign-in.";
+        usernameWrap.style.display = "none";
+        emailWrap.style.display = "none";
+        passwordWrap.style.display = "none";
+        confirmWrap.style.display = "none";
+        mfaWrap.style.display = "block";
+        mfaInput.required = true;
+        mfaInput.value = "";
+        usernameInput.required = false;
+        emailInput.required = false;
+        passwordInput.required = false;
+        confirmInput.required = false;
+        forgot.style.display = "none";
+        legalWrap.style.display = "none";
+        legalCheck.checked = false;
+        submit.textContent = "Verify code";
+        toggle.innerHTML = '<button type="button" class="auth-modal-link" onclick="cancelMfaSignIn()">Cancel sign in</button>';
+        return;
+    }
+
+    mfaInput.value = "";
     if (authModalMode === "signup") {
 
         title.textContent =
@@ -1374,9 +1458,16 @@ async function submitAuthForm(event) {
     }
 
 
+    if (authModalMode === "mfa" && !/^\d{6}$/.test(($("authMfaCode")?.value || "").replace(/\s/g, ""))) {
+        setAuthStatus("Enter the current 6-digit authenticator code.", "error");
+        $("authMfaCode")?.focus();
+        return;
+    }
+
     if (
         !password &&
-        authModalMode !== "forgot"
+        authModalMode !== "forgot" &&
+        authModalMode !== "mfa"
     ) {
 
         setAuthStatus(
@@ -1451,13 +1542,38 @@ async function submitAuthForm(event) {
                 ? "Updating password..."
                 : authModalMode === "forgot"
                     ? "Sending reset link..."
-                    : "Signing in..."
+                    : authModalMode === "mfa"
+                        ? "Verifying your authenticator code..."
+                        : "Signing in..."
     );
 
 
     try {
 
-        if (authModalMode === "signup") {
+        if (authModalMode === "forgot") {
+            await requestPasswordReset();
+
+        } else if (authModalMode === "mfa") {
+            if (!authPendingMfaFactorId) throw new Error("No verified second factor is available. Cancel sign-in and contact support if this continues.");
+            const code = ($("authMfaCode")?.value || "").replace(/\s/g, "");
+            const auth = window.supabaseClient.auth;
+            const challenge = await auth.mfa.challenge({ factorId: authPendingMfaFactorId });
+            if (challenge?.error) throw challenge.error;
+            const verification = await auth.mfa.verify({
+                factorId: authPendingMfaFactorId,
+                challengeId: challenge.data.id,
+                code
+            });
+            if (verification?.error) throw verification.error;
+            authMfaRequired = false;
+            authPendingMfaFactorId = "";
+            $("authMfaCode").value = "";
+            closeAuthModal(true);
+            showToast("Two-factor verification completed.");
+            if (typeof window.loadAccountSettings === "function") window.loadAccountSettings();
+            if (typeof window.loadSecuritySettings === "function") window.loadSecuritySettings();
+
+        } else if (authModalMode === "signup") {
 
             const usernameAvailability =
                 await checkUsernameAvailability(username);
@@ -1598,6 +1714,7 @@ async function submitAuthForm(event) {
                 );
             }
 
+            authMfaLoginInProgress = true;
             const {
                 error
             } =
@@ -1609,16 +1726,17 @@ async function submitAuthForm(event) {
                             payload.refresh_token
                     });
 
-            if (error) {
-                throw error;
-            }
+            authMfaLoginInProgress = false;
+            if (error) throw error;
 
-            closeAuthModal();
+            const mfaRequired = await ensureMfaVerificationIfNeeded();
+            if (!mfaRequired) closeAuthModal();
 
         }
 
 
     } catch (error) {
+        authMfaLoginInProgress = false;
 
         console.error(
             "Worth It email authentication error:",
