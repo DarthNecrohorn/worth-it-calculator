@@ -63,8 +63,10 @@ function syncChatUrlForConversation(type, id, person, inviteToken) {
         const token = String(inviteToken || chatConversations.find(item => item.id === id)?.invite_token || "");
         if (/^[0-9a-f]{64}$/.test(token)) path = "/chat/group/" + token;
     }
-    if (!isChatRoutePath(window.location.pathname)) chatReturnPath = currentBrowserLocation() || "/";
-    setChatBrowserPath(path, false);
+    const alreadyOnChatRoute = isChatRoutePath(window.location.pathname);
+    if (!alreadyOnChatRoute) chatReturnPath = currentBrowserLocation() || "/";
+    // Keep a single chat history entry while still changing the URL for each conversation.
+    setChatBrowserPath(path, alreadyOnChatRoute);
 }
 function setStatus(message, isError) {
     const node = $("worthItChatStatus");
@@ -94,7 +96,8 @@ function showChatOverlay(open, options) {
     if (!overlay) return;
     const shouldOpen = Boolean(open);
     if (!shouldOpen && chatOpen && !options?.skipRouteSync && isChatRoutePath()) {
-        setChatBrowserPath(chatReturnPath || "/", false);
+        // Closing the chat should not make Back reopen it as a duplicate history entry.
+        setChatBrowserPath(chatReturnPath || "/", true);
     }
     chatOpen = shouldOpen;
     overlay.hidden = !chatOpen;
@@ -804,7 +807,7 @@ async function createWorthItGroupChat(event) {
         await refreshWorthItChatData();
         const conversation = chatConversations.find(item => item.id === result.data.conversation_id);
         if (conversation) await openWorthItSavedConversation(conversation);
-        else await activateConversation(result.data.conversation_id,"group",title,null);
+        else await activateConversation(result.data.conversation_id,"group",title,null,result.data.invite_token || "");
         setStatus("Group chat created.",false);
     } catch (error) {
         setGroupStatus(rpcError(error),true);
@@ -881,6 +884,7 @@ async function handleWorthItGroupInviteRoute(token, routeVersion) {
             const conversation = chatConversations.find(item => item.id === activeGroupInvitePreview.conversation_id);
             if (conversation) {
                 closeWorthItGroupInviteDialog();
+                startWorthItChatPolling();
                 await openWorthItSavedConversation(conversation);
                 return;
             }
@@ -918,6 +922,7 @@ window.acceptWorthItGroupInvite = async function () {
         }
         const token = activeGroupInviteToken;
         closeWorthItGroupInviteDialog();
+        startWorthItChatPolling();
         await refreshWorthItChatData();
         const conversation = chatConversations.find(item => item.id === result.data.conversation_id);
         if (conversation) await openWorthItSavedConversation(conversation);
@@ -974,7 +979,6 @@ async function routeWorthItChatFromLocation() {
         chatMessages = [];
         renderMessages();
         if (chatPollTimer) { window.clearInterval(chatPollTimer); chatPollTimer = null; }
-        startWorthItChatPolling();
         await handleWorthItGroupInviteRoute(route.token, routeVersion);
         return;
     }
