@@ -18,6 +18,7 @@ let chatLoading = false;
 let chatSending = false;
 let chatLastSentAt = 0;
 let chatCooldownTimer = null;
+let chatStatusTimer = null;
 let chatPollTimer = null;
 let chatRefreshToken = 0;
 let pendingMediaFile = null;
@@ -30,6 +31,16 @@ function setStatus(message, isError) {
     if (!node) return;
     node.textContent = message || "";
     node.classList.toggle("is-error", Boolean(message && isError));
+}
+function showTemporaryChatWarning(message, duration) {
+    const node = $("worthItChatStatus");
+    if (!node) return;
+    if (chatStatusTimer) window.clearTimeout(chatStatusTimer);
+    setStatus(message, true);
+    chatStatusTimer = window.setTimeout(() => {
+        if (node.textContent === message) setStatus("", false);
+        chatStatusTimer = null;
+    }, Math.max(1500, Number(duration) || 4500));
 }
 function setGroupStatus(message, isError) {
     const node = $("worthItChatGroupStatus");
@@ -443,9 +454,9 @@ async function sendWorthItChatMessage() {
                 const wait = Math.max(0.1, Number(result.data.retry_after_ms || 2000) / 1000);
                 setStatus("Please wait " + wait.toFixed(1) + " seconds before sending another message.", true);
             } else if (result.data?.code === "SPAM_DUPLICATE") {
-                setStatus("Message blocked — please don't repeat the same message in Global Chat.", true);
+                showTemporaryChatWarning("Message blocked — please don't repeat the same message in Global Chat.");
             } else if (result.data?.code === "SPAM_PROMOTION") {
-                setStatus("Message blocked — unsolicited self-promotion isn't allowed in Global Chat.", true);
+                showTemporaryChatWarning("Message blocked — unsolicited self-promotion isn't allowed in Global Chat.");
             } else if (result.data?.code === "MESSAGE_TOO_LONG") setStatus("Messages are limited to 500 characters.", true);
             else if (result.data?.code === "FRIENDS_ONLY") setStatus("Private chats are only available between friends.", true);
             else setStatus(result.data?.code || "Message could not be sent.", true);
