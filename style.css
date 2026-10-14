@@ -19296,4 +19296,4 @@ html[data-theme="light"] .worth-it-chat-notification-btn.is-muted{
 }
 
 .worth-it-chat-global-count[hidden]{display:none!important}
-.worth-it-chat-global-row>.worth-it-chat-side-item .worth-it-chat-global-count{margin-left:auto;flex:0 0 auto}
+.worth-it-chat-global-row>.worth-it-chat-side-item>.worth-it-chat-global-count{margin-left:auto;flex:0 0 auto}
