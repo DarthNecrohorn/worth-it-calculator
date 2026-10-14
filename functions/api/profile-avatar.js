@@ -61,7 +61,11 @@ async function readProfile(config, userId) {
     const url = config.supabaseUrl + "/rest/v1/worth_it_profiles?user_id=eq." +
         encodeURIComponent(userId) + "&select=user_id,avatar_url,avatar_is_custom,avatar_last_attempt_at,avatar_changed_at,banner_url,banner_last_attempt_at,banner_changed_at,worth_it_id";
     const response = await fetch(url, { headers: serviceHeaders(config, { "Accept": "application/json" }) });
-    if (!response.ok) throw new Error("Could not read the profile.");
+    if (!response.ok) {
+        const details = await response.text().catch(() => "");
+        console.error("Profile asset profile read failed:", response.status, details.slice(0, 500));
+        throw new Error("Could not read the profile (Supabase HTTP " + response.status + ").");
+    }
     const rows = await response.json();
     return Array.isArray(rows) ? rows[0] || null : null;
 }
