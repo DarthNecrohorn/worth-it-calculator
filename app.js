@@ -2770,6 +2770,7 @@ function showHome() {
     const weatherSection = document.getElementById("weatherSection");
     const newsSection = document.getElementById("newsSection");
     const settingsPanel = document.getElementById("settingsPanel");
+    const settingsPage = document.getElementById("settingsPage");
 
     const discountsSection =
         document.getElementById("discountsSection");
@@ -2800,6 +2801,10 @@ function showHome() {
 
     if (settingsPanel) {
         settingsPanel.style.display = "none";
+    }
+
+    if (settingsPage) {
+        settingsPage.style.display = "none";
     }
 
     if (discountsSection) {
