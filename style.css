@@ -18047,7 +18047,7 @@ html[data-theme="light"] .shop-partner-detail-item{
 .worth-it-profile-id-row>div{display:flex;flex-direction:column;gap:5px}
 .worth-it-profile-id-row strong{font-size:23px;font-weight:900;font-variant-numeric:tabular-nums}
 .worth-it-profile-id-note{font-size:12px;color:var(--muted);text-align:right}
-.worth-it-profile-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-bottom:22px}
+.worth-it-profile-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:22px;margin-bottom:22px}
 .worth-it-profile-stat{padding:16px 10px;border:1px solid var(--border);border-radius:15px;background:var(--surface-soft);text-align:center;min-width:0}
 .worth-it-profile-stat strong{display:block;font-size:25px;font-weight:900;font-variant-numeric:tabular-nums}
 .worth-it-profile-stat span{display:block;margin-top:4px;color:var(--muted);font-size:12px}
@@ -18055,6 +18055,7 @@ html[data-theme="light"] .shop-partner-detail-item{
 .worth-it-profile-status.is-error{border-color:rgba(239,68,68,.28);color:var(--danger)}
 .worth-it-profile-share{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:15px;border:1px solid var(--border);border-radius:15px;background:var(--surface-soft)}
 .worth-it-profile-share-copy{min-width:0;display:flex;flex-direction:column;gap:6px}
+.worth-it-profile-share-copy .worth-it-profile-overline{color:var(--text);font-weight:900}
 .worth-it-profile-share-copy a{color:var(--text);font-size:13px;overflow-wrap:anywhere;text-decoration:none}
 .worth-it-profile-share-copy a:hover{text-decoration:underline}
 .worth-it-profile-copy{flex:0 0 auto;white-space:nowrap}
