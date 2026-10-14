@@ -11,9 +11,13 @@ let activeConversationId = GLOBAL_CHAT_ID;
 let activeConversationType = "global";
 let activeConversationTitle = GLOBAL_TITLE;
 let activeConversationPerson = null;
+let activeConversationInviteToken = "";
+let activeGroupInviteToken = "";
+let activeGroupInvitePreview = null;
+let chatReturnPath = "/";
+let chatRouteVersion = 0;
 let chatMessages = [];
 let chatOpen = false;
-let chatFullscreen = false;
 let chatLoading = false;
 let chatSending = false;
 let chatLastSentAt = 0;
@@ -30,6 +34,37 @@ const selectedGroupFriendIds = new Set();
 let groupCreateInProgress = false;
 const sb = () => window.supabaseClient || null;
 const escapeText = (value) => String(value == null ? "" : value);
+function currentBrowserLocation() {
+    return window.location.pathname + window.location.search + window.location.hash;
+}
+function isChatRoutePath(path) {
+    return /^\/chat(?:\/|$)/.test(path || window.location.pathname);
+}
+function parseWorthItChatRoute() {
+    const path = window.location.pathname.replace(/\/+$/, "") || "/";
+    if (path === "/chat" || path === "/chat/global") return {type:"global"};
+    let match = path.match(/^\/chat\/direct\/([1-9][0-9]{0,17})$/);
+    if (match) return {type:"direct", worthItId:Number(match[1])};
+    match = path.match(/^\/chat\/group\/([0-9a-fA-F]{64})$/);
+    if (match) return {type:"group", token:match[1].toLowerCase()};
+    return isChatRoutePath(path) ? {type:"invalid"} : null;
+}
+function setChatBrowserPath(path, replace) {
+    const target = path || "/";
+    if (currentBrowserLocation() === target) return;
+    window.history[replace ? "replaceState" : "pushState"]({worthItChat:true}, "", target);
+}
+function syncChatUrlForConversation(type, id, person, inviteToken) {
+    let path = "/chat";
+    if (type === "direct" && Number.isSafeInteger(Number(person?.worth_it_id)) && Number(person.worth_it_id) > 0) {
+        path = "/chat/direct/" + String(person.worth_it_id);
+    } else if (type === "group") {
+        const token = String(inviteToken || chatConversations.find(item => item.id === id)?.invite_token || "");
+        if (/^[0-9a-f]{64}$/.test(token)) path = "/chat/group/" + token;
+    }
+    if (!isChatRoutePath(window.location.pathname)) chatReturnPath = currentBrowserLocation() || "/";
+    setChatBrowserPath(path, false);
+}
 function setStatus(message, isError) {
     const node = $("worthItChatStatus");
     if (!node) return;
@@ -52,21 +87,27 @@ function setGroupStatus(message, isError) {
     node.textContent = message || "";
     node.classList.toggle("is-error", Boolean(message && isError));
 }
-function showChatOverlay(open) {
+function showChatOverlay(open, options) {
     const overlay = $("worthItChatOverlay");
     const button = $("worthItChatNavBtn");
     if (!overlay) return;
-    chatOpen = Boolean(open);
+    const shouldOpen = Boolean(open);
+    if (!shouldOpen && chatOpen && !options?.skipRouteSync && isChatRoutePath()) {
+        setChatBrowserPath(chatReturnPath || "/", false);
+    }
+    chatOpen = shouldOpen;
     overlay.hidden = !chatOpen;
     overlay.setAttribute("aria-hidden", String(!chatOpen));
     button?.setAttribute("aria-expanded", String(chatOpen));
     if (chatOpen) {
         document.body.classList.add("worth-it-chat-open");
-        if (window.matchMedia("(max-width: 540px)").matches) $("worthItChatWindow")?.classList.add("is-mobile-sidebar");
+        // On phones, open the conversation immediately; the list remains one tap away.
+        $("worthItChatWindow")?.classList.remove("is-mobile-sidebar");
     } else {
         document.body.classList.remove("worth-it-chat-open");
         $("worthItChatWindow")?.classList.remove("is-mobile-sidebar");
         closeWorthItGroupChatDialog();
+        closeWorthItGroupInviteDialog();
         if (chatPollTimer) window.clearInterval(chatPollTimer);
         chatPollTimer = null;
     }
@@ -87,13 +128,16 @@ function setAuthState(user) {
         chatMessages = [];
         pendingMediaFile = null;
         pendingMediaUrl = "";
-        showChatOverlay(false);
+        if (parseWorthItChatRoute()) showChatOverlay(true, {skipRouteSync:true});
+        else showChatOverlay(false, {skipRouteSync:true});
         renderFriends();
         renderConversations();
         renderMessages();
         updateUnreadBadge();
+        if (parseWorthItChatRoute()) routeWorthItChatFromLocation();
     } else {
         refreshWorthItChatData();
+        if (parseWorthItChatRoute()) routeWorthItChatFromLocation();
     }
 }
 function initials(person) {
@@ -264,6 +308,14 @@ function updateChatHeaderNotificationButton() {
     if (icon) icon.textContent = enabled ? "🔔" : "🔕";
     if (label) label.textContent = labelText;
 }
+function updateChatHeaderShareButton() {
+    const button = $("worthItChatShareInviteBtn");
+    if (!button) return;
+    const available = Boolean(chatUser && activeConversationType === "group" && /^[0-9a-f]{64}$/.test(activeConversationInviteToken));
+    button.hidden = !available;
+    button.title = "Copy group invite link";
+    button.setAttribute("aria-label", "Copy group invite link");
+}
 async function toggleWorthItChatNotifications(chatKey, button) {
     if (!chatUser || !chatKey || button?.disabled) return;
     const client = sb();
@@ -380,7 +432,12 @@ function renderMessages(scrollToBottom) {
         const icon = document.createElement("span"); icon.textContent = "✦";
         const title = document.createElement("strong"); title.textContent = "Sign in to use chat";
         const p = document.createElement("p"); p.textContent = "Messages, friend chats and Global Chat are available to Worth It members.";
-        empty.append(icon,title,p); host.appendChild(empty); return;
+        const signIn = document.createElement("button");
+        signIn.type = "button";
+        signIn.className = "worth-it-chat-signin-btn";
+        signIn.textContent = "Sign in / Create account";
+        signIn.addEventListener("click", () => { if (typeof window.handleAuthButton === "function") window.handleAuthButton(); });
+        empty.append(icon,title,p,signIn); host.appendChild(empty); return;
     }
     if (!chatMessages.length) {
         const empty = document.createElement("div"); empty.className = "worth-it-chat-empty";
@@ -441,17 +498,20 @@ async function loadWorthItChatMessages(scrollToBottom) {
     renderFriends();
     renderConversations();
 }
-async function activateConversation(id, type, title, person) {
+async function activateConversation(id, type, title, person, inviteToken) {
     activeConversationId = id || null;
     activeConversationType = type || "global";
     activeConversationTitle = title || GLOBAL_TITLE;
     activeConversationPerson = person || null;
+    activeConversationInviteToken = String(inviteToken || chatConversations.find(item => item.id === activeConversationId)?.invite_token || "");
+    syncChatUrlForConversation(activeConversationType, activeConversationId, activeConversationPerson, activeConversationInviteToken);
     if (window.matchMedia("(max-width: 540px)").matches) $("worthItChatWindow")?.classList.remove("is-mobile-sidebar");
     document.querySelectorAll(".worth-it-chat-side-item").forEach(node => node.classList.toggle("is-active", node.id === "worthItGlobalChatBtn" && activeConversationType === "global"));
     renderFriends(); renderConversations();
     const subtitle = activeConversationType === "global" ? "A shared space for the Worth It community" : activeConversationType === "group" ? "Group conversation · " + (chatConversations.find(c => c.id === id)?.members?.length || 2) + " members" : "Private conversation with your friend";
     setHeader(activeConversationTitle, subtitle, activeConversationPerson);
     updateChatHeaderNotificationButton();
+    updateChatHeaderShareButton();
     setStatus("", false);
     chatMessages = [];
     renderMessages();
@@ -459,7 +519,7 @@ async function activateConversation(id, type, title, person) {
 }
 window.showWorthItChatSidebar = function () { if (window.matchMedia("(max-width: 540px)").matches) $("worthItChatWindow")?.classList.add("is-mobile-sidebar"); };
 window.openWorthItGlobalChat = async function () {
-    if (!chatUser) return;
+    if (!chatUser) { renderMessages(); return; }
     await activateConversation(null, "global", GLOBAL_TITLE, null);
 };
 window.openWorthItFriendChat = async function (worthItId) {
@@ -478,37 +538,43 @@ window.openWorthItFriendChat = async function (worthItId) {
 };
 async function openWorthItSavedConversation(conversation) {
     const members = Array.isArray(conversation.members) ? conversation.members : [];
-    await activateConversation(conversation.id, conversation.type, conversationLabel(conversation), members[0] || null);
+    await activateConversation(conversation.id, conversation.type, conversationLabel(conversation), members[0] || null, conversation.invite_token || "");
+}
+function startWorthItChatPolling() {
+    if (!chatUser) return;
+    if (chatPollTimer) window.clearInterval(chatPollTimer);
+    chatPollTimer = window.setInterval(() => {
+        if (chatOpen && chatUser) {
+            loadWorthItChatMessages(false);
+            refreshWorthItChatData();
+        }
+    }, 5000);
 }
 window.toggleWorthItChat = async function (event) {
     event?.stopPropagation?.();
+    if (chatOpen) {
+        showChatOverlay(false);
+        return;
+    }
     if (!chatUser) {
         if (typeof window.handleAuthButton === "function") window.handleAuthButton();
         return;
     }
-    showChatOverlay(!chatOpen);
-    if (chatOpen) {
-        await refreshWorthItChatData();
-        await window.openWorthItGlobalChat();
-        if (chatPollTimer) window.clearInterval(chatPollTimer);
-        chatPollTimer = window.setInterval(() => {
-            if (chatOpen && chatUser) {
-                loadWorthItChatMessages(false);
-                refreshWorthItChatData();
-            }
-        }, 5000);
-        $("worthItChatInput")?.focus();
-    }
+    if (!isChatRoutePath()) chatReturnPath = currentBrowserLocation() || "/";
+    setChatBrowserPath("/chat", false);
+    showChatOverlay(true, {skipRouteSync:true});
+    await routeWorthItChatFromLocation();
+    $("worthItChatInput")?.focus();
 };
-window.toggleWorthItChatFullscreen = function () {
-    chatFullscreen = !chatFullscreen;
-    $("worthItChatWindow")?.classList.toggle("is-fullscreen", chatFullscreen);
-    $("worthItChatOverlay")?.classList.toggle("is-fullscreen", chatFullscreen);
-    const button = $("worthItChatFullscreenBtn");
-    if (button) {
-        button.textContent = chatFullscreen ? "⛶" : "⛶";
-        button.title = chatFullscreen ? "Exit full screen" : "Open full screen";
-        button.setAttribute("aria-label", button.title);
+window.shareWorthItGroupInvite = async function () {
+    const token = activeConversationInviteToken;
+    if (!chatUser || activeConversationType !== "group" || !/^[0-9a-f]{64}$/.test(token)) return;
+    const inviteUrl = window.location.origin + "/chat/group/" + token;
+    try {
+        await navigator.clipboard.writeText(inviteUrl);
+        setStatus("Group invite link copied. Share it with the people you'd like to invite.", false);
+    } catch (_) {
+        window.prompt("Copy this group invite link:", inviteUrl);
     }
 };
 function updateCharacterCount() {
