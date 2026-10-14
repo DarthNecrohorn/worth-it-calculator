@@ -23,13 +23,26 @@ function getWorthItPresenceInfo(person){
  else{const days=Math.floor(minutes/1440);relative=days+" "+(days===1?"day":"days");}
  return{online:false,label:"Last seen "+relative+" ago",lastSeenAt:raw};
 }
+function getShortWorthItPresenceLabel(info){
+ if(info?.online)return "Online";
+ const raw=info?.lastSeenAt,stamp=raw?new Date(raw).getTime():NaN;
+ if(!Number.isFinite(stamp))return "Offline";
+ const delta=Math.max(0,Date.now()-stamp),minutes=Math.max(1,Math.floor(delta/60000));
+ let relative;
+ if(minutes<60)relative=minutes+"m ago";
+ else if(minutes<1440)relative=Math.floor(minutes/60)+"h ago";
+ else if(minutes<10080)relative=Math.floor(minutes/1440)+"d ago";
+ else if(minutes<525600)relative=Math.floor(minutes/10080)+"w ago";
+ else relative=Math.floor(minutes/525600)+"y ago";
+ return "Last seen "+relative;
+}
 function updateWorthItPresenceNode(node,lastSeenAt){
  if(!node)return;const info=getWorthItPresenceInfo({worth_it_id:node.dataset.worthItPresenceId,last_seen_at:lastSeenAt||null});
  node.classList.toggle("is-online",info.online);node.classList.toggle("is-offline",!info.online);node.dataset.lastSeenAt=lastSeenAt||"";
  const presenceLabel=info.online?"Online":"Offline";
  if(node.classList.contains("worth-it-presence-indicator")){node.dataset.presenceStatus=presenceLabel;node.title=presenceLabel;node.setAttribute("aria-label",presenceLabel);const tooltip=node._worthItPresenceTooltip||node.querySelector(".worth-it-presence-tooltip");if(tooltip)tooltip.textContent=presenceLabel;}
  else{node.title=info.label;node.setAttribute("aria-label",info.label);}
- if(node.classList.contains("worth-it-profile-presence-text")){const dot=node.querySelector(".worth-it-presence-status-dot"),label=node.querySelector(".worth-it-presence-label");if(dot){dot.classList.toggle("is-online",info.online);dot.classList.toggle("is-offline",!info.online);}if(label)label.textContent=info.label;}
+ if(node.classList.contains("worth-it-profile-presence-text")){const dot=node.querySelector(".worth-it-presence-status-dot"),label=node.querySelector(".worth-it-presence-label");if(dot){dot.classList.toggle("is-online",info.online);dot.classList.toggle("is-offline",!info.online);}if(label)label.textContent=getShortWorthItPresenceLabel(info);}
  if(node.classList.contains("worth-it-person-presence-label")||node.classList.contains("worth-it-chat-person-presence")||node.classList.contains("worth-it-user-search-presence"))node.textContent=info.label;
 }
 function appendWorthItPresenceIndicator(host,person){
@@ -135,7 +148,7 @@ async function getOwnProfileRow(user,force){
  if(!force&&currentOwnProfile?.userId===user.id)return currentOwnProfile.profile;
  if(!force&&currentOwnProfileRequest?.userId===user.id)return currentOwnProfileRequest.promise;
  const sb=client();if(!sb)throw new Error("Auth not ready");
- const promise=(async()=>{const r=await sb.from("worth_it_profiles").select("worth_it_id,username,display_name,avatar_url,banner_url,created_at").eq("user_id",user.id).maybeSingle();if(r.error)throw r.error;if(!r.data)throw new Error("Worth It ID has not been assigned");currentUser=user;currentOwnProfile={userId:user.id,profile:r.data};syncHeaderAvatar(r.data);touchWorthItPresence(true);return r.data;})();
+ const promise=(async()=>{const r=await sb.from("worth_it_profiles").select("worth_it_id,username,display_name,avatar_url,banner_url,created_at,last_seen_at").eq("user_id",user.id).maybeSingle();if(r.error)throw r.error;if(!r.data)throw new Error("Worth It ID has not been assigned");currentUser=user;currentOwnProfile={userId:user.id,profile:r.data};syncHeaderAvatar(r.data);touchWorthItPresence(true);return r.data;})();
  currentOwnProfileRequest={userId:user.id,promise};
  try{return await promise;}finally{if(currentOwnProfileRequest?.promise===promise)currentOwnProfileRequest=null;}
 }
@@ -901,7 +914,7 @@ window.openWorthItProfile=async function(idValue,options){
  const requestId=++activeProfileRequest;
  try{
   const sb=client();if(!sb)throw new Error("Supabase not ready");
-  const [publicResult,user,descriptionResult]=await Promise.all([sb.from("worth_it_public_profiles").select("worth_it_id,username,display_name,avatar_url,banner_url,created_at").eq("worth_it_id",id).maybeSingle(),getCurrentUser().catch(()=>null),Promise.resolve(sb.from("worth_it_public_profiles").select("description").eq("worth_it_id",id).maybeSingle()).catch(()=>({data:null,error:true}))]);
+  const [publicResult,user,descriptionResult]=await Promise.all([sb.from("worth_it_public_profiles").select("worth_it_id,username,display_name,avatar_url,banner_url,created_at,last_seen_at").eq("worth_it_id",id).maybeSingle(),getCurrentUser().catch(()=>null),Promise.resolve(sb.from("worth_it_public_profiles").select("description").eq("worth_it_id",id).maybeSingle()).catch(()=>({data:null,error:true}))]);
   if(requestId!==activeProfileRequest)return;if(publicResult.error)throw publicResult.error;if(!publicResult.data){renderError("This Worth It profile could not be found.");return;}
   publicResult.data.description=descriptionResult&&!descriptionResult.error?String(descriptionResult.data?.description||""):"";
    currentUser=user||null;let own=null;if(currentUser){try{own=await getOwnProfileRow(currentUser,false);}catch(_){own=null;}}
