@@ -306,7 +306,6 @@ async function toggleWorthItChatNotifications(chatKey, button) {
         renderConversations();
         updateGlobalChatNotificationButton();
         updateUnreadBadge();
-        setStatus(nextEnabled ? "Notifications turned on for this chat." : "Notifications turned off for this chat.", false);
     } catch (error) {
         setStatus(rpcError(error), true);
     } finally {
