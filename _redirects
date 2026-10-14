@@ -42,3 +42,6 @@
 /ship-tracking /index.html 200
 /calculators /index.html 200
 /faq /index.html 200
+
+# Public shareable user profile URLs.
+/profile/* /index.html 200

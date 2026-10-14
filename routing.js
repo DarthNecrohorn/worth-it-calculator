@@ -79,6 +79,9 @@
 
         originalFunctions[name] = original;
         window[name] = function () {
+            if (name !== "openWorthItProfile" && typeof window.hideWorthItProfileSection === "function") {
+                window.hideWorthItProfileSection();
+            }
             if (!applyingRoute) {
                 const path = typeof getPath === "function"
                     ? getPath.apply(this, arguments)
@@ -90,6 +93,10 @@
     }
 
     patchRouteFunction("showHome", "/");
+    patchRouteFunction("openWorthItProfile", function (worthItId) {
+        const id = Number(worthItId);
+        return Number.isSafeInteger(id) && id > 0 ? "/profile/" + id : null;
+    });
     patchRouteFunction("openCalculator", function (type) {
         return pathForCalculator(type);
     });
@@ -128,6 +135,13 @@
         if (path === "/calculators") return { kind: "anchor", target: "calculators" };
         if (path === "/faq") return { kind: "anchor", target: "faq" };
 
+        const profileMatch = path.match(/^\/profile\/(\d+)$/);
+        if (profileMatch) {
+            const id = Number(profileMatch[1]);
+            if (Number.isSafeInteger(id) && id > 0) return { kind: "profile", id: id };
+            return null;
+        }
+
         const calculatorMatch = path.match(/^\/calculator\/(\d+)$/);
         if (calculatorMatch) {
             const id = Number(calculatorMatch[1]);
@@ -162,6 +176,9 @@
 
         applyingRoute = true;
         try {
+            if (route.kind !== "profile" && typeof window.hideWorthItProfileSection === "function") {
+                window.hideWorthItProfileSection();
+            }
             if (route.kind === "home") {
                 if (!(options && options.initial)) {
                     const showHome = originalFunctions.showHome || window.showHome;
@@ -184,6 +201,11 @@
             if (route.kind === "section") {
                 const fn = originalFunctions[route.functionName] || window[route.functionName];
                 if (typeof fn === "function") fn.call(window);
+                return;
+            }
+            if (route.kind === "profile") {
+                const fn = originalFunctions.openWorthItProfile || window.openWorthItProfile;
+                if (typeof fn === "function") fn.call(window, route.id, { fromUrl: true });
             }
         } finally {
             applyingRoute = false;
