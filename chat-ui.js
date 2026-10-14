@@ -24,6 +24,8 @@ let chatRefreshToken = 0;
 let pendingMediaFile = null;
 let pendingMediaUrl = "";
 let pendingMediaType = "";
+const selectedGroupFriendIds = new Set();
+let groupCreateInProgress = false;
 const sb = () => window.supabaseClient || null;
 const escapeText = (value) => String(value == null ? "" : value);
 function setStatus(message, isError) {
@@ -479,62 +481,123 @@ async function sendWorthItChatMessage() {
 window.sendWorthItChatMessage = sendWorthItChatMessage;
 window.openWorthItGroupChatDialog = function () {
     if (!chatUser) return;
-    renderGroupFriendChoices();
     $("worthItChatGroupName").value = "";
     if ($("worthItChatGroupSearch")) $("worthItChatGroupSearch").value = "";
+    selectedGroupFriendIds.clear();
+    groupCreateInProgress = false;
+    renderGroupFriendChoices();
     setGroupStatus("", false);
+    updateGroupSelectionUI();
     const dialog = $("worthItChatGroupDialog");
     // Keep the fixed group-dialog backdrop attached to the document viewport, not any transformed chat container.
     if (dialog && dialog.parentElement !== document.body) document.body.appendChild(dialog);
     dialog.hidden = false; dialog.setAttribute("aria-hidden","false");
 };
-window.closeWorthItGroupChatDialog = function () {
-    const dialog = $("worthItChatGroupDialog");
-    if (dialog) { dialog.hidden = true; dialog.setAttribute("aria-hidden","true"); }
-};
+function renderGroupFriendChoices() {
+    const host = $("worthItChatGroupFriends");
+ function updateGroupSelectionUI() {
+    const countNode = $("worthItChatGroupSelectionCount");
+    const helpNode = $("worthItChatGroupSelectionHelp");
+    const title = String($("worthItChatGroupName")?.value || "").trim();
+    const count = selectedGroupFriendIds.size;
+    const validCount = count >= 2 && count <= 49;
+    const validTitle = Boolean(title) && title.length <= 60;
+
+    if (countNode) {
+        countNode.textContent = count + (count === 1 ? " friend selected" : " friends selected");
+        countNode.classList.toggle("is-ready", validCount);
+        countNode.classList.toggle("is-over-limit", count > 49);
+    }
+    if (helpNode) {
+        let message = "";
+        if (count > 49) message = "Maximum 49 friends plus you. Remove a selection to continue.";
+        else if (count < 2) message = "Choose " + (2 - count) + " more friend" + (2 - count === 1 ? "" : "s") + " to continue.";
+        else if (!validTitle) message = "Add a group name to continue.";
+        else message = "Everything is ready — create your group.";
+        helpNode.textContent = message;
+    }
+
+    const submit = $("worthItChatGroupForm")?.querySelector('button[type="submit"]');
+    if (submit) submit.disabled = groupCreateInProgress || !validTitle || !validCount;
+}
 function renderGroupFriendChoices() {
     const host = $("worthItChatGroupFriends");
     if (!host) return;
     host.replaceChildren();
     if (!chatFriends.length) {
-        const p = document.createElement("p"); p.className = "worth-it-chat-muted"; p.textContent = "Add at least two friends before creating a group."; host.appendChild(p); return;
+        const p = document.createElement("p");
+        p.className = "worth-it-chat-muted";
+        p.textContent = "Add at least two friends before creating a group.";
+        host.appendChild(p);
+        updateGroupSelectionUI();
+        return;
     }
+
     const search = String($("worthItChatGroupSearch")?.value || "").trim().toLocaleLowerCase();
     let visibleCount = 0;
     chatFriends.forEach(friend => {
-        const usernameText = escapeText(friend.username);
-        const displayNameText = escapeText(friend.display_name);
+        const usernameText = String(friend.username || "");
+        const displayNameText = String(friend.display_name || "");
         const matches = !search || usernameText.toLocaleLowerCase().includes(search) || displayNameText.toLocaleLowerCase().includes(search);
         if (matches) visibleCount++;
-        const label = document.createElement("label"); label.className = "worth-it-chat-group-friend-option";
+
+        const friendId = String(friend.worth_it_id);
+        const label = document.createElement("label");
+        label.className = "worth-it-chat-group-friend-option";
         label.hidden = !matches;
-        const checkbox = document.createElement("input"); checkbox.type = "checkbox"; checkbox.value = String(friend.worth_it_id);
-        const details = document.createElement("span"); details.className = "worth-it-chat-group-friend-details";
-        const name = document.createElement("strong"); name.textContent = friend.display_name || friend.username || "Worth It member";
+
+        const checkbox = document.createElement("input");
+        checkbox.type = "checkbox";
+        checkbox.value = friendId;
+        checkbox.checked = selectedGroupFriendIds.has(friendId);
+
+        const details = document.createElement("span");
+        details.className = "worth-it-chat-group-friend-details";
+        const name = document.createElement("strong");
+        name.textContent = friend.display_name || friend.username || "Worth It member";
         details.appendChild(name);
         if (friend.username) {
-            const username = document.createElement("small"); username.textContent = "@" + String(friend.username).replace(/^@/, "");
+            const username = document.createElement("small");
+            username.textContent = "@" + String(friend.username).replace(/^@/, "");
             details.appendChild(username);
         }
-        label.append(checkbox, makeAvatar(friend), details); host.appendChild(label);
+
+        label.classList.toggle("is-selected", checkbox.checked);
+        checkbox.addEventListener("change", () => {
+            if (checkbox.checked) selectedGroupFriendIds.add(friendId);
+            else selectedGroupFriendIds.delete(friendId);
+            label.classList.toggle("is-selected", checkbox.checked);
+            setGroupStatus("", false);
+            updateGroupSelectionUI();
+        });
+
+        label.append(checkbox, makeAvatar(friend, "worth-it-chat-group-avatar"), details);
+        host.appendChild(label);
     });
+
     const empty = document.createElement("p");
     empty.className = "worth-it-chat-group-no-results";
     empty.textContent = "No friends match that name.";
     empty.hidden = visibleCount > 0;
     host.appendChild(empty);
+    updateGroupSelectionUI();
 }
+
 async function createWorthItGroupChat(event) {
     event.preventDefault();
-    if (!chatUser) return;
+    if (!chatUser || groupCreateInProgress) return;
     const title = String($("worthItChatGroupName")?.value || "").trim();
-    const ids = Array.from($("worthItChatGroupFriends")?.querySelectorAll('input[type="checkbox"]:checked') || []).map(input => Number(input.value)).filter(Number.isSafeInteger);
-    if (!title || title.length > 60) { setGroupStatus("Enter a group name up to 60 characters.", true); return; }
-    if (ids.length < 2) { setGroupStatus("Choose at least two friends for the group.", true); return; }
-    if (ids.length > 49) { setGroupStatus("A group can include up to 49 friends plus you.", true); return; }
+    const ids = Array.from(selectedGroupFriendIds).map(Number).filter(Number.isSafeInteger);
+    if (!title || title.length > 60) { setGroupStatus("Enter a group name up to 60 characters.", true); updateGroupSelectionUI(); return; }
+    if (ids.length < 2) { setGroupStatus("Choose at least two friends for the group.", true); updateGroupSelectionUI(); return; }
+    if (ids.length > 49) { setGroupStatus("A group can include up to 49 friends plus you.", true); updateGroupSelectionUI(); return; }
+
     const form = $("worthItChatGroupForm");
     const submit = form?.querySelector('button[type="submit"]');
-    if (submit) { submit.disabled = true; submit.textContent = "Creating…"; }
+    groupCreateInProgress = true;
+    if (submit) submit.innerHTML = "Creating…";
+    updateGroupSelectionUI();
+
     try {
         const result = await sb().rpc("create_worth_it_group_chat", {p_title:title,p_member_worth_it_ids:ids});
         if (result.error) throw result.error;
@@ -545,9 +608,15 @@ async function createWorthItGroupChat(event) {
         if (conversation) await openWorthItSavedConversation(conversation);
         else await activateConversation(result.data.conversation_id,"group",title,null);
         setStatus("Group chat created.",false);
-    } catch (error) { setGroupStatus(rpcError(error),true); }
-    finally { if (submit) { submit.disabled=false; submit.innerHTML="Create group <span>➤</span>"; } }
+    } catch (error) {
+        setGroupStatus(rpcError(error),true);
+    } finally {
+        groupCreateInProgress = false;
+        if (submit) submit.innerHTML = "Create group <span>➤</span>";
+        updateGroupSelectionUI();
+    }
 }
+
 function setupChatUI() {
     $("worthItChatInput")?.addEventListener("input", function () {
         updateCharacterCount();
@@ -569,6 +638,7 @@ function setupChatUI() {
     });
     $("worthItChatGroupForm")?.addEventListener("submit", createWorthItGroupChat);
     $("worthItChatGroupSearch")?.addEventListener("input", renderGroupFriendChoices);
+    $("worthItChatGroupName")?.addEventListener("input", () => { setGroupStatus("", false); updateGroupSelectionUI(); });
     $("worthItChatOverlay")?.addEventListener("click", function (event) {
         if (event.target === this) showChatOverlay(false);
     });
@@ -579,6 +649,7 @@ function setupChatUI() {
         }
     });
     updateCharacterCount();
+    updateGroupSelectionUI();
 }
 setupChatUI();
 if (sb()?.auth) {
