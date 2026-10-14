@@ -19636,3 +19636,36 @@ html[data-theme="light"] .worth-it-notification-dismiss:hover,html[data-theme="l
  .worth-it-settings-reset{align-items:stretch;flex-direction:column;gap:12px}
  .worth-it-settings-reset .settings-option{width:100%}
 }
+
+
+/* Account details inside full Settings */
+.account-settings-field{padding:18px 0;border-top:1px solid var(--border);min-width:0}
+.account-settings-field:first-of-type{border-top:0;padding-top:0}
+.account-settings-label-row{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-bottom:7px}
+.account-settings-label-row label{font-size:13px;font-weight:800;color:var(--text)}
+.account-settings-current-value{display:inline-flex;align-items:center;gap:6px;padding:5px 9px;border-radius:999px;border:1px solid var(--border);background:var(--surface-soft);color:var(--muted);font-size:11px;font-weight:700;overflow-wrap:anywhere}
+.account-settings-current-value.is-success{color:#22c55e;border-color:rgba(34,197,94,.3)}
+.account-settings-current-value.is-error{color:#f87171;border-color:rgba(248,113,113,.3)}
+.account-settings-help{font-size:12px;line-height:1.6;color:var(--muted);margin:0 0 11px}
+.account-settings-input-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:center}
+.account-settings-input-row input{width:100%;min-width:0;padding:11px 13px;border:1px solid var(--border);border-radius:12px;background:var(--surface-soft);color:var(--text);font:inherit;font-size:13px;outline:none}
+.account-settings-input-row input:focus{border-color:var(--primary);box-shadow:var(--focus-ring)}
+.account-settings-save{flex:0 0 auto;min-width:112px}
+.account-settings-save:disabled{opacity:.45;cursor:not-allowed;transform:none}
+.account-settings-status{font-size:12px;line-height:1.55;color:var(--muted);margin-top:9px;overflow-wrap:anywhere}
+.account-settings-status.is-error{color:#f87171}
+.account-settings-status.is-success{color:#22c55e}
+.account-settings-profile-link{display:flex;justify-content:space-between;align-items:center;gap:18px;border-top:1px solid var(--border);padding-top:18px;margin-top:4px}
+.account-settings-profile-link strong{font-size:13px}
+.account-settings-profile-link p{margin-top:5px;color:var(--muted);font-size:12px;line-height:1.55}
+#accountSettingsSignedOut{padding:8px 0 2px}
+#accountSettingsSignedOut strong{font-size:14px}
+#accountSettingsSignedOut p{margin:7px 0 14px;color:var(--muted);font-size:13px;line-height:1.6}
+#accountSettingsSignedOut .settings-option{flex:0 0 auto}
+@media(max-width:620px){
+ .account-settings-input-row{grid-template-columns:minmax(0,1fr)}
+ .account-settings-save{width:100%}
+ .account-settings-label-row{align-items:flex-start}
+ .account-settings-profile-link{align-items:stretch;flex-direction:column;gap:12px}
+ .account-settings-profile-link .settings-option{width:100%}
+}
