@@ -1,6 +1,19 @@
 const SITE_ORIGIN = "https://worth-it-calculator.pages.dev";
 const CHANGE_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
-const MAX_DISPLAY_NAME_LENGTH = 32;
+const MIN_DISPLAY_NAME_LENGTH = 3;
+const MAX_DISPLAY_NAME_LENGTH = 20;
+const DISPLAY_NAME_PATTERN = /^[A-Za-z0-9]+(?:_[A-Za-z0-9]+)?$/;
+const DISPLAY_NAME_BANNED_STEMS = [
+    "fuck","shit","bitch","cunt","dick","cock","pussy","whore","slut",
+    "bastard","asshole","arsehole","motherfucker","bullshit","dumbass",
+    "jackass","nigger","nigga","faggot","retard","retarded","pedo",
+    "pedophile","porn","xxx","blowjob","handjob","jizz","rape","rapist",
+    "nazi","hitler","kkk"
+];
+const RESERVED_DISPLAY_NAME_PREFIXES = [
+    "admin","administrator","moderator","mod","staff","support",
+    "official","security","owner","root","worthit"
+];
 
 function json(data, status) {
     return new Response(JSON.stringify(data), {
@@ -55,10 +68,29 @@ async function verifyUser(config, token) {
     return user && user.id ? user : null;
 }
 
-function validDisplayName(value) {
+function normalizeDisplayNameForModeration(value) {
+    return String(value || "").toLowerCase().replace(/_/g, "").replace(/[01345789]/g, character => ({
+        "0":"o","1":"i","3":"e","4":"a","5":"s","7":"t","8":"b","9":"g"
+    }[character] || character));
+}
+
+function validateDisplayName(value) {
     const name = String(value || "").trim();
     const length = Array.from(name).length;
-    return length >= 1 && length <= MAX_DISPLAY_NAME_LENGTH && !/[\x00-\x1F\x7F]/.test(name);
+    if (length < MIN_DISPLAY_NAME_LENGTH || length > MAX_DISPLAY_NAME_LENGTH || !DISPLAY_NAME_PATTERN.test(name)) {
+        return { valid: false, reason: "Display name must be 3–20 characters using only letters, numbers, and at most one underscore between them. Spaces and other symbols are not allowed." };
+    }
+    const normalized = normalizeDisplayNameForModeration(name);
+    if (DISPLAY_NAME_BANNED_STEMS.some(term => normalized.includes(term))) {
+        return { valid: false, reason: "This display name contains language that isn't allowed on Worth It." };
+    }
+    if (RESERVED_DISPLAY_NAME_PREFIXES.some(prefix => normalized === prefix || (normalized.startsWith(prefix) && /^[0-9]+$/.test(normalized.slice(prefix.length))))) {
+        return { valid: false, reason: "This display name is reserved and cannot be used." };
+    }
+    if ((name.match(/[0-9]/g) || []).length >= 7) {
+        return { valid: false, reason: "Display names cannot contain phone numbers or other long numeric identifiers." };
+    }
+    return { valid: true, reason: "" };
 }
 
 async function readProfile(config, userId) {
@@ -139,8 +171,9 @@ export async function onRequestPost(context) {
         let body;
         try { body = await request.json(); } catch (_) { return json({ success: false, error: "Invalid request body." }, 400); }
         const name = String(body?.display_name || "").trim();
-        if (!validDisplayName(name)) {
-            return json({ success: false, code: "INVALID_DISPLAY_NAME", error: "Enter a display name containing 1–32 characters. Control characters are not allowed." }, 400);
+        const validation = validateDisplayName(name);
+        if (!validation.valid) {
+            return json({ success: false, code: "INVALID_DISPLAY_NAME", error: validation.reason }, 400);
         }
         const response = await fetch(config.supabaseUrl + "/rest/v1/rpc/update_worth_it_display_name", {
             method: "POST",
