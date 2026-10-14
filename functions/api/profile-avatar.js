@@ -235,7 +235,7 @@ async function moderateAsset(config, bytes, mimeType, target, moderationSheets) 
   "REJECT racism, racial slurs, dehumanizing depictions of protected groups, hate symbols, Nazi imagery or glorification, extremist symbols, KKK or white-supremacist imagery, or content promoting discrimination or hatred.",
   "REJECT graphic gore, explicit violence, threats, or violent-extremist propaganda.",
   "Normal clothed people, pets, landscapes, abstract art, ordinary symbols, fictional characters, game/movie/cartoon characters, brand logos, and fan art may be ALLOWED when otherwise safe. Do not reject an image solely because it might be copyrighted.",
-  isGif?"The GIF was decoded on the server. The contact sheets contain every animation frame in chronological order, grouped in sets of 16. Inspect every tile. Reject if any frame contains prohibited content or any tile is unclear.":"Judge the complete still image, not just its most prominent subject.",
+  isGif?"The GIF was decoded on the server. The contact sheets contain every animation frame in chronological order, grouped in 3-by-3 sets of up to 9 frames. Inspect every tile. Reject if any frame contains prohibited content or any tile is unclear.":"Judge the complete still image, not just its most prominent subject.",
   "If content is ambiguous or cannot be assessed confidently, REJECT it rather than guessing.",
   "Return only JSON: decision must be 'allow' or 'reject'; reason must be 'none', 'nudity_or_sexual_content', 'racism_or_hate', 'nazi_or_extremism', 'graphic_violence', or 'other'. Use reason 'none' only when decision is 'allow'."
  ].join("\n");
