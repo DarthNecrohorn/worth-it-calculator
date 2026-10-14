@@ -125,7 +125,7 @@ window.triggerWorthItAvatarUpload=function(){triggerWorthItAssetUpload("avatar")
 window.triggerWorthItBannerUpload=function(){triggerWorthItAssetUpload("banner");};
 function triggerWorthItAssetUpload(target){if(!currentDisplayedProfileIsOwn||avatarOperationInProgress)return;const input=$(target==="banner"?"worthItProfileBannerInput":"worthItProfileAvatarInput");if(input)input.click();}
 async function encodeProfileImage(file,target){
- if(file.type==="image/gif"){const moderationSheets=await createGifModerationSheets(file);return{blob:file,mimeType:"image/gif",moderationSheets};}
+ if(file.type==="image/gif")return{blob:file,mimeType:"image/gif"};
  const bitmap=await createImageBitmap(file,{imageOrientation:"from-image"});
  try{
   const presets=target==="banner"?[{width:1200,height:400},{width:960,height:320},{width:720,height:240}]:[{width:512,height:512},{width:384,height:384},{width:256,height:256}];
@@ -142,39 +142,6 @@ async function encodeProfileImage(file,target){
  }finally{if(typeof bitmap.close==="function")bitmap.close();}
  throw new Error("This image couldn't be converted to a small WebP file. Please try another image.");
 }
-async function createGifModerationSheets(file){
- if(typeof ImageDecoder!=="function")throw new Error("This browser cannot safely inspect all GIF frames. Please use a browser with GIF frame decoding or choose a still image.");
- let decoder;
- try{
-  decoder=new ImageDecoder({data:await file.arrayBuffer(),type:"image/gif"});
-  await decoder.tracks.ready;
-  const track=decoder.tracks.selectedTrack,frameCount=Number(track?.frameCount)||0;
-  if(!frameCount)throw new Error("This GIF couldn't be read.");
-  if(frameCount>128)throw new Error("For safety, GIFs must contain 128 frames or fewer.");
-  const frameGroup=16,columns=4,cell=128,sheetSize=columns*cell,sheetCount=Math.ceil(frameCount/frameGroup),canvases=[],contexts=[];
-  for(let n=0;n<sheetCount;n++){const canvas=document.createElement("canvas");canvas.width=sheetSize;canvas.height=sheetSize;const ctx=canvas.getContext("2d");if(!ctx)throw new Error("This browser couldn't prepare the GIF safety check.");ctx.fillStyle="#f5f5f5";ctx.fillRect(0,0,sheetSize,sheetSize);canvases.push(canvas);contexts.push(ctx);}
-  for(let i=0;i<frameCount;i++){
-   const decoded=await decoder.decode({frameIndex:i}),frame=decoded.image;
-   try{
-    const sheetIndex=Math.floor(i/frameGroup),local=i%frameGroup,x=(local%columns)*cell,y=Math.floor(local/columns)*cell,ctx=contexts[sheetIndex];
-    ctx.fillStyle="#ffffff";ctx.fillRect(x+2,y+2,cell-4,cell-4);
-    const width=frame.displayWidth||frame.codedWidth||frame.width,height=frame.displayHeight||frame.codedHeight||frame.height;
-    if(!width||!height)throw new Error("An animation frame could not be decoded.");
-    const scale=Math.min((cell-10)/width,(cell-24)/height),w=width*scale,h=height*scale;
-    ctx.drawImage(frame,x+(cell-w)/2,y+2+(cell-22-h)/2,w,h);
-    ctx.fillStyle="#333333";ctx.font="11px sans-serif";ctx.textAlign="right";ctx.fillText(String(i+1),x+cell-7,y+cell-6);
-   }finally{if(typeof frame.close==="function")frame.close();}
-  }
-  const sheets=[];
-  for(const canvas of canvases){
-   const blob=await new Promise(resolve=>canvas.toBlob(resolve,"image/webp",0.78));
-   if(!blob||blob.type!=="image/webp"||blob.size>256*1024)throw new Error("The GIF safety preview was too large to check. Please choose a smaller GIF.");
-   sheets.push(blob);
-  }
-  return sheets;
- }catch(error){throw new Error(error?.message||"The GIF animation couldn't be checked safely.");}
- finally{try{decoder?.close();}catch(_){}}
-}
 async function sendAssetAction(action,target,payload){
  const sb=client();if(!sb?.auth)throw new Error("Sign in to change your profile picture.");
  const sessionResult=await sb.auth.getSession(),token=sessionResult.data?.session?.access_token;
@@ -183,7 +150,6 @@ async function sendAssetAction(action,target,payload){
  let body;
  if(action==="upload"&&payload.mimeType==="image/gif"){
   body=new FormData();body.append("file",payload.blob,"animation.gif");
-  payload.moderationSheets.forEach((sheet,index)=>body.append("moderation_sheet_"+index,sheet,"frames-"+index+".webp"));
  }else if(action==="upload"){
   headers["Content-Type"]="image/webp";body=payload.blob;
  }else{
