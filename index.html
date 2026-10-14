@@ -2081,6 +2081,14 @@
           <h1 id="worthItProfileName">Profile</h1>
           <p id="worthItProfileUsername" class="worth-it-profile-username"></p>
           <p id="worthItProfileEmail" class="worth-it-profile-email" hidden></p>
+          <div id="worthItProfileAvatarControls" class="worth-it-profile-avatar-controls" hidden>
+            <div class="worth-it-profile-avatar-actions">
+              <button type="button" class="worth-it-profile-avatar-action" id="worthItProfileAvatarChange" onclick="triggerWorthItAvatarUpload()">Change photo</button>
+              <button type="button" class="worth-it-profile-avatar-action worth-it-profile-avatar-remove" id="worthItProfileAvatarRemove" onclick="removeWorthItProfilePhoto()" hidden>Remove photo</button>
+              <input type="file" id="worthItProfileAvatarInput" accept="image/jpeg,image/png,image/webp" hidden>
+            </div>
+            <p class="worth-it-profile-avatar-guidance">JPG, PNG or WebP · max 8 MB. Images are checked for nudity, hate and extremist symbols before display. Fictional characters and fan art are allowed when otherwise safe; copyright rules still apply.</p>
+          </div>
         </div>
       </div>
       <div class="worth-it-profile-id-row">
