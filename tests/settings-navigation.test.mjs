@@ -48,7 +48,7 @@ test("section routing supports direct URLs and browser back/forward navigation",
     assert.match(routing, /function resolveRoute\(path\)/);
     assert.match(routing, /Object\.prototype\.hasOwnProperty\.call\(SECTION_PATHS, path\)/);
     assert.match(routing, /window\.addEventListener\("popstate"/);
-    assert.match(settings, /function openSettingsCategory\(panelId\)/);
+    assert.match(settings, /openSettingsCategory = function\(panelId\)/);
     assert.match(settings, /window\[config\.openFunction\]\(\)/);
     assert.match(html, /onclick="openFullSettings\(\)">← Back to Settings/);
     for (const path of ["/settings", ...sections.map(section => section.path)]) {
