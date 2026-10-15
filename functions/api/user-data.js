@@ -239,7 +239,7 @@ async function deleteStoredAsset(config, objectPath) {
 async function deleteFeedbackSubmissions(config, feedbackRows) {
     const ids = Array.from(new Set((Array.isArray(feedbackRows) ? feedbackRows : [])
         .map(row => String(row?.id ?? ""))
-        .filter(id => /^\\d+$/.test(id))));
+        .filter(id => /^\d+$/.test(id))));
     if (!ids.length) return;
 
     // Keep DELETE filters bounded, and use IDs captured before Auth deletion because
