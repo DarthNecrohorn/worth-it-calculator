@@ -310,9 +310,6 @@ export async function onRequestPost(context) {
         const profile = profileRows[0] || null;
         const avatarPath = getStoredAssetPath(auth.config, profile?.avatar_url, auth.user.id, "avatar");
         const bannerPath = getStoredAssetPath(auth.config, profile?.banner_url, auth.user.id, "banner");
-        await deleteStoredAsset(auth.config, avatarPath);
-        if (bannerPath && bannerPath !== avatarPath) await deleteStoredAsset(auth.config, bannerPath);
-
         const deleted = await fetch(auth.config.supabaseUrl + "/auth/v1/admin/users/" + encodeURIComponent(auth.user.id), {
             method: "DELETE",
             headers: serviceHeaders(auth.config, { Accept: "application/json" })
@@ -322,7 +319,22 @@ export async function onRequestPost(context) {
             console.error("Worth It account deletion failed:", deleted.status, detail.slice(0, 300));
             return json({ success: false, error: "Supabase could not delete this account. No success was reported; contact support or try again later." }, 502, request);
         }
-        return json({ success: true, deleted: true }, 200, request);
+        // Delete the stored public assets only after Auth confirms deletion. A rejected
+        // account deletion must not remove the profile images from an account that remains active.
+        let cleanupWarning = false;
+        try {
+            await deleteStoredAsset(auth.config, avatarPath);
+            if (bannerPath && bannerPath !== avatarPath) await deleteStoredAsset(auth.config, bannerPath);
+        } catch (cleanupError) {
+            cleanupWarning = true;
+            console.error("Worth It account was deleted but profile asset cleanup was incomplete:", cleanupError?.message || "Unknown storage cleanup error");
+        }
+        return json({
+            success: true,
+            deleted: true,
+            cleanup_warning: cleanupWarning,
+            warning: cleanupWarning ? "Your account was deleted, but a profile image could not be fully cleaned up. Contact Worth It support." : null
+        }, 200, request);
     } catch (error) {
         console.error("Worth It account deletion/data action failed:", error?.message || "Unknown error");
         return json({ success: false, error: error?.message || "The account data request could not be completed." }, 500, request);
