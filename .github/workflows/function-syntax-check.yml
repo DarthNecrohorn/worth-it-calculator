@@ -93,3 +93,42 @@ jobs:
               raise SystemExit("Expected the migration to be wrapped in BEGIN/COMMIT.")
           print(f"Checked SQL dollar-quote delimiters in {path}: {openers} paired blocks.")
           PY
+
+  migration-postgres:
+    name: Execute and smoke-test Settings migration in disposable PostgreSQL
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Install PostgreSQL client
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes postgresql-client
+
+      - name: Create isolated baseline schema fixture
+        env:
+          TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/postgres
+        run: psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -f tests/fixtures/settings-migration-postgres-setup.sql
+
+      - name: Execute the Settings migration against PostgreSQL
+        env:
+          TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/postgres
+        run: psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/worth-it-settings-privacy-notifications.sql
+
+      - name: Smoke-test privacy, notifications, chat presence and RPC permissions
+        env:
+          TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/postgres
+        run: psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -f tests/fixtures/settings-migration-postgres-smoke.sql
