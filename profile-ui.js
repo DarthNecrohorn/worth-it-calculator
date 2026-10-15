@@ -152,7 +152,7 @@ async function getOwnProfileRow(user,force){
  if(!force&&currentOwnProfile?.userId===user.id)return currentOwnProfile.profile;
  if(!force&&currentOwnProfileRequest?.userId===user.id)return currentOwnProfileRequest.promise;
  const sb=client();if(!sb)throw new Error("Auth not ready");
- const promise=(async()=>{const r=await sb.from("worth_it_profiles").select("worth_it_id,username,display_name,avatar_url,banner_url,created_at,last_seen_at").eq("user_id",user.id).maybeSingle();if(r.error)throw r.error;if(!r.data)throw new Error("Worth It ID has not been assigned");currentUser=user;currentOwnProfile={userId:user.id,profile:r.data};syncHeaderAvatar(r.data);touchWorthItPresence(true);return r.data;})();
+ const promise=(async()=>{const r=await sb.rpc("get_worth_it_own_profile");if(r.error)throw r.error;const profile=Array.isArray(r.data)?r.data[0]:r.data;if(!profile||!profile.worth_it_id)throw new Error("Worth It ID has not been assigned");currentUser=user;currentOwnProfile={userId:user.id,profile};syncHeaderAvatar(profile);touchWorthItPresence(true);return profile;})();
  currentOwnProfileRequest={userId:user.id,promise};
  try{return await promise;}finally{if(currentOwnProfileRequest?.promise===promise)currentOwnProfileRequest=null;}
 }
