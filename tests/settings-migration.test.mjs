@@ -75,6 +75,24 @@ test("chat friend lists, conversation member lists, and messages all respect hid
     }
 });
 
+test("private and friends-only profiles cannot be followed or receive new friend requests from hidden viewers", () => {
+    const friendRequest = section(
+        "create or replace function public.send_worth_it_friend_request",
+        "create or replace function public.follow_worth_it_user"
+    );
+    const follow = section(
+        "create or replace function public.follow_worth_it_user",
+        "create or replace function public.get_worth_it_pending_friend_request_notifications"
+    );
+
+    assert.match(friendRequest, /not public\.can_view_worth_it_profile\(target_user_id\)/i);
+    assert.match(friendRequest, /FRIEND_LIMIT_SELF_REACHED/i);
+    assert.match(friendRequest, /FRIEND_LIMIT_TARGET_REACHED/i);
+    assert.match(friendRequest, /pg_advisory_xact_lock\(hashtextextended\(lock_user_id::text, 0\)\)/i);
+    assert.match(follow, /not public\.can_view_worth_it_profile\(target_user_id\)/i);
+    assert.match(follow, /if inserted_count > 0 and not exists/i);
+});
+
 test("notification categories are checked before feed items are returned", () => {
     const friendNotifications = section("create or replace function public.get_worth_it_pending_friend_request_notifications()", "create or replace function public.get_worth_it_social_notifications");
     const socialNotifications = section("create or replace function public.get_worth_it_social_notifications()", "-- Presence preferences must also apply");
