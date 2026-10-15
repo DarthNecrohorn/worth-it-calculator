@@ -141,14 +141,20 @@ begin
 end;
 $$;
 
--- This check is used by the public profile view and its privacy-sensitive RPCs.
-create or replace function public.can_view_worth_it_profile(target_user_id uuid)
+-- Internal helper schema is intentionally not exposed through the Supabase Data API.
+create schema if not exists worth_it_private;
+revoke all on schema worth_it_private from public;
+grant usage on schema worth_it_private to anon, authenticated;
+
+-- Keep the visibility decision out of public RPC endpoints. This function runs
+-- with owner privileges only to evaluate privacy settings and accepted friendships.
+create or replace function worth_it_private.can_view_worth_it_profile(target_user_id uuid)
 returns boolean
 language plpgsql
 stable
 security definer
 set search_path = public
-as $$
+as $
 declare
     actor_id uuid := auth.uid();
     visibility text;
@@ -171,14 +177,14 @@ begin
            or (f.user_low_id = target_user_id and f.user_high_id = actor_id)
     );
 end;
-$$;
+$;
+revoke all on function worth_it_private.can_view_worth_it_profile(uuid) from public, anon, authenticated;
+grant execute on function worth_it_private.can_view_worth_it_profile(uuid) to anon, authenticated;
 
 revoke all on function public.get_worth_it_user_preferences() from public, anon;
 revoke all on function public.save_worth_it_user_preferences(jsonb, jsonb) from public, anon;
-revoke all on function public.can_view_worth_it_profile(uuid) from public;
 grant execute on function public.get_worth_it_user_preferences() to authenticated;
 grant execute on function public.save_worth_it_user_preferences(jsonb, jsonb) to authenticated;
-grant execute on function public.can_view_worth_it_profile(uuid) to anon, authenticated;
 
 -- Let the public profile surface obey RLS instead of relying on a default
 -- SECURITY DEFINER view. The underlying table exposes only the columns meant
@@ -188,7 +194,7 @@ create policy "Profiles visible under Worth It privacy settings"
     on public.worth_it_profiles
     for select
     to anon, authenticated
-    using (public.can_view_worth_it_profile(user_id));
+    using (worth_it_private.can_view_worth_it_profile(user_id));
 
 revoke select on table public.worth_it_profiles from public, anon, authenticated;
 grant select (
@@ -197,10 +203,6 @@ grant select (
 
 -- A narrowly scoped helper supplies privacy-filtered presence data to the view.
 -- Keep it in an unexposed schema so it is not published as a standalone REST RPC.
-create schema if not exists worth_it_private;
-revoke all on schema worth_it_private from public;
-grant usage on schema worth_it_private to anon, authenticated;
-
 create or replace function worth_it_private.get_worth_it_profile_presence(target_worth_it_id bigint)
 returns table(last_seen_at timestamptz, show_online_status boolean)
 language plpgsql
@@ -217,7 +219,7 @@ begin
     from public.worth_it_profiles
     where worth_it_id = target_worth_it_id;
 
-    if target_user_id is null or not public.can_view_worth_it_profile(target_user_id) then
+    if target_user_id is null or not worth_it_private.can_view_worth_it_profile(target_user_id) then
         return;
     end if;
 
@@ -340,7 +342,7 @@ begin
     select user_id into target_user_id
     from public.worth_it_profiles where worth_it_id = target_worth_it_id;
 
-    if target_user_id is null or not public.can_view_worth_it_profile(target_user_id) then
+    if target_user_id is null or not worth_it_private.can_view_worth_it_profile(target_user_id) then
         return jsonb_build_object('friends', 0, 'followers', 0, 'following', 0, 'hidden', true);
     end if;
 
@@ -376,7 +378,7 @@ begin
     end if;
 
     select user_id into target_user_id from public.worth_it_profiles where worth_it_id = target_worth_it_id;
-    if target_user_id is null or not public.can_view_worth_it_profile(target_user_id) then
+    if target_user_id is null or not worth_it_private.can_view_worth_it_profile(target_user_id) then
         return jsonb_build_object('success', false, 'code', 'PROFILE_NOT_FOUND');
     end if;
 
@@ -401,7 +403,7 @@ begin
           on p.user_id = case when f.user_low_id = target_user_id then f.user_high_id else f.user_low_id end
         left join public.worth_it_user_preferences prefs on prefs.user_id = p.user_id
         where (f.user_low_id = target_user_id or f.user_high_id = target_user_id)
-          and public.can_view_worth_it_profile(p.user_id);
+          and worth_it_private.can_view_worth_it_profile(p.user_id);
     elsif connection_type = 'following' then
         select coalesce(jsonb_agg(jsonb_build_object(
             'worth_it_id', p.worth_it_id, 'username', p.username,
@@ -415,7 +417,7 @@ begin
         join public.worth_it_profiles p on p.user_id = f.followed_user_id
         left join public.worth_it_user_preferences prefs on prefs.user_id = p.user_id
         where f.follower_user_id = target_user_id
-          and public.can_view_worth_it_profile(p.user_id);
+          and worth_it_private.can_view_worth_it_profile(p.user_id);
     else
         select coalesce(jsonb_agg(jsonb_build_object(
             'worth_it_id', p.worth_it_id, 'username', p.username,
@@ -429,7 +431,7 @@ begin
         join public.worth_it_profiles p on p.user_id = f.follower_user_id
         left join public.worth_it_user_preferences prefs on prefs.user_id = p.user_id
         where f.followed_user_id = target_user_id
-          and public.can_view_worth_it_profile(p.user_id);
+          and worth_it_private.can_view_worth_it_profile(p.user_id);
     end if;
 
     return jsonb_build_object('success', true, 'connections', connections, 'hidden', false);
@@ -459,7 +461,7 @@ begin
     from public.worth_it_profiles
     where worth_it_id = target_worth_it_id;
 
-    if target_user_id is null or not public.can_view_worth_it_profile(target_user_id) then
+    if target_user_id is null or not worth_it_private.can_view_worth_it_profile(target_user_id) then
         return jsonb_build_object('success', false, 'code', 'PROFILE_NOT_FOUND');
     end if;
 
@@ -559,7 +561,7 @@ begin
     from public.worth_it_profiles
     where worth_it_id = target_worth_it_id;
 
-    if target_user_id is null or not public.can_view_worth_it_profile(target_user_id) then
+    if target_user_id is null or not worth_it_private.can_view_worth_it_profile(target_user_id) then
         return jsonb_build_object('success', false, 'code', 'PROFILE_NOT_FOUND');
     end if;
     if target_user_id = actor_id then
@@ -663,7 +665,7 @@ begin
 
     select user_id into target_user_id
     from public.worth_it_profiles where worth_it_id = target_worth_it_id;
-    if target_user_id is null or not public.can_view_worth_it_profile(target_user_id) then
+    if target_user_id is null or not worth_it_private.can_view_worth_it_profile(target_user_id) then
         return jsonb_build_object('success', false, 'code', 'PROFILE_NOT_FOUND');
     end if;
     if target_user_id = actor_id then return jsonb_build_object('success', false, 'code', 'CANNOT_FOLLOW_SELF'); end if;
