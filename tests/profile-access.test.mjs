@@ -5,13 +5,19 @@ import { readFileSync } from "node:fs";
 const settings = readFileSync(new URL("../settings.js", import.meta.url), "utf8");
 const profileUi = readFileSync(new URL("../profile-ui.js", import.meta.url), "utf8");
 
-test("Settings resolves the signed-in user's Worth It profile through the own-profile RPC", () => {
-    assert.match(settings, /rpc\("get_worth_it_own_profile"\)/);
-    assert.doesNotMatch(settings, /from\("worth_it_profiles"\)/);
+test("Settings tries the scoped own-profile RPC first and only falls back for an unapplied migration", () => {
+    const rpcIndex = settings.indexOf('client.rpc("get_worth_it_own_profile")');
+    const legacyIndex = settings.indexOf('client.from("worth_it_profiles")');
+    assert.ok(rpcIndex >= 0, "Settings should use the own-profile RPC");
+    assert.ok(legacyIndex > rpcIndex, "legacy table read must only be a fallback");
+    assert.match(settings, /PGRST202/);
 });
 
-test("profile UI uses the own-profile RPC and public-profile view instead of querying the base table", () => {
-    assert.match(profileUi, /rpc\("get_worth_it_own_profile"\)/);
+test("profile UI uses the own-profile RPC first and public-profile view for other users", () => {
+    const rpcIndex = profileUi.indexOf('sb.rpc("get_worth_it_own_profile")');
+    const legacyIndex = profileUi.indexOf('sb.from("worth_it_profiles")');
+    assert.ok(rpcIndex >= 0, "profile UI should use the own-profile RPC");
+    assert.ok(legacyIndex > rpcIndex, "legacy table read must only be a fallback");
     assert.match(profileUi, /from\("worth_it_public_profiles"\)/);
-    assert.doesNotMatch(profileUi, /from\("worth_it_profiles"\)/);
+    assert.match(profileUi, /PGRST202/);
 });
