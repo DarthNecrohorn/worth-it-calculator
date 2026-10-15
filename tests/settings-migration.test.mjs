@@ -36,8 +36,12 @@ test("preferences are stored behind RLS and accessible only through authenticate
     assert.match(sql, /grant execute on function public\.save_worth_it_user_preferences\(jsonb, jsonb\) to authenticated;/i);
 });
 
-test("the public profile view invokes caller RLS and uses only the column-limited presence helper", () => {
+test("the public profile view invokes caller RLS and delegates sensitive presence to private-schema helpers", () => {
     const view = section("create or replace view public.worth_it_public_profiles", "grant select on public.worth_it_public_profiles");
+    const visibilityHelper = section(
+        "create or replace function worth_it_private.can_view_worth_it_profile",
+        "revoke all on function worth_it_private.can_view_worth_it_profile"
+    );
     const presenceHelper = section(
         "create or replace function worth_it_private.get_worth_it_profile_presence",
         "revoke all on function worth_it_private.get_worth_it_profile_presence"
@@ -49,10 +53,15 @@ test("the public profile view invokes caller RLS and uses only the column-limite
     assert.match(view, /with \(security_invoker = true\)/i);
     assert.match(view, /cross join lateral worth_it_private\.get_worth_it_profile_presence\(profile\.worth_it_id\)/i);
     assert.doesNotMatch(view, /profile\.user_id|profile\.last_seen_at|worth_it_user_preferences/i);
-    assert.match(presenceHelper, /public\.can_view_worth_it_profile\(target_user_id\)/i);
+    assert.match(visibilityHelper, /security definer/i);
+    assert.match(visibilityHelper, /auth\.uid\(\)/i);
+    assert.match(presenceHelper, /worth_it_private\.can_view_worth_it_profile\(target_user_id\)/i);
     assert.match(presenceHelper, /case when coalesce\(prefs\.show_online_status, true\) then profile\.last_seen_at else null end/i);
     assert.match(rlsPolicy, /to anon, authenticated/i);
-    assert.match(rlsPolicy, /using \(public\.can_view_worth_it_profile\(user_id\)\)/i);
+    assert.match(rlsPolicy, /using \(worth_it_private\.can_view_worth_it_profile\(user_id\)\)/i);
+    assert.match(sql, /revoke all on function worth_it_private\.can_view_worth_it_profile\(uuid\) from public, anon, authenticated/i);
+    assert.match(sql, /grant execute on function worth_it_private\.can_view_worth_it_profile\(uuid\) to anon, authenticated/i);
+    assert.doesNotMatch(sql, /create or replace function worth_it_private\.can_view_worth_it_profile/i);
     assert.match(sql, /grant select \(\s*worth_it_id, username, display_name, avatar_url, created_at, banner_url, description\s*\) on public\.worth_it_profiles to anon, authenticated/i);
     assert.match(sql, /revoke select on table public\.worth_it_profiles from public, anon, authenticated/i);
 });
@@ -79,15 +88,15 @@ test("profile stats and connection RPCs enforce view and connection privacy", ()
     const stats = section("create or replace function public.get_worth_it_profile_stats", "create or replace function public.get_worth_it_profile_connections");
     const connections = section("create or replace function public.get_worth_it_profile_connections", "-- Do not expose relationship/request state");
     const socialContext = section("create or replace function public.get_worth_it_profile_social_context", "-- Notification preferences control");
-    assert.match(stats, /not public\.can_view_worth_it_profile\(target_user_id\)/i);
+    assert.match(stats, /not worth_it_private\.can_view_worth_it_profile\(target_user_id\)/i);
     assert.match(stats, /'hidden', true/i);
     assert.match(stats, /if not can_show_connections and auth\.uid\(\) is distinct from target_user_id/i, "owners should retain access to their own connection counts");
-    assert.match(connections, /not public\.can_view_worth_it_profile\(target_user_id\)/i);
+    assert.match(connections, /not worth_it_private\.can_view_worth_it_profile\(target_user_id\)/i);
     assert.match(connections, /coalesce\(show_connections, true\)/i);
     assert.match(connections, /if not can_show_connections and auth\.uid\(\) is distinct from target_user_id/i, "owners should retain access to their own connection list");
-    assert.match(connections, /and public\.can_view_worth_it_profile\(p\.user_id\)/i);
+    assert.match(connections, /and worth_it_private\.can_view_worth_it_profile\(p\.user_id\)/i);
     assert.match(connections, /case when coalesce\(prefs\.show_online_status, true\) then p\.last_seen_at else null end/i);
-    assert.match(socialContext, /not public\.can_view_worth_it_profile\(target_user_id\)/i);
+    assert.match(socialContext, /not worth_it_private\.can_view_worth_it_profile\(target_user_id\)/i);
 });
 
 test("chat friend lists, conversation member lists, and messages all respect hidden presence", () => {
@@ -111,11 +120,11 @@ test("private and friends-only profiles cannot be followed or receive new friend
         "create or replace function public.get_worth_it_pending_friend_request_notifications"
     );
 
-    assert.match(friendRequest, /not public\.can_view_worth_it_profile\(target_user_id\)/i);
+    assert.match(friendRequest, /not worth_it_private\.can_view_worth_it_profile\(target_user_id\)/i);
     assert.match(friendRequest, /FRIEND_LIMIT_SELF_REACHED/i);
     assert.match(friendRequest, /FRIEND_LIMIT_TARGET_REACHED/i);
     assert.match(friendRequest, /pg_advisory_xact_lock\(hashtextextended\(lock_user_id::text, 0\)\)/i);
-    assert.match(follow, /not public\.can_view_worth_it_profile\(target_user_id\)/i);
+    assert.match(follow, /not worth_it_private\.can_view_worth_it_profile\(target_user_id\)/i);
     assert.match(follow, /if inserted_count > 0 and not exists/i);
 });
 
