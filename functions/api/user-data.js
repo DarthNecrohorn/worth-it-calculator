@@ -301,7 +301,9 @@ async function listChatMediaPaths(config, userId) {
         }
 
         for (const item of batch) {
-            if (!item || typeof item.name !== "string" || !item.name || item.name.includes("/")) continue;
+            if (!item || typeof item.name !== "string" ||
+                !/^[A-Za-z0-9][A-Za-z0-9._-]{0,255}$/.test(item.name) ||
+                item.name === "." || item.name === "..") continue;
             // Storage list responses include folder entries with no object ID or metadata.
             if (item.id == null && item.metadata == null) continue;
             paths.push(userId + "/" + item.name);
