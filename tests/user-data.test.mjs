@@ -265,6 +265,34 @@ test("deletes only captured feedback rows and correctly scoped profile assets af
     assert.equal(calls.some(call => call.url.pathname.includes("another-user")), false);
 });
 
+test("rejects encoded nested avatar paths before privileged storage cleanup", async () => {
+    const anotherUserId = "99999999-9999-4999-8999-999999999999";
+    const profileRows = [{
+        user_id: USER_ID,
+        avatar_url: SUPABASE_URL + "/storage/v1/object/public/worth-it-avatars/" +
+            USER_ID + "/avatar/test%2F..%2F" + anotherUserId + "%2Fbanner%2Fimage.png",
+        banner_url: null
+    }];
+    const calls = mockFetch({ profileRows });
+    const response = await api.onRequestPost({
+        request: request("/api/user-data", {
+            method: "POST",
+            body: { action: "delete", confirmation: "DELETE" }
+        }),
+        env: env()
+    });
+    const payload = await response.json();
+    const deletes = calls.filter(call =>
+        call.url.pathname === "/storage/v1/object/worth-it-avatars" && call.method === "DELETE"
+    );
+    assert.equal(response.status, 200);
+    assert.equal(payload.deleted, true);
+    assert.equal(deletes.length, 0);
+    assert.ok(calls.some(call =>
+        call.url.pathname === "/auth/v1/admin/users/" + USER_ID && call.method === "DELETE"
+    ));
+});
+
 test("surfaces a cleanup warning if profile storage cleanup fails after Auth deletion", async () => {
     const profileRows = [{
         user_id: USER_ID,
