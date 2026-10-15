@@ -346,6 +346,83 @@ begin
 end;
 $$;
 
+-- Do not expose relationship/request state for profiles the caller cannot view.
+create or replace function public.get_worth_it_profile_social_context(target_worth_it_id bigint)
+returns jsonb
+language plpgsql
+stable
+security definer
+set search_path = public
+as $
+declare
+    target_user_id uuid;
+    actor_id uuid := auth.uid();
+    outgoing_id uuid;
+    outgoing_status text;
+    incoming_id uuid;
+    incoming_status text;
+    are_friends boolean := false;
+    is_following boolean := false;
+    follows_you boolean := false;
+begin
+    select user_id into target_user_id
+    from public.worth_it_profiles
+    where worth_it_id = target_worth_it_id;
+
+    if target_user_id is null or not public.can_view_worth_it_profile(target_user_id) then
+        return jsonb_build_object('success', false, 'code', 'PROFILE_NOT_FOUND');
+    end if;
+
+    if actor_id is null then
+        return jsonb_build_object(
+            'success', true, 'is_self', false, 'is_following', false,
+            'follows_you', false, 'are_friends', false,
+            'outgoing_request_id', null, 'outgoing_request_pending', false,
+            'incoming_request_id', null, 'incoming_request_pending', false
+        );
+    end if;
+
+    select exists (
+        select 1 from public.worth_it_friends f
+        where (f.user_low_id = actor_id and f.user_high_id = target_user_id)
+           or (f.user_low_id = target_user_id and f.user_high_id = actor_id)
+    ) into are_friends;
+
+    select exists (
+        select 1 from public.worth_it_follows f
+        where f.follower_user_id = actor_id and f.followed_user_id = target_user_id
+    ) into is_following;
+
+    select exists (
+        select 1 from public.worth_it_follows f
+        where f.follower_user_id = target_user_id and f.followed_user_id = actor_id
+    ) into follows_you;
+
+    select r.id, r.status into outgoing_id, outgoing_status
+    from public.worth_it_friend_requests r
+    where r.requester_user_id = actor_id and r.recipient_user_id = target_user_id;
+
+    select r.id, r.status into incoming_id, incoming_status
+    from public.worth_it_friend_requests r
+    where r.requester_user_id = target_user_id and r.recipient_user_id = actor_id;
+
+    return jsonb_build_object(
+        'success', true,
+        'is_self', actor_id = target_user_id,
+        'is_following', is_following,
+        'follows_you', follows_you,
+        'are_friends', are_friends,
+        'outgoing_request_id', outgoing_id,
+        'outgoing_request_pending', coalesce(outgoing_status = 'pending', false),
+        'incoming_request_id', incoming_id,
+        'incoming_request_pending', coalesce(incoming_status = 'pending', false)
+    );
+end;
+$;
+
+revoke all on function public.get_worth_it_profile_social_context(bigint) from public;
+grant execute on function public.get_worth_it_profile_social_context(bigint) to anon, authenticated;
+
 -- Notification preferences control the existing in-app notification feed.
 -- Account-security email messages remain project-level Supabase settings.
 do $$
