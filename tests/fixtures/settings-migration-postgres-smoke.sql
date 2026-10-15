@@ -233,6 +233,17 @@ BEGIN
     ) THEN
         RAISE EXCEPTION 'public profile view is not configured with security_invoker=true';
     END IF;
+
+    IF to_regprocedure('public.can_view_worth_it_profile(uuid)') IS NOT NULL THEN
+        RAISE EXCEPTION 'profile visibility helper is still exposed in the public RPC schema';
+    END IF;
+    IF to_regprocedure('worth_it_private.can_view_worth_it_profile(uuid)') IS NULL THEN
+        RAISE EXCEPTION 'internal profile visibility helper is missing';
+    END IF;
+    IF NOT has_function_privilege('anon','worth_it_private.can_view_worth_it_profile(uuid)','EXECUTE')
+       OR NOT has_function_privilege('authenticated','worth_it_private.can_view_worth_it_profile(uuid)','EXECUTE') THEN
+        RAISE EXCEPTION 'browser roles are missing the internal helper privilege required by RLS';
+    END IF;
 END;
 $$;
 
