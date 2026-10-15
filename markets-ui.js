@@ -147,6 +147,43 @@ let marketsAccountImageSaveTimer =
     null;
 
 /*
+ * Account image caching is an optional optimization. Do not keep retrying
+ * authenticated writes after the API rejects the current session: doing so
+ * creates a request loop and floods the console without repairing auth.
+ */
+let marketsAccountImageSavePausedForAuth = false;
+
+function pauseMarketAccountImageCacheForAuth() {
+    const wasPaused = marketsAccountImageSavePausedForAuth;
+    marketsAccountImageSavePausedForAuth = true;
+    marketsAccountImageSaveQueue.clear();
+
+    if (marketsAccountImageSaveTimer !== null) {
+        window.clearTimeout(marketsAccountImageSaveTimer);
+        marketsAccountImageSaveTimer = null;
+    }
+
+    return !wasPaused;
+}
+
+if (window.supabaseClient?.auth?.onAuthStateChange) {
+    window.supabaseClient.auth.onAuthStateChange((event, session) => {
+        if (event === "SIGNED_OUT") {
+            pauseMarketAccountImageCacheForAuth();
+            return;
+        }
+
+        if (
+            ["SIGNED_IN", "TOKEN_REFRESHED"].includes(event) &&
+            session?.access_token &&
+            session?.user?.id
+        ) {
+            marketsAccountImageSavePausedForAuth = false;
+        }
+    });
+}
+
+/*
  * Prevent an older asynchronous render from replacing a newer
  * search/category selection.
  */
@@ -3012,6 +3049,13 @@ async function loadMarketAccountImageCache() {
                     );
 
                 if (!response.ok) {
+                    if (response.status === 401 || response.status === 403) {
+                        if (pauseMarketAccountImageCacheForAuth()) {
+                            console.warn(
+                                "Markets account image cache sync paused because the current session was rejected. Sign in again to resume syncing."
+                            );
+                        }
+                    }
                     return;
                 }
 
@@ -3116,7 +3160,8 @@ function queueMarketAccountImageSave(
 
     if (
         !marketsAccountImageCacheLoaded ||
-        !marketsAccountImageCacheUserId
+        !marketsAccountImageCacheUserId ||
+        marketsAccountImageSavePausedForAuth
     ) {
         return;
     }
@@ -3201,6 +3246,11 @@ async function flushMarketAccountImageSaveQueue() {
 
     marketsAccountImageSaveTimer = null;
 
+    if (marketsAccountImageSavePausedForAuth) {
+        marketsAccountImageSaveQueue.clear();
+        return;
+    }
+
     if (!marketsAccountImageSaveQueue.size) {
         return;
     }
@@ -3248,6 +3298,17 @@ async function flushMarketAccountImageSaveQueue() {
             );
 
         if (!response.ok) {
+            if (response.status === 401 || response.status === 403) {
+                if (pauseMarketAccountImageCacheForAuth()) {
+                    console.warn(
+                        "Markets account image cache sync paused because the current session was rejected (HTTP " +
+                        response.status +
+                        "). Sign in again to resume syncing."
+                    );
+                }
+                return;
+            }
+
             throw new Error("HTTP " + response.status);
         }
 
