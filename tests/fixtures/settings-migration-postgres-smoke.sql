@@ -213,6 +213,30 @@ BEGIN
     IF NOT has_function_privilege('authenticated','public.save_worth_it_user_preferences(jsonb,jsonb)','EXECUTE') THEN
         RAISE EXCEPTION 'authenticated is missing execute access to preference writes';
     END IF;
+    IF NOT has_function_privilege('anon','public.get_worth_it_profile_stats(bigint)','EXECUTE')
+       OR NOT has_function_privilege('authenticated','public.get_worth_it_profile_stats(bigint)','EXECUTE') THEN
+        RAISE EXCEPTION 'public profile stats must be granted only to the intended read roles';
+    END IF;
+    IF NOT has_function_privilege('anon','public.get_worth_it_profile_connections(bigint,text)','EXECUTE')
+       OR NOT has_function_privilege('authenticated','public.get_worth_it_profile_connections(bigint,text)','EXECUTE') THEN
+        RAISE EXCEPTION 'public profile connections must be granted only to the intended read roles';
+    END IF;
+    IF has_function_privilege('anon','public.send_worth_it_friend_request(bigint)','EXECUTE')
+       OR NOT has_function_privilege('authenticated','public.send_worth_it_friend_request(bigint)','EXECUTE') THEN
+        RAISE EXCEPTION 'friend-request RPC permissions are too broad or missing';
+    END IF;
+    IF has_function_privilege('anon','public.follow_worth_it_user(bigint)','EXECUTE')
+       OR NOT has_function_privilege('authenticated','public.follow_worth_it_user(bigint)','EXECUTE') THEN
+        RAISE EXCEPTION 'follow RPC permissions are too broad or missing';
+    END IF;
+    IF has_function_privilege('anon','public.get_worth_it_pending_friend_request_notifications()','EXECUTE')
+       OR NOT has_function_privilege('authenticated','public.get_worth_it_pending_friend_request_notifications()','EXECUTE') THEN
+        RAISE EXCEPTION 'friend-request notification RPC permissions are too broad or missing';
+    END IF;
+    IF has_function_privilege('anon','public.get_worth_it_social_notifications()','EXECUTE')
+       OR NOT has_function_privilege('authenticated','public.get_worth_it_social_notifications()','EXECUTE') THEN
+        RAISE EXCEPTION 'social notification RPC permissions are too broad or missing';
+    END IF;
     IF has_column_privilege('anon','public.worth_it_profiles','user_id','SELECT')
        OR has_column_privilege('authenticated','public.worth_it_profiles','user_id','SELECT') THEN
         RAISE EXCEPTION 'browser roles unexpectedly have SELECT on profile user_id';
