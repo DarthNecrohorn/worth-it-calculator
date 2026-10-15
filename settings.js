@@ -34,6 +34,9 @@ function openFullSettings(){
     if (typeof window.updateSettingsUI === "function") window.updateSettingsUI();
     if (typeof window.loadAccountSettings === "function") window.loadAccountSettings();
     if (typeof window.loadSecuritySettings === "function") window.loadSecuritySettings();
+    if (typeof window.loadPrivacySettings === "function") window.loadPrivacySettings();
+    if (typeof window.loadNotificationSettings === "function") window.loadNotificationSettings();
+    if (typeof window.loadYourDataSettings === "function") window.loadYourDataSettings();
     window.scrollTo({ top: 0, behavior: "auto" });
 }
 
@@ -894,10 +897,380 @@ window.openSettings = openFullSettings;
     }
 };
 
+
+    /* Privacy, notification preferences, and personal-data controls. */
+    const DEFAULT_USER_PREFERENCES = {
+        success: true,
+        privacy: {
+            profile_visibility: "public",
+            profile_discoverable: true,
+            show_online_status: true,
+            show_connections: true
+        },
+        notifications: {
+            friend_requests: true,
+            follows: true,
+            private_messages: true,
+            group_chats: true,
+            account_activity: true
+        }
+    };
+    let userPreferencesCache = null;
+    let userPreferencesCacheUserId = "";
+    let userPreferencesPromise = null;
+    let privacySaveBusy = false;
+    let notificationsSaveBusy = false;
+
+    function copyDefaultPreferences() {
+        return {
+            success: true,
+            privacy: Object.assign({}, DEFAULT_USER_PREFERENCES.privacy),
+            notifications: Object.assign({}, DEFAULT_USER_PREFERENCES.notifications)
+        };
+    }
+
+    function settingsStatus(id, message, kind) {
+        const node = $(id);
+        if (!node) return;
+        node.textContent = message || "";
+        node.classList.toggle("is-error", kind === "error");
+        node.classList.toggle("is-success", kind === "success");
+        node.classList.toggle("is-warning", kind === "warning");
+    }
+
+    function settingsSetupMessage(error) {
+        const message = String(error?.message || error || "");
+        if (/get_worth_it_user_preferences|save_worth_it_user_preferences|worth_it_user_preferences|schema cache|could not find|does not exist/i.test(message)) {
+            return "One-time database setup is required. Apply supabase/worth-it-settings-privacy-notifications.sql in the Worth It Supabase project's SQL Editor, then reload Settings. The migration has not been run automatically.";
+        }
+        return message || "Could not load your preferences. Please try again.";
+    }
+
+    function setSettingsControlsDisabled(sectionId, disabled) {
+        const section = $(sectionId);
+        if (!section) return;
+        section.querySelectorAll("input, select, button").forEach(control => {
+            if (control.id === "deleteAccountButton" || control.id === "yourDataExportButton") return;
+            control.disabled = Boolean(disabled);
+        });
+    }
+
+    async function loadWorthItUserPreferences(force) {
+        const client = window.supabaseClient;
+        if (!client?.auth) throw new Error("Sign in to manage these settings.");
+        const sessionResult = await client.auth.getSession();
+        if (sessionResult?.error) throw sessionResult.error;
+        const session = sessionResult?.data?.session;
+        if (!session?.user?.id || !session?.access_token) throw new Error("Sign in to manage these settings.");
+        if (!force && userPreferencesCache && userPreferencesCacheUserId === session.user.id) {
+            return userPreferencesCache;
+        }
+        if (!force && userPreferencesPromise && userPreferencesCacheUserId === session.user.id) {
+            return userPreferencesPromise;
+        }
+        userPreferencesCacheUserId = session.user.id;
+        userPreferencesPromise = (async function() {
+            const result = await client.rpc("get_worth_it_user_preferences");
+            if (result?.error) throw result.error;
+            const data = result?.data && typeof result.data === "object" ? result.data : {};
+            if (data.success === false) throw new Error(data.error || "Could not load your saved preferences.");
+            const base = copyDefaultPreferences();
+            const prefs = {
+                success: true,
+                privacy: Object.assign({}, base.privacy, data.privacy || {}),
+                notifications: Object.assign({}, base.notifications, data.notifications || {})
+            };
+            userPreferencesCache = prefs;
+            window.worthItUserPreferences = prefs;
+            window.worthItUserPreferencesUserId = session.user.id;
+            return prefs;
+        })();
+        try {
+            return await userPreferencesPromise;
+        } finally {
+            userPreferencesPromise = null;
+        }
+    }
+
+    function applyPrivacyControls(prefs) {
+        const privacy = prefs?.privacy || DEFAULT_USER_PREFERENCES.privacy;
+        if ($("privacyProfileVisibility")) $("privacyProfileVisibility").value = ["public", "friends", "private"].includes(privacy.profile_visibility) ? privacy.profile_visibility : "public";
+        if ($("privacyProfileDiscoverable")) $("privacyProfileDiscoverable").checked = privacy.profile_discoverable !== false;
+        if ($("privacyShowOnlineStatus")) $("privacyShowOnlineStatus").checked = privacy.show_online_status !== false;
+        if ($("privacyShowConnections")) $("privacyShowConnections").checked = privacy.show_connections !== false;
+    }
+
+    function applyNotificationControls(prefs) {
+        const notifications = prefs?.notifications || DEFAULT_USER_PREFERENCES.notifications;
+        if ($("notifyFriendRequests")) $("notifyFriendRequests").checked = notifications.friend_requests !== false;
+        if ($("notifyFollows")) $("notifyFollows").checked = notifications.follows !== false;
+        if ($("notifyPrivateMessages")) $("notifyPrivateMessages").checked = notifications.private_messages !== false;
+        if ($("notifyGroupChats")) $("notifyGroupChats").checked = notifications.group_chats !== false;
+        if ($("notifyAccountActivity")) $("notifyAccountActivity").checked = notifications.account_activity !== false;
+    }
+
+    function privacyFromControls() {
+        return {
+            profile_visibility: $("privacyProfileVisibility")?.value || "public",
+            profile_discoverable: Boolean($("privacyProfileDiscoverable")?.checked),
+            show_online_status: Boolean($("privacyShowOnlineStatus")?.checked),
+            show_connections: Boolean($("privacyShowConnections")?.checked)
+        };
+    }
+
+    function notificationsFromControls() {
+        return {
+            friend_requests: Boolean($("notifyFriendRequests")?.checked),
+            follows: Boolean($("notifyFollows")?.checked),
+            private_messages: Boolean($("notifyPrivateMessages")?.checked),
+            group_chats: Boolean($("notifyGroupChats")?.checked),
+            account_activity: Boolean($("notifyAccountActivity")?.checked)
+        };
+    }
+
+    async function persistUserPreferences(which) {
+        if (which === "privacy" && privacySaveBusy) return;
+        if (which === "notifications" && notificationsSaveBusy) return;
+        const controls = which === "privacy" ? "privacySettingsContent" : "notificationSettingsContent";
+        if (which === "privacy") privacySaveBusy = true;
+        else notificationsSaveBusy = true;
+        setSettingsControlsDisabled(controls, true);
+        settingsStatus(which === "privacy" ? "privacySettingsStatus" : "notificationSettingsStatus", "Saving your preferences…", "pending");
+        try {
+            const client = window.supabaseClient;
+            const sessionResult = await client?.auth?.getSession?.();
+            const session = sessionResult?.data?.session;
+            if (sessionResult?.error) throw sessionResult.error;
+            if (!session?.access_token || !session?.user?.id) throw new Error("Sign in again to save your preferences.");
+            const submitted = {
+                privacy: which === "privacy" ? privacyFromControls() : Object.assign({}, userPreferencesCache?.privacy || DEFAULT_USER_PREFERENCES.privacy),
+                notifications: which === "notifications" ? notificationsFromControls() : Object.assign({}, userPreferencesCache?.notifications || DEFAULT_USER_PREFERENCES.notifications)
+            };
+            const result = await client.rpc("save_worth_it_user_preferences", {
+                p_privacy: submitted.privacy,
+                p_notifications: submitted.notifications
+            });
+            if (result?.error) throw result.error;
+            const data = result?.data && typeof result.data === "object" ? result.data : {};
+            if (data.success === false) throw new Error(data.error || "Could not save your preferences.");
+            const base = copyDefaultPreferences();
+            const saved = {
+                success: true,
+                privacy: Object.assign({}, base.privacy, data.privacy || submitted.privacy),
+                notifications: Object.assign({}, base.notifications, data.notifications || submitted.notifications)
+            };
+            userPreferencesCache = saved;
+            userPreferencesCacheUserId = session.user.id;
+            window.worthItUserPreferences = saved;
+            window.worthItUserPreferencesUserId = session.user.id;
+            applyPrivacyControls(saved);
+            applyNotificationControls(saved);
+            settingsStatus(which === "privacy" ? "privacySettingsStatus" : "notificationSettingsStatus", "Your preferences were saved to your Worth It account.", "success");
+            window.dispatchEvent(new CustomEvent("worthitnotificationpreferenceschange", { detail: saved.notifications }));
+        } catch (error) {
+            const message = settingsSetupMessage(error);
+            settingsStatus(which === "privacy" ? "privacySettingsStatus" : "notificationSettingsStatus", message, "error");
+            if (userPreferencesCache) {
+                applyPrivacyControls(userPreferencesCache);
+                applyNotificationControls(userPreferencesCache);
+            }
+        } finally {
+            if (which === "privacy") privacySaveBusy = false;
+            else notificationsSaveBusy = false;
+            setSettingsControlsDisabled(controls, false);
+        }
+    }
+
+    window.loadPrivacySettings = async function() {
+        const loading = $("privacySettingsLoading"), signedOut = $("privacySettingsSignedOut"), content = $("privacySettingsContent");
+        if (!loading || !signedOut || !content) return;
+        loading.hidden = false; signedOut.hidden = true; content.hidden = true;
+        try {
+            const client = window.supabaseClient;
+            const sessionResult = await client?.auth?.getSession?.();
+            if (sessionResult?.error) throw sessionResult.error;
+            if (!sessionResult?.data?.session?.user?.id) {
+                loading.hidden = true; signedOut.hidden = false; return;
+            }
+            const prefs = await loadWorthItUserPreferences(false);
+            applyPrivacyControls(prefs);
+            loading.hidden = true; content.hidden = false;
+            setSettingsControlsDisabled("privacySettingsContent", false);
+            settingsStatus("privacySettingsStatus", "Privacy preferences are saved to your account and applied by Worth It profile and search queries.", "success");
+        } catch (error) {
+            loading.hidden = true; content.hidden = false;
+            setSettingsControlsDisabled("privacySettingsContent", true);
+            settingsStatus("privacySettingsStatus", settingsSetupMessage(error), "error");
+        }
+    };
+
+    window.savePrivacySettings = function() {
+        return persistUserPreferences("privacy");
+    };
+
+    window.loadNotificationSettings = async function() {
+        const loading = $("notificationSettingsLoading"), signedOut = $("notificationSettingsSignedOut"), content = $("notificationSettingsContent");
+        if (!loading || !signedOut || !content) return;
+        loading.hidden = false; signedOut.hidden = true; content.hidden = true;
+        try {
+            const client = window.supabaseClient;
+            const sessionResult = await client?.auth?.getSession?.();
+            if (sessionResult?.error) throw sessionResult.error;
+            if (!sessionResult?.data?.session?.user?.id) {
+                loading.hidden = true; signedOut.hidden = false; return;
+            }
+            const prefs = await loadWorthItUserPreferences(false);
+            applyNotificationControls(prefs);
+            loading.hidden = true; content.hidden = false;
+            setSettingsControlsDisabled("notificationSettingsContent", false);
+            settingsStatus("notificationSettingsStatus", "Notification preferences are saved to your account. Individual chats can still be muted separately.", "success");
+        } catch (error) {
+            loading.hidden = true; content.hidden = false;
+            setSettingsControlsDisabled("notificationSettingsContent", true);
+            settingsStatus("notificationSettingsStatus", settingsSetupMessage(error), "error");
+        }
+    };
+
+    window.saveNotificationSettings = function() {
+        return persistUserPreferences("notifications");
+    };
+
+    async function requestUserDataApi(action) {
+        const client = window.supabaseClient;
+        const sessionResult = await client?.auth?.getSession?.();
+        if (sessionResult?.error) throw sessionResult.error;
+        const session = sessionResult?.data?.session;
+        if (!session?.access_token) throw new Error("Sign in again to manage your data.");
+        const response = await fetch("/api/user-data", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Authorization": "Bearer " + session.access_token
+            },
+            body: JSON.stringify(action)
+        });
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok || !payload.success) throw new Error(payload.error || "The account data request could not be completed.");
+        return payload;
+    }
+
+    window.loadYourDataSettings = async function() {
+        const loading = $("yourDataLoading"), signedOut = $("yourDataSignedOut"), content = $("yourDataContent");
+        if (!loading || !signedOut || !content) return;
+        loading.hidden = false; signedOut.hidden = true; content.hidden = true;
+        if ($("yourDataExportButton")) $("yourDataExportButton").disabled = true;
+        try {
+            const client = window.supabaseClient;
+            const sessionResult = await client?.auth?.getSession?.();
+            if (sessionResult?.error) throw sessionResult.error;
+            if (!sessionResult?.data?.session?.user?.id) {
+                loading.hidden = true; signedOut.hidden = false; return;
+            }
+            const session = sessionResult.data.session;
+            const response = await fetch("/api/user-data?action=summary", {
+                headers: { "Authorization": "Bearer " + session.access_token },
+                cache: "no-store"
+            });
+            const payload = await response.json().catch(() => ({}));
+            if (!response.ok || !payload.success) throw new Error(payload.error || "Could not load your account summary.");
+            const account = payload.account || {}, profile = payload.profile || {};
+            const lines = [
+                account.email ? "Email: " + account.email : "Email: not available",
+                "Email verified: " + (account.email_confirmed ? "Yes" : "Not confirmed"),
+                profile.username ? "Username: @" + profile.username : "Username: not available",
+                profile.worth_it_id ? "Worth It ID: " + profile.worth_it_id : "Worth It ID: not assigned",
+                profile.display_name ? "Display name: " + profile.display_name : "",
+                account.created_at ? "Account created: " + new Date(account.created_at).toLocaleString() : ""
+            ].filter(Boolean);
+            if ($("yourDataSummary")) $("yourDataSummary").textContent = lines.join(" · ");
+            loading.hidden = true; content.hidden = false;
+            if ($("yourDataExportButton")) $("yourDataExportButton").disabled = false;
+            if ($("deleteAccountConfirmation")) $("deleteAccountConfirmation").value = "";
+            if ($("deleteAccountButton")) $("deleteAccountButton").disabled = true;
+            settingsStatus("yourDataStatus", "Your summary is private to this session. The export contains the account and Worth It records associated with your user ID.", "success");
+        } catch (error) {
+            loading.hidden = true; content.hidden = false;
+            settingsStatus("yourDataStatus", error?.message || "Could not load your account data.", "error");
+        }
+    };
+
+    window.downloadWorthItDataExport = async function() {
+        const button = $("yourDataExportButton");
+        if (button?.disabled) return;
+        if (button) button.disabled = true;
+        settingsStatus("yourDataStatus", "Preparing your personal data export…", "pending");
+        try {
+            const result = await requestUserDataApi({ action: "export" });
+            const exportData = result.export;
+            if (!exportData || typeof exportData !== "object") throw new Error("The export response was empty.");
+            const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: "application/json;charset=utf-8" });
+            const objectUrl = URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            link.href = objectUrl;
+            link.download = "worth-it-data-export-" + new Date().toISOString().slice(0, 10) + ".json";
+            link.hidden = true;
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
+            settingsStatus("yourDataStatus", "Your data export was prepared and downloaded. Store the JSON file securely because it can contain your profile information and messages you sent.", "success");
+        } catch (error) {
+            settingsStatus("yourDataStatus", error?.message || "Could not prepare your data export.", "error");
+        } finally {
+            if (button) button.disabled = false;
+        }
+    };
+
+    window.deleteWorthItAccount = async function() {
+        const button = $("deleteAccountButton");
+        const input = $("deleteAccountConfirmation");
+        if (!button || button.disabled) return;
+        if ((input?.value || "").trim() !== "DELETE") {
+            settingsStatus("deleteAccountStatus", "Type DELETE exactly to confirm permanent account deletion.", "error");
+            input?.focus();
+            return;
+        }
+        const confirmed = window.confirm("Permanently delete your Worth It account and its associated data? This cannot be undone. Download your data first if you need a copy.");
+        if (!confirmed) return;
+        button.disabled = true;
+        settingsStatus("deleteAccountStatus", "Requesting permanent account deletion…", "pending");
+        try {
+            await requestUserDataApi({ action: "delete", confirmation: "DELETE" });
+            settingsStatus("deleteAccountStatus", "Account deleted. Signing out of this browser…", "success");
+            try { await window.supabaseClient?.auth?.signOut?.({ scope: "local" }); } catch (_) {}
+            window.location.assign("/");
+        } catch (error) {
+            settingsStatus("deleteAccountStatus", error?.message || "Could not delete the account.", "error");
+            button.disabled = (input?.value || "").trim() !== "DELETE";
+        }
+    };
+
+    window.openSettingsCategory = function(panelId) {
+        const panel = $(panelId);
+        if (!panel) return;
+        panel.scrollIntoView({ behavior: "smooth", block: "start" });
+        const heading = panel.querySelector("h2");
+        if (heading) {
+            heading.setAttribute("tabindex", "-1");
+            window.setTimeout(() => heading.focus({ preventScroll: true }), 180);
+        }
+    };
+
     /* Admin Panel functionality lives in admin-panel.js. */
 
     $("accountUsernameInput")?.addEventListener("input", updateAccountSaveButtons);
     $("accountDisplayNameInput")?.addEventListener("input", updateAccountSaveButtons);
+    $("deleteAccountConfirmation")?.addEventListener("input", function() {
+        const button = $("deleteAccountButton");
+        if (button) button.disabled = this.value.trim() !== "DELETE";
+    });
+    document.querySelectorAll(".worth-it-settings-card[data-settings-target]").forEach(card => {
+        const open = () => window.openSettingsCategory(card.dataset.settingsTarget);
+        card.addEventListener("click", open);
+        card.addEventListener("keydown", event => {
+            if (event.key === "Enter" || event.key === " ") { event.preventDefault(); open(); }
+        });
+    });
     $("calculatorSearch")?.addEventListener("input", applyFilters);
     $("categoryFilter")?.addEventListener("change", applyFilters);
     $("clearCalculatorFilters")?.addEventListener("click", ()=>{
