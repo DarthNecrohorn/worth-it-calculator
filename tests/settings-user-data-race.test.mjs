@@ -39,4 +39,5 @@ test("deleting one account never signs out a different account that is now activ
         "check the current account before signing out"
     );
     assert.match(deleter, /Your current browser session belongs to a different account, so that account remains signed in/);
+    assert.match(deleter, /if \(typeof window\.loadYourDataSettings === "function"\)[\s\S]*?await window\.loadYourDataSettings\(\)/);
 });
