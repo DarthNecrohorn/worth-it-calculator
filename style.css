@@ -19597,6 +19597,9 @@ html[data-theme="light"] .worth-it-notification-dismiss:hover,html[data-theme="l
 .worth-it-settings-page{min-height:calc(100vh - 72px);padding:34px 0 76px;color:var(--text)}
 .worth-it-settings-container{max-width:1040px}
 .worth-it-settings-toolbar{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:34px}
+.worth-it-settings-section-nav{display:flex;align-items:center;justify-content:space-between;gap:16px;margin:0 0 22px}
+.worth-it-settings-section-nav span{font-size:12px;font-weight:800;letter-spacing:.06em;color:var(--muted)}
+.worth-it-settings-page [hidden],.worth-it-settings-page [hidden="hidden"]{display:none!important}
 .worth-it-settings-overline,.worth-it-settings-kicker{color:var(--muted);font-size:11px;font-weight:800;letter-spacing:.13em}
 .worth-it-settings-hero{display:flex;align-items:flex-end;justify-content:space-between;gap:24px;padding:0 0 28px;border-bottom:1px solid var(--border);margin-bottom:26px}
 .worth-it-settings-kicker{margin-bottom:8px;color:var(--primary2)}
@@ -19627,6 +19630,7 @@ html[data-theme="light"] .worth-it-notification-dismiss:hover,html[data-theme="l
 @media(max-width:700px){
  .worth-it-settings-page{padding:22px 0 48px}
  .worth-it-settings-toolbar{align-items:flex-start;flex-direction:column;margin-bottom:26px}
+ .worth-it-settings-section-nav{align-items:flex-start;flex-direction:column;gap:10px;margin-bottom:18px}
  .worth-it-settings-hero{align-items:flex-start;flex-direction:column;gap:16px;padding-bottom:22px}
  .worth-it-settings-grid{grid-template-columns:minmax(0,1fr);gap:10px}
  .worth-it-settings-card{padding:16px;grid-template-columns:40px minmax(0,1fr);gap:12px}
