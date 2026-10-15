@@ -230,9 +230,21 @@ BEGIN
     EXCEPTION WHEN insufficient_privilege THEN
         NULL;
     END;
+    IF EXISTS (SELECT worth_it_id FROM public.worth_it_profiles WHERE worth_it_id=102) THEN
+        RAISE EXCEPTION 'anon read a private profile directly from the base table';
+    END IF;
+    IF NOT EXISTS (SELECT worth_it_id FROM public.worth_it_profiles WHERE worth_it_id=101) THEN
+        RAISE EXCEPTION 'anon cannot read an allowed public profile column';
+    END IF;
     BEGIN
-        PERFORM 1 FROM public.worth_it_profiles;
-        RAISE EXCEPTION 'anon unexpectedly read the base profiles table';
+        PERFORM user_id FROM public.worth_it_profiles;
+        RAISE EXCEPTION 'anon unexpectedly read internal profile user IDs';
+    EXCEPTION WHEN insufficient_privilege THEN
+        NULL;
+    END;
+    BEGIN
+        PERFORM last_seen_at FROM public.worth_it_profiles;
+        RAISE EXCEPTION 'anon unexpectedly read unmasked last-seen timestamps';
     EXCEPTION WHEN insufficient_privilege THEN
         NULL;
     END;
@@ -255,15 +267,48 @@ BEGIN
     IF NOT EXISTS (SELECT 1 FROM public.worth_it_public_profiles WHERE worth_it_id=102) THEN
         RAISE EXCEPTION 'accepted friend cannot see friends-only profile via view';
     END IF;
-    IF EXISTS (SELECT 1 FROM public.worth_it_profiles WHERE user_id='bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb') THEN
-        RAISE EXCEPTION 'authenticated role bypassed own-profile RLS';
+    IF NOT EXISTS (SELECT worth_it_id FROM public.worth_it_profiles WHERE worth_it_id=102) THEN
+        RAISE EXCEPTION 'accepted friend cannot read the allowed profile column through RLS';
     END IF;
+    BEGIN
+        PERFORM user_id FROM public.worth_it_profiles;
+        RAISE EXCEPTION 'authenticated role unexpectedly read internal profile user IDs';
+    EXCEPTION WHEN insufficient_privilege THEN
+        NULL;
+    END;
+    BEGIN
+        PERFORM last_seen_at FROM public.worth_it_profiles;
+        RAISE EXCEPTION 'authenticated role unexpectedly read unmasked last-seen timestamps';
+    EXCEPTION WHEN insufficient_privilege THEN
+        NULL;
+    END;
     BEGIN
         PERFORM 1 FROM public.worth_it_user_preferences;
         RAISE EXCEPTION 'authenticated role unexpectedly read the preference table directly';
     EXCEPTION WHEN insufficient_privilege THEN
         NULL;
     END;
+END;
+$$;
+RESET ROLE;
+
+-- Removing friendship and switching the profile to private must hide it from
+-- both the invoker view and direct column-limited table reads.
+UPDATE public.worth_it_user_preferences
+   SET profile_visibility='private'
+ WHERE user_id='bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
+DELETE FROM public.worth_it_friends
+ WHERE user_low_id='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
+   AND user_high_id='bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
+SET ROLE authenticated;
+DO $$
+BEGIN
+    IF EXISTS (SELECT worth_it_id FROM public.worth_it_public_profiles WHERE worth_it_id=102) THEN
+        RAISE EXCEPTION 'private profile remains visible in the invoker view after friendship removal';
+    END IF;
+    IF EXISTS (SELECT worth_it_id FROM public.worth_it_profiles WHERE worth_it_id=102) THEN
+        RAISE EXCEPTION 'private profile remains visible through the base table after friendship removal';
+    END IF;
 END;
 $$;
 RESET ROLE;
