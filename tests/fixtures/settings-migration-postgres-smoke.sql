@@ -203,3 +203,67 @@ BEGIN
     END IF;
 END;
 $$;
+
+
+-- Exercise the public profile surface as the actual database roles, not just as
+-- the postgres owner running the assertions above.
+UPDATE public.worth_it_user_preferences
+   SET profile_visibility='private'
+ WHERE user_id='bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
+
+SELECT set_config('request.jwt.claim.sub','',false);
+SET ROLE anon;
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM public.worth_it_public_profiles WHERE worth_it_id=102) THEN
+        RAISE EXCEPTION 'anon role can see a private profile in the public view';
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM public.worth_it_public_profiles WHERE worth_it_id=101) THEN
+        RAISE EXCEPTION 'anon role cannot see a public profile';
+    END IF;
+    IF public.search_worth_it_public_profiles('privateuser',20) <> '[]'::jsonb THEN
+        RAISE EXCEPTION 'anon RPC search bypassed profile visibility';
+    END IF;
+    BEGIN
+        PERFORM public.get_worth_it_user_preferences();
+        RAISE EXCEPTION 'anon unexpectedly read personal preferences';
+    EXCEPTION WHEN insufficient_privilege THEN
+        NULL;
+    END;
+    BEGIN
+        PERFORM 1 FROM public.worth_it_profiles;
+        RAISE EXCEPTION 'anon unexpectedly read the base profiles table';
+    EXCEPTION WHEN insufficient_privilege THEN
+        NULL;
+    END;
+END;
+$$;
+RESET ROLE;
+
+-- A signed-in accepted friend may see a friends-only profile through the view,
+-- but still cannot read another person's base profile row or preference table.
+UPDATE public.worth_it_user_preferences
+   SET profile_visibility='friends'
+ WHERE user_id='bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
+INSERT INTO public.worth_it_friends(user_low_id,user_high_id)
+VALUES ('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb')
+ON CONFLICT DO NOTHING;
+SELECT set_config('request.jwt.claim.sub','aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',false);
+SET ROLE authenticated;
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM public.worth_it_public_profiles WHERE worth_it_id=102) THEN
+        RAISE EXCEPTION 'accepted friend cannot see friends-only profile via view';
+    END IF;
+    IF EXISTS (SELECT 1 FROM public.worth_it_profiles WHERE user_id='bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb') THEN
+        RAISE EXCEPTION 'authenticated role bypassed own-profile RLS';
+    END IF;
+    BEGIN
+        PERFORM 1 FROM public.worth_it_user_preferences;
+        RAISE EXCEPTION 'authenticated role unexpectedly read the preference table directly';
+    EXCEPTION WHEN insufficient_privilege THEN
+        NULL;
+    END;
+END;
+$$;
+RESET ROLE;
