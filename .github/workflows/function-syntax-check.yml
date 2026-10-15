@@ -5,6 +5,7 @@ on:
     paths:
       - "functions/**/*.js"
       - "supabase/**/*.sql"
+      - "tests/**/*.mjs"
       - "cars-ui.js"
       - "ship-tracking-ui.js"
       - "profile-ui.js"
