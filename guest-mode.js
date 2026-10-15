@@ -263,6 +263,16 @@
         window.worthItGuestAuthResolution = (async function () {
             try {
                 if (window.worthItAuthReady) await Promise.resolve(window.worthItAuthReady).catch(() => {});
+                // A SIGNED_IN / SIGNED_OUT event may have arrived while the
+                // initial app auth promise was resolving. Trust that newer
+                // shared state rather than overwriting it with a stale read.
+                if (authStateKnown) return isAuthenticated;
+
+                if (window.worthItAuthStateResolved) {
+                    setAuthState(window.worthItCurrentAuthUser || null, "INITIAL_SESSION");
+                    return isAuthenticated;
+                }
+
                 const auth = window.supabaseClient?.auth;
                 if (!auth?.getSession) {
                     setAuthState(null, "AUTH_UNAVAILABLE");
