@@ -918,8 +918,7 @@ window.openSettings = openFullSettings;
     let userPreferencesCache = null;
     let userPreferencesCacheUserId = "";
     let userPreferencesPromise = null;
-    let privacySaveBusy = false;
-    let notificationsSaveBusy = false;
+    let userPreferencesSaveBusy = false;
 
     function copyDefaultPreferences() {
         return {
@@ -1037,12 +1036,11 @@ window.openSettings = openFullSettings;
     }
 
     async function persistUserPreferences(which) {
-        if (which === "privacy" && privacySaveBusy) return;
-        if (which === "notifications" && notificationsSaveBusy) return;
+        if (userPreferencesSaveBusy) return;
+        userPreferencesSaveBusy = true;
         const controls = which === "privacy" ? "privacySettingsContent" : "notificationSettingsContent";
-        if (which === "privacy") privacySaveBusy = true;
-        else notificationsSaveBusy = true;
-        setSettingsControlsDisabled(controls, true);
+        setSettingsControlsDisabled("privacySettingsContent", true);
+        setSettingsControlsDisabled("notificationSettingsContent", true);
         settingsStatus(which === "privacy" ? "privacySettingsStatus" : "notificationSettingsStatus", "Saving your preferences…", "pending");
         try {
             const client = window.supabaseClient;
@@ -1088,9 +1086,9 @@ window.openSettings = openFullSettings;
                 applyNotificationControls(userPreferencesCache);
             }
         } finally {
-            if (which === "privacy") privacySaveBusy = false;
-            else notificationsSaveBusy = false;
-            setSettingsControlsDisabled(controls, false);
+            userPreferencesSaveBusy = false;
+            setSettingsControlsDisabled("privacySettingsContent", false);
+            setSettingsControlsDisabled("notificationSettingsContent", false);
         }
     }
 
