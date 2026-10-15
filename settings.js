@@ -464,7 +464,7 @@ window.openSettings = openFullSettings;
         securityMessage("securitySessionsStatus", "The current browser session is active.", false);
         securityMessage(
             "securityAlertsStatus",
-            "Supabase supports alerts for password, email and phone changes, linked or removed sign-in methods, and added or removed verification methods. The individual email switches are project-level settings and cannot be read from this browser session; review them in Supabase before relying on delivery.",
+            "The seven project-level security notification switches have been enabled in Supabase. Email delivery is not yet verified because custom SMTP is not configured; after SMTP setup, send a test before relying on these alerts.",
             true
         );
         securityMessage("securityMfaStatus", "Checking authenticator status…", false);
