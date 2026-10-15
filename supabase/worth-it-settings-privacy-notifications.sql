@@ -260,7 +260,7 @@ begin
     select coalesce(show_connections, true) into can_show_connections
     from public.worth_it_user_preferences where user_id = target_user_id;
     can_show_connections := coalesce(can_show_connections, true);
-    if not can_show_connections then
+    if not can_show_connections and auth.uid() is distinct from target_user_id then
         return jsonb_build_object('friends', null, 'followers', null, 'following', null, 'hidden', true);
     end if;
 
@@ -296,7 +296,7 @@ begin
     select coalesce(show_connections, true) into can_show_connections
     from public.worth_it_user_preferences where user_id = target_user_id;
     can_show_connections := coalesce(can_show_connections, true);
-    if not can_show_connections then
+    if not can_show_connections and auth.uid() is distinct from target_user_id then
         return jsonb_build_object('success', true, 'connections', '[]'::jsonb, 'hidden', true);
     end if;
 
