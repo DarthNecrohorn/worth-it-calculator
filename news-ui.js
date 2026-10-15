@@ -1085,11 +1085,21 @@ function getNewsFeedStorageKey(
 
 async function getNewsAccountScope() {
     try {
-        const result =
-            await window.supabaseClient?.auth?.getUser();
+        /*
+         * Reuse the main app's resolved session instead of making a separate
+         * getUser() request when News opens. That extra request can trigger
+         * token revalidation and is not needed just to choose a cache key.
+         */
+        if (
+            window.worthItAuthStateResolved !== true &&
+            window.worthItAuthReady &&
+            typeof window.worthItAuthReady.then === "function"
+        ) {
+            await Promise.resolve(window.worthItAuthReady);
+        }
 
         const id =
-            result?.data?.user?.id;
+            window.worthItCurrentAuthUser?.id || "";
 
         return id
             ? "user:" + id
@@ -1100,7 +1110,13 @@ async function getNewsAccountScope() {
             "News account scope unavailable:",
             error
         );
-        return "guest";
+
+        const id =
+            window.worthItCurrentAuthUser?.id || "";
+
+        return id
+            ? "user:" + id
+            : "guest";
     }
 }
 
@@ -1903,6 +1919,24 @@ async function loadNews() {
         return;
     }
 
+    newsLoadInProgress = true;
+
+    const previousAccountScope =
+        newsFeedAccountScope;
+
+    newsFeedAccountScope =
+        await getNewsAccountScope();
+
+    if (
+        newsFeedAccountScope !==
+        previousAccountScope
+    ) {
+        // Never reuse a previous account's in-memory snapshot after switching
+        // accounts in the same browser tab.
+        newsData = {};
+        newsLastSuccessfulLoadAt = 0;
+    }
+
     if (
         Object.keys(newsData || {}).length &&
         newsLastSuccessfulLoadAt &&
@@ -1910,13 +1944,9 @@ async function loadNews() {
             NEWS_MIN_REFRESH_INTERVAL_MS
     ) {
         showNewsCategory("all");
+        newsLoadInProgress = false;
         return;
     }
-
-    newsLoadInProgress = true;
-
-    newsFeedAccountScope =
-        await getNewsAccountScope();
 
     const snapshot =
         readNewsFeedSnapshot(

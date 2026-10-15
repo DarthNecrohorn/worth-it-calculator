@@ -32,3 +32,28 @@ test("News section code does not sign out or erase Supabase auth state", () => {
     assert.doesNotMatch(news, /\.auth\.signOut\s*\(/);
     assert.doesNotMatch(news, /localStorage\.removeItem\([^)]*(?:auth-token|supabase)/i);
 });
+
+
+test("News uses the resolved primary auth state for cache scoping without a second auth request", () => {
+    const start = news.indexOf("async function getNewsAccountScope()");
+    const end = news.indexOf("\nfunction readNewsFeedSnapshot", start);
+    assert.ok(start >= 0, "News account-scope helper exists");
+    assert.ok(end > start, "News account-scope helper has a clear boundary");
+    const body = news.slice(start, end);
+    assert.match(body, /window\.worthItAuthReady/);
+    assert.match(body, /window\.worthItAuthStateResolved/);
+    assert.match(body, /window\.worthItCurrentAuthUser\?\.id/);
+    assert.doesNotMatch(body, /\.auth\??\.getUser\s*\(/);
+    assert.doesNotMatch(body, /supabaseClient/);
+});
+
+test("News rechecks the account scope before reusing its in-memory feed", () => {
+    const start = news.indexOf("async function loadNews()");
+    const end = news.indexOf("/* =========================================================\n   NEWS", start);
+    const body = news.slice(start, end < 0 ? undefined : end);
+    assert.ok(start >= 0, "loadNews exists");
+    assert.ok(body.indexOf("await getNewsAccountScope()") < body.indexOf("showNewsCategory(\"all\")"));
+    assert.match(body, /newsFeedAccountScope !==\s*previousAccountScope/);
+    assert.match(body, /newsData = \{\};/);
+    assert.match(body, /newsLoadInProgress = false;\s*return;/);
+});
