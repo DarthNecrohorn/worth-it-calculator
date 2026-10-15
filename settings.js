@@ -727,23 +727,35 @@ window.openSettings = openFullSettings;
 
     window.cancelTotpEnrollment = async function() {
         const factorId = enrollmentTotpFactorId;
-        if (!factorId) {
-            $("securityMfaEnroll").hidden = true;
+        const factorUserId = enrollmentTotpUserId;
+        if (!factorId || !factorUserId) {
+            clearTotpEnrollmentUi();
             return;
         }
         const button = $("securityMfaVerify");
         if (button) button.disabled = true;
         try {
+            if (!await securitySessionMatches(factorUserId)) {
+                clearTotpEnrollmentUi();
+                await window.loadSecuritySettings();
+                return;
+            }
             const result = await window.supabaseClient.auth.mfa.unenroll({ factorId });
             if (result?.error) throw result.error;
-            enrollmentTotpFactorId = "";
-            enrollmentTotpSecret = "";
-            $("securityMfaEnroll").hidden = true;
-            $("securityMfaQr").removeAttribute("src");
-            $("securityMfaSecret").textContent = "";
+            if (!await securitySessionMatches(factorUserId)) {
+                clearTotpEnrollmentUi();
+                await window.loadSecuritySettings();
+                return;
+            }
+            clearTotpEnrollmentUi();
             securityMessage("securityMfaStatus", "Authenticator setup cancelled.", false);
             await window.loadSecuritySettings();
         } catch (error) {
+            if (!await securitySessionMatches(factorUserId).catch(() => false)) {
+                clearTotpEnrollmentUi();
+                await window.loadSecuritySettings();
+                return;
+            }
             securityMessage("securityMfaStatus", error?.message || "Could not cancel setup. Refresh security settings and try again.", true);
         } finally {
             if (button) button.disabled = false;
@@ -751,14 +763,35 @@ window.openSettings = openFullSettings;
     };
 
     window.removePendingTotpEnrollment = async function() {
-        if (!pendingTotpFactorId) return;
+        const factorId = pendingTotpFactorId;
+        const factorUserId = pendingTotpFactorUserId;
+        if (!factorId || !factorUserId) return;
         try {
-            const result = await window.supabaseClient.auth.mfa.unenroll({ factorId: pendingTotpFactorId });
+            if (!await securitySessionMatches(factorUserId)) {
+                pendingTotpFactorId = "";
+                pendingTotpFactorUserId = "";
+                await window.loadSecuritySettings();
+                return;
+            }
+            const result = await window.supabaseClient.auth.mfa.unenroll({ factorId });
             if (result?.error) throw result.error;
+            if (!await securitySessionMatches(factorUserId)) {
+                pendingTotpFactorId = "";
+                pendingTotpFactorUserId = "";
+                await window.loadSecuritySettings();
+                return;
+            }
             pendingTotpFactorId = "";
+            pendingTotpFactorUserId = "";
             securityMessage("securityMfaStatus", "Unfinished authenticator setup removed.", false);
             await window.loadSecuritySettings();
         } catch (error) {
+            if (!await securitySessionMatches(factorUserId).catch(() => false)) {
+                pendingTotpFactorId = "";
+                pendingTotpFactorUserId = "";
+                await window.loadSecuritySettings();
+                return;
+            }
             securityMessage("securityMfaStatus", error?.message || "Could not remove the unfinished setup.", true);
         }
     };
