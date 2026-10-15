@@ -421,7 +421,7 @@ begin
         'incoming_request_pending', coalesce(incoming_status = 'pending', false)
     );
 end;
-$;
+$$;
 
 revoke all on function public.get_worth_it_profile_social_context(bigint) from public;
 grant execute on function public.get_worth_it_profile_social_context(bigint) to anon, authenticated;
