@@ -340,11 +340,16 @@ function profilePersonLink(person, compact) {
   else{const text=document.createElement("span");text.className="worth-it-profile-connection-text";const display=document.createElement("strong");display.textContent=name;const handle=document.createElement("small");handle.textContent=username?"@"+username:"Worth It member";const presence=document.createElement("small");presence.className="worth-it-person-presence-label";presence.dataset.worthItPresenceId=String(id);presence.textContent=getWorthItPresenceInfo(person).label;text.append(display,handle,presence);link.append(avatar,text);}
   return link;
 }
-function renderFriendsStrip(rows) {
+function renderFriendsStrip(rows, hidden) {
  const host = $("worthItProfileFriendsStrip"), preview = $("worthItProfileFriendsPreview");
  if (!host) return;
  host.replaceChildren();
  if (!Array.isArray(rows)) rows = [];
+ if (hidden) {
+  const empty = document.createElement("span"); empty.className = "worth-it-profile-friends-empty"; empty.textContent = "This member has hidden their friends.";
+  host.appendChild(empty); setText("worthItProfileFriendsPreviewCount", "(hidden)"); setText("worthItProfileFriendsMood", "🔒"); if (preview) preview.hidden = false; return;
+ }
+ setText("worthItProfileFriendsPreviewCount", "(" + rows.length + ")");
  if (!rows.length) {
   const empty = document.createElement("span"); empty.className = "worth-it-profile-friends-empty"; empty.textContent = "No friends yet.";
   host.appendChild(empty); if (preview) preview.hidden = false; return;
@@ -419,7 +424,7 @@ async function refreshProfileSocial(targetId, isOwn) {
   else { if (actionHost) actionHost.hidden = true; currentSocialContext = null; }
   const connectionData = normalizeRpcObject(connectionsResult.data);
   if (!connectionsResult.error && connectionData?.success === true && Array.isArray(connectionData.connections)) {
-   renderFriendsStrip(connectionData.connections);
+   renderFriendsStrip(connectionData.connections, connectionData.hidden === true);
   } else if (preview) preview.hidden = true;
  } catch (_) {
   if (refreshId === activeSocialRefresh && preview) preview.hidden = true;
