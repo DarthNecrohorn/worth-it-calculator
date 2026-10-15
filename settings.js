@@ -1246,8 +1246,9 @@ window.openSettings = openFullSettings;
         button.disabled = true;
         settingsStatus("deleteAccountStatus", "Requesting permanent account deletion…", "pending");
         try {
-            await requestUserDataApi({ action: "delete", confirmation: "DELETE" });
-            settingsStatus("deleteAccountStatus", "Account deleted. Signing out of this browser…", "success");
+            const deletion = await requestUserDataApi({ action: "delete", confirmation: "DELETE" });
+            settingsStatus("deleteAccountStatus", "Account deleted. Signing out of this browser…", deletion.cleanup_warning ? "warning" : "success");
+            if (deletion.cleanup_warning) window.alert(deletion.warning || "Your account was deleted, but a profile image could not be fully cleaned up. Contact Worth It support.");
             try { await window.supabaseClient?.auth?.signOut?.({ scope: "local" }); } catch (_) {}
             window.location.assign("/");
         } catch (error) {
