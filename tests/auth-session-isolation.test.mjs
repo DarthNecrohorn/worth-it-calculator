@@ -6,6 +6,7 @@ const app = readFileSync(new URL("../app.js", import.meta.url), "utf8");
 const guest = readFileSync(new URL("../guest-mode.js", import.meta.url), "utf8");
 const css = readFileSync(new URL("../style.css", import.meta.url), "utf8");
 const html = readFileSync(new URL("../index.html", import.meta.url), "utf8");
+const usernameLogin = readFileSync(new URL("../functions/api/auth-username-login.js", import.meta.url), "utf8");
 
 test("MFA sign-in reuses a non-persistent Supabase client isolated from the main session key", () => {
     assert.match(app, /let authMfaLoginClient = null/);
@@ -35,4 +36,18 @@ test("the hamburger menu overlays header actions instead of overlapping them", (
     assert.match(html, /style\.css\?v=news-menu-auth-hitbox-20261015a/);
     assert.match(html, /app\.js\?v=news-menu-auth-hitbox-20261015a/);
     assert.match(html, /guest-mode\.js\?v=news-menu-auth-hitbox-20261015a/);
+});
+
+
+test("username login allows production and only the Worth It Pages preview origin pattern", () => {
+    assert.match(usernameLogin, /const SITE_ORIGIN = "https:\/\/worth-it-calculator\.pages\.dev"/);
+    assert.match(usernameLogin, /PREVIEW_ORIGIN_PATTERN/);
+    assert.match(usernameLogin, /worth-it-calculator\\\.pages\\\.dev\$/);
+    assert.match(usernameLogin, /function isAllowedOrigin\(origin\)/);
+    assert.match(usernameLogin, /origin === SITE_ORIGIN/);
+    assert.match(usernameLogin, /PREVIEW_ORIGIN_PATTERN\.test\(origin\)/);
+    assert.match(usernameLogin, /!isAllowedOrigin\(origin\)/);
+    assert.match(usernameLogin, /onRequestOptions\(context\)/);
+    assert.match(usernameLogin, /jsonResponse\(\s*\{\},\s*204,\s*origin \|\| SITE_ORIGIN\s*\)/);
+    assert.match(usernameLogin, /"Access-Control-Allow-Origin":\s*origin/);
 });
