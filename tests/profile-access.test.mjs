@@ -13,6 +13,13 @@ test("Settings tries the scoped own-profile RPC first and only falls back for an
     assert.match(settings, /PGRST202/);
 });
 
+test("profile pages remain compatible before the one-time presence migration is applied", () => {
+    assert.match(profileUi, /function isMissingWorthItPresenceColumn\(error\)/);
+    assert.match(profileUi, /show_online_status\)\)\s*\{/);
+    assert.match(profileUi, /\.select\("worth_it_id,username,display_name,avatar_url,banner_url,created_at,last_seen_at"\)/);
+    assert.match(profileUi, /publicResult\.data\.show_online_status=true/);
+});
+
 test("profile UI uses the own-profile RPC first and public-profile view for other users", () => {
     const rpcIndex = profileUi.indexOf('sb.rpc("get_worth_it_own_profile")');
     const legacyIndex = profileUi.indexOf('sb.from("worth_it_profiles")');
