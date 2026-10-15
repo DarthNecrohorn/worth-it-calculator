@@ -180,22 +180,109 @@ grant execute on function public.get_worth_it_user_preferences() to authenticate
 grant execute on function public.save_worth_it_user_preferences(jsonb, jsonb) to authenticated;
 grant execute on function public.can_view_worth_it_profile(uuid) to anon, authenticated;
 
--- Preserve the current public-profile columns in their existing order and append
--- only the online-status flag required by the profile UI.
-create or replace view public.worth_it_public_profiles as
+-- Let the public profile surface obey RLS instead of relying on a default
+-- SECURITY DEFINER view. The underlying table exposes only the columns meant
+-- for the profile card; owner-only/security metadata stays server-side.
+drop policy if exists "Profiles visible under Worth It privacy settings" on public.worth_it_profiles;
+create policy "Profiles visible under Worth It privacy settings"
+    on public.worth_it_profiles
+    for select
+    to anon, authenticated
+    using (public.can_view_worth_it_profile(user_id));
+
+revoke select on table public.worth_it_profiles from public, anon, authenticated;
+grant select (
+    worth_it_id, username, display_name, avatar_url, created_at, banner_url, description
+) on public.worth_it_profiles to anon, authenticated;
+
+-- A narrowly scoped helper supplies privacy-filtered presence data to the view.
+-- Keep it in an unexposed schema so it is not published as a standalone REST RPC.
+create schema if not exists worth_it_private;
+revoke all on schema worth_it_private from public;
+grant usage on schema worth_it_private to anon, authenticated;
+
+create or replace function worth_it_private.get_worth_it_profile_presence(target_worth_it_id bigint)
+returns table(last_seen_at timestamptz, show_online_status boolean)
+language plpgsql
+stable
+security definer
+set search_path = public
+as $$
+declare
+    target_user_id uuid;
+begin
+    if target_worth_it_id is null then return; end if;
+
+    select user_id into target_user_id
+    from public.worth_it_profiles
+    where worth_it_id = target_worth_it_id;
+
+    if target_user_id is null or not public.can_view_worth_it_profile(target_user_id) then
+        return;
+    end if;
+
+    return query
+    select
+        case when coalesce(prefs.show_online_status, true) then profile.last_seen_at else null end,
+        coalesce(prefs.show_online_status, true)
+    from public.worth_it_profiles profile
+    left join public.worth_it_user_preferences prefs on prefs.user_id = profile.user_id
+    where profile.worth_it_id = target_worth_it_id;
+end;
+$$;
+revoke all on function worth_it_private.get_worth_it_profile_presence(bigint) from public, anon, authenticated;
+grant execute on function worth_it_private.get_worth_it_profile_presence(bigint) to anon, authenticated;
+
+-- Browser-side own-profile reads go through an authenticated function instead
+-- of granting clients access to user_id or raw last-seen columns on the base table.
+create or replace function public.get_worth_it_own_profile()
+returns jsonb
+language plpgsql
+stable
+security definer
+set search_path = public
+as $$
+declare
+    actor_id uuid := auth.uid();
+    result jsonb;
+begin
+    if actor_id is null then raise exception 'Authentication required'; end if;
+
+    select jsonb_build_object(
+        'worth_it_id', profile.worth_it_id,
+        'username', profile.username,
+        'display_name', profile.display_name,
+        'avatar_url', profile.avatar_url,
+        'banner_url', profile.banner_url,
+        'created_at', profile.created_at,
+        'last_seen_at', profile.last_seen_at
+    ) into result
+    from public.worth_it_profiles profile
+    where profile.user_id = actor_id;
+
+    return result;
+end;
+$$;
+revoke all on function public.get_worth_it_own_profile() from public, anon;
+grant execute on function public.get_worth_it_own_profile() to authenticated;
+
+-- Preserve the existing public-profile columns in their established order.
+-- Postgres 15+ evaluates this view using the caller's table privileges and RLS.
+create or replace view public.worth_it_public_profiles
+with (security_invoker = true)
+as
 select
-    wp.worth_it_id,
-    wp.username,
-    coalesce(wp.display_name, wp.username, 'Worth It member') as display_name,
-    wp.avatar_url,
-    wp.created_at,
-    wp.banner_url,
-    wp.description,
-    case when coalesce(p.show_online_status, true) then wp.last_seen_at else null end as last_seen_at,
-    coalesce(p.show_online_status, true) as show_online_status
-from public.worth_it_profiles wp
-left join public.worth_it_user_preferences p on p.user_id = wp.user_id
-where public.can_view_worth_it_profile(wp.user_id);
+    profile.worth_it_id,
+    profile.username,
+    coalesce(profile.display_name, profile.username, 'Worth It member') as display_name,
+    profile.avatar_url,
+    profile.created_at,
+    profile.banner_url,
+    profile.description,
+    presence.last_seen_at,
+    presence.show_online_status
+from public.worth_it_profiles profile
+cross join lateral worth_it_private.get_worth_it_profile_presence(profile.worth_it_id) presence;
 
 grant select on public.worth_it_public_profiles to anon, authenticated;
 
