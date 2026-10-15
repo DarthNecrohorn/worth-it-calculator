@@ -44,7 +44,7 @@ jobs:
           done
 
       - name: Test account-data API security paths
-        run: node --test tests/user-data.test.mjs
+        run: node --test tests/*.test.mjs
 
       - name: Set up Python for PostgreSQL parsing
         uses: actions/setup-python@v5
