@@ -41,6 +41,26 @@ let authMfaRequired = false;
 let authPendingMfaFactorId = "";
 let authPendingMfaFactorType = "totp";
 let authMfaPendingClient = null;
+let authMfaLoginClient = null;
+
+function getAuthMfaLoginClient() {
+    if (!authMfaLoginClient) {
+        authMfaLoginClient = window.supabase.createClient(
+            SUPABASE_URL,
+            SUPABASE_PUBLISHABLE_KEY,
+            {
+                auth: {
+                    persistSession: false,
+                    autoRefreshToken: false,
+                    detectSessionInUrl: false,
+                    flowType: "implicit",
+                    storageKey: "worth-it-mfa-pending-auth-token-v1"
+                }
+            }
+        );
+    }
+    return authMfaLoginClient;
+}
 
 
 /* =========================================================
@@ -360,6 +380,11 @@ function updateAuthUI(user) {
     currentAuthUser =
         user || null;
 
+    // Share the primary app's authoritative auth state with features that
+    // need to gate UI. They should not race a second initial getSession()
+    // against the main auth initialization.
+    window.worthItCurrentAuthUser = currentAuthUser;
+    window.worthItAuthStateResolved = true;
 
     const btn =
         $("authBtn");
@@ -1836,18 +1861,7 @@ async function submitAuthForm(event) {
             }
 
             authMfaLoginInProgress = true;
-            const temporaryAuthClient = window.supabase.createClient(
-                SUPABASE_URL,
-                SUPABASE_PUBLISHABLE_KEY,
-                {
-                    auth: {
-                        persistSession: false,
-                        autoRefreshToken: false,
-                        detectSessionInUrl: false,
-                        flowType: "implicit"
-                    }
-                }
-            );
+            const temporaryAuthClient = getAuthMfaLoginClient();
             const temporaryResult = await temporaryAuthClient.auth.setSession({
                 access_token: payload.access_token,
                 refresh_token: payload.refresh_token
@@ -2038,7 +2052,7 @@ async function signOutUser() {
 
         const { error } =
             await window.supabaseClient.auth
-                .signOut();
+                .signOut({ scope: "local" });
 
 
         if (error) {

@@ -19975,3 +19975,42 @@ html[data-theme="light"] .worth-it-guest-consent{background:#f4f1ff;border-color
     .worth-it-guest-actions{align-items:stretch;flex-direction:column-reverse}
     .worth-it-guest-actions button{width:100%;min-height:40px}
 }
+
+
+/* Keep the hamburger dropdown above account/header actions at every compact breakpoint.
+   At widths between 701px and 1000px the previous rules could leave the menu in the
+   navbar flex row, allowing taps to reach neighbouring account controls. */
+@media(max-width:1000px) {
+    .nav-links {
+        display: none;
+    }
+
+    .nav-links.open {
+        position: absolute;
+        left: 10px;
+        right: 10px;
+        top: 68px;
+        display: flex;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 5px;
+        padding: 10px;
+        max-height: calc(100vh - 86px);
+        overflow-y: auto;
+        background: var(--card-solid, var(--card));
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        box-shadow: var(--shadow);
+        z-index: 800;
+    }
+
+    .nav-links.open button {
+        width: 100%;
+        text-align: left;
+    }
+}
+
+html[data-ui-scale="large"] .nav-links.open,
+html[data-ui-scale="xl"] .nav-links.open {
+    z-index: 800;
+}
