@@ -1392,7 +1392,8 @@ window.openSettings = openFullSettings;
         const sessionResult = await client?.auth?.getSession?.();
         if (sessionResult?.error) throw sessionResult.error;
         const session = sessionResult?.data?.session;
-        if (!session?.access_token) throw new Error("Sign in again to manage your data.");
+        const requestUserId = session?.user?.id || "";
+        if (!session?.access_token || !requestUserId) throw new Error("Sign in again to manage your data.");
         const response = await fetch("/api/user-data", {
             method: "POST",
             headers: {
@@ -1403,7 +1404,22 @@ window.openSettings = openFullSettings;
         });
         const payload = await response.json().catch(() => ({}));
         if (!response.ok || !payload.success) throw new Error(payload.error || "The account data request could not be completed.");
-        return payload;
+
+        // Export and deletion are account-specific operations. A browser account switch
+        // must not download another account's export or sign the new account out.
+        let currentUserId = "";
+        try {
+            const latestSessionResult = await client.auth.getSession();
+            if (!latestSessionResult?.error) {
+                currentUserId = latestSessionResult?.data?.session?.user?.id || "";
+            }
+        } catch (_) {}
+        return {
+            payload,
+            requestUserId,
+            currentUserId,
+            accountChanged: currentUserId !== requestUserId
+        };
     }
 
     window.loadYourDataSettings = async function() {
@@ -1466,7 +1482,10 @@ window.openSettings = openFullSettings;
         settingsStatus("yourDataStatus", "Preparing your personal data export…", "pending");
         try {
             const result = await requestUserDataApi({ action: "export" });
-            const exportData = result.export;
+            if (result.accountChanged) {
+                throw new Error("Your signed-in account changed while the export was being prepared. No file was downloaded; reload Settings and try again.");
+            }
+            const exportData = result.payload.export;
             if (!exportData || typeof exportData !== "object") throw new Error("The export response was empty.");
             const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: "application/json;charset=utf-8" });
             const objectUrl = URL.createObjectURL(blob);
@@ -1500,9 +1519,18 @@ window.openSettings = openFullSettings;
         button.disabled = true;
         settingsStatus("deleteAccountStatus", "Requesting permanent account deletion…", "pending");
         try {
-            const deletion = await requestUserDataApi({ action: "delete", confirmation: "DELETE" });
+            const result = await requestUserDataApi({ action: "delete", confirmation: "DELETE" });
+            const deletion = result.payload;
+            if (deletion.cleanup_warning) window.alert(deletion.warning || "Your account was deleted, but some associated files could not be fully cleaned up. Contact Worth It support.");
+            if (result.currentUserId && result.currentUserId !== result.requestUserId) {
+                settingsStatus(
+                    "deleteAccountStatus",
+                    "The account requested for deletion was deleted. Your current browser session belongs to a different account, so that account remains signed in.",
+                    deletion.cleanup_warning ? "warning" : "success"
+                );
+                return;
+            }
             settingsStatus("deleteAccountStatus", "Account deleted. Signing out of this browser…", deletion.cleanup_warning ? "warning" : "success");
-            if (deletion.cleanup_warning) window.alert(deletion.warning || "Your account was deleted, but a profile image could not be fully cleaned up. Contact Worth It support.");
             try { await window.supabaseClient?.auth?.signOut?.({ scope: "local" }); } catch (_) {}
             window.location.assign("/");
         } catch (error) {
