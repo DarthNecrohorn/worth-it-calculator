@@ -36,10 +36,36 @@ test("preferences are stored behind RLS and accessible only through authenticate
     assert.match(sql, /grant execute on function public\.save_worth_it_user_preferences\(jsonb, jsonb\) to authenticated;/i);
 });
 
-test("the public profile view hides inaccessible profiles and masks last-seen timestamps", () => {
+test("the public profile view invokes caller RLS and uses only the column-limited presence helper", () => {
     const view = section("create or replace view public.worth_it_public_profiles", "grant select on public.worth_it_public_profiles");
-    assert.match(view, /case when coalesce\(p\.show_online_status, true\) then wp\.last_seen_at else null end as last_seen_at/i);
-    assert.match(view, /where public\.can_view_worth_it_profile\(wp\.user_id\)/i);
+    const presenceHelper = section(
+        "create or replace function worth_it_private.get_worth_it_profile_presence",
+        "revoke all on function worth_it_private.get_worth_it_profile_presence"
+    );
+    const rlsPolicy = section(
+        "create policy \"Profiles visible under Worth It privacy settings\"",
+        "revoke select on table public.worth_it_profiles"
+    );
+    assert.match(view, /with \(security_invoker = true\)/i);
+    assert.match(view, /cross join lateral worth_it_private\.get_worth_it_profile_presence\(profile\.worth_it_id\)/i);
+    assert.doesNotMatch(view, /profile\.user_id|profile\.last_seen_at|worth_it_user_preferences/i);
+    assert.match(presenceHelper, /public\.can_view_worth_it_profile\(target_user_id\)/i);
+    assert.match(presenceHelper, /case when coalesce\(prefs\.show_online_status, true\) then profile\.last_seen_at else null end/i);
+    assert.match(rlsPolicy, /to anon, authenticated/i);
+    assert.match(rlsPolicy, /using \(public\.can_view_worth_it_profile\(user_id\)\)/i);
+    assert.match(sql, /grant select \(\s*worth_it_id, username, display_name, avatar_url, created_at, banner_url, description\s*\) on public\.worth_it_profiles to anon, authenticated/i);
+    assert.match(sql, /revoke select on table public\.worth_it_profiles from public, anon, authenticated/i);
+});
+
+test("own profile reads use an authenticated RPC instead of broad base-table column access", () => {
+    const ownProfile = section(
+        "create or replace function public.get_worth_it_own_profile()",
+        "revoke all on function public.get_worth_it_own_profile"
+    );
+    assert.match(ownProfile, /actor_id uuid := auth\.uid\(\)/i);
+    assert.match(ownProfile, /where profile\.user_id = actor_id/i);
+    assert.match(sql, /revoke all on function public\.get_worth_it_own_profile\(\) from public, anon/i);
+    assert.match(sql, /grant execute on function public\.get_worth_it_own_profile\(\) to authenticated/i);
 });
 
 test("profile search respects profile visibility and discoverability", () => {
