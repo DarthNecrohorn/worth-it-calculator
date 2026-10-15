@@ -40,6 +40,14 @@ CREATE TABLE public.worth_it_profiles (
     last_seen_at timestamptz
 );
 
+-- Match the current production baseline: authenticated users may query the base
+-- table only for their own row. Public profiles are accessed through the view.
+ALTER TABLE public.worth_it_profiles ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Users can view own Worth It profile"
+    ON public.worth_it_profiles FOR SELECT TO authenticated
+    USING (auth.uid() = user_id);
+GRANT SELECT ON public.worth_it_profiles TO authenticated;
+
 CREATE TABLE public.worth_it_follows (
     follower_user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
     followed_user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
