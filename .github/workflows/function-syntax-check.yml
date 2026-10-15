@@ -6,6 +6,7 @@ on:
       - "functions/**/*.js"
       - "supabase/**/*.sql"
       - "tests/**/*.mjs"
+      - "tests/fixtures/**/*.sql"
       - "cars-ui.js"
       - "ship-tracking-ui.js"
       - "profile-ui.js"
