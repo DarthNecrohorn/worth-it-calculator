@@ -1497,6 +1497,58 @@ window.openSettings = openFullSettings;
         }
     });
 
+    // Clear account-scoped Settings state immediately when the signed-in account
+    // changes. Reload server-backed panels only after the Supabase auth callback
+    // returns, so we do not await Auth calls while its internal lock is held.
+    let lastSettingsAuthUserId;
+    if (window.supabaseClient?.auth?.onAuthStateChange) {
+        window.supabaseClient.auth.onAuthStateChange((_event, session) => {
+            const nextUserId = session?.user?.id || "";
+            if (lastSettingsAuthUserId === undefined) {
+                lastSettingsAuthUserId = nextUserId;
+                return;
+            }
+            if (lastSettingsAuthUserId === nextUserId) return;
+            lastSettingsAuthUserId = nextUserId;
+
+            userPreferencesRequestVersion += 1;
+            userPreferencesCache = null;
+            userPreferencesCacheUserId = "";
+            userPreferencesPromise = null;
+            userPreferencesPromiseUserId = "";
+            window.worthItUserPreferences = null;
+            window.worthItUserPreferencesUserId = "";
+
+            activeTotpFactorId = "";
+            activeTotpFactorUserId = "";
+            pendingTotpFactorId = "";
+            pendingTotpFactorUserId = "";
+            clearTotpEnrollmentUi();
+            securityLoadGeneration += 1;
+
+            [
+                "accountSettingsContent",
+                "securitySettingsContent",
+                "privacySettingsContent",
+                "notificationSettingsContent",
+                "yourDataContent"
+            ].forEach(id => {
+                const panel = $(id);
+                if (panel) panel.hidden = true;
+            });
+
+            window.setTimeout(() => {
+                const page = $("settingsPage");
+                if (!page || page.style.display === "none") return;
+                if (typeof window.loadAccountSettings === "function") window.loadAccountSettings();
+                if (typeof window.loadSecuritySettings === "function") window.loadSecuritySettings();
+                if (typeof window.loadPrivacySettings === "function") window.loadPrivacySettings();
+                if (typeof window.loadNotificationSettings === "function") window.loadNotificationSettings();
+                if (typeof window.loadYourDataSettings === "function") window.loadYourDataSettings();
+            }, 0);
+        });
+    }
+
     // The browser owns page translation; the website no longer has an internal language system.
     applySettings();
     applyFilters();
