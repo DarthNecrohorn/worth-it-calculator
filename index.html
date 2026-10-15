@@ -2341,7 +2341,7 @@ html[data-theme="light"].worth-it-initial-paint::before {
     </header>
 
     <div class="worth-it-settings-grid" aria-label="Settings categories">
-      <article class="worth-it-settings-card" id="settingsAccount">
+      <article class="worth-it-settings-card" id="settingsAccount" data-settings-target="accountProfilePanel" role="button" tabindex="0" aria-controls="accountProfilePanel">
         <div class="worth-it-settings-card-icon" aria-hidden="true">👤</div>
         <div class="worth-it-settings-card-copy">
           <h2>Account &amp; Profile</h2>
@@ -2349,7 +2349,7 @@ html[data-theme="light"].worth-it-initial-paint::before {
         </div>
         <span class="worth-it-settings-status">Available</span>
       </article>
-      <article class="worth-it-settings-card" id="settingsSecurity">
+      <article class="worth-it-settings-card" id="settingsSecurity" data-settings-target="securitySettingsPanel" role="button" tabindex="0" aria-controls="securitySettingsPanel">
         <div class="worth-it-settings-card-icon" aria-hidden="true">🛡️</div>
         <div class="worth-it-settings-card-copy">
           <h2>Security &amp; Login</h2>
@@ -2357,29 +2357,29 @@ html[data-theme="light"].worth-it-initial-paint::before {
         </div>
         <span class="worth-it-settings-status">Available</span>
       </article>
-      <article class="worth-it-settings-card" id="settingsPrivacy">
+      <article class="worth-it-settings-card" id="settingsPrivacy" data-settings-target="privacySettingsPanel" role="button" tabindex="0" aria-controls="privacySettingsPanel">
         <div class="worth-it-settings-card-icon" aria-hidden="true">🔒</div>
         <div class="worth-it-settings-card-copy">
           <h2>Privacy</h2>
           <p>Profile visibility, discoverability, online status and control over public profile information.</p>
         </div>
-        <span class="worth-it-settings-status">Planned</span>
+        <span class="worth-it-settings-status">Available</span>
       </article>
-      <article class="worth-it-settings-card" id="settingsNotifications">
+      <article class="worth-it-settings-card" id="settingsNotifications" data-settings-target="notificationSettingsPanel" role="button" tabindex="0" aria-controls="notificationSettingsPanel">
         <div class="worth-it-settings-card-icon" aria-hidden="true">🔔</div>
         <div class="worth-it-settings-card-copy">
           <h2>Notifications</h2>
           <p>Manage alerts for friend requests, follows, private messages, group chats and account activity.</p>
         </div>
-        <span class="worth-it-settings-status">Planned</span>
+        <span class="worth-it-settings-status">Available</span>
       </article>
-      <article class="worth-it-settings-card" id="settingsData">
+      <article class="worth-it-settings-card" id="settingsData" data-settings-target="yourDataSettingsPanel" role="button" tabindex="0" aria-controls="yourDataSettingsPanel">
         <div class="worth-it-settings-card-icon" aria-hidden="true">🗂️</div>
         <div class="worth-it-settings-card-copy">
           <h2>Your Data</h2>
           <p>Review account data, request a personal data export and manage account deletion.</p>
         </div>
-        <span class="worth-it-settings-status">Planned</span>
+        <span class="worth-it-settings-status">Available</span>
       </article>
     </div>
 
@@ -2551,6 +2551,145 @@ html[data-theme="light"].worth-it-initial-paint::before {
       </div>
     </section>
 
+    <section class="worth-it-settings-panel" id="privacySettingsPanel" aria-labelledby="settingsPrivacyTitle">
+      <div class="worth-it-settings-panel-heading">
+        <div class="worth-it-settings-card-icon" aria-hidden="true">🔒</div>
+        <div>
+          <h2 id="settingsPrivacyTitle">Privacy</h2>
+          <p>Choose who can see your profile and which public profile details are visible.</p>
+        </div>
+      </div>
+      <div id="privacySettingsLoading" class="account-settings-status" role="status" aria-live="polite">Loading privacy preferences…</div>
+      <div id="privacySettingsSignedOut" class="account-settings-status" hidden>
+        <strong>Sign in to manage privacy</strong>
+        <p>Your privacy controls are available after signing in.</p>
+        <button type="button" class="settings-option" onclick="handleAuthButton()">Sign in to Worth It</button>
+      </div>
+      <div id="privacySettingsContent" hidden>
+        <div class="account-settings-field">
+          <div class="account-settings-label-row">
+            <label for="privacyProfileVisibility">Profile visibility</label>
+            <span class="account-settings-current-value">Public profile</span>
+          </div>
+          <p class="account-settings-help">Public lets anyone view your profile. Friends only limits it to accepted friends. Private hides the profile from everyone except you.</p>
+          <select id="privacyProfileVisibility" class="account-settings-select" onchange="savePrivacySettings()">
+            <option value="public">Public</option>
+            <option value="friends">Friends only</option>
+            <option value="private">Private</option>
+          </select>
+        </div>
+        <div class="account-settings-field">
+          <label class="account-settings-toggle" for="privacyProfileDiscoverable">
+            <input type="checkbox" id="privacyProfileDiscoverable" onchange="savePrivacySettings()">
+            <span><strong>Allow people to find my profile</strong><small>Your profile can appear in Worth It username and ID searches. This is separate from profile visibility.</small></span>
+          </label>
+        </div>
+        <div class="account-settings-field">
+          <label class="account-settings-toggle" for="privacyShowOnlineStatus">
+            <input type="checkbox" id="privacyShowOnlineStatus" onchange="savePrivacySettings()">
+            <span><strong>Show online status and last seen</strong><small>When disabled, other users will not receive your online or last-seen timestamp in profile and chat presence data.</small></span>
+          </label>
+        </div>
+        <div class="account-settings-field">
+          <label class="account-settings-toggle" for="privacyShowConnections">
+            <input type="checkbox" id="privacyShowConnections" onchange="savePrivacySettings()">
+            <span><strong>Show friends, followers and following</strong><small>When disabled, your connection lists and counts are hidden from other users.</small></span>
+          </label>
+        </div>
+        <p id="privacySettingsStatus" class="account-settings-status" role="status" aria-live="polite"></p>
+      </div>
+    </section>
+
+    <section class="worth-it-settings-panel" id="notificationSettingsPanel" aria-labelledby="settingsNotificationsTitle">
+      <div class="worth-it-settings-panel-heading">
+        <div class="worth-it-settings-card-icon" aria-hidden="true">🔔</div>
+        <div>
+          <h2 id="settingsNotificationsTitle">Notifications</h2>
+          <p>Choose which in-app alerts and unread indicators Worth It should show.</p>
+        </div>
+      </div>
+      <div id="notificationSettingsLoading" class="account-settings-status" role="status" aria-live="polite">Loading notification preferences…</div>
+      <div id="notificationSettingsSignedOut" class="account-settings-status" hidden>
+        <strong>Sign in to manage notifications</strong>
+        <p>Your notification preferences are available after signing in.</p>
+        <button type="button" class="settings-option" onclick="handleAuthButton()">Sign in to Worth It</button>
+      </div>
+      <div id="notificationSettingsContent" hidden>
+        <div class="account-settings-field">
+          <label class="account-settings-toggle" for="notifyFriendRequests">
+            <input type="checkbox" id="notifyFriendRequests" onchange="saveNotificationSettings()">
+            <span><strong>Friend requests</strong><small>Show incoming friend requests in the notifications inbox.</small></span>
+          </label>
+        </div>
+        <div class="account-settings-field">
+          <label class="account-settings-toggle" for="notifyFollows">
+            <input type="checkbox" id="notifyFollows" onchange="saveNotificationSettings()">
+            <span><strong>New followers</strong><small>Show in-app alerts when someone follows you.</small></span>
+          </label>
+        </div>
+        <div class="account-settings-field">
+          <label class="account-settings-toggle" for="notifyPrivateMessages">
+            <input type="checkbox" id="notifyPrivateMessages" onchange="saveNotificationSettings()">
+            <span><strong>Private messages</strong><small>Show unread indicators for one-to-one chats, unless that chat is muted separately.</small></span>
+          </label>
+        </div>
+        <div class="account-settings-field">
+          <label class="account-settings-toggle" for="notifyGroupChats">
+            <input type="checkbox" id="notifyGroupChats" onchange="saveNotificationSettings()">
+            <span><strong>Group and global chats</strong><small>Show unread indicators for group and global chat messages, unless that chat is muted separately.</small></span>
+          </label>
+        </div>
+        <div class="account-settings-field">
+          <label class="account-settings-toggle" for="notifyAccountActivity">
+            <input type="checkbox" id="notifyAccountActivity" onchange="saveNotificationSettings()">
+            <span><strong>Account and social activity</strong><small>Show notifications such as friendship changes. Security email alerts are configured separately in Supabase.</small></span>
+          </label>
+        </div>
+        <p id="notificationSettingsStatus" class="account-settings-status" role="status" aria-live="polite"></p>
+      </div>
+    </section>
+
+    <section class="worth-it-settings-panel" id="yourDataSettingsPanel" aria-labelledby="settingsDataTitle">
+      <div class="worth-it-settings-panel-heading">
+        <div class="worth-it-settings-card-icon" aria-hidden="true">🗂️</div>
+        <div>
+          <h2 id="settingsDataTitle">Your Data</h2>
+          <p>Review the account details associated with you, download your data, or permanently delete your account.</p>
+        </div>
+      </div>
+      <div id="yourDataLoading" class="account-settings-status" role="status" aria-live="polite">Loading your data summary…</div>
+      <div id="yourDataSignedOut" class="account-settings-status" hidden>
+        <strong>Sign in to manage your data</strong>
+        <p>Your account export and deletion controls are available only while signed in.</p>
+        <button type="button" class="settings-option" onclick="handleAuthButton()">Sign in to Worth It</button>
+      </div>
+      <div id="yourDataContent" hidden>
+        <div class="account-settings-field">
+          <div class="account-settings-label-row">
+            <label>Account summary</label>
+            <span class="account-settings-current-value">Private to you</span>
+          </div>
+          <p id="yourDataSummary" class="account-settings-help">Loading account details…</p>
+          <div class="account-settings-actions-row">
+            <button type="button" class="settings-option account-settings-save" id="yourDataExportButton" onclick="downloadWorthItDataExport()">Download my data (JSON)</button>
+          </div>
+          <p id="yourDataStatus" class="account-settings-status" role="status" aria-live="polite"></p>
+        </div>
+        <div class="account-settings-field">
+          <div class="account-settings-label-row">
+            <label for="deleteAccountConfirmation">Permanently delete account</label>
+            <span class="account-settings-current-value is-error">Irreversible</span>
+          </div>
+          <p class="account-settings-help">This permanently deletes your Worth It account and associated profile, connections, preferences and account-linked records. Messages you sent and other records linked to your user may be removed where the database relationship supports cascading deletion. Download your data first if you need a copy.</p>
+          <div class="account-settings-input-row">
+            <input id="deleteAccountConfirmation" type="text" maxlength="6" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="Type DELETE to confirm" aria-describedby="deleteAccountStatus">
+            <button type="button" class="settings-option security-danger-button account-settings-save" id="deleteAccountButton" onclick="deleteWorthItAccount()" disabled>Delete account</button>
+          </div>
+          <p id="deleteAccountStatus" class="account-settings-status" role="status" aria-live="polite">This action cannot be undone. Type DELETE only when you are certain.</p>
+        </div>
+      </div>
+    </section>
+
     <section class="worth-it-settings-panel" aria-labelledby="settingsAppearanceTitle">
       <div class="worth-it-settings-panel-heading">
         <div class="worth-it-settings-card-icon" aria-hidden="true">🎨</div>
@@ -2583,7 +2722,7 @@ html[data-theme="light"].worth-it-initial-paint::before {
         <button type="button" class="settings-option" onclick="resetSettings()">Reset settings</button>
       </div>
     </section>
-    <p class="worth-it-settings-roadmap">Privacy, notification and data controls will be added in stages. Phone recovery remains unavailable until SMS verification is configured. Sensitive account changes are protected by verification and server-side checks.</p>
+    <p class="worth-it-settings-roadmap">Privacy and notification preferences require the Worth It settings migration to be installed in Supabase. Phone recovery remains unavailable until SMS verification is configured. Security email delivery requires the separate SMTP setup.</p>
   </div>
 </section>
 
