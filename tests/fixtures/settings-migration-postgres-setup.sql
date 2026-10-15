@@ -48,6 +48,11 @@ CREATE POLICY "Users can view own Worth It profile"
     USING (auth.uid() = user_id);
 GRANT SELECT ON public.worth_it_profiles TO authenticated;
 
+ALTER TABLE public.worth_it_profiles ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Users can view own Worth It profile"
+    ON public.worth_it_profiles FOR SELECT TO authenticated
+    USING (auth.uid() = user_id);
+
 CREATE TABLE public.worth_it_follows (
     follower_user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
     followed_user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
