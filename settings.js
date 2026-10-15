@@ -138,6 +138,9 @@ window.openSettings = openFullSettings;
     let accountUsernameStatus = null;
     let accountDisplayNameStatus = null;
     let accountSettingsLoadGeneration = 0;
+    let privacyLoadGeneration = 0;
+    let notificationLoadGeneration = 0;
+    let yourDataLoadGeneration = 0;
 
     function accountStatus(id, message, isError) {
         const node = $(id);
@@ -1511,6 +1514,11 @@ window.openSettings = openFullSettings;
             if (lastSettingsAuthUserId === nextUserId) return;
             lastSettingsAuthUserId = nextUserId;
 
+            accountSettingsLoadGeneration += 1;
+            securityLoadGeneration += 1;
+            privacyLoadGeneration += 1;
+            notificationLoadGeneration += 1;
+            yourDataLoadGeneration += 1;
             userPreferencesRequestVersion += 1;
             userPreferencesCache = null;
             userPreferencesCacheUserId = "";
