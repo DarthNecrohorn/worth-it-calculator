@@ -416,9 +416,12 @@ window.openSettings = openFullSettings;
 
     let securityLoadGeneration = 0;
     let activeTotpFactorId = "";
+    let activeTotpFactorUserId = "";
     let pendingTotpFactorId = "";
+    let pendingTotpFactorUserId = "";
     let enrollmentTotpFactorId = "";
     let enrollmentTotpSecret = "";
+    let enrollmentTotpUserId = "";
 
     function securityMessage(id, message, isError) {
         const node = $(id);
@@ -432,7 +435,31 @@ window.openSettings = openFullSettings;
         const client = window.supabaseClient;
         if (!client?.auth) return null;
         const result = await client.auth.getSession();
+        if (result?.error) throw result.error;
         return result?.data?.session || null;
+    }
+
+    async function securitySessionMatches(expectedUserId) {
+        if (!expectedUserId) return false;
+        const session = await currentSecuritySession();
+        return Boolean(session?.access_token && session?.user?.id === expectedUserId);
+    }
+
+    function clearTotpEnrollmentUi() {
+        enrollmentTotpFactorId = "";
+        enrollmentTotpSecret = "";
+        enrollmentTotpUserId = "";
+        const qr = $("securityMfaQr");
+        if (qr) {
+            qr.removeAttribute("src");
+            qr.hidden = true;
+        }
+        const secret = $("securityMfaSecret");
+        if (secret) secret.textContent = "";
+        const code = $("securityMfaEnrollCode");
+        if (code) code.value = "";
+        const panel = $("securityMfaEnroll");
+        if (panel) panel.hidden = true;
     }
 
     window.loadSecuritySettings = async function() {
@@ -447,7 +474,10 @@ window.openSettings = openFullSettings;
         signedOut.hidden = true;
         content.hidden = true;
         activeTotpFactorId = "";
+        activeTotpFactorUserId = "";
         pendingTotpFactorId = "";
+        pendingTotpFactorUserId = "";
+        clearTotpEnrollmentUi();
         const startButton = $("securityMfaStart");
         if (startButton) startButton.disabled = false;
 
@@ -481,12 +511,19 @@ window.openSettings = openFullSettings;
             const result = await window.supabaseClient.auth.mfa.listFactors();
             if (generation !== securityLoadGeneration) return;
             if (result?.error) throw result.error;
+            const latestSession = await currentSecuritySession();
+            if (generation !== securityLoadGeneration) return;
+            if (latestSession?.user?.id !== session.user.id) {
+                window.loadSecuritySettings();
+                return;
+            }
             const factors = result?.data?.totp || [];
             const active = factors.find(factor => factor.status === "verified");
             const pending = factors.find(factor => factor.status !== "verified");
 
             if (active) {
                 activeTotpFactorId = active.id;
+                activeTotpFactorUserId = session.user.id;
                 $("securityMfaBadge").textContent = "Enabled";
                 $("securityMfaBadge").classList.add("is-success");
                 securityMessage("securityMfaStatus", "Authenticator two-factor authentication is enabled for this account.", false);
@@ -495,6 +532,7 @@ window.openSettings = openFullSettings;
                 $("securityMfaStart").hidden = true;
             } else if (pending) {
                 pendingTotpFactorId = pending.id;
+                pendingTotpFactorUserId = session.user.id;
                 $("securityMfaBadge").textContent = "Setup unfinished";
                 $("securityMfaBadge").classList.remove("is-success");
                 securityMessage("securityMfaStatus", "A previous setup has not been verified. Remove it before starting again.", true);
@@ -507,6 +545,7 @@ window.openSettings = openFullSettings;
                 $("securityMfaStart").hidden = false;
             }
         } catch (error) {
+            if (generation !== securityLoadGeneration) return;
             $("securityMfaBadge").textContent = "Unavailable";
             $("securityMfaBadge").classList.remove("is-success");
             securityMessage("securityMfaStatus", error?.message || "Could not check authenticator status. Verify that MFA is enabled in Supabase Auth settings.", true);
