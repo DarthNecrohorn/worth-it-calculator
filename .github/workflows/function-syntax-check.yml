@@ -64,12 +64,16 @@ jobs:
           from pathlib import Path
           from pglast import parse_sql
 
-          path = Path("supabase/worth-it-settings-privacy-notifications.sql")
-          sql = path.read_text(encoding="utf-8")
-          statements = parse_sql(sql)
-          if not statements:
-              raise SystemExit(f"No SQL statements were found in {path}.")
-          print(f"PostgreSQL parser accepted {len(statements)} statements in {path}.")
+          paths = [
+              Path("supabase/worth-it-settings-privacy-notifications.sql"),
+              Path("supabase/worth-it-account-data-privileges.sql"),
+          ]
+          for path in paths:
+              sql = path.read_text(encoding="utf-8")
+              statements = parse_sql(sql)
+              if not statements:
+                  raise SystemExit(f"No SQL statements were found in {path}.")
+              print(f"PostgreSQL parser accepted {len(statements)} statements in {path}.")
           PY
 
       - name: Check Supabase SQL migration delimiters
@@ -80,19 +84,23 @@ jobs:
           from pathlib import Path
           import re
 
-          path = Path("supabase/worth-it-settings-privacy-notifications.sql")
-          sql = path.read_text(encoding="utf-8")
-          openers = len(re.findall(r"(?im)^\s*(?:as|do)\s+\$\$\s*$", sql))
-          closers = len(re.findall(r"(?m)^\s*\$\$;\s*$", sql))
-          malformed = re.findall(r"(?m)^\s*\$;\s*$", sql)
-          if openers != closers or malformed:
-              raise SystemExit(
-                  f"Invalid SQL dollar-quote delimiters: {openers} openers, {closers} closers, "
-                  f"{len(malformed)} malformed terminator(s)."
-              )
-          if not re.search(r"(?im)^\s*begin;\s*$", sql) or not re.search(r"(?im)^\s*commit;\s*$", sql):
-              raise SystemExit("Expected the migration to be wrapped in BEGIN/COMMIT.")
-          print(f"Checked SQL dollar-quote delimiters in {path}: {openers} paired blocks.")
+          paths = [
+              Path("supabase/worth-it-settings-privacy-notifications.sql"),
+              Path("supabase/worth-it-account-data-privileges.sql"),
+          ]
+          for path in paths:
+              sql = path.read_text(encoding="utf-8")
+              openers = len(re.findall(r"(?im)^\s*(?:as|do)\s+\$\$\s*$", sql))
+              closers = len(re.findall(r"(?m)^\s*\$\$;\s*$", sql))
+              malformed = re.findall(r"(?m)^\s*\$;\s*$", sql)
+              if openers != closers or malformed:
+                  raise SystemExit(
+                      f"Invalid SQL dollar-quote delimiters in {path}: {openers} openers, "
+                      f"{closers} closers, {len(malformed)} malformed terminator(s)."
+                  )
+              if not re.search(r"(?im)^\s*begin;\s*$", sql) or not re.search(r"(?im)^\s*commit;\s*$", sql):
+                  raise SystemExit(f"Expected {path} to be wrapped in BEGIN/COMMIT.")
+              print(f"Checked SQL dollar-quote delimiters in {path}: {openers} paired blocks.")
           PY
 
   migration-postgres:
