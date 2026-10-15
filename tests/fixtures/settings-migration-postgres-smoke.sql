@@ -1,0 +1,196 @@
+-- Runtime smoke/regression checks against the disposable PostgreSQL database from CI.
+DO $$
+DECLARE
+    actor_id CONSTANT uuid := 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
+    private_id CONSTANT uuid := 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
+    friend_id CONSTANT uuid := 'cccccccc-cccc-4ccc-8ccc-cccccccccccc';
+    prefs jsonb;
+    result jsonb;
+    direct_conversation jsonb;
+    item jsonb;
+BEGIN
+    PERFORM set_config('request.jwt.claim.sub', actor_id::text, false);
+
+    -- Preferences must default safely and only expose the actor's own settings.
+    prefs := public.get_worth_it_user_preferences();
+    IF prefs->'privacy'->>'profile_visibility' <> 'public' THEN
+        RAISE EXCEPTION 'Expected public profile visibility by default';
+    END IF;
+    IF coalesce((prefs->'notifications'->>'friend_requests')::boolean, false) IS NOT TRUE THEN
+        RAISE EXCEPTION 'Expected friend-request notifications enabled by default';
+    END IF;
+
+    result := public.save_worth_it_user_preferences(
+        '{"profile_visibility":"public","profile_discoverable":true,"show_online_status":true,"show_connections":true}'::jsonb,
+        '{"friend_requests":false,"follows":false,"private_messages":false,"group_chats":false,"account_activity":false}'::jsonb
+    );
+    IF result->>'success' = 'false' THEN
+        RAISE EXCEPTION 'Saving valid preferences failed: %', result;
+    END IF;
+    IF public.save_worth_it_user_preferences(
+        '{"profile_visibility":"everything","profile_discoverable":true,"show_online_status":true,"show_connections":true}'::jsonb,
+        '{"friend_requests":true,"follows":true,"private_messages":true,"group_chats":true,"account_activity":true}'::jsonb
+    )->>'code' <> 'INVALID_PROFILE_VISIBILITY' THEN
+        RAISE EXCEPTION 'Invalid visibility value was not rejected';
+    END IF;
+
+    -- A private target must not leak into the public view or permit social actions
+    -- just because a caller knows the numeric Worth It ID.
+    INSERT INTO public.worth_it_user_preferences(
+        user_id,profile_visibility,profile_discoverable,show_online_status,show_connections
+    ) VALUES (private_id,'private',true,true,false)
+    ON CONFLICT (user_id) DO UPDATE SET
+        profile_visibility=excluded.profile_visibility,
+        profile_discoverable=excluded.profile_discoverable,
+        show_online_status=excluded.show_online_status,
+        show_connections=excluded.show_connections;
+
+    IF EXISTS (SELECT 1 FROM public.worth_it_public_profiles WHERE worth_it_id=102) THEN
+        RAISE EXCEPTION 'Private profile was visible to a non-owner';
+    END IF;
+    IF public.follow_worth_it_user(102)->>'code' <> 'PROFILE_NOT_FOUND' THEN
+        RAISE EXCEPTION 'Following a hidden profile was not blocked';
+    END IF;
+    IF public.send_worth_it_friend_request(102)->>'code' <> 'PROFILE_NOT_FOUND' THEN
+        RAISE EXCEPTION 'Friend request to a hidden profile was not blocked';
+    END IF;
+    IF public.get_worth_it_profile_connections(102,'friends')->>'code' <> 'PROFILE_NOT_FOUND' THEN
+        RAISE EXCEPTION 'Connections of a hidden profile were not blocked';
+    END IF;
+
+    -- Friends-only must also stay hidden until an accepted friendship exists.
+    UPDATE public.worth_it_user_preferences
+       SET profile_visibility='friends'
+     WHERE user_id=private_id;
+    IF EXISTS (SELECT 1 FROM public.worth_it_public_profiles WHERE worth_it_id=102) THEN
+        RAISE EXCEPTION 'Friends-only profile was visible to a non-friend';
+    END IF;
+    INSERT INTO public.worth_it_friends(user_low_id,user_high_id)
+    VALUES (actor_id,private_id);
+
+    IF NOT EXISTS (SELECT 1 FROM public.worth_it_public_profiles WHERE worth_it_id=102) THEN
+        RAISE EXCEPTION 'Friends-only profile should be visible to an accepted friend';
+    END IF;
+    result := public.get_worth_it_profile_stats(102);
+    IF result->>'hidden' <> 'true' OR result->>'friends' <> 'null' THEN
+        RAISE EXCEPTION 'Connection totals should be hidden from another user: %', result;
+    END IF;
+
+    -- The owner must still see their own connection totals and list while hidden
+    -- from everyone else.
+    PERFORM set_config('request.jwt.claim.sub', private_id::text, false);
+    result := public.get_worth_it_profile_stats(102);
+    IF result->>'hidden' <> 'false' OR result->>'friends' <> '1' THEN
+        RAISE EXCEPTION 'Profile owner lost access to own stats: %', result;
+    END IF;
+    result := public.get_worth_it_profile_connections(102,'friends');
+    IF result->>'hidden' <> 'false'
+       OR jsonb_array_length(result->'connections') <> 1
+       OR result->'connections'->0->>'worth_it_id' <> '101' THEN
+        RAISE EXCEPTION 'Profile owner lost access to own connection list: %', result;
+    END IF;
+
+    -- Hit all connection query branches; invalid categories must be rejected.
+    PERFORM public.get_worth_it_profile_connections(102,'followers');
+    PERFORM public.get_worth_it_profile_connections(102,'following');
+    IF public.get_worth_it_profile_connections(102,'bogus')->>'code' <> 'INVALID_CONNECTION_TYPE' THEN
+        RAISE EXCEPTION 'Invalid connection type was not rejected';
+    END IF;
+
+    -- Return to actor context and check social state/search without exposing hidden
+    -- profiles to someone who is not allowed to view them.
+    PERFORM set_config('request.jwt.claim.sub', actor_id::text, false);
+    PERFORM public.get_worth_it_profile_social_context(102);
+    PERFORM public.search_worth_it_public_profiles('actor',20);
+    IF public.search_worth_it_public_profiles('privateuser',20) <> '[]'::jsonb THEN
+        RAISE EXCEPTION 'Search returned a profile that the caller cannot view';
+    END IF;
+
+    -- Notification preference gates and feed queries should work at runtime.
+    result := public.get_worth_it_pending_friend_request_notifications();
+    IF result <> '[]'::jsonb THEN
+        RAISE EXCEPTION 'Disabled friend-request notifications should return an empty feed';
+    END IF;
+    UPDATE public.worth_it_user_preferences
+       SET notify_friend_requests=true, notify_follows=true, notify_account_activity=true
+     WHERE user_id=actor_id;
+    result := public.get_worth_it_pending_friend_request_notifications();
+    IF jsonb_array_length(result) <> 1 THEN
+        RAISE EXCEPTION 'Expected one pending friend-request notification, got %', result;
+    END IF;
+    INSERT INTO public.worth_it_social_notifications(recipient_user_id,actor_user_id,notification_type)
+    VALUES (actor_id,friend_id,'follow');
+    result := public.get_worth_it_social_notifications();
+    IF jsonb_array_length(result) <> 1 OR result->0->>'type' <> 'follow' THEN
+        RAISE EXCEPTION 'Follow notification was not returned: %', result;
+    END IF;
+    UPDATE public.worth_it_user_preferences SET notify_follows=false WHERE user_id=actor_id;
+    IF public.get_worth_it_social_notifications() <> '[]'::jsonb THEN
+        RAISE EXCEPTION 'Disabled follow notifications should be hidden';
+    END IF;
+    UPDATE public.worth_it_user_preferences SET notify_follows=true WHERE user_id=actor_id;
+
+    -- Chat views must retain membership and read-receipt behavior while masking
+    -- a friend's online/last-seen timestamp when that friend opts out.
+    INSERT INTO public.worth_it_user_preferences(
+        user_id,profile_visibility,profile_discoverable,show_online_status,show_connections
+    ) VALUES (friend_id,'public',true,false,true)
+    ON CONFLICT (user_id) DO UPDATE SET
+        profile_visibility=excluded.profile_visibility,
+        profile_discoverable=excluded.profile_discoverable,
+        show_online_status=excluded.show_online_status,
+        show_connections=excluded.show_connections;
+
+    result := public.get_worth_it_chat_friends();
+    SELECT value INTO item
+    FROM jsonb_array_elements(result) value
+    WHERE value->>'worth_it_id'='103';
+    IF item IS NULL OR item->>'show_online_status' <> 'false' OR item->'last_seen_at' <> 'null'::jsonb THEN
+        RAISE EXCEPTION 'Chat friend list leaked hidden presence: %', result;
+    END IF;
+
+    result := public.get_worth_it_chat_conversations();
+    SELECT value INTO direct_conversation
+    FROM jsonb_array_elements(result) value
+    WHERE value->>'type'='direct';
+    IF direct_conversation IS NULL
+       OR direct_conversation->'members'->0->>'show_online_status' <> 'false'
+       OR direct_conversation->'members'->0->'last_seen_at' <> 'null'::jsonb THEN
+        RAISE EXCEPTION 'Conversation member list leaked hidden presence: %', result;
+    END IF;
+
+    result := public.get_worth_it_chat_messages(
+        'dddddddd-dddd-4ddd-8ddd-dddddddddddd'::uuid,100
+    );
+    IF jsonb_array_length(result) <> 1
+       OR result->0->>'show_online_status' <> 'false'
+       OR result->0->'last_seen_at' <> 'null'::jsonb THEN
+        RAISE EXCEPTION 'Chat messages leaked hidden presence: %', result;
+    END IF;
+
+    -- After making the target profile public again and removing the test friendship,
+    -- social writes should take the normal visible-profile path.
+    DELETE FROM public.worth_it_friends
+    WHERE user_low_id=actor_id AND user_high_id=private_id;
+    UPDATE public.worth_it_user_preferences SET profile_visibility='public' WHERE user_id=private_id;
+    UPDATE public.worth_it_friend_requests
+       SET status='declined'
+     WHERE user_low_id=actor_id AND user_high_id=private_id;
+    result := public.send_worth_it_friend_request(102);
+    IF result->>'success' <> 'true' OR result->>'status' <> 'pending' THEN
+        RAISE EXCEPTION 'Friend request to public profile failed: %', result;
+    END IF;
+    result := public.follow_worth_it_user(102);
+    IF result->>'success' <> 'true' OR result->>'is_following' <> 'true' THEN
+        RAISE EXCEPTION 'Following a public profile failed: %', result;
+    END IF;
+
+    -- Function permissions must not accidentally make personal preference writes public.
+    IF has_function_privilege('anon','public.save_worth_it_user_preferences(jsonb,jsonb)','EXECUTE') THEN
+        RAISE EXCEPTION 'anon unexpectedly has execute access to preference writes';
+    END IF;
+    IF NOT has_function_privilege('authenticated','public.save_worth_it_user_preferences(jsonb,jsonb)','EXECUTE') THEN
+        RAISE EXCEPTION 'authenticated is missing execute access to preference writes';
+    END IF;
+END;
+$$;
