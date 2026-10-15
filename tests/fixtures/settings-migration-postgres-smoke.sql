@@ -194,12 +194,44 @@ BEGIN
         RAISE EXCEPTION 'Following a public profile failed: %', result;
     END IF;
 
-    -- Function permissions must not accidentally make personal preference writes public.
+    -- Own-profile reads stay available via a narrow authenticated function.
+    result := public.get_worth_it_own_profile();
+    IF result->>'worth_it_id' <> '101' OR result->>'username' <> 'actor' THEN
+        RAISE EXCEPTION 'own-profile RPC returned the wrong account: %', result;
+    END IF;
+    IF has_function_privilege('anon','public.get_worth_it_own_profile()','EXECUTE') THEN
+        RAISE EXCEPTION 'anon unexpectedly has access to the own-profile RPC';
+    END IF;
+    IF NOT has_function_privilege('authenticated','public.get_worth_it_own_profile()','EXECUTE') THEN
+        RAISE EXCEPTION 'authenticated is missing the own-profile RPC';
+    END IF;
+
+    -- Function permissions and column grants must not expose internal profile fields.
     IF has_function_privilege('anon','public.save_worth_it_user_preferences(jsonb,jsonb)','EXECUTE') THEN
         RAISE EXCEPTION 'anon unexpectedly has execute access to preference writes';
     END IF;
     IF NOT has_function_privilege('authenticated','public.save_worth_it_user_preferences(jsonb,jsonb)','EXECUTE') THEN
         RAISE EXCEPTION 'authenticated is missing execute access to preference writes';
+    END IF;
+    IF has_column_privilege('anon','public.worth_it_profiles','user_id','SELECT')
+       OR has_column_privilege('authenticated','public.worth_it_profiles','user_id','SELECT') THEN
+        RAISE EXCEPTION 'browser roles unexpectedly have SELECT on profile user_id';
+    END IF;
+    IF has_column_privilege('anon','public.worth_it_profiles','last_seen_at','SELECT')
+       OR has_column_privilege('authenticated','public.worth_it_profiles','last_seen_at','SELECT') THEN
+        RAISE EXCEPTION 'browser roles unexpectedly have SELECT on raw last_seen_at';
+    END IF;
+    IF NOT has_column_privilege('anon','public.worth_it_profiles','worth_it_id','SELECT') THEN
+        RAISE EXCEPTION 'anon is missing the allowed public-profile columns';
+    END IF;
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_class c
+        CROSS JOIN LATERAL unnest(c.reloptions) AS opts(value)
+        WHERE c.oid = 'public.worth_it_public_profiles'::regclass
+          AND opts.value = 'security_invoker=true'
+    ) THEN
+        RAISE EXCEPTION 'public profile view is not configured with security_invoker=true';
     END IF;
 END;
 $$;
