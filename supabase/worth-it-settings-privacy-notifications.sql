@@ -313,7 +313,8 @@ begin
         join public.worth_it_profiles p
           on p.user_id = case when f.user_low_id = target_user_id then f.user_high_id else f.user_low_id end
         left join public.worth_it_user_preferences prefs on prefs.user_id = p.user_id
-        where f.user_low_id = target_user_id or f.user_high_id = target_user_id;
+        where (f.user_low_id = target_user_id or f.user_high_id = target_user_id)
+          and public.can_view_worth_it_profile(p.user_id);
     elsif connection_type = 'following' then
         select coalesce(jsonb_agg(jsonb_build_object(
             'worth_it_id', p.worth_it_id, 'username', p.username,
@@ -326,7 +327,8 @@ begin
         from public.worth_it_follows f
         join public.worth_it_profiles p on p.user_id = f.followed_user_id
         left join public.worth_it_user_preferences prefs on prefs.user_id = p.user_id
-        where f.follower_user_id = target_user_id;
+        where f.follower_user_id = target_user_id
+          and public.can_view_worth_it_profile(p.user_id);
     else
         select coalesce(jsonb_agg(jsonb_build_object(
             'worth_it_id', p.worth_it_id, 'username', p.username,
@@ -339,7 +341,8 @@ begin
         from public.worth_it_follows f
         join public.worth_it_profiles p on p.user_id = f.follower_user_id
         left join public.worth_it_user_preferences prefs on prefs.user_id = p.user_id
-        where f.followed_user_id = target_user_id;
+        where f.followed_user_id = target_user_id
+          and public.can_view_worth_it_profile(p.user_id);
     end if;
 
     return jsonb_build_object('success', true, 'connections', connections, 'hidden', false);
