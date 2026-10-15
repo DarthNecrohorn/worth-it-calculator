@@ -81,7 +81,7 @@ async function authorize(context) {
     if (!user) {
         return { error: json({ success: false, error: "Your login session has expired. Please sign in again." }, 401, request) };
     }
-    return { config, user, request };
+    return { config, user, request, token };
 }
 
 function isMissingTableError(status, body) {
@@ -137,7 +137,38 @@ async function getProfileAndUsername(config, userId) {
     return { profile: profiles[0] || null, username: usernames[0] || null };
 }
 
-async function readUserExport(config, user) {
+async function readUserPreferencesForExport(config, accessToken) {
+    // Read preferences through the authenticated RPC instead of directly exposing
+    // the new preferences table through PostgREST. This keeps exports compatible
+    // with projects that require explicit Data API exposure for newly created tables.
+    const response = await fetch(config.supabaseUrl + "/rest/v1/rpc/get_worth_it_user_preferences", {
+        method: "POST",
+        headers: {
+            apikey: config.publishableKey,
+            Authorization: "Bearer " + accessToken,
+            Accept: "application/json",
+            "Content-Type": "application/json"
+        },
+        body: "{}"
+    });
+    const body = await response.text().catch(() => "");
+    if (!response.ok) {
+        if (response.status === 404 || /PGRST202|could not find the function .*get_worth_it_user_preferences/i.test(body)) {
+            return { available: false, reason: "settings_migration_not_installed" };
+        }
+        console.error("Worth It account data preferences query failed:", response.status);
+        throw new Error("Account settings preferences could not be exported. Please try again later.");
+    }
+    try {
+        const result = JSON.parse(body);
+        if (!result || result.success === false) throw new Error("invalid");
+        return { available: true, ...result };
+    } catch (_) {
+        throw new Error("The account settings preferences response could not be read.");
+    }
+}
+
+async function readUserExport(config, user, accessToken) {
     const profilePromise = getProfileAndUsername(config, user.id);
     const [
         profilesAndUsername, feedback, follows, friends, friendRequests, notifications,
@@ -154,7 +185,7 @@ async function readUserExport(config, user) {
         readRows(config, "worth_it_chat_notification_preferences", { user_id: "eq." + user.id }),
         readRows(config, "worth_it_notification_dismissals", { user_id: "eq." + user.id }),
         readRows(config, "shop_account_cache", { user_id: "eq." + user.id }, true),
-        readRows(config, "worth_it_user_preferences", { user_id: "eq." + user.id }, true)
+        readUserPreferencesForExport(config, accessToken)
     ]);
 
     const conversationIds = new Set();
@@ -305,7 +336,7 @@ export async function onRequestGet(context) {
 
         const action = new URL(request.url).searchParams.get("action") || "summary";
         if (action === "export") {
-            const payload = await readUserExport(auth.config, auth.user);
+            const payload = await readUserExport(auth.config, auth.user, auth.token);
             return json({ success: true, export: payload }, 200, request);
         }
         if (action !== "summary") return json({ success: false, error: "Unknown account data action." }, 400, request);
@@ -329,7 +360,7 @@ export async function onRequestPost(context) {
         }
         const action = String(body?.action || "");
         if (action === "export") {
-            const payload = await readUserExport(auth.config, auth.user);
+            const payload = await readUserExport(auth.config, auth.user, auth.token);
             return json({ success: true, export: payload }, 200, request);
         }
         if (action !== "delete") return json({ success: false, error: "Unknown account data action." }, 400, request);
