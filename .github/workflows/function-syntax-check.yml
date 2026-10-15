@@ -10,6 +10,7 @@ on:
       - "ship-tracking-ui.js"
       - "profile-ui.js"
       - "app.js"
+      - "index.html"
       - "settings.js"
       - "chat-ui.js"
       - "routing.js"
