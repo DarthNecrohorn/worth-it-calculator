@@ -1,0 +1,330 @@
+const SITE_ORIGIN = "https://worth-it-calculator.pages.dev";
+const STORAGE_BUCKET = "worth-it-avatars";
+const PAGE_SIZE = 1000;
+const MAX_EXPORT_ROWS = 20000;
+
+function json(data, status, request) {
+    let origin = SITE_ORIGIN;
+    try {
+        const requested = request?.headers?.get("Origin") || "";
+        const requestOrigin = request?.url ? new URL(request.url).origin : SITE_ORIGIN;
+        if (requested && requested === requestOrigin) origin = requested;
+    } catch (_) {}
+    return new Response(JSON.stringify(data), {
+        status: status || 200,
+        headers: {
+            "Content-Type": "application/json; charset=utf-8",
+            "Cache-Control": "no-store, max-age=0",
+            "Pragma": "no-cache",
+            "Access-Control-Allow-Origin": origin,
+            "Access-Control-Allow-Headers": "Content-Type, Authorization",
+            "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+            "Vary": "Origin"
+        }
+    });
+}
+
+function requestOriginAllowed(request) {
+    const origin = request.headers.get("Origin") || "";
+    if (!origin) return true;
+    try {
+        return origin === new URL(request.url).origin || origin === SITE_ORIGIN;
+    } catch (_) {
+        return false;
+    }
+}
+
+function getToken(request) {
+    const authorization = request.headers.get("Authorization") || "";
+    return /^Bearer\s+\S+/i.test(authorization) ? authorization.replace(/^Bearer\s+/i, "").trim() : "";
+}
+
+function getConfig(env) {
+    return {
+        supabaseUrl: String(env.SUPABASE_URL || "").trim().replace(/\/+$/, ""),
+        publishableKey: String(env.SUPABASE_PUBLISHABLE_KEY || "").trim(),
+        serviceKey: String(env.supabase_secret_key || env.SUPABASE_SECRET_KEY || env.SUPABASE_SERVICE_ROLE_KEY || "").trim()
+    };
+}
+
+function serviceHeaders(config, extra) {
+    const headers = { apikey: config.serviceKey, Accept: "application/json" };
+    // Supabase's newer secret keys are API keys and must not be used as Bearer JWTs.
+    if (!config.serviceKey.startsWith("sb_secret_")) headers.Authorization = "Bearer " + config.serviceKey;
+    return Object.assign(headers, extra || {});
+}
+
+async function verifyUser(config, token) {
+    const response = await fetch(config.supabaseUrl + "/auth/v1/user", {
+        headers: {
+            apikey: config.publishableKey,
+            Authorization: "Bearer " + token,
+            Accept: "application/json"
+        }
+    });
+    if (!response.ok) return null;
+    const user = await response.json().catch(() => null);
+    return user && user.id ? user : null;
+}
+
+async function authorize(context) {
+    const request = context.request;
+    const config = getConfig(context.env);
+    if (!config.supabaseUrl || !config.publishableKey || !config.serviceKey) {
+        return { error: json({ success: false, code: "USER_DATA_NOT_CONFIGURED", error: "The account data service is not configured yet." }, 503, request) };
+    }
+    const token = getToken(request);
+    if (!token) {
+        return { error: json({ success: false, error: "Sign in to manage your account data." }, 401, request) };
+    }
+    const user = await verifyUser(config, token);
+    if (!user) {
+        return { error: json({ success: false, error: "Your login session has expired. Please sign in again." }, 401, request) };
+    }
+    return { config, user, request };
+}
+
+function isMissingTableError(status, body) {
+    return status === 404 || /PGRST205|table .* not found|could not find the table/i.test(String(body || ""));
+}
+
+async function readRows(config, table, filters, optional) {
+    const rows = [];
+    let offset = 0;
+    while (offset < MAX_EXPORT_ROWS) {
+        const params = new URLSearchParams();
+        params.set("select", "*");
+        Object.entries(filters || {}).forEach(([key, value]) => params.set(key, String(value)));
+        const url = config.supabaseUrl + "/rest/v1/" + table + "?" + params.toString();
+        const response = await fetch(url, {
+            headers: serviceHeaders(config, {
+                "Range-Unit": "items",
+                "Range": offset + "-" + (offset + PAGE_SIZE - 1)
+            })
+        });
+        const body = await response.text().catch(() => "");
+        if (!response.ok) {
+            if (optional && isMissingTableError(response.status, body)) return [];
+            console.error("Worth It account data query failed:", table, response.status);
+            throw new Error("Some account data could not be read. Please try again later.");
+        }
+        let batch;
+        try { batch = JSON.parse(body); } catch (_) {
+            throw new Error("The account data response could not be read.");
+        }
+        if (!Array.isArray(batch)) throw new Error("The account data response was unexpected.");
+        rows.push(...batch);
+        if (batch.length < PAGE_SIZE) break;
+        offset += batch.length;
+    }
+    return rows;
+}
+
+async function getProfileAndUsername(config, userId) {
+    const [profiles, usernames] = await Promise.all([
+        readRows(config, "worth_it_profiles", { user_id: "eq." + userId }),
+        readRows(config, "usernames", { user_id: "eq." + userId })
+    ]);
+    return { profile: profiles[0] || null, username: usernames[0] || null };
+}
+
+async function readUserExport(config, user) {
+    const profilePromise = getProfileAndUsername(config, user.id);
+    const [
+        profilesAndUsername, feedback, follows, friends, friendRequests, notifications,
+        chatMembers, chatMessages, chatPreferences, dismissedNotifications, shopCache, preferences
+    ] = await Promise.all([
+        profilePromise,
+        readRows(config, "feedback", { user_id: "eq." + user.id }),
+        readRows(config, "worth_it_follows", { or: "(follower_user_id.eq." + user.id + ",followed_user_id.eq." + user.id + ")" }),
+        readRows(config, "worth_it_friends", { or: "(user_low_id.eq." + user.id + ",user_high_id.eq." + user.id + ")" }),
+        readRows(config, "worth_it_friend_requests", { or: "(requester_user_id.eq." + user.id + ",recipient_user_id.eq." + user.id + ")" }),
+        readRows(config, "worth_it_social_notifications", { or: "(recipient_user_id.eq." + user.id + ",actor_user_id.eq." + user.id + ")" }),
+        readRows(config, "worth_it_chat_members", { user_id: "eq." + user.id }),
+        readRows(config, "worth_it_chat_messages", { sender_user_id: "eq." + user.id }),
+        readRows(config, "worth_it_chat_notification_preferences", { user_id: "eq." + user.id }),
+        readRows(config, "worth_it_notification_dismissals", { user_id: "eq." + user.id }),
+        readRows(config, "shop_account_cache", { user_id: "eq." + user.id }, true),
+        readRows(config, "worth_it_user_preferences", { user_id: "eq." + user.id }, true)
+    ]);
+
+    const conversationIds = new Set();
+    chatMembers.forEach(row => { if (row.conversation_id) conversationIds.add(String(row.conversation_id)); });
+    chatMessages.forEach(row => { if (row.conversation_id) conversationIds.add(String(row.conversation_id)); });
+
+    const ownConversations = await readRows(config, "worth_it_chat_conversations", { created_by: "eq." + user.id }, true);
+    ownConversations.forEach(row => { if (row.id) conversationIds.add(String(row.id)); });
+    let conversations = [];
+    if (conversationIds.size) {
+        const ids = Array.from(conversationIds).filter(id => /^[0-9a-f-]{36}$/i.test(id));
+        if (ids.length) conversations = await readRows(config, "worth_it_chat_conversations", { id: "in.(" + ids.join(",") + ")" });
+    }
+    const conversationById = new Map(conversations.map(row => [String(row.id), row]));
+    ownConversations.forEach(row => conversationById.set(String(row.id), row));
+
+    return {
+        exported_at: new Date().toISOString(),
+        service: "Worth It",
+        account: {
+            id: user.id,
+            email: user.email || null,
+            phone: user.phone || null,
+            created_at: user.created_at || null,
+            updated_at: user.updated_at || null,
+            last_sign_in_at: user.last_sign_in_at || null,
+            email_confirmed_at: user.email_confirmed_at || null,
+            phone_confirmed_at: user.phone_confirmed_at || null,
+            app_metadata: {
+                provider: user.app_metadata?.provider || null,
+                providers: Array.isArray(user.app_metadata?.providers) ? user.app_metadata.providers : []
+            },
+            user_metadata: user.user_metadata || {}
+        },
+        profile: profilesAndUsername.profile,
+        username_record: profilesAndUsername.username,
+        feedback_submissions: feedback,
+        follows: follows,
+        friendships: friends,
+        friend_requests: friendRequests,
+        social_notifications: notifications,
+        chat_memberships: chatMembers,
+        chat_conversations: Array.from(conversationById.values()),
+        messages_sent_by_you: chatMessages,
+        chat_notification_preferences: chatPreferences,
+        notification_dismissals: dismissedNotifications,
+        shop_account_cache: shopCache,
+        settings_preferences: preferences
+    };
+}
+
+function getStoredAssetPath(config, assetUrl, userId, target) {
+    if (typeof assetUrl !== "string" || !assetUrl) return "";
+    try {
+        const parsed = new URL(assetUrl);
+        if (parsed.origin !== new URL(config.supabaseUrl).origin) return "";
+        const prefix = "/storage/v1/object/public/" + STORAGE_BUCKET + "/";
+        if (!parsed.pathname.startsWith(prefix)) return "";
+        const path = decodeURIComponent(parsed.pathname.slice(prefix.length));
+        if (!path.startsWith(userId + "/" + target + "/")) return "";
+        return path;
+    } catch (_) {
+        return "";
+    }
+}
+
+async function deleteStoredAsset(config, objectPath) {
+    if (!objectPath) return;
+    const response = await fetch(config.supabaseUrl + "/storage/v1/object/" + STORAGE_BUCKET, {
+        method: "DELETE",
+        headers: serviceHeaders(config, { "Content-Type": "application/json" }),
+        body: JSON.stringify({ prefixes: [objectPath] })
+    });
+    if (!response.ok) {
+        const detail = await response.text().catch(() => "");
+        if (response.status === 404 && /not found|object/i.test(detail)) return;
+        console.error("Worth It account data asset cleanup failed:", response.status);
+        throw new Error("Account deletion paused because a profile image could not be removed. Please try again later.");
+    }
+}
+
+async function createSummary(config, user) {
+    const data = await getProfileAndUsername(config, user.id);
+    const profile = data.profile || {};
+    return {
+        success: true,
+        account: {
+            email: user.email || null,
+            email_confirmed: Boolean(user.email_confirmed_at),
+            created_at: user.created_at || null,
+            last_sign_in_at: user.last_sign_in_at || null
+        },
+        profile: {
+            worth_it_id: profile.worth_it_id || null,
+            username: data.username?.username || profile.username || user.user_metadata?.username || null,
+            display_name: profile.display_name || null,
+            description: profile.description || "",
+            avatar_set: Boolean(profile.avatar_url),
+            banner_set: Boolean(profile.banner_url)
+        },
+        export_available: true,
+        account_deletion_available: true
+    };
+}
+
+export async function onRequestOptions(context) {
+    const request = context?.request;
+    if (request && !requestOriginAllowed(request)) return json({ success: false, error: "Forbidden origin." }, 403, request);
+    return new Response(null, {
+        status: 204,
+        headers: {
+            "Access-Control-Allow-Origin": request?.headers?.get("Origin") || SITE_ORIGIN,
+            "Access-Control-Allow-Headers": "Content-Type, Authorization",
+            "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+            "Vary": "Origin"
+        }
+    });
+}
+
+export async function onRequestGet(context) {
+    const request = context.request;
+    try {
+        if (!requestOriginAllowed(request)) return json({ success: false, error: "Forbidden origin." }, 403, request);
+        const auth = await authorize(context);
+        if (auth.error) return auth.error;
+
+        const action = new URL(request.url).searchParams.get("action") || "summary";
+        if (action === "export") {
+            const payload = await readUserExport(auth.config, auth.user);
+            return json({ success: true, export: payload }, 200, request);
+        }
+        if (action !== "summary") return json({ success: false, error: "Unknown account data action." }, 400, request);
+        return json(await createSummary(auth.config, auth.user), 200, request);
+    } catch (error) {
+        console.error("Worth It account data read failed:", error?.message || "Unknown error");
+        return json({ success: false, error: error?.message || "Could not load your account data." }, 500, request);
+    }
+}
+
+export async function onRequestPost(context) {
+    const request = context.request;
+    try {
+        if (!requestOriginAllowed(request)) return json({ success: false, error: "Forbidden origin." }, 403, request);
+        const auth = await authorize(context);
+        if (auth.error) return auth.error;
+
+        let body;
+        try { body = await request.json(); } catch (_) {
+            return json({ success: false, error: "Invalid request body." }, 400, request);
+        }
+        const action = String(body?.action || "");
+        if (action === "export") {
+            const payload = await readUserExport(auth.config, auth.user);
+            return json({ success: true, export: payload }, 200, request);
+        }
+        if (action !== "delete") return json({ success: false, error: "Unknown account data action." }, 400, request);
+        if (String(body?.confirmation || "") !== "DELETE") {
+            return json({ success: false, error: "Type DELETE exactly to confirm permanent account deletion." }, 400, request);
+        }
+
+        const profileRows = await readRows(auth.config, "worth_it_profiles", { user_id: "eq." + auth.user.id });
+        const profile = profileRows[0] || null;
+        const avatarPath = getStoredAssetPath(auth.config, profile?.avatar_url, auth.user.id, "avatar");
+        const bannerPath = getStoredAssetPath(auth.config, profile?.banner_url, auth.user.id, "banner");
+        await deleteStoredAsset(auth.config, avatarPath);
+        if (bannerPath && bannerPath !== avatarPath) await deleteStoredAsset(auth.config, bannerPath);
+
+        const deleted = await fetch(auth.config.supabaseUrl + "/auth/v1/admin/users/" + encodeURIComponent(auth.user.id), {
+            method: "DELETE",
+            headers: serviceHeaders(auth.config, { Accept: "application/json" })
+        });
+        if (!deleted.ok) {
+            const detail = await deleted.text().catch(() => "");
+            console.error("Worth It account deletion failed:", deleted.status, detail.slice(0, 300));
+            return json({ success: false, error: "Supabase could not delete this account. No success was reported; contact support or try again later." }, 502, request);
+        }
+        return json({ success: true, deleted: true }, 200, request);
+    } catch (error) {
+        console.error("Worth It account deletion/data action failed:", error?.message || "Unknown error");
+        return json({ success: false, error: error?.message || "The account data request could not be completed." }, 500, request);
+    }
+}
