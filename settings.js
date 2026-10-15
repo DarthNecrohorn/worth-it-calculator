@@ -2,11 +2,57 @@
    SETTINGS
 ========================================================= */
 
-function openFullSettings(){
+const WORTH_IT_SETTINGS_SECTIONS = Object.freeze({
+    account: {
+        panelId: "accountProfilePanel",
+        title: "Account & Profile",
+        path: "/settings/account",
+        loader: "loadAccountSettings",
+        openFunction: "openSettingsAccount"
+    },
+    security: {
+        panelId: "securitySettingsPanel",
+        title: "Security & Login",
+        path: "/settings/security",
+        loader: "loadSecuritySettings",
+        openFunction: "openSettingsSecurity"
+    },
+    privacy: {
+        panelId: "privacySettingsPanel",
+        title: "Privacy",
+        path: "/settings/privacy",
+        loader: "loadPrivacySettings",
+        openFunction: "openSettingsPrivacy"
+    },
+    notifications: {
+        panelId: "notificationSettingsPanel",
+        title: "Notifications",
+        path: "/settings/notifications",
+        loader: "loadNotificationSettings",
+        openFunction: "openSettingsNotifications"
+    },
+    data: {
+        panelId: "yourDataSettingsPanel",
+        title: "Your Data",
+        path: "/settings/data",
+        loader: "loadYourDataSettings",
+        openFunction: "openSettingsData"
+    },
+    appearance: {
+        panelId: "appearanceSettingsPanel",
+        title: "Appearance & Accessibility",
+        path: "/settings/appearance",
+        openFunction: "openSettingsAppearance"
+    }
+});
+
+let activeWorthItSettingsSection = "";
+
+function prepareWorthItSettingsPage() {
     const settingsPage = document.getElementById("settingsPage");
     if (!settingsPage) {
         console.error("Settings page not found: #settingsPage");
-        return;
+        return null;
     }
 
     const homePage = document.getElementById("homePage");
@@ -31,17 +77,71 @@ function openFullSettings(){
     document.getElementById("navLinks")?.classList.remove("open");
     document.documentElement.style.overflowY = "auto";
     document.body.style.overflowY = "auto";
-    if (typeof window.updateSettingsUI === "function") window.updateSettingsUI();
-    if (typeof window.loadAccountSettings === "function") window.loadAccountSettings();
-    if (typeof window.loadSecuritySettings === "function") window.loadSecuritySettings();
-    if (typeof window.loadPrivacySettings === "function") window.loadPrivacySettings();
-    if (typeof window.loadNotificationSettings === "function") window.loadNotificationSettings();
-    if (typeof window.loadYourDataSettings === "function") window.loadYourDataSettings();
-    window.scrollTo({ top: 0, behavior: "auto" });
+    return settingsPage;
 }
+
+function renderWorthItSettingsView(sectionKey) {
+    const section = sectionKey && WORTH_IT_SETTINGS_SECTIONS[sectionKey] ? sectionKey : "";
+    const settingsPage = prepareWorthItSettingsPage();
+    if (!settingsPage) return;
+
+    activeWorthItSettingsSection = section;
+    const overview = !section;
+    const hero = settingsPage.querySelector(".worth-it-settings-hero");
+    const grid = settingsPage.querySelector(".worth-it-settings-grid");
+    const sectionNav = document.getElementById("settingsSectionNav");
+    const sectionNavTitle = document.getElementById("settingsSectionNavTitle");
+    const roadmap = settingsPage.querySelector(".worth-it-settings-roadmap");
+
+    if (hero) hero.hidden = !overview;
+    if (grid) grid.hidden = !overview;
+    if (sectionNav) sectionNav.hidden = overview;
+    if (sectionNavTitle) sectionNavTitle.textContent = overview ? "" : WORTH_IT_SETTINGS_SECTIONS[section].title;
+    if (roadmap) roadmap.hidden = true;
+
+    Object.entries(WORTH_IT_SETTINGS_SECTIONS).forEach(([key, config]) => {
+        const panel = document.getElementById(config.panelId);
+        if (panel) panel.hidden = key !== section;
+    });
+
+    if (typeof window.updateSettingsUI === "function") window.updateSettingsUI();
+
+    if (section) {
+        const loader = WORTH_IT_SETTINGS_SECTIONS[section].loader;
+        if (loader && typeof window[loader] === "function") window[loader]();
+    }
+
+    window.scrollTo({ top: 0, behavior: "auto" });
+    if (section) {
+        const heading = document.getElementById(WORTH_IT_SETTINGS_SECTIONS[section].panelId)?.querySelector("h2");
+        if (heading) {
+            heading.setAttribute("tabindex", "-1");
+            window.setTimeout(() => heading.focus({ preventScroll: true }), 0);
+        }
+    }
+}
+
+function openFullSettings() {
+    renderWorthItSettingsView("");
+}
+
+function openSettingsAccount() { renderWorthItSettingsView("account"); }
+function openSettingsSecurity() { renderWorthItSettingsView("security"); }
+function openSettingsPrivacy() { renderWorthItSettingsView("privacy"); }
+function openSettingsNotifications() { renderWorthItSettingsView("notifications"); }
+function openSettingsData() { renderWorthItSettingsView("data"); }
+function openSettingsAppearance() { renderWorthItSettingsView("appearance"); }
 
 window.openFullSettings = openFullSettings;
 window.openSettings = openFullSettings;
+window.openSettingsAccount = openSettingsAccount;
+window.openSettingsSecurity = openSettingsSecurity;
+window.openSettingsPrivacy = openSettingsPrivacy;
+window.openSettingsNotifications = openSettingsNotifications;
+window.openSettingsData = openSettingsData;
+window.openSettingsAppearance = openSettingsAppearance;
+window.WORTH_IT_SETTINGS_SECTIONS = WORTH_IT_SETTINGS_SECTIONS;
+
 
 /* =========================================================
    WORTH IT - SETTINGS / SEARCH / FEEDBACK
@@ -1545,14 +1645,9 @@ window.openSettings = openFullSettings;
     };
 
     window.openSettingsCategory = function(panelId) {
-        const panel = $(panelId);
-        if (!panel) return;
-        panel.scrollIntoView({ behavior: "smooth", block: "start" });
-        const heading = panel.querySelector("h2");
-        if (heading) {
-            heading.setAttribute("tabindex", "-1");
-            window.setTimeout(() => heading.focus({ preventScroll: true }), 180);
-        }
+        const config = Object.values(WORTH_IT_SETTINGS_SECTIONS).find(item => item.panelId === panelId);
+        if (!config || typeof window[config.openFunction] !== "function") return;
+        window[config.openFunction]();
     };
 
     /* Admin Panel functionality lives in admin-panel.js. */
@@ -1634,12 +1729,11 @@ window.openSettings = openFullSettings;
 
             window.setTimeout(() => {
                 const page = $("settingsPage");
-                if (!page || page.style.display === "none") return;
-                if (typeof window.loadAccountSettings === "function") window.loadAccountSettings();
-                if (typeof window.loadSecuritySettings === "function") window.loadSecuritySettings();
-                if (typeof window.loadPrivacySettings === "function") window.loadPrivacySettings();
-                if (typeof window.loadNotificationSettings === "function") window.loadNotificationSettings();
-                if (typeof window.loadYourDataSettings === "function") window.loadYourDataSettings();
+                if (!page || page.style.display === "none" || !activeWorthItSettingsSection) return;
+                const activeConfig = WORTH_IT_SETTINGS_SECTIONS[activeWorthItSettingsSection];
+                if (activeConfig?.loader && typeof window[activeConfig.loader] === "function") {
+                    window[activeConfig.loader]();
+                }
             }, 0);
         });
     }
