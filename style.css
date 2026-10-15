@@ -20037,6 +20037,17 @@ html[data-ui-scale="xl"] .nav-links.open {
     pointer-events: none !important;
 }
 
+/*
+ * The signed-in account controls are direct siblings of .nav-actions in the
+ * current header markup. Shield every other header sibling and its contents
+ * while the dropdown is open, not just .nav-actions; otherwise Sign out can
+ * remain an accidental click target behind the menu.
+ */
+.nav-inner:has(> #navLinks.nav-links.open) > :not(#navLinks):not(.menu-btn):not(.logo),
+.nav-inner:has(> #navLinks.nav-links.open) > :not(#navLinks):not(.menu-btn):not(.logo) * {
+    pointer-events: none !important;
+}
+
 /* A menu item is the only interactive surface in the open dropdown. */
 #navLinks.nav-links.open button {
     position: relative;

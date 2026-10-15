@@ -62,6 +62,26 @@ function getAuthMfaLoginClient() {
     return authMfaLoginClient;
 }
 
+/*
+ * A temporary login client uses a non-persistent, non-auto-refreshing
+ * session. After its verified tokens are handed to the primary client,
+ * release the temporary client without calling auth.signOut(): that would
+ * revoke the same refresh token now being used by the primary client.
+ */
+function releaseAuthMfaLoginClient(client) {
+    if (!client || client === window.supabaseClient) {
+        return;
+    }
+
+    if (authMfaPendingClient === client) {
+        authMfaPendingClient = null;
+    }
+
+    if (authMfaLoginClient === client) {
+        authMfaLoginClient = null;
+    }
+}
+
 
 /* =========================================================
 EARLY AUTH STATE LISTENER
@@ -1711,9 +1731,7 @@ async function submitAuthForm(event) {
             authPendingMfaFactorType = "totp";
             const pendingClientToClear = authMfaPendingClient;
             authMfaPendingClient = null;
-            if (pendingClientToClear && pendingClientToClear !== window.supabaseClient) {
-                try { await pendingClientToClear.auth.signOut({ scope: "local" }); } catch (_) {}
-            }
+            releaseAuthMfaLoginClient(pendingClientToClear);
             $("authMfaCode").value = "";
             closeAuthModal(true);
             showToast("Two-factor verification completed.");
@@ -1888,7 +1906,7 @@ async function submitAuthForm(event) {
             if (committed?.error) throw committed.error;
 
             authMfaPendingClient = null;
-            try { await temporaryAuthClient.auth.signOut({ scope: "local" }); } catch (_) {}
+            releaseAuthMfaLoginClient(temporaryAuthClient);
             closeAuthModal();
 
         }
