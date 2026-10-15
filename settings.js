@@ -406,9 +406,13 @@ window.openSettings = openFullSettings;
                 if (typeof window.handleAuthButton === "function") window.handleAuthButton();
                 return;
             }
-            const profileResponse = await client.from("worth_it_profiles").select("worth_it_id").eq("user_id", userId).maybeSingle();
-            if (profileResponse?.data?.worth_it_id && typeof window.openWorthItProfile === "function") {
-                window.openWorthItProfile(Number(profileResponse.data.worth_it_id));
+            const profileResponse = await client.rpc("get_worth_it_own_profile");
+            if (profileResponse?.error) throw profileResponse.error;
+            const ownProfile = profileResponse?.data && typeof profileResponse.data === "object"
+                ? profileResponse.data
+                : null;
+            if (ownProfile?.worth_it_id && typeof window.openWorthItProfile === "function") {
+                window.openWorthItProfile(Number(ownProfile.worth_it_id));
                 return;
             }
             accountStatus("accountDisplayNameStatus", "Your profile link could not be resolved. Open your profile from the navigation menu.", true);
