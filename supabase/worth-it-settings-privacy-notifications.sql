@@ -154,7 +154,7 @@ language plpgsql
 stable
 security definer
 set search_path = public
-as $
+as $$
 declare
     actor_id uuid := auth.uid();
     visibility text;
@@ -177,7 +177,7 @@ begin
            or (f.user_low_id = target_user_id and f.user_high_id = actor_id)
     );
 end;
-$;
+$$;
 revoke all on function worth_it_private.can_view_worth_it_profile(uuid) from public, anon, authenticated;
 grant execute on function worth_it_private.can_view_worth_it_profile(uuid) to anon, authenticated;
 
