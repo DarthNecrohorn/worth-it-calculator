@@ -974,4 +974,21 @@ $$;
 revoke all on function public.get_worth_it_chat_messages(uuid, integer) from public, anon;
 grant execute on function public.get_worth_it_chat_messages(uuid, integer) to authenticated;
 
+-- Pin the API permissions instead of relying on default PUBLIC EXECUTE grants
+-- or on ACLs inherited from an older version of the functions.
+revoke all on function public.get_worth_it_profile_stats(bigint) from public, anon;
+grant execute on function public.get_worth_it_profile_stats(bigint) to anon, authenticated;
+revoke all on function public.get_worth_it_profile_connections(bigint, text) from public, anon;
+grant execute on function public.get_worth_it_profile_connections(bigint, text) to anon, authenticated;
+
+revoke all on function public.send_worth_it_friend_request(bigint) from public, anon;
+grant execute on function public.send_worth_it_friend_request(bigint) to authenticated;
+revoke all on function public.follow_worth_it_user(bigint) from public, anon;
+grant execute on function public.follow_worth_it_user(bigint) to authenticated;
+
+revoke all on function public.get_worth_it_pending_friend_request_notifications() from public, anon;
+grant execute on function public.get_worth_it_pending_friend_request_notifications() to authenticated;
+revoke all on function public.get_worth_it_social_notifications() from public, anon;
+grant execute on function public.get_worth_it_social_notifications() to authenticated;
+
 commit;
