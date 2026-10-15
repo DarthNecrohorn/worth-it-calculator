@@ -91,7 +91,7 @@ function isMissingTableError(status, body) {
 async function readRows(config, table, filters, optional) {
     const rows = [];
     let offset = 0;
-    while (offset < MAX_EXPORT_ROWS) {
+    while (true) {
         const params = new URLSearchParams();
         params.set("select", "*");
         Object.entries(filters || {}).forEach(([key, value]) => params.set(key, String(value)));
@@ -113,6 +113,15 @@ async function readRows(config, table, filters, optional) {
             throw new Error("The account data response could not be read.");
         }
         if (!Array.isArray(batch)) throw new Error("The account data response was unexpected.");
+        // Read one final page at the cap so large exports fail explicitly rather than silently
+        // producing an incomplete JSON file.
+        if (offset >= MAX_EXPORT_ROWS) {
+            if (batch.length) {
+                console.error("Worth It account data export exceeds row cap:", table);
+                throw new Error("One account-data category exceeds the safe export limit. Contact Worth It support for a complete copy.");
+            }
+            break;
+        }
         rows.push(...batch);
         if (batch.length < PAGE_SIZE) break;
         offset += batch.length;
@@ -227,6 +236,28 @@ async function deleteStoredAsset(config, objectPath) {
     }
 }
 
+async function deleteFeedbackSubmissions(config, feedbackRows) {
+    const ids = Array.from(new Set((Array.isArray(feedbackRows) ? feedbackRows : [])
+        .map(row => String(row?.id ?? ""))
+        .filter(id => /^\\d+$/.test(id))));
+    if (!ids.length) return;
+
+    // Keep DELETE filters bounded, and use IDs captured before Auth deletion because
+    // feedback.user_id is intentionally set to NULL by its foreign key on account removal.
+    for (let i = 0; i < ids.length; i += 500) {
+        const params = new URLSearchParams();
+        params.set("id", "in.(" + ids.slice(i, i + 500).join(",") + ")");
+        const response = await fetch(config.supabaseUrl + "/rest/v1/feedback?" + params.toString(), {
+            method: "DELETE",
+            headers: serviceHeaders(config, { "Prefer": "return=minimal" })
+        });
+        if (!response.ok) {
+            console.error("Worth It account feedback cleanup failed:", response.status);
+            throw new Error("Some feedback records could not be removed.");
+        }
+    }
+}
+
 async function createSummary(config, user) {
     const data = await getProfileAndUsername(config, user.id);
     const profile = data.profile || {};
@@ -306,7 +337,10 @@ export async function onRequestPost(context) {
             return json({ success: false, error: "Type DELETE exactly to confirm permanent account deletion." }, 400, request);
         }
 
-        const profileRows = await readRows(auth.config, "worth_it_profiles", { user_id: "eq." + auth.user.id });
+        const [profileRows, feedbackRows] = await Promise.all([
+            readRows(auth.config, "worth_it_profiles", { user_id: "eq." + auth.user.id }),
+            readRows(auth.config, "feedback", { user_id: "eq." + auth.user.id })
+        ]);
         const profile = profileRows[0] || null;
         const avatarPath = getStoredAssetPath(auth.config, profile?.avatar_url, auth.user.id, "avatar");
         const bannerPath = getStoredAssetPath(auth.config, profile?.banner_url, auth.user.id, "banner");
@@ -319,21 +353,29 @@ export async function onRequestPost(context) {
             console.error("Worth It account deletion failed:", deleted.status, detail.slice(0, 300));
             return json({ success: false, error: "Supabase could not delete this account. No success was reported; contact support or try again later." }, 502, request);
         }
-        // Delete the stored public assets only after Auth confirms deletion. A rejected
-        // account deletion must not remove the profile images from an account that remains active.
+        // Clean up personal records and public assets only after Auth confirms deletion.
+        // The API reports success only when the account itself is deleted; any secondary
+        // cleanup failure is surfaced as a warning rather than being silently ignored.
         let cleanupWarning = false;
         try {
-            await deleteStoredAsset(auth.config, avatarPath);
-            if (bannerPath && bannerPath !== avatarPath) await deleteStoredAsset(auth.config, bannerPath);
+            await deleteFeedbackSubmissions(auth.config, feedbackRows);
         } catch (cleanupError) {
             cleanupWarning = true;
-            console.error("Worth It account was deleted but profile asset cleanup was incomplete:", cleanupError?.message || "Unknown storage cleanup error");
+            console.error("Worth It account was deleted but feedback cleanup was incomplete:", cleanupError?.message || "Unknown cleanup error");
+        }
+        for (const objectPath of new Set([avatarPath, bannerPath].filter(Boolean))) {
+            try {
+                await deleteStoredAsset(auth.config, objectPath);
+            } catch (cleanupError) {
+                cleanupWarning = true;
+                console.error("Worth It account was deleted but profile asset cleanup was incomplete:", cleanupError?.message || "Unknown storage cleanup error");
+            }
         }
         return json({
             success: true,
             deleted: true,
             cleanup_warning: cleanupWarning,
-            warning: cleanupWarning ? "Your account was deleted, but a profile image could not be fully cleaned up. Contact Worth It support." : null
+            warning: cleanupWarning ? "Your account was deleted, but some feedback or profile images could not be fully removed. Contact Worth It support." : null
         }, 200, request);
     } catch (error) {
         console.error("Worth It account deletion/data action failed:", error?.message || "Unknown error");
