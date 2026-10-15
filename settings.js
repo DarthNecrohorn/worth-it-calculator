@@ -1293,22 +1293,36 @@ window.openSettings = openFullSettings;
     }
 
     window.loadPrivacySettings = async function() {
+        const generation = ++privacyLoadGeneration;
         const loading = $("privacySettingsLoading"), signedOut = $("privacySettingsSignedOut"), content = $("privacySettingsContent");
         if (!loading || !signedOut || !content) return;
         loading.hidden = false; signedOut.hidden = true; content.hidden = true;
         try {
             const client = window.supabaseClient;
             const sessionResult = await client?.auth?.getSession?.();
+            if (generation !== privacyLoadGeneration) return;
             if (sessionResult?.error) throw sessionResult.error;
-            if (!sessionResult?.data?.session?.user?.id) {
+            const requestUserId = sessionResult?.data?.session?.user?.id || "";
+            if (!requestUserId) {
+                if (generation !== privacyLoadGeneration) return;
                 loading.hidden = true; signedOut.hidden = false; return;
             }
             const prefs = await loadWorthItUserPreferences(false);
+            if (generation !== privacyLoadGeneration) return;
+            const latestSessionResult = await client.auth.getSession();
+            if (latestSessionResult?.error) throw latestSessionResult.error;
+            if (generation !== privacyLoadGeneration) return;
+            const latestUserId = latestSessionResult?.data?.session?.user?.id || "";
+            if (latestUserId !== requestUserId) {
+                window.setTimeout(() => window.loadPrivacySettings(), 0);
+                return;
+            }
             applyPrivacyControls(prefs);
             loading.hidden = true; content.hidden = false;
             setSettingsControlsDisabled("privacySettingsContent", false);
             settingsStatus("privacySettingsStatus", "Privacy preferences are saved to your account and applied by Worth It profile and search queries.", "success");
         } catch (error) {
+            if (generation !== privacyLoadGeneration) return;
             loading.hidden = true; content.hidden = false;
             setSettingsControlsDisabled("privacySettingsContent", true);
             settingsStatus("privacySettingsStatus", settingsSetupMessage(error), "error");
@@ -1320,22 +1334,35 @@ window.openSettings = openFullSettings;
     };
 
     window.loadNotificationSettings = async function() {
+        const generation = ++notificationLoadGeneration;
         const loading = $("notificationSettingsLoading"), signedOut = $("notificationSettingsSignedOut"), content = $("notificationSettingsContent");
         if (!loading || !signedOut || !content) return;
         loading.hidden = false; signedOut.hidden = true; content.hidden = true;
         try {
             const client = window.supabaseClient;
             const sessionResult = await client?.auth?.getSession?.();
+            if (generation !== notificationLoadGeneration) return;
             if (sessionResult?.error) throw sessionResult.error;
-            if (!sessionResult?.data?.session?.user?.id) {
+            const requestUserId = sessionResult?.data?.session?.user?.id || "";
+            if (!requestUserId) {
                 loading.hidden = true; signedOut.hidden = false; return;
             }
             const prefs = await loadWorthItUserPreferences(false);
+            if (generation !== notificationLoadGeneration) return;
+            const latestSessionResult = await client.auth.getSession();
+            if (latestSessionResult?.error) throw latestSessionResult.error;
+            if (generation !== notificationLoadGeneration) return;
+            const latestUserId = latestSessionResult?.data?.session?.user?.id || "";
+            if (latestUserId !== requestUserId) {
+                window.setTimeout(() => window.loadNotificationSettings(), 0);
+                return;
+            }
             applyNotificationControls(prefs);
             loading.hidden = true; content.hidden = false;
             setSettingsControlsDisabled("notificationSettingsContent", false);
             settingsStatus("notificationSettingsStatus", "Notification preferences are saved to your account. Individual chats can still be muted separately.", "success");
         } catch (error) {
+            if (generation !== notificationLoadGeneration) return;
             loading.hidden = true; content.hidden = false;
             setSettingsControlsDisabled("notificationSettingsContent", true);
             settingsStatus("notificationSettingsStatus", settingsSetupMessage(error), "error");
@@ -1366,6 +1393,7 @@ window.openSettings = openFullSettings;
     }
 
     window.loadYourDataSettings = async function() {
+        const generation = ++yourDataLoadGeneration;
         const loading = $("yourDataLoading"), signedOut = $("yourDataSignedOut"), content = $("yourDataContent");
         if (!loading || !signedOut || !content) return;
         loading.hidden = false; signedOut.hidden = true; content.hidden = true;
@@ -1373,17 +1401,28 @@ window.openSettings = openFullSettings;
         try {
             const client = window.supabaseClient;
             const sessionResult = await client?.auth?.getSession?.();
+            if (generation !== yourDataLoadGeneration) return;
             if (sessionResult?.error) throw sessionResult.error;
-            if (!sessionResult?.data?.session?.user?.id) {
+            const session = sessionResult?.data?.session;
+            const requestUserId = session?.user?.id || "";
+            if (!requestUserId || !session?.access_token) {
                 loading.hidden = true; signedOut.hidden = false; return;
             }
-            const session = sessionResult.data.session;
             const response = await fetch("/api/user-data?action=summary", {
                 headers: { "Authorization": "Bearer " + session.access_token },
                 cache: "no-store"
             });
             const payload = await response.json().catch(() => ({}));
+            if (generation !== yourDataLoadGeneration) return;
             if (!response.ok || !payload.success) throw new Error(payload.error || "Could not load your account summary.");
+            const latestSessionResult = await client.auth.getSession();
+            if (latestSessionResult?.error) throw latestSessionResult.error;
+            if (generation !== yourDataLoadGeneration) return;
+            const latestUserId = latestSessionResult?.data?.session?.user?.id || "";
+            if (latestUserId !== requestUserId) {
+                window.setTimeout(() => window.loadYourDataSettings(), 0);
+                return;
+            }
             const account = payload.account || {}, profile = payload.profile || {};
             const lines = [
                 account.email ? "Email: " + account.email : "Email: not available",
@@ -1400,6 +1439,7 @@ window.openSettings = openFullSettings;
             if ($("deleteAccountButton")) $("deleteAccountButton").disabled = true;
             settingsStatus("yourDataStatus", "Your summary is private to this session. The export contains the account and Worth It records associated with your user ID.", "success");
         } catch (error) {
+            if (generation !== yourDataLoadGeneration) return;
             loading.hidden = true; content.hidden = false;
             settingsStatus("yourDataStatus", error?.message || "Could not load your account data.", "error");
         }
