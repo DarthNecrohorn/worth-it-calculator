@@ -379,3 +379,66 @@ BEGIN
 END;
 $$;
 RESET ROLE;
+
+-- Account export requires the privileged server role to read its filtered tables.
+-- Public API roles must not retain direct modification/maintenance privileges on
+-- the profile base table or public view after the follow-up hardening.
+DO $$
+DECLARE
+    api_role text;
+    export_table text;
+BEGIN
+    FOREACH api_role IN ARRAY ARRAY['anon','authenticated'] LOOP
+        IF has_table_privilege(api_role,'public.worth_it_profiles','INSERT')
+           OR has_table_privilege(api_role,'public.worth_it_profiles','UPDATE')
+           OR has_table_privilege(api_role,'public.worth_it_profiles','DELETE')
+           OR has_table_privilege(api_role,'public.worth_it_profiles','TRUNCATE')
+           OR has_table_privilege(api_role,'public.worth_it_profiles','REFERENCES')
+           OR has_table_privilege(api_role,'public.worth_it_profiles','TRIGGER') THEN
+            RAISE EXCEPTION '% retains unexpected table-level privileges on worth_it_profiles', api_role;
+        END IF;
+        IF has_column_privilege(api_role,'public.worth_it_profiles','username','SELECT') IS NOT TRUE
+           OR has_column_privilege(api_role,'public.worth_it_profiles','worth_it_id','SELECT') IS NOT TRUE
+           OR has_column_privilege(api_role,'public.worth_it_profiles','user_id','SELECT') IS TRUE
+           OR has_column_privilege(api_role,'public.worth_it_profiles','last_seen_at','SELECT') IS TRUE THEN
+            RAISE EXCEPTION '% has incorrect column-level access on worth_it_profiles', api_role;
+        END IF;
+        IF has_table_privilege(api_role,'public.worth_it_public_profiles','INSERT')
+           OR has_table_privilege(api_role,'public.worth_it_public_profiles','UPDATE')
+           OR has_table_privilege(api_role,'public.worth_it_public_profiles','DELETE')
+           OR has_table_privilege(api_role,'public.worth_it_public_profiles','TRUNCATE')
+           OR has_table_privilege(api_role,'public.worth_it_public_profiles','REFERENCES')
+           OR has_table_privilege(api_role,'public.worth_it_public_profiles','TRIGGER') THEN
+            RAISE EXCEPTION '% retains unexpected non-read privileges on worth_it_public_profiles', api_role;
+        END IF;
+    END LOOP;
+
+    FOREACH export_table IN ARRAY ARRAY[
+        'worth_it_follows',
+        'worth_it_friends',
+        'worth_it_friend_requests',
+        'worth_it_social_notifications',
+        'worth_it_notification_dismissals',
+        'worth_it_chat_conversations',
+        'worth_it_chat_members',
+        'worth_it_chat_messages',
+        'worth_it_chat_notification_preferences'
+    ] LOOP
+        IF has_table_privilege('service_role','public.' || export_table,'SELECT') IS NOT TRUE THEN
+            RAISE EXCEPTION 'service_role is missing SELECT on account-export table %', export_table;
+        END IF;
+    END LOOP;
+
+    IF has_table_privilege('service_role','public.feedback','SELECT') IS NOT TRUE
+       OR has_table_privilege('service_role','public.feedback','DELETE') IS NOT TRUE THEN
+        RAISE EXCEPTION 'service_role needs SELECT and DELETE for captured feedback cleanup';
+    END IF;
+    IF has_table_privilege('anon','public.feedback','SELECT')
+       OR has_table_privilege('authenticated','public.feedback','SELECT')
+       OR has_table_privilege('anon','public.feedback','DELETE')
+       OR has_table_privilege('authenticated','public.feedback','DELETE') THEN
+        RAISE EXCEPTION 'Feedback access was accidentally granted to browser roles';
+    END IF;
+END;
+$$;
+
