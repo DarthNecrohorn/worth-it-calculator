@@ -467,7 +467,7 @@ window.openSettings = openFullSettings;
         securityMessage("securitySessionsStatus", "The current browser session is active.", false);
         securityMessage(
             "securityAlertsStatus",
-            "These seven security email types are configured at project level in Supabase. Worth It has not verified their switch state or email delivery. Before relying on them, enable the desired notifications in Supabase, configure custom SMTP, and send a test email.",
+            "Supabase provides seven project-level security email notification types. Worth It has not verified whether their switches are enabled or whether delivery works. Before relying on them, enable the desired notifications in Supabase, configure custom SMTP, and send a test email.",
             true
         );
         securityMessage("securityMfaStatus", "Checking authenticator status…", false);
