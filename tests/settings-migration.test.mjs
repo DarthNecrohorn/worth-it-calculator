@@ -55,8 +55,10 @@ test("profile stats and connection RPCs enforce view and connection privacy", ()
     const socialContext = section("create or replace function public.get_worth_it_profile_social_context", "-- Notification preferences control");
     assert.match(stats, /not public\.can_view_worth_it_profile\(target_user_id\)/i);
     assert.match(stats, /'hidden', true/i);
+    assert.match(stats, /if not can_show_connections and auth\.uid\(\) is distinct from target_user_id/i, "owners should retain access to their own connection counts");
     assert.match(connections, /not public\.can_view_worth_it_profile\(target_user_id\)/i);
     assert.match(connections, /coalesce\(show_connections, true\)/i);
+    assert.match(connections, /if not can_show_connections and auth\.uid\(\) is distinct from target_user_id/i, "owners should retain access to their own connection list");
     assert.match(connections, /and public\.can_view_worth_it_profile\(p\.user_id\)/i);
     assert.match(connections, /case when coalesce\(prefs\.show_online_status, true\) then p\.last_seen_at else null end/i);
     assert.match(socialContext, /not public\.can_view_worth_it_profile\(target_user_id\)/i);
