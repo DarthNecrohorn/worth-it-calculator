@@ -19706,3 +19706,21 @@ html[data-theme="light"] .worth-it-notification-dismiss:hover,html[data-theme="l
 .worth-it-presence-indicator.is-hidden{display:none!important}
 .worth-it-profile-presence-text.is-hidden .worth-it-presence-status-dot{display:none}
 .worth-it-profile-presence-text.is-hidden .worth-it-presence-label{color:var(--muted)}
+
+
+/* Keep the logged-out Sign in button in normal flow so it cannot overlap the separate user-search button. */
+.auth-wrap:has(> #authBtn[style*="inline-flex"]){
+    flex:0 0 auto !important;
+    width:max-content !important;
+    min-width:max-content !important;
+}
+.auth-wrap:has(> #authBtn[style*="inline-flex"]) > #authBtn{
+    position:relative !important;
+    top:auto !important;
+    right:auto !important;
+    transform:none !important;
+}
+.auth-wrap:has(> #authBtn[style*="inline-flex"]) > #authBtn:hover,
+.auth-wrap:has(> #authBtn[style*="inline-flex"]) > #authBtn:active{
+    transform:translateY(-2px) !important;
+}
