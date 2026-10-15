@@ -34,6 +34,9 @@ function openFullSettings(){
     if (typeof window.updateSettingsUI === "function") window.updateSettingsUI();
     if (typeof window.loadAccountSettings === "function") window.loadAccountSettings();
     if (typeof window.loadSecuritySettings === "function") window.loadSecuritySettings();
+    if (typeof window.loadPrivacySettings === "function") window.loadPrivacySettings();
+    if (typeof window.loadNotificationSettings === "function") window.loadNotificationSettings();
+    if (typeof window.loadYourDataSettings === "function") window.loadYourDataSettings();
     window.scrollTo({ top: 0, behavior: "auto" });
 }
 
@@ -135,6 +138,9 @@ window.openSettings = openFullSettings;
     let accountUsernameStatus = null;
     let accountDisplayNameStatus = null;
     let accountSettingsLoadGeneration = 0;
+    let privacyLoadGeneration = 0;
+    let notificationLoadGeneration = 0;
+    let yourDataLoadGeneration = 0;
 
     function accountStatus(id, message, isError) {
         const node = $(id);
@@ -400,9 +406,23 @@ window.openSettings = openFullSettings;
                 if (typeof window.handleAuthButton === "function") window.handleAuthButton();
                 return;
             }
-            const profileResponse = await client.from("worth_it_profiles").select("worth_it_id").eq("user_id", userId).maybeSingle();
-            if (profileResponse?.data?.worth_it_id && typeof window.openWorthItProfile === "function") {
-                window.openWorthItProfile(Number(profileResponse.data.worth_it_id));
+            let profileResponse = await client.rpc("get_worth_it_own_profile");
+            if (profileResponse?.error) {
+                const rpcError = String(profileResponse.error.message || profileResponse.error);
+                if (!/get_worth_it_own_profile|PGRST202|schema cache|could not find|does not exist/i.test(rpcError)) {
+                    throw profileResponse.error;
+                }
+                // Preserve core profile navigation when the one-time privacy migration
+                // has not been applied yet; after migration, the own-profile RPC is used.
+                profileResponse = await client.from("worth_it_profiles")
+                    .select("worth_it_id").eq("user_id", userId).maybeSingle();
+                if (profileResponse?.error) throw profileResponse.error;
+            }
+            const ownProfile = profileResponse?.data && typeof profileResponse.data === "object"
+                ? profileResponse.data
+                : null;
+            if (ownProfile?.worth_it_id && typeof window.openWorthItProfile === "function") {
+                window.openWorthItProfile(Number(ownProfile.worth_it_id));
                 return;
             }
             accountStatus("accountDisplayNameStatus", "Your profile link could not be resolved. Open your profile from the navigation menu.", true);
@@ -413,9 +433,12 @@ window.openSettings = openFullSettings;
 
     let securityLoadGeneration = 0;
     let activeTotpFactorId = "";
+    let activeTotpFactorUserId = "";
     let pendingTotpFactorId = "";
+    let pendingTotpFactorUserId = "";
     let enrollmentTotpFactorId = "";
     let enrollmentTotpSecret = "";
+    let enrollmentTotpUserId = "";
 
     function securityMessage(id, message, isError) {
         const node = $(id);
@@ -429,7 +452,31 @@ window.openSettings = openFullSettings;
         const client = window.supabaseClient;
         if (!client?.auth) return null;
         const result = await client.auth.getSession();
+        if (result?.error) throw result.error;
         return result?.data?.session || null;
+    }
+
+    async function securitySessionMatches(expectedUserId) {
+        if (!expectedUserId) return false;
+        const session = await currentSecuritySession();
+        return Boolean(session?.access_token && session?.user?.id === expectedUserId);
+    }
+
+    function clearTotpEnrollmentUi() {
+        enrollmentTotpFactorId = "";
+        enrollmentTotpSecret = "";
+        enrollmentTotpUserId = "";
+        const qr = $("securityMfaQr");
+        if (qr) {
+            qr.removeAttribute("src");
+            qr.hidden = true;
+        }
+        const secret = $("securityMfaSecret");
+        if (secret) secret.textContent = "";
+        const code = $("securityMfaEnrollCode");
+        if (code) code.value = "";
+        const panel = $("securityMfaEnroll");
+        if (panel) panel.hidden = true;
     }
 
     window.loadSecuritySettings = async function() {
@@ -444,7 +491,10 @@ window.openSettings = openFullSettings;
         signedOut.hidden = true;
         content.hidden = true;
         activeTotpFactorId = "";
+        activeTotpFactorUserId = "";
         pendingTotpFactorId = "";
+        pendingTotpFactorUserId = "";
+        clearTotpEnrollmentUi();
         const startButton = $("securityMfaStart");
         if (startButton) startButton.disabled = false;
 
@@ -462,6 +512,11 @@ window.openSettings = openFullSettings;
         content.hidden = false;
         $("securityPasswordStatus").textContent = "Account email: " + (session.user.email || "not available") + ".";
         securityMessage("securitySessionsStatus", "The current browser session is active.", false);
+        securityMessage(
+            "securityAlertsStatus",
+            "Supabase provides seven project-level security email notification types. Worth It has not verified whether their switches are enabled or whether delivery works. Before relying on them, enable the desired notifications in Supabase, configure custom SMTP, and send a test email.",
+            true
+        );
         securityMessage("securityMfaStatus", "Checking authenticator status…", false);
         $("securityMfaStart").hidden = true;
         $("securityMfaEnroll").hidden = true;
@@ -473,12 +528,19 @@ window.openSettings = openFullSettings;
             const result = await window.supabaseClient.auth.mfa.listFactors();
             if (generation !== securityLoadGeneration) return;
             if (result?.error) throw result.error;
+            const latestSession = await currentSecuritySession();
+            if (generation !== securityLoadGeneration) return;
+            if (latestSession?.user?.id !== session.user.id) {
+                window.loadSecuritySettings();
+                return;
+            }
             const factors = result?.data?.totp || [];
             const active = factors.find(factor => factor.status === "verified");
             const pending = factors.find(factor => factor.status !== "verified");
 
             if (active) {
                 activeTotpFactorId = active.id;
+                activeTotpFactorUserId = session.user.id;
                 $("securityMfaBadge").textContent = "Enabled";
                 $("securityMfaBadge").classList.add("is-success");
                 securityMessage("securityMfaStatus", "Authenticator two-factor authentication is enabled for this account.", false);
@@ -487,6 +549,7 @@ window.openSettings = openFullSettings;
                 $("securityMfaStart").hidden = true;
             } else if (pending) {
                 pendingTotpFactorId = pending.id;
+                pendingTotpFactorUserId = session.user.id;
                 $("securityMfaBadge").textContent = "Setup unfinished";
                 $("securityMfaBadge").classList.remove("is-success");
                 securityMessage("securityMfaStatus", "A previous setup has not been verified. Remove it before starting again.", true);
@@ -499,6 +562,7 @@ window.openSettings = openFullSettings;
                 $("securityMfaStart").hidden = false;
             }
         } catch (error) {
+            if (generation !== securityLoadGeneration) return;
             $("securityMfaBadge").textContent = "Unavailable";
             $("securityMfaBadge").classList.remove("is-success");
             securityMessage("securityMfaStatus", error?.message || "Could not check authenticator status. Verify that MFA is enabled in Supabase Auth settings.", true);
@@ -507,45 +571,92 @@ window.openSettings = openFullSettings;
     };
 
     window.openPasswordResetFromSettings = async function() {
-        let session;
-        try { session = await currentSecuritySession(); } catch (_) { session = null; }
-        if (!session?.user?.email) {
-            securityMessage("securityPasswordStatus", "Sign in again to request a password reset.", true);
-            return;
-        }
-        if (typeof window.openLoginModal !== "function") {
-            securityMessage("securityPasswordStatus", "Password reset is unavailable right now. Please use Forgot password on the sign-in screen.", true);
-            return;
-        }
-        window.openLoginModal("forgot");
-        window.setTimeout(function() {
-            const emailInput = $("authEmail");
-            if (emailInput) {
-                emailInput.value = session.user.email;
+        const button = $("securityPasswordResetButton");
+        if (button?.disabled) return;
+        if (button) button.disabled = true;
+
+        let accountEmail = "";
+        securityMessage("securityPasswordStatus", "Sending password-reset email…", false);
+        try {
+            const session = await currentSecuritySession();
+            accountEmail = session?.user?.email || "";
+            if (!accountEmail || !session?.access_token) {
+                throw new Error("Sign in again to request a password reset.");
             }
-            const subtitle = $("authModalSubtitle");
-            if (subtitle) subtitle.textContent = "We will send a password-reset link to your verified account email.";
-        }, 60);
+
+            const auth = window.supabaseClient?.auth;
+            if (typeof auth?.resetPasswordForEmail !== "function") {
+                throw new Error("Password recovery is unavailable right now. Please try again later.");
+            }
+
+            const result = await auth.resetPasswordForEmail(accountEmail, {
+                redirectTo: window.location.origin + "/",
+                captchaToken: typeof getAuthTurnstileToken === "function"
+                    ? (getAuthTurnstileToken() || undefined)
+                    : undefined
+            });
+            if (result?.error) throw result.error;
+
+            securityMessage(
+                "securityPasswordStatus",
+                "Supabase accepted the password-reset request. Check your inbox and spam folder. Use the link in the email to return to Worth It and choose a new password.",
+                false
+            );
+        } catch (error) {
+            const message = error?.message || "Could not send the password-reset email. Please try again.";
+            if (/captcha|turnstile|bot detection/i.test(message) && typeof window.openLoginModal === "function") {
+                window.openLoginModal("forgot");
+                window.setTimeout(function() {
+                    const emailInput = $("authEmail");
+                    if (emailInput && accountEmail) emailInput.value = accountEmail;
+                    const subtitle = $("authModalSubtitle");
+                    if (subtitle) subtitle.textContent = "Complete the security check, then request a password-reset link.";
+                }, 60);
+                securityMessage(
+                    "securityPasswordStatus",
+                    "This project requires an additional human-verification check. The recovery form is open; complete its check and submit the request there.",
+                    false
+                );
+            } else {
+                securityMessage("securityPasswordStatus", message, true);
+            }
+        } finally {
+            if (button) button.disabled = false;
+        }
     };
 
     window.startTotpEnrollment = async function() {
         const button = $("securityMfaStart");
+        let requestUserId = "";
         if (button) button.disabled = true;
         securityMessage("securityMfaStatus", "Creating a private authenticator setup…", false);
         try {
             const session = await currentSecuritySession();
-            if (!session?.access_token) throw new Error("Sign in again to set up two-factor authentication.");
+            if (!session?.access_token || !session?.user?.id) {
+                throw new Error("Sign in again to set up two-factor authentication.");
+            }
+            requestUserId = session.user.id;
             const result = await window.supabaseClient.auth.mfa.enroll({
                 factorType: "totp",
                 friendlyName: "Worth It authenticator"
             });
             if (result?.error) throw result.error;
+
+            // Do not reveal a TOTP secret in the Settings UI if the account changed
+            // while Supabase was preparing the enrollment response.
+            if (!await securitySessionMatches(requestUserId)) {
+                clearTotpEnrollmentUi();
+                await window.loadSecuritySettings();
+                return;
+            }
+
             const factor = result?.data;
             if (!factor?.id || !factor?.totp?.secret || !factor?.totp?.qr_code) {
                 throw new Error("Supabase did not return the full authenticator setup information.");
             }
             enrollmentTotpFactorId = factor.id;
             enrollmentTotpSecret = factor.totp.secret;
+            enrollmentTotpUserId = requestUserId;
             const qr = $("securityMfaQr");
             qr.src = factor.totp.qr_code;
             qr.hidden = false;
@@ -556,6 +667,11 @@ window.openSettings = openFullSettings;
             $("securityMfaBadge").textContent = "Setup in progress";
             securityMessage("securityMfaStatus", "Scan the QR code or enter the private setup key, then enter the current 6-digit code to verify it.", false);
         } catch (error) {
+            if (requestUserId && !await securitySessionMatches(requestUserId).catch(() => false)) {
+                clearTotpEnrollmentUi();
+                await window.loadSecuritySettings();
+                return;
+            }
             securityMessage("securityMfaStatus", error?.message || "Could not start authenticator setup.", true);
             if (button) button.disabled = false;
         }
@@ -573,8 +689,10 @@ window.openSettings = openFullSettings;
 
     window.verifyTotpEnrollment = async function() {
         const code = ($("securityMfaEnrollCode")?.value || "").replace(/\s/g, "");
+        const factorId = enrollmentTotpFactorId;
+        const factorUserId = enrollmentTotpUserId;
         const button = $("securityMfaVerify");
-        if (!enrollmentTotpFactorId) {
+        if (!factorId || !factorUserId) {
             securityMessage("securityMfaStatus", "Start authenticator setup first.", true);
             return;
         }
@@ -585,24 +703,39 @@ window.openSettings = openFullSettings;
         }
         button.disabled = true;
         try {
+            if (!await securitySessionMatches(factorUserId)) {
+                clearTotpEnrollmentUi();
+                await window.loadSecuritySettings();
+                return;
+            }
             const auth = window.supabaseClient.auth;
-            const challenge = await auth.mfa.challenge({ factorId: enrollmentTotpFactorId });
+            const challenge = await auth.mfa.challenge({ factorId });
             if (challenge?.error) throw challenge.error;
+            if (!await securitySessionMatches(factorUserId)) {
+                clearTotpEnrollmentUi();
+                await window.loadSecuritySettings();
+                return;
+            }
             const result = await auth.mfa.verify({
-                factorId: enrollmentTotpFactorId,
+                factorId,
                 challengeId: challenge.data.id,
                 code
             });
             if (result?.error) throw result.error;
-            enrollmentTotpFactorId = "";
-            enrollmentTotpSecret = "";
-            $("securityMfaEnroll").hidden = true;
-            $("securityMfaQr").removeAttribute("src");
-            $("securityMfaSecret").textContent = "";
-            $("securityMfaEnrollCode").value = "";
+            if (!await securitySessionMatches(factorUserId)) {
+                clearTotpEnrollmentUi();
+                await window.loadSecuritySettings();
+                return;
+            }
+            clearTotpEnrollmentUi();
             securityMessage("securityMfaStatus", "Two-factor authentication is enabled. Store your authenticator safely and keep access to it.", false);
             await window.loadSecuritySettings();
         } catch (error) {
+            if (!await securitySessionMatches(factorUserId).catch(() => false)) {
+                clearTotpEnrollmentUi();
+                await window.loadSecuritySettings();
+                return;
+            }
             securityMessage("securityMfaStatus", error?.message || "The code could not be verified. Check the time on your phone and try again.", true);
         } finally {
             button.disabled = false;
@@ -611,23 +744,35 @@ window.openSettings = openFullSettings;
 
     window.cancelTotpEnrollment = async function() {
         const factorId = enrollmentTotpFactorId;
-        if (!factorId) {
-            $("securityMfaEnroll").hidden = true;
+        const factorUserId = enrollmentTotpUserId;
+        if (!factorId || !factorUserId) {
+            clearTotpEnrollmentUi();
             return;
         }
         const button = $("securityMfaVerify");
         if (button) button.disabled = true;
         try {
+            if (!await securitySessionMatches(factorUserId)) {
+                clearTotpEnrollmentUi();
+                await window.loadSecuritySettings();
+                return;
+            }
             const result = await window.supabaseClient.auth.mfa.unenroll({ factorId });
             if (result?.error) throw result.error;
-            enrollmentTotpFactorId = "";
-            enrollmentTotpSecret = "";
-            $("securityMfaEnroll").hidden = true;
-            $("securityMfaQr").removeAttribute("src");
-            $("securityMfaSecret").textContent = "";
+            if (!await securitySessionMatches(factorUserId)) {
+                clearTotpEnrollmentUi();
+                await window.loadSecuritySettings();
+                return;
+            }
+            clearTotpEnrollmentUi();
             securityMessage("securityMfaStatus", "Authenticator setup cancelled.", false);
             await window.loadSecuritySettings();
         } catch (error) {
+            if (!await securitySessionMatches(factorUserId).catch(() => false)) {
+                clearTotpEnrollmentUi();
+                await window.loadSecuritySettings();
+                return;
+            }
             securityMessage("securityMfaStatus", error?.message || "Could not cancel setup. Refresh security settings and try again.", true);
         } finally {
             if (button) button.disabled = false;
@@ -635,20 +780,43 @@ window.openSettings = openFullSettings;
     };
 
     window.removePendingTotpEnrollment = async function() {
-        if (!pendingTotpFactorId) return;
+        const factorId = pendingTotpFactorId;
+        const factorUserId = pendingTotpFactorUserId;
+        if (!factorId || !factorUserId) return;
         try {
-            const result = await window.supabaseClient.auth.mfa.unenroll({ factorId: pendingTotpFactorId });
+            if (!await securitySessionMatches(factorUserId)) {
+                pendingTotpFactorId = "";
+                pendingTotpFactorUserId = "";
+                await window.loadSecuritySettings();
+                return;
+            }
+            const result = await window.supabaseClient.auth.mfa.unenroll({ factorId });
             if (result?.error) throw result.error;
+            if (!await securitySessionMatches(factorUserId)) {
+                pendingTotpFactorId = "";
+                pendingTotpFactorUserId = "";
+                await window.loadSecuritySettings();
+                return;
+            }
             pendingTotpFactorId = "";
+            pendingTotpFactorUserId = "";
             securityMessage("securityMfaStatus", "Unfinished authenticator setup removed.", false);
             await window.loadSecuritySettings();
         } catch (error) {
+            if (!await securitySessionMatches(factorUserId).catch(() => false)) {
+                pendingTotpFactorId = "";
+                pendingTotpFactorUserId = "";
+                await window.loadSecuritySettings();
+                return;
+            }
             securityMessage("securityMfaStatus", error?.message || "Could not remove the unfinished setup.", true);
         }
     };
 
     window.disableTotpFactor = async function() {
-        if (!activeTotpFactorId) {
+        const factorId = activeTotpFactorId;
+        const factorUserId = activeTotpFactorUserId;
+        if (!factorId || !factorUserId) {
             securityMessage("securityMfaStatus", "No verified authenticator factor was found.", true);
             return;
         }
@@ -662,22 +830,55 @@ window.openSettings = openFullSettings;
         const button = $("securityMfaDisableButton");
         button.disabled = true;
         try {
+            if (!await securitySessionMatches(factorUserId)) {
+                activeTotpFactorId = "";
+                activeTotpFactorUserId = "";
+                await window.loadSecuritySettings();
+                return;
+            }
             const auth = window.supabaseClient.auth;
-            const challenge = await auth.mfa.challenge({ factorId: activeTotpFactorId });
+            const challenge = await auth.mfa.challenge({ factorId });
             if (challenge?.error) throw challenge.error;
+            if (!await securitySessionMatches(factorUserId)) {
+                activeTotpFactorId = "";
+                activeTotpFactorUserId = "";
+                await window.loadSecuritySettings();
+                return;
+            }
             const verification = await auth.mfa.verify({
-                factorId: activeTotpFactorId,
+                factorId,
                 challengeId: challenge.data.id,
                 code
             });
             if (verification?.error) throw verification.error;
-            const result = await auth.mfa.unenroll({ factorId: activeTotpFactorId });
+            if (!await securitySessionMatches(factorUserId)) {
+                activeTotpFactorId = "";
+                activeTotpFactorUserId = "";
+                $("securityMfaDisableCode").value = "";
+                await window.loadSecuritySettings();
+                return;
+            }
+            const result = await auth.mfa.unenroll({ factorId });
             if (result?.error) throw result.error;
+            if (!await securitySessionMatches(factorUserId)) {
+                activeTotpFactorId = "";
+                activeTotpFactorUserId = "";
+                $("securityMfaDisableCode").value = "";
+                await window.loadSecuritySettings();
+                return;
+            }
             activeTotpFactorId = "";
+            activeTotpFactorUserId = "";
             $("securityMfaDisableCode").value = "";
             securityMessage("securityMfaStatus", "Authenticator two-factor authentication has been disabled.", false);
             await window.loadSecuritySettings();
         } catch (error) {
+            if (!await securitySessionMatches(factorUserId).catch(() => false)) {
+                activeTotpFactorId = "";
+                activeTotpFactorUserId = "";
+                await window.loadSecuritySettings();
+                return;
+            }
             securityMessage("securityMfaStatus", error?.message || "Could not disable 2FA. Check your code and try again.", true);
         } finally {
             button.disabled = false;
@@ -685,18 +886,42 @@ window.openSettings = openFullSettings;
     };
 
     window.signOutOtherSessions = async function() {
+        if (!window.supabaseClient?.auth) {
+            securityMessage("securitySessionsStatus", "Session management is unavailable right now. Please refresh the page and try again.", true);
+            return;
+        }
         if (!window.confirm("Sign out all other Worth It sessions? This browser will remain signed in.")) return;
+
         const button = $("securitySignOutOthers");
-        button.disabled = true;
-        securityMessage("securitySessionsStatus", "Signing out other sessions…", false);
+        if (button) button.disabled = true;
+        securityMessage("securitySessionsStatus", "Requesting sign-out for other sessions…", false);
         try {
+            const before = await window.supabaseClient.auth.getSession();
+            const currentUserId = before?.data?.session?.user?.id;
+            if (before?.error) throw before.error;
+            if (!before?.data?.session?.access_token || !currentUserId) {
+                throw new Error("Your current session could not be confirmed. Sign in again before managing sessions.");
+            }
+
             const result = await window.supabaseClient.auth.signOut({ scope: "others" });
             if (result?.error) throw result.error;
-            securityMessage("securitySessionsStatus", "A sign-out request for other sessions completed. Other access tokens can remain valid until they expire.", false);
+
+            const after = await window.supabaseClient.auth.getSession();
+            const stillSignedIn = after?.data?.session?.access_token &&
+                after?.data?.session?.user?.id === currentUserId;
+            if (!stillSignedIn) {
+                throw new Error("The request returned, but this browser's session could not be confirmed afterward. Please sign in again.");
+            }
+
+            securityMessage(
+                "securitySessionsStatus",
+                "Supabase accepted the request to revoke refresh sessions on other devices, and this browser remains signed in. Other devices may keep working until their existing access tokens expire; they will not be able to refresh those revoked sessions.",
+                false
+            );
         } catch (error) {
-            securityMessage("securitySessionsStatus", error?.message || "Could not sign out other sessions. Please try again.", true);
+            securityMessage("securitySessionsStatus", error?.message || "Could not confirm that other sessions were signed out. Please try again.", true);
         } finally {
-            button.disabled = false;
+            if (button) button.disabled = false;
         }
     };
 
@@ -832,10 +1057,519 @@ window.openSettings = openFullSettings;
     }
 };
 
+
+    /* Privacy, notification preferences, and personal-data controls. */
+    const DEFAULT_USER_PREFERENCES = {
+        success: true,
+        privacy: {
+            profile_visibility: "public",
+            profile_discoverable: true,
+            show_online_status: true,
+            show_connections: true
+        },
+        notifications: {
+            friend_requests: true,
+            follows: true,
+            private_messages: true,
+            group_chats: true,
+            account_activity: true
+        }
+    };
+    let userPreferencesCache = null;
+    let userPreferencesCacheUserId = "";
+    let userPreferencesPromise = null;
+    let userPreferencesPromiseUserId = "";
+    let userPreferencesRequestVersion = 0;
+    let userPreferencesSaveBusy = false;
+
+    function copyDefaultPreferences() {
+        return {
+            success: true,
+            privacy: Object.assign({}, DEFAULT_USER_PREFERENCES.privacy),
+            notifications: Object.assign({}, DEFAULT_USER_PREFERENCES.notifications)
+        };
+    }
+
+    function settingsStatus(id, message, kind) {
+        const node = $(id);
+        if (!node) return;
+        node.textContent = message || "";
+        node.classList.toggle("is-error", kind === "error");
+        node.classList.toggle("is-success", kind === "success");
+        node.classList.toggle("is-warning", kind === "warning");
+    }
+
+    function settingsSetupMessage(error) {
+        const message = String(error?.message || error || "");
+        if (/get_worth_it_user_preferences|save_worth_it_user_preferences|worth_it_user_preferences|schema cache|could not find|does not exist/i.test(message)) {
+            return "One-time database setup is required. Apply supabase/worth-it-settings-privacy-notifications.sql in the Worth It Supabase project's SQL Editor, then reload Settings. The migration has not been run automatically.";
+        }
+        return message || "Could not load your preferences. Please try again.";
+    }
+
+    function setSettingsControlsDisabled(sectionId, disabled) {
+        const section = $(sectionId);
+        if (!section) return;
+        section.querySelectorAll("input, select, button").forEach(control => {
+            if (control.id === "deleteAccountButton" || control.id === "yourDataExportButton") return;
+            control.disabled = Boolean(disabled);
+        });
+    }
+
+    async function loadWorthItUserPreferences(force) {
+        const client = window.supabaseClient;
+        if (!client?.auth) throw new Error("Sign in to manage these settings.");
+        const sessionResult = await client.auth.getSession();
+        if (sessionResult?.error) throw sessionResult.error;
+        const session = sessionResult?.data?.session;
+        if (!session?.user?.id || !session?.access_token) throw new Error("Sign in to manage these settings.");
+
+        const accountChanged =
+            (userPreferencesCacheUserId && userPreferencesCacheUserId !== session.user.id) ||
+            (window.worthItUserPreferencesUserId && window.worthItUserPreferencesUserId !== session.user.id);
+        if (accountChanged) {
+            userPreferencesRequestVersion += 1;
+            userPreferencesCache = null;
+            userPreferencesCacheUserId = "";
+            userPreferencesPromise = null;
+            userPreferencesPromiseUserId = "";
+            if (window.worthItUserPreferencesUserId !== session.user.id) {
+                window.worthItUserPreferences = null;
+                window.worthItUserPreferencesUserId = "";
+            }
+        }
+
+        if (!force && userPreferencesCache && userPreferencesCacheUserId === session.user.id) {
+            return userPreferencesCache;
+        }
+        if (!force && userPreferencesPromise && userPreferencesPromiseUserId === session.user.id) {
+            return userPreferencesPromise;
+        }
+
+        const requestUserId = session.user.id;
+        const requestVersion = ++userPreferencesRequestVersion;
+        userPreferencesCacheUserId = requestUserId;
+        userPreferencesPromiseUserId = requestUserId;
+
+        const requestPromise = (async function() {
+            const result = await client.rpc("get_worth_it_user_preferences");
+            if (result?.error) throw result.error;
+
+            const latestSessionResult = await client.auth.getSession();
+            if (latestSessionResult?.error) throw latestSessionResult.error;
+            const latestUserId = latestSessionResult?.data?.session?.user?.id || "";
+            if (latestUserId !== requestUserId || requestVersion !== userPreferencesRequestVersion) {
+                throw new Error("Your signed-in account changed while preferences were loading. Reload Settings and try again.");
+            }
+
+            const data = result?.data && typeof result.data === "object" ? result.data : {};
+            if (data.success === false) throw new Error(data.error || "Could not load your saved preferences.");
+            const base = copyDefaultPreferences();
+            const prefs = {
+                success: true,
+                privacy: Object.assign({}, base.privacy, data.privacy || {}),
+                notifications: Object.assign({}, base.notifications, data.notifications || {})
+            };
+            userPreferencesCache = prefs;
+            window.worthItUserPreferences = prefs;
+            window.worthItUserPreferencesUserId = requestUserId;
+            return prefs;
+        })();
+
+        userPreferencesPromise = requestPromise;
+        try {
+            return await requestPromise;
+        } finally {
+            if (userPreferencesPromise === requestPromise) {
+                userPreferencesPromise = null;
+                userPreferencesPromiseUserId = "";
+            }
+        }
+    }
+
+    function applyPrivacyControls(prefs) {
+        const privacy = prefs?.privacy || DEFAULT_USER_PREFERENCES.privacy;
+        if ($("privacyProfileVisibility")) $("privacyProfileVisibility").value = ["public", "friends", "private"].includes(privacy.profile_visibility) ? privacy.profile_visibility : "public";
+        if ($("privacyProfileDiscoverable")) $("privacyProfileDiscoverable").checked = privacy.profile_discoverable !== false;
+        if ($("privacyShowOnlineStatus")) $("privacyShowOnlineStatus").checked = privacy.show_online_status !== false;
+        if ($("privacyShowConnections")) $("privacyShowConnections").checked = privacy.show_connections !== false;
+    }
+
+    function applyNotificationControls(prefs) {
+        const notifications = prefs?.notifications || DEFAULT_USER_PREFERENCES.notifications;
+        if ($("notifyFriendRequests")) $("notifyFriendRequests").checked = notifications.friend_requests !== false;
+        if ($("notifyFollows")) $("notifyFollows").checked = notifications.follows !== false;
+        if ($("notifyPrivateMessages")) $("notifyPrivateMessages").checked = notifications.private_messages !== false;
+        if ($("notifyGroupChats")) $("notifyGroupChats").checked = notifications.group_chats !== false;
+        if ($("notifyAccountActivity")) $("notifyAccountActivity").checked = notifications.account_activity !== false;
+    }
+
+    function privacyFromControls() {
+        return {
+            profile_visibility: $("privacyProfileVisibility")?.value || "public",
+            profile_discoverable: Boolean($("privacyProfileDiscoverable")?.checked),
+            show_online_status: Boolean($("privacyShowOnlineStatus")?.checked),
+            show_connections: Boolean($("privacyShowConnections")?.checked)
+        };
+    }
+
+    function notificationsFromControls() {
+        return {
+            friend_requests: Boolean($("notifyFriendRequests")?.checked),
+            follows: Boolean($("notifyFollows")?.checked),
+            private_messages: Boolean($("notifyPrivateMessages")?.checked),
+            group_chats: Boolean($("notifyGroupChats")?.checked),
+            account_activity: Boolean($("notifyAccountActivity")?.checked)
+        };
+    }
+
+    async function persistUserPreferences(which) {
+        if (userPreferencesSaveBusy) return;
+        userPreferencesSaveBusy = true;
+        const controls = which === "privacy" ? "privacySettingsContent" : "notificationSettingsContent";
+        let saveUserId = "";
+        setSettingsControlsDisabled("privacySettingsContent", true);
+        setSettingsControlsDisabled("notificationSettingsContent", true);
+        settingsStatus(which === "privacy" ? "privacySettingsStatus" : "notificationSettingsStatus", "Saving your preferences…", "pending");
+        try {
+            const client = window.supabaseClient;
+            const sessionResult = await client?.auth?.getSession?.();
+            const session = sessionResult?.data?.session;
+            if (sessionResult?.error) throw sessionResult.error;
+            if (!session?.access_token || !session?.user?.id) throw new Error("Sign in again to save your preferences.");
+            saveUserId = session.user.id;
+            if (userPreferencesCacheUserId && userPreferencesCacheUserId !== session.user.id) {
+                userPreferencesCache = null;
+                userPreferencesPromise = null;
+                throw new Error("Your signed-in account changed. Reload Settings before changing these preferences.");
+            }
+            const submitted = {
+                privacy: which === "privacy" ? privacyFromControls() : Object.assign({}, userPreferencesCache?.privacy || DEFAULT_USER_PREFERENCES.privacy),
+                notifications: which === "notifications" ? notificationsFromControls() : Object.assign({}, userPreferencesCache?.notifications || DEFAULT_USER_PREFERENCES.notifications)
+            };
+            const result = await client.rpc("save_worth_it_user_preferences", {
+                p_privacy: submitted.privacy,
+                p_notifications: submitted.notifications
+            });
+            if (result?.error) throw result.error;
+            const latestSessionResult = await client.auth.getSession();
+            if (latestSessionResult?.error) throw latestSessionResult.error;
+            const latestUserId = latestSessionResult?.data?.session?.user?.id || "";
+            if (latestUserId !== session.user.id) {
+                if (userPreferencesCacheUserId === session.user.id) {
+                    userPreferencesRequestVersion += 1;
+                    userPreferencesCache = null;
+                    userPreferencesCacheUserId = "";
+                    userPreferencesPromise = null;
+                    userPreferencesPromiseUserId = "";
+                }
+                if (window.worthItUserPreferencesUserId === session.user.id) {
+                    window.worthItUserPreferences = null;
+                    window.worthItUserPreferencesUserId = "";
+                }
+                throw new Error("Your signed-in account changed while saving preferences. Reload Settings before continuing.");
+            }
+            const data = result?.data && typeof result.data === "object" ? result.data : {};
+            if (data.success === false) throw new Error(data.error || "Could not save your preferences.");
+            const base = copyDefaultPreferences();
+            const saved = {
+                success: true,
+                privacy: Object.assign({}, base.privacy, data.privacy || submitted.privacy),
+                notifications: Object.assign({}, base.notifications, data.notifications || submitted.notifications)
+            };
+            userPreferencesCache = saved;
+            userPreferencesCacheUserId = session.user.id;
+            window.worthItUserPreferences = saved;
+            window.worthItUserPreferencesUserId = session.user.id;
+            applyPrivacyControls(saved);
+            applyNotificationControls(saved);
+            settingsStatus(which === "privacy" ? "privacySettingsStatus" : "notificationSettingsStatus", "Your preferences were saved to your Worth It account.", "success");
+            window.dispatchEvent(new CustomEvent("worthitnotificationpreferenceschange", { detail: saved.notifications }));
+        } catch (error) {
+            const message = settingsSetupMessage(error);
+            settingsStatus(which === "privacy" ? "privacySettingsStatus" : "notificationSettingsStatus", message, "error");
+            let currentUserId = "";
+            try {
+                const currentSessionResult = await window.supabaseClient?.auth?.getSession?.();
+                currentUserId = currentSessionResult?.data?.session?.user?.id || "";
+            } catch (_) {}
+            if (currentUserId && userPreferencesCache &&
+                userPreferencesCacheUserId === currentUserId &&
+                window.worthItUserPreferencesUserId === currentUserId) {
+                applyPrivacyControls(userPreferencesCache);
+                applyNotificationControls(userPreferencesCache);
+            }
+        } finally {
+            userPreferencesSaveBusy = false;
+            setSettingsControlsDisabled("privacySettingsContent", false);
+            setSettingsControlsDisabled("notificationSettingsContent", false);
+        }
+    }
+
+    window.loadPrivacySettings = async function() {
+        const generation = ++privacyLoadGeneration;
+        const loading = $("privacySettingsLoading"), signedOut = $("privacySettingsSignedOut"), content = $("privacySettingsContent");
+        if (!loading || !signedOut || !content) return;
+        loading.hidden = false; signedOut.hidden = true; content.hidden = true;
+        try {
+            const client = window.supabaseClient;
+            const sessionResult = await client?.auth?.getSession?.();
+            if (generation !== privacyLoadGeneration) return;
+            if (sessionResult?.error) throw sessionResult.error;
+            const requestUserId = sessionResult?.data?.session?.user?.id || "";
+            if (!requestUserId) {
+                if (generation !== privacyLoadGeneration) return;
+                loading.hidden = true; signedOut.hidden = false; return;
+            }
+            const prefs = await loadWorthItUserPreferences(false);
+            if (generation !== privacyLoadGeneration) return;
+            const latestSessionResult = await client.auth.getSession();
+            if (latestSessionResult?.error) throw latestSessionResult.error;
+            if (generation !== privacyLoadGeneration) return;
+            const latestUserId = latestSessionResult?.data?.session?.user?.id || "";
+            if (latestUserId !== requestUserId) {
+                window.setTimeout(() => window.loadPrivacySettings(), 0);
+                return;
+            }
+            applyPrivacyControls(prefs);
+            loading.hidden = true; content.hidden = false;
+            setSettingsControlsDisabled("privacySettingsContent", false);
+            settingsStatus("privacySettingsStatus", "Privacy preferences are saved to your account and applied by Worth It profile and search queries.", "success");
+        } catch (error) {
+            if (generation !== privacyLoadGeneration) return;
+            loading.hidden = true; content.hidden = false;
+            setSettingsControlsDisabled("privacySettingsContent", true);
+            settingsStatus("privacySettingsStatus", settingsSetupMessage(error), "error");
+        }
+    };
+
+    window.savePrivacySettings = function() {
+        return persistUserPreferences("privacy");
+    };
+
+    window.loadNotificationSettings = async function() {
+        const generation = ++notificationLoadGeneration;
+        const loading = $("notificationSettingsLoading"), signedOut = $("notificationSettingsSignedOut"), content = $("notificationSettingsContent");
+        if (!loading || !signedOut || !content) return;
+        loading.hidden = false; signedOut.hidden = true; content.hidden = true;
+        try {
+            const client = window.supabaseClient;
+            const sessionResult = await client?.auth?.getSession?.();
+            if (generation !== notificationLoadGeneration) return;
+            if (sessionResult?.error) throw sessionResult.error;
+            const requestUserId = sessionResult?.data?.session?.user?.id || "";
+            if (!requestUserId) {
+                loading.hidden = true; signedOut.hidden = false; return;
+            }
+            const prefs = await loadWorthItUserPreferences(false);
+            if (generation !== notificationLoadGeneration) return;
+            const latestSessionResult = await client.auth.getSession();
+            if (latestSessionResult?.error) throw latestSessionResult.error;
+            if (generation !== notificationLoadGeneration) return;
+            const latestUserId = latestSessionResult?.data?.session?.user?.id || "";
+            if (latestUserId !== requestUserId) {
+                window.setTimeout(() => window.loadNotificationSettings(), 0);
+                return;
+            }
+            applyNotificationControls(prefs);
+            loading.hidden = true; content.hidden = false;
+            setSettingsControlsDisabled("notificationSettingsContent", false);
+            settingsStatus("notificationSettingsStatus", "Notification preferences are saved to your account. Individual chats can still be muted separately.", "success");
+        } catch (error) {
+            if (generation !== notificationLoadGeneration) return;
+            loading.hidden = true; content.hidden = false;
+            setSettingsControlsDisabled("notificationSettingsContent", true);
+            settingsStatus("notificationSettingsStatus", settingsSetupMessage(error), "error");
+        }
+    };
+
+    window.saveNotificationSettings = function() {
+        return persistUserPreferences("notifications");
+    };
+
+    async function requestUserDataApi(action) {
+        const client = window.supabaseClient;
+        const sessionResult = await client?.auth?.getSession?.();
+        if (sessionResult?.error) throw sessionResult.error;
+        const session = sessionResult?.data?.session;
+        const requestUserId = session?.user?.id || "";
+        if (!session?.access_token || !requestUserId) throw new Error("Sign in again to manage your data.");
+        const response = await fetch("/api/user-data", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Authorization": "Bearer " + session.access_token
+            },
+            body: JSON.stringify(action)
+        });
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok || !payload.success) throw new Error(payload.error || "The account data request could not be completed.");
+
+        // Export and deletion are account-specific operations. A browser account switch
+        // must not download another account's export or sign the new account out.
+        let currentUserId = "";
+        try {
+            const latestSessionResult = await client.auth.getSession();
+            if (!latestSessionResult?.error) {
+                currentUserId = latestSessionResult?.data?.session?.user?.id || "";
+            }
+        } catch (_) {}
+        return {
+            payload,
+            requestUserId,
+            currentUserId,
+            accountChanged: currentUserId !== requestUserId
+        };
+    }
+
+    window.loadYourDataSettings = async function() {
+        const generation = ++yourDataLoadGeneration;
+        const loading = $("yourDataLoading"), signedOut = $("yourDataSignedOut"), content = $("yourDataContent");
+        if (!loading || !signedOut || !content) return;
+        loading.hidden = false; signedOut.hidden = true; content.hidden = true;
+        if ($("yourDataExportButton")) $("yourDataExportButton").disabled = true;
+        try {
+            const client = window.supabaseClient;
+            const sessionResult = await client?.auth?.getSession?.();
+            if (generation !== yourDataLoadGeneration) return;
+            if (sessionResult?.error) throw sessionResult.error;
+            const session = sessionResult?.data?.session;
+            const requestUserId = session?.user?.id || "";
+            if (!requestUserId || !session?.access_token) {
+                loading.hidden = true; signedOut.hidden = false; return;
+            }
+            const response = await fetch("/api/user-data?action=summary", {
+                headers: { "Authorization": "Bearer " + session.access_token },
+                cache: "no-store"
+            });
+            const payload = await response.json().catch(() => ({}));
+            if (generation !== yourDataLoadGeneration) return;
+            if (!response.ok || !payload.success) throw new Error(payload.error || "Could not load your account summary.");
+            const latestSessionResult = await client.auth.getSession();
+            if (latestSessionResult?.error) throw latestSessionResult.error;
+            if (generation !== yourDataLoadGeneration) return;
+            const latestUserId = latestSessionResult?.data?.session?.user?.id || "";
+            if (latestUserId !== requestUserId) {
+                window.setTimeout(() => window.loadYourDataSettings(), 0);
+                return;
+            }
+            const account = payload.account || {}, profile = payload.profile || {};
+            const lines = [
+                account.email ? "Email: " + account.email : "Email: not available",
+                "Email verified: " + (account.email_confirmed ? "Yes" : "Not confirmed"),
+                profile.username ? "Username: @" + profile.username : "Username: not available",
+                profile.worth_it_id ? "Worth It ID: " + profile.worth_it_id : "Worth It ID: not assigned",
+                profile.display_name ? "Display name: " + profile.display_name : "",
+                account.created_at ? "Account created: " + new Date(account.created_at).toLocaleString() : ""
+            ].filter(Boolean);
+            if ($("yourDataSummary")) $("yourDataSummary").textContent = lines.join(" · ");
+            loading.hidden = true; content.hidden = false;
+            if ($("yourDataExportButton")) $("yourDataExportButton").disabled = false;
+            if ($("deleteAccountConfirmation")) $("deleteAccountConfirmation").value = "";
+            if ($("deleteAccountButton")) $("deleteAccountButton").disabled = true;
+            settingsStatus("yourDataStatus", "Your summary is private to this session. The export contains the account and Worth It records associated with your user ID.", "success");
+        } catch (error) {
+            if (generation !== yourDataLoadGeneration) return;
+            loading.hidden = true; content.hidden = false;
+            settingsStatus("yourDataStatus", error?.message || "Could not load your account data.", "error");
+        }
+    };
+
+    window.downloadWorthItDataExport = async function() {
+        const button = $("yourDataExportButton");
+        if (button?.disabled) return;
+        if (button) button.disabled = true;
+        settingsStatus("yourDataStatus", "Preparing your personal data export…", "pending");
+        try {
+            const result = await requestUserDataApi({ action: "export" });
+            if (result.accountChanged) {
+                throw new Error("Your signed-in account changed while the export was being prepared. No file was downloaded; reload Settings and try again.");
+            }
+            const exportData = result.payload.export;
+            if (!exportData || typeof exportData !== "object") throw new Error("The export response was empty.");
+            const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: "application/json;charset=utf-8" });
+            const objectUrl = URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            link.href = objectUrl;
+            link.download = "worth-it-data-export-" + new Date().toISOString().slice(0, 10) + ".json";
+            link.hidden = true;
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
+            settingsStatus("yourDataStatus", "Your data export was prepared and downloaded. Store the JSON file securely because it can contain your profile information and messages you sent.", "success");
+        } catch (error) {
+            settingsStatus("yourDataStatus", error?.message || "Could not prepare your data export.", "error");
+        } finally {
+            if (button) button.disabled = false;
+        }
+    };
+
+    window.deleteWorthItAccount = async function() {
+        const button = $("deleteAccountButton");
+        const input = $("deleteAccountConfirmation");
+        if (!button || button.disabled) return;
+        if ((input?.value || "").trim() !== "DELETE") {
+            settingsStatus("deleteAccountStatus", "Type DELETE exactly to confirm permanent account deletion.", "error");
+            input?.focus();
+            return;
+        }
+        const confirmed = window.confirm("Permanently delete your Worth It account and its associated data? This cannot be undone. Download your data first if you need a copy.");
+        if (!confirmed) return;
+        button.disabled = true;
+        settingsStatus("deleteAccountStatus", "Requesting permanent account deletion…", "pending");
+        try {
+            const result = await requestUserDataApi({ action: "delete", confirmation: "DELETE" });
+            const deletion = result.payload;
+            if (deletion.cleanup_warning) window.alert(deletion.warning || "Your account was deleted, but some associated files could not be fully cleaned up. Contact Worth It support.");
+            if (result.currentUserId && result.currentUserId !== result.requestUserId) {
+                settingsStatus(
+                    "deleteAccountStatus",
+                    "The account requested for deletion was deleted. Your current browser session belongs to a different account, so that account remains signed in.",
+                    deletion.cleanup_warning ? "warning" : "success"
+                );
+                if ($("deleteAccountConfirmation")) $("deleteAccountConfirmation").value = "";
+                if (button) button.disabled = true;
+                if (typeof window.loadYourDataSettings === "function") {
+                    await window.loadYourDataSettings();
+                }
+                return;
+            }
+            settingsStatus("deleteAccountStatus", "Account deleted. Signing out of this browser…", deletion.cleanup_warning ? "warning" : "success");
+            try { await window.supabaseClient?.auth?.signOut?.({ scope: "local" }); } catch (_) {}
+            window.location.assign("/");
+        } catch (error) {
+            settingsStatus("deleteAccountStatus", error?.message || "Could not delete the account.", "error");
+            button.disabled = (input?.value || "").trim() !== "DELETE";
+        }
+    };
+
+    window.openSettingsCategory = function(panelId) {
+        const panel = $(panelId);
+        if (!panel) return;
+        panel.scrollIntoView({ behavior: "smooth", block: "start" });
+        const heading = panel.querySelector("h2");
+        if (heading) {
+            heading.setAttribute("tabindex", "-1");
+            window.setTimeout(() => heading.focus({ preventScroll: true }), 180);
+        }
+    };
+
     /* Admin Panel functionality lives in admin-panel.js. */
 
     $("accountUsernameInput")?.addEventListener("input", updateAccountSaveButtons);
     $("accountDisplayNameInput")?.addEventListener("input", updateAccountSaveButtons);
+    $("deleteAccountConfirmation")?.addEventListener("input", function() {
+        const button = $("deleteAccountButton");
+        if (button) button.disabled = this.value.trim() !== "DELETE";
+    });
+    document.querySelectorAll(".worth-it-settings-card[data-settings-target]").forEach(card => {
+        const open = () => window.openSettingsCategory(card.dataset.settingsTarget);
+        card.addEventListener("click", open);
+        card.addEventListener("keydown", event => {
+            if (event.key === "Enter" || event.key === " ") { event.preventDefault(); open(); }
+        });
+    });
     $("calculatorSearch")?.addEventListener("input", applyFilters);
     $("categoryFilter")?.addEventListener("change", applyFilters);
     $("clearCalculatorFilters")?.addEventListener("click", ()=>{
@@ -852,6 +1586,63 @@ window.openSettings = openFullSettings;
             closeFeedback();
         }
     });
+
+    // Clear account-scoped Settings state immediately when the signed-in account
+    // changes. Reload server-backed panels only after the Supabase auth callback
+    // returns, so we do not await Auth calls while its internal lock is held.
+    let lastSettingsAuthUserId;
+    if (window.supabaseClient?.auth?.onAuthStateChange) {
+        window.supabaseClient.auth.onAuthStateChange((_event, session) => {
+            const nextUserId = session?.user?.id || "";
+            if (lastSettingsAuthUserId === undefined) {
+                lastSettingsAuthUserId = nextUserId;
+                return;
+            }
+            if (lastSettingsAuthUserId === nextUserId) return;
+            lastSettingsAuthUserId = nextUserId;
+
+            accountSettingsLoadGeneration += 1;
+            securityLoadGeneration += 1;
+            privacyLoadGeneration += 1;
+            notificationLoadGeneration += 1;
+            yourDataLoadGeneration += 1;
+            userPreferencesRequestVersion += 1;
+            userPreferencesCache = null;
+            userPreferencesCacheUserId = "";
+            userPreferencesPromise = null;
+            userPreferencesPromiseUserId = "";
+            window.worthItUserPreferences = null;
+            window.worthItUserPreferencesUserId = "";
+
+            activeTotpFactorId = "";
+            activeTotpFactorUserId = "";
+            pendingTotpFactorId = "";
+            pendingTotpFactorUserId = "";
+            clearTotpEnrollmentUi();
+            securityLoadGeneration += 1;
+
+            [
+                "accountSettingsContent",
+                "securitySettingsContent",
+                "privacySettingsContent",
+                "notificationSettingsContent",
+                "yourDataContent"
+            ].forEach(id => {
+                const panel = $(id);
+                if (panel) panel.hidden = true;
+            });
+
+            window.setTimeout(() => {
+                const page = $("settingsPage");
+                if (!page || page.style.display === "none") return;
+                if (typeof window.loadAccountSettings === "function") window.loadAccountSettings();
+                if (typeof window.loadSecuritySettings === "function") window.loadSecuritySettings();
+                if (typeof window.loadPrivacySettings === "function") window.loadPrivacySettings();
+                if (typeof window.loadNotificationSettings === "function") window.loadNotificationSettings();
+                if (typeof window.loadYourDataSettings === "function") window.loadYourDataSettings();
+            }, 0);
+        });
+    }
 
     // The browser owns page translation; the website no longer has an internal language system.
     applySettings();

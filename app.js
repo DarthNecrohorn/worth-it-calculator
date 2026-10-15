@@ -1661,6 +1661,12 @@ async function submitAuthForm(event) {
             });
             if (verification?.error) throw verification.error;
 
+            const verifiedAssurance = await pendingAuth.mfa.getAuthenticatorAssuranceLevel();
+            if (verifiedAssurance?.error) throw verifiedAssurance.error;
+            if (verifiedAssurance?.data?.currentLevel !== "aal2") {
+                throw new Error("The second factor was not confirmed by Supabase. Please check the code and try again.");
+            }
+
             const pendingResult = await pendingAuth.getSession();
             const verifiedSession = pendingResult?.data?.session;
             if (!verifiedSession?.access_token || !verifiedSession?.refresh_token) {

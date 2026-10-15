@@ -19683,3 +19683,22 @@ html[data-theme="light"] .worth-it-notification-dismiss:hover,html[data-theme="l
 .security-mfa-code{display:block;width:min(300px,100%);padding:12px 14px;margin:8px 0 10px;border:1px solid var(--border);border-radius:12px;background:var(--card);color:var(--text);font:inherit;font-size:18px;letter-spacing:.2em;text-align:center}
 .security-danger-button{border-color:rgba(239,68,68,.38);color:#f87171}
 .security-danger-button:hover{border-color:rgba(239,68,68,.72);background:rgba(239,68,68,.08)}
+
+
+/* Privacy, notifications and personal data controls in full Settings. */
+.worth-it-settings-card[data-settings-target]{cursor:pointer;transition:transform .16s ease,border-color .16s ease,box-shadow .16s ease}
+.worth-it-settings-card[data-settings-target]:hover{transform:translateY(-2px);border-color:rgba(124,92,255,.4);box-shadow:0 16px 36px rgba(0,0,0,.12)}
+.worth-it-settings-card[data-settings-target]:focus-visible{outline:2px solid var(--accent,#7c5cff);outline-offset:3px}
+.account-settings-select{display:block;width:100%;max-width:560px;min-height:44px;padding:10px 12px;border:1px solid var(--border);border-radius:11px;background:var(--surface-soft);color:var(--text);font:inherit;font-size:13px}
+.account-settings-select:focus-visible{outline:2px solid var(--accent,#7c5cff);outline-offset:2px}
+.account-settings-toggle{display:grid;grid-template-columns:20px minmax(0,1fr);align-items:start;gap:12px;cursor:pointer;min-width:0}
+.account-settings-toggle input{width:18px;height:18px;margin:2px 0 0;accent-color:var(--accent,#7c5cff);cursor:pointer}
+.account-settings-toggle strong{display:block;color:var(--text);font-size:13px;line-height:1.45}
+.account-settings-toggle small{display:block;margin-top:4px;color:var(--muted);font-size:12px;line-height:1.55;font-weight:400}
+.account-settings-toggle input:disabled{cursor:not-allowed;opacity:.55}
+.account-settings-status.is-warning{color:var(--warning,#d4a72c)}
+#yourDataSummary{line-height:1.8;overflow-wrap:anywhere}
+
+.worth-it-presence-indicator.is-hidden{display:none!important}
+.worth-it-profile-presence-text.is-hidden .worth-it-presence-status-dot{display:none}
+.worth-it-profile-presence-text.is-hidden .worth-it-presence-label{color:var(--muted)}

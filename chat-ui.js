@@ -32,6 +32,8 @@ let pendingMediaUrl = "";
 let pendingMediaType = "";
 let chatNotificationPreferences = Object.create(null);
 let chatNotificationPreferencesLoadedForUser = null;
+let globalNotificationPreferences = { friend_requests: true, follows: true, private_messages: true, group_chats: true, account_activity: true };
+let globalNotificationPreferencesLoadedForUser = null;
 const selectedGroupFriendIds = new Set();
 let groupCreateInProgress = false;
 const sb = () => window.supabaseClient || null;
@@ -123,6 +125,8 @@ function setAuthState(user) {
     if (!chatUser || previousUserId !== chatUser.id) {
         chatNotificationPreferences = Object.create(null);
         chatNotificationPreferencesLoadedForUser = null;
+        globalNotificationPreferences = { friend_requests: true, follows: true, private_messages: true, group_chats: true, account_activity: true };
+        globalNotificationPreferencesLoadedForUser = null;
     }
     const wrap = $("worthItChatNavWrap");
     if (wrap) wrap.hidden = !chatUser;
@@ -137,6 +141,8 @@ function setAuthState(user) {
         else showChatOverlay(false, {skipRouteSync:true});
         renderFriends();
         renderConversations();
+        globalNotificationPreferences = { friend_requests: true, follows: true, private_messages: true, group_chats: true, account_activity: true };
+        globalNotificationPreferencesLoadedForUser = null;
         renderMessages();
         updateUnreadBadge();
         updateChatHeaderShareButton();
@@ -409,8 +415,13 @@ function chatNotificationKeyForConversation(conversation) {
     const member = Array.isArray(conversation.members) ? conversation.members[0] : null;
     return member?.worth_it_id == null ? "" : "direct:" + String(member.worth_it_id);
 }
+function chatNotificationCategoryEnabled(chatKey) {
+    if (chatKey === "global" || String(chatKey || "").startsWith("group:")) return globalNotificationPreferences.group_chats !== false;
+    if (String(chatKey || "").startsWith("direct:")) return globalNotificationPreferences.private_messages !== false;
+    return true;
+}
 function chatNotificationsEnabled(chatKey) {
-    return !chatKey || chatNotificationPreferences[chatKey] !== false;
+    return !chatKey || (chatNotificationCategoryEnabled(chatKey) && chatNotificationPreferences[chatKey] !== false);
 }
 function getActiveChatNotificationKey() {
     if (activeConversationType === "global") return "global";
@@ -429,8 +440,10 @@ function updateChatHeaderNotificationButton() {
     const available = Boolean(chatUser && chatKey);
     button.hidden = !available;
     button.dataset.chatKey = chatKey;
+    const categoryEnabled = chatNotificationCategoryEnabled(chatKey);
     const enabled = chatNotificationsEnabled(chatKey);
-    const labelText = enabled ? "Turn off notifications" : "Turn on notifications";
+    const labelText = !categoryEnabled ? "Enable this in Settings" : enabled ? "Turn off notifications" : "Turn on notifications";
+    button.disabled = !categoryEnabled;
     button.classList.toggle("is-enabled", enabled);
     button.classList.toggle("is-muted", !enabled);
     button.title = labelText;
@@ -451,6 +464,10 @@ function updateChatHeaderShareButton() {
 }
 async function toggleWorthItChatNotifications(chatKey, button) {
     if (!chatUser || !chatKey || button?.disabled) return;
+    if (!chatNotificationCategoryEnabled(chatKey)) {
+        setStatus("Turn this notification category back on from Settings → Notifications first.", true);
+        return;
+    }
     const client = sb();
     if (!client) return;
     const nextEnabled = !chatNotificationsEnabled(chatKey);
@@ -501,16 +518,19 @@ async function refreshWorthItChatData() {
     const userId = chatUser.id;
     const token = ++chatRefreshToken;
     const shouldLoadNotificationPreferences = chatNotificationPreferencesLoadedForUser !== userId;
+    const shouldLoadGlobalPreferences = globalNotificationPreferencesLoadedForUser !== userId;
     const requests = [
         client.rpc("get_worth_it_chat_friends"),
         client.rpc("get_worth_it_chat_conversations")
     ];
     if (shouldLoadNotificationPreferences) requests.push(client.rpc("get_worth_it_chat_notification_preferences"));
+    if (shouldLoadGlobalPreferences) requests.push(client.rpc("get_worth_it_user_preferences"));
     const results = await Promise.allSettled(requests);
     if (token !== chatRefreshToken || chatUser?.id !== userId) return;
     const friendsResult = results[0];
     const chatsResult = results[1];
     const notificationPrefsResult = shouldLoadNotificationPreferences ? results[2] : null;
+    const globalPrefsResult = shouldLoadGlobalPreferences ? results[shouldLoadNotificationPreferences ? 3 : 2] : null;
     if (friendsResult.status === "fulfilled" && !friendsResult.value.error) {
         chatFriends = Array.isArray(friendsResult.value.data) ? friendsResult.value.data : [];
     } else {
@@ -532,6 +552,18 @@ async function refreshWorthItChatData() {
         }
         // Preferences are fetched once per signed-in user, not on every 5-second message refresh.
         chatNotificationPreferencesLoadedForUser = userId;
+    }
+    if (shouldLoadGlobalPreferences) {
+        const data = globalPrefsResult?.status === "fulfilled" && !globalPrefsResult.value.error ? globalPrefsResult.value.data : null;
+        if (data && data.success !== false && data.notifications && typeof data.notifications === "object" && !Array.isArray(data.notifications)) {
+            globalNotificationPreferences = Object.assign({ friend_requests: true, follows: true, private_messages: true, group_chats: true, account_activity: true }, data.notifications);
+            window.worthItUserPreferences = data;
+            window.worthItUserPreferencesUserId = userId;
+        } else if (window.worthItUserPreferencesUserId === userId && window.worthItUserPreferences?.notifications) {
+            globalNotificationPreferences = Object.assign({ friend_requests: true, follows: true, private_messages: true, group_chats: true, account_activity: true }, window.worthItUserPreferences.notifications);
+        }
+        // If the optional settings migration is not installed, keep the current default behavior.
+        globalNotificationPreferencesLoadedForUser = userId;
     }
     if (activeConversationType === "direct" && activeConversationPerson?.worth_it_id) { const freshPerson = chatFriends.find(item => String(item.worth_it_id) === String(activeConversationPerson.worth_it_id)); if (freshPerson) { activeConversationPerson = {...activeConversationPerson, ...freshPerson}; setHeader(activeConversationTitle, (window.getWorthItPresenceInfo ? window.getWorthItPresenceInfo(activeConversationPerson).label : "Private conversation with your friend"), activeConversationPerson); } }
     renderFriends(); renderConversations(); updateChatHeaderNotificationButton(); updateUnreadBadge();
@@ -1244,6 +1276,13 @@ function setupChatUI() {
     updateChatHeaderNotificationButton();
 }
 setupChatUI();
+window.addEventListener("worthitnotificationpreferenceschange", event => {
+    const next = event?.detail;
+    if (next && typeof next === "object" && !Array.isArray(next)) {
+        globalNotificationPreferences = Object.assign({ friend_requests: true, follows: true, private_messages: true, group_chats: true, account_activity: true }, next);
+        renderFriends(); renderConversations(); updateChatHeaderNotificationButton(); updateUnreadBadge();
+    }
+});
 window.addEventListener("popstate", () => { routeWorthItChatFromLocation(); });
 routeWorthItChatFromLocation();
 if (sb()?.auth) {

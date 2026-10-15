@@ -4,16 +4,22 @@ on:
   pull_request:
     paths:
       - "functions/**/*.js"
+      - "supabase/**/*.sql"
+      - "tests/**/*.mjs"
+      - "tests/fixtures/**/*.sql"
       - "cars-ui.js"
       - "ship-tracking-ui.js"
       - "profile-ui.js"
+      - "app.js"
+      - "index.html"
+      - "settings.js"
       - "chat-ui.js"
       - "routing.js"
       - ".github/workflows/function-syntax-check.yml"
 
 jobs:
   syntax:
-    name: Parse JavaScript
+    name: Parse JavaScript and check migration delimiters
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
@@ -32,17 +38,103 @@ jobs:
             echo "Checking $file"
             node --input-type=module --check < "$file"
           done < <(find functions -type f -name '*.js' -print0)
-          if [[ -f "cars-ui.js" ]]; then
-            echo "Checking cars-ui.js"
-            node --input-type=module --check < "cars-ui.js"
-          fi
-          if [[ -f "ship-tracking-ui.js" ]]; then
-            echo "Checking ship-tracking-ui.js"
-            node --input-type=module --check < "ship-tracking-ui.js"
-          fi
-          for file in profile-ui.js chat-ui.js routing.js; do
+          for file in cars-ui.js ship-tracking-ui.js app.js settings.js profile-ui.js chat-ui.js routing.js; do
             if [[ -f "$file" ]]; then
               echo "Checking $file"
               node --input-type=module --check < "$file"
             fi
           done
+
+      - name: Test account-data API security paths
+        run: node --test tests/*.test.mjs
+
+      - name: Set up Python for PostgreSQL parsing
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install pinned PostgreSQL parser
+        run: python -m pip install "pglast==7.20"
+
+      - name: Parse migration SQL with PostgreSQL grammar
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          from pglast import parse_sql
+
+          path = Path("supabase/worth-it-settings-privacy-notifications.sql")
+          sql = path.read_text(encoding="utf-8")
+          statements = parse_sql(sql)
+          if not statements:
+              raise SystemExit(f"No SQL statements were found in {path}.")
+          print(f"PostgreSQL parser accepted {len(statements)} statements in {path}.")
+          PY
+
+      - name: Check Supabase SQL migration delimiters
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          path = Path("supabase/worth-it-settings-privacy-notifications.sql")
+          sql = path.read_text(encoding="utf-8")
+          openers = len(re.findall(r"(?im)^\s*(?:as|do)\s+\$\$\s*$", sql))
+          closers = len(re.findall(r"(?m)^\s*\$\$;\s*$", sql))
+          malformed = re.findall(r"(?m)^\s*\$;\s*$", sql)
+          if openers != closers or malformed:
+              raise SystemExit(
+                  f"Invalid SQL dollar-quote delimiters: {openers} openers, {closers} closers, "
+                  f"{len(malformed)} malformed terminator(s)."
+              )
+          if not re.search(r"(?im)^\s*begin;\s*$", sql) or not re.search(r"(?im)^\s*commit;\s*$", sql):
+              raise SystemExit("Expected the migration to be wrapped in BEGIN/COMMIT.")
+          print(f"Checked SQL dollar-quote delimiters in {path}: {openers} paired blocks.")
+          PY
+
+  migration-postgres:
+    name: Execute and smoke-test Settings migration in disposable PostgreSQL
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Install PostgreSQL client
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes postgresql-client
+
+      - name: Create isolated baseline schema fixture
+        env:
+          TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/postgres
+        run: psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -f tests/fixtures/settings-migration-postgres-setup.sql
+
+      - name: Execute the Settings migration against PostgreSQL
+        env:
+          TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/postgres
+        run: psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/worth-it-settings-privacy-notifications.sql
+
+      - name: Confirm the migration can be safely retried
+        env:
+          TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/postgres
+        run: psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/worth-it-settings-privacy-notifications.sql
+
+      - name: Smoke-test privacy, notifications, chat presence and RPC permissions
+        env:
+          TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/postgres
+        run: psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -f tests/fixtures/settings-migration-postgres-smoke.sql

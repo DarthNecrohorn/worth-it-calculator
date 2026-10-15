@@ -13,8 +13,11 @@ function getWorthItPresenceInfo(person){
  if(currentUser?.id&&ownWorthItId!=null&&person?.worth_it_id!=null&&String(person.worth_it_id)===String(ownWorthItId)){
   return{online:true,label:"Online now",lastSeenAt:person?.last_seen_at||new Date().toISOString()};
  }
+ 
  const cached=person?.worth_it_id!=null?presenceLastSeenById.get(String(person.worth_it_id)):null;
- const raw=person?.last_seen_at||person?.lastSeenAt||cached||null,stamp=raw?new Date(raw).getTime():NaN,delta=Number.isFinite(stamp)?Date.now()-stamp:Infinity;
+ const cachedStamp=cached&&typeof cached==="object"?cached.last_seen_at:cached;
+ if(person?.show_online_status===false||(person?.show_online_status==null&&cached&&typeof cached==="object"&&cached.show_online_status===false)){return{online:false,label:"Online status hidden",lastSeenAt:null,hidden:true};}
+ const raw=person?.last_seen_at||person?.lastSeenAt||cachedStamp||null,stamp=raw?new Date(raw).getTime():NaN,delta=Number.isFinite(stamp)?Date.now()-stamp:Infinity;
  if(Number.isFinite(stamp)&&delta>=-60000&&delta<=PRESENCE_ONLINE_WINDOW_MS)return{online:true,label:"Online now",lastSeenAt:raw};
  if(!Number.isFinite(stamp))return{online:false,label:"Offline · last seen unavailable",lastSeenAt:null};
  const minutes=Math.max(1,Math.floor(Math.max(0,delta)/60000));let relative;
@@ -24,6 +27,7 @@ function getWorthItPresenceInfo(person){
  return{online:false,label:"Last seen "+relative+" ago",lastSeenAt:raw};
 }
 function getShortWorthItPresenceLabel(info){
+ if(info?.hidden)return "Status hidden";
  if(info?.online)return "Online";
  const raw=info?.lastSeenAt,stamp=raw?new Date(raw).getTime():NaN;
  if(!Number.isFinite(stamp))return "Offline";
@@ -36,10 +40,10 @@ function getShortWorthItPresenceLabel(info){
  else relative=Math.floor(minutes/525600)+"y ago";
  return "Last seen "+relative;
 }
-function updateWorthItPresenceNode(node,lastSeenAt){
- if(!node)return;const info=getWorthItPresenceInfo({worth_it_id:node.dataset.worthItPresenceId,last_seen_at:lastSeenAt||null});
- node.classList.toggle("is-online",info.online);node.classList.toggle("is-offline",!info.online);node.dataset.lastSeenAt=lastSeenAt||"";
- const presenceLabel=info.online?"Online":"Offline";
+function updateWorthItPresenceNode(node,lastSeenAt,showOnlineStatus){
+ if(!node)return;const info=getWorthItPresenceInfo({worth_it_id:node.dataset.worthItPresenceId,last_seen_at:lastSeenAt||null,show_online_status:showOnlineStatus});
+ node.classList.toggle("is-online",info.online);node.classList.toggle("is-offline",!info.online);node.classList.toggle("is-hidden",Boolean(info.hidden));node.dataset.lastSeenAt=lastSeenAt||"";
+ const presenceLabel=info.hidden?"Online status hidden":info.online?"Online":"Offline";
  if(node.classList.contains("worth-it-presence-indicator")){node.dataset.presenceStatus=presenceLabel;node.title=presenceLabel;node.setAttribute("aria-label",presenceLabel);const tooltip=node._worthItPresenceTooltip||node.querySelector(".worth-it-presence-tooltip");if(tooltip)tooltip.textContent=presenceLabel;}
  else{node.title=info.label;node.setAttribute("aria-label",info.label);}
  if(node.classList.contains("worth-it-profile-presence-text")){const dot=node.querySelector(".worth-it-presence-status-dot"),label=node.querySelector(".worth-it-presence-label");if(dot){dot.classList.toggle("is-online",info.online);dot.classList.toggle("is-offline",!info.online);}if(label)label.textContent=getShortWorthItPresenceLabel(info);}
@@ -48,7 +52,7 @@ function updateWorthItPresenceNode(node,lastSeenAt){
 function appendWorthItPresenceIndicator(host,person){
  if(!host||!person||person.worth_it_id==null)return;host.classList.add("worth-it-presence-host");host.querySelectorAll(":scope > .worth-it-presence-indicator").forEach(node=>node.remove());
  const marker=document.createElement("span");marker.className="worth-it-presence-indicator";marker.dataset.worthItPresenceId=String(person.worth_it_id);marker.dataset.lastSeenAt=person.last_seen_at||"";marker.setAttribute("role","button");marker.setAttribute("tabindex","0");
- const tooltip=document.createElement("span");tooltip.className="worth-it-presence-tooltip";tooltip.setAttribute("aria-hidden","true");tooltip.textContent=person.last_seen_at?getWorthItPresenceInfo(person).online?"Online":"Offline":"Offline";marker._worthItPresenceTooltip=tooltip;marker.appendChild(tooltip);
+ const tooltip=document.createElement("span");tooltip.className="worth-it-presence-tooltip";tooltip.setAttribute("aria-hidden","true");const initialPresence=getWorthItPresenceInfo(person);tooltip.textContent=initialPresence.hidden?"Online status hidden":initialPresence.online?"Online":"Offline";marker._worthItPresenceTooltip=tooltip;marker.appendChild(tooltip);
  const hideTooltip=()=>{tooltip.classList.remove("is-visible","is-portal","is-below");tooltip.setAttribute("aria-hidden","true");tooltip.remove();marker.classList.remove("is-tooltip-open");};
  const showTooltip=()=>{
   document.querySelectorAll(".worth-it-presence-tooltip.is-portal").forEach(other=>{if(other!==tooltip){other.classList.remove("is-visible","is-portal","is-below");other.setAttribute("aria-hidden","true");other.remove();}});
@@ -65,19 +69,19 @@ function appendWorthItPresenceIndicator(host,person){
  marker.addEventListener("pointerdown",event=>{if(event.pointerType!=="touch")return;event.stopPropagation();event.preventDefault();if(tooltip.classList.contains("is-visible"))hideTooltip();else{showTooltip();marker.classList.add("is-tooltip-open");}});
  marker.addEventListener("click",event=>{event.stopPropagation();event.preventDefault();});
  marker.addEventListener("keydown",event=>{if(event.key==="Enter"||event.key===" "){event.stopPropagation();event.preventDefault();if(tooltip.classList.contains("is-visible"))hideTooltip();else{showTooltip();marker.classList.add("is-tooltip-open");}}else if(event.key==="Escape")hideTooltip();});
- updateWorthItPresenceNode(marker,person.last_seen_at);host.appendChild(marker);
+ updateWorthItPresenceNode(marker,person.last_seen_at,person.show_online_status);host.appendChild(marker);
 }
 function renderWorthItProfilePresence(person){
  const host=$("worthItProfilePresence");if(!host)return;host.replaceChildren();host.className="worth-it-profile-presence-text";host.dataset.worthItPresenceId=String(person?.worth_it_id||"");
- const dot=document.createElement("span");dot.className="worth-it-presence-status-dot";dot.setAttribute("aria-hidden","true");const label=document.createElement("span");label.className="worth-it-presence-label";host.append(dot,label);updateWorthItPresenceNode(host,person?.last_seen_at);host.hidden=false;
+ const dot=document.createElement("span");dot.className="worth-it-presence-status-dot";dot.setAttribute("aria-hidden","true");const label=document.createElement("span");label.className="worth-it-presence-label";host.append(dot,label);updateWorthItPresenceNode(host,person?.last_seen_at,person?.show_online_status);host.hidden=false;
 }
 async function refreshWorthItPresenceDisplay(){
  if(presenceDisplayBusy||document.visibilityState==="hidden")return;const sb=client();if(!sb)return;
  const nodes=Array.from(document.querySelectorAll("[data-worth-it-presence-id]")),ids=Array.from(new Set(nodes.map(node=>Number(node.dataset.worthItPresenceId)).filter(id=>Number.isSafeInteger(id)&&id>0))).slice(0,200);
  if(!ids.length)return;presenceDisplayBusy=true;
- try{const result=await sb.from("worth_it_public_profiles").select("worth_it_id,last_seen_at").in("worth_it_id",ids);if(result.error||!Array.isArray(result.data))return;
-  const timestamps=new Map(result.data.map(row=>[String(row.worth_it_id),row.last_seen_at||null]));timestamps.forEach((value,key)=>presenceLastSeenById.set(key,value));
-  nodes.forEach(node=>{const id=String(node.dataset.worthItPresenceId||"");if(timestamps.has(id))updateWorthItPresenceNode(node,timestamps.get(id));});
+ try{const result=await sb.from("worth_it_public_profiles").select("worth_it_id,last_seen_at,show_online_status").in("worth_it_id",ids);if(result.error||!Array.isArray(result.data))return;
+  const timestamps=new Map(result.data.map(row=>[String(row.worth_it_id),{last_seen_at:row.last_seen_at||null,show_online_status:row.show_online_status!==false}]));timestamps.forEach((value,key)=>presenceLastSeenById.set(key,value));
+  nodes.forEach(node=>{const id=String(node.dataset.worthItPresenceId||"");if(timestamps.has(id)){const info=timestamps.get(id);updateWorthItPresenceNode(node,info.last_seen_at,info.show_online_status);}});
  }catch(_){}finally{presenceDisplayBusy=false;}
 }
 async function touchWorthItPresence(force){
@@ -141,14 +145,14 @@ function renderAccountPanelBanner(url){
  image.src=safe;image.hidden=false;panel.classList.add("has-banner");
 }
 function syncHeaderAvatar(profile){const name=profile?.display_name||profile?.username||currentUser?.user_metadata?.full_name||currentUser?.email?.split("@")[0]||"Worth It",person={...profile,worth_it_id:profile?.worth_it_id,last_seen_at:profile?.last_seen_at};renderSmallAvatar($("profileNavIcon"),profile?.avatar_url,name,"auth-avatar","auth-avatar-fallback",person);renderSmallAvatar($("accountHeadAvatar"),profile?.avatar_url,name,"account-head-avatar","account-head-fallback",person);const accountName=$("accountName");if(accountName)accountName.textContent=name;renderAccountPanelBanner(profile?.banner_url);}
-function normalizeStats(data){let d=Array.isArray(data)?data[0]:data;d=d&&typeof d==="object"?d:{};return{friends:Number(d.friends)||0,followers:Number(d.followers)||0,following:Number(d.following)||0};}
+function normalizeStats(data){let d=Array.isArray(data)?data[0]:data;d=d&&typeof d==="object"?d:{};return{friends:d.friends==null?null:Number(d.friends)||0,followers:d.followers==null?null:Number(d.followers)||0,following:d.following==null?null:Number(d.following)||0,hidden:d.hidden===true};}
 async function getStats(id){const sb=client();if(!sb||!Number.isSafeInteger(Number(id)))throw new Error("Stats unavailable");const r=await sb.rpc("get_worth_it_profile_stats",{target_worth_it_id:Number(id)});if(r.error)throw r.error;return normalizeStats(r.data);}
 async function getOwnProfileRow(user,force){
  if(!user?.id)return null;
  if(!force&&currentOwnProfile?.userId===user.id)return currentOwnProfile.profile;
  if(!force&&currentOwnProfileRequest?.userId===user.id)return currentOwnProfileRequest.promise;
  const sb=client();if(!sb)throw new Error("Auth not ready");
- const promise=(async()=>{const r=await sb.from("worth_it_profiles").select("worth_it_id,username,display_name,avatar_url,banner_url,created_at,last_seen_at").eq("user_id",user.id).maybeSingle();if(r.error)throw r.error;if(!r.data)throw new Error("Worth It ID has not been assigned");currentUser=user;currentOwnProfile={userId:user.id,profile:r.data};syncHeaderAvatar(r.data);touchWorthItPresence(true);return r.data;})();
+ const promise=(async()=>{let r=await sb.rpc("get_worth_it_own_profile");let profile=Array.isArray(r.data)?r.data[0]:r.data;if(r.error){const message=String(r.error.message||r.error);if(!/get_worth_it_own_profile|PGRST202|schema cache|could not find|does not exist/i.test(message))throw r.error;r=await sb.from("worth_it_profiles").select("worth_it_id,username,display_name,avatar_url,banner_url,created_at,last_seen_at").eq("user_id",user.id).maybeSingle();if(r.error)throw r.error;profile=r.data;}if(!profile||!profile.worth_it_id)throw new Error("Worth It ID has not been assigned");currentUser=user;currentOwnProfile={userId:user.id,profile};syncHeaderAvatar(profile);touchWorthItPresence(true);return profile;})();
  currentOwnProfileRequest={userId:user.id,promise};
  try{return await promise;}finally{if(currentOwnProfileRequest?.promise===promise)currentOwnProfileRequest=null;}
 }
@@ -175,7 +179,7 @@ function renderProfile(p,s,isOwn){
  renderAvatar(p.avatar_url,name,p);renderWorthItProfilePresence(p);renderBanner(p.banner_url,name);setText("worthItProfileName",name);setText("worthItProfileUsername",username?"@"+username:"Worth It member");
  const displayNameEdit=$("worthItProfileDisplayNameEdit");if(displayNameEdit)displayNameEdit.hidden=!isOwn;
  if(!isOwn)closeWorthItDisplayNameEditor();
- setCount("worthItProfileFriends",s.friends);setCount("worthItProfileFollowers",s.followers);setCount("worthItProfileFollowing",s.following);setFriendMood(s.friends);
+ if(s.hidden){setText("worthItProfileFriends","Hidden");setText("worthItProfileFollowers","Hidden");setText("worthItProfileFollowing","Hidden");setText("worthItProfileFriendsMood","🔒");}else{setCount("worthItProfileFriends",s.friends);setCount("worthItProfileFollowers",s.followers);setCount("worthItProfileFollowing",s.following);setFriendMood(s.friends);}
  const email=$("worthItProfileEmail");if(email){email.textContent=isOwn&&currentUser?.email?currentUser.email:"";email.hidden=!(isOwn&&currentUser?.email);}
  const linkNode=$("worthItProfileLink");if(linkNode){linkNode.href=link;linkNode.textContent=link;}setText("worthItProfileLinkLabel",isOwn?"YOUR PROFILE LINK":"THIS USER'S PROFILE");
  const member=$("worthItProfileMemberSince");if(member){const date=p.created_at?new Date(p.created_at):null;if(date&&!Number.isNaN(date.getTime())){const parts=new Intl.DateTimeFormat("en-GB",{day:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit",hourCycle:"h23"}).formatToParts(date);const part=type=>parts.find(x=>x.type===type)?.value||"";const month=new Intl.DateTimeFormat("en-US",{month:"short"}).format(date);member.textContent="Joined "+part("day")+" "+month+", "+part("year")+" "+part("hour")+":"+part("minute");}else{member.textContent="";}}
@@ -337,11 +341,16 @@ function profilePersonLink(person, compact) {
   else{const text=document.createElement("span");text.className="worth-it-profile-connection-text";const display=document.createElement("strong");display.textContent=name;const handle=document.createElement("small");handle.textContent=username?"@"+username:"Worth It member";const presence=document.createElement("small");presence.className="worth-it-person-presence-label";presence.dataset.worthItPresenceId=String(id);presence.textContent=getWorthItPresenceInfo(person).label;text.append(display,handle,presence);link.append(avatar,text);}
   return link;
 }
-function renderFriendsStrip(rows) {
+function renderFriendsStrip(rows, hidden) {
  const host = $("worthItProfileFriendsStrip"), preview = $("worthItProfileFriendsPreview");
  if (!host) return;
  host.replaceChildren();
  if (!Array.isArray(rows)) rows = [];
+ if (hidden) {
+  const empty = document.createElement("span"); empty.className = "worth-it-profile-friends-empty"; empty.textContent = "This member has hidden their friends.";
+  host.appendChild(empty); setText("worthItProfileFriendsPreviewCount", "(hidden)"); setText("worthItProfileFriendsMood", "🔒"); if (preview) preview.hidden = false; return;
+ }
+ setText("worthItProfileFriendsPreviewCount", "(" + rows.length + ")");
  if (!rows.length) {
   const empty = document.createElement("span"); empty.className = "worth-it-profile-friends-empty"; empty.textContent = "No friends yet.";
   host.appendChild(empty); if (preview) preview.hidden = false; return;
@@ -416,7 +425,7 @@ async function refreshProfileSocial(targetId, isOwn) {
   else { if (actionHost) actionHost.hidden = true; currentSocialContext = null; }
   const connectionData = normalizeRpcObject(connectionsResult.data);
   if (!connectionsResult.error && connectionData?.success === true && Array.isArray(connectionData.connections)) {
-   renderFriendsStrip(connectionData.connections);
+   renderFriendsStrip(connectionData.connections, connectionData.hidden === true);
   } else if (preview) preview.hidden = true;
  } catch (_) {
   if (refreshId === activeSocialRefresh && preview) preview.hidden = true;
@@ -556,8 +565,8 @@ function renderWorthItOtherNotifications(){
   const body=document.createElement("div");body.className="worth-it-notification-event-body";
   const title=document.createElement("p");title.className="worth-it-notification-event-title";
   const name=String(notification.display_name||notification.username||"A Worth It member");
-  title.append(document.createTextNode(name+" unfriended you."));
-  const reason=String(notification.reason||"").trim();
+  title.append(document.createTextNode(String(notification.type||"unfriended")==="follow"?name+" started following you.":name+" unfriended you."));
+  const reason=String(notification.type||"unfriended")==="unfriended"?String(notification.reason||"").trim():"";
   if(reason){const explanation=document.createElement("p");explanation.className="worth-it-notification-reason";explanation.textContent="Reason: "+reason;body.append(title,explanation);}
   else body.appendChild(title);
   const date=document.createElement("time");date.className="worth-it-notification-date";date.dateTime=String(notification.created_at||"");date.textContent=formatWorthItNotificationDate(notification.created_at);
@@ -769,6 +778,10 @@ window.openWorthItProfileConnections = async function(idValue, categoryValue, op
    throw new Error("The connections list could not be loaded. Check the profile social database setup.");
   }
   list.replaceChildren();
+  if (result.hidden === true) {
+   if (status) { status.hidden = false; status.textContent = "This member has hidden their connections."; status.classList.remove("is-error"); }
+   return;
+  }
   if (!result.connections.length) {
    if (status) status.textContent = category === "friends" ? "No friends yet." : "This list is empty for now.";
    return;
@@ -932,13 +945,24 @@ function renderError(message){
  const email=$("worthItProfileEmail");if(email){email.textContent="";email.hidden=true;}
  setText("worthItProfileLink","Profile link unavailable");if($("worthItProfileLink"))$("worthItProfileLink").removeAttribute("href");currentProfileLink="";setText("worthItProfileMemberSince","");setStatus(message,true);
 }
+function isMissingWorthItPresenceColumn(error){
+ const code=String(error?.code||"");
+ const message=String(error?.message||error?.details||error||"");
+ return code==="42703"||(/show_online_status/i.test(message)&&/(column|schema cache|does not exist|not found|could not find)/i.test(message));
+}
 window.openWorthItProfile=async function(idValue,options){
  const id=Number(idValue);if(!Number.isSafeInteger(id)||id<1){showProfileSection();renderError("This profile link is invalid.");return;}
  showProfileSection();const profileCard=$("worthItProfileCard"),connectionsPage=$("worthItProfileConnectionsPage");if(profileCard)profileCard.hidden=false;if(connectionsPage)connectionsPage.hidden=true;activeConnectionsRequest++;currentSocialContext=null;currentDisplayedProfileId=id;currentDisplayedProfileIsOwn=false;resetProfileDescriptionPanel();hideProfileAssetControls();const displayNameEdit=$("worthItProfileDisplayNameEdit");if(displayNameEdit)displayNameEdit.hidden=true;closeWorthItDisplayNameEditor();setStatus("Loading profile…",false);setText("worthItProfileName","Loading profile…");["worthItProfileFriends","worthItProfileFollowers","worthItProfileFollowing"].forEach(x=>setText(x,"…"));
  const requestId=++activeProfileRequest;
  try{
   const sb=client();if(!sb)throw new Error("Supabase not ready");
-  const [publicResult,user,descriptionResult]=await Promise.all([sb.from("worth_it_public_profiles").select("worth_it_id,username,display_name,avatar_url,banner_url,created_at,last_seen_at").eq("worth_it_id",id).maybeSingle(),getCurrentUser().catch(()=>null),Promise.resolve(sb.from("worth_it_public_profiles").select("description").eq("worth_it_id",id).maybeSingle()).catch(()=>({data:null,error:true}))]);
+  let [publicResult,user,descriptionResult]=await Promise.all([sb.from("worth_it_public_profiles").select("worth_it_id,username,display_name,avatar_url,banner_url,created_at,last_seen_at,show_online_status").eq("worth_it_id",id).maybeSingle(),getCurrentUser().catch(()=>null),Promise.resolve(sb.from("worth_it_public_profiles").select("description").eq("worth_it_id",id).maybeSingle()).catch(()=>({data:null,error:true}))]);
+  // Keep profile loading usable before the one-time migration adds the presence flag.
+  // Once the column exists, the privacy-aware value from the updated view is used.
+  if(publicResult.error&&isMissingWorthItPresenceColumn(publicResult.error)){
+   publicResult=await sb.from("worth_it_public_profiles").select("worth_it_id,username,display_name,avatar_url,banner_url,created_at,last_seen_at").eq("worth_it_id",id).maybeSingle();
+   if(!publicResult.error&&publicResult.data)publicResult.data.show_online_status=true;
+  }
   if(requestId!==activeProfileRequest)return;if(publicResult.error)throw publicResult.error;if(!publicResult.data){renderError("This Worth It profile could not be found.");return;}
   publicResult.data.description=descriptionResult&&!descriptionResult.error?String(descriptionResult.data?.description||""):"";
    currentUser=user||null;let own=null;if(currentUser){try{own=await getOwnProfileRow(currentUser,false);}catch(_){own=null;}}
@@ -1084,6 +1108,7 @@ window.copyWorthItProfileLink=async function(){
  try{if(navigator.clipboard?.writeText)await navigator.clipboard.writeText(link);else{const t=document.createElement("textarea");t.value=link;t.style.position="fixed";t.style.opacity="0";document.body.appendChild(t);t.select();const copied=document.execCommand("copy");t.remove();if(!copied)throw new Error("copy failed");}if(typeof window.showToast==="function")window.showToast("Profile link copied!");}
  catch(_){if(typeof window.showToast==="function")window.showToast("Could not copy the link. Select and copy it manually.");}
 };
+window.addEventListener("worthitnotificationpreferenceschange",()=>{if(currentUser?.id)refreshWorthItNotifications(false);});
 window.addEventListener("resize",syncProfileBannerBackdropPosition,{passive:true});
 if(client()?.auth){client().auth.onAuthStateChange((_event,session)=>{
  const nextUser=session?.user||null,previousUserId=currentUser?.id||"",nextUserId=nextUser?.id||"",profileToRefresh=currentDisplayedProfileId,connectionsPage=$("worthItProfileConnectionsPage"),connectionTab=document.querySelector("[data-connection-tab].active")?.getAttribute("data-connection-tab");
