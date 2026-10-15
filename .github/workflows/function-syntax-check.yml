@@ -128,6 +128,11 @@ jobs:
           TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/postgres
         run: psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/worth-it-settings-privacy-notifications.sql
 
+      - name: Confirm the migration can be safely retried
+        env:
+          TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/postgres
+        run: psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/worth-it-settings-privacy-notifications.sql
+
       - name: Smoke-test privacy, notifications, chat presence and RPC permissions
         env:
           TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/postgres
