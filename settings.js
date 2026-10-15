@@ -962,6 +962,14 @@ window.openSettings = openFullSettings;
         if (sessionResult?.error) throw sessionResult.error;
         const session = sessionResult?.data?.session;
         if (!session?.user?.id || !session?.access_token) throw new Error("Sign in to manage these settings.");
+        if (userPreferencesCacheUserId && userPreferencesCacheUserId !== session.user.id) {
+            userPreferencesCache = null;
+            userPreferencesPromise = null;
+            if (window.worthItUserPreferencesUserId !== session.user.id) {
+                window.worthItUserPreferences = null;
+                window.worthItUserPreferencesUserId = "";
+            }
+        }
         if (!force && userPreferencesCache && userPreferencesCacheUserId === session.user.id) {
             return userPreferencesCache;
         }
@@ -1042,6 +1050,11 @@ window.openSettings = openFullSettings;
             const session = sessionResult?.data?.session;
             if (sessionResult?.error) throw sessionResult.error;
             if (!session?.access_token || !session?.user?.id) throw new Error("Sign in again to save your preferences.");
+            if (userPreferencesCacheUserId && userPreferencesCacheUserId !== session.user.id) {
+                userPreferencesCache = null;
+                userPreferencesPromise = null;
+                throw new Error("Your signed-in account changed. Reload Settings before changing these preferences.");
+            }
             const submitted = {
                 privacy: which === "privacy" ? privacyFromControls() : Object.assign({}, userPreferencesCache?.privacy || DEFAULT_USER_PREFERENCES.privacy),
                 notifications: which === "notifications" ? notificationsFromControls() : Object.assign({}, userPreferencesCache?.notifications || DEFAULT_USER_PREFERENCES.notifications)
