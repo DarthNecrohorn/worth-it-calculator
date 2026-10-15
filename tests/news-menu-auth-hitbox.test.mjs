@@ -56,7 +56,7 @@ test("open hamburger blocks header actions from receiving clicks behind the drop
     assert.match(css, /#navLinks\.nav-links\.open\s*\{[^}]*z-index:\s*2147483000 !important;[^}]*pointer-events:\s*auto !important;/);
     assert.match(css, /\.nav-inner:has\(> #navLinks\.nav-links\.open\) > \.nav-actions\s*\{\s*pointer-events:\s*none !important;/);
     assert.match(css, /\.nav-inner:has\(> #navLinks\.nav-links\.open\) > \.nav-actions \*\s*\{\s*pointer-events:\s*none !important;/);
-    assert.match(html, /style\.css\?v=hamburgerpersistent-20261015a/);
+    assert.match(html, /style\.css\?v=themeresponsive-20261015a/);
     assert.match(html, /app\.js\?v=hamburgerpersistent-20261015a/);
 });
 
@@ -70,7 +70,7 @@ test("the open hamburger shields every header sibling, including Sign out", () =
     const signOutIndex = nav.indexOf('id="signOutNavBtn"');
     assert.ok(navActionsStart >= 0 && navActionsEnd > navActionsStart);
     assert.ok(signOutIndex > navActionsEnd, "Sign out is a sibling outside .nav-actions");
-    assert.match(html, /style\.css\?v=hamburgerpersistent-20261015a/);
+    assert.match(html, /style\.css\?v=themeresponsive-20261015a/);
 });
 
 test("News section code does not sign out or erase Supabase auth state", () => {

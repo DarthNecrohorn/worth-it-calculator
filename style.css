@@ -20054,3 +20054,180 @@ html[data-ui-scale="xl"] .nav-links.open {
     z-index: 1;
     pointer-events: auto !important;
 }
+
+
+/* =========================================================
+   SITE-WIDE THEME + RESPONSIVE COMPATIBILITY GUARDS
+   Keep section-specific layouts intact while preventing min-content
+   overflow, inaccessible light-theme statuses and scaled modal clipping.
+   ========================================================= */
+
+html[data-theme="dark"] { color-scheme: dark; }
+html[data-theme="light"] { color-scheme: light; }
+
+html,
+body { max-width: 100%; }
+
+body { overflow-x: clip; }
+
+@supports not (overflow: clip) {
+    body { overflow-x: hidden; }
+}
+
+:where(
+    main, main > *, .container, .section, section, .app, .panel,
+    [class*="-grid"], [class*="-card"], [class*="-row"],
+    [class*="-content"], [class*="-body"], [class*="-header"],
+    [class*="-actions"]
+) { min-width: 0; }
+
+:where(main, .container, .section, section, .app) { max-width: 100%; }
+
+:where(img:not(.leaflet-tile), video, iframe) { max-width: 100%; }
+
+:where(
+    p, li, dt, dd, blockquote, figcaption, td, th, code, .settings-note,
+    [class*="-description"], [class*="-subtitle"], [class*="-email"],
+    [class*="-username"], [class*="-url"], [class*="-link"],
+    [class*="-status"], [class*="-hint"], [class*="-help"], [class*="-message"]
+) { overflow-wrap: anywhere; }
+
+:where(button, input, select, textarea) {
+    min-width: 0;
+    max-width: 100%;
+}
+
+#navLinks.nav-links.open {
+    box-sizing: border-box;
+    max-width: calc((100vw - 16px) / var(--ui-scale, 1));
+}
+
+@media (max-width: 1000px) {
+    #navLinks.nav-links.open button {
+        min-width: 0;
+        white-space: normal;
+        overflow-wrap: anywhere;
+    }
+    #navLinks .nav-overflow-item,
+    #navLinks .nav-secondary-item {
+        max-width: 100%;
+        min-width: 0;
+    }
+    #navLinks .nav-overflow-item > span:last-child,
+    #navLinks .nav-secondary-item > span:last-child {
+        min-width: 0;
+        overflow-wrap: anywhere;
+    }
+}
+
+:where(
+    .table-wrap, .table-responsive, .table-scroll,
+    [class*="-table-wrap"], [class*="-table-container"]
+) {
+    max-width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+html[data-ui-scale="large"] :where(
+    .feedback-modal-card, .translate-modal-card, .worth-it-guest-card,
+    .worth-it-display-name-modal, .account-page-card, .worth-it-chat-group-card,
+    .worth-it-chat-invite-card, .worth-it-chat-manage-card,
+    .worth-it-user-search-card, .admin-panel-card
+),
+html[data-ui-scale="xl"] :where(
+    .feedback-modal-card, .translate-modal-card, .worth-it-guest-card,
+    .worth-it-display-name-modal, .account-page-card, .worth-it-chat-group-card,
+    .worth-it-chat-invite-card, .worth-it-chat-manage-card,
+    .worth-it-user-search-card, .admin-panel-card
+) {
+    max-width: calc((100vw - 24px) / var(--ui-scale, 1));
+    max-height: calc((100dvh - 24px) / var(--ui-scale, 1));
+}
+
+html[data-ui-scale="large"] .worth-it-display-name-modal,
+html[data-ui-scale="xl"] .worth-it-display-name-modal,
+html[data-ui-scale="large"] .worth-it-chat-invite-card,
+html[data-ui-scale="xl"] .worth-it-chat-invite-card { overflow-y: auto; }
+
+html[data-ui-scale="large"] .ai-chat-card,
+html[data-ui-scale="xl"] .ai-chat-card {
+    height: min(760px, calc((100dvh - 24px) / var(--ui-scale, 1)));
+    max-height: calc((100dvh - 24px) / var(--ui-scale, 1));
+}
+
+@media (min-width: 761px) {
+    html[data-ui-scale="large"] .worth-it-chat-window:not(.is-fullscreen),
+    html[data-ui-scale="xl"] .worth-it-chat-window:not(.is-fullscreen) {
+        width: min(1120px, calc((100vw - 24px) / var(--ui-scale, 1)));
+        height: min(780px, calc((100dvh - 24px) / var(--ui-scale, 1)));
+        max-width: calc((100vw - 24px) / var(--ui-scale, 1));
+        max-height: calc((100dvh - 24px) / var(--ui-scale, 1));
+    }
+}
+
+@media (max-width: 760px) {
+    html[data-ui-scale="large"] .worth-it-chat-window:not(.is-fullscreen),
+    html[data-ui-scale="xl"] .worth-it-chat-window:not(.is-fullscreen) {
+        width: calc(100vw / var(--ui-scale, 1));
+        height: calc(100dvh / var(--ui-scale, 1));
+        max-width: none;
+        max-height: calc(100dvh / var(--ui-scale, 1));
+    }
+}
+
+html[data-ui-scale="large"] .worth-it-chat-overlay.is-fullscreen,
+html[data-ui-scale="xl"] .worth-it-chat-overlay.is-fullscreen {
+    width: calc(100vw / var(--ui-scale, 1)) !important;
+    height: calc(100dvh / var(--ui-scale, 1)) !important;
+}
+
+html[data-ui-scale="large"] .worth-it-chat-overlay.is-fullscreen > .worth-it-chat-window.is-fullscreen,
+html[data-ui-scale="xl"] .worth-it-chat-overlay.is-fullscreen > .worth-it-chat-window.is-fullscreen {
+    width: calc(100vw / var(--ui-scale, 1)) !important;
+    height: calc(100dvh / var(--ui-scale, 1)) !important;
+}
+
+html[data-theme="dark"] select option {
+    color: var(--text);
+    background: var(--card-solid);
+}
+html[data-theme="light"] select option {
+    color: #0f172a;
+    background: #fff;
+}
+html[data-theme="dark"] :where(input, textarea)::placeholder {
+    color: var(--muted);
+    opacity: 1;
+}
+html[data-theme="light"] :where(input, textarea)::placeholder {
+    color: #64748b;
+    opacity: 1;
+}
+
+html[data-theme="light"] .account-settings-current-value.is-error,
+html[data-theme="light"] .account-settings-status.is-error,
+html[data-theme="light"] .security-danger-button,
+html[data-theme="light"] .worth-it-user-search-status.is-error,
+html[data-theme="light"] .worth-it-chat-compose-status.is-error,
+html[data-theme="light"] .worth-it-chat-manage-card .worth-it-chat-compose-status.is-error,
+html[data-theme="light"] .worth-it-chat-invite-card .worth-it-chat-compose-status.is-error {
+    color: #b91c1c;
+}
+html[data-theme="light"] .account-settings-current-value.is-success,
+html[data-theme="light"] .account-settings-status.is-success {
+    color: #15803d;
+}
+html[data-theme="light"] .account-settings-status.is-warning,
+html[data-theme="light"] .worth-it-chat-compose-status {
+    color: #92400e;
+}
+html[data-theme="light"] .worth-it-chat-group-selection-summary strong.is-ready {
+    color: #0f766e;
+}
+html[data-theme="light"] .worth-it-chat-group-selection-summary strong.is-over-limit {
+    color: #b91c1c;
+}
+html[data-theme="light"] .worth-it-profile-section:not(.has-banner) .worth-it-profile-presence-text.is-online .worth-it-presence-label {
+    color: #047857;
+}
