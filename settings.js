@@ -918,6 +918,8 @@ window.openSettings = openFullSettings;
     let userPreferencesCache = null;
     let userPreferencesCacheUserId = "";
     let userPreferencesPromise = null;
+    let userPreferencesPromiseUserId = "";
+    let userPreferencesRequestVersion = 0;
     let userPreferencesSaveBusy = false;
 
     function copyDefaultPreferences() {
@@ -961,24 +963,45 @@ window.openSettings = openFullSettings;
         if (sessionResult?.error) throw sessionResult.error;
         const session = sessionResult?.data?.session;
         if (!session?.user?.id || !session?.access_token) throw new Error("Sign in to manage these settings.");
-        if (userPreferencesCacheUserId && userPreferencesCacheUserId !== session.user.id) {
+
+        const accountChanged =
+            (userPreferencesCacheUserId && userPreferencesCacheUserId !== session.user.id) ||
+            (window.worthItUserPreferencesUserId && window.worthItUserPreferencesUserId !== session.user.id);
+        if (accountChanged) {
+            userPreferencesRequestVersion += 1;
             userPreferencesCache = null;
+            userPreferencesCacheUserId = "";
             userPreferencesPromise = null;
+            userPreferencesPromiseUserId = "";
             if (window.worthItUserPreferencesUserId !== session.user.id) {
                 window.worthItUserPreferences = null;
                 window.worthItUserPreferencesUserId = "";
             }
         }
+
         if (!force && userPreferencesCache && userPreferencesCacheUserId === session.user.id) {
             return userPreferencesCache;
         }
-        if (!force && userPreferencesPromise && userPreferencesCacheUserId === session.user.id) {
+        if (!force && userPreferencesPromise && userPreferencesPromiseUserId === session.user.id) {
             return userPreferencesPromise;
         }
-        userPreferencesCacheUserId = session.user.id;
-        userPreferencesPromise = (async function() {
+
+        const requestUserId = session.user.id;
+        const requestVersion = ++userPreferencesRequestVersion;
+        userPreferencesCacheUserId = requestUserId;
+        userPreferencesPromiseUserId = requestUserId;
+
+        const requestPromise = (async function() {
             const result = await client.rpc("get_worth_it_user_preferences");
             if (result?.error) throw result.error;
+
+            const latestSessionResult = await client.auth.getSession();
+            if (latestSessionResult?.error) throw latestSessionResult.error;
+            const latestUserId = latestSessionResult?.data?.session?.user?.id || "";
+            if (latestUserId !== requestUserId || requestVersion !== userPreferencesRequestVersion) {
+                throw new Error("Your signed-in account changed while preferences were loading. Reload Settings and try again.");
+            }
+
             const data = result?.data && typeof result.data === "object" ? result.data : {};
             if (data.success === false) throw new Error(data.error || "Could not load your saved preferences.");
             const base = copyDefaultPreferences();
@@ -989,13 +1012,18 @@ window.openSettings = openFullSettings;
             };
             userPreferencesCache = prefs;
             window.worthItUserPreferences = prefs;
-            window.worthItUserPreferencesUserId = session.user.id;
+            window.worthItUserPreferencesUserId = requestUserId;
             return prefs;
         })();
+
+        userPreferencesPromise = requestPromise;
         try {
-            return await userPreferencesPromise;
+            return await requestPromise;
         } finally {
-            userPreferencesPromise = null;
+            if (userPreferencesPromise === requestPromise) {
+                userPreferencesPromise = null;
+                userPreferencesPromiseUserId = "";
+            }
         }
     }
 
@@ -1039,6 +1067,7 @@ window.openSettings = openFullSettings;
         if (userPreferencesSaveBusy) return;
         userPreferencesSaveBusy = true;
         const controls = which === "privacy" ? "privacySettingsContent" : "notificationSettingsContent";
+        let saveUserId = "";
         setSettingsControlsDisabled("privacySettingsContent", true);
         setSettingsControlsDisabled("notificationSettingsContent", true);
         settingsStatus(which === "privacy" ? "privacySettingsStatus" : "notificationSettingsStatus", "Saving your preferences…", "pending");
@@ -1048,6 +1077,7 @@ window.openSettings = openFullSettings;
             const session = sessionResult?.data?.session;
             if (sessionResult?.error) throw sessionResult.error;
             if (!session?.access_token || !session?.user?.id) throw new Error("Sign in again to save your preferences.");
+            saveUserId = session.user.id;
             if (userPreferencesCacheUserId && userPreferencesCacheUserId !== session.user.id) {
                 userPreferencesCache = null;
                 userPreferencesPromise = null;
@@ -1062,6 +1092,23 @@ window.openSettings = openFullSettings;
                 p_notifications: submitted.notifications
             });
             if (result?.error) throw result.error;
+            const latestSessionResult = await client.auth.getSession();
+            if (latestSessionResult?.error) throw latestSessionResult.error;
+            const latestUserId = latestSessionResult?.data?.session?.user?.id || "";
+            if (latestUserId !== session.user.id) {
+                if (userPreferencesCacheUserId === session.user.id) {
+                    userPreferencesRequestVersion += 1;
+                    userPreferencesCache = null;
+                    userPreferencesCacheUserId = "";
+                    userPreferencesPromise = null;
+                    userPreferencesPromiseUserId = "";
+                }
+                if (window.worthItUserPreferencesUserId === session.user.id) {
+                    window.worthItUserPreferences = null;
+                    window.worthItUserPreferencesUserId = "";
+                }
+                throw new Error("Your signed-in account changed while saving preferences. Reload Settings before continuing.");
+            }
             const data = result?.data && typeof result.data === "object" ? result.data : {};
             if (data.success === false) throw new Error(data.error || "Could not save your preferences.");
             const base = copyDefaultPreferences();
@@ -1081,7 +1128,14 @@ window.openSettings = openFullSettings;
         } catch (error) {
             const message = settingsSetupMessage(error);
             settingsStatus(which === "privacy" ? "privacySettingsStatus" : "notificationSettingsStatus", message, "error");
-            if (userPreferencesCache) {
+            let currentUserId = "";
+            try {
+                const currentSessionResult = await window.supabaseClient?.auth?.getSession?.();
+                currentUserId = currentSessionResult?.data?.session?.user?.id || "";
+            } catch (_) {}
+            if (currentUserId && userPreferencesCache &&
+                userPreferencesCacheUserId === currentUserId &&
+                window.worthItUserPreferencesUserId === currentUserId) {
                 applyPrivacyControls(userPreferencesCache);
                 applyNotificationControls(userPreferencesCache);
             }
