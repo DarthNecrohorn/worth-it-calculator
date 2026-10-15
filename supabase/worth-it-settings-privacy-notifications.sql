@@ -356,7 +356,7 @@ language plpgsql
 stable
 security definer
 set search_path = public
-as $
+as $$
 declare
     target_user_id uuid;
     actor_id uuid := auth.uid();
