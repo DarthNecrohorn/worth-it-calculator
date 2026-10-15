@@ -42,6 +42,30 @@ jobs:
             fi
           done
 
+      - name: Set up Python for PostgreSQL parsing
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install pinned PostgreSQL parser
+        run: python -m pip install "pglast==7.20"
+
+      - name: Parse migration SQL with PostgreSQL grammar
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          from pglast import parse_sql
+
+          path = Path("supabase/worth-it-settings-privacy-notifications.sql")
+          sql = path.read_text(encoding="utf-8")
+          statements = parse_sql(sql)
+          if not statements:
+              raise SystemExit(f"No SQL statements were found in {path}.")
+          print(f"PostgreSQL parser accepted {len(statements)} statements in {path}.")
+          PY
+
       - name: Check Supabase SQL migration delimiters
         shell: bash
         run: |
