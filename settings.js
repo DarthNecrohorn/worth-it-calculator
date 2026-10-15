@@ -1528,6 +1528,11 @@ window.openSettings = openFullSettings;
                     "The account requested for deletion was deleted. Your current browser session belongs to a different account, so that account remains signed in.",
                     deletion.cleanup_warning ? "warning" : "success"
                 );
+                if ($("deleteAccountConfirmation")) $("deleteAccountConfirmation").value = "";
+                if (button) button.disabled = true;
+                if (typeof window.loadYourDataSettings === "function") {
+                    await window.loadYourDataSettings();
+                }
                 return;
             }
             settingsStatus("deleteAccountStatus", "Account deleted. Signing out of this browser…", deletion.cleanup_warning ? "warning" : "success");
