@@ -406,8 +406,18 @@ window.openSettings = openFullSettings;
                 if (typeof window.handleAuthButton === "function") window.handleAuthButton();
                 return;
             }
-            const profileResponse = await client.rpc("get_worth_it_own_profile");
-            if (profileResponse?.error) throw profileResponse.error;
+            let profileResponse = await client.rpc("get_worth_it_own_profile");
+            if (profileResponse?.error) {
+                const rpcError = String(profileResponse.error.message || profileResponse.error);
+                if (!/get_worth_it_own_profile|PGRST202|schema cache|could not find|does not exist/i.test(rpcError)) {
+                    throw profileResponse.error;
+                }
+                // Preserve core profile navigation when the one-time privacy migration
+                // has not been applied yet; after migration, the own-profile RPC is used.
+                profileResponse = await client.from("worth_it_profiles")
+                    .select("worth_it_id").eq("user_id", userId).maybeSingle();
+                if (profileResponse?.error) throw profileResponse.error;
+            }
             const ownProfile = profileResponse?.data && typeof profileResponse.data === "object"
                 ? profileResponse.data
                 : null;
