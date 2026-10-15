@@ -37,7 +37,7 @@ test("each Settings overview card opens a dedicated URL-backed section", () => {
     for (const section of sections) {
         const card = elementTagWithId(html, section.card);
         assert.match(card, new RegExp('data-settings-target="' + section.panel + '"'), section.card + " points to its panel");
-        assert.match(settings, new RegExp('key: "' + section.key + '"[\\s\\S]{0,240}?path: "' + section.path.replaceAll("/", "\\/") + '"'));
+        assert.match(settings, new RegExp('(?:^|\\n)\\s*' + section.key + ':\\s*\\{[\\s\\S]{0,240}?path: "' + section.path.replaceAll("/", "\\/") + '"'));
         assert.match(settings, new RegExp('openFunction: "' + section.fn + '"'));
         assert.match(settings, new RegExp('function ' + section.fn + '\\(\\)\\s*\\{\\s*renderWorthItSettingsView\\("' + section.key + '"\\);\\s*\\}'));
         assert.match(routing, new RegExp('"' + section.path.replaceAll("/", "\\/") + '": "' + section.fn + '"'));
