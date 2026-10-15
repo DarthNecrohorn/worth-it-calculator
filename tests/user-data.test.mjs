@@ -235,7 +235,7 @@ test("deletes only captured feedback rows and correctly scoped profile assets af
     assert.equal(payload.cleanup_warning, false);
     assert.ok(authDeleteIndex >= 0, "Auth must confirm deletion");
     assert.ok(feedbackDelete, "user-owned feedback IDs must be removed");
-    assert.match(feedbackDelete.url.searchParams.get("id") || "", /in\\.\\(42,43\\)/);
+    assert.equal(feedbackDelete.url.searchParams.get("id"), "in.(42,43)");
     assert.equal(storageDeletes.length, 2);
     const assetPaths = storageDeletes.map(call => JSON.parse(call.init.body).prefixes[0]).sort();
     assert.deepEqual(assetPaths, [
