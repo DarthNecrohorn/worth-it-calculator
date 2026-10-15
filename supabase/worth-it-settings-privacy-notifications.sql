@@ -570,6 +570,7 @@ declare
     actor_id uuid := auth.uid();
     target_user_id uuid;
     inserted_count integer := 0;
+    notification_created boolean := false;
 begin
     if actor_id is null then raise exception 'Authentication required'; end if;
 
@@ -591,9 +592,10 @@ begin
     ) then
         insert into public.worth_it_social_notifications(recipient_user_id, actor_user_id, notification_type)
         values (target_user_id, actor_id, 'follow');
+        notification_created := true;
     end if;
 
-    return jsonb_build_object('success', true, 'is_following', true, 'notification_created', inserted_count > 0);
+    return jsonb_build_object('success', true, 'is_following', true, 'notification_created', notification_created);
 end;
 $$;
 
