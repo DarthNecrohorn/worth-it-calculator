@@ -57,6 +57,16 @@ function mockFetch(options = {}) {
             return Response.json(user, { status: 200 });
         }
 
+        if (url.origin === SUPABASE_URL && url.pathname.startsWith("/auth/v1/admin/users/") && method === "DELETE") {
+            if (options.adminDeleteFails) return Response.json({ message: "Simulated Auth deletion failure" }, { status: 500 });
+            return Response.json({ id: USER_ID }, { status: 200 });
+        }
+
+        if (url.origin === SUPABASE_URL && url.pathname === "/storage/v1/object/worth-it-avatars" && method === "DELETE") {
+            if (options.storageDeleteFails) return Response.json({ message: "Simulated storage cleanup failure" }, { status: 500 });
+            return new Response(null, { status: 200 });
+        }
+
         if (url.origin === SUPABASE_URL && url.pathname === "/rest/v1/rpc/get_worth_it_user_preferences") {
             if (options.preferencesMissing) {
                 return new Response(JSON.stringify({
@@ -83,7 +93,18 @@ function mockFetch(options = {}) {
         }
 
         if (url.origin === SUPABASE_URL && url.pathname.startsWith("/rest/v1/")) {
-            if (method === "DELETE") return new Response(null, { status: 204 });
+            if (method === "DELETE") {
+                if (options.feedbackDeleteFails && url.pathname === "/rest/v1/feedback") {
+                    return Response.json({ message: "Simulated feedback cleanup failure" }, { status: 500 });
+                }
+                return new Response(null, { status: 204 });
+            }
+            if (url.pathname === "/rest/v1/feedback" && Array.isArray(options.feedbackRows)) {
+                return Response.json(options.feedbackRows);
+            }
+            if (url.pathname === "/rest/v1/worth_it_profiles" && Array.isArray(options.profileRows)) {
+                return Response.json(options.profileRows);
+            }
             return Response.json([]);
         }
 
@@ -165,4 +186,85 @@ test("export remains available before the optional Settings migration is install
         available: false,
         reason: "settings_migration_not_installed"
     });
+});
+
+
+test("does not report deletion success if Supabase Auth refuses to delete the user", async () => {
+    const calls = mockFetch({ adminDeleteFails: true });
+    const response = await api.onRequestPost({
+        request: request("/api/user-data", {
+            method: "POST",
+            body: { action: "delete", confirmation: "DELETE" }
+        }),
+        env: env()
+    });
+    const payload = await response.json();
+
+    assert.equal(response.status, 502);
+    assert.equal(payload.success, false);
+    assert.equal(calls.filter(call => call.url.pathname.startsWith("/auth/v1/admin/users/")).length, 1);
+    assert.equal(calls.filter(call => call.method === "DELETE" && call.url.pathname !== "/auth/v1/admin/users/" + USER_ID).length, 0);
+});
+
+test("deletes only captured feedback rows and correctly scoped profile assets after Auth confirms deletion", async () => {
+    const feedbackRows = [
+        { id: 42, type: "suggestion", message: "A user-owned test record", user_id: USER_ID },
+        { id: 43, type: "bug", message: "Another user-owned test record", user_id: USER_ID }
+    ];
+    const profileRows = [{
+        user_id: USER_ID,
+        avatar_url: SUPABASE_URL + "/storage/v1/object/public/worth-it-avatars/" + USER_ID + "/avatar/test.png",
+        banner_url: SUPABASE_URL + "/storage/v1/object/public/worth-it-avatars/" + USER_ID + "/banner/test.png"
+    }];
+    const calls = mockFetch({ feedbackRows, profileRows });
+    const response = await api.onRequestPost({
+        request: request("/api/user-data", {
+            method: "POST",
+            body: { action: "delete", confirmation: "DELETE" }
+        }),
+        env: env()
+    });
+    const payload = await response.json();
+    const authDeleteIndex = calls.findIndex(call => call.url.pathname === "/auth/v1/admin/users/" + USER_ID && call.method === "DELETE");
+    const feedbackDelete = calls.find(call => call.url.pathname === "/rest/v1/feedback" && call.method === "DELETE");
+    const storageDeletes = calls.filter(call => call.url.pathname === "/storage/v1/object/worth-it-avatars" && call.method === "DELETE");
+
+    assert.equal(response.status, 200);
+    assert.equal(payload.success, true);
+    assert.equal(payload.deleted, true);
+    assert.equal(payload.cleanup_warning, false);
+    assert.ok(authDeleteIndex >= 0, "Auth must confirm deletion");
+    assert.ok(feedbackDelete, "user-owned feedback IDs must be removed");
+    assert.match(feedbackDelete.url.searchParams.get("id") || "", /in\\.\\(42,43\\)/);
+    assert.equal(storageDeletes.length, 2);
+    const assetPaths = storageDeletes.map(call => JSON.parse(call.init.body).prefixes[0]).sort();
+    assert.deepEqual(assetPaths, [
+        USER_ID + "/avatar/test.png",
+        USER_ID + "/banner/test.png"
+    ].sort());
+    assert.equal(calls.some(call => call.url.pathname.includes("another-user")), false);
+});
+
+test("surfaces a cleanup warning if profile storage cleanup fails after Auth deletion", async () => {
+    const profileRows = [{
+        user_id: USER_ID,
+        avatar_url: SUPABASE_URL + "/storage/v1/object/public/worth-it-avatars/" + USER_ID + "/avatar/test.png",
+        banner_url: null
+    }];
+    const calls = mockFetch({ profileRows, storageDeleteFails: true });
+    const response = await api.onRequestPost({
+        request: request("/api/user-data", {
+            method: "POST",
+            body: { action: "delete", confirmation: "DELETE" }
+        }),
+        env: env()
+    });
+    const payload = await response.json();
+
+    assert.equal(response.status, 200);
+    assert.equal(payload.success, true);
+    assert.equal(payload.deleted, true);
+    assert.equal(payload.cleanup_warning, true);
+    assert.match(payload.warning, /some feedback or profile images/i);
+    assert.ok(calls.some(call => call.url.pathname === "/auth/v1/admin/users/" + USER_ID && call.method === "DELETE"));
 });
