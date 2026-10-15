@@ -19698,3 +19698,7 @@ html[data-theme="light"] .worth-it-notification-dismiss:hover,html[data-theme="l
 .account-settings-toggle input:disabled{cursor:not-allowed;opacity:.55}
 .account-settings-status.is-warning{color:var(--warning,#d4a72c)}
 #yourDataSummary{line-height:1.8;overflow-wrap:anywhere}
+
+.worth-it-presence-indicator.is-hidden{display:none!important}
+.worth-it-profile-presence-text.is-hidden .worth-it-presence-status-dot{display:none}
+.worth-it-profile-presence-text.is-hidden .worth-it-presence-label{color:var(--muted)}
