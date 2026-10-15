@@ -13,9 +13,10 @@ function getWorthItPresenceInfo(person){
  if(currentUser?.id&&ownWorthItId!=null&&person?.worth_it_id!=null&&String(person.worth_it_id)===String(ownWorthItId)){
   return{online:true,label:"Online now",lastSeenAt:person?.last_seen_at||new Date().toISOString()};
  }
- if(person?.show_online_status===false){return{online:false,label:"Online status hidden",lastSeenAt:null,hidden:true};}
+ 
  const cached=person?.worth_it_id!=null?presenceLastSeenById.get(String(person.worth_it_id)):null;
  const cachedStamp=cached&&typeof cached==="object"?cached.last_seen_at:cached;
+ if(person?.show_online_status===false||(person?.show_online_status==null&&cached&&typeof cached==="object"&&cached.show_online_status===false)){return{online:false,label:"Online status hidden",lastSeenAt:null,hidden:true};}
  const raw=person?.last_seen_at||person?.lastSeenAt||cachedStamp||null,stamp=raw?new Date(raw).getTime():NaN,delta=Number.isFinite(stamp)?Date.now()-stamp:Infinity;
  if(Number.isFinite(stamp)&&delta>=-60000&&delta<=PRESENCE_ONLINE_WINDOW_MS)return{online:true,label:"Online now",lastSeenAt:raw};
  if(!Number.isFinite(stamp))return{online:false,label:"Offline · last seen unavailable",lastSeenAt:null};
@@ -564,8 +565,8 @@ function renderWorthItOtherNotifications(){
   const body=document.createElement("div");body.className="worth-it-notification-event-body";
   const title=document.createElement("p");title.className="worth-it-notification-event-title";
   const name=String(notification.display_name||notification.username||"A Worth It member");
-  title.append(document.createTextNode(name+" unfriended you."));
-  const reason=String(notification.reason||"").trim();
+  title.append(document.createTextNode(String(notification.type||"unfriended")==="follow"?name+" started following you.":name+" unfriended you."));
+  const reason=String(notification.type||"unfriended")==="unfriended"?String(notification.reason||"").trim():"";
   if(reason){const explanation=document.createElement("p");explanation.className="worth-it-notification-reason";explanation.textContent="Reason: "+reason;body.append(title,explanation);}
   else body.appendChild(title);
   const date=document.createElement("time");date.className="worth-it-notification-date";date.dateTime=String(notification.created_at||"");date.textContent=formatWorthItNotificationDate(notification.created_at);
