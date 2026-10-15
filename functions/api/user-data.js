@@ -246,7 +246,14 @@ function getStoredAssetPath(config, assetUrl, userId, target) {
         const prefix = "/storage/v1/object/public/" + STORAGE_BUCKET + "/";
         if (!parsed.pathname.startsWith(prefix)) return "";
         const path = decodeURIComponent(parsed.pathname.slice(prefix.length));
-        if (!path.startsWith(userId + "/" + target + "/")) return "";
+        const folder = userId + "/" + target + "/";
+        if (!path.startsWith(folder)) return "";
+        // These uploads are always stored as one generated filename below the
+        // user's avatar/ or banner/ folder. Reject encoded slashes and traversal
+        // segments instead of passing a nested path to the privileged delete API.
+        const filename = path.slice(folder.length);
+        if (!/^[A-Za-z0-9][A-Za-z0-9._-]{0,255}$/.test(filename) ||
+            filename === "." || filename === "..") return "";
         return path;
     } catch (_) {
         return "";
