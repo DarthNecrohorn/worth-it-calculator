@@ -61,7 +61,7 @@ html[data-theme="light"].worth-it-initial-paint::before {
 })();
 </script>
 
-<link rel="stylesheet" href="style.css?v=security-settings-20261014a">
+<link rel="stylesheet" href="style.css?v=settings-navigation-20261015a">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 </head>
 
@@ -2381,9 +2381,22 @@ html[data-theme="light"].worth-it-initial-paint::before {
         </div>
         <span class="worth-it-settings-status">Available</span>
       </article>
+      <article class="worth-it-settings-card" id="settingsAppearance" data-settings-target="appearanceSettingsPanel" role="button" tabindex="0" aria-controls="appearanceSettingsPanel">
+        <div class="worth-it-settings-card-icon" aria-hidden="true">🎨</div>
+        <div class="worth-it-settings-card-copy">
+          <h2>Appearance &amp; Accessibility</h2>
+          <p>Choose your theme and text size, or reset your appearance preferences.</p>
+        </div>
+        <span class="worth-it-settings-status">Available</span>
+      </article>
     </div>
 
-    <section class="worth-it-settings-panel" id="accountProfilePanel" aria-labelledby="settingsAccountTitle">
+    <div class="worth-it-settings-section-nav" id="settingsSectionNav" hidden>
+      <button type="button" class="btn btn-secondary" onclick="openFullSettings()">← Back to Settings</button>
+      <span id="settingsSectionNavTitle" aria-live="polite"></span>
+    </div>
+
+    <section class="worth-it-settings-panel" id="accountProfilePanel" aria-labelledby="settingsAccountTitle" hidden>
       <div class="worth-it-settings-panel-heading">
         <div class="worth-it-settings-card-icon" aria-hidden="true">👤</div>
         <div>
@@ -2451,7 +2464,7 @@ html[data-theme="light"].worth-it-initial-paint::before {
       </div>
     </section>
 
-    <section class="worth-it-settings-panel worth-it-security-panel" id="securitySettingsPanel" aria-labelledby="settingsSecurityTitle">
+    <section class="worth-it-settings-panel worth-it-security-panel" id="securitySettingsPanel" aria-labelledby="settingsSecurityTitle" hidden>
       <div class="worth-it-settings-panel-heading">
         <div class="worth-it-settings-card-icon" aria-hidden="true">🛡️</div>
         <div>
@@ -2551,7 +2564,7 @@ html[data-theme="light"].worth-it-initial-paint::before {
       </div>
     </section>
 
-    <section class="worth-it-settings-panel" id="privacySettingsPanel" aria-labelledby="settingsPrivacyTitle">
+    <section class="worth-it-settings-panel" id="privacySettingsPanel" aria-labelledby="settingsPrivacyTitle" hidden>
       <div class="worth-it-settings-panel-heading">
         <div class="worth-it-settings-card-icon" aria-hidden="true">🔒</div>
         <div>
@@ -2600,7 +2613,7 @@ html[data-theme="light"].worth-it-initial-paint::before {
       </div>
     </section>
 
-    <section class="worth-it-settings-panel" id="notificationSettingsPanel" aria-labelledby="settingsNotificationsTitle">
+    <section class="worth-it-settings-panel" id="notificationSettingsPanel" aria-labelledby="settingsNotificationsTitle" hidden>
       <div class="worth-it-settings-panel-heading">
         <div class="worth-it-settings-card-icon" aria-hidden="true">🔔</div>
         <div>
@@ -2649,7 +2662,7 @@ html[data-theme="light"].worth-it-initial-paint::before {
       </div>
     </section>
 
-    <section class="worth-it-settings-panel" id="yourDataSettingsPanel" aria-labelledby="settingsDataTitle">
+    <section class="worth-it-settings-panel" id="yourDataSettingsPanel" aria-labelledby="settingsDataTitle" hidden>
       <div class="worth-it-settings-panel-heading">
         <div class="worth-it-settings-card-icon" aria-hidden="true">🗂️</div>
         <div>
@@ -2690,7 +2703,7 @@ html[data-theme="light"].worth-it-initial-paint::before {
       </div>
     </section>
 
-    <section class="worth-it-settings-panel" aria-labelledby="settingsAppearanceTitle">
+    <section class="worth-it-settings-panel" id="appearanceSettingsPanel" aria-labelledby="settingsAppearanceTitle" hidden>
       <div class="worth-it-settings-panel-heading">
         <div class="worth-it-settings-card-icon" aria-hidden="true">🎨</div>
         <div>
@@ -2722,7 +2735,7 @@ html[data-theme="light"].worth-it-initial-paint::before {
         <button type="button" class="settings-option" onclick="resetSettings()">Reset settings</button>
       </div>
     </section>
-    <p class="worth-it-settings-roadmap">Phone recovery remains unavailable until SMS verification is configured. Security email delivery requires the separate SMTP setup. If privacy or notification settings cannot load, the Settings status message will explain the required database setup.</p>
+    <p class="worth-it-settings-roadmap" hidden>Phone recovery remains unavailable until SMS verification is configured. Security email delivery requires the separate SMTP setup. If privacy or notification settings cannot load, the Settings status message will explain the required database setup.</p>
   </div>
 </section>
 
@@ -3047,7 +3060,7 @@ try{
 <script src="news-ui.js?v=newscache20261012a"></script>
 <script src="shop-affiliates.js?v=shopdetails20261010d"></script>
 <script src="shop.js?v=shopcache20261012a"></script>
-<script src="settings.js?v=security-settings-20261014c"></script>
+<script src="settings.js?v=settings-navigation-20261015a"></script>
 <script src="admin-panel.js?v=adminpanel16"></script>
 <script src="markets-ui.js?v=marketsperf20261012b"></script>
 <script src="crypto-ui.js?v=cryptoimage20261012a"></script>
@@ -5062,7 +5075,7 @@ if($("carResults")){
 <script src="/profile-ui.js?v=notifications-dismiss-24h-20261014b"></script>
 <script src="/chat-ui.js?v=communitytools20261014a"></script>
 <script src="/user-search.js?v=worthitusersearch20261014a"></script>
-<script src="/routing.js?v=security-settings-20261014a"></script>
+<script src="/routing.js?v=settings-navigation-20261015a"></script>
 
 </body>
 </html>
