@@ -797,7 +797,9 @@ window.openSettings = openFullSettings;
     };
 
     window.disableTotpFactor = async function() {
-        if (!activeTotpFactorId) {
+        const factorId = activeTotpFactorId;
+        const factorUserId = activeTotpFactorUserId;
+        if (!factorId || !factorUserId) {
             securityMessage("securityMfaStatus", "No verified authenticator factor was found.", true);
             return;
         }
@@ -811,22 +813,55 @@ window.openSettings = openFullSettings;
         const button = $("securityMfaDisableButton");
         button.disabled = true;
         try {
+            if (!await securitySessionMatches(factorUserId)) {
+                activeTotpFactorId = "";
+                activeTotpFactorUserId = "";
+                await window.loadSecuritySettings();
+                return;
+            }
             const auth = window.supabaseClient.auth;
-            const challenge = await auth.mfa.challenge({ factorId: activeTotpFactorId });
+            const challenge = await auth.mfa.challenge({ factorId });
             if (challenge?.error) throw challenge.error;
+            if (!await securitySessionMatches(factorUserId)) {
+                activeTotpFactorId = "";
+                activeTotpFactorUserId = "";
+                await window.loadSecuritySettings();
+                return;
+            }
             const verification = await auth.mfa.verify({
-                factorId: activeTotpFactorId,
+                factorId,
                 challengeId: challenge.data.id,
                 code
             });
             if (verification?.error) throw verification.error;
-            const result = await auth.mfa.unenroll({ factorId: activeTotpFactorId });
+            if (!await securitySessionMatches(factorUserId)) {
+                activeTotpFactorId = "";
+                activeTotpFactorUserId = "";
+                $("securityMfaDisableCode").value = "";
+                await window.loadSecuritySettings();
+                return;
+            }
+            const result = await auth.mfa.unenroll({ factorId });
             if (result?.error) throw result.error;
+            if (!await securitySessionMatches(factorUserId)) {
+                activeTotpFactorId = "";
+                activeTotpFactorUserId = "";
+                $("securityMfaDisableCode").value = "";
+                await window.loadSecuritySettings();
+                return;
+            }
             activeTotpFactorId = "";
+            activeTotpFactorUserId = "";
             $("securityMfaDisableCode").value = "";
             securityMessage("securityMfaStatus", "Authenticator two-factor authentication has been disabled.", false);
             await window.loadSecuritySettings();
         } catch (error) {
+            if (!await securitySessionMatches(factorUserId).catch(() => false)) {
+                activeTotpFactorId = "";
+                activeTotpFactorUserId = "";
+                await window.loadSecuritySettings();
+                return;
+            }
             securityMessage("securityMfaStatus", error?.message || "Could not disable 2FA. Check your code and try again.", true);
         } finally {
             button.disabled = false;
