@@ -12,7 +12,7 @@ BEGIN
         CREATE ROLE service_role NOLOGIN BYPASSRLS;
     END IF;
 END;
-$;
+$$;
 
 CREATE SCHEMA auth;
 CREATE TABLE auth.users (
