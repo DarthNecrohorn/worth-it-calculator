@@ -15,7 +15,7 @@ test("Settings tries the scoped own-profile RPC first and only falls back for an
 
 test("profile pages remain compatible before the one-time presence migration is applied", () => {
     assert.match(profileUi, /function isMissingWorthItPresenceColumn\(error\)/);
-    assert.match(profileUi, /show_online_status\)\)\s*\{/);
+    assert.match(profileUi, /publicResult\.error&&isMissingWorthItPresenceColumn\(publicResult\.error\)/);
     assert.match(profileUi, /\.select\("worth_it_id,username,display_name,avatar_url,banner_url,created_at,last_seen_at"\)/);
     assert.match(profileUi, /publicResult\.data\.show_online_status=true/);
 });
