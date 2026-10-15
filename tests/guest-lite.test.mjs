@@ -57,7 +57,7 @@ test("AI, search, social actions and all chat types are account-gated", () => {
     ]) {
         assert.ok(guest.includes('["' + name + '"'), name + " must be gated");
     }
-    assert.match(html, /sending messages requires a Worth It account/i);
+    assert.match(html, /sending messages, joining groups and using group invitations/i);
 });
 
 test("the automatic account prompt is delayed until auth state is known and repeats daily", () => {
