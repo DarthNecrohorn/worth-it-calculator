@@ -17,7 +17,7 @@ const sections = [
 ];
 
 function elementTagWithId(source, id) {
-    const tag = source.match(new RegExp("<(section|div|article)[^>]*id=\\"" + id + "\\"[^>]*>", "i"));
+    const tag = source.match(new RegExp('<(section|div|article)[^>]*id="' + id + '"[^>]*>', "i"));
     assert.ok(tag, "Expected element #" + id);
     return tag[0];
 }
