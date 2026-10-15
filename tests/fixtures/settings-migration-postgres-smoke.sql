@@ -97,10 +97,19 @@ BEGIN
         RAISE EXCEPTION 'Invalid connection type was not rejected';
     END IF;
 
+    -- Remove the temporary friendship before verifying the hidden-profile path.
+    DELETE FROM public.worth_it_friends
+    WHERE user_low_id=actor_id AND user_high_id=private_id;
+    UPDATE public.worth_it_user_preferences
+       SET profile_visibility='private'
+     WHERE user_id=private_id;
+
     -- Return to actor context and check social state/search without exposing hidden
     -- profiles to someone who is not allowed to view them.
     PERFORM set_config('request.jwt.claim.sub', actor_id::text, false);
-    PERFORM public.get_worth_it_profile_social_context(102);
+    IF public.get_worth_it_profile_social_context(102)->>'code' <> 'PROFILE_NOT_FOUND' THEN
+        RAISE EXCEPTION 'Social context exposed a private profile';
+    END IF;
     PERFORM public.search_worth_it_public_profiles('actor',20);
     IF public.search_worth_it_public_profiles('privateuser',20) <> '[]'::jsonb THEN
         RAISE EXCEPTION 'Search returned a profile that the caller cannot view';
