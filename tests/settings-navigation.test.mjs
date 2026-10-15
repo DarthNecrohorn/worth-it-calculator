@@ -12,9 +12,15 @@ const sections = [
     { key: "security", path: "/settings/security", panel: "securitySettingsPanel", card: "settingsSecurity", fn: "openSettingsSecurity" },
     { key: "privacy", path: "/settings/privacy", panel: "privacySettingsPanel", card: "settingsPrivacy", fn: "openSettingsPrivacy" },
     { key: "notifications", path: "/settings/notifications", panel: "notificationSettingsPanel", card: "settingsNotifications", fn: "openSettingsNotifications" },
-    { key: "data", path: "/settings/data", panel: "yourDataSettingsPanel", card: "settingsData", fn: "openSettingsData" },
-    { key: "appearance", path: "/settings/appearance", panel: "appearanceSettingsPanel", card: "settingsAppearance", fn: "openSettingsAppearance" }
+    { key: "data", path: "/settings/data", panel: "yourDataSettingsPanel", card: "settingsData", fn: "openSettingsData" }
 ];
+
+const appearance = {
+    key: "appearance",
+    path: "/settings/appearance",
+    panel: "appearanceSettingsPanel",
+    fn: "openSettingsAppearance"
+};
 
 function elementTagWithId(source, id) {
     const tag = source.match(new RegExp('<(section|div|article)[^>]*id="' + id + '"[^>]*>', "i"));
@@ -22,18 +28,22 @@ function elementTagWithId(source, id) {
     return tag[0];
 }
 
-test("opening /settings defaults to the overview and hides all detail panels", () => {
+test("opening /settings shows five category cards and Appearance & Accessibility below them", () => {
     const settingsPage = elementTagWithId(html, "settingsPage");
     assert.match(settingsPage, /class="worth-it-settings-page"/i);
     assert.match(settings, /function openFullSettings\(\)\s*\{\s*renderWorthItSettingsView\(""\);\s*\}/);
     assert.match(html, /class="worth-it-settings-grid" aria-label="Settings categories"/);
     for (const section of sections) {
         assert.match(elementTagWithId(html, section.panel), /\bhidden\b/, section.panel + " must be hidden in initial markup");
+        assert.ok(elementTagWithId(html, section.card), "Missing category card " + section.card);
     }
-    assert.match(elementTagWithId(html, "settingsSectionNav"), /\bhidden\b/, "section navigation is hidden on the overview");
+    assert.doesNotMatch(html, /id="settingsAppearance"/, "Appearance is a control panel, not a sixth overview card");
+    assert.doesNotMatch(elementTagWithId(html, appearance.panel), /\bhidden\b/, "Appearance controls stay visible on the overview");
+    assert.doesNotMatch(html.match(/<p class="worth-it-settings-roadmap"[^>]*>/)?.[0] || "", /\bhidden\b/, "Overview caveat text stays visible");
+    assert.match(elementTagWithId(html, "settingsSectionNav"), /\bhidden\b/, "Section navigation is hidden on the overview");
 });
 
-test("each Settings overview card opens a dedicated URL-backed section", () => {
+test("each of the five overview cards opens its own URL-backed section", () => {
     for (const section of sections) {
         const card = elementTagWithId(html, section.card);
         assert.match(card, new RegExp('data-settings-target="' + section.panel + '"'), section.card + " points to its panel");
@@ -44,27 +54,28 @@ test("each Settings overview card opens a dedicated URL-backed section", () => {
     }
 });
 
-test("section routing supports direct URLs and browser back/forward navigation", () => {
+test("dedicated section URLs support direct navigation and browser back/forward", () => {
     assert.match(routing, /function resolveRoute\(path\)/);
     assert.match(routing, /Object\.prototype\.hasOwnProperty\.call\(SECTION_PATHS, path\)/);
     assert.match(routing, /window\.addEventListener\("popstate"/);
     assert.match(settings, /openSettingsCategory = function\(panelId\)/);
     assert.match(settings, /window\[config\.openFunction\]\(\)/);
     assert.match(html, /onclick="openFullSettings\(\)">← Back to Settings/);
-    for (const path of ["/settings", ...sections.map(section => section.path)]) {
+    for (const path of ["/settings", ...sections.map(section => section.path), appearance.path]) {
         assert.ok(routing.includes('"' + path + '"'), "Missing route " + path);
     }
+    assert.match(routing, /"\/settings\/appearance": "openSettingsAppearance"/);
 });
 
-test("hidden Settings views remain hidden despite author display rules", () => {
+test("only the selected detail section appears; Appearance remains on the overview", () => {
     assert.match(css, /\.worth-it-settings-page \[hidden\][^{]*\{display:none!important\}/);
     assert.match(settings, /if \(hero\) hero\.hidden = !overview/);
     assert.match(settings, /if \(grid\) grid\.hidden = !overview/);
-    assert.match(settings, /if \(panel\) panel\.hidden = key !== section/);
-    assert.match(settings, /if \(roadmap\) roadmap\.hidden = true/);
+    assert.match(settings, /if \(panel\) panel\.hidden = section \? key !== section : key !== "appearance"/);
+    assert.match(settings, /if \(roadmap\) roadmap\.hidden = !overview/);
 });
 
-test("the new routing assets are cache-busted together", () => {
+test("the navigation assets are cache-busted together", () => {
     assert.match(html, /style\.css\?v=settings-navigation-20261015a/);
     assert.match(html, /settings\.js\?v=settings-navigation-20261015a/);
     assert.match(html, /routing\.js\?v=settings-navigation-20261015a/);
