@@ -31,7 +31,13 @@
         "/cryptocurrencies": "openCrypto",
         "/water-levels": "openWaterLevels",
         "/ship-tracking": "openShipTracking",
-        "/settings": "openFullSettings"
+        "/settings": "openFullSettings",
+        "/settings/account": "openSettingsAccount",
+        "/settings/security": "openSettingsSecurity",
+        "/settings/privacy": "openSettingsPrivacy",
+        "/settings/notifications": "openSettingsNotifications",
+        "/settings/data": "openSettingsData",
+        "/settings/appearance": "openSettingsAppearance"
     };
 
     const LEGAL_PATHS = new Set([
