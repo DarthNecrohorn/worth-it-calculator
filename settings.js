@@ -610,22 +610,36 @@ window.openSettings = openFullSettings;
 
     window.startTotpEnrollment = async function() {
         const button = $("securityMfaStart");
+        let requestUserId = "";
         if (button) button.disabled = true;
         securityMessage("securityMfaStatus", "Creating a private authenticator setup…", false);
         try {
             const session = await currentSecuritySession();
-            if (!session?.access_token) throw new Error("Sign in again to set up two-factor authentication.");
+            if (!session?.access_token || !session?.user?.id) {
+                throw new Error("Sign in again to set up two-factor authentication.");
+            }
+            requestUserId = session.user.id;
             const result = await window.supabaseClient.auth.mfa.enroll({
                 factorType: "totp",
                 friendlyName: "Worth It authenticator"
             });
             if (result?.error) throw result.error;
+
+            // Do not reveal a TOTP secret in the Settings UI if the account changed
+            // while Supabase was preparing the enrollment response.
+            if (!await securitySessionMatches(requestUserId)) {
+                clearTotpEnrollmentUi();
+                await window.loadSecuritySettings();
+                return;
+            }
+
             const factor = result?.data;
             if (!factor?.id || !factor?.totp?.secret || !factor?.totp?.qr_code) {
                 throw new Error("Supabase did not return the full authenticator setup information.");
             }
             enrollmentTotpFactorId = factor.id;
             enrollmentTotpSecret = factor.totp.secret;
+            enrollmentTotpUserId = requestUserId;
             const qr = $("securityMfaQr");
             qr.src = factor.totp.qr_code;
             qr.hidden = false;
@@ -636,6 +650,11 @@ window.openSettings = openFullSettings;
             $("securityMfaBadge").textContent = "Setup in progress";
             securityMessage("securityMfaStatus", "Scan the QR code or enter the private setup key, then enter the current 6-digit code to verify it.", false);
         } catch (error) {
+            if (requestUserId && !await securitySessionMatches(requestUserId).catch(() => false)) {
+                clearTotpEnrollmentUi();
+                await window.loadSecuritySettings();
+                return;
+            }
             securityMessage("securityMfaStatus", error?.message || "Could not start authenticator setup.", true);
             if (button) button.disabled = false;
         }
@@ -653,8 +672,10 @@ window.openSettings = openFullSettings;
 
     window.verifyTotpEnrollment = async function() {
         const code = ($("securityMfaEnrollCode")?.value || "").replace(/\s/g, "");
+        const factorId = enrollmentTotpFactorId;
+        const factorUserId = enrollmentTotpUserId;
         const button = $("securityMfaVerify");
-        if (!enrollmentTotpFactorId) {
+        if (!factorId || !factorUserId) {
             securityMessage("securityMfaStatus", "Start authenticator setup first.", true);
             return;
         }
@@ -665,24 +686,39 @@ window.openSettings = openFullSettings;
         }
         button.disabled = true;
         try {
+            if (!await securitySessionMatches(factorUserId)) {
+                clearTotpEnrollmentUi();
+                await window.loadSecuritySettings();
+                return;
+            }
             const auth = window.supabaseClient.auth;
-            const challenge = await auth.mfa.challenge({ factorId: enrollmentTotpFactorId });
+            const challenge = await auth.mfa.challenge({ factorId });
             if (challenge?.error) throw challenge.error;
+            if (!await securitySessionMatches(factorUserId)) {
+                clearTotpEnrollmentUi();
+                await window.loadSecuritySettings();
+                return;
+            }
             const result = await auth.mfa.verify({
-                factorId: enrollmentTotpFactorId,
+                factorId,
                 challengeId: challenge.data.id,
                 code
             });
             if (result?.error) throw result.error;
-            enrollmentTotpFactorId = "";
-            enrollmentTotpSecret = "";
-            $("securityMfaEnroll").hidden = true;
-            $("securityMfaQr").removeAttribute("src");
-            $("securityMfaSecret").textContent = "";
-            $("securityMfaEnrollCode").value = "";
+            if (!await securitySessionMatches(factorUserId)) {
+                clearTotpEnrollmentUi();
+                await window.loadSecuritySettings();
+                return;
+            }
+            clearTotpEnrollmentUi();
             securityMessage("securityMfaStatus", "Two-factor authentication is enabled. Store your authenticator safely and keep access to it.", false);
             await window.loadSecuritySettings();
         } catch (error) {
+            if (!await securitySessionMatches(factorUserId).catch(() => false)) {
+                clearTotpEnrollmentUi();
+                await window.loadSecuritySettings();
+                return;
+            }
             securityMessage("securityMfaStatus", error?.message || "The code could not be verified. Check the time on your phone and try again.", true);
         } finally {
             button.disabled = false;
