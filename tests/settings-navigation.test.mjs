@@ -76,7 +76,7 @@ test("only the selected detail section appears; Appearance remains on the overvi
 });
 
 test("the navigation assets are cache-busted together", () => {
-    assert.match(html, /style\.css\?v=news-menu-auth-hitbox-20261015b/);
+    assert.match(html, /style\.css\?v=hamburgerpersistent-20261015a/);
     assert.match(html, /settings\.js\?v=settings-navigation-20261015a/);
     assert.match(html, /routing\.js\?v=settings-navigation-20261015a/);
 });

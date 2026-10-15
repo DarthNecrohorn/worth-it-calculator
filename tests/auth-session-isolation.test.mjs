@@ -33,9 +33,9 @@ test("the standard Sign out button revokes only the current browser session", ()
 test("the hamburger menu overlays header actions instead of overlapping them", () => {
     assert.match(css, /@media\(max-width:1000px\)[\s\S]*?\.nav-links\.open\s*\{[\s\S]*?z-index:\s*800/);
     assert.match(css, /\.nav-links\.open button\s*\{\s*width:\s*100%;/);
-    assert.match(html, /style\.css\?v=news-menu-auth-hitbox-20261015b/);
-    assert.match(html, /app\.js\?v=news-menu-auth-hitbox-20261015b/);
-    assert.match(html, /guest-mode\.js\?v=news-menu-auth-hitbox-20261015b/);
+    assert.match(html, /style\.css\?v=hamburgerpersistent-20261015a/);
+    assert.match(html, /app\.js\?v=hamburgerpersistent-20261015a/);
+    assert.match(html, /guest-mode\.js\?v=hamburgerpersistent-20261015a/);
 });
 
 

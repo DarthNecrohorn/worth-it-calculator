@@ -7,25 +7,57 @@ const css = readFileSync(new URL("../style.css", import.meta.url), "utf8");
 const html = readFileSync(new URL("../index.html", import.meta.url), "utf8");
 const news = readFileSync(new URL("../news-ui.js", import.meta.url), "utf8");
 
-test("choosing a menu section always closes and unlocks the hamburger panel", () => {
+test("choosing a section keeps an explicitly opened hamburger panel open", () => {
     const start = app.indexOf("function closeNavMenuUnlessPreserved(navLinks)");
     assert.ok(start >= 0);
     const end = app.indexOf("\nfunction toggleMenu()", start);
     const body = app.slice(start, end);
-    assert.match(body, /navLinks\.classList\.remove\("open"\)/);
-    assert.match(body, /delete navLinks\.dataset\.preserveOpen/);
+    const preserveGuard = body.indexOf('navLinks.dataset.preserveOpen === "true"');
+    const closePanel = body.indexOf('navLinks.classList.remove("open")');
+    assert.ok(preserveGuard >= 0, "section navigation checks the user's persistent-menu choice");
+    assert.ok(closePanel > preserveGuard, "ordinary close logic only runs when preservation is not active");
+    assert.match(body, /navLinks\.classList\.contains\("open"\)[\s\S]*?return;/);
     assert.match(body, /navLinks\.setAttribute\("aria-hidden", "true"\)/);
     assert.match(body, /menuButton\.setAttribute\("aria-expanded", "false"\)/);
-    assert.match(body, /--nav-scroll-lock", "0"/);
-    assert.doesNotMatch(body, /if \(navLinks\.dataset\.preserveOpen !== "true"\)/);
+});
+
+test("the hamburger toggle remains the explicit open and close control", () => {
+    const start = app.indexOf("function toggleMenu()");
+    const end = app.indexOf("\nwindow.toggleMenu = toggleMenu;", start);
+    assert.ok(start >= 0 && end > start, "hamburger toggle function exists");
+    const body = app.slice(start, end);
+    assert.match(body, /navLinks\.classList\.toggle\("open"\)/);
+    assert.match(body, /navLinks\.dataset\.preserveOpen = "true"/);
+    assert.match(body, /delete navLinks\.dataset\.preserveOpen/);
+    assert.match(body, /aria-expanded"[\s\S]*?String\(isOpen\)/);
+});
+
+test("every discovery section button is inside the persistent hamburger menu", () => {
+    const start = html.indexOf('<div class="nav-links" id="navLinks">');
+    const end = html.indexOf('<div class="nav-actions">', start);
+    assert.ok(start >= 0 && end > start, "hamburger menu markup exists");
+    const menu = html.slice(start, end);
+    for (const handler of [
+        'onclick="openWeather()"',
+        'onclick="openNews()"',
+        'onclick="openDiscounts()"',
+        'onclick="openCarsFromMenu()"',
+        'onclick="openMarketsFromMenu()"',
+        'onclick="openMoneyFromMenu()"',
+        'onclick="openCryptoFromMenu()"',
+        'onclick="openWaterLevelsFromMenu()"',
+        'onclick="openShipTrackingFromMenu()"'
+    ]) {
+        assert.ok(menu.includes(handler), "Expected a section handler inside hamburger menu");
+    }
 });
 
 test("open hamburger blocks header actions from receiving clicks behind the dropdown", () => {
     assert.match(css, /#navLinks\.nav-links\.open\s*\{[^}]*z-index:\s*2147483000 !important;[^}]*pointer-events:\s*auto !important;/);
     assert.match(css, /\.nav-inner:has\(> #navLinks\.nav-links\.open\) > \.nav-actions\s*\{\s*pointer-events:\s*none !important;/);
     assert.match(css, /\.nav-inner:has\(> #navLinks\.nav-links\.open\) > \.nav-actions \*\s*\{\s*pointer-events:\s*none !important;/);
-    assert.match(html, /style\.css\?v=news-menu-auth-hitbox-20261015b/);
-    assert.match(html, /app\.js\?v=news-menu-auth-hitbox-20261015b/);
+    assert.match(html, /style\.css\?v=hamburgerpersistent-20261015a/);
+    assert.match(html, /app\.js\?v=hamburgerpersistent-20261015a/);
 });
 
 test("the open hamburger shields every header sibling, including Sign out", () => {
@@ -38,7 +70,7 @@ test("the open hamburger shields every header sibling, including Sign out", () =
     const signOutIndex = nav.indexOf('id="signOutNavBtn"');
     assert.ok(navActionsStart >= 0 && navActionsEnd > navActionsStart);
     assert.ok(signOutIndex > navActionsEnd, "Sign out is a sibling outside .nav-actions");
-    assert.match(html, /style\.css\?v=news-menu-auth-hitbox-20261015b/);
+    assert.match(html, /style\.css\?v=hamburgerpersistent-20261015a/);
 });
 
 test("News section code does not sign out or erase Supabase auth state", () => {

@@ -3293,9 +3293,19 @@ window.decimal = decimal;
 function closeNavMenuUnlessPreserved(navLinks) {
     if (!navLinks) return;
 
-    // Section selection must always dismiss the hamburger overlay. Leaving
-    // data-preserve-open on the element kept the panel over the page and could
-    // leave header actions exposed underneath its transparent hit areas.
+    /*
+     * Once the user explicitly opens the hamburger, keep it open while any
+     * section is selected. All section buttons share this guard, so users can
+     * move between sections without reopening the menu each time. The
+     * hamburger button itself calls toggleMenu() and remains the close control.
+     */
+    if (
+        navLinks.classList.contains("open") &&
+        navLinks.dataset.preserveOpen === "true"
+    ) {
+        return;
+    }
+
     navLinks.classList.remove("open");
     delete navLinks.dataset.preserveOpen;
     navLinks.setAttribute("aria-hidden", "true");
