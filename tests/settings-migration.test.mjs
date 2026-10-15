@@ -28,7 +28,7 @@ test("preferences are stored behind RLS and accessible only through authenticate
     assert.match(sql, /alter table public\.worth_it_user_preferences enable row level security;/i);
     assert.match(sql, /revoke all on public\.worth_it_user_preferences from public, anon, authenticated;/i);
     const getter = section("create or replace function public.get_worth_it_user_preferences()", "create or replace function public.save_worth_it_user_preferences");
-    const saver = section("create or replace function public.save_worth_it_user_preferences", "-- This check is used by the public profile view");
+    const saver = section("create or replace function public.save_worth_it_user_preferences", "-- Internal helper schema is intentionally not exposed through the Supabase Data API.");
     assert.match(getter, /actor_id uuid := auth\.uid\(\)/i);
     assert.match(getter, /if actor_id is null then/i);
     assert.match(saver, /if actor_id is null then/i);
@@ -61,7 +61,7 @@ test("the public profile view invokes caller RLS and delegates sensitive presenc
     assert.match(rlsPolicy, /using \(worth_it_private\.can_view_worth_it_profile\(user_id\)\)/i);
     assert.match(sql, /revoke all on function worth_it_private\.can_view_worth_it_profile\(uuid\) from public, anon, authenticated/i);
     assert.match(sql, /grant execute on function worth_it_private\.can_view_worth_it_profile\(uuid\) to anon, authenticated/i);
-    assert.doesNotMatch(sql, /create or replace function worth_it_private\.can_view_worth_it_profile/i);
+    assert.doesNotMatch(sql, /create or replace function public\.can_view_worth_it_profile/i);
     assert.match(sql, /grant select \(\s*worth_it_id, username, display_name, avatar_url, created_at, banner_url, description\s*\) on public\.worth_it_profiles to anon, authenticated/i);
     assert.match(sql, /revoke select on table public\.worth_it_profiles from public, anon, authenticated/i);
 });
