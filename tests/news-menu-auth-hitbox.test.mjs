@@ -24,8 +24,17 @@ test("open hamburger blocks header actions from receiving clicks behind the drop
     assert.match(css, /#navLinks\.nav-links\.open\s*\{[^}]*z-index:\s*2147483000 !important;[^}]*pointer-events:\s*auto !important;/);
     assert.match(css, /\.nav-inner:has\(> #navLinks\.nav-links\.open\) > \.nav-actions\s*\{\s*pointer-events:\s*none !important;/);
     assert.match(css, /\.nav-inner:has\(> #navLinks\.nav-links\.open\) > \.nav-actions \*\s*\{\s*pointer-events:\s*none !important;/);
-    assert.match(html, /style\.css\?v=news-menu-auth-hitbox-20261015a/);
-    assert.match(html, /app\.js\?v=news-menu-auth-hitbox-20261015a/);
+    assert.match(html, /style\.css\?v=news-menu-auth-hitbox-20261015b/);
+    assert.match(html, /app\.js\?v=news-menu-auth-hitbox-20261015b/);
+});
+
+test("the open hamburger shields every header sibling, including Sign out", () => {
+    assert.match(css, /\.nav-inner:has\(> #navLinks\.nav-links\.open\) > :not\(#navLinks\):not\(\.menu-btn\):not\(\.logo\),\s*\.nav-inner:has\(> #navLinks\.nav-links\.open\) > :not\(#navLinks\):not\(\.menu-btn\):not\(\.logo\) \*\s*\{\s*pointer-events:\s*none !important;/);
+    assert.match(css, /#navLinks\.nav-links\.open button\s*\{[^}]*pointer-events:\s*auto !important;/);
+    const nav = html.slice(html.indexOf('<nav class="nav">'), html.indexOf("</nav>"));
+    assert.match(nav, /class="signout-nav-btn" id="signOutNavBtn"/);
+    assert.match(nav, /<\/div>\s*<button class="signout-nav-btn"/);
+    assert.match(html, /style\.css\?v=news-menu-auth-hitbox-20261015b/);
 });
 
 test("News section code does not sign out or erase Supabase auth state", () => {
