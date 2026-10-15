@@ -46,7 +46,7 @@ test("profile search respects profile visibility and discoverability", () => {
     const search = section("create or replace function public.search_worth_it_public_profiles", "revoke all on function public.search_worth_it_public_profiles");
     assert.match(search, /from public\.worth_it_public_profiles p/i);
     assert.match(search, /coalesce\(prefs\.profile_discoverable, true\)/i);
-    assert.match(search, /grant execute on function public\.search_worth_it_public_profiles\(text, integer\) to anon, authenticated/i);
+    assert.match(sql, /grant execute on function public\.search_worth_it_public_profiles\(text, integer\) to anon, authenticated/i);
 });
 
 test("profile stats and connection RPCs enforce view and connection privacy", () => {
@@ -68,7 +68,7 @@ test("chat friend lists, conversation member lists, and messages all respect hid
     const messages = section("create or replace function public.get_worth_it_chat_messages", "commit;");
     for (const [name, body] of [["conversations", conversations], ["friends", friends], ["messages", messages]]) {
         assert.match(body, /left join public\.worth_it_user_preferences prefs on prefs\.user_id = p\.user_id/i, name + " must read member preferences");
-        assert.match(body, /case when coalesce\(prefs\.show_online_status, true\) then p\.last_seen_at else null end/i, name + " must mask last-seen timestamps");
+        assert.match(body, /case\s+when\s+coalesce\(prefs\.show_online_status, true\)\s+then p\.last_seen_at\s+else null\s+end/i, name + " must mask last-seen timestamps");
         assert.match(body, /'show_online_status', coalesce\(prefs\.show_online_status, true\)/i, name + " should expose the visibility flag");
     }
 });
