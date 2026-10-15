@@ -80,6 +80,6 @@ test("Guest Lite dialog is responsive, theme-aware and the CI checks the new scr
     assert.match(css, /\.worth-it-guest-overlay\[hidden\]\{display:none!important\}/);
     assert.match(css, /@media\(max-width:650px\)/);
     assert.match(css, /html\[data-theme="light"\] \.worth-it-guest-card/);
-    assert.match(html, /guest-mode\.js\?v=auth-session-isolation-20261015a/);
+    assert.match(html, /guest-mode\.js\?v=news-menu-auth-hitbox-20261015a/);
     assert.match(workflow, /guest-mode\.js/);
 });

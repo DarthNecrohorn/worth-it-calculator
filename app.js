@@ -3275,9 +3275,17 @@ window.decimal = decimal;
 function closeNavMenuUnlessPreserved(navLinks) {
     if (!navLinks) return;
 
-    if (navLinks.dataset.preserveOpen !== "true") {
-        navLinks.classList.remove("open");
-    }
+    // Section selection must always dismiss the hamburger overlay. Leaving
+    // data-preserve-open on the element kept the panel over the page and could
+    // leave header actions exposed underneath its transparent hit areas.
+    navLinks.classList.remove("open");
+    delete navLinks.dataset.preserveOpen;
+    navLinks.setAttribute("aria-hidden", "true");
+
+    const menuButton = document.querySelector(".menu-btn");
+    if (menuButton) menuButton.setAttribute("aria-expanded", "false");
+
+    document.documentElement.style.setProperty("--nav-scroll-lock", "0");
 }
 
 function toggleMenu() {

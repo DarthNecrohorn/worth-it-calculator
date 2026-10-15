@@ -20014,3 +20014,32 @@ html[data-ui-scale="large"] .nav-links.open,
 html[data-ui-scale="xl"] .nav-links.open {
     z-index: 800;
 }
+
+
+/* Final hamburger hit-testing guard.
+   The dropdown must sit above every header control, and while it is open the
+   underlying actions (especially Sign out) must not receive pointer events. */
+#navLinks.nav-links.open {
+    z-index: 2147483000 !important;
+    pointer-events: auto !important;
+}
+
+#navLinks.nav-links.open,
+#navLinks.nav-links.open * {
+    pointer-events: auto !important;
+}
+
+.nav-inner:has(> #navLinks.nav-links.open) > .nav-actions {
+    pointer-events: none !important;
+}
+
+.nav-inner:has(> #navLinks.nav-links.open) > .nav-actions * {
+    pointer-events: none !important;
+}
+
+/* A menu item is the only interactive surface in the open dropdown. */
+#navLinks.nav-links.open button {
+    position: relative;
+    z-index: 1;
+    pointer-events: auto !important;
+}
