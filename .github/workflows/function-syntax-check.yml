@@ -134,7 +134,12 @@ jobs:
           TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/postgres
         run: psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/worth-it-settings-privacy-notifications.sql
 
-      - name: Smoke-test privacy, notifications, chat presence and RPC permissions
+      - name: Apply follow-up account-data privilege hardening
+        env:
+          TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/postgres
+        run: psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/worth-it-account-data-privileges.sql
+
+      - name: Smoke-test privacy, notifications, chat presence, privileges and account-data access
         env:
           TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/postgres
         run: psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -f tests/fixtures/settings-migration-postgres-smoke.sql
