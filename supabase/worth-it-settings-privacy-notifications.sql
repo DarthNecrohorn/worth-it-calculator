@@ -567,6 +567,109 @@ begin
 end;
 $$;
 
+-- Presence preferences must also apply to members in the chat list, including group chats.
+create or replace function public.get_worth_it_chat_conversations()
+returns jsonb
+language plpgsql
+stable
+security definer
+set search_path = public
+as $$
+declare
+    actor_id uuid := auth.uid();
+    result jsonb;
+begin
+    if actor_id is null then
+        raise exception 'Authentication required';
+    end if;
+
+    select coalesce(jsonb_agg(jsonb_build_object(
+        'id', c.id,
+        'type', c.conversation_type,
+        'title', c.title,
+        'created_at', c.created_at,
+        'invite_token', case when c.conversation_type = 'group' then c.invite_token else null end,
+        'is_creator', coalesce(c.created_by = actor_id, false),
+        'member_count', (
+            select count(*)::integer
+            from public.worth_it_chat_members cmc
+            where cmc.conversation_id = c.id
+        ),
+        'members', case when c.conversation_type = 'global' then '[]'::jsonb else (
+            select coalesce(jsonb_agg(jsonb_build_object(
+                'worth_it_id', p.worth_it_id,
+                'username', p.username,
+                'display_name', coalesce(p.display_name, p.username, 'Worth It member'),
+                'avatar_url', p.avatar_url,
+                'last_seen_at', case
+                    when coalesce(prefs.show_online_status, true) then p.last_seen_at
+                    else null
+                end,
+                'show_online_status', coalesce(prefs.show_online_status, true)
+            ) order by lower(coalesce(p.display_name, p.username, ''))), '[]'::jsonb)
+            from public.worth_it_chat_members cm
+            join public.worth_it_profiles p on p.user_id = cm.user_id
+            left join public.worth_it_user_preferences prefs on prefs.user_id = p.user_id
+            where cm.conversation_id = c.id
+              and cm.user_id <> actor_id
+        ) end,
+        'last_message', (
+            select jsonb_build_object(
+                'body', m.body,
+                'created_at', m.created_at,
+                'sender_user_id', m.sender_user_id,
+                'media_type', m.media_type,
+                'display_name', coalesce(p.display_name, p.username, 'Worth It member'),
+                'worth_it_id', p.worth_it_id,
+                'is_seen', case
+                    when c.conversation_type = 'direct' and m.sender_user_id = actor_id then exists (
+                        select 1
+                        from public.worth_it_chat_members recipient
+                        where recipient.conversation_id = c.id
+                          and recipient.user_id <> actor_id
+                          and recipient.last_read_at >= m.created_at
+                    )
+                    else false
+                end
+            )
+            from public.worth_it_chat_messages m
+            join public.worth_it_profiles p on p.user_id = m.sender_user_id
+            where m.conversation_id = c.id
+            order by m.id desc
+            limit 1
+        ),
+        'unread_count', (
+            select count(*)
+            from public.worth_it_chat_messages m
+            left join public.worth_it_chat_members mine
+              on mine.conversation_id = c.id and mine.user_id = actor_id
+            where m.conversation_id = c.id
+              and m.sender_user_id <> actor_id
+              and (
+                  (c.conversation_type <> 'global'
+                      and (mine.last_read_at is null or m.created_at > mine.last_read_at))
+                  or (c.conversation_type = 'global'
+                      and mine.last_read_at is not null and m.created_at > mine.last_read_at)
+              )
+        )
+    ) order by coalesce((
+        select max(m2.created_at)
+        from public.worth_it_chat_messages m2
+        where m2.conversation_id = c.id
+    ), c.created_at) desc), '[]'::jsonb)
+    into result
+    from public.worth_it_chat_conversations c
+    left join public.worth_it_chat_members mine
+      on mine.conversation_id = c.id and mine.user_id = actor_id
+    where (c.conversation_type in ('direct', 'group') and mine.user_id = actor_id)
+       or c.conversation_type = 'global';
+
+    return result;
+end;
+$$;
+revoke all on function public.get_worth_it_chat_conversations() from public, anon;
+grant execute on function public.get_worth_it_chat_conversations() to authenticated;
+
 -- Keep direct-chat presence private when a user disables online status.
 create or replace function public.get_worth_it_chat_friends()
 returns jsonb
