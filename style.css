@@ -19709,18 +19709,18 @@ html[data-theme="light"] .worth-it-notification-dismiss:hover,html[data-theme="l
 
 
 /* Keep the logged-out Sign in button in normal flow so it cannot overlap the separate user-search button. */
-.auth-wrap:has(> #authBtn[style*="inline-flex"]){
+.auth-wrap:has(> #authBtn:not([style*="display: none"])){
     flex:0 0 auto !important;
     width:max-content !important;
     min-width:max-content !important;
 }
-.auth-wrap:has(> #authBtn[style*="inline-flex"]) > #authBtn{
+.auth-wrap:has(> #authBtn:not([style*="display: none"])) > #authBtn{
     position:relative !important;
     top:auto !important;
     right:auto !important;
     transform:none !important;
 }
-.auth-wrap:has(> #authBtn[style*="inline-flex"]) > #authBtn:hover,
-.auth-wrap:has(> #authBtn[style*="inline-flex"]) > #authBtn:active{
+.auth-wrap:has(> #authBtn:not([style*="display: none"])) > #authBtn:hover,
+.auth-wrap:has(> #authBtn:not([style*="display: none"])) > #authBtn:active{
     transform:translateY(-2px) !important;
 }
