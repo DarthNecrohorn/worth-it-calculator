@@ -8,7 +8,7 @@ const helperEnd = settings.indexOf("window.loadYourDataSettings =", helperStart)
 const exportStart = settings.indexOf("window.downloadWorthItDataExport = async function()");
 const exportEnd = settings.indexOf("window.deleteWorthItAccount = async function()", exportStart);
 const deleteStart = exportEnd;
-const deleteEnd = settings.indexOf("window.handleAuthButton", deleteStart);
+const deleteEnd = settings.indexOf("window.openSettingsCategory = function(panelId)", deleteStart);
 
 assert.notEqual(helperStart, -1, "account data API helper should exist");
 assert.notEqual(helperEnd, -1, "account data API helper boundary should exist");
