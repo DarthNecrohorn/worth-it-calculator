@@ -1,0 +1,85 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+
+const html = readFileSync(new URL("../index.html", import.meta.url), "utf8");
+const css = readFileSync(new URL("../style.css", import.meta.url), "utf8");
+const guest = readFileSync(new URL("../guest-mode.js", import.meta.url), "utf8");
+const workflow = readFileSync(new URL("../.github/workflows/function-syntax-check.yml", import.meta.url), "utf8");
+
+const restrictedSections = [
+    ["Weather", "openWeather"],
+    ["News", "openNews"],
+    ["Shop", "openDiscounts"],
+    ["Compare cars", "openCars"],
+    ["Markets", "openMarkets"],
+    ["Currencies", "openMoney"],
+    ["Cryptocurrencies", "openCrypto"],
+    ["Water levels", "openWaterLevels"],
+    ["Ship tracking", "openShipTracking"]
+];
+
+test("a dedicated Guest Lite explanation contains the required consent checkbox", () => {
+    assert.match(html, /id="worthItGuestLimitsOverlay"[^>]*hidden/);
+    assert.match(html, /id="worthItGuestLimitsTitle">Continue with limited guest access/);
+    assert.match(html, /id="worthItGuestConsentCheck"/);
+    assert.match(html, /I agree with these limitations and wish to continue, remind me again in 24 hours\./);
+    assert.match(html, /id="worthItGuestContinueButton" disabled>Continue as a guest/);
+    assert.match(guest, /if \(!checkbox\?\.checked\)/);
+    assert.match(guest, /setNextPromptAt\(Date\.now\(\) \+ DAY_MS\)/);
+});
+
+test("Guest Lite explicitly lists the default calculator catalogue as the only available feature", () => {
+    assert.match(html, /Use the built-in Worth It calculators configured by the site owner/);
+    assert.match(html, /Explore the default calculator catalogue, search and filter calculators/);
+    assert.match(guest, /const BUILT_IN_CALCULATORS = new Set/);
+    assert.match(guest, /BUILT_IN_CALCULATORS\.has\(key\)/);
+    assert.match(guest, /User-created and community calculators require a Worth It account/);
+});
+
+test("all requested website sections are account-gated", () => {
+    for (const [label, opener] of restrictedSections) {
+        assert.ok(guest.includes('["' + opener + '"'), label + " must be gated");
+    }
+    assert.match(html, /Weather, News, Shop, Compare Cars, Markets, Currencies, Cryptocurrencies, Water Levels and Ship Tracking/);
+    assert.match(guest, /RESTRICTED_PATHS/);
+    assert.match(guest, /restoreHomeIfOnRestrictedPath/);
+});
+
+test("AI, search, social actions and all chat types are account-gated", () => {
+    for (const name of [
+        "openAIChat", "sendAIChatMessage", "openWorthItUserSearch",
+        "openWorthItProfile", "performWorthItSocialAction",
+        "performWorthItPendingRequestAction", "toggleWorthItNotifications",
+        "toggleWorthItChat", "openWorthItGlobalChat", "openWorthItFriendChat",
+        "openWorthItGroupChatDialog", "sendWorthItChatMessage",
+        "shareWorthItGroupInvite", "acceptWorthItGroupInvite"
+    ]) {
+        assert.ok(guest.includes('["' + name + '"'), name + " must be gated");
+    }
+    assert.match(html, /sending messages requires a Worth It account/i);
+});
+
+test("the automatic account prompt is delayed until auth state is known and repeats daily", () => {
+    assert.match(guest, /await Promise\.resolve\(window\.worthItAuthReady\)/);
+    assert.match(guest, /NEXT_PROMPT_KEY = "worthItGuestLiteNextPromptAtV1"/);
+    assert.match(guest, /DAY_MS = 24 \* 60 \* 60 \* 1000/);
+    assert.match(guest, /window\.setTimeout\(\(\) => \{\s*promptTimer = null;/);
+    assert.match(guest, /if \(isAuthenticated\) \{/);
+    assert.match(guest, /promptTimer !== null/);
+});
+
+test("the signup modal offers Guest Lite only in signup mode", () => {
+    assert.match(guest, /Or continue as a guest/);
+    assert.match(guest, /overlay\.classList\.contains\("signup-mode"\)/);
+    assert.match(css, /\.auth-modal-overlay\.signup-mode \.auth-modal-guest-choice\{display:flex\}/);
+    assert.match(guest, /showGuestLimits\(\)/);
+});
+
+test("Guest Lite dialog is responsive, theme-aware and the CI checks the new script", () => {
+    assert.match(css, /\.worth-it-guest-overlay\[hidden\]\{display:none!important\}/);
+    assert.match(css, /@media\(max-width:650px\)/);
+    assert.match(css, /html\[data-theme="light"\] \.worth-it-guest-card/);
+    assert.match(html, /guest-mode\.js\?v=guest-lite-20261015a/);
+    assert.match(workflow, /guest-mode\.js/);
+});
