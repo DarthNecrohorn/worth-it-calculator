@@ -1,0 +1,34 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+
+const app = readFileSync(new URL("../app.js", import.meta.url), "utf8");
+const css = readFileSync(new URL("../style.css", import.meta.url), "utf8");
+const html = readFileSync(new URL("../index.html", import.meta.url), "utf8");
+const news = readFileSync(new URL("../news-ui.js", import.meta.url), "utf8");
+
+test("choosing a menu section always closes and unlocks the hamburger panel", () => {
+    const start = app.indexOf("function closeNavMenuUnlessPreserved(navLinks)");
+    assert.ok(start >= 0);
+    const end = app.indexOf("\nfunction toggleMenu()", start);
+    const body = app.slice(start, end);
+    assert.match(body, /navLinks\.classList\.remove\("open"\)/);
+    assert.match(body, /delete navLinks\.dataset\.preserveOpen/);
+    assert.match(body, /navLinks\.setAttribute\("aria-hidden", "true"\)/);
+    assert.match(body, /menuButton\.setAttribute\("aria-expanded", "false"\)/);
+    assert.match(body, /--nav-scroll-lock", "0"/);
+    assert.doesNotMatch(body, /if \(navLinks\.dataset\.preserveOpen !== "true"\)/);
+});
+
+test("open hamburger blocks header actions from receiving clicks behind the dropdown", () => {
+    assert.match(css, /#navLinks\.nav-links\.open\s*\{[^}]*z-index:\s*2147483000 !important;[^}]*pointer-events:\s*auto !important;/);
+    assert.match(css, /\.nav-inner:has\(> #navLinks\.nav-links\.open\) > \.nav-actions\s*\{\s*pointer-events:\s*none !important;/);
+    assert.match(css, /\.nav-inner:has\(> #navLinks\.nav-links\.open\) > \.nav-actions \*\s*\{\s*pointer-events:\s*none !important;/);
+    assert.match(html, /style\.css\?v=news-menu-auth-hitbox-20261015a/);
+    assert.match(html, /app\.js\?v=news-menu-auth-hitbox-20261015a/);
+});
+
+test("News section code does not sign out or erase Supabase auth state", () => {
+    assert.doesNotMatch(news, /\.auth\.signOut\s*\(/);
+    assert.doesNotMatch(news, /localStorage\.removeItem\([^)]*(?:auth-token|supabase)/i);
+});
