@@ -13,8 +13,10 @@ function getWorthItPresenceInfo(person){
  if(currentUser?.id&&ownWorthItId!=null&&person?.worth_it_id!=null&&String(person.worth_it_id)===String(ownWorthItId)){
   return{online:true,label:"Online now",lastSeenAt:person?.last_seen_at||new Date().toISOString()};
  }
+ if(person?.show_online_status===false){return{online:false,label:"Online status hidden",lastSeenAt:null,hidden:true};}
  const cached=person?.worth_it_id!=null?presenceLastSeenById.get(String(person.worth_it_id)):null;
- const raw=person?.last_seen_at||person?.lastSeenAt||cached||null,stamp=raw?new Date(raw).getTime():NaN,delta=Number.isFinite(stamp)?Date.now()-stamp:Infinity;
+ const cachedStamp=cached&&typeof cached==="object"?cached.last_seen_at:cached;
+ const raw=person?.last_seen_at||person?.lastSeenAt||cachedStamp||null,stamp=raw?new Date(raw).getTime():NaN,delta=Number.isFinite(stamp)?Date.now()-stamp:Infinity;
  if(Number.isFinite(stamp)&&delta>=-60000&&delta<=PRESENCE_ONLINE_WINDOW_MS)return{online:true,label:"Online now",lastSeenAt:raw};
  if(!Number.isFinite(stamp))return{online:false,label:"Offline · last seen unavailable",lastSeenAt:null};
  const minutes=Math.max(1,Math.floor(Math.max(0,delta)/60000));let relative;
@@ -24,6 +26,7 @@ function getWorthItPresenceInfo(person){
  return{online:false,label:"Last seen "+relative+" ago",lastSeenAt:raw};
 }
 function getShortWorthItPresenceLabel(info){
+ if(info?.hidden)return "Status hidden";
  if(info?.online)return "Online";
  const raw=info?.lastSeenAt,stamp=raw?new Date(raw).getTime():NaN;
  if(!Number.isFinite(stamp))return "Offline";
@@ -36,10 +39,10 @@ function getShortWorthItPresenceLabel(info){
  else relative=Math.floor(minutes/525600)+"y ago";
  return "Last seen "+relative;
 }
-function updateWorthItPresenceNode(node,lastSeenAt){
- if(!node)return;const info=getWorthItPresenceInfo({worth_it_id:node.dataset.worthItPresenceId,last_seen_at:lastSeenAt||null});
- node.classList.toggle("is-online",info.online);node.classList.toggle("is-offline",!info.online);node.dataset.lastSeenAt=lastSeenAt||"";
- const presenceLabel=info.online?"Online":"Offline";
+function updateWorthItPresenceNode(node,lastSeenAt,showOnlineStatus){
+ if(!node)return;const info=getWorthItPresenceInfo({worth_it_id:node.dataset.worthItPresenceId,last_seen_at:lastSeenAt||null,show_online_status:showOnlineStatus});
+ node.classList.toggle("is-online",info.online);node.classList.toggle("is-offline",!info.online);node.classList.toggle("is-hidden",Boolean(info.hidden));node.dataset.lastSeenAt=lastSeenAt||"";
+ const presenceLabel=info.hidden?"Online status hidden":info.online?"Online":"Offline";
  if(node.classList.contains("worth-it-presence-indicator")){node.dataset.presenceStatus=presenceLabel;node.title=presenceLabel;node.setAttribute("aria-label",presenceLabel);const tooltip=node._worthItPresenceTooltip||node.querySelector(".worth-it-presence-tooltip");if(tooltip)tooltip.textContent=presenceLabel;}
  else{node.title=info.label;node.setAttribute("aria-label",info.label);}
  if(node.classList.contains("worth-it-profile-presence-text")){const dot=node.querySelector(".worth-it-presence-status-dot"),label=node.querySelector(".worth-it-presence-label");if(dot){dot.classList.toggle("is-online",info.online);dot.classList.toggle("is-offline",!info.online);}if(label)label.textContent=getShortWorthItPresenceLabel(info);}
@@ -48,7 +51,7 @@ function updateWorthItPresenceNode(node,lastSeenAt){
 function appendWorthItPresenceIndicator(host,person){
  if(!host||!person||person.worth_it_id==null)return;host.classList.add("worth-it-presence-host");host.querySelectorAll(":scope > .worth-it-presence-indicator").forEach(node=>node.remove());
  const marker=document.createElement("span");marker.className="worth-it-presence-indicator";marker.dataset.worthItPresenceId=String(person.worth_it_id);marker.dataset.lastSeenAt=person.last_seen_at||"";marker.setAttribute("role","button");marker.setAttribute("tabindex","0");
- const tooltip=document.createElement("span");tooltip.className="worth-it-presence-tooltip";tooltip.setAttribute("aria-hidden","true");tooltip.textContent=person.last_seen_at?getWorthItPresenceInfo(person).online?"Online":"Offline":"Offline";marker._worthItPresenceTooltip=tooltip;marker.appendChild(tooltip);
+ const tooltip=document.createElement("span");tooltip.className="worth-it-presence-tooltip";tooltip.setAttribute("aria-hidden","true");const initialPresence=getWorthItPresenceInfo(person);tooltip.textContent=initialPresence.hidden?"Online status hidden":initialPresence.online?"Online":"Offline";marker._worthItPresenceTooltip=tooltip;marker.appendChild(tooltip);
  const hideTooltip=()=>{tooltip.classList.remove("is-visible","is-portal","is-below");tooltip.setAttribute("aria-hidden","true");tooltip.remove();marker.classList.remove("is-tooltip-open");};
  const showTooltip=()=>{
   document.querySelectorAll(".worth-it-presence-tooltip.is-portal").forEach(other=>{if(other!==tooltip){other.classList.remove("is-visible","is-portal","is-below");other.setAttribute("aria-hidden","true");other.remove();}});
@@ -65,19 +68,19 @@ function appendWorthItPresenceIndicator(host,person){
  marker.addEventListener("pointerdown",event=>{if(event.pointerType!=="touch")return;event.stopPropagation();event.preventDefault();if(tooltip.classList.contains("is-visible"))hideTooltip();else{showTooltip();marker.classList.add("is-tooltip-open");}});
  marker.addEventListener("click",event=>{event.stopPropagation();event.preventDefault();});
  marker.addEventListener("keydown",event=>{if(event.key==="Enter"||event.key===" "){event.stopPropagation();event.preventDefault();if(tooltip.classList.contains("is-visible"))hideTooltip();else{showTooltip();marker.classList.add("is-tooltip-open");}}else if(event.key==="Escape")hideTooltip();});
- updateWorthItPresenceNode(marker,person.last_seen_at);host.appendChild(marker);
+ updateWorthItPresenceNode(marker,person.last_seen_at,person.show_online_status);host.appendChild(marker);
 }
 function renderWorthItProfilePresence(person){
  const host=$("worthItProfilePresence");if(!host)return;host.replaceChildren();host.className="worth-it-profile-presence-text";host.dataset.worthItPresenceId=String(person?.worth_it_id||"");
- const dot=document.createElement("span");dot.className="worth-it-presence-status-dot";dot.setAttribute("aria-hidden","true");const label=document.createElement("span");label.className="worth-it-presence-label";host.append(dot,label);updateWorthItPresenceNode(host,person?.last_seen_at);host.hidden=false;
+ const dot=document.createElement("span");dot.className="worth-it-presence-status-dot";dot.setAttribute("aria-hidden","true");const label=document.createElement("span");label.className="worth-it-presence-label";host.append(dot,label);updateWorthItPresenceNode(host,person?.last_seen_at,person?.show_online_status);host.hidden=false;
 }
 async function refreshWorthItPresenceDisplay(){
  if(presenceDisplayBusy||document.visibilityState==="hidden")return;const sb=client();if(!sb)return;
  const nodes=Array.from(document.querySelectorAll("[data-worth-it-presence-id]")),ids=Array.from(new Set(nodes.map(node=>Number(node.dataset.worthItPresenceId)).filter(id=>Number.isSafeInteger(id)&&id>0))).slice(0,200);
  if(!ids.length)return;presenceDisplayBusy=true;
- try{const result=await sb.from("worth_it_public_profiles").select("worth_it_id,last_seen_at").in("worth_it_id",ids);if(result.error||!Array.isArray(result.data))return;
-  const timestamps=new Map(result.data.map(row=>[String(row.worth_it_id),row.last_seen_at||null]));timestamps.forEach((value,key)=>presenceLastSeenById.set(key,value));
-  nodes.forEach(node=>{const id=String(node.dataset.worthItPresenceId||"");if(timestamps.has(id))updateWorthItPresenceNode(node,timestamps.get(id));});
+ try{const result=await sb.from("worth_it_public_profiles").select("worth_it_id,last_seen_at,show_online_status").in("worth_it_id",ids);if(result.error||!Array.isArray(result.data))return;
+  const timestamps=new Map(result.data.map(row=>[String(row.worth_it_id),{last_seen_at:row.last_seen_at||null,show_online_status:row.show_online_status!==false}]));timestamps.forEach((value,key)=>presenceLastSeenById.set(key,value));
+  nodes.forEach(node=>{const id=String(node.dataset.worthItPresenceId||"");if(timestamps.has(id)){const info=timestamps.get(id);updateWorthItPresenceNode(node,info.last_seen_at,info.show_online_status);}});
  }catch(_){}finally{presenceDisplayBusy=false;}
 }
 async function touchWorthItPresence(force){
@@ -141,7 +144,7 @@ function renderAccountPanelBanner(url){
  image.src=safe;image.hidden=false;panel.classList.add("has-banner");
 }
 function syncHeaderAvatar(profile){const name=profile?.display_name||profile?.username||currentUser?.user_metadata?.full_name||currentUser?.email?.split("@")[0]||"Worth It",person={...profile,worth_it_id:profile?.worth_it_id,last_seen_at:profile?.last_seen_at};renderSmallAvatar($("profileNavIcon"),profile?.avatar_url,name,"auth-avatar","auth-avatar-fallback",person);renderSmallAvatar($("accountHeadAvatar"),profile?.avatar_url,name,"account-head-avatar","account-head-fallback",person);const accountName=$("accountName");if(accountName)accountName.textContent=name;renderAccountPanelBanner(profile?.banner_url);}
-function normalizeStats(data){let d=Array.isArray(data)?data[0]:data;d=d&&typeof d==="object"?d:{};return{friends:Number(d.friends)||0,followers:Number(d.followers)||0,following:Number(d.following)||0};}
+function normalizeStats(data){let d=Array.isArray(data)?data[0]:data;d=d&&typeof d==="object"?d:{};return{friends:d.friends==null?null:Number(d.friends)||0,followers:d.followers==null?null:Number(d.followers)||0,following:d.following==null?null:Number(d.following)||0,hidden:d.hidden===true};}
 async function getStats(id){const sb=client();if(!sb||!Number.isSafeInteger(Number(id)))throw new Error("Stats unavailable");const r=await sb.rpc("get_worth_it_profile_stats",{target_worth_it_id:Number(id)});if(r.error)throw r.error;return normalizeStats(r.data);}
 async function getOwnProfileRow(user,force){
  if(!user?.id)return null;
@@ -175,7 +178,7 @@ function renderProfile(p,s,isOwn){
  renderAvatar(p.avatar_url,name,p);renderWorthItProfilePresence(p);renderBanner(p.banner_url,name);setText("worthItProfileName",name);setText("worthItProfileUsername",username?"@"+username:"Worth It member");
  const displayNameEdit=$("worthItProfileDisplayNameEdit");if(displayNameEdit)displayNameEdit.hidden=!isOwn;
  if(!isOwn)closeWorthItDisplayNameEditor();
- setCount("worthItProfileFriends",s.friends);setCount("worthItProfileFollowers",s.followers);setCount("worthItProfileFollowing",s.following);setFriendMood(s.friends);
+ if(s.hidden){setText("worthItProfileFriends","Hidden");setText("worthItProfileFollowers","Hidden");setText("worthItProfileFollowing","Hidden");setText("worthItProfileFriendsMood","🔒");}else{setCount("worthItProfileFriends",s.friends);setCount("worthItProfileFollowers",s.followers);setCount("worthItProfileFollowing",s.following);setFriendMood(s.friends);}
  const email=$("worthItProfileEmail");if(email){email.textContent=isOwn&&currentUser?.email?currentUser.email:"";email.hidden=!(isOwn&&currentUser?.email);}
  const linkNode=$("worthItProfileLink");if(linkNode){linkNode.href=link;linkNode.textContent=link;}setText("worthItProfileLinkLabel",isOwn?"YOUR PROFILE LINK":"THIS USER'S PROFILE");
  const member=$("worthItProfileMemberSince");if(member){const date=p.created_at?new Date(p.created_at):null;if(date&&!Number.isNaN(date.getTime())){const parts=new Intl.DateTimeFormat("en-GB",{day:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit",hourCycle:"h23"}).formatToParts(date);const part=type=>parts.find(x=>x.type===type)?.value||"";const month=new Intl.DateTimeFormat("en-US",{month:"short"}).format(date);member.textContent="Joined "+part("day")+" "+month+", "+part("year")+" "+part("hour")+":"+part("minute");}else{member.textContent="";}}
