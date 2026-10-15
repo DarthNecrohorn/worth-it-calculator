@@ -945,13 +945,24 @@ function renderError(message){
  const email=$("worthItProfileEmail");if(email){email.textContent="";email.hidden=true;}
  setText("worthItProfileLink","Profile link unavailable");if($("worthItProfileLink"))$("worthItProfileLink").removeAttribute("href");currentProfileLink="";setText("worthItProfileMemberSince","");setStatus(message,true);
 }
+function isMissingWorthItPresenceColumn(error){
+ const code=String(error?.code||"");
+ const message=String(error?.message||error?.details||error||"");
+ return code==="42703"||(/show_online_status/i.test(message)&&/(column|schema cache|does not exist|not found|could not find)/i.test(message));
+}
 window.openWorthItProfile=async function(idValue,options){
  const id=Number(idValue);if(!Number.isSafeInteger(id)||id<1){showProfileSection();renderError("This profile link is invalid.");return;}
  showProfileSection();const profileCard=$("worthItProfileCard"),connectionsPage=$("worthItProfileConnectionsPage");if(profileCard)profileCard.hidden=false;if(connectionsPage)connectionsPage.hidden=true;activeConnectionsRequest++;currentSocialContext=null;currentDisplayedProfileId=id;currentDisplayedProfileIsOwn=false;resetProfileDescriptionPanel();hideProfileAssetControls();const displayNameEdit=$("worthItProfileDisplayNameEdit");if(displayNameEdit)displayNameEdit.hidden=true;closeWorthItDisplayNameEditor();setStatus("Loading profile…",false);setText("worthItProfileName","Loading profile…");["worthItProfileFriends","worthItProfileFollowers","worthItProfileFollowing"].forEach(x=>setText(x,"…"));
  const requestId=++activeProfileRequest;
  try{
   const sb=client();if(!sb)throw new Error("Supabase not ready");
-  const [publicResult,user,descriptionResult]=await Promise.all([sb.from("worth_it_public_profiles").select("worth_it_id,username,display_name,avatar_url,banner_url,created_at,last_seen_at,show_online_status").eq("worth_it_id",id).maybeSingle(),getCurrentUser().catch(()=>null),Promise.resolve(sb.from("worth_it_public_profiles").select("description").eq("worth_it_id",id).maybeSingle()).catch(()=>({data:null,error:true}))]);
+  let [publicResult,user,descriptionResult]=await Promise.all([sb.from("worth_it_public_profiles").select("worth_it_id,username,display_name,avatar_url,banner_url,created_at,last_seen_at,show_online_status").eq("worth_it_id",id).maybeSingle(),getCurrentUser().catch(()=>null),Promise.resolve(sb.from("worth_it_public_profiles").select("description").eq("worth_it_id",id).maybeSingle()).catch(()=>({data:null,error:true}))]);
+  // Keep profile loading usable before the one-time migration adds the presence flag.
+  // Once the column exists, the privacy-aware value from the updated view is used.
+  if(publicResult.error&&isMissingWorthItPresenceColumn(publicResult.error)){
+   publicResult=await sb.from("worth_it_public_profiles").select("worth_it_id,username,display_name,avatar_url,banner_url,created_at,last_seen_at").eq("worth_it_id",id).maybeSingle();
+   if(!publicResult.error&&publicResult.data)publicResult.data.show_online_status=true;
+  }
   if(requestId!==activeProfileRequest)return;if(publicResult.error)throw publicResult.error;if(!publicResult.data){renderError("This Worth It profile could not be found.");return;}
   publicResult.data.description=descriptionResult&&!descriptionResult.error?String(descriptionResult.data?.description||""):"";
    currentUser=user||null;let own=null;if(currentUser){try{own=await getOwnProfileRow(currentUser,false);}catch(_){own=null;}}
