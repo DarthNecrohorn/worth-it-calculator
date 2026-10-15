@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - "functions/**/*.js"
+      - "supabase/**/*.sql"
       - "cars-ui.js"
       - "ship-tracking-ui.js"
       - "profile-ui.js"
@@ -34,6 +35,29 @@ jobs:
             echo "Checking $file"
             node --input-type=module --check < "$file"
           done < <(find functions -type f -name '*.js' -print0)
+
+      - name: Check Supabase SQL migration delimiters
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          path = Path("supabase/worth-it-settings-privacy-notifications.sql")
+          sql = path.read_text(encoding="utf-8")
+          openers = len(re.findall(r"(?im)^\\s*(?:as|do)\\s+\\$\\$\\s*$", sql))
+          closers = len(re.findall(r"(?m)^\\s*\\$\\$;\\s*$", sql))
+          malformed = re.findall(r"(?m)^\\s*\\$;\\s*$", sql)
+          if openers != closers or malformed:
+              raise SystemExit(
+                  f"Invalid SQL dollar-quote delimiters: {openers} openers, {closers} closers, "
+                  f"{len(malformed)} malformed terminator(s)."
+              )
+          if not re.search(r"(?im)^\\s*begin;\\s*$", sql) or not re.search(r"(?im)^\\s*commit;\\s*$", sql):
+              raise SystemExit("Expected the migration to be wrapped in BEGIN/COMMIT.")
+          print(f"Checked SQL dollar-quote delimiters in {path}: {openers} paired blocks.")
+          PY
           if [[ -f "cars-ui.js" ]]; then
             echo "Checking cars-ui.js"
             node --input-type=module --check < "cars-ui.js"
