@@ -97,11 +97,11 @@ function renderWorthItSettingsView(sectionKey) {
     if (grid) grid.hidden = !overview;
     if (sectionNav) sectionNav.hidden = overview;
     if (sectionNavTitle) sectionNavTitle.textContent = overview ? "" : WORTH_IT_SETTINGS_SECTIONS[section].title;
-    if (roadmap) roadmap.hidden = true;
+    if (roadmap) roadmap.hidden = !overview;
 
     Object.entries(WORTH_IT_SETTINGS_SECTIONS).forEach(([key, config]) => {
         const panel = document.getElementById(config.panelId);
-        if (panel) panel.hidden = key !== section;
+        if (panel) panel.hidden = section ? key !== section : key !== "appearance";
     });
 
     if (typeof window.updateSettingsUI === "function") window.updateSettingsUI();
