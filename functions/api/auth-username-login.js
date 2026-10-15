@@ -1,12 +1,21 @@
 import { recordAdminApiUsage } from "../lib/admin-usage.js";
 
 const SITE_ORIGIN = "https://worth-it-calculator.pages.dev";
+const PREVIEW_ORIGIN_PATTERN =
+    /^https:\/\/[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.worth-it-calculator\.pages\.dev$/;
+
+function isAllowedOrigin(origin) {
+    return (
+        origin === SITE_ORIGIN ||
+        PREVIEW_ORIGIN_PATTERN.test(origin)
+    );
+}
 const USERNAME_PATTERN = /^(?=.{3,20}$)(?=.*[A-Za-z0-9])[A-Za-z0-9]+(?:_[A-Za-z0-9]+)?$/;
 const MAX_BODY_BYTES = 12000;
 
-function jsonResponse(data, status = 200) {
+function jsonResponse(data, status = 200, origin = SITE_ORIGIN) {
     return new Response(
-        JSON.stringify(data),
+        status === 204 || status === 304 ? null : JSON.stringify(data),
         {
             status,
             headers: {
@@ -15,7 +24,7 @@ function jsonResponse(data, status = 200) {
                 "Cache-Control":
                     "no-store",
                 "Access-Control-Allow-Origin":
-                    SITE_ORIGIN,
+                    origin,
                 "Access-Control-Allow-Headers":
                     "Content-Type",
                 "Access-Control-Allow-Methods":
@@ -112,10 +121,21 @@ async function findEmailByUsername(
     return "";
 }
 
-export async function onRequestOptions() {
+export async function onRequestOptions(context) {
+    const origin =
+        context?.request?.headers?.get("Origin") || "";
+
+    if (origin && !isAllowedOrigin(origin)) {
+        return jsonResponse(
+            { error: "Forbidden origin." },
+            403
+        );
+    }
+
     return jsonResponse(
         {},
-        204
+        204,
+        origin || SITE_ORIGIN
     );
 }
 
@@ -137,7 +157,7 @@ export async function onRequestPost(
 
     if (
         origin &&
-        origin !== SITE_ORIGIN
+        !isAllowedOrigin(origin)
     ) {
         return jsonResponse(
             {
@@ -147,6 +167,9 @@ export async function onRequestPost(
             403
         );
     }
+
+    const respond = (data, status = 200) =>
+        jsonResponse(data, status, origin || SITE_ORIGIN);
 
     const supabaseUrl =
         String(
@@ -170,7 +193,7 @@ export async function onRequestPost(
         !supabaseSecret ||
         !supabasePublishableKey
     ) {
-        return jsonResponse(
+        return respond(
             {
                 error:
                     "Authentication server configuration is incomplete."
@@ -189,7 +212,7 @@ export async function onRequestPost(
     if (
         contentLength > MAX_BODY_BYTES
     ) {
-        return jsonResponse(
+        return respond(
             {
                 error:
                     "Request is too large."
@@ -204,7 +227,7 @@ export async function onRequestPost(
         body =
             await request.json();
     } catch (error) {
-        return jsonResponse(
+        return respond(
             {
                 error:
                     "Invalid request."
@@ -233,7 +256,7 @@ export async function onRequestPost(
             username
         )
     ) {
-        return jsonResponse(
+        return respond(
             {
                 error:
                     "Incorrect username or password."
@@ -246,7 +269,7 @@ export async function onRequestPost(
         !password ||
         password.length > 1024
     ) {
-        return jsonResponse(
+        return respond(
             {
                 error:
                     "Incorrect username or password."
@@ -256,7 +279,7 @@ export async function onRequestPost(
     }
 
     if (!captchaToken) {
-        return jsonResponse(
+        return respond(
             {
                 error:
                     "Please complete the security check."
@@ -274,7 +297,7 @@ export async function onRequestPost(
             );
 
         if (!email) {
-            return jsonResponse(
+            return respond(
                 {
                     error:
                         "Incorrect username or password."
@@ -318,7 +341,7 @@ export async function onRequestPost(
             await authResponse.json();
 
         if (!authResponse.ok) {
-            return jsonResponse(
+            return respond(
                 {
                     error:
                         "Incorrect username or password."
@@ -327,7 +350,7 @@ export async function onRequestPost(
             );
         }
 
-        return jsonResponse(
+        return respond(
             {
                 access_token:
                     authPayload.access_token,
@@ -348,7 +371,7 @@ export async function onRequestPost(
             error
         );
 
-        return jsonResponse(
+        return respond(
             {
                 error:
                     "Authentication service is temporarily unavailable."
