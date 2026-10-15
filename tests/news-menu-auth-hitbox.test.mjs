@@ -33,7 +33,11 @@ test("the open hamburger shields every header sibling, including Sign out", () =
     assert.match(css, /#navLinks\.nav-links\.open button\s*\{[^}]*pointer-events:\s*auto !important;/);
     const nav = html.slice(html.indexOf('<nav class="nav">'), html.indexOf("</nav>"));
     assert.match(nav, /class="signout-nav-btn" id="signOutNavBtn"/);
-    assert.match(nav, /<\/div>\s*<button class="signout-nav-btn"/);
+    const navActionsStart = nav.indexOf('<div class="nav-actions">');
+    const navActionsEnd = nav.indexOf('</div>\n\n        <button class="feedback-nav-btn"', navActionsStart);
+    const signOutIndex = nav.indexOf('id="signOutNavBtn"');
+    assert.ok(navActionsStart >= 0 && navActionsEnd > navActionsStart);
+    assert.ok(signOutIndex > navActionsEnd, "Sign out is a sibling outside .nav-actions");
     assert.match(html, /style\.css\?v=news-menu-auth-hitbox-20261015b/);
 });
 
