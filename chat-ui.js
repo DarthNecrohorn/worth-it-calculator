@@ -1157,6 +1157,7 @@ window.dismissWorthItGroupInvite = async function () {
     await routeWorthItChatFromLocation();
 };
 async function routeWorthItChatFromLocation() {
+    const wasChatAlreadyOpen = chatOpen;
     const route = parseWorthItChatRoute();
     const routeVersion = ++chatRouteVersion;
     if (!route) {
@@ -1169,6 +1170,9 @@ async function routeWorthItChatFromLocation() {
     if (typeof window.hideWorthItProfileSection === "function") window.hideWorthItProfileSection();
     if (!chatReturnPath || isChatRoutePath(chatReturnPath)) chatReturnPath = "/";
     showChatOverlay(true, {skipRouteSync:true});
+    // A direct chat URL opens fullscreen automatically. Opening the chat from
+    // the header keeps the normal dialog so the user can choose to expand it.
+    if (!wasChatAlreadyOpen) setWorthItChatFullscreen(true);
     // Restore the exact conversation that was open before the profile was
     // visited. This also avoids treating an active group URL as a fresh invite.
     if (profileReturnConversation && currentBrowserLocation() === profileReturnConversation.path) {
