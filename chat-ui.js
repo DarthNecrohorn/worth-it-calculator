@@ -93,6 +93,32 @@ function setGroupStatus(message, isError) {
     node.textContent = message || "";
     node.classList.toggle("is-error", Boolean(message && isError));
 }
+function setWorthItChatFullscreen(enabled) {
+    const overlay = $("worthItChatOverlay");
+    const windowNode = $("worthItChatWindow");
+    const button = $("worthItChatFullscreenBtn");
+    if (!overlay || !windowNode) return false;
+
+    const isFullscreen = Boolean(enabled);
+    overlay.classList.toggle("is-fullscreen", isFullscreen);
+    windowNode.classList.toggle("is-fullscreen", isFullscreen);
+
+    if (button) {
+        button.setAttribute("aria-pressed", String(isFullscreen));
+        button.setAttribute("aria-label", isFullscreen ? "Exit fullscreen chat" : "Expand chat");
+        button.title = isFullscreen ? "Exit fullscreen" : "Expand chat";
+    }
+    return isFullscreen;
+}
+window.toggleWorthItChatFullscreen = function (event) {
+    event?.preventDefault?.();
+    event?.stopPropagation?.();
+
+    const overlay = $("worthItChatOverlay");
+    if (!overlay || overlay.hidden) return;
+
+    setWorthItChatFullscreen(!overlay.classList.contains("is-fullscreen"));
+};
 function showChatOverlay(open, options) {
     const overlay = $("worthItChatOverlay");
     const button = $("worthItChatNavBtn");
@@ -113,6 +139,7 @@ function showChatOverlay(open, options) {
     } else {
         document.body.classList.remove("worth-it-chat-open");
         $("worthItChatWindow")?.classList.remove("is-mobile-sidebar");
+        setWorthItChatFullscreen(false);
         closeWorthItGroupChatDialog();
         closeWorthItGroupInviteDialog();
         if (chatPollTimer) window.clearInterval(chatPollTimer);
