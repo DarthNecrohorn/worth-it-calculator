@@ -20330,3 +20330,57 @@ html[data-ui-scale] .worth-it-chat-overlay.is-fullscreen:not([hidden])>.worth-it
         min-height:0!important;
     }
 }
+
+/* Final QA repair: the chat overlay sits inside .nav. Because the nav uses
+   backdrop-filter, a fixed descendant is positioned against the header unless
+   the overlay supplies its own viewport dimensions. Center the window against
+   the viewport instead of the header, at every accessibility scale. */
+.worth-it-chat-overlay:not(.is-fullscreen):not([hidden]) {
+    position:fixed!important;
+    inset:auto!important;
+    top:0!important;
+    left:0!important;
+    right:auto!important;
+    bottom:auto!important;
+    width:100vw!important;
+    height:100dvh!important;
+    max-width:100vw!important;
+    max-height:100dvh!important;
+    box-sizing:border-box!important;
+    align-items:center!important;
+    justify-content:center!important;
+    overflow:hidden!important;
+    transform:none!important;
+}
+.worth-it-chat-overlay:not(.is-fullscreen):not([hidden]) > .worth-it-chat-window:not(.is-fullscreen) {
+    transform:none!important;
+}
+@media(max-width:760px) {
+    .worth-it-chat-overlay:not(.is-fullscreen):not([hidden]) {
+        padding:0!important;
+    }
+    .worth-it-chat-overlay:not(.is-fullscreen):not([hidden]) > .worth-it-chat-window:not(.is-fullscreen) {
+        width:100vw!important;
+        height:100dvh!important;
+        max-width:100vw!important;
+        max-height:100dvh!important;
+    }
+}
+
+/* Keep the mobile Create account card inside the viewport. An older
+   translateY(50px) rule moved the card beyond the bottom edge at A/A+/A++. */
+@media(max-width:700px) {
+    #authModalOverlay.signup-mode {
+        padding-top:calc(12px / var(--ui-scale,1))!important;
+        padding-right:calc(12px / var(--ui-scale,1))!important;
+        padding-bottom:calc(12px / var(--ui-scale,1))!important;
+        padding-left:calc(12px / var(--ui-scale,1))!important;
+    }
+    #authModalOverlay.signup-mode .auth-modal-card {
+        transform:none!important;
+        max-height:calc((100dvh - 24px) / var(--ui-scale,1))!important;
+        overflow-y:auto!important;
+        overflow-x:hidden!important;
+        box-sizing:border-box!important;
+    }
+}
