@@ -20255,10 +20255,10 @@ html[data-theme="light"] .worth-it-profile-section:not(.has-banner) .worth-it-pr
         max-height:calc(100dvh - 36px)!important;
     }
     html[data-ui-scale="large"] .worth-it-vehicle-modal-dialog{
-        max-height:calc((100dvh - 36px) * .98)!important;
+        max-height:calc(100dvh - 52px)!important;
     }
     html[data-ui-scale="xl"] .worth-it-vehicle-modal-dialog{
-        max-height:calc((100dvh - 36px) * .94)!important;
+        max-height:calc(100dvh - 79px)!important;
     }
 }
 
