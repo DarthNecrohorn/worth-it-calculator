@@ -20236,16 +20236,17 @@ html[data-theme="light"] .worth-it-profile-section:not(.has-banner) .worth-it-pr
 /* Responsive Layout QA repairs — 2026-10-18. */
 .worth-it-notification-panel{
     position:fixed!important;
-    top:calc(72px / var(--ui-scale,1))!important;
-    right:calc(8px / var(--ui-scale,1))!important;
+    top:calc(100% + 8px)!important;
+    right:8px!important;
     left:auto!important;
-    max-height:calc((100dvh - 88px) / var(--ui-scale,1))!important;
+    max-height:calc(100dvh - 96px)!important;
 }
 @media(max-width:700px){
     .worth-it-notification-panel{
-        top:calc(66px / var(--ui-scale,1))!important;
-        right:calc(8px / var(--ui-scale,1))!important;
+        top:calc(100% + 8px)!important;
+        right:8px!important;
         max-width:calc(100vw - 16px)!important;
+        max-height:calc(100dvh - 80px)!important;
     }
 }
 
