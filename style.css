@@ -19341,19 +19341,19 @@ html[data-theme="light"] .worth-it-chat-header-actions>.worth-it-chat-header-not
 
 
 /* Worth It Chat routed view: open directly at full viewport size without a maximize step. */
-.worth-it-chat-overlay:not([hidden]){
+.worth-it-chat-overlay.is-fullscreen:not([hidden]){
     position:fixed!important;inset:0!important;padding:0!important;
     align-items:stretch!important;justify-content:stretch!important;
 }
-.worth-it-chat-overlay:not([hidden])>.worth-it-chat-window{
+.worth-it-chat-overlay.is-fullscreen:not([hidden])>.worth-it-chat-window.is-fullscreen{
     display:grid!important;grid-template-columns:270px minmax(0,1fr)!important;
     width:100%!important;height:100vh!important;height:100dvh!important;
     min-width:0!important;min-height:0!important;max-width:none!important;max-height:none!important;
     margin:0!important;transform:none!important;border:0!important;border-radius:0!important;
     box-shadow:none!important;flex:1 1 auto!important;
 }
-.worth-it-chat-window:not(.is-mobile-sidebar){transform:none!important;}
-.worth-it-chat-main{min-width:0;min-height:0;height:100vh;height:100dvh;}
+.worth-it-chat-window.is-fullscreen:not(.is-mobile-sidebar){transform:none!important;}
+.worth-it-chat-main{min-width:0;min-height:0;}
 #worthItChatShareInviteBtn:not([hidden]){display:grid!important;}
 #worthItChatShareInviteBtn[hidden],.worth-it-chat-invite-dialog[hidden]{display:none!important;}
 .worth-it-chat-signin-btn{
@@ -19413,11 +19413,11 @@ html[data-theme="light"] .worth-it-chat-invite-cancel{background:#fff;color:#334
 html[data-theme="light"] .worth-it-chat-invite-cancel:hover{background:#f1f5ff;border-color:#9298ec;}
 html[data-theme="light"] .worth-it-community-footer-link a{color:#4f46e5;}
 @media(max-width:760px){
-    .worth-it-chat-overlay:not([hidden])>.worth-it-chat-window{grid-template-columns:210px minmax(0,1fr)!important;}
+    .worth-it-chat-overlay.is-fullscreen:not([hidden])>.worth-it-chat-window.is-fullscreen{grid-template-columns:210px minmax(0,1fr)!important;}
 }
 @media(max-width:540px){
-    .worth-it-chat-overlay:not([hidden])>.worth-it-chat-window{display:block!important;grid-template-columns:none!important;}
-    .worth-it-chat-overlay:not([hidden]) .worth-it-chat-window:not(.is-mobile-sidebar) .worth-it-chat-main{height:100vh;height:100dvh;}
+    .worth-it-chat-overlay.is-fullscreen:not([hidden])>.worth-it-chat-window.is-fullscreen{display:block!important;grid-template-columns:none!important;}
+    .worth-it-chat-overlay.is-fullscreen:not([hidden]) .worth-it-chat-window.is-fullscreen:not(.is-mobile-sidebar) .worth-it-chat-main{height:100vh;height:100dvh;}
     #worthItChatShareInviteBtn:not([hidden]){display:grid!important;}
     .worth-it-chat-invite-card{padding:24px 20px;border-radius:20px;}
     .worth-it-chat-invite-actions{flex-direction:column;}
@@ -20230,4 +20230,102 @@ html[data-theme="light"] .worth-it-chat-group-selection-summary strong.is-over-l
 }
 html[data-theme="light"] .worth-it-profile-section:not(.has-banner) .worth-it-profile-presence-text.is-online .worth-it-presence-label {
     color: #047857;
+}
+
+
+/* Responsive Layout QA repairs — 2026-10-18. */
+.worth-it-notification-panel{
+    position:fixed!important;
+    top:calc(72px / var(--ui-scale,1))!important;
+    right:calc(8px / var(--ui-scale,1))!important;
+    left:auto!important;
+    max-height:calc((100dvh - 88px) / var(--ui-scale,1))!important;
+}
+@media(max-width:700px){
+    .worth-it-notification-panel{
+        top:calc(66px / var(--ui-scale,1))!important;
+        right:calc(8px / var(--ui-scale,1))!important;
+        max-width:calc(100vw - 16px)!important;
+    }
+}
+
+/* Keep vehicle-detail panels away from the physical top/bottom screen edge. */
+@media(max-width:760px){
+    .worth-it-vehicle-modal-dialog{
+        max-height:calc(100dvh - 36px)!important;
+    }
+    html[data-ui-scale="large"] .worth-it-vehicle-modal-dialog{
+        max-height:calc((100dvh - 36px) * .98)!important;
+    }
+    html[data-ui-scale="xl"] .worth-it-vehicle-modal-dialog{
+        max-height:calc((100dvh - 36px) * .94)!important;
+    }
+}
+
+/* The account-creation card is shorter on desktop; long forms scroll inside it. */
+@media(min-width:701px){
+    #authModalOverlay.signup-mode .auth-modal-card{
+        max-height:min(calc(82dvh / var(--ui-scale,1)),calc((100dvh - 48px) / var(--ui-scale,1)))!important;
+        overflow-y:auto!important;
+        overflow-x:hidden!important;
+        box-sizing:border-box!important;
+    }
+    #authModalOverlay.signup-mode .auth-modal-card:has(#authLegalWrap[style*="block"]){
+        padding-top:16px!important;
+        padding-bottom:16px!important;
+    }
+    #authModalOverlay.signup-mode .auth-modal-head{
+        margin-bottom:12px!important;
+        transform:none!important;
+    }
+    #authModalOverlay.signup-mode .auth-field{
+        margin-bottom:8px!important;
+    }
+    #authModalOverlay.signup-mode .auth-field input{
+        min-height:38px;
+        padding-top:8px!important;
+        padding-bottom:8px!important;
+    }
+}
+
+/* Fullscreen chat must use viewport dimensions at every accessibility scale. */
+.worth-it-chat-overlay.is-fullscreen:not([hidden]){
+    box-sizing:border-box!important;
+    padding:0!important;
+    overflow:hidden!important;
+}
+.worth-it-chat-overlay.is-fullscreen:not([hidden])>.worth-it-chat-window.is-fullscreen{
+    position:fixed!important;
+    inset:0!important;
+    width:100vw!important;
+    height:100dvh!important;
+    min-width:0!important;
+    min-height:0!important;
+    max-width:100vw!important;
+    max-height:100dvh!important;
+    box-sizing:border-box!important;
+    margin:0!important;
+    border:0!important;
+    border-radius:0!important;
+    transform:none!important;
+}
+html[data-ui-scale] .worth-it-chat-overlay.is-fullscreen:not([hidden])>.worth-it-chat-window.is-fullscreen{
+    width:100vw!important;
+    height:100dvh!important;
+}
+.worth-it-chat-overlay.is-fullscreen .worth-it-chat-main{
+    height:100%!important;
+    min-height:0!important;
+}
+@media(max-width:760px){
+    .worth-it-chat-window:not(.is-fullscreen){
+        width:100vw!important;
+        height:100dvh!important;
+        max-width:100vw!important;
+        max-height:100dvh!important;
+    }
+    .worth-it-chat-window:not(.is-fullscreen):not(.is-mobile-sidebar) .worth-it-chat-main{
+        height:100%!important;
+        min-height:0!important;
+    }
 }
