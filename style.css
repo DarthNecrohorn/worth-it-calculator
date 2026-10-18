@@ -20384,3 +20384,46 @@ html[data-ui-scale] .worth-it-chat-overlay.is-fullscreen:not([hidden])>.worth-it
         box-sizing:border-box!important;
     }
 }
+
+
+/* Layout QA follow-up — scale-safe Community Chat viewport sizing — 2026-10-18. */
+/* body uses zoom(var(--ui-scale)); therefore viewport-sized chat layers must
+   divide their CSS dimensions by the same scale to occupy the real viewport. */
+.worth-it-chat-overlay:not(.is-fullscreen):not([hidden]) {
+    width: calc(100vw / var(--ui-scale, 1)) !important;
+    height: calc(100dvh / var(--ui-scale, 1)) !important;
+    max-width: calc(100vw / var(--ui-scale, 1)) !important;
+    max-height: calc(100dvh / var(--ui-scale, 1)) !important;
+}
+.worth-it-chat-overlay.is-fullscreen:not([hidden]) {
+    width: calc(100vw / var(--ui-scale, 1)) !important;
+    height: calc(100dvh / var(--ui-scale, 1)) !important;
+    max-width: calc(100vw / var(--ui-scale, 1)) !important;
+    max-height: calc(100dvh / var(--ui-scale, 1)) !important;
+    box-sizing: border-box !important;
+}
+.worth-it-chat-overlay.is-fullscreen:not([hidden]) > .worth-it-chat-window.is-fullscreen {
+    width: calc(100vw / var(--ui-scale, 1)) !important;
+    height: calc(100dvh / var(--ui-scale, 1)) !important;
+    max-width: calc(100vw / var(--ui-scale, 1)) !important;
+    max-height: calc(100dvh / var(--ui-scale, 1)) !important;
+    box-sizing: border-box !important;
+}
+
+@media (min-width: 761px) {
+    /* Keep the window at its intended desktop size even when the page is zoomed. */
+    html[data-ui-scale="large"] .worth-it-chat-window:not(.is-fullscreen),
+    html[data-ui-scale="xl"] .worth-it-chat-window:not(.is-fullscreen) {
+        width: min(
+            calc(1120px / var(--ui-scale, 1)),
+            calc((100vw - 24px) / var(--ui-scale, 1))
+        ) !important;
+        height: min(
+            calc(780px / var(--ui-scale, 1)),
+            calc((100dvh - 24px) / var(--ui-scale, 1))
+        ) !important;
+        max-width: calc((100vw - 24px) / var(--ui-scale, 1)) !important;
+        max-height: calc((100dvh - 24px) / var(--ui-scale, 1)) !important;
+        box-sizing: border-box !important;
+    }
+}
