@@ -20615,7 +20615,7 @@ html[data-ui-scale] .worth-it-chat-overlay.is-fullscreen:not([hidden])>.worth-it
     }
 }
 
-/* Double the profile status marker at every size and keep it fully visible. */
+/* Tune the profile status marker to each accessibility text size. */
 .profile-nav-btn {
     overflow: visible !important;
 }
@@ -20624,29 +20624,61 @@ html[data-ui-scale] .worth-it-chat-overlay.is-fullscreen:not([hidden])>.worth-it
     overflow: visible !important;
 }
 
+/* Desktop: reduce the current 20px marker by 1px per text-size step. */
 .profile-nav-btn .worth-it-presence-indicator {
-    width: 20px !important;
-    height: 20px !important;
+    width: 18px !important;
+    height: 18px !important;
     right: -4px !important;
     bottom: -4px !important;
     border-width: 4px !important;
 }
 
+html[data-ui-scale="small"] .profile-nav-btn .worth-it-presence-indicator {
+    width: 19px !important;
+    height: 19px !important;
+}
+
+html[data-ui-scale="large"] .profile-nav-btn .worth-it-presence-indicator {
+    width: 17px !important;
+    height: 17px !important;
+}
+
+html[data-ui-scale="xl"] .profile-nav-btn .worth-it-presence-indicator {
+    width: 16px !important;
+    height: 16px !important;
+}
+
 .profile-nav-btn .worth-it-presence-indicator.is-online::after {
-    inset: -4px !important;
+    inset: -2px !important;
 }
 
 @media (max-width: 700px) {
+    /* Phone baseline is 14px; A−, A+, and A++ adjust it by their requested steps. */
     .profile-nav-btn .worth-it-presence-indicator {
-        width: 16px !important;
-        height: 16px !important;
+        width: 14px !important;
+        height: 14px !important;
         right: -4px !important;
         bottom: -4px !important;
         border-width: 3px !important;
     }
 
+    html[data-ui-scale="small"] .profile-nav-btn .worth-it-presence-indicator {
+        width: 15px !important;
+        height: 15px !important;
+    }
+
+    html[data-ui-scale="large"] .profile-nav-btn .worth-it-presence-indicator {
+        width: 13px !important;
+        height: 13px !important;
+    }
+
+    html[data-ui-scale="xl"] .profile-nav-btn .worth-it-presence-indicator {
+        width: 12px !important;
+        height: 12px !important;
+    }
+
     .profile-nav-btn .worth-it-presence-indicator.is-online::after {
-        inset: -4px !important;
+        inset: -2px !important;
     }
 }
 
