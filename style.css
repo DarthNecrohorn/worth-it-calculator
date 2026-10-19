@@ -20427,3 +20427,34 @@ html[data-ui-scale] .worth-it-chat-overlay.is-fullscreen:not([hidden])>.worth-it
         box-sizing: border-box !important;
     }
 }
+
+
+/* Notification layout: keep the sender column readable at every accessibility scale. */
+.worth-it-notification-event .worth-it-notification-person{
+    flex:0 1 38%;
+    max-width:38%;
+}
+.worth-it-notification-event .worth-it-notification-event-body{
+    flex:1 1 0%;
+}
+.worth-it-notification-event .worth-it-notification-person-text strong,
+.worth-it-notification-event .worth-it-notification-person-text small{
+    display:block;
+    max-width:100%;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+    overflow-wrap:normal;
+}
+
+/* Keep the profile avatar wrapper as the positioning context for the photo and presence dot. */
+.profile-nav-btn > #profileNavIcon{
+    position:relative !important;
+    overflow:visible !important;
+}
+.profile-nav-btn > #profileNavIcon > .auth-avatar,
+.profile-nav-btn > #profileNavIcon > .auth-avatar-fallback{
+    left:50% !important;
+    top:50% !important;
+    transform:translate(-50%,-50%) !important;
+}
