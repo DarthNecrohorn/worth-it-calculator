@@ -460,14 +460,18 @@ function updateAuthUI(user) {
         );
 
 
-        profileIcon.innerHTML =
-            makeAvatarMarkup(
-                user,
-                "auth-avatar"
-            );
+        // profile-ui.js owns the persisted Worth It profile avatar once loaded.
+        // Do not replace it with auth-provider metadata on token refresh / tab return.
+        if (!profileIcon.dataset.worthItProfileManaged) {
+            profileIcon.innerHTML =
+                makeAvatarMarkup(
+                    user,
+                    "auth-avatar"
+                );
+        }
 
 
-        if ($("accountHeadAvatar")) {
+        if ($("accountHeadAvatar") && !$("accountHeadAvatar").dataset.worthItProfileManaged) {
 
             $("accountHeadAvatar").innerHTML =
                 makeAvatarMarkup(
@@ -536,6 +540,7 @@ function updateAuthUI(user) {
 
         profileIcon.innerHTML =
             "👤";
+        delete profileIcon.dataset.worthItProfileManaged;
 
 
         closeAccountPanel();
@@ -546,10 +551,8 @@ function updateAuthUI(user) {
 
 
         if ($("accountHeadAvatar")) {
-
-            $("accountHeadAvatar").innerHTML =
-                "";
-
+            $("accountHeadAvatar").innerHTML = "";
+            delete $("accountHeadAvatar").dataset.worthItProfileManaged;
         }
 
 
