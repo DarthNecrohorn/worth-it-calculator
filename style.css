@@ -20463,21 +20463,27 @@ html[data-ui-scale] .worth-it-chat-overlay.is-fullscreen:not([hidden])>.worth-it
 
 /* Responsive polish — menu sizing, compact car header, profile presence, and vehicle details. */
 
-/* Keep the open section menu filled down to the screen edge at every text size. */
+/* Keep the open section menu below the scaled header and fill the remaining viewport. */
 @media (min-width: 901px) {
     #navLinks.nav-links.open {
-        top: calc(72px / var(--ui-scale, 1)) !important;
-        bottom: 0 !important;
-        height: auto !important;
+        position: fixed !important;
+        top: 72px !important;
+        bottom: auto !important;
+        height: calc((100vh / var(--ui-scale, 1)) - 72px) !important;
+        height: calc((100dvh / var(--ui-scale, 1)) - 72px) !important;
+        min-height: 0 !important;
         max-height: none !important;
     }
 }
 
 @media (max-width: 900px) {
     #navLinks.nav-links.open {
-        top: calc(64px / var(--ui-scale, 1)) !important;
-        bottom: 0 !important;
-        height: auto !important;
+        position: fixed !important;
+        top: 64px !important;
+        bottom: auto !important;
+        height: calc((100vh / var(--ui-scale, 1)) - 64px) !important;
+        height: calc((100dvh / var(--ui-scale, 1)) - 64px) !important;
+        min-height: 0 !important;
         max-height: none !important;
     }
 }
@@ -20609,7 +20615,7 @@ html[data-ui-scale] .worth-it-chat-overlay.is-fullscreen:not([hidden])>.worth-it
     }
 }
 
-/* Keep presence outside the avatar edge, with a small footprint on phones. */
+/* Double the profile status marker at every size and keep it fully visible. */
 .profile-nav-btn {
     overflow: visible !important;
 }
@@ -20619,28 +20625,28 @@ html[data-ui-scale] .worth-it-chat-overlay.is-fullscreen:not([hidden])>.worth-it
 }
 
 .profile-nav-btn .worth-it-presence-indicator {
-    width: 10px !important;
-    height: 10px !important;
-    right: -2px !important;
-    bottom: -2px !important;
-    border-width: 2px !important;
+    width: 20px !important;
+    height: 20px !important;
+    right: -4px !important;
+    bottom: -4px !important;
+    border-width: 4px !important;
 }
 
 .profile-nav-btn .worth-it-presence-indicator.is-online::after {
-    inset: -2px !important;
+    inset: -4px !important;
 }
 
 @media (max-width: 700px) {
     .profile-nav-btn .worth-it-presence-indicator {
-        width: 8px !important;
-        height: 8px !important;
-        right: -2px !important;
-        bottom: -2px !important;
-        border-width: 1.5px !important;
+        width: 16px !important;
+        height: 16px !important;
+        right: -4px !important;
+        bottom: -4px !important;
+        border-width: 3px !important;
     }
 
     .profile-nav-btn .worth-it-presence-indicator.is-online::after {
-        inset: -2px !important;
+        inset: -4px !important;
     }
 }
 
