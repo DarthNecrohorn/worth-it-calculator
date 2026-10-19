@@ -58,8 +58,11 @@ function appendWorthItPresenceIndicator(host,person){
   document.querySelectorAll(".worth-it-presence-tooltip.is-portal").forEach(other=>{if(other!==tooltip){other.classList.remove("is-visible","is-portal","is-below");other.setAttribute("aria-hidden","true");other.remove();}});
   tooltip.classList.add("is-portal");document.body.appendChild(tooltip);
   const rect=marker.getBoundingClientRect(),height=tooltip.getBoundingClientRect().height||22;
+  const scale=Number.parseFloat(getComputedStyle(document.body).zoom)||1;
   const below=rect.top<height+14,center=Math.max(58,Math.min(window.innerWidth-58,rect.left+rect.width/2));
-  tooltip.classList.toggle("is-below",below);tooltip.style.left=center+"px";tooltip.style.top=(below?rect.bottom+7:rect.top-7)+"px";
+  tooltip.classList.toggle("is-below",below);
+  /* The portal is appended under the zoomed body, so convert viewport coordinates back to its layout coordinates. */
+  tooltip.style.left=(center/scale)+"px";tooltip.style.top=((below?rect.bottom+7:rect.top-7)/scale)+"px";
   tooltip.classList.add("is-visible");tooltip.setAttribute("aria-hidden","false");
  };
  marker.addEventListener("mouseenter",showTooltip);
