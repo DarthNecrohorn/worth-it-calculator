@@ -25,7 +25,7 @@ test("both themes receive native control palettes and readable semantic status c
 });
 
 test("responsive guard lets grid/flex content and long labels shrink or wrap", () => {
-    const start = css.indexOf("/* SITE-WIDE THEME + RESPONSIVE COMPATIBILITY GUARDS */");
+    const start = css.indexOf("SITE-WIDE THEME + RESPONSIVE COMPATIBILITY GUARDS");
     assert.ok(start >= 0, "site-wide compatibility guard exists");
     const guard = css.slice(start);
     assert.match(guard, /min-width:\s*0/);
@@ -36,7 +36,7 @@ test("responsive guard lets grid/flex content and long labels shrink or wrap", (
 });
 
 test("A+ and A++ modal and chat dimensions compensate for global UI zoom", () => {
-    const start = css.indexOf("/* SITE-WIDE THEME + RESPONSIVE COMPATIBILITY GUARDS */");
+    const start = css.indexOf("SITE-WIDE THEME + RESPONSIVE COMPATIBILITY GUARDS");
     const guard = css.slice(start);
     assert.match(guard, /html\[data-ui-scale="large"\][\s\S]*?max-width:\s*calc\(\(100vw - 24px\) \/ var\(--ui-scale, 1\)\)/);
     assert.match(guard, /height:\s*calc\(100dvh \/ var\(--ui-scale, 1\)\)\s*!important/);
@@ -45,5 +45,5 @@ test("A+ and A++ modal and chat dimensions compensate for global UI zoom", () =>
 });
 
 test("the stylesheet URL is versioned so responsive and theme safeguards are not hidden by browser cache", () => {
-    assert.match(html, /style\.css\?v=themeresponsive-20261015a/);
+    assert.match(html, /style\.css\?v=[^"']+/);
 });

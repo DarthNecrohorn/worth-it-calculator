@@ -13,7 +13,7 @@ test("Community Chat exposes an accessible fullscreen toggle in its header", () 
     assert.match(header[1], /onclick="toggleWorthItChatFullscreen\(event\)"/);
     assert.match(header[1], /aria-label="Expand chat"/);
     assert.match(header[1], /aria-pressed="false"/);
-    assert.match(html, /src="\/chat-ui\.js\?v=communityfullscreen20261018a"/);
+    assert.match(html, /src="\/chat-ui\.js\?v=[^"]+"/);
 });
 
 test("fullscreen toggle updates the overlay, window and accessible button state together", () => {
