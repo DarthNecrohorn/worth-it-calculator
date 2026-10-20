@@ -21010,3 +21010,41 @@ html[data-ui-scale="xl"] .profile-nav-btn .worth-it-presence-indicator {
         overflow-wrap: anywhere;
     }
 }
+
+
+/* Guest Lite mobile height: keep the consent/actions reachable while the long
+   feature list scrolls inside the dialog at A, A+ and A++. */
+@media (max-width: 650px) {
+    .worth-it-guest-overlay {
+        align-items: center !important;
+        padding: 8px !important;
+    }
+
+    .worth-it-guest-card,
+    html[data-ui-scale="normal"] .worth-it-guest-card,
+    html:not([data-ui-scale]) .worth-it-guest-card,
+    html[data-ui-scale="large"] .worth-it-guest-card,
+    html[data-ui-scale="xl"] .worth-it-guest-card {
+        max-height: min(78dvh, calc((100dvh - 32px) / var(--ui-scale, 1))) !important;
+        min-height: 0 !important;
+        box-sizing: border-box !important;
+    }
+
+    .worth-it-guest-body {
+        flex: 1 1 auto !important;
+        min-height: 0 !important;
+        overflow-y: auto !important;
+        overscroll-behavior: contain !important;
+    }
+
+    html[data-ui-scale="large"] .worth-it-guest-card,
+    html[data-ui-scale="xl"] .worth-it-guest-card {
+        padding: calc(12px / var(--ui-scale, 1)) !important;
+    }
+
+    html[data-ui-scale="large"] .worth-it-guest-body,
+    html[data-ui-scale="xl"] .worth-it-guest-body {
+        padding-top: calc(9px / var(--ui-scale, 1)) !important;
+        padding-bottom: calc(9px / var(--ui-scale, 1)) !important;
+    }
+}
