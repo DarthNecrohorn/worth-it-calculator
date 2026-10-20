@@ -20900,3 +20900,151 @@ html[data-ui-scale="xl"] .profile-nav-btn .worth-it-presence-indicator {
         line-height: 1.12 !important;
     }
 }
+
+
+/* Cars mobile-only layout refinement (desktop layout intentionally unchanged). */
+@media (max-width: 600px) {
+    .cars-section-block:has(#carsResultsTitle) {
+        padding: 10px !important;
+        border-radius: 16px !important;
+    }
+
+    .cars-section-block:has(#carsResultsTitle) .cars-block-header {
+        row-gap: 5px !important;
+        margin-bottom: 9px !important;
+    }
+
+    #carsResultsTitle {
+        font-size: clamp(17px, 4.6vw, 19px) !important;
+        line-height: 1.18 !important;
+    }
+
+    .cars-section-block:has(#carsResultsTitle) .cars-results-actions .cars-compare-jump-button {
+        min-height: 32px !important;
+        padding: 0 8px !important;
+        font-size: 11px !important;
+    }
+
+    #carsResultsDescription {
+        font-size: 11px !important;
+        line-height: 1.35 !important;
+    }
+
+    #carsResultsDescription .cars-results-description-text {
+        flex-basis: 180px !important;
+    }
+
+    #carsLastUpdated {
+        font-size: 9.5px !important;
+        line-height: 1.3 !important;
+    }
+
+    .cars-personal-panels {
+        margin-bottom: 10px !important;
+        padding: 10px !important;
+        border-radius: 13px !important;
+    }
+
+    .cars-personal-panels .cars-personal-tabs,
+    .cars-personal-panels .cars-personal-panel-tabs {
+        margin-bottom: 8px !important;
+    }
+
+    .cars-personal-panels .cars-personal-list,
+    .cars-personal-panels .cars-recent-list {
+        gap: 6px !important;
+    }
+}
+
+@media (max-width: 760px) {
+    .worth-it-vehicle-modal-dialog,
+    html[data-ui-scale="normal"] .worth-it-vehicle-modal-dialog,
+    html[data-ui-scale="large"] .worth-it-vehicle-modal-dialog,
+    html[data-ui-scale="xl"] .worth-it-vehicle-modal-dialog,
+    html:not([data-ui-scale]) .worth-it-vehicle-modal-dialog {
+        width: calc((100vw - 8px) / var(--ui-scale, 1)) !important;
+        max-width: none !important;
+        box-sizing: border-box !important;
+    }
+
+    .worth-it-vehicle-modal-body,
+    html[data-ui-scale="large"] .worth-it-vehicle-modal-body,
+    html[data-ui-scale="xl"] .worth-it-vehicle-modal-body {
+        padding-left: calc(28px / var(--ui-scale, 1)) !important;
+        padding-right: calc(28px / var(--ui-scale, 1)) !important;
+    }
+
+    .worth-it-vehicle-modal-navigation {
+        width: calc(32px / var(--ui-scale, 1)) !important;
+        height: calc(50px / var(--ui-scale, 1)) !important;
+        font-size: calc(28px / var(--ui-scale, 1)) !important;
+        border-radius: 9px !important;
+    }
+
+    .worth-it-vehicle-modal-navigation-previous {
+        left: calc(2px / var(--ui-scale, 1)) !important;
+    }
+
+    .worth-it-vehicle-modal-navigation-next {
+        right: calc(2px / var(--ui-scale, 1)) !important;
+    }
+
+    .worth-it-vehicle-navigation-arrow {
+        font-size: calc(28px / var(--ui-scale, 1)) !important;
+    }
+
+    .worth-it-vehicle-navigation-key {
+        font-size: calc(8px / var(--ui-scale, 1)) !important;
+    }
+
+    .worth-it-vehicle-detail-section {
+        margin-top: 14px !important;
+    }
+
+    .worth-it-vehicle-detail-section h3 {
+        margin-bottom: 6px !important;
+    }
+
+    .worth-it-vehicle-description {
+        line-height: 1.45 !important;
+        overflow-wrap: anywhere;
+    }
+}
+
+
+/* Guest Lite mobile height: keep the consent/actions reachable while the long
+   feature list scrolls inside the dialog at A, A+ and A++. */
+@media (max-width: 650px) {
+    .worth-it-guest-overlay {
+        align-items: center !important;
+        padding: 8px !important;
+    }
+
+    .worth-it-guest-card,
+    html[data-ui-scale="normal"] .worth-it-guest-card,
+    html:not([data-ui-scale]) .worth-it-guest-card,
+    html[data-ui-scale="large"] .worth-it-guest-card,
+    html[data-ui-scale="xl"] .worth-it-guest-card {
+        max-height: min(78dvh, calc((100dvh - 32px) / var(--ui-scale, 1))) !important;
+        min-height: 0 !important;
+        box-sizing: border-box !important;
+    }
+
+    .worth-it-guest-body {
+        flex: 1 1 auto !important;
+        min-height: 0 !important;
+        overflow-y: auto !important;
+        overscroll-behavior: contain !important;
+    }
+
+    html[data-ui-scale="large"] .worth-it-guest-card,
+    html[data-ui-scale="xl"] .worth-it-guest-card {
+        padding: calc(12px / var(--ui-scale, 1)) !important;
+    }
+
+    html[data-ui-scale="large"] .worth-it-guest-body,
+    html[data-ui-scale="xl"] .worth-it-guest-body {
+        padding-top: calc(9px / var(--ui-scale, 1)) !important;
+        padding-bottom: calc(9px / var(--ui-scale, 1)) !important;
+    }
+}

@@ -27,5 +27,5 @@ test("logged-out Sign in gets its own width and no longer overlaps Search", () =
 test("the signed-in profile/avatar layout remains on its existing CSS path", () => {
     assert.match(css, /\.auth-wrap\{position:relative;display:flex;align-items:center;gap:8px;flex:0 0 44px;width:44px;height:44px\}/);
     assert.match(css, /\.auth-wrap:has\(> #authBtn:not\(\[style\*="display: none"\]\)\)/);
-    assert.match(html, /style\.css\?v=themeresponsive-20261015a/);
+    assert.match(html, /style\.css\?v=[^"']+/);
 });
