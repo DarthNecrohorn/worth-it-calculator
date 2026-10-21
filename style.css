@@ -21062,3 +21062,14 @@ body.worth-it-guest-dialog-open .nav {
 body:has(.auth-modal-overlay.open):not(.worth-it-guest-dialog-open) .nav {
     z-index: 1190 !important;
 }
+
+
+/* A++ account creation: shorten the dialog from its lower edge by 30px.
+   Keep the top edge centered and allow internal scrolling if content needs it. */
+@media (min-width: 701px) {
+    html[data-ui-scale="xl"] .auth-modal-overlay:has(#authPasswordConfirmWrap[style*="display: block"]) .auth-modal-card,
+    html[data-ui-scale="xl"] .auth-modal-overlay:has(#authLegalWrap[style*="display: block"]) .auth-modal-card {
+        max-height: calc(100dvh - 70px) !important;
+        overflow-y: auto !important;
+    }
+}
