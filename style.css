@@ -21063,9 +21063,14 @@ body:has(.auth-modal-overlay.open):not(.worth-it-guest-dialog-open) .nav {
     z-index: 1190 !important;
 }
 
-/* A++ account creation: move the dialog down 10px and trim 10px from its top padding.
-   Scoped only to the signup modal at A++; other scales and sign-in stay unchanged. */
-html[data-ui-scale="xl"] .auth-modal-overlay.signup-mode .auth-modal-card {
-    transform: translateY(10px) !important;
-    padding-top: 6px !important;
+
+
+/* A++ desktop signup modal: use relative positioning so earlier transform:none rules
+   cannot cancel the 10px downward adjustment; reduce only its top padding by 10px. */
+@media (min-width: 701px) {
+    html[data-ui-scale="xl"] #authModalOverlay.signup-mode .auth-modal-card {
+        position: relative !important;
+        top: 10px !important;
+        padding-top: 6px !important;
+    }
 }
