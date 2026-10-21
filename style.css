@@ -21062,3 +21062,16 @@ body.worth-it-guest-dialog-open .nav {
 body:has(.auth-modal-overlay.open):not(.worth-it-guest-dialog-open) .nav {
     z-index: 1190 !important;
 }
+
+
+
+/* A++ desktop signup modal: apply one 30px upward offset only.
+   Do not combine top positioning with a second translate offset. */
+@media (min-width: 701px) {
+    html[data-ui-scale="xl"] #authModalOverlay.signup-mode .auth-modal-card {
+        position: relative !important;
+        top: -20px !important;
+        padding-top: 6px !important;
+        padding-bottom: 14px !important;
+    }
+}
