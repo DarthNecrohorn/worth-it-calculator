@@ -21063,8 +21063,9 @@ body:has(.auth-modal-overlay.open):not(.worth-it-guest-dialog-open) .nav {
     z-index: 1190 !important;
 }
 
-/* A++ account creation: visibly move the entire dialog 20px upward.
-   Use the explicit signup-mode class toggled by renderAuthModal(). */
+/* A++ account creation: move the dialog down 10px and trim 10px from its top padding.
+   Scoped only to the signup modal at A++; other scales and sign-in stay unchanged. */
 html[data-ui-scale="xl"] .auth-modal-overlay.signup-mode .auth-modal-card {
-    transform: translateY(-20px) !important;
+    transform: translateY(10px) !important;
+    padding-top: 6px !important;
 }
