@@ -21065,12 +21065,12 @@ body:has(.auth-modal-overlay.open):not(.worth-it-guest-dialog-open) .nav {
 
 
 
-/* A++ desktop signup modal: move the dialog down 10px, reduce top padding by 10px,
-   and bring its bottom edge up another 10px without affecting other scales or dialogs. */
+/* A++ desktop signup modal: move the whole dialog 30px upward from the previous position.
+   Keep the adjustment limited to this modal and UI scale. */
 @media (min-width: 701px) {
     html[data-ui-scale="xl"] #authModalOverlay.signup-mode .auth-modal-card {
         position: relative !important;
-        top: 10px !important;
+        top: -20px !important;
         padding-top: 6px !important;
         padding-bottom: 14px !important;
     }
