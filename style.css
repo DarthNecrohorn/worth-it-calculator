@@ -21065,13 +21065,12 @@ body:has(.auth-modal-overlay.open):not(.worth-it-guest-dialog-open) .nav {
 
 
 
-/* A++ desktop signup modal: move the whole dialog 30px upward from the previous position.
-   Keep the adjustment limited to this modal and UI scale. */
+/* A++ desktop signup modal: apply one 30px upward offset only.
+   Do not combine top positioning with a second translate offset. */
 @media (min-width: 701px) {
     html[data-ui-scale="xl"] #authModalOverlay.signup-mode .auth-modal-card {
         position: relative !important;
         top: -20px !important;
-        translate: 0 -30px !important;
         padding-top: 6px !important;
         padding-bottom: 14px !important;
     }
