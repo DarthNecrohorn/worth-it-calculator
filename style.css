@@ -21048,3 +21048,10 @@ html[data-ui-scale="xl"] .profile-nav-btn .worth-it-presence-indicator {
         padding-bottom: calc(9px / var(--ui-scale, 1)) !important;
     }
 }
+
+
+/* Guest Lite is modal: keep the sticky navigation behind its backdrop.
+   This override is active only while the Guest Lite dialog is open. */
+body.worth-it-guest-dialog-open .nav {
+    z-index: 15040 !important;
+}
