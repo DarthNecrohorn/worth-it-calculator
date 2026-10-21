@@ -21071,6 +21071,7 @@ body:has(.auth-modal-overlay.open):not(.worth-it-guest-dialog-open) .nav {
     html[data-ui-scale="xl"] #authModalOverlay.signup-mode .auth-modal-card {
         position: relative !important;
         top: -20px !important;
+        translate: 0 -30px !important;
         padding-top: 6px !important;
         padding-bottom: 14px !important;
     }
