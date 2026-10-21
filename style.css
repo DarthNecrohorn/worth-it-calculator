@@ -21069,7 +21069,7 @@ body:has(.auth-modal-overlay.open):not(.worth-it-guest-dialog-open) .nav {
 @media (min-width: 701px) {
     html[data-ui-scale="xl"] .auth-modal-overlay:has(#authPasswordConfirmWrap[style*="display: block"]) .auth-modal-card,
     html[data-ui-scale="xl"] .auth-modal-overlay:has(#authLegalWrap[style*="display: block"]) .auth-modal-card {
-        max-height: calc(100dvh - 70px) !important;
+        max-height: calc(100dvh - 54px) !important;
         overflow-y: auto !important;
     }
 }
