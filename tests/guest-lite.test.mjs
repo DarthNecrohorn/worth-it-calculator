@@ -86,9 +86,10 @@ test("Guest Lite dialog is responsive, theme-aware and the CI checks the new scr
 
 
 test("Guest Lite modal stacks above the sticky header while open", () => {
-    assert.match(guest, /document\\.body\\.classList\\.add\\("worth-it-guest-dialog-open"\\)/);
-    assert.match(guest, /document\\.body\\.classList\\.remove\\("worth-it-guest-dialog-open"\\)/);
-    assert.match(css, /body\\.worth-it-guest-dialog-open\\s+\\.nav\\s*\\{\\s*z-index:\\s*15040\\s*!important;\\s*\\}/);
-    assert.match(css, /\\.worth-it-guest-overlay\\s*\\{[\\s\\S]*?z-index:\\s*15050/);
-    assert.match(html, /style\\.css\\?v=guestliteheaderoverlay20261021a/);
+    assert.match(guest, /document\.body\.classList\.add\("worth-it-guest-dialog-open"\)/);
+    assert.match(guest, /document\.body\.classList\.remove\("worth-it-guest-dialog-open"\)/);
+    assert.match(css, /body\.worth-it-guest-dialog-open\s+\.nav\s*\{\s*z-index:\s*15040\s*!important;\s*\}/);
+    assert.match(css, /\.worth-it-guest-overlay\s*\{[\s\S]*?z-index:\s*15050/);
+    assert.match(html, /style\.css\?v=guestliteheaderoverlay20261021a/);
 });
+
