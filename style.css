@@ -21048,3 +21048,17 @@ html[data-ui-scale="xl"] .profile-nav-btn .worth-it-presence-indicator {
         padding-bottom: calc(9px / var(--ui-scale, 1)) !important;
     }
 }
+
+
+/* Guest Lite is modal: keep the sticky navigation behind its backdrop.
+   This override is active only while the Guest Lite dialog is open. */
+body.worth-it-guest-dialog-open .nav {
+    z-index: 15040 !important;
+}
+
+
+/* Sign-in and account-creation dialogs also need to cover the sticky header.
+   Keep the nav's normal stacking order whenever the auth dialog is closed. */
+body:has(.auth-modal-overlay.open):not(.worth-it-guest-dialog-open) .nav {
+    z-index: 1190 !important;
+}
