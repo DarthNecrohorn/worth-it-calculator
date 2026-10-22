@@ -21075,3 +21075,148 @@ body:has(.auth-modal-overlay.open):not(.worth-it-guest-dialog-open) .nav {
         padding-bottom: 14px !important;
     }
 }
+
+
+/* Keep the desktop profile button aligned on A+ / A++ while hovered.
+   Preserve its border and glow; remove only the scale/lift transform. */
+@media (min-width: 701px) {
+    html[data-ui-scale="large"] .profile-nav-btn:hover,
+    html[data-ui-scale="xl"] .profile-nav-btn:hover {
+        transform: none !important;
+    }
+}
+
+/* Vehicle details: keep the navigation arrows attached to the image,
+   rather than fixed over the description while the dialog is scrolled. */
+#worthItVehicleDetailsModal .worth-it-vehicle-detail-image-wrap {
+    position: relative !important;
+}
+
+#worthItVehicleDetailsModal .worth-it-vehicle-detail-image-wrap > .worth-it-vehicle-modal-navigation {
+    top: 50% !important;
+    width: calc(54px / var(--ui-scale, 1)) !important;
+    height: calc(80px / var(--ui-scale, 1)) !important;
+    padding: 0 !important;
+    gap: calc(4px / var(--ui-scale, 1)) !important;
+    transform: translateY(-50%) !important;
+    box-sizing: border-box !important;
+}
+
+#worthItVehicleDetailsModal .worth-it-vehicle-detail-image-wrap > .worth-it-vehicle-modal-navigation-previous {
+    left: calc(10px / var(--ui-scale, 1)) !important;
+    right: auto !important;
+}
+
+#worthItVehicleDetailsModal .worth-it-vehicle-detail-image-wrap > .worth-it-vehicle-modal-navigation-next {
+    right: calc(10px / var(--ui-scale, 1)) !important;
+    left: auto !important;
+}
+
+#worthItVehicleDetailsModal .worth-it-vehicle-detail-image-wrap > .worth-it-vehicle-modal-navigation .worth-it-vehicle-navigation-arrow {
+    font-size: calc(38px / var(--ui-scale, 1)) !important;
+    line-height: .86 !important;
+}
+
+#worthItVehicleDetailsModal .worth-it-vehicle-detail-image-wrap > .worth-it-vehicle-modal-navigation .worth-it-vehicle-navigation-key {
+    font-size: calc(12px / var(--ui-scale, 1)) !important;
+    line-height: 1 !important;
+}
+
+/* On phones, place the entire vehicle panel below the compact sticky header.
+   This keeps the image/title from being hidden behind the always-clickable nav. */
+@media (max-width: 760px) {
+    #worthItVehicleDetailsModal {
+        top: calc(60px / var(--ui-scale, 1)) !important;
+        right: 0 !important;
+        bottom: 0 !important;
+        left: 0 !important;
+        padding: calc(8px / var(--ui-scale, 1)) calc(4px / var(--ui-scale, 1)) !important;
+        align-items: flex-start !important;
+        justify-content: center !important;
+        box-sizing: border-box !important;
+    }
+
+    #worthItVehicleDetailsModal .worth-it-vehicle-modal-dialog {
+        width: calc((100vw - 16px) / var(--ui-scale, 1)) !important;
+        max-width: calc((100vw - 16px) / var(--ui-scale, 1)) !important;
+        max-height: calc((100dvh - 76px) / var(--ui-scale, 1)) !important;
+        margin: 0 auto !important;
+        overflow-x: hidden !important;
+        overflow-y: auto !important;
+        overscroll-behavior: contain;
+        box-sizing: border-box !important;
+    }
+
+    #worthItVehicleDetailsModal .worth-it-vehicle-modal-body {
+        padding: calc(14px / var(--ui-scale, 1)) !important;
+    }
+
+    #worthItVehicleDetailsModal .worth-it-vehicle-detail-header {
+        grid-template-columns: minmax(0, 1fr) !important;
+        gap: calc(10px / var(--ui-scale, 1)) !important;
+        align-items: start !important;
+    }
+
+    #worthItVehicleDetailsModal .worth-it-vehicle-detail-image-wrap,
+    #worthItVehicleDetailsModal .worth-it-vehicle-detail-image,
+    #worthItVehicleDetailsModal .worth-it-vehicle-detail-image-placeholder {
+        width: 100% !important;
+        min-height: calc(160px / var(--ui-scale, 1)) !important;
+        height: calc(160px / var(--ui-scale, 1)) !important;
+    }
+
+    #worthItVehicleDetailsModal .worth-it-vehicle-detail-heading {
+        min-width: 0 !important;
+        padding: calc(8px / var(--ui-scale, 1)) 0 !important;
+    }
+
+    #worthItVehicleDetailsModal .worth-it-vehicle-detail-title-row {
+        align-items: center !important;
+        gap: calc(8px / var(--ui-scale, 1)) !important;
+    }
+
+    #worthItVehicleDetailsModal .worth-it-vehicle-detail-title-row h2 {
+        font-size: clamp(1.15rem, 5.8vw, 1.75rem) !important;
+        line-height: 1.15 !important;
+    }
+
+    #worthItVehicleDetailsModal .worth-it-vehicle-web-search-button {
+        flex: 0 0 calc(38px / var(--ui-scale, 1)) !important;
+        width: calc(38px / var(--ui-scale, 1)) !important;
+        height: calc(38px / var(--ui-scale, 1)) !important;
+    }
+
+    #worthItVehicleDetailsModal .worth-it-vehicle-detail-section {
+        margin-top: calc(16px / var(--ui-scale, 1)) !important;
+    }
+
+    #worthItVehicleDetailsModal .worth-it-vehicle-detail-section h3 {
+        margin-bottom: calc(7px / var(--ui-scale, 1)) !important;
+        line-height: 1.25 !important;
+    }
+
+    #worthItVehicleDetailsModal .worth-it-vehicle-description {
+        max-width: 100% !important;
+        line-height: 1.5 !important;
+        overflow-wrap: anywhere !important;
+    }
+
+    #worthItVehicleDetailsModal .worth-it-vehicle-detail-image-wrap > .worth-it-vehicle-modal-navigation {
+        width: calc(34px / var(--ui-scale, 1)) !important;
+        height: calc(44px / var(--ui-scale, 1)) !important;
+        border-radius: 50% !important;
+        padding: 0 !important;
+        gap: 0 !important;
+        background: rgba(12, 14, 19, .78) !important;
+        border-color: rgba(255, 255, 255, .28) !important;
+    }
+
+    #worthItVehicleDetailsModal .worth-it-vehicle-detail-image-wrap > .worth-it-vehicle-modal-navigation .worth-it-vehicle-navigation-key {
+        display: none !important;
+    }
+
+    #worthItVehicleDetailsModal .worth-it-vehicle-detail-image-wrap > .worth-it-vehicle-modal-navigation .worth-it-vehicle-navigation-arrow {
+        font-size: calc(24px / var(--ui-scale, 1)) !important;
+        line-height: 1 !important;
+    }
+}
