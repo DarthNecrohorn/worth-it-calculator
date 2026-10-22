@@ -10872,6 +10872,10 @@ async function openVehicleDetailsPanel(
         return;
     }
 
+    // Navigation controls are docked in the image while viewing details.
+    // Move them out before this panel body is replaced or refreshed.
+    resetVehicleModalNavigationControlsToRoot(modal);
+
     if (
         navigation &&
         Array.isArray(navigation.items)
@@ -11224,6 +11228,7 @@ async function openVehicleDetailsPanel(
             currentVehicleKind === VEHICLE_ALL_KIND &&
             currentVehicleMode === "popular"
         ) {
+            resetVehicleModalNavigationControlsToRoot(modal);
             body.innerHTML = `
                 <div class="worth-it-vehicle-detail-loading">
                     <div class="worth-it-vehicle-detail-loading-icon">⚠️</div>
@@ -11235,6 +11240,7 @@ async function openVehicleDetailsPanel(
             return;
         }
 
+        resetVehicleModalNavigationControlsToRoot(modal);
         body.innerHTML = `
             <div class="worth-it-vehicle-detail-loading">
                 <div class="worth-it-vehicle-detail-loading-icon">⚠️</div>
@@ -11489,6 +11495,25 @@ async function openVehicleDetailsPanel(
 }
 
 
+function resetVehicleModalNavigationControlsToRoot(modal) {
+    if (!modal) return;
+
+    modal.querySelectorAll("[data-vehicle-navigation]").forEach(control => {
+        if (control.parentElement !== modal) {
+            modal.appendChild(control);
+        }
+    });
+}
+
+function dockVehicleModalNavigationControlsOnImage(modal) {
+    const imageWrap = modal?.querySelector(".worth-it-vehicle-detail-image-wrap");
+    if (!modal || !imageWrap) return;
+
+    modal.querySelectorAll("[data-vehicle-navigation]").forEach(control => {
+        imageWrap.appendChild(control);
+    });
+}
+
 function renderVehicleDetailsPanel(
     body,
     details,
@@ -11496,6 +11521,10 @@ function renderVehicleDetailsPanel(
     kind,
     allowCompare = true
 ) {
+
+    const modalForNavigation =
+        document.getElementById("worthItVehicleDetailsModal");
+    resetVehicleModalNavigationControlsToRoot(modalForNavigation);
 
     const info =
         getVehicleKindInfo(kind);
@@ -11798,6 +11827,10 @@ function renderVehicleDetailsPanel(
             </div>
         </div>
     `;
+
+    // Keep next/previous controls inside the image: they scroll with it and
+    // never sit over the long description or specifications.
+    dockVehicleModalNavigationControlsOnImage(modalForNavigation);
 
     const webSearchButton = body.querySelector("[data-vehicle-web-search]");
 
