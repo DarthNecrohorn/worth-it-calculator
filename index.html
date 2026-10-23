@@ -61,7 +61,7 @@ html[data-theme="light"].worth-it-initial-paint::before {
 })();
 </script>
 
-<link rel="stylesheet" href="style.css?v=profilecarpolish20261022a">
+<link rel="stylesheet" href="style.css?v=headerutilityrows20261023c">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 </head>
 
@@ -83,6 +83,10 @@ html[data-theme="light"].worth-it-initial-paint::before {
             <span class="logo-mark">✓</span>
             <span>Worth It</span>
         </a>
+
+        <button type="button" class="worth-it-user-search-btn" id="worthItUserSearchBtn" onclick="openWorthItUserSearch(event)" aria-label="Search Worth It users" aria-controls="worthItUserSearchDialog" title="Search users by Worth It ID or username">
+            <svg aria-hidden="true" viewBox="0 0 24 24" fill="none"><circle cx="10.8" cy="10.8" r="6.8"></circle><path d="m16 16 4.5 4.5"></path></svg>
+        </button>
 
 <div class="nav-links" id="navLinks">
     <div class="nav-scroll-content" id="navScrollContent">
@@ -198,6 +202,8 @@ html[data-theme="light"].worth-it-initial-paint::before {
 
 
 
+        <div class="nav-right-stack">
+    <div class="nav-top-row">
         <div class="nav-actions">
 
         <div class="worth-it-notification-wrap" id="worthItNotificationWrap" hidden>
@@ -230,9 +236,7 @@ html[data-theme="light"].worth-it-initial-paint::before {
                 <span class="worth-it-chat-nav-badge" id="worthItChatNavBadge" hidden></span>
             </button>
         </div>
-        <button type="button" class="worth-it-user-search-btn" id="worthItUserSearchBtn" onclick="openWorthItUserSearch(event)" aria-label="Search Worth It users" aria-controls="worthItUserSearchDialog" title="Search users by Worth It ID or username">
-            <svg aria-hidden="true" viewBox="0 0 24 24" fill="none"><circle cx="10.8" cy="10.8" r="6.8"></circle><path d="m16 16 4.5 4.5"></path></svg>
-        </button>
+
 
         <div class="worth-it-chat-overlay" id="worthItChatOverlay" hidden aria-hidden="true">
             <section class="worth-it-chat-window" id="worthItChatWindow" role="dialog" aria-modal="true" aria-labelledby="worthItChatTitle">
@@ -365,8 +369,13 @@ html[data-theme="light"].worth-it-initial-paint::before {
             </div>
         </div>
 
-
         </div>
+
+        <button class="ai-chat-nav-btn" id="aiChatNavBtn" onclick="openAIChat()" title="Worth It AI Chat">
+            🤖 <span>AI Chat</span>
+        </button>
+    </div>
+    <div class="nav-secondary-row">
 
         <button class="feedback-nav-btn" onclick="openFeedback()" title="Bugs & Suggestions" style="display:none;">
             🐞 <span>Bugs &amp; Suggestions</span>
@@ -388,9 +397,10 @@ html[data-theme="light"].worth-it-initial-paint::before {
             ⚙️
         </button>
 
-        <button class="ai-chat-nav-btn" id="aiChatNavBtn" onclick="openAIChat()" title="Worth It AI Chat">
-            🤖 <span>AI Chat</span>
-        </button>
+
+
+            </div>
+</div>
 
         </div>
 
