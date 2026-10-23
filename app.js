@@ -325,37 +325,58 @@ function closeAccountPanel() {
 
 
 /*
- * The account dropdown stays inside #authWrap on phones.
- * The mobile CSS positions it from the profile control and keeps
- * it inside the phone viewport while respecting the UI scale.
+ * Keep the account dropdown below both header rows and inside the viewport.
+ * The body uses CSS zoom for accessibility scaling, so convert measured
+ * viewport geometry back to the dropdown's CSS coordinate space.
  */
 function positionAccountPanelForMobile() {
 
     const panel = $("accountPanel");
+    const wrap = $("authWrap");
 
-    if (!panel) return;
+    if (!panel || !wrap || !panel.classList.contains("open")) return;
 
-    if (
-        window.innerWidth > 700 ||
-        !panel.classList.contains("open")
-    ) {
-        return;
-    }
+    const wrapRect = wrap.getBoundingClientRect();
+    const secondaryRow = document.querySelector(".nav-secondary-row");
+    const secondaryRect = secondaryRow
+        ? secondaryRow.getBoundingClientRect()
+        : null;
+    const headerBottom = Math.max(
+        wrapRect.bottom,
+        secondaryRect ? secondaryRect.bottom : wrapRect.bottom
+    );
 
-    panel.style.removeProperty("display");
-    panel.style.removeProperty("visibility");
-    panel.style.removeProperty("opacity");
-    panel.style.removeProperty("pointer-events");
-    panel.style.removeProperty("position");
-    panel.style.removeProperty("left");
-    panel.style.removeProperty("right");
-    panel.style.removeProperty("top");
-    panel.style.removeProperty("width");
-    panel.style.removeProperty("max-width");
-    panel.style.removeProperty("max-height");
-    panel.style.removeProperty("transform");
-    panel.style.removeProperty("zoom");
-    panel.style.removeProperty("z-index");
+    const bodyZoom = Number.parseFloat(getComputedStyle(document.body).zoom);
+    const rootScale = Number.parseFloat(
+        getComputedStyle(document.documentElement).getPropertyValue("--ui-scale")
+    );
+    const scale = Number.isFinite(bodyZoom) && bodyZoom > 0
+        ? bodyZoom
+        : (Number.isFinite(rootScale) && rootScale > 0 ? rootScale : 1);
+    const gap = 8;
+
+    // Absolute positioning is relative to #authWrap, but measured rectangles
+    // are viewport-relative. This places the menu directly under row two.
+    const top = Math.max(0, (headerBottom - wrapRect.top + gap) / scale);
+    panel.style.setProperty("--account-panel-top", top + "px");
+
+    // Reserve space for the header and a small bottom margin so short screens
+    // can scroll the menu internally rather than clipping it at the viewport.
+    const availableHeight = Math.max(
+        80,
+        (window.innerHeight - headerBottom - gap - 12) / scale
+    );
+    panel.style.setProperty(
+        "--account-panel-available-height",
+        availableHeight + "px"
+    );
+}
+
+// Recalculate after rotation, viewport resizing, or mobile browser chrome changes.
+window.addEventListener("resize", positionAccountPanelForMobile);
+window.addEventListener("orientationchange", positionAccountPanelForMobile);
+if (window.visualViewport) {
+    window.visualViewport.addEventListener("resize", positionAccountPanelForMobile);
 }
 
 
