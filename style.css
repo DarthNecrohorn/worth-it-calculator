@@ -21220,3 +21220,240 @@ body:has(.auth-modal-overlay.open):not(.worth-it-guest-dialog-open) .nav {
         line-height: 1 !important;
     }
 }
+
+
+/* HEADER UTILITY LAYOUT — two rows aligned to the upper-right.
+   Row one contains notifications, messages, user search/profile and AI Chat.
+   Row two contains Bugs & Suggestions, Admin Panel, Sign out and Settings. */
+.nav-right-stack {
+    display: flex;
+    flex: 0 1 auto;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 6px;
+    min-width: 0;
+    margin-left: auto;
+}
+
+.nav-top-row {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    flex-wrap: nowrap;
+    gap: 8px;
+    width: 100%;
+    min-width: 0;
+}
+
+.nav-top-row .nav-actions {
+    flex: 0 1 auto !important;
+    width: auto !important;
+    min-width: 0;
+    margin-left: 0 !important;
+}
+
+.nav-top-row .ai-chat-nav-btn {
+    flex: 0 0 auto !important;
+    margin: 0 !important;
+}
+
+.nav-secondary-row {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    flex-wrap: nowrap;
+    gap: 8px;
+    width: 100%;
+    min-width: 0;
+}
+
+.nav-secondary-row > button {
+    flex: 0 0 auto;
+    white-space: nowrap;
+}
+
+@media (min-width: 901px) {
+    .nav-inner {
+        height: auto !important;
+        min-height: 72px !important;
+        padding-top: 7px !important;
+        padding-bottom: 7px !important;
+        align-items: center !important;
+    }
+
+    .nav-right-stack {
+        max-width: calc(100% - 180px);
+    }
+
+    body {
+        padding-top: 114px !important;
+    }
+
+    #navLinks.nav-links.open {
+        top: 114px !important;
+        height: calc(100dvh - 114px) !important;
+    }
+}
+
+@media (max-width: 900px) {
+    .nav-inner {
+        height: auto !important;
+        min-height: 88px !important;
+        padding-top: 4px !important;
+        padding-bottom: 4px !important;
+        align-items: center !important;
+        gap: 4px !important;
+    }
+
+    .nav-right-stack {
+        flex: 1 1 auto !important;
+        width: auto !important;
+        max-width: none !important;
+        gap: 4px;
+        margin-left: auto !important;
+    }
+
+    .nav-top-row,
+    .nav-secondary-row {
+        gap: 3px;
+        width: 100%;
+    }
+
+    .nav-top-row .nav-actions {
+        gap: 3px !important;
+        margin-left: 0 !important;
+    }
+
+    .nav-secondary-row > .feedback-nav-btn,
+    .nav-secondary-row > .admin-panel-nav-btn,
+    .nav-secondary-row > .signout-nav-btn,
+    .nav-secondary-row > .settings-btn {
+        width: 32px !important;
+        min-width: 32px !important;
+        max-width: 32px !important;
+        height: 32px !important;
+        min-height: 32px !important;
+        max-height: 32px !important;
+        flex: 0 0 32px !important;
+        padding: 4px !important;
+        border-radius: 9px !important;
+        font-size: 15px !important;
+        line-height: 1 !important;
+        justify-content: center;
+        align-items: center;
+    }
+
+    .nav-secondary-row > .feedback-nav-btn span,
+    .nav-secondary-row > .admin-panel-nav-btn span,
+    .nav-secondary-row > .signout-nav-btn span,
+    .nav-top-row .ai-chat-nav-btn span {
+        display: none !important;
+        width: 0 !important;
+        max-width: 0 !important;
+        overflow: hidden !important;
+    }
+
+    .nav-top-row .ai-chat-nav-btn {
+        width: 32px !important;
+        min-width: 32px !important;
+        max-width: 32px !important;
+        height: 32px !important;
+        min-height: 32px !important;
+        max-height: 32px !important;
+        padding: 4px !important;
+        border-radius: 9px !important;
+        font-size: 15px !important;
+        line-height: 1 !important;
+    }
+
+    body {
+        padding-top: 88px !important;
+    }
+
+    #navLinks.nav-links.open {
+        top: 88px !important;
+        height: calc(100dvh - 88px) !important;
+    }
+}
+
+/* Keep the two-row phone header at the same physical height under accessibility zoom. */
+@media (max-width: 700px) {
+    html[data-ui-scale="large"] body {
+        padding-top: 76px !important;
+    }
+
+    html[data-ui-scale="xl"] body {
+        padding-top: 67px !important;
+    }
+
+    html[data-ui-scale="large"] #navLinks.nav-links.open {
+        top: calc(88px / var(--ui-scale, 1)) !important;
+        height: calc((100dvh - 88px) / var(--ui-scale, 1)) !important;
+    }
+
+    html[data-ui-scale="xl"] #navLinks.nav-links.open {
+        top: calc(88px / var(--ui-scale, 1)) !important;
+        height: calc((100dvh - 88px) / var(--ui-scale, 1)) !important;
+    }
+}
+
+@media (max-width: 380px) {
+    .nav-right-stack {
+        gap: 3px;
+    }
+
+    .nav-top-row,
+    .nav-secondary-row {
+        gap: 2px;
+    }
+
+    .nav-secondary-row > .feedback-nav-btn,
+    .nav-secondary-row > .admin-panel-nav-btn,
+    .nav-secondary-row > .signout-nav-btn,
+    .nav-secondary-row > .settings-btn,
+    .nav-top-row .ai-chat-nav-btn {
+        width: 27px !important;
+        min-width: 27px !important;
+        max-width: 27px !important;
+        height: 27px !important;
+        min-height: 27px !important;
+        max-height: 27px !important;
+        flex-basis: 27px !important;
+        padding: 2px !important;
+        font-size: 13px !important;
+    }
+}
+
+@media (max-width: 700px) {
+    html[data-ui-scale="large"] .nav-secondary-row > .feedback-nav-btn,
+    html[data-ui-scale="large"] .nav-secondary-row > .admin-panel-nav-btn,
+    html[data-ui-scale="large"] .nav-secondary-row > .signout-nav-btn,
+    html[data-ui-scale="large"] .nav-secondary-row > .settings-btn,
+    html[data-ui-scale="large"] .nav-top-row .ai-chat-nav-btn {
+        width: 24px !important;
+        min-width: 24px !important;
+        max-width: 24px !important;
+        height: 24px !important;
+        min-height: 24px !important;
+        max-height: 24px !important;
+        flex-basis: 24px !important;
+        padding: 1px !important;
+        font-size: 12px !important;
+    }
+
+    html[data-ui-scale="xl"] .nav-secondary-row > .feedback-nav-btn,
+    html[data-ui-scale="xl"] .nav-secondary-row > .admin-panel-nav-btn,
+    html[data-ui-scale="xl"] .nav-secondary-row > .signout-nav-btn,
+    html[data-ui-scale="xl"] .nav-secondary-row > .settings-btn,
+    html[data-ui-scale="xl"] .nav-top-row .ai-chat-nav-btn {
+        width: 22px !important;
+        min-width: 22px !important;
+        max-width: 22px !important;
+        height: 22px !important;
+        min-height: 22px !important;
+        max-height: 22px !important;
+        flex-basis: 22px !important;
+        padding: 1px !important;
+        font-size: 11px !important;
+    }
+}
