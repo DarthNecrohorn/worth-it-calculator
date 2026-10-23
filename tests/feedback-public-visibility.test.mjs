@@ -17,7 +17,7 @@ test("Bugs & Suggestions is visible to all visitors, not gated by the owner role
     assert.ok(footer, "the footer feedback button exists");
     assert.doesNotMatch(header[0], /style\s*=\s*["'][^"']*display\s*:\s*none/i);
     assert.doesNotMatch(footer[0], /style\s*=\s*["'][^"']*display\s*:\s*none/i);
-    assert.match(html, /style\.css\?v=feedbackpublic-avatar-mobile-20261023a/);
+    assert.match(html, /style\.css\?v=header-controls-locked-a-20261023a/);
     assert.match(html, /admin-panel\.js\?v=feedbackpublic20261023a/);
 
     assert.match(
