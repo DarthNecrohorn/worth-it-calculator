@@ -52,6 +52,11 @@ test("header utility controls are arranged in two right-aligned rows", () => {
     ]) {
         assert.ok(topRow.includes('id="' + id + '"'), id + " stays in the top row");
     }
+    const aiPosition = topRow.indexOf('id="aiChatNavBtn"');
+    const profilePosition = topRow.indexOf('id="profileNavBtn"');
+    assert.ok(aiPosition >= 0 && profilePosition > aiPosition, "AI Chat appears before the profile on the top row");
+    assert.match(css, /\.nav-top-row \.nav-actions > \.ai-chat-nav-btn\s*\{\s*order:\s*2 !important;/);
+    assert.match(css, /\.nav-top-row \.nav-actions > \.auth-wrap\s*\{\s*order:\s*3 !important;/);
 
     const secondaryRow = nav.slice(secondStart);
     for (const id of ["adminPanelButton", "signOutNavBtn"]) {
