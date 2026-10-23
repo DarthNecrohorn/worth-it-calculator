@@ -6,14 +6,16 @@ const html = readFileSync(new URL("../index.html", import.meta.url), "utf8");
 const css = readFileSync(new URL("../style.css", import.meta.url), "utf8");
 const app = readFileSync(new URL("../app.js", import.meta.url), "utf8");
 
-test("user search remains a separate navigation control next to auth", () => {
-    const navActionsStart = html.indexOf('<div class="nav-actions">');
+test("user search remains independent beside the brand and outside account controls", () => {
+    const logoStart = html.indexOf('<a href="#" class="logo"');
+    const logoEnd = html.indexOf("</a>", logoStart);
     const searchStart = html.indexOf('id="worthItUserSearchBtn"');
+    const navActionsStart = html.indexOf('<div class="nav-actions">');
     const authStart = html.indexOf('<div class="auth-wrap" id="authWrap">');
-    assert.ok(navActionsStart >= 0, "Expected the navigation action row");
-    assert.ok(searchStart > navActionsStart, "User search is inside the navigation action row");
-    assert.ok(authStart > searchStart, "User search is a separate sibling before the account controls");
-    assert.match(html.slice(navActionsStart, authStart), /class="worth-it-user-search-btn"/);
+    assert.ok(logoStart >= 0 && logoEnd > logoStart, "Expected the brand anchor");
+    assert.ok(searchStart > logoEnd && searchStart < navActionsStart, "User search is by the brand, outside both utility rows");
+    assert.ok(authStart > navActionsStart, "Account controls remain in the primary utility row");
+    assert.doesNotMatch(html.slice(navActionsStart, authStart), /worth-it-user-search-btn/);
 });
 
 test("logged-out Sign in gets its own width and no longer overlaps Search", () => {
@@ -40,10 +42,11 @@ test("header utility controls are arranged in two right-aligned rows", () => {
     assert.ok(topStart >= 0 && secondStart > topStart, "both header rows exist in order");
 
     const topRow = nav.slice(topStart, secondStart);
+    assert.ok(!topRow.includes('id="worthItUserSearchBtn"'), "user search stays beside the brand, not in the top-right row");
+    assert.ok(nav.indexOf('id="worthItUserSearchBtn"') < topStart, "user search appears before the top-right stack");
     for (const id of [
         "worthItNotificationBell",
         "worthItChatNavBtn",
-        "worthItUserSearchBtn",
         "profileNavBtn",
         "aiChatNavBtn"
     ]) {
