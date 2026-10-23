@@ -22053,3 +22053,58 @@ html[data-ui-scale] .profile-nav-btn .worth-it-presence-indicator {
         height: 14px !important;
     }
 }
+
+/* =========================================================
+   MOBILE HEADER DOUBLE-ZOOM FIX — A+ / A++ ONLY
+   The nav itself already cancels body zoom at these scales. Do NOT
+   counter-zoom its individual buttons again, or they render smaller.
+   The avatar wrapper must also use its physical A-size, not size/scale.
+   ========================================================= */
+@media (max-width: 700px) {
+    html[data-ui-scale="large"] .nav-inner > .menu-btn,
+    html[data-ui-scale="xl"] .nav-inner > .menu-btn,
+    html[data-ui-scale="large"] .nav-inner > .worth-it-user-search-btn,
+    html[data-ui-scale="xl"] .nav-inner > .worth-it-user-search-btn,
+    html[data-ui-scale="large"] .nav-top-row .nav-actions > .worth-it-notification-wrap > .worth-it-notification-bell,
+    html[data-ui-scale="xl"] .nav-top-row .nav-actions > .worth-it-notification-wrap > .worth-it-notification-bell,
+    html[data-ui-scale="large"] .nav-top-row .nav-actions > .worth-it-chat-nav-wrap > .worth-it-chat-nav-btn,
+    html[data-ui-scale="xl"] .nav-top-row .nav-actions > .worth-it-chat-nav-wrap > .worth-it-chat-nav-btn,
+    html[data-ui-scale="large"] .nav-top-row .nav-actions > .ai-chat-nav-btn,
+    html[data-ui-scale="xl"] .nav-top-row .nav-actions > .ai-chat-nav-btn,
+    html[data-ui-scale="large"] .nav-top-row .nav-actions > .auth-wrap > #authBtn,
+    html[data-ui-scale="xl"] .nav-top-row .nav-actions > .auth-wrap > #authBtn,
+    html[data-ui-scale="large"] .nav-top-row .nav-actions > .auth-wrap > .profile-nav-btn,
+    html[data-ui-scale="xl"] .nav-top-row .nav-actions > .auth-wrap > .profile-nav-btn,
+    html[data-ui-scale="large"] .nav-secondary-row > button,
+    html[data-ui-scale="xl"] .nav-secondary-row > button {
+        zoom: 1 !important;
+    }
+}
+
+/* On A+ / A++ the navbar's own inverse zoom has already neutralized the
+   global page zoom, so these flex slots must remain physical A-sized too. */
+@media (min-width: 361px) and (max-width: 700px) {
+    html[data-ui-scale="large"] .nav-top-row .nav-actions > .auth-wrap,
+    html[data-ui-scale="xl"] .nav-top-row .nav-actions > .auth-wrap {
+        width: 40px !important;
+        min-width: 40px !important;
+        max-width: 40px !important;
+        height: 40px !important;
+        min-height: 40px !important;
+        max-height: 40px !important;
+        flex: 0 0 40px !important;
+    }
+}
+
+@media (max-width: 360px) {
+    html[data-ui-scale="large"] .nav-top-row .nav-actions > .auth-wrap,
+    html[data-ui-scale="xl"] .nav-top-row .nav-actions > .auth-wrap {
+        width: 36px !important;
+        min-width: 36px !important;
+        max-width: 36px !important;
+        height: 36px !important;
+        min-height: 36px !important;
+        max-height: 36px !important;
+        flex: 0 0 36px !important;
+    }
+}
