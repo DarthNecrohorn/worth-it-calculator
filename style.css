@@ -21495,3 +21495,21 @@ body:has(.auth-modal-overlay.open):not(.worth-it-guest-dialog-open) .nav {
         min-height: 27px !important;
     }
 }
+
+/* Upper-right utility order: notifications, messages, AI Chat, profile.
+   The signed-in profile icon is the rightmost control in the top row. */
+.nav-top-row .nav-actions > .worth-it-notification-wrap {
+    order: 0 !important;
+}
+
+.nav-top-row .nav-actions > .worth-it-chat-nav-wrap {
+    order: 1 !important;
+}
+
+.nav-top-row .nav-actions > .ai-chat-nav-btn {
+    order: 2 !important;
+}
+
+.nav-top-row .nav-actions > .auth-wrap {
+    order: 3 !important;
+}
