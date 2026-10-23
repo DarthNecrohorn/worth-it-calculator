@@ -21466,3 +21466,32 @@ body:has(.auth-modal-overlay.open):not(.worth-it-guest-dialog-open) .nav {
 .nav-inner:has(> #navLinks.nav-links.open) > .nav-right-stack * {
     pointer-events: none !important;
 }
+
+
+/* User search stays available beside the brand, leaving only the four intended
+   controls in the upper-right row (notifications, messages, profile, AI Chat). */
+.nav-inner > .worth-it-user-search-btn {
+    flex: 0 0 40px;
+    margin: 0 2px 0 0;
+}
+
+@media (max-width: 900px) {
+    .nav-inner > .worth-it-user-search-btn {
+        flex: 0 0 32px !important;
+        width: 32px !important;
+        min-width: 32px !important;
+        height: 32px !important;
+        min-height: 32px !important;
+        padding: 0 !important;
+    }
+}
+
+@media (max-width: 380px) {
+    .nav-inner > .worth-it-user-search-btn {
+        flex-basis: 27px !important;
+        width: 27px !important;
+        min-width: 27px !important;
+        height: 27px !important;
+        min-height: 27px !important;
+    }
+}
