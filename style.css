@@ -21779,3 +21779,158 @@ body:has(.auth-modal-overlay.open):not(.worth-it-guest-dialog-open) .nav {
         flex-basis: 27.25px !important;
     }
 }
+
+/* =========================================================
+   HEADER CONTROL SIZE LOCK — MATCH THE A SETTING
+   The site-wide accessibility zoom still changes page content, but every
+   control in the main header keeps its A-sized physical dimensions.
+   ========================================================= */
+
+.nav-inner > .menu-btn,
+.nav-inner > .logo,
+.nav-inner > .worth-it-user-search-btn,
+.nav-top-row .nav-actions > .worth-it-notification-wrap > .worth-it-notification-bell,
+.nav-top-row .nav-actions > .worth-it-chat-nav-wrap > .worth-it-chat-nav-btn,
+.nav-top-row .nav-actions > .ai-chat-nav-btn,
+.nav-top-row .nav-actions > .auth-wrap > #authBtn,
+.nav-top-row .nav-actions > .auth-wrap > .profile-nav-btn,
+.nav-secondary-row > button {
+    zoom: calc(1 / var(--ui-scale, 1)) !important;
+}
+
+/* Keep the signed-in profile slot at its A-sized width on desktop. The
+   separate logged-out Sign in rule keeps its natural text width. */
+@media (min-width: 701px) {
+    .nav-top-row .nav-actions > .auth-wrap:not(:has(> #authBtn:not([style*="display: none"]))) {
+        width: calc(44px / var(--ui-scale, 1)) !important;
+        min-width: calc(44px / var(--ui-scale, 1)) !important;
+        max-width: calc(44px / var(--ui-scale, 1)) !important;
+        height: calc(44px / var(--ui-scale, 1)) !important;
+        flex: 0 0 calc(44px / var(--ui-scale, 1)) !important;
+    }
+}
+
+/* In the regular phone breakpoint, A's controls are 32px. Restore that
+   same baseline for A+ and A++ before their local zoom is counteracted. */
+@media (min-width: 381px) and (max-width: 900px) {
+    html[data-ui-scale="large"] .nav-secondary-row > .feedback-nav-btn,
+    html[data-ui-scale="large"] .nav-secondary-row > .admin-panel-nav-btn,
+    html[data-ui-scale="large"] .nav-secondary-row > .signout-nav-btn,
+    html[data-ui-scale="large"] .nav-secondary-row > .settings-btn,
+    html[data-ui-scale="large"] .nav-top-row .ai-chat-nav-btn,
+    html[data-ui-scale="xl"] .nav-secondary-row > .feedback-nav-btn,
+    html[data-ui-scale="xl"] .nav-secondary-row > .admin-panel-nav-btn,
+    html[data-ui-scale="xl"] .nav-secondary-row > .signout-nav-btn,
+    html[data-ui-scale="xl"] .nav-secondary-row > .settings-btn,
+    html[data-ui-scale="xl"] .nav-top-row .ai-chat-nav-btn {
+        width: 32px !important;
+        min-width: 32px !important;
+        max-width: 32px !important;
+        height: 32px !important;
+        min-height: 32px !important;
+        max-height: 32px !important;
+        flex: 0 0 32px !important;
+        padding: 4px !important;
+        font-size: 15px !important;
+        line-height: 1 !important;
+    }
+}
+
+/* At narrow phone widths, A's responsive baseline is 27px. Keep that exact
+   baseline for A−/A/A+/A++ rather than inheriting the old 24px/22px rules. */
+@media (max-width: 380px) {
+    .nav-secondary-row > .feedback-nav-btn,
+    .nav-secondary-row > .admin-panel-nav-btn,
+    .nav-secondary-row > .signout-nav-btn,
+    .nav-secondary-row > .settings-btn,
+    .nav-top-row .ai-chat-nav-btn,
+    html[data-ui-scale="large"] .nav-secondary-row > .feedback-nav-btn,
+    html[data-ui-scale="large"] .nav-secondary-row > .admin-panel-nav-btn,
+    html[data-ui-scale="large"] .nav-secondary-row > .signout-nav-btn,
+    html[data-ui-scale="large"] .nav-secondary-row > .settings-btn,
+    html[data-ui-scale="large"] .nav-top-row .ai-chat-nav-btn,
+    html[data-ui-scale="xl"] .nav-secondary-row > .feedback-nav-btn,
+    html[data-ui-scale="xl"] .nav-secondary-row > .admin-panel-nav-btn,
+    html[data-ui-scale="xl"] .nav-secondary-row > .signout-nav-btn,
+    html[data-ui-scale="xl"] .nav-secondary-row > .settings-btn,
+    html[data-ui-scale="xl"] .nav-top-row .ai-chat-nav-btn {
+        width: 27px !important;
+        min-width: 27px !important;
+        max-width: 27px !important;
+        height: 27px !important;
+        min-height: 27px !important;
+        max-height: 27px !important;
+        flex: 0 0 27px !important;
+        padding: 2px !important;
+        font-size: 13px !important;
+        line-height: 1 !important;
+    }
+}
+
+/* Signed-in profile target and avatar: match the existing A dimensions at
+   each responsive breakpoint and override the former A+/A++ reductions. */
+@media (min-width: 361px) and (max-width: 700px) {
+    .nav-top-row .nav-actions .auth-wrap > .profile-nav-btn,
+    html[data-ui-scale="large"] .nav-top-row .nav-actions .auth-wrap > .profile-nav-btn,
+    html[data-ui-scale="xl"] .nav-top-row .nav-actions .auth-wrap > .profile-nav-btn {
+        width: 40px !important;
+        min-width: 40px !important;
+        max-width: 40px !important;
+        height: 40px !important;
+        min-height: 40px !important;
+        max-height: 40px !important;
+        flex: 0 0 40px !important;
+        padding: 2px !important;
+    }
+
+    .nav-top-row .nav-actions .auth-wrap > .profile-nav-btn > #profileNavIcon,
+    .nav-top-row .nav-actions .auth-wrap > .profile-nav-btn .auth-avatar,
+    .nav-top-row .nav-actions .auth-wrap > .profile-nav-btn .auth-avatar-fallback,
+    html[data-ui-scale="large"] .nav-top-row .nav-actions .auth-wrap > .profile-nav-btn > #profileNavIcon,
+    html[data-ui-scale="large"] .nav-top-row .nav-actions .auth-wrap > .profile-nav-btn .auth-avatar,
+    html[data-ui-scale="large"] .nav-top-row .nav-actions .auth-wrap > .profile-nav-btn .auth-avatar-fallback,
+    html[data-ui-scale="xl"] .nav-top-row .nav-actions .auth-wrap > .profile-nav-btn > #profileNavIcon,
+    html[data-ui-scale="xl"] .nav-top-row .nav-actions .auth-wrap > .profile-nav-btn .auth-avatar,
+    html[data-ui-scale="xl"] .nav-top-row .nav-actions .auth-wrap > .profile-nav-btn .auth-avatar-fallback {
+        width: 34px !important;
+        height: 34px !important;
+        min-width: 34px !important;
+        min-height: 34px !important;
+        max-width: 34px !important;
+        max-height: 34px !important;
+        flex: 0 0 34px !important;
+    }
+}
+
+@media (max-width: 360px) {
+    .nav-top-row .nav-actions .auth-wrap > .profile-nav-btn,
+    html[data-ui-scale="large"] .nav-top-row .nav-actions .auth-wrap > .profile-nav-btn,
+    html[data-ui-scale="xl"] .nav-top-row .nav-actions .auth-wrap > .profile-nav-btn {
+        width: 36px !important;
+        min-width: 36px !important;
+        max-width: 36px !important;
+        height: 36px !important;
+        min-height: 36px !important;
+        max-height: 36px !important;
+        flex: 0 0 36px !important;
+        padding: 2px !important;
+    }
+
+    .nav-top-row .nav-actions .auth-wrap > .profile-nav-btn > #profileNavIcon,
+    .nav-top-row .nav-actions .auth-wrap > .profile-nav-btn .auth-avatar,
+    .nav-top-row .nav-actions .auth-wrap > .profile-nav-btn .auth-avatar-fallback,
+    html[data-ui-scale="large"] .nav-top-row .nav-actions .auth-wrap > .profile-nav-btn > #profileNavIcon,
+    html[data-ui-scale="large"] .nav-top-row .nav-actions .auth-wrap > .profile-nav-btn .auth-avatar,
+    html[data-ui-scale="large"] .nav-top-row .nav-actions .auth-wrap > .profile-nav-btn .auth-avatar-fallback,
+    html[data-ui-scale="xl"] .nav-top-row .nav-actions .auth-wrap > .profile-nav-btn > #profileNavIcon,
+    html[data-ui-scale="xl"] .nav-top-row .nav-actions .auth-wrap > .profile-nav-btn .auth-avatar,
+    html[data-ui-scale="xl"] .nav-top-row .nav-actions .auth-wrap > .profile-nav-btn .auth-avatar-fallback {
+        width: 30px !important;
+        height: 30px !important;
+        min-width: 30px !important;
+        min-height: 30px !important;
+        max-width: 30px !important;
+        max-height: 30px !important;
+        flex: 0 0 30px !important;
+    }
+}
