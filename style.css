@@ -21533,3 +21533,192 @@ body:has(.auth-modal-overlay.open):not(.worth-it-guest-dialog-open) .nav {
     box-sizing: border-box !important;
     transform-origin: top right !important;
 }
+
+
+/* =========================================================
+   PUBLIC FEEDBACK + PHONE PROFILE AVATAR SIZING
+   Bugs & Suggestions is visible to every visitor. On phones, enlarge the
+   profile tap target and avatar while preserving physical sizes under the
+   site's body zoom. A+ / A++ shift the four top-row utilities by exactly
+   5px / 10px in the rendered viewport.
+   ========================================================= */
+
+/* Public feedback controls: retain their normal flex appearance, even if
+   older markup or role-related styles attempt to hide the entry points. */
+.nav-secondary-row > .feedback-nav-btn,
+.feedback-trigger {
+    display: inline-flex !important;
+}
+
+@media (max-width: 700px) {
+    .nav-top-row .nav-actions {
+        position: relative !important;
+    }
+
+    .nav-top-row .nav-actions .auth-wrap > .profile-nav-btn {
+        width: 40px !important;
+        min-width: 40px !important;
+        max-width: 40px !important;
+        height: 40px !important;
+        min-height: 40px !important;
+        max-height: 40px !important;
+        flex: 0 0 40px !important;
+        padding: 2px !important;
+    }
+
+    .nav-top-row .nav-actions .auth-wrap > .profile-nav-btn > #profileNavIcon {
+        width: 34px !important;
+        height: 34px !important;
+        flex: 0 0 34px !important;
+    }
+
+    .nav-top-row .nav-actions .auth-wrap > .profile-nav-btn .auth-avatar,
+    .nav-top-row .nav-actions .auth-wrap > .profile-nav-btn .auth-avatar-fallback {
+        width: 34px !important;
+        height: 34px !important;
+        min-width: 34px !important;
+        min-height: 34px !important;
+        max-width: 34px !important;
+        max-height: 34px !important;
+        flex: 0 0 34px !important;
+    }
+}
+
+/* At A+ / A++, compensate for body zoom so the enlarged profile control
+   remains about 40px across and its image about 34px across. */
+@media (min-width: 361px) and (max-width: 700px) {
+    html[data-ui-scale="large"] .nav-top-row .nav-actions .auth-wrap > .profile-nav-btn {
+        width: 34.5px !important;
+        min-width: 34.5px !important;
+        max-width: 34.5px !important;
+        height: 34.5px !important;
+        min-height: 34.5px !important;
+        max-height: 34.5px !important;
+        flex-basis: 34.5px !important;
+    }
+
+    html[data-ui-scale="large"] .nav-top-row .nav-actions .auth-wrap > .profile-nav-btn > #profileNavIcon {
+        width: 29.3px !important;
+        height: 29.3px !important;
+        flex-basis: 29.3px !important;
+    }
+
+    html[data-ui-scale="large"] .nav-top-row .nav-actions .auth-wrap > .profile-nav-btn .auth-avatar,
+    html[data-ui-scale="large"] .nav-top-row .nav-actions .auth-wrap > .profile-nav-btn .auth-avatar-fallback {
+        width: 29.3px !important;
+        height: 29.3px !important;
+        min-width: 29.3px !important;
+        min-height: 29.3px !important;
+        max-width: 29.3px !important;
+        max-height: 29.3px !important;
+        flex-basis: 29.3px !important;
+    }
+
+    html[data-ui-scale="xl"] .nav-top-row .nav-actions .auth-wrap > .profile-nav-btn {
+        width: 30.3px !important;
+        min-width: 30.3px !important;
+        max-width: 30.3px !important;
+        height: 30.3px !important;
+        min-height: 30.3px !important;
+        max-height: 30.3px !important;
+        flex-basis: 30.3px !important;
+    }
+
+    html[data-ui-scale="xl"] .nav-top-row .nav-actions .auth-wrap > .profile-nav-btn > #profileNavIcon {
+        width: 25.8px !important;
+        height: 25.8px !important;
+        flex-basis: 25.8px !important;
+    }
+
+    html[data-ui-scale="xl"] .nav-top-row .nav-actions .auth-wrap > .profile-nav-btn .auth-avatar,
+    html[data-ui-scale="xl"] .nav-top-row .nav-actions .auth-wrap > .profile-nav-btn .auth-avatar-fallback {
+        width: 25.8px !important;
+        height: 25.8px !important;
+        min-width: 25.8px !important;
+        min-height: 25.8px !important;
+        max-width: 25.8px !important;
+        max-height: 25.8px !important;
+        flex-basis: 25.8px !important;
+    }
+}
+
+/* Extra-narrow phones: maintain a compact but visibly larger avatar target. */
+@media (max-width: 360px) {
+    .nav-top-row .nav-actions .auth-wrap > .profile-nav-btn {
+        width: 36px !important;
+        min-width: 36px !important;
+        max-width: 36px !important;
+        height: 36px !important;
+        min-height: 36px !important;
+        max-height: 36px !important;
+        flex-basis: 36px !important;
+    }
+
+    .nav-top-row .nav-actions .auth-wrap > .profile-nav-btn > #profileNavIcon,
+    .nav-top-row .nav-actions .auth-wrap > .profile-nav-btn .auth-avatar,
+    .nav-top-row .nav-actions .auth-wrap > .profile-nav-btn .auth-avatar-fallback {
+        width: 30px !important;
+        height: 30px !important;
+        min-width: 30px !important;
+        min-height: 30px !important;
+        max-width: 30px !important;
+        max-height: 30px !important;
+        flex-basis: 30px !important;
+    }
+
+    html[data-ui-scale="large"] .nav-top-row .nav-actions .auth-wrap > .profile-nav-btn {
+        width: 31px !important;
+        min-width: 31px !important;
+        max-width: 31px !important;
+        height: 31px !important;
+        min-height: 31px !important;
+        max-height: 31px !important;
+        flex-basis: 31px !important;
+    }
+
+    html[data-ui-scale="large"] .nav-top-row .nav-actions .auth-wrap > .profile-nav-btn > #profileNavIcon,
+    html[data-ui-scale="large"] .nav-top-row .nav-actions .auth-wrap > .profile-nav-btn .auth-avatar,
+    html[data-ui-scale="large"] .nav-top-row .nav-actions .auth-wrap > .profile-nav-btn .auth-avatar-fallback {
+        width: 26px !important;
+        height: 26px !important;
+        min-width: 26px !important;
+        min-height: 26px !important;
+        max-width: 26px !important;
+        max-height: 26px !important;
+        flex-basis: 26px !important;
+    }
+
+    html[data-ui-scale="xl"] .nav-top-row .nav-actions .auth-wrap > .profile-nav-btn {
+        width: 27.25px !important;
+        min-width: 27.25px !important;
+        max-width: 27.25px !important;
+        height: 27.25px !important;
+        min-height: 27.25px !important;
+        max-height: 27.25px !important;
+        flex-basis: 27.25px !important;
+    }
+
+    html[data-ui-scale="xl"] .nav-top-row .nav-actions .auth-wrap > .profile-nav-btn > #profileNavIcon,
+    html[data-ui-scale="xl"] .nav-top-row .nav-actions .auth-wrap > .profile-nav-btn .auth-avatar,
+    html[data-ui-scale="xl"] .nav-top-row .nav-actions .auth-wrap > .profile-nav-btn .auth-avatar-fallback {
+        width: 22.75px !important;
+        height: 22.75px !important;
+        min-width: 22.75px !important;
+        min-height: 22.75px !important;
+        max-width: 22.75px !important;
+        max-height: 22.75px !important;
+        flex-basis: 22.75px !important;
+    }
+}
+
+/* The whole notification/message/AI/profile group moves left by exactly
+   5px at A+ and 10px at A++ after the CSS body zoom is applied. */
+@media (max-width: 700px) {
+    html[data-ui-scale="large"] .nav-top-row .nav-actions {
+        left: -4.31px !important; /* 5px / 1.16 */
+    }
+
+    html[data-ui-scale="xl"] .nav-top-row .nav-actions {
+        left: -7.58px !important; /* 10px / 1.32 */
+    }
+}
