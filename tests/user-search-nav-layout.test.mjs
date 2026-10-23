@@ -29,3 +29,33 @@ test("the signed-in profile/avatar layout remains on its existing CSS path", () 
     assert.match(css, /\.auth-wrap:has\(> #authBtn:not\(\[style\*="display: none"\]\)\)/);
     assert.match(html, /style\.css\?v=[^"']+/);
 });
+
+
+test("header utility controls are arranged in two right-aligned rows", () => {
+    const navStart = html.indexOf('<nav class="nav">');
+    const navEnd = html.indexOf("</nav>", navStart);
+    const nav = html.slice(navStart, navEnd);
+    const topStart = nav.indexOf('<div class="nav-top-row">');
+    const secondStart = nav.indexOf('<div class="nav-secondary-row">');
+    assert.ok(topStart >= 0 && secondStart > topStart, "both header rows exist in order");
+
+    const topRow = nav.slice(topStart, secondStart);
+    for (const id of [
+        "worthItNotificationBell",
+        "worthItChatNavBtn",
+        "worthItUserSearchBtn",
+        "profileNavBtn",
+        "aiChatNavBtn"
+    ]) {
+        assert.ok(topRow.includes('id="' + id + '"'), id + " stays in the top row");
+    }
+
+    const secondaryRow = nav.slice(secondStart);
+    for (const id of ["adminPanelButton", "signOutNavBtn"]) {
+        assert.ok(secondaryRow.includes('id="' + id + '"'), id + " moves to the lower row");
+    }
+    assert.ok(secondaryRow.includes('class="feedback-nav-btn"'), "Bugs & Suggestions is in the lower row");
+    assert.ok(secondaryRow.includes('class="settings-btn"'), "Settings is in the lower row");
+    assert.match(css, /\.nav-right-stack\s*\{[^}]*flex-direction:\s*column/);
+    assert.match(css, /\.nav-secondary-row\s*\{[^}]*justify-content:\s*flex-end/);
+});
