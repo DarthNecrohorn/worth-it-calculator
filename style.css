@@ -21787,7 +21787,6 @@ body:has(.auth-modal-overlay.open):not(.worth-it-guest-dialog-open) .nav {
    ========================================================= */
 
 .nav-inner > .menu-btn,
-.nav-inner > .logo,
 .nav-inner > .worth-it-user-search-btn,
 .nav-top-row .nav-actions > .worth-it-notification-wrap > .worth-it-notification-bell,
 .nav-top-row .nav-actions > .worth-it-chat-nav-wrap > .worth-it-chat-nav-btn,
@@ -21932,5 +21931,125 @@ body:has(.auth-modal-overlay.open):not(.worth-it-guest-dialog-open) .nav {
         max-width: 30px !important;
         max-height: 30px !important;
         flex: 0 0 30px !important;
+    }
+}
+
+/* FINAL A-SIZE OVERRIDES — avoid double compensation from older calc(.../--ui-scale) rules.
+   Logo sizing is intentionally left on its existing responsive CSS path. */
+@media (max-width: 700px) {
+    html[data-ui-scale] .nav-inner > .menu-btn {
+        width: 30px !important;
+        min-width: 30px !important;
+        max-width: 30px !important;
+        height: 30px !important;
+        min-height: 30px !important;
+        max-height: 30px !important;
+        flex: 0 0 30px !important;
+        padding: 0 !important;
+        font-size: 15px !important;
+        line-height: 1 !important;
+    }
+
+    html[data-ui-scale] .nav-right-stack .nav-secondary-row > button,
+    html[data-ui-scale] .nav-top-row .nav-actions > .ai-chat-nav-btn,
+    html[data-ui-scale] .nav-top-row .nav-actions > .auth-wrap > #authBtn {
+        width: 32px !important;
+        min-width: 32px !important;
+        max-width: 32px !important;
+        height: 32px !important;
+        min-height: 32px !important;
+        max-height: 32px !important;
+        flex: 0 0 32px !important;
+        padding: 4px !important;
+        font-size: 15px !important;
+        line-height: 1 !important;
+        border-radius: 9px !important;
+    }
+
+    html[data-ui-scale] .nav-top-row .nav-actions > .auth-wrap > .profile-nav-btn {
+        width: 40px !important;
+        min-width: 40px !important;
+        max-width: 40px !important;
+        height: 40px !important;
+        min-height: 40px !important;
+        max-height: 40px !important;
+        flex: 0 0 40px !important;
+        padding: 2px !important;
+    }
+
+    /* Presence marker also stays at the A-size for the selected breakpoint. */
+    html[data-ui-scale] .profile-nav-btn .worth-it-presence-indicator {
+        width: 14px !important;
+        height: 14px !important;
+    }
+
+    html[data-ui-scale] .nav-top-row .nav-actions > .auth-wrap {
+        width: calc(40px / var(--ui-scale, 1)) !important;
+        min-width: calc(40px / var(--ui-scale, 1)) !important;
+        max-width: calc(40px / var(--ui-scale, 1)) !important;
+        height: calc(40px / var(--ui-scale, 1)) !important;
+        flex: 0 0 calc(40px / var(--ui-scale, 1)) !important;
+    }
+}
+
+@media (max-width: 380px) {
+    html[data-ui-scale] .nav-inner > .menu-btn {
+        width: 27px !important;
+        min-width: 27px !important;
+        max-width: 27px !important;
+        height: 27px !important;
+        min-height: 27px !important;
+        max-height: 27px !important;
+        flex: 0 0 27px !important;
+        padding: 0 !important;
+        font-size: 15px !important;
+        line-height: 1 !important;
+    }
+
+    html[data-ui-scale] .nav-right-stack .nav-secondary-row > button,
+    html[data-ui-scale] .nav-top-row .nav-actions > .ai-chat-nav-btn,
+    html[data-ui-scale] .nav-top-row .nav-actions > .auth-wrap > #authBtn {
+        width: 27px !important;
+        min-width: 27px !important;
+        max-width: 27px !important;
+        height: 27px !important;
+        min-height: 27px !important;
+        max-height: 27px !important;
+        flex: 0 0 27px !important;
+        padding: 2px !important;
+        font-size: 13px !important;
+        line-height: 1 !important;
+        border-radius: 9px !important;
+    }
+
+    html[data-ui-scale] .nav-top-row .nav-actions > .auth-wrap > .profile-nav-btn {
+        width: 36px !important;
+        min-width: 36px !important;
+        max-width: 36px !important;
+        height: 36px !important;
+        min-height: 36px !important;
+        max-height: 36px !important;
+        flex: 0 0 36px !important;
+        padding: 2px !important;
+    }
+
+    html[data-ui-scale] .nav-top-row .nav-actions > .auth-wrap {
+        width: calc(36px / var(--ui-scale, 1)) !important;
+        min-width: calc(36px / var(--ui-scale, 1)) !important;
+        max-width: calc(36px / var(--ui-scale, 1)) !important;
+        height: calc(36px / var(--ui-scale, 1)) !important;
+        flex: 0 0 calc(36px / var(--ui-scale, 1)) !important;
+    }
+}
+
+/* Keep the status dot the same size as A on desktop as well. */
+html[data-ui-scale] .profile-nav-btn .worth-it-presence-indicator {
+    width: 18px !important;
+    height: 18px !important;
+}
+@media (max-width: 700px) {
+    html[data-ui-scale] .profile-nav-btn .worth-it-presence-indicator {
+        width: 14px !important;
+        height: 14px !important;
     }
 }
