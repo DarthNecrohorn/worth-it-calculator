@@ -661,9 +661,14 @@
             button.style.display = admin ? '' : 'none';
         }
 
-        /* Bugs & Suggestions is a private admin control on the header/footer. */
+        /*
+         * Bugs & Suggestions is a public entry point. Everyone can open the
+         * feedback form; sending still requires a valid signed-in session.
+         * Reading submitted feedback remains protected by the admin-only panel
+         * and its server-side authorization.
+         */
         document.querySelectorAll('.feedback-nav-btn, .feedback-trigger').forEach(function(element){
-            element.style.display = admin ? '' : 'none';
+            element.style.display = '';
         });
     }
 
