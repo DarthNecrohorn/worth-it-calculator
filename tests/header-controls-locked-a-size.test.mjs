@@ -11,6 +11,9 @@ test("main-header controls are counter-scaled so they keep A-sized physical dime
     const lock = css.slice(lockStart);
 
     assert.match(lock, /\.nav-inner > \.menu-btn,[\s\S]*?\.nav-secondary-row > button\s*\{\s*zoom:\s*calc\(1\s*\/\s*var\(--ui-scale,\s*1\)\)\s*!important;/);
+    assert.doesNotMatch(lock, /\.nav-inner > \.logo\s*,/);
+    assert.match(lock, /html\[data-ui-scale\] \.nav-inner > \.menu-btn\s*\{[\s\S]*?width:\s*30px !important;[\s\S]*?height:\s*30px !important;/);
+    assert.match(lock, /html\[data-ui-scale\] \.nav-right-stack \.nav-secondary-row > button,[\s\S]*?width:\s*32px !important;[\s\S]*?height:\s*32px !important;/);
     assert.match(css, /body\s*\{[\s\S]*?zoom:\s*var\(--ui-scale,\s*1\)\s*;/);
     assert.match(html, /style\.css\?v=header-controls-locked-a-20261023a/);
 });
