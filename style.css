@@ -22053,3 +22053,232 @@ html[data-ui-scale] .profile-nav-btn .worth-it-presence-indicator {
         height: 14px !important;
     }
 }
+
+/* MOBILE HEADER A-SIZE LOCK v2
+   The former inverse zoom on individual buttons can leave scale-specific
+   24px/22px dimensions in place on phones. Instead, set the A baseline size
+   divided by the page scale and let the body zoom restore that exact physical
+   size. This block intentionally comes last to override older phone rules. */
+@media (max-width: 700px) {
+    html[data-ui-scale] .nav-inner > .menu-btn {
+        zoom: 1 !important;
+        width: calc(30px / var(--ui-scale, 1)) !important;
+        min-width: calc(30px / var(--ui-scale, 1)) !important;
+        max-width: calc(30px / var(--ui-scale, 1)) !important;
+        height: calc(30px / var(--ui-scale, 1)) !important;
+        min-height: calc(30px / var(--ui-scale, 1)) !important;
+        max-height: calc(30px / var(--ui-scale, 1)) !important;
+        flex: 0 0 calc(30px / var(--ui-scale, 1)) !important;
+        padding: 0 !important;
+        font-size: calc(15px / var(--ui-scale, 1)) !important;
+        line-height: 1 !important;
+        border-radius: calc(10px / var(--ui-scale, 1)) !important;
+    }
+
+    html[data-ui-scale] .nav-inner > .worth-it-user-search-btn {
+        zoom: 1 !important;
+        width: calc(32px / var(--ui-scale, 1)) !important;
+        min-width: calc(32px / var(--ui-scale, 1)) !important;
+        max-width: calc(32px / var(--ui-scale, 1)) !important;
+        height: calc(32px / var(--ui-scale, 1)) !important;
+        min-height: calc(32px / var(--ui-scale, 1)) !important;
+        max-height: calc(32px / var(--ui-scale, 1)) !important;
+        flex: 0 0 calc(32px / var(--ui-scale, 1)) !important;
+        padding: 0 !important;
+    }
+
+    html[data-ui-scale] .nav-inner > .worth-it-user-search-btn svg,
+    html[data-ui-scale] .nav-inner > .worth-it-user-search-btn .worth-it-user-search-symbol {
+        width: calc(18px / var(--ui-scale, 1)) !important;
+        height: calc(18px / var(--ui-scale, 1)) !important;
+        font-size: calc(18px / var(--ui-scale, 1)) !important;
+    }
+
+    html[data-ui-scale] .nav-top-row .nav-actions > .worth-it-notification-wrap {
+        width: calc(36px / var(--ui-scale, 1)) !important;
+        min-width: calc(36px / var(--ui-scale, 1)) !important;
+        max-width: calc(36px / var(--ui-scale, 1)) !important;
+        height: calc(38px / var(--ui-scale, 1)) !important;
+        flex: 0 0 calc(36px / var(--ui-scale, 1)) !important;
+    }
+
+    html[data-ui-scale] .nav-top-row .nav-actions > .worth-it-notification-wrap > .worth-it-notification-bell {
+        zoom: 1 !important;
+        width: calc(36px / var(--ui-scale, 1)) !important;
+        min-width: calc(36px / var(--ui-scale, 1)) !important;
+        max-width: calc(36px / var(--ui-scale, 1)) !important;
+        height: calc(36px / var(--ui-scale, 1)) !important;
+        min-height: calc(36px / var(--ui-scale, 1)) !important;
+        max-height: calc(36px / var(--ui-scale, 1)) !important;
+        flex: 0 0 calc(36px / var(--ui-scale, 1)) !important;
+        padding: 0 !important;
+        font-size: calc(18px / var(--ui-scale, 1)) !important;
+        line-height: 1 !important;
+    }
+
+    html[data-ui-scale] .worth-it-notification-bell .worth-it-notification-badge {
+        min-width: calc(18px / var(--ui-scale, 1)) !important;
+        height: calc(18px / var(--ui-scale, 1)) !important;
+        padding: 0 calc(4px / var(--ui-scale, 1)) !important;
+        border-width: calc(2px / var(--ui-scale, 1)) !important;
+        font-size: calc(10px / var(--ui-scale, 1)) !important;
+        top: calc(-5px / var(--ui-scale, 1)) !important;
+        right: calc(-5px / var(--ui-scale, 1)) !important;
+    }
+
+    html[data-ui-scale] .nav-top-row .nav-actions > .worth-it-chat-nav-wrap {
+        width: calc(42px / var(--ui-scale, 1)) !important;
+        min-width: calc(42px / var(--ui-scale, 1)) !important;
+        max-width: calc(42px / var(--ui-scale, 1)) !important;
+        height: calc(42px / var(--ui-scale, 1)) !important;
+        flex: 0 0 calc(42px / var(--ui-scale, 1)) !important;
+    }
+
+    html[data-ui-scale] .nav-top-row .nav-actions > .worth-it-chat-nav-wrap > .worth-it-chat-nav-btn {
+        zoom: 1 !important;
+        width: calc(42px / var(--ui-scale, 1)) !important;
+        min-width: calc(42px / var(--ui-scale, 1)) !important;
+        max-width: calc(42px / var(--ui-scale, 1)) !important;
+        height: calc(42px / var(--ui-scale, 1)) !important;
+        min-height: calc(42px / var(--ui-scale, 1)) !important;
+        max-height: calc(42px / var(--ui-scale, 1)) !important;
+        flex: 0 0 calc(42px / var(--ui-scale, 1)) !important;
+        padding: 0 !important;
+        font-size: calc(20px / var(--ui-scale, 1)) !important;
+        line-height: 1 !important;
+        border-radius: calc(14px / var(--ui-scale, 1)) !important;
+    }
+
+    html[data-ui-scale] .worth-it-chat-nav-btn .worth-it-chat-nav-badge {
+        min-width: calc(17px / var(--ui-scale, 1)) !important;
+        height: calc(17px / var(--ui-scale, 1)) !important;
+        padding: 0 calc(4px / var(--ui-scale, 1)) !important;
+        border-width: calc(2px / var(--ui-scale, 1)) !important;
+        font-size: calc(10px / var(--ui-scale, 1)) !important;
+        top: calc(-4px / var(--ui-scale, 1)) !important;
+        right: calc(-4px / var(--ui-scale, 1)) !important;
+    }
+
+    html[data-ui-scale] .nav-top-row .nav-actions > .ai-chat-nav-btn,
+    html[data-ui-scale] .nav-right-stack .nav-secondary-row > button,
+    html[data-ui-scale] .nav-top-row .nav-actions > .auth-wrap > #authBtn {
+        zoom: 1 !important;
+        width: calc(32px / var(--ui-scale, 1)) !important;
+        min-width: calc(32px / var(--ui-scale, 1)) !important;
+        max-width: calc(32px / var(--ui-scale, 1)) !important;
+        height: calc(32px / var(--ui-scale, 1)) !important;
+        min-height: calc(32px / var(--ui-scale, 1)) !important;
+        max-height: calc(32px / var(--ui-scale, 1)) !important;
+        flex: 0 0 calc(32px / var(--ui-scale, 1)) !important;
+        padding: calc(4px / var(--ui-scale, 1)) !important;
+        font-size: calc(15px / var(--ui-scale, 1)) !important;
+        line-height: 1 !important;
+        border-radius: calc(9px / var(--ui-scale, 1)) !important;
+    }
+
+    html[data-ui-scale] .nav-top-row .nav-actions > .auth-wrap {
+        zoom: 1 !important;
+        width: calc(40px / var(--ui-scale, 1)) !important;
+        min-width: calc(40px / var(--ui-scale, 1)) !important;
+        max-width: calc(40px / var(--ui-scale, 1)) !important;
+        height: calc(40px / var(--ui-scale, 1)) !important;
+        flex: 0 0 calc(40px / var(--ui-scale, 1)) !important;
+    }
+
+    html[data-ui-scale] .nav-top-row .nav-actions > .auth-wrap > .profile-nav-btn {
+        zoom: 1 !important;
+        width: calc(40px / var(--ui-scale, 1)) !important;
+        min-width: calc(40px / var(--ui-scale, 1)) !important;
+        max-width: calc(40px / var(--ui-scale, 1)) !important;
+        height: calc(40px / var(--ui-scale, 1)) !important;
+        min-height: calc(40px / var(--ui-scale, 1)) !important;
+        max-height: calc(40px / var(--ui-scale, 1)) !important;
+        flex: 0 0 calc(40px / var(--ui-scale, 1)) !important;
+        padding: calc(2px / var(--ui-scale, 1)) !important;
+    }
+
+    html[data-ui-scale] .nav-top-row .nav-actions > .auth-wrap > .profile-nav-btn > #profileNavIcon,
+    html[data-ui-scale] .nav-top-row .nav-actions > .auth-wrap > .profile-nav-btn .auth-avatar,
+    html[data-ui-scale] .nav-top-row .nav-actions > .auth-wrap > .profile-nav-btn .auth-avatar-fallback {
+        width: calc(34px / var(--ui-scale, 1)) !important;
+        height: calc(34px / var(--ui-scale, 1)) !important;
+        min-width: calc(34px / var(--ui-scale, 1)) !important;
+        min-height: calc(34px / var(--ui-scale, 1)) !important;
+        max-width: calc(34px / var(--ui-scale, 1)) !important;
+        max-height: calc(34px / var(--ui-scale, 1)) !important;
+        flex: 0 0 calc(34px / var(--ui-scale, 1)) !important;
+        border-width: calc(2px / var(--ui-scale, 1)) !important;
+        font-size: calc(14px / var(--ui-scale, 1)) !important;
+    }
+
+    html[data-ui-scale] .nav-top-row .nav-actions > .auth-wrap .worth-it-presence-indicator {
+        width: calc(14px / var(--ui-scale, 1)) !important;
+        height: calc(14px / var(--ui-scale, 1)) !important;
+    }
+}
+
+@media (max-width: 380px) {
+    html[data-ui-scale] .nav-inner > .menu-btn {
+        width: calc(27px / var(--ui-scale, 1)) !important;
+        min-width: calc(27px / var(--ui-scale, 1)) !important;
+        max-width: calc(27px / var(--ui-scale, 1)) !important;
+        height: calc(27px / var(--ui-scale, 1)) !important;
+        min-height: calc(27px / var(--ui-scale, 1)) !important;
+        max-height: calc(27px / var(--ui-scale, 1)) !important;
+        flex: 0 0 calc(27px / var(--ui-scale, 1)) !important;
+    }
+
+    html[data-ui-scale] .nav-inner > .worth-it-user-search-btn {
+        width: calc(27px / var(--ui-scale, 1)) !important;
+        min-width: calc(27px / var(--ui-scale, 1)) !important;
+        max-width: calc(27px / var(--ui-scale, 1)) !important;
+        height: calc(27px / var(--ui-scale, 1)) !important;
+        min-height: calc(27px / var(--ui-scale, 1)) !important;
+        max-height: calc(27px / var(--ui-scale, 1)) !important;
+        flex: 0 0 calc(27px / var(--ui-scale, 1)) !important;
+    }
+
+    html[data-ui-scale] .nav-right-stack .nav-secondary-row > button,
+    html[data-ui-scale] .nav-top-row .nav-actions > .ai-chat-nav-btn,
+    html[data-ui-scale] .nav-top-row .nav-actions > .auth-wrap > #authBtn {
+        width: calc(27px / var(--ui-scale, 1)) !important;
+        min-width: calc(27px / var(--ui-scale, 1)) !important;
+        max-width: calc(27px / var(--ui-scale, 1)) !important;
+        height: calc(27px / var(--ui-scale, 1)) !important;
+        min-height: calc(27px / var(--ui-scale, 1)) !important;
+        max-height: calc(27px / var(--ui-scale, 1)) !important;
+        flex: 0 0 calc(27px / var(--ui-scale, 1)) !important;
+        font-size: calc(13px / var(--ui-scale, 1)) !important;
+        padding: calc(2px / var(--ui-scale, 1)) !important;
+    }
+
+    html[data-ui-scale] .nav-top-row .nav-actions > .auth-wrap {
+        width: calc(36px / var(--ui-scale, 1)) !important;
+        min-width: calc(36px / var(--ui-scale, 1)) !important;
+        max-width: calc(36px / var(--ui-scale, 1)) !important;
+        height: calc(36px / var(--ui-scale, 1)) !important;
+        flex: 0 0 calc(36px / var(--ui-scale, 1)) !important;
+    }
+
+    html[data-ui-scale] .nav-top-row .nav-actions > .auth-wrap > .profile-nav-btn {
+        width: calc(36px / var(--ui-scale, 1)) !important;
+        min-width: calc(36px / var(--ui-scale, 1)) !important;
+        max-width: calc(36px / var(--ui-scale, 1)) !important;
+        height: calc(36px / var(--ui-scale, 1)) !important;
+        min-height: calc(36px / var(--ui-scale, 1)) !important;
+        max-height: calc(36px / var(--ui-scale, 1)) !important;
+        flex: 0 0 calc(36px / var(--ui-scale, 1)) !important;
+    }
+
+    html[data-ui-scale] .nav-top-row .nav-actions > .auth-wrap > .profile-nav-btn > #profileNavIcon,
+    html[data-ui-scale] .nav-top-row .nav-actions > .auth-wrap > .profile-nav-btn .auth-avatar,
+    html[data-ui-scale] .nav-top-row .nav-actions > .auth-wrap > .profile-nav-btn .auth-avatar-fallback {
+        width: calc(30px / var(--ui-scale, 1)) !important;
+        height: calc(30px / var(--ui-scale, 1)) !important;
+        min-width: calc(30px / var(--ui-scale, 1)) !important;
+        min-height: calc(30px / var(--ui-scale, 1)) !important;
+        max-width: calc(30px / var(--ui-scale, 1)) !important;
+        max-height: calc(30px / var(--ui-scale, 1)) !important;
+        flex: 0 0 calc(30px / var(--ui-scale, 1)) !important;
+    }
+}
