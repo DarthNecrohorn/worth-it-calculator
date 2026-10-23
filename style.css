@@ -22108,3 +22108,33 @@ html[data-ui-scale] .profile-nav-btn .worth-it-presence-indicator {
         flex: 0 0 36px !important;
     }
 }
+
+/* Mobile Community Chat: keep the same viewport footprint at A, A+ and A++.
+   The page itself uses zoom(var(--ui-scale)), so compensate the chat window's
+   viewport dimensions as well as the overlay dimensions on phones/tablets. */
+@media (max-width: 760px) {
+    .worth-it-chat-fullscreen-btn {
+        display: none !important;
+    }
+
+    .worth-it-chat-overlay:not(.is-fullscreen):not([hidden]) {
+        width: calc(100vw / var(--ui-scale, 1)) !important;
+        height: calc(100dvh / var(--ui-scale, 1)) !important;
+        max-width: calc(100vw / var(--ui-scale, 1)) !important;
+        max-height: calc(100dvh / var(--ui-scale, 1)) !important;
+        padding: 0 !important;
+        box-sizing: border-box !important;
+    }
+
+    .worth-it-chat-overlay:not(.is-fullscreen):not([hidden]) > .worth-it-chat-window:not(.is-fullscreen) {
+        width: calc(100vw / var(--ui-scale, 1)) !important;
+        height: calc(100dvh / var(--ui-scale, 1)) !important;
+        min-width: 0 !important;
+        min-height: 0 !important;
+        max-width: calc(100vw / var(--ui-scale, 1)) !important;
+        max-height: calc(100dvh / var(--ui-scale, 1)) !important;
+        margin: 0 !important;
+        box-sizing: border-box !important;
+        transform: none !important;
+    }
+}
