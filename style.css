@@ -21521,7 +21521,7 @@ body:has(.auth-modal-overlay.open):not(.worth-it-guest-dialog-open) .nav {
    the header controls, instead of centering off-screen from the far-right
    profile icon. JS supplies measured offsets for every UI scale.
    ========================================================= */
-.auth-wrap .account-panel {
+.nav-top-row .nav-actions .auth-wrap .account-panel {
     left: auto !important;
     right: 0 !important;
     top: var(--account-panel-top, calc(100% + 48px)) !important;
