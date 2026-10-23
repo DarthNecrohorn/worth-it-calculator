@@ -67,3 +67,13 @@ test("header utility controls are arranged in two right-aligned rows", () => {
     assert.match(css, /\.nav-right-stack\s*\{[^}]*flex-direction:\s*column/);
     assert.match(css, /\.nav-secondary-row\s*\{[^}]*justify-content:\s*flex-end/);
 });
+
+
+test("profile dropdown opens below the secondary header row and stays in the viewport", () => {
+    assert.match(app, /function positionAccountPanelForMobile\(\)[\s\S]*?const secondaryRow = document\.querySelector\("\.nav-secondary-row"\)/);
+    assert.match(app, /panel\.style\.setProperty\("--account-panel-top", top \+ "px"\)/);
+    assert.match(app, /--account-panel-available-height/);
+    assert.match(app, /visualViewport\.addEventListener\("resize", positionAccountPanelForMobile\)/);
+    assert.match(css, /\.auth-wrap \.account-panel\s*\{[\s\S]*?left: auto !important;[\s\S]*?right: 0 !important;[\s\S]*?top: var\(--account-panel-top,[\s\S]*?width: min\(290px, calc\(\(100vw - 20px\) \/ var\(--ui-scale, 1\)\)\) !important;[\s\S]*?max-height: var\(--account-panel-available-height,[\s\S]*?overflow: auto !important;/);
+    assert.match(html, /style\.css\?v=profiledropdownviewport20261023a/);
+});
