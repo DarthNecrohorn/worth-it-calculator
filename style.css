@@ -21457,3 +21457,12 @@ body:has(.auth-modal-overlay.open):not(.worth-it-guest-dialog-open) .nav {
         font-size: 11px !important;
     }
 }
+
+/* Keep the entire right-side utility stack inert while the hamburger menu is open. */
+.nav-inner:has(> #navLinks.nav-links.open) > .nav-right-stack {
+    pointer-events: none !important;
+}
+
+.nav-inner:has(> #navLinks.nav-links.open) > .nav-right-stack * {
+    pointer-events: none !important;
+}
