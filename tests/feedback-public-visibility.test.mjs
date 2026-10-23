@@ -41,6 +41,7 @@ test("public feedback submission still requires sign-in and feedback review rema
 
 test("phone profile avatar is larger while A+ and A++ utility rows move left by the requested rendered distance", () => {
     assert.match(css, /\.nav-top-row \.nav-actions \.auth-wrap > \.profile-nav-btn\s*\{[\s\S]*?width: 40px !important;[\s\S]*?height: 40px !important;[\s\S]*?flex: 0 0 40px !important;/);
+    assert.match(css, /\.nav-top-row \.nav-actions > \.auth-wrap\s*\{[\s\S]*?width: 40px !important;[\s\S]*?flex: 0 0 40px !important;/);
     assert.match(css, /\.nav-top-row \.nav-actions \.auth-wrap > \.profile-nav-btn > #profileNavIcon\s*\{[\s\S]*?width: 34px !important;[\s\S]*?height: 34px !important;/);
     assert.match(css, /html\[data-ui-scale="large"\] \.nav-top-row \.nav-actions\s*\{\s*left: -4\.31px !important;/);
     assert.match(css, /html\[data-ui-scale="xl"\] \.nav-top-row \.nav-actions\s*\{\s*left: -7\.58px !important;/);
