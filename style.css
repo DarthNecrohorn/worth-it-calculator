@@ -21513,3 +21513,23 @@ body:has(.auth-modal-overlay.open):not(.worth-it-guest-dialog-open) .nav {
 .nav-top-row .nav-actions > .auth-wrap {
     order: 3 !important;
 }
+
+
+/* =========================================================
+   PROFILE DROPDOWN — HEADER ROW AND VIEWPORT FIT
+   The menu opens under Admin / Sign out and aligns to the right edge of
+   the header controls, instead of centering off-screen from the far-right
+   profile icon. JS supplies measured offsets for every UI scale.
+   ========================================================= */
+.nav-top-row .nav-actions .auth-wrap .account-panel {
+    left: auto !important;
+    right: 0 !important;
+    top: var(--account-panel-top, calc(100% + 48px)) !important;
+    transform: none !important;
+    width: min(290px, calc((100vw - 20px) / var(--ui-scale, 1))) !important;
+    max-width: calc((100vw - 20px) / var(--ui-scale, 1)) !important;
+    max-height: var(--account-panel-available-height, calc((100vh - 28px) / var(--ui-scale, 1))) !important;
+    overflow: auto !important;
+    box-sizing: border-box !important;
+    transform-origin: top right !important;
+}
