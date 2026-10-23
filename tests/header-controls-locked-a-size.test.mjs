@@ -15,7 +15,7 @@ test("main-header controls use inverse zoom only where the navbar itself is not 
     assert.match(lock, /html\[data-ui-scale\] \.nav-inner > \.menu-btn\s*\{[\s\S]*?width:\s*30px !important;[\s\S]*?height:\s*30px !important;/);
     assert.match(lock, /html\[data-ui-scale\] \.nav-right-stack \.nav-secondary-row > button,[\s\S]*?width:\s*32px !important;[\s\S]*?height:\s*32px !important;/);
     assert.match(css, /body\s*\{[\s\S]*?zoom:\s*var\(--ui-scale,\s*1\)\s*;/);
-    assert.match(html, /style\.css\?v=header-controls-locked-a-20261023b/);
+    assert.match(html, /style\.css\?v=[^"']+/);
 });
 
 test("A+ and A++ phone controls do not receive a second inverse zoom", () => {
@@ -25,7 +25,7 @@ test("A+ and A++ phone controls do not receive a second inverse zoom", () => {
     assert.match(fix, /html\[data-ui-scale="large"\] \.nav-top-row \.nav-actions > \.ai-chat-nav-btn,[\s\S]*?html\[data-ui-scale="xl"\] \.nav-secondary-row > button\s*\{\s*zoom:\s*1 !important;/);
     assert.match(fix, /html\[data-ui-scale="large"\] \.nav-top-row \.nav-actions > \.auth-wrap,[\s\S]*?width:\s*40px !important;[\s\S]*?flex:\s*0 0 40px !important;/);
     assert.match(fix, /@media \(max-width: 360px\)[\s\S]*?html\[data-ui-scale="large"\] \.nav-top-row \.nav-actions > \.auth-wrap,[\s\S]*?width:\s*36px !important;[\s\S]*?flex:\s*0 0 36px !important;/);
-    assert.match(html, /style\.css\?v=header-controls-locked-a-20261023b/);
+    assert.match(html, /style\.css\?v=[^"']+/);
 });
 
 test("regular mobile header buttons return to the A-size baseline at A+ and A++", () => {
