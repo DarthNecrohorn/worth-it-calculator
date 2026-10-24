@@ -22142,8 +22142,8 @@ html[data-ui-scale] .profile-nav-btn .worth-it-presence-indicator {
 
 /* COMMUNITY CHAT — LOCK PHONE PANEL TO THE A− SCALE.
    The rest of the site still uses the selected accessibility scale.
-   Inside the non-fullscreen chat panel on phones, normalize the combined
-   page + overlay zoom to 0.82, the effective A− reference size. */
+   Inside the non-fullscreen chat panel on phones, keep the overlay's effective zoom at the A− reference value (0.82)
+   regardless of the accessibility scale selected for the rest of the page. */
 @media (max-width: 760px) {
     html[data-ui-scale] .worth-it-chat-overlay:not(.is-fullscreen):not([hidden]) {
         position: fixed !important;
@@ -22159,7 +22159,7 @@ html[data-ui-scale] .profile-nav-btn .worth-it-presence-indicator {
         box-sizing: border-box !important;
         overflow: hidden !important;
         transform: none !important;
-        zoom: calc(0.82 / var(--ui-scale, 1)) !important;
+        zoom: 0.82 !important;
     }
 
     html[data-ui-scale] .worth-it-chat-overlay:not(.is-fullscreen):not([hidden]) > .worth-it-chat-window:not(.is-fullscreen) {
