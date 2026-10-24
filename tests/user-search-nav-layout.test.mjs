@@ -75,5 +75,5 @@ test("profile dropdown opens below the secondary header row and stays in the vie
     assert.match(app, /--account-panel-available-height/);
     assert.match(app, /visualViewport\.addEventListener\("resize", positionAccountPanelForMobile\)/);
     assert.match(css, /\.nav-top-row \.nav-actions \.auth-wrap \.account-panel\s*\{[\s\S]*?left: auto !important;[\s\S]*?right: 0 !important;[\s\S]*?top: var\(--account-panel-top,[\s\S]*?width: min\(290px, calc\(\(100vw - 20px\) \/ var\(--ui-scale, 1\)\)\) !important;[\s\S]*?max-height: var\(--account-panel-available-height,[\s\S]*?overflow: auto !important;/);
-    assert.match(html, /style\.css\?v=mobile-chat-panel-a-baseline-fix-20261024b/);
+    assert.match(html, /style\.css\?v=mobile-chat-panel-a-minus-fix-20261024a/);
 });
