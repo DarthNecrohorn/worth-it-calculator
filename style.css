@@ -22140,16 +22140,16 @@ html[data-ui-scale] .profile-nav-btn .worth-it-presence-indicator {
 }
 
 
-/* COMMUNITY CHAT — LOCK PHONE PANEL TO THE A− SCALE.
+/* COMMUNITY CHAT — LOCK PHONE PANEL TO THE A SCALE.
    The rest of the site still uses the selected accessibility scale.
-   Inside the non-fullscreen chat panel on phones, keep the overlay's effective zoom at the A− reference value (0.82)
+   Inside the non-fullscreen chat panel on phones, keep the overlay at the standard A reference size (1.0)
    regardless of the accessibility scale selected for the rest of the page. */
 @media (max-width: 760px) {
     html[data-ui-scale] .worth-it-chat-overlay:not(.is-fullscreen):not([hidden]) {
         position: fixed !important;
         inset: 0 auto auto 0 !important;
-        width: calc(100vw / 0.82) !important;
-        height: calc(100dvh / 0.82) !important;
+        width: 100vw !important;
+        height: 100dvh !important;
         min-width: 0 !important;
         min-height: 0 !important;
         max-width: none !important;
@@ -22159,7 +22159,7 @@ html[data-ui-scale] .profile-nav-btn .worth-it-presence-indicator {
         box-sizing: border-box !important;
         overflow: hidden !important;
         transform: none !important;
-        zoom: 0.82 !important;
+        zoom: calc(1 / var(--ui-scale, 1)) !important;
     }
 
     html[data-ui-scale] .worth-it-chat-overlay:not(.is-fullscreen):not([hidden]) > .worth-it-chat-window:not(.is-fullscreen) {
@@ -22178,7 +22178,7 @@ html[data-ui-scale] .profile-nav-btn .worth-it-presence-indicator {
 /* On narrow phones, keep the message area and composer at the same A− height too. */
 @media (max-width: 540px) {
     html[data-ui-scale] .worth-it-chat-window:not(.is-fullscreen):not(.is-mobile-sidebar) .worth-it-chat-main {
-        height: calc(100dvh / 0.82) !important;
+        height: 100dvh !important;
         min-height: 0 !important;
     }
 }
