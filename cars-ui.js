@@ -4323,11 +4323,11 @@ async function fetchFreshVehicleCatalog(
 ) {
 
     /*
-     * VehiclesDB publishes a versioned manifest alongside the rolling
-     * @latest catalog. The manifest build date is the dataset update
-     * date we display to users; it is not the time our browser fetched it.
+     * The manifest only updates the displayed dataset date; it is not
+     * required to build the catalog. Start it in the background so its
+     * no-store request does not delay the two catalog CDN requests.
      */
-    await fetchVehicleDatasetMetadata();
+    void fetchVehicleDatasetMetadata();
 
     const sourceKinds =
         VEHICLE_CATALOG_SOURCE_KINDS[kind] ||
