@@ -22333,3 +22333,88 @@ html[data-ui-scale] .profile-nav-btn .worth-it-presence-indicator {
     transform: translateY(10px) !important;
   }
 }
+
+
+/* Keep the header 💬 chat shortcut available on every device. */
+@media (max-width: 760px) {
+    /* ⛶ remains a desktop-only control; the chat opener stays available. */
+    .worth-it-chat-fullscreen-btn {
+        display: none !important;
+    }
+}
+
+/* Desktop fullscreen chat: expand the overlay and its in-flow window to the viewport. */
+@media (min-width: 761px) {
+    html[data-ui-scale] .worth-it-chat-overlay:not([hidden]) {
+        position: fixed !important;
+        inset: 0 auto auto 0 !important;
+        width: calc(100vw / var(--ui-scale, 1)) !important;
+        height: calc(100dvh / var(--ui-scale, 1)) !important;
+        min-width: 0 !important;
+        min-height: 0 !important;
+        max-width: none !important;
+        max-height: none !important;
+        box-sizing: border-box !important;
+        overflow: hidden !important;
+        transition:
+            padding 420ms cubic-bezier(.22, .75, .18, 1),
+            background-color 280ms ease !important;
+    }
+
+    html[data-ui-scale] .worth-it-chat-overlay:not([hidden]) > .worth-it-chat-window {
+        box-sizing: border-box !important;
+        transition:
+            width 460ms cubic-bezier(.22, .75, .18, 1),
+            height 460ms cubic-bezier(.22, .75, .18, 1),
+            transform 460ms cubic-bezier(.22, .75, .18, 1),
+            border-radius 360ms ease,
+            box-shadow 360ms ease !important;
+        will-change: width, height, transform, border-radius;
+    }
+
+    html[data-ui-scale] .worth-it-chat-overlay.is-fullscreen:not([hidden]) {
+        padding: 0 !important;
+        align-items: stretch !important;
+        justify-content: stretch !important;
+        background: rgba(4, 8, 24, .98) !important;
+    }
+
+    html[data-ui-scale] .worth-it-chat-overlay.is-fullscreen:not([hidden]) > .worth-it-chat-window.is-fullscreen {
+        position: relative !important;
+        inset: auto !important;
+        width: 100% !important;
+        height: 100% !important;
+        min-width: 0 !important;
+        min-height: 0 !important;
+        max-width: none !important;
+        max-height: none !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        flex: 1 1 auto !important;
+        align-self: stretch !important;
+        transform: none !important;
+        border: 0 !important;
+        border-radius: 0 !important;
+        box-shadow: none !important;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    html[data-ui-scale] .worth-it-chat-overlay:not([hidden]),
+    html[data-ui-scale] .worth-it-chat-overlay:not([hidden]) > .worth-it-chat-window {
+        transition-duration: 0.01ms !important;
+        animation-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
+}
+
+
+/* Mobile-only: remove the header 💬 shortcut on phones; desktop remains unchanged. */
+@media (max-width: 760px) {
+    .worth-it-chat-nav-wrap {
+        display: none !important;
+    }
+    .worth-it-chat-fullscreen-btn {
+        display: none !important;
+    }
+}
