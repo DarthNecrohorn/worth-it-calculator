@@ -809,7 +809,12 @@ function updateCharacterCount() {
     const count = $("worthItChatCharCount");
     if (count && input) count.textContent = String(input.value.length);
 }
+let pendingMediaObjectUrl = "";
 function setPendingMedia(file, url, type) {
+    if (pendingMediaObjectUrl) {
+        URL.revokeObjectURL(pendingMediaObjectUrl);
+        pendingMediaObjectUrl = "";
+    }
     pendingMediaFile = file || null;
     pendingMediaUrl = url || "";
     pendingMediaType = type || "";
@@ -818,6 +823,7 @@ function setPendingMedia(file, url, type) {
     host.replaceChildren();
     host.hidden = !pendingMediaFile;
     if (!pendingMediaFile) return;
+    if (pendingMediaUrl.startsWith("blob:")) pendingMediaObjectUrl = pendingMediaUrl;
     const img = document.createElement("img");
     img.src = pendingMediaUrl;
     img.alt = "Attachment preview";
@@ -826,14 +832,30 @@ function setPendingMedia(file, url, type) {
     remove.addEventListener("click", () => setPendingMedia(null, "", ""));
     host.append(img, name, remove);
 }
+async function validateChatMediaSignature(file, expectedMime) {
+    const header = new Uint8Array(await file.slice(0, 16).arrayBuffer());
+    const starts = (...bytes) => bytes.every((byte, index) => header[index] === byte);
+    let actualMime = "";
+    if (starts(0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a)) actualMime = "image/png";
+    else if (starts(0xff, 0xd8, 0xff)) actualMime = "image/jpeg";
+    else if (starts(0x47, 0x49, 0x46, 0x38, 0x37, 0x61) || starts(0x47, 0x49, 0x46, 0x38, 0x39, 0x61)) actualMime = "image/gif";
+    else if (header.length >= 12 && starts(0x52, 0x49, 0x46, 0x46) && header[8] === 0x57 && header[9] === 0x45 && header[10] === 0x42 && header[11] === 0x50) actualMime = "image/webp";
+    if (!actualMime || actualMime !== expectedMime) {
+        throw new Error("The file contents do not match its image type. Choose a valid PNG, JPG, WEBP or GIF.");
+    }
+    return actualMime;
+}
 async function uploadPendingMedia() {
     if (!pendingMediaFile) return {url:"",type:""};
     const file = pendingMediaFile;
+    if (!file.size) throw new Error("This image file is empty.");
     if (file.size > 8 * 1024 * 1024) throw new Error("Images and GIFs must be 8 MB or smaller.");
     const allowed = {"image/png":"image","image/jpeg":"image","image/webp":"image","image/gif":"gif"};
     const type = allowed[file.type];
     if (!type) throw new Error("Choose a PNG, JPG, WEBP or GIF image.");
+    await validateChatMediaSignature(file, file.type);
     const client = sb();
+    if (!client || !chatUser?.id) throw new Error("Sign in again before uploading media.");
     const extension = (file.name.split(".").pop() || "png").toLowerCase().replace(/[^a-z0-9]/g,"") || "png";
     const path = chatUser.id + "/" + Date.now() + "-" + Math.random().toString(36).slice(2,9) + "." + extension;
     const result = await client.storage.from("worth-it-chat-media").upload(path, file, {contentType:file.type, upsert:false, cacheControl:"3600"});
@@ -1275,9 +1297,20 @@ function setupChatUI() {
         const file = this.files?.[0];
         this.value = "";
         if (!file) return;
+        const allowed = ["image/png", "image/jpeg", "image/webp", "image/gif"];
+        if (!allowed.includes(file.type)) {
+            setPendingMedia(null, "", "");
+            setStatus("Choose a PNG, JPG, WEBP or GIF image.", true);
+            return;
+        }
+        if (!file.size || file.size > 8 * 1024 * 1024) {
+            setPendingMedia(null, "", "");
+            setStatus("Choose a non-empty image or GIF that is 8 MB or smaller.", true);
+            return;
+        }
         const objectUrl = URL.createObjectURL(file);
         setPendingMedia(file, objectUrl, file.type === "image/gif" ? "gif" : "image");
-        setStatus("",false);
+        setStatus("", false);
     });
     $("worthItChatHeaderNotifications")?.addEventListener("click", event => {
         event.preventDefault();
