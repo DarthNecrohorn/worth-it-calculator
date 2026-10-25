@@ -1,0 +1,112 @@
+const SITE_ORIGIN = "https://worth-it-calculator.pages.dev";
+const BUCKET = "worth-it-chat-media";
+const IMAGE_LIMIT = 15 * 1024 * 1024;
+const GIF_LIMIT = 20 * 1024 * 1024;
+const MAX_REQUEST_BYTES = GIF_LIMIT + 256 * 1024;
+
+function json(data, status, origin) {
+    return new Response(JSON.stringify(data), {
+        status: status || 200,
+        headers: {
+            "Content-Type": "application/json; charset=utf-8",
+            "Cache-Control": "no-store",
+            "Vary": "Origin",
+            "Access-Control-Allow-Origin": origin || SITE_ORIGIN,
+            "Access-Control-Allow-Headers": "Content-Type, Authorization",
+            "Access-Control-Allow-Methods": "POST, OPTIONS"
+        }
+    });
+}
+function getToken(request) {
+    const authorization = request.headers.get("Authorization") || "";
+    return authorization.startsWith("Bearer ") ? authorization.slice(7).trim() : "";
+}
+function getConfig(env) {
+    return {
+        supabaseUrl: String(env.SUPABASE_URL || "").trim().replace(/\/$/, ""),
+        publishableKey: String(env.SUPABASE_PUBLISHABLE_KEY || "").trim(),
+        serviceKey: String(env.supabase_secret_key || env.SUPABASE_SECRET_KEY || env.SUPABASE_SERVICE_ROLE_KEY || "").trim()
+    };
+}
+function serviceHeaders(config, extra) {
+    const headers = { "apikey": config.serviceKey };
+    if (!config.serviceKey.startsWith("sb_secret_")) headers.Authorization = "Bearer " + config.serviceKey;
+    return Object.assign(headers, extra || {});
+}
+function allowedOrigin(request) {
+    const origin = request.headers.get("Origin") || "";
+    const requestOrigin = new URL(request.url).origin;
+    if (!origin) return requestOrigin === SITE_ORIGIN ? SITE_ORIGIN : "";
+    if (origin === SITE_ORIGIN || origin === requestOrigin) return origin;
+    return "";
+}
+async function verifyUser(config, token) {
+    const response = await fetch(config.supabaseUrl + "/auth/v1/user", {
+        headers: {
+            "apikey": config.publishableKey,
+            "Authorization": "Bearer " + token,
+            "Accept": "application/json"
+        }
+    });
+    if (!response.ok) return null;
+    const user = await response.json();
+    return user && user.id ? user : null;
+}
+function detectImage(bytes) {
+    const starts = (...values) => values.every((value, index) => bytes[index] === value);
+    if (starts(0x89,0x50,0x4e,0x47,0x0d,0x0a,0x1a,0x0a)) return {mime:"image/png", ext:"png", type:"image"};
+    if (starts(0xff,0xd8,0xff)) return {mime:"image/jpeg", ext:"jpg", type:"image"};
+    if (starts(0x47,0x49,0x46,0x38,0x37,0x61) || starts(0x47,0x49,0x46,0x38,0x39,0x61)) return {mime:"image/gif", ext:"gif", type:"gif"};
+    if (bytes.length >= 12 && starts(0x52,0x49,0x46,0x46) && bytes[8] === 0x57 && bytes[9] === 0x45 && bytes[10] === 0x42 && bytes[11] === 0x50) return {mime:"image/webp", ext:"webp", type:"image"};
+    return null;
+}
+export async function onRequest(context) {
+    const { request, env } = context;
+    const origin = allowedOrigin(request);
+    if (!origin) return json({error:"This origin is not allowed."}, 403, SITE_ORIGIN);
+    if (request.method === "OPTIONS") return new Response(null, {status:204, headers:{
+        "Access-Control-Allow-Origin":origin,"Access-Control-Allow-Headers":"Content-Type, Authorization",
+        "Access-Control-Allow-Methods":"POST, OPTIONS","Access-Control-Max-Age":"86400","Vary":"Origin"
+    }});
+    if (request.method !== "POST") return json({error:"Method not allowed."}, 405, origin);
+    const contentLength = Number(request.headers.get("Content-Length") || 0);
+    if (contentLength && contentLength > MAX_REQUEST_BYTES) return json({error:"This file is too large. Images are limited to 15 MB and GIFs to 20 MB."}, 413, origin);
+    const config = getConfig(env);
+    if (!config.supabaseUrl || !config.publishableKey || !config.serviceKey) return json({error:"Chat media uploads are temporarily unavailable."}, 503, origin);
+    const token = getToken(request);
+    if (!token) return json({error:"Sign in again before uploading media."}, 401, origin);
+    let user;
+    try { user = await verifyUser(config, token); } catch (_) { return json({error:"Could not verify your session. Please try again."}, 502, origin); }
+    if (!user) return json({error:"Your session has expired. Sign in again."}, 401, origin);
+    let form;
+    try { form = await request.formData(); } catch (_) { return json({error:"Choose a valid image or GIF file."}, 400, origin); }
+    const file = form.get("file");
+    if (!file || typeof file.arrayBuffer !== "function" || typeof file.size !== "number") return json({error:"Choose an image or GIF file."}, 400, origin);
+    if (!file.size) return json({error:"This image file is empty."}, 400, origin);
+    const claimedMime = String(file.type || "").toLowerCase();
+    const maxBytes = claimedMime === "image/gif" ? GIF_LIMIT : IMAGE_LIMIT;
+    if (file.size > maxBytes) return json({error:claimedMime === "image/gif" ? "GIFs must be 20 MB or smaller." : "Images must be 15 MB or smaller."}, 413, origin);
+    if (!["image/png","image/jpeg","image/webp","image/gif"].includes(claimedMime)) return json({error:"Choose a PNG, JPG, WEBP or GIF image."}, 415, origin);
+    let bytes;
+    try { bytes = new Uint8Array(await file.slice(0,16).arrayBuffer()); } catch (_) { return json({error:"Could not read this file."}, 400, origin); }
+    const detected = detectImage(bytes);
+    if (!detected || detected.mime !== claimedMime) return json({error:"The file contents do not match its image type."}, 415, origin);
+    const objectPath = user.id + "/" + Date.now() + "-" + crypto.randomUUID() + "." + detected.ext;
+    let uploadResponse;
+    try {
+        uploadResponse = await fetch(config.supabaseUrl + "/storage/v1/object/" + BUCKET + "/" + objectPath, {
+            method:"POST",
+            headers:serviceHeaders(config, {"Content-Type":detected.mime,"x-upsert":"false","Cache-Control":"3600"}),
+            body:file
+        });
+    } catch (_) { return json({error:"Could not upload this image. Please try again."}, 502, origin); }
+    if (!uploadResponse.ok) {
+        let message = "Could not upload this image. Please try again.";
+        try {
+            const result = await uploadResponse.json();
+            if (uploadResponse.status === 413 || /size|large|limit/i.test(String(result.message || result.error || ""))) message = "The storage service rejected this file size. Please try a smaller file.";
+        } catch (_) {}
+        return json({error:message}, uploadResponse.status === 413 ? 413 : 502, origin);
+    }
+    return json({url:config.supabaseUrl + "/storage/v1/object/public/" + BUCKET + "/" + objectPath, type:detected.type}, 200, origin);
+}

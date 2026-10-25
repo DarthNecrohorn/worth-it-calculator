@@ -849,19 +849,35 @@ async function uploadPendingMedia() {
     if (!pendingMediaFile) return {url:"",type:""};
     const file = pendingMediaFile;
     if (!file.size) throw new Error("This image file is empty.");
-    if (file.size > 8 * 1024 * 1024) throw new Error("Images and GIFs must be 8 MB or smaller.");
     const allowed = {"image/png":"image","image/jpeg":"image","image/webp":"image","image/gif":"gif"};
     const type = allowed[file.type];
     if (!type) throw new Error("Choose a PNG, JPG, WEBP or GIF image.");
+    const maxBytes = type === "gif" ? 20 * 1024 * 1024 : 15 * 1024 * 1024;
+    if (file.size > maxBytes) throw new Error(type === "gif" ? "GIFs must be 20 MB or smaller." : "Images must be 15 MB or smaller.");
     await validateChatMediaSignature(file, file.type);
     const client = sb();
     if (!client || !chatUser?.id) throw new Error("Sign in again before uploading media.");
-    const extension = (file.name.split(".").pop() || "png").toLowerCase().replace(/[^a-z0-9]/g,"") || "png";
-    const path = chatUser.id + "/" + Date.now() + "-" + Math.random().toString(36).slice(2,9) + "." + extension;
-    const result = await client.storage.from("worth-it-chat-media").upload(path, file, {contentType:file.type, upsert:false, cacheControl:"3600"});
-    if (result.error) throw new Error(result.error.message || "Could not upload this image.");
-    const publicResult = client.storage.from("worth-it-chat-media").getPublicUrl(result.data.path);
-    return {url:publicResult.data?.publicUrl || "",type};
+    const sessionResult = await client.auth.getSession();
+    const token = sessionResult?.data?.session?.access_token || "";
+    const sessionUserId = sessionResult?.data?.session?.user?.id || "";
+    if (sessionResult?.error || !token || sessionUserId !== chatUser.id) {
+        throw new Error("Your session has expired. Sign in again before uploading media.");
+    }
+    const form = new FormData();
+    form.append("file", file, file.name || (type === "gif" ? "image.gif" : "image"));
+    const response = await fetch("/api/chat-media", {
+        method: "POST",
+        headers: { "Authorization": "Bearer " + token },
+        body: form,
+        credentials: "same-origin",
+        cache: "no-store"
+    });
+    let payload = {};
+    try { payload = await response.json(); } catch (_) {}
+    if (!response.ok || !payload.url || payload.type !== type) {
+        throw new Error(payload.error || "Could not upload this image. Please try again.");
+    }
+    return {url:payload.url,type};
 }
 async function sendWorthItChatMessage() {
     if (!chatUser || chatSending) return;
@@ -1303,9 +1319,11 @@ function setupChatUI() {
             setStatus("Choose a PNG, JPG, WEBP or GIF image.", true);
             return;
         }
-        if (!file.size || file.size > 8 * 1024 * 1024) {
+        const maxBytes = file.type === "image/gif" ? 20 * 1024 * 1024 : 15 * 1024 * 1024;
+        const maxLabel = file.type === "image/gif" ? "20 MB" : "15 MB";
+        if (!file.size || file.size > maxBytes) {
             setPendingMedia(null, "", "");
-            setStatus("Choose a non-empty image or GIF that is 8 MB or smaller.", true);
+            setStatus("Choose a non-empty " + (file.type === "image/gif" ? "GIF" : "image") + " that is " + maxLabel + " or smaller.", true);
             return;
         }
         const objectUrl = URL.createObjectURL(file);
