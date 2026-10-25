@@ -49,19 +49,20 @@ html[data-theme="light"].worth-it-initial-paint::before {
 </style>
 
     <script>
-/* Apply the saved UI scale before the first paint to prevent header layout shift. */
+/* Keep Worth It at its standard A size. Browser/device zoom is controlled by the user. */
 (function(){
     try{
-        const SCALE = {small:.82, normal:1, large:1.16, xl:1.32};
-        const saved = localStorage.getItem("worthItUIScale") || "normal";
-        const value = Object.prototype.hasOwnProperty.call(SCALE, saved) ? saved : "normal";
-        document.documentElement.dataset.uiScale = value;
-        document.documentElement.style.setProperty("--ui-scale", SCALE[value]);
-    }catch(e){}
+        localStorage.removeItem("worthItUIScale");
+        document.documentElement.dataset.uiScale = "normal";
+        document.documentElement.style.setProperty("--ui-scale", "1");
+    }catch(e){
+        document.documentElement.dataset.uiScale = "normal";
+        document.documentElement.style.setProperty("--ui-scale", "1");
+    }
 })();
 </script>
 
-<link rel="stylesheet" href="style.css?v=mobile-chat-panel-a-minus-fix-20261024a">
+<link rel="stylesheet" href="style.css?v=browser-zoom-help-20261025a">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 </head>
 
@@ -1022,15 +1023,12 @@ html[data-theme="light"].worth-it-initial-paint::before {
         </div>
     </div>
 
-    <div class="settings-section">
-        <label>Text &amp; UI size</label>
-        <div class="settings-options">
-            <button type="button" class="settings-option" id="sizeSmallBtn" data-ui-scale="small" onclick="setUIScale('small')">A−</button>
-            <button type="button" class="settings-option" id="sizeNormalBtn" data-ui-scale="normal" onclick="setUIScale('normal')">A</button>
-            <button type="button" class="settings-option" id="sizeLargeBtn" data-ui-scale="large" onclick="setUIScale('large')">A+</button>
-            <button type="button" class="settings-option" id="sizeXLBtn" data-ui-scale="xlarge" onclick="setUIScale('xl')">A++</button>
-        </div>
-        <div class="settings-note">Your preferences are saved automatically.</div>
+    <div class="settings-section settings-zoom-help">
+        <label>How to zoom in</label>
+        <p><strong>Computer with a mouse:</strong> Hold <kbd>Ctrl</kbd> and scroll the mouse wheel up to zoom in or down to zoom out.</p>
+        <p><strong>Keyboard only (no mouse):</strong> Press <kbd>Ctrl</kbd> + <kbd>+</kbd> to zoom in, <kbd>Ctrl</kbd> + <kbd>−</kbd> to zoom out, or <kbd>Ctrl</kbd> + <kbd>0</kbd> to reset zoom.</p>
+        <p><strong>Phone or tablet:</strong> Place two fingers on the screen and pinch apart to zoom in, or pinch together to zoom out.</p>
+        <div class="settings-note">Zoom is controlled by your browser or device.</div>
     </div>
 
     <div class="settings-section">
@@ -2723,14 +2721,21 @@ html[data-theme="light"].worth-it-initial-paint::before {
           <button type="button" class="settings-option" id="settingsPageThemeLightBtn" onclick="setTheme('light')">☀️ Light</button>
         </div>
       </div>
-      <div class="worth-it-settings-control-group">
-        <label>Text &amp; UI size</label>
-        <div class="settings-options worth-it-settings-page-options">
-          <button type="button" class="settings-option" id="settingsPageSizeSmallBtn" onclick="setUIScale('small')">A−</button>
-          <button type="button" class="settings-option" id="settingsPageSizeNormalBtn" onclick="setUIScale('normal')">A</button>
-          <button type="button" class="settings-option" id="settingsPageSizeLargeBtn" onclick="setUIScale('large')">A+</button>
-          <button type="button" class="settings-option" id="settingsPageSizeXLBtn" onclick="setUIScale('xl')">A++</button>
+      <div class="worth-it-settings-control-group worth-it-settings-zoom-help">
+        <h3>How to zoom in</h3>
+        <div class="worth-it-settings-zoom-method">
+          <strong>Computer with a mouse</strong>
+          <p>Hold <kbd>Ctrl</kbd> and scroll the mouse wheel up to zoom in or down to zoom out.</p>
         </div>
+        <div class="worth-it-settings-zoom-method">
+          <strong>Keyboard only (no mouse)</strong>
+          <p>Press <kbd>Ctrl</kbd> + <kbd>+</kbd> to zoom in, <kbd>Ctrl</kbd> + <kbd>−</kbd> to zoom out, or <kbd>Ctrl</kbd> + <kbd>0</kbd> to reset zoom.</p>
+        </div>
+        <div class="worth-it-settings-zoom-method">
+          <strong>Phone or tablet</strong>
+          <p>Place two fingers on the screen and pinch apart to zoom in, or pinch together to zoom out.</p>
+        </div>
+        <p class="settings-note">Zoom is controlled by your browser or device. On some devices, pinch zoom may need to be enabled in browser settings.</p>
       </div>
       <div class="worth-it-settings-reset">
         <div>

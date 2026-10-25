@@ -153,17 +153,12 @@ window.WORTH_IT_SETTINGS_SECTIONS = WORTH_IT_SETTINGS_SECTIONS;
     const UI_SCALE_KEY = "worthItUIScale";
     let feedbackType = "bug";
 
-    /* Global website scale. Every section inherits this setting. */
-    const SCALE = {small:.82, normal:1, large:1.16, xl:1.32};
-
+    /* The site now uses standard A size; zoom belongs to the browser/device. */
     function notifySettingsChange(){
         window.dispatchEvent(new CustomEvent("worthitsettingschange", {
             detail: {
                 theme: document.documentElement.dataset.theme || "dark",
-                scale: Number.parseFloat(
-                    getComputedStyle(document.documentElement)
-                        .getPropertyValue("--ui-scale")
-                ) || 1
+                scale: 1
             }
         }));
     }
@@ -176,52 +171,26 @@ window.WORTH_IT_SETTINGS_SECTIONS = WORTH_IT_SETTINGS_SECTIONS;
         notifySettingsChange();
     }
 
-    function setUIScale(size){
-        const value = SCALE[size] ? size : "normal";
-        const scale = SCALE[value];
-
-        document.documentElement.style.setProperty(
-            "--ui-scale",
-            scale
-        );
-
-        document.documentElement.dataset.uiScale =
-            value;
-
-        /*
-         * style.css applies --ui-scale to body zoom.
-         * Keeping one source of truth avoids an extra inline style update.
-         */
-
-        localStorage.setItem(
-            UI_SCALE_KEY,
-            value
-        );
-
+    /* Backwards-compatible no-op for any existing callers. */
+    function setUIScale(){
+        localStorage.removeItem(UI_SCALE_KEY);
+        document.documentElement.style.setProperty("--ui-scale", "1");
+        document.documentElement.dataset.uiScale = "normal";
         updateSettingsUI();
         notifySettingsChange();
     }
 
     function updateSettingsUI(){
         const theme = localStorage.getItem(THEME_KEY) || "dark";
-        const size = localStorage.getItem(UI_SCALE_KEY) || "normal";
         $("themeDarkBtn")?.classList.toggle("active", theme === "dark");
         $("themeLightBtn")?.classList.toggle("active", theme === "light");
-        $("sizeSmallBtn")?.classList.toggle("active", size === "small");
-        $("sizeNormalBtn")?.classList.toggle("active", size === "normal");
-        $("sizeLargeBtn")?.classList.toggle("active", size === "large");
-        $("sizeXLBtn")?.classList.toggle("active", size === "xl");
         $("settingsPageThemeDarkBtn")?.classList.toggle("active", theme === "dark");
         $("settingsPageThemeLightBtn")?.classList.toggle("active", theme === "light");
-        $("settingsPageSizeSmallBtn")?.classList.toggle("active", size === "small");
-        $("settingsPageSizeNormalBtn")?.classList.toggle("active", size === "normal");
-        $("settingsPageSizeLargeBtn")?.classList.toggle("active", size === "large");
-        $("settingsPageSizeXLBtn")?.classList.toggle("active", size === "xl");
     }
 
     function applySettings(){
         setTheme(localStorage.getItem(THEME_KEY) || "dark");
-        setUIScale(localStorage.getItem(UI_SCALE_KEY) || "normal");
+        setUIScale("normal");
     }
 
     window.setTheme = setTheme;
