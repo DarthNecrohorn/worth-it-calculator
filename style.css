@@ -22409,11 +22409,8 @@ html[data-ui-scale] .profile-nav-btn .worth-it-presence-indicator {
 }
 
 
-/* Mobile-only: remove the header 💬 shortcut on phones; desktop remains unchanged. */
+/* Keep the header 💬 shortcut visible on phones and desktop. The mobile-only fullscreen control stays hidden. */
 @media (max-width: 760px) {
-    .worth-it-chat-nav-wrap {
-        display: none !important;
-    }
     .worth-it-chat-fullscreen-btn {
         display: none !important;
     }
