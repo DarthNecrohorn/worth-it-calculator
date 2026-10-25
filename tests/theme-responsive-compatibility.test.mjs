@@ -11,7 +11,7 @@ test("dark/light theme and the standard UI scale initialize before content is pa
     assert.match(html, /document\.documentElement\.dataset\.uiScale = "normal"/);
     assert.match(settings, /function setUIScale\(\)\s*\{[\s\S]*?setProperty\("--ui-scale", "1"\)[\s\S]*?dataset\.uiScale = "normal"/);
     assert.match(settings, /document\.documentElement\.dataset\.theme = value/);
-    assert.match(settings, /document\.documentElement\.dataset\.uiScale =\s*value/);
+    assert.match(settings, /document\.documentElement\.dataset\.uiScale = "normal"/);
 });
 
 test("both themes receive native control palettes and readable semantic status colors", () => {
