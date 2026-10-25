@@ -1298,6 +1298,266 @@ async function routeWorthItChatFromLocation() {
     }
     await window.openWorthItFriendChat(route.worthItId);
 }
+
+const WORTH_IT_CHAT_EMOJI_OPTIONS = [
+    ["😀","grinning face happy smile"],["😃","grinning big eyes happy"],["😄","grinning smiling eyes"],["😁","beaming grin"],["😆","laughing closed eyes"],["😅","nervous sweat laugh"],["🤣","rolling on floor laughing"],["😂","tears of joy laugh"],
+    ["🙂","slight smile"],["🙃","upside down smile"],["😉","wink"],["😊","blush happy"],["😍","heart eyes love"],["🥰","smiling hearts love"],["😘","kiss"],["😗","kiss face"],
+    ["😋","yum delicious"],["😎","sunglasses cool"],["🤓","glasses nerd"],["🧐","monocle curious"],["🤔","thinking"],["🤨","raised eyebrow"],["😐","neutral"],["😏","smirk"],
+    ["😔","sad"],["🥺","pleading puppy eyes"],["😢","cry"],["😭","loudly crying"],["😤","frustrated"],["😡","angry"],["🤯","mind blown"],["🥳","party celebration"],
+    ["😴","sleeping"],["🤗","hug"],["🤩","star struck wow"],["😇","angel"],["🤦","facepalm"],["🤷","shrug"],["🙈","see no evil"],["💀","skull dead"],
+    ["❤️","red heart love"],["🧡","orange heart"],["💛","yellow heart"],["💚","green heart"],["💙","blue heart"],["💜","purple heart"],["🖤","black heart"],["🤍","white heart"],
+    ["💔","broken heart"],["💖","sparkling heart"],["💕","two hearts"],["💯","hundred points"],["🔥","fire hot"],["✨","sparkles"],["⭐","star"],["🌟","glowing star"],
+    ["👍","thumbs up like"],["👎","thumbs down dislike"],["👏","clap applause"],["🙌","raised hands celebrate"],["🤝","handshake"],["🙏","thanks pray"],["💪","strong muscle"],["👀","eyes looking"],
+    ["🎉","party popper"],["🎊","confetti"],["💐","flowers"],["☕","coffee"],["🍕","pizza"],["🍿","popcorn"],["🍓","strawberry"],["🍰","cake"],
+    ["🚀","rocket launch"],["💎","diamond"],["🎮","video game"],["🎵","music note"],["⚽","soccer"],["🏆","trophy winner"],["🌈","rainbow"],["☀️","sun sunny"],
+    ["🐱","cat"],["🐶","dog"],["🦊","fox"],["🐼","panda"],["🦄","unicorn"],["🐸","frog"],["🌸","cherry blossom flower"],["🍀","four leaf clover"]
+];
+
+let worthItChatGiphyApiKeyPromise = null;
+let worthItChatGifSearchSequence = 0;
+
+function closeWorthItChatPickers() {
+    const menu = $("worthItChatPlusMenu");
+    const emojiPicker = $("worthItChatEmojiPicker");
+    const gifPicker = $("worthItChatGifPicker");
+    const plus = $("worthItChatPlusBtn");
+    if (menu) menu.hidden = true;
+    if (emojiPicker) emojiPicker.hidden = true;
+    if (gifPicker) gifPicker.hidden = true;
+    if (plus) plus.setAttribute("aria-expanded", "false");
+}
+
+function openWorthItChatPlusMenu() {
+    const menu = $("worthItChatPlusMenu");
+    const plus = $("worthItChatPlusBtn");
+    if (!menu || !plus) return;
+    const shouldOpen = menu.hidden;
+    closeWorthItChatPickers();
+    menu.hidden = !shouldOpen;
+    plus.setAttribute("aria-expanded", shouldOpen ? "true" : "false");
+}
+
+function renderWorthItChatEmojiGrid(search = "") {
+    const grid = $("worthItChatEmojiGrid");
+    if (!grid) return;
+    const query = String(search || "").trim().toLowerCase();
+    grid.replaceChildren();
+    const matches = WORTH_IT_CHAT_EMOJI_OPTIONS.filter(([emoji, keywords]) =>
+        !query || emoji.includes(query) || keywords.includes(query)
+    );
+    if (!matches.length) {
+        const empty = document.createElement("p");
+        empty.className = "worth-it-chat-picker-empty";
+        empty.textContent = "No matching emoji.";
+        grid.appendChild(empty);
+        return;
+    }
+    for (const [emoji, keywords] of matches) {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "worth-it-chat-emoji-option";
+        button.textContent = emoji;
+        button.title = keywords;
+        button.setAttribute("aria-label", keywords);
+        button.addEventListener("click", () => insertWorthItChatEmoji(emoji));
+        grid.appendChild(button);
+    }
+}
+
+function insertWorthItChatEmoji(emoji) {
+    const textarea = $("worthItChatInput");
+    if (!textarea) return;
+    const start = Number.isInteger(textarea.selectionStart) ? textarea.selectionStart : textarea.value.length;
+    const end = Number.isInteger(textarea.selectionEnd) ? textarea.selectionEnd : start;
+    if ((textarea.value.length - (end - start) + emoji.length) > 500) {
+        setStatus("Messages are limited to 500 characters.", true);
+        return;
+    }
+    textarea.setRangeText(emoji, start, end, "end");
+    textarea.dispatchEvent(new Event("input", { bubbles: true }));
+    textarea.focus();
+    closeWorthItChatPickers();
+}
+
+async function getWorthItChatAccessToken() {
+    const client = sb();
+    if (!client || !chatUser?.id) throw new Error("Sign in again before using the GIF picker.");
+    const result = await client.auth.getSession();
+    const session = result?.data?.session;
+    if (result?.error || !session?.access_token || session.user?.id !== chatUser.id) {
+        throw new Error("Your session has expired. Sign in again before using the GIF picker.");
+    }
+    return session.access_token;
+}
+
+async function getWorthItChatGiphyApiKey(token) {
+    if (!worthItChatGiphyApiKeyPromise) {
+        worthItChatGiphyApiKeyPromise = (async () => {
+            const response = await fetch("/api/chat-gif-config", {
+                method: "GET",
+                headers: { "Authorization": "Bearer " + token },
+                credentials: "same-origin",
+                cache: "no-store"
+            });
+            let payload = {};
+            try { payload = await response.json(); } catch (_) {}
+            if (!response.ok || !payload.apiKey) {
+                throw new Error(payload.error || "GIF search is currently unavailable.");
+            }
+            return String(payload.apiKey);
+        })();
+    }
+    try {
+        return await worthItChatGiphyApiKeyPromise;
+    } catch (error) {
+        worthItChatGiphyApiKeyPromise = null;
+        throw error;
+    }
+}
+
+function isWorthItChatGiphyMediaUrl(rawUrl) {
+    try {
+        const url = new URL(String(rawUrl || ""));
+        return url.protocol === "https:" &&
+            !url.username && !url.password && !url.port &&
+            /^media\d*\.giphy\.com$/i.test(url.hostname) &&
+            /^\/media\/[a-z0-9]+\/[a-z0-9_.-]+\.gif$/i.test(url.pathname);
+    } catch (_) {
+        return false;
+    }
+}
+
+function setWorthItChatGifStatus(message, isError = false) {
+    const status = $("worthItChatGifStatus");
+    if (!status) return;
+    status.textContent = message || "";
+    status.classList.toggle("is-error", !!isError);
+}
+
+function renderWorthItChatGifResults(items) {
+    const grid = $("worthItChatGifGrid");
+    if (!grid) return;
+    grid.replaceChildren();
+    const usable = (Array.isArray(items) ? items : []).map(item => {
+        const images = item?.images || {};
+        const url = images.downsized?.url || images.fixed_width?.url || images.original?.url || "";
+        const previewUrl = images.fixed_width_small?.url || images.fixed_width?.url || url;
+        if (!isWorthItChatGiphyMediaUrl(url) || !isWorthItChatGiphyMediaUrl(previewUrl)) return null;
+        return {
+            id: String(item.id || ""),
+            title: String(item.title || item.alt_text || "GIF").slice(0, 120),
+            url,
+            previewUrl
+        };
+    }).filter(Boolean);
+    if (!usable.length) {
+        setWorthItChatGifStatus("No GIFs found. Try another search.", false);
+        return;
+    }
+    for (const item of usable) {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "worth-it-chat-gif-option";
+        button.setAttribute("aria-label", "Attach GIF: " + item.title);
+        button.title = item.title;
+        const image = document.createElement("img");
+        image.src = item.previewUrl;
+        image.alt = item.title;
+        image.loading = "lazy";
+        image.referrerPolicy = "no-referrer";
+        button.appendChild(image);
+        button.addEventListener("click", () => selectWorthItChatGif(item));
+        grid.appendChild(button);
+    }
+    setWorthItChatGifStatus("Choose a GIF to attach. Powered by GIPHY.", false);
+}
+
+async function loadWorthItChatGifResults(query = "") {
+    const sequence = ++worthItChatGifSearchSequence;
+    const grid = $("worthItChatGifGrid");
+    if (grid) grid.replaceChildren();
+    setWorthItChatGifStatus("Loading GIFs…", false);
+    try {
+        const token = await getWorthItChatAccessToken();
+        const apiKey = await getWorthItChatGiphyApiKey(token);
+        const term = String(query || "").trim().slice(0, 80);
+        const endpoint = term ? "search" : "trending";
+        const params = new URLSearchParams({
+            api_key: apiKey,
+            limit: "18",
+            rating: "pg",
+            lang: "en"
+        });
+        if (term) params.set("q", term);
+        const response = await fetch("https://api.giphy.com/v1/gifs/" + endpoint + "?" + params.toString(), {
+            method: "GET",
+            credentials: "omit",
+            cache: "no-store",
+            referrerPolicy: "no-referrer",
+            headers: { "Accept": "application/json" }
+        });
+        let payload = {};
+        try { payload = await response.json(); } catch (_) {}
+        if (!response.ok || !Array.isArray(payload.data)) {
+            throw new Error("GIF search failed. Please try again.");
+        }
+        if (sequence !== worthItChatGifSearchSequence) return;
+        renderWorthItChatGifResults(payload.data);
+    } catch (error) {
+        if (sequence !== worthItChatGifSearchSequence) return;
+        if (grid) grid.replaceChildren();
+        setWorthItChatGifStatus(error?.message || "GIF search is currently unavailable.", true);
+    }
+}
+
+async function selectWorthItChatGif(item) {
+    if (!item || !isWorthItChatGiphyMediaUrl(item.url)) return;
+    setWorthItChatGifStatus("Preparing GIF…", false);
+    try {
+        const token = await getWorthItChatAccessToken();
+        const response = await fetch("/api/chat-gif-download?url=" + encodeURIComponent(item.url), {
+            method: "GET",
+            headers: { "Authorization": "Bearer " + token },
+            credentials: "same-origin",
+            cache: "no-store"
+        });
+        if (!response.ok) {
+            let payload = {};
+            try { payload = await response.json(); } catch (_) {}
+            throw new Error(payload.error || "Could not attach that GIF. Try another one.");
+        }
+        const blob = await response.blob();
+        if (!blob.size || blob.size > 20 * 1024 * 1024 || !String(blob.type).toLowerCase().startsWith("image/gif")) {
+            throw new Error("GIFs must be valid files of 20 MB or smaller.");
+        }
+        const file = new File([blob], "giphy-" + (item.id || "chat") + ".gif", { type: "image/gif" });
+        const previewUrl = URL.createObjectURL(file);
+        setPendingMedia(file, previewUrl, "gif");
+        closeWorthItChatPickers();
+        setStatus("GIF attached. Press Send to share it.", false);
+        $("worthItChatInput")?.focus();
+    } catch (error) {
+        setWorthItChatGifStatus(error?.message || "Could not attach that GIF. Please try another.", true);
+    }
+}
+
+function openWorthItChatEmojiPicker() {
+    closeWorthItChatPickers();
+    const panel = $("worthItChatEmojiPicker");
+    if (!panel) return;
+    panel.hidden = false;
+    renderWorthItChatEmojiGrid($("worthItChatEmojiSearch")?.value || "");
+    $("worthItChatEmojiSearch")?.focus();
+}
+
+function openWorthItChatGifPicker() {
+    closeWorthItChatPickers();
+    const panel = $("worthItChatGifPicker");
+    if (!panel) return;
+    panel.hidden = false;
+    loadWorthItChatGifResults("");
+}
+
 function setupChatUI() {
     $("worthItChatInput")?.addEventListener("input", function () {
         updateCharacterCount();
@@ -1308,6 +1568,28 @@ function setupChatUI() {
         if (event.key === "Enter" && !event.shiftKey && !event.isComposing) {
             event.preventDefault(); sendWorthItChatMessage();
         }
+    });
+
+    $("worthItChatPlusBtn")?.addEventListener("click", event => {
+        event.preventDefault();
+        openWorthItChatPlusMenu();
+    });
+    $("worthItChatUploadAction")?.addEventListener("click", () => {
+        closeWorthItChatPickers();
+        $("worthItChatFileInput")?.click();
+    });
+    $("worthItChatEmojiAction")?.addEventListener("click", openWorthItChatEmojiPicker);
+    $("worthItChatGifAction")?.addEventListener("click", openWorthItChatGifPicker);
+    $("worthItChatEmojiClose")?.addEventListener("click", closeWorthItChatPickers);
+    $("worthItChatGifClose")?.addEventListener("click", closeWorthItChatPickers);
+    $("worthItChatEmojiSearch")?.addEventListener("input", event => renderWorthItChatEmojiGrid(event.currentTarget.value));
+    $("worthItChatGifSearchForm")?.addEventListener("submit", event => {
+        event.preventDefault();
+        loadWorthItChatGifResults($("worthItChatGifSearch")?.value || "");
+    });
+    document.addEventListener("click", event => {
+        const dock = $("worthItChatPickerDock");
+        if (dock && !dock.contains(event.target)) closeWorthItChatPickers();
     });
     $("worthItChatFileInput")?.addEventListener("change", function () {
         const file = this.files?.[0];
@@ -1347,6 +1629,14 @@ function setupChatUI() {
     });
     document.addEventListener("keydown", function (event) {
         if (event.key === "Escape" && chatOpen) {
+            const emojiPicker = $("worthItChatEmojiPicker");
+            const gifPicker = $("worthItChatGifPicker");
+            const plusMenu = $("worthItChatPlusMenu");
+            if ((emojiPicker && !emojiPicker.hidden) || (gifPicker && !gifPicker.hidden) || (plusMenu && !plusMenu.hidden)) {
+                closeWorthItChatPickers();
+                $("worthItChatPlusBtn")?.focus();
+                return;
+            }
             if ($("worthItChatGroupManageDialog") && !$("worthItChatGroupManageDialog").hidden) closeWorthItGroupManageDialog();
             else if ($("worthItChatInviteDialog") && !$("worthItChatInviteDialog").hidden) window.dismissWorthItGroupInvite();
             else if ($("worthItChatGroupDialog") && !$("worthItChatGroupDialog").hidden) closeWorthItGroupChatDialog();

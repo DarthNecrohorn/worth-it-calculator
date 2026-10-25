@@ -22418,3 +22418,299 @@ html[data-ui-scale] .profile-nav-btn .worth-it-presence-indicator {
         display: none !important;
     }
 }
+
+
+/* Chat composer: attachment menu, offline emoji chooser and authenticated GIPHY search. */
+.worth-it-chat-picker-dock {
+    position: relative;
+    flex: 0 0 37px;
+    width: 37px;
+    height: 37px;
+    z-index: 30;
+}
+.worth-it-chat-plus-menu[hidden],
+.worth-it-chat-picker-panel[hidden] {
+    display: none !important;
+}
+.worth-it-chat-plus-menu,
+.worth-it-chat-picker-panel {
+    position: absolute;
+    left: 0;
+    bottom: calc(100% + 10px);
+    z-index: 80;
+    box-sizing: border-box;
+    color: #e8edff;
+    background: #101a35;
+    border: 1px solid rgba(129, 140, 248, .38);
+    border-radius: 15px;
+    box-shadow: 0 18px 48px rgba(0, 0, 0, .42), 0 0 0 1px rgba(99, 102, 241, .08);
+}
+.worth-it-chat-plus-menu {
+    display: grid;
+    gap: 4px;
+    width: 194px;
+    padding: 7px;
+}
+.worth-it-chat-plus-menu button {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    min-height: 39px;
+    padding: 8px 10px;
+    border: 1px solid transparent;
+    border-radius: 9px;
+    color: #e7ecff;
+    background: transparent;
+    text-align: left;
+    font: inherit;
+    font-size: 12px;
+    cursor: pointer;
+}
+.worth-it-chat-plus-menu button:hover,
+.worth-it-chat-plus-menu button:focus-visible {
+    outline: none;
+    background: rgba(99, 102, 241, .2);
+    border-color: rgba(129, 140, 248, .3);
+}
+.worth-it-chat-plus-menu button span {
+    display: inline-grid;
+    place-items: center;
+    flex: 0 0 25px;
+    width: 25px;
+    height: 25px;
+    border-radius: 7px;
+    background: rgba(99, 102, 241, .16);
+    font-size: 16px;
+}
+.worth-it-chat-plus-menu button span[aria-hidden="true"]:last-child {
+    font-weight: 800;
+    font-size: 11px;
+    letter-spacing: .02em;
+}
+.worth-it-chat-picker-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 9px;
+    width: min(370px, calc(100vw - 34px));
+    max-height: min(420px, 62vh);
+    padding: 12px;
+    overflow: hidden;
+}
+.worth-it-chat-picker-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+}
+.worth-it-chat-picker-header > div {
+    display: grid;
+    gap: 3px;
+    min-width: 0;
+}
+.worth-it-chat-picker-header strong {
+    color: #f0f4ff;
+    font-size: 13px;
+    line-height: 1.35;
+}
+.worth-it-chat-picker-header span {
+    color: #a6b4d3;
+    font-size: 10px;
+    line-height: 1.4;
+}
+.worth-it-chat-picker-close {
+    display: grid;
+    place-items: center;
+    flex: 0 0 27px;
+    width: 27px;
+    height: 27px;
+    border: 1px solid rgba(148, 163, 184, .22);
+    border-radius: 8px;
+    color: #ced7f0;
+    background: rgba(148, 163, 184, .08);
+    font-size: 18px;
+    line-height: 1;
+    cursor: pointer;
+}
+.worth-it-chat-picker-close:hover {
+    background: rgba(99, 102, 241, .22);
+    border-color: rgba(129, 140, 248, .5);
+}
+.worth-it-chat-picker-search,
+.worth-it-chat-gif-search input {
+    min-width: 0;
+    width: 100%;
+    height: 36px;
+    box-sizing: border-box;
+    padding: 0 10px;
+    border: 1px solid rgba(129, 140, 248, .25);
+    border-radius: 9px;
+    outline: none;
+    color: #eef2ff;
+    background: rgba(4, 10, 26, .56);
+    font: inherit;
+    font-size: 12px;
+}
+.worth-it-chat-picker-search:focus,
+.worth-it-chat-gif-search input:focus {
+    border-color: #818cf8;
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, .12);
+}
+.worth-it-chat-emoji-grid {
+    display: grid;
+    grid-template-columns: repeat(8, minmax(0, 1fr));
+    gap: 3px;
+    min-height: 0;
+    overflow: auto;
+    overscroll-behavior: contain;
+    padding-right: 2px;
+}
+.worth-it-chat-emoji-option {
+    display: grid;
+    place-items: center;
+    width: 100%;
+    aspect-ratio: 1;
+    min-height: 32px;
+    padding: 0;
+    border: 1px solid transparent;
+    border-radius: 8px;
+    color: inherit;
+    background: transparent;
+    font-size: 22px;
+    line-height: 1;
+    cursor: pointer;
+}
+.worth-it-chat-emoji-option:hover,
+.worth-it-chat-emoji-option:focus-visible {
+    outline: none;
+    border-color: rgba(129, 140, 248, .38);
+    background: rgba(99, 102, 241, .23);
+}
+.worth-it-chat-picker-empty {
+    grid-column: 1 / -1;
+    margin: 0;
+    padding: 20px 6px;
+    color: #a6b4d3;
+    font-size: 12px;
+    text-align: center;
+}
+.worth-it-chat-gif-search {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin: 0;
+}
+.worth-it-chat-gif-search button {
+    flex: 0 0 auto;
+    height: 36px;
+    padding: 0 11px;
+    border: 1px solid rgba(129, 140, 248, .38);
+    border-radius: 9px;
+    color: #f2f4ff;
+    background: linear-gradient(120deg, #5b46e8, #3766e8);
+    font: inherit;
+    font-size: 11px;
+    font-weight: 700;
+    cursor: pointer;
+}
+.worth-it-chat-gif-status {
+    margin: 0;
+    color: #a6b4d3;
+    font-size: 10px;
+    line-height: 1.45;
+}
+.worth-it-chat-gif-status.is-error {
+    color: #fda4af;
+}
+.worth-it-chat-gif-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 6px;
+    min-height: 0;
+    overflow: auto;
+    overscroll-behavior: contain;
+    padding-right: 2px;
+}
+.worth-it-chat-gif-option {
+    display: block;
+    min-width: 0;
+    aspect-ratio: 4 / 3;
+    overflow: hidden;
+    padding: 0;
+    border: 1px solid rgba(148, 163, 184, .18);
+    border-radius: 8px;
+    background: rgba(4, 10, 26, .65);
+    cursor: pointer;
+}
+.worth-it-chat-gif-option:hover,
+.worth-it-chat-gif-option:focus-visible {
+    outline: 2px solid #818cf8;
+    outline-offset: 1px;
+}
+.worth-it-chat-gif-option img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+.worth-it-chat-gif-attribution {
+    align-self: flex-end;
+    color: #8999bb;
+    font-size: 9px;
+}
+.worth-it-chat-gif-attribution a {
+    color: #c2c9ff;
+    font-weight: 800;
+    text-decoration: none;
+}
+.worth-it-chat-gif-attribution a:hover {
+    text-decoration: underline;
+}
+html[data-theme="light"] .worth-it-chat-plus-menu,
+html[data-theme="light"] .worth-it-chat-picker-panel {
+    color: #172554;
+    background: #f8faff;
+    border-color: rgba(79, 70, 229, .25);
+    box-shadow: 0 18px 42px rgba(30, 41, 59, .2);
+}
+html[data-theme="light"] .worth-it-chat-plus-menu button,
+html[data-theme="light"] .worth-it-chat-picker-header strong {
+    color: #172554;
+}
+html[data-theme="light"] .worth-it-chat-plus-menu button:hover,
+html[data-theme="light"] .worth-it-chat-plus-menu button:focus-visible {
+    background: rgba(99, 102, 241, .1);
+}
+html[data-theme="light"] .worth-it-chat-picker-header span,
+html[data-theme="light"] .worth-it-chat-picker-empty,
+html[data-theme="light"] .worth-it-chat-gif-status,
+html[data-theme="light"] .worth-it-chat-gif-attribution {
+    color: #64748b;
+}
+html[data-theme="light"] .worth-it-chat-picker-close {
+    color: #334155;
+    background: rgba(148, 163, 184, .1);
+    border-color: rgba(100, 116, 139, .22);
+}
+html[data-theme="light"] .worth-it-chat-picker-search,
+html[data-theme="light"] .worth-it-chat-gif-search input {
+    color: #172554;
+    background: #fff;
+    border-color: #cbd5e1;
+}
+html[data-theme="light"] .worth-it-chat-gif-attribution a {
+    color: #4338ca;
+}
+@media (max-width: 540px) {
+    .worth-it-chat-picker-panel {
+        width: min(340px, calc(100vw - 26px));
+        max-height: min(380px, 58vh);
+        padding: 10px;
+    }
+    .worth-it-chat-emoji-grid {
+        grid-template-columns: repeat(7, minmax(0, 1fr));
+    }
+    .worth-it-chat-gif-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
