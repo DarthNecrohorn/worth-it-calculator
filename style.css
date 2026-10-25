@@ -22335,13 +22335,9 @@ html[data-ui-scale] .profile-nav-btn .worth-it-presence-indicator {
 }
 
 
-/* Mobile-only: remove the header 💬 shortcut on phones; desktop remains unchanged. */
+/* Keep the header 💬 chat shortcut available on every device. */
 @media (max-width: 760px) {
-    .worth-it-chat-nav-wrap {
-        display: none !important;
-    }
-
-    /* ⛶ remains a desktop-only control. */
+    /* ⛶ remains a desktop-only control; the chat opener stays available. */
     .worth-it-chat-fullscreen-btn {
         display: none !important;
     }
