@@ -22418,3 +22418,7 @@ html[data-ui-scale] .profile-nav-btn .worth-it-presence-indicator {
         display: none !important;
     }
 }
+
+/* Chat video attachments use the same bounded media width as image attachments. */
+.worth-it-chat-video { display:block; width:min(100%, 420px); max-height:320px; border-radius:12px; background:#000; }
+.worth-it-chat-video-preview { display:block; width:min(100%, 280px); max-height:180px; border-radius:10px; background:#000; }
