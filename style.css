@@ -22240,3 +22240,88 @@ html[data-ui-scale] .profile-nav-btn .worth-it-presence-indicator {
     max-width:34px!important;
   }
 }
+
+
+/* Final mobile chat header layout: keep notification and close buttons
+   anchored at the right, while the title and subtitle use the left column. */
+@media(max-width:540px){
+  .worth-it-chat-header{
+    position:relative!important;
+    display:block!important;
+    box-sizing:border-box!important;
+    min-height:108px!important;
+    padding:12px 10px 12px 12px!important;
+    overflow:visible!important;
+  }
+  .worth-it-chat-header > .worth-it-chat-header-person{
+    display:flex!important;
+    width:auto!important;
+    max-width:calc(100% - 98px)!important;
+    min-width:0!important;
+    flex:initial!important;
+    transform:none!important;
+    align-items:flex-start!important;
+    gap:8px!important;
+  }
+  .worth-it-chat-header-person > div:last-child{
+    min-width:0!important;
+    width:100%!important;
+    max-width:100%!important;
+  }
+  .worth-it-chat-header h2{
+    overflow-wrap:anywhere!important;
+  }
+  .worth-it-chat-header p{
+    max-width:100%!important;
+    white-space:normal!important;
+    overflow:visible!important;
+    text-overflow:clip!important;
+    overflow-wrap:anywhere!important;
+  }
+  .worth-it-chat-header > .worth-it-chat-header-actions{
+    display:flex!important;
+    position:absolute!important;
+    top:12px!important;
+    right:10px!important;
+    width:92px!important;
+    max-width:92px!important;
+    min-width:92px!important;
+    flex:initial!important;
+    margin:0!important;
+    padding:0!important;
+    gap:5px!important;
+    justify-content:flex-end!important;
+    align-items:flex-start!important;
+    flex-wrap:nowrap!important;
+    overflow:visible!important;
+    transform:none!important;
+    z-index:5!important;
+  }
+  .worth-it-chat-header-actions > .worth-it-chat-header-notifications{
+    display:inline-flex!important;
+    flex:0 0 34px!important;
+    width:34px!important;
+    min-width:34px!important;
+    max-width:34px!important;
+    height:34px!important;
+    min-height:34px!important;
+    padding:0!important;
+    justify-content:center!important;
+    overflow:hidden!important;
+  }
+  .worth-it-chat-header-notifications .worth-it-chat-notification-label{
+    display:none!important;
+  }
+  .worth-it-chat-header-actions > button[aria-label*="Close"],
+  .worth-it-chat-header-actions > button[title*="Close"]{
+    display:grid!important;
+    flex:0 0 34px!important;
+    width:34px!important;
+    min-width:34px!important;
+    max-width:34px!important;
+    height:34px!important;
+    min-height:34px!important;
+    padding:0!important;
+    place-items:center!important;
+  }
+}
