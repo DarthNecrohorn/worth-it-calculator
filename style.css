@@ -22407,3 +22407,11 @@ html[data-ui-scale] .profile-nav-btn .worth-it-presence-indicator {
         scroll-behavior: auto !important;
     }
 }
+
+
+/* Mobile-only: remove the header 💬 shortcut on phones; desktop remains unchanged. */
+@media (max-width: 760px) {
+    .worth-it-chat-nav-wrap {
+        display: none !important;
+    }
+}
