@@ -13,7 +13,7 @@ test("the header chat shortcut is hidden on phones and remains available on desk
     assert.match(rules, /@media \(max-width: 760px\)[\s\S]*?\.worth-it-chat-nav-wrap\s*\{\s*display: none !important;/);
     assert.match(rules, /\.worth-it-chat-fullscreen-btn\s*\{\s*display: none !important;/);
     assert.doesNotMatch(rules, /@media \(min-width: 761px\)[\s\S]*?\.worth-it-chat-nav-wrap\s*\{\s*display: none !important;/);
-    assert.match(html, /style\.css\?v=mobile-chat-shortcut-desktop-fullscreen-20261025b/);
+    assert.match(html, /style\.css\?v=markets-cars-grid-20261025a/);
     assert.doesNotMatch(rules, /(?:zoom\s*:\s*0\.82|--ui-scale\s*:\s*0\.82|data-ui-scale\s*=\s*"small")/i, "mobile chat rules must not force the whole page or panel to A−");
 });
 
