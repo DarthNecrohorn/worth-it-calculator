@@ -5,7 +5,7 @@ import { readFileSync } from "node:fs";
 const html = readFileSync(new URL("../index.html", import.meta.url), "utf8");
 const css = readFileSync(new URL("../style.css", import.meta.url), "utf8");
 
-test("the header chat shortcut is hidden only on phones", () => {
+test("the header chat shortcut remains available on phones and desktop", () => {
     assert.match(html, /class="worth-it-chat-nav-wrap" id="worthItChatNavWrap"/);
     const start = css.lastIndexOf("Mobile-only: remove the header 💬 shortcut on phones; desktop remains unchanged.");
     assert.ok(start >= 0, "the final mobile chat shortcut rule exists");
