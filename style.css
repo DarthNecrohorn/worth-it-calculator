@@ -22325,3 +22325,11 @@ html[data-ui-scale] .profile-nav-btn .worth-it-presence-indicator {
     place-items:center!important;
   }
 }
+
+
+/* Mobile-only: move the Global Chat avatar, title and subtitle down exactly 10px. */
+@media (max-width: 540px) {
+  .worth-it-chat-header > .worth-it-chat-header-person {
+    transform: translateY(10px) !important;
+  }
+}
