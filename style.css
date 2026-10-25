@@ -22139,32 +22139,39 @@ html[data-ui-scale] .profile-nav-btn .worth-it-presence-indicator {
     }
 }
 
-/* Community Chat: position the launcher and balance the active chat header. */
-.worth-it-chat-nav-btn{top:0}
-.worth-it-chat-header{flex-wrap:wrap}
-.worth-it-chat-header-person{
-  flex:1 1 100%;
-  width:100%;
-  min-width:0;
-  transform:translateY(20px);
+
+/* Community Chat: physically offset the mobile list button and header actions;
+   make the safety notice wrap within the phone viewport instead of clipping. */
+.worth-it-chat-header > .worth-it-chat-mobile-list-btn{
+  position:relative!important;
+  top:20px!important;
+  transform:none!important;
 }
-.worth-it-chat-header-person>div:last-child{flex:1 1 auto;min-width:0}
-.worth-it-chat-header p{
-  max-width:none!important;
+.worth-it-chat-header > .worth-it-chat-header-actions{
+  position:relative!important;
+  top:-20px!important;
+  transform:none!important;
+}
+.worth-it-chat-safety-note{
+  box-sizing:border-box!important;
+  width:100%!important;
+  max-width:100%!important;
+  min-width:0!important;
+  padding-left:12px!important;
+  padding-right:12px!important;
+  align-items:flex-start!important;
   overflow:visible!important;
-  text-overflow:clip!important;
   white-space:normal!important;
-  overflow-wrap:anywhere;
+  overflow-wrap:anywhere!important;
+  word-break:normal!important;
+  line-height:1.45!important;
 }
-.worth-it-chat-header-actions{
-  margin-left:auto;
-  max-width:100%;
-  flex-wrap:wrap;
-  justify-content:flex-end;
-  transform:translateY(-20px);
+.worth-it-chat-safety-note > span{
+  flex:0 0 auto!important;
 }
 @media(max-width:540px){
-  .worth-it-chat-header{row-gap:8px}
-  .worth-it-chat-header-person{align-items:flex-start}
-  .worth-it-chat-header p{line-height:1.35}
+  .worth-it-chat-safety-note{
+    font-size:10px!important;
+    gap:7px!important;
+  }
 }
