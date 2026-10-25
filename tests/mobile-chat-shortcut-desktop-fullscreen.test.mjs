@@ -5,16 +5,16 @@ import { readFileSync } from "node:fs";
 const html = readFileSync(new URL("../index.html", import.meta.url), "utf8");
 const css = readFileSync(new URL("../style.css", import.meta.url), "utf8");
 
-test("the header chat shortcut is hidden on phones and remains available on desktop", () => {
+test("the header chat shortcut remains available on phones and desktop", () => {
     assert.match(html, /class="worth-it-chat-nav-wrap" id="worthItChatNavWrap"/);
-    const start = css.lastIndexOf("Mobile-only: remove the header 💬 shortcut on phones; desktop remains unchanged.");
-    assert.ok(start >= 0, "the final mobile chat shortcut rule exists");
-    const rules = css.slice(start);
-    assert.match(rules, /@media \(max-width: 760px\)[\s\S]*?\.worth-it-chat-nav-wrap\s*\{\s*display: none !important;/);
-    assert.match(rules, /\.worth-it-chat-fullscreen-btn\s*\{\s*display: none !important;/);
-    assert.doesNotMatch(rules, /@media \(min-width: 761px\)[\s\S]*?\.worth-it-chat-nav-wrap\s*\{\s*display: none !important;/);
-    assert.match(html, /style\.css\?v=mobile-chat-shortcut-desktop-fullscreen-20261025b/);
-    assert.doesNotMatch(rules, /(?:zoom\s*:\s*0\.82|--ui-scale\s*:\s*0\.82|data-ui-scale\s*=\s*"small")/i, "mobile chat rules must not force the whole page or panel to A−");
+    assert.doesNotMatch(css, /Mobile-only: remove the header 💬 shortcut on phones/);
+    const mobileRules = css.split("@media (max-width: 760px)").slice(1);
+    assert.ok(mobileRules.length > 0, "mobile responsive rules exist");
+    for (const rules of mobileRules) {
+        assert.doesNotMatch(rules, /\.worth-it-chat-nav-wrap\s*\{\s*display:\s*none\s*!important;/);
+    }
+    assert.match(html, /style\.css\?v=chat-shortcut-restored-20261025a/);
+    assert.doesNotMatch(css, /(?:zoom\s*:\s*0\.82|--ui-scale\s*:\s*0\.82|data-ui-scale\s*=\s*"small")/i, "mobile chat rules must not force the whole page or panel to A−");
 });
 
 test("desktop fullscreen chat fills the viewport with a smooth transition", () => {
