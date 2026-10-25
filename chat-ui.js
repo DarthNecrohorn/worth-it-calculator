@@ -1420,8 +1420,8 @@ function isWorthItChatGiphyMediaUrl(rawUrl) {
         const url = new URL(String(rawUrl || ""));
         return url.protocol === "https:" &&
             !url.username && !url.password && !url.port &&
-            /^media\\d*\\.giphy\\.com$/i.test(url.hostname) &&
-            /^\\/media\\/[a-z0-9]+\\/[a-z0-9_.-]+\\.gif$/i.test(url.pathname);
+            /^media\d*\.giphy\.com$/i.test(url.hostname) &&
+            /^\/media\/[a-z0-9]+\/[a-z0-9_.-]+\.gif$/i.test(url.pathname);
     } catch (_) {
         return false;
     }
