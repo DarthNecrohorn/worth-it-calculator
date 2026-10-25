@@ -20,15 +20,44 @@ function responseJson(data, status = 200) {
     });
 }
 
-export async function onRequestOptions() {
+export function isAllowedAdminPlatformOrigin(origin) {
+    if (!origin) return true;
+    if (origin === SITE_ORIGIN) return true;
+
+    try {
+        const parsed = new URL(origin);
+        return (
+            parsed.protocol === "https:" &&
+            parsed.origin === origin &&
+            parsed.username === "" &&
+            parsed.password === "" &&
+            parsed.port === "" &&
+            parsed.hostname.endsWith(".worth-it-calculator.pages.dev")
+        );
+    } catch {
+        return false;
+    }
+}
+
+function corsHeaders(origin) {
+    return {
+        "Access-Control-Allow-Origin": origin || SITE_ORIGIN,
+        "Access-Control-Allow-Headers": "Content-Type, Authorization",
+        "Access-Control-Allow-Methods": "GET, OPTIONS",
+        "Vary": "Origin"
+    };
+}
+
+export async function onRequestOptions(context) {
+    const origin = context?.request?.headers?.get("Origin") || "";
+
+    if (origin && !isAllowedAdminPlatformOrigin(origin)) {
+        return new Response(null, { status: 403 });
+    }
+
     return new Response(null, {
         status: 204,
-        headers: {
-            "Access-Control-Allow-Origin": SITE_ORIGIN,
-            "Access-Control-Allow-Headers": "Content-Type, Authorization",
-            "Access-Control-Allow-Methods": "GET, OPTIONS",
-            "Vary": "Origin"
-        }
+        headers: corsHeaders(origin)
     });
 }
 
@@ -407,16 +436,10 @@ function groupD1Usage(usageRows, storageRows, databaseDirectory, env, today, mon
     };
 }
 
-export async function onRequestGet(context) {
-    const request = context.request;
+async function handleAdminPlatformUsage(context) {
     const env = context.env || {};
 
     try {
-        const origin = request.headers.get("Origin") || "";
-        if (origin && origin !== SITE_ORIGIN) {
-            return responseJson({ success: false, error: "Forbidden origin." }, 403);
-        }
-
         if (!(await isWorthItAdminRequest(context))) {
             return adminRequiredResponse();
         }
@@ -580,4 +603,31 @@ export async function onRequestGet(context) {
             detail: String(error?.message || "Unknown Cloudflare Analytics API error.")
         }, 502);
     }
+}
+
+
+export async function onRequestGet(context) {
+    const origin = context?.request?.headers?.get("Origin") || "";
+
+    if (origin && !isAllowedAdminPlatformOrigin(origin)) {
+        return responseJson(
+            { success: false, error: "Forbidden origin." },
+            403
+        );
+    }
+
+    const response = await handleAdminPlatformUsage(context);
+    const headers = new Headers(response.headers);
+
+    // Pages preview deployments are same-project origins. Echo only origins
+    // validated above so previews work without allowing arbitrary sites.
+    Object.entries(corsHeaders(origin)).forEach(([name, value]) => {
+        headers.set(name, value);
+    });
+
+    return new Response(response.body, {
+        status: response.status,
+        statusText: response.statusText,
+        headers
+    });
 }
