@@ -22205,3 +22205,38 @@ html[data-ui-scale] .profile-nav-btn .worth-it-presence-indicator {
     box-sizing:border-box!important;
   }
 }
+
+
+/* Ensure mobile chat controls remain visible below the title/subtitle row. */
+@media(max-width:540px){
+  .worth-it-chat-header > .worth-it-chat-header-actions{
+    display:flex!important;
+    flex:0 0 100%!important;
+    width:100%!important;
+    min-width:0!important;
+    max-width:100%!important;
+    justify-content:flex-end!important;
+    align-items:center!important;
+    flex-wrap:nowrap!important;
+    overflow:visible!important;
+    position:relative!important;
+    z-index:3!important;
+  }
+  .worth-it-chat-header-actions > .worth-it-chat-header-notifications{
+    display:inline-flex!important;
+    flex:1 1 auto!important;
+    width:auto!important;
+    min-width:0!important;
+    max-width:none!important;
+    justify-content:center!important;
+  }
+  .worth-it-chat-header-actions > .worth-it-chat-mobile-close,
+  .worth-it-chat-header-actions > button[aria-label*="Close"],
+  .worth-it-chat-header-actions > button[title*="Close"]{
+    display:grid!important;
+    flex:0 0 34px!important;
+    width:34px!important;
+    min-width:34px!important;
+    max-width:34px!important;
+  }
+}
