@@ -5349,6 +5349,116 @@ function renderMarketsError(
    REFRESH
 ========================================================= */
 
+const MARKETS_RETRY_DELAYS_MS = [700, 1600];
+
+function parseMarketsResponse(response, parsedData) {
+    const contentType = response.headers.get("Content-Type") || "";
+    const isJson = /(?:application\/json|\+json)/i.test(contentType);
+
+    if (!isJson) {
+        return {
+            ok: false,
+            retryable: response.status >= 500 || response.status === 429,
+            error: "Markets API returned a non-JSON response (HTTP " + response.status + ")."
+        };
+    }
+
+    if (!parsedData || typeof parsedData !== "object" || Array.isArray(parsedData)) {
+        return {
+            ok: false,
+            retryable: response.status >= 500,
+            error: "Markets API returned an invalid JSON response."
+        };
+    }
+
+    if (!response.ok || parsedData.success === false) {
+        return {
+            ok: false,
+            retryable: response.status >= 500 || response.status === 429,
+            error: String(parsedData.error || ("Markets API request failed (HTTP " + response.status + ")."))
+        };
+    }
+
+    if (!parsedData.data || typeof parsedData.data !== "object") {
+        return {
+            ok: false,
+            retryable: true,
+            error: "Markets API response did not include a data object."
+        };
+    }
+
+    return { ok: true, data: parsedData };
+}
+
+async function fetchMarketsDatasetWithRetry() {
+    let lastError = null;
+
+    for (let attempt = 0; attempt <= MARKETS_RETRY_DELAYS_MS.length; attempt += 1) {
+        let response;
+
+        try {
+            response = await fetch(
+                `/api/markets?v=${MARKETS_UI_VERSION}`,
+                {
+                    method: "GET",
+                    // Only the first attempt may reuse the account-scoped browser cache.
+                    // Retries go directly to the network in case the first response was transient.
+                    cache: attempt === 0 ? "default" : "no-store"
+                }
+            );
+        } catch (error) {
+            lastError = new Error(
+                "Markets request could not reach the API" +
+                (error?.message ? ": " + error.message : ".")
+            );
+
+            if (attempt < MARKETS_RETRY_DELAYS_MS.length) {
+                await new Promise(resolve => setTimeout(resolve, MARKETS_RETRY_DELAYS_MS[attempt]));
+                continue;
+            }
+
+            throw lastError;
+        }
+
+        const contentType = response.headers.get("Content-Type") || "";
+        let parsedData = null;
+        let parseFailed = false;
+
+        if (/(?:application\/json|\+json)/i.test(contentType)) {
+            try {
+                parsedData = await response.json();
+            } catch (_) {
+                parseFailed = true;
+            }
+        } else {
+            // Consume the response body without parsing a Cloudflare HTML error page as JSON.
+            try { await response.text(); } catch (_) {}
+        }
+
+        const result = parseFailed
+            ? {
+                ok: false,
+                retryable: response.status >= 500 || response.status === 429,
+                error: "Markets API returned invalid JSON (HTTP " + response.status + ")."
+            }
+            : parseMarketsResponse(response, parsedData);
+
+        if (result.ok) return result.data;
+
+        lastError = new Error(result.error || "Markets API request failed.");
+
+        if (result.retryable && attempt < MARKETS_RETRY_DELAYS_MS.length) {
+            await new Promise(resolve => setTimeout(resolve, MARKETS_RETRY_DELAYS_MS[attempt]));
+            continue;
+        }
+
+        throw lastError;
+    }
+
+    throw lastError || new Error("Markets API request failed.");
+}
+
+
 async function refreshMarkets() {
 
     const grid =
@@ -5393,46 +5503,12 @@ async function refreshMarkets() {
         await loadMarketAccountImageCache();
 
         const [
-
-            marketResponse,
-
+            data,
             exchangeRate
-
         ] = await Promise.all([
-
-            fetch(
-                `/api/markets?v=${MARKETS_UI_VERSION}`,
-                {
-
-                    method:
-                        "GET",
-
-                    cache:
-                        "default"
-
-                }
-            ),
-
+            fetchMarketsDatasetWithRetry(),
             getUsdToEurRate()
-
         ]);
-
-
-        const data =
-            await marketResponse.json();
-
-
-        if (
-            !marketResponse.ok
-        ) {
-
-            throw new Error(
-                data?.error ||
-                "Markets API request failed."
-            );
-
-        }
-
 
         marketsData =
             Array.isArray(
