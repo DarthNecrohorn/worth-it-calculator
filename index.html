@@ -272,7 +272,36 @@ html[data-theme="light"].worth-it-initial-paint::before {
                     <div class="worth-it-chat-compose-wrap">
                         <div class="worth-it-chat-attachment-preview" id="worthItChatAttachmentPreview" hidden></div>
                         <div class="worth-it-chat-compose">
-                            <label class="worth-it-chat-attach-btn" title="Attach an image or GIF" aria-label="Attach an image or GIF">＋<input type="file" id="worthItChatFileInput" accept="image/png,image/jpeg,image/webp,image/gif" hidden></label>
+                            <div class="worth-it-chat-picker-dock" id="worthItChatPickerDock">
+                                <button type="button" class="worth-it-chat-attach-btn" id="worthItChatPlusBtn" title="Attachment options" aria-label="Open attachment options" aria-haspopup="menu" aria-expanded="false" aria-controls="worthItChatPlusMenu">＋</button>
+                                <input type="file" id="worthItChatFileInput" accept="image/png,image/jpeg,image/webp,image/gif" hidden>
+                                <div class="worth-it-chat-plus-menu" id="worthItChatPlusMenu" role="menu" aria-label="Attachment options" hidden>
+                                    <button type="button" id="worthItChatUploadAction" role="menuitem"><span aria-hidden="true">📎</span> Upload a file</button>
+                                    <button type="button" id="worthItChatEmojiAction" role="menuitem"><span aria-hidden="true">😀</span> Choose emoji</button>
+                                    <button type="button" id="worthItChatGifAction" role="menuitem"><span aria-hidden="true">GIF</span> Search GIFs</button>
+                                </div>
+                                <section class="worth-it-chat-picker-panel worth-it-chat-emoji-picker" id="worthItChatEmojiPicker" role="dialog" aria-label="Choose an emoji" hidden>
+                                    <div class="worth-it-chat-picker-header">
+                                        <div><strong>Choose an emoji</strong><span>Tap one to add it to your message.</span></div>
+                                        <button type="button" class="worth-it-chat-picker-close" id="worthItChatEmojiClose" aria-label="Close emoji picker">×</button>
+                                    </div>
+                                    <input type="search" class="worth-it-chat-picker-search" id="worthItChatEmojiSearch" placeholder="Search emoji…" aria-label="Search emoji">
+                                    <div class="worth-it-chat-emoji-grid" id="worthItChatEmojiGrid"></div>
+                                </section>
+                                <section class="worth-it-chat-picker-panel worth-it-chat-gif-picker" id="worthItChatGifPicker" role="dialog" aria-label="Choose a GIF" hidden>
+                                    <div class="worth-it-chat-picker-header">
+                                        <div><strong>Choose a GIF</strong><span>Trending and search results from GIPHY.</span></div>
+                                        <button type="button" class="worth-it-chat-picker-close" id="worthItChatGifClose" aria-label="Close GIF picker">×</button>
+                                    </div>
+                                    <form class="worth-it-chat-gif-search" id="worthItChatGifSearchForm">
+                                        <input type="search" id="worthItChatGifSearch" maxlength="80" placeholder="Search GIFs…" aria-label="Search GIFs">
+                                        <button type="submit">Search</button>
+                                    </form>
+                                    <p class="worth-it-chat-gif-status" id="worthItChatGifStatus" role="status" aria-live="polite">Loading trending GIFs…</p>
+                                    <div class="worth-it-chat-gif-grid" id="worthItChatGifGrid"></div>
+                                    <div class="worth-it-chat-gif-attribution">Powered by <a href="https://giphy.com" target="_blank" rel="noopener noreferrer">GIPHY</a></div>
+                                </section>
+                            </div>
                             <textarea id="worthItChatInput" maxlength="500" rows="1" placeholder="Write a message…" aria-label="Chat message"></textarea>
                             <button type="button" class="worth-it-chat-send-btn" id="worthItChatSendBtn" onclick="sendWorthItChatMessage()">Send <span>➤</span></button>
                         </div>
@@ -5131,7 +5160,7 @@ if($("carResults")){
 
 </script>
 <script src="/profile-ui.js?v=presence-tooltip-scale-20261019a"></script>
-<script src="/chat-ui.js?v=chatmedialimits20261025a"></script>
+<script src="/chat-ui.js?v=chatemoji-gif-picker-20261025a"></script>
 <script src="/user-search.js?v=worthitusersearch20261014a"></script>
 <script src="/guest-mode.js?v=hamburgerpersistent-20261015a"></script>
 <script src="/routing.js?v=settings-navigation-20261015a"></script>
