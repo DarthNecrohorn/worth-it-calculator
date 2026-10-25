@@ -22175,3 +22175,33 @@ html[data-ui-scale] .profile-nav-btn .worth-it-presence-indicator {
     gap:7px!important;
   }
 }
+
+
+/* Mobile chat header: keep the subtitle in its own full-width row,
+   never underneath the notification/close controls. */
+@media(max-width:540px){
+  .worth-it-chat-header > .worth-it-chat-header-person{
+    box-sizing:border-box!important;
+    flex:0 0 100%!important;
+    width:100%!important;
+    max-width:100%!important;
+    min-width:0!important;
+  }
+  .worth-it-chat-header-person > div:last-child{
+    min-width:0!important;
+    max-width:100%!important;
+  }
+  .worth-it-chat-header p{
+    max-width:100%!important;
+    white-space:normal!important;
+    overflow:visible!important;
+    text-overflow:clip!important;
+    overflow-wrap:anywhere!important;
+  }
+  .worth-it-chat-header > .worth-it-chat-header-actions{
+    flex:0 0 100%!important;
+    width:100%!important;
+    max-width:100%!important;
+    box-sizing:border-box!important;
+  }
+}
