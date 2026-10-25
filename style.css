@@ -22142,14 +22142,14 @@ html[data-ui-scale] .profile-nav-btn .worth-it-presence-indicator {
 
 /* Community Chat: physically offset the mobile list button and header actions;
    make the safety notice wrap within the phone viewport instead of clipping. */
-.worth-it-chat-header > .worth-it-chat-mobile-list-btn{
+ .worth-it-chat-header > .worth-it-chat-mobile-list-btn{
   position:relative!important;
-  top:10px!important;
+  top:0px!important;
   transform:none!important;
 }
-.worth-it-chat-header > .worth-it-chat-header-actions{
+ .worth-it-chat-header > .worth-it-chat-header-actions{
   position:relative!important;
-  top:-10px!important;
+  top:0px!important;
   transform:none!important;
 }
 .worth-it-chat-safety-note{
