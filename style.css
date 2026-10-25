@@ -22414,4 +22414,7 @@ html[data-ui-scale] .profile-nav-btn .worth-it-presence-indicator {
     .worth-it-chat-nav-wrap {
         display: none !important;
     }
+    .worth-it-chat-fullscreen-btn {
+        display: none !important;
+    }
 }
