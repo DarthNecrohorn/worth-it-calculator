@@ -1,0 +1,29 @@
+name: Admin analytics origin regression
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "functions/api/admin-platform-usage.js"
+      - "tests/admin-platform-usage-origin.test.mjs"
+      - ".github/workflows/admin-analytics-origin-regression.yml"
+  push:
+    branches:
+      - fix/admin-platform-usage-preview-origin-20261025
+
+permissions:
+  contents: read
+
+jobs:
+  admin-analytics-origin:
+    name: Admin analytics origin allowlist
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Run origin allowlist regression tests
+        run: node --test tests/admin-platform-usage-origin.test.mjs
