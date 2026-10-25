@@ -22144,12 +22144,12 @@ html[data-ui-scale] .profile-nav-btn .worth-it-presence-indicator {
    make the safety notice wrap within the phone viewport instead of clipping. */
 .worth-it-chat-header > .worth-it-chat-mobile-list-btn{
   position:relative!important;
-  top:20px!important;
+  top:10px!important;
   transform:none!important;
 }
 .worth-it-chat-header > .worth-it-chat-header-actions{
   position:relative!important;
-  top:-20px!important;
+  top:-10px!important;
   transform:none!important;
 }
 .worth-it-chat-safety-note{
