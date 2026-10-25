@@ -1,0 +1,30 @@
+name: Cars catalog loading regression
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "cars-ui.js"
+      - "index.html"
+      - "tests/cars-catalog-load-order.test.mjs"
+      - ".github/workflows/cars-catalog-regression.yml"
+  push:
+    branches:
+      - perf/cars-catalog-parallel-metadata-20261025
+
+permissions:
+  contents: read
+
+jobs:
+  cars-catalog-load-order:
+    name: Cars catalog and metadata load order
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Run Cars catalog regression tests
+        run: node --test tests/cars-catalog-load-order.test.mjs
