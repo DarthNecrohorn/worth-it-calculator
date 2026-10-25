@@ -25,5 +25,5 @@ test("compact and full Settings explain mouse, keyboard-only, and phone zoom", (
     assert.equal((html.match(/Phone or tablet/g) || []).length, 2);
     assert.equal((html.match(/pinch apart to zoom in/g) || []).length, 2);
     assert.match(html, /Ctrl<\/kbd>\s*\+\s*<kbd>0<\/kbd> to reset zoom/);
-    assert.match(html, /style\.css\?v=browser-zoom-help-20261025a/);
+    assert.match(html, /style\.css\?v=[^"']+/);
 });

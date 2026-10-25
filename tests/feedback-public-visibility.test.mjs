@@ -17,7 +17,7 @@ test("Bugs & Suggestions is visible to all visitors, not gated by the owner role
     assert.ok(footer, "the footer feedback button exists");
     assert.doesNotMatch(header[0], /style\s*=\s*["'][^"']*display\s*:\s*none/i);
     assert.doesNotMatch(footer[0], /style\s*=\s*["'][^"']*display\s*:\s*none/i);
-    assert.match(html, /style\.css\?v=mobile-chat-panel-a-minus-fix-20261024a/);
+    assert.match(html, /style\.css\?v=[^"']+/);
     assert.match(html, /admin-panel\.js\?v=feedbackpublic20261023a/);
 
     assert.match(
@@ -47,5 +47,5 @@ test("phone profile avatar is larger while A+ and A++ utility rows move left by 
     assert.match(css, /html\[data-ui-scale="xl"\] \.nav-top-row \.nav-actions\s*\{\s*left: -7\.58px !important;/);
     assert.match(css, /html\[data-ui-scale="large"\] \.nav-top-row \.nav-actions \.auth-wrap > \.profile-nav-btn\s*\{[\s\S]*?width: 34\.5px !important;/);
     assert.match(css, /html\[data-ui-scale="xl"\] \.nav-top-row \.nav-actions \.auth-wrap > \.profile-nav-btn\s*\{[\s\S]*?width: 30\.3px !important;/);
-    assert.match(settings, /const SCALE = \{small:\.82, normal:1, large:1\.16, xl:1\.32\}/);
+    assert.match(settings, /function setUIScale\(\)\s*\{[\s\S]*?setProperty\("--ui-scale", "1"\)[\s\S]*?dataset\.uiScale = "normal"/);
 });

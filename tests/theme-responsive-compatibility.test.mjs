@@ -6,14 +6,12 @@ const html = readFileSync(new URL("../index.html", import.meta.url), "utf8");
 const css = readFileSync(new URL("../style.css", import.meta.url), "utf8");
 const settings = readFileSync(new URL("../settings.js", import.meta.url), "utf8");
 
-test("dark/light theme and all four UI sizes initialize before content is painted", () => {
+test("dark/light theme and the standard UI scale initialize before content is painted", () => {
     assert.match(html, /root\.dataset\.theme = localStorage\.getItem\("worthItTheme"\) === "light" \? "light" : "dark"/);
-    assert.match(html, /const SCALE = \{small:\.82, normal:1, large:1\.16, xl:1\.32\}/);
-    for (const [label, value] of [["A−", "small"], ["A", "normal"], ["A+", "large"], ["A++", "xl"]]) {
-        assert.ok(html.includes(`setUIScale('${value}')`), `${label} setting is available`);
-    }
+    assert.match(html, /document\.documentElement\.dataset\.uiScale = "normal"/);
+    assert.match(settings, /function setUIScale\(\)\s*\{[\s\S]*?setProperty\("--ui-scale", "1"\)[\s\S]*?dataset\.uiScale = "normal"/);
     assert.match(settings, /document\.documentElement\.dataset\.theme = value/);
-    assert.match(settings, /document\.documentElement\.dataset\.uiScale =\s*value/);
+    assert.match(settings, /document\.documentElement\.dataset\.uiScale = "normal"/);
 });
 
 test("both themes receive native control palettes and readable semantic status colors", () => {

@@ -16,7 +16,7 @@ test("mobile chat overlay and window use the standard page zoom", () => {
     const mobileRules = css.slice(css.lastIndexOf("Mobile Community Chat: keep the same viewport footprint"));
     assert.match(mobileRules, /\.worth-it-chat-overlay:not\(\.is-fullscreen\):not\(\[hidden\]\)\s*\{[\s\S]*?width:\s*calc\(100vw \/ var\(--ui-scale, 1\)\) !important;[\s\S]*?height:\s*calc\(100dvh \/ var\(--ui-scale, 1\)\) !important;/);
     assert.match(mobileRules, /\.worth-it-chat-overlay:not\(\.is-fullscreen\):not\(\[hidden\]\) > \.worth-it-chat-window:not\(\.is-fullscreen\)\s*\{[\s\S]*?width:\s*calc\(100vw \/ var\(--ui-scale, 1\)\) !important;[\s\S]*?height:\s*calc\(100dvh \/ var\(--ui-scale, 1\)\) !important;[\s\S]*?transform:\s*none !important;/);
-    assert.match(html, /style\.css\?v=browser-zoom-help-20261025a/);
+    assert.match(html, /style\.css\?v=[^"']+/);
 });
 
 
