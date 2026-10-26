@@ -81,6 +81,27 @@ test("picker controls use Worth It styling and remain scrollable on mobile", () 
 });
 
 
+test("composer controls are implemented and picker panels have desktop layout", () => {
+    assert.match(client, /function closeWorthItChatPickers\(\)/);
+    assert.match(client, /function openWorthItChatPlusMenu\(\)/);
+
+    const dock = css.match(/\.worth-it-chat-picker-dock\s*\{([\s\S]*?)\}/)?.[1] || "";
+    assert.match(dock, /position:\s*relative/);
+
+    const desktopPanel = css.match(/\.worth-it-chat-picker-panel:not\(\[hidden\]\)\s*\{([\s\S]*?)\}/)?.[1] || "";
+    assert.match(desktopPanel, /position:\s*absolute/);
+    assert.match(desktopPanel, /display:\s*flex/);
+    assert.match(desktopPanel, /max-height:/);
+
+    const emojiGrid = css.match(/\.worth-it-chat-emoji-grid\s*\{([\s\S]*?)\}/)?.[1] || "";
+    assert.match(emojiGrid, /display:\s*grid/);
+    assert.match(emojiGrid, /grid-template-columns:/);
+
+    const gifGrid = css.match(/\.worth-it-chat-gif-grid\s*\{([\s\S]*?)\}/)?.[1] || "";
+    assert.match(gifGrid, /display:\s*grid/);
+    assert.match(gifGrid, /grid-template-columns:/);
+});
+
 test("opening the emoji picker renders category controls, and selecting a category renders once", () => {
     const openHandler = client.match(/function openWorthItChatEmojiPicker\(\) \{([\s\S]*?)\n\}/)?.[1] || "";
     assert.match(openHandler, /renderWorthItChatEmojiCategories\(\)/);
