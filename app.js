@@ -3371,9 +3371,9 @@ function toggleMenu() {
     }
 
     /*
-     * The mobile and A+/A++ navigation is one unified menu.
-     * The legacy More panel remains available only for A-/A
-     * desktop, so never leave both navigation layers open.
+     * The mobile navigation uses one unified menu.
+     * Keep the legacy More panel mutually exclusive with it,
+     * so the two navigation layers never remain open together.
      */
     if (isOpen) {
         closeMoreMenu();
