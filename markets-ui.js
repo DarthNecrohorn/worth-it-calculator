@@ -5398,7 +5398,7 @@ async function fetchMarketsDatasetWithRetry() {
 
         try {
             response = await fetch(
-                \`/api/markets?v=\${MARKETS_UI_VERSION}\`,
+                `/api/markets?v=${MARKETS_UI_VERSION}`,
                 {
                     method: "GET",
                     // Only the first attempt may reuse the account-scoped browser cache.
