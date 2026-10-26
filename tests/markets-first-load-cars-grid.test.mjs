@@ -33,5 +33,5 @@ test("Recently Viewed and Favorites use two compact columns on mobile", () => {
 });
 
 test("the stylesheet version is refreshed for the current UI improvements", () => {
-    assert.ok(html.includes("style.css?v=worthit-owned-picker-markets-cars-20261026a"));
+    assert.ok(html.includes("style.css?v=worthit-owned-picker-markets-cars-20261026b"));
 });
