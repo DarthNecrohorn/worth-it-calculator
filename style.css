@@ -22521,7 +22521,7 @@ html[data-ui-scale] .profile-nav-btn .worth-it-presence-indicator {
     gap: 9px !important;
     width: min(430px, calc(100vw - 32px)) !important;
     height: min(470px, calc(70vh - 16px)) !important;
-    min-height: 280px !important;
+    min-height: min(280px, calc(100vh - 32px)) !important;
     max-height: calc(100vh - 32px) !important;
     margin: 0 !important;
     padding: 12px !important;
@@ -22849,7 +22849,7 @@ html[data-theme="light"] .worth-it-chat-gif-attribution {
         top: auto !important;
         width: calc((100vw - 24px) / var(--ui-scale, 1)) !important;
         height: min(calc(62dvh / var(--ui-scale, 1)), calc(560px / var(--ui-scale, 1))) !important;
-        min-height: calc(315px / var(--ui-scale, 1)) !important;
+        min-height: min(calc(315px / var(--ui-scale, 1)), calc(62dvh / var(--ui-scale, 1))) !important;
         max-height: min(calc(62dvh / var(--ui-scale, 1)), calc(560px / var(--ui-scale, 1))) !important;
         margin: 0 !important;
         padding: 11px !important;
