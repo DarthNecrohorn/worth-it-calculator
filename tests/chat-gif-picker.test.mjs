@@ -1,142 +1,87 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import { onRequest as chatGifConfig } from "../functions/api/chat-gif-config.js";
-import { onRequest as chatGifDownload } from "../functions/api/chat-gif-download.js";
+import { readFileSync, readdirSync, statSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import { join } from "node:path";
 
-const SITE_ORIGIN = "https://worth-it-calculator.pages.dev";
-const ENV = {
-    SUPABASE_URL: "https://supabase.test",
-    SUPABASE_PUBLISHABLE_KEY: "test-publishable-key",
-    GIPHY_API_KEY: "public-test-giphy-key"
-};
 const html = readFileSync(new URL("../index.html", import.meta.url), "utf8");
 const client = readFileSync(new URL("../chat-ui.js", import.meta.url), "utf8");
+const css = readFileSync(new URL("../style.css", import.meta.url), "utf8");
+const assetsDir = fileURLToPath(new URL("../assets/worth-it-chat-gifs/", import.meta.url));
+const originalGifFiles = [
+    "laughing-smile.gif",
+    "party-confetti.gif",
+    "rocket-launch.gif",
+    "sparkle-burst.gif",
+    "heart-pulse.gif",
+    "cat-blink.gif",
+    "thumbs-up.gif",
+    "rainbow-wow.gif",
+    "fire-vibes.gif",
+    "celebrate-heart.gif"
+];
 
-function request(path, { origin = SITE_ORIGIN, token = "test-session-token" } = {}) {
-    const headers = {};
-    if (origin) headers.Origin = origin;
-    if (token) headers.Authorization = "Bearer " + token;
-    return new Request(SITE_ORIGIN + path, { method: "GET", headers });
-}
-
-function mockFetch(remoteResponse = null) {
-    const calls = [];
-    const fetch = async (input, init = {}) => {
-        const url = String(input);
-        calls.push({ url, init });
-        if (url.endsWith("/auth/v1/user")) {
-            return new Response(JSON.stringify({ id: "test-user" }), {
-                status: 200,
-                headers: { "Content-Type": "application/json" }
-            });
-        }
-        if (url.startsWith("https://media0.giphy.com/")) {
-            return remoteResponse || new Response(
-                Uint8Array.from([0x47, 0x49, 0x46, 0x38, 0x39, 0x61, 0x00]),
-                { status: 200, headers: { "Content-Type": "image/gif" } }
-            );
-        }
-        throw new Error("Unexpected network request: " + url);
-    };
-    return { fetch, calls };
-}
-
-async function withFetch(fetchImpl, callback) {
-    const original = globalThis.fetch;
-    globalThis.fetch = fetchImpl;
-    try { return await callback(); }
-    finally { globalThis.fetch = original; }
-}
-
-test("the composer exposes upload, emoji and GIF choices from the plus button", () => {
+test("the chat composer has an accessible attachment, emoji and owned-media picker", () => {
     assert.match(html, /id="worthItChatPlusBtn"/);
     assert.match(html, /id="worthItChatUploadAction"/);
     assert.match(html, /id="worthItChatEmojiAction"/);
     assert.match(html, /id="worthItChatGifAction"/);
     assert.match(html, /id="worthItChatEmojiGrid"/);
-    assert.match(html, /id="worthItChatGifGrid"/);
-    assert.match(html, /chat-ui\.js\?v=chatemoji-gif-picker-20261025a/);
+    assert.match(html, /id="worthItChatEmojiCategories"[^>]+role="tablist"/);
+    assert.match(html, /id="worthItChatGifCategoryTabs"[^>]+role="tablist"/);
+    assert.match(html, /Worth It GIFs &amp; Stickers/);
+    assert.match(html, /chat-ui\.js\?v=worthit-owned-picker-20261026a/);
+    assert.match(html, /style\.css\?v=worthit-owned-picker-20261026a/);
     assert.match(client, /function insertWorthItChatEmoji\(/);
+    assert.match(client, /function renderWorthItChatEmojiCategories\(/);
     assert.match(client, /function loadWorthItChatGifResults\(/);
     assert.match(client, /function selectWorthItChatGif\(/);
 });
 
-test("GIPHY configuration is available only to a verified signed-in user", async () => {
-    const mock = mockFetch();
-    const response = await withFetch(mock.fetch, () =>
-        chatGifConfig({ request: request("/api/chat-gif-config"), env: ENV })
-    );
-    assert.equal(response.status, 200);
-    assert.equal((await response.json()).apiKey, ENV.GIPHY_API_KEY);
-    assert.equal(response.headers.get("Cache-Control"), "no-store");
-
-    const unauthenticated = await withFetch(mock.fetch, () =>
-        chatGifConfig({ request: request("/api/chat-gif-config", { token: "" }), env: ENV })
-    );
-    assert.equal(unauthenticated.status, 401);
+test("the emoji picker has multiple categories and a large, locally searchable emoji library", () => {
+    for (const category of ["faces", "people", "animals", "food", "activities", "travel", "objects", "symbols", "flags"]) {
+        assert.match(client, new RegExp('addWorthItChatEmojiGroup\\("' + category + '"'));
+    }
+    assert.match(client, /Search emoji/);
+    assert.match(client, /WORTH_IT_CHAT_EMOJI_KEYWORDS/);
+    assert.match(client, /worthItChatEmojiCategory/);
+    assert.match(css, /\.worth-it-chat-emoji-grid[\s\S]*?overflow-y: auto/);
+    assert.match(css, /\.worth-it-chat-emoji-categories[\s\S]*?overflow-x: auto/);
 });
 
-test("the picker reports missing GIPHY configuration without leaking a key", async () => {
-    const mock = mockFetch();
-    const env = { ...ENV, GIPHY_API_KEY: "" };
-    const response = await withFetch(mock.fetch, () =>
-        chatGifConfig({ request: request("/api/chat-gif-config"), env })
-    );
-    assert.equal(response.status, 503);
-    const payload = await response.json();
-    assert.match(payload.error, /GIPHY_API_KEY/);
-    assert.equal(payload.apiKey, undefined);
+test("GIFs and stickers come only from the local Worth It catalogue", () => {
+    const pickerSource = html + "\n" + client;
+    assert.doesNotMatch(pickerSource, /GIPHY|giphy\.com|GIPHY_API_KEY|api\/chat-gif-config|api\/chat-gif-download/i);
+    assert.match(client, /const WORTH_IT_CHAT_GIF_LIBRARY = \[/);
+    assert.match(client, /\/assets\/worth-it-chat-gifs\//);
+    assert.match(client, /function isWorthItChatLocalGifUrl\(/);
+    assert.match(client, /worthItChatGifCategory/);
+    assert.match(html, /Original Worth It animations\. No external GIF provider or API key required\./);
+    assert.doesNotMatch(html, /Powered by/i);
 });
 
-test("the GIF download endpoint validates the GIPHY host and GIF signature", async () => {
-    const mock = mockFetch();
-    const remote = "https://media0.giphy.com/media/AbCd123/giphy-downsized.gif?cid=test";
-    const response = await withFetch(mock.fetch, () =>
-        chatGifDownload({
-            request: request("/api/chat-gif-download?url=" + encodeURIComponent(remote)),
-            env: ENV
-        })
-    );
-    assert.equal(response.status, 200);
-    assert.equal(response.headers.get("Content-Type"), "image/gif");
-    assert.equal((await response.arrayBuffer()).byteLength, 7);
-    assert.equal(mock.calls.filter(call => call.url.startsWith("https://media0.giphy.com/")).length, 1);
-
-    const before = mock.calls.length;
-    const blocked = await withFetch(mock.fetch, () =>
-        chatGifDownload({
-            request: request("/api/chat-gif-download?url=" + encodeURIComponent("https://attacker.example/evil.gif")),
-            env: ENV
-        })
-    );
-    assert.equal(blocked.status, 400);
-    assert.equal(mock.calls.length, before + 1); // auth check only; no outbound request to the submitted host
+test("all curated original animations are valid, small GIF files", () => {
+    const present = new Set(readdirSync(assetsDir));
+    for (const filename of originalGifFiles) {
+        assert.ok(present.has(filename), "missing bundled animation: " + filename);
+        const path = join(assetsDir, filename);
+        const bytes = readFileSync(path);
+        assert.ok(bytes.length > 500, filename + " looks unexpectedly small");
+        assert.ok(bytes.length <= 20 * 1024 * 1024, filename + " exceeds the chat GIF limit");
+        assert.ok(
+            bytes.subarray(0, 6).toString("ascii") === "GIF87a" ||
+            bytes.subarray(0, 6).toString("ascii") === "GIF89a",
+            filename + " does not have a valid GIF signature"
+        );
+        assert.ok(statSync(path).isFile(), filename + " is not a file");
+    }
 });
 
-test("the GIF download endpoint rejects oversized or non-GIF payloads", async () => {
-    const tooLargeMock = mockFetch(new Response(new Uint8Array([0x47, 0x49, 0x46, 0x38, 0x39, 0x61]), {
-        status: 200,
-        headers: { "Content-Type": "image/gif", "Content-Length": String(20 * 1024 * 1024 + 1) }
-    }));
-    const url = "https://media0.giphy.com/media/AbCd123/giphy.gif";
-    const tooLarge = await withFetch(tooLargeMock.fetch, () =>
-        chatGifDownload({
-            request: request("/api/chat-gif-download?url=" + encodeURIComponent(url)),
-            env: ENV
-        })
-    );
-    assert.equal(tooLarge.status, 413);
-
-    const invalidMock = mockFetch(new Response(new Uint8Array([0x89, 0x50, 0x4e, 0x47]), {
-        status: 200,
-        headers: { "Content-Type": "image/gif" }
-    }));
-    const invalid = await withFetch(invalidMock.fetch, () =>
-        chatGifDownload({
-            request: request("/api/chat-gif-download?url=" + encodeURIComponent(url)),
-            env: ENV
-        })
-    );
-    assert.equal(invalid.status, 415);
+test("the picker panel stays fully scrollable and uses Worth It styling on mobile", () => {
+    assert.match(css, /WORTH IT OWNED CHAT MEDIA PICKER/);
+    assert.match(css, /\.worth-it-chat-picker-close[\s\S]*?linear-gradient/);
+    assert.match(css, /\.worth-it-chat-gif-search button[\s\S]*?linear-gradient/);
+    assert.match(css, /@media \(max-width: 760px\)[\s\S]*?\.worth-it-chat-picker-panel:not\(\[hidden\]\)[\s\S]*?position: fixed !important/);
+    assert.match(css, /\.worth-it-chat-emoji-grid[\s\S]*?grid-template-columns: repeat\(8, minmax\(0, 1fr\)\)/);
+    assert.match(css, /\.worth-it-chat-picker-panel:not\(\[hidden\]\)[\s\S]*?max-height: min\(calc\(62dvh/);
 });
