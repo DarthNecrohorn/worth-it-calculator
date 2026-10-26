@@ -681,10 +681,30 @@ function renderMessages(scrollToBottom) {
         stack.appendChild(name);
         const bubble = document.createElement("div"); bubble.className = "worth-it-chat-bubble";
         if (message.body) renderLinkedText(bubble, message.body);
-        if (message.media_url && (message.media_type === "image" || message.media_type === "gif")) {
-            const img = document.createElement("img"); img.className = "worth-it-chat-media"; img.src = message.media_url; img.alt = message.media_type === "gif" ? "Shared GIF" : "Shared image"; img.loading = "lazy"; img.referrerPolicy = "no-referrer";
-            img.addEventListener("error", () => { const fallback = document.createElement("a"); fallback.className = "worth-it-chat-link"; fallback.href = message.media_url; fallback.target = "_blank"; fallback.rel = "noopener noreferrer"; fallback.textContent = "Open attached media"; img.replaceWith(fallback); });
-            bubble.appendChild(img);
+        if (message.media_url && ["image", "gif", "video"].includes(message.media_type)) {
+            if (message.media_type === "video") {
+                const video = document.createElement("video");
+                video.className = "worth-it-chat-media worth-it-chat-video";
+                video.src = message.media_url;
+                video.controls = true;
+                video.preload = "metadata";
+                video.playsInline = true;
+                video.setAttribute("aria-label", "Shared video");
+                video.addEventListener("error", () => {
+                    const fallback = document.createElement("a");
+                    fallback.className = "worth-it-chat-link";
+                    fallback.href = message.media_url;
+                    fallback.target = "_blank";
+                    fallback.rel = "noopener noreferrer";
+                    fallback.textContent = "Open attached video";
+                    video.replaceWith(fallback);
+                });
+                bubble.appendChild(video);
+            } else {
+                const img = document.createElement("img"); img.className = "worth-it-chat-media"; img.src = message.media_url; img.alt = message.media_type === "gif" ? "Shared GIF" : "Shared image"; img.loading = "lazy"; img.referrerPolicy = "no-referrer";
+                img.addEventListener("error", () => { const fallback = document.createElement("a"); fallback.className = "worth-it-chat-link"; fallback.href = message.media_url; fallback.target = "_blank"; fallback.rel = "noopener noreferrer"; fallback.textContent = "Open attached media"; img.replaceWith(fallback); });
+                bubble.appendChild(img);
+            }
         }
         stack.appendChild(bubble);
         if (message.filtered_reason) {
@@ -824,13 +844,24 @@ function setPendingMedia(file, url, type) {
     host.hidden = !pendingMediaFile;
     if (!pendingMediaFile) return;
     if (pendingMediaUrl.startsWith("blob:")) pendingMediaObjectUrl = pendingMediaUrl;
-    const img = document.createElement("img");
-    img.src = pendingMediaUrl;
-    img.alt = "Attachment preview";
+    let preview;
+    if (type === "video") {
+        preview = document.createElement("video");
+        preview.src = pendingMediaUrl;
+        preview.muted = true;
+        preview.playsInline = true;
+        preview.controls = true;
+        preview.className = "worth-it-chat-video-preview";
+    } else {
+        preview = document.createElement("img");
+        preview.src = pendingMediaUrl;
+        preview.alt = "Attachment preview";
+        preview.className = "worth-it-chat-image-preview";
+    }
     const name = document.createElement("span"); name.textContent = pendingMediaFile.name;
     const remove = document.createElement("button"); remove.type = "button"; remove.textContent = "×"; remove.setAttribute("aria-label", "Remove attachment");
     remove.addEventListener("click", () => setPendingMedia(null, "", ""));
-    host.append(img, name, remove);
+    host.append(preview, name, remove);
 }
 async function validateChatMediaSignature(file, expectedMime) {
     const header = new Uint8Array(await file.slice(0, 16).arrayBuffer());
@@ -840,20 +871,22 @@ async function validateChatMediaSignature(file, expectedMime) {
     else if (starts(0xff, 0xd8, 0xff)) actualMime = "image/jpeg";
     else if (starts(0x47, 0x49, 0x46, 0x38, 0x37, 0x61) || starts(0x47, 0x49, 0x46, 0x38, 0x39, 0x61)) actualMime = "image/gif";
     else if (header.length >= 12 && starts(0x52, 0x49, 0x46, 0x46) && header[8] === 0x57 && header[9] === 0x45 && header[10] === 0x42 && header[11] === 0x50) actualMime = "image/webp";
+    else if (header.length >= 12 && header[4] === 0x66 && header[5] === 0x74 && header[6] === 0x79 && header[7] === 0x70) actualMime = "video/mp4";
+    else if (starts(0x1a, 0x45, 0xdf, 0xa3)) actualMime = "video/webm";
     if (!actualMime || actualMime !== expectedMime) {
-        throw new Error("The file contents do not match its image type. Choose a valid PNG, JPG, WEBP or GIF.");
+        throw new Error("The file contents do not match the selected media type.");
     }
     return actualMime;
 }
 async function uploadPendingMedia() {
     if (!pendingMediaFile) return {url:"",type:""};
     const file = pendingMediaFile;
-    if (!file.size) throw new Error("This image file is empty.");
-    const allowed = {"image/png":"image","image/jpeg":"image","image/webp":"image","image/gif":"gif"};
+    if (!file.size) throw new Error("This media file is empty.");
+    const allowed = {"image/png":"image","image/jpeg":"image","image/webp":"image","image/gif":"gif","video/mp4":"video","video/webm":"video"};
     const type = allowed[file.type];
-    if (!type) throw new Error("Choose a PNG, JPG, WEBP or GIF image.");
-    const maxBytes = type === "gif" ? 20 * 1024 * 1024 : 15 * 1024 * 1024;
-    if (file.size > maxBytes) throw new Error(type === "gif" ? "GIFs must be 20 MB or smaller." : "Images must be 15 MB or smaller.");
+    if (!type) throw new Error("Choose a PNG, JPG, WEBP, GIF, MP4 or WebM file.");
+    const maxBytes = type === "gif" ? 20 * 1024 * 1024 : type === "video" ? 50 * 1024 * 1024 : 15 * 1024 * 1024;
+    if (file.size > maxBytes) throw new Error(type === "gif" ? "GIFs must be 20 MB or smaller." : type === "video" ? "Videos must be 50 MB or smaller." : "Images must be 15 MB or smaller.");
     await validateChatMediaSignature(file, file.type);
     const client = sb();
     if (!client || !chatUser?.id) throw new Error("Sign in again before uploading media.");
@@ -884,7 +917,7 @@ async function sendWorthItChatMessage() {
     const input = $("worthItChatInput");
     const body = String(input?.value || "");
     if (body.length > 500) { setStatus("Messages are limited to 500 characters.", true); return; }
-    if (!body.trim() && !pendingMediaFile) { setStatus("Write a message or attach an image/GIF first.", true); return; }
+    if (!body.trim() && !pendingMediaFile) { setStatus("Write a message or attach an image, GIF or video first.", true); return; }
     const remaining = 2000 - (Date.now() - chatLastSentAt);
     if (remaining > 0) { setStatus("Please wait " + (remaining / 1000).toFixed(1) + " seconds before sending another message.", true); return; }
     chatSending = true;
@@ -894,7 +927,7 @@ async function sendWorthItChatMessage() {
     try {
         let media = {url:"",type:""};
         if (pendingMediaFile) {
-            setStatus("Uploading image…", false);
+            setStatus(pendingMediaType === "video" ? "Uploading video…" : "Uploading media…", false);
             media = await uploadPendingMedia();
         }
         const result = await sb().rpc("send_worth_it_chat_message", {
@@ -1669,21 +1702,23 @@ function setupChatUI() {
         const file = this.files?.[0];
         this.value = "";
         if (!file) return;
-        const allowed = ["image/png", "image/jpeg", "image/webp", "image/gif"];
+        const allowed = ["image/png", "image/jpeg", "image/webp", "image/gif", "video/mp4", "video/webm"];
         if (!allowed.includes(file.type)) {
             setPendingMedia(null, "", "");
-            setStatus("Choose a PNG, JPG, WEBP or GIF image.", true);
+            setStatus("Choose a PNG, JPG, WEBP, GIF, MP4 or WebM file.", true);
             return;
         }
-        const maxBytes = file.type === "image/gif" ? 20 * 1024 * 1024 : 15 * 1024 * 1024;
-        const maxLabel = file.type === "image/gif" ? "20 MB" : "15 MB";
+        const isGif = file.type === "image/gif";
+        const isVideo = file.type.startsWith("video/");
+        const maxBytes = isGif ? 20 * 1024 * 1024 : isVideo ? 50 * 1024 * 1024 : 15 * 1024 * 1024;
+        const maxLabel = isGif ? "20 MB" : isVideo ? "50 MB" : "15 MB";
         if (!file.size || file.size > maxBytes) {
             setPendingMedia(null, "", "");
-            setStatus("Choose a non-empty " + (file.type === "image/gif" ? "GIF" : "image") + " that is " + maxLabel + " or smaller.", true);
+            setStatus("Choose a non-empty " + (isGif ? "GIF" : isVideo ? "video" : "image") + " that is " + maxLabel + " or smaller.", true);
             return;
         }
         const objectUrl = URL.createObjectURL(file);
-        setPendingMedia(file, objectUrl, file.type === "image/gif" ? "gif" : "image");
+        setPendingMedia(file, objectUrl, isGif ? "gif" : isVideo ? "video" : "image");
         setStatus("", false);
     });
     $("worthItChatHeaderNotifications")?.addEventListener("click", event => {
