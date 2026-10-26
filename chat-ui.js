@@ -1438,11 +1438,11 @@ function insertWorthItChatEmoji(emoji) {
 
 const WORTH_IT_CHAT_GIF_LIBRARY = [
     { id: "laughing-smile", title: "Laughing smile", keywords: "laughing laugh funny smile joy", type: "gif", offset: 0, length: 2586 },
-    { id: "party-confetti", title: "Party confetti", keywords: "party celebration celebrate birthday fun", type: "gif", offset: 2586, length: 3265 },
-    { id: "rocket-launch", title: "Rocket launch", keywords: "rocket launch space go success", type: "gif", offset: 5851, length: 2203 },
-    { id: "sparkle-burst", title: "Sparkle burst", keywords: "sparkle magic shine glitter star", type: "sticker", offset: 8054, length: 2570 },
-    { id: "heart-pulse", title: "Heart pulse", keywords: "heart love affection romance like", type: "sticker", offset: 10624, length: 2377 },
-    { id: "cat-blink", title: "Cat blink", keywords: "cat kitten animal cute pet", type: "sticker", offset: 13001, length: 640 }
+    { id: "party-confetti", title: "Party confetti", keywords: "party celebration celebrate birthday fun", type: "gif", offset: 1273, length: 1768 },
+    { id: "rocket-launch", title: "Rocket launch", keywords: "rocket launch space go success", type: "gif", offset: 3041, length: 1666 },
+    { id: "sparkle-burst", title: "Sparkle burst", keywords: "sparkle magic shine glitter star", type: "sticker", offset: 4707, length: 1083 },
+    { id: "heart-pulse", title: "Heart pulse", keywords: "heart love affection romance like", type: "sticker", offset: 5790, length: 881 },
+    { id: "cat-blink", title: "Cat blink", keywords: "cat kitten animal cute pet", type: "sticker", offset: 6671, length: 1240 }
 ];
 const WORTH_IT_CHAT_GIF_BUNDLE_PATH = "/assets/worth-it-chat-gifs/library.base64.txt";
 let worthItChatGifBundlePromise = null;
