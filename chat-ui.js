@@ -1419,8 +1419,7 @@ function renderWorthItChatEmojiCategories() {
         button.addEventListener("click", () => {
             worthItChatEmojiCategory = category.id;
             renderWorthItChatEmojiCategories();
-            renderWorthItChatEmojiCategories();
-    renderWorthItChatEmojiGrid($("worthItChatEmojiSearch")?.value || "");
+            renderWorthItChatEmojiGrid($("worthItChatEmojiSearch")?.value || "");
         });
         container.appendChild(button);
     }
@@ -1646,6 +1645,7 @@ function openWorthItChatEmojiPicker() {
     const panel = $("worthItChatEmojiPicker");
     if (!panel) return;
     panel.hidden = false;
+    renderWorthItChatEmojiCategories();
     renderWorthItChatEmojiGrid($("worthItChatEmojiSearch")?.value || "");
     $("worthItChatEmojiSearch")?.focus();
 }
