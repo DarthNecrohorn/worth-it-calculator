@@ -79,3 +79,14 @@ test("picker controls use Worth It styling and remain scrollable on mobile", () 
     assert.match(css, /\.worth-it-chat-emoji-grid[\s\S]*?grid-template-columns: repeat\(8, minmax\(0, 1fr\)\)/);
     assert.match(css, /\.worth-it-chat-picker-panel:not\(\[hidden\]\)[\s\S]*?max-height: min\(calc\(62dvh/);
 });
+
+
+test("opening the emoji picker renders category controls, and selecting a category renders once", () => {
+    const openHandler = client.match(/function openWorthItChatEmojiPicker\\(\\) \\{([\\s\\S]*?)\\n\\}/)?.[1] || "";
+    assert.match(openHandler, /renderWorthItChatEmojiCategories\\(\\)/);
+    assert.match(openHandler, /renderWorthItChatEmojiGrid\\(/);
+
+    const categoryHandler = client.match(/worthItChatEmojiCategory = category\\.id;([\\s\\S]{0,180})/)?.[1] || "";
+    assert.equal((categoryHandler.match(/renderWorthItChatEmojiCategories\\(\\)/g) || []).length, 1,
+        "changing category should rebuild the category controls exactly once");
+});
