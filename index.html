@@ -49,7 +49,7 @@ html[data-theme="light"].worth-it-initial-paint::before {
 </style>
 
     <script>
-/* Keep Worth It at its standard A size. Browser/device zoom is controlled by the user. */
+/* Start with the default site scale; browser and device zoom remain user-controlled. */
 (function(){
     try{
         localStorage.removeItem("worthItUIScale");
@@ -116,11 +116,11 @@ html[data-theme="light"].worth-it-initial-paint::before {
     </button>
 
     <!--
-        MOBILE / A+ / A++ navigation extensions.
+        MOBILE NAVIGATION EXTENSIONS.
         Any future discovery-style section that should appear in
         the scrollable navigation can add another .nav-overflow-item
         button here. This container is automatically shown in the
-        mobile and accessibility menus and hidden on A- / A desktop.
+        scrollable mobile navigation menu.
     -->
     <div class="nav-overflow-items" id="navOverflowItems">
         <button
