@@ -38,7 +38,7 @@ test("the emoji picker has categories and a large locally searchable emoji libra
     for (const category of ["faces", "people", "animals", "food", "activities", "travel", "objects", "symbols", "flags"]) {
         assert.match(client, new RegExp('addWorthItChatEmojiGroup\\("' + category + '"'));
     }
-    assert.match(client, /Search emoji/);
+    assert.match(html, /placeholder="Search emoji…"/);
     assert.match(client, /WORTH_IT_CHAT_EMOJI_KEYWORDS/);
     assert.match(client, /worthItChatEmojiCategory/);
     assert.match(css, /\.worth-it-chat-emoji-grid[\s\S]*?overflow-y: auto/);
