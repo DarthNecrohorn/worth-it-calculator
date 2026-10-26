@@ -22844,3 +22844,39 @@ html[data-theme="light"] .worth-it-chat-gif-attribution {
         grid-column: 1 / -1;
     }
 }
+
+
+/* Chat MP4/WebM attachments share the bounded responsive media treatment. */
+.worth-it-chat-video {
+    display: block;
+    width: min(100%, 420px);
+    max-height: 320px;
+    border-radius: 12px;
+    background: #000;
+    object-fit: contain;
+}
+.worth-it-chat-video-preview {
+    display: block;
+    width: min(100%, 280px);
+    max-height: 180px;
+    border-radius: 10px;
+    background: #000;
+    object-fit: contain;
+}
+.worth-it-chat-image-preview {
+    display: block;
+    width: min(100%, 180px);
+    max-height: 120px;
+    object-fit: contain;
+    border-radius: 10px;
+}
+@media (max-width: 760px) {
+    .worth-it-chat-video {
+        width: min(100%, 100%);
+        max-height: 240px;
+    }
+    .worth-it-chat-video-preview {
+        width: min(100%, 220px);
+        max-height: 140px;
+    }
+}
