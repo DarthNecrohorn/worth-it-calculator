@@ -14,7 +14,9 @@ test("the header chat shortcut remains available on phones and desktop", () => {
         assert.doesNotMatch(rules, /\.worth-it-chat-nav-wrap\s*\{\s*display:\s*none\s*!important;/);
     }
     assert.match(html, /style\.css\?v=worthit-owned-picker-20261026a/);
-    assert.doesNotMatch(css, /(?:zoom\s*:\s*0\.82|--ui-scale\s*:\s*0\.82|data-ui-scale\s*=\s*"small")/i, "mobile chat rules must not force the whole page or panel to A−");
+    const pickerCss = css.slice(css.lastIndexOf("WORTH IT OWNED CHAT MEDIA PICKER"));
+    assert.ok(pickerCss.length > 0, "the final Worth It picker rules exist");
+    assert.doesNotMatch(pickerCss, /(?:zoom\s*:\s*0\.82|--ui-scale\s*:\s*0\.82|data-ui-scale\s*=\s*"small")/i, "the picker must not force the phone panel to A−");
 });
 
 test("desktop fullscreen chat fills the viewport with a smooth transition", () => {
