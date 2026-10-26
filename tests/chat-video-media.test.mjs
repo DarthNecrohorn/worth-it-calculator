@@ -70,6 +70,7 @@ async function withFetch(fetchImpl, callback) {
 }
 
 test("chat video controls, accepted types, upload limits and cache key are wired together", () => {
+    assert.match(html, /Images, GIFs, videos and links supported/);
     assert.match(html, /chat-ui\.js\?v=worthit-owned-media-video-20261026a/);
     assert.match(html, /accept="image\/png,image\/jpeg,image\/webp,image\/gif,video\/mp4,video\/webm"/);
     assert.match(client, /"video\/mp4":"video","video\/webm":"video"/);
