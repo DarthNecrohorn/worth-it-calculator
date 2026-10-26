@@ -19,6 +19,13 @@ test("the header chat shortcut remains available on phones and desktop", () => {
     assert.doesNotMatch(pickerCss, /(?:zoom\s*:\s*0\.82|--ui-scale\s*:\s*0\.82|data-ui-scale\s*=\s*"small")/i, "the picker must not force the phone panel to A−");
 });
 
+test("the page has no obsolete accessibility-scale chooser controls", () => {
+    const visibleMarkup = html.replace(/<!--[\\s\\S]*?-->/g, "");
+    assert.doesNotMatch(visibleMarkup, /<(?:button|option)\\b[^>]*>\\s*A(?:−|\\-|\\+|\\+\\+)\\s*<\\/(?:button|option)>/i);
+    assert.doesNotMatch(visibleMarkup, /(?:id|class)=["'][^"']*(?:ui-scale-control|accessibility-scale-picker|font-size-picker)[^"']*["']/i);
+    assert.doesNotMatch(visibleMarkup, /(?:Choose|Select|Change)\\s+(?:the\\s+)?(?:display|accessibility|text)\\s+size/i);
+});
+
 test("desktop fullscreen chat fills the viewport with a smooth transition", () => {
     const start = css.lastIndexOf("Desktop fullscreen chat: expand the overlay and its in-flow window to the viewport.");
     assert.ok(start >= 0, "the final desktop fullscreen rules exist");
