@@ -13,8 +13,17 @@ test("the header chat shortcut remains available on phones and desktop", () => {
     for (const rules of mobileRules) {
         assert.doesNotMatch(rules, /\.worth-it-chat-nav-wrap\s*\{\s*display:\s*none\s*!important;/);
     }
-    assert.match(html, /style\.css\?v=chat-shortcut-restored-20261025a/);
-    assert.doesNotMatch(css, /(?:zoom\s*:\s*0\.82|--ui-scale\s*:\s*0\.82|data-ui-scale\s*=\s*"small")/i, "mobile chat rules must not force the whole page or panel to A−");
+    assert.match(html, /style\.css\?v=worthit-owned-picker-markets-cars-20261026b/);
+    const pickerCss = css.slice(css.lastIndexOf("WORTH IT OWNED CHAT MEDIA PICKER"));
+    assert.ok(pickerCss.length > 0, "the final Worth It picker rules exist");
+    assert.doesNotMatch(pickerCss, /(?:zoom\s*:\s*0\.82|--ui-scale\s*:\s*0\.82|data-ui-scale\s*=\s*"small")/i, "the picker must not force a legacy fixed zoom factor");
+});
+
+test("the page has no obsolete accessibility-scale chooser controls", () => {
+    const visibleMarkup = html.replace(/<!--[\s\S]*?-->/g, "");
+    assert.doesNotMatch(visibleMarkup, /<(?:button|option)\b[^>]*>\s*A(?:−|-|\+|\+\+)\s*<\/(?:button|option)>/i);
+    assert.doesNotMatch(visibleMarkup, /(?:id|class)=["'][^"']*(?:ui-scale-control|accessibility-scale-picker|font-size-picker)[^"']*["']/i);
+    assert.doesNotMatch(visibleMarkup, /(?:Choose|Select|Change)\s+(?:the\s+)?(?:display|accessibility|text)\s+size/i);
 });
 
 test("desktop fullscreen chat fills the viewport with a smooth transition", () => {

@@ -2,7 +2,8 @@ const SITE_ORIGIN = "https://worth-it-calculator.pages.dev";
 const BUCKET = "worth-it-chat-media";
 const IMAGE_LIMIT = 15 * 1024 * 1024;
 const GIF_LIMIT = 20 * 1024 * 1024;
-const MAX_REQUEST_BYTES = GIF_LIMIT + 256 * 1024;
+const VIDEO_LIMIT = 50 * 1024 * 1024;
+const MAX_REQUEST_BYTES = VIDEO_LIMIT + 256 * 1024;
 
 function json(data, status, origin) {
     return new Response(JSON.stringify(data), {
@@ -52,12 +53,14 @@ async function verifyUser(config, token) {
     const user = await response.json();
     return user && user.id ? user : null;
 }
-function detectImage(bytes) {
+function detectMedia(bytes) {
     const starts = (...values) => values.every((value, index) => bytes[index] === value);
     if (starts(0x89,0x50,0x4e,0x47,0x0d,0x0a,0x1a,0x0a)) return {mime:"image/png", ext:"png", type:"image"};
     if (starts(0xff,0xd8,0xff)) return {mime:"image/jpeg", ext:"jpg", type:"image"};
     if (starts(0x47,0x49,0x46,0x38,0x37,0x61) || starts(0x47,0x49,0x46,0x38,0x39,0x61)) return {mime:"image/gif", ext:"gif", type:"gif"};
     if (bytes.length >= 12 && starts(0x52,0x49,0x46,0x46) && bytes[8] === 0x57 && bytes[9] === 0x45 && bytes[10] === 0x42 && bytes[11] === 0x50) return {mime:"image/webp", ext:"webp", type:"image"};
+    if (bytes.length >= 8 && bytes[4] === 0x66 && bytes[5] === 0x74 && bytes[6] === 0x79 && bytes[7] === 0x70) return {mime:"video/mp4", ext:"mp4", type:"video"};
+    if (starts(0x1a,0x45,0xdf,0xa3)) return {mime:"video/webm", ext:"webm", type:"video"};
     return null;
 }
 export async function onRequest(context) {
@@ -70,7 +73,7 @@ export async function onRequest(context) {
     }});
     if (request.method !== "POST") return json({error:"Method not allowed."}, 405, origin);
     const contentLength = Number(request.headers.get("Content-Length") || 0);
-    if (contentLength && contentLength > MAX_REQUEST_BYTES) return json({error:"This file is too large. Images are limited to 15 MB and GIFs to 20 MB."}, 413, origin);
+    if (contentLength && contentLength > MAX_REQUEST_BYTES) return json({error:"This file is too large. Images are limited to 15 MB, GIFs to 20 MB and videos to 50 MB."}, 413, origin);
     const config = getConfig(env);
     if (!config.supabaseUrl || !config.publishableKey || !config.serviceKey) return json({error:"Chat media uploads are temporarily unavailable."}, 503, origin);
     const token = getToken(request);
@@ -79,18 +82,19 @@ export async function onRequest(context) {
     try { user = await verifyUser(config, token); } catch (_) { return json({error:"Could not verify your session. Please try again."}, 502, origin); }
     if (!user) return json({error:"Your session has expired. Sign in again."}, 401, origin);
     let form;
-    try { form = await request.formData(); } catch (_) { return json({error:"Choose a valid image or GIF file."}, 400, origin); }
+    try { form = await request.formData(); } catch (_) { return json({error:"Choose a valid image, GIF or video file."}, 400, origin); }
     const file = form.get("file");
-    if (!file || typeof file.arrayBuffer !== "function" || typeof file.size !== "number") return json({error:"Choose an image or GIF file."}, 400, origin);
-    if (!file.size) return json({error:"This image file is empty."}, 400, origin);
+    if (!file || typeof file.arrayBuffer !== "function" || typeof file.size !== "number") return json({error:"Choose an image, GIF or video file."}, 400, origin);
+    if (!file.size) return json({error:"This media file is empty."}, 400, origin);
     const claimedMime = String(file.type || "").toLowerCase();
-    const maxBytes = claimedMime === "image/gif" ? GIF_LIMIT : IMAGE_LIMIT;
-    if (file.size > maxBytes) return json({error:claimedMime === "image/gif" ? "GIFs must be 20 MB or smaller." : "Images must be 15 MB or smaller."}, 413, origin);
-    if (!["image/png","image/jpeg","image/webp","image/gif"].includes(claimedMime)) return json({error:"Choose a PNG, JPG, WEBP or GIF image."}, 415, origin);
+    const video = claimedMime === "video/mp4" || claimedMime === "video/webm";
+    const maxBytes = claimedMime === "image/gif" ? GIF_LIMIT : video ? VIDEO_LIMIT : IMAGE_LIMIT;
+    if (file.size > maxBytes) return json({error:claimedMime === "image/gif" ? "GIFs must be 20 MB or smaller." : video ? "Videos must be 50 MB or smaller." : "Images must be 15 MB or smaller."}, 413, origin);
+    if (!["image/png","image/jpeg","image/webp","image/gif","video/mp4","video/webm"].includes(claimedMime)) return json({error:"Choose a PNG, JPG, WEBP, GIF, MP4 or WebM file."}, 415, origin);
     let bytes;
     try { bytes = new Uint8Array(await file.slice(0,16).arrayBuffer()); } catch (_) { return json({error:"Could not read this file."}, 400, origin); }
-    const detected = detectImage(bytes);
-    if (!detected || detected.mime !== claimedMime) return json({error:"The file contents do not match its image type."}, 415, origin);
+    const detected = detectMedia(bytes);
+    if (!detected || detected.mime !== claimedMime) return json({error:"The file contents do not match its selected media type."}, 415, origin);
     const objectPath = user.id + "/" + Date.now() + "-" + crypto.randomUUID() + "." + detected.ext;
     let uploadResponse;
     try {
@@ -99,9 +103,9 @@ export async function onRequest(context) {
             headers:serviceHeaders(config, {"Content-Type":detected.mime,"x-upsert":"false","Cache-Control":"3600"}),
             body:file
         });
-    } catch (_) { return json({error:"Could not upload this image. Please try again."}, 502, origin); }
+    } catch (_) { return json({error:"Could not upload this media. Please try again."}, 502, origin); }
     if (!uploadResponse.ok) {
-        let message = "Could not upload this image. Please try again.";
+        let message = "Could not upload this media. Please try again.";
         try {
             const result = await uploadResponse.json();
             if (uploadResponse.status === 413 || /size|large|limit/i.test(String(result.message || result.error || ""))) message = "The storage service rejected this file size. Please try a smaller file.";

@@ -14,6 +14,7 @@ on:
       - "index.html"
       - "settings.js"
       - "chat-ui.js"
+      - "markets-ui.js"
       - "routing.js"
       - "guest-mode.js"
       - "section-data-cache.js"
@@ -40,7 +41,7 @@ jobs:
             echo "Checking $file"
             node --input-type=module --check < "$file"
           done < <(find functions -type f -name '*.js' -print0)
-          for file in cars-ui.js ship-tracking-ui.js app.js settings.js profile-ui.js chat-ui.js routing.js guest-mode.js section-data-cache.js; do
+          for file in cars-ui.js markets-ui.js ship-tracking-ui.js app.js settings.js profile-ui.js chat-ui.js routing.js guest-mode.js section-data-cache.js; do
             if [[ -f "$file" ]]; then
               echo "Checking $file"
               node --input-type=module --check < "$file"
@@ -66,12 +67,13 @@ jobs:
           from pathlib import Path
           from pglast import parse_sql
 
-          path = Path("supabase/worth-it-settings-privacy-notifications.sql")
-          sql = path.read_text(encoding="utf-8")
-          statements = parse_sql(sql)
-          if not statements:
-              raise SystemExit(f"No SQL statements were found in {path}.")
-          print(f"PostgreSQL parser accepted {len(statements)} statements in {path}.")
+          for name in ("supabase/worth-it-settings-privacy-notifications.sql", "supabase/worth-it-chat-video-media.sql"):
+              path = Path(name)
+              sql = path.read_text(encoding="utf-8")
+              statements = parse_sql(sql)
+              if not statements:
+                  raise SystemExit(f"No SQL statements were found in {path}.")
+              print(f"PostgreSQL parser accepted {len(statements)} statements in {path}.")
           PY
 
       - name: Check Supabase SQL migration delimiters
@@ -82,19 +84,22 @@ jobs:
           from pathlib import Path
           import re
 
-          path = Path("supabase/worth-it-settings-privacy-notifications.sql")
-          sql = path.read_text(encoding="utf-8")
-          openers = len(re.findall(r"(?im)^\s*(?:as|do)\s+\$\$\s*$", sql))
-          closers = len(re.findall(r"(?m)^\s*\$\$;\s*$", sql))
-          malformed = re.findall(r"(?m)^\s*\$;\s*$", sql)
-          if openers != closers or malformed:
-              raise SystemExit(
-                  f"Invalid SQL dollar-quote delimiters: {openers} openers, {closers} closers, "
-                  f"{len(malformed)} malformed terminator(s)."
-              )
-          if not re.search(r"(?im)^\s*begin;\s*$", sql) or not re.search(r"(?im)^\s*commit;\s*$", sql):
-              raise SystemExit("Expected the migration to be wrapped in BEGIN/COMMIT.")
-          print(f"Checked SQL dollar-quote delimiters in {path}: {openers} paired blocks.")
+          for name in ("supabase/worth-it-settings-privacy-notifications.sql", "supabase/worth-it-chat-video-media.sql"):
+              path = Path(name)
+              sql = path.read_text(encoding="utf-8")
+              openers = len(re.findall(r"(?im)^\s*(?:as|do)\s+\$\$\s*$|^\s*do\s+\$migration\$\s*$", sql))
+              closers = len(re.findall(r"(?m)^\s*\$\$;\s*$|^\s*\$migration\$;\s*$", sql))
+              malformed = re.findall(r"(?m)^\s*\$;\s*$", sql)
+              if openers != closers or malformed:
+                  raise SystemExit(
+                      f"Invalid SQL dollar-quote delimiters in {path}: {openers} openers, {closers} closers, "
+                      f"{len(malformed)} malformed terminator(s)."
+                  )
+              if name.endswith("worth-it-settings-privacy-notifications.sql") and (
+                  not re.search(r"(?im)^\s*begin;\s*$", sql) or not re.search(r"(?im)^\s*commit;\s*$", sql)
+              ):
+                  raise SystemExit("Expected the Settings migration to be wrapped in BEGIN/COMMIT.")
+              print(f"Checked SQL dollar-quote delimiters in {path}: {openers} paired blocks.")
           PY
 
   migration-postgres:
@@ -145,3 +150,16 @@ jobs:
         env:
           TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/postgres
         run: psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -f tests/fixtures/settings-migration-postgres-smoke.sql
+
+      - name: Create isolated database for chat-video migration tests
+        env:
+          TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/postgres
+        run: createdb --maintenance-db="$TEST_DATABASE_URL" --owner=postgres chat_video_test
+
+      - name: Execute chat-video migration against disposable PostgreSQL
+        env:
+          TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/chat_video_test
+        run: |
+          psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -f tests/fixtures/chat-video-migration-postgres-setup.sql
+          psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/worth-it-chat-video-media.sql
+          psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -f tests/fixtures/chat-video-migration-postgres-smoke.sql
