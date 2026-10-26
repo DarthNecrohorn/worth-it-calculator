@@ -13,7 +13,7 @@ test("the header chat shortcut remains available on phones and desktop", () => {
     for (const rules of mobileRules) {
         assert.doesNotMatch(rules, /\.worth-it-chat-nav-wrap\s*\{\s*display:\s*none\s*!important;/);
     }
-    assert.match(html, /style\.css\?v=chat-shortcut-restored-20261025a/);
+    assert.match(html, /style\.css\?v=worthit-owned-picker-20261026a/);
     assert.doesNotMatch(css, /(?:zoom\s*:\s*0\.82|--ui-scale\s*:\s*0\.82|data-ui-scale\s*=\s*"small")/i, "mobile chat rules must not force the whole page or panel to A−");
 });
 
