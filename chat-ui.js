@@ -1437,27 +1437,73 @@ function insertWorthItChatEmoji(emoji) {
 }
 
 const WORTH_IT_CHAT_GIF_LIBRARY = [
-    { id: "laughing-smile", title: "Laughing smile", keywords: "laughing laugh funny smile joy", type: "gif", url: "/assets/worth-it-chat-gifs/laughing-smile.gif" },
-    { id: "party-confetti", title: "Party confetti", keywords: "party celebration celebrate birthday fun", type: "gif", url: "/assets/worth-it-chat-gifs/party-confetti.gif" },
-    { id: "rocket-launch", title: "Rocket launch", keywords: "rocket launch space go success", type: "gif", url: "/assets/worth-it-chat-gifs/rocket-launch.gif" },
-    { id: "sparkle-burst", title: "Sparkle burst", keywords: "sparkle magic shine glitter star", type: "sticker", url: "/assets/worth-it-chat-gifs/sparkle-burst.gif" },
-    { id: "heart-pulse", title: "Heart pulse", keywords: "heart love affection romance like", type: "sticker", url: "/assets/worth-it-chat-gifs/heart-pulse.gif" },
-    { id: "cat-blink", title: "Cat blink", keywords: "cat kitten animal cute pet", type: "sticker", url: "/assets/worth-it-chat-gifs/cat-blink.gif" },
-    { id: "thumbs-up", title: "Thumbs up", keywords: "thumbs up like yes approve great", type: "sticker", url: "/assets/worth-it-chat-gifs/thumbs-up.gif" },
-    { id: "rainbow-wow", title: "Rainbow wow", keywords: "rainbow wow color colorful magic", type: "gif", url: "/assets/worth-it-chat-gifs/rainbow-wow.gif" },
-    { id: "fire-vibes", title: "Fire vibes", keywords: "fire hot cool awesome lit", type: "gif", url: "/assets/worth-it-chat-gifs/fire-vibes.gif" },
-    { id: "celebrate-heart", title: "Celebrate heart", keywords: "heart love celebration party happy", type: "sticker", url: "/assets/worth-it-chat-gifs/celebrate-heart.gif" }
+    { id: "laughing-smile", title: "Laughing smile", keywords: "laughing laugh funny smile joy", type: "gif", offset: 0, length: 2586 },
+    { id: "party-confetti", title: "Party confetti", keywords: "party celebration celebrate birthday fun", type: "gif", offset: 2586, length: 3265 },
+    { id: "rocket-launch", title: "Rocket launch", keywords: "rocket launch space go success", type: "gif", offset: 5851, length: 2203 },
+    { id: "sparkle-burst", title: "Sparkle burst", keywords: "sparkle magic shine glitter star", type: "sticker", offset: 8054, length: 2570 },
+    { id: "heart-pulse", title: "Heart pulse", keywords: "heart love affection romance like", type: "sticker", offset: 10624, length: 2377 },
+    { id: "cat-blink", title: "Cat blink", keywords: "cat kitten animal cute pet", type: "sticker", offset: 13001, length: 640 }
 ];
+const WORTH_IT_CHAT_GIF_BUNDLE_PATH = "/assets/worth-it-chat-gifs/library.base64.txt";
+let worthItChatGifBundlePromise = null;
+const worthItChatGifObjectUrls = new Map();
 
-function isWorthItChatLocalGifUrl(rawUrl) {
-    try {
-        const url = new URL(String(rawUrl || ""), window.location.origin);
-        return url.origin === window.location.origin &&
-            !url.search && !url.hash &&
-            /^\/assets\/worth-it-chat-gifs\/[a-z0-9-]+\.gif$/i.test(url.pathname);
-    } catch (_) {
-        return false;
+function isWorthItChatLocalGifItem(item) {
+    if (!item || !["gif", "sticker"].includes(item.type)) return false;
+    return WORTH_IT_CHAT_GIF_LIBRARY.some(entry =>
+        entry.id === item.id &&
+        entry.type === item.type &&
+        entry.offset === item.offset &&
+        entry.length === item.length
+    );
+}
+
+async function getWorthItChatGifAsset(item) {
+    if (!isWorthItChatLocalGifItem(item)) {
+        throw new Error("Choose an animation from the Worth It library.");
     }
+    if (!worthItChatGifBundlePromise) {
+        worthItChatGifBundlePromise = (async () => {
+            const response = await fetch(WORTH_IT_CHAT_GIF_BUNDLE_PATH, {
+                method: "GET",
+                credentials: "same-origin",
+                cache: "force-cache",
+                headers: { "Accept": "text/plain" }
+            });
+            if (!response.ok) throw new Error("The Worth It animation library could not be loaded.");
+            const encoded = (await response.text()).replace(/\s+/g, "");
+            if (!encoded || encoded.length > 1024 * 1024) {
+                throw new Error("The Worth It animation library is invalid.");
+            }
+            let binary;
+            try { binary = atob(encoded); }
+            catch (_) { throw new Error("The Worth It animation library could not be decoded."); }
+            const bytes = new Uint8Array(binary.length);
+            for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
+            return bytes;
+        })().catch(error => {
+            worthItChatGifBundlePromise = null;
+            throw error;
+        });
+    }
+    const bytes = await worthItChatGifBundlePromise;
+    const start = item.offset;
+    const end = start + item.length;
+    if (start < 0 || item.length < 7 || end > bytes.length) {
+        throw new Error("That animation is not available in the Worth It library.");
+    }
+    const slice = bytes.slice(start, end);
+    const signature = String.fromCharCode(...slice.slice(0, 6));
+    if (signature !== "GIF87a" && signature !== "GIF89a") {
+        throw new Error("That animation did not pass file validation.");
+    }
+    const blob = new Blob([slice], { type: "image/gif" });
+    let previewUrl = worthItChatGifObjectUrls.get(item.id);
+    if (!previewUrl) {
+        previewUrl = URL.createObjectURL(blob);
+        worthItChatGifObjectUrls.set(item.id, previewUrl);
+    }
+    return { blob, previewUrl };
 }
 
 function setWorthItChatGifStatus(message, isError = false) {
@@ -1496,9 +1542,7 @@ function renderWorthItChatGifResults(items) {
     const grid = $("worthItChatGifGrid");
     if (!grid) return;
     grid.replaceChildren();
-    const usable = (Array.isArray(items) ? items : []).filter(item =>
-        item && isWorthItChatLocalGifUrl(item.url) && ["gif", "sticker"].includes(item.type)
-    );
+    const usable = (Array.isArray(items) ? items : []).filter(isWorthItChatLocalGifItem);
     if (!usable.length) {
         setWorthItChatGifStatus("No matching Worth It animations yet. Try another search or category.", false);
         return;
@@ -1510,10 +1554,10 @@ function renderWorthItChatGifResults(items) {
         button.setAttribute("aria-label", "Attach " + item.type + ": " + item.title);
         button.title = item.title;
         const image = document.createElement("img");
-        image.src = item.url;
         image.alt = item.title;
         image.loading = "lazy";
         image.decoding = "async";
+        image.dataset.animationId = item.id;
         button.appendChild(image);
         const label = document.createElement("span");
         label.className = "worth-it-chat-gif-option-label";
@@ -1521,6 +1565,14 @@ function renderWorthItChatGifResults(items) {
         button.appendChild(label);
         button.addEventListener("click", () => selectWorthItChatGif(item));
         grid.appendChild(button);
+        getWorthItChatGifAsset(item).then(asset => {
+            if (button.isConnected) image.src = asset.previewUrl;
+        }).catch(() => {
+            if (button.isConnected) {
+                image.alt = item.title + " preview unavailable";
+                button.classList.add("is-unavailable");
+            }
+        });
     }
     setWorthItChatGifStatus(usable.length + (usable.length === 1 ? " original animation in the Worth It library." : " original animations in the Worth It library."), false);
 }
@@ -1537,21 +1589,14 @@ function loadWorthItChatGifResults(query = "") {
 }
 
 async function selectWorthItChatGif(item) {
-    if (!item || !isWorthItChatLocalGifUrl(item.url)) return;
+    if (!isWorthItChatLocalGifItem(item)) return;
     setWorthItChatGifStatus("Preparing " + item.type + "…", false);
     try {
-        const response = await fetch(item.url, {
-            method: "GET",
-            credentials: "same-origin",
-            cache: "force-cache",
-            headers: { "Accept": "image/gif" }
-        });
-        if (!response.ok) throw new Error("That Worth It animation could not be loaded. Please try again.");
-        const blob = await response.blob();
-        if (!blob.size || blob.size > 20 * 1024 * 1024) {
+        const asset = await getWorthItChatGifAsset(item);
+        if (!asset.blob.size || asset.blob.size > 20 * 1024 * 1024) {
             throw new Error("The selected animation must be a valid file of 20 MB or smaller.");
         }
-        const file = new File([blob], "worth-it-" + item.id + ".gif", { type: "image/gif" });
+        const file = new File([asset.blob], "worth-it-" + item.id + ".gif", { type: "image/gif" });
         await validateChatMediaSignature(file, "image/gif");
         const previewUrl = URL.createObjectURL(file);
         setPendingMedia(file, previewUrl, "gif");
