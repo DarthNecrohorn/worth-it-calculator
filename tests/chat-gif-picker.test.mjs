@@ -92,6 +92,8 @@ test("composer controls are implemented and picker panels have desktop layout", 
     assert.match(desktopPanel, /position:\s*absolute/);
     assert.match(desktopPanel, /display:\s*flex/);
     assert.match(desktopPanel, /max-height:/);
+    assert.ok(css.includes("min-height: min(280px, calc(100vh - 32px)) !important;"));
+    assert.ok(css.includes("min-height: min(calc(315px / var(--ui-scale, 1)), calc(62dvh / var(--ui-scale, 1))) !important;"));
 
     const emojiGrid = css.match(/\.worth-it-chat-emoji-grid\s*\{([\s\S]*?)\}/)?.[1] || "";
     assert.match(emojiGrid, /display:\s*grid/);
