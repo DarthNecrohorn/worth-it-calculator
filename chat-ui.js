@@ -1350,6 +1350,28 @@ let worthItChatEmojiCategory = "faces";
 let worthItChatGifCategory = "all";
 let worthItChatGifSearchSequence = 0;
 
+function closeWorthItChatPickers() {
+    const menu = $("worthItChatPlusMenu");
+    const emojiPicker = $("worthItChatEmojiPicker");
+    const gifPicker = $("worthItChatGifPicker");
+    const plus = $("worthItChatPlusBtn");
+    if (menu) menu.hidden = true;
+    if (emojiPicker) emojiPicker.hidden = true;
+    if (gifPicker) gifPicker.hidden = true;
+    if (plus) plus.setAttribute("aria-expanded", "false");
+}
+
+function openWorthItChatPlusMenu() {
+    const menu = $("worthItChatPlusMenu");
+    const plus = $("worthItChatPlusBtn");
+    if (!menu || !plus) return;
+    const shouldOpen = menu.hidden;
+    closeWorthItChatPickers();
+    menu.hidden = !shouldOpen;
+    plus.setAttribute("aria-expanded", shouldOpen ? "true" : "false");
+}
+
+
 const WORTH_IT_CHAT_EMOJI_KEYWORDS = {
     "😀": "grinning smile happy face", "😃": "big smile happy", "😄": "grinning laugh",
     "😁": "beam smile", "😆": "laughing squint", "😅": "nervous sweat laugh",
