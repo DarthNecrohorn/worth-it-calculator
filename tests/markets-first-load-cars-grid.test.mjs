@@ -95,7 +95,7 @@ test("Markets retry performs a network-only retry after an HTML 503 and then suc
     const result = await api.fetchMarketsDatasetWithRetry();
     assert.equal(result.data.prices[0].name, "Gold");
     assert.equal(calls.length, 2);
-    assert.match(calls[0].url, /^\\/api\\/markets\\?v=runtime-test$/);
+    assert.match(calls[0].url, /^\/api\/markets\?v=runtime-test$/);
     assert.equal(calls[0].options.cache, "default");
     assert.equal(calls[1].options.cache, "no-store");
     assert.deepEqual(waits, [700]);
@@ -109,7 +109,7 @@ test("Markets retry does not retry a successful-status HTML response or parse it
         return marketsResponse(200, "<html>not the API</html>", "text/html");
     }, waits);
 
-    await assert.rejects(api.fetchMarketsDatasetWithRetry(), /non-JSON response \\(HTTP 200\\)/);
+    await assert.rejects(api.fetchMarketsDatasetWithRetry(), /non-JSON response \(HTTP 200\)/);
     assert.equal(calls, 1);
     assert.deepEqual(waits, []);
 });
