@@ -625,13 +625,48 @@ function renderWorthItChatComposerPreview() {
     if (!input || !preview) return;
     preview.replaceChildren();
     const value = String(input.value || "");
+    const showCaret = document.activeElement === input
+        && Number.isInteger(input.selectionStart)
+        && input.selectionStart === input.selectionEnd;
+    let caretPosition = showCaret ? input.selectionStart : -1;
+
+    // A regional-indicator flag occupies four UTF-16 code units but is shown as one SVG.
+    // Keep the visual caret outside that complete flag so it cannot appear inside the image.
+    if (caretPosition >= 0) {
+        const flagPattern = /[\\u{1F1E6}-\\u{1F1FF}]{2}/gu;
+        let match;
+        while ((match = flagPattern.exec(value))) {
+            const start = match.index;
+            const end = start + match[0].length;
+            if (caretPosition > start && caretPosition < end) {
+                caretPosition = end;
+                break;
+            }
+        }
+    }
+
+    const appendCaret = () => {
+        if (caretPosition < 0) return;
+        const caret = document.createElement("span");
+        caret.className = "worth-it-chat-composer-caret";
+        caret.setAttribute("aria-hidden", "true");
+        preview.appendChild(caret);
+    };
+
     if (!value) {
         preview.classList.add("is-empty");
-        preview.textContent = input.placeholder || "";
-        return;
+        preview.appendChild(document.createTextNode(input.placeholder || ""));
+        appendCaret();
+    } else {
+        preview.classList.remove("is-empty");
+        if (caretPosition < 0) {
+            appendWorthItChatTextWithFlags(preview, value);
+        } else {
+            appendWorthItChatTextWithFlags(preview, value.slice(0, caretPosition));
+            appendCaret();
+            appendWorthItChatTextWithFlags(preview, value.slice(caretPosition));
+        }
     }
-    preview.classList.remove("is-empty");
-    appendWorthItChatTextWithFlags(preview, value);
     preview.scrollTop = input.scrollTop;
     preview.scrollLeft = input.scrollLeft;
 }
