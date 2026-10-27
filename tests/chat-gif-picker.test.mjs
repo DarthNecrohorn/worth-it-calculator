@@ -113,8 +113,8 @@ test("desktop picker panels sit outside the narrow attachment dock and have usab
     assert.ok(dock >= 0 && textarea > dock && send > textarea && emoji > send && gif > emoji);
     assert.ok(!html.slice(dock, textarea).includes('id="worthItChatEmojiPicker"'),
         "picker panels must not be children of the 42px attachment dock");
-    assert.ok(html.slice(send, emoji).includes('</button>\n                        </div>'),
-        "picker panels should be siblings of the composer row");
+    assert.ok(html.slice(send, emoji).includes('</button>\n                            <section class="worth-it-chat-picker-panel'),
+        "picker panels should be positioned siblings of the composer controls");
 
     const desktopStart = css.lastIndexOf("@media (min-width: 761px) {");
     const desktopEnd = css.indexOf("\n}", desktopStart);
