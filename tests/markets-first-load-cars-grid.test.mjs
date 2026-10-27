@@ -76,7 +76,7 @@ test("Recently Viewed and Favorites use two compact columns on mobile", () => {
 });
 
 test("the stylesheet version is refreshed for the current UI improvements", () => {
-    assert.ok(html.includes("style.css?v=country-flags-chat-composer-20261027b"));
+    assert.ok(html.includes("style.css?v=country-flags-chat-caret-20261027c"));
 });
 
 
