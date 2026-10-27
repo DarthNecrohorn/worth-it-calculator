@@ -23084,3 +23084,13 @@ html[data-theme="light"] .worth-it-chat-gif-attribution {
     border-radius: 2px !important;
     box-shadow: 0 0 0 1px rgba(148,163,184,.22) !important;
 }
+
+/* Country-flag image preview layered beneath the native chat input. */
+.worth-it-chat-input-preview-wrap { position: relative; display: flex; flex: 1 1 0; min-width: 0; align-self: stretch; }
+.worth-it-chat-compose .worth-it-chat-input-preview-wrap textarea { position: relative; z-index: 1; box-sizing: border-box; width: 100%; min-width: 0; color: transparent !important; caret-color: #f1f5ff; background: transparent !important; -webkit-text-fill-color: transparent; }
+.worth-it-chat-input-preview { position: absolute; inset: 0; z-index: 0; box-sizing: border-box; padding: 8px 2px; overflow: hidden; overflow-wrap: anywhere; white-space: pre-wrap; word-break: break-word; pointer-events: none; color: #f1f5ff; font: inherit; font-size: 13px; line-height: 1.5; }
+.worth-it-chat-input-preview.is-empty { color: #8998b8; }
+.worth-it-chat-input-preview .worth-it-chat-message-flag { width: 1.2em !important; height: .9em !important; vertical-align: -0.12em !important; }
+html[data-theme="light"] .worth-it-chat-input-preview { color: #172554; }
+html[data-theme="light"] .worth-it-chat-input-preview.is-empty { color: #64748b; }
+html[data-theme="light"] .worth-it-chat-compose .worth-it-chat-input-preview-wrap textarea { caret-color: #172554; }
