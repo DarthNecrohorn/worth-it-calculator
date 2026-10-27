@@ -5,7 +5,7 @@ import { readFileSync } from "node:fs";
 const client = readFileSync(new URL("../chat-ui.js", import.meta.url), "utf8");
 
 test("five-second chat polling preserves unchanged message and avatar DOM nodes", () => {
-    const match = client.match(/function renderMessages\(scrollToBottom\) \{([\s\S]*?)\n\}\nasync function loadWorthItChatMessages/);
+    const match = client.match(/function renderMessages\(scrollToBottom\) \{([\s\S]*?)\n\}\s*async function loadWorthItChatMessages/);
     assert.ok(match, "the message renderer and polling loader should be present");
     const renderMessages = match[1];
     assert.match(client, /function chatMessageRenderSignature\(message\)/);
