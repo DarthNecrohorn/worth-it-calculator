@@ -76,7 +76,7 @@ test("Recently Viewed and Favorites use two compact columns on mobile", () => {
 });
 
 test("the stylesheet version is refreshed for the current UI improvements", () => {
-    assert.ok(html.includes("style.css?v=country-flags-grapheme-caret-more-flags-20261027d"));
+    assert.ok(html.includes("style.css?v=country-flags-selection-layer-fix-20261028a"));
 });
 
 
