@@ -255,6 +255,23 @@ function rpcError(error) {
 function renderFriends() {
     const host = $("worthItChatFriends");
     if (!host) return;
+    // Polling runs every five seconds. Only rebuild this list when its visible state changes.
+    // last_seen_at is intentionally excluded: profile-ui.js updates presence indicators in place.
+    const renderKey = JSON.stringify({
+        userId: chatUser?.id || null,
+        activeConversationType,
+        activePersonId: activeConversationPerson?.worth_it_id ?? null,
+        friends: chatFriends.map(friend => [
+            friend.worth_it_id, friend.username || "", friend.display_name || "", friend.avatar_url || ""
+        ]),
+        directUnread: chatConversations.filter(conversation => conversation.type === "direct").map(conversation => [
+            conversation.id, Number(conversation.unread_count || 0),
+            (Array.isArray(conversation.members) ? conversation.members : []).map(member => member.worth_it_id)
+        ]),
+        notificationPreferences: chatNotificationPreferences
+    });
+    if (host.dataset.worthItChatRenderKey === renderKey) return;
+    host.dataset.worthItChatRenderKey = renderKey;
     host.replaceChildren();
     if (!chatUser) {
         const p = document.createElement("p"); p.className = "worth-it-chat-muted"; p.textContent = "Sign in to see your friends."; host.appendChild(p); return;
@@ -292,6 +309,7 @@ function renderFriends() {
         host.appendChild(row);
     });
 }
+
 function conversationLabel(conversation) {
     if (conversation.type === "group") return conversation.title || "Group chat";
     const members = Array.isArray(conversation.members) ? conversation.members : [];
@@ -301,9 +319,28 @@ function conversationLabel(conversation) {
 function renderConversations() {
     const host = $("worthItChatConversations");
     if (!host) return;
+    const visibleConversations = chatConversations.filter(conversation => conversation.type === "group");
+    const renderKey = JSON.stringify({
+        userId: chatUser?.id || null,
+        activeConversationType,
+        activeConversationId,
+        notificationPreferences: chatNotificationPreferences,
+        conversations: visibleConversations.map(conversation => ({
+            id: conversation.id,
+            type: conversation.type,
+            title: conversation.title,
+            created_by: conversation.created_by,
+            is_creator: conversation.is_creator,
+            unread_count: Number(conversation.unread_count || 0),
+            last_message: conversation.last_message || null,
+            members: conversation.members || [],
+            invite_token: conversation.invite_token || ""
+        }))
+    });
+    if (host.dataset.worthItChatRenderKey === renderKey) return;
+    host.dataset.worthItChatRenderKey = renderKey;
     host.replaceChildren();
     if (!chatUser) return;
-    const visibleConversations = chatConversations.filter(conversation => conversation.type === "group");
     if (!visibleConversations.length) {
         const p = document.createElement("p");
         p.className = "worth-it-chat-muted";
@@ -359,6 +396,7 @@ function renderConversations() {
         host.appendChild(item);
     });
 }
+
 function openWorthItGroupManageDialog(conversationId) {
     const conversation = chatConversations.find(item => item.id === conversationId && item.type === "group");
     const dialog = $("worthItChatGroupManageDialog");
@@ -735,74 +773,139 @@ function makeChatProfileLink(person, className, labelOrNode) {
     else link.textContent = String(labelOrNode || person?.display_name || person?.username || "Worth It member");
     return link;
 }
+function chatMessageRenderSignature(message) {
+    // Include rendered fields, but exclude presence timestamps: those update the avatar indicator
+    // in place and must not cause the whole message row to be rebuilt.
+    return JSON.stringify([
+        chatUser?.id || null,
+        message.id ?? null,
+        message.body ?? "",
+        message.media_url ?? "",
+        message.media_type ?? "",
+        message.filtered_reason ?? "",
+        message.created_at ?? "",
+        message.sender_user_id ?? "",
+        message.worth_it_id ?? "",
+        message.username ?? "",
+        message.display_name ?? "",
+        message.avatar_url ?? "",
+        message.is_seen === true
+    ]);
+}
+function createWorthItChatMessageRow(message) {
+    const mine = message.sender_user_id === chatUser.id;
+    const signature = chatMessageRenderSignature(message);
+    const row = document.createElement("article");
+    row.className = "worth-it-chat-message" + (mine ? " is-mine" : "");
+    row.dataset.messageId = String(message.id ?? "");
+    row.dataset.worthItMessageSignature = signature;
+    row.appendChild(makeChatProfileLink(message, "worth-it-chat-message-avatar-link", makeAvatar(message)));
+    const stack = document.createElement("div"); stack.className = "worth-it-chat-message-stack";
+    const name = makeChatProfileLink(message, "worth-it-chat-message-name", message.display_name || message.username || "Worth It member");
+    stack.appendChild(name);
+    const bubble = document.createElement("div"); bubble.className = "worth-it-chat-bubble";
+    if (message.body) renderLinkedText(bubble, message.body);
+    if (message.media_url && ["image", "gif", "video"].includes(message.media_type)) {
+        if (message.media_type === "video") {
+            const video = document.createElement("video");
+            video.className = "worth-it-chat-media worth-it-chat-video";
+            video.src = message.media_url;
+            video.controls = true;
+            video.preload = "metadata";
+            video.playsInline = true;
+            video.setAttribute("aria-label", "Shared video");
+            video.addEventListener("error", () => {
+                const fallback = document.createElement("a");
+                fallback.className = "worth-it-chat-link";
+                fallback.href = message.media_url;
+                fallback.target = "_blank";
+                fallback.rel = "noopener noreferrer";
+                fallback.textContent = "Open attached video";
+                video.replaceWith(fallback);
+            });
+            bubble.appendChild(video);
+        } else {
+            const img = document.createElement("img"); img.className = "worth-it-chat-media"; img.src = message.media_url; img.alt = message.media_type === "gif" ? "Shared GIF" : "Shared image"; img.loading = "lazy"; img.referrerPolicy = "no-referrer";
+            img.addEventListener("error", () => { const fallback = document.createElement("a"); fallback.className = "worth-it-chat-link"; fallback.href = message.media_url; fallback.target = "_blank"; fallback.rel = "noopener noreferrer"; fallback.textContent = "Open attached media"; img.replaceWith(fallback); });
+            bubble.appendChild(img);
+        }
+    }
+    stack.appendChild(bubble);
+    if (message.filtered_reason) {
+        const reason = document.createElement("p"); reason.className = "worth-it-chat-filter-reason"; reason.textContent = "Filtered: " + message.filtered_reason; stack.appendChild(reason);
+    }
+    const time = document.createElement("time"); time.className = "worth-it-chat-message-time"; time.dateTime = escapeText(message.created_at); time.textContent = niceDay(message.created_at) + " · " + niceTime(message.created_at); stack.appendChild(time);
+    if (mine && activeConversationType === "direct") { const receipt = document.createElement("span"); receipt.className = "worth-it-chat-message-receipt " + (message.is_seen ? "is-seen" : "is-sent"); receipt.textContent = message.is_seen ? "✓✓ Seen" : "✓ Sent"; receipt.title = message.is_seen ? "Your friend has seen this message" : "Sent · waiting to be seen"; stack.appendChild(receipt); }
+    row.appendChild(stack);
+    return row;
+}
 function renderMessages(scrollToBottom) {
     const host = $("worthItChatMessages");
     if (!host) return;
-    host.replaceChildren();
     if (!chatUser) {
-        const empty = document.createElement("div"); empty.className = "worth-it-chat-empty";
-        const icon = document.createElement("span"); icon.textContent = "✦";
-        const title = document.createElement("strong"); title.textContent = "Sign in to use chat";
-        const p = document.createElement("p"); p.textContent = "Messages, friend chats and Global Chat are available to Worth It members.";
-        const signIn = document.createElement("button");
-        signIn.type = "button";
-        signIn.className = "worth-it-chat-signin-btn";
-        signIn.textContent = "Sign in / Create account";
-        signIn.addEventListener("click", () => { if (typeof window.handleAuthButton === "function") window.handleAuthButton(); });
-        empty.append(icon,title,p,signIn); host.appendChild(empty); return;
+        if (host.dataset.worthItChatEmptyKey !== "signed-out" ||
+            !host.firstElementChild?.classList.contains("worth-it-chat-empty")) {
+            host.replaceChildren();
+            host.dataset.worthItChatEmptyKey = "signed-out";
+            const empty = document.createElement("div"); empty.className = "worth-it-chat-empty";
+            const icon = document.createElement("span"); icon.textContent = "✦";
+            const title = document.createElement("strong"); title.textContent = "Sign in to use chat";
+            const p = document.createElement("p"); p.textContent = "Messages, friend chats and Global Chat are available to Worth It members.";
+            const signIn = document.createElement("button");
+            signIn.type = "button";
+            signIn.className = "worth-it-chat-signin-btn";
+            signIn.textContent = "Sign in / Create account";
+            signIn.addEventListener("click", () => { if (typeof window.handleAuthButton === "function") window.handleAuthButton(); });
+            empty.append(icon,title,p,signIn); host.appendChild(empty);
+        }
+        return;
     }
     if (!chatMessages.length) {
-        const empty = document.createElement("div"); empty.className = "worth-it-chat-empty";
-        const icon = document.createElement("span"); icon.textContent = activeConversationType === "global" ? "🌐" : "✦";
-        const title = document.createElement("strong"); title.textContent = activeConversationType === "global" ? "Say hello to the community" : "Start the conversation";
-        const p = document.createElement("p"); p.textContent = activeConversationType === "global" ? "Be welcoming, keep it respectful, and enjoy the chat." : "Send the first message to get things going.";
-        empty.append(icon,title,p); host.appendChild(empty); return;
+        const emptyKey = "empty:" + activeConversationType + ":" + String(activeConversationId || "");
+        if (host.dataset.worthItChatEmptyKey !== emptyKey ||
+            !host.firstElementChild?.classList.contains("worth-it-chat-empty")) {
+            host.replaceChildren();
+            host.dataset.worthItChatEmptyKey = emptyKey;
+            const empty = document.createElement("div"); empty.className = "worth-it-chat-empty";
+            const icon = document.createElement("span"); icon.textContent = activeConversationType === "global" ? "🌐" : "✦";
+            const title = document.createElement("strong"); title.textContent = activeConversationType === "global" ? "Say hello to the community" : "Start the conversation";
+            const p = document.createElement("p"); p.textContent = activeConversationType === "global" ? "Be welcoming, keep it respectful, and enjoy the chat." : "Send the first message to get things going.";
+            empty.append(icon,title,p); host.appendChild(empty);
+        }
+        return;
     }
-    chatMessages.forEach(message => {
-        const mine = message.sender_user_id === chatUser.id;
-        const row = document.createElement("article");
-        row.className = "worth-it-chat-message" + (mine ? " is-mine" : "");
-        row.appendChild(makeChatProfileLink(message, "worth-it-chat-message-avatar-link", makeAvatar(message)));
-        const stack = document.createElement("div"); stack.className = "worth-it-chat-message-stack";
-        const name = makeChatProfileLink(message, "worth-it-chat-message-name", message.display_name || message.username || "Worth It member");
-        stack.appendChild(name);
-        const bubble = document.createElement("div"); bubble.className = "worth-it-chat-bubble";
-        if (message.body) renderLinkedText(bubble, message.body);
-        if (message.media_url && ["image", "gif", "video"].includes(message.media_type)) {
-            if (message.media_type === "video") {
-                const video = document.createElement("video");
-                video.className = "worth-it-chat-media worth-it-chat-video";
-                video.src = message.media_url;
-                video.controls = true;
-                video.preload = "metadata";
-                video.playsInline = true;
-                video.setAttribute("aria-label", "Shared video");
-                video.addEventListener("error", () => {
-                    const fallback = document.createElement("a");
-                    fallback.className = "worth-it-chat-link";
-                    fallback.href = message.media_url;
-                    fallback.target = "_blank";
-                    fallback.rel = "noopener noreferrer";
-                    fallback.textContent = "Open attached video";
-                    video.replaceWith(fallback);
-                });
-                bubble.appendChild(video);
-            } else {
-                const img = document.createElement("img"); img.className = "worth-it-chat-media"; img.src = message.media_url; img.alt = message.media_type === "gif" ? "Shared GIF" : "Shared image"; img.loading = "lazy"; img.referrerPolicy = "no-referrer";
-                img.addEventListener("error", () => { const fallback = document.createElement("a"); fallback.className = "worth-it-chat-link"; fallback.href = message.media_url; fallback.target = "_blank"; fallback.rel = "noopener noreferrer"; fallback.textContent = "Open attached media"; img.replaceWith(fallback); });
-                bubble.appendChild(img);
+    delete host.dataset.worthItChatEmptyKey;
+
+    const existingRows = new Map(Array.from(host.querySelectorAll(":scope > article.worth-it-chat-message[data-message-id]"))
+        .map(row => [row.dataset.messageId, row]));
+    const nextRows = [];
+    for (const message of chatMessages) {
+        const id = String(message.id ?? "");
+        const signature = chatMessageRenderSignature(message);
+        const previous = existingRows.get(id);
+        let row;
+        if (previous && previous.dataset.worthItMessageSignature === signature) {
+            row = previous;
+            existingRows.delete(id);
+        } else {
+            row = createWorthItChatMessageRow(message);
+            if (previous) {
+                previous.replaceWith(row);
+                existingRows.delete(id);
             }
         }
-        stack.appendChild(bubble);
-        if (message.filtered_reason) {
-            const reason = document.createElement("p"); reason.className = "worth-it-chat-filter-reason"; reason.textContent = "Filtered: " + message.filtered_reason; stack.appendChild(reason);
-        }
-        const time = document.createElement("time"); time.className = "worth-it-chat-message-time"; time.dateTime = escapeText(message.created_at); time.textContent = niceDay(message.created_at) + " · " + niceTime(message.created_at); stack.appendChild(time);
-        if (mine && activeConversationType === "direct") { const receipt = document.createElement("span"); receipt.className = "worth-it-chat-message-receipt " + (message.is_seen ? "is-seen" : "is-sent"); receipt.textContent = message.is_seen ? "✓✓ Seen" : "✓ Sent"; receipt.title = message.is_seen ? "Your friend has seen this message" : "Sent · waiting to be seen"; stack.appendChild(receipt); }
-        row.appendChild(stack); host.appendChild(row);
+        nextRows.push(row);
+    }
+    existingRows.forEach(row => row.remove());
+    const nextSet = new Set(nextRows);
+    Array.from(host.children).forEach(child => { if (!nextSet.has(child)) child.remove(); });
+    nextRows.forEach((row, index) => {
+        const current = host.children[index] || null;
+        if (current !== row) host.insertBefore(row, current);
     });
     if (scrollToBottom) host.scrollTop = host.scrollHeight;
 }
+
 async function loadWorthItChatMessages(scrollToBottom) {
     const client = sb();
     if (!client || !chatUser || chatLoading || chatRouteAccessDenied) return;
