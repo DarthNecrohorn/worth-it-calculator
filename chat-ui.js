@@ -1448,6 +1448,12 @@ function renderWorthItChatEmojiCategories() {
     }
 }
 
+function getWorthItChatFlagCode(emoji) {
+    const points = Array.from(String(emoji || ""), character => character.codePointAt(0));
+    if (points.length !== 2 || points.some(point => point < 0x1F1E6 || point > 0x1F1FF)) return "";
+    return points.map(point => String.fromCharCode(point - 0x1F1E6 + 97)).join("");
+}
+
 function renderWorthItChatEmojiGrid(search = "") {
     const grid = $("worthItChatEmojiGrid");
     if (!grid) return;
@@ -1468,7 +1474,22 @@ function renderWorthItChatEmojiGrid(search = "") {
         const button = document.createElement("button");
         button.type = "button";
         button.className = "worth-it-chat-emoji-option";
-        button.textContent = item.emoji;
+        const flagCode = item.category === "flags" ? getWorthItChatFlagCode(item.emoji) : "";
+        if (flagCode) {
+            const flagImage = document.createElement("img");
+            flagImage.className = "worth-it-chat-emoji-flag";
+            flagImage.src = "https://flagcdn.com/" + flagCode + ".svg";
+            flagImage.alt = "";
+            flagImage.loading = "lazy";
+            flagImage.decoding = "async";
+            flagImage.referrerPolicy = "no-referrer";
+            flagImage.addEventListener("error", () => {
+                flagImage.replaceWith(document.createTextNode(item.emoji));
+            }, { once: true });
+            button.appendChild(flagImage);
+        } else {
+            button.textContent = item.emoji;
+        }
         button.title = item.keywords;
         button.setAttribute("aria-label", item.emoji + " " + item.keywords);
         button.addEventListener("click", () => insertWorthItChatEmoji(item.emoji));
