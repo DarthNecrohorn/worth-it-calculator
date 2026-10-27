@@ -633,7 +633,7 @@ function renderWorthItChatComposerPreview() {
     // A regional-indicator flag occupies four UTF-16 code units but is shown as one SVG.
     // Keep the visual caret outside that complete flag so it cannot appear inside the image.
     if (caretPosition >= 0) {
-        const flagPattern = /[\\u{1F1E6}-\\u{1F1FF}]{2}/gu;
+        const flagPattern = /[\u{1F1E6}-\u{1F1FF}]{2}/gu;
         let match;
         while ((match = flagPattern.exec(value))) {
             const start = match.index;
