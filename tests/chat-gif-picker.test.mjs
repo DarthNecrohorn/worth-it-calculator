@@ -32,8 +32,8 @@ test("the chat composer has an accessible attachment, emoji and owned-media pick
     assert.match(client, /function renderWorthItChatEmojiCategories\(/);
     assert.match(client, /function loadWorthItChatGifResults\(/);
     assert.match(client, /function selectWorthItChatGif\(/);
-    assert.match(html, /chat-ui\.js\?v=country-flags-chat-messages-20261027a/);
-    assert.match(html, /style\.css\?v=country-flags-chat-messages-20261027a/);
+    assert.match(html, /chat-ui\.js\?v=country-flags-chat-composer-20261027b/);
+    assert.match(html, /style\.css\?v=country-flags-chat-composer-20261027b/);
 });
 
 test("the emoji picker has categories and a large locally searchable emoji library", () => {
@@ -173,4 +173,18 @@ test("opening the emoji picker renders category controls, and selecting a catego
     const categoryHandler = client.match(/worthItChatEmojiCategory = category\.id;([\s\S]{0,180})/)?.[1] || "";
     assert.equal((categoryHandler.match(/renderWorthItChatEmojiCategories\(\)/g) || []).length, 1,
         "changing category should rebuild the category controls exactly once");
+});
+
+test("country flags render visually in the chat composer while typing", () => {
+    assert.match(html, /id="worthItChatInputPreview"/);
+    assert.match(html, /worth-it-chat-input-preview-wrap/);
+    assert.match(client, /function renderWorthItChatComposerPreview\(/);
+    assert.match(client, /appendWorthItChatTextWithFlags\(preview, value\)/);
+    assert.match(client, /addEventListener\("scroll", renderWorthItChatComposerPreview\)/);
+    assert.match(css, /\.worth-it-chat-input-preview-wrap/);
+    assert.match(css, /caret-color:/);
+    assert.match(css, /textarea::selection[\s\S]*?-webkit-text-fill-color: #ffffff/);
+    assert.match(css, /@media \(max-width: 540px\)[\s\S]*?\.worth-it-chat-input-preview\s*\{\s*font-size: 12px;/);
+    assert.match(html, /chat-ui\.js\?v=country-flags-chat-composer-20261027b/);
+    assert.match(html, /style\.css\?v=country-flags-chat-composer-20261027b/);
 });

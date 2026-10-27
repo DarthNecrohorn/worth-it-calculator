@@ -619,6 +619,22 @@ function appendWorthItChatTextWithFlags(host, value) {
         host.appendChild(flag);
     }
 }
+function renderWorthItChatComposerPreview() {
+    const input = $("worthItChatInput");
+    const preview = $("worthItChatInputPreview");
+    if (!input || !preview) return;
+    preview.replaceChildren();
+    const value = String(input.value || "");
+    if (!value) {
+        preview.classList.add("is-empty");
+        preview.textContent = input.placeholder || "";
+        return;
+    }
+    preview.classList.remove("is-empty");
+    appendWorthItChatTextWithFlags(preview, value);
+    preview.scrollTop = input.scrollTop;
+    preview.scrollLeft = input.scrollLeft;
+}
 function renderLinkedText(host, value) {
     const text = escapeText(value);
     const regex = /https?:\/\/[^\s<>"']+/gi;
@@ -1735,7 +1751,10 @@ function setupChatUI() {
         updateCharacterCount();
         this.style.height = "auto";
         this.style.height = Math.min(this.scrollHeight, 140) + "px";
+        renderWorthItChatComposerPreview();
     });
+    $("worthItChatInput")?.addEventListener("scroll", renderWorthItChatComposerPreview);
+    renderWorthItChatComposerPreview();
     $("worthItChatInput")?.addEventListener("keydown", function (event) {
         if (event.key === "Enter" && !event.shiftKey && !event.isComposing) {
             event.preventDefault(); sendWorthItChatMessage();
