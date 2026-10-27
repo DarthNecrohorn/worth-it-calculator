@@ -71,7 +71,7 @@ async function withFetch(fetchImpl, callback) {
 
 test("chat video controls, accepted types, upload limits and cache key are wired together", () => {
     assert.match(html, /Images, GIFs, videos and links supported/);
-    assert.match(html, /chat-ui\.js\?v=country-flags-grapheme-caret-more-flags-20261027d/);
+    assert.match(html, /chat-ui\.js\?v=country-flags-selection-layer-fix-20261028a/);
     assert.match(html, /accept="image\/png,image\/jpeg,image\/webp,image\/gif,video\/mp4,video\/webm"/);
     assert.match(client, /"video\/mp4":"video","video\/webm":"video"/);
     assert.match(client, /50 \* 1024 \* 1024/);
