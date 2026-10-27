@@ -284,30 +284,31 @@ html[data-theme="light"].worth-it-initial-paint::before {
                             </div>
                             <textarea id="worthItChatInput" maxlength="500" rows="1" placeholder="Write a message…" aria-label="Chat message"></textarea>
                             <button type="button" class="worth-it-chat-send-btn" id="worthItChatSendBtn" onclick="sendWorthItChatMessage()">Send <span>➤</span></button>
+                            <section class="worth-it-chat-picker-panel worth-it-chat-emoji-picker" id="worthItChatEmojiPicker" role="dialog" aria-label="Choose an emoji" hidden>
+                                <div class="worth-it-chat-picker-header">
+                                    <div><strong>Choose an emoji</strong><span>Tap one to add it to your message.</span></div>
+                                    <button type="button" class="worth-it-chat-picker-close" id="worthItChatEmojiClose" aria-label="Close emoji picker">×</button>
+                                </div>
+                                <input type="search" class="worth-it-chat-picker-search" id="worthItChatEmojiSearch" placeholder="Search emoji…" aria-label="Search emoji">
+                                <div class="worth-it-chat-emoji-categories" id="worthItChatEmojiCategories" role="tablist" aria-label="Emoji categories"></div>
+                                <div class="worth-it-chat-emoji-grid" id="worthItChatEmojiGrid"></div>
+                            </section>
+                            <section class="worth-it-chat-picker-panel worth-it-chat-gif-picker" id="worthItChatGifPicker" role="dialog" aria-label="Worth It GIFs and stickers" hidden>
+                                <div class="worth-it-chat-picker-header">
+                                    <div><strong>Worth It GIFs &amp; Stickers</strong><span>Original animations created for the Worth It community.</span></div>
+                                    <button type="button" class="worth-it-chat-picker-close" id="worthItChatGifClose" aria-label="Close GIF and sticker picker">×</button>
+                                </div>
+                                <form class="worth-it-chat-gif-search" id="worthItChatGifSearchForm">
+                                    <input type="search" id="worthItChatGifSearch" maxlength="80" placeholder="Search GIFs and stickers…" aria-label="Search Worth It GIFs and stickers">
+                                    <button type="submit">Search</button>
+                                </form>
+                                <div class="worth-it-chat-media-tabs" id="worthItChatGifCategoryTabs" role="tablist" aria-label="Media categories"></div>
+                                <p class="worth-it-chat-gif-status" id="worthItChatGifStatus" role="status" aria-live="polite">Loading the Worth It library…</p>
+                                <div class="worth-it-chat-gif-grid" id="worthItChatGifGrid"></div>
+                                <div class="worth-it-chat-gif-attribution">Original Worth It animations. No external GIF provider or API key required.</div>
+                            </section>
                         </div>
-<section class="worth-it-chat-picker-panel worth-it-chat-emoji-picker" id="worthItChatEmojiPicker" role="dialog" aria-label="Choose an emoji" hidden>
-                            <div class="worth-it-chat-picker-header">
-                                <div><strong>Choose an emoji</strong><span>Tap one to add it to your message.</span></div>
-                                <button type="button" class="worth-it-chat-picker-close" id="worthItChatEmojiClose" aria-label="Close emoji picker">×</button>
-                            </div>
-                            <input type="search" class="worth-it-chat-picker-search" id="worthItChatEmojiSearch" placeholder="Search emoji…" aria-label="Search emoji">
-                            <div class="worth-it-chat-emoji-categories" id="worthItChatEmojiCategories" role="tablist" aria-label="Emoji categories"></div>
-                            <div class="worth-it-chat-emoji-grid" id="worthItChatEmojiGrid"></div>
-                        </section>
-                        <section class="worth-it-chat-picker-panel worth-it-chat-gif-picker" id="worthItChatGifPicker" role="dialog" aria-label="Worth It GIFs and stickers" hidden>
-                            <div class="worth-it-chat-picker-header">
-                                <div><strong>Worth It GIFs &amp; Stickers</strong><span>Original animations created for the Worth It community.</span></div>
-                                <button type="button" class="worth-it-chat-picker-close" id="worthItChatGifClose" aria-label="Close GIF and sticker picker">×</button>
-                            </div>
-                            <form class="worth-it-chat-gif-search" id="worthItChatGifSearchForm">
-                                <input type="search" id="worthItChatGifSearch" maxlength="80" placeholder="Search GIFs and stickers…" aria-label="Search Worth It GIFs and stickers">
-                                <button type="submit">Search</button>
-                            </form>
-                            <div class="worth-it-chat-media-tabs" id="worthItChatGifCategoryTabs" role="tablist" aria-label="Media categories"></div>
-                            <p class="worth-it-chat-gif-status" id="worthItChatGifStatus" role="status" aria-live="polite">Loading the Worth It library…</p>
-                            <div class="worth-it-chat-gif-grid" id="worthItChatGifGrid"></div>
-                            <div class="worth-it-chat-gif-attribution">Original Worth It animations. No external GIF provider or API key required.</div>
-                        </section>
+
                         <div class="worth-it-chat-compose-meta"><span>Images, GIFs, videos and links supported</span><span><strong id="worthItChatCharCount">0</strong>/500 characters</span></div>
                         <p class="worth-it-chat-compose-status" id="worthItChatStatus" role="status" aria-live="polite"></p>
                     </div>
