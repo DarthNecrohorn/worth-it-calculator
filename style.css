@@ -23052,3 +23052,11 @@ html[data-theme="light"] .worth-it-chat-gif-attribution {
     bottom: -3px !important;
     border-width: 2px !important;
 }
+
+
+/* Keep emoji glyphs on the system emoji font stack. The shared picker reset above
+   forces font-family: inherit, which can make flag sequences render as letters. */
+.worth-it-chat-emoji-option {
+    font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", "Twemoji Mozilla", sans-serif !important;
+    font-variant-emoji: emoji !important;
+}
