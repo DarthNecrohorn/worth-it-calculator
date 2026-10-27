@@ -120,7 +120,7 @@ test("desktop picker panels sit outside the narrow attachment dock and have usab
     const desktopEnd = css.indexOf("\n}", desktopStart);
     assert.ok(desktopStart >= 0 && desktopEnd > desktopStart);
     const rules = css.slice(desktopStart, desktopEnd);
-    assert.ok(rules.includes("width: min(440px, calc(100vw - 32px)) !important;"));
+    assert.ok(rules.includes("width: min(440px, calc(100% - 24px), calc(100vw - 32px)) !important;"));
     assert.ok(rules.includes("min-width: min(360px, calc(100% - 24px)) !important;"));
     assert.ok(rules.includes("height: min(440px, calc(70vh - 16px)) !important;"));
 });
@@ -140,7 +140,7 @@ test("emoji and GIF category buttons stay inside their picker while their tabs r
     assert.ok(gifHandler.includes("worthItChatGifCategory = category.id;"));
     assert.ok(gifHandler.includes("loadWorthItChatGifResults("));
 
-    const pathAt = client.indexOf("const eventPath = typeof event.composedPath()");
+    const pathAt = client.indexOf("const eventPath = typeof event.composedPath === \\"function\\"");
     assert.ok(pathAt >= 0);
     const pathCode = client.slice(pathAt, pathAt + 500);
     assert.ok(pathCode.includes("wasInside(dock)"));
