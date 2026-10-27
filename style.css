@@ -23095,10 +23095,10 @@ html[data-theme="light"] .worth-it-chat-input-preview { color: #172554; }
 html[data-theme="light"] .worth-it-chat-input-preview.is-empty { color: #64748b; }
 html[data-theme="light"] .worth-it-chat-compose .worth-it-chat-input-preview-wrap textarea { caret-color: transparent !important; }
 
-/* Keep selected native textarea text readable over the transparent flag-preview layer. */
+/* Keep native selection highlighting, but never reveal a second copy of the text above the flag preview. */
 .worth-it-chat-compose .worth-it-chat-input-preview-wrap textarea::selection {
-    color: #ffffff !important;
-    -webkit-text-fill-color: #ffffff !important;
+    color: transparent !important;
+    -webkit-text-fill-color: transparent !important;
     background: rgba(79, 70, 229, .78);
 }
 
