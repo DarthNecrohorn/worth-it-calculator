@@ -182,7 +182,7 @@ test("country flags render visually in the chat composer while typing", () => {
     assert.match(client, /appendWorthItChatTextWithFlags\(preview, value\.slice\(0, caretPosition\)\)/);
     assert.match(client, /worth-it-chat-composer-caret/);
     assert.match(client, /caretPosition > start && caretPosition < end/);
-    assert.match(client, /Intl\\.Segmenter/);
+    assert.match(client, /Intl\.Segmenter/);
     assert.match(client, /🏳️‍⚧️/);
     assert.match(client, /graphemePattern/);
     for (const flag of ["🇷🇸", "🇨🇦", "🇦🇺", "🇳🇿", "🇿🇼", "🇯🇵", "🇧🇷", "🇿🇦"]) assert.ok(client.includes(flag), `missing flag emoji ${flag}`);
