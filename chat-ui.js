@@ -630,17 +630,30 @@ function renderWorthItChatComposerPreview() {
         && input.selectionStart === input.selectionEnd;
     let caretPosition = showCaret ? input.selectionStart : -1;
 
-    // A regional-indicator flag occupies four UTF-16 code units but is shown as one SVG.
-    // Keep the visual caret outside that complete flag so it cannot appear inside the image.
+    // Emoji can be several UTF-16 code units (including ZWJ sequences such as 🏳️‍⚧️).
+    // Keep the visual caret after a complete grapheme, without changing the actual input text
+    // or consuming a user-typed trailing space.
     if (caretPosition >= 0) {
-        const flagPattern = /[\u{1F1E6}-\u{1F1FF}]{2}/gu;
-        let match;
-        while ((match = flagPattern.exec(value))) {
-            const start = match.index;
-            const end = start + match[0].length;
-            if (caretPosition > start && caretPosition < end) {
-                caretPosition = end;
-                break;
+        if (typeof Intl !== "undefined" && typeof Intl.Segmenter === "function") {
+            const segmenter = new Intl.Segmenter(undefined, { granularity: "grapheme" });
+            for (const segment of segmenter.segment(value)) {
+                const start = segment.index;
+                const end = start + segment.segment.length;
+                if (caretPosition > start && caretPosition < end) {
+                    caretPosition = end;
+                    break;
+                }
+            }
+        } else {
+            const graphemePattern = /(?:[\u{1F1E6}-\u{1F1FF}]{2}|🏳️‍⚧️|🏳️‍🌈)/gu;
+            let match;
+            while ((match = graphemePattern.exec(value))) {
+                const start = match.index;
+                const end = start + match[0].length;
+                if (caretPosition > start && caretPosition < end) {
+                    caretPosition = end;
+                    break;
+                }
             }
         }
     }
@@ -1470,7 +1483,7 @@ const WORTH_IT_CHAT_EMOJI_KEYWORDS = {
     "🐶": "dog puppy pet", "🦊": "fox animal", "🐼": "panda animal",
     "🦄": "unicorn fantasy", "🐸": "frog animal", "🌸": "cherry blossom flower",
     "🍀": "four leaf clover luck", "🇷🇸": "Serbia flag", "🇺🇸": "United States America flag",
-    "🇬🇧": "United Kingdom Britain flag", "🇯🇵": "Japan flag", "🇪🇺": "European Union flag"
+    "🇬🇧": "United Kingdom Britain flag", "🇯🇵": "Japan flag", "🇪🇺": "European Union flag", "🏳️‍🌈": "rainbow pride LGBTQ LGBT flag", "🏳️‍⚧️": "transgender trans pride flag", "🏴": "black flag", "🏳️": "white flag", "🏁": "checkered racing flag", "🚩": "red triangular flag", "🇨🇦": "Canada flag", "🇦🇺": "Australia flag", "🇳🇿": "New Zealand flag", "🇭🇷": "Croatia flag", "🇧🇦": "Bosnia Herzegovina flag", "🇲🇪": "Montenegro flag", "🇲🇰": "North Macedonia flag", "🇦🇱": "Albania flag", "🇸🇮": "Slovenia flag", "🇩🇪": "Germany flag", "🇫🇷": "France flag", "🇮🇹": "Italy flag", "🇪🇸": "Spain flag", "🇵🇹": "Portugal flag", "🇧🇷": "Brazil flag", "🇮🇳": "India flag", "🇿🇦": "South Africa flag", "🇲🇽": "Mexico flag", "🇨🇳": "China flag", "🇰🇷": "South Korea flag"
 };
 
 function addWorthItChatEmojiGroup(category, symbols) {
@@ -1492,7 +1505,7 @@ addWorthItChatEmojiGroup("activities", "⚽ 🏀 🏈 ⚾ 🥎 🎾 🏐 🏉 �
 addWorthItChatEmojiGroup("travel", "🚗 🚕 🚙 🚌 🚎 🏎️ 🚓 🚑 🚒 🚐 🛻 🚚 🚛 🚜 🛵 🏍️ 🛺 🚲 🛴 🛹 🚏 🛣️ 🛤️ 🛢️ ⛽ 🛞 🚨 🚥 🚦 🛑 🚧 ⚓ 🛟 ⛵ 🛶 🚤 🛳️ ⛴️ 🛥️ 🚢 ✈️ 🛩️ 🛫 🛬 🪂 💺 🚁 🚟 🚠 🚡 🛰️ 🚀 🛸 🌍 🌎 🌏 🌐 🗺️ 🧭 🏔️ ⛰️ 🌋 🗻 🏕️ 🏖️ 🏜️ 🏝️ 🏞️ 🏟️ 🏛️ 🏗️ 🧱 🪨 🪵 🛖 🏘️ 🏚️ 🏠 🏡 🏢 🏣 🏤 🏥 🏦 🏨 🏩 🏪 🏫 🏬 🏭 🏯 🏰 💒 🗼 🗽 ⛪ 🕌 🛕 🕍 🛐 ⛩️ 🕋 ⛲ ⛺ 🌁 🌃 🌄 🌅 🌆 🌇 🌉 ♨️");
 addWorthItChatEmojiGroup("objects", "📱 📲 ☎️ 📞 📟 📠 🔋 🪫 🔌 💻 🖥️ 🖨️ ⌨️ 🖱️ 🖲️ 💽 💾 💿 📀 🧮 🎥 🎞️ 📽️ 📺 📷 📸 📹 📼 🔍 🔎 🕯️ 💡 🔦 🏮 🪔 📔 📕 📖 📗 📘 📙 📚 📓 📒 📃 📜 📄 📰 🗞️ 📑 🔖 🏷️ 💰 🪙 💴 💵 💶 💷 💸 💳 🧾 ✉️ 📧 📨 📩 📤 📥 📦 📫 📪 📬 📭 📮 🗳️ ✏️ ✒️ 🖋️ 🖊️ 🖌️ 🖍️ 📝 💼 📁 📂 🗂️ 📅 📆 🗒️ 🗓️ 📇 📈 📉 📊 📋 📌 📍 📎 🖇️ 📏 📐 ✂️ 🗃️ 🗄️ 🗑️ 🔒 🔓 🔏 🔐 🔑 🗝️ 🔨 🪓 ⛏️ ⚒️ 🛠️ 🗡️ ⚔️ 💣 🪚 🔧 🪛 🔩 ⚙️ 🗜️ ⚖️ 🦯 🔗 ⛓️ 🪝 🧰 🧲 🪜 🎁 📣 🔔 🧸 🪄 🪅 🪩 🪞 🧴 🧵 🧶 🪡 🧷 🪢 🧼 🪥 🧽 🧹 🪣 🧺 🧻 🚽 🚿 🛁");
 addWorthItChatEmojiGroup("symbols", "❤️ 🧡 💛 💚 💙 💜 🤎 🖤 🤍 🩷 🩵 🩶 💔 ❣️ 💕 💞 💓 💗 💖 💘 💝 💟 ☮️ ✝️ ☪️ 🕉️ ☸️ ✡️ 🔯 🕎 ☯️ ☦️ ⛎ ♈ ♉ ♊ ♋ ♌ ♍ ♎ ♏ ♐ ♑ ♒ ♓ 🆔 ⚛️ 🉑 ☢️ ☣️ 📴 📳 🈶 🈚 🈸 🈺 🈷️ ✴️ 🆚 💮 🉐 ㊙️ ㊗️ 🈴 🈵 🈹 🈲 🅰️ 🅱️ 🆎 🆑 🅾️ 🆘 ❌ ⭕ 🛑 ⛔ 📛 🚫 💯 💢 ♨️ 🚷 🚯 🚳 🚱 🔞 📵 🚭 ❗ ❕ ❓ ❔ ‼️ ⁉️ 🔅 🔆 〽️ ⚠️ 🚸 🔱 ⚜️ 🔰 ♻️ ✅ ☑️ ✔️ ❎ ➕ ➖ ➗ ✖️ 🟰 ➰ ➿ 〰️ 💱 💲 ⚕️ ♾️ 🔚 🔙 🔛 🔝 🔜 ⬆️ ↗️ ➡️ ↘️ ⬇️ ↙️ ⬅️ ↖️ ↕️ ↔️ 🔄 🔃 🔁 🔂 🔀 🔼 🔽 ⏫ ⏬ ⬛ ⬜ ◼️ ◻️ 🔺 🔻 🔴 🟠 🟡 🟢 🔵 🟣 🟤 ⚫ ⚪ 🟫 🔳 🔲 ▪️ ▫️ ◾ ◽ 🔶 🔷 🔸 🔹 💠 🔘 🌟 ⭐ ✨ 💫 ☄️ 🎇 🎆 🧨 🎈 🎉 🎊 🎀 🎁 🔥");
-addWorthItChatEmojiGroup("flags", "🏳️ 🏴 🏁 🚩 🏳️‍🌈 🏳️‍⚧️ 🇺🇸 🇬🇧 🇨🇦 🇦🇺 🇳🇿 🇮🇪 🇫🇷 🇩🇪 🇪🇸 🇮🇹 🇵🇹 🇳🇱 🇧🇪 🇨🇭 🇦🇹 🇸🇪 🇳🇴 🇩🇰 🇫🇮 🇵🇱 🇨🇿 🇸🇰 🇭🇺 🇷🇴 🇧🇬 🇬🇷 🇹🇷 🇺🇦 🇷🇺 🇷🇸 🇭🇷 🇧🇦 🇲🇪 🇲🇰 🇦🇱 🇸🇮 🇪🇺 🇯🇵 🇰🇷 🇨🇳 🇮🇳 🇵🇰 🇧🇩 🇹🇭 🇻🇳 🇮🇩 🇵🇭 🇸🇬 🇲🇾 🇸🇦 🇦🇪 🇮🇱 🇲🇽 🇧🇷 🇦🇷 🇨🇱 🇿🇦 🇪🇬 🇳🇬 🇰🇪");
+addWorthItChatEmojiGroup("flags", "🏳️ 🏴 🏁 🚩 🏳️‍🌈 🏳️‍⚧️ 🇪🇺 🇽🇰 🇦🇨 🇦🇩 🇦🇪 🇦🇫 🇦🇬 🇦🇮 🇦🇱 🇦🇲 🇦🇴 🇦🇶 🇦🇷 🇦🇸 🇦🇹 🇦🇺 🇦🇼 🇦🇽 🇦🇿 🇧🇦 🇧🇧 🇧🇩 🇧🇪 🇧🇫 🇧🇬 🇧🇭 🇧🇮 🇧🇯 🇧🇱 🇧🇲 🇧🇳 🇧🇴 🇧🇶 🇧🇷 🇧🇸 🇧🇹 🇧🇻 🇧🇼 🇧🇾 🇧🇿 🇨🇦 🇨🇨 🇨🇩 🇨🇫 🇨🇬 🇨🇭 🇨🇮 🇨🇰 🇨🇱 🇨🇲 🇨🇳 🇨🇴 🇨🇷 🇨🇺 🇨🇻 🇨🇼 🇨🇽 🇨🇾 🇨🇿 🇩🇪 🇩🇯 🇩🇰 🇩🇲 🇩🇴 🇩🇿 🇪🇨 🇪🇪 🇪🇬 🇪🇭 🇪🇷 🇪🇸 🇪🇹 🇫🇮 🇫🇯 🇫🇰 🇫🇲 🇫🇴 🇫🇷 🇬🇦 🇬🇧 🇬🇩 🇬🇪 🇬🇫 🇬🇬 🇬🇭 🇬🇮 🇬🇱 🇬🇲 🇬🇳 🇬🇵 🇬🇶 🇬🇷 🇬🇸 🇬🇹 🇬🇺 🇬🇼 🇬🇾 🇭🇰 🇭🇲 🇭🇳 🇭🇷 🇭🇹 🇭🇺 🇮🇩 🇮🇪 🇮🇱 🇮🇲 🇮🇳 🇮🇴 🇮🇶 🇮🇷 🇮🇸 🇮🇹 🇯🇪 🇯🇲 🇯🇴 🇯🇵 🇰🇪 🇰🇬 🇰🇭 🇰🇮 🇰🇲 🇰🇳 🇰🇵 🇰🇷 🇰🇼 🇰🇾 🇰🇿 🇱🇦 🇱🇧 🇱🇨 🇱🇮 🇱🇰 🇱🇷 🇱🇸 🇱🇹 🇱🇺 🇱🇻 🇱🇾 🇲🇦 🇲🇨 🇲🇩 🇲🇪 🇲🇫 🇲🇬 🇲🇭 🇲🇰 🇲🇱 🇲🇲 🇲🇳 🇲🇴 🇲🇵 🇲🇶 🇲🇷 🇲🇸 🇲🇹 🇲🇺 🇲🇻 🇲🇼 🇲🇽 🇲🇾 🇲🇿 🇳🇦 🇳🇨 🇳🇪 🇳🇫 🇳🇬 🇳🇮 🇳🇱 🇳🇴 🇳🇵 🇳🇷 🇳🇺 🇳🇿 🇴🇲 🇵🇦 🇵🇪 🇵🇫 🇵🇬 🇵🇭 🇵🇰 🇵🇱 🇵🇲 🇵🇳 🇵🇷 🇵🇸 🇵🇹 🇵🇼 🇵🇾 🇶🇦 🇷🇪 🇷🇴 🇷🇸 🇷🇺 🇷🇼 🇸🇦 🇸🇧 🇸🇨 🇸🇩 🇸🇪 🇸🇬 🇸🇭 🇸🇮 🇸🇯 🇸🇰 🇸🇱 🇸🇲 🇸🇳 🇸🇴 🇸🇷 🇸🇸 🇸🇹 🇸🇻 🇸🇽 🇸🇾 🇸🇿 🇹🇨 🇹🇩 🇹🇫 🇹🇬 🇹🇭 🇹🇯 🇹🇰 🇹🇱 🇹🇲 🇹🇳 🇹🇴 🇹🇷 🇹🇹 🇹🇻 🇹🇼 🇹🇿 🇺🇦 🇺🇬 🇺🇲 🇺🇸 🇺🇾 🇺🇿 🇻🇦 🇻🇨 🇻🇪 🇻🇬 🇻🇮 🇻🇳 🇻🇺 🇼🇫 🇼🇸 🇾🇪 🇾🇹 🇿🇦 🇿🇲 🇿🇼");
 
 function renderWorthItChatEmojiCategories() {
     const container = $("worthItChatEmojiCategories");

@@ -32,8 +32,8 @@ test("the chat composer has an accessible attachment, emoji and owned-media pick
     assert.match(client, /function renderWorthItChatEmojiCategories\(/);
     assert.match(client, /function loadWorthItChatGifResults\(/);
     assert.match(client, /function selectWorthItChatGif\(/);
-    assert.match(html, /chat-ui\.js\?v=country-flags-chat-caret-20261027c/);
-    assert.match(html, /style\.css\?v=country-flags-chat-caret-20261027c/);
+    assert.match(html, /chat-ui\.js\?v=country-flags-grapheme-caret-more-flags-20261027d/);
+    assert.match(html, /style\.css\?v=country-flags-grapheme-caret-more-flags-20261027d/);
 });
 
 test("the emoji picker has categories and a large locally searchable emoji library", () => {
@@ -182,6 +182,12 @@ test("country flags render visually in the chat composer while typing", () => {
     assert.match(client, /appendWorthItChatTextWithFlags\(preview, value\.slice\(0, caretPosition\)\)/);
     assert.match(client, /worth-it-chat-composer-caret/);
     assert.match(client, /caretPosition > start && caretPosition < end/);
+    assert.match(client, /Intl\.Segmenter/);
+    assert.match(client, /🏳️‍⚧️/);
+    assert.match(client, /graphemePattern/);
+    for (const flag of ["🇷🇸", "🇨🇦", "🇦🇺", "🇳🇿", "🇿🇼", "🇯🇵", "🇧🇷", "🇿🇦"]) assert.ok(client.includes(flag), `missing flag emoji ${flag}`);
+    assert.match(client, /rainbow pride LGBTQ LGBT flag/);
+    assert.match(client, /transgender trans pride flag/);
     assert.match(client, /addEventListener\("keyup", renderWorthItChatComposerPreview\)/);
     assert.match(client, /addEventListener\("scroll", renderWorthItChatComposerPreview\)/);
     assert.match(css, /\.worth-it-chat-input-preview-wrap/);
@@ -190,6 +196,6 @@ test("country flags render visually in the chat composer while typing", () => {
     assert.match(css, /\.worth-it-chat-composer-caret[\s\S]*?border-left: 1\.5px solid currentColor/);
     assert.match(css, /textarea::selection[\s\S]*?-webkit-text-fill-color: #ffffff/);
     assert.match(css, /@media \(max-width: 540px\)[\s\S]*?\.worth-it-chat-input-preview\s*\{\s*font-size: 12px;/);
-    assert.match(html, /chat-ui\.js\?v=country-flags-chat-caret-20261027c/);
-    assert.match(html, /style\.css\?v=country-flags-chat-caret-20261027c/);
+    assert.match(html, /chat-ui\.js\?v=country-flags-grapheme-caret-more-flags-20261027d/);
+    assert.match(html, /style\.css\?v=country-flags-grapheme-caret-more-flags-20261027d/);
 });
