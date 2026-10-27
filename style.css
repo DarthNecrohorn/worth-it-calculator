@@ -23087,13 +23087,13 @@ html[data-theme="light"] .worth-it-chat-gif-attribution {
 
 /* Country-flag image preview layered beneath the native chat input. */
 .worth-it-chat-input-preview-wrap { position: relative; display: flex; flex: 1 1 0; min-width: 0; align-self: stretch; }
-.worth-it-chat-compose .worth-it-chat-input-preview-wrap textarea { position: relative; z-index: 1; box-sizing: border-box; width: 100%; min-width: 0; color: transparent !important; caret-color: #f1f5ff; background: transparent !important; -webkit-text-fill-color: transparent; }
+.worth-it-chat-compose .worth-it-chat-input-preview-wrap textarea { position: relative; z-index: 1; box-sizing: border-box; width: 100%; min-width: 0; color: transparent !important; caret-color: transparent !important; background: transparent !important; -webkit-text-fill-color: transparent; }
 .worth-it-chat-input-preview { position: absolute; inset: 0; z-index: 0; box-sizing: border-box; padding: 8px 2px; overflow: hidden; overflow-wrap: anywhere; white-space: pre-wrap; word-break: break-word; pointer-events: none; color: #f1f5ff; font: inherit; font-size: 13px; line-height: 1.5; }
 .worth-it-chat-input-preview.is-empty { color: #8998b8; }
 .worth-it-chat-input-preview .worth-it-chat-message-flag { width: 1.2em !important; height: .9em !important; vertical-align: -0.12em !important; }
 html[data-theme="light"] .worth-it-chat-input-preview { color: #172554; }
 html[data-theme="light"] .worth-it-chat-input-preview.is-empty { color: #64748b; }
-html[data-theme="light"] .worth-it-chat-compose .worth-it-chat-input-preview-wrap textarea { caret-color: #172554; }
+html[data-theme="light"] .worth-it-chat-compose .worth-it-chat-input-preview-wrap textarea { caret-color: transparent !important; }
 
 /* Keep selected native textarea text readable over the transparent flag-preview layer. */
 .worth-it-chat-compose .worth-it-chat-input-preview-wrap textarea::selection {
@@ -23106,4 +23106,18 @@ html[data-theme="light"] .worth-it-chat-compose .worth-it-chat-input-preview-wra
     .worth-it-chat-input-preview {
         font-size: 12px;
     }
+}
+
+/* Draw the caret in the same visual layer as the SVG flag images. */
+.worth-it-chat-composer-caret {
+    display: inline-block;
+    width: 0;
+    height: 1.12em;
+    margin-left: 0;
+    border-left: 1.5px solid currentColor;
+    vertical-align: -0.14em;
+    animation: worth-it-chat-composer-caret-blink 1s steps(2, start) infinite;
+}
+@keyframes worth-it-chat-composer-caret-blink {
+    to { visibility: hidden; }
 }
