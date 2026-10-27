@@ -186,6 +186,8 @@ test("country flags render visually in the chat composer while typing", () => {
     assert.match(client, /addEventListener\("scroll", renderWorthItChatComposerPreview\)/);
     assert.match(css, /\.worth-it-chat-input-preview-wrap/);
     assert.match(css, /caret-color:/);
+    assert.match(css, /caret-color: transparent !important/);
+    assert.match(css, /\.worth-it-chat-composer-caret[\\s\\S]*?border-left: 1\.5px solid currentColor/);
     assert.match(css, /textarea::selection[\s\S]*?-webkit-text-fill-color: #ffffff/);
     assert.match(css, /@media \(max-width: 540px\)[\s\S]*?\.worth-it-chat-input-preview\s*\{\s*font-size: 12px;/);
     assert.match(html, /chat-ui\.js\?v=country-flags-chat-caret-20261027c/);
