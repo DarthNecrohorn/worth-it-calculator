@@ -174,3 +174,15 @@ test("opening the emoji picker renders category controls, and selecting a catego
     assert.equal((categoryHandler.match(/renderWorthItChatEmojiCategories\(\)/g) || []).length, 1,
         "changing category should rebuild the category controls exactly once");
 });
+
+test("country flags render visually in the chat composer while typing", () => {
+    assert.match(html, /id="worthItChatInputPreview"/);
+    assert.match(html, /worth-it-chat-input-preview-wrap/);
+    assert.match(client, /function renderWorthItChatComposerPreview\(/);
+    assert.match(client, /appendWorthItChatTextWithFlags\(preview, value\)/);
+    assert.match(client, /addEventListener\("scroll", renderWorthItChatComposerPreview\)/);
+    assert.match(css, /\.worth-it-chat-input-preview-wrap/);
+    assert.match(css, /caret-color:/);
+    assert.match(html, /chat-ui\.js\?v=country-flags-chat-composer-20261027b/);
+    assert.match(html, /style\.css\?v=country-flags-chat-composer-20261027b/);
+});
