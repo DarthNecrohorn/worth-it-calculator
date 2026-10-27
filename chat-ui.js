@@ -596,12 +596,35 @@ async function refreshWorthItChatData() {
     renderFriends(); renderConversations(); updateChatHeaderNotificationButton(); updateUnreadBadge();
     if ($("worthItChatGroupDialog") && !$("worthItChatGroupDialog").hidden) renderGroupFriendChoices();
 }
+function appendWorthItChatTextWithFlags(host, value) {
+    const parts = String(value || "").split(/([\u{1F1E6}-\u{1F1FF}]{2})/u);
+    for (const part of parts) {
+        if (!part) continue;
+        const flagCode = getWorthItChatFlagCode(part);
+        if (!flagCode) {
+            host.appendChild(document.createTextNode(part));
+            continue;
+        }
+        const flag = document.createElement("img");
+        flag.className = "worth-it-chat-message-flag";
+        flag.src = "https://flagcdn.com/" + flagCode + ".svg";
+        flag.alt = part;
+        flag.title = part;
+        flag.loading = "lazy";
+        flag.decoding = "async";
+        flag.referrerPolicy = "no-referrer";
+        flag.addEventListener("error", () => {
+            flag.replaceWith(document.createTextNode(part));
+        }, { once: true });
+        host.appendChild(flag);
+    }
+}
 function renderLinkedText(host, value) {
     const text = escapeText(value);
     const regex = /https?:\/\/[^\s<>"']+/gi;
     let last = 0, match;
     while ((match = regex.exec(text))) {
-        if (match.index > last) host.appendChild(document.createTextNode(text.slice(last, match.index)));
+        if (match.index > last) appendWorthItChatTextWithFlags(host, text.slice(last, match.index));
         let urlText = match[0];
         let trailing = "";
         while (/[),.!?;:]$/.test(urlText)) { trailing = urlText.slice(-1) + trailing; urlText = urlText.slice(0, -1); }
@@ -609,12 +632,12 @@ function renderLinkedText(host, value) {
             const url = new URL(urlText);
             if (url.protocol === "http:" || url.protocol === "https:") {
                 const a = document.createElement("a"); a.className = "worth-it-chat-link"; a.href = url.href; a.target = "_blank"; a.rel = "noopener noreferrer"; a.textContent = urlText; host.appendChild(a);
-            } else host.appendChild(document.createTextNode(urlText));
-        } catch (_) { host.appendChild(document.createTextNode(urlText)); }
-        if (trailing) host.appendChild(document.createTextNode(trailing));
+            } else appendWorthItChatTextWithFlags(host, urlText);
+        } catch (_) { appendWorthItChatTextWithFlags(host, urlText); }
+        if (trailing) appendWorthItChatTextWithFlags(host, trailing);
         last = regex.lastIndex;
     }
-    if (last < text.length) host.appendChild(document.createTextNode(text.slice(last)));
+    if (last < text.length) appendWorthItChatTextWithFlags(host, text.slice(last));
 }
 function openWorthItChatProfile(worthItId, event) {
     event?.preventDefault?.(); event?.stopPropagation?.();

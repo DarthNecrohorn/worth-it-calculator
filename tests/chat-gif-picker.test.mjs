@@ -26,11 +26,14 @@ test("the chat composer has an accessible attachment, emoji and owned-media pick
     assert.match(html, /id="worthItChatGifCategoryTabs"[^>]+role="tablist"/);
     assert.match(html, /Worth It GIFs &amp; Stickers/);
     assert.match(client, /function insertWorthItChatEmoji\(/);
+    assert.match(client, /function appendWorthItChatTextWithFlags\(/);
+    assert.match(client, /worth-it-chat-message-flag/);
+    assert.match(client, /flagcdn\.com/);
     assert.match(client, /function renderWorthItChatEmojiCategories\(/);
     assert.match(client, /function loadWorthItChatGifResults\(/);
     assert.match(client, /function selectWorthItChatGif\(/);
-    assert.match(html, /chat-ui\.js\?v=country-flag-svg-picker-20261027a/);
-    assert.match(html, /style\.css\?v=country-flag-svg-picker-20261027a/);
+    assert.match(html, /chat-ui\.js\?v=country-flags-chat-messages-20261027a/);
+    assert.match(html, /style\.css\?v=country-flags-chat-messages-20261027a/);
 });
 
 test("the emoji picker has categories and a large locally searchable emoji library", () => {
