@@ -140,7 +140,7 @@ test("emoji and GIF category buttons stay inside their picker while their tabs r
     assert.ok(gifHandler.includes("worthItChatGifCategory = category.id;"));
     assert.ok(gifHandler.includes("loadWorthItChatGifResults("));
 
-    const pathAt = client.indexOf("const eventPath = typeof event.composedPath === \\"function\\"");
+    const pathAt = client.indexOf("const eventPath = typeof event.composedPath ===");
     assert.ok(pathAt >= 0);
     const pathCode = client.slice(pathAt, pathAt + 500);
     assert.ok(pathCode.includes("wasInside(dock)"));
