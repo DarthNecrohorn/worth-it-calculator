@@ -23101,3 +23101,9 @@ html[data-theme="light"] .worth-it-chat-compose .worth-it-chat-input-preview-wra
     -webkit-text-fill-color: #ffffff !important;
     background: rgba(79, 70, 229, .78);
 }
+
+@media (max-width: 540px) {
+    .worth-it-chat-input-preview {
+        font-size: 12px;
+    }
+}
