@@ -655,8 +655,8 @@ function renderWorthItChatComposerPreview() {
 
     if (!value) {
         preview.classList.add("is-empty");
-        preview.appendChild(document.createTextNode(input.placeholder || ""));
         appendCaret();
+        preview.appendChild(document.createTextNode(input.placeholder || ""));
     } else {
         preview.classList.remove("is-empty");
         if (caretPosition < 0) {
