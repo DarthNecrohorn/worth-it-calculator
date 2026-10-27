@@ -29,8 +29,8 @@ test("the chat composer has an accessible attachment, emoji and owned-media pick
     assert.match(client, /function renderWorthItChatEmojiCategories\(/);
     assert.match(client, /function loadWorthItChatGifResults\(/);
     assert.match(client, /function selectWorthItChatGif\(/);
-    assert.match(html, /chat-ui\.js\?v=worthit-owned-media-video-20261026b/);
-    assert.match(html, /style\.css\?v=worthit-owned-picker-markets-cars-20261026b/);
+    assert.match(html, /chat-ui\.js\?v=chat-picker-tabs-20261027a/);
+    assert.match(html, /style\.css\?v=chat-picker-desktop-avatar-20261027a/);
 });
 
 test("the emoji picker has categories and a large locally searchable emoji library", () => {
@@ -102,6 +102,64 @@ test("composer controls are implemented and picker panels have desktop layout", 
     const gifGrid = css.match(/\.worth-it-chat-gif-grid\s*\{([\s\S]*?)\}/)?.[1] || "";
     assert.match(gifGrid, /display:\s*grid/);
     assert.match(gifGrid, /grid-template-columns:/);
+});
+
+test("desktop picker panels sit outside the narrow attachment dock and have usable width", () => {
+    const dock = html.indexOf('id="worthItChatPickerDock"');
+    const textarea = html.indexOf('id="worthItChatInput"');
+    const send = html.indexOf('id="worthItChatSendBtn"');
+    const emoji = html.indexOf('id="worthItChatEmojiPicker"');
+    const gif = html.indexOf('id="worthItChatGifPicker"');
+    assert.ok(dock >= 0 && textarea > dock && send > textarea && emoji > send && gif > emoji);
+    assert.ok(!html.slice(dock, textarea).includes('id="worthItChatEmojiPicker"'),
+        "picker panels must not be children of the 42px attachment dock");
+    assert.ok(html.slice(send, emoji).includes('</button>\n                            <section class="worth-it-chat-picker-panel'),
+        "picker panels should be positioned siblings of the composer controls");
+
+    const desktopStart = css.lastIndexOf("@media (min-width: 761px) {");
+    const desktopEnd = css.indexOf("\n}", desktopStart);
+    assert.ok(desktopStart >= 0 && desktopEnd > desktopStart);
+    const rules = css.slice(desktopStart, desktopEnd);
+    assert.ok(rules.includes("width: min(440px, calc(100% - 24px), calc(100vw - 32px)) !important;"));
+    assert.ok(rules.includes("min-width: min(360px, calc(100% - 24px)) !important;"));
+    assert.ok(rules.includes("height: min(440px, calc(70vh - 16px)) !important;"));
+});
+
+test("emoji and GIF category buttons stay inside their picker while their tabs rerender", () => {
+    const emojiStart = client.indexOf("function renderWorthItChatEmojiCategories() {");
+    const emojiEnd = client.indexOf("\nfunction renderWorthItChatEmojiGrid", emojiStart);
+    const gifStart = client.indexOf("function renderWorthItChatGifCategories() {");
+    const gifEnd = client.indexOf("\nfunction renderWorthItChatGifResults", gifStart);
+    assert.ok(emojiStart >= 0 && emojiEnd > emojiStart && gifStart >= 0 && gifEnd > gifStart);
+
+    const emojiHandler = client.slice(emojiStart, emojiEnd);
+    const gifHandler = client.slice(gifStart, gifEnd);
+    assert.ok(emojiHandler.includes('button.addEventListener("click", event => {'));
+    assert.ok(emojiHandler.includes("worthItChatEmojiCategory = category.id;"));
+    assert.ok(gifHandler.includes('button.addEventListener("click", event => {'));
+    assert.ok(gifHandler.includes("worthItChatGifCategory = category.id;"));
+    assert.ok(gifHandler.includes("loadWorthItChatGifResults("));
+
+    const pathAt = client.indexOf("const eventPath = typeof event.composedPath ===");
+    assert.ok(pathAt >= 0);
+    const pathCode = client.slice(pathAt, pathAt + 500);
+    assert.ok(pathCode.includes("wasInside(dock)"));
+    assert.ok(pathCode.includes("wasInside(emojiPicker)"));
+    assert.ok(pathCode.includes("wasInside(gifPicker)"));
+});
+
+test("chat presence badges sit on the avatar lower-right edge without clipping the image", () => {
+    assert.ok(css.includes(".worth-it-chat-person-avatar,\n.worth-it-chat-header-avatar {\n    overflow: visible !important;"));
+    assert.ok(css.includes(".worth-it-chat-person-avatar > img,\n.worth-it-chat-header-avatar > img {\n    display: block;\n    border-radius: inherit !important;"));
+    const personStart = css.lastIndexOf(".worth-it-chat-person-avatar .worth-it-presence-indicator {");
+    const personEnd = css.indexOf("\n}", personStart);
+    const headerStart = css.lastIndexOf(".worth-it-chat-header-avatar .worth-it-presence-indicator {");
+    const headerEnd = css.indexOf("\n}", headerStart);
+    assert.ok(personStart >= 0 && personEnd > personStart && headerStart >= 0 && headerEnd > headerStart);
+    assert.ok(css.slice(personStart, personEnd).includes("right: -3px !important;"));
+    assert.ok(css.slice(personStart, personEnd).includes("bottom: -3px !important;"));
+    assert.ok(css.slice(headerStart, headerEnd).includes("right: -3px !important;"));
+    assert.ok(css.slice(headerStart, headerEnd).includes("bottom: -3px !important;"));
 });
 
 test("opening the emoji picker renders category controls, and selecting a category renders once", () => {

@@ -1438,7 +1438,8 @@ function renderWorthItChatEmojiCategories() {
         const label = document.createElement("span");
         label.textContent = category.label;
         button.append(icon, label);
-        button.addEventListener("click", () => {
+        button.addEventListener("click", event => {
+            event.preventDefault();
             worthItChatEmojiCategory = category.id;
             renderWorthItChatEmojiCategories();
             renderWorthItChatEmojiGrid($("worthItChatEmojiSearch")?.value || "");
@@ -1583,7 +1584,8 @@ function renderWorthItChatGifCategories() {
         button.setAttribute("role", "tab");
         button.setAttribute("aria-selected", worthItChatGifCategory === category.id ? "true" : "false");
         button.textContent = category.label;
-        button.addEventListener("click", () => {
+        button.addEventListener("click", event => {
+            event.preventDefault();
             worthItChatGifCategory = category.id;
             renderWorthItChatGifCategories();
             loadWorthItChatGifResults($("worthItChatGifSearch")?.value || "");
@@ -1718,7 +1720,11 @@ function setupChatUI() {
     });
     document.addEventListener("click", event => {
         const dock = $("worthItChatPickerDock");
-        if (dock && !dock.contains(event.target)) closeWorthItChatPickers();
+        const emojiPicker = $("worthItChatEmojiPicker");
+        const gifPicker = $("worthItChatGifPicker");
+        const eventPath = typeof event.composedPath === "function" ? event.composedPath() : [];
+        const wasInside = node => Boolean(node && (node.contains(event.target) || eventPath.includes(node)));
+        if (!wasInside(dock) && !wasInside(emojiPicker) && !wasInside(gifPicker)) closeWorthItChatPickers();
     });
     $("worthItChatFileInput")?.addEventListener("change", function () {
         const file = this.files?.[0];

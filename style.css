@@ -23010,3 +23010,45 @@ html[data-theme="light"] .worth-it-chat-gif-attribution {
         max-height: 140px;
     }
 }
+
+.worth-it-chat-compose {
+    position: relative !important;
+}
+
+/* Chat picker panels size against the full composer, not the attachment button dock. */
+@media (min-width: 761px) {
+    .worth-it-chat-picker-panel:not([hidden]) {
+        box-sizing: border-box !important;
+        width: min(440px, calc(100% - 24px), calc(100vw - 32px)) !important;
+        min-width: min(360px, calc(100% - 24px)) !important;
+        max-width: min(440px, calc(100vw - 24px)) !important;
+        height: min(440px, calc(70vh - 16px)) !important;
+        min-height: min(320px, calc(100vh - 32px)) !important;
+        max-height: min(440px, calc(100vh - 32px)) !important;
+    }
+}
+
+/* Keep chat presence badges on the actual lower-right avatar edge. */
+.worth-it-chat-person-avatar,
+.worth-it-chat-header-avatar {
+    overflow: visible !important;
+}
+.worth-it-chat-person-avatar > img,
+.worth-it-chat-header-avatar > img {
+    display: block;
+    border-radius: inherit !important;
+}
+.worth-it-chat-person-avatar .worth-it-presence-indicator {
+    width: 11px !important;
+    height: 11px !important;
+    right: -3px !important;
+    bottom: -3px !important;
+    border-width: 2px !important;
+}
+.worth-it-chat-header-avatar .worth-it-presence-indicator {
+    width: 13px !important;
+    height: 13px !important;
+    right: -3px !important;
+    bottom: -3px !important;
+    border-width: 2px !important;
+}
