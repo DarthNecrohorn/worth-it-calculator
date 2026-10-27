@@ -597,7 +597,7 @@ async function refreshWorthItChatData() {
     if ($("worthItChatGroupDialog") && !$("worthItChatGroupDialog").hidden) renderGroupFriendChoices();
 }
 function appendWorthItChatTextWithFlags(host, value) {
-    const parts = String(value || "").split(/([\\u{1F1E6}-\\u{1F1FF}]{2})/u);
+    const parts = String(value || "").split(/([\u{1F1E6}-\u{1F1FF}]{2})/u);
     for (const part of parts) {
         if (!part) continue;
         const flagCode = getWorthItChatFlagCode(part);
@@ -621,7 +621,7 @@ function appendWorthItChatTextWithFlags(host, value) {
 }
 function renderLinkedText(host, value) {
     const text = escapeText(value);
-    const regex = /https?:\\/\\/[^\\s<>"']+/gi;
+    const regex = /https?:\/\/[^\s<>"']+/gi;
     let last = 0, match;
     while ((match = regex.exec(text))) {
         if (match.index > last) appendWorthItChatTextWithFlags(host, text.slice(last, match.index));
