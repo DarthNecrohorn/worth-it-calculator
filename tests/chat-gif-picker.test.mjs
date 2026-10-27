@@ -30,7 +30,7 @@ test("the chat composer has an accessible attachment, emoji and owned-media pick
     assert.match(client, /function loadWorthItChatGifResults\(/);
     assert.match(client, /function selectWorthItChatGif\(/);
     assert.match(html, /chat-ui\.js\?v=country-flag-svg-picker-20261027a/);
-    assert.match(html, /style\\.css\\?v=country-flag-svg-picker-20261027a/);
+    assert.match(html, /style\.css\?v=country-flag-svg-picker-20261027a/);
 });
 
 test("the emoji picker has categories and a large locally searchable emoji library", () => {
