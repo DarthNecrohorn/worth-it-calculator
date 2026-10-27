@@ -23011,11 +23011,15 @@ html[data-theme="light"] .worth-it-chat-gif-attribution {
     }
 }
 
+.worth-it-chat-compose {
+    position: relative !important;
+}
+
 /* Chat picker panels size against the full composer, not the attachment button dock. */
 @media (min-width: 761px) {
     .worth-it-chat-picker-panel:not([hidden]) {
         box-sizing: border-box !important;
-        width: min(440px, calc(100vw - 32px)) !important;
+        width: min(440px, calc(100% - 24px), calc(100vw - 32px)) !important;
         min-width: min(360px, calc(100% - 24px)) !important;
         max-width: min(440px, calc(100vw - 24px)) !important;
         height: min(440px, calc(70vh - 16px)) !important;
