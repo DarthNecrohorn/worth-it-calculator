@@ -1789,6 +1789,11 @@ function setupChatUI() {
         renderWorthItChatComposerPreview();
     });
     $("worthItChatInput")?.addEventListener("scroll", renderWorthItChatComposerPreview);
+    $("worthItChatInput")?.addEventListener("focus", renderWorthItChatComposerPreview);
+    $("worthItChatInput")?.addEventListener("blur", renderWorthItChatComposerPreview);
+    $("worthItChatInput")?.addEventListener("click", renderWorthItChatComposerPreview);
+    $("worthItChatInput")?.addEventListener("keyup", renderWorthItChatComposerPreview);
+    $("worthItChatInput")?.addEventListener("select", renderWorthItChatComposerPreview);
     renderWorthItChatComposerPreview();
     $("worthItChatInput")?.addEventListener("keydown", function (event) {
         if (event.key === "Enter" && !event.shiftKey && !event.isComposing) {
