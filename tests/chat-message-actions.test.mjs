@@ -39,6 +39,17 @@ test("message menu offers hide-for-me and owner-only delete-for-everyone actions
     assert.match(client, /attachmentCleanupFailed/);
 });
 
+test("stale polling responses cannot restore cleared or deleted messages", () => {
+    assert.match(client, /let chatMessageRequestVersion = 0/);
+    assert.match(client, /async function loadWorthItChatMessages\(scrollToBottom, force = false\)/);
+    assert.match(client, /const requestVersion = \+\+chatMessageRequestVersion/);
+    assert.match(client, /if \(requestVersion !== chatMessageRequestVersion\) return/);
+    assert.match(client, /if \(!chatUser \|\| chatUser\.id !== requestUserId \|\| chatRouteAccessDenied\) return/);
+    assert.equal((client.match(/await loadWorthItChatMessages\(false, true\)/g) || []).length, 2);
+    assert.equal((client.match(/await loadWorthItChatMessages\(true, true\)/g) || []).length, 2);
+    assert.match(client, /chatMessageRequestVersion \+= 1;\s*chatLoading = false;/);
+});
+
 test("pinning a sidebar conversation is persistent, per-user, and places it at the top of its own list", () => {
     assert.match(client, /Pin conversation/);
     assert.match(client, /Unpin conversation/);
