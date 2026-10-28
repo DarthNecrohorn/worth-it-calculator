@@ -416,11 +416,9 @@ function findWorthItDirectConversationForFriend(friend) {
     ) || null;
 }
 function getWorthItChatConversationSearchFields(conversation) {
-    const lastMessage = conversation?.last_message || {};
     const members = Array.isArray(conversation?.members) ? conversation.members : [];
     return [
         conversation?.title, conversation?.name, conversation?.id,
-        lastMessage.body, lastMessage.display_name, lastMessage.username,
         ...members.flatMap(member => [member.display_name, member.username, member.worth_it_id])
     ];
 }
@@ -437,14 +435,9 @@ function renderFriends() {
         }
     }
     const friendsForSidebar = chatFriends
-        .filter(friend => {
-            const direct = findWorthItDirectConversationForFriend(friend);
-            const lastMessage = direct?.last_message || {};
-            return worthItChatSidebarSearchMatches(sidebarQuery, [
-                friend.display_name, friend.username, friend.worth_it_id,
-                lastMessage.body, lastMessage.display_name, lastMessage.username
-            ]);
-        })
+        .filter(friend => worthItChatSidebarSearchMatches(sidebarQuery, [
+            friend.display_name, friend.username, friend.worth_it_id
+        ]))
         .sort((left, right) =>
             Number(pinnedFriendIds.has(String(right.worth_it_id))) - Number(pinnedFriendIds.has(String(left.worth_it_id)))
         );
