@@ -24,10 +24,76 @@ create table if not exists public.worth_it_chat_history_clears (
   primary key (user_id, conversation_id)
 );
 
+-- Persistent per-user pin state for private/group conversations. It never
+-- changes membership or the underlying conversation and is private by design.
+create table if not exists public.worth_it_chat_conversation_pins (
+  user_id uuid not null references auth.users(id) on delete cascade,
+  conversation_id uuid not null references public.worth_it_chat_conversations(id) on delete cascade,
+  pinned_at timestamptz not null default now(),
+  primary key (user_id, conversation_id)
+);
+create index if not exists worth_it_chat_conversation_pins_order_idx
+  on public.worth_it_chat_conversation_pins(user_id, pinned_at);
+
 alter table public.worth_it_chat_message_hides enable row level security;
 alter table public.worth_it_chat_history_clears enable row level security;
+alter table public.worth_it_chat_conversation_pins enable row level security;
 revoke all on public.worth_it_chat_message_hides from public, anon, authenticated;
 revoke all on public.worth_it_chat_history_clears from public, anon, authenticated;
+revoke all on public.worth_it_chat_conversation_pins from public, anon, authenticated;
+
+
+create or replace function public.set_worth_it_chat_conversation_pinned(
+  p_conversation_id uuid,
+  p_is_pinned boolean
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $function$
+declare
+  actor_id uuid := auth.uid();
+  target_type text;
+begin
+  if actor_id is null then raise exception 'Authentication required'; end if;
+  if p_conversation_id is null or p_is_pinned is null then
+    return jsonb_build_object('success', false, 'code', 'INVALID_PIN_REQUEST');
+  end if;
+
+  select conversation_type into target_type
+    from public.worth_it_chat_conversations
+   where id = p_conversation_id;
+  if target_type is null then
+    return jsonb_build_object('success', false, 'code', 'CHAT_NOT_FOUND');
+  end if;
+  if target_type = 'global' then
+    return jsonb_build_object('success', false, 'code', 'GLOBAL_CHAT_PIN_NOT_SUPPORTED');
+  end if;
+  if not exists (
+    select 1 from public.worth_it_chat_members
+     where conversation_id = p_conversation_id and user_id = actor_id
+  ) then
+    return jsonb_build_object('success', false, 'code', 'NOT_A_CHAT_MEMBER');
+  end if;
+
+  if p_is_pinned then
+    insert into public.worth_it_chat_conversation_pins(user_id, conversation_id, pinned_at)
+    values (actor_id, p_conversation_id, now())
+    on conflict (user_id, conversation_id)
+    do update set pinned_at = excluded.pinned_at;
+  else
+    delete from public.worth_it_chat_conversation_pins
+     where user_id = actor_id and conversation_id = p_conversation_id;
+  end if;
+
+  return jsonb_build_object(
+    'success', true,
+    'conversation_id', p_conversation_id,
+    'is_pinned', p_is_pinned
+  );
+end;
+$function$;
 
 create or replace function public.delete_worth_it_chat_message(p_message_id bigint)
 returns jsonb
@@ -217,6 +283,18 @@ $old$;
                where hc.user_id = actor_id and hc.conversation_id = target_id
           ), '-infinity'::timestamptz)
 $new$;
+  old_pin_fields text := $old$
+        'id', c.id,
+        'type', c.conversation_type,
+$new$;
+  new_pin_fields text := $new$
+        'id', c.id,
+        'type', c.conversation_type,
+        'is_pinned', exists (
+            select 1 from public.worth_it_chat_conversation_pins pins
+             where pins.user_id = actor_id and pins.conversation_id = c.id
+        ),
+$new$;
   old_preview_filter text := $old$
             where m.conversation_id = c.id
             order by m.id desc
@@ -248,10 +326,14 @@ begin
   execute updated_definition;
 
   current_definition := pg_get_functiondef('public.get_worth_it_chat_conversations()'::regprocedure);
-  if position(old_preview_filter in current_definition) = 0 then
+  if position(old_pin_fields in current_definition) = 0 then
+    raise exception 'Expected conversation JSON fields were not found in get_worth_it_chat_conversations; review the function before migrating.';
+  end if;
+  updated_definition := replace(current_definition, old_pin_fields, new_pin_fields);
+  if position(old_preview_filter in updated_definition) = 0 then
     raise exception 'Expected last-message preview query was not found in get_worth_it_chat_conversations; review the function before migrating.';
   end if;
-  updated_definition := replace(current_definition, old_preview_filter, new_preview_filter);
+  updated_definition := replace(updated_definition, old_preview_filter, new_preview_filter);
   if position('''body'', m.body,' in updated_definition) = 0 then
     raise exception 'Expected last-message preview body was not found in get_worth_it_chat_conversations; review the function before migrating.';
   end if;
@@ -260,6 +342,8 @@ begin
 end
 $migration$;
 
+revoke all on function public.set_worth_it_chat_conversation_pinned(uuid, boolean) from public, anon;
+grant execute on function public.set_worth_it_chat_conversation_pinned(uuid, boolean) to authenticated;
 revoke all on function public.delete_worth_it_chat_message(bigint) from public, anon;
 revoke all on function public.hide_worth_it_chat_message(bigint) from public, anon;
 revoke all on function public.clear_worth_it_chat_history(uuid) from public, anon;
