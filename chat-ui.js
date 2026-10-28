@@ -2839,7 +2839,9 @@ const WORTH_IT_CHAT_GIF_LIBRARY = [
     { id: "little-ghost", title: "Little ghost", keywords: "ghost boo spooky cute halloween", type: "sticker", offset: 327251, length: 12742 },
     { id: "rainbow-heart", title: "Rainbow heart", keywords: "rainbow heart love colorful pride", type: "sticker", offset: 339993, length: 11632 }
 ];
-const WORTH_IT_CHAT_GIF_BUNDLE_PATH = "/assets/worth-it-chat-gifs/library.base64.txt";
+const WORTH_IT_CHAT_GIF_BUNDLE_PATHS = Array.from({ length: 20 }, (_, index) =>
+    "/assets/worth-it-chat-gifs/library-part-" + String(index + 1).padStart(2, "0") + ".base64.txt"
+);
 let worthItChatGifBundlePromise = null;
 const worthItChatGifObjectUrls = new Map();
 
@@ -2859,14 +2861,17 @@ async function getWorthItChatGifAsset(item) {
     }
     if (!worthItChatGifBundlePromise) {
         worthItChatGifBundlePromise = (async () => {
-            const response = await fetch(WORTH_IT_CHAT_GIF_BUNDLE_PATH, {
-                method: "GET",
-                credentials: "same-origin",
-                cache: "force-cache",
-                headers: { "Accept": "text/plain" }
-            });
-            if (!response.ok) throw new Error("The Worth It animation library could not be loaded.");
-            const encoded = (await response.text()).replace(/\s+/g, "");
+            const encodedParts = await Promise.all(WORTH_IT_CHAT_GIF_BUNDLE_PATHS.map(async path => {
+                const response = await fetch(path, {
+                    method: "GET",
+                    credentials: "same-origin",
+                    cache: "force-cache",
+                    headers: { "Accept": "text/plain" }
+                });
+                if (!response.ok) throw new Error("The Worth It animation library could not be loaded.");
+                return (await response.text()).replace(/\s+/g, "");
+            }));
+            const encoded = encodedParts.join("");
             if (!encoded || encoded.length > 1024 * 1024) {
                 throw new Error("The Worth It animation library is invalid.");
             }
