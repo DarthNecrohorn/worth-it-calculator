@@ -85,7 +85,7 @@ jobs:
           from pathlib import Path
           import re
 
-          for name in ("supabase/worth-it-settings-privacy-notifications.sql", "supabase/worth-it-chat-video-media.sql", "supabase/worth-it-chat-message-actions.sql", "supabase/worth-it-chat-message-action-indexes.sql"):
+          for name in ("supabase/worth-it-settings-privacy-notifications.sql", "supabase/worth-it-chat-video-media.sql", "supabase/worth-it-chat-message-actions.sql", "supabase/worth-it-chat-message-delete-constraint.sql", "supabase/worth-it-chat-message-action-indexes.sql"):
               path = Path(name)
               sql = path.read_text(encoding="utf-8")
               openers = len(re.findall(r"(?im)^\s*(?:as|do)\s+\$\$\s*$|^\s*do\s+\$migration\$\s*$", sql))
