@@ -55,7 +55,7 @@ test("stale polling responses cannot restore cleared or deleted messages", () =>
     assert.match(client, /const requestVersion = \+\+chatMessageRequestVersion/);
     assert.match(client, /if \(requestVersion !== chatMessageRequestVersion\) return/);
     assert.match(client, /if \(!chatUser \|\| chatUser\.id !== requestUserId \|\| chatRouteAccessDenied\) return/);
-    assert.equal((client.match(/await loadWorthItChatMessages\(false, true\)/g) || []).length, 2);
+    assert.equal((client.match(/await loadWorthItChatMessages\(false, true\)/g) || []).length, 3);
     assert.equal((client.match(/await loadWorthItChatMessages\(true, true\)/g) || []).length, 2);
     assert.match(client, /chatMessageRequestVersion \+= 1;\s*chatLoading = false;/);
     assert.match(client, /Invalidate any poll that began before the destructive RPC completed[\s\S]*?renderMessages\(false\);[\s\S]*?storage\.from\("worth-it-chat-media"\)/);
