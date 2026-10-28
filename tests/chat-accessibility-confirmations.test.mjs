@@ -31,7 +31,7 @@ test("light-theme chat text, sidebar labels and empty states have readable contr
         "worth-it-chat-empty strong",
         "worth-it-chat-empty p"
     ]) {
-        assert.match(style, new RegExp('html\\[data-theme="light"\\] \\.' + selector.replace(/[.*+?^${}()|[\\]\\]/g, "\\$&")));
+        assert.ok(style.includes('html[data-theme="light"] .' + selector), "missing light-theme contrast rule for " + selector);
     }
     assert.match(style, /html\[data-theme="light"\] \.worth-it-chat-category-btn\.is-active[\s\S]*?color: #312e81 !important/);
     assert.match(style, /html\[data-theme="light"\] \.worth-it-chat-media-tab\.is-active[\s\S]*?color: #312e81 !important/);
@@ -40,9 +40,9 @@ test("light-theme chat text, sidebar labels and empty states have readable contr
 
 test("emoji and GIF picker close X glyph moves up two pixels without moving its square", () => {
     assert.match(style, /\.worth-it-chat-picker-close::before\s*\{[^}]*content: "×"[^}]*transform: translateY\(-2px\)/);
-    const buttonRule = style.match(/\.worth-it-chat-picker-close\s*\{([^}]+)\}/)?.[1] || "";
-    assert.match(buttonRule, /font-size: 0 !important/);
-    assert.match(buttonRule, /font-size: 20px/);
+    assert.ok(style.includes('.worth-it-chat-picker-close {\n    font-size: 0 !important;'));
+    const glyphRule = style.match(/\.worth-it-chat-picker-close::before\s*\{([^}]+)\}/)?.[1] || "";
+    assert.match(glyphRule, /font-size: 20px/);
 });
 
 test("Sign out requires an explicit Yes; No, Escape and backdrop clicks cancel", () => {
