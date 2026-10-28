@@ -28,8 +28,8 @@ test("each live message has ChatGPT-like copy, quote and three-dot action contro
     assert.match(client, /function closeWorthItChatMessageMenus\(/);
     assert.match(actionsCss, /\.worth-it-chat-message-actions/);
     assert.match(actionsCss, /\.worth-it-chat-message-menu/);
-    assert.match(html, /chat-actions\.css\?v=chat-message-actions-20261028b/);
-    assert.match(html, /chat-ui\.js\?v=chat-realtime-typing-delete-fix-20261028a/);
+    assert.match(html, /chat-actions\.css\?v=chat-message-actions-20261028c/);
+    assert.match(html, /chat-ui\.js\?v=chat-navigation-typing-ux-20261028a/);
 });
 
 test("message menu offers hide-for-me and owner-only delete-for-everyone actions", () => {
@@ -142,5 +142,5 @@ test("delete-for-everyone uses an accessible branded dialog with a per-user skip
     assert.match(deleteConfirmCss, /\.worth-it-chat-delete-confirm-preference/);
     assert.match(deleteConfirmCss, /html\[data-theme="light"\]/);
     assert.match(html, /chat-delete-confirm\.css\?v=chat-delete-confirm-20261028a/);
-    assert.match(html, /chat-ui\.js\?v=chat-realtime-typing-delete-fix-20261028a/);
+    assert.match(html, /chat-ui\.js\?v=chat-navigation-typing-ux-20261028a/);
 });
