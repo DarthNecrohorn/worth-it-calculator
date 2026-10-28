@@ -416,6 +416,98 @@ function toggleAccountPanel(event) {
 AUTH UI
 ========================================================= */
 
+function isWorthItEmailVerified(user) {
+    return Boolean(user && (user.email_confirmed_at || user.confirmed_at));
+}
+
+function updateWorthItEmailVerificationGate(user) {
+    let overlay = document.getElementById("worthItEmailVerificationGate");
+    if (!user || isWorthItEmailVerified(user)) {
+        overlay?.remove();
+        return;
+    }
+    if (overlay) return;
+
+    overlay = document.createElement("div");
+    overlay.id = "worthItEmailVerificationGate";
+    overlay.className = "worth-it-email-gate";
+    overlay.setAttribute("role", "dialog");
+    overlay.setAttribute("aria-modal", "true");
+    overlay.setAttribute("aria-labelledby", "worthItEmailGateTitle");
+
+    const card = document.createElement("section");
+    card.className = "worth-it-email-gate-card";
+    const icon = document.createElement("div");
+    icon.className = "worth-it-email-gate-icon";
+    icon.textContent = "✉";
+    const title = document.createElement("h2");
+    title.id = "worthItEmailGateTitle";
+    title.textContent = "Confirm your email to continue";
+    const description = document.createElement("p");
+    description.textContent = "We sent a confirmation link to " + (user.email || "your email address") + ". Confirm it from your inbox to unlock messaging and the full Worth It experience.";
+    const note = document.createElement("p");
+    note.className = "worth-it-email-gate-note";
+    note.textContent = "If the link expired or you cannot find the email, request a new one. Check Spam/Junk too.";
+    const status = document.createElement("div");
+    status.className = "worth-it-email-gate-status";
+    status.setAttribute("role", "status");
+    status.setAttribute("aria-live", "polite");
+    const actions = document.createElement("div");
+    actions.className = "worth-it-email-gate-actions";
+
+    const inbox = document.createElement("a");
+    inbox.className = "worth-it-email-gate-primary";
+    inbox.textContent = "Open email inbox";
+    inbox.href = "mailto:";
+    inbox.target = "_blank";
+    inbox.rel = "noopener noreferrer";
+    const domain = String(user.email || "").split("@")[1]?.toLowerCase() || "";
+    if (domain === "gmail.com" || domain === "googlemail.com") inbox.href = "https://mail.google.com/";
+    else if (["outlook.com", "hotmail.com", "live.com"].includes(domain)) inbox.href = "https://outlook.live.com/mail/";
+    else if (domain === "yahoo.com" || domain.endsWith(".yahoo.com")) inbox.href = "https://mail.yahoo.com/";
+
+    const resend = document.createElement("button");
+    resend.type = "button";
+    resend.className = "worth-it-email-gate-secondary";
+    resend.textContent = "Resend confirmation";
+    resend.addEventListener("click", async () => {
+        if (!user.email || resend.disabled) return;
+        resend.disabled = true;
+        status.textContent = "Sending a new confirmation email…";
+        status.classList.remove("is-error");
+        try {
+            const { error } = await window.supabaseClient.auth.resend({
+                type: "signup",
+                email: user.email,
+                options: { emailRedirectTo: window.location.origin + "/" }
+            });
+            if (error) throw error;
+            status.textContent = "A new confirmation email has been requested. Check your inbox and Spam/Junk.";
+        } catch (error) {
+            status.textContent = error?.message || "Could not resend the email. Please wait a moment and try again.";
+            status.classList.add("is-error");
+        } finally {
+            window.setTimeout(() => { if (resend.isConnected) resend.disabled = false; }, 5000);
+        }
+    });
+
+    const signOut = document.createElement("button");
+    signOut.type = "button";
+    signOut.className = "worth-it-email-gate-signout";
+    signOut.textContent = "Sign out";
+    signOut.addEventListener("click", () => {
+        overlay.remove();
+        if (typeof window.signOutUser === "function") window.signOutUser();
+    });
+
+    actions.append(inbox, resend);
+    card.append(icon, title, description, note, actions, status, signOut);
+    overlay.appendChild(card);
+    document.body.appendChild(overlay);
+    resend.focus();
+}
+window.isWorthItEmailVerified = isWorthItEmailVerified;
+
 function updateAuthUI(user) {
 
     currentAuthUser =
@@ -426,6 +518,7 @@ function updateAuthUI(user) {
     // against the main auth initialization.
     window.worthItCurrentAuthUser = currentAuthUser;
     window.worthItAuthStateResolved = true;
+    updateWorthItEmailVerificationGate(currentAuthUser);
 
     const btn =
         $("authBtn");
