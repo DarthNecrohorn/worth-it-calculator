@@ -148,6 +148,15 @@
 .worth-it-chat-global-row{
     margin:0 0 2px;
 }
+.worth-it-chat-global-row .worth-it-chat-side-item{
+    background:linear-gradient(100deg,rgba(99,102,241,.12),rgba(14,165,233,.055));
+    border-color:rgba(129,140,248,.17);
+}
+.worth-it-chat-global-row .worth-it-chat-side-item:hover,
+.worth-it-chat-global-row .worth-it-chat-side-item.is-active{
+    background:linear-gradient(100deg,rgba(99,102,241,.23),rgba(14,165,233,.095));
+    border-color:rgba(129,140,248,.33);
+}
 .worth-it-chat-sidebar-search{
     display:flex;
     align-items:center;
@@ -215,6 +224,15 @@
     line-height:1.55;
 }
 .worth-it-chat-side-heading>span{flex:1;min-width:0}
+html[data-theme="light"] .worth-it-chat-global-row .worth-it-chat-side-item{
+    background:linear-gradient(100deg,rgba(99,102,241,.09),rgba(14,165,233,.035));
+    border-color:rgba(99,102,241,.18);
+}
+html[data-theme="light"] .worth-it-chat-global-row .worth-it-chat-side-item:hover,
+html[data-theme="light"] .worth-it-chat-global-row .worth-it-chat-side-item.is-active{
+    background:linear-gradient(100deg,rgba(99,102,241,.16),rgba(14,165,233,.07));
+    border-color:rgba(99,102,241,.3);
+}
 html[data-theme="light"] .worth-it-chat-sidebar-search{
     border-color:rgba(100,116,139,.22);
     background:rgba(255,255,255,.62);
