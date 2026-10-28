@@ -57,7 +57,7 @@ test("open hamburger blocks header actions from receiving clicks behind the drop
     assert.match(css, /\.nav-inner:has\(> #navLinks\.nav-links\.open\) > \.nav-right-stack\s*\{\s*pointer-events:\s*none !important;/);
     assert.match(css, /\.nav-inner:has\(> #navLinks\.nav-links\.open\) > \.nav-right-stack \*\s*\{\s*pointer-events:\s*none !important;/);
     assert.match(html, /style\.css\?v=[^"']+/);
-    assert.match(html, /app\.js\?v=hamburgerpersistent-20261015a/);
+    assert.match(html, /app\.js\?v=signout-confirmation-20261028a/);
 });
 
 test("the open hamburger shields every header sibling, including Sign out", () => {
