@@ -64,7 +64,8 @@ insert into public.worth_it_chat_members(conversation_id,user_id) values
 insert into public.worth_it_chat_messages(id,conversation_id,sender_user_id,body,created_at) values
  (1,'20000000-0000-4000-8000-000000000001','10000000-0000-4000-8000-000000000001','Original message from Alice',now()-interval '5 minutes'),
  (2,'20000000-0000-4000-8000-000000000001','10000000-0000-4000-8000-000000000001','Older group message',now()-interval '4 minutes'),
- (3,'20000000-0000-4000-8000-000000000001','10000000-0000-4000-8000-000000000002','Message hidden only by Bob',now()-interval '3 minutes');
+ (3,'20000000-0000-4000-8000-000000000001','10000000-0000-4000-8000-000000000001','Message hidden only by Bob',now()-interval '3 minutes');
+select setval(pg_get_serial_sequence('public.worth_it_chat_messages','id'), (select max(id) from public.worth_it_chat_messages));
 
 create or replace function public.get_worth_it_chat_messages(
   p_conversation_id uuid default null::uuid,
@@ -121,8 +122,8 @@ declare
   result jsonb;
 begin
   select coalesce(jsonb_agg(jsonb_build_object(
-    'id', c.id,
-    'type', c.conversation_type,
+        'id', c.id,
+        'type', c.conversation_type,
     'last_message', (
       select jsonb_build_object(
         'body', m.body,
