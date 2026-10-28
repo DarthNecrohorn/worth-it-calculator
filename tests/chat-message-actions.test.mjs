@@ -48,6 +48,8 @@ test("stale polling responses cannot restore cleared or deleted messages", () =>
     assert.equal((client.match(/await loadWorthItChatMessages\(false, true\)/g) || []).length, 2);
     assert.equal((client.match(/await loadWorthItChatMessages\(true, true\)/g) || []).length, 2);
     assert.match(client, /chatMessageRequestVersion \+= 1;\s*chatLoading = false;/);
+    assert.match(client, /Invalidate any poll that began before the destructive RPC completed[\\s\\S]*?renderMessages\\(false\\);[\\s\\S]*?storage\\.from\\("worth-it-chat-media"\\)/);
+    assert.match(client, /already-started poll repopulate this user's cleared history[\\s\\S]*?chatMessageRequestVersion \\+= 1;\\s*chatLoading = false;[\\s\\S]*?await refreshWorthItChatData\\(\\)/);
 });
 
 test("pinning a sidebar conversation is persistent, per-user, and places it at the top of its own list", () => {
