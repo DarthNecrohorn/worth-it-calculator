@@ -284,6 +284,30 @@ function showWorthItChatConversationContextMenu(conversation, x, y) {
     const chatKey = chatNotificationKeyForConversation(conversation);
     addItem(chatNotificationsEnabled(chatKey) ? "Mute notifications" : "Turn on notifications",
         async () => toggleWorthItChatNotifications(chatKey, null));
+    if (conversation.type !== "global" && conversation.id) {
+        addItem(conversation.is_pinned ? "Unpin conversation" : "Pin conversation", async () => {
+            try {
+                const nextPinned = !Boolean(conversation.is_pinned);
+                const result = await sb().rpc("set_worth_it_chat_conversation_pinned", {
+                    p_conversation_id: conversation.id,
+                    p_is_pinned: nextPinned
+                });
+                if (result.error) throw result.error;
+                if (!result.data?.success) {
+                    const errors = {
+                        CHAT_NOT_FOUND: "This conversation no longer exists.",
+                        NOT_A_CHAT_MEMBER: "You are no longer a member of this conversation.",
+                        GLOBAL_CHAT_PIN_NOT_SUPPORTED: "Global Chat stays at the top of the sidebar."
+                    };
+                    throw new Error(errors[result.data?.code] || result.data?.code || "Could not update the pinned state.");
+                }
+                await refreshWorthItChatData();
+                setStatus(nextPinned ? "Conversation pinned to the top of its sidebar list." : "Conversation unpinned.", false);
+            } catch (error) {
+                setStatus(rpcError(error), true);
+            }
+        });
+    }
     addItem("Delete this conversation history", async () => {
         if (!window.confirm("Delete this conversation history for you only? Other members will keep their messages. New messages will still appear.")) return;
         try {
@@ -378,14 +402,25 @@ if ($("worthItGlobalChatBtn")) {
 function renderFriends() {
     const host = $("worthItChatFriends");
     if (!host) return;
+    const pinnedFriendIds = new Set();
+    for (const conversation of chatConversations) {
+        if (conversation.type !== "direct" || !conversation.is_pinned) continue;
+        for (const member of Array.isArray(conversation.members) ? conversation.members : []) {
+            if (member?.worth_it_id != null) pinnedFriendIds.add(String(member.worth_it_id));
+        }
+    }
+    const friendsForSidebar = chatFriends.slice().sort((left, right) =>
+        Number(pinnedFriendIds.has(String(right.worth_it_id))) - Number(pinnedFriendIds.has(String(left.worth_it_id)))
+    );
     // Polling runs every five seconds. Only rebuild this list when its visible state changes.
     // last_seen_at is intentionally excluded: profile-ui.js updates presence indicators in place.
     const renderKey = JSON.stringify({
         userId: chatUser?.id || null,
         activeConversationType,
         activePersonId: activeConversationPerson?.worth_it_id ?? null,
-        friends: chatFriends.map(friend => [
-            friend.worth_it_id, friend.username || "", friend.display_name || "", friend.avatar_url || ""
+        friends: friendsForSidebar.map(friend => [
+            friend.worth_it_id, friend.username || "", friend.display_name || "", friend.avatar_url || "",
+            pinnedFriendIds.has(String(friend.worth_it_id))
         ]),
         directUnread: chatConversations.filter(conversation => conversation.type === "direct").map(conversation => [
             conversation.id, Number(conversation.unread_count || 0),
@@ -402,7 +437,7 @@ function renderFriends() {
     if (!chatFriends.length) {
         const p = document.createElement("p"); p.className = "worth-it-chat-muted"; p.textContent = "Your friends will appear here. Add friends from their profiles."; host.appendChild(p); return;
     }
-    chatFriends.forEach(friend => {
+    friendsForSidebar.forEach(friend => {
         const row = document.createElement("button");
         row.type = "button";
         row.className = "worth-it-chat-person-btn" + (activeConversationType === "direct" && String(activeConversationPerson?.worth_it_id) === String(friend.worth_it_id) ? " is-active" : "");
@@ -410,6 +445,13 @@ function renderFriends() {
         row.appendChild(makeAvatar(friend));
         const info = document.createElement("span"); info.className = "worth-it-chat-person-info";
         const name = document.createElement("strong"); name.textContent = friend.display_name || friend.username || "Worth It member";
+        if (pinnedFriendIds.has(String(friend.worth_it_id))) {
+            const pin = document.createElement("span");
+            pin.className = "worth-it-chat-pin-indicator";
+            pin.textContent = "📌";
+            pin.setAttribute("aria-label", "Pinned conversation");
+            name.appendChild(pin);
+        }
         const username = document.createElement("small"); username.textContent = friend.username ? "@" + friend.username : "Friend";
         const presence = document.createElement("small"); presence.className = "worth-it-chat-person-presence"; presence.dataset.worthItPresenceId = String(friend.worth_it_id); presence.textContent = window.getWorthItPresenceInfo ? window.getWorthItPresenceInfo(friend).label : "";
         info.append(name, username, presence); row.appendChild(info);
@@ -449,7 +491,9 @@ function conversationLabel(conversation) {
 function renderConversations() {
     const host = $("worthItChatConversations");
     if (!host) return;
-    const visibleConversations = chatConversations.filter(conversation => conversation.type === "group");
+    const visibleConversations = chatConversations
+        .filter(conversation => conversation.type === "group")
+        .sort((left, right) => Number(Boolean(right.is_pinned)) - Number(Boolean(left.is_pinned)));
     const renderKey = JSON.stringify({
         userId: chatUser?.id || null,
         activeConversationType,
@@ -458,6 +502,7 @@ function renderConversations() {
         conversations: visibleConversations.map(conversation => ({
             id: conversation.id,
             type: conversation.type,
+            is_pinned: Boolean(conversation.is_pinned),
             title: conversation.title,
             created_by: conversation.created_by,
             is_creator: conversation.is_creator,
@@ -493,6 +538,13 @@ function renderConversations() {
         info.className = "worth-it-chat-person-info";
         const name = document.createElement("strong");
         name.textContent = conversationLabel(conversation);
+        if (conversation.is_pinned) {
+            const pin = document.createElement("span");
+            pin.className = "worth-it-chat-pin-indicator";
+            pin.textContent = "📌";
+            pin.setAttribute("aria-label", "Pinned conversation");
+            name.appendChild(pin);
+        }
         const last = document.createElement("small");
         const lastMessage = conversation.last_message;
         const preview = lastMessage?.body || (lastMessage?.media_type ? "📷 Media" : "Start a conversation");
@@ -521,7 +573,8 @@ function renderConversations() {
         actions.addEventListener("click", event => {
             event.preventDefault();
             event.stopPropagation();
-            openWorthItGroupManageDialog(conversation.id);
+            const rect = actions.getBoundingClientRect();
+            showWorthItChatConversationContextMenu(conversation, rect.left, rect.bottom);
         });
         item.appendChild(actions);
         host.appendChild(item);
