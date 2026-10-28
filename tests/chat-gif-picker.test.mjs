@@ -33,7 +33,7 @@ test("the chat composer has an accessible attachment, emoji and owned-media pick
     assert.match(client, /function renderWorthItChatEmojiCategories\(/);
     assert.match(client, /function loadWorthItChatGifResults\(/);
     assert.match(client, /function selectWorthItChatGif\(/);
-    assert.match(html, /chat-ui\.js\?v=chat-navigation-typing-ux-20261028c/);
+    assert.match(html, /chat-ui\.js\?v=chat-navigation-typing-ux-20261028d/);
     assert.match(html, /style\.css\?v=chat-polling-preserve-dom-20261028a/);
 });
 
@@ -42,6 +42,7 @@ test("signed-in chat refresh keeps the initial session-restoration state instead
     assert.match(client, /if \(!chatUser && !chatAuthResolutionComplete\) \{[\s\S]*?host\.setAttribute\("aria-busy", "true"\);[\s\S]*?return;/);
     assert.match(client, /window\.worthItAuthReady/);
     assert.match(client, /window\.worthItCurrentAuthUser/);
+    assert.match(client, /event === "INITIAL_SESSION" && !window\.worthItAuthStateResolved/);
     assert.doesNotMatch(client, /sb\(\)\.auth\.getSession\(\)\.then/);
 });
 
@@ -91,6 +92,7 @@ test("each curated original animation has a valid GIF signature and stays within
         assert.ok(bytes.length <= 20 * 1024 * 1024, asset.id + " exceeds the chat GIF limit");
         const signature = bytes.subarray(0, 6).toString("ascii");
         assert.ok(signature === "GIF87a" || signature === "GIF89a", asset.id + " is not a valid GIF");
+        assert.equal(bytes.at(-1), 0x3b, asset.id + " must end with the GIF trailer byte");
         assert.equal(bytes.readUInt16LE(6), 128, asset.id + " should use a crisp 128px canvas");
         assert.equal(bytes.readUInt16LE(8), 128, asset.id + " should use a crisp 128px canvas");
         assert.match(client, new RegExp('id: "' + asset.id + '"'));
@@ -223,6 +225,6 @@ test("country flags render visually in the chat composer while typing", () => {
     assert.match(css, /textarea::selection[\s\S]*?color: transparent !important[\s\S]*?-webkit-text-fill-color: transparent !important/);
     assert.match(css, /textarea::selection[\s\S]*?background: rgba\(79, 70, 229, \.78\)/);
     assert.match(css, /@media \(max-width: 540px\)[\s\S]*?\.worth-it-chat-input-preview\s*\{\s*font-size: 12px;/);
-    assert.match(html, /chat-ui\.js\?v=chat-navigation-typing-ux-20261028c/);
+    assert.match(html, /chat-ui\.js\?v=chat-navigation-typing-ux-20261028d/);
     assert.match(html, /style\.css\?v=chat-polling-preserve-dom-20261028a/);
 });
