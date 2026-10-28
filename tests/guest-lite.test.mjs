@@ -80,7 +80,7 @@ test("Guest Lite dialog is responsive, theme-aware and the CI checks the new scr
     assert.match(css, /\.worth-it-guest-overlay\[hidden\]\{display:none!important\}/);
     assert.match(css, /@media\(max-width:650px\)/);
     assert.match(css, /html\[data-theme="light"\] \.worth-it-guest-card/);
-    assert.match(html, /guest-mode\.js\?v=hamburgerpersistent-20261015a/);
+    assert.match(html, /guest-mode\.js\?v=chat-route-preserve-20261028a/);
     assert.match(workflow, /guest-mode\.js/);
 });
 
@@ -100,4 +100,17 @@ test("sign-in and account-creation modals stack above the sticky header", () => 
     assert.match(css, /\.auth-modal-overlay\s*\{[\s\S]*?z-index:\s*1200/);
     assert.match(css, /body:has\(\.auth-modal-overlay\.open\):not\(\.worth-it-guest-dialog-open\)\s+\.nav\s*\{\s*z-index:\s*1190\s*!important;\s*\}/);
     assert.match(html, /style\.css\?v=[A-Za-z0-9_-]+/);
+});
+
+
+test("unauthenticated chat refresh keeps /chat in the address bar while sign-in is requested", () => {
+    const restoreStart = guest.indexOf("function restoreHomeIfOnRestrictedPath()");
+    const restoreEnd = guest.indexOf("\n    function installSignupGuestChoice()", restoreStart);
+    assert.ok(restoreStart >= 0 && restoreEnd > restoreStart, "route guard should exist");
+    const guard = guest.slice(restoreStart, restoreEnd);
+    const chatGuardIndex = guard.indexOf("chat(?:");
+    assert.ok(chatGuardIndex >= 0, "chat has a route-preserving guard");
+    const chatGuardReturn = guard.indexOf("return;", chatGuardIndex);
+    assert.ok(chatGuardReturn > chatGuardIndex, "chat guard returns before home-reset logic");
+    assert.ok(chatGuardReturn < guard.indexOf("window.history.replaceState"), "chat guard preserves the requested URL");
 });

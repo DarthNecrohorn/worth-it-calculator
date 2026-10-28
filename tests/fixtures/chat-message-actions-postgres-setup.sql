@@ -42,7 +42,9 @@ create table public.worth_it_chat_messages (
   media_url text,
   media_type text,
   filtered_reason text,
-  created_at timestamptz not null default now()
+  created_at timestamptz not null default now(),
+  constraint worth_it_chat_message_body_len check (char_length(body) <= 500),
+  constraint worth_it_chat_message_not_empty check (char_length(btrim(body)) > 0 or media_url is not null)
 );
 
 insert into auth.users(id) values

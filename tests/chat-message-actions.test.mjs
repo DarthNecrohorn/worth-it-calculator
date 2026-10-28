@@ -6,6 +6,7 @@ const html = readFileSync(new URL("../index.html", import.meta.url), "utf8");
 const client = readFileSync(new URL("../chat-ui.js", import.meta.url), "utf8");
 const actionsCss = readFileSync(new URL("../chat-actions.css", import.meta.url), "utf8");
 const migration = readFileSync(new URL("../supabase/worth-it-chat-message-actions.sql", import.meta.url), "utf8");
+const deleteConstraintMigration = readFileSync(new URL("../supabase/worth-it-chat-message-delete-constraint.sql", import.meta.url), "utf8");
 const workflow = readFileSync(new URL("../.github/workflows/function-syntax-check.yml", import.meta.url), "utf8");
 
 test("Escape closes an open message/conversation menu without closing the entire chat", () => {
@@ -26,7 +27,7 @@ test("each live message has ChatGPT-like copy, quote and three-dot action contro
     assert.match(actionsCss, /\.worth-it-chat-message-actions/);
     assert.match(actionsCss, /\.worth-it-chat-message-menu/);
     assert.match(html, /chat-actions\.css\?v=chat-message-actions-20261028b/);
-    assert.match(html, /chat-ui\.js\?v=chat-message-actions-20261028c/);
+    assert.match(html, /chat-ui\.js\?v=chat-delete-refresh-20261028a/);
 });
 
 test("message menu offers hide-for-me and owner-only delete-for-everyone actions", () => {
@@ -54,7 +55,7 @@ test("stale polling responses cannot restore cleared or deleted messages", () =>
     assert.match(client, /const requestVersion = \+\+chatMessageRequestVersion/);
     assert.match(client, /if \(requestVersion !== chatMessageRequestVersion\) return/);
     assert.match(client, /if \(!chatUser \|\| chatUser\.id !== requestUserId \|\| chatRouteAccessDenied\) return/);
-    assert.equal((client.match(/await loadWorthItChatMessages\(false, true\)/g) || []).length, 2);
+    assert.equal((client.match(/await loadWorthItChatMessages\(false, true\)/g) || []).length, 3);
     assert.equal((client.match(/await loadWorthItChatMessages\(true, true\)/g) || []).length, 2);
     assert.match(client, /chatMessageRequestVersion \+= 1;\s*chatLoading = false;/);
     assert.match(client, /Invalidate any poll that began before the destructive RPC completed[\s\S]*?renderMessages\(false\);[\s\S]*?storage\.from\("worth-it-chat-media"\)/);
@@ -85,6 +86,22 @@ test("conversation history menu supports right-click and mobile long-press witho
     assert.match(client, /clear_worth_it_chat_history/);
     assert.match(client, /Other members' history is unchanged/);
     assert.match(actionsCss, /\.worth-it-chat-context-menu/);
+});
+
+test("deleted chat tombstones can clear their body without weakening live-message checks", () => {
+    assert.match(deleteConstraintMigration, /drop constraint if exists worth_it_chat_message_not_empty/);
+    assert.match(deleteConstraintMigration, /add constraint worth_it_chat_message_not_empty/);
+    assert.match(deleteConstraintMigration, /char_length\(btrim\(body\)\) > 0/);
+    assert.match(deleteConstraintMigration, /media_url is not null/);
+    assert.match(deleteConstraintMigration, /deleted_at is not null/);
+    assert.match(deleteConstraintMigration, /begin;[\s\S]*commit;/);
+    assert.match(workflow, /supabase\/worth-it-chat-message-delete-constraint\.sql/);
+});
+
+test("the sidebar Refresh button calls a real global chat refresh handler", () => {
+    assert.match(html, /onclick="refreshWorthItChatData\(\)"/);
+    assert.match(client, /window\.refreshWorthItChatData = async function \(\)/);
+    assert.match(client, /await refreshWorthItChatData\(\);[\s\S]*?await loadWorthItChatMessages\(false, true\)/);
 });
 
 test("message actions migration scopes private deletion state to the requesting user", () => {

@@ -896,6 +896,17 @@ async function refreshWorthItChatData() {
     renderFriends(); renderConversations(); updateChatHeaderNotificationButton(); updateUnreadBadge();
     if ($("worthItChatGroupDialog") && !$("worthItChatGroupDialog").hidden) renderGroupFriendChoices();
 }
+// The sidebar's inline Refresh control needs a public callback. Keep the
+// data loader private for internal callers, and also refresh the active messages
+// when the user explicitly asks to refresh the chat.
+window.refreshWorthItChatData = async function () {
+    if (!chatUser) {
+        setStatus("Sign in to refresh your chats.", true);
+        return;
+    }
+    await refreshWorthItChatData();
+    if (chatUser) await loadWorthItChatMessages(false, true);
+};
 function appendWorthItChatTextWithFlags(host, value) {
     const parts = String(value || "").split(/([\u{1F1E6}-\u{1F1FF}]{2})/u);
     for (const part of parts) {
