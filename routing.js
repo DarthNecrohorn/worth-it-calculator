@@ -59,6 +59,10 @@
         return path || "/";
     }
 
+    function currentBrowserLocation() {
+        return window.location.pathname + window.location.search + window.location.hash;
+    }
+
     function setPath(path, replace) {
         const target = normalizePath(path);
         if (!target) return;
@@ -68,8 +72,19 @@
             !window.location.hash
         ) return;
 
+        const priorState = window.history.state && typeof window.history.state === "object"
+            ? window.history.state
+            : {};
+        const previousRoute = replace
+            ? (typeof priorState.worthItRoutePrevious === "string" ? priorState.worthItRoutePrevious : null)
+            : currentBrowserLocation();
+        const nextState = {
+            worthItRoute: true,
+            worthItRoutePath: target,
+            worthItRoutePrevious: previousRoute
+        };
         const method = replace ? "replaceState" : "pushState";
-        window.history[method]({ worthItRoute: true }, "", target);
+        window.history[method](nextState, "", target);
     }
 
     function pathForCalculator(type) {
@@ -109,14 +124,36 @@
         return Number.isSafeInteger(id) && id > 0 ? "/profile/" + id : null;
     });
 
-    // Return to the route that opened the profile (for example /chat), rather
-    // than always sending the user to Home. A directly opened profile has no
-    // in-app route state to return to, so it safely falls back to Home.
+    // Return to the exact route that opened this profile. Directly opened
+    // profiles have no recorded in-app predecessor and safely fall back to Home.
     window.backFromWorthItProfile = function () {
-        if (window.history.state && window.history.state.worthItRoute === true && window.history.length > 1) {
-            window.history.back();
+        const state = window.history.state && typeof window.history.state === "object"
+            ? window.history.state
+            : {};
+        const currentPath = normalizePath(window.location.pathname);
+        const previousRoute = typeof state.worthItRoutePrevious === "string"
+            ? state.worthItRoutePrevious
+            : "";
+
+        if (
+            previousRoute.startsWith("/") &&
+            normalizePath(previousRoute.split(/[?#]/, 1)[0]) !== currentPath
+        ) {
+            if (window.history.length > 1) {
+                window.history.back();
+                return;
+            }
+            // Defensive fallback for unusual history-restoration cases where the
+            // recorded in-app predecessor exists but no prior entry is available.
+            window.history.replaceState({
+                worthItRoute: true,
+                worthItRoutePath: normalizePath(previousRoute.split(/[?#]/, 1)[0]),
+                worthItRoutePrevious: null
+            }, "", previousRoute);
+            applyRoute(window.location.pathname, { initial: false });
             return;
         }
+
         const showHome = originalFunctions.showHome || window.showHome;
         if (typeof showHome === "function") showHome.call(window);
     };
