@@ -252,6 +252,124 @@ function rpcError(error) {
     }
     return message || "Something went wrong. Please try again.";
 }
+
+function closeWorthItChatConversationContextMenu() {
+    document.getElementById("worthItChatConversationContextMenu")?.remove();
+}
+function showWorthItChatConversationContextMenu(conversation, x, y) {
+    closeWorthItChatConversationContextMenu();
+    if (!chatUser) return;
+    const menu = document.createElement("div");
+    menu.id = "worthItChatConversationContextMenu";
+    menu.className = "worth-it-chat-context-menu";
+    menu.setAttribute("role", "menu");
+    const addItem = (label, handler, options) => {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "worth-it-chat-context-menu-item" + (options?.danger ? " is-danger" : "");
+        button.textContent = label;
+        button.setAttribute("role", "menuitem");
+        if (options?.disabled) button.disabled = true;
+        button.addEventListener("click", async () => {
+            closeWorthItChatConversationContextMenu();
+            await handler();
+        });
+        menu.appendChild(button);
+    };
+    addItem("Open chat", async () => {
+        if (conversation.type === "global") await activateConversation(null, "global", GLOBAL_TITLE, null);
+        else if (conversation.type === "group") await openWorthItSavedConversation(conversation);
+        else if (conversation.person?.worth_it_id) await openWorthItFriendChat(conversation.person.worth_it_id);
+    });
+    const chatKey = chatNotificationKeyForConversation(conversation);
+    addItem(chatNotificationsEnabled(chatKey) ? "Mute notifications" : "Turn on notifications",
+        async () => toggleWorthItChatNotifications(chatKey, null));
+    addItem("Delete this conversation history", async () => {
+        if (!window.confirm("Delete this conversation history for you only? Other members will keep their messages. New messages will still appear.")) return;
+        try {
+            const result = await sb().rpc("clear_worth_it_chat_history", {
+                p_conversation_id: conversation.type === "global" ? null : conversation.id
+            });
+            if (result.error) throw result.error;
+            if (!result.data?.success) {
+                const errors = {
+                    CHAT_NOT_FOUND: "This conversation no longer exists.",
+                    NOT_A_CHAT_MEMBER: "You are no longer a member of this conversation."
+                };
+                throw new Error(errors[result.data?.code] || result.data?.code || "Could not clear conversation history.");
+            }
+            await refreshWorthItChatData();
+            if ((conversation.type === "global" && activeConversationType === "global") ||
+                (conversation.id && String(activeConversationId) === String(conversation.id))) {
+                await loadWorthItChatMessages(false);
+            }
+            setStatus("Conversation history was cleared for you. Other members' history is unchanged.", false);
+        } catch (error) {
+            setStatus(rpcError(error), true);
+        }
+    }, {danger:true, disabled:conversation.type !== "global" && !conversation.id});
+    if (conversation.type === "group") {
+        addItem("Group options", async () => openWorthItGroupManageDialog(conversation.id));
+    }
+    document.body.appendChild(menu);
+    const margin = 8;
+    const left = Math.max(margin, Math.min(Number(x) || margin, window.innerWidth - menu.offsetWidth - margin));
+    const top = Math.max(margin, Math.min(Number(y) || margin, window.innerHeight - menu.offsetHeight - margin));
+    menu.style.left = left + "px";
+    menu.style.top = top + "px";
+}
+function attachWorthItChatConversationContextHandlers(target, conversation) {
+    if (!target) return;
+    target.addEventListener("contextmenu", event => {
+        event.preventDefault();
+        event.stopPropagation();
+        showWorthItChatConversationContextMenu(conversation, event.clientX, event.clientY);
+    });
+    let pressTimer = null;
+    let startX = 0;
+    let startY = 0;
+    let longPressed = false;
+    target.addEventListener("pointerdown", event => {
+        if (event.pointerType === "mouse" || event.button !== 0) return;
+        startX = event.clientX;
+        startY = event.clientY;
+        longPressed = false;
+        if (pressTimer) window.clearTimeout(pressTimer);
+        pressTimer = window.setTimeout(() => {
+            longPressed = true;
+            showWorthItChatConversationContextMenu(conversation, startX, startY);
+        }, 540);
+    }, {passive:true});
+    target.addEventListener("pointermove", event => {
+        if (Math.abs(event.clientX - startX) > 12 || Math.abs(event.clientY - startY) > 12) {
+            if (pressTimer) window.clearTimeout(pressTimer);
+            pressTimer = null;
+        }
+    }, {passive:true});
+    const cancelPress = () => {
+        if (pressTimer) window.clearTimeout(pressTimer);
+        pressTimer = null;
+    };
+    target.addEventListener("pointerup", cancelPress, {passive:true});
+    target.addEventListener("pointercancel", cancelPress, {passive:true});
+    target.addEventListener("click", event => {
+        if (!longPressed) return;
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        longPressed = false;
+    }, true);
+}
+document.addEventListener("click", event => {
+    if (!event.target.closest(".worth-it-chat-message-actions")) closeWorthItChatMessageMenus();
+    if (!event.target.closest("#worthItChatConversationContextMenu")) closeWorthItChatConversationContextMenu();
+}, true);
+document.addEventListener("keydown", event => {
+    if (event.key === "Escape") {
+        closeWorthItChatMessageMenus();
+        closeWorthItChatConversationContextMenu();
+    }
+});
+
 function renderFriends() {
     const host = $("worthItChatFriends");
     if (!host) return;
@@ -306,6 +424,13 @@ function renderFriends() {
             row.appendChild(count);
         }
         row.addEventListener("click", () => openWorthItFriendChat(friend.worth_it_id));
+        attachWorthItChatConversationContextHandlers(row, {
+            type: "direct",
+            id: directConversation?.id || null,
+            title: friend.display_name || friend.username || "Friend chat",
+            members: [friend],
+            person: friend
+        });
         host.appendChild(row);
     });
 }
@@ -379,6 +504,7 @@ function renderConversations() {
             row.appendChild(count);
         }
         row.addEventListener("click", () => openWorthItSavedConversation(conversation));
+        attachWorthItChatConversationContextHandlers(item, conversation);
         item.appendChild(row);
         const actions = document.createElement("button");
         actions.type = "button";
@@ -789,9 +915,182 @@ function chatMessageRenderSignature(message) {
         message.username ?? "",
         message.display_name ?? "",
         message.avatar_url ?? "",
-        message.is_seen === true
+        message.is_seen === true,
+        Boolean(message.is_deleted),
+        Boolean(message.is_hidden_by_me),
+        message.deleted_by_display_name || ""
     ]);
 }
+
+function closeWorthItChatMessageMenus(except) {
+    document.querySelectorAll(".worth-it-chat-message-menu").forEach(menu => {
+        if (menu !== except) {
+            menu.hidden = true;
+            menu.closest(".worth-it-chat-message-more")?.querySelector("button[aria-expanded]")?.setAttribute("aria-expanded", "false");
+        }
+    });
+}
+function makeWorthItChatMessageActionButton(label, glyph, className, onClick) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = className || "worth-it-chat-message-action-btn";
+    button.textContent = glyph;
+    button.title = label;
+    button.setAttribute("aria-label", label);
+    button.addEventListener("click", onClick);
+    return button;
+}
+async function copyWorthItChatMessage(message) {
+    const value = String(message.body || message.media_url || "");
+    if (!value) {
+        setStatus("There is no message text or attachment link to copy.", true);
+        return;
+    }
+    try {
+        if (navigator.clipboard?.writeText) {
+            await navigator.clipboard.writeText(value);
+        } else {
+            const input = document.createElement("textarea");
+            input.value = value;
+            input.setAttribute("readonly", "");
+            input.style.position = "fixed";
+            input.style.opacity = "0";
+            document.body.appendChild(input);
+            input.select();
+            const copied = document.execCommand("copy");
+            input.remove();
+            if (!copied) throw new Error("Clipboard access is unavailable.");
+        }
+        setStatus("Message copied.", false);
+    } catch (_) {
+        setStatus("Could not copy the message. Check your browser's clipboard permission.", true);
+    }
+}
+function quoteWorthItChatMessage(message) {
+    const input = $("worthItChatInput");
+    if (!input) return;
+    const author = String(message.display_name || message.username || "Worth It member").replace(/[\r\n]/g, " ");
+    const raw = String(message.body || (message.media_type ? "[Shared " + message.media_type + "]" : ""));
+    if (!raw) {
+        setStatus("This message has no text to quote.", true);
+        return;
+    }
+    const compact = raw.replace(/\s+/g, " ").trim();
+    const quote = "> " + author + ": " + compact.slice(0, 160) + (compact.length > 160 ? "…" : "") + "\n\n";
+    const joined = (input.value ? input.value.replace(/\s+$/, "") + "\n\n" : "") + quote;
+    if (joined.length > 500) {
+        setStatus("There is not enough room to quote this message. Shorten your draft first.", true);
+        return;
+    }
+    input.value = joined;
+    input.style.height = "auto";
+    input.style.height = Math.min(input.scrollHeight, 150) + "px";
+    updateCharacterCount();
+    if (typeof renderWorthItChatComposerPreview === "function") renderWorthItChatComposerPreview();
+    input.focus();
+    input.setSelectionRange(input.value.length, input.value.length);
+    setStatus("Quote added to your draft. You can edit it before sending.", false);
+}
+async function runWorthItChatMessageAction(action, message) {
+    if (!chatUser || !message?.id || !sb()) return;
+    if (action === "delete" && message.sender_user_id !== chatUser.id) {
+        setStatus("You can only delete your own messages for everyone.", true);
+        return;
+    }
+    if (action === "delete" && !window.confirm("Delete this message for everyone? The text and attachment link will be removed and this cannot be undone.")) return;
+    try {
+        const rpcName = action === "delete" ? "delete_worth_it_chat_message" : "hide_worth_it_chat_message";
+        const result = await sb().rpc(rpcName, {p_message_id: Number(message.id)});
+        if (result.error) throw result.error;
+        if (!result.data?.success) {
+            const errors = {
+                NOT_MESSAGE_OWNER: "You can only delete your own messages for everyone.",
+                NOT_A_CHAT_MEMBER: "You are no longer a member of this conversation.",
+                MESSAGE_NOT_FOUND: "This message no longer exists.",
+                INVALID_MESSAGE: "This message cannot be changed."
+            };
+            throw new Error(errors[result.data?.code] || result.data?.code || "Could not update this message.");
+        }
+        const latest = chatMessages.find(item => String(item.id) === String(message.id));
+        if (latest) {
+            latest.body = "";
+            latest.media_url = null;
+            latest.media_type = null;
+            latest.filtered_reason = null;
+            if (action === "delete") {
+                latest.is_deleted = true;
+                latest.is_hidden_by_me = false;
+                latest.deleted_by_display_name = latest.display_name || latest.username || "Worth It member";
+            } else {
+                latest.is_hidden_by_me = true;
+                latest.deleted_by_display_name = chatUser.display_name || chatUser.username || "You";
+            }
+        }
+        renderMessages(false);
+        await refreshWorthItChatData();
+        await loadWorthItChatMessages(false);
+        setStatus(action === "delete" ? "Message deleted for everyone." : "Message hidden for you. Other members can still see it.", false);
+    } catch (error) {
+        setStatus(rpcError(error), true);
+    }
+}
+function createWorthItChatMessageActions(message, mine) {
+    const toolbar = document.createElement("div");
+    toolbar.className = "worth-it-chat-message-actions";
+    toolbar.setAttribute("aria-label", "Message actions");
+    toolbar.appendChild(makeWorthItChatMessageActionButton(
+        "Copy message", "▢", "worth-it-chat-message-action-btn",
+        () => copyWorthItChatMessage(message)
+    ));
+    toolbar.appendChild(makeWorthItChatMessageActionButton(
+        "Quote in reply", "↩", "worth-it-chat-message-action-btn",
+        () => quoteWorthItChatMessage(message)
+    ));
+    const moreWrap = document.createElement("div");
+    moreWrap.className = "worth-it-chat-message-more";
+    const moreButton = document.createElement("button");
+    moreButton.type = "button";
+    moreButton.className = "worth-it-chat-message-action-btn worth-it-chat-message-more-btn";
+    moreButton.textContent = "⋯";
+    moreButton.title = "More message options";
+    moreButton.setAttribute("aria-label", "More message options");
+    moreButton.setAttribute("aria-haspopup", "menu");
+    moreButton.setAttribute("aria-expanded", "false");
+    const menu = document.createElement("div");
+    menu.className = "worth-it-chat-message-menu";
+    menu.setAttribute("role", "menu");
+    menu.hidden = true;
+    const addMenuItem = (label, onClick, danger) => {
+        const item = document.createElement("button");
+        item.type = "button";
+        item.className = "worth-it-chat-message-menu-item" + (danger ? " is-danger" : "");
+        item.setAttribute("role", "menuitem");
+        item.textContent = label;
+        item.addEventListener("click", () => {
+            closeWorthItChatMessageMenus();
+            menu.hidden = true;
+            moreButton.setAttribute("aria-expanded", "false");
+            onClick();
+        });
+        menu.appendChild(item);
+    };
+    addMenuItem("Copy message", () => copyWorthItChatMessage(message), false);
+    addMenuItem("Quote in reply", () => quoteWorthItChatMessage(message), false);
+    addMenuItem("Hide message for me", () => runWorthItChatMessageAction("hide", message), false);
+    if (mine) addMenuItem("Delete message for everyone", () => runWorthItChatMessageAction("delete", message), true);
+    moreButton.addEventListener("click", event => {
+        event.preventDefault();
+        event.stopPropagation();
+        const shouldOpen = menu.hidden;
+        closeWorthItChatMessageMenus(menu);
+        menu.hidden = !shouldOpen;
+        moreButton.setAttribute("aria-expanded", String(shouldOpen));
+    });
+    moreWrap.append(moreButton, menu);
+    toolbar.appendChild(moreWrap);
+    return toolbar;
+}
+
 function createWorthItChatMessageRow(message) {
     const mine = message.sender_user_id === chatUser.id;
     const signature = chatMessageRenderSignature(message);
@@ -800,45 +1099,89 @@ function createWorthItChatMessageRow(message) {
     row.dataset.messageId = String(message.id ?? "");
     row.dataset.worthItMessageSignature = signature;
     row.appendChild(makeChatProfileLink(message, "worth-it-chat-message-avatar-link", makeAvatar(message)));
-    const stack = document.createElement("div"); stack.className = "worth-it-chat-message-stack";
+    const stack = document.createElement("div");
+    stack.className = "worth-it-chat-message-stack";
     const name = makeChatProfileLink(message, "worth-it-chat-message-name", message.display_name || message.username || "Worth It member");
     stack.appendChild(name);
-    const bubble = document.createElement("div"); bubble.className = "worth-it-chat-bubble";
-    if (message.body) renderLinkedText(bubble, message.body);
-    if (message.media_url && ["image", "gif", "video"].includes(message.media_type)) {
-        if (message.media_type === "video") {
-            const video = document.createElement("video");
-            video.className = "worth-it-chat-media worth-it-chat-video";
-            video.src = message.media_url;
-            video.controls = true;
-            video.preload = "metadata";
-            video.playsInline = true;
-            video.setAttribute("aria-label", "Shared video");
-            video.addEventListener("error", () => {
-                const fallback = document.createElement("a");
-                fallback.className = "worth-it-chat-link";
-                fallback.href = message.media_url;
-                fallback.target = "_blank";
-                fallback.rel = "noopener noreferrer";
-                fallback.textContent = "Open attached video";
-                video.replaceWith(fallback);
-            });
-            bubble.appendChild(video);
-        } else {
-            const img = document.createElement("img"); img.className = "worth-it-chat-media"; img.src = message.media_url; img.alt = message.media_type === "gif" ? "Shared GIF" : "Shared image"; img.loading = "lazy"; img.referrerPolicy = "no-referrer";
-            img.addEventListener("error", () => { const fallback = document.createElement("a"); fallback.className = "worth-it-chat-link"; fallback.href = message.media_url; fallback.target = "_blank"; fallback.rel = "noopener noreferrer"; fallback.textContent = "Open attached media"; img.replaceWith(fallback); });
-            bubble.appendChild(img);
+
+    if (message.is_deleted || message.is_hidden_by_me) {
+        row.classList.add("is-tombstone");
+        const note = document.createElement("p");
+        note.className = "worth-it-chat-message-system-note";
+        note.textContent = message.is_hidden_by_me
+            ? "The message has been deleted by " + (message.deleted_by_display_name || "you") + "."
+            : (message.display_name || message.username || "This user") + " has deleted a message.";
+        stack.appendChild(note);
+    } else {
+        const bubble = document.createElement("div");
+        bubble.className = "worth-it-chat-bubble";
+        if (message.body) renderLinkedText(bubble, message.body);
+        if (message.media_url && ["image", "gif", "video"].includes(message.media_type)) {
+            if (message.media_type === "video") {
+                const video = document.createElement("video");
+                video.className = "worth-it-chat-media worth-it-chat-video";
+                video.src = message.media_url;
+                video.controls = true;
+                video.preload = "metadata";
+                video.playsInline = true;
+                video.setAttribute("aria-label", "Shared video");
+                video.addEventListener("error", () => {
+                    const fallback = document.createElement("a");
+                    fallback.className = "worth-it-chat-link";
+                    fallback.href = message.media_url;
+                    fallback.target = "_blank";
+                    fallback.rel = "noopener noreferrer";
+                    fallback.textContent = "Open attached video";
+                    video.replaceWith(fallback);
+                });
+                bubble.appendChild(video);
+            } else {
+                const img = document.createElement("img");
+                img.className = "worth-it-chat-media";
+                img.src = message.media_url;
+                img.alt = message.media_type === "gif" ? "Shared GIF" : "Shared image";
+                img.loading = "lazy";
+                img.referrerPolicy = "no-referrer";
+                img.addEventListener("error", () => {
+                    const fallback = document.createElement("a");
+                    fallback.className = "worth-it-chat-link";
+                    fallback.href = message.media_url;
+                    fallback.target = "_blank";
+                    fallback.rel = "noopener noreferrer";
+                    fallback.textContent = "Open attached media";
+                    img.replaceWith(fallback);
+                });
+                bubble.appendChild(img);
+            }
+        }
+        stack.appendChild(bubble);
+        if (message.filtered_reason) {
+            const reason = document.createElement("p");
+            reason.className = "worth-it-chat-filter-reason";
+            reason.textContent = "Filtered: " + message.filtered_reason;
+            stack.appendChild(reason);
         }
     }
-    stack.appendChild(bubble);
-    if (message.filtered_reason) {
-        const reason = document.createElement("p"); reason.className = "worth-it-chat-filter-reason"; reason.textContent = "Filtered: " + message.filtered_reason; stack.appendChild(reason);
+
+    const time = document.createElement("time");
+    time.className = "worth-it-chat-message-time";
+    time.dateTime = escapeText(message.created_at);
+    time.textContent = niceDay(message.created_at) + " · " + niceTime(message.created_at);
+    stack.appendChild(time);
+    if (!message.is_deleted && !message.is_hidden_by_me) {
+        if (mine && activeConversationType === "direct") {
+            const receipt = document.createElement("span");
+            receipt.className = "worth-it-chat-message-receipt " + (message.is_seen ? "is-seen" : "is-sent");
+            receipt.textContent = message.is_seen ? "✓✓ Seen" : "✓ Sent";
+            receipt.title = message.is_seen ? "Your friend has seen this message" : "Sent · waiting to be seen";
+            stack.appendChild(receipt);
+        }
+        stack.appendChild(createWorthItChatMessageActions(message, mine));
     }
-    const time = document.createElement("time"); time.className = "worth-it-chat-message-time"; time.dateTime = escapeText(message.created_at); time.textContent = niceDay(message.created_at) + " · " + niceTime(message.created_at); stack.appendChild(time);
-    if (mine && activeConversationType === "direct") { const receipt = document.createElement("span"); receipt.className = "worth-it-chat-message-receipt " + (message.is_seen ? "is-seen" : "is-sent"); receipt.textContent = message.is_seen ? "✓✓ Seen" : "✓ Sent"; receipt.title = message.is_seen ? "Your friend has seen this message" : "Sent · waiting to be seen"; stack.appendChild(receipt); }
     row.appendChild(stack);
     return row;
 }
+
 function renderMessages(scrollToBottom) {
     const host = $("worthItChatMessages");
     if (!host) return;
