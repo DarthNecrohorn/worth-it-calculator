@@ -1165,18 +1165,6 @@ async function runWorthItChatMessageAction(action, message) {
         // Its response must never restore the original message after the action succeeds.
         chatMessageRequestVersion += 1;
         chatLoading = false;
-        let attachmentCleanupFailed = false;
-        if (action === "delete" && message.media_url) {
-            const objectPath = getOwnedWorthItChatMediaObjectPath(message.media_url, chatUser.id, sb());
-            if (objectPath) {
-                try {
-                    const {error: storageError} = await sb().storage.from("worth-it-chat-media").remove([objectPath]);
-                    if (storageError) attachmentCleanupFailed = true;
-                } catch (_) {
-                    attachmentCleanupFailed = true;
-                }
-            }
-        }
         const latest = chatMessages.find(item => String(item.id) === String(message.id));
         if (latest) {
             latest.body = "";
@@ -1192,7 +1180,20 @@ async function runWorthItChatMessageAction(action, message) {
                 latest.deleted_by_display_name = chatUser.display_name || chatUser.username || "You";
             }
         }
+        // Update this screen immediately; storage cleanup can finish afterwards.
         renderMessages(false);
+        let attachmentCleanupFailed = false;
+        if (action === "delete" && message.media_url) {
+            const objectPath = getOwnedWorthItChatMediaObjectPath(message.media_url, chatUser.id, sb());
+            if (objectPath) {
+                try {
+                    const {error: storageError} = await sb().storage.from("worth-it-chat-media").remove([objectPath]);
+                    if (storageError) attachmentCleanupFailed = true;
+                } catch (_) {
+                    attachmentCleanupFailed = true;
+                }
+            }
+        }
         await refreshWorthItChatData();
         await loadWorthItChatMessages(false, true);
         if (attachmentCleanupFailed) {
