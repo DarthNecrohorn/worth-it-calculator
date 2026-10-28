@@ -24,7 +24,7 @@ test("private chat rows expose a discreet options menu and keep long-press/right
     assert.match(client, /showWorthItChatConversationContextMenu\(contextConversation, rect\.left, rect\.bottom, actions\)/);
     assert.match(client, /attachWorthItChatConversationContextHandlers\(item, contextConversation\)/);
     assert.match(css, /\.worth-it-chat-private-item:hover \.worth-it-chat-private-actions-btn/);
-    assert.match(css, /@media\(max-width:540px\)[\s\S]*?\.worth-it-chat-private-actions-btn\{opacity:\.82\}/);
+    assert.match(css, /@media\(max-width:760px\), \(hover:none\), \(pointer:coarse\)[\s\S]*?\.worth-it-chat-private-actions-btn\{opacity:\.82\}/);
 });
 
 test("one accessible sidebar search filters friends and groups without changing the chat route", () => {
