@@ -108,6 +108,6 @@ test("unauthenticated chat refresh keeps /chat in the address bar while sign-in 
     const restoreEnd = guest.indexOf("\n    function installSignupGuestChoice()", restoreStart);
     assert.ok(restoreStart >= 0 && restoreEnd > restoreStart, "route guard should exist");
     const guard = guest.slice(restoreStart, restoreEnd);
-    assert.match(guard, /if \(\/\^\\\/chat\(\?:\\\/\|\$\)\/\.test\(path\)\) return;/);
-    assert.ok(guard.indexOf("if (/^\\/chat(?:\\/|$)/.test(path)) return;") < guard.indexOf('window.history.replaceState'));
+    assert.ok(guard.includes(String.raw\`if (/^\\/chat(?:\\/|$)/.test(path)) return;\`));
+    assert.ok(guard.indexOf(String.raw\`if (/^\\/chat\`) < guard.indexOf("window.history.replaceState"));
 });
