@@ -12,7 +12,7 @@ test("each live message has ChatGPT-like copy, quote and three-dot action contro
     assert.match(client, /function createWorthItChatMessageActions\(message, mine\)/);
     assert.match(client, /"Copy message", "▢"/);
     assert.match(client, /"Quote in reply", "↩"/);
-    assert.match(client, /"More message options", "⋯"/);
+    assert.match(client, /moreButton\.textContent = "⋯"/);
     assert.match(client, /aria-haspopup", "menu"/);
     assert.match(client, /function closeWorthItChatMessageMenus\(/);
     assert.match(actionsCss, /\.worth-it-chat-message-actions/);
