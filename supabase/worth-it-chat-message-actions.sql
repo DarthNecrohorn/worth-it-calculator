@@ -286,7 +286,7 @@ $new$;
   old_pin_fields text := $old$
 'id', c.id,
         'type', c.conversation_type,
-$new$;
+$old$;
   new_pin_fields text := $new$
 'id', c.id,
         'type', c.conversation_type,
