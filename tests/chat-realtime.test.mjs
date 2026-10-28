@@ -38,8 +38,8 @@ test("active chats use private Broadcast topics for immediate message refresh", 
     assert.match(client, /if \(route\.type === "invalid"\) \{[\s\S]*?stopWorthItChatRealtimeChannel\(\)/);
     assert.match(client, /if \(!chatRealtimeSubscribed \|\| now - chatLastMessagePollAt >= 5000\)/);
     assert.match(client, /now - chatLastSidebarRefreshAt >= 5000/);
-    assert.match(html, /chat-realtime\.css\?v=chat-realtime-typing-20261028a/);
-    assert.match(html, /chat-ui\.js\?v=chat-realtime-typing-delete-fix-20261028a/);
+    assert.match(html, /chat-realtime\.css\?v=chat-realtime-typing-20261028b/);
+    assert.match(html, /chat-ui\.js\?v=chat-navigation-typing-ux-20261028a/);
 });
 test("private and group chats display typing names with a compact overflow message", () => {
     assert.match(client, /channel\.on\("presence", \{event: "sync"\}/);
@@ -51,6 +51,9 @@ test("private and group chats display typing names with a compact overflow messa
     assert.match(client, /names\.join\(", "\) \+ " are typing…"/);
     assert.match(client, /names\.slice\(0, 3\)\.join\(", "\) \+ " and more are typing…"/);
     assert.match(client, /node\.hidden = !message/);
+    assert.match(client, /worth-it-chat-typing-dots/);
+    assert.match(client, /void getWorthItChatOwnProfile\(\)\.then\(refreshedProfile =>/);
+    assert.match(client, /chatRealtimeRetryTimer/);
     assert.match(html, /id="worthItChatTyping" role="status" aria-live="polite" hidden/);
     assert.match(css, /\.worth-it-chat-typing\[hidden\]/);
     assert.match(css, /html\[data-theme="light"\]/);
