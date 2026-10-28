@@ -25,7 +25,8 @@ test("refreshing a compact chat restores its last size within the current tab", 
 
     const refreshHandler = client.match(/window\.refreshWorthItChatData = async function \(\) \{([\s\S]*?)\n\};/);
     assert.ok(refreshHandler, "the manual refresh handler should exist");
-    assert.doesNotMatch(refreshHandler[1], /setWorthItChatFullscreen\(/, "refreshing data must not change panel size");
+    assert.match(refreshHandler[1], /const wasFullscreen = Boolean\(/, "refresh captures the initial panel size");
+    assert.match(refreshHandler[1], /setWorthItChatFullscreen\(wasFullscreen, \{persist:false\}\)/, "refresh restores the initial panel size");
 });
 
 test("clicking outside the /chat panel does not replace the route with Home", () => {
