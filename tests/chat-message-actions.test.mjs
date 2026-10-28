@@ -38,7 +38,7 @@ test("pinning a sidebar conversation is persistent, per-user, and places it at t
     assert.match(client, /Unpin conversation/);
     assert.match(client, /set_worth_it_chat_conversation_pinned/);
     assert.ok(client.includes("const friendsForSidebar = chatFriends"));
-    assert.ok(client.includes('.filter(conversation => conversation.type === "group")'));
+    assert.ok(client.includes('.filter(conversation => conversation.type === "group" &&'));
     assert.ok(client.includes("Boolean(right.is_pinned)"));
     assert.match(client, /worth-it-chat-pin-indicator/);
     assert.ok(migration.includes("create table if not exists public.worth_it_chat_conversation_pins"));
