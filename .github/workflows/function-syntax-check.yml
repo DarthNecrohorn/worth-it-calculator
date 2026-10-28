@@ -67,7 +67,7 @@ jobs:
           from pathlib import Path
           from pglast import parse_sql
 
-          for name in ("supabase/worth-it-settings-privacy-notifications.sql", "supabase/worth-it-chat-video-media.sql", "supabase/worth-it-chat-message-actions.sql"):
+          for name in ("supabase/worth-it-settings-privacy-notifications.sql", "supabase/worth-it-chat-video-media.sql", "supabase/worth-it-chat-message-actions.sql", "supabase/worth-it-chat-message-action-indexes.sql"):
               path = Path(name)
               sql = path.read_text(encoding="utf-8")
               statements = parse_sql(sql)
@@ -84,7 +84,7 @@ jobs:
           from pathlib import Path
           import re
 
-          for name in ("supabase/worth-it-settings-privacy-notifications.sql", "supabase/worth-it-chat-video-media.sql", "supabase/worth-it-chat-message-actions.sql"):
+          for name in ("supabase/worth-it-settings-privacy-notifications.sql", "supabase/worth-it-chat-video-media.sql", "supabase/worth-it-chat-message-actions.sql", "supabase/worth-it-chat-message-action-indexes.sql"):
               path = Path(name)
               sql = path.read_text(encoding="utf-8")
               openers = len(re.findall(r"(?im)^\s*(?:as|do)\s+\$\$\s*$|^\s*do\s+\$migration\$\s*$", sql))
@@ -169,10 +169,11 @@ jobs:
           TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/postgres
         run: createdb --maintenance-db="$TEST_DATABASE_URL" --owner=postgres worth_it_chat_actions_test
 
-      - name: Apply and smoke-test chat message actions migration
+      - name: Apply chat message actions and foreign-key indexes
         env:
           TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/worth_it_chat_actions_test
         run: |
           psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -f tests/fixtures/chat-message-actions-postgres-setup.sql
           psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/worth-it-chat-message-actions.sql
+          psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/worth-it-chat-message-action-indexes.sql
           psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -f tests/fixtures/chat-message-actions-postgres-smoke.sql
