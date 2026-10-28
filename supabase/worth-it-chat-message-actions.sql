@@ -284,11 +284,11 @@ $old$;
           ), '-infinity'::timestamptz)
 $new$;
   old_pin_fields text := $old$
-'id', c.id,
+        'id', c.id,
         'type', c.conversation_type,
 $old$;
   new_pin_fields text := $new$
-'id', c.id,
+        'id', c.id,
         'type', c.conversation_type,
         'is_pinned', exists (
             select 1 from public.worth_it_chat_conversation_pins pins
