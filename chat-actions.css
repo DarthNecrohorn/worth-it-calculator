@@ -143,3 +143,100 @@
 @media(prefers-reduced-motion:reduce){
     .worth-it-chat-message-action-btn{transition:none}
 }
+
+/* Sidebar navigation: keep Global Chat prominent and make private/group lists searchable. */
+.worth-it-chat-global-row{
+    margin:0 0 2px;
+}
+.worth-it-chat-sidebar-search{
+    display:flex;
+    align-items:center;
+    gap:7px;
+    min-height:35px;
+    margin:0 6px 9px;
+    padding:0 9px;
+    border:1px solid rgba(129,140,248,.2);
+    border-radius:10px;
+    background:rgba(15,23,42,.34);
+    color:#a5b4fc;
+    transition:border-color .16s ease,box-shadow .16s ease,background .16s ease;
+}
+.worth-it-chat-sidebar-search:focus-within{
+    border-color:rgba(129,140,248,.68);
+    box-shadow:0 0 0 3px rgba(99,102,241,.12);
+    background:rgba(15,23,42,.56);
+}
+.worth-it-chat-sidebar-search>span{
+    flex:0 0 auto;
+    font-size:21px;
+    line-height:1;
+    transform:translateY(-1px);
+}
+.worth-it-chat-sidebar-search input{
+    width:100%;
+    min-width:0;
+    min-height:33px;
+    padding:0;
+    border:0;
+    outline:0;
+    box-shadow:none;
+    background:transparent;
+    color:#eef2ff;
+    font:inherit;
+    font-size:10px;
+}
+.worth-it-chat-sidebar-search input::placeholder{color:#8d9aba;opacity:1}
+.worth-it-chat-sidebar-search input:focus{border:0;outline:0;box-shadow:none}
+.worth-it-chat-sidebar-search button{
+    display:grid;
+    place-items:center;
+    flex:0 0 23px;
+    width:23px;
+    height:23px;
+    padding:0;
+    border:0;
+    border-radius:7px;
+    background:rgba(148,163,184,.1);
+    color:#cbd5e1;
+    font-size:17px;
+    line-height:1;
+    cursor:pointer;
+}
+.worth-it-chat-sidebar-search button:hover{background:rgba(129,140,248,.2);color:#fff}
+.worth-it-chat-sidebar-search button[hidden]{display:none!important}
+.worth-it-chat-no-results{
+    margin:3px 4px;
+    padding:12px 9px;
+    border:1px dashed rgba(148,163,184,.18);
+    border-radius:10px;
+    color:#8d9aba;
+    text-align:center;
+    font-size:10px;
+    line-height:1.55;
+}
+.worth-it-chat-side-heading>span{flex:1;min-width:0}
+html[data-theme="light"] .worth-it-chat-sidebar-search{
+    border-color:rgba(100,116,139,.22);
+    background:rgba(255,255,255,.62);
+    color:#4f46e5;
+}
+html[data-theme="light"] .worth-it-chat-sidebar-search:focus-within{
+    border-color:rgba(99,102,241,.62);
+    background:#fff;
+    box-shadow:0 0 0 3px rgba(99,102,241,.1);
+}
+html[data-theme="light"] .worth-it-chat-sidebar-search input{color:#172554}
+html[data-theme="light"] .worth-it-chat-sidebar-search input::placeholder{color:#64748b}
+html[data-theme="light"] .worth-it-chat-sidebar-search button{color:#475569;background:rgba(100,116,139,.1)}
+html[data-theme="light"] .worth-it-chat-sidebar-search button:hover{color:#312e81;background:rgba(99,102,241,.12)}
+html[data-theme="light"] .worth-it-chat-no-results{
+    border-color:rgba(100,116,139,.22);
+    color:#64748b;
+}
+@media(max-width:760px){
+    .worth-it-chat-sidebar-search{margin:0 4px 8px;min-height:37px}
+    .worth-it-chat-sidebar-search input{font-size:11px}
+}
+@media(prefers-reduced-motion:reduce){
+    .worth-it-chat-sidebar-search{transition:none}
+}
