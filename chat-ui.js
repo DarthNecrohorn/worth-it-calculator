@@ -2211,6 +2211,10 @@ async function uploadPendingMedia() {
 }
 async function sendWorthItChatMessage() {
     if (!chatUser || chatSending) return;
+    if (typeof window.isWorthItEmailVerified === "function" && !window.isWorthItEmailVerified(window.worthItCurrentAuthUser || chatUser)) {
+        setStatus("Please confirm your email before sending chat messages. Use the confirmation panel to resend the link.", true);
+        return;
+    }
     const input = $("worthItChatInput");
     const body = String(input?.value || "");
     if (body.length > 500) { setStatus("Messages are limited to 500 characters.", true); return; }
