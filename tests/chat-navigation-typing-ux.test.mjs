@@ -8,12 +8,16 @@ const routing = readFileSync(new URL("../routing.js", import.meta.url), "utf8");
 const realtimeCss = readFileSync(new URL("../chat-realtime.css", import.meta.url), "utf8");
 const actionsCss = readFileSync(new URL("../chat-actions.css", import.meta.url), "utf8");
 
-test("profile route history stores its exact predecessor and Back has a safe direct-link fallback", () => {
+test("profile navigation keeps links in the SPA and prevents Home content from remaining under a profile URL", () => {
     assert.match(routing, /worthItRoutePath: target/);
     assert.match(routing, /worthItRoutePrevious: previousRoute/);
     assert.match(routing, /previousRoute\.startsWith\("\/"\)/);
     assert.match(routing, /window\.history\.back\(\)/);
-    assert.match(routing, /applyRoute\(window\.location\.pathname, \{ initial: false \}\)/);
+    assert.match(routing, /document\.addEventListener\("click", function \(event\)/);
+    assert.match(routing, /clicked\.closest\("a\[href\]"\)/);
+    assert.match(routing, /window\.openWorthItProfile\(id\)/);
+    assert.match(routing, /worthItRoutePath: "\/"/);
+    assert.match(routing, /window\.history\.replaceState\([\s\S]*?worthItRoutePath: "\/"/);
     assert.match(html, /onclick="backFromWorthItProfile\(\)">← Back/);
 });
 
@@ -33,8 +37,12 @@ test("clicking outside the /chat panel does not replace the route with Home", ()
     assert.match(client, /if \(event\.target !== this\) return;[\s\S]*?if \(isChatRoutePath\(\)\) return;[\s\S]*?showChatOverlay\(false\)/);
 });
 
-test("typing publishes immediately while profile identity loads in the background", () => {
-    assert.match(client, /if \(typing && !profile && chatOwnProfileLoadedForUser !== user\.id\)\s*\{\s*void getWorthItChatOwnProfile\(\)\.then\(refreshedProfile =>/);
+test("typing indicator waits about one second, then uses low-latency broadcast with Presence fallback", () => {
+    assert.match(client, /CHAT_TYPING_START_DELAY_MS = 900/);
+    assert.match(client, /chatTypingStartTimer = window\.setTimeout\([\s\S]*?CHAT_TYPING_START_DELAY_MS/);
+    assert.match(client, /type: "broadcast",\s*event: "typing"/);
+    assert.match(client, /channel\.on\("broadcast", \{event: "typing"\}, event => handleWorthItChatTypingBroadcast\(channel, event\)\)/);
+    assert.match(client, /if \(chatTypingActive && chatTypingReadyToPublish\) void publishWorthItChatTyping\(true, channel\)/);
     assert.match(client, /await channel\.track\(\{[\s\S]*?typing: Boolean\(typing\)/);
     assert.doesNotMatch(client, /if \(typing\) profile = await getWorthItChatOwnProfile\(\)/);
 });
