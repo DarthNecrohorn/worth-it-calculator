@@ -7,14 +7,15 @@ const client = readFileSync(new URL("../chat-ui.js", import.meta.url), "utf8");
 const css = readFileSync(new URL("../style.css", import.meta.url), "utf8");
 const encodedLibrary = readFileSync(new URL("../assets/worth-it-chat-gifs/library.base64.txt", import.meta.url), "utf8").trim();
 const library = Buffer.from(encodedLibrary, "base64");
-const originalGifAssets = [
-    { id: "laughing-smile", offset: 0, length: 684, type: "gif" },
-    { id: "party-confetti", offset: 684, length: 619, type: "gif" },
-    { id: "rocket-launch", offset: 1303, length: 570, type: "gif" },
-    { id: "sparkle-burst", offset: 1873, length: 638, type: "sticker" },
-    { id: "heart-pulse", offset: 2511, length: 643, type: "sticker" },
-    { id: "cat-blink", offset: 3154, length: 619, type: "sticker" }
-];
+const originalGifAssets = [...client.matchAll(
+    /\{ id: "([^"]+)", title: "([^"]+)", keywords: "([^"]*)", type: "(gif|sticker)", offset: (\d+), length: (\d+) \}/g
+)].map(match => ({
+    id: match[1],
+    title: match[2],
+    type: match[4],
+    offset: Number(match[5]),
+    length: Number(match[6])
+}));
 
 test("the chat composer has an accessible attachment, emoji and owned-media picker", () => {
     assert.match(html, /id="worthItChatPlusBtn"/);
@@ -36,8 +37,16 @@ test("the chat composer has an accessible attachment, emoji and owned-media pick
     assert.match(html, /style\.css\?v=chat-polling-preserve-dom-20261028a/);
 });
 
+test("signed-in chat refresh keeps the initial session-restoration state instead of flashing the sign-in prompt", () => {
+    assert.match(client, /let chatAuthResolutionComplete = Boolean\(window\.worthItAuthStateResolved\)/);
+    assert.match(client, /if \(!chatUser && !chatAuthResolutionComplete\) \{[\s\S]*?host\.setAttribute\("aria-busy", "true"\);[\s\S]*?return;/);
+    assert.match(client, /window\.worthItAuthReady/);
+    assert.match(client, /window\.worthItCurrentAuthUser/);
+    assert.doesNotMatch(client, /sb\(\)\.auth\.getSession\(\)\.then/);
+});
+
 test("the emoji picker has categories and a large locally searchable emoji library", () => {
-    for (const category of ["faces", "people", "animals", "food", "activities", "travel", "objects", "symbols", "flags"]) {
+    for (const category of ["faces", "people", "animals", "plants", "food", "activities", "travel", "objects", "symbols", "flags"]) {
         assert.match(client, new RegExp('addWorthItChatEmojiGroup\\("' + category + '"'));
     }
     assert.match(html, /placeholder="Search emoji…"/);
@@ -46,6 +55,18 @@ test("the emoji picker has categories and a large locally searchable emoji libra
     assert.match(css, /\.worth-it-chat-emoji-grid[\s\S]*?overflow-y: auto/);
     assert.match(css, /\.worth-it-chat-emoji-categories[\s\S]*?overflow-x: auto/);
     assert.match(css, /@media \(max-width: 760px\)[\s\S]*?\.worth-it-chat-picker-panel:not\(\[hidden\]\)[\s\S]*?position: fixed !important/);
+});
+
+test("plants are separate from Animals and appear immediately before Food", () => {
+    const categories = client.slice(client.indexOf("const WORTH_IT_CHAT_EMOJI_CATEGORIES = ["), client.indexOf("const WORTH_IT_CHAT_EMOJI_OPTIONS"));
+    assert.match(categories, /id: "animals"[\s\S]*?id: "plants"[\s\S]*?id: "food"/);
+    const animals = client.match(/addWorthItChatEmojiGroup\("animals", "([^"]+)"\);/)?.[1] || "";
+    const plants = client.match(/addWorthItChatEmojiGroup\("plants", "([^"]+)"\);/)?.[1] || "";
+    for (const emoji of ["🌵", "🌲", "🌳", "🌴", "🌱", "🌿", "🪴", "🌹", "🌻", "🌷", "🪷", "🪻"]) {
+        assert.ok(!animals.includes(emoji), emoji + " must not be in Animals");
+        assert.ok(plants.includes(emoji), emoji + " should be in Plants");
+    }
+    assert.ok(plants.trim().split(/\s+/).length >= 25, "Plants should contain a generous range of emojis");
 });
 
 test("GIFs and stickers come only from the local Worth It catalogue", () => {
@@ -58,7 +79,8 @@ test("GIFs and stickers come only from the local Worth It catalogue", () => {
     assert.match(html, /Original Worth It animations\. No external GIF provider or API key required\./);
     assert.doesNotMatch(html, /Powered by/i);
     assert.equal(encodedLibrary.length % 4, 0, "base64 media bundle length must be valid");
-    assert.equal(library.length, 3773, "the original media bundle must have the expected size");
+    assert.equal(library.length, originalGifAssets.reduce((total, asset) => total + asset.length, 0), "the complete media bundle must exactly match the manifest");
+    assert.ok(library.length > 300_000, "the library should contain the expanded original animation set");
 });
 
 test("each curated original animation has a valid GIF signature and stays within the chat limit", () => {
@@ -69,10 +91,14 @@ test("each curated original animation has a valid GIF signature and stays within
         assert.ok(bytes.length <= 20 * 1024 * 1024, asset.id + " exceeds the chat GIF limit");
         const signature = bytes.subarray(0, 6).toString("ascii");
         assert.ok(signature === "GIF87a" || signature === "GIF89a", asset.id + " is not a valid GIF");
+        assert.equal(bytes.readUInt16LE(6), 128, asset.id + " should use a crisp 128px canvas");
+        assert.equal(bytes.readUInt16LE(8), 128, asset.id + " should use a crisp 128px canvas");
         assert.match(client, new RegExp('id: "' + asset.id + '"'));
         assert.match(client, new RegExp('offset: ' + asset.offset + ', length: ' + asset.length));
     }
-    assert.equal(originalGifAssets.length, 6);
+    assert.equal(originalGifAssets.length, 24, "the library should contain many more original animations");
+    assert.equal(originalGifAssets.filter(asset => asset.type === "gif").length, 12);
+    assert.equal(originalGifAssets.filter(asset => asset.type === "sticker").length, 12);
 });
 
 test("picker controls use Worth It styling and remain scrollable on mobile", () => {
