@@ -476,7 +476,8 @@ function renderFriends() {
             id: directConversation?.id || null,
             title: friend.display_name || friend.username || "Friend chat",
             members: [friend],
-            person: friend
+            person: friend,
+            is_pinned: Boolean(directConversation?.is_pinned)
         });
         host.appendChild(row);
     });
