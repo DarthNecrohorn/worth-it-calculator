@@ -1124,6 +1124,7 @@ function makeWorthItChatMessageActionButton(label, glyph, className, onClick) {
     button.type = "button";
     button.className = className || "worth-it-chat-message-action-btn";
     if (label === "Copy message") {
+        button.classList.add("worth-it-chat-copy-action");
         button.innerHTML = '<svg class="worth-it-chat-copy-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="8.5" y="8.5" width="11" height="12" rx="2"></rect><path d="M15.5 8.5V6a2 2 0 0 0-2-2h-7a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2H8.5"></path></svg>';
     } else {
         button.textContent = glyph;
