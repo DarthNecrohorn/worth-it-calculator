@@ -31,6 +31,7 @@ test("message menu offers hide-for-me and owner-only delete-for-everyone actions
     assert.match(client, /hide_worth_it_chat_message/);
     assert.match(client, /The message has been deleted by/);
     assert.match(client, /has deleted a message/);
+    assert.match(client, /if \(!message\.is_deleted && !message\.is_hidden_by_me\) stack\.appendChild\(name\)/);
     assert.match(client, /function getOwnedWorthItChatMediaObjectPath/);
     assert.match(client, /media\.origin !== configured\.origin/);
     assert.match(client, /segments\[0\] !== String\(userId\)/);
