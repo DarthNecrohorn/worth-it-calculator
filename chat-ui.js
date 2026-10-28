@@ -1891,9 +1891,8 @@ async function publishWorthItChatTyping(typing, channel = chatRealtimeChannel) {
     if (!chatUser || chatUser.id !== user.id || !chatRealtimeSubscribed || channel !== chatRealtimeChannel) return;
     if (typing && activeConversationType === "global") return;
 
-    // Publish immediately using session metadata. The profile RPC can be slow on
-    // a cold session, so enrich the displayed identity in the background instead
-    // of delaying the first typing event until that request finishes.
+    // The first signal is intentionally delayed by about a second; identity loading
+    // never adds extra latency because session metadata is published while the RPC runs.
     if (typing && !profile && chatOwnProfileLoadedForUser !== user.id) {
         void getWorthItChatOwnProfile().then(refreshedProfile => {
             if (
