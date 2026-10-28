@@ -58,6 +58,14 @@ begin
   if exists(select 1 from public.worth_it_chat_messages where id=1 and (body <> '' or media_url is not null or media_type is not null or deleted_at is null)) then
     raise exception 'Deleted message content/media was not cleared';
   end if;
+  if not exists (
+    select 1 from pg_constraint
+     where conrelid='public.worth_it_chat_messages'::regclass
+       and conname='worth_it_chat_message_not_empty'
+       and lower(pg_get_constraintdef(oid)) like '%deleted_at is not null%'
+  ) then
+    raise exception 'The empty-body constraint does not allow deleted tombstone rows.';
+  end if;
 
   result := public.set_worth_it_chat_conversation_pinned(group_id,true);
   if result->>'success' <> 'true' or result->>'is_pinned' <> 'true' then
