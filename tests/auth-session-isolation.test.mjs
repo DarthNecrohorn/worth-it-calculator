@@ -40,7 +40,7 @@ test("the hamburger menu overlays header actions instead of overlapping them", (
     assert.match(css, /@media\(max-width:1000px\)[\s\S]*?\.nav-links\.open\s*\{[\s\S]*?z-index:\s*800/);
     assert.match(css, /\.nav-links\.open button\s*\{\s*width:\s*100%;/);
     assert.match(html, /style\.css\?v=[^"']+/);
-    assert.match(html, /app\.js\?v=signout-confirmation-20261028a/);
+    assert.match(html, /app\.js\?v=email-verification-20261028a/);
     assert.match(html, /guest-mode\.js\?v=chat-route-preserve-20261028a/);
 });
 
