@@ -154,8 +154,13 @@
             return;
         }
 
-        // Use the wrapped public function so the visible Home state and URL stay in sync.
-        // Calling originalFunctions.showHome directly hides the profile without changing /profile/:id.
+        // A directly opened profile has no in-app predecessor. Replace this entry with
+        // Home before rendering it, so the URL cannot remain /profile/:id over Home content.
+        window.history.replaceState({
+            worthItRoute: true,
+            worthItRoutePath: "/",
+            worthItRoutePrevious: null
+        }, "", "/");
         const showHome = typeof window.showHome === "function" ? window.showHome : originalFunctions.showHome;
         if (typeof showHome === "function") showHome.call(window);
     };
