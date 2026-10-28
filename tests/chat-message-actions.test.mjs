@@ -20,7 +20,8 @@ test("Escape closes an open message/conversation menu without closing the entire
 
 test("each live message has ChatGPT-like copy, quote and three-dot action controls", () => {
     assert.match(client, /function createWorthItChatMessageActions\(message, mine\)/);
-    assert.match(client, /"Copy message", "▢"/);
+    assert.match(client, /button\.classList\.add\("worth-it-chat-copy-action"\)/);
+    assert.match(client, /class="worth-it-chat-copy-icon"/);
     assert.match(client, /"Quote in reply", "↩"/);
     assert.match(client, /moreButton\.textContent = "⋯"/);
     assert.match(client, /aria-haspopup", "menu"/);
