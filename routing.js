@@ -108,6 +108,18 @@
         const id = Number(worthItId);
         return Number.isSafeInteger(id) && id > 0 ? "/profile/" + id : null;
     });
+
+    // Return to the route that opened the profile (for example /chat), rather
+    // than always sending the user to Home. A directly opened profile has no
+    // in-app route state to return to, so it safely falls back to Home.
+    window.backFromWorthItProfile = function () {
+        if (window.history.state && window.history.state.worthItRoute === true && window.history.length > 1) {
+            window.history.back();
+            return;
+        }
+        const showHome = originalFunctions.showHome || window.showHome;
+        if (typeof showHome === "function") showHome.call(window);
+    };
     patchRouteFunction("openWorthItProfileConnections", function (worthItId, category) {
         const id = Number(worthItId);
         const type = String(category || "").toLowerCase();
