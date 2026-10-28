@@ -21,7 +21,7 @@ test("private chat rows expose a discreet options menu and keep long-press/right
     assert.match(client, /worth-it-chat-private-item/);
     assert.match(client, /worth-it-chat-private-actions-btn/);
     assert.match(client, /Conversation options for /);
-    assert.match(client, /showWorthItChatConversationContextMenu\(contextConversation, rect\.left, rect\.bottom\)/);
+    assert.match(client, /showWorthItChatConversationContextMenu\(contextConversation, rect\.left, rect\.bottom, actions\)/);
     assert.match(client, /attachWorthItChatConversationContextHandlers\(item, contextConversation\)/);
     assert.match(css, /\.worth-it-chat-private-item:hover \.worth-it-chat-private-actions-btn/);
     assert.match(css, /@media\(max-width:540px\)[\s\S]*?\.worth-it-chat-private-actions-btn\{opacity:\.82\}/);
