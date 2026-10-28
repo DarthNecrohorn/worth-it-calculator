@@ -84,8 +84,8 @@ test("the navigation assets are cache-busted together", () => {
 
 
 test("profile Back returns to the previous in-app route instead of forcing Home", () => {
-    assert.match(elementTagWithId(html, "profileSection"), /onclick="backFromWorthItProfile\(\)">← Back/);
-    assert.doesNotMatch(elementTagWithId(html, "profileSection"), /onclick="showHome\(\)">← Back/);
+    assert.match(html, /<section id="profileSection"[\s\S]*?onclick="backFromWorthItProfile\(\)">← Back/);
+    assert.doesNotMatch(html, /<section id="profileSection"[\s\S]*?onclick="showHome\(\)">← Back/);
     assert.match(routing, /window\.backFromWorthItProfile = function \(\)/);
     assert.match(routing, /window\.history\.back\(\)/);
     assert.match(routing, /showHome\.call\(window\)/);
