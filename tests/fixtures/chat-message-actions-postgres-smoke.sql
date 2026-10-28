@@ -1,4 +1,3 @@
-\\set ON_ERROR_STOP on
 do $test$
 declare
   result jsonb;
