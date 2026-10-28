@@ -946,8 +946,20 @@ window.refreshWorthItChatData = async function () {
         setStatus("Sign in to refresh your chats.", true);
         return;
     }
+    const overlay = $("worthItChatOverlay");
+    const windowNode = $("worthItChatWindow");
+    const wasFullscreen = Boolean(
+        overlay?.classList.contains("is-fullscreen") ||
+        windowNode?.classList.contains("is-fullscreen")
+    );
     await refreshWorthItChatData();
     if (chatUser) await loadWorthItChatMessages(false, true);
+
+    // Refresh is a data action, not a layout action. Restore the exact panel size
+    // in case asynchronous conversation updates changed route/layout state.
+    if (chatOpen && overlay && !overlay.hidden && windowNode) {
+        setWorthItChatFullscreen(wasFullscreen, {persist:false});
+    }
 };
 function appendWorthItChatTextWithFlags(host, value) {
     const parts = String(value || "").split(/([\u{1F1E6}-\u{1F1FF}]{2})/u);
