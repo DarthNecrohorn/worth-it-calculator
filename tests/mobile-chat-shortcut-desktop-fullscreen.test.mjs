@@ -13,7 +13,7 @@ test("the header chat shortcut remains available on phones and desktop", () => {
     for (const rules of mobileRules) {
         assert.doesNotMatch(rules, /\.worth-it-chat-nav-wrap\s*\{\s*display:\s*none\s*!important;/);
     }
-    assert.match(html, /style\.css\?v=chat-light-theme-signout-20261028a/);
+    assert.match(html, /style\.css\?v=email-verification-ai-20261028a/);
     const pickerCss = css.slice(css.lastIndexOf("WORTH IT OWNED CHAT MEDIA PICKER"));
     assert.ok(pickerCss.length > 0, "the final Worth It picker rules exist");
     assert.doesNotMatch(pickerCss, /(?:zoom\s*:\s*0\.82|--ui-scale\s*:\s*0\.82|data-ui-scale\s*=\s*"small")/i, "the picker must not force a legacy fixed zoom factor");
