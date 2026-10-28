@@ -17,6 +17,16 @@ test("Global Chat stays prominent above clearly named Private Chats and Group Ch
     assert.match(html, /onclick="openWorthItGroupChatDialog\(\)">＋ New group/);
 });
 
+test("private chat rows expose a discreet options menu and keep long-press/right-click support", () => {
+    assert.match(client, /worth-it-chat-private-item/);
+    assert.match(client, /worth-it-chat-private-actions-btn/);
+    assert.match(client, /Conversation options for /);
+    assert.match(client, /showWorthItChatConversationContextMenu\(contextConversation, rect\.left, rect\.bottom\)/);
+    assert.match(client, /attachWorthItChatConversationContextHandlers\(item, contextConversation\)/);
+    assert.match(css, /\.worth-it-chat-private-item:hover \.worth-it-chat-private-actions-btn/);
+    assert.match(css, /@media\(max-width:540px\)[\s\S]*?\.worth-it-chat-private-actions-btn\{opacity:\.82\}/);
+});
+
 test("one accessible sidebar search filters friends and groups without changing the chat route", () => {
     assert.match(html, /class="worth-it-chat-sidebar-search" role="search"/);
     assert.match(html, /id="worthItChatSidebarSearch"/);
