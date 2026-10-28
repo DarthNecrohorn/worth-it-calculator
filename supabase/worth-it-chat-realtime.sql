@@ -85,16 +85,22 @@ begin
         target_message_id := NEW.id;
     end if;
 
-    perform realtime.send(
-        jsonb_build_object(
-            'conversation_id', target_conversation_id::text,
-            'message_id', target_message_id,
-            'operation', TG_OP
-        ),
-        'message_changed',
-        'worthit-chat:' || target_conversation_id::text,
-        true
-    );
+    -- Realtime is an optimization: a transient outage must never fail a chat send/delete.
+    begin
+        perform realtime.send(
+            jsonb_build_object(
+                'conversation_id', target_conversation_id::text,
+                'message_id', target_message_id,
+                'operation', TG_OP
+            ),
+            'message_changed',
+            'worthit-chat:' || target_conversation_id::text,
+            true
+        );
+    exception
+        when others then
+            raise warning 'Worth It chat Realtime broadcast failed: %', SQLERRM;
+    end;
 
     return null;
 end;

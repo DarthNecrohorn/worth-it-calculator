@@ -22,9 +22,11 @@ test("chat sidebar lists are only rebuilt when their rendered state changes", ()
     assert.match(client, /conversations: visibleConversations\.map\(conversation =>/);
 });
 
-test("polling keeps its existing five-second cadence without forcing full message-list replacement", () => {
+test("Realtime chat has a responsive fallback poll and keeps a five-second safety refresh", () => {
     assert.match(client, /function startWorthItChatPolling\(\)/);
     assert.match(client, /loadWorthItChatMessages\(false\)/);
     assert.match(client, /window\.setInterval\(\(\) => \{/);
-    assert.match(client, /\}, 5000\)/);
+    assert.match(client, /\}, 1000\)/);
+    assert.match(client, /if \(!chatRealtimeSubscribed \|\| now - chatLastMessagePollAt >= 5000\)/);
+    assert.match(client, /now - chatLastSidebarRefreshAt >= 5000/);
 });

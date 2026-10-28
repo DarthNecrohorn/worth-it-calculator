@@ -34,6 +34,8 @@ test("active chats use private Broadcast topics for immediate message refresh", 
     assert.match(client, /event: "message_changed"/);
     assert.match(client, /void loadWorthItChatMessages\(false, true\)/);
     assert.match(client, /await syncWorthItChatRealtimeChannel\(\)/);
+    assert.match(client, /else stopWorthItChatRealtimeChannel\(\)/);
+    assert.match(client, /if \(route\.type === "invalid"\) \{[\s\S]*?stopWorthItChatRealtimeChannel\(\)/);
     assert.match(client, /if \(!chatRealtimeSubscribed \|\| now - chatLastMessagePollAt >= 5000\)/);
     assert.match(client, /now - chatLastSidebarRefreshAt >= 5000/);
     assert.match(html, /chat-realtime\.css\?v=chat-realtime-typing-20261028a/);

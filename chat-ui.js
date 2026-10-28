@@ -2336,6 +2336,7 @@ async function routeWorthItChatFromLocation() {
     if (!route) {
         closeWorthItGroupInviteDialog();
         if (chatOpen) showChatOverlay(false, {skipRouteSync:true});
+        else stopWorthItChatRealtimeChannel();
         return;
     }
     // Browser Back from a profile restores the originating chat route. Hide the
@@ -2373,6 +2374,7 @@ async function routeWorthItChatFromLocation() {
     }
     if (route.type === "invalid") {
         closeWorthItGroupInviteDialog();
+        stopWorthItChatRealtimeChannel();
         chatRouteAccessDenied = true;
         activeConversationId = null;
         activeConversationType = "global";
@@ -2399,6 +2401,7 @@ async function routeWorthItChatFromLocation() {
         updateChatHeaderShareButton();
         chatMessages = [];
         renderMessages();
+        stopWorthItChatRealtimeChannel();
         if (chatPollTimer) { window.clearInterval(chatPollTimer); chatPollTimer = null; }
         await handleWorthItGroupInviteRoute(route.token, routeVersion);
         return;

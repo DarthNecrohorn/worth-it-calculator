@@ -141,5 +141,5 @@ test("delete-for-everyone uses an accessible branded dialog with a per-user skip
     assert.match(deleteConfirmCss, /\.worth-it-chat-delete-confirm-preference/);
     assert.match(deleteConfirmCss, /html\[data-theme="light"\]/);
     assert.match(html, /chat-delete-confirm\.css\?v=chat-delete-confirm-20261028a/);
-    assert.match(html, /chat-ui\.js\?v=chat-delete-confirm-20261028a/);
+    assert.match(html, /chat-ui\.js\?v=chat-realtime-typing-delete-fix-20261028a/);
 });
