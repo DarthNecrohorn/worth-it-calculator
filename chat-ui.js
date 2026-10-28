@@ -399,9 +399,36 @@ if ($("worthItGlobalChatBtn")) {
     });
 }
 
+function getWorthItChatSidebarSearchQuery() {
+    return String($("worthItChatSidebarSearch")?.value || "").trim().toLocaleLowerCase();
+}
+function worthItChatSidebarSearchMatches(query, values) {
+    if (!query) return true;
+    return (Array.isArray(values) ? values : [values]).some(value =>
+        String(value ?? "").toLocaleLowerCase().includes(query)
+    );
+}
+function findWorthItDirectConversationForFriend(friend) {
+    return chatConversations.find(conversation =>
+        conversation.type === "direct" &&
+        Array.isArray(conversation.members) &&
+        conversation.members.some(member => String(member.worth_it_id) === String(friend.worth_it_id))
+    ) || null;
+}
+function getWorthItChatConversationSearchFields(conversation) {
+    const lastMessage = conversation?.last_message || {};
+    const members = Array.isArray(conversation?.members) ? conversation.members : [];
+    return [
+        conversation?.title, conversation?.name, conversation?.id,
+        lastMessage.body, lastMessage.display_name, lastMessage.username,
+        ...members.flatMap(member => [member.display_name, member.username, member.worth_it_id])
+    ];
+}
+
 function renderFriends() {
     const host = $("worthItChatFriends");
     if (!host) return;
+    const sidebarQuery = getWorthItChatSidebarSearchQuery();
     const pinnedFriendIds = new Set();
     for (const conversation of chatConversations) {
         if (conversation.type !== "direct" || !conversation.is_pinned) continue;
@@ -409,13 +436,23 @@ function renderFriends() {
             if (member?.worth_it_id != null) pinnedFriendIds.add(String(member.worth_it_id));
         }
     }
-    const friendsForSidebar = chatFriends.slice().sort((left, right) =>
-        Number(pinnedFriendIds.has(String(right.worth_it_id))) - Number(pinnedFriendIds.has(String(left.worth_it_id)))
-    );
+    const friendsForSidebar = chatFriends
+        .filter(friend => {
+            const direct = findWorthItDirectConversationForFriend(friend);
+            const lastMessage = direct?.last_message || {};
+            return worthItChatSidebarSearchMatches(sidebarQuery, [
+                friend.display_name, friend.username, friend.worth_it_id,
+                lastMessage.body, lastMessage.display_name, lastMessage.username
+            ]);
+        })
+        .sort((left, right) =>
+            Number(pinnedFriendIds.has(String(right.worth_it_id))) - Number(pinnedFriendIds.has(String(left.worth_it_id)))
+        );
     // Polling runs every five seconds. Only rebuild this list when its visible state changes.
     // last_seen_at is intentionally excluded: profile-ui.js updates presence indicators in place.
     const renderKey = JSON.stringify({
         userId: chatUser?.id || null,
+        sidebarQuery,
         activeConversationType,
         activePersonId: activeConversationPerson?.worth_it_id ?? null,
         friends: friendsForSidebar.map(friend => [
@@ -435,7 +472,18 @@ function renderFriends() {
         const p = document.createElement("p"); p.className = "worth-it-chat-muted"; p.textContent = "Sign in to see your friends."; host.appendChild(p); return;
     }
     if (!chatFriends.length) {
-        const p = document.createElement("p"); p.className = "worth-it-chat-muted"; p.textContent = "Your friends will appear here. Add friends from their profiles."; host.appendChild(p); return;
+        const p = document.createElement("p");
+        p.className = "worth-it-chat-muted";
+        p.textContent = "Your friends will appear here. Add friends from their profiles.";
+        host.appendChild(p);
+        return;
+    }
+    if (!friendsForSidebar.length) {
+        const p = document.createElement("p");
+        p.className = "worth-it-chat-muted worth-it-chat-no-results";
+        p.textContent = "No private chats match your search.";
+        host.appendChild(p);
+        return;
     }
     friendsForSidebar.forEach(friend => {
         const row = document.createElement("button");
@@ -456,11 +504,7 @@ function renderFriends() {
         const presence = document.createElement("small"); presence.className = "worth-it-chat-person-presence"; presence.dataset.worthItPresenceId = String(friend.worth_it_id); presence.textContent = window.getWorthItPresenceInfo ? window.getWorthItPresenceInfo(friend).label : "";
         info.append(name, username, presence); row.appendChild(info);
 
-        const directConversation = chatConversations.find(conversation =>
-            conversation.type === "direct" &&
-            Array.isArray(conversation.members) &&
-            conversation.members.some(member => String(member.worth_it_id) === String(friend.worth_it_id))
-        );
+        const directConversation = findWorthItDirectConversationForFriend(friend);
         const friendKey = chatNotificationKeyForFriend(friend);
         const unread = chatNotificationsEnabled(friendKey) ? Number(directConversation?.unread_count || 0) : 0;
         if (unread > 0) {
@@ -492,11 +536,14 @@ function conversationLabel(conversation) {
 function renderConversations() {
     const host = $("worthItChatConversations");
     if (!host) return;
+    const sidebarQuery = getWorthItChatSidebarSearchQuery();
     const visibleConversations = chatConversations
-        .filter(conversation => conversation.type === "group")
+        .filter(conversation => conversation.type === "group" &&
+            worthItChatSidebarSearchMatches(sidebarQuery, getWorthItChatConversationSearchFields(conversation)))
         .sort((left, right) => Number(Boolean(right.is_pinned)) - Number(Boolean(left.is_pinned)));
     const renderKey = JSON.stringify({
         userId: chatUser?.id || null,
+        sidebarQuery,
         activeConversationType,
         activeConversationId,
         notificationPreferences: chatNotificationPreferences,
@@ -520,7 +567,7 @@ function renderConversations() {
     if (!visibleConversations.length) {
         const p = document.createElement("p");
         p.className = "worth-it-chat-muted";
-        p.textContent = "Your group chats will appear here.";
+        p.textContent = sidebarQuery ? "No group chats match your search." : "Your group chats will appear here.";
         host.appendChild(p);
         return;
     }
@@ -2369,6 +2416,20 @@ function setupChatUI() {
         const objectUrl = URL.createObjectURL(file);
         setPendingMedia(file, objectUrl, isGif ? "gif" : isVideo ? "video" : "image");
         setStatus("", false);
+    });
+    $("worthItChatSidebarSearch")?.addEventListener("input", () => {
+        const search = $("worthItChatSidebarSearch");
+        const clear = $("worthItChatSidebarSearchClear");
+        if (clear) clear.hidden = !String(search?.value || "").length;
+        renderFriends();
+        renderConversations();
+    });
+    $("worthItChatSidebarSearchClear")?.addEventListener("click", () => {
+        const search = $("worthItChatSidebarSearch");
+        if (!search) return;
+        search.value = "";
+        search.dispatchEvent(new Event("input", {bubbles:true}));
+        search.focus();
     });
     $("worthItChatHeaderNotifications")?.addEventListener("click", event => {
         event.preventDefault();
