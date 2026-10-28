@@ -1042,10 +1042,10 @@ function quoteWorthItChatMessage(message) {
         return;
     }
     input.value = joined;
+    input.dispatchEvent(new Event("input", {bubbles:true}));
     input.style.height = "auto";
     input.style.height = Math.min(input.scrollHeight, 150) + "px";
     updateCharacterCount();
-    if (typeof renderWorthItChatComposerPreview === "function") renderWorthItChatComposerPreview();
     input.focus();
     input.setSelectionRange(input.value.length, input.value.length);
     setStatus("Quote added to your draft. You can edit it before sending.", false);
@@ -1167,9 +1167,9 @@ function createWorthItChatMessageRow(message) {
         row.classList.add("is-tombstone");
         const note = document.createElement("p");
         note.className = "worth-it-chat-message-system-note";
-        note.textContent = message.is_hidden_by_me
-            ? "The message has been deleted by " + (message.deleted_by_display_name || "you") + "."
-            : (message.display_name || message.username || "This user") + " has deleted a message.";
+        note.textContent = message.is_deleted
+            ? (message.display_name || message.username || "This user") + " has deleted a message."
+            : "The message has been deleted by " + (message.deleted_by_display_name || "you") + ".";
         stack.appendChild(note);
     } else {
         const bubble = document.createElement("div");
