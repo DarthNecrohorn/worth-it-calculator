@@ -8,6 +8,14 @@ const actionsCss = readFileSync(new URL("../chat-actions.css", import.meta.url),
 const migration = readFileSync(new URL("../supabase/worth-it-chat-message-actions.sql", import.meta.url), "utf8");
 const workflow = readFileSync(new URL("../.github/workflows/function-syntax-check.yml", import.meta.url), "utf8");
 
+test("Escape closes an open message/conversation menu without closing the entire chat", () => {
+    assert.match(client, /const messageMenuOpen = Array\.from\(document\.querySelectorAll\("\.worth-it-chat-message-menu"\)\)\.some\(menu => !menu\.hidden\)/);
+    assert.match(client, /const conversationMenuOpen = Boolean\(document\.getElementById\("worthItChatConversationContextMenu"\)\)/);
+    assert.match(client, /if \(!messageMenuOpen && !conversationMenuOpen\) return/);
+    assert.match(client, /event\.stopImmediatePropagation\(\)/);
+    assert.match(client, /closeWorthItChatMessageMenus\(\);\s*closeWorthItChatConversationContextMenu\(\);/);
+});
+
 test("each live message has ChatGPT-like copy, quote and three-dot action controls", () => {
     assert.match(client, /function createWorthItChatMessageActions\(message, mine\)/);
     assert.match(client, /"Copy message", "▢"/);
