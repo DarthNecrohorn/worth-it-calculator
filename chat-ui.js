@@ -5,6 +5,7 @@ const $ = (id) => document.getElementById(id);
 const GLOBAL_CHAT_ID = null;
 const GLOBAL_TITLE = "Global Chat";
 let chatUser = null;
+let chatAuthResolutionComplete = Boolean(window.worthItAuthStateResolved);
 let chatFriends = [];
 let chatConversations = [];
 let activeConversationId = GLOBAL_CHAT_ID;
@@ -192,6 +193,7 @@ function showChatOverlay(open, options) {
     }
 }
 function setAuthState(user) {
+    chatAuthResolutionComplete = true;
     const previousUserId = chatUser?.id || null;
     const nextUserId = user?.id || null;
     if (previousUserId !== nextUserId) {
@@ -1571,6 +1573,13 @@ function createWorthItChatMessageRow(message) {
 function renderMessages(scrollToBottom) {
     const host = $("worthItChatMessages");
     if (!host) return;
+    if (!chatUser && !chatAuthResolutionComplete) {
+        // Supabase is still restoring the persisted session. Keep the existing
+        // welcome/loading content instead of briefly showing a false sign-in prompt.
+        host.setAttribute("aria-busy", "true");
+        return;
+    }
+    host.removeAttribute("aria-busy");
     if (!chatUser) {
         if (host.dataset.worthItChatEmptyKey !== "signed-out" ||
             !host.firstElementChild?.classList.contains("worth-it-chat-empty")) {
@@ -3137,9 +3146,20 @@ window.addEventListener("worthitnotificationpreferenceschange", event => {
     }
 });
 window.addEventListener("popstate", () => { routeWorthItChatFromLocation(); });
+
+// Use the app's single authoritative initial-session promise. A second getSession()
+// race can temporarily report null while the saved session is being restored.
+if (window.worthItAuthStateResolved) {
+    setAuthState(window.worthItCurrentAuthUser || null);
+} else if (window.worthItAuthReady) {
+    Promise.resolve(window.worthItAuthReady).then(() => {
+        if (!chatAuthResolutionComplete) setAuthState(window.worthItCurrentAuthUser || null);
+    }).catch(() => {
+        if (!chatAuthResolutionComplete) setAuthState(null);
+    });
+}
 routeWorthItChatFromLocation();
 if (sb()?.auth) {
-    sb().auth.getSession().then(({data}) => setAuthState(data?.session?.user || null)).catch(() => setAuthState(null));
     sb().auth.onAuthStateChange((_event, session) => setAuthState(session?.user || null));
 }
 })();
