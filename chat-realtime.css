@@ -1,0 +1,30 @@
+/* Live chat typing indicator. Keep this row compact and theme-aware. */
+.worth-it-chat-typing[hidden] { display: none !important; }
+.worth-it-chat-typing {
+    box-sizing: border-box;
+    min-height: 28px;
+    padding: 6px 18px 7px;
+    color: #a5b4fc;
+    background: rgba(99, 102, 241, .07);
+    border-top: 1px solid rgba(129, 140, 248, .12);
+    font-size: 12px;
+    line-height: 1.35;
+    font-weight: 600;
+}
+.worth-it-chat-typing::before {
+    content: "•••";
+    display: inline-block;
+    margin-right: 9px;
+    color: #818cf8;
+    letter-spacing: 2px;
+    vertical-align: 1px;
+}
+html[data-theme="light"] .worth-it-chat-typing {
+    color: #4f46a5;
+    background: rgba(99, 102, 241, .055);
+    border-top-color: rgba(99, 102, 241, .13);
+}
+html[data-theme="light"] .worth-it-chat-typing::before { color: #6366f1; }
+@media (max-width: 540px) {
+    .worth-it-chat-typing { min-height: 27px; padding: 6px 12px; font-size: 11px; }
+}

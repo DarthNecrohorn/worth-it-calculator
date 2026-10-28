@@ -28,7 +28,7 @@ test("each live message has ChatGPT-like copy, quote and three-dot action contro
     assert.match(actionsCss, /\.worth-it-chat-message-actions/);
     assert.match(actionsCss, /\.worth-it-chat-message-menu/);
     assert.match(html, /chat-actions\.css\?v=chat-message-actions-20261028b/);
-    assert.match(html, /chat-ui\.js\?v=chat-delete-confirm-20261028a/);
+    assert.match(html, /chat-ui\.js\?v=chat-realtime-typing-delete-fix-20261028a/);
 });
 
 test("message menu offers hide-for-me and owner-only delete-for-everyone actions", () => {
@@ -36,6 +36,8 @@ test("message menu offers hide-for-me and owner-only delete-for-everyone actions
     assert.match(client, /if \(mine\) addMenuItem\("Delete message for everyone"/);
     assert.match(client, /message\.sender_user_id !== chatUser\.id/);
     assert.match(client, /await confirmWorthItChatMessageDelete\(actionUserId\)/);
+    assert.match(client, /setStatus\(action === "delete" \? "Deleting message for everyone/);
+    assert.match(client, /try \{\s*await onClick\(\);\s*\} catch \(error\)/);
     assert.doesNotMatch(client, /window\.confirm\("Delete this message for everyone/);
     assert.match(client, /function runWorthItChatMessageAction\(/);
     assert.match(client, /delete_worth_it_chat_message/);
@@ -139,5 +141,5 @@ test("delete-for-everyone uses an accessible branded dialog with a per-user skip
     assert.match(deleteConfirmCss, /\.worth-it-chat-delete-confirm-preference/);
     assert.match(deleteConfirmCss, /html\[data-theme="light"\]/);
     assert.match(html, /chat-delete-confirm\.css\?v=chat-delete-confirm-20261028a/);
-    assert.match(html, /chat-ui\.js\?v=chat-delete-confirm-20261028a/);
+    assert.match(html, /chat-ui\.js\?v=chat-realtime-typing-delete-fix-20261028a/);
 });

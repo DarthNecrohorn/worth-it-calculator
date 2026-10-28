@@ -68,7 +68,7 @@ jobs:
           from pathlib import Path
           from pglast import parse_sql
 
-          for name in ("supabase/worth-it-settings-privacy-notifications.sql", "supabase/worth-it-chat-video-media.sql", "supabase/worth-it-chat-message-actions.sql", "supabase/worth-it-chat-message-delete-constraint.sql", "supabase/worth-it-chat-message-action-indexes.sql"):
+          for name in ("supabase/worth-it-settings-privacy-notifications.sql", "supabase/worth-it-chat-video-media.sql", "supabase/worth-it-chat-message-actions.sql", "supabase/worth-it-chat-message-delete-constraint.sql", "supabase/worth-it-chat-message-action-indexes.sql", "supabase/worth-it-chat-realtime.sql"):
               path = Path(name)
               sql = path.read_text(encoding="utf-8")
               statements = parse_sql(sql)
