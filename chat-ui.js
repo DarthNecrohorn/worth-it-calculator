@@ -1189,7 +1189,11 @@ async function runWorthItChatMessageAction(action, message) {
         let attachmentCleanupFailed = false;
         if (action === "delete" && message.media_url) {
             const objectPath = getOwnedWorthItChatMediaObjectPath(message.media_url, chatUser.id, sb());
-            if (objectPath) {
+            if (!objectPath) {
+                // Don't delete an object unless it is verified to belong to this user,
+                // but make the remaining public URL risk visible to the sender.
+                attachmentCleanupFailed = true;
+            } else {
                 try {
                     const {error: storageError} = await sb().storage.from("worth-it-chat-media").remove([objectPath]);
                     if (storageError) attachmentCleanupFailed = true;
