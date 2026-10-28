@@ -1115,6 +1115,24 @@ function quoteWorthItChatMessage(message) {
     input.setSelectionRange(input.value.length, input.value.length);
     setStatus("Quote added to your draft. You can edit it before sending.", false);
 }
+function getOwnedWorthItChatMediaObjectPath(mediaUrl, userId, client) {
+    if (!mediaUrl || !userId || !client?.supabaseUrl) return "";
+    try {
+        const media = new URL(String(mediaUrl));
+        const configured = new URL(String(client.supabaseUrl));
+        if (media.protocol !== "https:" || media.origin !== configured.origin) return "";
+        const prefix = "/storage/v1/object/public/worth-it-chat-media/";
+        if (!media.pathname.startsWith(prefix)) return "";
+        const encodedPath = media.pathname.slice(prefix.length);
+        const objectPath = encodedPath.split("/").map(part => decodeURIComponent(part)).join("/");
+        const segments = objectPath.split("/");
+        if (segments.length < 2 || segments[0] !== String(userId) || segments.some(part => !part || part === "." || part === "..")) return "";
+        return objectPath;
+    } catch (_) {
+        return "";
+    }
+}
+
 async function runWorthItChatMessageAction(action, message) {
     if (!chatUser || !message?.id || !sb()) return;
     if (action === "delete" && message.sender_user_id !== chatUser.id) {
@@ -1135,6 +1153,18 @@ async function runWorthItChatMessageAction(action, message) {
             };
             throw new Error(errors[result.data?.code] || result.data?.code || "Could not update this message.");
         }
+        let attachmentCleanupFailed = false;
+        if (action === "delete" && message.media_url) {
+            const objectPath = getOwnedWorthItChatMediaObjectPath(message.media_url, chatUser.id, sb());
+            if (objectPath) {
+                try {
+                    const {error: storageError} = await sb().storage.from("worth-it-chat-media").remove([objectPath]);
+                    if (storageError) attachmentCleanupFailed = true;
+                } catch (_) {
+                    attachmentCleanupFailed = true;
+                }
+            }
+        }
         const latest = chatMessages.find(item => String(item.id) === String(message.id));
         if (latest) {
             latest.body = "";
@@ -1153,7 +1183,11 @@ async function runWorthItChatMessageAction(action, message) {
         renderMessages(false);
         await refreshWorthItChatData();
         await loadWorthItChatMessages(false);
-        setStatus(action === "delete" ? "Message deleted for everyone." : "Message hidden for you. Other members can still see it.", false);
+        if (attachmentCleanupFailed) {
+            setStatus("Message deleted, but its uploaded attachment could not be removed from storage. The chat message is hidden; the file may still be accessible by its direct URL.", true);
+        } else {
+            setStatus(action === "delete" ? "Message deleted for everyone." : "Message hidden for you. Other members can still see it.", false);
+        }
     } catch (error) {
         setStatus(rpcError(error), true);
     }
