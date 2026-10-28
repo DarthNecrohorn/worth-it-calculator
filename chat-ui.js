@@ -36,6 +36,7 @@ let globalNotificationPreferences = { friend_requests: true, follows: true, priv
 let globalNotificationPreferencesLoadedForUser = null;
 const selectedGroupFriendIds = new Set();
 let groupCreateInProgress = false;
+let activeWorthItChatConversationMenuTrigger = null;
 const sb = () => window.supabaseClient || null;
 const escapeText = (value) => String(value == null ? "" : value);
 function currentBrowserLocation() {
@@ -255,9 +256,15 @@ function rpcError(error) {
 
 function closeWorthItChatConversationContextMenu() {
     document.getElementById("worthItChatConversationContextMenu")?.remove();
+    activeWorthItChatConversationMenuTrigger?.setAttribute("aria-expanded", "false");
+    activeWorthItChatConversationMenuTrigger = null;
 }
-function showWorthItChatConversationContextMenu(conversation, x, y) {
+function showWorthItChatConversationContextMenu(conversation, x, y, trigger) {
     closeWorthItChatConversationContextMenu();
+    if (trigger) {
+        activeWorthItChatConversationMenuTrigger = trigger;
+        trigger.setAttribute("aria-expanded", "true");
+    }
     if (!chatUser) return;
     const menu = document.createElement("div");
     menu.id = "worthItChatConversationContextMenu";
@@ -530,7 +537,7 @@ function renderFriends() {
             event.preventDefault();
             event.stopPropagation();
             const rect = actions.getBoundingClientRect();
-            showWorthItChatConversationContextMenu(contextConversation, rect.left, rect.bottom);
+            showWorthItChatConversationContextMenu(contextConversation, rect.left, rect.bottom, actions);
         });
         item.appendChild(actions);
         attachWorthItChatConversationContextHandlers(item, contextConversation);
@@ -628,12 +635,13 @@ function renderConversations() {
         actions.textContent = "⋯";
         actions.title = "Group options for " + conversationLabel(conversation);
         actions.setAttribute("aria-label", "Group options for " + conversationLabel(conversation));
-        actions.setAttribute("aria-haspopup", "dialog");
+        actions.setAttribute("aria-haspopup", "menu");
+        actions.setAttribute("aria-expanded", "false");
         actions.addEventListener("click", event => {
             event.preventDefault();
             event.stopPropagation();
             const rect = actions.getBoundingClientRect();
-            showWorthItChatConversationContextMenu(conversation, rect.left, rect.bottom);
+            showWorthItChatConversationContextMenu(conversation, rect.left, rect.bottom, actions);
         });
         item.appendChild(actions);
         host.appendChild(item);
