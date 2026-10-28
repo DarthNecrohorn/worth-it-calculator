@@ -2695,7 +2695,7 @@ const WORTH_IT_CHAT_EMOJI_KEYWORDS = {
     "🌈": "rainbow colorful", "☀️": "sun sunny weather", "🐱": "cat kitten pet",
     "🐶": "dog puppy pet", "🦊": "fox animal", "🐼": "panda animal",
     "🦄": "unicorn fantasy", "🐸": "frog animal", "🌸": "cherry blossom flower plant", "🌱": "seedling sprout plant grow", "🌿": "herb leaf plant green", "☘️": "shamrock plant clover", "🍀": "four leaf clover plant luck", "🌵": "cactus desert plant", "🌴": "palm tree tropical plant", "🌳": "deciduous tree plant", "🌲": "evergreen pine tree plant", "🎄": "christmas tree plant", "🪴": "potted plant houseplant", "🎍": "pine decoration plant", "🎋": "bamboo plant", "🌾": "sheaf rice grass plant", "🍃": "leaf wind plant", "🍂": "fallen leaf autumn plant", "🍁": "maple leaf plant", "🌷": "tulip flower plant", "🌹": "rose flower plant", "🥀": "wilted flower plant", "🌺": "hibiscus flower plant", "🌻": "sunflower plant", "🌼": "blossom flower plant", "🪷": "lotus flower plant", "🪻": "hyacinth flower plant", "💐": "bouquet flowers plant", "🪹": "empty nest nature tree", "🪺": "nest eggs nature tree",
-    "🍀": "four leaf clover luck", "🇷🇸": "Serbia flag", "🇺🇸": "United States America flag",
+    "🇷🇸": "Serbia flag", "🇺🇸": "United States America flag",
     "🇬🇧": "United Kingdom Britain flag", "🇯🇵": "Japan flag", "🇪🇺": "European Union flag", "🏳️‍🌈": "rainbow pride LGBTQ LGBT flag", "🏳️‍⚧️": "transgender trans pride flag", "🏴": "black flag", "🏳️": "white flag", "🏁": "checkered racing flag", "🚩": "red triangular flag", "🇨🇦": "Canada flag", "🇦🇺": "Australia flag", "🇳🇿": "New Zealand flag", "🇭🇷": "Croatia flag", "🇧🇦": "Bosnia Herzegovina flag", "🇲🇪": "Montenegro flag", "🇲🇰": "North Macedonia flag", "🇦🇱": "Albania flag", "🇸🇮": "Slovenia flag", "🇩🇪": "Germany flag", "🇫🇷": "France flag", "🇮🇹": "Italy flag", "🇪🇸": "Spain flag", "🇵🇹": "Portugal flag", "🇧🇷": "Brazil flag", "🇮🇳": "India flag", "🇿🇦": "South Africa flag", "🇲🇽": "Mexico flag", "🇨🇳": "China flag", "🇰🇷": "South Korea flag"
 };
 
@@ -2713,7 +2713,7 @@ function addWorthItChatEmojiGroup(category, symbols) {
 addWorthItChatEmojiGroup("faces", "😀 😃 😄 😁 😆 😅 😂 🤣 🥲 ☺️ 😊 😇 🙂 🙃 😉 😌 😍 🥰 😘 😗 😙 😚 😋 😛 😜 😝 🤪 🤨 🧐 🤓 😎 🥸 🤩 🥳 😏 😒 😞 😔 😟 😕 🙁 ☹️ 😣 😖 😫 😩 🥺 😢 😭 😤 😠 😡 🤬 🤯 😳 🥵 🥶 😱 😨 😰 😥 😓 🤗 🤔 🫣 🤭 🫢 🫡 🤫 🫠 🫥 😶 🫤 😐 😑 😬 🙄 😯 😦 😧 😮 😲 🥱 😴 🤤 😪 😵 😵‍💫 🤐 🥴 🤢 🤮 🤧 😷 🤒 🤕 🤑 🤠 😈 👿 💀 ☠️ 👻 👽 🤖 💩 👹 👺 💋 💌");
 addWorthItChatEmojiGroup("people", "👋 🤚 🖐️ ✋ 🖖 👌 🤌 🤏 ✌️ 🤞 🫰 🤟 🤘 🤙 👈 👉 👆 👇 ☝️ ✊ 👊 🤛 🤜 👏 🙌 👐 🤲 🤝 🙏 ✍️ 💅 🤳 💪 🦾 🦿 🦵 🦶 👂 🦻 👃 🧠 🫀 🫁 🦷 🦴 👀 👁️ 👅 👄 🫦 👶 🧒 👦 👧 🧑 👨 👩 🧔 🧑‍🦰 🧑‍🦱 🧑‍🦳 🧑‍🦲 🧓 👴 👵 🙍 🙎 🙅 🙆 💁 🙋 🧏 🙇 🤦 🤷 💃 🕺 🧘 🛀 🛌 🧍 🧎 🚶 🏃 🧑‍💻 🧑‍🎨 🧑‍🍳 🧑‍🚀 🧑‍🔬 🧑‍🏫 🧑‍⚕️ 🧑‍🚒 🧑‍✈️ 🧑‍🌾");
 addWorthItChatEmojiGroup("animals", "🐶 🐱 🐭 🐹 🐰 🦊 🐻 🐼 🐻‍❄️ 🐨 🐯 🦁 🐮 🐷 🐸 🐵 🙈 🙉 🙊 🐒 🐔 🐧 🐦 🐤 🐣 🦆 🦅 🦉 🦇 🐺 🐗 🐴 🦄 🐝 🪱 🐛 🦋 🐌 🐞 🐜 🪰 🪲 🕷️ 🕸️ 🦂 🦟 🦗 🪳 🐢 🐍 🦎 🦖 🦕 🐙 🦑 🦐 🦞 🦀 🐡 🐠 🐟 🐬 🐳 🦈 🐊 🦭 🦦 🦥 🦫 🦡 🐘 🦣 🦏 🦛 🦒 🦘 🦬 🐃 🐂 🐄 🐎 🐖 🐏 🐑 🦙 🐐 🦌 🐕 🦮 🐩 🐈 🐈‍⬛ 🪶 🐓 🦃 🦤 🦚 🦜 🦢 🦩 🕊️ 🐇 🦝 🦨 🦔 🐿️");
-addWorthItChatEmojiGroup("plants", "🌱 🌿 ☘️ 🍀 🌵 🌴 🌳 🌲 🎄 🪴 🎍 🎋 🌾 🍃 🍂 🍁 🌷 🌹 🥀 🌺 🌻 🌼 🌸 🪷 🪻 💐 🌰 🍄 🪹 🪺");
+addWorthItChatEmojiGroup("plants", "🌱 🌿 ☘️ 🍀 🌵 🌴 🌳 🌲 🎄 🪴 🎍 🎋 🌾 🍃 🍂 🍁 🌷 🌹 🥀 🌺 🌻 🌼 🌸 🪷 🪻 💐");
 addWorthItChatEmojiGroup("food", "🍏 🍎 🍐 🍊 🍋 🍌 🍉 🍇 🍓 🫐 🍈 🍒 🍑 🥭 🍍 🥥 🥝 🍅 🫒 🥑 🍆 🥔 🥕 🌽 🌶️ 🫑 🥒 🥬 🥦 🧄 🧅 🍄 🥜 🫘 🌰 🍞 🥐 🥖 🫓 🥨 🥯 🥞 🧇 🧀 🍖 🍗 🥩 🥓 🍔 🍟 🍕 🌭 🥪 🌮 🌯 🫔 🥙 🧆 🥚 🍳 🥘 🍲 🥣 🥗 🍿 🧈 🧂 🥫 🍱 🍘 🍙 🍚 🍛 🍜 🍝 🍠 🍢 🍣 🍤 🍥 🥮 🍡 🥟 🥠 🥡 🦪 🍦 🍧 🍨 🍩 🍪 🎂 🍰 🧁 🥧 🍫 🍬 🍭 🍮 🍯 🍼 🥛 ☕ 🫖 🍵 🧃 🥤 🧋 🍶 🍺 🍻 🥂 🍷 🥃 🍸 🍹 🧉 🧊");
 addWorthItChatEmojiGroup("activities", "⚽ 🏀 🏈 ⚾ 🥎 🎾 🏐 🏉 🥏 🎱 🪀 🏓 🏸 🏒 🏑 🥍 🏏 🪃 🥅 ⛳ 🪁 🏹 🎣 🤿 🥊 🥋 🎽 🛹 🛼 🛷 ⛸️ 🥌 🎿 ⛷️ 🏂 🪂 🏋️ 🤼 🤸 ⛹️ 🤺 🏇 🧘 🏄 🏊 🤽 🚣 🧗 🚴 🚵 🏆 🥇 🥈 🥉 🏅 🎖️ 🏵️ 🎗️ 🎟️ 🎫 🎭 🩰 🎨 🎬 🎤 🎧 🎼 🎹 🥁 🎷 🎺 🎸 🪕 🎻 🪈 🎲 ♟️ 🎯 🎳 🎮 🎰 🧩 🎪 🎠 🎡 🎢 🎤 🎧");
 addWorthItChatEmojiGroup("travel", "🚗 🚕 🚙 🚌 🚎 🏎️ 🚓 🚑 🚒 🚐 🛻 🚚 🚛 🚜 🛵 🏍️ 🛺 🚲 🛴 🛹 🚏 🛣️ 🛤️ 🛢️ ⛽ 🛞 🚨 🚥 🚦 🛑 🚧 ⚓ 🛟 ⛵ 🛶 🚤 🛳️ ⛴️ 🛥️ 🚢 ✈️ 🛩️ 🛫 🛬 🪂 💺 🚁 🚟 🚠 🚡 🛰️ 🚀 🛸 🌍 🌎 🌏 🌐 🗺️ 🧭 🏔️ ⛰️ 🌋 🗻 🏕️ 🏖️ 🏜️ 🏝️ 🏞️ 🏟️ 🏛️ 🏗️ 🧱 🪨 🪵 🛖 🏘️ 🏚️ 🏠 🏡 🏢 🏣 🏤 🏥 🏦 🏨 🏩 🏪 🏫 🏬 🏭 🏯 🏰 💒 🗼 🗽 ⛪ 🕌 🛕 🕍 🛐 ⛩️ 🕋 ⛲ ⛺ 🌁 🌃 🌄 🌅 🌆 🌇 🌉 ♨️");
@@ -3180,6 +3180,11 @@ if (window.worthItAuthStateResolved) {
 }
 routeWorthItChatFromLocation();
 if (sb()?.auth) {
-    sb().auth.onAuthStateChange((_event, session) => setAuthState(session?.user || null));
+    sb().auth.onAuthStateChange((event, session) => {
+        // Ignore a premature empty INITIAL_SESSION event until app.js has completed
+        // its authoritative restoration of the persisted session.
+        if (event === "INITIAL_SESSION" && !window.worthItAuthStateResolved) return;
+        setAuthState(session?.user || null);
+    });
 }
 })();
