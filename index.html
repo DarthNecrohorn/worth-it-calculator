@@ -63,6 +63,7 @@ html[data-theme="light"].worth-it-initial-paint::before {
 </script>
 
 <link rel="stylesheet" href="style.css?v=chat-polling-preserve-dom-20261028a">
+<link rel="stylesheet" href="chat-actions.css?v=chat-message-actions-20261028a">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 </head>
 
@@ -247,9 +248,14 @@ html[data-theme="light"].worth-it-initial-paint::before {
                         <button type="button" class="worth-it-chat-icon-btn worth-it-chat-mobile-close" onclick="toggleWorthItChat(event)" aria-label="Close chat">✕</button>
                     </div>
                     <div class="worth-it-chat-list-row worth-it-chat-global-row"><button type="button" class="worth-it-chat-side-item is-active" id="worthItGlobalChatBtn" onclick="openWorthItGlobalChat()"><span>🌐</span><span><strong>Global Chat</strong><small>Talk with the community</small></span><i>↗</i><span class="worth-it-chat-person-count worth-it-chat-global-count" id="worthItGlobalChatUnreadCount" hidden aria-label="Unread messages in Global Chat">0</span></button></div>
-                    <div class="worth-it-chat-side-heading"><span>YOUR FRIENDS</span><button type="button" class="worth-it-chat-text-btn" onclick="refreshWorthItChatData()">Refresh</button></div>
-                    <div class="worth-it-chat-friends" id="worthItChatFriends"><p class="worth-it-chat-muted">Loading friends…</p></div>
-                    <div class="worth-it-chat-side-heading"><span>GROUPS & CHATS</span><button type="button" class="worth-it-chat-text-btn" onclick="openWorthItGroupChatDialog()">＋ New group</button></div>
+                    <div class="worth-it-chat-side-heading"><span>PRIVATE CHATS</span><button type="button" class="worth-it-chat-text-btn" onclick="refreshWorthItChatData()">Refresh</button></div>
+                    <div class="worth-it-chat-sidebar-search" role="search">
+                        <span aria-hidden="true">⌕</span>
+                        <input type="search" id="worthItChatSidebarSearch" maxlength="80" placeholder="Find a friend or group…" aria-label="Find a private or group chat" autocomplete="off" spellcheck="false">
+                        <button type="button" id="worthItChatSidebarSearchClear" aria-label="Clear chat search" title="Clear search" hidden>×</button>
+                    </div>
+                    <div class="worth-it-chat-friends" id="worthItChatFriends"><p class="worth-it-chat-muted">Loading private chats…</p></div>
+                    <div class="worth-it-chat-side-heading"><span>GROUP CHATS</span><button type="button" class="worth-it-chat-text-btn" onclick="openWorthItGroupChatDialog()">＋ New group</button></div>
                     <div class="worth-it-chat-conversations" id="worthItChatConversations"><p class="worth-it-chat-muted">Loading conversations…</p></div>
                     <div class="worth-it-chat-sidebar-footer"><span class="worth-it-chat-status-dot"></span> Keep it kind. Keep it Worth It.</div>
                 </aside>
@@ -5164,7 +5170,7 @@ if($("carResults")){
 
 </script>
 <script src="/profile-ui.js?v=presence-tooltip-scale-20261019a"></script>
-<script src="/chat-ui.js?v=chat-polling-preserve-dom-20261028a"></script>
+<script src="/chat-ui.js?v=chat-message-actions-20261028a"></script>
 <script src="/user-search.js?v=worthitusersearch20261014a"></script>
 <script src="/guest-mode.js?v=hamburgerpersistent-20261015a"></script>
 <script src="/routing.js?v=settings-navigation-20261015a"></script>
