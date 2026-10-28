@@ -1255,6 +1255,12 @@ function confirmWorthItChatMessageDelete(userId) {
         overlay.id = "worthItChatDeleteConfirmDialog";
         overlay.className = "worth-it-chat-delete-confirm-dialog";
         overlay.setAttribute("role", "presentation");
+        // Keep destructive-action confirmation above the chat overlay and page chrome.
+        // The message menu action must be visible immediately; closing chat is unrelated.
+        overlay.style.position = "fixed";
+        overlay.style.inset = "0";
+        overlay.style.zIndex = "2147483647";
+        overlay.style.display = "grid";
 
         const card = document.createElement("section");
         card.className = "worth-it-chat-delete-confirm-card";

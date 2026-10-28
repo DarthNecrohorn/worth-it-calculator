@@ -22,19 +22,25 @@ test("Guest Lite reads the resolved primary auth state instead of racing a secon
     assert.match(guest, /window\.worthItCurrentAuthUser \|\| null/);
 });
 
-test("the standard Sign out button revokes only the current browser session", () => {
-    const start = app.indexOf("async function signOutUser()");
-    assert.ok(start >= 0, "signOutUser function exists");
-    const end = app.indexOf("/*", start + 30);
-    const body = app.slice(start, end < 0 ? start + 1600 : end);
+test("the standard Sign out button confirms first and then revokes only the current browser session", () => {
+    assert.match(html, /id="signOutNavBtn" onclick="signOutUser\(\)"/);
+    const start = app.indexOf("async function performSignOutUser()");
+    assert.ok(start >= 0, "the confirmed sign-out implementation exists");
+    const end = app.indexOf("function signOutUser()", start);
+    const body = app.slice(start, end < 0 ? start + 1800 : end);
     assert.match(body, /\.signOut\(\{\s*scope:\s*"local"\s*\}\)/);
+    const handlerStart = app.indexOf("function signOutUser()");
+    const handlerEnd = app.indexOf("/* =========================================================\nACCOUNT PAGE", handlerStart);
+    const handler = app.slice(handlerStart, handlerEnd);
+    assert.match(handler, /yesButton\.addEventListener\("click", event => \{[\s\S]*?finish\(true\)/);
+    assert.match(handler, /noButton\.addEventListener\("click", event => \{[\s\S]*?finish\(false\)/);
 });
 
 test("the hamburger menu overlays header actions instead of overlapping them", () => {
     assert.match(css, /@media\(max-width:1000px\)[\s\S]*?\.nav-links\.open\s*\{[\s\S]*?z-index:\s*800/);
     assert.match(css, /\.nav-links\.open button\s*\{\s*width:\s*100%;/);
     assert.match(html, /style\.css\?v=[^"']+/);
-    assert.match(html, /app\.js\?v=hamburgerpersistent-20261015a/);
+    assert.match(html, /app\.js\?v=signout-confirmation-20261028a/);
     assert.match(html, /guest-mode\.js\?v=chat-route-preserve-20261028a/);
 });
 

@@ -23121,3 +23121,201 @@ html[data-theme="light"] .worth-it-chat-compose .worth-it-chat-input-preview-wra
 @keyframes worth-it-chat-composer-caret-blink {
     to { visibility: hidden; }
 }
+
+
+/* =========================================================
+   CHAT LIGHT-THEME CONTRAST + PICKER CLOSE GLYPH ALIGNMENT
+   Keep every chat label readable on pale surfaces; active picker tabs
+   use dark text on a light selected state instead of white-on-pale.
+========================================================= */
+html[data-theme="light"] .worth-it-chat-side-heading {
+    color: #64748b !important;
+}
+html[data-theme="light"] .worth-it-chat-text-btn {
+    color: #4338ca !important;
+    font-weight: 700 !important;
+}
+html[data-theme="light"] .worth-it-chat-text-btn:hover,
+html[data-theme="light"] .worth-it-chat-text-btn:focus-visible {
+    color: #312e81 !important;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+}
+html[data-theme="light"] .worth-it-chat-side-item i {
+    color: #4338ca !important;
+}
+html[data-theme="light"] .worth-it-chat-person-btn {
+    color: #1e293b !important;
+}
+html[data-theme="light"] .worth-it-chat-person-info strong {
+    color: #172554 !important;
+}
+html[data-theme="light"] .worth-it-chat-person-info small {
+    color: #64748b !important;
+}
+html[data-theme="light"] .worth-it-chat-person-btn:hover,
+html[data-theme="light"] .worth-it-chat-person-btn.is-active {
+    background: linear-gradient(100deg, rgba(99,102,241,.11), rgba(14,165,233,.07)) !important;
+    border-color: rgba(99,102,241,.27) !important;
+}
+html[data-theme="light"] .worth-it-chat-sidebar-footer {
+    color: #64748b !important;
+}
+html[data-theme="light"] .worth-it-chat-icon-btn {
+    color: #3730a3 !important;
+    background: linear-gradient(145deg, #ffffff, #eef2ff) !important;
+    border-color: rgba(99,102,241,.25) !important;
+}
+html[data-theme="light"] .worth-it-chat-icon-btn:hover,
+html[data-theme="light"] .worth-it-chat-icon-btn:focus-visible {
+    color: #312e81 !important;
+    background: linear-gradient(120deg, #e0e7ff, #dbeafe) !important;
+    border-color: rgba(99,102,241,.58) !important;
+}
+html[data-theme="light"] .worth-it-chat-empty {
+    color: #475569 !important;
+}
+html[data-theme="light"] .worth-it-chat-empty strong {
+    color: #172554 !important;
+}
+html[data-theme="light"] .worth-it-chat-empty p {
+    color: #475569 !important;
+}
+html[data-theme="light"] .worth-it-chat-category-btn.is-active,
+html[data-theme="light"] .worth-it-chat-media-tab.is-active {
+    color: #312e81 !important;
+    background: linear-gradient(120deg, #e0e7ff, #dbeafe) !important;
+    border-color: #818cf8 !important;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.85), 0 2px 8px rgba(79,70,229,.10) !important;
+}
+html[data-theme="light"] .worth-it-chat-category-btn:hover:not(.is-active),
+html[data-theme="light"] .worth-it-chat-media-tab:hover:not(.is-active) {
+    color: #3730a3 !important;
+    background: #eef2ff !important;
+    border-color: #c7d2fe !important;
+}
+html[data-theme="light"] .worth-it-chat-compose-status {
+    color: #92400e !important;
+}
+html[data-theme="light"] .worth-it-chat-attachment-preview {
+    color: #1e293b !important;
+    background: #eef2ff !important;
+    border-color: #c7d2fe !important;
+}
+
+/* Move only the X glyph, not the 32px close-button square, up by exactly 2px. */
+.worth-it-chat-picker-close {
+    font-size: 0 !important;
+}
+.worth-it-chat-picker-close::before {
+    content: "×";
+    display: block;
+    font-family: inherit;
+    font-size: 20px;
+    line-height: 1;
+    transform: translateY(-2px);
+}
+
+/* =========================================================
+   SIGN-OUT CONFIRMATION — accessible and theme-aware
+========================================================= */
+.worth-it-signout-confirm-dialog {
+    position: fixed;
+    inset: 0;
+    z-index: 2147483646;
+    display: grid;
+    place-items: center;
+    box-sizing: border-box;
+    padding: max(14px, env(safe-area-inset-top)) max(14px, env(safe-area-inset-right)) max(14px, env(safe-area-inset-bottom)) max(14px, env(safe-area-inset-left));
+    background: rgba(2, 6, 23, .74);
+    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(12px);
+}
+.worth-it-signout-confirm-card {
+    width: min(420px, 100%);
+    box-sizing: border-box;
+    padding: clamp(22px, 4vw, 30px);
+    border: 1px solid rgba(129,140,248,.42);
+    border-radius: 22px;
+    background: linear-gradient(145deg, #151d3b, #0d1327);
+    color: #f1f5ff;
+    box-shadow: 0 30px 90px rgba(0,0,0,.48);
+    font-family: inherit;
+}
+.worth-it-signout-confirm-kicker {
+    display: block;
+    margin-bottom: 12px;
+    color: #a5b4fc;
+    font-size: 9px;
+    font-weight: 800;
+    letter-spacing: .15em;
+}
+.worth-it-signout-confirm-card h2 {
+    margin: 0;
+    color: inherit;
+    font-size: clamp(19px, 4vw, 23px);
+    line-height: 1.35;
+    letter-spacing: -.03em;
+}
+.worth-it-signout-confirm-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 24px;
+}
+.worth-it-signout-confirm-actions button {
+    min-width: 84px;
+    min-height: 42px;
+    padding: 0 18px;
+    border: 1px solid transparent;
+    border-radius: 11px;
+    font: inherit;
+    font-size: 13px;
+    font-weight: 800;
+    cursor: pointer;
+    transition: transform .16s ease, border-color .16s ease, background .16s ease;
+}
+.worth-it-signout-confirm-actions button:hover {
+    transform: translateY(-1px);
+}
+.worth-it-signout-confirm-actions button:focus-visible {
+    outline: 3px solid #a5b4fc;
+    outline-offset: 3px;
+}
+.worth-it-signout-confirm-yes {
+    color: #fff;
+    background: linear-gradient(135deg, #dc2626, #b91c1c);
+    box-shadow: 0 7px 20px rgba(185,28,28,.22);
+}
+.worth-it-signout-confirm-yes:hover {
+    background: linear-gradient(135deg, #ef4444, #dc2626);
+}
+.worth-it-signout-confirm-no {
+    color: #e2e8f0;
+    border-color: rgba(148,163,184,.35) !important;
+    background: rgba(148,163,184,.1);
+}
+html[data-theme="light"] .worth-it-signout-confirm-dialog {
+    background: rgba(31,41,75,.30);
+}
+html[data-theme="light"] .worth-it-signout-confirm-card {
+    color: #172554;
+    border-color: rgba(99,102,241,.30);
+    background: linear-gradient(145deg, #fff, #eef3ff);
+    box-shadow: 0 28px 80px rgba(30,41,59,.24);
+}
+html[data-theme="light"] .worth-it-signout-confirm-kicker {
+    color: #4338ca;
+}
+html[data-theme="light"] .worth-it-signout-confirm-no {
+    color: #334155;
+    border-color: rgba(100,116,139,.35) !important;
+    background: #f1f5f9;
+}
+@media (max-width: 520px) {
+    .worth-it-signout-confirm-card { border-radius: 19px; }
+    .worth-it-signout-confirm-actions button { flex: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .worth-it-signout-confirm-actions button { transition: none; }
+}
