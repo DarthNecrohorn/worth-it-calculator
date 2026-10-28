@@ -6,6 +6,35 @@ declare
   new_message_id bigint;
   group_id uuid := '20000000-0000-4000-8000-000000000001'::uuid;
 begin
+  -- New RPCs must be callable by signed-in users, but not by anon/PUBLIC.
+  if has_function_privilege('anon', 'public.set_worth_it_chat_conversation_pinned(uuid,boolean)', 'EXECUTE')
+     or has_function_privilege('anon', 'public.delete_worth_it_chat_message(bigint)', 'EXECUTE')
+     or has_function_privilege('anon', 'public.hide_worth_it_chat_message(bigint)', 'EXECUTE')
+     or has_function_privilege('anon', 'public.clear_worth_it_chat_history(uuid)', 'EXECUTE') then
+    raise exception 'Anonymous role can execute a chat message action RPC.';
+  end if;
+  if not has_function_privilege('authenticated', 'public.set_worth_it_chat_conversation_pinned(uuid,boolean)', 'EXECUTE')
+     or not has_function_privilege('authenticated', 'public.delete_worth_it_chat_message(bigint)', 'EXECUTE')
+     or not has_function_privilege('authenticated', 'public.hide_worth_it_chat_message(bigint)', 'EXECUTE')
+     or not has_function_privilege('authenticated', 'public.clear_worth_it_chat_history(uuid)', 'EXECUTE') then
+    raise exception 'Authenticated role is missing permission for a chat message action RPC.';
+  end if;
+  if has_table_privilege('authenticated', 'public.worth_it_chat_message_hides', 'SELECT')
+     or has_table_privilege('authenticated', 'public.worth_it_chat_message_hides', 'INSERT')
+     or has_table_privilege('authenticated', 'public.worth_it_chat_history_clears', 'SELECT')
+     or has_table_privilege('authenticated', 'public.worth_it_chat_conversation_pins', 'SELECT') then
+    raise exception 'Authenticated role has direct access to private chat state tables.';
+  end if;
+  if not (
+    select relrowsecurity from pg_class where oid='public.worth_it_chat_message_hides'::regclass
+  ) or not (
+    select relrowsecurity from pg_class where oid='public.worth_it_chat_history_clears'::regclass
+  ) or not (
+    select relrowsecurity from pg_class where oid='public.worth_it_chat_conversation_pins'::regclass
+  ) then
+    raise exception 'RLS is not enabled on every private chat state table.';
+  end if;
+
   perform set_config('app.test_user_id','10000000-0000-4000-8000-000000000001',true);
   result := public.delete_worth_it_chat_message(1);
   if result->>'success' <> 'true' then raise exception 'Owner deletion failed: %', result; end if;
