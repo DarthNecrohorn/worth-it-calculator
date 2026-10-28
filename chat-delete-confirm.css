@@ -1,0 +1,151 @@
+/* Worth It styled, accessible confirmation for deleting a chat message. */
+.worth-it-chat-delete-confirm-dialog {
+    position: fixed;
+    inset: 0;
+    z-index: 13040;
+    display: grid;
+    place-items: center;
+    box-sizing: border-box;
+    padding: max(14px, env(safe-area-inset-top)) max(14px, env(safe-area-inset-right)) max(14px, env(safe-area-inset-bottom)) max(14px, env(safe-area-inset-left));
+    background: rgba(2, 6, 23, .74);
+    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(12px);
+}
+.worth-it-chat-delete-confirm-card {
+    width: min(460px, 100%);
+    max-height: min(90dvh, 720px);
+    overflow: auto;
+    box-sizing: border-box;
+    padding: clamp(22px, 4vw, 30px);
+    border: 1px solid rgba(129, 140, 248, .36);
+    border-radius: 23px;
+    background: linear-gradient(145deg, #151d3b, #0d1327);
+    color: #f1f5ff;
+    box-shadow: 0 30px 90px rgba(0, 0, 0, .48);
+    font-family: inherit;
+}
+.worth-it-chat-delete-confirm-kicker {
+    display: block;
+    margin-bottom: 12px;
+    color: #a5b4fc;
+    font-size: 9px;
+    font-weight: 800;
+    letter-spacing: .15em;
+}
+.worth-it-chat-delete-confirm-card h2 {
+    margin: 0 0 10px;
+    color: inherit;
+    font-size: clamp(20px, 4vw, 24px);
+    line-height: 1.25;
+    letter-spacing: -.035em;
+}
+.worth-it-chat-delete-confirm-card p {
+    margin: 0 0 20px;
+    color: #cbd5e1;
+    font-size: 13px;
+    line-height: 1.65;
+}
+.worth-it-chat-delete-confirm-preference {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-height: 44px;
+    box-sizing: border-box;
+    padding: 11px 12px;
+    border: 1px solid rgba(148, 163, 184, .2);
+    border-radius: 12px;
+    background: rgba(148, 163, 184, .07);
+    color: #e2e8f0;
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 1.45;
+    cursor: pointer;
+}
+.worth-it-chat-delete-confirm-preference input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    flex: 0 0 18px;
+    margin: 0;
+    accent-color: #818cf8;
+    cursor: pointer;
+}
+.worth-it-chat-delete-confirm-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 22px;
+}
+.worth-it-chat-delete-confirm-actions button {
+    min-height: 42px;
+    padding: 0 17px;
+    border: 1px solid transparent;
+    border-radius: 12px;
+    font: inherit;
+    font-size: 13px;
+    font-weight: 750;
+    cursor: pointer;
+    transition: transform .16s ease, border-color .16s ease, background .16s ease;
+}
+.worth-it-chat-delete-confirm-actions button:hover {
+    transform: translateY(-1px);
+}
+.worth-it-chat-delete-confirm-actions button:focus-visible,
+.worth-it-chat-delete-confirm-preference input:focus-visible {
+    outline: 3px solid #a5b4fc;
+    outline-offset: 3px;
+}
+.worth-it-chat-delete-confirm-cancel {
+    border-color: rgba(148, 163, 184, .34) !important;
+    background: rgba(148, 163, 184, .1);
+    color: #e2e8f0;
+}
+.worth-it-chat-delete-confirm-delete {
+    background: linear-gradient(135deg, #dc2626, #b91c1c);
+    color: #fff;
+    box-shadow: 0 8px 22px rgba(185, 28, 28, .22);
+}
+.worth-it-chat-delete-confirm-delete:hover {
+    background: linear-gradient(135deg, #ef4444, #dc2626);
+}
+html[data-theme="light"] .worth-it-chat-delete-confirm-dialog {
+    background: rgba(31, 41, 75, .32);
+}
+html[data-theme="light"] .worth-it-chat-delete-confirm-card {
+    border-color: rgba(99, 102, 241, .24);
+    background: linear-gradient(145deg, #fff, #f5f7ff);
+    color: #172554;
+    box-shadow: 0 28px 80px rgba(15, 23, 42, .24);
+}
+html[data-theme="light"] .worth-it-chat-delete-confirm-kicker {
+    color: #5b54c9;
+}
+html[data-theme="light"] .worth-it-chat-delete-confirm-card p {
+    color: #475569;
+}
+html[data-theme="light"] .worth-it-chat-delete-confirm-preference {
+    border-color: rgba(100, 116, 139, .24);
+    background: rgba(148, 163, 184, .09);
+    color: #1e293b;
+}
+html[data-theme="light"] .worth-it-chat-delete-confirm-cancel {
+    border-color: rgba(100, 116, 139, .34) !important;
+    background: #eef2ff;
+    color: #1e293b;
+}
+@media (max-width: 520px) {
+    .worth-it-chat-delete-confirm-dialog {
+        padding: max(12px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
+    }
+    .worth-it-chat-delete-confirm-card {
+        border-radius: 19px;
+    }
+    .worth-it-chat-delete-confirm-actions button {
+        flex: 1;
+        padding-inline: 12px;
+    }
+}
+@media (prefers-reduced-motion: reduce) {
+    .worth-it-chat-delete-confirm-actions button {
+        transition: none;
+    }
+}

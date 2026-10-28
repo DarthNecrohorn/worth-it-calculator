@@ -1156,13 +1156,137 @@ function getOwnedWorthItChatMediaObjectPath(mediaUrl, userId, client) {
     }
 }
 
+
+const WORTH_IT_CHAT_DELETE_CONFIRM_SKIP_PREFIX = "worth-it-chat-delete-confirm-skip-v1:";
+function shouldSkipWorthItChatDeleteConfirmation(userId) {
+    if (!userId) return false;
+    try {
+        return window.localStorage.getItem(WORTH_IT_CHAT_DELETE_CONFIRM_SKIP_PREFIX + String(userId)) === "1";
+    } catch (_) {
+        return false;
+    }
+}
+function rememberWorthItChatDeleteConfirmationPreference(userId) {
+    if (!userId) return;
+    try {
+        window.localStorage.setItem(WORTH_IT_CHAT_DELETE_CONFIRM_SKIP_PREFIX + String(userId), "1");
+    } catch (_) {
+        // If storage is unavailable, keep asking next time rather than silently changing policy.
+    }
+}
+function confirmWorthItChatMessageDelete(userId) {
+    if (shouldSkipWorthItChatDeleteConfirmation(userId)) return Promise.resolve(true);
+    return new Promise(resolve => {
+        if (document.getElementById("worthItChatDeleteConfirmDialog")) {
+            resolve(false);
+            return;
+        }
+        const previousFocus = document.activeElement;
+        const overlay = document.createElement("div");
+        overlay.id = "worthItChatDeleteConfirmDialog";
+        overlay.className = "worth-it-chat-delete-confirm-dialog";
+        overlay.setAttribute("role", "presentation");
+
+        const card = document.createElement("section");
+        card.className = "worth-it-chat-delete-confirm-card";
+        card.setAttribute("role", "alertdialog");
+        card.setAttribute("aria-modal", "true");
+        card.setAttribute("aria-labelledby", "worthItChatDeleteConfirmTitle");
+        card.setAttribute("aria-describedby", "worthItChatDeleteConfirmDescription");
+        card.tabIndex = -1;
+
+        const kicker = document.createElement("span");
+        kicker.className = "worth-it-chat-delete-confirm-kicker";
+        kicker.textContent = "WORTH IT · MESSAGE ACTION";
+        const title = document.createElement("h2");
+        title.id = "worthItChatDeleteConfirmTitle";
+        title.textContent = "Delete message for everyone?";
+        const description = document.createElement("p");
+        description.id = "worthItChatDeleteConfirmDescription";
+        description.textContent = "The text and attachment link will be removed, and this cannot be undone.";
+
+        const preferenceLabel = document.createElement("label");
+        preferenceLabel.className = "worth-it-chat-delete-confirm-preference";
+        const preference = document.createElement("input");
+        preference.type = "checkbox";
+        preference.id = "worthItChatDeleteConfirmSkip";
+        const preferenceText = document.createElement("span");
+        preferenceText.textContent = "Don't show this again";
+        preferenceLabel.append(preference, preferenceText);
+
+        const actions = document.createElement("div");
+        actions.className = "worth-it-chat-delete-confirm-actions";
+        const cancelButton = document.createElement("button");
+        cancelButton.type = "button";
+        cancelButton.className = "worth-it-chat-delete-confirm-cancel";
+        cancelButton.textContent = "Cancel";
+        const deleteButton = document.createElement("button");
+        deleteButton.type = "button";
+        deleteButton.className = "worth-it-chat-delete-confirm-delete";
+        deleteButton.textContent = "Delete message";
+        actions.append(cancelButton, deleteButton);
+        card.append(kicker, title, description, preferenceLabel, actions);
+        overlay.appendChild(card);
+
+        let finished = false;
+        const finish = confirmed => {
+            if (finished) return;
+            finished = true;
+            if (confirmed && preference.checked) {
+                rememberWorthItChatDeleteConfirmationPreference(userId);
+            }
+            overlay.remove();
+            if (previousFocus && previousFocus.isConnected && typeof previousFocus.focus === "function") {
+                previousFocus.focus();
+            }
+            resolve(Boolean(confirmed));
+        };
+        overlay.addEventListener("click", event => {
+            if (event.target === overlay) finish(false);
+        });
+        overlay.addEventListener("keydown", event => {
+            if (event.key === "Escape") {
+                event.preventDefault();
+                event.stopPropagation();
+                finish(false);
+                return;
+            }
+            if (event.key !== "Tab") return;
+            const focusable = Array.from(overlay.querySelectorAll('input[type="checkbox"], button'))
+                .filter(node => !node.disabled);
+            if (!focusable.length) return;
+            const first = focusable[0];
+            const last = focusable[focusable.length - 1];
+            if (event.shiftKey && (document.activeElement === first || !overlay.contains(document.activeElement))) {
+                event.preventDefault();
+                last.focus();
+            } else if (!event.shiftKey && (document.activeElement === last || !overlay.contains(document.activeElement))) {
+                event.preventDefault();
+                first.focus();
+            }
+        });
+        cancelButton.addEventListener("click", () => finish(false));
+        deleteButton.addEventListener("click", () => finish(true));
+        document.body.appendChild(overlay);
+        cancelButton.focus();
+    });
+}
+
 async function runWorthItChatMessageAction(action, message) {
     if (!chatUser || !message?.id || !sb()) return;
+    const actionUserId = chatUser.id;
+    if (action === "delete" && message.sender_user_id !== actionUserId) {
+        setStatus("You can only delete your own messages for everyone.", true);
+        return;
+    }
+    if (action === "delete" && !(await confirmWorthItChatMessageDelete(actionUserId))) return;
+    // The custom confirmation is asynchronous, unlike window.confirm. Never continue
+    // a destructive action if the signed-in account changed while it was open.
+    if (!chatUser || chatUser.id !== actionUserId || !sb()) return;
     if (action === "delete" && message.sender_user_id !== chatUser.id) {
         setStatus("You can only delete your own messages for everyone.", true);
         return;
     }
-    if (action === "delete" && !window.confirm("Delete this message for everyone? The text and attachment link will be removed and this cannot be undone.")) return;
     try {
         const rpcName = action === "delete" ? "delete_worth_it_chat_message" : "hide_worth_it_chat_message";
         const result = await sb().rpc(rpcName, {p_message_id: Number(message.id)});
