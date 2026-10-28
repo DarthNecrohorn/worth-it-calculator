@@ -124,3 +124,22 @@
     .worth-it-chat-message:hover .worth-it-chat-message-actions,
     .worth-it-chat-message:focus-within .worth-it-chat-message-actions{opacity:1}
 }
+
+.worth-it-chat-pin-indicator{
+    display:inline-block;
+    margin-left:5px;
+    font-size:10px;
+    line-height:1;
+    vertical-align:middle;
+    opacity:.86;
+    white-space:nowrap;
+}
+.worth-it-chat-person-info strong .worth-it-chat-pin-indicator{
+    margin-left:5px;
+}
+.worth-it-chat-context-menu-item.is-pinned-action{
+    color:var(--primary2,#38bdf8);
+}
+@media(prefers-reduced-motion:reduce){
+    .worth-it-chat-message-action-btn{transition:none}
+}
