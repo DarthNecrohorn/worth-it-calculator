@@ -23319,3 +23319,41 @@ html[data-theme="light"] .worth-it-signout-confirm-no {
 @media (prefers-reduced-motion: reduce) {
     .worth-it-signout-confirm-actions button { transition: none; }
 }
+
+
+/* WORTH IT AI CHAT — position, blur and mobile usability refinements */
+.ai-chat-overlay {
+    z-index: 2147483000 !important;
+    background: rgba(2, 6, 23, .42) !important;
+    -webkit-backdrop-filter: blur(14px) saturate(115%) !important;
+    backdrop-filter: blur(14px) saturate(115%) !important;
+}
+.ai-chat-overlay.open .ai-chat-card {
+    transform: translateY(40px);
+    max-height: calc(100dvh - 48px);
+    transition: transform 220ms cubic-bezier(.2,.8,.2,1), box-shadow 220ms ease;
+}
+@media (max-width: 760px) {
+    .ai-chat-overlay {
+        align-items: center !important;
+        justify-content: center !important;
+        padding: 10px !important;
+    }
+    .ai-chat-overlay.open .ai-chat-card {
+        width: min(100%, 620px) !important;
+        min-width: 0 !important;
+        height: min(88dvh, 900px) !important;
+        max-height: 88dvh !important;
+        border-radius: 20px !important;
+        transform: translateY(0);
+    }
+    .ai-chat-head { padding: 17px 16px 13px !important; }
+    .ai-chat-head h3 { font-size: 21px !important; }
+    .ai-chat-messages { padding: 15px !important; }
+    .ai-chat-composer { padding: 12px !important; }
+    .ai-chat-input { min-height: 46px !important; font-size: 16px !important; }
+    .ai-chat-send { min-height: 44px !important; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .ai-chat-overlay.open .ai-chat-card { transition: none !important; }
+}
