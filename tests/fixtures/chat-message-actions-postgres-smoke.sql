@@ -13,6 +13,20 @@ begin
     raise exception 'Deleted message content/media was not cleared';
   end if;
 
+  result := public.set_worth_it_chat_conversation_pinned(group_id,true);
+  if result->>'success' <> 'true' or result->>'is_pinned' <> 'true' then
+    raise exception 'Pinning a conversation failed: %', result;
+  end if;
+  result := public.get_worth_it_chat_conversations();
+  if not exists(select 1 from jsonb_array_elements(result) conversation
+      where conversation->>'id'=group_id::text and conversation->>'is_pinned'='true') then
+    raise exception 'Pinned state was not returned for the requesting user.';
+  end if;
+  result := public.set_worth_it_chat_conversation_pinned('00000000-0000-4000-8000-000000000001'::uuid,true);
+  if result->>'code' <> 'GLOBAL_CHAT_PIN_NOT_SUPPORTED' then
+    raise exception 'Global Chat should remain fixed at the top rather than use personal pinning: %', result;
+  end if;
+
   result := public.get_worth_it_chat_messages(group_id,100);
   select item into found_message from jsonb_array_elements(result) item where item->>'id'='1';
   if found_message is null or found_message->>'is_deleted' <> 'true' or found_message->>'body' <> '' or found_message->>'display_name' <> 'Alice' then
@@ -23,6 +37,26 @@ begin
   result := public.delete_worth_it_chat_message(1);
   if result->>'code' <> 'NOT_MESSAGE_OWNER' then
     raise exception 'A non-owner was allowed to delete someone else''s message: %', result;
+  end if;
+
+  result := public.get_worth_it_chat_conversations();
+  if exists(select 1 from jsonb_array_elements(result) conversation
+      where conversation->>'id'=group_id::text and conversation->>'is_pinned'='true') then
+    raise exception 'Alice''s personal pin leaked to Bob.';
+  end if;
+  result := public.set_worth_it_chat_conversation_pinned(group_id,true);
+  if result->>'success' <> 'true' then raise exception 'Bob could not pin their own sidebar conversation: %', result; end if;
+  result := public.get_worth_it_chat_conversations();
+  if not exists(select 1 from jsonb_array_elements(result) conversation
+      where conversation->>'id'=group_id::text and conversation->>'is_pinned'='true') then
+    raise exception 'Bob''s pinned state did not appear in Bob''s conversation list.';
+  end if;
+  result := public.set_worth_it_chat_conversation_pinned(group_id,false);
+  if result->>'success' <> 'true' then raise exception 'Bob could not unpin their conversation: %', result; end if;
+  result := public.get_worth_it_chat_conversations();
+  if exists(select 1 from jsonb_array_elements(result) conversation
+      where conversation->>'id'=group_id::text and conversation->>'is_pinned'='true') then
+    raise exception 'Unpin did not clear Bob''s personal pin.';
   end if;
 
   result := public.hide_worth_it_chat_message(3);
