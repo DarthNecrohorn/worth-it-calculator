@@ -204,8 +204,8 @@
         if (url.origin !== window.location.origin) return;
 
         const path = normalizePath(url.pathname);
-        const connectionMatch = path.match(/^\\/profile\\/(\\d+)\\/(friends|followers|following)$/);
-        const profileMatch = path.match(/^\\/profile\\/(\\d+)$/);
+        const connectionMatch = path.match(/^\/profile\/(\d+)\/(friends|followers|following)$/);
+        const profileMatch = path.match(/^\/profile\/(\d+)$/);
         if (!connectionMatch && !profileMatch) return;
 
         const id = Number((connectionMatch || profileMatch)[1]);
