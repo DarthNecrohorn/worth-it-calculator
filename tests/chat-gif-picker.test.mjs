@@ -32,7 +32,7 @@ test("the chat composer has an accessible attachment, emoji and owned-media pick
     assert.match(client, /function renderWorthItChatEmojiCategories\(/);
     assert.match(client, /function loadWorthItChatGifResults\(/);
     assert.match(client, /function selectWorthItChatGif\(/);
-    assert.match(html, /chat-ui\.js\?v=chat-message-actions-20261028b/);
+    assert.match(html, /chat-ui\.js\?v=chat-message-actions-20261028c/);
     assert.match(html, /style\.css\?v=chat-polling-preserve-dom-20261028a/);
 });
 
@@ -197,6 +197,6 @@ test("country flags render visually in the chat composer while typing", () => {
     assert.match(css, /textarea::selection[\s\S]*?color: transparent !important[\s\S]*?-webkit-text-fill-color: transparent !important/);
     assert.match(css, /textarea::selection[\s\S]*?background: rgba\(79, 70, 229, \.78\)/);
     assert.match(css, /@media \(max-width: 540px\)[\s\S]*?\.worth-it-chat-input-preview\s*\{\s*font-size: 12px;/);
-    assert.match(html, /chat-ui\.js\?v=chat-message-actions-20261028b/);
+    assert.match(html, /chat-ui\.js\?v=chat-message-actions-20261028c/);
     assert.match(html, /style\.css\?v=chat-polling-preserve-dom-20261028a/);
 });
