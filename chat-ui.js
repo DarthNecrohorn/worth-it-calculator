@@ -533,6 +533,7 @@ function renderFriends() {
         actions.title = "Conversation options for " + (friend.display_name || friend.username || "friend");
         actions.setAttribute("aria-label", "Conversation options for " + (friend.display_name || friend.username || "friend"));
         actions.setAttribute("aria-haspopup", "menu");
+        actions.setAttribute("aria-expanded", "false");
         actions.addEventListener("click", event => {
             event.preventDefault();
             event.stopPropagation();
