@@ -5,6 +5,7 @@ const $ = (id) => document.getElementById(id);
 const GLOBAL_CHAT_ID = null;
 const GLOBAL_TITLE = "Global Chat";
 let chatUser = null;
+let chatAuthResolutionComplete = Boolean(window.worthItAuthStateResolved);
 let chatFriends = [];
 let chatConversations = [];
 let activeConversationId = GLOBAL_CHAT_ID;
@@ -192,6 +193,7 @@ function showChatOverlay(open, options) {
     }
 }
 function setAuthState(user) {
+    chatAuthResolutionComplete = true;
     const previousUserId = chatUser?.id || null;
     const nextUserId = user?.id || null;
     if (previousUserId !== nextUserId) {
@@ -1571,6 +1573,13 @@ function createWorthItChatMessageRow(message) {
 function renderMessages(scrollToBottom) {
     const host = $("worthItChatMessages");
     if (!host) return;
+    if (!chatUser && !chatAuthResolutionComplete) {
+        // Supabase is still restoring the persisted session. Keep the existing
+        // welcome/loading content instead of briefly showing a false sign-in prompt.
+        host.setAttribute("aria-busy", "true");
+        return;
+    }
+    host.removeAttribute("aria-busy");
     if (!chatUser) {
         if (host.dataset.worthItChatEmptyKey !== "signed-out" ||
             !host.firstElementChild?.classList.contains("worth-it-chat-empty")) {
@@ -2627,6 +2636,7 @@ const WORTH_IT_CHAT_EMOJI_CATEGORIES = [
     { id: "faces", label: "Smileys", icon: "😀" },
     { id: "people", label: "People", icon: "👋" },
     { id: "animals", label: "Animals", icon: "🐱" },
+    { id: "plants", label: "Plants", icon: "🪴" },
     { id: "food", label: "Food", icon: "🍕" },
     { id: "activities", label: "Activities", icon: "⚽" },
     { id: "travel", label: "Travel", icon: "🚀" },
@@ -2684,8 +2694,8 @@ const WORTH_IT_CHAT_EMOJI_KEYWORDS = {
     "🎮": "video game gaming", "🎵": "music note", "⚽": "soccer football",
     "🌈": "rainbow colorful", "☀️": "sun sunny weather", "🐱": "cat kitten pet",
     "🐶": "dog puppy pet", "🦊": "fox animal", "🐼": "panda animal",
-    "🦄": "unicorn fantasy", "🐸": "frog animal", "🌸": "cherry blossom flower",
-    "🍀": "four leaf clover luck", "🇷🇸": "Serbia flag", "🇺🇸": "United States America flag",
+    "🦄": "unicorn fantasy", "🐸": "frog animal", "🌸": "cherry blossom flower plant", "🌱": "seedling sprout plant grow", "🌿": "herb leaf plant green", "☘️": "shamrock plant clover", "🍀": "four leaf clover plant luck", "🌵": "cactus desert plant", "🌴": "palm tree tropical plant", "🌳": "deciduous tree plant", "🌲": "evergreen pine tree plant", "🎄": "christmas tree plant", "🪴": "potted plant houseplant", "🎍": "pine decoration plant", "🎋": "bamboo plant", "🌾": "sheaf rice grass plant", "🍃": "leaf wind plant", "🍂": "fallen leaf autumn plant", "🍁": "maple leaf plant", "🌷": "tulip flower plant", "🌹": "rose flower plant", "🥀": "wilted flower plant", "🌺": "hibiscus flower plant", "🌻": "sunflower plant", "🌼": "blossom flower plant", "🪷": "lotus flower plant", "🪻": "hyacinth flower plant", "💐": "bouquet flowers plant", "🪹": "empty nest nature tree", "🪺": "nest eggs nature tree",
+    "🇷🇸": "Serbia flag", "🇺🇸": "United States America flag",
     "🇬🇧": "United Kingdom Britain flag", "🇯🇵": "Japan flag", "🇪🇺": "European Union flag", "🏳️‍🌈": "rainbow pride LGBTQ LGBT flag", "🏳️‍⚧️": "transgender trans pride flag", "🏴": "black flag", "🏳️": "white flag", "🏁": "checkered racing flag", "🚩": "red triangular flag", "🇨🇦": "Canada flag", "🇦🇺": "Australia flag", "🇳🇿": "New Zealand flag", "🇭🇷": "Croatia flag", "🇧🇦": "Bosnia Herzegovina flag", "🇲🇪": "Montenegro flag", "🇲🇰": "North Macedonia flag", "🇦🇱": "Albania flag", "🇸🇮": "Slovenia flag", "🇩🇪": "Germany flag", "🇫🇷": "France flag", "🇮🇹": "Italy flag", "🇪🇸": "Spain flag", "🇵🇹": "Portugal flag", "🇧🇷": "Brazil flag", "🇮🇳": "India flag", "🇿🇦": "South Africa flag", "🇲🇽": "Mexico flag", "🇨🇳": "China flag", "🇰🇷": "South Korea flag"
 };
 
@@ -2702,7 +2712,8 @@ function addWorthItChatEmojiGroup(category, symbols) {
 
 addWorthItChatEmojiGroup("faces", "😀 😃 😄 😁 😆 😅 😂 🤣 🥲 ☺️ 😊 😇 🙂 🙃 😉 😌 😍 🥰 😘 😗 😙 😚 😋 😛 😜 😝 🤪 🤨 🧐 🤓 😎 🥸 🤩 🥳 😏 😒 😞 😔 😟 😕 🙁 ☹️ 😣 😖 😫 😩 🥺 😢 😭 😤 😠 😡 🤬 🤯 😳 🥵 🥶 😱 😨 😰 😥 😓 🤗 🤔 🫣 🤭 🫢 🫡 🤫 🫠 🫥 😶 🫤 😐 😑 😬 🙄 😯 😦 😧 😮 😲 🥱 😴 🤤 😪 😵 😵‍💫 🤐 🥴 🤢 🤮 🤧 😷 🤒 🤕 🤑 🤠 😈 👿 💀 ☠️ 👻 👽 🤖 💩 👹 👺 💋 💌");
 addWorthItChatEmojiGroup("people", "👋 🤚 🖐️ ✋ 🖖 👌 🤌 🤏 ✌️ 🤞 🫰 🤟 🤘 🤙 👈 👉 👆 👇 ☝️ ✊ 👊 🤛 🤜 👏 🙌 👐 🤲 🤝 🙏 ✍️ 💅 🤳 💪 🦾 🦿 🦵 🦶 👂 🦻 👃 🧠 🫀 🫁 🦷 🦴 👀 👁️ 👅 👄 🫦 👶 🧒 👦 👧 🧑 👨 👩 🧔 🧑‍🦰 🧑‍🦱 🧑‍🦳 🧑‍🦲 🧓 👴 👵 🙍 🙎 🙅 🙆 💁 🙋 🧏 🙇 🤦 🤷 💃 🕺 🧘 🛀 🛌 🧍 🧎 🚶 🏃 🧑‍💻 🧑‍🎨 🧑‍🍳 🧑‍🚀 🧑‍🔬 🧑‍🏫 🧑‍⚕️ 🧑‍🚒 🧑‍✈️ 🧑‍🌾");
-addWorthItChatEmojiGroup("animals", "🐶 🐱 🐭 🐹 🐰 🦊 🐻 🐼 🐻‍❄️ 🐨 🐯 🦁 🐮 🐷 🐸 🐵 🙈 🙉 🙊 🐒 🐔 🐧 🐦 🐤 🐣 🦆 🦅 🦉 🦇 🐺 🐗 🐴 🦄 🐝 🪱 🐛 🦋 🐌 🐞 🐜 🪰 🪲 🕷️ 🕸️ 🦂 🦟 🦗 🪳 🐢 🐍 🦎 🦖 🦕 🐙 🦑 🦐 🦞 🦀 🐡 🐠 🐟 🐬 🐳 🦈 🐊 🦭 🦦 🦥 🦫 🦡 🐘 🦣 🦏 🦛 🦒 🦘 🦬 🐃 🐂 🐄 🐎 🐖 🐏 🐑 🦙 🐐 🦌 🐕 🦮 🐩 🐈 🐈‍⬛ 🪶 🐓 🦃 🦤 🦚 🦜 🦢 🦩 🕊️ 🐇 🦝 🦨 🦔 🐿️ 🌵 🎄 🌲 🌳 🌴 🌱 🌿 ☘️ 🍁 🍂 🍃 🌾 🪴 🌵 🌹 🥀 🌺 🌻 🌼 🌷");
+addWorthItChatEmojiGroup("animals", "🐶 🐱 🐭 🐹 🐰 🦊 🐻 🐼 🐻‍❄️ 🐨 🐯 🦁 🐮 🐷 🐸 🐵 🙈 🙉 🙊 🐒 🐔 🐧 🐦 🐤 🐣 🦆 🦅 🦉 🦇 🐺 🐗 🐴 🦄 🐝 🪱 🐛 🦋 🐌 🐞 🐜 🪰 🪲 🕷️ 🕸️ 🦂 🦟 🦗 🪳 🐢 🐍 🦎 🦖 🦕 🐙 🦑 🦐 🦞 🦀 🐡 🐠 🐟 🐬 🐳 🦈 🐊 🦭 🦦 🦥 🦫 🦡 🐘 🦣 🦏 🦛 🦒 🦘 🦬 🐃 🐂 🐄 🐎 🐖 🐏 🐑 🦙 🐐 🦌 🐕 🦮 🐩 🐈 🐈‍⬛ 🪶 🐓 🦃 🦤 🦚 🦜 🦢 🦩 🕊️ 🐇 🦝 🦨 🦔 🐿️");
+addWorthItChatEmojiGroup("plants", "🌱 🌿 ☘️ 🍀 🌵 🌴 🌳 🌲 🎄 🪴 🎍 🎋 🌾 🍃 🍂 🍁 🌷 🌹 🥀 🌺 🌻 🌼 🌸 🪷 🪻 💐");
 addWorthItChatEmojiGroup("food", "🍏 🍎 🍐 🍊 🍋 🍌 🍉 🍇 🍓 🫐 🍈 🍒 🍑 🥭 🍍 🥥 🥝 🍅 🫒 🥑 🍆 🥔 🥕 🌽 🌶️ 🫑 🥒 🥬 🥦 🧄 🧅 🍄 🥜 🫘 🌰 🍞 🥐 🥖 🫓 🥨 🥯 🥞 🧇 🧀 🍖 🍗 🥩 🥓 🍔 🍟 🍕 🌭 🥪 🌮 🌯 🫔 🥙 🧆 🥚 🍳 🥘 🍲 🥣 🥗 🍿 🧈 🧂 🥫 🍱 🍘 🍙 🍚 🍛 🍜 🍝 🍠 🍢 🍣 🍤 🍥 🥮 🍡 🥟 🥠 🥡 🦪 🍦 🍧 🍨 🍩 🍪 🎂 🍰 🧁 🥧 🍫 🍬 🍭 🍮 🍯 🍼 🥛 ☕ 🫖 🍵 🧃 🥤 🧋 🍶 🍺 🍻 🥂 🍷 🥃 🍸 🍹 🧉 🧊");
 addWorthItChatEmojiGroup("activities", "⚽ 🏀 🏈 ⚾ 🥎 🎾 🏐 🏉 🥏 🎱 🪀 🏓 🏸 🏒 🏑 🥍 🏏 🪃 🥅 ⛳ 🪁 🏹 🎣 🤿 🥊 🥋 🎽 🛹 🛼 🛷 ⛸️ 🥌 🎿 ⛷️ 🏂 🪂 🏋️ 🤼 🤸 ⛹️ 🤺 🏇 🧘 🏄 🏊 🤽 🚣 🧗 🚴 🚵 🏆 🥇 🥈 🥉 🏅 🎖️ 🏵️ 🎗️ 🎟️ 🎫 🎭 🩰 🎨 🎬 🎤 🎧 🎼 🎹 🥁 🎷 🎺 🎸 🪕 🎻 🪈 🎲 ♟️ 🎯 🎳 🎮 🎰 🧩 🎪 🎠 🎡 🎢 🎤 🎧");
 addWorthItChatEmojiGroup("travel", "🚗 🚕 🚙 🚌 🚎 🏎️ 🚓 🚑 🚒 🚐 🛻 🚚 🚛 🚜 🛵 🏍️ 🛺 🚲 🛴 🛹 🚏 🛣️ 🛤️ 🛢️ ⛽ 🛞 🚨 🚥 🚦 🛑 🚧 ⚓ 🛟 ⛵ 🛶 🚤 🛳️ ⛴️ 🛥️ 🚢 ✈️ 🛩️ 🛫 🛬 🪂 💺 🚁 🚟 🚠 🚡 🛰️ 🚀 🛸 🌍 🌎 🌏 🌐 🗺️ 🧭 🏔️ ⛰️ 🌋 🗻 🏕️ 🏖️ 🏜️ 🏝️ 🏞️ 🏟️ 🏛️ 🏗️ 🧱 🪨 🪵 🛖 🏘️ 🏚️ 🏠 🏡 🏢 🏣 🏤 🏥 🏦 🏨 🏩 🏪 🏫 🏬 🏭 🏯 🏰 💒 🗼 🗽 ⛪ 🕌 🛕 🕍 🛐 ⛩️ 🕋 ⛲ ⛺ 🌁 🌃 🌄 🌅 🌆 🌇 🌉 ♨️");
@@ -2803,12 +2814,30 @@ function insertWorthItChatEmoji(emoji) {
 }
 
 const WORTH_IT_CHAT_GIF_LIBRARY = [
-    { id: "laughing-smile", title: "Laughing smile", keywords: "laughing laugh funny smile joy", type: "gif", offset: 0, length: 684 },
-    { id: "party-confetti", title: "Party confetti", keywords: "party celebration celebrate birthday fun", type: "gif", offset: 684, length: 619 },
-    { id: "rocket-launch", title: "Rocket launch", keywords: "rocket launch space go success", type: "gif", offset: 1303, length: 570 },
-    { id: "sparkle-burst", title: "Sparkle burst", keywords: "sparkle magic shine glitter star", type: "sticker", offset: 1873, length: 638 },
-    { id: "heart-pulse", title: "Heart pulse", keywords: "heart love affection romance like", type: "sticker", offset: 2511, length: 643 },
-    { id: "cat-blink", title: "Cat blink", keywords: "cat kitten animal cute pet", type: "sticker", offset: 3154, length: 619 }
+    { id: "laughing-smile", title: "Laughing smile", keywords: "laughing laugh funny smile joy", type: "gif", offset: 0, length: 16552 },
+    { id: "party-confetti", title: "Party confetti", keywords: "party celebration celebrate birthday fun", type: "gif", offset: 16552, length: 23122 },
+    { id: "rocket-launch", title: "Rocket launch", keywords: "rocket launch space go success", type: "gif", offset: 39674, length: 20434 },
+    { id: "happy-dance", title: "Happy dance", keywords: "happy dance smile joy excited move", type: "gif", offset: 60108, length: 23878 },
+    { id: "thinking-face", title: "Thinking face", keywords: "thinking wonder hmm idea question", type: "gif", offset: 83986, length: 16706 },
+    { id: "thumbs-up", title: "Thumbs up", keywords: "like approval good yes great", type: "gif", offset: 100692, length: 18919 },
+    { id: "wow-burst", title: "Wow burst", keywords: "wow amazed surprise shock burst", type: "gif", offset: 119611, length: 28718 },
+    { id: "sleepy-cloud", title: "Sleepy cloud", keywords: "sleep sleepy tired goodnight rest", type: "gif", offset: 148329, length: 16055 },
+    { id: "rainbow-wave", title: "Rainbow wave", keywords: "rainbow wave hello colorful pride", type: "gif", offset: 164384, length: 20769 },
+    { id: "fireworks-show", title: "Fireworks show", keywords: "fireworks celebration night stars", type: "gif", offset: 185153, length: 26295 },
+    { id: "coffee-break", title: "Coffee break", keywords: "coffee cup cozy break morning", type: "gif", offset: 211448, length: 22197 },
+    { id: "celebration-stars", title: "Celebration stars", keywords: "celebration success shine sparkle", type: "gif", offset: 233645, length: 22322 },
+    { id: "sparkle-burst", title: "Sparkle burst", keywords: "sparkle magic shine glitter star", type: "sticker", offset: 255967, length: 4262 },
+    { id: "heart-pulse", title: "Heart pulse", keywords: "heart love affection romance like", type: "sticker", offset: 260229, length: 4882 },
+    { id: "cat-blink", title: "Cat blink", keywords: "cat kitten animal cute pet", type: "sticker", offset: 265111, length: 8885 },
+    { id: "cute-dog", title: "Cute dog", keywords: "dog puppy pet cute animal", type: "sticker", offset: 273996, length: 8909 },
+    { id: "plant-sprout", title: "Plant sprout", keywords: "plant sprout seedling green nature grow", type: "sticker", offset: 282905, length: 7629 },
+    { id: "sunflower", title: "Sunflower", keywords: "sunflower flower plant sunny garden", type: "sticker", offset: 290534, length: 12752 },
+    { id: "coffee-cup", title: "Coffee cup", keywords: "coffee latte mug drink cozy", type: "sticker", offset: 303286, length: 4255 },
+    { id: "star-eyes", title: "Star eyes", keywords: "star eyes excited happy amazed", type: "sticker", offset: 307541, length: 8586 },
+    { id: "hug-heart", title: "Hug heart", keywords: "hug heart love caring comfort friends", type: "sticker", offset: 316127, length: 7100 },
+    { id: "party-hat", title: "Party hat", keywords: "party hat birthday celebration", type: "sticker", offset: 323227, length: 4024 },
+    { id: "little-ghost", title: "Little ghost", keywords: "ghost boo spooky cute halloween", type: "sticker", offset: 327251, length: 12742 },
+    { id: "rainbow-heart", title: "Rainbow heart", keywords: "rainbow heart love colorful pride", type: "sticker", offset: 339993, length: 11632 }
 ];
 const WORTH_IT_CHAT_GIF_BUNDLE_PATH = "/assets/worth-it-chat-gifs/library.base64.txt";
 let worthItChatGifBundlePromise = null;
@@ -3137,9 +3166,25 @@ window.addEventListener("worthitnotificationpreferenceschange", event => {
     }
 });
 window.addEventListener("popstate", () => { routeWorthItChatFromLocation(); });
+
+// Use the app's single authoritative initial-session promise. A second getSession()
+// race can temporarily report null while the saved session is being restored.
+if (window.worthItAuthStateResolved) {
+    setAuthState(window.worthItCurrentAuthUser || null);
+} else if (window.worthItAuthReady) {
+    Promise.resolve(window.worthItAuthReady).then(() => {
+        if (!chatAuthResolutionComplete) setAuthState(window.worthItCurrentAuthUser || null);
+    }).catch(() => {
+        if (!chatAuthResolutionComplete) setAuthState(null);
+    });
+}
 routeWorthItChatFromLocation();
 if (sb()?.auth) {
-    sb().auth.getSession().then(({data}) => setAuthState(data?.session?.user || null)).catch(() => setAuthState(null));
-    sb().auth.onAuthStateChange((_event, session) => setAuthState(session?.user || null));
+    sb().auth.onAuthStateChange((event, session) => {
+        // Ignore a premature empty INITIAL_SESSION event until app.js has completed
+        // its authoritative restoration of the persisted session.
+        if (event === "INITIAL_SESSION" && !window.worthItAuthStateResolved) return;
+        setAuthState(session?.user || null);
+    });
 }
 })();
