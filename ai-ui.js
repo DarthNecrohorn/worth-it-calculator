@@ -534,6 +534,12 @@ if(el){
 }
 
 async function sendAIChatMessage(){
+    if (typeof window.isWorthItEmailVerified === "function" && !window.isWorthItEmailVerified(window.worthItCurrentAuthUser || currentAuthUser)) {
+        if (typeof showToast === "function") showToast("Please confirm your email before using Worth It AI.");
+        else setAIChatStatus("Please confirm your email before using Worth It AI.", true);
+        return;
+    }
+
 
 if(aiChatBusy) return;
 
