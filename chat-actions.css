@@ -1,0 +1,126 @@
+/* Worth It chat message actions and conversation context menus. */
+.worth-it-chat-message-stack{
+    position:relative;
+    flex:1 1 auto;
+    max-width:calc(100% - 39px);
+}
+.worth-it-chat-message-actions{
+    display:flex;
+    align-items:center;
+    justify-content:flex-start;
+    gap:3px;
+    min-height:26px;
+    margin-top:0;
+    padding:1px 3px;
+    color:var(--muted,#94a3b8);
+    opacity:.88;
+}
+.worth-it-chat-message.is-mine .worth-it-chat-message-actions{justify-content:flex-end}
+.worth-it-chat-message-action-btn{
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    flex:0 0 27px;
+    width:27px;
+    height:26px;
+    padding:0;
+    border:1px solid transparent;
+    border-radius:7px;
+    background:transparent;
+    color:var(--muted,#94a3b8);
+    font-size:16px;
+    font-weight:500;
+    line-height:1;
+    transition:background .15s ease,border-color .15s ease,color .15s ease;
+}
+.worth-it-chat-message-action-btn:hover{
+    color:var(--text,#f8fafc);
+    background:var(--surface-soft,rgba(255,255,255,.06));
+    border-color:var(--border,rgba(148,163,184,.18));
+}
+.worth-it-chat-message-action-btn:focus-visible,
+.worth-it-chat-message-menu-item:focus-visible,
+.worth-it-chat-context-menu-item:focus-visible{
+    outline:2px solid var(--primary2,#38bdf8);
+    outline-offset:2px;
+}
+.worth-it-chat-message-more{position:relative;display:flex;align-items:center}
+.worth-it-chat-message-more-btn{font-size:20px;letter-spacing:1px;padding-bottom:4px}
+.worth-it-chat-message-menu,
+.worth-it-chat-context-menu{
+    position:fixed;
+    z-index:2147483000;
+    min-width:218px;
+    max-width:min(260px,calc(100vw - 20px));
+    padding:5px;
+    display:flex;
+    flex-direction:column;
+    gap:2px;
+    border:1px solid var(--border,rgba(148,163,184,.2));
+    border-radius:12px;
+    background:var(--card-solid,#11192a);
+    color:var(--text,#f8fafc);
+    box-shadow:0 14px 36px rgba(0,0,0,.38);
+}
+.worth-it-chat-message-menu{
+    position:absolute;
+    left:0;
+    right:auto;
+    bottom:calc(100% + 5px);
+    z-index:2147482000;
+}
+.worth-it-chat-message.is-mine .worth-it-chat-message-menu{left:auto;right:0}
+.worth-it-chat-message-menu[hidden],
+.worth-it-chat-context-menu[hidden]{display:none!important}
+.worth-it-chat-message-menu-item,
+.worth-it-chat-context-menu-item{
+    display:flex;
+    align-items:center;
+    width:100%;
+    min-height:34px;
+    padding:7px 10px;
+    border:0;
+    border-radius:8px;
+    background:transparent;
+    color:var(--text,#f8fafc);
+    text-align:left;
+    font-size:12px;
+    line-height:1.35;
+    white-space:normal;
+}
+.worth-it-chat-message-menu-item:hover,
+.worth-it-chat-context-menu-item:hover{
+    background:var(--surface-soft,rgba(255,255,255,.06));
+}
+.worth-it-chat-message-menu-item.is-danger,
+.worth-it-chat-context-menu-item.is-danger{color:var(--danger,#fb7185)}
+.worth-it-chat-message-menu-item:disabled,
+.worth-it-chat-context-menu-item:disabled{opacity:.42;cursor:not-allowed}
+.worth-it-chat-message-system-note{
+    display:inline-block;
+    margin:1px 3px 2px;
+    padding:3px 0;
+    color:var(--muted,#94a3b8);
+    font-size:11px;
+    line-height:1.5;
+    font-style:italic;
+    overflow-wrap:anywhere;
+}
+.worth-it-chat-message.is-tombstone{opacity:.92}
+.worth-it-chat-message.is-tombstone .worth-it-chat-message-stack{gap:3px}
+.worth-it-chat-message.is-tombstone .worth-it-chat-message-time{font-size:9px}
+.worth-it-chat-conversation-item,
+.worth-it-chat-person-btn,
+.worth-it-chat-side-item{touch-action:pan-y}
+@media(max-width:760px){
+    .worth-it-chat-message{max-width:min(96%,720px)}
+    .worth-it-chat-message-stack{max-width:calc(100% - 39px)}
+    .worth-it-chat-message-actions{opacity:1;min-height:30px}
+    .worth-it-chat-message-action-btn{width:29px;height:28px;flex-basis:29px}
+    .worth-it-chat-message-menu{min-width:200px}
+}
+@media(hover:hover) and (pointer:fine){
+    .worth-it-chat-message-actions{opacity:.68}
+    .worth-it-chat-message:hover .worth-it-chat-message-actions,
+    .worth-it-chat-message:focus-within .worth-it-chat-message-actions{opacity:1}
+}
