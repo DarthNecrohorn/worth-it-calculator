@@ -401,10 +401,14 @@ document.addEventListener("click", event => {
     if (!event.target.closest("#worthItChatConversationContextMenu")) closeWorthItChatConversationContextMenu();
 });
 document.addEventListener("keydown", event => {
-    if (event.key === "Escape") {
-        closeWorthItChatMessageMenus();
-        closeWorthItChatConversationContextMenu();
-    }
+    if (event.key !== "Escape") return;
+    const messageMenuOpen = Array.from(document.querySelectorAll(".worth-it-chat-message-menu")).some(menu => !menu.hidden);
+    const conversationMenuOpen = Boolean(document.getElementById("worthItChatConversationContextMenu"));
+    if (!messageMenuOpen && !conversationMenuOpen) return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    closeWorthItChatMessageMenus();
+    closeWorthItChatConversationContextMenu();
 });
 if ($("worthItGlobalChatBtn")) {
     attachWorthItChatConversationContextHandlers($("worthItGlobalChatBtn"), {
