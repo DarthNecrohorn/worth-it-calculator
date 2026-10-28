@@ -486,9 +486,20 @@ function renderFriends() {
         return;
     }
     friendsForSidebar.forEach(friend => {
+        const directConversation = findWorthItDirectConversationForFriend(friend);
+        const contextConversation = {
+            type: "direct",
+            id: directConversation?.id || null,
+            title: friend.display_name || friend.username || "Friend chat",
+            members: [friend],
+            person: friend,
+            is_pinned: Boolean(directConversation?.is_pinned)
+        };
+        const item = document.createElement("div");
+        item.className = "worth-it-chat-conversation-item worth-it-chat-private-item";
         const row = document.createElement("button");
         row.type = "button";
-        row.className = "worth-it-chat-person-btn" + (activeConversationType === "direct" && String(activeConversationPerson?.worth_it_id) === String(friend.worth_it_id) ? " is-active" : "");
+        row.className = "worth-it-chat-person-btn worth-it-chat-conversation-open" + (activeConversationType === "direct" && String(activeConversationPerson?.worth_it_id) === String(friend.worth_it_id) ? " is-active" : "");
         row.title = "Chat with " + (friend.display_name || friend.username || "friend");
         row.appendChild(makeAvatar(friend));
         const info = document.createElement("span"); info.className = "worth-it-chat-person-info";
@@ -504,7 +515,6 @@ function renderFriends() {
         const presence = document.createElement("small"); presence.className = "worth-it-chat-person-presence"; presence.dataset.worthItPresenceId = String(friend.worth_it_id); presence.textContent = window.getWorthItPresenceInfo ? window.getWorthItPresenceInfo(friend).label : "";
         info.append(name, username, presence); row.appendChild(info);
 
-        const directConversation = findWorthItDirectConversationForFriend(friend);
         const friendKey = chatNotificationKeyForFriend(friend);
         const unread = chatNotificationsEnabled(friendKey) ? Number(directConversation?.unread_count || 0) : 0;
         if (unread > 0) {
@@ -515,15 +525,23 @@ function renderFriends() {
             row.appendChild(count);
         }
         row.addEventListener("click", () => openWorthItFriendChat(friend.worth_it_id));
-        attachWorthItChatConversationContextHandlers(row, {
-            type: "direct",
-            id: directConversation?.id || null,
-            title: friend.display_name || friend.username || "Friend chat",
-            members: [friend],
-            person: friend,
-            is_pinned: Boolean(directConversation?.is_pinned)
+        item.appendChild(row);
+        const actions = document.createElement("button");
+        actions.type = "button";
+        actions.className = "worth-it-chat-group-actions-btn worth-it-chat-private-actions-btn";
+        actions.textContent = "⋯";
+        actions.title = "Conversation options for " + (friend.display_name || friend.username || "friend");
+        actions.setAttribute("aria-label", "Conversation options for " + (friend.display_name || friend.username || "friend"));
+        actions.setAttribute("aria-haspopup", "menu");
+        actions.addEventListener("click", event => {
+            event.preventDefault();
+            event.stopPropagation();
+            const rect = actions.getBoundingClientRect();
+            showWorthItChatConversationContextMenu(contextConversation, rect.left, rect.bottom);
         });
-        host.appendChild(row);
+        item.appendChild(actions);
+        attachWorthItChatConversationContextHandlers(item, contextConversation);
+        host.appendChild(item);
     });
 }
 
