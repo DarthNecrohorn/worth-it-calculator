@@ -1,19 +1,14 @@
-# Public, shareable legal-document URLs. Keep the requested URL in the browser
-# while serving the single-page app that renders the matching document.
+# Canonical URL aliases. App routes use Cloudflare Pages' automatic SPA fallback,
+# which keeps the requested path in the browser address bar on a direct refresh.
+# Public, shareable legal-document URLs are rendered by the single-page app.
 /terms-of-use/ /terms-of-use 301
 /community-rules/ /community-rules 301
 /privacy-policy/ /privacy-policy 301
 /cookie-storage-policy/ /cookie-storage-policy 301
 /affiliate-disclosure/ /affiliate-disclosure 301
 /disclaimer/ /disclaimer 301
-/terms-of-use /index.html 200
-/community-rules /index.html 200
-/privacy-policy /index.html 200
-/cookie-storage-policy /index.html 200
-/affiliate-disclosure /index.html 200
-/disclaimer /index.html 200
 
-# Shareable section and calculator URLs. These rewrite to the existing single-page app.
+# Canonical app-section URLs.
 /compare-cars/ /compare-cars 301
 /weather/ /weather 301
 /news/ /news 301
@@ -29,28 +24,3 @@
 /cars /compare-cars 301
 /crypto/ /cryptocurrencies 301
 /crypto /cryptocurrencies 301
-
-/calculator/* /index.html 200
-/compare-cars /index.html 200
-/weather /index.html 200
-/news /index.html 200
-/shop /index.html 200
-/markets /index.html 200
-/currencies /index.html 200
-/cryptocurrencies /index.html 200
-/water-levels /index.html 200
-/ship-tracking /index.html 200
-/calculators /index.html 200
-/faq /index.html 200
-
-# Public shareable user profile URLs.
-/profile/* /index.html 200
-
-# Chat routes must serve the app shell on direct loads and browser refreshes.
-/chat /index.html 200
-/chat/* /index.html 200
-
-# Full account settings page, including its nested sections.
-/settings/ /settings 301
-/settings/* /index.html 200
-/settings /index.html 200
