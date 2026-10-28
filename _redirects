@@ -46,6 +46,11 @@
 # Public shareable user profile URLs.
 /profile/* /index.html 200
 
-# Full account settings page.
+# Chat routes must serve the app shell on direct loads and browser refreshes.
+/chat /index.html 200
+/chat/* /index.html 200
+
+# Full account settings page, including its nested sections.
 /settings/ /settings 301
+/settings/* /index.html 200
 /settings /index.html 200
