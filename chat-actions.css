@@ -294,6 +294,6 @@ html[data-theme="light"] .worth-it-chat-no-results{
     stroke-linecap: round;
     stroke-linejoin: round;
 }
-.worth-it-chat-message-action-btn:has(.worth-it-chat-copy-icon) {
+.worth-it-chat-copy-action {
     font-size: 0;
 }
