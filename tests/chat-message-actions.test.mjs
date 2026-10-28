@@ -5,6 +5,7 @@ import { readFileSync } from "node:fs";
 const html = readFileSync(new URL("../index.html", import.meta.url), "utf8");
 const client = readFileSync(new URL("../chat-ui.js", import.meta.url), "utf8");
 const actionsCss = readFileSync(new URL("../chat-actions.css", import.meta.url), "utf8");
+const deleteConfirmCss = readFileSync(new URL("../chat-delete-confirm.css", import.meta.url), "utf8");
 const migration = readFileSync(new URL("../supabase/worth-it-chat-message-actions.sql", import.meta.url), "utf8");
 const deleteConstraintMigration = readFileSync(new URL("../supabase/worth-it-chat-message-delete-constraint.sql", import.meta.url), "utf8");
 const workflow = readFileSync(new URL("../.github/workflows/function-syntax-check.yml", import.meta.url), "utf8");
@@ -27,14 +28,15 @@ test("each live message has ChatGPT-like copy, quote and three-dot action contro
     assert.match(actionsCss, /\.worth-it-chat-message-actions/);
     assert.match(actionsCss, /\.worth-it-chat-message-menu/);
     assert.match(html, /chat-actions\.css\?v=chat-message-actions-20261028b/);
-    assert.match(html, /chat-ui\.js\?v=chat-delete-refresh-20261028a/);
+    assert.match(html, /chat-ui\.js\?v=chat-delete-confirm-20261028a/);
 });
 
 test("message menu offers hide-for-me and owner-only delete-for-everyone actions", () => {
     assert.match(client, /addMenuItem\("Hide message for me", \(\) => runWorthItChatMessageAction\("hide", message\)/);
     assert.match(client, /if \(mine\) addMenuItem\("Delete message for everyone"/);
     assert.match(client, /message\.sender_user_id !== chatUser\.id/);
-    assert.match(client, /window\.confirm\("Delete this message for everyone/);
+    assert.match(client, /await confirmWorthItChatMessageDelete\(actionUserId\)/);
+    assert.doesNotMatch(client, /window\.confirm\("Delete this message for everyone/);
     assert.match(client, /function runWorthItChatMessageAction\(/);
     assert.match(client, /delete_worth_it_chat_message/);
     assert.match(client, /hide_worth_it_chat_message/);
@@ -119,4 +121,23 @@ test("message actions migration scopes private deletion state to the requesting 
     assert.match(migration, /hc\.user_id = actor_id and hc\.conversation_id = target_id/);
     assert.match(workflow, /tests\/fixtures\/chat-message-actions-postgres-setup\.sql/);
     assert.match(workflow, /tests\/fixtures\/chat-message-actions-postgres-smoke\.sql/);
+});
+
+
+test("delete-for-everyone uses an accessible branded dialog with a per-user skip preference", () => {
+    assert.match(client, /const WORTH_IT_CHAT_DELETE_CONFIRM_SKIP_PREFIX = "worth-it-chat-delete-confirm-skip-v1:"/);
+    assert.match(client, /window\.localStorage\.getItem\(WORTH_IT_CHAT_DELETE_CONFIRM_SKIP_PREFIX \+ String\(userId\)\) === "1"/);
+    assert.match(client, /window\.localStorage\.setItem\(WORTH_IT_CHAT_DELETE_CONFIRM_SKIP_PREFIX \+ String\(userId\), "1"\)/);
+    assert.match(client, /function confirmWorthItChatMessageDelete\(userId\)/);
+    assert.match(client, /setAttribute\("role", "alertdialog"\)/);
+    assert.match(client, /setAttribute\("aria-modal", "true"\)/);
+    assert.match(client, /preferenceText\.textContent = "Don't show this again"/);
+    assert.match(client, /cancelButton\.addEventListener\("click", \(\) => finish\(false\)\)/);
+    assert.match(client, /deleteButton\.addEventListener\("click", \(\) => finish\(true\)\)/);
+    assert.match(client, /if \(event\.key === "Escape"\)/);
+    assert.match(deleteConfirmCss, /\.worth-it-chat-delete-confirm-dialog/);
+    assert.match(deleteConfirmCss, /\.worth-it-chat-delete-confirm-preference/);
+    assert.match(deleteConfirmCss, /html\[data-theme="light"\]/);
+    assert.match(html, /chat-delete-confirm\.css\?v=chat-delete-confirm-20261028a/);
+    assert.match(html, /chat-ui\.js\?v=chat-delete-confirm-20261028a/);
 });
