@@ -257,7 +257,7 @@ html[data-theme="light"] .worth-it-chat-no-results{
     align-self:stretch;
     min-height:40px;
 }
-@media(max-width:540px){
+@media(max-width:760px), (hover:none), (pointer:coarse){
     .worth-it-chat-private-item .worth-it-chat-private-actions-btn{opacity:.82}
 }
 @media(prefers-reduced-motion:reduce){
