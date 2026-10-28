@@ -369,6 +369,11 @@ document.addEventListener("keydown", event => {
         closeWorthItChatConversationContextMenu();
     }
 });
+if ($("worthItGlobalChatBtn")) {
+    attachWorthItChatConversationContextHandlers($("worthItGlobalChatBtn"), {
+        type: "global", id: null, title: GLOBAL_TITLE
+    });
+}
 
 function renderFriends() {
     const host = $("worthItChatFriends");
