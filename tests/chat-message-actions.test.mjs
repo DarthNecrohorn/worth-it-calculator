@@ -33,6 +33,20 @@ test("message menu offers hide-for-me and owner-only delete-for-everyone actions
     assert.match(client, /has deleted a message/);
 });
 
+test("pinning a sidebar conversation is persistent, per-user, and places it at the top of its own list", () => {
+    assert.match(client, /Pin conversation/);
+    assert.match(client, /Unpin conversation/);
+    assert.match(client, /set_worth_it_chat_conversation_pinned/);
+    assert.match(client, /friendsForSidebar = chatFriends\\.slice\\(\\)\\.sort/);
+    assert.match(client, /filter\\(conversation => conversation\\.type === "group"\\)[\\s\\S]*?sort\\(\\(left, right\\) => Number\\(Boolean\\(right\\.is_pinned\\)\\)/);
+    assert.match(client, /worth-it-chat-pin-indicator/);
+    assert.match(migration, /create table if not exists public\\.worth_it_chat_conversation_pins/);
+    assert.match(migration, /set_worth_it_chat_conversation_pinned/);
+    assert.match(migration, /pins\\.user_id = actor_id and pins\\.conversation_id = c\\.id/);
+    assert.match(migration, /GLOBAL_CHAT_PIN_NOT_SUPPORTED/);
+    assert.match(actionsCss, /\\.worth-it-chat-pin-indicator/);
+});
+
 test("conversation history menu supports right-click and mobile long-press without removing other members' messages", () => {
     assert.match(client, /function attachWorthItChatConversationContextHandlers\(/);
     assert.match(client, /addEventListener\("contextmenu"/);
@@ -51,6 +65,7 @@ test("message actions migration scopes private deletion state to the requesting 
     assert.match(migration, /revoke all on public\.worth_it_chat_message_hides from public, anon, authenticated/);
     assert.match(migration, /revoke all on public\.worth_it_chat_history_clears from public, anon, authenticated/);
     assert.match(migration, /message_sender is distinct from actor_id/);
+    assert.match(migration, /revoke all on public\\.worth_it_chat_conversation_pins from public, anon, authenticated/);
     assert.match(migration, /set body = ''/);
     assert.match(migration, /set cleared_at = excluded\.cleared_at/);
     assert.match(migration, /hidden_preview\.user_id = actor_id/);
