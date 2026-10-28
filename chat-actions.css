@@ -240,3 +240,26 @@ html[data-theme="light"] .worth-it-chat-no-results{
 @media(prefers-reduced-motion:reduce){
     .worth-it-chat-sidebar-search{transition:none}
 }
+
+/* Keep direct-chat controls discoverable without nesting buttons or cluttering the list. */
+.worth-it-chat-private-item{
+    position:relative;
+}
+.worth-it-chat-private-item .worth-it-chat-private-actions-btn{
+    opacity:0;
+}
+.worth-it-chat-private-item:hover .worth-it-chat-private-actions-btn,
+.worth-it-chat-private-item:focus-within .worth-it-chat-private-actions-btn,
+.worth-it-chat-private-actions-btn:focus-visible{
+    opacity:1;
+}
+.worth-it-chat-private-actions-btn{
+    align-self:stretch;
+    min-height:40px;
+}
+@media(max-width:540px){
+    .worth-it-chat-private-item .worth-it-chat-private-actions-btn{opacity:.82}
+}
+@media(prefers-reduced-motion:reduce){
+    .worth-it-chat-private-actions-btn{transition:none}
+}
