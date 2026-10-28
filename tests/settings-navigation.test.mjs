@@ -95,10 +95,12 @@ test("profile Back returns to the previous in-app route instead of forcing Home"
     assert.match(routing, /showHome\.call\(window\)/);
 });
 
-test("direct refreshes of chat and nested settings routes serve the SPA without redirecting Home", () => {
-    assert.match(redirects, /^\/chat \/index\.html 200$/m);
-    assert.match(redirects, /^\/chat\/\* \/index\.html 200$/m);
-    assert.match(redirects, /^\/settings\/\* \/index\.html 200$/m);
+test("direct route refreshes rely on automatic SPA fallback without proxying through /index.html", () => {
+    assert.doesNotMatch(redirects, /^\S+\s+\S+\s+200$/m);
+    assert.doesNotMatch(redirects, /^\/chat(?:\/\*)?\s+\/index\.html\s+200$/m);
+    assert.doesNotMatch(redirects, /^\/settings(?:\/\*)?\s+\/index\.html\s+200$/m);
     assert.match(routing, /"\/settings": "openFullSettings"/);
     assert.match(routing, /"\/settings\/privacy": "openSettingsPrivacy"/);
-});
+    assert.match(routing, /const initialPath = normalizePath\(window\.location\.pathname\)/);
+    assert.match(routing, /applyRoute\(initialPath, \{ initial: true \}\)/);
+});;
