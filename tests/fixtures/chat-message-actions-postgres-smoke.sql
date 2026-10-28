@@ -34,6 +34,11 @@ begin
   ) then
     raise exception 'RLS is not enabled on every private chat state table.';
   end if;
+  if to_regclass('public.worth_it_chat_history_clears_conversation_id_idx') is null
+     or to_regclass('public.worth_it_chat_conversation_pins_conversation_id_idx') is null
+     or to_regclass('public.worth_it_chat_messages_deleted_by_user_id_idx') is null then
+    raise exception 'One or more chat action foreign-key indexes are missing.';
+  end if;
 
   perform set_config('app.test_user_id','10000000-0000-4000-8000-000000000001',true);
   result := public.delete_worth_it_chat_message(1);
