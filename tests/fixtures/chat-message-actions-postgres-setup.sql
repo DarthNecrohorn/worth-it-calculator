@@ -101,7 +101,7 @@ begin
     ) as row_data
     from public.worth_it_chat_messages m
     join public.worth_it_profiles p on p.user_id = m.sender_user_id
-    left join public.worth_it_user_preferences prefs on prefs.user_id = p.user_id
+        left join public.worth_it_user_preferences prefs on prefs.user_id = p.user_id
         where m.conversation_id = target_id
     order by m.id desc
     limit greatest(1, least(coalesce(p_limit, 100), 100))
