@@ -37,6 +37,14 @@ let chatRealtimeRetryTimer = null;
 let chatLastMessagePollAt = 0;
 let chatLastSidebarRefreshAt = 0;
 let chatTypingStopTimer = null;
+let chatTypingStartTimer = null;
+let chatTypingBroadcastTimer = null;
+let chatTypingReadyToPublish = false;
+const chatTypingBroadcastUsers = new Map();
+const chatTypingBroadcastExpiryTimers = new Map();
+const CHAT_TYPING_START_DELAY_MS = 900;
+const CHAT_TYPING_BROADCAST_REFRESH_MS = 900;
+const CHAT_TYPING_BROADCAST_TTL_MS = 2300;
 let chatTypingActive = false;
 let chatOwnProfile = null;
 let chatOwnProfileLoadedForUser = null;
@@ -1760,6 +1768,11 @@ function hideWorthItChatTyping() {
         node.replaceChildren();
     }
 }
+function clearWorthItChatTypingBroadcastState() {
+    chatTypingBroadcastExpiryTimers.forEach(timer => window.clearTimeout(timer));
+    chatTypingBroadcastExpiryTimers.clear();
+    chatTypingBroadcastUsers.clear();
+}
 function renderWorthItChatTyping(channel = chatRealtimeChannel) {
     const node = $("worthItChatTyping");
     if (!node) return;
@@ -1780,10 +1793,18 @@ function renderWorthItChatTyping(channel = chatRealtimeChannel) {
         (Array.isArray(entries) ? entries : [entries]).forEach(entry => {
             if (!entry || entry.typing !== true || !entry.user_id || String(entry.user_id) === String(currentUserId)) return;
             if (!people.has(String(entry.user_id))) {
+                const userId = String(entry.user_id);
+                const broadcastState = chatTypingBroadcastUsers.get(userId);
+                if (broadcastState?.channel === channel && broadcastState.typing === false) return;
                 const name = String(entry.display_name || entry.username || "A member").trim().slice(0, 80);
-                people.set(String(entry.user_id), name || "A member");
+                people.set(userId, name || "A member");
             }
         });
+    });
+    // Broadcast events provide a low-latency path; Presence remains the fallback.
+    chatTypingBroadcastUsers.forEach((entry, userId) => {
+        if (entry.channel !== channel || entry.typing !== true || userId === String(currentUserId)) return;
+        if (!people.has(userId)) people.set(userId, entry.display_name || "A member");
     });
     const names = Array.from(people.values());
     let message = "";
@@ -1811,10 +1832,61 @@ function renderWorthItChatTyping(channel = chatRealtimeChannel) {
     label.textContent = message;
     node.append(dots, label);
 }
+function handleWorthItChatTypingBroadcast(channel, event) {
+    if (channel !== chatRealtimeChannel || !chatOpen || activeConversationType === "global" || !chatUser) return;
+    const payload = event?.payload || {};
+    const userId = String(payload.user_id || "");
+    if (!userId || userId === String(chatUser.id)) return;
+
+    const oldTimer = chatTypingBroadcastExpiryTimers.get(userId);
+    if (oldTimer) window.clearTimeout(oldTimer);
+    const typing = payload.typing === true;
+    const name = String(payload.display_name || payload.username || "A member").trim().slice(0, 80) || "A member";
+    chatTypingBroadcastUsers.set(userId, { display_name: name, typing, channel });
+
+    const timer = window.setTimeout(() => {
+        const current = chatTypingBroadcastUsers.get(userId);
+        if (current?.channel === channel && current.typing === typing) {
+            chatTypingBroadcastUsers.delete(userId);
+        }
+        chatTypingBroadcastExpiryTimers.delete(userId);
+        if (channel === chatRealtimeChannel) renderWorthItChatTyping(channel);
+    }, typing ? CHAT_TYPING_BROADCAST_TTL_MS : 2500);
+    chatTypingBroadcastExpiryTimers.set(userId, timer);
+    renderWorthItChatTyping(channel);
+}
+async function sendWorthItChatTypingBroadcast(typing, channel = chatRealtimeChannel, user = chatUser) {
+    if (!channel || !user || channel !== chatRealtimeChannel || !chatRealtimeSubscribed) return;
+    if (typing && (!chatTypingActive || !chatTypingReadyToPublish || !chatOpen || activeConversationType === "global")) return;
+    const identity = worthItChatTypingIdentity(chatOwnProfile, user);
+    try {
+        await channel.send({
+            type: "broadcast",
+            event: "typing",
+            payload: {
+                user_id: user.id,
+                display_name: identity.display_name,
+                username: identity.username,
+                typing: Boolean(typing)
+            }
+        });
+    } catch (_) {
+        // Presence remains the fallback if the fast broadcast path is unavailable.
+    }
+}
+function startWorthItChatTypingBroadcastPulse(channel) {
+    if (chatTypingBroadcastTimer || !channel) return;
+    chatTypingBroadcastTimer = window.setInterval(() => {
+        if (!chatTypingActive || !chatTypingReadyToPublish || !chatRealtimeSubscribed ||
+            channel !== chatRealtimeChannel || !chatOpen || activeConversationType === "global") return;
+        void sendWorthItChatTypingBroadcast(true, channel, chatUser);
+    }, CHAT_TYPING_BROADCAST_REFRESH_MS);
+}
 async function publishWorthItChatTyping(typing, channel = chatRealtimeChannel) {
     const user = chatUser;
     if (!channel || !user || !chatRealtimeSubscribed) return;
-    if (typing && (activeConversationType === "global" || !chatOpen || channel !== chatRealtimeChannel)) return;
+    if (typing && (!chatTypingActive || !chatTypingReadyToPublish ||
+        activeConversationType === "global" || !chatOpen || channel !== chatRealtimeChannel)) return;
     const profile = chatOwnProfile;
     if (!chatUser || chatUser.id !== user.id || !chatRealtimeSubscribed || channel !== chatRealtimeChannel) return;
     if (typing && activeConversationType === "global") return;
@@ -1838,6 +1910,12 @@ async function publishWorthItChatTyping(typing, channel = chatRealtimeChannel) {
     }
 
     const identity = worthItChatTypingIdentity(profile, user);
+    if (typing) {
+        void sendWorthItChatTypingBroadcast(true, channel, user);
+        startWorthItChatTypingBroadcastPulse(channel);
+    } else {
+        void sendWorthItChatTypingBroadcast(false, channel, user);
+    }
     try {
         await channel.track({
             user_id: user.id,
@@ -1851,9 +1929,14 @@ async function publishWorthItChatTyping(typing, channel = chatRealtimeChannel) {
 }
 function stopWorthItChatTyping(publish = true) {
     if (chatTypingStopTimer) window.clearTimeout(chatTypingStopTimer);
+    if (chatTypingStartTimer) window.clearTimeout(chatTypingStartTimer);
+    if (chatTypingBroadcastTimer) window.clearInterval(chatTypingBroadcastTimer);
     chatTypingStopTimer = null;
-    const wasTyping = chatTypingActive;
+    chatTypingStartTimer = null;
+    chatTypingBroadcastTimer = null;
+    const wasTyping = chatTypingActive && chatTypingReadyToPublish;
     chatTypingActive = false;
+    chatTypingReadyToPublish = false;
     if (publish && wasTyping) void publishWorthItChatTyping(false, chatRealtimeChannel);
 }
 function handleWorthItChatTypingInput() {
@@ -1865,7 +1948,17 @@ function handleWorthItChatTypingInput() {
     }
     if (!chatTypingActive) {
         chatTypingActive = true;
-        void publishWorthItChatTyping(true, chatRealtimeChannel);
+        chatTypingReadyToPublish = false;
+        chatTypingStartTimer = window.setTimeout(() => {
+            chatTypingStartTimer = null;
+            if (!chatTypingActive || !chatOpen || activeConversationType === "global" ||
+                !String($("worthItChatInput")?.value || "").trim()) {
+                stopWorthItChatTyping();
+                return;
+            }
+            chatTypingReadyToPublish = true;
+            if (chatRealtimeSubscribed) void publishWorthItChatTyping(true, chatRealtimeChannel);
+        }, CHAT_TYPING_START_DELAY_MS);
     }
     if (chatTypingStopTimer) window.clearTimeout(chatTypingStopTimer);
     chatTypingStopTimer = window.setTimeout(() => stopWorthItChatTyping(true), 1800);
@@ -1878,6 +1971,7 @@ function stopWorthItChatRealtimeChannel() {
     chatRealtimeTopic = "";
     chatRealtimeSubscribed = false;
     stopWorthItChatTyping(false);
+    clearWorthItChatTypingBroadcastState();
     if (chatRealtimeRefreshTimer) window.clearTimeout(chatRealtimeRefreshTimer);
     chatRealtimeRefreshTimer = null;
     if (chatRealtimeRetryTimer) window.clearTimeout(chatRealtimeRetryTimer);
@@ -1915,6 +2009,7 @@ async function syncWorthItChatRealtimeChannel() {
         chatRealtimeChannel = channel;
         chatRealtimeTopic = topic;
         chatRealtimeSubscribed = false;
+        channel.on("broadcast", {event: "typing"}, event => handleWorthItChatTypingBroadcast(channel, event));
         channel.on("broadcast", {event: "message_changed"}, event => {
             if (channel !== chatRealtimeChannel || !chatOpen || !chatUser) return;
             const payload = event?.payload || event || {};
@@ -1940,7 +2035,7 @@ async function syncWorthItChatRealtimeChannel() {
                 if (chatRealtimeRetryTimer) window.clearTimeout(chatRealtimeRetryTimer);
                 chatRealtimeRetryTimer = null;
                 startWorthItChatPolling();
-                if (chatTypingActive) void publishWorthItChatTyping(true, channel);
+                if (chatTypingActive && chatTypingReadyToPublish) void publishWorthItChatTyping(true, channel);
                 renderWorthItChatTyping(channel);
             } else if (status === "CHANNEL_ERROR" || status === "TIMED_OUT" || status === "CLOSED") {
                 chatRealtimeSubscribed = false;
