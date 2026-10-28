@@ -79,7 +79,7 @@ test("only the selected detail section appears; Appearance remains on the overvi
 test("the navigation assets are cache-busted together", () => {
     assert.match(html, /style\.css\?v=[^"']+/);
     assert.match(html, /settings\.js\?v=settings-navigation-20261015a/);
-    assert.match(html, /routing\.js\?v=profile-back-route-20261028a/);
+    assert.match(html, /routing\.js\?v=profile-navigation-hardening-20261028a/);
 });
 
 
@@ -91,6 +91,8 @@ test("profile Back returns to the previous in-app route instead of forcing Home"
     assert.match(profileMarkup, /onclick="backFromWorthItProfile\(\)">← Back/);
     assert.doesNotMatch(profileMarkup, /onclick="showHome\(\)">← Back/);
     assert.match(routing, /window\.backFromWorthItProfile = function \(\)/);
+    assert.match(routing, /worthItRoutePrevious: previousRoute/);
+    assert.match(routing, /previousRoute\.startsWith\("\/"\)/);
     assert.match(routing, /window\.history\.back\(\)/);
     assert.match(routing, /showHome\.call\(window\)/);
 });

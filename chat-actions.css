@@ -281,3 +281,19 @@ html[data-theme="light"] .worth-it-chat-no-results{
 @media(prefers-reduced-motion:reduce){
     .worth-it-chat-private-actions-btn{transition:none}
 }
+
+/* Accessible overlapping-page icon used by the per-message Copy action. */
+.worth-it-chat-copy-icon {
+    display: block;
+    width: 16px;
+    height: 16px;
+    flex: 0 0 16px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.7;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+.worth-it-chat-copy-action {
+    font-size: 0;
+}

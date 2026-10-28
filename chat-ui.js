@@ -33,6 +33,7 @@ let chatRealtimeTopic = "";
 let chatRealtimeSubscribed = false;
 let chatRealtimeGeneration = 0;
 let chatRealtimeRefreshTimer = null;
+let chatRealtimeRetryTimer = null;
 let chatLastMessagePollAt = 0;
 let chatLastSidebarRefreshAt = 0;
 let chatTypingStopTimer = null;
@@ -41,6 +42,7 @@ let chatOwnProfile = null;
 let chatOwnProfileLoadedForUser = null;
 let chatOwnProfilePromise = null;
 const WORTH_IT_GLOBAL_CHAT_REALTIME_ID = "00000000-0000-4000-8000-000000000001";
+const WORTH_IT_CHAT_FULLSCREEN_PREFERENCE_KEY = "worth-it-chat-fullscreen-preference-v1";
 let pendingMediaFile = null;
 let pendingMediaUrl = "";
 let pendingMediaType = "";
@@ -108,7 +110,24 @@ function setGroupStatus(message, isError) {
     node.textContent = message || "";
     node.classList.toggle("is-error", Boolean(message && isError));
 }
-function setWorthItChatFullscreen(enabled) {
+function getWorthItChatFullscreenPreference() {
+    try {
+        const preference = window.sessionStorage.getItem(WORTH_IT_CHAT_FULLSCREEN_PREFERENCE_KEY);
+        if (preference === "compact") return false;
+        if (preference === "fullscreen") return true;
+    } catch (_) {
+        // Session storage is optional; use the default route behavior when unavailable.
+    }
+    return null;
+}
+function setWorthItChatFullscreenPreference(isFullscreen) {
+    try {
+        window.sessionStorage.setItem(WORTH_IT_CHAT_FULLSCREEN_PREFERENCE_KEY, isFullscreen ? "fullscreen" : "compact");
+    } catch (_) {
+        // The animation still works when session storage is unavailable.
+    }
+}
+function setWorthItChatFullscreen(enabled, options) {
     const overlay = $("worthItChatOverlay");
     const windowNode = $("worthItChatWindow");
     const button = $("worthItChatFullscreenBtn");
@@ -117,6 +136,8 @@ function setWorthItChatFullscreen(enabled) {
     const isFullscreen = Boolean(enabled);
     overlay.classList.toggle("is-fullscreen", isFullscreen);
     windowNode.classList.toggle("is-fullscreen", isFullscreen);
+
+    if (options?.persist !== false) setWorthItChatFullscreenPreference(isFullscreen);
 
     if (button) {
         button.setAttribute("aria-pressed", String(isFullscreen));
@@ -154,7 +175,7 @@ function showChatOverlay(open, options) {
     } else {
         document.body.classList.remove("worth-it-chat-open");
         $("worthItChatWindow")?.classList.remove("is-mobile-sidebar");
-        setWorthItChatFullscreen(false);
+        setWorthItChatFullscreen(false, {persist:false});
         closeWorthItGroupChatDialog();
         closeWorthItGroupInviteDialog();
         if (chatPollTimer) window.clearInterval(chatPollTimer);
@@ -925,8 +946,20 @@ window.refreshWorthItChatData = async function () {
         setStatus("Sign in to refresh your chats.", true);
         return;
     }
+    const overlay = $("worthItChatOverlay");
+    const windowNode = $("worthItChatWindow");
+    const wasFullscreen = Boolean(
+        overlay?.classList.contains("is-fullscreen") ||
+        windowNode?.classList.contains("is-fullscreen")
+    );
     await refreshWorthItChatData();
     if (chatUser) await loadWorthItChatMessages(false, true);
+
+    // Refresh is a data action, not a layout action. Restore the exact panel size
+    // in case asynchronous conversation updates changed route/layout state.
+    if (chatOpen && overlay && !overlay.hidden && windowNode) {
+        setWorthItChatFullscreen(wasFullscreen, {persist:false});
+    }
 };
 function appendWorthItChatTextWithFlags(host, value) {
     const parts = String(value || "").split(/([\u{1F1E6}-\u{1F1FF}]{2})/u);
@@ -1102,7 +1135,12 @@ function makeWorthItChatMessageActionButton(label, glyph, className, onClick) {
     const button = document.createElement("button");
     button.type = "button";
     button.className = className || "worth-it-chat-message-action-btn";
-    button.textContent = glyph;
+    if (label === "Copy message") {
+        button.classList.add("worth-it-chat-copy-action");
+        button.innerHTML = '<svg class="worth-it-chat-copy-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="8.5" y="8.5" width="11" height="12" rx="2"></rect><path d="M15.5 8.5V6a2 2 0 0 0-2-2h-7a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2H8.5"></path></svg>';
+    } else {
+        button.textContent = glyph;
+    }
     button.title = label;
     button.setAttribute("aria-label", label);
     button.addEventListener("click", onClick);
@@ -1718,7 +1756,8 @@ function hideWorthItChatTyping() {
     const node = $("worthItChatTyping");
     if (node) {
         node.hidden = true;
-        node.textContent = "";
+        node.dataset.typingMessage = "";
+        node.replaceChildren();
     }
 }
 function renderWorthItChatTyping(channel = chatRealtimeChannel) {
@@ -1753,16 +1792,51 @@ function renderWorthItChatTyping(channel = chatRealtimeChannel) {
     else if (names.length === 3) message = names.join(", ") + " are typing…";
     else if (names.length > 3) message = names.slice(0, 3).join(", ") + " and more are typing…";
     node.hidden = !message;
-    if (node.textContent !== message) node.textContent = message;
+    if (node.dataset.typingMessage === message) return;
+    node.dataset.typingMessage = message;
+    node.replaceChildren();
+    if (!message) return;
+
+    const dots = document.createElement("span");
+    dots.className = "worth-it-chat-typing-dots";
+    dots.setAttribute("aria-hidden", "true");
+    for (let index = 0; index < 3; index += 1) {
+        const dot = document.createElement("span");
+        dot.className = "worth-it-chat-typing-dot";
+        dot.style.setProperty("--typing-dot-index", String(index));
+        dots.appendChild(dot);
+    }
+    const label = document.createElement("span");
+    label.className = "worth-it-chat-typing-label";
+    label.textContent = message;
+    node.append(dots, label);
 }
 async function publishWorthItChatTyping(typing, channel = chatRealtimeChannel) {
     const user = chatUser;
     if (!channel || !user || !chatRealtimeSubscribed) return;
     if (typing && (activeConversationType === "global" || !chatOpen || channel !== chatRealtimeChannel)) return;
-    let profile = chatOwnProfile;
-    if (typing) profile = await getWorthItChatOwnProfile();
+    const profile = chatOwnProfile;
     if (!chatUser || chatUser.id !== user.id || !chatRealtimeSubscribed || channel !== chatRealtimeChannel) return;
     if (typing && activeConversationType === "global") return;
+
+    // Publish immediately using session metadata. The profile RPC can be slow on
+    // a cold session, so enrich the displayed identity in the background instead
+    // of delaying the first typing event until that request finishes.
+    if (typing && !profile && chatOwnProfileLoadedForUser !== user.id) {
+        void getWorthItChatOwnProfile().then(refreshedProfile => {
+            if (
+                refreshedProfile &&
+                chatTypingActive &&
+                chatUser?.id === user.id &&
+                chatRealtimeSubscribed &&
+                channel === chatRealtimeChannel &&
+                activeConversationType !== "global"
+            ) {
+                void publishWorthItChatTyping(true, channel);
+            }
+        }).catch(() => {});
+    }
+
     const identity = worthItChatTypingIdentity(profile, user);
     try {
         await channel.track({
@@ -1806,6 +1880,8 @@ function stopWorthItChatRealtimeChannel() {
     stopWorthItChatTyping(false);
     if (chatRealtimeRefreshTimer) window.clearTimeout(chatRealtimeRefreshTimer);
     chatRealtimeRefreshTimer = null;
+    if (chatRealtimeRetryTimer) window.clearTimeout(chatRealtimeRetryTimer);
+    chatRealtimeRetryTimer = null;
     hideWorthItChatTyping();
     if (oldChannel && client) {
         try {
@@ -1861,6 +1937,8 @@ async function syncWorthItChatRealtimeChannel() {
             if (channel !== chatRealtimeChannel || generation !== chatRealtimeGeneration) return;
             if (status === "SUBSCRIBED") {
                 chatRealtimeSubscribed = true;
+                if (chatRealtimeRetryTimer) window.clearTimeout(chatRealtimeRetryTimer);
+                chatRealtimeRetryTimer = null;
                 startWorthItChatPolling();
                 if (chatTypingActive) void publishWorthItChatTyping(true, channel);
                 renderWorthItChatTyping(channel);
@@ -1868,6 +1946,14 @@ async function syncWorthItChatRealtimeChannel() {
                 chatRealtimeSubscribed = false;
                 startWorthItChatPolling();
                 hideWorthItChatTyping();
+                if (!chatRealtimeRetryTimer) {
+                    chatRealtimeRetryTimer = window.setTimeout(() => {
+                        chatRealtimeRetryTimer = null;
+                        if (channel !== chatRealtimeChannel || !chatOpen || !chatUser) return;
+                        stopWorthItChatRealtimeChannel();
+                        void syncWorthItChatRealtimeChannel();
+                    }, 2200);
+                }
             }
         });
     } catch (error) {
@@ -1911,6 +1997,7 @@ window.toggleWorthItChat = async function (event) {
     if (!isChatRoutePath()) chatReturnPath = currentBrowserLocation() || "/";
     setChatBrowserPath("/chat", false);
     showChatOverlay(true, {skipRouteSync:true});
+    setWorthItChatFullscreen(false);
     await routeWorthItChatFromLocation();
     $("worthItChatInput")?.focus();
 };
@@ -2344,9 +2431,13 @@ async function routeWorthItChatFromLocation() {
     if (typeof window.hideWorthItProfileSection === "function") window.hideWorthItProfileSection();
     if (!chatReturnPath || isChatRoutePath(chatReturnPath)) chatReturnPath = "/";
     showChatOverlay(true, {skipRouteSync:true});
-    // A direct chat URL opens fullscreen automatically. Opening the chat from
-    // the header keeps the normal dialog so the user can choose to expand it.
-    if (!wasChatAlreadyOpen) setWorthItChatFullscreen(true);
+    // A direct chat URL opens fullscreen by default. Preserve an explicit
+    // compact/fullscreen choice across reloads within this tab, so refreshing
+    // a header-opened compact panel does not unexpectedly expand it.
+    if (!wasChatAlreadyOpen) {
+        const preference = getWorthItChatFullscreenPreference();
+        setWorthItChatFullscreen(preference === false ? false : true, {persist:false});
+    }
     // Restore the exact conversation that was open before the profile was
     // visited. This also avoids treating an active group URL as a fresh invite.
     if (profileReturnConversation && currentBrowserLocation() === profileReturnConversation.path) {
@@ -2914,7 +3005,11 @@ function setupChatUI() {
     $("worthItChatGroupSearch")?.addEventListener("input", renderGroupFriendChoices);
     $("worthItChatGroupName")?.addEventListener("input", () => { setGroupStatus("", false); updateGroupSelectionUI(); });
     $("worthItChatOverlay")?.addEventListener("click", function (event) {
-        if (event.target === this) showChatOverlay(false);
+        if (event.target !== this) return;
+        // /chat is a real, shareable route. Clicking its backdrop must not eject
+        // the user to Home or leave the profile/chat layers in a mixed state.
+        if (isChatRoutePath()) return;
+        showChatOverlay(false);
     });
     document.addEventListener("keydown", function (event) {
         if (event.key === "Escape" && chatOpen) {

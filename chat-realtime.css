@@ -1,7 +1,10 @@
-/* Live chat typing indicator. Keep this row compact and theme-aware. */
+/* Live chat typing indicator with a subtle, original Worth It animation. */
 .worth-it-chat-typing[hidden] { display: none !important; }
 .worth-it-chat-typing {
     box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    gap: 9px;
     min-height: 28px;
     padding: 6px 18px 7px;
     color: #a5b4fc;
@@ -11,20 +14,85 @@
     line-height: 1.35;
     font-weight: 600;
 }
-.worth-it-chat-typing::before {
-    content: "•••";
-    display: inline-block;
-    margin-right: 9px;
-    color: #818cf8;
-    letter-spacing: 2px;
-    vertical-align: 1px;
+.worth-it-chat-typing-dots {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    flex: 0 0 22px;
+    width: 22px;
+    height: 12px;
+}
+.worth-it-chat-typing-dot {
+    display: block;
+    width: 4px;
+    height: 4px;
+    flex: 0 0 4px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #a78bfa, #60a5fa);
+    opacity: .42;
+    box-shadow: 0 0 0 rgba(129, 140, 248, 0);
+    animation: worthItChatTypingPulse 1.08s cubic-bezier(.2, .7, .3, 1) infinite;
+    animation-delay: calc(var(--typing-dot-index, 0) * 140ms);
+}
+.worth-it-chat-typing-label {
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+@keyframes worthItChatTypingPulse {
+    0%, 62%, 100% {
+        transform: translateY(0) scale(.88);
+        opacity: .42;
+        box-shadow: 0 0 0 rgba(129, 140, 248, 0);
+    }
+    28% {
+        transform: translateY(-3px) scale(1.08);
+        opacity: 1;
+        box-shadow: 0 0 7px rgba(129, 140, 248, .42);
+    }
 }
 html[data-theme="light"] .worth-it-chat-typing {
     color: #4f46a5;
     background: rgba(99, 102, 241, .055);
     border-top-color: rgba(99, 102, 241, .13);
 }
-html[data-theme="light"] .worth-it-chat-typing::before { color: #6366f1; }
+html[data-theme="light"] .worth-it-chat-typing-dot {
+    background: linear-gradient(135deg, #7c3aed, #2563eb);
+}
 @media (max-width: 540px) {
     .worth-it-chat-typing { min-height: 27px; padding: 6px 12px; font-size: 11px; }
+}
+.worth-it-chat-fullscreen-btn {
+    transform-origin: center;
+    transition:
+        transform 220ms cubic-bezier(.2, .75, .25, 1),
+        color 180ms ease,
+        background-color 180ms ease,
+        border-color 180ms ease,
+        box-shadow 220ms ease;
+}
+.worth-it-chat-fullscreen-btn:hover {
+    transform: translateY(-1px) scale(1.055) rotate(-2deg);
+    box-shadow: 0 0 0 3px rgba(129, 140, 248, .1), 0 5px 16px rgba(99, 102, 241, .18);
+}
+.worth-it-chat-fullscreen-btn:active {
+    transform: scale(.93);
+}
+.worth-it-chat-fullscreen-btn:focus-visible {
+    outline: 2px solid #818cf8;
+    outline-offset: 3px;
+}
+@media (prefers-reduced-motion: reduce) {
+    .worth-it-chat-typing-dot {
+        animation: none;
+        transform: none;
+        opacity: .85;
+    }
+    .worth-it-chat-fullscreen-btn {
+        transition: none;
+    }
+    .worth-it-chat-fullscreen-btn:hover,
+    .worth-it-chat-fullscreen-btn:active {
+        transform: none;
+    }
 }
