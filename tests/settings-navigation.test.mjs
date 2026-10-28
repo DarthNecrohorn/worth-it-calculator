@@ -103,4 +103,4 @@ test("direct route refreshes rely on automatic SPA fallback without proxying thr
     assert.match(routing, /"\/settings\/privacy": "openSettingsPrivacy"/);
     assert.match(routing, /const initialPath = normalizePath\(window\.location\.pathname\)/);
     assert.match(routing, /applyRoute\(initialPath, \{ initial: true \}\)/);
-});;
+});
