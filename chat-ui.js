@@ -362,7 +362,7 @@ function attachWorthItChatConversationContextHandlers(target, conversation) {
 document.addEventListener("click", event => {
     if (!event.target.closest(".worth-it-chat-message-actions")) closeWorthItChatMessageMenus();
     if (!event.target.closest("#worthItChatConversationContextMenu")) closeWorthItChatConversationContextMenu();
-}, true);
+});
 document.addEventListener("keydown", event => {
     if (event.key === "Escape") {
         closeWorthItChatMessageMenus();
