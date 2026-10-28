@@ -2814,12 +2814,30 @@ function insertWorthItChatEmoji(emoji) {
 }
 
 const WORTH_IT_CHAT_GIF_LIBRARY = [
-    { id: "laughing-smile", title: "Laughing smile", keywords: "laughing laugh funny smile joy", type: "gif", offset: 0, length: 684 },
-    { id: "party-confetti", title: "Party confetti", keywords: "party celebration celebrate birthday fun", type: "gif", offset: 684, length: 619 },
-    { id: "rocket-launch", title: "Rocket launch", keywords: "rocket launch space go success", type: "gif", offset: 1303, length: 570 },
-    { id: "sparkle-burst", title: "Sparkle burst", keywords: "sparkle magic shine glitter star", type: "sticker", offset: 1873, length: 638 },
-    { id: "heart-pulse", title: "Heart pulse", keywords: "heart love affection romance like", type: "sticker", offset: 2511, length: 643 },
-    { id: "cat-blink", title: "Cat blink", keywords: "cat kitten animal cute pet", type: "sticker", offset: 3154, length: 619 }
+    { id: "laughing-smile", title: "Laughing smile", keywords: "laughing laugh funny smile joy", type: "gif", offset: 0, length: 16552 },
+    { id: "party-confetti", title: "Party confetti", keywords: "party celebration celebrate birthday fun", type: "gif", offset: 16552, length: 23122 },
+    { id: "rocket-launch", title: "Rocket launch", keywords: "rocket launch space go success", type: "gif", offset: 39674, length: 20434 },
+    { id: "happy-dance", title: "Happy dance", keywords: "happy dance smile joy excited move", type: "gif", offset: 60108, length: 23878 },
+    { id: "thinking-face", title: "Thinking face", keywords: "thinking wonder hmm idea question", type: "gif", offset: 83986, length: 16706 },
+    { id: "thumbs-up", title: "Thumbs up", keywords: "like approval good yes great", type: "gif", offset: 100692, length: 18919 },
+    { id: "wow-burst", title: "Wow burst", keywords: "wow amazed surprise shock burst", type: "gif", offset: 119611, length: 28718 },
+    { id: "sleepy-cloud", title: "Sleepy cloud", keywords: "sleep sleepy tired goodnight rest", type: "gif", offset: 148329, length: 16055 },
+    { id: "rainbow-wave", title: "Rainbow wave", keywords: "rainbow wave hello colorful pride", type: "gif", offset: 164384, length: 20769 },
+    { id: "fireworks-show", title: "Fireworks show", keywords: "fireworks celebration night stars", type: "gif", offset: 185153, length: 26295 },
+    { id: "coffee-break", title: "Coffee break", keywords: "coffee cup cozy break morning", type: "gif", offset: 211448, length: 22197 },
+    { id: "celebration-stars", title: "Celebration stars", keywords: "celebration success shine sparkle", type: "gif", offset: 233645, length: 22322 },
+    { id: "sparkle-burst", title: "Sparkle burst", keywords: "sparkle magic shine glitter star", type: "sticker", offset: 255967, length: 4262 },
+    { id: "heart-pulse", title: "Heart pulse", keywords: "heart love affection romance like", type: "sticker", offset: 260229, length: 4882 },
+    { id: "cat-blink", title: "Cat blink", keywords: "cat kitten animal cute pet", type: "sticker", offset: 265111, length: 8885 },
+    { id: "cute-dog", title: "Cute dog", keywords: "dog puppy pet cute animal", type: "sticker", offset: 273996, length: 8909 },
+    { id: "plant-sprout", title: "Plant sprout", keywords: "plant sprout seedling green nature grow", type: "sticker", offset: 282905, length: 7629 },
+    { id: "sunflower", title: "Sunflower", keywords: "sunflower flower plant sunny garden", type: "sticker", offset: 290534, length: 12752 },
+    { id: "coffee-cup", title: "Coffee cup", keywords: "coffee latte mug drink cozy", type: "sticker", offset: 303286, length: 4255 },
+    { id: "star-eyes", title: "Star eyes", keywords: "star eyes excited happy amazed", type: "sticker", offset: 307541, length: 8586 },
+    { id: "hug-heart", title: "Hug heart", keywords: "hug heart love caring comfort friends", type: "sticker", offset: 316127, length: 7100 },
+    { id: "party-hat", title: "Party hat", keywords: "party hat birthday celebration", type: "sticker", offset: 323227, length: 4024 },
+    { id: "little-ghost", title: "Little ghost", keywords: "ghost boo spooky cute halloween", type: "sticker", offset: 327251, length: 12742 },
+    { id: "rainbow-heart", title: "Rainbow heart", keywords: "rainbow heart love colorful pride", type: "sticker", offset: 339993, length: 11632 }
 ];
 const WORTH_IT_CHAT_GIF_BUNDLE_PATH = "/assets/worth-it-chat-gifs/library.base64.txt";
 let worthItChatGifBundlePromise = null;
