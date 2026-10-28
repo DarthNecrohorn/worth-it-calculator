@@ -74,6 +74,11 @@ begin
   end if;
 
   perform set_config('app.test_user_id','10000000-0000-4000-8000-000000000001',true);
+  result := public.get_worth_it_chat_conversations();
+  if not exists(select 1 from jsonb_array_elements(result) conversation
+      where conversation->>'id'=group_id::text and conversation->>'is_pinned'='true') then
+    raise exception 'Bob''s pin and unpin actions changed Alice''s pinned conversation.';
+  end if;
   result := public.get_worth_it_chat_messages(group_id,100);
   select item into found_message from jsonb_array_elements(result) item where item->>'id'='3';
   if found_message is null or found_message->>'body' <> 'Message hidden only by Bob' or found_message->>'is_hidden_by_me' <> 'false' then
