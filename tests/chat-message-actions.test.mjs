@@ -31,6 +31,11 @@ test("message menu offers hide-for-me and owner-only delete-for-everyone actions
     assert.match(client, /hide_worth_it_chat_message/);
     assert.match(client, /The message has been deleted by/);
     assert.match(client, /has deleted a message/);
+    assert.match(client, /function getOwnedWorthItChatMediaObjectPath/);
+    assert.match(client, /media\.origin !== configured\.origin/);
+    assert.match(client, /segments\[0\] !== String\(userId\)/);
+    assert.match(client, /\.storage\.from\("worth-it-chat-media"\)\.remove\(\[objectPath\]\)/);
+    assert.match(client, /attachmentCleanupFailed/);
 });
 
 test("pinning a sidebar conversation is persistent, per-user, and places it at the top of its own list", () => {
@@ -66,6 +71,7 @@ test("message actions migration scopes private deletion state to the requesting 
     assert.match(migration, /revoke all on public\.worth_it_chat_message_hides from public, anon, authenticated/);
     assert.match(migration, /revoke all on public\.worth_it_chat_history_clears from public, anon, authenticated/);
     assert.match(migration, /message_sender is distinct from actor_id/);
+    assert.equal((migration.match(/set search_path = ''/g) || []).length, 4, "every new SECURITY DEFINER RPC pins an empty search_path");
     assert.ok(migration.includes("revoke all on public.worth_it_chat_conversation_pins from public, anon, authenticated"));
     assert.match(migration, /set body = ''/);
     assert.match(migration, /set cleared_at = excluded\.cleared_at/);
