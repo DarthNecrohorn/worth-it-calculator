@@ -154,7 +154,9 @@
             return;
         }
 
-        const showHome = originalFunctions.showHome || window.showHome;
+        // Use the wrapped public function so the visible Home state and URL stay in sync.
+        // Calling originalFunctions.showHome directly hides the profile without changing /profile/:id.
+        const showHome = typeof window.showHome === "function" ? window.showHome : originalFunctions.showHome;
         if (typeof showHome === "function") showHome.call(window);
     };
     patchRouteFunction("openWorthItProfileConnections", function (worthItId, category) {
@@ -170,6 +172,51 @@
 
     Object.keys(SECTION_PATHS).forEach(function (path) {
         patchRouteFunction(SECTION_PATHS[path], path);
+    });
+
+    // Profile cards often render ordinary <a href="/profile/:id"> links. Letting
+    // those navigate natively reloads the page and drops our route-history state.
+    // Keep normal browser affordances (new tab, middle-click, modified click) intact,
+    // but route a plain same-origin click through the SPA.
+    document.addEventListener("click", function (event) {
+        if (
+            event.defaultPrevented ||
+            event.button !== 0 ||
+            event.metaKey ||
+            event.ctrlKey ||
+            event.shiftKey ||
+            event.altKey
+        ) return;
+
+        const clicked = event.target;
+        const anchor = clicked && typeof clicked.closest === "function"
+            ? clicked.closest("a[href]")
+            : null;
+        if (!anchor || anchor.hasAttribute("download")) return;
+        if (anchor.target && anchor.target.toLowerCase() !== "_self") return;
+
+        let url;
+        try {
+            url = new URL(anchor.href, window.location.href);
+        } catch (_) {
+            return;
+        }
+        if (url.origin !== window.location.origin) return;
+
+        const path = normalizePath(url.pathname);
+        const connectionMatch = path.match(/^\\/profile\\/(\\d+)\\/(friends|followers|following)$/);
+        const profileMatch = path.match(/^\\/profile\\/(\\d+)$/);
+        if (!connectionMatch && !profileMatch) return;
+
+        const id = Number((connectionMatch || profileMatch)[1]);
+        if (!Number.isSafeInteger(id) || id < 1) return;
+
+        event.preventDefault();
+        if (connectionMatch && typeof window.openWorthItProfileConnections === "function") {
+            window.openWorthItProfileConnections(id, connectionMatch[2]);
+        } else if (typeof window.openWorthItProfile === "function") {
+            window.openWorthItProfile(id);
+        }
     });
 
     function showHomeAndScroll(targetId, behavior) {
