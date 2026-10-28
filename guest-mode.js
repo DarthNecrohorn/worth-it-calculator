@@ -101,7 +101,11 @@
     }
 
     function restoreHomeIfOnRestrictedPath() {
-        if (!isRestrictedPath(window.location.pathname)) return;
+        const path = String(window.location.pathname || "/").replace(/\\/+$/, "") || "/";
+        if (!isRestrictedPath(path)) return;
+        // Keep the requested chat URL even when auth has expired or is being
+        // restored. The sign-in prompt can then return the member to /chat.
+        if (/^\\/chat(?:\\/|$)/.test(path)) return;
         try {
             window.history.replaceState(window.history.state || null, "", "/");
         } catch (_) {}
