@@ -21,6 +21,7 @@ let chatRouteAccessDenied = false;
 let chatMessages = [];
 let chatOpen = false;
 let chatLoading = false;
+let chatMessageRequestVersion = 0;
 let chatSending = false;
 let chatLastSentAt = 0;
 let chatCooldownTimer = null;
@@ -151,6 +152,8 @@ function setAuthState(user) {
     const previousUserId = chatUser?.id || null;
     chatUser = user || null;
     if (!chatUser || previousUserId !== chatUser.id) {
+        chatMessageRequestVersion += 1;
+        chatLoading = false;
         chatNotificationPreferences = Object.create(null);
         chatNotificationPreferencesLoadedForUser = null;
         globalNotificationPreferences = { friend_requests: true, follows: true, private_messages: true, group_chats: true, account_activity: true };
@@ -332,7 +335,7 @@ function showWorthItChatConversationContextMenu(conversation, x, y, trigger) {
             await refreshWorthItChatData();
             if ((conversation.type === "global" && activeConversationType === "global") ||
                 (conversation.id && String(activeConversationId) === String(conversation.id))) {
-                await loadWorthItChatMessages(false);
+                await loadWorthItChatMessages(false, true);
             }
             setStatus("Conversation history was cleared for you. Other members' history is unchanged.", false);
         } catch (error) {
@@ -1184,7 +1187,7 @@ async function runWorthItChatMessageAction(action, message) {
         }
         renderMessages(false);
         await refreshWorthItChatData();
-        await loadWorthItChatMessages(false);
+        await loadWorthItChatMessages(false, true);
         if (attachmentCleanupFailed) {
             setStatus("Message deleted, but its uploaded attachment could not be removed from storage. The chat message is hidden; the file may still be accessible by its direct URL.", true);
         } else {
@@ -1409,18 +1412,29 @@ function renderMessages(scrollToBottom) {
     if (scrollToBottom) host.scrollTop = host.scrollHeight;
 }
 
-async function loadWorthItChatMessages(scrollToBottom) {
+async function loadWorthItChatMessages(scrollToBottom, force = false) {
     const client = sb();
-    if (!client || !chatUser || chatLoading || chatRouteAccessDenied) return;
+    if (!client || !chatUser || (chatLoading && !force) || chatRouteAccessDenied) return;
     chatLoading = true;
+    const requestVersion = ++chatMessageRequestVersion;
+    const requestUserId = chatUser.id;
     const conversationId = activeConversationId;
     const conversationType = activeConversationType;
-    const result = await client.rpc("get_worth_it_chat_messages", {
-        p_conversation_id: conversationId,
-        p_limit: 100
-    });
+    let result;
+    try {
+        result = await client.rpc("get_worth_it_chat_messages", {
+            p_conversation_id: conversationId,
+            p_limit: 100
+        });
+    } catch (error) {
+        if (requestVersion !== chatMessageRequestVersion) return;
+        chatLoading = false;
+        setStatus(rpcError(error), true);
+        return;
+    }
+    if (requestVersion !== chatMessageRequestVersion) return;
     chatLoading = false;
-    if (chatRouteAccessDenied) return;
+    if (!chatUser || chatUser.id !== requestUserId || chatRouteAccessDenied) return;
     if (conversationId !== activeConversationId || conversationType !== activeConversationType) return;
     if (result.error) { setStatus(rpcError(result.error), true); return; }
     if (result.data && !Array.isArray(result.data) && result.data.success === false) { setStatus(result.data.code || "This conversation is unavailable.", true); return; }
@@ -1455,7 +1469,7 @@ async function activateConversation(id, type, title, person, inviteToken) {
     setStatus("", false);
     chatMessages = [];
     renderMessages();
-    await loadWorthItChatMessages(true);
+    await loadWorthItChatMessages(true, true);
 }
 window.showWorthItChatSidebar = function () { if (window.matchMedia("(max-width: 540px)").matches) $("worthItChatWindow")?.classList.add("is-mobile-sidebar"); };
 window.openWorthItGlobalChat = async function () {
@@ -1647,7 +1661,7 @@ async function sendWorthItChatMessage() {
         if (input) { input.value = ""; input.style.height = "auto"; }
         setPendingMedia(null, "", "");
         updateCharacterCount();
-        await loadWorthItChatMessages(true);
+        await loadWorthItChatMessages(true, true);
         await refreshWorthItChatData();
         setStatus(result.data.filtered ? "Your message was sent with filtered content. Read the red note below it to see why." : "", false);
     } catch (error) {
