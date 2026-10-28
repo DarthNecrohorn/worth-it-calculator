@@ -32,7 +32,7 @@ test("the chat composer has an accessible attachment, emoji and owned-media pick
     assert.match(client, /function renderWorthItChatEmojiCategories\(/);
     assert.match(client, /function loadWorthItChatGifResults\(/);
     assert.match(client, /function selectWorthItChatGif\(/);
-    assert.match(html, /chat-ui\.js\?v=chat-delete-confirm-20261028a/);
+    assert.match(html, /chat-ui\.js\?v=chat-realtime-typing-delete-fix-20261028a/);
     assert.match(html, /style\.css\?v=chat-polling-preserve-dom-20261028a/);
 });
 

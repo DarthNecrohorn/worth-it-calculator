@@ -65,6 +65,7 @@ html[data-theme="light"].worth-it-initial-paint::before {
 <link rel="stylesheet" href="style.css?v=chat-polling-preserve-dom-20261028a">
 <link rel="stylesheet" href="chat-actions.css?v=chat-message-actions-20261028b">
 <link rel="stylesheet" href="chat-delete-confirm.css?v=chat-delete-confirm-20261028a">
+<link rel="stylesheet" href="chat-realtime.css?v=chat-realtime-typing-20261028a">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 </head>
 
@@ -276,6 +277,7 @@ html[data-theme="light"].worth-it-initial-paint::before {
                     </header>
                     <div class="worth-it-chat-safety-note"><span>✦</span> Be respectful. Messages are filtered for abusive language, extremist symbols and glitch text.</div>
                     <div class="worth-it-chat-messages" id="worthItChatMessages" aria-live="polite"><div class="worth-it-chat-empty"><span>✦</span><strong>Welcome to Worth It Chat</strong><p>Choose a friend or start a conversation with the community.</p></div></div>
+                    <div class="worth-it-chat-typing" id="worthItChatTyping" role="status" aria-live="polite" hidden></div>
                     <div class="worth-it-chat-compose-wrap">
                         <div class="worth-it-chat-attachment-preview" id="worthItChatAttachmentPreview" hidden></div>
                         <div class="worth-it-chat-compose">
@@ -5171,7 +5173,7 @@ if($("carResults")){
 
 </script>
 <script src="/profile-ui.js?v=presence-tooltip-scale-20261019a"></script>
-<script src="/chat-ui.js?v=chat-delete-confirm-20261028a"></script>
+<script src="/chat-ui.js?v=chat-realtime-typing-delete-fix-20261028a"></script>
 <script src="/user-search.js?v=worthitusersearch20261014a"></script>
 <script src="/guest-mode.js?v=chat-route-preserve-20261028a"></script>
 <script src="/routing.js?v=profile-back-route-20261028a"></script>

@@ -28,6 +28,19 @@ let chatCooldownTimer = null;
 let chatStatusTimer = null;
 let chatPollTimer = null;
 let chatRefreshToken = 0;
+let chatRealtimeChannel = null;
+let chatRealtimeTopic = "";
+let chatRealtimeSubscribed = false;
+let chatRealtimeGeneration = 0;
+let chatRealtimeRefreshTimer = null;
+let chatLastMessagePollAt = 0;
+let chatLastSidebarRefreshAt = 0;
+let chatTypingStopTimer = null;
+let chatTypingActive = false;
+let chatOwnProfile = null;
+let chatOwnProfileLoadedForUser = null;
+let chatOwnProfilePromise = null;
+const WORTH_IT_GLOBAL_CHAT_REALTIME_ID = "00000000-0000-4000-8000-000000000001";
 let pendingMediaFile = null;
 let pendingMediaUrl = "";
 let pendingMediaType = "";
@@ -146,10 +159,18 @@ function showChatOverlay(open, options) {
         closeWorthItGroupInviteDialog();
         if (chatPollTimer) window.clearInterval(chatPollTimer);
         chatPollTimer = null;
+        stopWorthItChatRealtimeChannel();
     }
 }
 function setAuthState(user) {
     const previousUserId = chatUser?.id || null;
+    const nextUserId = user?.id || null;
+    if (previousUserId !== nextUserId) {
+        stopWorthItChatRealtimeChannel();
+        chatOwnProfile = null;
+        chatOwnProfileLoadedForUser = null;
+        chatOwnProfilePromise = null;
+    }
     chatUser = user || null;
     if (!chatUser || previousUserId !== chatUser.id) {
         chatMessageRequestVersion += 1;
@@ -1287,6 +1308,7 @@ async function runWorthItChatMessageAction(action, message) {
         setStatus("You can only delete your own messages for everyone.", true);
         return;
     }
+    setStatus(action === "delete" ? "Deleting message for everyone…" : "Hiding message for you…", false);
     try {
         const rpcName = action === "delete" ? "delete_worth_it_chat_message" : "hide_worth_it_chat_message";
         const result = await sb().rpc(rpcName, {p_message_id: Number(message.id)});
@@ -1380,11 +1402,15 @@ function createWorthItChatMessageActions(message, mine) {
         item.className = "worth-it-chat-message-menu-item" + (danger ? " is-danger" : "");
         item.setAttribute("role", "menuitem");
         item.textContent = label;
-        item.addEventListener("click", () => {
+        item.addEventListener("click", async () => {
             closeWorthItChatMessageMenus();
             menu.hidden = true;
             moreButton.setAttribute("aria-expanded", "false");
-            onClick();
+            try {
+                await onClick();
+            } catch (error) {
+                setStatus(rpcError(error), true);
+            }
         });
         menu.appendChild(item);
     };
@@ -1620,6 +1646,7 @@ async function activateConversation(id, type, title, person, inviteToken) {
     setStatus("", false);
     chatMessages = [];
     renderMessages();
+    await syncWorthItChatRealtimeChannel();
     await loadWorthItChatMessages(true, true);
 }
 window.showWorthItChatSidebar = function () { if (window.matchMedia("(max-width: 540px)").matches) $("worthItChatWindow")?.classList.add("is-mobile-sidebar"); };
@@ -1645,15 +1672,231 @@ async function openWorthItSavedConversation(conversation) {
     const members = Array.isArray(conversation.members) ? conversation.members : [];
     await activateConversation(conversation.id, conversation.type, conversationLabel(conversation), members[0] || null, conversation.invite_token || "");
 }
+
+function currentWorthItChatRealtimeConversationId() {
+    if (activeConversationType === "global") return WORTH_IT_GLOBAL_CHAT_REALTIME_ID;
+    const id = String(activeConversationId || "");
+    return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id) ? id : "";
+}
+async function getWorthItChatOwnProfile() {
+    const userId = chatUser?.id;
+    if (!userId || !sb()) return null;
+    if (chatOwnProfileLoadedForUser === userId) return chatOwnProfile;
+    if (chatOwnProfilePromise?.userId === userId) return chatOwnProfilePromise.promise;
+    const client = sb();
+    const promise = (async () => {
+        let profile = null;
+        try {
+            const result = await client.rpc("get_worth_it_own_profile");
+            if (!result.error && result.data && typeof result.data === "object" && !Array.isArray(result.data)) {
+                profile = result.data;
+            }
+        } catch (_) {
+            // Typing indicators are optional. Fall back to the session metadata.
+        }
+        if (chatUser?.id === userId) {
+            chatOwnProfile = profile;
+            chatOwnProfileLoadedForUser = userId;
+        }
+        return chatUser?.id === userId ? profile : null;
+    })();
+    chatOwnProfilePromise = {userId, promise};
+    try {
+        return await promise;
+    } finally {
+        if (chatOwnProfilePromise?.promise === promise) chatOwnProfilePromise = null;
+    }
+}
+function worthItChatTypingIdentity(profile, user) {
+    const metadata = user?.user_metadata || {};
+    return {
+        display_name: String(profile?.display_name || metadata.display_name || metadata.full_name || metadata.username || "Worth It member").trim().slice(0, 80),
+        username: String(profile?.username || metadata.username || "").trim().slice(0, 40)
+    };
+}
+function hideWorthItChatTyping() {
+    const node = $("worthItChatTyping");
+    if (node) {
+        node.hidden = true;
+        node.textContent = "";
+    }
+}
+function renderWorthItChatTyping(channel = chatRealtimeChannel) {
+    const node = $("worthItChatTyping");
+    if (!node) return;
+    if (!channel || channel !== chatRealtimeChannel || activeConversationType === "global" || !chatOpen || !chatUser) {
+        hideWorthItChatTyping();
+        return;
+    }
+    let presence = {};
+    try {
+        presence = channel.presenceState() || {};
+    } catch (_) {
+        hideWorthItChatTyping();
+        return;
+    }
+    const currentUserId = chatUser.id;
+    const people = new Map();
+    Object.values(presence).forEach(entries => {
+        (Array.isArray(entries) ? entries : [entries]).forEach(entry => {
+            if (!entry || entry.typing !== true || !entry.user_id || String(entry.user_id) === String(currentUserId)) return;
+            if (!people.has(String(entry.user_id))) {
+                const name = String(entry.display_name || entry.username || "A member").trim().slice(0, 80);
+                people.set(String(entry.user_id), name || "A member");
+            }
+        });
+    });
+    const names = Array.from(people.values());
+    let message = "";
+    if (names.length === 1) message = names[0] + " is typing…";
+    else if (names.length === 2) message = names[0] + " and " + names[1] + " are typing…";
+    else if (names.length === 3) message = names.join(", ") + " are typing…";
+    else if (names.length > 3) message = names.slice(0, 3).join(", ") + " and more are typing…";
+    node.hidden = !message;
+    if (node.textContent !== message) node.textContent = message;
+}
+async function publishWorthItChatTyping(typing, channel = chatRealtimeChannel) {
+    const user = chatUser;
+    if (!channel || !user || !chatRealtimeSubscribed) return;
+    if (typing && (activeConversationType === "global" || !chatOpen || channel !== chatRealtimeChannel)) return;
+    let profile = chatOwnProfile;
+    if (typing) profile = await getWorthItChatOwnProfile();
+    if (!chatUser || chatUser.id !== user.id || !chatRealtimeSubscribed || channel !== chatRealtimeChannel) return;
+    if (typing && activeConversationType === "global") return;
+    const identity = worthItChatTypingIdentity(profile, user);
+    try {
+        await channel.track({
+            user_id: user.id,
+            display_name: identity.display_name,
+            username: identity.username,
+            typing: Boolean(typing)
+        });
+    } catch (_) {
+        // If Presence is temporarily unavailable, message sending and receiving still work.
+    }
+}
+function stopWorthItChatTyping(publish = true) {
+    if (chatTypingStopTimer) window.clearTimeout(chatTypingStopTimer);
+    chatTypingStopTimer = null;
+    const wasTyping = chatTypingActive;
+    chatTypingActive = false;
+    if (publish && wasTyping) void publishWorthItChatTyping(false, chatRealtimeChannel);
+}
+function handleWorthItChatTypingInput() {
+    const input = $("worthItChatInput");
+    if (!chatUser || !chatOpen || activeConversationType === "global" || !chatRealtimeChannel ||
+        !String(input?.value || "").trim()) {
+        stopWorthItChatTyping();
+        return;
+    }
+    if (!chatTypingActive) {
+        chatTypingActive = true;
+        void publishWorthItChatTyping(true, chatRealtimeChannel);
+    }
+    if (chatTypingStopTimer) window.clearTimeout(chatTypingStopTimer);
+    chatTypingStopTimer = window.setTimeout(() => stopWorthItChatTyping(true), 1800);
+}
+function stopWorthItChatRealtimeChannel() {
+    const oldChannel = chatRealtimeChannel;
+    const client = sb();
+    chatRealtimeGeneration += 1;
+    chatRealtimeChannel = null;
+    chatRealtimeTopic = "";
+    chatRealtimeSubscribed = false;
+    stopWorthItChatTyping(false);
+    if (chatRealtimeRefreshTimer) window.clearTimeout(chatRealtimeRefreshTimer);
+    chatRealtimeRefreshTimer = null;
+    hideWorthItChatTyping();
+    if (oldChannel && client) {
+        try {
+            const removal = client.removeChannel(oldChannel);
+            if (removal && typeof removal.catch === "function") removal.catch(() => {});
+        } catch (_) {
+            // The fallback poll continues to work if a channel cannot be detached.
+        }
+    }
+}
+async function syncWorthItChatRealtimeChannel() {
+    const client = sb();
+    const userId = chatUser?.id;
+    const conversationId = currentWorthItChatRealtimeConversationId();
+    if (!client || !userId || !chatOpen || chatRouteAccessDenied || !conversationId) {
+        stopWorthItChatRealtimeChannel();
+        return;
+    }
+    const topic = "worthit-chat:" + conversationId;
+    if (chatRealtimeChannel && chatRealtimeTopic === topic) return;
+    stopWorthItChatRealtimeChannel();
+    const generation = chatRealtimeGeneration;
+    let channel;
+    try {
+        channel = client.channel(topic, {
+            config: {
+                private: true,
+                presence: {key: String(userId)}
+            }
+        });
+        chatRealtimeChannel = channel;
+        chatRealtimeTopic = topic;
+        chatRealtimeSubscribed = false;
+        channel.on("broadcast", {event: "message_changed"}, event => {
+            if (channel !== chatRealtimeChannel || !chatOpen || !chatUser) return;
+            const payload = event?.payload || event || {};
+            const currentId = currentWorthItChatRealtimeConversationId();
+            if (!currentId || String(payload.conversation_id || "") !== currentId) return;
+            if (chatRealtimeRefreshTimer) window.clearTimeout(chatRealtimeRefreshTimer);
+            chatRealtimeRefreshTimer = window.setTimeout(() => {
+                chatRealtimeRefreshTimer = null;
+                if (channel === chatRealtimeChannel && chatOpen && chatUser) {
+                    void loadWorthItChatMessages(false, true);
+                }
+            }, 50);
+        });
+        if (activeConversationType !== "global") {
+            channel.on("presence", {event: "sync"}, () => renderWorthItChatTyping(channel));
+            channel.on("presence", {event: "join"}, () => renderWorthItChatTyping(channel));
+            channel.on("presence", {event: "leave"}, () => renderWorthItChatTyping(channel));
+        }
+        channel.subscribe(status => {
+            if (channel !== chatRealtimeChannel || generation !== chatRealtimeGeneration) return;
+            if (status === "SUBSCRIBED") {
+                chatRealtimeSubscribed = true;
+                startWorthItChatPolling();
+                if (chatTypingActive) void publishWorthItChatTyping(true, channel);
+                renderWorthItChatTyping(channel);
+            } else if (status === "CHANNEL_ERROR" || status === "TIMED_OUT" || status === "CLOSED") {
+                chatRealtimeSubscribed = false;
+                startWorthItChatPolling();
+                hideWorthItChatTyping();
+            }
+        });
+    } catch (error) {
+        if (channel && channel === chatRealtimeChannel) stopWorthItChatRealtimeChannel();
+        chatRealtimeSubscribed = false;
+        startWorthItChatPolling();
+        console.warn("Worth It chat live updates could not connect; fallback refresh remains enabled.", error);
+    }
+}
+
 function startWorthItChatPolling() {
     if (!chatUser) return;
     if (chatPollTimer) window.clearInterval(chatPollTimer);
+    chatLastMessagePollAt = Date.now();
+    chatLastSidebarRefreshAt = Date.now();
+    // Broadcast delivers messages immediately. If Realtime disconnects, poll quickly;
+    // while connected, retain a five-second safety refresh for transient missed events.
     chatPollTimer = window.setInterval(() => {
-        if (chatOpen && chatUser) {
-            loadWorthItChatMessages(false);
-            refreshWorthItChatData();
+        if (!chatOpen || !chatUser) return;
+        const now = Date.now();
+        if (!chatRealtimeSubscribed || now - chatLastMessagePollAt >= 5000) {
+            chatLastMessagePollAt = now;
+            void loadWorthItChatMessages(false);
         }
-    }, 5000);
+        if (now - chatLastSidebarRefreshAt >= 5000) {
+            chatLastSidebarRefreshAt = now;
+            void refreshWorthItChatData();
+        }
+    }, 1000);
 }
 window.toggleWorthItChat = async function (event) {
     event?.stopPropagation?.();
@@ -1810,6 +2053,7 @@ async function sendWorthItChatMessage() {
         }
         chatLastSentAt = Date.now();
         if (input) { input.value = ""; input.style.height = "auto"; }
+        stopWorthItChatTyping();
         setPendingMedia(null, "", "");
         updateCharacterCount();
         await loadWorthItChatMessages(true, true);
@@ -2571,10 +2815,14 @@ function setupChatUI() {
         this.style.height = "auto";
         this.style.height = Math.min(this.scrollHeight, 140) + "px";
         renderWorthItChatComposerPreview();
+        handleWorthItChatTypingInput();
     });
     $("worthItChatInput")?.addEventListener("scroll", renderWorthItChatComposerPreview);
     $("worthItChatInput")?.addEventListener("focus", renderWorthItChatComposerPreview);
-    $("worthItChatInput")?.addEventListener("blur", renderWorthItChatComposerPreview);
+    $("worthItChatInput")?.addEventListener("blur", () => {
+        renderWorthItChatComposerPreview();
+        stopWorthItChatTyping();
+    });
     $("worthItChatInput")?.addEventListener("click", renderWorthItChatComposerPreview);
     $("worthItChatInput")?.addEventListener("keyup", renderWorthItChatComposerPreview);
     $("worthItChatInput")?.addEventListener("select", renderWorthItChatComposerPreview);
@@ -2684,6 +2932,9 @@ function setupChatUI() {
     updateCharacterCount();
     updateGroupSelectionUI();
     updateChatHeaderNotificationButton();
+    document.addEventListener("visibilitychange", () => {
+        if (document.hidden) stopWorthItChatTyping();
+    });
 }
 setupChatUI();
 window.addEventListener("worthitnotificationpreferenceschange", event => {
