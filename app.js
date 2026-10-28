@@ -2088,7 +2088,7 @@ async function handleAuthButton() {
 SIGN OUT
 ========================================================= */
 
-async function signOutUser() {
+async function performSignOutUser() {
 
     try {
 
@@ -2157,6 +2157,102 @@ async function signOutUser() {
     }
 
 }
+
+
+function signOutUser() {
+    if (document.getElementById("worthItSignOutConfirmDialog")) return;
+
+    const previousFocus = document.activeElement;
+    const overlay = document.createElement("div");
+    overlay.id = "worthItSignOutConfirmDialog";
+    overlay.className = "worth-it-signout-confirm-dialog";
+    overlay.setAttribute("role", "presentation");
+
+    const card = document.createElement("section");
+    card.className = "worth-it-signout-confirm-card";
+    card.setAttribute("role", "alertdialog");
+    card.setAttribute("aria-modal", "true");
+    card.setAttribute("aria-labelledby", "worthItSignOutConfirmTitle");
+    card.tabIndex = -1;
+
+    const kicker = document.createElement("span");
+    kicker.className = "worth-it-signout-confirm-kicker";
+    kicker.textContent = "WORTH IT · ACCOUNT";
+    const title = document.createElement("h2");
+    title.id = "worthItSignOutConfirmTitle";
+    title.textContent = "Are you sure you want to sign out?";
+
+    const actions = document.createElement("div");
+    actions.className = "worth-it-signout-confirm-actions";
+    const yesButton = document.createElement("button");
+    yesButton.type = "button";
+    yesButton.className = "worth-it-signout-confirm-yes";
+    yesButton.textContent = "Yes";
+    const noButton = document.createElement("button");
+    noButton.type = "button";
+    noButton.className = "worth-it-signout-confirm-no";
+    noButton.textContent = "No";
+    actions.append(yesButton, noButton);
+    card.append(kicker, title, actions);
+    overlay.appendChild(card);
+
+    let finished = false;
+    const finish = confirmed => {
+        if (finished) return;
+        finished = true;
+        overlay.remove();
+        document.body.classList.remove("worth-it-signout-confirm-open");
+        if (confirmed) {
+            void performSignOutUser();
+        } else if (previousFocus && previousFocus.isConnected && typeof previousFocus.focus === "function") {
+            previousFocus.focus();
+        }
+    };
+
+    overlay.addEventListener("click", event => {
+        if (event.target === overlay) {
+            event.preventDefault();
+            finish(false);
+        }
+    });
+    overlay.addEventListener("keydown", event => {
+        if (event.key === "Escape") {
+            event.preventDefault();
+            event.stopPropagation();
+            finish(false);
+            return;
+        }
+        if (event.key !== "Tab") return;
+        if (event.shiftKey && document.activeElement === yesButton) {
+            event.preventDefault();
+            noButton.focus();
+        } else if (!event.shiftKey && document.activeElement === noButton) {
+            event.preventDefault();
+            yesButton.focus();
+        }
+    });
+    yesButton.addEventListener("click", event => {
+        event.preventDefault();
+        event.stopPropagation();
+        finish(true);
+    });
+    noButton.addEventListener("click", event => {
+        event.preventDefault();
+        event.stopPropagation();
+        finish(false);
+    });
+
+    // Inline safety keeps the confirmation above chat and other page overlays
+    // even if the user's browser still has an older stylesheet cached.
+    overlay.style.position = "fixed";
+    overlay.style.inset = "0";
+    overlay.style.zIndex = "2147483646";
+    overlay.style.display = "grid";
+    document.body.classList.add("worth-it-signout-confirm-open");
+    document.body.appendChild(overlay);
+    noButton.focus();
+}
+
 
 
 /* =========================================================
