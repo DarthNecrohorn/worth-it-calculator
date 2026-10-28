@@ -25,8 +25,8 @@ test("each live message has ChatGPT-like copy, quote and three-dot action contro
     assert.match(client, /function closeWorthItChatMessageMenus\(/);
     assert.match(actionsCss, /\.worth-it-chat-message-actions/);
     assert.match(actionsCss, /\.worth-it-chat-message-menu/);
-    assert.match(html, /chat-actions\.css\?v=chat-message-actions-20261028a/);
-    assert.match(html, /chat-ui\.js\?v=chat-message-actions-20261028a/);
+    assert.match(html, /chat-actions\.css\?v=chat-message-actions-20261028b/);
+    assert.match(html, /chat-ui\.js\?v=chat-message-actions-20261028b/);
 });
 
 test("message menu offers hide-for-me and owner-only delete-for-everyone actions", () => {
