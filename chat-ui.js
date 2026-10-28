@@ -1262,7 +1262,7 @@ function createWorthItChatMessageRow(message) {
     const stack = document.createElement("div");
     stack.className = "worth-it-chat-message-stack";
     const name = makeChatProfileLink(message, "worth-it-chat-message-name", message.display_name || message.username || "Worth It member");
-    stack.appendChild(name);
+    if (!message.is_deleted && !message.is_hidden_by_me) stack.appendChild(name);
 
     if (message.is_deleted || message.is_hidden_by_me) {
         row.classList.add("is-tombstone");
