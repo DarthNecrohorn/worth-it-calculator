@@ -332,6 +332,9 @@ function showWorthItChatConversationContextMenu(conversation, x, y, trigger) {
                 };
                 throw new Error(errors[result.data?.code] || result.data?.code || "Could not clear conversation history.");
             }
+            // Do not let an already-started poll repopulate this user's cleared history.
+            chatMessageRequestVersion += 1;
+            chatLoading = false;
             await refreshWorthItChatData();
             if ((conversation.type === "global" && activeConversationType === "global") ||
                 (conversation.id && String(activeConversationId) === String(conversation.id))) {
@@ -1158,6 +1161,10 @@ async function runWorthItChatMessageAction(action, message) {
             };
             throw new Error(errors[result.data?.code] || result.data?.code || "Could not update this message.");
         }
+        // Invalidate any poll that began before the destructive RPC completed.
+        // Its response must never restore the original message after the action succeeds.
+        chatMessageRequestVersion += 1;
+        chatLoading = false;
         let attachmentCleanupFailed = false;
         if (action === "delete" && message.media_url) {
             const objectPath = getOwnedWorthItChatMediaObjectPath(message.media_url, chatUser.id, sb());
