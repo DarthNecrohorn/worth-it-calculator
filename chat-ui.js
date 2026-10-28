@@ -1288,8 +1288,8 @@ function createWorthItChatMessageRow(message) {
         const note = document.createElement("p");
         note.className = "worth-it-chat-message-system-note";
         note.textContent = message.is_deleted
-            ? (message.display_name || message.username || "This user") + " has deleted a message."
-            : "The message has been deleted by " + (message.deleted_by_display_name || "you") + ".";
+            ? "The message has been deleted by " + (message.deleted_by_display_name || message.display_name || message.username || "a member") + "."
+            : "This message has been hidden by you (only you can see this).";
         stack.appendChild(note);
     } else {
         const bubble = document.createElement("div");

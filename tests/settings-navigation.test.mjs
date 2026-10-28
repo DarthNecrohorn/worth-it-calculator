@@ -5,6 +5,7 @@ import { readFileSync } from "node:fs";
 const html = readFileSync(new URL("../index.html", import.meta.url), "utf8");
 const settings = readFileSync(new URL("../settings.js", import.meta.url), "utf8");
 const routing = readFileSync(new URL("../routing.js", import.meta.url), "utf8");
+const redirects = readFileSync(new URL("../_redirects", import.meta.url), "utf8");
 const css = readFileSync(new URL("../style.css", import.meta.url), "utf8");
 
 const sections = [
@@ -78,5 +79,26 @@ test("only the selected detail section appears; Appearance remains on the overvi
 test("the navigation assets are cache-busted together", () => {
     assert.match(html, /style\.css\?v=[^"']+/);
     assert.match(html, /settings\.js\?v=settings-navigation-20261015a/);
-    assert.match(html, /routing\.js\?v=settings-navigation-20261015a/);
+    assert.match(html, /routing\.js\?v=profile-back-route-20261028a/);
+});
+
+
+test("profile Back returns to the previous in-app route instead of forcing Home", () => {
+    const profileStart = html.indexOf('<section id="profileSection"');
+    assert.ok(profileStart >= 0, "Profile section should exist");
+    const profileEnd = html.indexOf("</section>", profileStart);
+    const profileMarkup = html.slice(profileStart, profileEnd);
+    assert.match(profileMarkup, /onclick="backFromWorthItProfile\(\)">← Back/);
+    assert.doesNotMatch(profileMarkup, /onclick="showHome\(\)">← Back/);
+    assert.match(routing, /window\.backFromWorthItProfile = function \(\)/);
+    assert.match(routing, /window\.history\.back\(\)/);
+    assert.match(routing, /showHome\.call\(window\)/);
+});
+
+test("direct refreshes of chat and nested settings routes serve the SPA without redirecting Home", () => {
+    assert.match(redirects, /^\/chat \/index\.html 200$/m);
+    assert.match(redirects, /^\/chat\/\* \/index\.html 200$/m);
+    assert.match(redirects, /^\/settings\/\* \/index\.html 200$/m);
+    assert.match(routing, /"\/settings": "openFullSettings"/);
+    assert.match(routing, /"\/settings\/privacy": "openSettingsPrivacy"/);
 });
