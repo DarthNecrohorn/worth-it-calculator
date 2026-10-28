@@ -50,7 +50,7 @@ create or replace function public.set_worth_it_chat_conversation_pinned(
 returns jsonb
 language plpgsql
 security definer
-set search_path = public
+set search_path = ''
 as $function$
 declare
   actor_id uuid := auth.uid();
@@ -99,7 +99,7 @@ create or replace function public.delete_worth_it_chat_message(p_message_id bigi
 returns jsonb
 language plpgsql
 security definer
-set search_path = public
+set search_path = ''
 as $function$
 declare
   actor_id uuid := auth.uid();
@@ -157,7 +157,7 @@ create or replace function public.hide_worth_it_chat_message(p_message_id bigint
 returns jsonb
 language plpgsql
 security definer
-set search_path = public
+set search_path = ''
 as $function$
 declare
   actor_id uuid := auth.uid();
@@ -199,7 +199,7 @@ create or replace function public.clear_worth_it_chat_history(p_conversation_id 
 returns jsonb
 language plpgsql
 security definer
-set search_path = public
+set search_path = ''
 as $function$
 declare
   actor_id uuid := auth.uid();
