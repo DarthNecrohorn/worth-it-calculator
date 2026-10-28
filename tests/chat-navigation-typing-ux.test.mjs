@@ -141,7 +141,7 @@ test("clicking outside the /chat panel does not replace the route with Home", ()
 });
 
 test("typing indicator waits about one second, then uses low-latency broadcast with Presence fallback", () => {
-    assert.match(client, /CHAT_TYPING_START_DELAY_MS = 900/);
+    assert.match(client, /CHAT_TYPING_START_DELAY_MS = 1000/);
     assert.match(client, /chatTypingStartTimer = window\.setTimeout\([\s\S]*?CHAT_TYPING_START_DELAY_MS/);
     assert.match(client, /type: "broadcast",\s*event: "typing"/);
     assert.match(client, /channel\.on\("broadcast", \{event: "typing"\}, event => handleWorthItChatTypingBroadcast\(channel, event\)\)/);
