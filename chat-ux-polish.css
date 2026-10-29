@@ -438,3 +438,37 @@ html[data-theme="light"] .worth-it-chat-travel-present {
         animation-duration: .01ms !important;
     }
 }
+
+
+/* Keep the profile link hit area on the display-name text, not the full flex row. */
+.worth-it-chat-message-name {
+    display: inline-block !important;
+    align-self: flex-start !important;
+    width: fit-content !important;
+    max-width: 100% !important;
+    flex: 0 0 auto !important;
+    white-space: normal !important;
+}
+.worth-it-chat-message.is-mine .worth-it-chat-message-name {
+    align-self: flex-end !important;
+}
+.worth-it-chat-message-name:focus-visible {
+    outline: 2px solid #818cf8 !important;
+    outline-offset: 3px !important;
+    border-radius: 3px !important;
+}
+
+/* Enlarge message timestamps so date and time are readable at a glance. */
+.worth-it-chat-message-time {
+    display: block !important;
+    max-width: 100% !important;
+    font-size: 11px !important;
+    font-weight: 650 !important;
+    line-height: 1.4 !important;
+    letter-spacing: .01em !important;
+    padding: 1px 4px 0 !important;
+    color: #a5b4d0 !important;
+}
+html[data-theme="light"] .worth-it-chat-message-time {
+    color: #475569 !important;
+}
