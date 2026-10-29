@@ -39,7 +39,7 @@ test("the chat composer uploads directly and exposes GIF, sticker and emoji acti
     assert.match(client, /function renderWorthItChatEmojiCategories\(/);
     assert.match(client, /function loadWorthItChatGifResults\(/);
     assert.match(client, /function selectWorthItChatGif\(/);
-    assert.match(html, /chat-ui\.js\?v=chat-message-profile-hit-targets-20261029a/);
+    assert.match(html, /chat-ui\.js\?v=chat-gif-preview-fix-20261029a/);
     assert.match(html, /style\.css\?v=chat-media-lightbox-20261029a/);
 });
 
@@ -86,6 +86,10 @@ test("GIFs and stickers come only from the local Worth It catalogue", () => {
     assert.match(html, /Original Worth It animations\. No external GIF provider or API key required\./);
     assert.doesNotMatch(html, /Powered by/i);
     assert.equal(encodedLibrary.length % 4, 0, "base64 media bundle length must be valid");
+    assert.ok(encodedLibrary.length > 1024 * 1024,
+        "the expanded catalogue must continue to work when its encoded bundle exceeds the old 1 MiB ceiling");
+    assert.match(client, /encoded\.length > 32 \* 1024 \* 1024/,
+        "the client guard must allow the current catalogue while retaining a finite upper bound");
     assert.equal(library.length, originalGifAssets.reduce((total, asset) => total + asset.length, 0), "the complete media bundle must exactly match the manifest");
     assert.ok(library.length > 300_000, "the library should contain the expanded original animation set");
 });
@@ -307,7 +311,7 @@ test("country flags render visually in the chat composer while typing", () => {
     assert.match(css, /textarea::selection[\s\S]*?color: transparent !important[\s\S]*?-webkit-text-fill-color: transparent !important/);
     assert.match(css, /textarea::selection[\s\S]*?background: rgba\(79, 70, 229, \.78\)/);
     assert.match(css, /@media \(max-width: 540px\)[\s\S]*?\.worth-it-chat-input-preview\s*\{\s*font-size: 12px;/);
-    assert.match(html, /chat-ui\.js\?v=chat-message-profile-hit-targets-20261029a/);
+    assert.match(html, /chat-ui\.js\?v=chat-gif-preview-fix-20261029a/);
     assert.match(html, /style\.css\?v=chat-media-lightbox-20261029a/);
 });
 
