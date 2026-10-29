@@ -82,6 +82,9 @@ async function authorize(context) {
     if (!user) {
         return { error: json({ success: false, error: "Your login session has expired. Please sign in again." }, 401, request) };
     }
+    if (!(user.email_confirmed_at || user.confirmed_at)) {
+        return { error: json({ success: false, code: "EMAIL_NOT_CONFIRMED", error: "Confirm your email before managing or exporting account data." }, 403, request) };
+    }
     return { config, user, request, token };
 }
 
