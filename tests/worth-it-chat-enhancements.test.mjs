@@ -189,8 +189,8 @@ test("chat images open in a responsive full-screen viewer and media bubbles do n
      assert.match(chat, /function openWorthItChatImageLightbox\(src, alt\)/);
      assert.match(chat, /img\.addEventListener\("click", \(\) => openWorthItChatImageLightbox\(message\.media_url, img\.alt\)\)/);
      assert.match(chat, /function handleWorthItChatLightboxKeydown\(event\)/);
-     assert.match(css, /\.worth-it-chat-image-lightbox-close/);
-     assert.match(css, /\.worth-it-chat-bubble:has\(\.worth-it-chat-media\)\{width:fit-content!important/);
+     assert.match(style, /\.worth-it-chat-image-lightbox-close/);
+     assert.match(style, /\.worth-it-chat-bubble:has\(\.worth-it-chat-media\)\{width:fit-content!important/);
    });
  
  test("chat wallpaper scatters unique motifs with visibly varied sizes", () => {
