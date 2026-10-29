@@ -2848,7 +2848,7 @@ const WORTH_IT_CHAT_GIF_LIBRARY = [
     { id: "little-ghost", title: "Little ghost", keywords: "ghost boo spooky cute halloween", type: "sticker", offset: 327251, length: 12742 },
     { id: "rainbow-heart", title: "Rainbow heart", keywords: "rainbow heart love colorful pride", type: "sticker", offset: 339993, length: 11632 }
 ];
-const WORTH_IT_CHAT_GIF_BUNDLE_PATH = "/assets/worth-it-chat-gifs/library.base64.txt";
+const WORTH_IT_CHAT_GIF_BUNDLE_PATH = "/assets/worth-it-chat-gifs/library.base64.txt?v=worthit-gif-fix-20261029a";
 let worthItChatGifBundlePromise = null;
 const worthItChatGifObjectUrls = new Map();
 
@@ -2978,9 +2978,11 @@ function renderWorthItChatGifResults(items) {
         grid.appendChild(button);
         getWorthItChatGifAsset(item).then(asset => {
             if (button.isConnected) image.src = asset.previewUrl;
-        }).catch(() => {
+        }).catch(error => {
+            console.error("Worth It animation preview failed:", item.id, error);
             if (button.isConnected) {
                 image.alt = item.title + " preview unavailable";
+                button.title = item.title + ": " + (error && error.message ? error.message : "Preview unavailable");
                 button.classList.add("is-unavailable");
             }
         });
