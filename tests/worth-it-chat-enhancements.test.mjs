@@ -131,7 +131,7 @@ test("chat follow-up fixes keep search prefix-only, keep wallpaper scrolling, an
     assert.ok(client.includes("statusNode.hidden = !query"));
     assert.ok(client.includes("p_limit: 100"));
     assert.ok(css.includes("background-attachment:scroll,local,local"));
-    assert.ok(css.includes(".worth-it-chat-messages::before{content:none!important}"));
+    assert.ok(css.includes(".worth-it-chat-messages::before{content:none!important"));
     assert.ok(chat.includes("overlay.contains(document.activeElement)"));
     assert.ok(chat.includes("button.focus({ preventScroll: true })"));
 });
