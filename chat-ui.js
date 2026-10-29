@@ -194,15 +194,18 @@ function showChatOverlay(open, options) {
 }
 function setAuthState(user) {
     chatAuthResolutionComplete = true;
+    const effectiveUser = user && typeof window.isWorthItEmailVerified === "function" && !window.isWorthItEmailVerified(user)
+        ? null
+        : (user || null);
     const previousUserId = chatUser?.id || null;
-    const nextUserId = user?.id || null;
+    const nextUserId = effectiveUser?.id || null;
     if (previousUserId !== nextUserId) {
         stopWorthItChatRealtimeChannel();
         chatOwnProfile = null;
         chatOwnProfileLoadedForUser = null;
         chatOwnProfilePromise = null;
     }
-    chatUser = user || null;
+    chatUser = effectiveUser;
     if (!chatUser || previousUserId !== chatUser.id) {
         chatMessageRequestVersion += 1;
         chatLoading = false;
@@ -2872,7 +2875,7 @@ async function getWorthItChatGifAsset(item) {
             const response = await fetch(WORTH_IT_CHAT_GIF_BUNDLE_PATH, {
                 method: "GET",
                 credentials: "same-origin",
-                cache: "force-cache",
+                cache: "no-cache",
                 headers: { "Accept": "text/plain" }
             });
             if (!response.ok) throw new Error("The Worth It animation library could not be loaded.");
@@ -2978,8 +2981,27 @@ function renderWorthItChatGifResults(items) {
         button.addEventListener("click", () => selectWorthItChatGif(item));
         grid.appendChild(button);
         getWorthItChatGifAsset(item).then(asset => {
-            if (button.isConnected) image.src = asset.previewUrl;
-        }).catch(() => {
+            if (!button.isConnected) return;
+            image.onerror = () => {
+                // Prefer self-contained data URLs; fall back to an object URL if a
+                // browser policy or extension blocks data: images.
+                if (image.dataset.blobFallback !== "used") {
+                    image.dataset.blobFallback = "used";
+                    let fallbackUrl = worthItChatGifObjectUrls.get("fallback:" + item.id);
+                    if (!fallbackUrl) {
+                        fallbackUrl = URL.createObjectURL(asset.blob);
+                        worthItChatGifObjectUrls.set("fallback:" + item.id, fallbackUrl);
+                    }
+                    image.src = fallbackUrl;
+                    return;
+                }
+                image.alt = item.title + " preview unavailable";
+                button.classList.add("is-unavailable");
+                console.warn("Worth It GIF/sticker preview could not render:", item.id);
+            };
+            image.src = asset.previewUrl;
+        }).catch(error => {
+            console.warn("Worth It GIF/sticker asset could not load:", item.id, error);
             if (button.isConnected) {
                 image.alt = item.title + " preview unavailable";
                 button.classList.add("is-unavailable");
@@ -3010,7 +3032,7 @@ async function selectWorthItChatGif(item) {
         }
         const file = new File([asset.blob], "worth-it-" + item.id + ".gif", { type: "image/gif" });
         await validateChatMediaSignature(file, "image/gif");
-        const previewUrl = URL.createObjectURL(file);
+        const previewUrl = asset.previewUrl;
         setPendingMedia(file, previewUrl, "gif");
         closeWorthItChatPickers();
         setStatus((item.type === "sticker" ? "Sticker" : "GIF") + " attached. Press Send to share it.", false);
