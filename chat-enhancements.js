@@ -25,6 +25,11 @@ let queuedCandidates = [];
 let answerApplied = false;
 let audioMuted = false;
 let cameraDisabled = false;
+let remoteAudioContext = null;
+let remoteAudioSource = null;
+let remoteAudioGain = null;
+let remoteAudioSourceTrackKey = "";
+let speakerBoostEnabled = false;
 let audioRecorder = null;
 let audioRecorderStream = null;
 let audioChunks = [];
@@ -258,6 +263,7 @@ function showIncomingCall(call) {
     $("worthItChatCallEndBtn").hidden = true;
     $("worthItChatCallMuteBtn").hidden = true;
     $("worthItChatCallCameraBtn").hidden = true;
+    $("worthItChatCallSpeakerBtn").hidden = true;
 }
 function setLiveCallControls(isIncoming) {
     $("worthItChatCallAcceptBtn").hidden = true;
@@ -265,7 +271,118 @@ function setLiveCallControls(isIncoming) {
     $("worthItChatCallEndBtn").hidden = false;
     $("worthItChatCallMuteBtn").hidden = false;
     $("worthItChatCallCameraBtn").hidden = activeCall?.type !== "video";
+    $("worthItChatCallSpeakerBtn").hidden = false;
+    setSpeakerBoostButtonState();
     if (!isIncoming) $("worthItChatCallMuteBtn").hidden = false;
+}
+function setSpeakerBoostButtonState() {
+    const button = $("worthItChatCallSpeakerBtn");
+    const label = $("worthItChatCallSpeakerLabel");
+    if (button) {
+        button.classList.toggle("is-boosted", speakerBoostEnabled);
+        button.setAttribute("aria-pressed", String(speakerBoostEnabled));
+        button.title = speakerBoostEnabled ? "Return to normal incoming volume" : "Boost the other person's sound";
+    }
+    if (label) label.textContent = speakerBoostEnabled ? "Normal volume" : "Boost volume";
+}
+function ensureRemoteAudioProcessor() {
+    const AudioContextConstructor = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContextConstructor) return false;
+    try {
+        if (!remoteAudioContext || remoteAudioContext.state === "closed") {
+            remoteAudioContext = new AudioContextConstructor();
+            remoteAudioGain = remoteAudioContext.createGain();
+            remoteAudioGain.gain.value = speakerBoostEnabled ? 2 : 1;
+            remoteAudioGain.connect(remoteAudioContext.destination);
+            remoteAudioSource = null;
+            remoteAudioSourceTrackKey = "";
+        }
+        if (remoteAudioContext.state === "suspended") void remoteAudioContext.resume().catch(() => {});
+        return Boolean(remoteAudioGain);
+    } catch (_) {
+        return false;
+    }
+}
+function routeRemoteCallAudio(stream) {
+    const audioElement = $("worthItChatRemoteAudio");
+    if (audioElement) audioElement.srcObject = stream || null;
+    const tracks = (stream?.getAudioTracks?.() || []).filter(track => track.readyState !== "ended");
+    if (!tracks.length) {
+        if (audioElement) audioElement.muted = false;
+        return false;
+    }
+    try {
+        if (!ensureRemoteAudioProcessor()) {
+            if (audioElement) audioElement.muted = false;
+            return false;
+        }
+        const trackKey = tracks.map(track => track.id).sort().join("|");
+        if (remoteAudioSource && trackKey !== remoteAudioSourceTrackKey) {
+            try { remoteAudioSource.disconnect(); } catch (_) {}
+            remoteAudioSource = null;
+            remoteAudioSourceTrackKey = "";
+        }
+        if (!remoteAudioSource) {
+            remoteAudioSource = remoteAudioContext.createMediaStreamSource(new MediaStream(tracks));
+            remoteAudioSource.connect(remoteAudioGain);
+            remoteAudioSourceTrackKey = trackKey;
+        }
+        if (audioElement) {
+            audioElement.muted = true;
+            audioElement.volume = 1;
+            void audioElement.play().catch(() => {});
+        }
+        if (remoteAudioContext.state === "suspended") void remoteAudioContext.resume().catch(() => {});
+        return true;
+    } catch (error) {
+        try { remoteAudioSource?.disconnect(); } catch (_) {}
+        remoteAudioSource = null;
+        remoteAudioSourceTrackKey = "";
+        if (audioElement) {
+            audioElement.muted = false;
+            void audioElement.play().catch(() => {});
+        }
+        console.info("Worth It speaker boost is unavailable; using standard call audio.", error);
+        return false;
+    }
+}
+function resetRemoteAudioProcessor() {
+    const audioContext = remoteAudioContext;
+    try { remoteAudioSource?.disconnect(); } catch (_) {}
+    try { remoteAudioGain?.disconnect(); } catch (_) {}
+    remoteAudioSource = null;
+    remoteAudioGain = null;
+    remoteAudioSourceTrackKey = "";
+    remoteAudioContext = null;
+    speakerBoostEnabled = false;
+    setSpeakerBoostButtonState();
+    if (audioContext && audioContext.state !== "closed") void audioContext.close().catch(() => {});
+}
+function toggleSpeakerBoost() {
+    if (!activeCall) return;
+    if (!ensureRemoteAudioProcessor() || !remoteAudioGain) {
+        status("Volume boost is not supported by this browser. Standard call audio will continue.", true);
+        return;
+    }
+    speakerBoostEnabled = !speakerBoostEnabled;
+    const ctx = remoteAudioContext;
+    const targetGain = speakerBoostEnabled ? 2 : 1;
+    try {
+        if (typeof remoteAudioGain.gain.setTargetAtTime === "function") {
+            remoteAudioGain.gain.setTargetAtTime(targetGain, ctx.currentTime, 0.08);
+        } else {
+            remoteAudioGain.gain.value = targetGain;
+        }
+        if (ctx.state === "suspended") void ctx.resume().catch(() => {});
+        setSpeakerBoostButtonState();
+        status(speakerBoostEnabled
+            ? "Incoming call audio boosted. If the sound distorts, switch back to normal volume."
+            : "Incoming call audio returned to normal volume.", false);
+    } catch (_) {
+        speakerBoostEnabled = false;
+        setSpeakerBoostButtonState();
+        status("Could not change the incoming audio volume.", true);
+    }
 }
 function stopCallMedia() {
     if (callPollTimer) window.clearInterval(callPollTimer);
@@ -285,12 +402,13 @@ function stopCallMedia() {
     lastRemoteSignalId = 0;
     audioMuted = false;
     cameraDisabled = false;
+    resetRemoteAudioProcessor();
     const remoteVideo = $("worthItChatRemoteVideo");
     const localVideo = $("worthItChatLocalVideo");
     const remoteAudio = $("worthItChatRemoteAudio");
     if (remoteVideo) { remoteVideo.srcObject = null; remoteVideo.hidden = true; }
     if (localVideo) { localVideo.srcObject = null; localVideo.hidden = true; }
-    if (remoteAudio) remoteAudio.srcObject = null;
+    if (remoteAudio) { remoteAudio.srcObject = null; remoteAudio.muted = false; remoteAudio.volume = 1; }
     const mute = $("worthItChatCallMuteBtn");
     if (mute) { mute.textContent = "🎙 Mute"; mute.setAttribute("aria-pressed", "false"); }
     const camera = $("worthItChatCallCameraBtn");
@@ -307,6 +425,7 @@ function endLocalCall(message) {
     $("worthItChatCallEndBtn").hidden = true;
     $("worthItChatCallMuteBtn").hidden = true;
     $("worthItChatCallCameraBtn").hidden = true;
+    $("worthItChatCallSpeakerBtn").hidden = true;
     if (incomingCallTimer) window.clearTimeout(incomingCallTimer);
     incomingCallTimer = window.setTimeout(() => showCallOverlay(false), 1800);
 }
@@ -337,20 +456,24 @@ function makePeerConnection() {
     };
     callPeer.ontrack = event => {
         remoteStream = event.streams?.[0] || remoteStream || new MediaStream();
-        if (!event.streams?.[0]) remoteStream.addTrack(event.track);
+        if (!event.streams?.[0] && !remoteStream.getTracks().some(track => track.id === event.track.id)) {
+            remoteStream.addTrack(event.track);
+        }
+        const audioIsRouted = routeRemoteCallAudio(remoteStream);
+        const audio = $("worthItChatRemoteAudio");
+        if (audio) {
+            audio.srcObject = remoteStream;
+            audio.muted = audioIsRouted;
+            void audio.play().catch(() => {});
+        }
         if (activeCall?.type === "video") {
             const video = $("worthItChatRemoteVideo");
             if (video) {
                 video.srcObject = remoteStream;
+                video.muted = true;
                 video.hidden = false;
                 video.playsInline = true;
                 void video.play().catch(() => {});
-            }
-        } else {
-            const audio = $("worthItChatRemoteAudio");
-            if (audio) {
-                audio.srcObject = remoteStream;
-                void audio.play().catch(() => {});
             }
         }
         setCallStatus(activeCall?.peerName || "Connected", "Connected securely through your browser. Use End call to finish.");
@@ -440,6 +563,7 @@ async function startCall(type) {
     }
     if (activeCall || incomingCall) return;
     try {
+        ensureRemoteAudioProcessor();
         localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: type === "video" });
         bindPeerToStream(localStream);
         activeCall = { id: null, role: "caller", type, conversationId: ctx.conversationId, peerName: ctx.title || "Worth It friend" };
@@ -480,6 +604,7 @@ async function acceptCall() {
         return;
     }
     try {
+        ensureRemoteAudioProcessor();
         localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: type === "video" });
         activeCall = {
             id: call.id, role: "callee", type, conversationId: call.conversation_id,
@@ -697,6 +822,7 @@ function setupAudioSearchAndCalls() {
     $("worthItChatCallEndBtn")?.addEventListener("click", () => void endCall());
     $("worthItChatCallMuteBtn")?.addEventListener("click", toggleMicrophone);
     $("worthItChatCallCameraBtn")?.addEventListener("click", toggleCamera);
+    $("worthItChatCallSpeakerBtn")?.addEventListener("click", toggleSpeakerBoost);
     $("worthItChatVoiceBtn")?.addEventListener("click", () => void startVoiceRecording());
     $("worthItChatVoiceCancelBtn")?.addEventListener("click", () => stopVoiceRecording());
     document.addEventListener("visibilitychange", () => {
