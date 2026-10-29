@@ -8,7 +8,6 @@ const calls = readFileSync(new URL("../chat-enhancements.js", import.meta.url), 
 const ai = readFileSync(new URL("../ai-ui.js", import.meta.url), "utf8");
 const polish = readFileSync(new URL("../chat-ux-polish.css", import.meta.url), "utf8");
 const enhancementCss = readFileSync(new URL("../chat-enhancements.css", import.meta.url), "utf8");
-const enhancementCss = readFileSync(new URL("../chat-enhancements.css", import.meta.url), "utf8");
 const baseChatCss = readFileSync(new URL("../style.css", import.meta.url), "utf8");
 
 test("each conversation has independent text, reply, and attachment draft state", () => {
