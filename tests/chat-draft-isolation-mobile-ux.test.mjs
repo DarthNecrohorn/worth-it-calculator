@@ -69,6 +69,7 @@ test("opening chat and cancelling a reply do not summon the mobile keyboard", ()
     assert.match(chat, /window\.visualViewport\?\.addEventListener\("resize", updateWorthItChatVisualViewport\)/);
     assert.match(chat, /--worthit-chat-visible-height/);
     assert.match(polish, /\.is-visual-viewport-adjusted \.worth-it-chat-window/);
+    assert.match(polish, /#worthItChatOverlay\.is-visual-viewport-adjusted \.worth-it-chat-compose-wrap\s*\{\s*flex: 0 0 auto !important;/);
 });
 
 test("emoji selections keep the unified media picker open unless a picker action closes it", () => {
