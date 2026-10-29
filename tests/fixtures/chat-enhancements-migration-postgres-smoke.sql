@@ -2,6 +2,7 @@ do $smoke$
 declare
   bucket storage.buckets%rowtype;
   definition text;
+  result jsonb;
   call_id uuid;
   constraint_definition text;
 begin
