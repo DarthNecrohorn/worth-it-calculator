@@ -84,5 +84,5 @@ test("wallpaper avoids horizontal tiling and sizes its generated tile to the mes
     assert.match(css, /background-repeat:no-repeat,repeat-y!important/);
     assert.match(css, /var\(--worthit-chat-wallpaper-size/);
     assert.match(html, /chat-enhancements\.js\?v=chat-media-lightbox-wallpaper-20261029a/);
-    assert.match(html, /chat-enhancements\.css\?v=chat-media-lightbox-wallpaper-20261029a/);
+    assert.match(html, /chat-enhancements\.css\?v=chat-small-doodles-20261029a/);
 });
