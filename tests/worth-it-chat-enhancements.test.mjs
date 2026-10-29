@@ -179,7 +179,7 @@ test("chat wallpaper uses a per-conversation grid and keeps the vector call/voic
     assert.match(client, /for \(let i = 0; i < columns \* rows; i\+\+\)/);
     assert.match(client, /CHAT_WALLPAPER_ALL_MOTIFS = CHAT_WALLPAPER_MOTIFS\.concat\(CHAT_WALLPAPER_EXTRA_MOTIFS\)/);
     assert.match(client, /const CHAT_WALLPAPER_GEOMETRIES = \[/);
-    assert.match(client, /const geometryOffsets = \[\[0, -32\]/);
+    assert.match(client, /const geometryParity = \(row \+ col\) % 2 === 0/);
     assert.match(client, /CHAT_WALLPAPER_LIGHT_PALETTE/);
     assert.match(client, /wallpaperSeed\(type \+ ":" \+ String\(contextValue\.conversationId/);
     assert.match(client, /wallpaperThemeObserver\.observe/);
@@ -203,7 +203,7 @@ test("chat doodles stay separated, adapt to both themes and retain visible icon 
     assert.match(client, /const scaleY = random\(\) < \.5 \? -\.38 : \.38/);
     assert.match(client, /const x = col \* cellSize \+ cellSize \/ 2/);
     assert.match(client, /const y = row \* cellSize \+ cellSize \/ 2/);
-    assert.match(client, /const geometryOffsets = \[\[0, -32\], \[32, 0\], \[0, 32\], \[-32, 0\], \[-28, -28\], \[28, -28\], \[-28, 28\], \[28, 28\]\]/);
+    assert.match(client, /const geometryOffsets = \[\[-edgeShift, -43\], \[43, edgeShift\], \[-edgeShift, 43\], \[-43, edgeShift\], \[-32, -32\], \[32, -32\], \[-32, 32\], \[32, 32\]\]/);
     assert.match(css, /var\(--worthit-chat-wallpaper-image,none\)!important/);
     assert.match(css, /html\[data-theme="light"\] \.worth-it-chat-messages/);
     assert.match(css, /background-size:auto,800px 1200px!important/);
