@@ -52,9 +52,9 @@ test("wallpaper has a few varied large drawings and smaller unique drawings in t
 
     const doodles = parseEntries(svg, "doodle");
     const accents = parseEntries(svg, "accent");
-    assert.ok(doodles.length >= 5 && doodles.length <= 12,
+    assert.ok(doodles.length >= 7 && doodles.length <= 18,
         "a conversation tile should contain only a handful of large illustrations");
-    assert.ok(accents.length >= 8 && accents.length <= 20,
+    assert.ok(accents.length >= 15 && accents.length <= 42,
         "smaller illustrations should be sparse and placed in the open gaps");
 
     const scales = doodles.map(item => item.scale);
@@ -94,6 +94,6 @@ test("wallpaper avoids horizontal tiling and sizes its generated tile to the mes
     const finalWallpaperCss = css.slice(css.lastIndexOf("/* Final chat wallpaper:"));
     assert.match(finalWallpaperCss, /background-image:[\s\S]*var\(--worthit-chat-wallpaper-image,none\)/);
     assert.doesNotMatch(finalWallpaperCss, /data:image\/svg\+xml|310px 370px|260px 320px/);
-    assert.match(html, /chat-enhancements\.js\?v=chat-wallpaper-gap-generator-20261029b/);
-    assert.match(html, /chat-enhancements\.css\?v=chat-wallpaper-gap-layout-20261029b/);
+    assert.match(html, /chat-enhancements\.js\?v=chat-daily-safety-wallpaper-density-20261029a/);
+    assert.match(html, /chat-enhancements\.css\?v=chat-safety-note-wallpaper-density-20261029a/);
 });
