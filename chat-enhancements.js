@@ -180,9 +180,9 @@ function makeConversationWallpaper(contextValue, theme, requestedWidth) {
     const canvasWidth = Math.max(600, Math.min(2400, Math.ceil((Number(requestedWidth) || 600) / 120) * 120));
     const canvasHeight = Math.round(canvasWidth * 1.5);
 
-    // Keep only a few large illustrations. The number increases slowly with tile
-    // width, rather than filling the entire canvas with similarly sized drawings.
-    const targetCount = Math.max(5, Math.min(12, Math.round(canvasWidth / 130)));
+    // Use more of the available tile area while keeping a generous clear
+    // zone around every large illustration.
+    const targetCount = Math.max(8, Math.min(18, Math.round(canvasWidth / 75)));
     const usedMotifs = new Set();
     const placements = [];
     const scales = Array.from({ length: targetCount }, () => .54 + random() * .59);
@@ -196,7 +196,7 @@ function makeConversationWallpaper(contextValue, theme, requestedWidth) {
         const radius = 86 * scale;
         const margin = radius + 8;
         let point = null;
-        for (let attempt = 0; attempt < 2400; attempt++) {
+        for (let attempt = 0; attempt < 3600; attempt++) {
             const x = margin + random() * Math.max(0, canvasWidth - margin * 2);
             const y = margin + random() * Math.max(0, canvasHeight - margin * 2);
             const overlaps = placements.some(existing =>
@@ -238,13 +238,13 @@ function makeConversationWallpaper(contextValue, theme, requestedWidth) {
         );
     }
 
-    // Fill the actual gaps using smaller complete illustrations instead of a
-    // repeating grid of tiny geometric marks. Each motif is unique in this tile.
-    const targetAccents = Math.max(9, Math.min(20, Math.round(canvasWidth / 55)));
+    // Add a more visible layer of small, complete drawings in unused gaps.
+    // Keep the same collision checks and unique motifs so density never means overlap.
+    const targetAccents = Math.max(20, Math.min(42, Math.round(canvasWidth / 24)));
     const accents = [];
     for (let i = 0; i < targetAccents; i++) {
         let point = null;
-        for (let attempt = 0; attempt < 2600; attempt++) {
+        for (let attempt = 0; attempt < 4000; attempt++) {
             const scale = .18 + random() * .22;
             const radius = 86 * scale;
             const margin = radius + 7;
@@ -372,6 +372,60 @@ const wallpaperSurfaceObserver = typeof ResizeObserver === "function"
 const wallpaperSurface = $("worthItChatMessages");
 if (wallpaperSurface && wallpaperSurfaceObserver) wallpaperSurfaceObserver.observe(wallpaperSurface);
 
+function setupDailyChatSafetyNotice() {
+    const notice = $("worthItChatSafetyNote");
+    const dismissButton = $("worthItChatSafetyNoteDismissBtn");
+    if (!notice || !dismissButton) return;
+
+    const storageKey = "worthItChatSafetyNoteDismissedAt";
+    const dayMs = 24 * 60 * 60 * 1000;
+    let timerId = 0;
+    let memoryDismissedAt = 0;
+
+    function readDismissedAt() {
+        try {
+            const stored = Number(window.localStorage.getItem(storageKey));
+            if (Number.isFinite(stored) && stored > 0) return stored;
+        } catch (_) { /* Storage may be unavailable in restricted/private contexts. */ }
+        return memoryDismissedAt;
+    }
+    function storeDismissal(timestamp) {
+        memoryDismissedAt = timestamp;
+        try { window.localStorage.setItem(storageKey, String(timestamp)); } catch (_) {}
+    }
+    function clearDismissal() {
+        memoryDismissedAt = 0;
+        try { window.localStorage.removeItem(storageKey); } catch (_) {}
+    }
+    function syncVisibility() {
+        if (timerId) window.clearTimeout(timerId);
+        timerId = 0;
+        const dismissedAt = readDismissedAt();
+        const remaining = dismissedAt ? dayMs - (Date.now() - dismissedAt) : 0;
+        if (dismissedAt && remaining > 0) {
+            notice.hidden = true;
+            timerId = window.setTimeout(syncVisibility, Math.min(remaining + 25, 2147483647));
+            return;
+        }
+        if (dismissedAt) clearDismissal();
+        notice.hidden = false;
+    }
+
+    dismissButton.addEventListener("click", () => {
+        storeDismissal(Date.now());
+        notice.hidden = true;
+        if (timerId) window.clearTimeout(timerId);
+        timerId = window.setTimeout(syncVisibility, dayMs + 25);
+    });
+    window.addEventListener("storage", event => {
+        if (event.key === storageKey || event.key === null) syncVisibility();
+    });
+    document.addEventListener("visibilitychange", () => {
+        if (!document.hidden) syncVisibility();
+    });
+    syncVisibility();
+}
+
 function clearSearchResults() {
     const list = $("worthItChatSearchResults");
     const statusNode = $("worthItChatSearchStatus");
@@ -387,6 +441,7 @@ function toggleSearch(open) {
     const show = typeof open === "boolean" ? open : panel.hidden;
     panel.hidden = !show;
     button?.setAttribute("aria-expanded", String(show));
+    document.dispatchEvent(new Event("worthitchatsearchvisibilitychange"));
     if (show) {
         const input = $("worthItChatMessageSearchInput");
         if (input) { input.value = ""; input.focus(); }
@@ -1354,6 +1409,7 @@ function setupSwipeReply() {
     }, { passive: true });
 }
 function setupAudioSearchAndCalls() {
+    setupDailyChatSafetyNotice();
     $("worthItChatMessageSearchBtn")?.addEventListener("click", () => toggleSearch());
     $("worthItChatSearchCloseBtn")?.addEventListener("click", () => toggleSearch(false));
     $("worthItChatMessageSearchInput")?.addEventListener("input", scheduleMessageSearch);

@@ -1813,7 +1813,10 @@ function updateWorthItChatTravelPresentButton() {
     if (!host || !button) return;
 
     const distanceFromBottom = host.scrollHeight - host.scrollTop - host.clientHeight;
+    const searchPanel = $("worthItChatSearchPanel");
+    const isMessageSearchOpen = Boolean(searchPanel && !searchPanel.hidden);
     const shouldShow = Boolean(
+        !isMessageSearchOpen &&
         chatOpen &&
         chatUser &&
         chatMessages.length &&
@@ -1843,6 +1846,8 @@ function updateWorthItChatTravelPresentButton() {
         window.setTimeout(() => button.classList.remove("is-entering"), 280);
     }
 }
+
+document.addEventListener("worthitchatsearchvisibilitychange", updateWorthItChatTravelPresentButton);
 
 function closeWorthItChatImageLightbox() {
     const overlay = document.getElementById("worthItChatImageLightbox");
