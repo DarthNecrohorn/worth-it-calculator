@@ -45,5 +45,5 @@ test("unverified accounts get guest privileges, a daily resend button and email-
     assert.match(css, /\.worth-it-email-gate\s*\{[\s\S]*?position: fixed[\s\S]*?pointer-events: none/);
     assert.match(css, /\.worth-it-email-gate-card\s*\{[\s\S]*?pointer-events: auto/);
     assert.match(html, /app\.js\?v=email-verification-20261029b/);
-    assert.match(html, /ai-ui\.js\?v=email-verification-20261029b/);
+    assert.match(html, /ai-ui\.js\?v=email-verification-20261028a/);
 });
