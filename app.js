@@ -832,7 +832,7 @@ function normalizeWorthItUsernameForModeration(username) {
 function validateWorthItUsernameRules(username) {
     const value = String(username || "").trim();
 
-    if (!/^(?=.*[A-Za-z0-9])[A-Za-z0-9_]{3,20}$/.test(value)) {
+    if (!/^(?=.{3,20}$)[A-Za-z][A-Za-z0-9]*(?:_[A-Za-z0-9]+)?$/.test(value)) {
         return {
             ok: false,
             message: "Username must be 3–20 characters and use only letters, numbers, and up to one _."
@@ -931,7 +931,7 @@ function updateUsernameAvailabilityMessage(input) {
     if (!message || authModalMode !== "signup") return;
 
     const username = input?.value?.trim() || "";
-    const pattern = /^(?=.*[A-Za-z0-9])[A-Za-z0-9_]{3,20}$/;
+    const pattern = /^(?=.{3,20}$)[A-Za-z][A-Za-z0-9]*(?:_[A-Za-z0-9]+)?$/;
 
     if (!username) {
         message.textContent = "";
@@ -1586,6 +1586,7 @@ async function submitAuthForm(event) {
 
     const usernamePattern =
         /^(?=.*[A-Za-z0-9])[A-Za-z0-9_]{3,20}$/;
+    const signupUsernamePattern = /^(?=.{3,20}$)[A-Za-z][A-Za-z0-9]*(?:_[A-Za-z0-9]+)?$/;
 
     if ((username.match(/_/g) || []).length > 1) {
         setAuthStatus("Username can contain only one _.", "error");
@@ -1604,6 +1605,11 @@ async function submitAuthForm(event) {
 
         return;
 
+    }
+
+    if (authModalMode === "signup" && !signupUsernamePattern.test(username)) {
+        setAuthStatus("Username must start with a letter. Use 3–20 English letters or numbers, with at most one underscore between them.", "error");
+        return;
     }
 
     if (authModalMode === "signup") {
