@@ -22,7 +22,7 @@ test("Bugs & Suggestions is visible in the homepage hero to all visitors, not ga
     assert.doesNotMatch(hero[0], /style\s*=\s*["'][^"']*display\s*:\s*none/i);
     assert.doesNotMatch(footer[0], /style\s*=\s*["'][^"']*display\s*:\s*none/i);
     assert.match(html, /style\.css\?v=[^"']+/);
-    assert.match(html, /admin-panel\.js\?v=feedbackpublic20261023a/);
+    assert.match(html, /admin-panel\.js\?v=admin-email-verification-20261029a/);
 
     assert.match(
         adminPanel,
