@@ -55,6 +55,7 @@ const WORTH_IT_CHAT_FULLSCREEN_PREFERENCE_KEY = "worth-it-chat-fullscreen-prefer
 let pendingMediaFile = null;
 let pendingMediaUrl = "";
 let pendingMediaType = "";
+let pendingReplyQuote = null;
 let chatNotificationPreferences = Object.create(null);
 let chatNotificationPreferencesLoadedForUser = null;
 let globalNotificationPreferences = { friend_requests: true, follows: true, private_messages: true, group_chats: true, account_activity: true };
@@ -281,6 +282,9 @@ function setHeader(title, subtitle, person) {
         host.removeAttribute("role"); host.removeAttribute("tabindex"); host.removeAttribute("aria-label"); host.removeAttribute("title");
         host.onclick = null; host.onkeydown = null; host.classList.remove("is-profile-link");
     }
+    window.dispatchEvent(new CustomEvent("worthitchatcontextchange", {
+        detail: typeof window.getWorthItChatEnhancementContext === "function" ? window.getWorthItChatEnhancementContext() : null
+    }));
 }
 function niceTime(value) {
     const date = new Date(value);
@@ -1182,30 +1186,39 @@ async function copyWorthItChatMessage(message) {
         setStatus("Could not copy the message. Check your browser's clipboard permission.", true);
     }
 }
+function renderWorthItChatReplyPreview() {
+    const host = $("worthItChatReplyPreview");
+    const authorNode = $("worthItChatReplyAuthor");
+    const textNode = $("worthItChatReplyText");
+    if (!host || !authorNode || !textNode) return;
+    const quote = pendingReplyQuote;
+    host.hidden = !quote;
+    if (!quote) {
+        authorNode.textContent = "";
+        textNode.textContent = "";
+        return;
+    }
+    authorNode.textContent = "Replying to " + quote.author;
+    textNode.textContent = quote.text;
+}
+function clearWorthItChatReplyQuote() {
+    pendingReplyQuote = null;
+    renderWorthItChatReplyPreview();
+}
 function quoteWorthItChatMessage(message) {
     const input = $("worthItChatInput");
     if (!input) return;
-    const author = String(message.display_name || message.username || "Worth It member").replace(/[\r\n]/g, " ");
-    const raw = String(message.body || (message.media_type ? "[Shared " + message.media_type + "]" : ""));
-    if (!raw) {
-        setStatus("This message has no text to quote.", true);
+    const author = String(message.display_name || message.username || "Worth It member").replace(/[\r\n]/g, " ").slice(0, 80);
+    const raw = String(message.body || (message.media_type === "audio" ? "🎙 Voice message" : message.media_type ? "[Shared " + message.media_type + "]" : ""));
+    if (!raw.trim()) {
+        setStatus("This message cannot be replied to.", true);
         return;
     }
     const compact = raw.replace(/\s+/g, " ").trim();
-    const quote = "> " + author + ": " + compact.slice(0, 160) + (compact.length > 160 ? "…" : "") + "\n\n";
-    const joined = (input.value ? input.value.replace(/\s+$/, "") + "\n\n" : "") + quote;
-    if (joined.length > 500) {
-        setStatus("There is not enough room to quote this message. Shorten your draft first.", true);
-        return;
-    }
-    input.value = joined;
-    input.dispatchEvent(new Event("input", {bubbles:true}));
-    input.style.height = "auto";
-    input.style.height = Math.min(input.scrollHeight, 150) + "px";
-    updateCharacterCount();
-    input.focus();
-    input.setSelectionRange(input.value.length, input.value.length);
-    setStatus("Quote added to your draft. You can edit it before sending.", false);
+    pendingReplyQuote = { author, text: compact.slice(0, 160) + (compact.length > 160 ? "…" : "") };
+    renderWorthItChatReplyPreview();
+    input.focus({preventScroll:true});
+    setStatus("Replying to " + author + ". Write your reply below.", false);
 }
 function getOwnedWorthItChatMediaObjectPath(mediaUrl, userId, client) {
     if (!mediaUrl || !userId || !client?.supabaseUrl) return "";
@@ -1381,6 +1394,8 @@ async function runWorthItChatMessageAction(action, message) {
         chatMessageRequestVersion += 1;
         chatLoading = false;
         const latest = chatMessages.find(item => String(item.id) === String(message.id));
+        const deletedAttachmentUrl = message.media_url;
+        const deletedAttachmentType = message.media_type;
         if (latest) {
             latest.body = "";
             latest.media_url = null;
@@ -1398,25 +1413,39 @@ async function runWorthItChatMessageAction(action, message) {
         // Update this screen immediately; storage cleanup can finish afterwards.
         renderMessages(false);
         let attachmentCleanupFailed = false;
-        if (action === "delete" && message.media_url) {
-            const objectPath = getOwnedWorthItChatMediaObjectPath(message.media_url, chatUser.id, sb());
-            if (!objectPath) {
-                // Don't delete an object unless it is verified to belong to this user,
-                // but make the remaining public URL risk visible to the sender.
-                attachmentCleanupFailed = true;
-            } else {
+        if (action === "delete" && deletedAttachmentUrl) {
+            if (deletedAttachmentType === "audio") {
+                const audioRef = String(deletedAttachmentUrl).match(/^worthit-audio:([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}):([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/[A-Za-z0-9._-]+)$/i);
                 try {
-                    const {error: storageError} = await sb().storage.from("worth-it-chat-media").remove([objectPath]);
-                    if (storageError) attachmentCleanupFailed = true;
-                } catch (_) {
+                    const session = await sb().auth.getSession();
+                    const token = session?.data?.session?.access_token || "";
+                    if (!audioRef || !token) throw new Error("Could not verify the stored voice file.");
+                    const query = new URLSearchParams({conversation_id: audioRef[1], path: audioRef[2]});
+                    const response = await fetch("/api/chat-audio?" + query.toString(), {
+                        method: "DELETE", headers: {Authorization: "Bearer " + token},
+                        credentials: "same-origin", cache: "no-store"
+                    });
+                    if (!response.ok) attachmentCleanupFailed = true;
+                } catch (_) { attachmentCleanupFailed = true; }
+            } else {
+                const objectPath = getOwnedWorthItChatMediaObjectPath(deletedAttachmentUrl, chatUser.id, sb());
+                if (!objectPath) {
+                    // Never delete an object unless its ownership can be verified.
                     attachmentCleanupFailed = true;
+                } else {
+                    try {
+                        const {error: storageError} = await sb().storage.from("worth-it-chat-media").remove([objectPath]);
+                        if (storageError) attachmentCleanupFailed = true;
+                    } catch (_) { attachmentCleanupFailed = true; }
                 }
             }
         }
         await refreshWorthItChatData();
         await loadWorthItChatMessages(false, true);
         if (attachmentCleanupFailed) {
-            setStatus("Message deleted, but its uploaded attachment could not be removed from storage. The chat message is hidden; the file may still be accessible by its direct URL.", true);
+            setStatus(deletedAttachmentType === "audio"
+                ? "Message deleted, but its private voice file could not be removed from storage."
+                : "Message deleted, but its uploaded attachment could not be removed from storage. The chat message is hidden; the file may still be accessible by its direct URL.", true);
         } else {
             setStatus(action === "delete" ? "Message deleted for everyone." : "Message hidden for you. Other members can still see it.", false);
         }
@@ -1509,9 +1538,42 @@ function createWorthItChatMessageRow(message) {
     } else {
         const bubble = document.createElement("div");
         bubble.className = "worth-it-chat-bubble";
-        if (message.body) renderLinkedText(bubble, message.body);
-        if (message.media_url && ["image", "gif", "video"].includes(message.media_type)) {
-            if (message.media_type === "video") {
+        let visibleBody = String(message.body || "");
+        const replySeparator = visibleBody.indexOf("\n\n");
+        if (replySeparator > 0 && visibleBody.startsWith("> ")) {
+            const quoteLine = visibleBody.slice(2, visibleBody.indexOf("\n"));
+            const quoteColon = quoteLine.indexOf(": ");
+            if (quoteColon > 0) {
+                const quoteBlock = document.createElement("div");
+                quoteBlock.className = "worth-it-chat-message-reply-quote";
+                const quoteAuthor = document.createElement("strong");
+                quoteAuthor.textContent = quoteLine.slice(0, quoteColon);
+                const quoteText = document.createElement("span");
+                quoteText.textContent = quoteLine.slice(quoteColon + 2);
+                quoteBlock.append(quoteAuthor, quoteText);
+                bubble.appendChild(quoteBlock);
+                visibleBody = visibleBody.slice(replySeparator + 2);
+            }
+        }
+        if (visibleBody) renderLinkedText(bubble, visibleBody);
+        if (message.media_url && ["image", "gif", "video", "audio"].includes(message.media_type)) {
+            if (message.media_type === "audio") {
+                const audioButton = document.createElement("button");
+                audioButton.type = "button";
+                audioButton.className = "worth-it-chat-audio-play";
+                audioButton.textContent = "▶ Play voice message";
+                const audio = document.createElement("audio");
+                audio.className = "worth-it-chat-audio";
+                audio.controls = true;
+                audio.preload = "none";
+                audio.hidden = true;
+                audio.setAttribute("aria-label", "Voice message playback");
+                audioButton.addEventListener("click", () => {
+                    if (typeof window.worthItChatPlayVoiceMessage === "function") void window.worthItChatPlayVoiceMessage(audioButton, audio, message.media_url);
+                    else setStatus("Voice messages are loading. Please try again.", true);
+                });
+                bubble.append(audioButton, audio);
+            } else if (message.media_type === "video") {
                 const video = document.createElement("video");
                 video.className = "worth-it-chat-media worth-it-chat-video";
                 video.src = message.media_url;
@@ -2149,13 +2211,19 @@ function setPendingMedia(file, url, type) {
         preview.playsInline = true;
         preview.controls = true;
         preview.className = "worth-it-chat-video-preview";
+    } else if (type === "audio") {
+        preview = document.createElement("audio");
+        preview.src = pendingMediaUrl;
+        preview.controls = true;
+        preview.preload = "metadata";
+        preview.className = "worth-it-chat-audio-preview";
     } else {
         preview = document.createElement("img");
         preview.src = pendingMediaUrl;
         preview.alt = "Attachment preview";
         preview.className = "worth-it-chat-image-preview";
     }
-    const name = document.createElement("span"); name.textContent = pendingMediaFile.name;
+    const name = document.createElement("span"); name.textContent = pendingMediaFile.name || "Voice message";
     const remove = document.createElement("button"); remove.type = "button"; remove.textContent = "×"; remove.setAttribute("aria-label", "Remove attachment");
     remove.addEventListener("click", () => setPendingMedia(null, "", ""));
     host.append(preview, name, remove);
@@ -2163,28 +2231,31 @@ function setPendingMedia(file, url, type) {
 async function validateChatMediaSignature(file, expectedMime) {
     const header = new Uint8Array(await file.slice(0, 16).arrayBuffer());
     const starts = (...bytes) => bytes.every((byte, index) => header[index] === byte);
+    const expected = String(expectedMime || "").split(";")[0].toLowerCase();
     let actualMime = "";
     if (starts(0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a)) actualMime = "image/png";
     else if (starts(0xff, 0xd8, 0xff)) actualMime = "image/jpeg";
     else if (starts(0x47, 0x49, 0x46, 0x38, 0x37, 0x61) || starts(0x47, 0x49, 0x46, 0x38, 0x39, 0x61)) actualMime = "image/gif";
     else if (header.length >= 12 && starts(0x52, 0x49, 0x46, 0x46) && header[8] === 0x57 && header[9] === 0x45 && header[10] === 0x42 && header[11] === 0x50) actualMime = "image/webp";
-    else if (header.length >= 12 && header[4] === 0x66 && header[5] === 0x74 && header[6] === 0x79 && header[7] === 0x70) actualMime = "video/mp4";
-    else if (starts(0x1a, 0x45, 0xdf, 0xa3)) actualMime = "video/webm";
-    if (!actualMime || actualMime !== expectedMime) {
-        throw new Error("The file contents do not match the selected media type.");
-    }
+    else if (header.length >= 12 && header[4] === 0x66 && header[5] === 0x74 && header[6] === 0x79 && header[7] === 0x70) actualMime = expected === "audio/mp4" ? "audio/mp4" : "video/mp4";
+    else if (starts(0x1a, 0x45, 0xdf, 0xa3)) actualMime = expected === "audio/webm" ? "audio/webm" : "video/webm";
+    else if (starts(0x4f, 0x67, 0x67, 0x53) && expected === "audio/ogg") actualMime = "audio/ogg";
+    else if ((starts(0x49, 0x44, 0x33) || (header.length > 1 && header[0] === 0xff && (header[1] & 0xe0) === 0xe0)) && expected === "audio/mpeg") actualMime = "audio/mpeg";
+    else if (header.length >= 12 && starts(0x52, 0x49, 0x46, 0x46) && header[8] === 0x57 && header[9] === 0x41 && header[10] === 0x56 && header[11] === 0x45 && ["audio/wav", "audio/x-wav"].includes(expected)) actualMime = expected;
+    if (!actualMime || actualMime !== expected) throw new Error("The file contents do not match the selected media type.");
     return actualMime;
 }
 async function uploadPendingMedia() {
     if (!pendingMediaFile) return {url:"",type:""};
     const file = pendingMediaFile;
     if (!file.size) throw new Error("This media file is empty.");
-    const allowed = {"image/png":"image","image/jpeg":"image","image/webp":"image","image/gif":"gif","video/mp4":"video","video/webm":"video"};
-    const type = allowed[file.type];
-    if (!type) throw new Error("Choose a PNG, JPG, WEBP, GIF, MP4 or WebM file.");
-    const maxBytes = type === "gif" ? 20 * 1024 * 1024 : type === "video" ? 50 * 1024 * 1024 : 15 * 1024 * 1024;
-    if (file.size > maxBytes) throw new Error(type === "gif" ? "GIFs must be 20 MB or smaller." : type === "video" ? "Videos must be 50 MB or smaller." : "Images must be 15 MB or smaller.");
-    await validateChatMediaSignature(file, file.type);
+    const mime = String(file.type || "").split(";")[0].toLowerCase();
+    const allowed = {"image/png":"image","image/jpeg":"image","image/webp":"image","image/gif":"gif","video/mp4":"video","video/webm":"video","audio/webm":"audio","audio/ogg":"audio","audio/mp4":"audio","audio/mpeg":"audio","audio/wav":"audio","audio/x-wav":"audio"};
+    const type = allowed[mime];
+    if (!type) throw new Error("Choose a supported image, GIF, video or recorded voice message.");
+    const maxBytes = type === "audio" ? 10 * 1024 * 1024 : type === "gif" ? 20 * 1024 * 1024 : type === "video" ? 50 * 1024 * 1024 : 15 * 1024 * 1024;
+    if (file.size > maxBytes) throw new Error(type === "audio" ? "Voice messages must be 10 MB or smaller." : type === "gif" ? "GIFs must be 20 MB or smaller." : type === "video" ? "Videos must be 50 MB or smaller." : "Images must be 15 MB or smaller.");
+    await validateChatMediaSignature(file, mime);
     const client = sb();
     if (!client || !chatUser?.id) throw new Error("Sign in again before uploading media.");
     const sessionResult = await client.auth.getSession();
@@ -2194,8 +2265,9 @@ async function uploadPendingMedia() {
         throw new Error("Your session has expired. Sign in again before uploading media.");
     }
     const form = new FormData();
-    form.append("file", file, file.name || (type === "gif" ? "image.gif" : "image"));
-    const response = await fetch("/api/chat-media", {
+    form.append("file", file, file.name || (type === "audio" ? "voice-message" : type === "gif" ? "image.gif" : "image"));
+    if (type === "audio") form.append("conversation_id", activeConversationId || "00000000-0000-4000-8000-000000000001");
+    const response = await fetch(type === "audio" ? "/api/chat-audio" : "/api/chat-media", {
         method: "POST",
         headers: { "Authorization": "Bearer " + token },
         body: form,
@@ -2212,9 +2284,11 @@ async function uploadPendingMedia() {
 async function sendWorthItChatMessage() {
     if (!chatUser || chatSending) return;
     const input = $("worthItChatInput");
-    const body = String(input?.value || "");
-    if (body.length > 500) { setStatus("Messages are limited to 500 characters.", true); return; }
-    if (!body.trim() && !pendingMediaFile) { setStatus("Write a message or attach an image, GIF or video first.", true); return; }
+    const draftBody = String(input?.value || "");
+    const replyPrefix = pendingReplyQuote ? "> " + pendingReplyQuote.author + ": " + pendingReplyQuote.text + "\n\n" : "";
+    const body = replyPrefix + draftBody;
+    if (body.length > 500) { setStatus("Messages, including the quoted reply, are limited to 500 characters. Shorten your draft or reply quote.", true); return; }
+    if (!draftBody.trim() && !pendingMediaFile) { setStatus(pendingReplyQuote ? "Write a reply before sending." : "Write a message or attach media first.", true); return; }
     const remaining = 2000 - (Date.now() - chatLastSentAt);
     if (remaining > 0) { setStatus("Please wait " + (remaining / 1000).toFixed(1) + " seconds before sending another message.", true); return; }
     chatSending = true;
@@ -2249,6 +2323,7 @@ async function sendWorthItChatMessage() {
         }
         chatLastSentAt = Date.now();
         if (input) { input.value = ""; input.style.height = "auto"; }
+        clearWorthItChatReplyQuote();
         stopWorthItChatTyping();
         setPendingMedia(null, "", "");
         updateCharacterCount();
@@ -3132,6 +3207,10 @@ function setupChatUI() {
         search.dispatchEvent(new Event("input", {bubbles:true}));
         search.focus();
     });
+    $("worthItChatReplyCloseBtn")?.addEventListener("click", () => {
+        clearWorthItChatReplyQuote();
+        $("worthItChatInput")?.focus({preventScroll:true});
+    });
     $("worthItChatHeaderNotifications")?.addEventListener("click", event => {
         event.preventDefault();
         event.stopPropagation();
@@ -3174,6 +3253,47 @@ function setupChatUI() {
         if (document.hidden) stopWorthItChatTyping();
     });
 }
+window.getWorthItChatEnhancementContext = function () {
+    const friendId = Number(activeConversationPerson?.worth_it_id);
+    const isFriend = activeConversationType === "direct" && Number.isSafeInteger(friendId) && friendId > 0 &&
+        chatFriends.some(friend => String(friend.worth_it_id) === String(friendId));
+    return {
+        userId: chatUser?.id || null,
+        conversationId: activeConversationId || (activeConversationType === "global" ? "00000000-0000-4000-8000-000000000001" : null),
+        conversationType: activeConversationType,
+        friendId: isFriend ? friendId : null,
+        isFriend,
+        title: activeConversationTitle,
+        isOpen: chatOpen
+    };
+};
+window.worthItChatQuoteById = function (messageId) {
+    const message = chatMessages.find(item => String(item.id) === String(messageId));
+    if (message) quoteWorthItChatMessage(message);
+};
+window.worthItChatShowSearchResult = function (message) {
+    const ctx = window.getWorthItChatEnhancementContext();
+    if (!message || !ctx?.userId || String(ctx.conversationId) === "" ) return;
+    const existing = chatMessages.find(item => String(item.id) === String(message.id));
+    if (!existing) chatMessages = [...chatMessages, message].sort((a, b) => Number(a.id) - Number(b.id));
+    renderMessages(false);
+    window.setTimeout(() => {
+        const row = $("worthItChatMessages")?.querySelector('[data-message-id="' + CSS.escape(String(message.id)) + '"]');
+        if (!row) return;
+        row.scrollIntoView({behavior: "smooth", block: "center"});
+        row.classList.add("is-search-highlight");
+        window.setTimeout(() => row.classList.remove("is-search-highlight"), 1800);
+    }, 30);
+};
+window.worthItChatAttachRecordedAudio = function (file) {
+    if (!file || !(file instanceof File) || !String(file.type || "").startsWith("audio/")) return;
+    if (activeConversationType === "direct" && !chatFriends.some(friend => String(friend.worth_it_id) === String(activeConversationPerson?.worth_it_id))) {
+        setStatus("Voice messages in private chat are available only between friends.", true);
+        return;
+    }
+    setPendingMedia(file, URL.createObjectURL(file), "audio");
+    $("worthItChatSendBtn")?.focus({preventScroll:true});
+};
 setupChatUI();
 window.addEventListener("worthitnotificationpreferenceschange", event => {
     const next = event?.detail;

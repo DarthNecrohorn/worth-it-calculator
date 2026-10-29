@@ -42,7 +42,7 @@ jobs:
             echo "Checking $file"
             node --input-type=module --check < "$file"
           done < <(find functions -type f -name '*.js' -print0)
-          for file in cars-ui.js markets-ui.js ship-tracking-ui.js app.js settings.js profile-ui.js chat-ui.js routing.js guest-mode.js section-data-cache.js; do
+          for file in cars-ui.js markets-ui.js ship-tracking-ui.js app.js settings.js profile-ui.js chat-ui.js chat-enhancements.js routing.js guest-mode.js section-data-cache.js; do
             if [[ -f "$file" ]]; then
               echo "Checking $file"
               node --input-type=module --check < "$file"
@@ -68,7 +68,7 @@ jobs:
           from pathlib import Path
           from pglast import parse_sql
 
-          for name in ("supabase/worth-it-settings-privacy-notifications.sql", "supabase/worth-it-chat-video-media.sql", "supabase/worth-it-chat-message-actions.sql", "supabase/worth-it-chat-message-delete-constraint.sql", "supabase/worth-it-chat-message-action-indexes.sql", "supabase/worth-it-chat-realtime.sql"):
+          for name in ("supabase/worth-it-settings-privacy-notifications.sql", "supabase/worth-it-chat-video-media.sql", "supabase/worth-it-chat-message-actions.sql", "supabase/worth-it-chat-message-delete-constraint.sql", "supabase/worth-it-chat-message-action-indexes.sql", "supabase/worth-it-chat-realtime.sql", "supabase/worth-it-chat-enhancements.sql"):
               path = Path(name)
               sql = path.read_text(encoding="utf-8")
               statements = parse_sql(sql)
@@ -85,7 +85,7 @@ jobs:
           from pathlib import Path
           import re
 
-          for name in ("supabase/worth-it-settings-privacy-notifications.sql", "supabase/worth-it-chat-video-media.sql", "supabase/worth-it-chat-message-actions.sql", "supabase/worth-it-chat-message-delete-constraint.sql", "supabase/worth-it-chat-message-action-indexes.sql"):
+          for name in ("supabase/worth-it-settings-privacy-notifications.sql", "supabase/worth-it-chat-video-media.sql", "supabase/worth-it-chat-message-actions.sql", "supabase/worth-it-chat-message-delete-constraint.sql", "supabase/worth-it-chat-message-action-indexes.sql", "supabase/worth-it-chat-enhancements.sql"):
               path = Path(name)
               sql = path.read_text(encoding="utf-8")
               openers = len(re.findall(r"(?im)^\s*(?:as|do)\s+\$\$\s*$|^\s*do\s+\$migration\$\s*$", sql))
@@ -164,6 +164,19 @@ jobs:
           psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -f tests/fixtures/chat-video-migration-postgres-setup.sql
           psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/worth-it-chat-video-media.sql
           psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -f tests/fixtures/chat-video-migration-postgres-smoke.sql
+
+      - name: Create isolated database for chat-enhancements migration tests
+        env:
+          TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/postgres
+        run: createdb --maintenance-db="$TEST_DATABASE_URL" --owner=postgres worth_it_chat_enhancements_test
+
+      - name: Execute and smoke-test chat-enhancements migration in isolated PostgreSQL
+        env:
+          TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/worth_it_chat_enhancements_test
+        run: |
+          psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -f tests/fixtures/chat-enhancements-migration-postgres-setup.sql
+          psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/worth-it-chat-enhancements.sql
+          psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -f tests/fixtures/chat-enhancements-migration-postgres-smoke.sql
 
       - name: Create isolated database for chat message action tests
         env:
