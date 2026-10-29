@@ -702,7 +702,8 @@ function worthItIsProtectedEmailAction(target){
     const chatComposer = /send|message|chat/;
     const isSection = sectionWords.test(text) || sectionWords.test(handler);
     const isSocial = socialWords.test(text) || socialWords.test(handler) || Boolean(control.closest("#worthItProfileSocialActions, #worthItProfileReportAction"));
-    const isChatAction = Boolean(control.closest("#communityChatPanel, #chatPanel, #worthItChatPanel, .worth-it-chat-panel, .chat-panel")) && chatComposer.test(text + " " + handler);
+    const isChatAction = (Boolean(control.closest("#communityChatPanel, #chatPanel, #worthItChatPanel, .worth-it-chat-panel, .chat-panel")) && chatComposer.test(text + " " + handler)) ||
+        (chatComposer.test(text + " " + handler) && Boolean(control.closest("form")?.querySelector("#worthItChatInput")));
     return isSection || isSocial || isChatAction;
 }
 document.addEventListener("click", function(event){
@@ -717,8 +718,8 @@ document.addEventListener("focusin", function(event){
     const target = event.target;
     if (!(target instanceof Element) || !window.worthItPendingEmailUser || isWorthItEmailVerified(window.worthItPendingEmailUser)) return;
     const placeholder = String(target.getAttribute("placeholder") || target.getAttribute("aria-label") || "").toLowerCase();
-    const chatInput = /message|write.*chat|type.*message/.test(placeholder) &&
-        Boolean(target.closest("#communityChatPanel, #chatPanel, #worthItChatPanel, .worth-it-chat-panel, .chat-panel"));
+    const chatInput = target.id === "worthItChatInput" || (/message|write.*chat|type.*message/.test(placeholder) &&
+        Boolean(target.closest("#communityChatPanel, #chatPanel, #worthItChatPanel, .worth-it-chat-panel, .chat-panel")));
     if (chatInput) {
         target.blur();
         window.requestWorthItEmailVerification(window.worthItPendingEmailUser);
