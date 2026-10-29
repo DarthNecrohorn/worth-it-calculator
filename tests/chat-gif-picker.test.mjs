@@ -270,13 +270,14 @@ test("composer media actions use restrained hover and click motion and the emoji
     assert.match(client, /function animateWorthItChatEmojiButton\(\)/);
     assert.match(client, /const frames = \["😎", "🤩", "🥳", "😄", "😀"\]/);
     assert.match(client, /\$\("worthItChatEmojiAction"\)\?\.addEventListener\("mouseenter", animateWorthItChatEmojiButton\)/);
+    assert.match(client, /\$\("worthItChatEmojiAction"\)\?\.addEventListener\("click", animateWorthItChatEmojiButton\)/);
     assert.match(client, /\$\("worthItChatEmojiAction"\)\?\.addEventListener\("click", openWorthItChatEmojiPicker\)/);
 });
 
 test("scrolling into older messages reveals Travel back to present and smoothly returns to the newest messages", () => {
     assert.match(html, /id="worthItChatTravelPresentBtn"[^>]*>Travel back to present <span aria-hidden="true">↓<\/span><\/button>/);
     assert.match(client, /function updateWorthItChatTravelPresentButton\(\)/);
-    assert.match(client, /distanceFromBottom > 120/);
+    assert.match(client, /distanceFromBottom > 80/);
     assert.match(client, /addEventListener\("scroll", updateWorthItChatTravelPresentButton/);
     assert.match(client, /messages\.scrollTo\(\{[\s\S]*?top: messages\.scrollHeight,[\s\S]*?behavior: prefersReducedMotion \? "auto" : "smooth"/);
     assert.match(polish, /\.worth-it-chat-travel-present:hover/);

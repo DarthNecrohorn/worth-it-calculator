@@ -1787,7 +1787,7 @@ function updateWorthItChatTravelPresentButton() {
         chatUser &&
         chatMessages.length &&
         host.scrollHeight > host.clientHeight + 80 &&
-        distanceFromBottom > 120
+        distanceFromBottom > 80
     );
     const wasHidden = button.hidden;
 
@@ -3573,6 +3573,7 @@ function setupChatUI() {
     }
     $("worthItChatEmojiAction")?.addEventListener("mouseenter", animateWorthItChatEmojiButton);
     $("worthItChatEmojiAction")?.addEventListener("focus", animateWorthItChatEmojiButton);
+    $("worthItChatEmojiAction")?.addEventListener("click", animateWorthItChatEmojiButton);
 
     $("worthItChatMessages")?.addEventListener("scroll", updateWorthItChatTravelPresentButton, {passive:true});
     $("worthItChatTravelPresentBtn")?.addEventListener("click", () => {
