@@ -26,7 +26,9 @@ test("unverified sessions are represented to the main app as guests while retain
     assert.match(settings, /function getSettingsAuthSession\(client\)[\s\S]*?window\.isWorthItEmailVerified\(session\.user\)/);
     const admin = readFileSync(new URL("../admin-panel.js", import.meta.url), "utf8");
     assert.match(admin, /window\.isWorthItEmailVerified\(user\)[\s\S]*?ADMIN_EMAIL/);
-    assert.match(guest, /const effectiveUser = sessionUser &&[\s\S]*?!window\.isWorthItEmailVerified\(sessionUser\)/);
+    assert.match(guest, /function verifiedGuestStateUser\(user\)[\s\S]*?window\.isWorthItEmailVerified\(user\)/);
+    assert.match(guest, /setAuthState\(verifiedGuestStateUser\(result\?\.data\?\.session\?\.user \|\| null\), "INITIAL_SESSION"\)/);
+    assert.match(guest, /setAuthState\(verifiedGuestStateUser\(session\?\.user \|\| null\), event\)/);
     assert.match(profile, /currentUser=getVerifiedWorthItProfileUser\(data\?\.session\?\.user\|\|null\)/);
     assert.match(ai, /code: "EMAIL_NOT_CONFIRMED"/);
     assert.match(media, /code:"EMAIL_NOT_CONFIRMED"/);
