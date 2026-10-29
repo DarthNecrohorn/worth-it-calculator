@@ -179,4 +179,5 @@ test("both call types can boost incoming audio through a GainNode and reset it o
     assert.match(client, /function resetRemoteAudioProcessor\(\)/);
     assert.match(client, /worthItChatCallSpeakerBtn.*addEventListener\("click", toggleSpeakerBoost\)/);
     assert.match(client, /resetRemoteAudioProcessor\(\)/);
+    assert.match(client, /remoteAudio\.muted = false; remoteAudio\.volume = 1/);
 });
