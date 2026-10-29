@@ -168,12 +168,12 @@ test("private and group deep links do not render Global Chat while auth is resol
     assert.match(calls, /scales\[0\] = \.54 \+ random\(\) \* \.05/);
     assert.match(calls, /scales\[1\] = 1\.04 \+ random\(\) \* \.09/);
     assert.match(calls, /const overlaps = placements\.some/);
-    assert.match(calls, /radius \+ existing\.radius \+ 12/);
+    assert.match(calls, /radius \+ existing\.radius \+ 8/);
     assert.match(calls, /const usedMotifs = new Set\(\)/);
     assert.match(calls, /data-wallpaper-doodle="1"/);
     assert.match(calls, /data-wallpaper-accent="1"/);
     assert.match(calls, /doodle\.radius \+ markerRadius \+ 8/);
-    assert.match(calls, /markerRadius \+ existing\.radius \+ 6/);
+    assert.match(calls, /markerRadius \+ existing\.radius \+ 4/);
     assert.match(calls, /const CHAT_WALLPAPER_GEOMETRIES = \[/);
     assert.match(calls, /const geometryOpacity = theme === "light" \? "\.40" : "\.32"/);
     assert.match(calls, /wallpaperThemeObserver\.observe/);
