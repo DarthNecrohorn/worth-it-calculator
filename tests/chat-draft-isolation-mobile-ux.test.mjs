@@ -195,7 +195,7 @@ test("the broken audioOnly reference is removed and asset caches point to the ne
     assert.doesNotMatch(calls, /audioOnly/);
     assert.match(html, /chat-ui\.js\?v=worthit-original-animation-library-200-20261029a/);
     assert.match(html, /chat-enhancements\.js\?v=chat-media-lightbox-wallpaper-20261029a/);
-    assert.match(html, /chat-enhancements\.css\?v=chat-media-lightbox-wallpaper-20261029a/);
+    assert.match(html, /chat-enhancements\.css\?v=chat-small-doodles-20261029a/);
     assert.match(enhancementCss, /background-repeat:no-repeat,repeat-y!important/);
     assert.match(html, /chat-ux-polish\.css\?v=chat-ux-polish-20261029k/);
     assert.match(html, /ai-ui\.js\?v=worthit-ai-overlay-20261029b/);
