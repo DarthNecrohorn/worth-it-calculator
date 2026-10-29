@@ -13,6 +13,7 @@ const ai = readFileSync(new URL("../functions/api/ai-chat.js", import.meta.url),
 const media = readFileSync(new URL("../functions/api/chat-media.js", import.meta.url), "utf8");
 const route = readFileSync(new URL("../functions/api/resend-email-confirmation.js", import.meta.url), "utf8");
 const migration = readFileSync(new URL("../supabase/migrations/20261029103234_rate_limit_email_confirmation_resend.sql", import.meta.url), "utf8");
+const socialMigration = readFileSync(new URL("../supabase/migrations/20261029104715_require_confirmed_email_for_social_chat_rpc.sql", import.meta.url), "utf8");
 
 test("unverified sessions are represented to the main app as guests while retaining a confirmation notice", () => {
     assert.match(app, /function isWorthItEmailVerified\(user\)/);
@@ -51,6 +52,22 @@ test("email resend is performed only by a server endpoint guarded by an atomic 2
     assert.match(migration, /revoke all on function public\.claim_worth_it_email_confirmation_resend\(uuid\) from public, anon, authenticated/i);
     assert.match(migration, /grant execute on function public\.claim_worth_it_email_confirmation_resend\(uuid\) to service_role/i);
     assert.doesNotMatch(app, /supabaseClient\.auth\.resend/);
+});
+
+test("private chat and social RPCs require a confirmed Auth user without blocking guest-readable profile context", () => {
+    assert.match(socialMigration, /auth\.users AS verified_user/);
+    assert.match(socialMigration, /verified_user\.email_confirmed_at IS NOT NULL/);
+    assert.match(socialMigration, /ERRCODE = '42501'/);
+    assert.match(socialMigration, /Expected 23 protected chat\/social RPCs, found %/);
+    for (const rpc of [
+        "get_worth_it_chat_conversations",
+        "get_worth_it_chat_messages",
+        "create_worth_it_group_chat",
+        "send_worth_it_friend_request",
+        "get_worth_it_social_notifications",
+        "worth_it_chat_realtime_topic_authorized"
+    ]) assert.ok(socialMigration.includes("'" + rpc + "'"), "email gate includes " + rpc);
+    assert.doesNotMatch(socialMigration, /get_worth_it_profile_social_context/);
 });
 
 test("AI panel stays above the header, remains usable on phones, and does not block the page for email reminders", () => {
