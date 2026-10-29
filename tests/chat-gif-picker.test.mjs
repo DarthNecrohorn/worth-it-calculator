@@ -38,7 +38,7 @@ test("the chat composer uploads directly and exposes GIF, sticker and emoji acti
     assert.match(client, /function renderWorthItChatEmojiCategories\(/);
     assert.match(client, /function loadWorthItChatGifResults\(/);
     assert.match(client, /function selectWorthItChatGif\(/);
-    assert.match(html, /chat-ui\.js\?v=worthit-gif-plants-20261029e/);
+    assert.match(html, /chat-ui\.js\?v=worthit-gif-plants-20261029f/);
     assert.match(html, /style\.css\?v=worthit-home-ai-mobile-20261029a/);
 });
 
@@ -257,6 +257,28 @@ test("country flags render visually in the chat composer while typing", () => {
     assert.match(css, /textarea::selection[\s\S]*?color: transparent !important[\s\S]*?-webkit-text-fill-color: transparent !important/);
     assert.match(css, /textarea::selection[\s\S]*?background: rgba\(79, 70, 229, \.78\)/);
     assert.match(css, /@media \(max-width: 540px\)[\s\S]*?\.worth-it-chat-input-preview\s*\{\s*font-size: 12px;/);
-    assert.match(html, /chat-ui\.js\?v=worthit-gif-plants-20261029e/);
+    assert.match(html, /chat-ui\.js\?v=worthit-gif-plants-20261029f/);
     assert.match(html, /style\.css\?v=worthit-home-ai-mobile-20261029a/);
+});
+
+
+test("composer media actions use restrained hover and click motion and the emoji glyph cycles briefly", () => {
+    assert.match(polish, /\.worth-it-chat-media-trigger:hover/);
+    assert.match(polish, /\.worth-it-chat-compose \.worth-it-chat-voice-btn:hover/);
+    assert.match(polish, /@keyframes worthItChatActionTap/);
+    assert.match(client, /function animateWorthItChatActionTap\(button\)/);
+    assert.match(client, /function animateWorthItChatEmojiButton\(\)/);
+    assert.match(client, /const frames = \["😎", "🤩", "🥳", "😄", "😀"\]/);
+    assert.match(client, /\$\("worthItChatEmojiAction"\)\?\.addEventListener\("mouseenter", animateWorthItChatEmojiButton\)/);
+    assert.match(client, /\$\("worthItChatEmojiAction"\)\?\.addEventListener\("click", openWorthItChatEmojiPicker\)/);
+});
+
+test("scrolling into older messages reveals Travel back to present and smoothly returns to the newest messages", () => {
+    assert.match(html, /id="worthItChatTravelPresentBtn"[^>]*>Travel back to present <span aria-hidden="true">↓<\/span><\/button>/);
+    assert.match(client, /function updateWorthItChatTravelPresentButton\(\)/);
+    assert.match(client, /distanceFromBottom > 120/);
+    assert.match(client, /addEventListener\("scroll", updateWorthItChatTravelPresentButton/);
+    assert.match(client, /messages\.scrollTo\(\{[\s\S]*?top: messages\.scrollHeight,[\s\S]*?behavior: prefersReducedMotion \? "auto" : "smooth"/);
+    assert.match(polish, /\.worth-it-chat-travel-present:hover/);
+    assert.match(polish, /@keyframes worthItChatTravelArrive/);
 });
