@@ -1,0 +1,72 @@
+/* Mobile chat composer and picker behaviour */
+@media (max-width: 540px) {
+    #worthItChatOverlay.is-visual-viewport-adjusted {
+        position: fixed !important;
+        inset: var(--worthit-chat-visible-top, 0px) 0 auto 0 !important;
+        width: 100vw !important;
+        height: var(--worthit-chat-visible-height, 100dvh) !important;
+        max-height: var(--worthit-chat-visible-height, 100dvh) !important;
+        bottom: auto !important;
+        overflow: hidden !important;
+    }
+    #worthItChatOverlay.is-visual-viewport-adjusted .worth-it-chat-window {
+        height: 100% !important;
+        max-height: 100% !important;
+        min-height: 0 !important;
+        margin: 0 !important;
+    }
+    .worth-it-chat-reply-close {
+        transform: translateY(-1px) !important;
+    }
+}
+@media (min-width: 541px) {
+    .worth-it-chat-reply-close {
+        transform: translateY(-3px) !important;
+    }
+}
+
+/* Make the existing magnifying-glass glyph larger without changing its button frame. */
+#worthItChatMessageSearchBtn {
+    font-size: 26px !important;
+    line-height: 1 !important;
+}
+
+/* The AI panel remains open on backdrop clicks; its close control is deliberately offset. */
+#aiChatOverlay .ai-chat-close {
+    transform: translateY(2px) !important;
+}
+@media (max-width: 760px) {
+    #aiChatOverlay .ai-chat-close {
+        width: 40px !important;
+        min-width: 40px !important;
+        height: 40px !important;
+        min-height: 40px !important;
+        flex: 0 0 40px !important;
+        padding: 0 !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        border-radius: 11px !important;
+        transform: none !important;
+    }
+}
+@media (max-width: 700px) {
+    #aiChatNavBtn.ai-chat-nav-btn {
+        width: 42px !important;
+        min-width: 42px !important;
+        height: 42px !important;
+        min-height: 42px !important;
+        flex: 0 0 42px !important;
+        padding: 0 !important;
+        gap: 0 !important;
+        border-radius: 12px !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        font-size: 20px !important;
+        line-height: 1 !important;
+    }
+    #aiChatNavBtn.ai-chat-nav-btn span {
+        display: none !important;
+    }
+}
