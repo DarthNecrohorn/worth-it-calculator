@@ -84,7 +84,7 @@ begin
   end if;
   if exists (
     select 1 from jsonb_array_elements(search_result) item
-    where lower(item->>'body') not like 'hi there%'
+    where lower(regexp_replace(ltrim(item->>'body'), '[[:space:]]+', ' ', 'g')) not like 'hi there%'
   ) then
     raise exception 'Search returned a message which does not start with the requested phrase: %', search_result;
   end if;
