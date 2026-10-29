@@ -179,7 +179,7 @@ function makeConversationWallpaper(contextValue, theme, requestedWidth) {
     const cells = [];
     const canvasWidth = Math.max(600, Math.min(2400, Math.ceil((Number(requestedWidth) || 600) / 120) * 120));
     const canvasHeight = Math.round(canvasWidth * 1.5);
-    const targetCount = Math.max(10, Math.min(74, Math.round((canvasWidth * canvasHeight) / 48000)));
+    const targetCount = Math.max(10, Math.min(74, Math.round((canvasWidth * canvasHeight) / 38000)));
     const usedMotifs = new Set();
     const placements = [];
     const scales = Array.from({ length: targetCount }, () => .52 + random() * .61);
@@ -193,15 +193,15 @@ function makeConversationWallpaper(contextValue, theme, requestedWidth) {
     // Each placement uses a conservative enclosing radius, so rotated outlines do
     // not touch or overlap. Distinct motifs within the tile also prevent row repeats.
     for (const scale of scales) {
-        const radius = 96 * scale;
-        const margin = radius + 8;
+        const radius = 86 * scale;
+        const margin = radius + 6;
         let point = null;
 
         for (let attempt = 0; attempt < 1600; attempt++) {
             const x = margin + random() * Math.max(0, canvasWidth - margin * 2);
             const y = margin + random() * Math.max(0, canvasHeight - margin * 2);
             const overlaps = placements.some(existing =>
-                Math.hypot(x - existing.x, y - existing.y) < radius + existing.radius + 12
+                Math.hypot(x - existing.x, y - existing.y) < radius + existing.radius + 8
             );
             if (!overlaps) {
                 point = { x, y, radius, scale };
@@ -247,7 +247,7 @@ function makeConversationWallpaper(contextValue, theme, requestedWidth) {
 
     // Scatter small accents only into the gaps left by the larger doodles.
     // They get their own spacing checks and are never laid out in decorative rows.
-    const targetAccents = Math.max(12, Math.min(46, Math.round((canvasWidth * canvasHeight) / 30000)));
+    const targetAccents = Math.max(12, Math.min(46, Math.round((canvasWidth * canvasHeight) / 24500)));
     const accents = [];
     for (let i = 0; i < targetAccents; i++) {
         let point = null;
@@ -260,7 +260,7 @@ function makeConversationWallpaper(contextValue, theme, requestedWidth) {
                 Math.hypot(x - doodle.x, y - doodle.y) < doodle.radius + markerRadius + 8
             );
             const touchesAccent = accents.some(existing =>
-                Math.hypot(x - existing.x, y - existing.y) < markerRadius + existing.radius + 6
+                Math.hypot(x - existing.x, y - existing.y) < markerRadius + existing.radius + 4
             );
             if (!touchesDoodle && !touchesAccent) {
                 point = { x, y, radius: markerRadius };

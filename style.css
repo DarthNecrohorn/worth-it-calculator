@@ -23496,3 +23496,24 @@ html[data-theme="light"] .worth-it-signout-confirm-no {
         transform: translateY(-1px);
     }
 }
+
+/* Chat image lightbox: viewport-filling, keyboard-dismissible and touch friendly. */
+.worth-it-chat-image-lightbox{position:fixed!important;inset:0!important;z-index:2147483000!important;display:flex!important;align-items:center!important;justify-content:center!important;padding:64px 24px 24px!important;box-sizing:border-box!important;background:rgba(3,6,18,.94)!important;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);cursor:zoom-out}
+.worth-it-chat-image-lightbox-image{display:block!important;max-width:min(100%,1600px)!important;max-height:calc(100dvh - 100px)!important;width:auto!important;height:auto!important;object-fit:contain!important;border:0!important;border-radius:8px!important;box-shadow:0 16px 70px rgba(0,0,0,.4)!important;cursor:default!important;user-select:none!important}
+.worth-it-chat-image-lightbox-close{position:fixed!important;top:max(14px,env(safe-area-inset-top))!important;right:max(14px,env(safe-area-inset-right))!important;z-index:1!important;width:46px!important;height:46px!important;display:flex!important;align-items:center!important;justify-content:center!important;padding:0!important;border:1px solid rgba(255,255,255,.32)!important;border-radius:50%!important;background:rgba(30,35,52,.82)!important;color:#fff!important;font:400 34px/1 system-ui,sans-serif!important;cursor:pointer!important;box-shadow:0 5px 24px rgba(0,0,0,.3)!important}
+.worth-it-chat-image-lightbox-close:hover{background:rgba(91,72,190,.96)!important;border-color:rgba(255,255,255,.65)!important}
+.worth-it-chat-image-lightbox-close:focus-visible{outline:3px solid #a5b4fc!important;outline-offset:3px!important}
+body.worth-it-chat-image-lightbox-open{overflow:hidden!important}
+.worth-it-chat-media[role="button"]{cursor:zoom-in!important}
+.worth-it-chat-media[role="button"]:focus-visible{outline:3px solid #a5b4fc!important;outline-offset:3px!important}
+/* Media-only bubbles shrink-wrap their contents instead of leaving a long empty tail. */
+.worth-it-chat-bubble:has(.worth-it-chat-media){width:fit-content!important;max-width:min(440px,calc(100vw - 150px))!important;box-sizing:border-box!important}
+.worth-it-chat-bubble:has(.worth-it-chat-video){max-width:min(440px,calc(100vw - 150px))!important}
+.worth-it-chat-bubble .worth-it-chat-media{max-width:100%!important;box-sizing:border-box!important}
+.worth-it-chat-video{width:min(100%,420px)!important;max-width:100%!important}
+@media(max-width:760px){
+ .worth-it-chat-bubble:has(.worth-it-chat-media),.worth-it-chat-bubble:has(.worth-it-chat-video){max-width:min(440px,calc(100vw - 72px))!important}
+ .worth-it-chat-image-lightbox{padding:60px 10px max(12px,env(safe-area-inset-bottom))!important}
+ .worth-it-chat-image-lightbox-image{max-width:100%!important;max-height:calc(100dvh - 88px)!important}
+ .worth-it-chat-image-lightbox-close{width:44px!important;height:44px!important;top:max(10px,env(safe-area-inset-top))!important;right:max(10px,env(safe-area-inset-right))!important}
+}
