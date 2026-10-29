@@ -21,7 +21,7 @@ const settings = read("settings.js");
 test("chat enhancement controls are present, accessible, and loaded separately", () => {
     for (const id of [
         "worthItChatMessageSearchBtn", "worthItChatSearchPanel", "worthItChatMessageSearchForm",
-        "worthItChatMessageSearchInput", "worthItChatSearchResults", "worthItChatVoiceBtn",
+        "worthItChatMessageSearchInput", "worthItChatSearchResults", "worthItChatSafetyNote", "worthItChatSafetyNoteDismissBtn", "worthItChatVoiceBtn",
         "worthItChatReplyPreview", "worthItChatReplyAuthor", "worthItChatReplyText",
         "worthItChatReplyCloseBtn", "worthItChatAudioCallBtn", "worthItChatVideoCallBtn",
         "worthItChatCallOverlay", "worthItChatCallAcceptBtn", "worthItChatCallRejectBtn",
@@ -29,14 +29,32 @@ test("chat enhancement controls are present, accessible, and loaded separately",
         "worthItChatCallSpeakerBtn", "worthItChatCallCameraBtn",
         "worthItChatRemoteVideo", "worthItChatLocalVideo", "worthItChatRemoteAudio"
     ]) assert.match(html, new RegExp('id="' + id + '"'), "missing chat UI element " + id);
-    assert.match(html, /chat-enhancements\.css\?v=chat-wallpaper-gap-layout-20261029b/);
-    assert.match(html, /chat-enhancements\.js\?v=chat-wallpaper-gap-generator-20261029b/);
+    assert.match(html, /chat-enhancements\.css\?v=chat-safety-note-wallpaper-density-20261029a/);
+    assert.match(html, /chat-enhancements\.js\?v=chat-daily-safety-wallpaper-density-20261029a/);
     assert.match(css, /WORTH IT Chat additions|Worth It Chat additions/);
     assert.match(css, /worth-it-chat-reply-preview/);
     assert.match(css, /worth-it-chat-call-overlay/);
     assert.match(css, /data:image\/svg\+xml/);
 });
 
+
+test("the chat safety reminder can be dismissed for 24 hours and returns automatically", () => {
+    assert.match(html, /id="worthItChatSafetyNote" role="note" hidden/);
+    assert.match(html, /id="worthItChatSafetyNoteDismissBtn" aria-label="Dismiss chat safety reminder" title="Hide for 24 hours"/);
+    assert.match(client, /function setupDailyChatSafetyNotice\(\)/);
+    assert.match(client, /const storageKey = "worthItChatSafetyNoteDismissedAt"/);
+    assert.match(client, /const dayMs = 24 \* 60 \* 60 \* 1000/);
+    assert.match(client, /window\.setTimeout\(syncVisibility, dayMs \+ 25\)/);
+    assert.match(css, /\.worth-it-chat-safety-note-close/);
+    assert.match(client, /window\.addEventListener\("storage"/);
+});
+
+test("the jump-to-present control is hidden while message search is active", () => {
+    assert.match(chat, /const isMessageSearchOpen = Boolean\(searchPanel && !searchPanel\.hidden\)/);
+    assert.match(chat, /!isMessageSearchOpen &&/);
+    assert.match(chat, /document\.addEventListener\("worthitchatsearchvisibilitychange", updateWorthItChatTravelPresentButton\)/);
+    assert.match(client, /document\.dispatchEvent\(new Event\("worthitchatsearchvisibilitychange"\)\)/);
+});
 
 test("voice recording errors preserve the recording target before cleanup clears it", () => {
     assert.match(client, /function isCurrentVoiceRecordingContext\(recordedFor\)/);
@@ -199,7 +217,7 @@ test("chat images open in a responsive full-screen viewer and media bubbles do n
     assert.match(client, /function applyChatWallpaper\(contextValue\)/);
     assert.match(client, /const canvasWidth = Math\.max\(600, Math\.min\(2400/);
     assert.match(client, /const canvasHeight = Math\.round\(canvasWidth \* 1\.5\)/);
-    assert.match(client, /const targetCount = Math\.max\(5/);
+    assert.match(client, /const targetCount = Math\.max\(8/);
     assert.match(client, /const scales = Array\.from/);
     assert.match(client, /scales\[0\] = \.56 \+ random\(\) \* \.07/);
     assert.match(client, /scales\[1\] = 1\.02 \+ random\(\) \* \.11/);
@@ -239,7 +257,7 @@ test("chat doodles and accents stay separated, adapt to both themes and retain v
     assert.match(client, /const overlaps = placements\.some/);
     assert.match(client, /radius \+ doodle\.radius \+ 12/);
     assert.match(client, /radius \+ existing\.radius \+ 8/);
-    assert.match(client, /const targetAccents = Math\.max\(9, Math\.min\(20/);
+    assert.match(client, /const targetAccents = Math\.max\(20, Math\.min\(42/);
     assert.match(client, /const scale = \.18 \+ random\(\) \* \.22/);
     assert.match(client, /const opacity = theme === "light" \? "\.44" : "\.36"/);
     assert.match(client, /const smallOpacity = theme === "light" \? "\.52" : "\.43"/);
