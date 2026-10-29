@@ -3447,12 +3447,10 @@ function setupChatUI() {
     });
     document.addEventListener("keydown", function (event) {
         if (event.key === "Escape" && chatOpen) {
-            const emojiPicker = $("worthItChatEmojiPicker");
-            const gifPicker = $("worthItChatGifPicker");
-            const plusMenu = $("worthItChatPlusMenu");
-            if ((emojiPicker && !emojiPicker.hidden) || (gifPicker && !gifPicker.hidden) || (plusMenu && !plusMenu.hidden)) {
+            const mediaPicker = $("worthItChatMediaPicker");
+            if (mediaPicker && !mediaPicker.hidden) {
                 closeWorthItChatPickers();
-                $("worthItChatPlusBtn")?.focus();
+                $("worthItChatEmojiAction")?.focus();
                 return;
             }
             if ($("worthItChatGroupManageDialog") && !$("worthItChatGroupManageDialog").hidden) closeWorthItGroupManageDialog();
