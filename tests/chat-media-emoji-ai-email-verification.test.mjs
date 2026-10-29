@@ -28,7 +28,7 @@ test("AI overlay stays above the header, uses a desktop offset and fills the pho
     assert.match(css, /\.ai-chat-overlay\s*\{[^}]*backdrop-filter: blur\(14px\)/);
     assert.match(css, /\.ai-chat-overlay\s*\{[^}]*z-index: 2147483646/);
     assert.match(css, /@media \(max-width: 760px\)\s*\{[\s\S]*?\.ai-chat-overlay\.open \.ai-chat-card\s*\{[\s\S]*?width: calc\(100vw - 24px\)/);
-    assert.match(html, /style\.css\?v=email-verification-ai-20261029b/);
+    assert.match(html, /style\.css\?v=user-reports-email-gate-20261029c/);
 });
 
 test("unverified accounts get guest privileges, a daily resend button and email-app shortcut", () => {
@@ -36,6 +36,9 @@ test("unverified accounts get guest privileges, a daily resend button and email-
     assert.match(app, /user\.email_confirmed_at \|\| user\.confirmed_at/);
     assert.match(app, /function updateWorthItEmailVerificationGate\(user\)/);
     assert.match(app, /window\.worthItPendingEmailUser = sessionUser && !currentAuthUser \? sessionUser : null/);
+    assert.match(app, /window\.requestWorthItEmailVerification = function\(user\)/);
+    assert.match(app, /Do not interrupt ordinary browsing/);
+    assert.match(app, /document\.addEventListener\("focusin"/);
     assert.match(app, /resend-email-confirmation/);
     assert.match(app, /worthItEmailResendNextAllowedAtV1/);
     assert.match(app, /https:\/\/mail\.google\.com\//);
@@ -44,6 +47,6 @@ test("unverified accounts get guest privileges, a daily resend button and email-
     assert.match(ai, /!window\.isWorthItEmailVerified\(window\.worthItCurrentAuthUser \|\| currentAuthUser\)/);
     assert.match(css, /\.worth-it-email-gate\s*\{[\s\S]*?position: fixed[\s\S]*?pointer-events: none/);
     assert.match(css, /\.worth-it-email-gate-card\s*\{[\s\S]*?pointer-events: auto/);
-    assert.match(html, /app\.js\?v=email-verification-20261029b/);
+    assert.match(html, /app\.js\?v=action-triggered-email-gate-20261029c/);
     assert.match(html, /ai-ui\.js\?v=email-verification-20261028a/);
 });
