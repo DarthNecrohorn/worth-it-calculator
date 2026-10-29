@@ -30,7 +30,7 @@ test("chat enhancement controls are present, accessible, and loaded separately",
         "worthItChatRemoteVideo", "worthItChatLocalVideo", "worthItChatRemoteAudio"
     ]) assert.match(html, new RegExp('id="' + id + '"'), "missing chat UI element " + id);
     assert.match(html, /chat-enhancements\.css\?v=chat-safety-note-wallpaper-density-20261029a/);
-    assert.match(html, /chat-enhancements\.js\?v=chat-daily-safety-wallpaper-density-20261029a/);
+    assert.match(html, /chat-enhancements\.js\?v=chat-wallpaper-more-dense-20261029a/);
     assert.match(css, /WORTH IT Chat additions|Worth It Chat additions/);
     assert.match(css, /worth-it-chat-reply-preview/);
     assert.match(css, /worth-it-chat-call-overlay/);
