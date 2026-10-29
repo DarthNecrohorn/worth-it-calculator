@@ -142,7 +142,7 @@ test("composer controls are implemented and picker panels have desktop layout", 
     assert.match(gifGrid, /grid-template-columns:/);
 });
 
-test("the media picker follows Send and the composer keeps every action on one responsive row", () => {
+test("the media picker follows the right-side actions and the composer keeps every action on one responsive row", () => {
     const dock = html.indexOf('id="worthItChatPickerDock"');
     const textarea = html.indexOf('id="worthItChatInput"');
     const send = html.indexOf('id="worthItChatSendBtn"');
@@ -153,9 +153,11 @@ test("the media picker follows Send and the composer keeps every action on one r
     const picker = html.indexOf('id="worthItChatMediaPicker"');
     const gifView = html.indexOf('id="worthItChatGifPicker"');
     const emojiView = html.indexOf('id="worthItChatEmojiPicker"');
-    assert.ok(dock >= 0 && textarea > dock && send > textarea && gifAction > send &&
+    assert.ok(dock >= 0 && textarea > dock && gifAction > textarea &&
         stickerAction > gifAction && emojiAction > stickerAction && voice > emojiAction &&
-        picker > voice && gifView > picker && emojiView > gifView);
+        send > voice && picker > send && gifView > picker && emojiView > gifView);
+    const sendButton = html.slice(send, html.indexOf("</button>", send) + "</button>".length);
+    assert.match(sendButton, /\shidden(?:\s|>)/, "Send starts hidden until a draft needs it");
     assert.ok(!html.slice(dock, textarea).includes('id="worthItChatMediaPicker"'),
         "the media popup must not be nested inside the narrow upload dock");
 
@@ -168,8 +170,22 @@ test("the media picker follows Send and the composer keeps every action on one r
     assert.ok(rules.includes("height: min(440px, calc(70vh - 16px)) !important;"));
     assert.match(polish, /\.worth-it-chat-compose\s*\{[\s\S]*?flex-wrap: nowrap !important/);
     assert.match(polish, /@media \(max-width: 540px\)[\s\S]*?\.worth-it-chat-compose #worthItChatSendBtn[\s\S]*?font-size: 0 !important/);
+    assert.match(polish, /\.worth-it-chat-compose #worthItChatSendBtn\[hidden\][\s\S]*?#worthItChatVoiceBtn\[hidden\][\s\S]*?display: none !important/);
     assert.match(polish, /\.worth-it-chat-compose \.worth-it-chat-voice-btn[\s\S]*?flex: 0 0 36px/);
     assert.match(polish, /\.worth-it-chat-picker-view\[hidden\]\s*\{\s*display: none !important/);
+});
+
+
+test("typing swaps the voice button for Send and clearing the draft restores the microphone", () => {
+    const action = client.match(/function updateWorthItChatComposerAction\(\) \{([\s\S]*?)\n\}/)?.[1] || "";
+    assert.match(action, /String\(input\.value \|\| ""\)\.trim\(\)/);
+    assert.match(action, /pendingMediaFile/);
+    assert.match(action, /pendingReplyQuote/);
+    assert.match(action, /sendButton\.hidden = !showSend/);
+    assert.match(action, /voiceButton\.hidden = showSend/);
+    const inputHandler = client.slice(client.indexOf('$("worthItChatInput")?.addEventListener("input"'), client.indexOf('$("worthItChatInput")?.addEventListener("scroll"'));
+    assert.match(inputHandler, /updateWorthItChatComposerAction\(\)/);
+    assert.match(polish, /#worthItChatSendBtn\[hidden\][\s\S]*?#worthItChatVoiceBtn\[hidden\][\s\S]*?display:\s*none !important/);
 });
 
 test("the unified media tabs select GIFs, stickers or the existing categorized emoji library", () => {
