@@ -96,7 +96,7 @@ test("Worth It AI closes only through explicit close actions, not backdrop click
 });
 
 test("received message bubbles hug short text and wrap long text within the chat width", () => {
-    assert.match(polish, /\.worth-it-chat-message:not\(\.is-mine\) \.worth-it-chat-message-stack\s*\{\s*align-items: flex-start;?\s*\}/);
+    assert.match(polish, /\.worth-it-chat-message:not\(\.is-mine\) \.worth-it-chat-bubble\s*\{[\s\S]*?align-self: flex-start;[\s\S]*?width: fit-content;/);
     assert.match(polish, /\.worth-it-chat-message:not\(\.is-mine\) \.worth-it-chat-bubble\s*\{[\s\S]*?width: fit-content;[\s\S]*?max-width: 100%;[\s\S]*?overflow-wrap: anywhere;[\s\S]*?white-space: pre-wrap;/);
     assert.match(baseChatCss, /\.worth-it-chat-bubble\{[^}]*overflow-wrap:anywhere;white-space:pre-wrap/);
 });
