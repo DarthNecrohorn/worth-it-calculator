@@ -157,12 +157,13 @@ const CHAT_WALLPAPER_GEOMETRIES = [
     '<path d="M-4 0Q-2 -4 0 0T4 0"/>',
     '<path d="M-4 -2 0 -4 4 -2 4 2 0 4-4 2Z"/>'
 ];
-function pickWallpaperIndex(length, excludedIndices, fallbackIndex) {
+function pickWallpaperIndex(length, excludedIndices, random) {
     const excluded = new Set(excludedIndices || []);
     const choices = [];
     for (let i = 0; i < length; i++) if (!excluded.has(i)) choices.push(i);
-    if (!choices.length) return Number.isInteger(fallbackIndex) ? fallbackIndex : 0;
-    return choices[Math.floor(Math.random() * choices.length)];
+    if (!choices.length) return 0;
+    const next = typeof random === "function" ? random() : Math.random();
+    return choices[Math.floor(next * choices.length)];
 }
 function makeConversationWallpaper(contextValue, theme) {
     const key = String(contextValue?.conversationType || "chat") + ":" + String(contextValue?.conversationId || GLOBAL_CHAT_ID);
@@ -237,7 +238,7 @@ function makeConversationWallpaper(contextValue, theme) {
                 const aboveColor = geometryColorGrid[i - columns]?.[marker];
                 if (aboveColor) forbiddenGeometryColors.add(aboveColor);
             }
-            const geometryIndex = pickWallpaperIndex(CHAT_WALLPAPER_GEOMETRIES.length, forbiddenGeometry);
+            const geometryIndex = pickWallpaperIndex(CHAT_WALLPAPER_GEOMETRIES.length, forbiddenGeometry, random);
             localGeometryIndices.push(geometryIndex);
             let geometryColorCandidates = palette.filter(value => !forbiddenGeometryColors.has(value));
             if (!geometryColorCandidates.length) geometryColorCandidates = palette.filter(value => value !== color);
