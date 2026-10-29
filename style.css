@@ -23357,3 +23357,142 @@ html[data-theme="light"] .worth-it-signout-confirm-no {
 @media (prefers-reduced-motion: reduce) {
     .ai-chat-overlay.open .ai-chat-card { transition: none !important; }
 }
+
+
+/* Home feedback action: place it immediately above the hero badge, not in the navbar. */
+.hero .hero-feedback-btn{
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    gap:7px;
+    margin:0 auto 16px;
+    padding:8px 13px;
+    border:1px solid rgba(148,163,184,.22);
+    border-radius:999px;
+    background:rgba(15,23,42,.48);
+    color:var(--text);
+    font-family:inherit;
+    font-size:12px;
+    font-weight:700;
+    line-height:1.2;
+    cursor:pointer;
+    transition:background .18s ease,border-color .18s ease,transform .18s ease;
+}
+.hero .hero-feedback-btn:hover{
+    background:rgba(124,92,255,.16);
+    border-color:rgba(124,92,255,.55);
+    transform:translateY(-1px);
+}
+.hero .badge{margin-top:0}
+
+@media(max-width:600px){
+    .ai-chat-overlay{padding:8px}
+    .ai-chat-card{
+        width:100%;
+        max-width:100%;
+        height:calc(100dvh - 16px);
+        min-width:0;
+        border-radius:16px;
+    }
+    .ai-chat-head{padding:14px 14px 12px;gap:8px}
+    .ai-chat-messages{padding:12px;min-width:0}
+    .ai-chat-message,.ai-chat-bubble{min-width:0;max-width:100%}
+    .ai-chat-bubble{overflow-wrap:anywhere}
+    .ai-chat-message.assistant .ai-chat-bubble table{
+        display:block;
+        width:100%;
+        max-width:100%;
+        table-layout:fixed;
+        border-collapse:collapse;
+        font-size:11px;
+        line-height:1.35;
+        overflow-wrap:anywhere;
+    }
+    .ai-chat-message.assistant .ai-chat-bubble table thead,
+    .ai-chat-message.assistant .ai-chat-bubble table tbody{
+        width:100%;
+        max-width:100%;
+    }
+    .ai-chat-message.assistant .ai-chat-bubble table th,
+    .ai-chat-message.assistant .ai-chat-bubble table td{
+        min-width:0;
+        max-width:0;
+        padding:6px 5px;
+        white-space:normal;
+        overflow-wrap:anywhere;
+        word-break:normal;
+    }
+    .ai-chat-composer{padding:10px;gap:7px}
+    .ai-chat-input{min-width:0;padding:10px}
+    .ai-chat-send{min-width:68px;padding:0 12px}
+}
+
+
+/* Refine the desktop header controls into consistent, evenly spaced groups. */
+@media (min-width: 901px) {
+    .nav-inner { gap: 14px !important; }
+    .nav-right-stack { gap: 7px; }
+    .nav-top-row { gap: 9px; }
+    .nav-top-row .nav-actions { gap: 8px !important; }
+    .nav-top-row .worth-it-notification-bell,
+    .nav-top-row .worth-it-chat-nav-btn,
+    .nav-top-row .profile-nav-btn {
+        width: 40px;
+        height: 40px;
+        min-width: 40px;
+        min-height: 40px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border: 1px solid var(--border);
+        border-radius: 13px;
+        background: rgba(255,255,255,.045);
+        transition: background .18s ease, border-color .18s ease, transform .18s ease;
+    }
+    .nav-top-row .worth-it-notification-bell:hover,
+    .nav-top-row .worth-it-chat-nav-btn:hover,
+    .nav-top-row .profile-nav-btn:hover {
+        background: rgba(124,92,255,.13);
+        border-color: rgba(124,92,255,.45);
+        transform: translateY(-1px);
+    }
+    .nav-top-row .ai-chat-nav-btn {
+        min-height: 40px;
+        padding: 0 14px !important;
+        border-radius: 12px;
+        border: 1px solid var(--border);
+        background: rgba(255,255,255,.045);
+        font-weight: 700;
+    }
+    .nav-secondary-row { gap: 9px; }
+    .nav-secondary-row > .admin-panel-nav-btn,
+    .nav-secondary-row > .signout-nav-btn,
+    .nav-secondary-row > .settings-btn {
+        min-height: 38px;
+        padding: 0 13px;
+        border-radius: 11px;
+        border: 1px solid var(--border);
+        background: rgba(255,255,255,.045);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 7px;
+        font-size: 12px;
+        font-weight: 700;
+        line-height: 1;
+        transition: background .18s ease, border-color .18s ease, transform .18s ease;
+    }
+    .nav-secondary-row > .settings-btn {
+        width: 42px;
+        min-width: 42px;
+        padding: 0;
+        font-size: 17px;
+    }
+    .nav-secondary-row > .admin-panel-nav-btn:hover,
+    .nav-secondary-row > .signout-nav-btn:hover,
+    .nav-secondary-row > .settings-btn:hover {
+        background: rgba(124,92,255,.13);
+        border-color: rgba(124,92,255,.45);
+        transform: translateY(-1px);
+    }
+}

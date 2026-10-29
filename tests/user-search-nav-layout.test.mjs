@@ -62,7 +62,8 @@ test("header utility controls are arranged in two right-aligned rows", () => {
     for (const id of ["adminPanelButton", "signOutNavBtn"]) {
         assert.ok(secondaryRow.includes('id="' + id + '"'), id + " moves to the lower row");
     }
-    assert.ok(secondaryRow.includes('class="feedback-nav-btn"'), "Bugs & Suggestions is in the lower row");
+    assert.ok(!secondaryRow.includes('class="feedback-nav-btn"'), "Bugs & Suggestions is no longer in the header");
+    assert.ok(html.includes('class="hero-feedback-btn"'), "Bugs & Suggestions appears above the Home hero badge");
     assert.ok(secondaryRow.includes('class="settings-btn"'), "Settings is in the lower row");
     assert.match(css, /\.nav-right-stack\s*\{[^}]*flex-direction:\s*column/);
     assert.match(css, /\.nav-secondary-row\s*\{[^}]*justify-content:\s*flex-end/);

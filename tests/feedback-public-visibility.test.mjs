@@ -10,12 +10,12 @@ const feedbackApi = readFileSync(new URL("../functions/api/feedback.js", import.
 const adminFeedbackApi = readFileSync(new URL("../functions/api/admin-feedback.js", import.meta.url), "utf8");
 
 test("Bugs & Suggestions is visible to all visitors, not gated by the owner role", () => {
-    const header = html.match(/<button class="feedback-nav-btn"[^>]*>/);
+    const hero = html.match(/<button type="button" class="hero-feedback-btn"[^>]*>/);
     const footer = html.match(/<button type="button" class="feedback-trigger"[^>]*>/);
 
-    assert.ok(header, "the header feedback button exists");
+    assert.ok(hero, "the Home hero feedback button exists");
     assert.ok(footer, "the footer feedback button exists");
-    assert.doesNotMatch(header[0], /style\s*=\s*["'][^"']*display\s*:\s*none/i);
+    assert.doesNotMatch(hero[0], /style\s*=\s*["'][^"']*display\s*:\s*none/i);
     assert.doesNotMatch(footer[0], /style\s*=\s*["'][^"']*display\s*:\s*none/i);
     assert.match(html, /style\.css\?v=[^"']+/);
     assert.match(html, /admin-panel\.js\?v=feedbackpublic20261023a/);

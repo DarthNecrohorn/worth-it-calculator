@@ -7,7 +7,7 @@ const GROQ_MODEL = "openai/gpt-oss-120b";
 
 const MAX_MESSAGE_CHARS = 1200;
 const MAX_HISTORY_ITEMS = 8;
-const MAX_OUTPUT_TOKENS = 1000;
+const MAX_OUTPUT_TOKENS = 700;
 
 const SYSTEM_PROMPT =
     "You are Worth It AI, the official assistant for the Worth It decision-calculator website. " +
@@ -62,7 +62,7 @@ const SYSTEM_PROMPT =
     "Never create a large table simply to list every possible input, assumption, advantage, disadvantage, or specification. " +
 
     "RESPONSE LENGTH: " +
-    "Keep general answers concise, usually around 100 to 180 words unless the user asks for more detail. " +
+    "Keep general answers concise, usually around 80 to 140 words unless the user asks for more detail. " +
     "Start with the direct answer. " +
     "Prefer 3 to 5 short bullet points when appropriate. " +
     "Avoid unnecessary long explanations. " +
