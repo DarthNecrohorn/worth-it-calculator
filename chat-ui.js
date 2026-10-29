@@ -3462,14 +3462,29 @@ window.worthItChatShowSearchResult = function (message) {
         window.setTimeout(() => row.classList.remove("is-search-highlight"), 1800);
     }, 30);
 };
-window.worthItChatAttachRecordedAudio = function (file) {
-    if (!file || !(file instanceof File) || !String(file.type || "").startsWith("audio/")) return;
-    if (activeConversationType === "direct" && !chatFriends.some(friend => String(friend.worth_it_id) === String(activeConversationPerson?.worth_it_id))) {
-        setStatus("Voice messages in private chat are available only between friends.", true);
+window.worthItChatAttachRecordedAudio = function (file, targetContext = null) {
+    if (!file || !(file instanceof File) || !String(file.type || "").startsWith("audio/") || !chatUser?.id) return;
+    const target = targetContext && typeof targetContext === "object"
+        ? targetContext
+        : { userId: chatUser.id, conversationId: activeConversationId || WORTH_IT_GLOBAL_CHAT_REALTIME_ID, conversationType: activeConversationType };
+    if (String(target.userId || "") !== String(chatUser.id)) return;
+    if (target.conversationType === "direct" && !target.isFriend) {
+        if (worthItChatDraftKey() === worthItChatDraftKey(target.userId, target.conversationType, target.conversationId)) {
+            setStatus("Voice messages in private chat are available only between friends.", true);
+        }
         return;
     }
-    setPendingMedia(file, URL.createObjectURL(file), "audio");
-    $("worthItChatSendBtn")?.focus({preventScroll:true});
+    const targetKey = worthItChatDraftKey(target.userId, target.conversationType, target.conversationId);
+    if (!targetKey) return;
+    const previewUrl = URL.createObjectURL(file);
+    if (targetKey === worthItChatDraftKey()) {
+        setPendingMedia(file, previewUrl, "audio");
+        return;
+    }
+    const previous = worthItChatDrafts.get(targetKey) || { text: "", mediaFile: null, mediaUrl: "", mediaType: "", replyQuote: null };
+    if (previous.mediaUrl && previous.mediaUrl !== previewUrl) releaseWorthItChatDraftUrl(previous.mediaUrl, targetKey);
+    worthItChatDrafts.set(targetKey, { ...previous, mediaFile: file, mediaUrl: previewUrl, mediaType: "audio" });
+    setStatus("Your voice message was saved to the conversation where you recorded it. Return to that chat to preview and send it.", false);
 };
 setupChatUI();
 window.addEventListener("worthitnotificationpreferenceschange", event => {
