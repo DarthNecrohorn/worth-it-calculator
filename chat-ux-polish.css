@@ -392,19 +392,16 @@ html[data-theme="light"] .worth-it-chat-media-trigger {
 .worth-it-chat-travel-present span {
     display: inline-block;
     font-size: 15px;
-    transition: transform .18s ease;
 }
-.worth-it-chat-travel-present:hover,
-.worth-it-chat-travel-present:focus-visible {
-    transform: translateX(-50%) translateY(-3px) scale(1.025);
+/* Outrank the global button hover rule without losing the centered anchor.
+   This history shortcut scales in place instead of jumping sideways or lifting. */
+button.worth-it-chat-travel-present:not([disabled]):hover,
+button.worth-it-chat-travel-present:not([disabled]):focus-visible {
+    transform: translateX(-50%) scale(1.045);
     box-shadow: 0 12px 30px rgba(30,41,120,.38), 0 0 0 3px rgba(129,140,248,.2);
     filter: brightness(1.08);
 }
-.worth-it-chat-travel-present:hover span,
-.worth-it-chat-travel-present:focus-visible span {
-    transform: translateY(2px);
-}
-.worth-it-chat-travel-present:active {
+button.worth-it-chat-travel-present:not([disabled]):active {
     transform: translateX(-50%) scale(.96);
     filter: brightness(1.14);
 }

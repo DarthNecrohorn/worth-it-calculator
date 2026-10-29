@@ -153,13 +153,15 @@ test("the JavaScript and SQL checks include the new chat feature modules", () =>
 });
 
  
-test("chat follow-up fixes keep search prefix-only, keep wallpaper scrolling, and repair closing focus", () => {
+test("chat follow-up fixes keep search prefix-only, keep wallpaper stationary while messages scroll, and repair closing focus", () => {
     assert.ok(sql.includes("left(lower(regexp_replace(ltrim(m.body)"));
     assert.ok(sql.includes("normalized_term"));
     assert.match(sql, /notify pgrst, 'reload schema'/i);
     assert.ok(client.includes("statusNode.hidden = !query"));
     assert.ok(client.includes("p_limit: 100"));
-    assert.ok(css.includes("background-attachment:scroll,local,local"));
+    assert.ok(css.includes("background-attachment:scroll,scroll,scroll;"));
+    assert.ok(css.includes("background-attachment:scroll,scroll!important;"));
+    assert.doesNotMatch(css, /background-attachment:\s*scroll\s*,\s*local/);
     assert.match(css, /\.worth-it-chat-search-results\{[\s\S]*?overflow-y:auto/);
     assert.match(css, /max-height:min\(260px,32vh\)/);
     assert.match(css, /max-height:min\(145px,22dvh\)/);
