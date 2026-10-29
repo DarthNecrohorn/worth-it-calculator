@@ -147,7 +147,7 @@ test("audio/video calls are backend-enforced friend-only one-to-one calls", () =
     assert.match(client, /callOverlayCloseTimer = window\.setTimeout/);
     assert.doesNotMatch(client, /incomingCallTimer/);
     assert.match(client, /p_action: "accept"/);
-    assert.match(client, /p_action: "reject"/);
+    assert.match(client, /closeCallOnServer\("reject", callId\)/);
     assert.match(client, /async function endCall\(\)\s*\{\s*\/\/ Release camera\/microphone immediately, even if Supabase signaling is slow\./);
     assert.match(client, /get_worth_it_incoming_chat_call/);
     assert.match(client, /send_worth_it_chat_call_signal/);
