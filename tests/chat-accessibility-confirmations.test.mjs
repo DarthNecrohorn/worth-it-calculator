@@ -17,7 +17,7 @@ test("Delete for everyone opens its confirmation above the chat immediately, onl
     assert.match(client, /document\.body\.appendChild\(overlay\);\s*cancelButton\.focus\(\)/);
     assert.match(deleteConfirmCss, /z-index:\s*2147483647 !important/);
     assert.match(html, /chat-delete-confirm\.css\?v=chat-delete-confirm-20261028b/);
-    assert.match(html, /chat-ui\.js\?v=worthit-gif-plants-20261029a/);
+    assert.match(html, /chat-ui\.js\?v=worthit-gif-plants-20261029b/);
 });
 
 test("light-theme chat text, sidebar labels and empty states have readable contrast", () => {
