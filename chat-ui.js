@@ -1736,6 +1736,16 @@ function createWorthItChatMessageRow(message) {
                 img.alt = message.media_type === "gif" ? "Shared GIF" : "Shared image";
                 img.loading = "lazy";
                 img.referrerPolicy = "no-referrer";
+                img.tabIndex = 0;
+                img.setAttribute("role", "button");
+                img.setAttribute("aria-label", "Open image full screen");
+                img.addEventListener("click", () => openWorthItChatImageLightbox(message.media_url, img.alt));
+                img.addEventListener("keydown", event => {
+                    if (event.key === "Enter" || event.key === " ") {
+                        event.preventDefault();
+                        openWorthItChatImageLightbox(message.media_url, img.alt);
+                    }
+                });
                 img.addEventListener("error", () => {
                     const fallback = document.createElement("a");
                     fallback.className = "worth-it-chat-link";
@@ -1813,8 +1823,52 @@ function updateWorthItChatTravelPresentButton() {
     }
 }
 
+function closeWorthItChatImageLightbox() {
+    const overlay = document.getElementById("worthItChatImageLightbox");
+    if (!overlay) return;
+    overlay.remove();
+    document.removeEventListener("keydown", handleWorthItChatLightboxKeydown, true);
+    document.body.classList.remove("worth-it-chat-image-lightbox-open");
+}
+function handleWorthItChatLightboxKeydown(event) {
+    if (event.key === "Escape") {
+        event.preventDefault();
+        closeWorthItChatImageLightbox();
+    }
+}
+function openWorthItChatImageLightbox(src, alt) {
+    if (!src) return;
+    closeWorthItChatImageLightbox();
+    const overlay = document.createElement("div");
+    overlay.id = "worthItChatImageLightbox";
+    overlay.className = "worth-it-chat-image-lightbox";
+    overlay.setAttribute("role", "dialog");
+    overlay.setAttribute("aria-modal", "true");
+    overlay.setAttribute("aria-label", "Full-screen image viewer");
+    const image = document.createElement("img");
+    image.className = "worth-it-chat-image-lightbox-image";
+    image.src = src;
+    image.alt = alt || "Shared image";
+    image.draggable = false;
+    const close = document.createElement("button");
+    close.type = "button";
+    close.className = "worth-it-chat-image-lightbox-close";
+    close.setAttribute("aria-label", "Close image viewer");
+    close.title = "Close";
+    close.textContent = "×";
+    close.addEventListener("click", closeWorthItChatImageLightbox);
+    overlay.addEventListener("click", event => {
+        if (event.target === overlay) closeWorthItChatImageLightbox();
+    });
+    overlay.append(image, close);
+    document.body.appendChild(overlay);
+    document.body.classList.add("worth-it-chat-image-lightbox-open");
+    document.addEventListener("keydown", handleWorthItChatLightboxKeydown, true);
+    close.focus({ preventScroll: true });
+}
 function renderMessages(scrollToBottom) {
     const host = $("worthItChatMessages");
+    host?.removeAttribute("aria-busy");
     if (!host) return;
     if (!chatUser && !chatAuthResolutionComplete) {
         // Supabase is still restoring the persisted session. Keep the existing
@@ -3069,9 +3123,21 @@ async function routeWorthItChatFromLocation() {
     }
     closeWorthItGroupInviteDialog();
     if (!chatUser) {
+        // Do not flash the default Global Chat while the saved auth session is
+        // still resolving for a direct/group deep link.
+        if (!chatAuthResolutionComplete) {
+            const host = $("worthItChatMessages");
+            if (host) {
+                host.replaceChildren();
+                host.setAttribute("aria-busy", "true");
+            }
+            return;
+        }
         renderMessages();
         return;
     }
+    const routeHost = $("worthItChatMessages");
+    routeHost?.removeAttribute("aria-busy");
     startWorthItChatPolling();
     await refreshWorthItChatData();
     if (routeVersion !== chatRouteVersion) return;
