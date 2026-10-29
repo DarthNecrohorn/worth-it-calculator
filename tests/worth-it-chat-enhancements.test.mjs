@@ -140,7 +140,7 @@ test("audio/video calls are backend-enforced friend-only one-to-one calls", () =
     assert.match(client, /displayName \+ " has ended the call\."/);
     assert.match(client, /endLocalCall\("You ended the call\."\);\s*if \(callId\) void closeCallOnServer\("end", callId\)/);
     assert.match(client, /callPeer\.onicecandidateerror = null/);
-    assert.match(client, /try \{ localVideo\.pause\(\); \} catch \(\) \{\} localVideo\.srcObject = null/);
+    assert.match(client, /try \{ localVideo\.pause\(\); \} catch \(_\) \{\} localVideo\.srcObject = null/);
     assert.match(client, /if \(document\.hidden \|\| incomingPollBusy \|\| activeCall \|\| callSetupInProgress\) return/);
     assert.match(client, /cameraStream\.getTracks\(\)\.forEach\(item => item\.stop\(\)\)/);
     assert.match(client, /incomingPollTimer = window\.setInterval/);
