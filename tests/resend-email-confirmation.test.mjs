@@ -7,6 +7,7 @@ const html = readFileSync(new URL("../index.html", import.meta.url), "utf8");
 const css = readFileSync(new URL("../style.css", import.meta.url), "utf8");
 const chat = readFileSync(new URL("../chat-ui.js", import.meta.url), "utf8");
 const profile = readFileSync(new URL("../profile-ui.js", import.meta.url), "utf8");
+const guest = readFileSync(new URL("../guest-mode.js", import.meta.url), "utf8");
 const ai = readFileSync(new URL("../functions/api/ai-chat.js", import.meta.url), "utf8");
 const media = readFileSync(new URL("../functions/api/chat-media.js", import.meta.url), "utf8");
 const route = readFileSync(new URL("../functions/api/resend-email-confirmation.js", import.meta.url), "utf8");
@@ -20,6 +21,7 @@ test("unverified sessions are represented to the main app as guests while retain
     assert.match(app, /window\.worthItPendingEmailUser = sessionUser && !currentAuthUser \? sessionUser : null/);
     assert.match(chat, /const effectiveUser = user && typeof window\.isWorthItEmailVerified/);
     assert.match(profile, /function getVerifiedWorthItProfileUser\(user\)/);
+    assert.match(guest, /const effectiveUser = sessionUser &&[\s\S]*?!window\.isWorthItEmailVerified\(sessionUser\)/);
     assert.match(profile, /currentUser=getVerifiedWorthItProfileUser\(data\?\.session\?\.user\|\|null\)/);
     assert.match(ai, /code: "EMAIL_NOT_CONFIRMED"/);
     assert.match(media, /code:"EMAIL_NOT_CONFIRMED"/);
