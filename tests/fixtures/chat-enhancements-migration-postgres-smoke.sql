@@ -2,6 +2,7 @@ do $smoke$
 declare
   bucket storage.buckets%rowtype;
   definition text;
+  call_id uuid;
   constraint_definition text;
 begin
   select * into bucket from storage.buckets where id='worth-it-chat-audio';
@@ -41,6 +42,68 @@ begin
   if position('worth_it_friends' in definition) = 0 or position('conversation_type' in definition) = 0 then
     raise exception 'Chat media access RPC is missing friend/conversation checks';
   end if;
+
+  -- Exercise the real call RPC chain, including current friendship enforcement.
+  insert into auth.users(id) values
+    ('00000000-0000-4000-8000-000000000010'),
+    ('00000000-0000-4000-8000-000000000011'),
+    ('00000000-0000-4000-8000-000000000012')
+    on conflict (id) do nothing;
+  insert into public.worth_it_profiles(user_id, worth_it_id, username, display_name) values
+    ('00000000-0000-4000-8000-000000000010', 810, 'callfriend1', 'Call Friend One'),
+    ('00000000-0000-4000-8000-000000000011', 811, 'callfriend2', 'Call Friend Two'),
+    ('00000000-0000-4000-8000-000000000012', 812, 'notfriend', 'Not a Friend')
+    on conflict (user_id) do nothing;
+  insert into public.worth_it_friends(user_low_id,user_high_id)
+    values ('00000000-0000-4000-8000-000000000010','00000000-0000-4000-8000-000000000011')
+    on conflict do nothing;
+  insert into public.worth_it_chat_conversations(id,conversation_type,title)
+  values
+    ('00000000-0000-4000-8000-000000000100','direct','Friends'),
+    ('00000000-0000-4000-8000-000000000101','direct','Not friends')
+    on conflict (id) do nothing;
+  insert into public.worth_it_chat_members(conversation_id,user_id) values
+    ('00000000-0000-4000-8000-000000000100','00000000-0000-4000-8000-000000000010'),
+    ('00000000-0000-4000-8000-000000000100','00000000-0000-4000-8000-000000000011'),
+    ('00000000-0000-4000-8000-000000000101','00000000-0000-4000-8000-000000000010'),
+    ('00000000-0000-4000-8000-000000000101','00000000-0000-4000-8000-000000000012')
+    on conflict do nothing;
+
+  perform set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000010',true);
+  result := public.start_worth_it_chat_call(
+    '00000000-0000-4000-8000-000000000100','audio','{"type":"offer","sdp":"test-offer"}'::jsonb);
+  if result->>'success' is distinct from 'true' or result->>'call_id' is null then
+    raise exception 'A friend-only audio call should start successfully: %', result;
+  end if;
+
+  perform set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000011',true);
+  result := public.get_worth_it_incoming_chat_call();
+  if result#>>'{call,id}' is distinct from (result->'call'->>'id') or result#>>'{call,caller_user_id}' is distinct from '00000000-0000-4000-8000-000000000010' then
+    raise exception 'The call should appear only to the intended friend: %', result;
+  end if;
+  call_id := (result#>>'{call,id}')::uuid;
+  result := public.respond_worth_it_chat_call(call_id,'accept','{"type":"answer","sdp":"test-answer"}'::jsonb);
+  if result->>'success' is distinct from 'true' then
+    raise exception 'The intended friend should be able to accept the call: %', result;
+  end if;
+
+  perform set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000010',true);
+  result := public.get_worth_it_chat_call_state(call_id,0);
+  if result->>'status' is distinct from 'accepted' or result->'answer'->>'type' is distinct from 'answer' then
+    raise exception 'The caller should see the accepted call and answer: %', result;
+  end if;
+  result := public.respond_worth_it_chat_call(call_id,'end',null);
+  if result->>'success' is distinct from 'true' or result->>'status' is distinct from 'ended' then
+    raise exception 'Either call participant should be able to end the call: %', result;
+  end if;
+
+  -- A direct conversation with no accepted friendship must never start a call.
+  result := public.start_worth_it_chat_call(
+    '00000000-0000-4000-8000-000000000101','video','{"type":"offer","sdp":"test-offer"}'::jsonb);
+  if result->>'success' is distinct from 'false' or result->>'code' is distinct from 'FRIENDS_ONLY' then
+    raise exception 'A video call between non-friends must be refused: %', result;
+  end if;
+
   definition := pg_get_functiondef('public.search_worth_it_chat_messages(uuid,text,integer)'::regprocedure);
   if position('worth_it_chat_message_hides' in definition) = 0 or position('worth_it_chat_history_clears' in definition) = 0 then
     raise exception 'Message search is missing hide/history restrictions';

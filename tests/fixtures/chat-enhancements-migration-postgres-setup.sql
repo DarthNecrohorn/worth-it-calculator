@@ -10,7 +10,10 @@ $roles$;
 create schema if not exists auth;
 create schema if not exists storage;
 create table auth.users (id uuid primary key);
-create or replace function auth.uid() returns uuid language sql stable as $$ select null::uuid $$;
+create or replace function auth.uid()
+returns uuid language sql stable as $
+  select nullif(current_setting('request.jwt.claim.sub', true), '')::uuid
+$;
 
 create table storage.buckets (
   id text primary key,
