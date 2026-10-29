@@ -182,7 +182,7 @@ function makeConversationWallpaper(contextValue, theme, requestedWidth) {
 
     // Use more of the available tile area while keeping a generous clear
     // zone around every large illustration.
-    const targetCount = Math.max(8, Math.min(18, Math.round(canvasWidth / 75)));
+    const targetCount = Math.max(10, Math.min(24, Math.round(canvasWidth / 50)));
     const usedMotifs = new Set();
     const placements = [];
     const scales = Array.from({ length: targetCount }, () => .54 + random() * .59);
@@ -196,7 +196,7 @@ function makeConversationWallpaper(contextValue, theme, requestedWidth) {
         const radius = 86 * scale;
         const margin = radius + 8;
         let point = null;
-        for (let attempt = 0; attempt < 3600; attempt++) {
+        for (let attempt = 0; attempt < 5200; attempt++) {
             const x = margin + random() * Math.max(0, canvasWidth - margin * 2);
             const y = margin + random() * Math.max(0, canvasHeight - margin * 2);
             const overlaps = placements.some(existing =>
@@ -240,11 +240,11 @@ function makeConversationWallpaper(contextValue, theme, requestedWidth) {
 
     // Add a more visible layer of small, complete drawings in unused gaps.
     // Keep the same collision checks and unique motifs so density never means overlap.
-    const targetAccents = Math.max(20, Math.min(42, Math.round(canvasWidth / 24)));
+    const targetAccents = Math.max(40, Math.min(84, Math.round(canvasWidth / 12)));
     const accents = [];
     for (let i = 0; i < targetAccents; i++) {
         let point = null;
-        for (let attempt = 0; attempt < 4000; attempt++) {
+        for (let attempt = 0; attempt < 6000; attempt++) {
             const scale = .18 + random() * .22;
             const radius = 86 * scale;
             const margin = radius + 7;
