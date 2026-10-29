@@ -174,8 +174,8 @@ test("chat wallpaper avoids nearby duplicate doodles and fills gaps with varied 
 test("the broken audioOnly reference is removed and asset caches point to the new builds", () => {
     assert.doesNotMatch(calls, /audioOnly/);
     assert.match(html, /chat-ui\.js\?v=worthit-gif-plants-20261029f/);
-    assert.match(html, /chat-enhancements\.js\?v=worthit-chat-enhancements-20261029h/);
-    assert.match(html, /chat-enhancements\.css\?v=worthit-chat-enhancements-20261029g/);
+    assert.match(html, /chat-enhancements\.js\?v=worthit-chat-enhancements-20261029i/);
+    assert.match(html, /chat-enhancements\.css\?v=worthit-chat-enhancements-20261029h/);
     assert.match(calls, /width="840" height="1260" viewBox="0 0 840 1260"/);
     assert.match(enhancementCss, /background-size:auto,800px 1200px!important/);
     assert.match(enhancementCss, /background-size:auto,660px 990px!important/);
