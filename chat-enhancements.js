@@ -25,7 +25,6 @@ let queuedCandidates = [];
 let answerApplied = false;
 let audioMuted = false;
 let cameraDisabled = false;
-let audioButtonOriginalLabel = "🎙";
 let audioRecorder = null;
 let audioRecorderStream = null;
 let audioChunks = [];
@@ -578,8 +577,8 @@ function setVoiceButtonRecording(recording) {
     if (!button) return;
     button.classList.toggle("is-recording", recording);
     button.setAttribute("aria-label", recording ? "Stop voice recording" : "Record a voice message");
+    button.setAttribute("aria-pressed", String(recording));
     button.title = recording ? "Stop recording (maximum 2 minutes)" : "Record a voice message";
-    button.textContent = recording ? "■" : "🎙";
 }
 async function startVoiceRecording() {
     const ctx = context();
