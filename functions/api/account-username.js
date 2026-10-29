@@ -1,5 +1,5 @@
 const SITE_ORIGIN = "https://worth-it-calculator.pages.dev";
-const USERNAME_PATTERN = /^[A-Za-z0-9]+(?:_[A-Za-z0-9]+)?$/;
+const USERNAME_PATTERN = /^[A-Za-z][A-Za-z0-9]*(?:_[A-Za-z0-9]+)?$/;
 const MIN_USERNAME_LENGTH = 3;
 const MAX_USERNAME_LENGTH = 20;
 
