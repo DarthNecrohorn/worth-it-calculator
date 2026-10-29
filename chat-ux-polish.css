@@ -31,6 +31,17 @@
     line-height: 1 !important;
 }
 
+/* Received messages should size their bubbles to the text just like sent messages do. */
+.worth-it-chat-message:not(.is-mine) .worth-it-chat-message-stack {
+    align-items: flex-start;
+}
+.worth-it-chat-message:not(.is-mine) .worth-it-chat-bubble {
+    width: fit-content;
+    max-width: 100%;
+    overflow-wrap: anywhere;
+    white-space: pre-wrap;
+}
+
 /* The AI panel remains open on backdrop clicks; its close control is deliberately offset. */
 #aiChatOverlay .ai-chat-close {
     transform: translateY(2px) !important;
