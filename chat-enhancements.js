@@ -321,6 +321,9 @@ function setCallMode(type) {
     if (toggleCamera) toggleCamera.hidden = audioOnly;
 }
 function openCallWindow(title, detail, type) {
+    // A new call must never be hidden by a stale close timer from the previous call.
+    if (callOverlayCloseTimer) window.clearTimeout(callOverlayCloseTimer);
+    callOverlayCloseTimer = null;
     setCallStatus(title, detail);
     setCallMode(type);
     showCallOverlay(true);
