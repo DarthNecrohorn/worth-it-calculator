@@ -104,7 +104,7 @@ test("received message bubbles hug short text and wrap long text within the chat
 
 test("message profile links are limited to the display name, and timestamps are larger", () => {
     const start = chat.indexOf("function createWorthItChatMessageRow(message)");
-    const end = chat.indexOf("\\nfunction updateWorthItChatTravelPresentButton()", start);
+    const end = chat.indexOf("\nfunction updateWorthItChatTravelPresentButton()", start);
     const render = chat.slice(start, end);
     assert.ok(render.includes("row.appendChild(makeAvatar(message));"));
     assert.ok(!render.includes('makeChatProfileLink(message, "worth-it-chat-message-avatar-link"'));
@@ -117,7 +117,7 @@ test("message profile links are limited to the display name, and timestamps are 
 
 test("returning from a profile restores the same private conversation id and resumes polling", () => {
     const start = chat.indexOf("async function routeWorthItChatFromLocation()");
-    const end = chat.indexOf("\\nfunction ", start + 10);
+    const end = chat.indexOf("\nfunction ", start + 10);
     const router = chat.slice(start, end);
     assert.ok(router.includes("profileReturnConversation && currentBrowserLocation() === profileReturnConversation.path"));
     assert.ok(router.includes("startWorthItChatPolling();"));
@@ -125,7 +125,7 @@ test("returning from a profile restores the same private conversation id and res
     assert.ok(router.includes("|| previous.person || null"));
     assert.ok(router.includes('await activateConversation(previous.id, "direct"'));
     const activateStart = chat.indexOf("async function activateConversation(id, type, title, person, inviteToken)");
-    const activateEnd = chat.indexOf("\\nwindow.showWorthItChatSidebar", activateStart);
+    const activateEnd = chat.indexOf("\nwindow.showWorthItChatSidebar", activateStart);
     const activate = chat.slice(activateStart, activateEnd);
     assert.ok(activate.includes("await syncWorthItChatRealtimeChannel();"));
     assert.ok(activate.includes("await loadWorthItChatMessages(true, true);"));
