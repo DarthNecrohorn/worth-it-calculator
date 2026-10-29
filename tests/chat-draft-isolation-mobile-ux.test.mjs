@@ -183,8 +183,8 @@ test("chat wallpaper uses collision-safe random placement, varied sizes and scat
     assert.match(calls, /const overlaps = placements\.some/);
     assert.match(calls, /radius \+ existing\.radius \+ 12/);
     assert.match(calls, /const usedMotifs = new Set\(\)/);
-    assert.match(calls, /const targetCount = Math\.max\(8/);
-    assert.match(calls, /const targetAccents = Math\.max\(20, Math\.min\(42/);
+    assert.match(calls, /const targetCount = Math\.max\(10/);
+    assert.match(calls, /const targetAccents = Math\.max\(40, Math\.min\(84/);
     assert.match(calls, /const scale = \.18 \+ random\(\) \* \.22/);
     assert.match(calls, /data-wallpaper-doodle="1"/);
     assert.match(calls, /data-wallpaper-accent="1"/);
@@ -209,8 +209,8 @@ test("chat wallpaper uses collision-safe random placement, varied sizes and scat
 
 test("the broken audioOnly reference is removed and asset caches point to the new builds", () => {
     assert.doesNotMatch(calls, /audioOnly/);
-    assert.match(html, /chat-ui\.js\?v=chat-daily-chat-safety-search-20261029a/);
-    assert.match(html, /chat-enhancements\.js\?v=chat-daily-safety-wallpaper-density-20261029a/);
+    assert.match(html, /chat-ui\.js\?v=chat-gif-style-refresh-20261029a/);
+    assert.match(html, /chat-enhancements\.js\?v=chat-wallpaper-more-dense-20261029a/);
     assert.match(html, /chat-enhancements\.css\?v=chat-safety-note-wallpaper-density-20261029a/);
     assert.match(enhancementCss, /background-repeat:no-repeat,repeat-y!important/);
     assert.match(html, /chat-ux-polish\.css\?v=chat-message-profile-hit-targets-20261029a/);

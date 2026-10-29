@@ -4,7 +4,7 @@
 
 `library.base64.txt` is a Base64-encoded concatenation of the original GIF files. The chat picker decodes the bundle locally and extracts each item by its exact byte offset and length in `chat-ui.js`. It is served by Worth It itself; it does not call GIPHY, KLIPY, or another GIF-search API.
 
-The catalogue currently contains 200 original animations: 100 GIFs and 100 stickers. Artwork uses a crisp 128 × 128 logical canvas rather than the earlier 32 × 32 assets. Most sticker designs use transparent backgrounds.
+The catalogue currently contains 200 original animations: 100 GIFs and 100 stickers. Artwork uses a crisp 128 × 128 logical canvas rather than the earlier 32 × 32 assets. Most sticker designs use transparent backgrounds. The 88 additional GIFs were redrawn to match the first twelve GIFs' full-scene gradient, twinkling stars, bold outlined vector illustration, and gentle looping motion; each has a distinct central motif and colour treatment.
 
 ## Quality requirements for future assets
 

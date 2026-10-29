@@ -39,7 +39,7 @@ test("active chats use private Broadcast topics for immediate message refresh", 
     assert.match(client, /if \(!chatRealtimeSubscribed \|\| now - chatLastMessagePollAt >= 5000\)/);
     assert.match(client, /now - chatLastSidebarRefreshAt >= 5000/);
     assert.match(html, /chat-realtime\.css\?v=chat-realtime-typing-20261028b/);
-    assert.match(html, /chat-ui\.js\?v=chat-daily-chat-safety-search-20261029a/);
+    assert.match(html, /chat-ui\.js\?v=chat-gif-style-refresh-20261029a/);
 });
 test("private and group chats display typing names with a compact overflow message", () => {
     assert.match(client, /channel\.on\("presence", \{event: "sync"\}/);

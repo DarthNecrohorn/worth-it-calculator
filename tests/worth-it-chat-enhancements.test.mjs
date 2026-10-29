@@ -30,7 +30,7 @@ test("chat enhancement controls are present, accessible, and loaded separately",
         "worthItChatRemoteVideo", "worthItChatLocalVideo", "worthItChatRemoteAudio"
     ]) assert.match(html, new RegExp('id="' + id + '"'), "missing chat UI element " + id);
     assert.match(html, /chat-enhancements\.css\?v=chat-safety-note-wallpaper-density-20261029a/);
-    assert.match(html, /chat-enhancements\.js\?v=chat-daily-safety-wallpaper-density-20261029a/);
+    assert.match(html, /chat-enhancements\.js\?v=chat-wallpaper-more-dense-20261029a/);
     assert.match(css, /WORTH IT Chat additions|Worth It Chat additions/);
     assert.match(css, /worth-it-chat-reply-preview/);
     assert.match(css, /worth-it-chat-call-overlay/);
@@ -217,7 +217,7 @@ test("chat images open in a responsive full-screen viewer and media bubbles do n
     assert.match(client, /function applyChatWallpaper\(contextValue\)/);
     assert.match(client, /const canvasWidth = Math\.max\(600, Math\.min\(2400/);
     assert.match(client, /const canvasHeight = Math\.round\(canvasWidth \* 1\.5\)/);
-    assert.match(client, /const targetCount = Math\.max\(8/);
+    assert.match(client, /const targetCount = Math\.max\(10/);
     assert.match(client, /const scales = Array\.from/);
     assert.match(client, /scales\[0\] = \.56 \+ random\(\) \* \.07/);
     assert.match(client, /scales\[1\] = 1\.02 \+ random\(\) \* \.11/);
@@ -257,7 +257,7 @@ test("chat doodles and accents stay separated, adapt to both themes and retain v
     assert.match(client, /const overlaps = placements\.some/);
     assert.match(client, /radius \+ doodle\.radius \+ 12/);
     assert.match(client, /radius \+ existing\.radius \+ 8/);
-    assert.match(client, /const targetAccents = Math\.max\(20, Math\.min\(42/);
+    assert.match(client, /const targetAccents = Math\.max\(40, Math\.min\(84/);
     assert.match(client, /const scale = \.18 \+ random\(\) \* \.22/);
     assert.match(client, /const opacity = theme === "light" \? "\.44" : "\.36"/);
     assert.match(client, /const smallOpacity = theme === "light" \? "\.52" : "\.43"/);
