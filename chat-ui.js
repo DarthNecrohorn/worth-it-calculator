@@ -1847,6 +1847,8 @@ function updateWorthItChatTravelPresentButton() {
     }
 }
 
+document.addEventListener("worthitchatsearchvisibilitychange", updateWorthItChatTravelPresentButton);
+
 function closeWorthItChatImageLightbox() {
     const overlay = document.getElementById("worthItChatImageLightbox");
     if (!overlay) return;
