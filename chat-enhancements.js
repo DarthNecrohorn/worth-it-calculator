@@ -39,6 +39,7 @@ let remoteAudioSourceTrackKey = "";
 let speakerBoostEnabled = false;
 let audioRecorder = null;
 let audioRecorderStream = null;
+let audioRecordingContext = null;
 let audioChunks = [];
 let audioRecordingStartedAt = 0;
 let audioLimitTimer = null;
@@ -68,17 +69,19 @@ function makeConversationWallpaper(contextValue, theme) {
     const order = CHAT_WALLPAPER_MOTIFS.map((_, index) => index);
     for (let i = order.length - 1; i > 0; i--) { const j = Math.floor(random() * (i + 1)); [order[i], order[j]] = [order[j], order[i]]; }
     const palette = theme === "light" ? CHAT_WALLPAPER_LIGHT_PALETTE : CHAT_WALLPAPER_DARK_PALETTE;
-    const opacity = theme === "light" ? ".27" : ".24";
+    const opacity = theme === "light" ? ".20" : ".18";
     const cells = [];
-    for (let i = 0; i < 36; i++) {
+    // 8×8 cells produce many more, smaller doodles. Each outline is scaled
+    // inside its own cell before rotation; the remaining margins prevent overlaps.
+    for (let i = 0; i < 64; i++) {
         let motifIndex = order[i % order.length];
         if (i > 0 && i % order.length === 0) motifIndex = order[(i + Math.floor(random() * (order.length - 1)) + 1) % order.length];
-        const row = Math.floor(i / 6), col = i % 6;
-        const angle = Math.round((random() * 4 - 2) * 10) / 10;
-        const x = col * 140 + Math.round(random() * 6 - 3);
-        const y = row * 140 + Math.round(random() * 6 - 3);
+        const row = Math.floor(i / 8), col = i % 8;
+        const angle = Math.round((random() * 34 - 17) * 10) / 10;
+        const x = col * 105 + Math.round(random() * 4 - 2);
+        const y = row * 105 + Math.round(random() * 4 - 2);
         const color = palette[Math.floor(random() * palette.length)];
-        cells.push('<g transform="translate(' + x + ' ' + y + ')" stroke="' + color + '" stroke-opacity="' + opacity + '"><g transform="translate(70 70) rotate(' + angle + ') translate(-70 -70)">' + CHAT_WALLPAPER_MOTIFS[motifIndex] + '</g></g>');
+        cells.push('<g transform="translate(' + x + ' ' + y + ')" stroke="' + color + '" stroke-opacity="' + opacity + '"><g transform="translate(70 70) rotate(' + angle + ') scale(.62) translate(-70 -70)">' + CHAT_WALLPAPER_MOTIFS[motifIndex] + '</g></g>');
     }
     return '<svg xmlns="http://www.w3.org/2000/svg" width="840" height="840" viewBox="0 0 840 840" fill="none" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">' + cells.join("") + '</svg>';
 }
@@ -318,7 +321,7 @@ function setCallMode(type) {
     if (remoteVideo) remoteVideo.hidden = true;
     if (localVideo) localVideo.hidden = true;
     const toggleCamera = $("worthItChatCallCameraBtn");
-    if (toggleCamera) toggleCamera.hidden = audioOnly;
+    if (toggleCamera) toggleCamera.hidden = type !== "video";
 }
 function openCallWindow(title, detail, type) {
     // A new call must never be hidden by a stale close timer from the previous call.
@@ -891,6 +894,13 @@ function setVoiceButtonRecording(recording) {
     button.setAttribute("aria-pressed", String(recording));
     button.title = recording ? "Stop recording (maximum 2 minutes)" : "Record a voice message";
 }
+function isCurrentVoiceRecordingContext(recordedFor) {
+    const current = context();
+    return Boolean(recordedFor?.userId
+        && recordedFor.userId === current?.userId
+        && String(recordedFor.conversationId || GLOBAL_CHAT_ID) === String(current?.conversationId || GLOBAL_CHAT_ID)
+        && recordedFor.conversationType === current?.conversationType);
+}
 async function startVoiceRecording() {
     const ctx = context();
     if (!ctx?.userId) { status("Sign in to send voice messages.", true); return; }
@@ -899,6 +909,16 @@ async function startVoiceRecording() {
         status("Voice recording is not supported by this browser.", true); return;
     }
     if (audioRecorder) { stopVoiceRecording(); return; }
+    // Capture the target before asking for microphone access. Finishing a recording
+    // must never attach it to whichever chat happened to be opened meanwhile.
+    audioRecordingContext = {
+        userId: ctx.userId,
+        conversationId: ctx.conversationId || GLOBAL_CHAT_ID,
+        conversationType: ctx.conversationType,
+        isFriend: Boolean(ctx.isFriend),
+        friendId: ctx.friendId || null,
+        title: ctx.title || ""
+    };
     try {
         audioRecorderStream = await navigator.mediaDevices.getUserMedia({ audio: true });
         const mime = ["audio/webm;codecs=opus","audio/ogg;codecs=opus","audio/mp4","audio/webm","audio/ogg"]
@@ -907,19 +927,33 @@ async function startVoiceRecording() {
         audioChunks = [];
         audioRecorder.ondataavailable = event => { if (event.data?.size) audioChunks.push(event.data); };
         audioRecorder.onerror = () => {
+            // Cleanup clears audioRecordingContext, so retain it before cleanup
+            // and only show the error in the conversation that started recording.
+            const failedFor = audioRecordingContext ? { ...audioRecordingContext } : null;
             stopVoiceRecordingResources();
-            status("Voice recording stopped because the browser reported an error.", true);
+            if (isCurrentVoiceRecordingContext(failedFor)) {
+                status("Voice recording stopped because the browser reported an error.", true);
+            }
         };
         audioRecorder.onstop = () => {
             const recorder = audioRecorder;
+            const recordedFor = audioRecordingContext ? { ...audioRecordingContext } : null;
             const blob = new Blob(audioChunks, { type: recorder?.mimeType || mime || "audio/webm" });
             stopVoiceRecordingResources();
-            if (!blob.size) { status("The recording was empty. Please try again.", true); return; }
-            if (blob.size > 10 * 1024 * 1024) { status("Voice messages must be 10 MB or smaller.", true); return; }
+            if (!blob.size) {
+                if (isCurrentVoiceRecordingContext(recordedFor)) status("The recording was empty. Please try again.", true);
+                return;
+            }
+            if (blob.size > 10 * 1024 * 1024) {
+                if (isCurrentVoiceRecordingContext(recordedFor)) status("Voice messages must be 10 MB or smaller.", true);
+                return;
+            }
             const file = new File([blob], "voice-message-" + Date.now() + "." + recordingExtension(blob.type), { type: blob.type });
             if (typeof window.worthItChatAttachRecordedAudio === "function") {
-                window.worthItChatAttachRecordedAudio(file);
-                status("Voice message ready. Preview it, then press Send to share it.", false);
+                window.worthItChatAttachRecordedAudio(file, recordedFor);
+                if (isCurrentVoiceRecordingContext(recordedFor)) {
+                    status("Voice message ready. Preview it, then press Send to share it.", false);
+                }
             }
         };
         audioRecorder.start(1000);
@@ -928,9 +962,12 @@ async function startVoiceRecording() {
         status("Recording voice message… Tap the microphone again to stop (max 2 minutes).", false);
         audioLimitTimer = window.setTimeout(() => stopVoiceRecording(), 120000);
     } catch (error) {
+        const failedFor = audioRecordingContext ? { ...audioRecordingContext } : null;
         stopVoiceRecordingResources();
-        status(error?.name === "NotAllowedError" ? "Allow microphone access in your browser to record a voice message." :
-            "Could not start recording. Check microphone permissions and try again.", true);
+        if (isCurrentVoiceRecordingContext(failedFor)) {
+            status(error?.name === "NotAllowedError" ? "Allow microphone access in your browser to record a voice message." :
+                "Could not start recording. Check microphone permissions and try again.", true);
+        }
     }
 }
 function stopVoiceRecording() {
@@ -945,6 +982,7 @@ function stopVoiceRecordingResources() {
     try { audioRecorderStream?.getTracks?.().forEach(track => track.stop()); } catch (_) {}
     audioRecorderStream = null;
     audioRecorder = null;
+    audioRecordingContext = null;
     audioChunks = [];
     audioRecordingStartedAt = 0;
     if (audioLimitTimer) window.clearTimeout(audioLimitTimer);

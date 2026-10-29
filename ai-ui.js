@@ -883,12 +883,11 @@ event => {
 $("aiChatOverlay")?.addEventListener(
 "click",
 event => {
-
-    if(
-        event.target ===
-        event.currentTarget
-    ){
-        closeAIChat();
+    // Keep Worth It AI open while the user interacts with the page/backdrop.
+    // Closing is explicit via the X button or Escape.
+    if (event.target === event.currentTarget) {
+        event.preventDefault();
+        event.stopPropagation();
     }
 }
 

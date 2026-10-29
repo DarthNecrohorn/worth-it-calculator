@@ -1,0 +1,435 @@
+/* Mobile chat composer and picker behaviour */
+@media (max-width: 540px) {
+    #worthItChatOverlay.is-visual-viewport-adjusted {
+        position: fixed !important;
+        inset: var(--worthit-chat-visible-top, 0px) 0 auto 0 !important;
+        width: 100vw !important;
+        height: var(--worthit-chat-visible-height, 100dvh) !important;
+        max-height: var(--worthit-chat-visible-height, 100dvh) !important;
+        bottom: auto !important;
+        overflow: hidden !important;
+    }
+    #worthItChatOverlay.is-visual-viewport-adjusted .worth-it-chat-window {
+        height: 100% !important;
+        max-height: 100% !important;
+        min-height: 0 !important;
+        margin: 0 !important;
+    }
+    .worth-it-chat-reply-close {
+        transform: translateY(-1px) !important;
+    }
+}
+@media (min-width: 541px) {
+    .worth-it-chat-reply-close {
+        transform: translateY(-3px) !important;
+    }
+}
+
+/* Make the existing magnifying-glass glyph larger without changing its button frame. */
+#worthItChatMessageSearchBtn {
+    font-size: 26px !important;
+    line-height: 1 !important;
+}
+
+/* Size only received bubbles to their text; keep the surrounding message metadata layout unchanged. */
+.worth-it-chat-message:not(.is-mine) .worth-it-chat-bubble {
+    align-self: flex-start;
+    width: fit-content;
+    max-width: 100%;
+    overflow-wrap: anywhere;
+    white-space: pre-wrap;
+}
+
+/* Compact, single-row chat composer. The media controls stay visible beside Send on phones and desktops. */
+.worth-it-chat-compose {
+    position: relative !important;
+    display: flex !important;
+    flex-wrap: nowrap !important;
+    align-items: center !important;
+    gap: 5px !important;
+    min-width: 0 !important;
+    padding: 5px !important;
+}
+.worth-it-chat-picker-dock {
+    position: relative !important;
+    flex: 0 0 auto !important;
+    align-self: center !important;
+}
+.worth-it-chat-compose #worthItChatPlusBtn.worth-it-chat-attach-btn {
+    box-sizing: border-box !important;
+    width: 36px !important;
+    min-width: 36px !important;
+    height: 36px !important;
+    min-height: 36px !important;
+    flex: 0 0 36px !important;
+    font-size: 22px !important;
+}
+.worth-it-chat-compose .worth-it-chat-input-preview-wrap {
+    flex: 1 1 auto !important;
+    min-width: 32px !important;
+    width: auto !important;
+    align-self: stretch !important;
+}
+.worth-it-chat-compose #worthItChatInput {
+    box-sizing: border-box !important;
+    min-width: 0 !important;
+    width: 100% !important;
+}
+.worth-it-chat-compose #worthItChatSendBtn {
+    flex: 0 0 auto !important;
+    min-width: 74px !important;
+}
+.worth-it-chat-compose #worthItChatSendBtn[hidden],
+.worth-it-chat-compose #worthItChatVoiceBtn[hidden] {
+    display: none !important;
+}
+.worth-it-chat-media-trigger {
+    box-sizing: border-box !important;
+    display: inline-flex !important;
+    flex: 0 0 36px !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 36px !important;
+    min-width: 36px !important;
+    height: 36px !important;
+    min-height: 36px !important;
+    padding: 0 !important;
+    border: 1px solid rgba(129,140,248,.34) !important;
+    border-radius: 10px !important;
+    color: #dbe4ff !important;
+    background: linear-gradient(145deg, rgba(99,102,241,.17), rgba(49,70,138,.25)) !important;
+    font-family: inherit !important;
+    font-size: 11px !important;
+    font-weight: 800 !important;
+    line-height: 1 !important;
+    cursor: pointer !important;
+    white-space: nowrap !important;
+}
+.worth-it-chat-media-trigger:hover,
+.worth-it-chat-media-trigger:focus-visible {
+    border-color: rgba(165,180,252,.8) !important;
+    background: linear-gradient(135deg, rgba(99,102,241,.32), rgba(49,130,206,.24)) !important;
+}
+.worth-it-chat-media-trigger:focus-visible {
+    outline: 2px solid #a5b4fc !important;
+    outline-offset: 2px !important;
+}
+.worth-it-chat-media-icon {
+    display: block !important;
+    width: 19px !important;
+    height: 19px !important;
+    fill: none !important;
+    stroke: currentColor !important;
+    stroke-width: 1.8 !important;
+    stroke-linecap: round !important;
+    stroke-linejoin: round !important;
+}
+html[data-theme="light"] .worth-it-chat-media-trigger {
+    color: #4338ca !important;
+    background: linear-gradient(145deg, rgba(124,92,255,.09), rgba(59,130,246,.07)) !important;
+}
+.worth-it-chat-compose .worth-it-chat-voice-btn {
+    box-sizing: border-box !important;
+    width: 36px !important;
+    min-width: 36px !important;
+    height: 36px !important;
+    min-height: 36px !important;
+    flex: 0 0 36px !important;
+    padding: 0 !important;
+}
+.worth-it-chat-media-picker .worth-it-chat-picker-header {
+    flex: 0 0 auto !important;
+}
+.worth-it-chat-media-main-tabs {
+    display: flex !important;
+    flex: 0 0 auto !important;
+    align-items: center !important;
+    gap: 6px !important;
+    min-width: 0 !important;
+    padding: 0 0 7px !important;
+    border-bottom: 1px solid rgba(129,140,248,.2) !important;
+}
+.worth-it-chat-media-main-tab {
+    flex: 1 1 0 !important;
+    min-width: 0 !important;
+}
+.worth-it-chat-picker-view {
+    display: flex !important;
+    flex: 1 1 auto !important;
+    flex-direction: column !important;
+    min-width: 0 !important;
+    min-height: 0 !important;
+    gap: 8px !important;
+    overflow: hidden !important;
+}
+.worth-it-chat-picker-view[hidden] {
+    display: none !important;
+}
+.worth-it-chat-picker-view .worth-it-chat-gif-grid,
+.worth-it-chat-picker-view .worth-it-chat-emoji-grid {
+    flex: 1 1 auto !important;
+    min-height: 0 !important;
+}
+.worth-it-chat-picker-view .worth-it-chat-gif-search {
+    flex: 0 0 auto !important;
+}
+.worth-it-chat-media-picker .worth-it-chat-picker-close {
+    flex: 0 0 auto !important;
+}
+
+/* When the mobile keyboard opens, the visible viewport and composer both resize above it. */
+#worthItChatOverlay.is-visual-viewport-adjusted .worth-it-chat-window {
+    display: flex !important;
+    flex-direction: column !important;
+    min-height: 0 !important;
+}
+#worthItChatOverlay.is-visual-viewport-adjusted .worth-it-chat-compose-wrap {
+    flex: 0 0 auto !important;
+    min-height: 0 !important;
+}
+@media (max-width: 540px) {
+    .worth-it-chat-compose {
+        gap: 3px !important;
+        padding: 4px !important;
+        border-radius: 14px !important;
+    }
+    .worth-it-chat-compose .worth-it-chat-picker-dock,
+    .worth-it-chat-compose .worth-it-chat-input-preview-wrap {
+        min-width: 0 !important;
+    }
+    .worth-it-chat-compose #worthItChatPlusBtn.worth-it-chat-attach-btn {
+        width: 32px !important;
+        min-width: 32px !important;
+        height: 34px !important;
+        min-height: 34px !important;
+        flex-basis: 32px !important;
+        border-radius: 10px !important;
+        font-size: 20px !important;
+    }
+    .worth-it-chat-compose #worthItChatSendBtn {
+        box-sizing: border-box !important;
+        width: 34px !important;
+        min-width: 34px !important;
+        height: 34px !important;
+        min-height: 34px !important;
+        padding: 0 !important;
+        gap: 0 !important;
+        font-size: 0 !important;
+        border-radius: 10px !important;
+    }
+    .worth-it-chat-compose #worthItChatSendBtn span {
+        display: inline !important;
+        font-size: 16px !important;
+        line-height: 1 !important;
+    }
+    .worth-it-chat-media-trigger {
+        flex-basis: 30px !important;
+        width: 30px !important;
+        min-width: 30px !important;
+        height: 34px !important;
+        min-height: 34px !important;
+        border-radius: 9px !important;
+        font-size: 10px !important;
+    }
+    .worth-it-chat-media-icon {
+        width: 17px !important;
+        height: 17px !important;
+    }
+    .worth-it-chat-compose .worth-it-chat-voice-btn {
+        width: 32px !important;
+        min-width: 32px !important;
+        height: 34px !important;
+        min-height: 34px !important;
+        flex-basis: 32px !important;
+        border-radius: 9px !important;
+    }
+    .worth-it-chat-compose .worth-it-chat-voice-icon {
+        width: 17px !important;
+        height: 17px !important;
+    }
+    .worth-it-chat-compose .worth-it-chat-input-preview-wrap {
+        flex: 1 1 28px !important;
+        width: auto !important;
+    }
+    .worth-it-chat-picker-panel:not([hidden]) {
+        width: calc(100vw - 16px) !important;
+        left: 8px !important;
+    }
+}
+@media (max-width: 350px) {
+    .worth-it-chat-compose {
+        gap: 2px !important;
+        padding: 3px !important;
+    }
+    .worth-it-chat-compose #worthItChatPlusBtn.worth-it-chat-attach-btn,
+    .worth-it-chat-compose .worth-it-chat-voice-btn {
+        width: 29px !important;
+        min-width: 29px !important;
+        flex-basis: 29px !important;
+    }
+    .worth-it-chat-media-trigger {
+        width: 28px !important;
+        min-width: 28px !important;
+        flex-basis: 28px !important;
+    }
+    .worth-it-chat-compose #worthItChatSendBtn {
+        width: 31px !important;
+        min-width: 31px !important;
+    }
+}
+
+/* The AI panel remains open on backdrop clicks; its close control is deliberately offset. */
+#aiChatOverlay .ai-chat-close {
+    transform: translateY(2px) !important;
+}
+@media (max-width: 760px) {
+    #aiChatOverlay .ai-chat-close {
+        width: 40px !important;
+        min-width: 40px !important;
+        height: 40px !important;
+        min-height: 40px !important;
+        flex: 0 0 40px !important;
+        padding: 0 !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        border-radius: 11px !important;
+        transform: none !important;
+    }
+}
+@media (max-width: 700px) {
+    #aiChatNavBtn.ai-chat-nav-btn {
+        width: 42px !important;
+        min-width: 42px !important;
+        height: 42px !important;
+        min-height: 42px !important;
+        flex: 0 0 42px !important;
+        padding: 0 !important;
+        gap: 0 !important;
+        border-radius: 12px !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        font-size: 20px !important;
+        line-height: 1 !important;
+    }
+    #aiChatNavBtn.ai-chat-nav-btn span {
+        display: none !important;
+    }
+}
+
+/* Gentle motion for the message composer media actions and the history shortcut. */
+.worth-it-chat-media-trigger,
+.worth-it-chat-compose .worth-it-chat-voice-btn,
+.worth-it-chat-travel-present {
+    transform-origin: center;
+    transition: transform .18s cubic-bezier(.2,.75,.25,1), box-shadow .2s ease, border-color .2s ease, filter .2s ease, background .2s ease;
+}
+.worth-it-chat-media-trigger:hover,
+.worth-it-chat-media-trigger:focus-visible,
+.worth-it-chat-compose .worth-it-chat-voice-btn:hover,
+.worth-it-chat-compose .worth-it-chat-voice-btn:focus-visible {
+    transform: translateY(-2px) scale(1.045) !important;
+    box-shadow: 0 6px 16px rgba(79,70,229,.24) !important;
+    filter: brightness(1.08);
+}
+.worth-it-chat-media-trigger:active,
+.worth-it-chat-compose .worth-it-chat-voice-btn:active {
+    transform: translateY(0) scale(.94) !important;
+    filter: brightness(1.13);
+}
+.worth-it-chat-media-trigger.is-chat-action-tapped,
+.worth-it-chat-compose .worth-it-chat-voice-btn.is-chat-action-tapped,
+.worth-it-chat-travel-present.is-chat-action-tapped {
+    animation: worthItChatActionTap .36s ease-out;
+}
+@keyframes worthItChatActionTap {
+    0% { box-shadow: 0 0 0 0 rgba(129,140,248,0); }
+    42% { box-shadow: 0 0 0 4px rgba(129,140,248,.22), 0 6px 16px rgba(79,70,229,.2); }
+    100% { box-shadow: 0 0 0 0 rgba(129,140,248,0); }
+}
+.worth-it-chat-emoji-trigger.is-emoji-shuffling {
+    animation: worthItChatEmojiShuffle .22s ease-in-out;
+}
+@keyframes worthItChatEmojiShuffle {
+    0% { filter: brightness(1); }
+    45% { filter: brightness(1.24); }
+    100% { filter: brightness(1); }
+}
+
+/* Floating jump-to-latest control, positioned by JS just above the composer. */
+.worth-it-chat-travel-present {
+    position: absolute;
+    left: 50%;
+    bottom: calc(100px + env(safe-area-inset-bottom, 0px));
+    z-index: 6;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    min-height: 39px;
+    padding: 0 15px;
+    border: 1px solid rgba(165,180,252,.48);
+    border-radius: 999px;
+    color: #f8faff;
+    background: linear-gradient(120deg, rgba(91,72,190,.97), rgba(37,99,235,.96));
+    box-shadow: 0 9px 26px rgba(30,41,120,.3), 0 0 0 1px rgba(165,180,252,.12);
+    font: inherit;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: .01em;
+    line-height: 1;
+    white-space: nowrap;
+    cursor: pointer;
+    transform: translateX(-50%);
+    animation: none;
+}
+.worth-it-chat-travel-present span {
+    display: inline-block;
+    font-size: 15px;
+    transition: transform .18s ease;
+}
+.worth-it-chat-travel-present:hover,
+.worth-it-chat-travel-present:focus-visible {
+    transform: translateX(-50%) translateY(-3px) scale(1.025);
+    box-shadow: 0 12px 30px rgba(30,41,120,.38), 0 0 0 3px rgba(129,140,248,.2);
+    filter: brightness(1.08);
+}
+.worth-it-chat-travel-present:hover span,
+.worth-it-chat-travel-present:focus-visible span {
+    transform: translateY(2px);
+}
+.worth-it-chat-travel-present:active {
+    transform: translateX(-50%) scale(.96);
+    filter: brightness(1.14);
+}
+.worth-it-chat-travel-present.is-entering {
+    animation: worthItChatTravelArrive .24s cubic-bezier(.2,.75,.25,1) both;
+}
+.worth-it-chat-travel-present[hidden] {
+    display: none !important;
+}
+@keyframes worthItChatTravelArrive {
+    from { opacity: 0; transform: translateX(-50%) translateY(9px) scale(.96); }
+    to { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
+}
+html[data-theme="light"] .worth-it-chat-travel-present {
+    color: #fff;
+    background: linear-gradient(120deg, #5b48be, #2563eb);
+    border-color: rgba(67,56,202,.36);
+}
+@media (prefers-reduced-motion: reduce) {
+    .worth-it-chat-media-trigger,
+    .worth-it-chat-compose .worth-it-chat-voice-btn,
+    .worth-it-chat-travel-present,
+    .worth-it-chat-travel-present span {
+        transition-duration: .01ms !important;
+    }
+    .worth-it-chat-media-trigger.is-chat-action-tapped,
+    .worth-it-chat-compose .worth-it-chat-voice-btn.is-chat-action-tapped,
+    .worth-it-chat-travel-present.is-chat-action-tapped,
+    .worth-it-chat-emoji-trigger.is-emoji-shuffling,
+    .worth-it-chat-travel-present.is-entering {
+        animation-duration: .01ms !important;
+    }
+}

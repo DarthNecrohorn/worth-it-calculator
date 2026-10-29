@@ -16,6 +16,9 @@ let activeConversationInviteToken = "";
 let activeGroupInviteToken = "";
 let activeGroupInvitePreview = null;
 let chatReturnPath = "/";
+let lastOpenedConversation = null;
+const worthItChatMessageCache = new Map();
+let chatLastForegroundRefreshAt = 0;
 let profileReturnConversation = null;
 let chatRouteVersion = 0;
 let chatRouteAccessDenied = false;
@@ -52,10 +55,14 @@ let chatOwnProfileLoadedForUser = null;
 let chatOwnProfilePromise = null;
 const WORTH_IT_GLOBAL_CHAT_REALTIME_ID = "00000000-0000-4000-8000-000000000001";
 const WORTH_IT_CHAT_FULLSCREEN_PREFERENCE_KEY = "worth-it-chat-fullscreen-preference-v1";
+const WORTH_IT_CHAT_LAST_CONVERSATION_KEY = "worth-it-chat-last-conversation-v1";
 let pendingMediaFile = null;
 let pendingMediaUrl = "";
 let pendingMediaType = "";
 let pendingReplyQuote = null;
+const worthItChatDrafts = new Map();
+let activeChatDraftKey = "";
+let pendingFilePickerTarget = null;
 let chatNotificationPreferences = Object.create(null);
 let chatNotificationPreferencesLoadedForUser = null;
 let globalNotificationPreferences = { friend_requests: true, follows: true, private_messages: true, group_chats: true, account_activity: true };
@@ -79,6 +86,75 @@ function parseWorthItChatRoute() {
     match = path.match(/^\/chat\/group\/([0-9a-fA-F]{64})$/);
     if (match) return {type:"group", token:match[1].toLowerCase()};
     return isChatRoutePath(path) ? {type:"invalid"} : null;
+}
+function worthItChatRouteMatchesActiveConversation(route) {
+    if (!route || !chatOpen || chatRouteAccessDenied) return false;
+    if (route.type === "global") return activeConversationType === "global";
+    if (route.type === "direct") {
+        return activeConversationType === "direct" &&
+            Boolean(activeConversationId) &&
+            String(activeConversationPerson?.worth_it_id || "") === String(route.worthItId);
+    }
+    if (route.type === "group") {
+        return activeConversationType === "group" &&
+            Boolean(activeConversationId) &&
+            String(activeConversationInviteToken || "").toLowerCase() === route.token;
+    }
+    return false;
+}
+function clearLastWorthItChatConversation() {
+    lastOpenedConversation = null;
+    try { window.sessionStorage.removeItem(WORTH_IT_CHAT_LAST_CONVERSATION_KEY); } catch (_) {}
+}
+function getLastWorthItChatConversation() {
+    if (!chatUser?.id) return null;
+    let saved = lastOpenedConversation;
+    if (!saved || String(saved.userId || "") !== String(chatUser.id)) {
+        try {
+            const raw = window.sessionStorage.getItem(WORTH_IT_CHAT_LAST_CONVERSATION_KEY);
+            saved = raw ? JSON.parse(raw) : null;
+        } catch (_) {
+            saved = null;
+        }
+    }
+    if (!saved || String(saved.userId || "") !== String(chatUser.id) ||
+        !["global", "direct", "group"].includes(saved.type)) {
+        if (saved && String(saved.userId || "") !== String(chatUser.id)) clearLastWorthItChatConversation();
+        return null;
+    }
+    lastOpenedConversation = saved;
+    return saved;
+}
+function rememberLastWorthItChatConversation() {
+    if (!chatUser?.id) return;
+    const person = activeConversationPerson;
+    const saved = {
+        userId: String(chatUser.id),
+        type: activeConversationType || "global",
+        id: activeConversationId || null,
+        title: activeConversationTitle || GLOBAL_TITLE,
+        inviteToken: String(activeConversationInviteToken || ""),
+        person: person ? {
+            worth_it_id: person.worth_it_id ?? null,
+            display_name: String(person.display_name || ""),
+            username: String(person.username || "")
+        } : null
+    };
+    lastOpenedConversation = saved;
+    try { window.sessionStorage.setItem(WORTH_IT_CHAT_LAST_CONVERSATION_KEY, JSON.stringify(saved)); } catch (_) {}
+}
+function worthItChatMessageCacheKey(userId = chatUser?.id, type = activeConversationType, id = activeConversationId) {
+    if (!userId) return "";
+    const conversationId = type === "global" ? "global" : String(id || "");
+    return conversationId ? String(userId) + "|" + String(type || "global") + "|" + conversationId : "";
+}
+function cacheWorthItChatMessages(key, rows) {
+    if (!key) return;
+    worthItChatMessageCache.delete(key);
+    worthItChatMessageCache.set(key, Array.isArray(rows) ? rows.slice() : []);
+    while (worthItChatMessageCache.size > 12) {
+        worthItChatMessageCache.delete(worthItChatMessageCache.keys().next().value);
+    }
 }
 function setChatBrowserPath(path, replace) {
     const target = path || "/";
@@ -165,6 +241,23 @@ window.toggleWorthItChatFullscreen = function (event) {
 
     setWorthItChatFullscreen(!overlay.classList.contains("is-fullscreen"));
 };
+function updateWorthItChatVisualViewport() {
+    const overlay = $("worthItChatOverlay");
+    const viewport = window.visualViewport;
+    const isPhone = window.matchMedia("(max-width: 540px)").matches;
+    if (!overlay || !viewport || !isPhone || !chatOpen) {
+        if (overlay) {
+            overlay.classList.remove("is-visual-viewport-adjusted");
+            overlay.style.removeProperty("--worthit-chat-visible-height");
+            overlay.style.removeProperty("--worthit-chat-visible-top");
+        }
+        return;
+    }
+    // visualViewport.height excludes the on-screen keyboard on mobile browsers.
+    overlay.style.setProperty("--worthit-chat-visible-height", Math.max(220, Math.round(viewport.height)) + "px");
+    overlay.style.setProperty("--worthit-chat-visible-top", Math.max(0, Math.round(viewport.offsetTop || 0)) + "px");
+    overlay.classList.add("is-visual-viewport-adjusted");
+}
 function showChatOverlay(open, options) {
     const overlay = $("worthItChatOverlay");
     const button = $("worthItChatNavBtn");
@@ -186,6 +279,7 @@ function showChatOverlay(open, options) {
     overlay.hidden = !chatOpen;
     overlay.setAttribute("aria-hidden", String(!chatOpen));
     button?.setAttribute("aria-expanded", String(chatOpen));
+    updateWorthItChatVisualViewport();
     if (chatOpen) {
         document.body.classList.add("worth-it-chat-open");
         // On phones, open the conversation immediately; the list remains one tap away.
@@ -210,8 +304,11 @@ function setAuthState(user) {
         chatOwnProfile = null;
         chatOwnProfileLoadedForUser = null;
         chatOwnProfilePromise = null;
+        worthItChatMessageCache.clear();
+        if (previousUserId) clearLastWorthItChatConversation();
     }
     chatUser = user || null;
+    if (previousUserId !== (chatUser?.id || null)) clearWorthItChatDrafts();
     if (!chatUser || previousUserId !== chatUser.id) {
         chatMessageRequestVersion += 1;
         chatLoading = false;
@@ -229,6 +326,10 @@ function setAuthState(user) {
         chatMessages = [];
         pendingMediaFile = null;
         pendingMediaUrl = "";
+        pendingMediaType = "";
+        pendingReplyQuote = null;
+        renderWorthItChatReplyPreview();
+        setPendingMedia(null, "", "");
         if (parseWorthItChatRoute()) showChatOverlay(true, {skipRouteSync:true});
         else showChatOverlay(false, {skipRouteSync:true});
         renderFriends();
@@ -241,8 +342,14 @@ function setAuthState(user) {
         if (parseWorthItChatRoute()) routeWorthItChatFromLocation();
     } else {
         updateChatHeaderShareButton();
-        if (parseWorthItChatRoute()) routeWorthItChatFromLocation();
-        else refreshWorthItChatData();
+        const route = parseWorthItChatRoute();
+        if (route && !worthItChatRouteMatchesActiveConversation(route)) {
+            // A token refresh or return to the browser window must not reopen the
+            // same private/group route: activateConversation clears the visible rows.
+            routeWorthItChatFromLocation();
+        } else if (!route && previousUserId !== nextUserId) {
+            refreshWorthItChatData();
+        }
     }
 }
 function initials(person) {
@@ -1212,6 +1319,8 @@ function renderWorthItChatReplyPreview() {
 function clearWorthItChatReplyQuote() {
     pendingReplyQuote = null;
     renderWorthItChatReplyPreview();
+    updateWorthItChatComposerAction();
+    saveActiveWorthItChatDraft();
 }
 function quoteWorthItChatMessage(message) {
     const input = $("worthItChatInput");
@@ -1225,6 +1334,8 @@ function quoteWorthItChatMessage(message) {
     const compact = raw.replace(/\s+/g, " ").trim();
     pendingReplyQuote = { author, text: compact.slice(0, 160) + (compact.length > 160 ? "…" : "") };
     renderWorthItChatReplyPreview();
+    updateWorthItChatComposerAction();
+    saveActiveWorthItChatDraft();
     input.focus({preventScroll:true});
     setStatus("Replying to " + author + ". Write your reply below.", false);
 }
@@ -1665,6 +1776,43 @@ function createWorthItChatMessageRow(message) {
     return row;
 }
 
+function updateWorthItChatTravelPresentButton() {
+    const host = $("worthItChatMessages");
+    const button = $("worthItChatTravelPresentBtn");
+    if (!host || !button) return;
+
+    const distanceFromBottom = host.scrollHeight - host.scrollTop - host.clientHeight;
+    const shouldShow = Boolean(
+        chatOpen &&
+        chatUser &&
+        chatMessages.length &&
+        host.scrollHeight > host.clientHeight + 80 &&
+        distanceFromBottom > 80
+    );
+    const wasHidden = button.hidden;
+
+    const main = button.closest(".worth-it-chat-main");
+    const composer = main?.querySelector(".worth-it-chat-compose-wrap");
+    const mainRect = main?.getBoundingClientRect();
+    const composerRect = composer?.getBoundingClientRect();
+    if (mainRect && composerRect && Number.isFinite(mainRect.bottom) && Number.isFinite(composerRect.top)) {
+        // Anchor the button just above the composer, including when the mobile keyboard resizes the viewport.
+        button.style.bottom = Math.max(64, mainRect.bottom - composerRect.top + 12) + "px";
+    }
+
+    button.hidden = !shouldShow;
+    if (!shouldShow) {
+        button.classList.remove("is-entering");
+        return;
+    }
+    if (wasHidden) {
+        button.classList.remove("is-entering");
+        void button.offsetWidth;
+        button.classList.add("is-entering");
+        window.setTimeout(() => button.classList.remove("is-entering"), 280);
+    }
+}
+
 function renderMessages(scrollToBottom) {
     const host = $("worthItChatMessages");
     if (!host) return;
@@ -1672,6 +1820,7 @@ function renderMessages(scrollToBottom) {
         // Supabase is still restoring the persisted session. Keep the existing
         // welcome/loading content instead of briefly showing a false sign-in prompt.
         host.setAttribute("aria-busy", "true");
+        updateWorthItChatTravelPresentButton();
         return;
     }
     host.removeAttribute("aria-busy");
@@ -1691,6 +1840,7 @@ function renderMessages(scrollToBottom) {
             signIn.addEventListener("click", () => { if (typeof window.handleAuthButton === "function") window.handleAuthButton(); });
             empty.append(icon,title,p,signIn); host.appendChild(empty);
         }
+        updateWorthItChatTravelPresentButton();
         return;
     }
     if (!chatMessages.length) {
@@ -1705,6 +1855,7 @@ function renderMessages(scrollToBottom) {
             const p = document.createElement("p"); p.textContent = activeConversationType === "global" ? "Be welcoming, keep it respectful, and enjoy the chat." : "Send the first message to get things going.";
             empty.append(icon,title,p); host.appendChild(empty);
         }
+        updateWorthItChatTravelPresentButton();
         return;
     }
     delete host.dataset.worthItChatEmptyKey;
@@ -1737,6 +1888,7 @@ function renderMessages(scrollToBottom) {
         if (current !== row) host.insertBefore(row, current);
     });
     if (scrollToBottom) host.scrollTop = host.scrollHeight;
+    updateWorthItChatTravelPresentButton();
 }
 
 async function loadWorthItChatMessages(scrollToBottom, force = false) {
@@ -1766,6 +1918,7 @@ async function loadWorthItChatMessages(scrollToBottom, force = false) {
     if (result.error) { setStatus(rpcError(result.error), true); return; }
     if (result.data && !Array.isArray(result.data) && result.data.success === false) { setStatus(result.data.code || "This conversation is unavailable.", true); return; }
     const rows = Array.isArray(result.data) ? result.data : [];
+    cacheWorthItChatMessages(worthItChatMessageCacheKey(requestUserId, conversationType, conversationId), rows);
     const previousLastId = chatMessages.length ? chatMessages[chatMessages.length - 1].id : null;
     const newLastId = rows.length ? rows[rows.length - 1].id : null;
     chatMessages = rows;
@@ -1779,12 +1932,30 @@ async function loadWorthItChatMessages(scrollToBottom, force = false) {
     renderConversations();
 }
 async function activateConversation(id, type, title, person, inviteToken) {
-    activeConversationId = id || null;
-    activeConversationType = type || "global";
+    const nextType = type || "global";
+    const nextId = id || null;
+    const currentKey = worthItChatMessageCacheKey();
+    if (currentKey && chatMessages.length) cacheWorthItChatMessages(currentKey, chatMessages);
+    const sameConversation = activeConversationType === nextType &&
+        String(activeConversationId || "") === String(nextId || "");
+    const nextKey = worthItChatMessageCacheKey(chatUser?.id, nextType, nextId);
+
+    // Save the composer and visible messages before changing any active IDs.
+    saveActiveWorthItChatDraft();
+    closeWorthItChatPickers();
+    activeConversationId = nextId;
+    activeConversationType = nextType;
     chatRouteAccessDenied = false;
     activeConversationTitle = title || GLOBAL_TITLE;
     activeConversationPerson = person || null;
     activeConversationInviteToken = String(inviteToken || chatConversations.find(item => item.id === activeConversationId)?.invite_token || "");
+    if (!sameConversation) {
+        chatMessages = worthItChatMessageCache.has(nextKey)
+            ? worthItChatMessageCache.get(nextKey).slice()
+            : [];
+    }
+    rememberLastWorthItChatConversation();
+    restoreWorthItChatDraft(worthItChatDraftKey());
     syncChatUrlForConversation(activeConversationType, activeConversationId, activeConversationPerson, activeConversationInviteToken);
     if (window.matchMedia("(max-width: 540px)").matches) $("worthItChatWindow")?.classList.remove("is-mobile-sidebar");
     document.querySelectorAll(".worth-it-chat-side-item").forEach(node => node.classList.toggle("is-active", node.id === "worthItGlobalChatBtn" && activeConversationType === "global"));
@@ -1794,7 +1965,6 @@ async function activateConversation(id, type, title, person, inviteToken) {
     updateChatHeaderNotificationButton();
     updateChatHeaderShareButton();
     setStatus("", false);
-    chatMessages = [];
     renderMessages();
     await syncWorthItChatRealtimeChannel();
     await loadWorthItChatMessages(true, true);
@@ -2162,6 +2332,59 @@ async function syncWorthItChatRealtimeChannel() {
     }
 }
 
+async function restoreLastWorthItChatConversation(saved) {
+    if (!chatUser?.id || !saved || String(saved.userId || "") !== String(chatUser.id)) {
+        await routeWorthItChatFromLocation();
+        return;
+    }
+    if (saved.type === "global") {
+        await activateConversation(null, "global", GLOBAL_TITLE, null);
+        return;
+    }
+    if (saved.type === "direct") {
+        let friend = chatFriends.find(item => String(item.worth_it_id) === String(saved.person?.worth_it_id || ""));
+        if (!friend) {
+            await refreshWorthItChatData();
+            friend = chatFriends.find(item => String(item.worth_it_id) === String(saved.person?.worth_it_id || ""));
+        }
+        if (friend && saved.id) {
+            await activateConversation(saved.id, "direct", friend.display_name || friend.username || saved.title || "Friend chat", friend);
+            return;
+        }
+        await activateConversation(null, "global", GLOBAL_TITLE, null);
+        setStatus("Your previous private chat is no longer available.", true);
+        return;
+    }
+    if (saved.type === "group") {
+        let group = chatConversations.find(item => String(item.id) === String(saved.id || "") && item.type === "group");
+        if (!group) {
+            await refreshWorthItChatData();
+            group = chatConversations.find(item => String(item.id) === String(saved.id || "") && item.type === "group");
+        }
+        if (group) {
+            await activateConversation(group.id, "group", group.title || saved.title || "Group chat",
+                (Array.isArray(group.members) ? group.members[0] : null) || null, group.invite_token || saved.inviteToken || "");
+            return;
+        }
+        await activateConversation(null, "global", GLOBAL_TITLE, null);
+        setStatus("Your previous group chat is no longer available.", true);
+        return;
+    }
+    await routeWorthItChatFromLocation();
+}
+
+function refreshWorthItChatOnForeground() {
+    if (document.hidden || !chatOpen || !chatUser) return;
+    const now = Date.now();
+    // visibilitychange, focus and pageshow can fire together. Refresh only once
+    // per short foreground transition, without rebuilding the current conversation.
+    if (now - chatLastForegroundRefreshAt < 1200) return;
+    chatLastForegroundRefreshAt = now;
+    chatLastMessagePollAt = now;
+    void syncWorthItChatRealtimeChannel();
+    void loadWorthItChatMessages(false, true);
+}
+
 function startWorthItChatPolling() {
     if (!chatUser) return;
     if (chatPollTimer) window.clearInterval(chatPollTimer);
@@ -2193,11 +2416,16 @@ window.toggleWorthItChat = async function (event) {
         return;
     }
     if (!isChatRoutePath()) chatReturnPath = currentBrowserLocation() || "/";
+    const lastConversation = getLastWorthItChatConversation();
     setChatBrowserPath("/chat", false);
     showChatOverlay(true, {skipRouteSync:true});
     setWorthItChatFullscreen(false);
-    await routeWorthItChatFromLocation();
-    $("worthItChatInput")?.focus();
+    if (lastConversation) await restoreLastWorthItChatConversation(lastConversation);
+    else await routeWorthItChatFromLocation();
+    // Opening the mobile chat must not summon the on-screen keyboard automatically.
+    if (!window.matchMedia("(max-width: 540px)").matches) {
+        $("worthItChatInput")?.focus({ preventScroll: true });
+    }
 };
 window.shareWorthItGroupInvite = async function () {
     const token = activeConversationInviteToken;
@@ -2216,20 +2444,110 @@ function updateCharacterCount() {
     if (count && input) count.textContent = String(input.value.length);
 }
 let pendingMediaObjectUrl = "";
+function worthItChatDraftKey(userId = chatUser?.id, type = activeConversationType, id = activeConversationId) {
+    if (!userId) return "";
+    const conversationId = type === "global" ? WORTH_IT_GLOBAL_CHAT_REALTIME_ID : String(id || "");
+    return conversationId ? String(userId) + "|" + String(type || "global") + "|" + conversationId : "";
+}
+function worthItChatDraftUrlUsedElsewhere(url, exceptKey = "") {
+    if (!url || !String(url).startsWith("blob:")) return false;
+    for (const [key, draft] of worthItChatDrafts) {
+        if (key !== exceptKey && draft?.mediaUrl === url) return true;
+    }
+    return false;
+}
+function releaseWorthItChatDraftUrl(url, exceptKey = "") {
+    if (!url || !String(url).startsWith("blob:")) return;
+    if (!worthItChatDraftUrlUsedElsewhere(url, exceptKey) && pendingMediaObjectUrl !== url) {
+        try { URL.revokeObjectURL(url); } catch (_) {}
+    }
+}
+function updateWorthItChatComposerAction() {
+    const input = $("worthItChatInput");
+    const sendButton = $("worthItChatSendBtn");
+    const voiceButton = $("worthItChatVoiceBtn");
+    if (!input || !sendButton || !voiceButton) return;
+    // Keep Send available for text, attachments and reply quotes; otherwise the
+    // voice-recording control occupies the final action slot.
+    const showSend = Boolean(String(input.value || "").trim() || pendingMediaFile || pendingReplyQuote);
+    sendButton.hidden = !showSend;
+    voiceButton.hidden = showSend;
+}
+function saveActiveWorthItChatDraft() {
+    const key = worthItChatDraftKey();
+    if (!key || !chatUser) return;
+    activeChatDraftKey = key;
+    const input = $("worthItChatInput");
+    const draft = {
+        text: String(input?.value || ""),
+        mediaFile: pendingMediaFile || null,
+        mediaUrl: pendingMediaUrl || "",
+        mediaType: pendingMediaType || "",
+        replyQuote: pendingReplyQuote ? { author: pendingReplyQuote.author, text: pendingReplyQuote.text } : null,
+        selectionStart: Number.isInteger(input?.selectionStart) ? input.selectionStart : String(input?.value || "").length,
+        selectionEnd: Number.isInteger(input?.selectionEnd) ? input.selectionEnd : String(input?.value || "").length
+    };
+    const previous = worthItChatDrafts.get(key);
+    if (previous?.mediaUrl && previous.mediaUrl !== draft.mediaUrl) releaseWorthItChatDraftUrl(previous.mediaUrl, key);
+    if (draft.text || draft.mediaFile || draft.replyQuote) worthItChatDrafts.set(key, draft);
+    else worthItChatDrafts.delete(key);
+}
+function restoreWorthItChatDraft(key) {
+    activeChatDraftKey = key || "";
+    const draft = key ? worthItChatDrafts.get(key) : null;
+    const input = $("worthItChatInput");
+    if (input) {
+        input.value = draft?.text || "";
+        input.style.height = "auto";
+        input.style.height = Math.min(input.scrollHeight, 140) + "px";
+        if (Number.isInteger(draft?.selectionStart) && Number.isInteger(draft?.selectionEnd)) {
+            try { input.setSelectionRange(draft.selectionStart, draft.selectionEnd); } catch (_) {}
+        }
+    }
+    pendingReplyQuote = draft?.replyQuote ? { author: draft.replyQuote.author, text: draft.replyQuote.text } : null;
+    setPendingMedia(draft?.mediaFile || null, draft?.mediaUrl || "", draft?.mediaType || "");
+    renderWorthItChatReplyPreview();
+    updateCharacterCount();
+    renderWorthItChatComposerPreview();
+}
+function clearWorthItChatDrafts() {
+    const urls = new Set();
+    for (const draft of worthItChatDrafts.values()) if (draft?.mediaUrl?.startsWith("blob:")) urls.add(draft.mediaUrl);
+    if (pendingMediaObjectUrl?.startsWith("blob:")) urls.add(pendingMediaObjectUrl);
+    worthItChatDrafts.clear();
+    activeChatDraftKey = "";
+    pendingFilePickerTarget = null;
+    for (const url of urls) { try { URL.revokeObjectURL(url); } catch (_) {} }
+    pendingMediaObjectUrl = "";
+    pendingMediaFile = null;
+    pendingMediaUrl = "";
+    pendingMediaType = "";
+    pendingReplyQuote = null;
+    const input = $("worthItChatInput");
+    if (input) { input.value = ""; input.style.height = "auto"; }
+    const host = $("worthItChatAttachmentPreview");
+    if (host) { host.replaceChildren(); host.hidden = true; }
+    renderWorthItChatReplyPreview();
+    updateCharacterCount();
+    renderWorthItChatComposerPreview();
+    updateWorthItChatComposerAction();
+}
 function setPendingMedia(file, url, type) {
-    if (pendingMediaObjectUrl) {
-        URL.revokeObjectURL(pendingMediaObjectUrl);
-        pendingMediaObjectUrl = "";
+    const nextUrl = url || "";
+    const oldUrl = pendingMediaObjectUrl;
+    if (oldUrl && oldUrl !== nextUrl && !worthItChatDraftUrlUsedElsewhere(oldUrl, activeChatDraftKey)) {
+        try { URL.revokeObjectURL(oldUrl); } catch (_) {}
     }
     pendingMediaFile = file || null;
-    pendingMediaUrl = url || "";
+    pendingMediaUrl = nextUrl;
     pendingMediaType = type || "";
+    pendingMediaObjectUrl = nextUrl.startsWith("blob:") ? nextUrl : "";
+    updateWorthItChatComposerAction();
     const host = $("worthItChatAttachmentPreview");
-    if (!host) return;
+    if (!host) { saveActiveWorthItChatDraft(); return; }
     host.replaceChildren();
     host.hidden = !pendingMediaFile;
-    if (!pendingMediaFile) return;
-    if (pendingMediaUrl.startsWith("blob:")) pendingMediaObjectUrl = pendingMediaUrl;
+    if (!pendingMediaFile) { saveActiveWorthItChatDraft(); return; }
     let preview;
     if (type === "video") {
         preview = document.createElement("video");
@@ -2254,6 +2572,7 @@ function setPendingMedia(file, url, type) {
     const remove = document.createElement("button"); remove.type = "button"; remove.textContent = "×"; remove.setAttribute("aria-label", "Remove attachment");
     remove.addEventListener("click", () => setPendingMedia(null, "", ""));
     host.append(preview, name, remove);
+    saveActiveWorthItChatDraft();
 }
 async function validateChatMediaSignature(file, expectedMime) {
     const header = new Uint8Array(await file.slice(0, 16).arrayBuffer());
@@ -2272,9 +2591,8 @@ async function validateChatMediaSignature(file, expectedMime) {
     if (!actualMime || actualMime !== expected) throw new Error("The file contents do not match the selected media type.");
     return actualMime;
 }
-async function uploadPendingMedia() {
-    if (!pendingMediaFile) return {url:"",type:""};
-    const file = pendingMediaFile;
+async function uploadPendingMedia(file = pendingMediaFile, conversationId = activeConversationId, userId = chatUser?.id) {
+    if (!file) return {url:"",type:""};
     if (!file.size) throw new Error("This media file is empty.");
     const mime = String(file.type || "").split(";")[0].toLowerCase();
     const allowed = {"image/png":"image","image/jpeg":"image","image/webp":"image","image/gif":"gif","video/mp4":"video","video/webm":"video","audio/webm":"audio","audio/ogg":"audio","audio/mp4":"audio","audio/mpeg":"audio","audio/wav":"audio","audio/x-wav":"audio"};
@@ -2284,16 +2602,16 @@ async function uploadPendingMedia() {
     if (file.size > maxBytes) throw new Error(type === "audio" ? "Voice messages must be 10 MB or smaller." : type === "gif" ? "GIFs must be 20 MB or smaller." : type === "video" ? "Videos must be 50 MB or smaller." : "Images must be 15 MB or smaller.");
     await validateChatMediaSignature(file, mime);
     const client = sb();
-    if (!client || !chatUser?.id) throw new Error("Sign in again before uploading media.");
+    if (!client || !userId) throw new Error("Sign in again before uploading media.");
     const sessionResult = await client.auth.getSession();
     const token = sessionResult?.data?.session?.access_token || "";
     const sessionUserId = sessionResult?.data?.session?.user?.id || "";
-    if (sessionResult?.error || !token || sessionUserId !== chatUser.id) {
+    if (sessionResult?.error || !token || sessionUserId !== userId) {
         throw new Error("Your session has expired. Sign in again before uploading media.");
     }
     const form = new FormData();
     form.append("file", file, file.name || (type === "audio" ? "voice-message" : type === "gif" ? "image.gif" : "image"));
-    if (type === "audio") form.append("conversation_id", activeConversationId || "00000000-0000-4000-8000-000000000001");
+    if (type === "audio") form.append("conversation_id", conversationId || WORTH_IT_GLOBAL_CHAT_REALTIME_ID);
     const response = await fetch(type === "audio" ? "/api/chat-audio" : "/api/chat-media", {
         method: "POST",
         headers: { "Authorization": "Bearer " + token },
@@ -2310,12 +2628,21 @@ async function uploadPendingMedia() {
 }
 async function sendWorthItChatMessage() {
     if (!chatUser || chatSending) return;
+    saveActiveWorthItChatDraft();
+    const sendUserId = chatUser.id;
+    const sendConversationType = activeConversationType;
+    const sendConversationId = activeConversationId;
+    const sendDraftKey = worthItChatDraftKey(sendUserId, sendConversationType, sendConversationId);
     const input = $("worthItChatInput");
     const draftBody = String(input?.value || "");
-    const replyPrefix = pendingReplyQuote ? "> " + pendingReplyQuote.author + ": " + pendingReplyQuote.text + "\n\n" : "";
+    const draftMediaFile = pendingMediaFile || null;
+    const draftMediaUrl = pendingMediaUrl || "";
+    const draftMediaType = pendingMediaType || "";
+    const draftReplyQuote = pendingReplyQuote ? { author: pendingReplyQuote.author, text: pendingReplyQuote.text } : null;
+    const replyPrefix = draftReplyQuote ? "> " + draftReplyQuote.author + ": " + draftReplyQuote.text + "\n\n" : "";
     const body = replyPrefix + draftBody;
     if (body.length > 500) { setStatus("Messages, including the quoted reply, are limited to 500 characters. Shorten your draft or reply quote.", true); return; }
-    if (!draftBody.trim() && !pendingMediaFile) { setStatus(pendingReplyQuote ? "Write a reply before sending." : "Write a message or attach media first.", true); return; }
+    if (!draftBody.trim() && !draftMediaFile) { setStatus(draftReplyQuote ? "Write a reply before sending." : "Write a message or attach media first.", true); return; }
     const remaining = 2000 - (Date.now() - chatLastSentAt);
     if (remaining > 0) { setStatus("Please wait " + (remaining / 1000).toFixed(1) + " seconds before sending another message.", true); return; }
     chatSending = true;
@@ -2324,13 +2651,13 @@ async function sendWorthItChatMessage() {
     setStatus("", false);
     try {
         let media = {url:"",type:""};
-        if (pendingMediaFile) {
-            setStatus(pendingMediaType === "video" ? "Uploading video…" : "Uploading media…", false);
-            media = await uploadPendingMedia();
+        if (draftMediaFile) {
+            if (worthItChatDraftKey() === sendDraftKey) setStatus(draftMediaType === "video" ? "Uploading video…" : "Uploading media…", false);
+            media = await uploadPendingMedia(draftMediaFile, sendConversationId || WORTH_IT_GLOBAL_CHAT_REALTIME_ID, sendUserId);
         }
         const result = await sb().rpc("send_worth_it_chat_message", {
             p_body: body,
-            p_conversation_id: activeConversationId,
+            p_conversation_id: sendConversationType === "global" ? null : sendConversationId,
             p_media_url: media.url || null,
             p_media_type: media.type || null
         });
@@ -2349,19 +2676,35 @@ async function sendWorthItChatMessage() {
             return;
         }
         chatLastSentAt = Date.now();
-        if (input) { input.value = ""; input.style.height = "auto"; }
-        clearWorthItChatReplyQuote();
+        const storedDraft = worthItChatDrafts.get(sendDraftKey);
+        const storedStillMatchesSentDraft = Boolean(storedDraft
+            && storedDraft.text === draftBody
+            && storedDraft.mediaFile === draftMediaFile
+            && storedDraft.mediaUrl === draftMediaUrl
+            && storedDraft.mediaType === draftMediaType
+            && JSON.stringify(storedDraft.replyQuote || null) === JSON.stringify(draftReplyQuote || null));
+        if (storedStillMatchesSentDraft) {
+            if (storedDraft.mediaUrl) releaseWorthItChatDraftUrl(storedDraft.mediaUrl, sendDraftKey);
+            worthItChatDrafts.delete(sendDraftKey);
+        }
+        if (worthItChatDraftKey() === sendDraftKey && chatUser?.id === sendUserId) {
+            if (input) { input.value = ""; input.style.height = "auto"; }
+            clearWorthItChatReplyQuote();
+            setPendingMedia(null, "", "");
+            updateCharacterCount();
+            saveActiveWorthItChatDraft();
+            renderWorthItChatComposerPreview();
+            await loadWorthItChatMessages(true, true);
+            setStatus(result.data.filtered ? "Your message was sent with filtered content. Read the red note below it to see why." : "", false);
+        }
         stopWorthItChatTyping();
-        setPendingMedia(null, "", "");
-        updateCharacterCount();
-        await loadWorthItChatMessages(true, true);
         await refreshWorthItChatData();
-        setStatus(result.data.filtered ? "Your message was sent with filtered content. Read the red note below it to see why." : "", false);
     } catch (error) {
-        setStatus(error?.message || "Message could not be sent.", true);
+        if (worthItChatDraftKey() === sendDraftKey) setStatus(error?.message || "Message could not be sent.", true);
     } finally {
         chatSending = false;
         if (button) { button.disabled = false; button.innerHTML = 'Send <span>➤</span>'; }
+        updateWorthItChatComposerAction();
     }
 }
 window.sendWorthItChatMessage = sendWorthItChatMessage;
@@ -2755,28 +3098,71 @@ const WORTH_IT_CHAT_EMOJI_CATEGORIES = [
 
 const WORTH_IT_CHAT_EMOJI_OPTIONS = [];
 let worthItChatEmojiCategory = "faces";
-let worthItChatGifCategory = "all";
+let worthItChatGifCategory = "gif";
+let worthItChatMediaTab = "gif";
 let worthItChatGifSearchSequence = 0;
 
 function closeWorthItChatPickers() {
-    const menu = $("worthItChatPlusMenu");
+    const picker = $("worthItChatMediaPicker");
     const emojiPicker = $("worthItChatEmojiPicker");
     const gifPicker = $("worthItChatGifPicker");
-    const plus = $("worthItChatPlusBtn");
-    if (menu) menu.hidden = true;
+    if (picker) picker.hidden = true;
     if (emojiPicker) emojiPicker.hidden = true;
     if (gifPicker) gifPicker.hidden = true;
-    if (plus) plus.setAttribute("aria-expanded", "false");
+    for (const id of ["worthItChatGifAction", "worthItChatStickerAction", "worthItChatEmojiAction"]) {
+        $(id)?.setAttribute("aria-expanded", "false");
+    }
 }
 
-function openWorthItChatPlusMenu() {
-    const menu = $("worthItChatPlusMenu");
-    const plus = $("worthItChatPlusBtn");
-    if (!menu || !plus) return;
-    const shouldOpen = menu.hidden;
+function openWorthItChatFilePicker() {
     closeWorthItChatPickers();
-    menu.hidden = !shouldOpen;
-    plus.setAttribute("aria-expanded", shouldOpen ? "true" : "false");
+    // Pin the native picker result to the conversation where the + button was tapped.
+    pendingFilePickerTarget = { key: worthItChatDraftKey(), userId: chatUser?.id || null };
+    $("worthItChatFileInput")?.click();
+}
+
+function showWorthItChatMediaTab(tab, resetSearch = false) {
+    if (!["gif", "sticker", "emoji"].includes(tab)) return;
+    const picker = $("worthItChatMediaPicker");
+    const gifPanel = $("worthItChatGifPicker");
+    const emojiPanel = $("worthItChatEmojiPicker");
+    if (!picker || !gifPanel || !emojiPanel) return;
+    const wasHidden = picker.hidden;
+    picker.hidden = false;
+    worthItChatMediaTab = tab;
+    gifPanel.hidden = tab === "emoji";
+    emojiPanel.hidden = tab !== "emoji";
+
+    document.querySelectorAll("[data-worth-it-chat-media-tab]").forEach(button => {
+        const active = button.dataset.worthItChatMediaTab === tab;
+        button.classList.toggle("is-active", active);
+        button.setAttribute("aria-selected", active ? "true" : "false");
+        button.tabIndex = active ? 0 : -1;
+    });
+    for (const [id, actionTab] of [
+        ["worthItChatGifAction", "gif"],
+        ["worthItChatStickerAction", "sticker"],
+        ["worthItChatEmojiAction", "emoji"]
+    ]) {
+        $(id)?.setAttribute("aria-expanded", actionTab === tab ? "true" : "false");
+    }
+
+    if (tab === "emoji") {
+        const search = $("worthItChatEmojiSearch");
+        if (search && (resetSearch || wasHidden)) search.value = "";
+        renderWorthItChatEmojiCategories();
+        renderWorthItChatEmojiGrid(search?.value || "");
+        return;
+    }
+
+    worthItChatGifCategory = tab;
+    const search = $("worthItChatGifSearch");
+    if (search) {
+        if (resetSearch || wasHidden) search.value = "";
+        search.placeholder = tab === "sticker" ? "Search stickers…" : "Search GIFs…";
+        search.setAttribute("aria-label", tab === "sticker" ? "Search stickers" : "Search GIFs");
+    }
+    loadWorthItChatGifResults(search?.value || "");
 }
 
 
@@ -2920,8 +3306,8 @@ function insertWorthItChatEmoji(emoji) {
     }
     textarea.setRangeText(emoji, start, end, "end");
     textarea.dispatchEvent(new Event("input", { bubbles: true }));
-    textarea.focus();
-    closeWorthItChatPickers();
+    textarea.focus({ preventScroll: true });
+    // Keep the emoji picker open so multiple emoji can be selected in sequence.
 }
 
 const WORTH_IT_CHAT_GIF_LIBRARY = [
@@ -3106,8 +3492,10 @@ function loadWorthItChatGifResults(query = "") {
 async function selectWorthItChatGif(item) {
     if (!isWorthItChatLocalGifItem(item)) return;
     setWorthItChatGifStatus("Preparing " + item.type + "…", false);
+    const targetDraftKey = worthItChatDraftKey();
     try {
         const asset = await getWorthItChatGifAsset(item);
+        if (targetDraftKey !== worthItChatDraftKey()) return;
         if (!asset.blob.size || asset.blob.size > 20 * 1024 * 1024) {
             throw new Error("The selected animation must be a valid file of 20 MB or smaller.");
         }
@@ -3124,33 +3512,93 @@ async function selectWorthItChatGif(item) {
 }
 
 function openWorthItChatEmojiPicker() {
-    closeWorthItChatPickers();
-    const panel = $("worthItChatEmojiPicker");
-    if (!panel) return;
-    panel.hidden = false;
-    renderWorthItChatEmojiCategories();
-    renderWorthItChatEmojiGrid($("worthItChatEmojiSearch")?.value || "");
-    $("worthItChatEmojiSearch")?.focus();
+    showWorthItChatMediaTab("emoji", true);
 }
 
 function openWorthItChatGifPicker() {
-    closeWorthItChatPickers();
-    const panel = $("worthItChatGifPicker");
-    if (!panel) return;
-    panel.hidden = false;
-    worthItChatGifCategory = "all";
-    const search = $("worthItChatGifSearch");
-    if (search) search.value = "";
-    renderWorthItChatGifCategories();
-    loadWorthItChatGifResults("");
+    showWorthItChatMediaTab("gif", true);
+}
+
+function openWorthItChatStickerPicker() {
+    showWorthItChatMediaTab("sticker", true);
+}
+
+function animateWorthItChatActionTap(button) {
+    if (!button) return;
+    if (button._worthItChatTapTimer) window.clearTimeout(button._worthItChatTapTimer);
+    button.classList.remove("is-chat-action-tapped");
+    void button.offsetWidth;
+    button.classList.add("is-chat-action-tapped");
+    button._worthItChatTapTimer = window.setTimeout(() => {
+        button.classList.remove("is-chat-action-tapped");
+        button._worthItChatTapTimer = null;
+    }, 360);
+}
+
+function animateWorthItChatEmojiButton() {
+    const button = $("worthItChatEmojiAction");
+    if (!button) return;
+
+    if (button._worthItChatEmojiTimer) window.clearTimeout(button._worthItChatEmojiTimer);
+    button._worthItChatEmojiAnimationToken = (button._worthItChatEmojiAnimationToken || 0) + 1;
+    const token = button._worthItChatEmojiAnimationToken;
+    const frames = ["😎", "🤩", "🥳", "😄", "😀"];
+    let index = 0;
+
+    button.classList.remove("is-emoji-shuffling");
+    void button.offsetWidth;
+    button.classList.add("is-emoji-shuffling");
+
+    const showNextFrame = () => {
+        if (token !== button._worthItChatEmojiAnimationToken) return;
+        button.textContent = frames[index++];
+        if (index < frames.length) {
+            button._worthItChatEmojiTimer = window.setTimeout(showNextFrame, 105);
+        } else {
+            button._worthItChatEmojiTimer = window.setTimeout(() => {
+                if (token !== button._worthItChatEmojiAnimationToken) return;
+                button.textContent = "😀";
+                button.classList.remove("is-emoji-shuffling");
+                button._worthItChatEmojiTimer = null;
+            }, 140);
+        }
+    };
+    showNextFrame();
 }
 
 function setupChatUI() {
+    for (const id of ["worthItChatGifAction", "worthItChatStickerAction", "worthItChatEmojiAction", "worthItChatVoiceBtn"]) {
+        const button = $(id);
+        button?.addEventListener("click", () => animateWorthItChatActionTap(button));
+    }
+    $("worthItChatEmojiAction")?.addEventListener("mouseenter", animateWorthItChatEmojiButton);
+    $("worthItChatEmojiAction")?.addEventListener("focus", animateWorthItChatEmojiButton);
+    $("worthItChatEmojiAction")?.addEventListener("click", animateWorthItChatEmojiButton);
+
+    $("worthItChatMessages")?.addEventListener("scroll", updateWorthItChatTravelPresentButton, {passive:true});
+    $("worthItChatTravelPresentBtn")?.addEventListener("click", () => {
+        const messages = $("worthItChatMessages");
+        if (!messages) return;
+        const prefersReducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
+        messages.scrollTo({
+            top: messages.scrollHeight,
+            behavior: prefersReducedMotion ? "auto" : "smooth"
+        });
+        animateWorthItChatActionTap($("worthItChatTravelPresentBtn"));
+    });
+
+    window.visualViewport?.addEventListener("resize", updateWorthItChatVisualViewport);
+    window.visualViewport?.addEventListener("scroll", updateWorthItChatVisualViewport);
+    window.addEventListener("resize", updateWorthItChatVisualViewport);
+    $("worthItChatInput")?.addEventListener("focus", updateWorthItChatVisualViewport);
+    $("worthItChatInput")?.addEventListener("blur", updateWorthItChatVisualViewport);
     $("worthItChatInput")?.addEventListener("input", function () {
         updateCharacterCount();
         this.style.height = "auto";
         this.style.height = Math.min(this.scrollHeight, 140) + "px";
         renderWorthItChatComposerPreview();
+        updateWorthItChatComposerAction();
+        saveActiveWorthItChatDraft();
         handleWorthItChatTypingInput();
     });
     $("worthItChatInput")?.addEventListener("scroll", renderWorthItChatComposerPreview);
@@ -3163,6 +3611,7 @@ function setupChatUI() {
     $("worthItChatInput")?.addEventListener("keyup", renderWorthItChatComposerPreview);
     $("worthItChatInput")?.addEventListener("select", renderWorthItChatComposerPreview);
     renderWorthItChatComposerPreview();
+    updateWorthItChatComposerAction();
     $("worthItChatInput")?.addEventListener("keydown", function (event) {
         if (event.key === "Enter" && !event.shiftKey && !event.isComposing) {
             event.preventDefault(); sendWorthItChatMessage();
@@ -3171,16 +3620,18 @@ function setupChatUI() {
 
     $("worthItChatPlusBtn")?.addEventListener("click", event => {
         event.preventDefault();
-        openWorthItChatPlusMenu();
+        openWorthItChatFilePicker();
     });
-    $("worthItChatUploadAction")?.addEventListener("click", () => {
-        closeWorthItChatPickers();
-        $("worthItChatFileInput")?.click();
-    });
-    $("worthItChatEmojiAction")?.addEventListener("click", openWorthItChatEmojiPicker);
     $("worthItChatGifAction")?.addEventListener("click", openWorthItChatGifPicker);
-    $("worthItChatEmojiClose")?.addEventListener("click", closeWorthItChatPickers);
-    $("worthItChatGifClose")?.addEventListener("click", closeWorthItChatPickers);
+    $("worthItChatStickerAction")?.addEventListener("click", openWorthItChatStickerPicker);
+    $("worthItChatEmojiAction")?.addEventListener("click", openWorthItChatEmojiPicker);
+    $("worthItChatMediaClose")?.addEventListener("click", closeWorthItChatPickers);
+    document.querySelectorAll("[data-worth-it-chat-media-tab]").forEach(button => {
+        button.addEventListener("click", event => {
+            event.preventDefault();
+            showWorthItChatMediaTab(button.dataset.worthItChatMediaTab);
+        });
+    });
     $("worthItChatEmojiSearch")?.addEventListener("input", event => renderWorthItChatEmojiGrid(event.currentTarget.value));
     $("worthItChatGifSearchForm")?.addEventListener("submit", event => {
         event.preventDefault();
@@ -3189,21 +3640,20 @@ function setupChatUI() {
     $("worthItChatGifSearch")?.addEventListener("input", event => {
         loadWorthItChatGifResults(event.currentTarget.value);
     });
-    document.addEventListener("click", event => {
-        const dock = $("worthItChatPickerDock");
-        const emojiPicker = $("worthItChatEmojiPicker");
-        const gifPicker = $("worthItChatGifPicker");
-        const eventPath = typeof event.composedPath === "function" ? event.composedPath() : [];
-        const wasInside = node => Boolean(node && (node.contains(event.target) || eventPath.includes(node)));
-        if (!wasInside(dock) && !wasInside(emojiPicker) && !wasInside(gifPicker)) closeWorthItChatPickers();
-    });
     $("worthItChatFileInput")?.addEventListener("change", function () {
         const file = this.files?.[0];
         this.value = "";
+        const target = pendingFilePickerTarget;
+        pendingFilePickerTarget = null;
         if (!file) return;
+        if (!chatUser?.id || !target?.key || target.userId !== chatUser.id) {
+            setStatus("Your account changed while the file picker was open. Please choose the file again.", true);
+            return;
+        }
+        const targetIsActive = target.key === worthItChatDraftKey();
         const allowed = ["image/png", "image/jpeg", "image/webp", "image/gif", "video/mp4", "video/webm"];
         if (!allowed.includes(file.type)) {
-            setPendingMedia(null, "", "");
+            if (targetIsActive) setPendingMedia(null, "", "");
             setStatus("Choose a PNG, JPG, WEBP, GIF, MP4 or WebM file.", true);
             return;
         }
@@ -3212,12 +3662,20 @@ function setupChatUI() {
         const maxBytes = isGif ? 20 * 1024 * 1024 : isVideo ? 50 * 1024 * 1024 : 15 * 1024 * 1024;
         const maxLabel = isGif ? "20 MB" : isVideo ? "50 MB" : "15 MB";
         if (!file.size || file.size > maxBytes) {
-            setPendingMedia(null, "", "");
+            if (targetIsActive) setPendingMedia(null, "", "");
             setStatus("Choose a non-empty " + (isGif ? "GIF" : isVideo ? "video" : "image") + " that is " + maxLabel + " or smaller.", true);
             return;
         }
         const objectUrl = URL.createObjectURL(file);
-        setPendingMedia(file, objectUrl, isGif ? "gif" : isVideo ? "video" : "image");
+        const type = isGif ? "gif" : isVideo ? "video" : "image";
+        if (!targetIsActive) {
+            const previous = worthItChatDrafts.get(target.key) || { text: "", mediaFile: null, mediaUrl: "", mediaType: "", replyQuote: null };
+            if (previous.mediaUrl && previous.mediaUrl !== objectUrl) releaseWorthItChatDraftUrl(previous.mediaUrl, target.key);
+            worthItChatDrafts.set(target.key, { ...previous, mediaFile: file, mediaUrl: objectUrl, mediaType: type });
+            setStatus("The attachment was saved to the chat where you opened Upload. Return to that conversation to review and send it.", false);
+            return;
+        }
+        setPendingMedia(file, objectUrl, type);
         setStatus("", false);
     });
     $("worthItChatSidebarSearch")?.addEventListener("input", () => {
@@ -3234,9 +3692,11 @@ function setupChatUI() {
         search.dispatchEvent(new Event("input", {bubbles:true}));
         search.focus();
     });
-    $("worthItChatReplyCloseBtn")?.addEventListener("click", () => {
+    $("worthItChatReplyCloseBtn")?.addEventListener("click", event => {
+        event.preventDefault();
+        event.stopPropagation();
         clearWorthItChatReplyQuote();
-        $("worthItChatInput")?.focus({preventScroll:true});
+        // Removing a reply is not a request to open the on-screen keyboard.
     });
     $("worthItChatHeaderNotifications")?.addEventListener("click", event => {
         event.preventDefault();
@@ -3259,12 +3719,10 @@ function setupChatUI() {
     });
     document.addEventListener("keydown", function (event) {
         if (event.key === "Escape" && chatOpen) {
-            const emojiPicker = $("worthItChatEmojiPicker");
-            const gifPicker = $("worthItChatGifPicker");
-            const plusMenu = $("worthItChatPlusMenu");
-            if ((emojiPicker && !emojiPicker.hidden) || (gifPicker && !gifPicker.hidden) || (plusMenu && !plusMenu.hidden)) {
+            const mediaPicker = $("worthItChatMediaPicker");
+            if (mediaPicker && !mediaPicker.hidden) {
                 closeWorthItChatPickers();
-                $("worthItChatPlusBtn")?.focus();
+                $("worthItChatEmojiAction")?.focus();
                 return;
             }
             if ($("worthItChatGroupManageDialog") && !$("worthItChatGroupManageDialog").hidden) closeWorthItGroupManageDialog();
@@ -3278,7 +3736,10 @@ function setupChatUI() {
     updateChatHeaderNotificationButton();
     document.addEventListener("visibilitychange", () => {
         if (document.hidden) stopWorthItChatTyping();
+        else refreshWorthItChatOnForeground();
     });
+    window.addEventListener("focus", refreshWorthItChatOnForeground);
+    window.addEventListener("pageshow", refreshWorthItChatOnForeground);
 }
 window.getWorthItChatEnhancementContext = function () {
     const friendId = Number(activeConversationPerson?.worth_it_id);
@@ -3312,14 +3773,29 @@ window.worthItChatShowSearchResult = function (message) {
         window.setTimeout(() => row.classList.remove("is-search-highlight"), 1800);
     }, 30);
 };
-window.worthItChatAttachRecordedAudio = function (file) {
-    if (!file || !(file instanceof File) || !String(file.type || "").startsWith("audio/")) return;
-    if (activeConversationType === "direct" && !chatFriends.some(friend => String(friend.worth_it_id) === String(activeConversationPerson?.worth_it_id))) {
-        setStatus("Voice messages in private chat are available only between friends.", true);
+window.worthItChatAttachRecordedAudio = function (file, targetContext = null) {
+    if (!file || !(file instanceof File) || !String(file.type || "").startsWith("audio/") || !chatUser?.id) return;
+    const target = targetContext && typeof targetContext === "object"
+        ? targetContext
+        : { userId: chatUser.id, conversationId: activeConversationId || WORTH_IT_GLOBAL_CHAT_REALTIME_ID, conversationType: activeConversationType };
+    if (String(target.userId || "") !== String(chatUser.id)) return;
+    if (target.conversationType === "direct" && !target.isFriend) {
+        if (worthItChatDraftKey() === worthItChatDraftKey(target.userId, target.conversationType, target.conversationId)) {
+            setStatus("Voice messages in private chat are available only between friends.", true);
+        }
         return;
     }
-    setPendingMedia(file, URL.createObjectURL(file), "audio");
-    $("worthItChatSendBtn")?.focus({preventScroll:true});
+    const targetKey = worthItChatDraftKey(target.userId, target.conversationType, target.conversationId);
+    if (!targetKey) return;
+    const previewUrl = URL.createObjectURL(file);
+    if (targetKey === worthItChatDraftKey()) {
+        setPendingMedia(file, previewUrl, "audio");
+        return;
+    }
+    const previous = worthItChatDrafts.get(targetKey) || { text: "", mediaFile: null, mediaUrl: "", mediaType: "", replyQuote: null };
+    if (previous.mediaUrl && previous.mediaUrl !== previewUrl) releaseWorthItChatDraftUrl(previous.mediaUrl, targetKey);
+    worthItChatDrafts.set(targetKey, { ...previous, mediaFile: file, mediaUrl: previewUrl, mediaType: "audio" });
+    setStatus("Your voice message was saved to the conversation where you recorded it. Return to that chat to preview and send it.", false);
 };
 setupChatUI();
 window.addEventListener("worthitnotificationpreferenceschange", event => {

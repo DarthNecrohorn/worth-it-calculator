@@ -29,11 +29,23 @@ test("chat enhancement controls are present, accessible, and loaded separately",
         "worthItChatRemoteVideo", "worthItChatLocalVideo", "worthItChatRemoteAudio"
     ]) assert.match(html, new RegExp('id="' + id + '"'), "missing chat UI element " + id);
     assert.match(html, /chat-enhancements\.css\?v=worthit-chat-enhancements-20261029f/);
-    assert.match(html, /chat-enhancements\.js\?v=worthit-chat-enhancements-20261029e/);
+    assert.match(html, /chat-enhancements\.js\?v=worthit-chat-enhancements-20261029f/);
     assert.match(css, /WORTH IT Chat additions|Worth It Chat additions/);
     assert.match(css, /worth-it-chat-reply-preview/);
     assert.match(css, /worth-it-chat-call-overlay/);
     assert.match(css, /data:image\/svg\+xml/);
+});
+
+
+test("voice recording errors preserve the recording target before cleanup clears it", () => {
+    assert.match(client, /function isCurrentVoiceRecordingContext\(recordedFor\)/);
+    const errorHandler = client.match(/audioRecorder\.onerror = \(\) => \{([\s\S]*?)\n        \};/)?.[1] || "";
+    assert.match(errorHandler, /const failedFor = audioRecordingContext \? \{ \.\.\.audioRecordingContext \} : null/);
+    assert.ok(errorHandler.indexOf("const failedFor") < errorHandler.indexOf("stopVoiceRecordingResources()"));
+    assert.match(errorHandler, /isCurrentVoiceRecordingContext\(failedFor\)/);
+    const catchHandler = client.match(/\} catch \(error\) \{([\s\S]*?)\n    \}\n\}\nfunction stopVoiceRecording/)?.[1] || "";
+    assert.match(catchHandler, /const failedFor = audioRecordingContext \? \{ \.\.\.audioRecordingContext \} : null/);
+    assert.match(catchHandler, /isCurrentVoiceRecordingContext\(failedFor\)/);
 });
 
 test("voice recordings use a private audio bucket and short-lived authenticated URLs", () => {
@@ -87,7 +99,8 @@ test("mobile swipe opens a rich reply preview and the reply is stored with the o
     assert.match(client, /window\.worthItChatQuoteById/);
     assert.match(chat, /pendingReplyQuote = \{ author, text: compact\.slice\(0, 160\)/);
     assert.match(chat, /renderWorthItChatReplyPreview\(\)/);
-    assert.match(chat, /const replyPrefix = pendingReplyQuote \? "> "/);
+    assert.match(chat, /const replyPrefix = draftReplyQuote \? "> "/);
+    assert.match(chat, /p_conversation_id: sendConversationType === "global" \? null : sendConversationId/);
     assert.match(chat, /clearWorthItChatReplyQuote\(\)/);
     assert.match(chat, /worth-it-chat-message-reply-quote/);
     assert.match(chat, /audio\.addEventListener\("ended"/);
@@ -161,7 +174,8 @@ test("chat wallpaper uses a per-conversation grid and keeps the vector call/voic
     assert.match(client, /const CHAT_WALLPAPER_MOTIFS = \[/);
     assert.match(client, /function makeConversationWallpaper\(contextValue, theme\)/);
     assert.match(client, /function applyChatWallpaper\(contextValue\)/);
-    assert.match(client, /const row = Math\.floor\(i \/ 6\), col = i % 6/);
+    assert.match(client, /const row = Math\.floor\(i \/ 8\), col = i % 8/);
+    assert.match(client, /for \(let i = 0; i < 64; i\+\+\)/);
     assert.match(client, /CHAT_WALLPAPER_LIGHT_PALETTE/);
     assert.match(client, /wallpaperSeed\(type \+ ":" \+ String\(contextValue\.conversationId/);
     assert.match(client, /wallpaperThemeObserver\.observe/);
@@ -180,9 +194,10 @@ test("chat doodles stay separated, adapt to both themes and retain visible icon 
     assert.match(client, /const CHAT_WALLPAPER_MOTIFS = \[/);
     assert.match(client, /const CHAT_WALLPAPER_DARK_PALETTE =/);
     assert.match(client, /const CHAT_WALLPAPER_LIGHT_PALETTE =/);
-    assert.match(client, /const angle = Math\.round\(\(random\(\) \* 4 - 2\) \* 10\) \/ 10/);
-    assert.match(client, /const x = col \* 140 \+ Math\.round\(random\(\) \* 6 - 3\)/);
-    assert.match(client, /const y = row \* 140 \+ Math\.round\(random\(\) \* 6 - 3\)/);
+    assert.match(client, /const angle = Math\.round\(\(random\(\) \* 34 - 17\) \* 10\) \/ 10/);
+    assert.match(client, /scale\(\.62\)/);
+    assert.match(client, /const x = col \* 105 \+ Math\.round\(random\(\) \* 4 - 2\)/);
+    assert.match(client, /const y = row \* 105 \+ Math\.round\(random\(\) \* 4 - 2\)/);
     assert.match(css, /var\(--worthit-chat-wallpaper-image,none\)!important/);
     assert.match(css, /html\[data-theme="light"\] \.worth-it-chat-messages/);
     assert.match(css, /background-size:auto,840px 840px!important/);
