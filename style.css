@@ -23371,7 +23371,10 @@ html[data-theme="light"] .worth-it-signout-confirm-no {
     border-radius:999px;
     background:rgba(15,23,42,.48);
     color:var(--text);
-    font:700 12px/1.2 inherit;
+    font-family:inherit;
+    font-size:12px;
+    font-weight:700;
+    line-height:1.2;
     cursor:pointer;
     transition:background .18s ease,border-color .18s ease,transform .18s ease;
 }
