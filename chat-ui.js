@@ -1238,6 +1238,7 @@ function renderWorthItChatReplyPreview() {
 function clearWorthItChatReplyQuote() {
     pendingReplyQuote = null;
     renderWorthItChatReplyPreview();
+    updateWorthItChatComposerAction();
     saveActiveWorthItChatDraft();
 }
 function quoteWorthItChatMessage(message) {
@@ -1252,6 +1253,7 @@ function quoteWorthItChatMessage(message) {
     const compact = raw.replace(/\s+/g, " ").trim();
     pendingReplyQuote = { author, text: compact.slice(0, 160) + (compact.length > 160 ? "…" : "") };
     renderWorthItChatReplyPreview();
+    updateWorthItChatComposerAction();
     saveActiveWorthItChatDraft();
     input.focus({preventScroll:true});
     setStatus("Replying to " + author + ". Write your reply below.", false);
@@ -2269,6 +2271,17 @@ function releaseWorthItChatDraftUrl(url, exceptKey = "") {
         try { URL.revokeObjectURL(url); } catch (_) {}
     }
 }
+function updateWorthItChatComposerAction() {
+    const input = $("worthItChatInput");
+    const sendButton = $("worthItChatSendBtn");
+    const voiceButton = $("worthItChatVoiceBtn");
+    if (!input || !sendButton || !voiceButton) return;
+    // Keep Send available for text, attachments and reply quotes; otherwise the
+    // voice-recording control occupies the final action slot.
+    const showSend = Boolean(String(input.value || "").trim() || pendingMediaFile || pendingReplyQuote);
+    sendButton.hidden = !showSend;
+    voiceButton.hidden = showSend;
+}
 function saveActiveWorthItChatDraft() {
     const key = worthItChatDraftKey();
     if (!key || !chatUser) return;
@@ -2326,6 +2339,7 @@ function clearWorthItChatDrafts() {
     renderWorthItChatReplyPreview();
     updateCharacterCount();
     renderWorthItChatComposerPreview();
+    updateWorthItChatComposerAction();
 }
 function setPendingMedia(file, url, type) {
     const nextUrl = url || "";
@@ -2337,6 +2351,7 @@ function setPendingMedia(file, url, type) {
     pendingMediaUrl = nextUrl;
     pendingMediaType = type || "";
     pendingMediaObjectUrl = nextUrl.startsWith("blob:") ? nextUrl : "";
+    updateWorthItChatComposerAction();
     const host = $("worthItChatAttachmentPreview");
     if (!host) { saveActiveWorthItChatDraft(); return; }
     host.replaceChildren();
@@ -2498,6 +2513,7 @@ async function sendWorthItChatMessage() {
     } finally {
         chatSending = false;
         if (button) { button.disabled = false; button.innerHTML = 'Send <span>➤</span>'; }
+        updateWorthItChatComposerAction();
     }
 }
 window.sendWorthItChatMessage = sendWorthItChatMessage;
@@ -3327,6 +3343,7 @@ function setupChatUI() {
         this.style.height = "auto";
         this.style.height = Math.min(this.scrollHeight, 140) + "px";
         renderWorthItChatComposerPreview();
+        updateWorthItChatComposerAction();
         saveActiveWorthItChatDraft();
         handleWorthItChatTypingInput();
     });
@@ -3340,6 +3357,7 @@ function setupChatUI() {
     $("worthItChatInput")?.addEventListener("keyup", renderWorthItChatComposerPreview);
     $("worthItChatInput")?.addEventListener("select", renderWorthItChatComposerPreview);
     renderWorthItChatComposerPreview();
+    updateWorthItChatComposerAction();
     $("worthItChatInput")?.addEventListener("keydown", function (event) {
         if (event.key === "Enter" && !event.shiftKey && !event.isComposing) {
             event.preventDefault(); sendWorthItChatMessage();
