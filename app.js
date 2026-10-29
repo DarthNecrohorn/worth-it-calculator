@@ -589,6 +589,10 @@ function updateWorthItEmailVerificationGate(user) {
                 body: "{}"
             });
             const result = await response.json().catch(() => ({}));
+            const serverDeadline = Date.parse(result.next_allowed_at || "");
+            if (Number.isFinite(serverDeadline) && serverDeadline > Date.now()) {
+                saveWorthItEmailResendDeadline(user, serverDeadline);
+            }
             if (response.status === 429 || result.code === "EMAIL_RESEND_RATE_LIMITED") {
                 const retryMs = Math.max(60000, Number(result.retry_after_seconds || 86400) * 1000);
                 saveWorthItEmailResendDeadline(user, Date.parse(result.next_allowed_at) || Date.now() + retryMs);
