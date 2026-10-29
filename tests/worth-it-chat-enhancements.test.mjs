@@ -28,8 +28,8 @@ test("chat enhancement controls are present, accessible, and loaded separately",
         "worthItChatCallSpeakerBtn", "worthItChatCallCameraBtn",
         "worthItChatRemoteVideo", "worthItChatLocalVideo", "worthItChatRemoteAudio"
     ]) assert.match(html, new RegExp('id="' + id + '"'), "missing chat UI element " + id);
-    assert.match(html, /chat-enhancements\.css\?v=worthit-chat-enhancements-20261029g/);
-    assert.match(html, /chat-enhancements\.js\?v=worthit-chat-enhancements-20261029h/);
+    assert.match(html, /chat-enhancements\.css\?v=worthit-chat-enhancements-20261029h/);
+    assert.match(html, /chat-enhancements\.js\?v=worthit-chat-enhancements-20261029i/);
     assert.match(css, /WORTH IT Chat additions|Worth It Chat additions/);
     assert.match(css, /worth-it-chat-reply-preview/);
     assert.match(css, /worth-it-chat-call-overlay/);
@@ -175,10 +175,11 @@ test("chat wallpaper uses a per-conversation grid and keeps the vector call/voic
     assert.match(client, /function makeConversationWallpaper\(contextValue, theme\)/);
     assert.match(client, /function applyChatWallpaper\(contextValue\)/);
     assert.match(client, /const columns = 10, rows = 15, cellSize = 84/);
+    assert.match(client, /width="840" height="1260" viewBox="0 0 840 1260"/);
     assert.match(client, /for \(let i = 0; i < columns \* rows; i\+\+\)/);
     assert.match(client, /CHAT_WALLPAPER_ALL_MOTIFS = CHAT_WALLPAPER_MOTIFS\.concat\(CHAT_WALLPAPER_EXTRA_MOTIFS\)/);
     assert.match(client, /const CHAT_WALLPAPER_GEOMETRIES = \[/);
-    assert.match(client, /const geometryOffsets = \[\[0, -39\]/);
+    assert.match(client, /const geometryOffsets = \[\[0, -32\]/);
     assert.match(client, /CHAT_WALLPAPER_LIGHT_PALETTE/);
     assert.match(client, /wallpaperSeed\(type \+ ":" \+ String\(contextValue\.conversationId/);
     assert.match(client, /wallpaperThemeObserver\.observe/);
