@@ -79,7 +79,7 @@ function makeConversationWallpaper(contextValue, theme) {
     const geometryOpacity = theme === "light" ? ".26" : ".24";
     const cells = [];
     const motifGrid = [];
-    const columns = 10, rows = 10, cellSize = 92;
+    const columns = 10, rows = 15, cellSize = 92;
 
     // One hundred compact cells make the wallpaper noticeably denser. Motifs
     // are chosen independently, while adjacent and diagonal neighbours are
@@ -125,7 +125,7 @@ function makeConversationWallpaper(contextValue, theme) {
             );
         }
     }
-    return '<svg xmlns="http://www.w3.org/2000/svg" width="920" height="920" viewBox="0 0 920 920" fill="none" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">' + cells.join("") + '</svg>';
+    return '<svg xmlns="http://www.w3.org/2000/svg" width="920" height="1380" viewBox="0 0 920 1380" fill="none" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">' + cells.join("") + '</svg>';
 }
 function applyChatWallpaper(contextValue) {
     const surface = $("worthItChatMessages");
