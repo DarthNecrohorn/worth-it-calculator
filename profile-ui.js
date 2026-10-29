@@ -159,7 +159,12 @@ async function getOwnProfileRow(user,force){
  currentOwnProfileRequest={userId:user.id,promise};
  try{return await promise;}finally{if(currentOwnProfileRequest?.promise===promise)currentOwnProfileRequest=null;}
 }
-async function getCurrentUser(){const sb=client();if(!sb?.auth)return null;const r=await sb.auth.getUser();if(r.error)throw r.error;currentUser=r.data?.user||null;return currentUser;}
+function getVerifiedWorthItProfileUser(user){
+ if(!user)return null;
+ if(typeof window.isWorthItEmailVerified==="function"&&!window.isWorthItEmailVerified(user))return null;
+ return user;
+}
+async function getCurrentUser(){const sb=client();if(!sb?.auth)return null;const r=await sb.auth.getUser();if(r.error)throw r.error;currentUser=getVerifiedWorthItProfileUser(r.data?.user||null);return currentUser;}
 function setPanelLoading(){["accountPanelFriends","accountPanelFollowers","accountPanelFollowing"].forEach(id=>setText(id,"…"));}
 function setPanelUnavailable(){["accountPanelFriends","accountPanelFollowers","accountPanelFollowing"].forEach(id=>setText(id,"—"));}
 async function refreshAccountPanelCounts(force){
@@ -1114,7 +1119,7 @@ window.copyWorthItProfileLink=async function(){
 window.addEventListener("worthitnotificationpreferenceschange",()=>{if(currentUser?.id)refreshWorthItNotifications(false);});
 window.addEventListener("resize",syncProfileBannerBackdropPosition,{passive:true});
 if(client()?.auth){client().auth.onAuthStateChange((_event,session)=>{
- const nextUser=session?.user||null,previousUserId=currentUser?.id||"",nextUserId=nextUser?.id||"",profileToRefresh=currentDisplayedProfileId,connectionsPage=$("worthItProfileConnectionsPage"),connectionTab=document.querySelector("[data-connection-tab].active")?.getAttribute("data-connection-tab");
+ const nextUser=getVerifiedWorthItProfileUser(session?.user||null),previousUserId=currentUser?.id||"",nextUserId=nextUser?.id||"",profileToRefresh=currentDisplayedProfileId,connectionsPage=$("worthItProfileConnectionsPage"),connectionTab=document.querySelector("[data-connection-tab].active")?.getAttribute("data-connection-tab");
  currentUser=nextUser;currentOwnProfile=null;currentOwnProfileRequest=null;
  if(nextUser&&(previousUserId!==nextUserId||_event==="SIGNED_IN")){presenceLastHeartbeatAt=0;touchWorthItPresence(true);}else if(!nextUser)presenceLastHeartbeatAt=0;
  setWorthItNotificationAuthState(nextUser);
@@ -1126,7 +1131,7 @@ if(client()?.auth){client().auth.onAuthStateChange((_event,session)=>{
   if(profileToRefresh)setTimeout(()=>{if(currentDisplayedProfileId===profileToRefresh){if(connectionsPage&&!connectionsPage.hidden&&["friends","followers","following"].includes(connectionTab))window.openWorthItProfileConnections(profileToRefresh,connectionTab);else window.openWorthItProfile(profileToRefresh);}},0);
  }
  if(!currentUser)setPanelUnavailable();
-});client().auth.getSession().then(({data})=>{currentUser=data?.session?.user||null;if(currentUser){refreshAccountPanelCounts(false);setWorthItNotificationAuthState(currentUser);refreshWorthItNotifications(false);presenceLastHeartbeatAt=0;touchWorthItPresence(true);}else setWorthItNotificationAuthState(null);}).catch(()=>{});}
+});client().auth.getSession().then(({data})=>{currentUser=getVerifiedWorthItProfileUser(data?.session?.user||null);if(currentUser){refreshAccountPanelCounts(false);setWorthItNotificationAuthState(currentUser);refreshWorthItNotifications(false);presenceLastHeartbeatAt=0;touchWorthItPresence(true);}else setWorthItNotificationAuthState(null);}).catch(()=>{});}
 if($("worthItProfileAvatarInput"))$("worthItProfileAvatarInput").addEventListener("change",event=>handleAssetInputChange(event,"avatar"));
 if($("worthItProfileBannerInput"))$("worthItProfileBannerInput").addEventListener("change",event=>handleAssetInputChange(event,"banner"));
 })();
