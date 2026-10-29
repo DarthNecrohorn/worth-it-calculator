@@ -114,15 +114,21 @@ test("received message bubbles hug short text and wrap long text within the chat
 });
 
 
-test("message profile links are limited to the display name, and timestamps are larger", () => {
-    const start = chat.indexOf("function createWorthItChatMessageRow(message)");
-    const end = chat.indexOf("\nfunction updateWorthItChatTravelPresentButton()", start);
-    const render = chat.slice(start, end);
-    assert.ok(render.includes("row.appendChild(makeAvatar(message));"));
-    assert.ok(!render.includes('makeChatProfileLink(message, "worth-it-chat-message-avatar-link"'));
+test("message profile links target the avatar and display name while timestamps stay readable", () => {
+    const avatarStart = chat.indexOf("function makeWorthItChatMessageAvatar(message)");
+    const rowStart = chat.indexOf("function createWorthItChatMessageRow(message)");
+    const avatarHelper = chat.slice(avatarStart, rowStart);
+    const render = chat.slice(rowStart, chat.indexOf("\nfunction updateWorthItChatTravelPresentButton()", rowStart));
+    assert.ok(avatarHelper.includes('makeChatProfileLink('));
+    assert.ok(avatarHelper.includes('"worth-it-chat-message-avatar-link"'));
+    assert.ok(avatarHelper.includes("indicator.remove()"));
+    assert.ok(avatarHelper.includes("wrapper.appendChild(profileLink)"));
+    assert.ok(avatarHelper.includes("if (indicator) wrapper.appendChild(indicator)"));
+    assert.ok(render.includes("row.appendChild(makeWorthItChatMessageAvatar(message));"));
     assert.ok(render.includes('makeChatProfileLink(message, "worth-it-chat-message-name"'));
     assert.ok(polish.includes("width: fit-content !important;"));
     assert.ok(polish.includes("align-self: flex-start !important;"));
+    assert.ok(polish.includes("padding: 0 !important;"));
     assert.ok(polish.includes("font-size: 11px !important;"));
     assert.ok(polish.includes("color: #475569 !important;"));
 });
@@ -193,11 +199,11 @@ test("private and group deep links do not render Global Chat while auth is resol
 
 test("the broken audioOnly reference is removed and asset caches point to the new builds", () => {
     assert.doesNotMatch(calls, /audioOnly/);
-    assert.match(html, /chat-ui\.js\?v=worthit-original-animation-library-200-20261029a/);
+    assert.match(html, /chat-ui\.js\?v=chat-message-profile-hit-targets-20261029a/);
     assert.match(html, /chat-enhancements\.js\?v=chat-media-lightbox-wallpaper-20261029a/);
     assert.match(html, /chat-enhancements\.css\?v=chat-small-doodles-20261029a/);
     assert.match(enhancementCss, /background-repeat:no-repeat,repeat-y!important/);
-    assert.match(html, /chat-ux-polish\.css\?v=chat-ux-polish-20261029k/);
+    assert.match(html, /chat-ux-polish\.css\?v=chat-message-profile-hit-targets-20261029a/);
     assert.match(html, /ai-ui\.js\?v=worthit-ai-overlay-20261029b/);
     assert.match(polish, /#aiChatOverlay \.ai-chat-close\s*\{\s*transform: translateY\(2px\)/);
     assert.match(polish, /#aiChatNavBtn\.ai-chat-nav-btn\s*\{[\s\S]*?width: 42px/);

@@ -494,3 +494,132 @@ html[data-theme="light"] .worth-it-chat-message-time {
     display: inline-block !important;
     line-height: 1 !important;
 }
+
+
+/* Profile hit targets and typography for avatars/names inside chat messages only. */
+.worth-it-chat-message .worth-it-chat-message-avatar-wrap {
+    position: relative !important;
+    display: block !important;
+    flex: 0 0 40px !important;
+    width: 40px !important;
+    height: 40px !important;
+    min-width: 40px !important;
+    min-height: 40px !important;
+    align-self: flex-end !important;
+    overflow: visible !important;
+    border-radius: 12px !important;
+    line-height: 0 !important;
+}
+.worth-it-chat-message .worth-it-chat-message-avatar-link {
+    display: block !important;
+    position: relative !important;
+    width: 100% !important;
+    height: 100% !important;
+    min-width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: 0 !important;
+    border-radius: inherit !important;
+    box-sizing: border-box !important;
+    line-height: 0 !important;
+    text-decoration: none !important;
+    cursor: pointer !important;
+}
+.worth-it-chat-message .worth-it-chat-message-avatar-link:not(a) {
+    cursor: default !important;
+}
+.worth-it-chat-message .worth-it-chat-message-avatar-link .worth-it-chat-person-avatar {
+    display: grid !important;
+    place-items: center !important;
+    width: 100% !important;
+    height: 100% !important;
+    min-width: 100% !important;
+    max-width: 100% !important;
+    min-height: 100% !important;
+    max-height: 100% !important;
+    margin: 0 !important;
+    border-radius: inherit !important;
+    box-sizing: border-box !important;
+    font-size: 12px !important;
+    line-height: 1 !important;
+}
+.worth-it-chat-message .worth-it-chat-message-avatar-link .worth-it-chat-person-avatar > img {
+    display: block !important;
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: cover !important;
+    border-radius: inherit !important;
+}
+.worth-it-chat-message .worth-it-chat-message-avatar-wrap > .worth-it-presence-indicator {
+    width: 17px !important;
+    height: 17px !important;
+    right: -4px !important;
+    bottom: -4px !important;
+    border-width: 3px !important;
+    z-index: 7 !important;
+}
+.worth-it-chat-message-name {
+    display: inline-block !important;
+    align-self: flex-start !important;
+    width: fit-content !important;
+    max-width: 100% !important;
+    flex: 0 0 auto !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    font-size: 13px !important;
+    font-weight: 750 !important;
+    line-height: 1.35 !important;
+    overflow-wrap: anywhere !important;
+    white-space: normal !important;
+}
+.worth-it-chat-message.is-mine .worth-it-chat-message-name {
+    align-self: flex-end !important;
+}
+.worth-it-chat-message .worth-it-chat-message-name:focus-visible {
+    outline: 2px solid #818cf8 !important;
+    outline-offset: 3px !important;
+    border-radius: 3px !important;
+}
+@media (max-width: 760px) {
+    .worth-it-chat-message .worth-it-chat-message-avatar-wrap {
+        flex-basis: 34px !important;
+        width: 34px !important;
+        height: 34px !important;
+        min-width: 34px !important;
+        min-height: 34px !important;
+        border-radius: 11px !important;
+    }
+    /* Override the legacy mobile rule that hid message avatars. */
+    .worth-it-chat-message .worth-it-chat-message-avatar-link .worth-it-chat-person-avatar {
+        display: grid !important;
+        font-size: 11px !important;
+    }
+    .worth-it-chat-message .worth-it-chat-message-avatar-wrap > .worth-it-presence-indicator {
+        width: 16px !important;
+        height: 16px !important;
+        right: -4px !important;
+        bottom: -4px !important;
+        border-width: 3px !important;
+    }
+    .worth-it-chat-message .worth-it-chat-message-name {
+        font-size: 12px !important;
+        line-height: 1.35 !important;
+    }
+    .worth-it-chat-message {
+        gap: 8px !important;
+    }
+}
+@media (max-width: 380px) {
+    .worth-it-chat-message .worth-it-chat-message-avatar-wrap {
+        flex-basis: 31px !important;
+        width: 31px !important;
+        height: 31px !important;
+        min-width: 31px !important;
+        min-height: 31px !important;
+        border-radius: 10px !important;
+    }
+    .worth-it-chat-message .worth-it-chat-message-name {
+        font-size: 11.5px !important;
+    }
+}

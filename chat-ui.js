@@ -1633,6 +1633,27 @@ function createWorthItChatMessageActions(message, mine) {
     return toolbar;
 }
 
+function makeWorthItChatMessageAvatar(message) {
+    const avatar = makeAvatar(message);
+    const indicator = avatar.querySelector(":scope > .worth-it-presence-indicator");
+    if (indicator) {
+        // Keep the status button as a sibling of the profile link: the two
+        // controls must have independent click and keyboard targets.
+        indicator.remove();
+        avatar.classList.remove("worth-it-presence-host");
+    }
+    const wrapper = document.createElement("span");
+    wrapper.className = "worth-it-chat-message-avatar-wrap worth-it-presence-host";
+    const profileLink = makeChatProfileLink(
+        message,
+        "worth-it-chat-message-avatar-link",
+        avatar
+    );
+    wrapper.appendChild(profileLink);
+    if (indicator) wrapper.appendChild(indicator);
+    return wrapper;
+}
+
 function createWorthItChatMessageRow(message) {
     const mine = message.sender_user_id === chatUser.id;
     const signature = chatMessageRenderSignature(message);
@@ -1640,7 +1661,7 @@ function createWorthItChatMessageRow(message) {
     row.className = "worth-it-chat-message" + (mine ? " is-mine" : "");
     row.dataset.messageId = String(message.id ?? "");
     row.dataset.worthItMessageSignature = signature;
-    row.appendChild(makeAvatar(message));
+    row.appendChild(makeWorthItChatMessageAvatar(message));
     const stack = document.createElement("div");
     stack.className = "worth-it-chat-message-stack";
     const name = makeChatProfileLink(message, "worth-it-chat-message-name", message.display_name || message.username || "Worth It member");
