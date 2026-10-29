@@ -64,7 +64,7 @@ html[data-theme="light"].worth-it-initial-paint::before {
 
 <link rel="stylesheet" href="style.css?v=worthit-home-ai-mobile-20261029a">
 <link rel="stylesheet" href="chat-enhancements.css?v=worthit-chat-enhancements-20261029f">
-<link rel="stylesheet" href="chat-ux-polish.css?v=chat-ux-polish-20261029e">
+<link rel="stylesheet" href="chat-ux-polish.css?v=chat-ux-polish-20261029f">
 <link rel="stylesheet" href="chat-actions.css?v=chat-message-actions-20261028c">
 <link rel="stylesheet" href="chat-delete-confirm.css?v=chat-delete-confirm-20261028b">
 <link rel="stylesheet" href="chat-realtime.css?v=chat-realtime-typing-20261028b">
@@ -306,11 +306,12 @@ html[data-theme="light"].worth-it-initial-paint::before {
                                 <input type="file" id="worthItChatFileInput" accept="image/png,image/jpeg,image/webp,image/gif,video/mp4,video/webm" hidden>
                             </div>
                             <div class="worth-it-chat-input-preview-wrap"><div id="worthItChatInputPreview" class="worth-it-chat-input-preview is-empty" aria-hidden="true">Write a message…</div><textarea id="worthItChatInput" maxlength="500" rows="1" placeholder="Write a message…" aria-label="Chat message" spellcheck="true"></textarea></div>
-                            <button type="button" class="worth-it-chat-send-btn" id="worthItChatSendBtn" onclick="sendWorthItChatMessage()" aria-label="Send message" title="Send message">Send <span>➤</span></button>
+                            
                             <button type="button" class="worth-it-chat-media-trigger" id="worthItChatGifAction" data-worth-it-chat-open-media="gif" aria-label="GIFs" title="GIFs" aria-controls="worthItChatMediaPicker" aria-expanded="false">GIF</button>
                             <button type="button" class="worth-it-chat-media-trigger worth-it-chat-sticker-trigger" id="worthItChatStickerAction" data-worth-it-chat-open-media="sticker" aria-label="Stickers" title="Stickers" aria-controls="worthItChatMediaPicker" aria-expanded="false"><svg class="worth-it-chat-media-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M5 3.75h14A1.25 1.25 0 0 1 20.25 5v14A1.25 1.25 0 0 1 19 20.25H5A1.25 1.25 0 0 1 3.75 19V5A1.25 1.25 0 0 1 5 3.75Z"/><path d="M13 20v-5a2 2 0 0 1 2-2h5"/></svg></button>
                             <button type="button" class="worth-it-chat-media-trigger worth-it-chat-emoji-trigger" id="worthItChatEmojiAction" data-worth-it-chat-open-media="emoji" aria-label="Emoji" title="Emoji" aria-controls="worthItChatMediaPicker" aria-expanded="false">😀</button>
                             <button type="button" class="worth-it-chat-voice-btn" id="worthItChatVoiceBtn" title="Record a voice message" aria-label="Record a voice message" aria-pressed="false"><svg class="worth-it-chat-voice-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="9" y="2.5" width="6" height="12" rx="3"/><path d="M5.5 10.5v1.5a6.5 6.5 0 0 0 13 0v-1.5M12 18.5V22M8.5 22h7"/></svg></button>
+                            <button type="button" class="worth-it-chat-send-btn" id="worthItChatSendBtn" onclick="sendWorthItChatMessage()" aria-label="Send message" title="Send message" hidden>Send <span>➤</span></button>
                             <section class="worth-it-chat-picker-panel worth-it-chat-media-picker" id="worthItChatMediaPicker" role="dialog" aria-label="GIFs, stickers and emoji" hidden>
                                 <div class="worth-it-chat-picker-header">
                                     <div><strong>GIFs, stickers and emoji</strong><span>Choose something to add to your message.</span></div>
@@ -5191,7 +5192,7 @@ if($("carResults")){
 
 </script>
 <script src="/profile-ui.js?v=presence-tooltip-scale-20261019a"></script>
-<script src="/chat-ui.js?v=worthit-gif-plants-20261029c"></script>
+<script src="/chat-ui.js?v=worthit-chat-composer-swap-20261029a"></script>
 <script src="/user-search.js?v=worthitusersearch20261014a"></script>
 <script src="/guest-mode.js?v=chat-route-preserve-20261028a"></script>
 <script src="/routing.js?v=profile-navigation-hardening-20261028b"></script>
