@@ -81,6 +81,9 @@ export async function onRequest(context) {
     let user;
     try { user = await verifyUser(config, token); } catch (_) { return json({error:"Could not verify your session. Please try again."}, 502, origin); }
     if (!user) return json({error:"Your session has expired. Sign in again."}, 401, origin);
+    if (!(user.email_confirmed_at || user.confirmed_at)) {
+        return json({error:"Please confirm your email before uploading chat media.",code:"EMAIL_NOT_CONFIRMED"}, 403, origin);
+    }
     let form;
     try { form = await request.formData(); } catch (_) { return json({error:"Choose a valid image, GIF or video file."}, 400, origin); }
     const file = form.get("file");
