@@ -147,9 +147,9 @@ test("chat wallpaper uses one spaced illustration tile and call/voice controls u
     assert.match(css, /background-size:auto,1040px 936px/);
     assert.match(css, /background-size:auto,720px 648px/);
     assert.match(css, /background-repeat:no-repeat,repeat/);
-    assert.match(html, /id="worthItChatAudioCallBtn"[^>]*<svg class="worth-it-chat-header-icon"/);
-    assert.match(html, /id="worthItChatVideoCallBtn"[^>]*<svg class="worth-it-chat-header-icon"/);
-    assert.match(html, /id="worthItChatVoiceBtn"[^>]*<svg class="worth-it-chat-voice-icon"/);
+    assert.match(html, /id="worthItChatAudioCallBtn"[^>]*><svg class="worth-it-chat-header-icon"/);
+    assert.match(html, /id="worthItChatVideoCallBtn"[^>]*><svg class="worth-it-chat-header-icon"/);
+    assert.match(html, /id="worthItChatVoiceBtn"[^>]*><svg class="worth-it-chat-voice-icon"/);
     assert.match(client, /button\.setAttribute\("aria-pressed", String\(recording\)\)/);
     assert.doesNotMatch(client, /button\.textContent = recording \? "■" : "🎙"/);
 });
