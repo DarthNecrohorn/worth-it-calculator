@@ -114,6 +114,56 @@ test("each curated original animation has a valid GIF signature and stays within
 });
 
 
+test("the first twelve original GIFs remain byte-for-byte unchanged", () => {
+    const starter = [
+        ["laughing-smile", "6dd33d5710dd01a135f71ac3843ac41f62ebe1fbbf0357c875944b20624c810f"],
+        ["party-confetti", "e127e08723b30fa71f05873fa7266291043583aaf80e158c3af7783d2d0e1185"],
+        ["rocket-launch", "4b98679b9a95ef087d687dc4fad03fb191350a3a7197f4fbea47aaad94315030"],
+        ["happy-dance", "176658fa604525939ba2957c8a5c7cf99b9b1603c326b75a67e5e2fa32c3cc50"],
+        ["thinking-face", "5635d73aad3def4fc5215e2516afa5e0d15cf01c6cf73dc29b3ed06e3fb26dc7"],
+        ["thumbs-up", "10690b638fac4678ca3ba3828e8b5471656b98778984861f85050e4c3f8cccbf"],
+        ["wow-burst", "268b2c20481364f6300c65ed8423e492b2cba46527b017a92921b740105460d6"],
+        ["sleepy-cloud", "98e10adf95f9d9a45b45a3738045fd1ceb6411c8cc82cbab93b49584bd492de5"],
+        ["rainbow-wave", "6252b3edd6b03c417043c64d138f891aed04904f75ec7bc8001ad59216cda759"],
+        ["fireworks-show", "ad73cc96fbaf2ec82d615fa302fe11c9b3d1ac52761e9e10c42999c0a3f6d4a7"],
+        ["coffee-break", "5e90816c01ed84f67e190b5696eaf283ec99ea3b3ada44f61c64f9be6cf61feb"],
+        ["celebration-stars", "c8c8ec5d5f724cd5075b5300b03f9ef6f2e4898a8df0fcadfaf0ee93054d3506"]
+    ];
+    const firstTwelve = originalGifAssets.filter(asset => asset.type === "gif").slice(0, 12);
+    assert.equal(firstTwelve.length, starter.length);
+    for (let i = 0; i < starter.length; i++) {
+        assert.equal(firstTwelve[i].id, starter[i][0]);
+        const asset = firstTwelve[i];
+        assert.equal(createHash("sha256")
+            .update(library.subarray(asset.offset, asset.offset + asset.length)).digest("hex"),
+            starter[i][1], asset.id + " must retain its original bytes");
+    }
+});
+
+test("the 88 redesigned GIFs share the original full-scene gradient style and remain distinct", () => {
+    const gifs = originalGifAssets.filter(asset => asset.type === "gif");
+    const redesigned = gifs.slice(12);
+    assert.equal(redesigned.length, 88, "only the additional 88 GIFs should use the refreshed style");
+    for (const asset of redesigned) {
+        const bytes = library.subarray(asset.offset, asset.offset + asset.length);
+        assert.equal(bytes.subarray(0, 6).toString("ascii"), "GIF89a", asset.id + " should be an animated GIF89a");
+        assert.ok(bytes[10] & 0x80, asset.id + " should carry its own full-scene colour palette");
+        const paletteStart = 13;
+        const topLeft = bytes.subarray(paletteStart, paletteStart + 3);
+        const gradientEnd = bytes.subarray(paletteStart + 47 * 3, paletteStart + 48 * 3);
+        assert.ok(topLeft[0] < 90 && topLeft[1] < 100 && topLeft[2] < 170,
+            asset.id + " should start with a dark blue/purple scene background");
+        assert.ok(Math.max(
+            Math.abs(gradientEnd[0] - topLeft[0]),
+            Math.abs(gradientEnd[1] - topLeft[1]),
+            Math.abs(gradientEnd[2] - topLeft[2])
+        ) > 20, asset.id + " should have a visible gradient rather than a transparent flat icon");
+        assert.ok(bytes[803] !== undefined && (bytes[803] & 1) === 0,
+            asset.id + " should use an opaque scene background rather than transparent sticker mode");
+        assert.ok(countGifFrames(bytes) >= 5, asset.id + " should retain a multi-frame animation");
+    }
+});
+
 test("the original Worth It catalogue has unique IDs, titles and exact animation payloads", () => {
     const idKeys = originalGifAssets.map(asset => asset.id.toLowerCase());
     const titleKeys = originalGifAssets.map(asset => asset.title.trim().toLowerCase());
