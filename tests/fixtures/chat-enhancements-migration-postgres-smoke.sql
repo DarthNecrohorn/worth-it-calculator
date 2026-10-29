@@ -5,6 +5,7 @@ declare
   result jsonb;
   call_id uuid;
   constraint_definition text;
+  search_result jsonb;
 begin
   select * into bucket from storage.buckets where id='worth-it-chat-audio';
   if not found or bucket.public is distinct from false or bucket.file_size_limit <> 10485760 then
@@ -70,7 +71,23 @@ begin
     ('00000000-0000-4000-8000-000000000101','00000000-0000-4000-8000-000000000012')
     on conflict do nothing;
 
+  insert into public.worth_it_chat_messages(conversation_id,sender_user_id,body) values
+    ('00000000-0000-4000-8000-000000000100','00000000-0000-4000-8000-000000000010','Hi there, friend'),
+    ('00000000-0000-4000-8000-000000000100','00000000-0000-4000-8000-000000000011','hi   there again'),
+    ('00000000-0000-4000-8000-000000000100','00000000-0000-4000-8000-000000000011','Oh, hi there in the middle');
+
   perform set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000010',true);
+  search_result := public.search_worth_it_chat_messages(
+    '00000000-0000-4000-8000-000000000100','hi there',100);
+  if jsonb_array_length(search_result) <> 2 then
+    raise exception 'Prefix search should return exactly 2 matching messages, got: %', search_result;
+  end if;
+  if exists (
+    select 1 from jsonb_array_elements(search_result) item
+    where lower(regexp_replace(ltrim(item->>'body'), '[[:space:]]+', ' ', 'g')) not like 'hi there%'
+  ) then
+    raise exception 'Search returned a message which does not start with the requested phrase: %', search_result;
+  end if;
   result := public.start_worth_it_chat_call(
     '00000000-0000-4000-8000-000000000100','audio','{"type":"offer","sdp":"test-offer"}'::jsonb);
   if result->>'success' is distinct from 'true' or result->>'call_id' is null then

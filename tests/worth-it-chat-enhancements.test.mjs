@@ -23,8 +23,8 @@ test("chat enhancement controls are present, accessible, and loaded separately",
         "worthItChatCallEndBtn", "worthItChatCallMuteBtn", "worthItChatCallCameraBtn",
         "worthItChatRemoteVideo", "worthItChatLocalVideo", "worthItChatRemoteAudio"
     ]) assert.match(html, new RegExp('id="' + id + '"'), "missing chat UI element " + id);
-    assert.match(html, /chat-enhancements\.css\?v=worthit-chat-enhancements-20261029a/);
-    assert.match(html, /chat-enhancements\.js\?v=worthit-chat-enhancements-20261029a/);
+    assert.match(html, /chat-enhancements\.css\?v=worthit-chat-enhancements-20261029b/);
+    assert.match(html, /chat-enhancements\.js\?v=worthit-chat-enhancements-20261029b/);
     assert.match(css, /WORTH IT Chat additions|Worth It Chat additions/);
     assert.match(css, /worth-it-chat-reply-preview/);
     assert.match(css, /worth-it-chat-call-overlay/);
@@ -122,4 +122,17 @@ test("audio/video calls are backend-enforced friend-only one-to-one calls", () =
 test("the JavaScript and SQL checks include the new chat feature modules", () => {
     assert.match(workflow, /chat-ui\.js chat-enhancements\.js/);
     assert.match(workflow, /supabase\/worth-it-chat-enhancements\.sql/);
+});
+
+ 
+test("chat follow-up fixes keep search prefix-only, keep wallpaper scrolling, and repair closing focus", () => {
+    assert.ok(sql.includes("left(lower(regexp_replace(ltrim(m.body)"));
+    assert.ok(sql.includes("normalized_term"));
+    assert.match(sql, /notify pgrst, 'reload schema'/i);
+    assert.ok(client.includes("statusNode.hidden = !query"));
+    assert.ok(client.includes("p_limit: 100"));
+    assert.ok(css.includes("background-attachment:scroll,local,local"));
+    assert.ok(css.includes(".worth-it-chat-messages::before{content:none!important"));
+    assert.ok(chat.includes("overlay.contains(document.activeElement)"));
+    assert.ok(chat.includes("button.focus({ preventScroll: true })"));
 });

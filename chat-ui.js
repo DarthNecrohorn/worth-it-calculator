@@ -174,6 +174,14 @@ function showChatOverlay(open, options) {
         // Closing the chat should not make Back reopen it as a duplicate history entry.
         setChatBrowserPath(chatReturnPath || "/", true);
     }
+    if (!shouldOpen && overlay.contains(document.activeElement)) {
+        // Move focus before hiding the overlay so no focused control is aria-hidden.
+        if (button && !button.hidden && typeof button.focus === "function") {
+            button.focus({ preventScroll: true });
+        } else {
+            document.activeElement?.blur?.();
+        }
+    }
     chatOpen = shouldOpen;
     overlay.hidden = !chatOpen;
     overlay.setAttribute("aria-hidden", String(!chatOpen));

@@ -36,8 +36,9 @@ declare
   old_without_video text := 'media_kind not in (''image'',''gif'')';
   new_condition text := 'media_kind not in (''image'',''gif'',''video'',''audio'')';
 begin
-  current_definition := pg_get_functiondef(
-    'public.send_worth_it_chat_message(text,uuid,text,text)'::regprocedure
+  current_definition := replace(
+    pg_get_functiondef('public.send_worth_it_chat_message(text,uuid,text,text)'::regprocedure),
+    E'\r', ''
   );
   if position(new_condition in current_definition) > 0 then
     updated_definition := current_definition;
@@ -423,7 +424,7 @@ $$;
 create or replace function public.search_worth_it_chat_messages(
   p_conversation_id uuid,
   p_query text,
-  p_limit integer default 50
+  p_limit integer default 100
 )
 returns jsonb
 language plpgsql stable security definer set search_path = public as $$
@@ -432,6 +433,7 @@ declare
   target_id uuid := p_conversation_id;
   kind text;
   term text := btrim(coalesce(p_query, ''));
+  normalized_term text := lower(btrim(regexp_replace(coalesce(p_query, ''), '[[:space:]]+', ' ', 'g')));
   result jsonb;
 begin
   if actor_id is null then raise exception 'Authentication required'; end if;
@@ -469,11 +471,12 @@ begin
     left join public.worth_it_chat_message_hides hidden on hidden.message_id=m.id and hidden.user_id=actor_id
     left join public.worth_it_profiles actor_profile on actor_profile.user_id=actor_id
     left join public.worth_it_profiles deleted_by_profile on deleted_by_profile.user_id=m.deleted_by_user_id
-    where m.conversation_id=target_id and position(lower(term) in lower(m.body)) > 0
+    where m.conversation_id=target_id
+      and left(lower(regexp_replace(ltrim(m.body), '[[:space:]]+', ' ', 'g')), char_length(normalized_term)) = normalized_term
       and m.created_at > coalesce((select hc.cleared_at from public.worth_it_chat_history_clears hc
                                    where hc.user_id=actor_id and hc.conversation_id=target_id), '-infinity'::timestamptz)
       and hidden.message_id is null and m.deleted_at is null
-    order by m.id desc limit greatest(1,least(coalesce(p_limit,50),50))
+    order by m.id desc limit greatest(1,least(coalesce(p_limit,100),100))
   ) matched;
   return result;
 end;
@@ -499,5 +502,7 @@ grant execute on function public.get_worth_it_incoming_chat_call() to authentica
 grant execute on function public.get_worth_it_chat_call_state(uuid,bigint) to authenticated;
 grant execute on function public.respond_worth_it_chat_call(uuid,text,jsonb) to authenticated;
 grant execute on function public.send_worth_it_chat_call_signal(uuid,text,jsonb) to authenticated;
+
+notify pgrst, 'reload schema';
 
 commit;

@@ -80,7 +80,8 @@ declare
     target_id uuid := coalesce(p_conversation_id, '00000000-0000-4000-8000-000000000001'::uuid);
     media_kind text := nullif(p_media_type,'');
 begin
-    if media_kind not in ('image','gif','video') then
+    if actor_id is null then raise exception 'Authentication required'; end if;
+    if media_kind is not null and media_kind not in ('image','gif','video') then
         return jsonb_build_object('success',false,'code','INVALID_MEDIA_TYPE');
     end if;
     if p_media_url is not null and (

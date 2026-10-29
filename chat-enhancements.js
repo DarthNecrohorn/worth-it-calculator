@@ -72,8 +72,8 @@ window.addEventListener("worthitchatcontextchange", event => updateEnhancementCo
 function clearSearchResults() {
     const list = $("worthItChatSearchResults");
     const statusNode = $("worthItChatSearchStatus");
-    if (list) list.replaceChildren();
-    if (statusNode) statusNode.textContent = "";
+    if (list) { list.replaceChildren(); list.hidden = true; }
+    if (statusNode) { statusNode.textContent = ""; statusNode.hidden = true; }
     searchResults = [];
     searchSequence++;
 }
@@ -96,11 +96,13 @@ function renderSearchResults(rows, query) {
     if (!list || !statusNode) return;
     list.replaceChildren();
     searchResults = rows;
+    statusNode.hidden = false;
+    list.hidden = !rows.length;
     if (!rows.length) {
-        statusNode.textContent = 'No messages found for "' + query + '".';
+        statusNode.textContent = 'No messages begin with "' + query + '".';
         return;
     }
-    statusNode.textContent = rows.length + (rows.length === 50 ? "+ matches" : rows.length === 1 ? " match" : " matches") + ' for "' + query + '".';
+    statusNode.textContent = rows.length + (rows.length === 100 ? "+ matches" : rows.length === 1 ? " match" : " matches") + ' beginning with "' + query + '".';
     for (const message of rows) {
         const button = document.createElement("button");
         button.type = "button";
@@ -129,19 +131,23 @@ async function runMessageSearch() {
     if (!statusNode || !list) return;
     const request = ++searchSequence;
     const ctx = context();
-    if (!ctx?.userId) { statusNode.textContent = "Sign in to search messages."; return; }
+    if (!ctx?.userId) { statusNode.hidden = false; statusNode.textContent = "Sign in to search messages."; list.hidden = true; return; }
     if (query.length < 2) {
         list.replaceChildren();
-        statusNode.textContent = "Enter at least 2 characters to search this conversation.";
+        list.hidden = true;
+        statusNode.textContent = query ? "Type at least 2 characters to search this conversation." : "";
+        statusNode.hidden = !query;
         return;
     }
-    statusNode.textContent = "Searching messages…";
+    statusNode.hidden = false;
+    statusNode.textContent = "Searching this conversation…";
     list.replaceChildren();
+    list.hidden = true;
     try {
         const result = await rpc("search_worth_it_chat_messages", {
             p_conversation_id: ctx.conversationId || GLOBAL_CHAT_ID,
             p_query: query,
-            p_limit: 50
+            p_limit: 100
         });
         if (request !== searchSequence) return;
         if (result.error) throw result.error;
@@ -151,6 +157,8 @@ async function runMessageSearch() {
         renderSearchResults(Array.isArray(result.data) ? result.data : [], query);
     } catch (error) {
         if (request !== searchSequence) return;
+        list.hidden = true;
+        statusNode.hidden = false;
         statusNode.textContent = error?.message || "Could not search this conversation.";
     }
 }
