@@ -58,6 +58,7 @@ let pendingMediaType = "";
 let pendingReplyQuote = null;
 const worthItChatDrafts = new Map();
 let activeChatDraftKey = "";
+let pendingFilePickerTarget = null;
 let chatNotificationPreferences = Object.create(null);
 let chatNotificationPreferencesLoadedForUser = null;
 let globalNotificationPreferences = { friend_requests: true, follows: true, private_messages: true, group_chats: true, account_activity: true };
@@ -2311,6 +2312,7 @@ function clearWorthItChatDrafts() {
     if (pendingMediaObjectUrl?.startsWith("blob:")) urls.add(pendingMediaObjectUrl);
     worthItChatDrafts.clear();
     activeChatDraftKey = "";
+    pendingFilePickerTarget = null;
     for (const url of urls) { try { URL.revokeObjectURL(url); } catch (_) {} }
     pendingMediaObjectUrl = "";
     pendingMediaFile = null;
@@ -3317,6 +3319,9 @@ function setupChatUI() {
     });
     $("worthItChatUploadAction")?.addEventListener("click", () => {
         closeWorthItChatPickers();
+        // The native file picker is asynchronous too: pin its result to the chat
+        // from which Upload was opened, even if browser navigation changes meanwhile.
+        pendingFilePickerTarget = { key: worthItChatDraftKey(), userId: chatUser?.id || null };
         $("worthItChatFileInput")?.click();
     });
     $("worthItChatEmojiAction")?.addEventListener("click", openWorthItChatEmojiPicker);
@@ -3348,10 +3353,17 @@ function setupChatUI() {
     $("worthItChatFileInput")?.addEventListener("change", function () {
         const file = this.files?.[0];
         this.value = "";
+        const target = pendingFilePickerTarget;
+        pendingFilePickerTarget = null;
         if (!file) return;
+        if (!chatUser?.id || !target?.key || target.userId !== chatUser.id) {
+            setStatus("Your account changed while the file picker was open. Please choose the file again.", true);
+            return;
+        }
+        const targetIsActive = target.key === worthItChatDraftKey();
         const allowed = ["image/png", "image/jpeg", "image/webp", "image/gif", "video/mp4", "video/webm"];
         if (!allowed.includes(file.type)) {
-            setPendingMedia(null, "", "");
+            if (targetIsActive) setPendingMedia(null, "", "");
             setStatus("Choose a PNG, JPG, WEBP, GIF, MP4 or WebM file.", true);
             return;
         }
@@ -3360,12 +3372,20 @@ function setupChatUI() {
         const maxBytes = isGif ? 20 * 1024 * 1024 : isVideo ? 50 * 1024 * 1024 : 15 * 1024 * 1024;
         const maxLabel = isGif ? "20 MB" : isVideo ? "50 MB" : "15 MB";
         if (!file.size || file.size > maxBytes) {
-            setPendingMedia(null, "", "");
+            if (targetIsActive) setPendingMedia(null, "", "");
             setStatus("Choose a non-empty " + (isGif ? "GIF" : isVideo ? "video" : "image") + " that is " + maxLabel + " or smaller.", true);
             return;
         }
         const objectUrl = URL.createObjectURL(file);
-        setPendingMedia(file, objectUrl, isGif ? "gif" : isVideo ? "video" : "image");
+        const type = isGif ? "gif" : isVideo ? "video" : "image";
+        if (!targetIsActive) {
+            const previous = worthItChatDrafts.get(target.key) || { text: "", mediaFile: null, mediaUrl: "", mediaType: "", replyQuote: null };
+            if (previous.mediaUrl && previous.mediaUrl !== objectUrl) releaseWorthItChatDraftUrl(previous.mediaUrl, target.key);
+            worthItChatDrafts.set(target.key, { ...previous, mediaFile: file, mediaUrl: objectUrl, mediaType: type });
+            setStatus("The attachment was saved to the chat where you opened Upload. Return to that conversation to review and send it.", false);
+            return;
+        }
+        setPendingMedia(file, objectUrl, type);
         setStatus("", false);
     });
     $("worthItChatSidebarSearch")?.addEventListener("input", () => {
