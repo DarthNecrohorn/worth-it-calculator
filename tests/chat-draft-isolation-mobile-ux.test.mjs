@@ -153,7 +153,12 @@ test("travel back to present hover stays centered and scales without directional
     assert.doesNotMatch(polish, /transform:\s*translateX\(-50%\)\s+translateY\(-3px\)\s+scale\(1\.025\)/);
 });
 
-test("chat wallpaper uses collision-safe random placement, varied sizes and scattered accents", () => {
+test("private and group deep links do not render Global Chat while auth is resolving", () => {
+     assert.match(chat, /if \(!chatAuthResolutionComplete\)\s*\{[\s\S]*?host\.replaceChildren\(\);[\s\S]*?host\.setAttribute\("aria-busy", "true"\)/);
+     assert.match(chat, /routeHost\?\.removeAttribute\("aria-busy"\)/);
+   });
+ 
+ test("chat wallpaper uses collision-safe random placement, varied sizes and scattered accents", () => {
     assert.match(calls, /const CHAT_WALLPAPER_EXTRA_MOTIFS = \[/);
     assert.match(calls, /CHAT_WALLPAPER_ALL_MOTIFS = CHAT_WALLPAPER_MOTIFS\.concat\(CHAT_WALLPAPER_EXTRA_MOTIFS\)/);
     assert.match(calls, /function makeConversationWallpaper\(contextValue, theme, requestedWidth\)/);
@@ -188,9 +193,9 @@ test("chat wallpaper uses collision-safe random placement, varied sizes and scat
 
 test("the broken audioOnly reference is removed and asset caches point to the new builds", () => {
     assert.doesNotMatch(calls, /audioOnly/);
-    assert.match(html, /chat-ui\.js\?v=worthit-gif-plants-20261029f/);
-    assert.match(html, /chat-enhancements\.js\?v=worthit-chat-enhancements-organic-wallpaper-20261029a/);
-    assert.match(html, /chat-enhancements\.css\?v=worthit-chat-enhancements-organic-wallpaper-20261029a/);
+    assert.match(html, /chat-ui\.js\?v=chat-media-lightbox-20261029a/);
+    assert.match(html, /chat-enhancements\.js\?v=chat-media-lightbox-wallpaper-20261029a/);
+    assert.match(html, /chat-enhancements\.css\?v=chat-media-lightbox-wallpaper-20261029a/);
     assert.match(enhancementCss, /background-repeat:no-repeat,repeat-y!important/);
     assert.match(html, /chat-ux-polish\.css\?v=chat-ux-polish-20261029k/);
     assert.match(html, /ai-ui\.js\?v=worthit-ai-overlay-20261029b/);
