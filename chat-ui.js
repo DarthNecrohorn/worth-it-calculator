@@ -1776,6 +1776,43 @@ function createWorthItChatMessageRow(message) {
     return row;
 }
 
+function updateWorthItChatTravelPresentButton() {
+    const host = $("worthItChatMessages");
+    const button = $("worthItChatTravelPresentBtn");
+    if (!host || !button) return;
+
+    const distanceFromBottom = host.scrollHeight - host.scrollTop - host.clientHeight;
+    const shouldShow = Boolean(
+        chatOpen &&
+        chatUser &&
+        chatMessages.length &&
+        host.scrollHeight > host.clientHeight + 80 &&
+        distanceFromBottom > 120
+    );
+    const wasHidden = button.hidden;
+
+    const main = button.closest(".worth-it-chat-main");
+    const composer = main?.querySelector(".worth-it-chat-compose-wrap");
+    const mainRect = main?.getBoundingClientRect();
+    const composerRect = composer?.getBoundingClientRect();
+    if (mainRect && composerRect && Number.isFinite(mainRect.bottom) && Number.isFinite(composerRect.top)) {
+        // Anchor the button just above the composer, including when the mobile keyboard resizes the viewport.
+        button.style.bottom = Math.max(64, mainRect.bottom - composerRect.top + 12) + "px";
+    }
+
+    button.hidden = !shouldShow;
+    if (!shouldShow) {
+        button.classList.remove("is-entering");
+        return;
+    }
+    if (wasHidden) {
+        button.classList.remove("is-entering");
+        void button.offsetWidth;
+        button.classList.add("is-entering");
+        window.setTimeout(() => button.classList.remove("is-entering"), 280);
+    }
+}
+
 function renderMessages(scrollToBottom) {
     const host = $("worthItChatMessages");
     if (!host) return;
@@ -1783,6 +1820,7 @@ function renderMessages(scrollToBottom) {
         // Supabase is still restoring the persisted session. Keep the existing
         // welcome/loading content instead of briefly showing a false sign-in prompt.
         host.setAttribute("aria-busy", "true");
+        updateWorthItChatTravelPresentButton();
         return;
     }
     host.removeAttribute("aria-busy");
@@ -1802,6 +1840,7 @@ function renderMessages(scrollToBottom) {
             signIn.addEventListener("click", () => { if (typeof window.handleAuthButton === "function") window.handleAuthButton(); });
             empty.append(icon,title,p,signIn); host.appendChild(empty);
         }
+        updateWorthItChatTravelPresentButton();
         return;
     }
     if (!chatMessages.length) {
@@ -1816,6 +1855,7 @@ function renderMessages(scrollToBottom) {
             const p = document.createElement("p"); p.textContent = activeConversationType === "global" ? "Be welcoming, keep it respectful, and enjoy the chat." : "Send the first message to get things going.";
             empty.append(icon,title,p); host.appendChild(empty);
         }
+        updateWorthItChatTravelPresentButton();
         return;
     }
     delete host.dataset.worthItChatEmptyKey;
@@ -1848,6 +1888,7 @@ function renderMessages(scrollToBottom) {
         if (current !== row) host.insertBefore(row, current);
     });
     if (scrollToBottom) host.scrollTop = host.scrollHeight;
+    updateWorthItChatTravelPresentButton();
 }
 
 async function loadWorthItChatMessages(scrollToBottom, force = false) {
@@ -3482,7 +3523,69 @@ function openWorthItChatStickerPicker() {
     showWorthItChatMediaTab("sticker", true);
 }
 
+function animateWorthItChatActionTap(button) {
+    if (!button) return;
+    if (button._worthItChatTapTimer) window.clearTimeout(button._worthItChatTapTimer);
+    button.classList.remove("is-chat-action-tapped");
+    void button.offsetWidth;
+    button.classList.add("is-chat-action-tapped");
+    button._worthItChatTapTimer = window.setTimeout(() => {
+        button.classList.remove("is-chat-action-tapped");
+        button._worthItChatTapTimer = null;
+    }, 360);
+}
+
+function animateWorthItChatEmojiButton() {
+    const button = $("worthItChatEmojiAction");
+    if (!button) return;
+
+    if (button._worthItChatEmojiTimer) window.clearTimeout(button._worthItChatEmojiTimer);
+    button._worthItChatEmojiAnimationToken = (button._worthItChatEmojiAnimationToken || 0) + 1;
+    const token = button._worthItChatEmojiAnimationToken;
+    const frames = ["😎", "🤩", "🥳", "😄", "😀"];
+    let index = 0;
+
+    button.classList.remove("is-emoji-shuffling");
+    void button.offsetWidth;
+    button.classList.add("is-emoji-shuffling");
+
+    const showNextFrame = () => {
+        if (token !== button._worthItChatEmojiAnimationToken) return;
+        button.textContent = frames[index++];
+        if (index < frames.length) {
+            button._worthItChatEmojiTimer = window.setTimeout(showNextFrame, 105);
+        } else {
+            button._worthItChatEmojiTimer = window.setTimeout(() => {
+                if (token !== button._worthItChatEmojiAnimationToken) return;
+                button.textContent = "😀";
+                button.classList.remove("is-emoji-shuffling");
+                button._worthItChatEmojiTimer = null;
+            }, 140);
+        }
+    };
+    showNextFrame();
+}
+
 function setupChatUI() {
+    for (const id of ["worthItChatGifAction", "worthItChatStickerAction", "worthItChatEmojiAction", "worthItChatVoiceBtn"]) {
+        const button = $(id);
+        button?.addEventListener("click", () => animateWorthItChatActionTap(button));
+    }
+    $("worthItChatEmojiAction")?.addEventListener("mouseenter", animateWorthItChatEmojiButton);
+    $("worthItChatEmojiAction")?.addEventListener("focus", animateWorthItChatEmojiButton);
+
+    $("worthItChatMessages")?.addEventListener("scroll", updateWorthItChatTravelPresentButton, {passive:true});
+    $("worthItChatTravelPresentBtn")?.addEventListener("click", () => {
+        const messages = $("worthItChatMessages");
+        if (!messages) return;
+        const prefersReducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
+        messages.scrollTo({
+            top: messages.scrollHeight,
+            behavior: prefersReducedMotion ? "auto" : "smooth"
+        });
+        animateWorthItChatActionTap($("worthItChatTravelPresentBtn"));
+    });
+
     window.visualViewport?.addEventListener("resize", updateWorthItChatVisualViewport);
     window.visualViewport?.addEventListener("scroll", updateWorthItChatVisualViewport);
     window.addEventListener("resize", updateWorthItChatVisualViewport);

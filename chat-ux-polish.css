@@ -317,3 +317,119 @@ html[data-theme="light"] .worth-it-chat-media-trigger {
         display: none !important;
     }
 }
+
+/* Gentle motion for the message composer media actions and the history shortcut. */
+.worth-it-chat-media-trigger,
+.worth-it-chat-compose .worth-it-chat-voice-btn,
+.worth-it-chat-travel-present {
+    transform-origin: center;
+    transition: transform .18s cubic-bezier(.2,.75,.25,1), box-shadow .2s ease, border-color .2s ease, filter .2s ease, background .2s ease;
+}
+.worth-it-chat-media-trigger:hover,
+.worth-it-chat-media-trigger:focus-visible,
+.worth-it-chat-compose .worth-it-chat-voice-btn:hover,
+.worth-it-chat-compose .worth-it-chat-voice-btn:focus-visible {
+    transform: translateY(-2px) scale(1.045) !important;
+    box-shadow: 0 6px 16px rgba(79,70,229,.24) !important;
+    filter: brightness(1.08);
+}
+.worth-it-chat-media-trigger:active,
+.worth-it-chat-compose .worth-it-chat-voice-btn:active {
+    transform: translateY(0) scale(.94) !important;
+    filter: brightness(1.13);
+}
+.worth-it-chat-media-trigger.is-chat-action-tapped,
+.worth-it-chat-compose .worth-it-chat-voice-btn.is-chat-action-tapped,
+.worth-it-chat-travel-present.is-chat-action-tapped {
+    animation: worthItChatActionTap .36s ease-out;
+}
+@keyframes worthItChatActionTap {
+    0% { box-shadow: 0 0 0 0 rgba(129,140,248,0); }
+    42% { box-shadow: 0 0 0 4px rgba(129,140,248,.22), 0 6px 16px rgba(79,70,229,.2); }
+    100% { box-shadow: 0 0 0 0 rgba(129,140,248,0); }
+}
+.worth-it-chat-emoji-trigger.is-emoji-shuffling {
+    animation: worthItChatEmojiShuffle .22s ease-in-out;
+}
+@keyframes worthItChatEmojiShuffle {
+    0% { filter: brightness(1); }
+    45% { filter: brightness(1.24); }
+    100% { filter: brightness(1); }
+}
+
+/* Floating jump-to-latest control, positioned by JS just above the composer. */
+.worth-it-chat-travel-present {
+    position: absolute;
+    left: 50%;
+    bottom: calc(100px + env(safe-area-inset-bottom, 0px));
+    z-index: 6;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    min-height: 39px;
+    padding: 0 15px;
+    border: 1px solid rgba(165,180,252,.48);
+    border-radius: 999px;
+    color: #f8faff;
+    background: linear-gradient(120deg, rgba(91,72,190,.97), rgba(37,99,235,.96));
+    box-shadow: 0 9px 26px rgba(30,41,120,.3), 0 0 0 1px rgba(165,180,252,.12);
+    font: inherit;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: .01em;
+    line-height: 1;
+    white-space: nowrap;
+    cursor: pointer;
+    transform: translateX(-50%);
+    animation: none;
+}
+.worth-it-chat-travel-present span {
+    display: inline-block;
+    font-size: 15px;
+    transition: transform .18s ease;
+}
+.worth-it-chat-travel-present:hover,
+.worth-it-chat-travel-present:focus-visible {
+    transform: translateX(-50%) translateY(-3px) scale(1.025);
+    box-shadow: 0 12px 30px rgba(30,41,120,.38), 0 0 0 3px rgba(129,140,248,.2);
+    filter: brightness(1.08);
+}
+.worth-it-chat-travel-present:hover span,
+.worth-it-chat-travel-present:focus-visible span {
+    transform: translateY(2px);
+}
+.worth-it-chat-travel-present:active {
+    transform: translateX(-50%) scale(.96);
+    filter: brightness(1.14);
+}
+.worth-it-chat-travel-present.is-entering {
+    animation: worthItChatTravelArrive .24s cubic-bezier(.2,.75,.25,1) both;
+}
+.worth-it-chat-travel-present[hidden] {
+    display: none !important;
+}
+@keyframes worthItChatTravelArrive {
+    from { opacity: 0; transform: translateX(-50%) translateY(9px) scale(.96); }
+    to { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
+}
+html[data-theme="light"] .worth-it-chat-travel-present {
+    color: #fff;
+    background: linear-gradient(120deg, #5b48be, #2563eb);
+    border-color: rgba(67,56,202,.36);
+}
+@media (prefers-reduced-motion: reduce) {
+    .worth-it-chat-media-trigger,
+    .worth-it-chat-compose .worth-it-chat-voice-btn,
+    .worth-it-chat-travel-present,
+    .worth-it-chat-travel-present span {
+        transition-duration: .01ms !important;
+    }
+    .worth-it-chat-media-trigger.is-chat-action-tapped,
+    .worth-it-chat-compose .worth-it-chat-voice-btn.is-chat-action-tapped,
+    .worth-it-chat-travel-present.is-chat-action-tapped,
+    .worth-it-chat-emoji-trigger.is-emoji-shuffling,
+    .worth-it-chat-travel-present.is-entering {
+        animation-duration: .01ms !important;
+    }
+}
