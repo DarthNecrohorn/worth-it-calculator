@@ -3137,7 +3137,26 @@ async function routeWorthItChatFromLocation() {
         return;
     }
     const routeHost = $("worthItChatMessages");
-    routeHost?.removeAttribute("aria-busy");
+    if (route.type === "direct") {
+        // Switch the visible header/surface to a neutral loading state before
+        // fetching friends, so a deep-link refresh never briefly shows Global Chat.
+        activeConversationType = "direct";
+        activeConversationId = null;
+        activeConversationTitle = "Private chat";
+        activeConversationPerson = chatFriends.find(item => Number(item.worth_it_id) === route.worthItId) || null;
+        activeConversationInviteToken = "";
+        chatMessages = [];
+        setHeader("Private chat", "Restoring conversation…", activeConversationPerson);
+        updateChatHeaderNotificationButton();
+        updateChatHeaderShareButton();
+        document.querySelectorAll(".worth-it-chat-side-item").forEach(node => node.classList.remove("is-active"));
+        if (routeHost) {
+            routeHost.replaceChildren();
+            routeHost.setAttribute("aria-busy", "true");
+        }
+    } else {
+        routeHost?.removeAttribute("aria-busy");
+    }
     startWorthItChatPolling();
     await refreshWorthItChatData();
     if (routeVersion !== chatRouteVersion) return;
