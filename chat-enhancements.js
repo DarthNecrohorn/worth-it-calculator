@@ -170,104 +170,141 @@ function pickWallpaperIndex(length, excludedIndices, random) {
     const next = typeof random === "function" ? random() : Math.random();
     return choices[Math.floor(next * choices.length)];
 }
-function makeConversationWallpaper(contextValue, theme) {
+function makeConversationWallpaper(contextValue, theme, requestedWidth) {
     const key = String(contextValue?.conversationType || "chat") + ":" + String(contextValue?.conversationId || GLOBAL_CHAT_ID);
     const random = wallpaperRandom(wallpaperSeed(key));
     const palette = theme === "light" ? CHAT_WALLPAPER_LIGHT_PALETTE : CHAT_WALLPAPER_DARK_PALETTE;
-    const opacity = theme === "light" ? ".32" : ".28";
-    const geometryOpacity = theme === "light" ? ".38" : ".35";
+    const opacity = theme === "light" ? ".44" : ".36";
+    const geometryOpacity = theme === "light" ? ".40" : ".32";
     const cells = [];
-    const motifGrid = [];
-    const colorGrid = [];
-    const geometryGrid = [];
-    const geometryColorGrid = [];
-    const columns = 8, rows = 12, canvasWidth = 840, canvasHeight = 1260;
-    const columnGap = (canvasWidth - 120) / (columns - 1);
-    const rowGap = (canvasHeight - 120) / (rows - 1);
-    const rowOffsets = Array.from({ length: rows }, () => (random() - .5) * 10);
+    const canvasWidth = Math.max(600, Math.min(2400, Math.ceil((Number(requestedWidth) || 600) / 120) * 120));
+    const canvasHeight = Math.round(canvasWidth * 1.5);
+    const targetCount = Math.max(10, Math.min(74, Math.round((canvasWidth * canvasHeight) / 48000)));
+    const usedMotifs = new Set();
+    const placements = [];
+    const scales = Array.from({ length: targetCount }, () => .52 + random() * .61);
 
-    // Use a large library and avoid reusing the same motif within a 5 × 3
-    // neighbourhood. That makes repeated artwork much harder to notice even
-    // in a tall, continuously repeating wallpaper tile.
-    for (let i = 0; i < columns * rows; i++) {
-        const row = Math.floor(i / columns), col = i % columns;
-        const forbiddenMotifs = new Set();
-        const forbiddenColors = new Set();
-        for (let rowOffset = 0; rowOffset <= 2; rowOffset++) {
-            for (let colOffset = -2; colOffset <= 2; colOffset++) {
-                const nearRow = row - rowOffset;
-                const nearCol = col + colOffset;
-                if (nearRow < 0 || nearCol < 0 || nearCol >= columns) continue;
-                if (rowOffset === 0 && nearCol >= col) continue;
-                const nearIndex = nearRow * columns + nearCol;
-                if (motifGrid[nearIndex] !== undefined) forbiddenMotifs.add(motifGrid[nearIndex]);
-                if (rowOffset <= 1 && Math.abs(colOffset) <= 1 && colorGrid[nearIndex]) forbiddenColors.add(colorGrid[nearIndex]);
+    // Guarantee both ends of the size range, then randomize the remaining sizes.
+    if (scales.length > 0) scales[0] = .54 + random() * .05;
+    if (scales.length > 1) scales[1] = 1.04 + random() * .09;
+    scales.sort((a, b) => b - a);
+
+    // Place large doodles with rejection sampling instead of a row/column grid.
+    // Each placement uses a conservative enclosing radius, so rotated outlines do
+    // not touch or overlap. Distinct motifs within the tile also prevent row repeats.
+    for (const scale of scales) {
+        const radius = 96 * scale;
+        const margin = radius + 8;
+        let point = null;
+
+        for (let attempt = 0; attempt < 1600; attempt++) {
+            const x = margin + random() * Math.max(0, canvasWidth - margin * 2);
+            const y = margin + random() * Math.max(0, canvasHeight - margin * 2);
+            const overlaps = placements.some(existing =>
+                Math.hypot(x - existing.x, y - existing.y) < radius + existing.radius + 12
+            );
+            if (!overlaps) {
+                point = { x, y, radius, scale };
+                break;
             }
         }
+        if (!point) continue;
+
         const motifCandidates = CHAT_WALLPAPER_ALL_MOTIFS
             .map((_, index) => index)
-            .filter(index => !forbiddenMotifs.has(index));
+            .filter(index => !usedMotifs.has(index));
+        if (!motifCandidates.length) break;
         const motifIndex = motifCandidates[Math.floor(random() * motifCandidates.length)];
-        motifGrid.push(motifIndex);
+        usedMotifs.add(motifIndex);
 
-        let colorCandidates = palette.map((_, index) => index).filter(index => !forbiddenColors.has(palette[index]));
-        if (!colorCandidates.length) colorCandidates = palette.map((_, index) => index);
-        const color = palette[colorCandidates[Math.floor(random() * colorCandidates.length)]];
-        colorGrid.push(color);
-
+        const nearbyColors = new Set(placements
+            .filter(existing => Math.hypot(point.x - existing.x, point.y - existing.y) < 300)
+            .map(existing => existing.color));
+        let colorCandidates = palette.filter(color => !nearbyColors.has(color));
+        if (!colorCandidates.length) {
+            colorCandidates = palette.filter(color => placements.slice(-4).every(existing => existing.color !== color));
+        }
+        if (!colorCandidates.length) colorCandidates = palette;
+        const color = colorCandidates[Math.floor(random() * colorCandidates.length)];
         const angle = Math.floor(random() * 360);
-        const motifScale = .36 + random() * .06;
-        const scaleX = random() < .5 ? -motifScale : motifScale;
-        const scaleY = random() < .5 ? -motifScale : motifScale;
-        const x = Math.max(60, Math.min(canvasWidth - 60, 60 + col * columnGap + rowOffsets[row] + (random() - .5) * 8));
-        const y = 60 + row * rowGap + (random() - .5) * 6;
+        const scaleX = random() < .5 ? -scale : scale;
+        const scaleY = random() < .5 ? -scale : scale;
+        point.color = color;
+        point.motifIndex = motifIndex;
+        placements.push(point);
+
+        const x = point.x.toFixed(2);
+        const y = point.y.toFixed(2);
         cells.push(
-            '<g transform="translate(' + x + ' ' + y + ')" stroke="' + color + '" stroke-opacity="' + opacity + '">' +
+            '<g data-wallpaper-doodle="1" data-x="' + x + '" data-y="' + y +
+            '" data-radius="' + radius.toFixed(2) + '" data-scale="' + scale.toFixed(3) +
+            '" data-color="' + color + '" data-motif="' + motifIndex +
+            '" transform="translate(' + x + ' ' + y + ')" stroke="' + color + '" stroke-opacity="' + opacity + '">' +
             '<g transform="rotate(' + angle + ') scale(' + scaleX + ' ' + scaleY + ') translate(-70 -70)">' +
             CHAT_WALLPAPER_ALL_MOTIFS[motifIndex] + '</g></g>'
         );
-
-        // Eight small geometric marks sit in a reserved ring around each doodle.
-        // Larger offsets preserve a visible gap at every supported motif size.
-        const geometryParity = (row + col) % 2 === 0;
-        const edgeShift = geometryParity ? -12 : 12;
-        const geometryOffsets = [[-edgeShift, -47], [47, edgeShift], [-edgeShift, 47], [-47, edgeShift], [-34, -34], [34, -34], [-34, 34], [34, 34]];
-        const localGeometryIndices = [];
-        const localGeometryColors = [];
-        for (let marker = 0; marker < geometryOffsets.length; marker++) {
-            const forbiddenGeometry = new Set(localGeometryIndices);
-            const forbiddenGeometryColors = new Set([color, ...localGeometryColors.slice(-3)]);
-            if (col > 0) {
-                const adjacent = geometryGrid[i - 1]?.[marker];
-                if (Number.isInteger(adjacent)) forbiddenGeometry.add(adjacent);
-                const adjacentColor = geometryColorGrid[i - 1]?.[marker];
-                if (adjacentColor) forbiddenGeometryColors.add(adjacentColor);
-            }
-            if (row > 0) {
-                const above = geometryGrid[i - columns]?.[marker];
-                if (Number.isInteger(above)) forbiddenGeometry.add(above);
-                const aboveColor = geometryColorGrid[i - columns]?.[marker];
-                if (aboveColor) forbiddenGeometryColors.add(aboveColor);
-            }
-            const geometryIndex = pickWallpaperIndex(CHAT_WALLPAPER_GEOMETRIES.length, forbiddenGeometry, random);
-            localGeometryIndices.push(geometryIndex);
-            let geometryColorCandidates = palette.filter(value => !forbiddenGeometryColors.has(value));
-            if (!geometryColorCandidates.length) geometryColorCandidates = palette.filter(value => value !== color);
-            if (!geometryColorCandidates.length) geometryColorCandidates = palette;
-            const geometryColor = geometryColorCandidates[Math.floor(random() * geometryColorCandidates.length)];
-            localGeometryColors.push(geometryColor);
-            const [dx, dy] = geometryOffsets[marker];
-            const geometryAngle = Math.floor(random() * 360);
-            const geometryScale = .98 + random() * .32;
-            cells.push(
-                '<g transform="translate(' + (x + dx) + ' ' + (y + dy) + ') rotate(' + geometryAngle + ') scale(' + geometryScale + ')" stroke="' + geometryColor +
-                '" stroke-opacity="' + geometryOpacity + '" stroke-width="1.5">' + CHAT_WALLPAPER_GEOMETRIES[geometryIndex] + '</g>'
-            );
-        }
-        geometryGrid.push(localGeometryIndices);
-        geometryColorGrid.push(localGeometryColors);
     }
-    return '<svg xmlns="http://www.w3.org/2000/svg" width="840" height="1260" viewBox="0 0 840 1260" fill="none" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">' + cells.join("") + '</svg>';
+
+    // Scatter small accents only into the gaps left by the larger doodles.
+    // They get their own spacing checks and are never laid out in decorative rows.
+    const targetAccents = Math.max(12, Math.min(46, Math.round((canvasWidth * canvasHeight) / 30000)));
+    const accents = [];
+    for (let i = 0; i < targetAccents; i++) {
+        let point = null;
+        let markerRadius = 0;
+        for (let attempt = 0; attempt < 700; attempt++) {
+            markerRadius = 8 + random() * 3;
+            const x = 13 + random() * Math.max(0, canvasWidth - 26);
+            const y = 13 + random() * Math.max(0, canvasHeight - 26);
+            const touchesDoodle = placements.some(doodle =>
+                Math.hypot(x - doodle.x, y - doodle.y) < doodle.radius + markerRadius + 8
+            );
+            const touchesAccent = accents.some(existing =>
+                Math.hypot(x - existing.x, y - existing.y) < markerRadius + existing.radius + 6
+            );
+            if (!touchesDoodle && !touchesAccent) {
+                point = { x, y, radius: markerRadius };
+                break;
+            }
+        }
+        if (!point) continue;
+
+        const nearbyGeometry = accents
+            .filter(existing => Math.hypot(point.x - existing.x, point.y - existing.y) < 85)
+            .map(existing => existing.geometryIndex);
+        const geometryIndex = pickWallpaperIndex(CHAT_WALLPAPER_GEOMETRIES.length, nearbyGeometry, random);
+        const nearbyColors = new Set([
+            ...placements
+                .filter(existing => Math.hypot(point.x - existing.x, point.y - existing.y) < 145)
+                .map(existing => existing.color),
+            ...accents
+                .filter(existing => Math.hypot(point.x - existing.x, point.y - existing.y) < 85)
+                .map(existing => existing.color)
+        ]);
+        let colorCandidates = palette.filter(color => !nearbyColors.has(color));
+        if (!colorCandidates.length) colorCandidates = palette.filter(color => color !== placements[0]?.color);
+        if (!colorCandidates.length) colorCandidates = palette;
+        const color = colorCandidates[Math.floor(random() * colorCandidates.length)];
+        point.geometryIndex = geometryIndex;
+        point.color = color;
+        accents.push(point);
+
+        const x = point.x.toFixed(2);
+        const y = point.y.toFixed(2);
+        const angle = Math.floor(random() * 360);
+        const markerScale = .95 + random() * .55;
+        cells.push(
+            '<g data-wallpaper-accent="1" data-x="' + x + '" data-y="' + y +
+            '" data-radius="' + point.radius.toFixed(2) + '" data-color="' + color +
+            '" data-geometry="' + geometryIndex + '" transform="translate(' + x + ' ' + y + ') rotate(' + angle +
+            ') scale(' + markerScale + ')" stroke="' + color + '" stroke-opacity="' + geometryOpacity + '" stroke-width="1.5">' +
+            CHAT_WALLPAPER_GEOMETRIES[geometryIndex] + '</g>'
+        );
+    }
+
+    return '<svg xmlns="http://www.w3.org/2000/svg" width="' + canvasWidth + '" height="' + canvasHeight +
+        '" viewBox="0 0 ' + canvasWidth + ' ' + canvasHeight +
+        '" fill="none" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">' + cells.join("") + '</svg>';
 }
 function applyChatWallpaper(contextValue) {
     const surface = $("worthItChatMessages");
@@ -276,17 +313,21 @@ function applyChatWallpaper(contextValue) {
     if (!contextValue?.userId || !["global", "direct", "group"].includes(type)) {
         surface.style.removeProperty("--worthit-chat-wallpaper-image");
         surface.style.removeProperty("--worthit-chat-wallpaper-position");
+        surface.style.removeProperty("--worthit-chat-wallpaper-size");
         delete surface.dataset.worthitWallpaperKey;
         return;
     }
     const theme = document.documentElement.dataset.theme === "light" ? "light" : "dark";
-    const key = type + ":" + String(contextValue.conversationId || GLOBAL_CHAT_ID) + ":" + theme;
+    const visibleWidth = surface.clientWidth || window.innerWidth || 600;
+    const tileWidth = Math.max(600, Math.min(2400, Math.ceil((visibleWidth + 160) / 120) * 120));
+    const tileHeight = Math.round(tileWidth * 1.5);
+    const key = type + ":" + String(contextValue.conversationId || GLOBAL_CHAT_ID) + ":" + theme + ":" + tileWidth;
     if (surface.dataset.worthitWallpaperKey === key) return;
-    const random = wallpaperRandom(wallpaperSeed(type + ":" + String(contextValue.conversationId || GLOBAL_CHAT_ID)));
-    const svg = makeConversationWallpaper(contextValue, theme);
+    const svg = makeConversationWallpaper(contextValue, theme, tileWidth);
     const encoded = 'url("data:image/svg+xml,' + encodeURIComponent(svg) + '")';
     surface.style.setProperty("--worthit-chat-wallpaper-image", encoded);
-    surface.style.setProperty("--worthit-chat-wallpaper-position", Math.floor(random() * 140) + "px " + Math.floor(random() * 140) + "px");
+    surface.style.setProperty("--worthit-chat-wallpaper-size", tileWidth + "px " + tileHeight + "px");
+    surface.style.setProperty("--worthit-chat-wallpaper-position", "0px 0px");
     surface.dataset.worthitWallpaperKey = key;
 }
 
@@ -329,6 +370,11 @@ function updateEnhancementContext(next) {
 window.addEventListener("worthitchatcontextchange", event => updateEnhancementContext(event?.detail || context()));
 const wallpaperThemeObserver = new MutationObserver(() => applyChatWallpaper(currentContext || context()));
 wallpaperThemeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+const wallpaperSurfaceObserver = typeof ResizeObserver === "function"
+    ? new ResizeObserver(() => applyChatWallpaper(currentContext || context()))
+    : null;
+const wallpaperSurface = $("worthItChatMessages");
+if (wallpaperSurface && wallpaperSurfaceObserver) wallpaperSurfaceObserver.observe(wallpaperSurface);
 
 function clearSearchResults() {
     const list = $("worthItChatSearchResults");
