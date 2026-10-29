@@ -11,7 +11,7 @@ const guest = readFileSync(new URL("../guest-mode.js", import.meta.url), "utf8")
 const ai = readFileSync(new URL("../functions/api/ai-chat.js", import.meta.url), "utf8");
 const media = readFileSync(new URL("../functions/api/chat-media.js", import.meta.url), "utf8");
 const route = readFileSync(new URL("../functions/api/resend-email-confirmation.js", import.meta.url), "utf8");
-const migration = readFileSync(new URL("../supabase/migrations/20261029110000_rate_limit_email_confirmation_resend.sql", import.meta.url), "utf8");
+const migration = readFileSync(new URL("../supabase/migrations/20261029103234_rate_limit_email_confirmation_resend.sql", import.meta.url), "utf8");
 
 test("unverified sessions are represented to the main app as guests while retaining a confirmation notice", () => {
     assert.match(app, /function isWorthItEmailVerified\(user\)/);
