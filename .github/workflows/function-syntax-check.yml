@@ -14,6 +14,8 @@ on:
       - "index.html"
       - "settings.js"
       - "chat-ui.js"
+      - "chat-enhancements.js"
+      - "docs/chat-calls-turn-setup.md"
       - "_redirects"
       - "markets-ui.js"
       - "routing.js"
@@ -71,7 +73,7 @@ jobs:
           from pathlib import Path
           from pglast import parse_sql
 
-          for name in ("supabase/worth-it-settings-privacy-notifications.sql", "supabase/worth-it-chat-video-media.sql", "supabase/worth-it-chat-message-actions.sql", "supabase/worth-it-chat-message-delete-constraint.sql", "supabase/worth-it-chat-message-action-indexes.sql", "supabase/worth-it-chat-realtime.sql", "supabase/worth-it-chat-enhancements.sql"):
+          for name in ("supabase/worth-it-settings-privacy-notifications.sql", "supabase/worth-it-chat-video-media.sql", "supabase/worth-it-chat-message-actions.sql", "supabase/worth-it-chat-message-delete-constraint.sql", "supabase/worth-it-chat-message-action-indexes.sql", "supabase/worth-it-chat-realtime.sql", "supabase/worth-it-chat-enhancements.sql", "supabase/worth-it-chat-call-reliability.sql", "supabase/worth-it-chat-call-reliability.sql"):
               path = Path(name)
               sql = path.read_text(encoding="utf-8")
               statements = parse_sql(sql)
@@ -89,7 +91,7 @@ jobs:
           import re
           from collections import Counter
 
-          for name in ("supabase/worth-it-settings-privacy-notifications.sql", "supabase/worth-it-chat-video-media.sql", "supabase/worth-it-chat-message-actions.sql", "supabase/worth-it-chat-message-delete-constraint.sql", "supabase/worth-it-chat-message-action-indexes.sql", "supabase/worth-it-chat-enhancements.sql"):
+          for name in ("supabase/worth-it-settings-privacy-notifications.sql", "supabase/worth-it-chat-video-media.sql", "supabase/worth-it-chat-message-actions.sql", "supabase/worth-it-chat-message-delete-constraint.sql", "supabase/worth-it-chat-message-action-indexes.sql", "supabase/worth-it-chat-enhancements.sql", "supabase/worth-it-chat-call-reliability.sql"):
               path = Path(name)
               sql = path.read_text(encoding="utf-8")
               # Count each dollar-quote delimiter independently. Function definitions may
@@ -184,6 +186,9 @@ jobs:
           psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -f tests/fixtures/chat-enhancements-migration-postgres-setup.sql
           psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/worth-it-chat-enhancements.sql
           psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -f tests/fixtures/chat-enhancements-migration-postgres-smoke.sql
+          psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/worth-it-chat-call-reliability.sql
+          psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/worth-it-chat-call-reliability.sql
+          psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -f tests/fixtures/chat-call-reliability-postgres-smoke.sql
 
       - name: Create isolated database for chat message action tests
         env:
