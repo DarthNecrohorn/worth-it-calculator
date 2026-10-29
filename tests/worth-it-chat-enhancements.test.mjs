@@ -125,7 +125,7 @@ test("audio/video calls are backend-enforced friend-only one-to-one calls", () =
     assert.match(sql, /unique index if not exists worth_it_chat_calls_one_active_per_conversation_idx/);
     assert.match(sql, /worth-it-user-call:/);
     assert.match(client, /new RTCPeerConnection\(\{ iceServers: Array\.isArray\(iceServers\)/);
-    assert.match(client, /async function getCallIceConfig\(\)/);
+    assert.match(client, /async function getCallIceConfig\(conversationId\)/);
     assert.match(client, /fetch\("\/api\/chat-call-ice\?conversationId=/);
     assert.match(client, /relayAvailable: iceConfig\.relayAvailable/);
     assert.match(client, /async function acquireCallMedia\(type\)/);
