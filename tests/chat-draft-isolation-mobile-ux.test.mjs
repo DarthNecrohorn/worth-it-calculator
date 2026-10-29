@@ -106,7 +106,7 @@ test("chat wallpaper has more small rotated doodles with per-conversation placem
     assert.match(calls, /scale\(\.62\)/);
     assert.match(calls, /wallpaperSeed\(type \+ ":" \+ String\(contextValue\.conversationId/);
     assert.match(polish, /#worthItChatMessageSearchBtn\s*\{\s*font-size: 26px/);
-    assert.match(html, /id="worthItChatMessageSearchBtn"[^>]*><span class="worth-it-chat-search-glyph" aria-hidden="true">⌕<\\/span><\\/button>/);
+    assert.ok(html.includes('id="worthItChatMessageSearchBtn" title="Search messages in this conversation" aria-label="Search messages" aria-expanded="false" aria-controls="worthItChatSearchPanel"><span class="worth-it-chat-search-glyph" aria-hidden="true">⌕</span></button>'));
     assert.match(polish, /\.worth-it-chat-search-glyph\s*\{\s*position: relative !important;\s*top: -2px !important;\s*display: inline-block !important;/);
     assert.match(polish, /\.worth-it-chat-reply-close\s*\{\s*transform: translateY\(-3px\)/);
     assert.match(polish, /\.worth-it-chat-reply-close\s*\{\s*transform: translateY\(-1px\)/);
