@@ -123,3 +123,29 @@ html[data-theme="light"] .worth-it-chat-messages{
 .worth-it-chat-search-results:empty{display:none!important}
 .worth-it-chat-search-status[hidden],.worth-it-chat-search-results[hidden]{display:none!important}
 .worth-it-chat-search-results{max-height:260px}
+
+
+/* Search results stay directly below the search field. Only the result list
+   scrolls; it must never expand into a full-screen search overlay. */
+.worth-it-chat-search-panel{
+    position:relative!important;
+    max-width:100%;
+}
+.worth-it-chat-search-results{
+    box-sizing:border-box;
+    display:grid;
+    width:100%;
+    max-height:min(260px,32vh);
+    overflow-x:hidden;
+    overflow-y:auto;
+    overscroll-behavior:contain;
+    scrollbar-width:thin;
+    scrollbar-gutter:stable;
+}
+@media(max-width:540px){
+    .worth-it-chat-search-results{
+        max-height:min(145px,22dvh);
+        overflow-y:auto;
+        overscroll-behavior:contain;
+    }
+}
