@@ -94,7 +94,10 @@
     border-radius: 10px !important;
     color: #dbe4ff !important;
     background: linear-gradient(145deg, rgba(99,102,241,.17), rgba(49,70,138,.25)) !important;
-    font: 800 11px/1 inherit !important;
+    font-family: inherit !important;
+    font-size: 11px !important;
+    font-weight: 800 !important;
+    line-height: 1 !important;
     cursor: pointer !important;
     white-space: nowrap !important;
 }
