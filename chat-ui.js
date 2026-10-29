@@ -16,6 +16,9 @@ let activeConversationInviteToken = "";
 let activeGroupInviteToken = "";
 let activeGroupInvitePreview = null;
 let chatReturnPath = "/";
+let lastOpenedConversation = null;
+const worthItChatMessageCache = new Map();
+let chatLastForegroundRefreshAt = 0;
 let profileReturnConversation = null;
 let chatRouteVersion = 0;
 let chatRouteAccessDenied = false;
@@ -52,6 +55,7 @@ let chatOwnProfileLoadedForUser = null;
 let chatOwnProfilePromise = null;
 const WORTH_IT_GLOBAL_CHAT_REALTIME_ID = "00000000-0000-4000-8000-000000000001";
 const WORTH_IT_CHAT_FULLSCREEN_PREFERENCE_KEY = "worth-it-chat-fullscreen-preference-v1";
+const WORTH_IT_CHAT_LAST_CONVERSATION_KEY = "worth-it-chat-last-conversation-v1";
 let pendingMediaFile = null;
 let pendingMediaUrl = "";
 let pendingMediaType = "";
@@ -82,6 +86,75 @@ function parseWorthItChatRoute() {
     match = path.match(/^\/chat\/group\/([0-9a-fA-F]{64})$/);
     if (match) return {type:"group", token:match[1].toLowerCase()};
     return isChatRoutePath(path) ? {type:"invalid"} : null;
+}
+function worthItChatRouteMatchesActiveConversation(route) {
+    if (!route || !chatOpen || chatRouteAccessDenied) return false;
+    if (route.type === "global") return activeConversationType === "global";
+    if (route.type === "direct") {
+        return activeConversationType === "direct" &&
+            Boolean(activeConversationId) &&
+            String(activeConversationPerson?.worth_it_id || "") === String(route.worthItId);
+    }
+    if (route.type === "group") {
+        return activeConversationType === "group" &&
+            Boolean(activeConversationId) &&
+            String(activeConversationInviteToken || "").toLowerCase() === route.token;
+    }
+    return false;
+}
+function clearLastWorthItChatConversation() {
+    lastOpenedConversation = null;
+    try { window.sessionStorage.removeItem(WORTH_IT_CHAT_LAST_CONVERSATION_KEY); } catch (_) {}
+}
+function getLastWorthItChatConversation() {
+    if (!chatUser?.id) return null;
+    let saved = lastOpenedConversation;
+    if (!saved || String(saved.userId || "") !== String(chatUser.id)) {
+        try {
+            const raw = window.sessionStorage.getItem(WORTH_IT_CHAT_LAST_CONVERSATION_KEY);
+            saved = raw ? JSON.parse(raw) : null;
+        } catch (_) {
+            saved = null;
+        }
+    }
+    if (!saved || String(saved.userId || "") !== String(chatUser.id) ||
+        !["global", "direct", "group"].includes(saved.type)) {
+        if (saved && String(saved.userId || "") !== String(chatUser.id)) clearLastWorthItChatConversation();
+        return null;
+    }
+    lastOpenedConversation = saved;
+    return saved;
+}
+function rememberLastWorthItChatConversation() {
+    if (!chatUser?.id) return;
+    const person = activeConversationPerson;
+    const saved = {
+        userId: String(chatUser.id),
+        type: activeConversationType || "global",
+        id: activeConversationId || null,
+        title: activeConversationTitle || GLOBAL_TITLE,
+        inviteToken: String(activeConversationInviteToken || ""),
+        person: person ? {
+            worth_it_id: person.worth_it_id ?? null,
+            display_name: String(person.display_name || ""),
+            username: String(person.username || "")
+        } : null
+    };
+    lastOpenedConversation = saved;
+    try { window.sessionStorage.setItem(WORTH_IT_CHAT_LAST_CONVERSATION_KEY, JSON.stringify(saved)); } catch (_) {}
+}
+function worthItChatMessageCacheKey(userId = chatUser?.id, type = activeConversationType, id = activeConversationId) {
+    if (!userId) return "";
+    const conversationId = type === "global" ? "global" : String(id || "");
+    return conversationId ? String(userId) + "|" + String(type || "global") + "|" + conversationId : "";
+}
+function cacheWorthItChatMessages(key, rows) {
+    if (!key) return;
+    worthItChatMessageCache.delete(key);
+    worthItChatMessageCache.set(key, Array.isArray(rows) ? rows.slice() : []);
+    while (worthItChatMessageCache.size > 12) {
+        worthItChatMessageCache.delete(worthItChatMessageCache.keys().next().value);
+    }
 }
 function setChatBrowserPath(path, replace) {
     const target = path || "/";
@@ -231,6 +304,8 @@ function setAuthState(user) {
         chatOwnProfile = null;
         chatOwnProfileLoadedForUser = null;
         chatOwnProfilePromise = null;
+        worthItChatMessageCache.clear();
+        if (previousUserId) clearLastWorthItChatConversation();
     }
     chatUser = user || null;
     if (previousUserId !== (chatUser?.id || null)) clearWorthItChatDrafts();
@@ -267,8 +342,14 @@ function setAuthState(user) {
         if (parseWorthItChatRoute()) routeWorthItChatFromLocation();
     } else {
         updateChatHeaderShareButton();
-        if (parseWorthItChatRoute()) routeWorthItChatFromLocation();
-        else refreshWorthItChatData();
+        const route = parseWorthItChatRoute();
+        if (route && !worthItChatRouteMatchesActiveConversation(route)) {
+            // A token refresh or return to the browser window must not reopen the
+            // same private/group route: activateConversation clears the visible rows.
+            routeWorthItChatFromLocation();
+        } else if (!route && previousUserId !== nextUserId) {
+            refreshWorthItChatData();
+        }
     }
 }
 function initials(person) {
@@ -1796,6 +1877,7 @@ async function loadWorthItChatMessages(scrollToBottom, force = false) {
     if (result.error) { setStatus(rpcError(result.error), true); return; }
     if (result.data && !Array.isArray(result.data) && result.data.success === false) { setStatus(result.data.code || "This conversation is unavailable.", true); return; }
     const rows = Array.isArray(result.data) ? result.data : [];
+    cacheWorthItChatMessages(worthItChatMessageCacheKey(requestUserId, conversationType, conversationId), rows);
     const previousLastId = chatMessages.length ? chatMessages[chatMessages.length - 1].id : null;
     const newLastId = rows.length ? rows[rows.length - 1].id : null;
     chatMessages = rows;
@@ -1809,15 +1891,29 @@ async function loadWorthItChatMessages(scrollToBottom, force = false) {
     renderConversations();
 }
 async function activateConversation(id, type, title, person, inviteToken) {
-    // Save the composer to the old conversation before changing any active IDs.
+    const nextType = type || "global";
+    const nextId = id || null;
+    const currentKey = worthItChatMessageCacheKey();
+    if (currentKey && chatMessages.length) cacheWorthItChatMessages(currentKey, chatMessages);
+    const sameConversation = activeConversationType === nextType &&
+        String(activeConversationId || "") === String(nextId || "");
+    const nextKey = worthItChatMessageCacheKey(chatUser?.id, nextType, nextId);
+
+    // Save the composer and visible messages before changing any active IDs.
     saveActiveWorthItChatDraft();
     closeWorthItChatPickers();
-    activeConversationId = id || null;
-    activeConversationType = type || "global";
+    activeConversationId = nextId;
+    activeConversationType = nextType;
     chatRouteAccessDenied = false;
     activeConversationTitle = title || GLOBAL_TITLE;
     activeConversationPerson = person || null;
     activeConversationInviteToken = String(inviteToken || chatConversations.find(item => item.id === activeConversationId)?.invite_token || "");
+    if (!sameConversation) {
+        chatMessages = worthItChatMessageCache.has(nextKey)
+            ? worthItChatMessageCache.get(nextKey).slice()
+            : [];
+    }
+    rememberLastWorthItChatConversation();
     restoreWorthItChatDraft(worthItChatDraftKey());
     syncChatUrlForConversation(activeConversationType, activeConversationId, activeConversationPerson, activeConversationInviteToken);
     if (window.matchMedia("(max-width: 540px)").matches) $("worthItChatWindow")?.classList.remove("is-mobile-sidebar");
@@ -1828,7 +1924,6 @@ async function activateConversation(id, type, title, person, inviteToken) {
     updateChatHeaderNotificationButton();
     updateChatHeaderShareButton();
     setStatus("", false);
-    chatMessages = [];
     renderMessages();
     await syncWorthItChatRealtimeChannel();
     await loadWorthItChatMessages(true, true);
@@ -2196,6 +2291,59 @@ async function syncWorthItChatRealtimeChannel() {
     }
 }
 
+async function restoreLastWorthItChatConversation(saved) {
+    if (!chatUser?.id || !saved || String(saved.userId || "") !== String(chatUser.id)) {
+        await routeWorthItChatFromLocation();
+        return;
+    }
+    if (saved.type === "global") {
+        await activateConversation(null, "global", GLOBAL_TITLE, null);
+        return;
+    }
+    if (saved.type === "direct") {
+        let friend = chatFriends.find(item => String(item.worth_it_id) === String(saved.person?.worth_it_id || ""));
+        if (!friend) {
+            await refreshWorthItChatData();
+            friend = chatFriends.find(item => String(item.worth_it_id) === String(saved.person?.worth_it_id || ""));
+        }
+        if (friend && saved.id) {
+            await activateConversation(saved.id, "direct", friend.display_name || friend.username || saved.title || "Friend chat", friend);
+            return;
+        }
+        await activateConversation(null, "global", GLOBAL_TITLE, null);
+        setStatus("Your previous private chat is no longer available.", true);
+        return;
+    }
+    if (saved.type === "group") {
+        let group = chatConversations.find(item => String(item.id) === String(saved.id || "") && item.type === "group");
+        if (!group) {
+            await refreshWorthItChatData();
+            group = chatConversations.find(item => String(item.id) === String(saved.id || "") && item.type === "group");
+        }
+        if (group) {
+            await activateConversation(group.id, "group", group.title || saved.title || "Group chat",
+                (Array.isArray(group.members) ? group.members[0] : null) || null, group.invite_token || saved.inviteToken || "");
+            return;
+        }
+        await activateConversation(null, "global", GLOBAL_TITLE, null);
+        setStatus("Your previous group chat is no longer available.", true);
+        return;
+    }
+    await routeWorthItChatFromLocation();
+}
+
+function refreshWorthItChatOnForeground() {
+    if (document.hidden || !chatOpen || !chatUser) return;
+    const now = Date.now();
+    // visibilitychange, focus and pageshow can fire together. Refresh only once
+    // per short foreground transition, without rebuilding the current conversation.
+    if (now - chatLastForegroundRefreshAt < 1200) return;
+    chatLastForegroundRefreshAt = now;
+    chatLastMessagePollAt = now;
+    void syncWorthItChatRealtimeChannel();
+    void loadWorthItChatMessages(false, true);
+}
+
 function startWorthItChatPolling() {
     if (!chatUser) return;
     if (chatPollTimer) window.clearInterval(chatPollTimer);
@@ -2227,10 +2375,12 @@ window.toggleWorthItChat = async function (event) {
         return;
     }
     if (!isChatRoutePath()) chatReturnPath = currentBrowserLocation() || "/";
+    const lastConversation = getLastWorthItChatConversation();
     setChatBrowserPath("/chat", false);
     showChatOverlay(true, {skipRouteSync:true});
     setWorthItChatFullscreen(false);
-    await routeWorthItChatFromLocation();
+    if (lastConversation) await restoreLastWorthItChatConversation(lastConversation);
+    else await routeWorthItChatFromLocation();
     // Opening the mobile chat must not summon the on-screen keyboard automatically.
     if (!window.matchMedia("(max-width: 540px)").matches) {
         $("worthItChatInput")?.focus({ preventScroll: true });
@@ -3482,7 +3632,10 @@ function setupChatUI() {
     updateChatHeaderNotificationButton();
     document.addEventListener("visibilitychange", () => {
         if (document.hidden) stopWorthItChatTyping();
+        else refreshWorthItChatOnForeground();
     });
+    window.addEventListener("focus", refreshWorthItChatOnForeground);
+    window.addEventListener("pageshow", refreshWorthItChatOnForeground);
 }
 window.getWorthItChatEnhancementContext = function () {
     const friendId = Number(activeConversationPerson?.worth_it_id);

@@ -140,6 +140,41 @@ test("clicking outside the /chat panel does not replace the route with Home", ()
     assert.match(client, /if \(event\.target !== this\) return;[\s\S]*?if \(isChatRoutePath\(\)\) return;[\s\S]*?showChatOverlay\(false\)/);
 });
 
+
+test("closing and reopening the chat restores the last global, private or group conversation", () => {
+    assert.match(client, /WORTH_IT_CHAT_LAST_CONVERSATION_KEY = "worth-it-chat-last-conversation-v1"/);
+    assert.match(client, /function rememberLastWorthItChatConversation\(\)/);
+    assert.match(client, /function getLastWorthItChatConversation\(\)/);
+    assert.match(client, /rememberLastWorthItChatConversation\(\)/);
+    assert.match(client, /const lastConversation = getLastWorthItChatConversation\(\);[\s\S]*?if \(lastConversation\) await restoreLastWorthItChatConversation\(lastConversation\);[\s\S]*?else await routeWorthItChatFromLocation\(\)/);
+    const restore = client.match(/async function restoreLastWorthItChatConversation\(saved\) \{([\s\S]*?)\n\}/)?.[1] || "";
+    assert.match(restore, /saved\.type === "global"/);
+    assert.match(restore, /saved\.type === "direct"/);
+    assert.match(restore, /saved\.type === "group"/);
+    assert.match(restore, /activateConversation\(saved\.id, "direct"/);
+    assert.match(restore, /activateConversation\(group\.id, "group"/);
+    assert.match(client, /sessionStorage\.setItem\(WORTH_IT_CHAT_LAST_CONVERSATION_KEY, JSON\.stringify\(saved\)\)/);
+});
+
+test("routine auth refreshes do not re-activate the current chat route", () => {
+    assert.match(client, /function worthItChatRouteMatchesActiveConversation\(route\)/);
+    assert.match(client, /if \(route && !worthItChatRouteMatchesActiveConversation\(route\)\) \{\s*\/\/ A token refresh or return to the browser window must not reopen the/);
+    assert.match(client, /route\.type === "direct"[\s\S]*?activeConversationType === "direct"[\s\S]*?activeConversationPerson\?\.worth_it_id/);
+    assert.match(client, /route\.type === "group"[\s\S]*?activeConversationType === "group"[\s\S]*?activeConversationInviteToken/);
+    const activate = client.match(/async function activateConversation\(id, type, title, person, inviteToken\) \{([\s\S]*?)\n\}/)?.[1] || "";
+    assert.doesNotMatch(activate, /chatMessages\s*=\s*\[\]\s*;/, "activating a conversation must not blindly replace visible messages with the empty state");
+});
+
+test("returning to the browser silently refreshes messages without showing conversation-opening status", () => {
+    assert.match(client, /function refreshWorthItChatOnForeground\(\)/);
+    assert.match(client, /document\.addEventListener\("visibilitychange", \(\) => \{\s*if \(document\.hidden\) stopWorthItChatTyping\(\);\s*else refreshWorthItChatOnForeground\(\);/);
+    assert.match(client, /window\.addEventListener\("focus", refreshWorthItChatOnForeground\)/);
+    assert.match(client, /window\.addEventListener\("pageshow", refreshWorthItChatOnForeground\)/);
+    assert.match(client, /void loadWorthItChatMessages\(false, true\)/);
+    assert.match(client, /cacheWorthItChatMessages\(worthItChatMessageCacheKey\(requestUserId, conversationType, conversationId\), rows\)/);
+    assert.match(client, /worthItChatMessageCache\.has\(nextKey\)[\s\S]*?worthItChatMessageCache\.get\(nextKey\)\.slice\(\)/);
+});
+
 test("typing indicator waits about one second, then uses low-latency broadcast with Presence fallback", () => {
     assert.match(client, /CHAT_TYPING_START_DELAY_MS = 1000/);
     assert.match(client, /chatTypingStartTimer = window\.setTimeout\([\s\S]*?CHAT_TYPING_START_DELAY_MS/);

@@ -120,3 +120,14 @@ test("the broken audioOnly reference is removed and asset caches point to the ne
     assert.match(polish, /#aiChatNavBtn\.ai-chat-nav-btn\s*\{[\s\S]*?width: 42px/);
     assert.match(polish, /#aiChatOverlay \.ai-chat-close/);
 });
+
+
+test("refreshing a conversation keeps its existing message elements until fresh rows arrive", () => {
+    const activate = chat.match(/async function activateConversation\(id, type, title, person, inviteToken\) \{([\s\S]*?)\n\}/)?.[1] || "";
+    assert.match(activate, /const sameConversation = activeConversationType === nextType/);
+    assert.match(activate, /if \(!sameConversation\) \{\s*chatMessages = worthItChatMessageCache\.has\(nextKey\)/);
+    assert.match(activate, /renderMessages\(\);\s*await syncWorthItChatRealtimeChannel\(\);\s*await loadWorthItChatMessages\(true, true\)/);
+    const loader = chat.match(/async function loadWorthItChatMessages\(scrollToBottom, force = false\) \{([\s\S]*?)\n\}/)?.[1] || "";
+    assert.match(loader, /if \(result\.error\) \{ setStatus\(rpcError\(result\.error\), true\); return; \}/);
+    assert.match(loader, /cacheWorthItChatMessages\(worthItChatMessageCacheKey\(requestUserId, conversationType, conversationId\), rows\)/);
+});
