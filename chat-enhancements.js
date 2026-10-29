@@ -169,14 +169,14 @@ function makeConversationWallpaper(contextValue, theme) {
     const key = String(contextValue?.conversationType || "chat") + ":" + String(contextValue?.conversationId || GLOBAL_CHAT_ID);
     const random = wallpaperRandom(wallpaperSeed(key));
     const palette = theme === "light" ? CHAT_WALLPAPER_LIGHT_PALETTE : CHAT_WALLPAPER_DARK_PALETTE;
-    const opacity = theme === "light" ? ".24" : ".22";
-    const geometryOpacity = theme === "light" ? ".31" : ".29";
+    const opacity = theme === "light" ? ".32" : ".28";
+    const geometryOpacity = theme === "light" ? ".38" : ".35";
     const cells = [];
     const motifGrid = [];
     const colorGrid = [];
     const geometryGrid = [];
     const geometryColorGrid = [];
-    const columns = 10, rows = 15, cellSize = 92;
+    const columns = 10, rows = 15, cellSize = 84;
 
     // Use a large library and avoid reusing the same motif within a 5 × 3
     // neighbourhood. That makes repeated artwork much harder to notice even
@@ -208,8 +208,8 @@ function makeConversationWallpaper(contextValue, theme) {
         colorGrid.push(color);
 
         const angle = Math.floor(random() * 360);
-        const scaleX = random() < .5 ? -.32 : .32;
-        const scaleY = random() < .5 ? -.32 : .32;
+        const scaleX = random() < .5 ? -.38 : .38;
+        const scaleY = random() < .5 ? -.38 : .38;
         const x = col * cellSize + cellSize / 2;
         const y = row * cellSize + cellSize / 2;
         cells.push(
@@ -218,9 +218,9 @@ function makeConversationWallpaper(contextValue, theme) {
             CHAT_WALLPAPER_ALL_MOTIFS[motifIndex] + '</g></g>'
         );
 
-        // Eight tiny shapes occupy the full ring around each large doodle.
-        // Their size and offsets leave a generous gap around the main drawing.
-        const geometryOffsets = [[0, -39], [39, 0], [0, 39], [-39, 0], [-36, -36], [36, -36], [-36, 36], [36, 36]];
+        // Eight small geometric marks occupy the ring around each large doodle.
+        // The tighter 84px grid keeps them between motifs with clear gaps.
+        const geometryOffsets = [[0, -32], [32, 0], [0, 32], [-32, 0], [-28, -28], [28, -28], [-28, 28], [28, 28]];
         const localGeometryIndices = [];
         const localGeometryColors = [];
         for (let marker = 0; marker < geometryOffsets.length; marker++) {
@@ -247,7 +247,7 @@ function makeConversationWallpaper(contextValue, theme) {
             localGeometryColors.push(geometryColor);
             const [dx, dy] = geometryOffsets[marker];
             const geometryAngle = Math.floor(random() * 360);
-            const geometryScale = .78 + random() * .42;
+            const geometryScale = .98 + random() * .32;
             cells.push(
                 '<g transform="translate(' + (x + dx) + ' ' + (y + dy) + ') rotate(' + geometryAngle + ') scale(' + geometryScale + ')" stroke="' + geometryColor +
                 '" stroke-opacity="' + geometryOpacity + '" stroke-width="1.5">' + CHAT_WALLPAPER_GEOMETRIES[geometryIndex] + '</g>'
@@ -256,7 +256,7 @@ function makeConversationWallpaper(contextValue, theme) {
         geometryGrid.push(localGeometryIndices);
         geometryColorGrid.push(localGeometryColors);
     }
-    return '<svg xmlns="http://www.w3.org/2000/svg" width="920" height="1380" viewBox="0 0 920 1380" fill="none" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">' + cells.join("") + '</svg>';
+    return '<svg xmlns="http://www.w3.org/2000/svg" width="840" height="1260" viewBox="0 0 840 1260" fill="none" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">' + cells.join("") + '</svg>';
 }
 function applyChatWallpaper(contextValue) {
     const surface = $("worthItChatMessages");
