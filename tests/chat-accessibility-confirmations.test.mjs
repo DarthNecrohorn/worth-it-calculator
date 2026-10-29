@@ -17,7 +17,7 @@ test("Delete for everyone opens its confirmation above the chat immediately, onl
     assert.match(client, /document\.body\.appendChild\(overlay\);\s*cancelButton\.focus\(\)/);
     assert.match(deleteConfirmCss, /z-index:\s*2147483647 !important/);
     assert.match(html, /chat-delete-confirm\.css\?v=chat-delete-confirm-20261028b/);
-    assert.match(html, /chat-ui\.js\?v=chat-navigation-typing-ux-20261028e/);
+    assert.match(html, /chat-ui\.js\?v=chat-media-emoji-20261028a/);
 });
 
 test("light-theme chat text, sidebar labels and empty states have readable contrast", () => {
@@ -35,7 +35,7 @@ test("light-theme chat text, sidebar labels and empty states have readable contr
     }
     assert.match(style, /html\[data-theme="light"\] \.worth-it-chat-category-btn\.is-active[\s\S]*?color: #312e81 !important/);
     assert.match(style, /html\[data-theme="light"\] \.worth-it-chat-media-tab\.is-active[\s\S]*?color: #312e81 !important/);
-    assert.match(html, /style\.css\?v=chat-light-theme-signout-20261028a/);
+    assert.match(html, /style\.css\?v=ai-chat-mobile-blur-20261028a/);
 });
 
 test("emoji and GIF picker close X glyph moves up two pixels without moving its square", () => {
