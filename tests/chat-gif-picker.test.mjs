@@ -34,7 +34,7 @@ test("the chat composer has an accessible attachment, emoji and owned-media pick
     assert.match(client, /function loadWorthItChatGifResults\(/);
     assert.match(client, /function selectWorthItChatGif\(/);
     assert.match(html, /chat-ui\.js\?v=chat-media-emoji-20261029a/);
-    assert.match(html, /style\.css\?v=email-verification-ai-20261029b/);
+    assert.match(html, /style\.css\?v=user-reports-email-gate-20261029c/);
 });
 
 test("signed-in chat refresh keeps the initial session-restoration state instead of flashing the sign-in prompt", () => {
@@ -226,5 +226,5 @@ test("country flags render visually in the chat composer while typing", () => {
     assert.match(css, /textarea::selection[\s\S]*?background: rgba\(79, 70, 229, \.78\)/);
     assert.match(css, /@media \(max-width: 540px\)[\s\S]*?\.worth-it-chat-input-preview\s*\{\s*font-size: 12px;/);
     assert.match(html, /chat-ui\.js\?v=chat-media-emoji-20261029a/);
-    assert.match(html, /style\.css\?v=email-verification-ai-20261029b/);
+    assert.match(html, /style\.css\?v=user-reports-email-gate-20261029c/);
 });
