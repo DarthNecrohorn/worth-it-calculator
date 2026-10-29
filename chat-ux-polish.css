@@ -79,6 +79,10 @@
     flex: 0 0 auto !important;
     min-width: 74px !important;
 }
+.worth-it-chat-compose #worthItChatSendBtn[hidden],
+.worth-it-chat-compose #worthItChatVoiceBtn[hidden] {
+    display: none !important;
+}
 .worth-it-chat-media-trigger {
     box-sizing: border-box !important;
     display: inline-flex !important;
