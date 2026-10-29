@@ -1640,7 +1640,7 @@ function createWorthItChatMessageRow(message) {
     row.className = "worth-it-chat-message" + (mine ? " is-mine" : "");
     row.dataset.messageId = String(message.id ?? "");
     row.dataset.worthItMessageSignature = signature;
-    row.appendChild(makeChatProfileLink(message, "worth-it-chat-message-avatar-link", makeAvatar(message)));
+    row.appendChild(makeAvatar(message));
     const stack = document.createElement("div");
     stack.className = "worth-it-chat-message-stack";
     const name = makeChatProfileLink(message, "worth-it-chat-message-name", message.display_name || message.username || "Worth It member");
@@ -2998,6 +2998,7 @@ async function routeWorthItChatFromLocation() {
         const previous = profileReturnConversation;
         profileReturnConversation = null;
         if (!chatUser) { renderMessages(); return; }
+        startWorthItChatPolling();
         await refreshWorthItChatData();
         if (routeVersion !== chatRouteVersion) return;
         if (previous.type === "global") {
@@ -3005,9 +3006,24 @@ async function routeWorthItChatFromLocation() {
             return;
         }
         if (previous.type === "direct") {
-            const person = chatFriends.find(item => Number(item.worth_it_id) === Number(previous.person?.worth_it_id));
-            if (person) await activateConversation(null, "direct", person.display_name || person.username || previous.title, person);
-            else { await activateConversation(null, "global", GLOBAL_TITLE, null); }
+            const person = chatFriends.find(item => Number(item.worth_it_id) === Number(previous.person?.worth_it_id))
+                || previous.person || null;
+            if (previous.id) {
+                // The stored id is the database conversation id, not the friend's Worth It ID.
+                // Keeping it prevents the header from appearing correct while the messages load
+                // for a null conversation.
+                await activateConversation(previous.id, "direct", person?.display_name || person?.username || previous.title, person, previous.inviteToken);
+                return;
+            }
+            if (person && Number.isSafeInteger(Number(person.worth_it_id))) {
+                const reopened = await sb().rpc("open_worth_it_friend_chat", {target_worth_it_id: Number(person.worth_it_id)});
+                if (!reopened.error && reopened.data?.success && reopened.data?.conversation_id) {
+                    await activateConversation(reopened.data.conversation_id, "direct", person.display_name || person.username || previous.title, person, previous.inviteToken);
+                    return;
+                }
+                setStatus(rpcError(reopened.error || new Error("Could not restore this conversation.")), true);
+            }
+            await activateConversation(null, "global", GLOBAL_TITLE, null);
             return;
         }
         if (previous.type === "group") {

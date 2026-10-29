@@ -100,17 +100,55 @@ test("received message bubbles hug short text and wrap long text within the chat
     assert.match(baseChatCss, /\.worth-it-chat-bubble\{[^}]*overflow-wrap:anywhere;white-space:pre-wrap/);
 });
 
-test("chat wallpaper has more small rotated doodles with per-conversation placement", () => {
+
+test("message profile links are limited to the display name, and timestamps are larger", () => {
+    const start = chat.indexOf("function createWorthItChatMessageRow(message)");
+    const end = chat.indexOf("\nfunction updateWorthItChatTravelPresentButton()", start);
+    const render = chat.slice(start, end);
+    assert.ok(render.includes("row.appendChild(makeAvatar(message));"));
+    assert.ok(!render.includes('makeChatProfileLink(message, "worth-it-chat-message-avatar-link"'));
+    assert.ok(render.includes('makeChatProfileLink(message, "worth-it-chat-message-name"'));
+    assert.ok(polish.includes("width: fit-content !important;"));
+    assert.ok(polish.includes("align-self: flex-start !important;"));
+    assert.ok(polish.includes("font-size: 11px !important;"));
+    assert.ok(polish.includes("color: #475569 !important;"));
+});
+
+test("returning from a profile restores the same private conversation id and resumes polling", () => {
+    const start = chat.indexOf("async function routeWorthItChatFromLocation()");
+    const end = chat.indexOf("\nfunction ", start + 10);
+    const router = chat.slice(start, end);
+    assert.ok(router.includes("profileReturnConversation && currentBrowserLocation() === profileReturnConversation.path"));
+    assert.ok(router.includes("startWorthItChatPolling();"));
+    assert.ok(router.includes("await refreshWorthItChatData();"));
+    assert.ok(router.includes("|| previous.person || null"));
+    assert.ok(router.includes('await activateConversation(previous.id, "direct"'));
+    const activateStart = chat.indexOf("async function activateConversation(id, type, title, person, inviteToken)");
+    const activateEnd = chat.indexOf("\nwindow.showWorthItChatSidebar", activateStart);
+    const activate = chat.slice(activateStart, activateEnd);
+    assert.ok(activate.includes("await syncWorthItChatRealtimeChannel();"));
+    assert.ok(activate.includes("await loadWorthItChatMessages(true, true);"));
+    const foregroundStart = chat.indexOf("function refreshWorthItChatOnForeground()");
+    const foreground = chat.slice(foregroundStart, foregroundStart + 900);
+    assert.ok(foreground.includes("void loadWorthItChatMessages(false, true)"));
+});
+
+test("chat wallpaper avoids nearby duplicate doodles and fills gaps with varied geometry", () => {
+    assert.match(calls, /const CHAT_WALLPAPER_EXTRA_MOTIFS = \[/);
+    assert.match(calls, /CHAT_WALLPAPER_ALL_MOTIFS = CHAT_WALLPAPER_MOTIFS\.concat\(CHAT_WALLPAPER_EXTRA_MOTIFS\)/);
     assert.match(calls, /const columns = 10, rows = 15, cellSize = 92/);
     assert.match(calls, /for \(let i = 0; i < columns \* rows; i\+\+\)/);
-    assert.match(calls, /Math\.floor\(i \/ columns\), col = i % columns/);
-    assert.match(calls, /const forbidden = new Set\(nearbyMotifs\)/);
-    assert.match(calls, /\.filter\(index => !forbidden\.has\(index\)\)/);
-    assert.match(calls, /random\(\) \* 56 - 28/);
-    assert.match(calls, /scale\(' \+ scaleX \+ ' \.46\)/);
+    assert.match(calls, /const forbiddenMotifs = new Set\(\)/);
+    assert.match(calls, /nearRow = row - rowOffset/);
+    assert.match(calls, /CHAT_WALLPAPER_ALL_MOTIFS/);
+    assert.match(calls, /Math\.floor\(random\(\) \* 360\)/);
+    assert.match(calls, /const scaleX = random\(\) < \.5 \? -\.32 : \.32/);
     assert.match(calls, /const CHAT_WALLPAPER_GEOMETRIES = \[/);
-    assert.match(calls, /const geometryOffsets = \(row \+ col\) % 2 === 0/);
+    assert.match(calls, /const geometryOffsets = \[\[0, -39\], \[39, 0\], \[0, 39\], \[-39, 0\], \[-36, -36\], \[36, -36\], \[-36, 36\], \[36, 36\]\]/);
+    assert.match(calls, /const geometryScale = \.78 \+ random\(\) \* \.42/);
     assert.match(calls, /wallpaperSeed\(type \+ ":" \+ String\(contextValue\.conversationId/);
+    assert.match(enhancementCss, /background-size:auto,840px 1260px!important/);
+    assert.match(enhancementCss, /background-size:auto,700px 1050px!important/);
     assert.match(polish, /#worthItChatMessageSearchBtn\s*\{\s*font-size: 26px/);
     assert.ok(html.includes('id="worthItChatMessageSearchBtn" title="Search messages in this conversation" aria-label="Search messages" aria-expanded="false" aria-controls="worthItChatSearchPanel"><span class="worth-it-chat-search-glyph" aria-hidden="true">⌕</span></button>'));
     assert.match(polish, /\.worth-it-chat-search-glyph\s*\{\s*position: relative !important;\s*top: -2px !important;\s*display: inline-block !important;/);
@@ -121,12 +159,12 @@ test("chat wallpaper has more small rotated doodles with per-conversation placem
 test("the broken audioOnly reference is removed and asset caches point to the new builds", () => {
     assert.doesNotMatch(calls, /audioOnly/);
     assert.match(html, /chat-ui\.js\?v=worthit-gif-plants-20261029f/);
-    assert.match(html, /chat-enhancements\.js\?v=worthit-chat-enhancements-20261029g/);
+    assert.match(html, /chat-enhancements\.js\?v=worthit-chat-enhancements-20261029h/);
     assert.match(html, /chat-enhancements\.css\?v=worthit-chat-enhancements-20261029g/);
     assert.match(calls, /width="920" height="1380" viewBox="0 0 920 1380"/);
     assert.match(enhancementCss, /background-size:auto,840px 1260px!important/);
     assert.match(enhancementCss, /background-size:auto,700px 1050px!important/);
-    assert.match(html, /chat-ux-polish\.css\?v=chat-ux-polish-20261029h/);
+    assert.match(html, /chat-ux-polish\.css\?v=chat-ux-polish-20261029i/);
     assert.match(html, /ai-ui\.js\?v=worthit-ai-overlay-20261029b/);
     assert.match(polish, /#aiChatOverlay \.ai-chat-close\s*\{\s*transform: translateY\(2px\)/);
     assert.match(polish, /#aiChatNavBtn\.ai-chat-nav-btn\s*\{[\s\S]*?width: 42px/);
