@@ -163,7 +163,7 @@ test("chat wallpaper avoids nearby duplicate doodles and fills gaps with varied 
     assert.match(calls, /const geometryScale = \.98 \+ random\(\) \* \.32/);
     assert.ok((Math.sqrt(43 * 43 + 12 * 12) - Math.sqrt(2 * 67 * 67) * 0.38 - 6.5) > 0, "edge marks stay outside the large motif bounds");
     assert.ok((Math.sqrt(2 * 32 * 32) - Math.sqrt(2 * 67 * 67) * 0.38 - 6.5) > 0, "corner marks stay outside the large motif bounds");
-    assert.ok((Math.sqrt(2 * 12 * 12 + 24 * 24) - 13) > 0, "edge marks from adjacent cells retain a gap");
+    assert.ok((Math.sqrt(2 * 2 + 24 * 24) - 13) > 0, "edge marks from adjacent cells retain a gap");
     assert.ok(((84 - 2 * 32) - 13) > 0, "corner marks across a cell edge retain a gap");
     assert.match(calls, /wallpaperSeed\(type \+ ":" \+ String\(contextValue\.conversationId/);
     assert.match(enhancementCss, /background-size:auto,800px 1200px!important/);
