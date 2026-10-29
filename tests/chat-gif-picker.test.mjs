@@ -171,12 +171,15 @@ test("emoji and GIF category buttons stay inside their picker while their tabs r
     assert.ok(gifHandler.includes("worthItChatGifCategory = category.id;"));
     assert.ok(gifHandler.includes("loadWorthItChatGifResults("));
 
-    const pathAt = client.indexOf("const eventPath = typeof event.composedPath ===");
+    const setupAt = client.indexOf("function setupChatUI()");
+    const pathAt = client.indexOf("const path = typeof event.composedPath ===", setupAt);
     assert.ok(pathAt >= 0);
-    const pathCode = client.slice(pathAt, pathAt + 500);
-    assert.ok(pathCode.includes("wasInside(dock)"));
-    assert.ok(pathCode.includes("wasInside(emojiPicker)"));
-    assert.ok(pathCode.includes("wasInside(gifPicker)"));
+    const pathCode = client.slice(pathAt, pathAt + 700);
+    assert.ok(pathCode.includes("insideDock"));
+    assert.ok(pathCode.includes("insideMenu"));
+    assert.ok(pathCode.includes('menu.hidden = true'));
+    assert.doesNotMatch(pathCode, /closeWorthItChatPickers\(\)/);
+    assert.ok(client.includes("Only the transient attachment menu closes"));
 });
 
 test("chat presence badges sit on the avatar lower-right edge without clipping the image", () => {
