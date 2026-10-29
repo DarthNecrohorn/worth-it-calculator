@@ -23,22 +23,27 @@ test("Plants contains an expanded selection separate from Animals and before Foo
     for (const emoji of ["🌱", "🌿", "🌳", "🌷", "🌻"]) assert.ok(!animals.includes(emoji));
 });
 
-test("AI overlay has a desktop 40px offset, backdrop blur and a much larger mobile panel", () => {
+test("AI overlay stays above the header, uses a desktop offset and fills the phone viewport", () => {
     assert.match(css, /\.ai-chat-overlay\.open \.ai-chat-card\s*\{[^}]*transform: translateY\(40px\)/);
     assert.match(css, /\.ai-chat-overlay\s*\{[^}]*backdrop-filter: blur\(14px\)/);
-    assert.match(css, /@media \(max-width: 760px\)\s*\{[\s\S]*?\.ai-chat-overlay\.open \.ai-chat-card\s*\{[^}]*height: min\(88dvh, 900px\)/);
+    assert.match(css, /\.ai-chat-overlay\s*\{[^}]*z-index: 2147483646/);
+    assert.match(css, /@media \(max-width: 760px\)\s*\{[\s\S]*?\.ai-chat-overlay\.open \.ai-chat-card\s*\{[\s\S]*?width: calc\(100vw - 24px\)/);
     assert.match(html, /style\.css\?v=email-verification-ai-20261028a/);
 });
 
-test("unconfirmed accounts see a resendable verification gate and cannot send chat or AI prompts", () => {
+test("unverified accounts get guest privileges, a daily resend button and email-app shortcut", () => {
     assert.match(app, /function isWorthItEmailVerified\(user\)/);
     assert.match(app, /user\.email_confirmed_at \|\| user\.confirmed_at/);
     assert.match(app, /function updateWorthItEmailVerificationGate\(user\)/);
-    assert.match(app, /auth\.resend\(\{[\s\S]*?type: "signup"/);
+    assert.match(app, /window\.worthItPendingEmailUser = sessionUser && !currentAuthUser \? sessionUser : null/);
+    assert.match(app, /resend-email-confirmation/);
+    assert.match(app, /worthItEmailResendNextAllowedAtV1/);
     assert.match(app, /https:\/\/mail\.google\.com\//);
+    assert.match(app, /https:\/\/outlook\.live\.com\/mail\//);
     assert.match(chat, /!window\.isWorthItEmailVerified\(window\.worthItCurrentAuthUser \|\| chatUser\)/);
     assert.match(ai, /!window\.isWorthItEmailVerified\(window\.worthItCurrentAuthUser \|\| currentAuthUser\)/);
-    assert.match(css, /\.worth-it-email-gate\s*\{[^}]*position: fixed/);
+    assert.match(css, /\.worth-it-email-gate\s*\{[\s\S]*?position: fixed[\s\S]*?pointer-events: none/);
+    assert.match(css, /\.worth-it-email-gate-card\s*\{[\s\S]*?pointer-events: auto/);
     assert.match(html, /app\.js\?v=email-verification-20261028a/);
-    assert.match(html, /ai-ui\.js\?v=email-verification-ai-20261028a/);
+    assert.match(html, /ai-ui\.js\?v=email-verification-20261028a/);
 });
