@@ -17,7 +17,7 @@ test("Delete for everyone opens its confirmation above the chat immediately, onl
     assert.match(client, /document\.body\.appendChild\(overlay\);\s*cancelButton\.focus\(\)/);
     assert.match(deleteConfirmCss, /z-index:\s*2147483647 !important/);
     assert.match(html, /chat-delete-confirm\.css\?v=chat-delete-confirm-20261028b/);
-    assert.match(html, /chat-ui\.js\?v=chat-media-emoji-20261028b/);
+    assert.match(html, /chat-ui\.js\?v=chat-media-emoji-20261029a/);
 });
 
 test("light-theme chat text, sidebar labels and empty states have readable contrast", () => {
@@ -35,7 +35,7 @@ test("light-theme chat text, sidebar labels and empty states have readable contr
     }
     assert.match(style, /html\[data-theme="light"\] \.worth-it-chat-category-btn\.is-active[\s\S]*?color: #312e81 !important/);
     assert.match(style, /html\[data-theme="light"\] \.worth-it-chat-media-tab\.is-active[\s\S]*?color: #312e81 !important/);
-    assert.match(html, /style\.css\?v=email-verification-ai-20261028a/);
+    assert.match(html, /style\.css\?v=email-verification-ai-20261029b/);
 });
 
 test("emoji and GIF picker close X glyph moves up two pixels without moving its square", () => {
@@ -61,5 +61,5 @@ test("Sign out requires an explicit Yes; No, Escape and backdrop clicks cancel",
     assert.match(handler, /if \(event\.target === overlay\)[\s\S]*?finish\(false\)/);
     assert.match(style, /\.worth-it-signout-confirm-dialog\s*\{[\s\S]*?z-index: 2147483646/);
     assert.match(style, /html\[data-theme="light"\] \.worth-it-signout-confirm-card/);
-    assert.match(html, /app\.js\?v=email-verification-20261028a/);
+    assert.match(html, /app\.js\?v=email-verification-20261029b/);
 });
