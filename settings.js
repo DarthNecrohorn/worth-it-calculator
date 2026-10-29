@@ -354,6 +354,11 @@ window.WORTH_IT_SETTINGS_SECTIONS = WORTH_IT_SETTINGS_SECTIONS;
         const button = $("accountUsernameSave");
         const username = input?.value?.trim() || "";
         if (!input || !button || button.disabled) return;
+        if (username.length < 3 || username.length > 20 || !/^[A-Za-z][A-Za-z0-9]*(?:_[A-Za-z0-9]+)?$/.test(username)) {
+            accountStatus("accountUsernameStatus", "Username must start with a letter and use 3–20 English letters or numbers, with at most one underscore between them.", true);
+            updateAccountSaveButtons();
+            return;
+        }
         button.disabled = true;
         accountStatus("accountUsernameStatus", "Saving your username…", false);
         try {
