@@ -50,7 +50,7 @@ test("opening chat and cancelling a reply do not summon the mobile keyboard", ()
     const toggleStart = chat.indexOf("window.toggleWorthItChat = async function");
     const toggleEnd = chat.indexOf("\nwindow.shareWorthItGroupInvite", toggleStart);
     const toggle = chat.slice(toggleStart, toggleEnd);
-    assert.match(toggle, /if \(!window\.matchMedia\("\(max-width: 540px\)"\)\.matches\)\s*\$\("worthItChatInput"\)\?\.focus/);
+    assert.match(toggle, /if \(!window\.matchMedia\("\(max-width: 540px\)"\)\.matches\)\s*\{\s*\$\("worthItChatInput"\)\?\.focus/);
     const replyCloseStart = chat.indexOf('$("worthItChatReplyCloseBtn")?.addEventListener("click"');
     const replyCloseEnd = chat.indexOf('$("worthItChatHeaderNotifications")', replyCloseStart);
     const replyClose = chat.slice(replyCloseStart, replyCloseEnd);
