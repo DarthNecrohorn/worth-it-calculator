@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import { createHash } from "node:crypto";
 
 const html = readFileSync(new URL("../index.html", import.meta.url), "utf8");
 const client = readFileSync(new URL("../chat-ui.js", import.meta.url), "utf8");
@@ -38,7 +39,7 @@ test("the chat composer uploads directly and exposes GIF, sticker and emoji acti
     assert.match(client, /function renderWorthItChatEmojiCategories\(/);
     assert.match(client, /function loadWorthItChatGifResults\(/);
     assert.match(client, /function selectWorthItChatGif\(/);
-    assert.match(html, /chat-ui\.js\?v=chat-media-lightbox-20261029a/);
+    assert.match(html, /chat-ui\\.js\\?v=worthit-original-animation-library-200-20261029a/);
     assert.match(html, /style\.css\?v=chat-media-lightbox-20261029a/);
 });
 
@@ -103,9 +104,58 @@ test("each curated original animation has a valid GIF signature and stays within
         assert.match(client, new RegExp('id: "' + asset.id + '"'));
         assert.match(client, new RegExp('offset: ' + asset.offset + ', length: ' + asset.length));
     }
-    assert.equal(originalGifAssets.length, 24, "the library should contain many more original animations");
-    assert.equal(originalGifAssets.filter(asset => asset.type === "gif").length, 12);
-    assert.equal(originalGifAssets.filter(asset => asset.type === "sticker").length, 12);
+    assert.equal(originalGifAssets.length, 200, "the library should contain 100 GIFs and 100 stickers");
+    assert.equal(originalGifAssets.filter(asset => asset.type === "gif").length, 100);
+    assert.equal(originalGifAssets.filter(asset => asset.type === "sticker").length, 100);
+});
+
+
+test("the original Worth It catalogue has unique IDs, titles and exact animation payloads", () => {
+    const idKeys = originalGifAssets.map(asset => asset.id.toLowerCase());
+    const titleKeys = originalGifAssets.map(asset => asset.title.trim().toLowerCase());
+    assert.equal(new Set(idKeys).size, originalGifAssets.length, "catalogue IDs must not repeat");
+    assert.equal(new Set(titleKeys).size, originalGifAssets.length, "catalogue titles must not repeat");
+    const hashes = originalGifAssets.map(asset => createHash("sha256")
+        .update(library.subarray(asset.offset, asset.offset + asset.length)).digest("hex"));
+    assert.equal(new Set(hashes).size, hashes.length, "no two GIFs or stickers may have identical bytes");
+});
+
+function countGifFrames(bytes) {
+    let p = 13, frames = 0;
+    const packed = bytes[10];
+    if (packed & 0x80) p += 3 * (1 << ((packed & 7) + 1));
+    while (p < bytes.length) {
+        const marker = bytes[p++];
+        if (marker === 0x3b) break;
+        if (marker === 0x21) {
+            p++;
+            while (p < bytes.length) {
+                const size = bytes[p++];
+                if (!size) break;
+                p += size;
+            }
+            continue;
+        }
+        if (marker !== 0x2c) throw new Error("Unexpected GIF block marker " + marker);
+        const descriptorPacked = bytes[p + 8];
+        p += 9;
+        if (descriptorPacked & 0x80) p += 3 * (1 << ((descriptorPacked & 7) + 1));
+        p++; // LZW minimum code size
+        while (p < bytes.length) {
+            const size = bytes[p++];
+            if (!size) break;
+            p += size;
+        }
+        frames++;
+    }
+    return frames;
+}
+
+test("every local GIF and sticker is actually animated", () => {
+    for (const asset of originalGifAssets) {
+        const bytes = library.subarray(asset.offset, asset.offset + asset.length);
+        assert.ok(countGifFrames(bytes) >= 2, asset.id + " should contain multiple animation frames");
+    }
 });
 
 test("picker controls use Worth It styling and remain scrollable on mobile", () => {
@@ -257,7 +307,7 @@ test("country flags render visually in the chat composer while typing", () => {
     assert.match(css, /textarea::selection[\s\S]*?color: transparent !important[\s\S]*?-webkit-text-fill-color: transparent !important/);
     assert.match(css, /textarea::selection[\s\S]*?background: rgba\(79, 70, 229, \.78\)/);
     assert.match(css, /@media \(max-width: 540px\)[\s\S]*?\.worth-it-chat-input-preview\s*\{\s*font-size: 12px;/);
-    assert.match(html, /chat-ui\.js\?v=chat-media-lightbox-20261029a/);
+    assert.match(html, /chat-ui\\.js\\?v=worthit-original-animation-library-200-20261029a/);
     assert.match(html, /style\.css\?v=chat-media-lightbox-20261029a/);
 });
 
