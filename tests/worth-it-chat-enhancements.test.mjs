@@ -203,7 +203,7 @@ test("chat images open in a responsive full-screen viewer and media bubbles do n
     assert.match(client, /const scales = Array\.from/);
     assert.match(client, /scales\[0\] = \.54 \+ random\(\) \* \.05/);
     assert.match(client, /scales\[1\] = 1\.04 \+ random\(\) \* \.09/);
-    assert.match(client, /Math\.hypot\(x - existing\.x, y - existing\.y\) < radius \+ existing\.radius \+ 12/);
+    assert.match(client, /Math\.hypot\(x - existing\.x, y - existing\.y\) < radius \+ existing\.radius \+ 8/);
     assert.match(client, /const x = margin \+ random\(\) \* Math\.max\(0, canvasWidth - margin \* 2\)/);
     assert.match(client, /const y = margin \+ random\(\) \* Math\.max\(0, canvasHeight - margin \* 2\)/);
     assert.match(client, /const usedMotifs = new Set\(\)/);
@@ -238,7 +238,7 @@ test("chat doodles and accents stay separated, adapt to both themes and retain v
     assert.match(client, /const scaleY = random\(\) < \.5 \? -scale : scale/);
     assert.match(client, /const overlaps = placements\.some/);
     assert.match(client, /doodle\.radius \+ markerRadius \+ 8/);
-    assert.match(client, /markerRadius \+ existing\.radius \+ 6/);
+    assert.match(client, /markerRadius \+ existing\.radius \+ 4/);
     assert.match(client, /const x = 13 \+ random\(\) \* Math\.max\(0, canvasWidth - 26\)/);
     assert.match(client, /const y = 13 \+ random\(\) \* Math\.max\(0, canvasHeight - 26\)/);
     assert.match(client, /const opacity = theme === "light" \? "\.44" : "\.36"/);
