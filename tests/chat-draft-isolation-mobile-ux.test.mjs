@@ -193,7 +193,7 @@ test("private and group deep links do not render Global Chat while auth is resol
 
 test("the broken audioOnly reference is removed and asset caches point to the new builds", () => {
     assert.doesNotMatch(calls, /audioOnly/);
-    assert.match(html, /chat-ui\.js\?v=chat-media-lightbox-20261029a/);
+    assert.match(html, /chat-ui\\.js\\?v=worthit-original-animation-library-200-20261029a/);
     assert.match(html, /chat-enhancements\.js\?v=chat-media-lightbox-wallpaper-20261029a/);
     assert.match(html, /chat-enhancements\.css\?v=chat-media-lightbox-wallpaper-20261029a/);
     assert.match(enhancementCss, /background-repeat:no-repeat,repeat-y!important/);
