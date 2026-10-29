@@ -15,7 +15,7 @@ function request({ origin = SITE_ORIGIN, method = "GET", token = "test-session-t
     if (token) headers.Authorization = "Bearer " + token;
     return new Request(url, { method, headers });
 }
-function mockFetch({ validUser = true, relayStatus = 201, payload } = {}) {
+function mockFetch({ validUser = true, relayStatus = 201, payload, friendChat = true, hasAccess = true } = {}) {
     const calls = [];
     const fetch = async (input, init = {}) => {
         const url = String(input);
@@ -27,12 +27,12 @@ function mockFetch({ validUser = true, relayStatus = 201, payload } = {}) {
             });
         }
         if (url.endsWith("/rest/v1/rpc/get_worth_it_chat_conversations")) {
-            return new Response(JSON.stringify([{ id: "00000000-0000-4000-8000-000000000100", type: "direct" }]), {
+            return new Response(JSON.stringify(friendChat ? [{ id: "00000000-0000-4000-8000-000000000100", type: "direct" }] : []), {
                 status: 200, headers: { "Content-Type": "application/json" }
             });
         }
         if (url.endsWith("/rest/v1/rpc/can_access_worth_it_chat_media")) {
-            return new Response("true", { status: 200, headers: { "Content-Type": "application/json" } });
+            return new Response(hasAccess ? "true" : "false", { status: 200, headers: { "Content-Type": "application/json" } });
         }
         if (url.includes("/credentials/generate-ice-servers")) {
             return new Response(JSON.stringify(payload || {
@@ -105,10 +105,12 @@ test("call ICE endpoint rejects cross-origin requests and unsupported methods", 
 });
 
 test("call ICE endpoint does not issue credentials for groups or chats without current friendship", async () => {
-    const nonFriend = mockFetch({ payload: [] });
-    const blocked = await withFetch(nonFriend.fetch, () => onRequest({
-        request: request(), env: BASE_ENV
-    }));
-    assert.equal(blocked.status, 403);
-    assert.equal(nonFriend.calls.some(call => call.url.includes("/credentials/generate-ice-servers")), false);
+    for (const setup of [{ friendChat: false }, { hasAccess: false }]) {
+        const nonFriend = mockFetch(setup);
+        const blocked = await withFetch(nonFriend.fetch, () => onRequest({
+            request: request(), env: BASE_ENV
+        }));
+        assert.equal(blocked.status, 403);
+        assert.equal(nonFriend.calls.some(call => call.url.includes("/credentials/generate-ice-servers")), false);
+    }
 });

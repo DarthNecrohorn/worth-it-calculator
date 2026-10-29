@@ -16,4 +16,4 @@ If these two TURN variables are absent or the credentials service is unavailable
 
 ## Cost
 
-Cloudflare's Realtime TURN documentation currently lists standalone TURN at **$0.05 per real-time GB outbound**; the separate free-of-charge note applies when TURN is used together with the Realtime SFU. Check current terms and usage before enabling it. See the [official TURN credentials guide](https://developers.cloudflare.com/realtime/turn/generate-credentials/) and [TURN service pricing/details](https://developers.cloudflare.com/realtime/turn/).
+Cloudflare lists Realtime TURN egress at **$0.05 per GB**, with a shared first **1,000 GB/month free allowance** across TURN and SFU usage. Check current terms and usage before enabling it. See the [official TURN credentials guide](https://developers.cloudflare.com/realtime/turn/generate-credentials/) and [TURN service pricing/details](https://developers.cloudflare.com/realtime/turn/).
