@@ -280,6 +280,6 @@ test("scrolling into older messages reveals Travel back to present and smoothly 
     assert.match(client, /distanceFromBottom > 80/);
     assert.match(client, /addEventListener\("scroll", updateWorthItChatTravelPresentButton/);
     assert.match(client, /messages\.scrollTo\(\{[\s\S]*?top: messages\.scrollHeight,[\s\S]*?behavior: prefersReducedMotion \? "auto" : "smooth"/);
-    assert.match(polish, /\.worth-it-chat-travel-present:hover/);
+    assert.match(polish, /button\.worth-it-chat-travel-present:not\(\[disabled\]\):hover/);
     assert.match(polish, /@keyframes worthItChatTravelArrive/);
 });
