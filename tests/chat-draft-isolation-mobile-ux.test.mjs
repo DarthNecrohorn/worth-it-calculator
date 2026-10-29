@@ -100,10 +100,15 @@ test("received message bubbles hug short text and wrap long text within the chat
 });
 
 test("chat wallpaper has more small rotated doodles with per-conversation placement", () => {
-    assert.match(calls, /for \(let i = 0; i < 64; i\+\+\)/);
-    assert.match(calls, /Math\.floor\(i \/ 8\), col = i % 8/);
-    assert.match(calls, /random\(\) \* 34 - 17/);
-    assert.match(calls, /scale\(\.62\)/);
+    assert.match(calls, /const columns = 10, rows = 10, cellSize = 92/);
+    assert.match(calls, /for \(let i = 0; i < columns \* rows; i\+\+\)/);
+    assert.match(calls, /Math\.floor\(i \/ columns\), col = i % columns/);
+    assert.match(calls, /const forbidden = new Set\(nearbyMotifs\)/);
+    assert.match(calls, /\.filter\(index => !forbidden\.has\(index\)\)/);
+    assert.match(calls, /random\(\) \* 56 - 28/);
+    assert.match(calls, /scale\(' \+ scaleX \+ ' \.46\)/);
+    assert.match(calls, /const CHAT_WALLPAPER_GEOMETRIES = \[/);
+    assert.match(calls, /const geometryOffsets = \(row \+ col\) % 2 === 0/);
     assert.match(calls, /wallpaperSeed\(type \+ ":" \+ String\(contextValue\.conversationId/);
     assert.match(polish, /#worthItChatMessageSearchBtn\s*\{\s*font-size: 26px/);
     assert.ok(html.includes('id="worthItChatMessageSearchBtn" title="Search messages in this conversation" aria-label="Search messages" aria-expanded="false" aria-controls="worthItChatSearchPanel"><span class="worth-it-chat-search-glyph" aria-hidden="true">⌕</span></button>'));
@@ -115,7 +120,7 @@ test("chat wallpaper has more small rotated doodles with per-conversation placem
 test("the broken audioOnly reference is removed and asset caches point to the new builds", () => {
     assert.doesNotMatch(calls, /audioOnly/);
     assert.match(html, /chat-ui\.js\?v=worthit-gif-plants-20261029f/);
-    assert.match(html, /chat-enhancements\.js\?v=worthit-chat-enhancements-20261029f/);
+    assert.match(html, /chat-enhancements\.js\?v=worthit-chat-enhancements-20261029g/);
     assert.match(html, /chat-ux-polish\.css\?v=chat-ux-polish-20261029h/);
     assert.match(html, /ai-ui\.js\?v=worthit-ai-overlay-20261029b/);
     assert.match(polish, /#aiChatOverlay \.ai-chat-close\s*\{\s*transform: translateY\(2px\)/);
