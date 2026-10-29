@@ -39,6 +39,7 @@ let remoteAudioSourceTrackKey = "";
 let speakerBoostEnabled = false;
 let audioRecorder = null;
 let audioRecorderStream = null;
+let audioRecordingContext = null;
 let audioChunks = [];
 let audioRecordingStartedAt = 0;
 let audioLimitTimer = null;
@@ -901,6 +902,16 @@ async function startVoiceRecording() {
         status("Voice recording is not supported by this browser.", true); return;
     }
     if (audioRecorder) { stopVoiceRecording(); return; }
+    // Capture the target before asking for microphone access. Finishing a recording
+    // must never attach it to whichever chat happened to be opened meanwhile.
+    audioRecordingContext = {
+        userId: ctx.userId,
+        conversationId: ctx.conversationId || GLOBAL_CHAT_ID,
+        conversationType: ctx.conversationType,
+        isFriend: Boolean(ctx.isFriend),
+        friendId: ctx.friendId || null,
+        title: ctx.title || ""
+    };
     try {
         audioRecorderStream = await navigator.mediaDevices.getUserMedia({ audio: true });
         const mime = ["audio/webm;codecs=opus","audio/ogg;codecs=opus","audio/mp4","audio/webm","audio/ogg"]
@@ -910,18 +921,27 @@ async function startVoiceRecording() {
         audioRecorder.ondataavailable = event => { if (event.data?.size) audioChunks.push(event.data); };
         audioRecorder.onerror = () => {
             stopVoiceRecordingResources();
-            status("Voice recording stopped because the browser reported an error.", true);
+            if (context()?.userId === audioRecordingContext?.userId
+                && String(context()?.conversationId || GLOBAL_CHAT_ID) === String(audioRecordingContext?.conversationId || GLOBAL_CHAT_ID)) {
+                status("Voice recording stopped because the browser reported an error.", true);
+            }
         };
         audioRecorder.onstop = () => {
             const recorder = audioRecorder;
+            const recordedFor = audioRecordingContext ? { ...audioRecordingContext } : null;
             const blob = new Blob(audioChunks, { type: recorder?.mimeType || mime || "audio/webm" });
             stopVoiceRecordingResources();
             if (!blob.size) { status("The recording was empty. Please try again.", true); return; }
             if (blob.size > 10 * 1024 * 1024) { status("Voice messages must be 10 MB or smaller.", true); return; }
             const file = new File([blob], "voice-message-" + Date.now() + "." + recordingExtension(blob.type), { type: blob.type });
             if (typeof window.worthItChatAttachRecordedAudio === "function") {
-                window.worthItChatAttachRecordedAudio(file);
-                status("Voice message ready. Preview it, then press Send to share it.", false);
+                window.worthItChatAttachRecordedAudio(file, recordedFor);
+                const current = context();
+                if (recordedFor?.userId === current?.userId
+                    && String(recordedFor?.conversationId || GLOBAL_CHAT_ID) === String(current?.conversationId || GLOBAL_CHAT_ID)
+                    && recordedFor?.conversationType === current?.conversationType) {
+                    status("Voice message ready. Preview it, then press Send to share it.", false);
+                }
             }
         };
         audioRecorder.start(1000);
@@ -947,6 +967,7 @@ function stopVoiceRecordingResources() {
     try { audioRecorderStream?.getTracks?.().forEach(track => track.stop()); } catch (_) {}
     audioRecorderStream = null;
     audioRecorder = null;
+    audioRecordingContext = null;
     audioChunks = [];
     audioRecordingStartedAt = 0;
     if (audioLimitTimer) window.clearTimeout(audioLimitTimer);
