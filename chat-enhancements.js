@@ -219,8 +219,11 @@ function makeConversationWallpaper(contextValue, theme) {
         );
 
         // Eight small geometric marks occupy the ring around each large doodle.
-        // The tighter 84px grid keeps them between motifs with clear gaps.
-        const geometryOffsets = [[0, -32], [32, 0], [0, 32], [-32, 0], [-28, -28], [28, -28], [-28, 28], [28, 28]];
+        // Edge marks are staggered by cell parity, so neighbours never occupy the same
+        // point. The corner marks stay clear of the main doodle even after scaling.
+        const geometryParity = (row + col) % 2 === 0;
+        const edgeShift = geometryParity ? -12 : 12;
+        const geometryOffsets = [[-edgeShift, -43], [43, edgeShift], [-edgeShift, 43], [-43, edgeShift], [-32, -32], [32, -32], [-32, 32], [32, 32]];
         const localGeometryIndices = [];
         const localGeometryColors = [];
         for (let marker = 0; marker < geometryOffsets.length; marker++) {
