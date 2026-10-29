@@ -39,6 +39,7 @@ export async function isWorthItAdminRequest(context) {
 
         return Boolean(
             user?.email &&
+            (user.email_confirmed_at || user.confirmed_at) &&
             String(user.email).trim().toLowerCase() === ADMIN_EMAIL
         );
     } catch {
