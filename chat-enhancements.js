@@ -3,9 +3,13 @@
 "use strict";
 const $ = id => document.getElementById(id);
 const GLOBAL_CHAT_ID = "00000000-0000-4000-8000-000000000001";
-const RTC_CONFIG = { iceServers: [{ urls: "stun:stun.l.google.com:19302" }] };
-const CALL_TICK_MS = 1400;
-const INCOMING_TICK_MS = 5000;
+const RTC_CONFIG = { iceServers: [
+    { urls: "stun:stun.l.google.com:19302" },
+    { urls: "stun:stun1.l.google.com:19302" },
+    { urls: "stun:stun2.l.google.com:19302" }
+] };
+const CALL_TICK_MS = 1200;
+const INCOMING_TICK_MS = 2000;
 const $client = () => window.supabaseClient || null;
 let currentContext = null;
 let searchSequence = 0;
@@ -15,7 +19,10 @@ let incomingPollBusy = false;
 let incomingCall = null;
 let activeCall = null;
 let callPollTimer = null;
-let incomingCallTimer = null;
+let incomingPollTimer = null;
+let callOverlayCloseTimer = null;
+let connectionRecoveryTimer = null;
+let callEverConnected = false;
 let callPeer = null;
 let localStream = null;
 let remoteStream = null;
@@ -244,9 +251,9 @@ function setCallMode(type) {
     overlay?.classList.toggle("is-video-call", type === "video");
     const remoteVideo = $("worthItChatRemoteVideo");
     const localVideo = $("worthItChatLocalVideo");
-    const audioOnly = type !== "video";
-    if (remoteVideo) remoteVideo.hidden = audioOnly;
-    if (localVideo) localVideo.hidden = audioOnly;
+    // Only reveal video surfaces once an actual camera track exists.
+    if (remoteVideo) remoteVideo.hidden = true;
+    if (localVideo) localVideo.hidden = true;
     const toggleCamera = $("worthItChatCallCameraBtn");
     if (toggleCamera) toggleCamera.hidden = audioOnly;
 }
@@ -387,8 +394,16 @@ function toggleSpeakerBoost() {
 function stopCallMedia() {
     if (callPollTimer) window.clearInterval(callPollTimer);
     callPollTimer = null;
+    if (connectionRecoveryTimer) window.clearTimeout(connectionRecoveryTimer);
+    connectionRecoveryTimer = null;
+    callEverConnected = false;
     if (callPeer) {
-        try { callPeer.onicecandidate = null; callPeer.ontrack = null; callPeer.close(); } catch (_) {}
+        try {
+            callPeer.onicecandidate = null;
+            callPeer.ontrack = null;
+            callPeer.onconnectionstatechange = null;
+            callPeer.close();
+        } catch (_) {}
     }
     callPeer = null;
     for (const stream of [localStream, remoteStream]) {
@@ -410,7 +425,12 @@ function stopCallMedia() {
     if (localVideo) { localVideo.srcObject = null; localVideo.hidden = true; }
     if (remoteAudio) { remoteAudio.srcObject = null; remoteAudio.muted = false; remoteAudio.volume = 1; }
     const mute = $("worthItChatCallMuteBtn");
-    if (mute) { mute.textContent = "🎙 Mute"; mute.setAttribute("aria-pressed", "false"); }
+    if (mute) {
+        mute.classList.remove("is-muted");
+        const label = $("worthItChatCallMuteLabel");
+        if (label) label.textContent = "Mute";
+        mute.setAttribute("aria-pressed", "false");
+    }
     const camera = $("worthItChatCallCameraBtn");
     if (camera) { camera.textContent = "📷 Camera off"; camera.setAttribute("aria-pressed", "false"); }
 }
@@ -426,8 +446,11 @@ function endLocalCall(message) {
     $("worthItChatCallMuteBtn").hidden = true;
     $("worthItChatCallCameraBtn").hidden = true;
     $("worthItChatCallSpeakerBtn").hidden = true;
-    if (incomingCallTimer) window.clearTimeout(incomingCallTimer);
-    incomingCallTimer = window.setTimeout(() => showCallOverlay(false), 1800);
+    if (callOverlayCloseTimer) window.clearTimeout(callOverlayCloseTimer);
+    callOverlayCloseTimer = window.setTimeout(() => {
+        callOverlayCloseTimer = null;
+        showCallOverlay(false);
+    }, 1800);
 }
 async function closeCallOnServer(action) {
     const callId = activeCall?.id || incomingCall?.id;
@@ -437,17 +460,23 @@ async function closeCallOnServer(action) {
 }
 function bindPeerToStream(stream) {
     localStream = stream;
-    if (activeCall?.type === "video" && $("worthItChatLocalVideo")) {
-        $("worthItChatLocalVideo").srcObject = stream;
-        $("worthItChatLocalVideo").muted = true;
-        $("worthItChatLocalVideo").playsInline = true;
-        $("worthItChatLocalVideo").hidden = false;
-        void $("worthItChatLocalVideo").play().catch(() => {});
+    const localVideo = $("worthItChatLocalVideo");
+    const hasVideo = Boolean(stream?.getVideoTracks?.().some(track => track.readyState !== "ended"));
+    if (localVideo && activeCall?.type === "video") {
+        localVideo.srcObject = stream;
+        localVideo.muted = true;
+        localVideo.playsInline = true;
+        localVideo.hidden = !hasVideo || cameraDisabled;
+        if (hasVideo) void localVideo.play().catch(() => {});
     }
 }
 function makePeerConnection() {
     callPeer = new RTCPeerConnection(RTC_CONFIG);
     if (localStream) localStream.getTracks().forEach(track => callPeer.addTrack(track, localStream));
+    if (activeCall?.type === "video" && !localStream?.getVideoTracks?.().length) {
+        // Keep a video media section negotiated so a camera-enabled peer can still send video.
+        callPeer.addTransceiver("video", { direction: "sendrecv" });
+    }
     callPeer.onicecandidate = event => {
         if (!event.candidate) return;
         const candidate = event.candidate.toJSON ? event.candidate.toJSON() : event.candidate;
@@ -468,22 +497,48 @@ function makePeerConnection() {
         }
         if (activeCall?.type === "video") {
             const video = $("worthItChatRemoteVideo");
+            const hasRemoteVideo = remoteStream.getVideoTracks().some(track => track.readyState !== "ended");
             if (video) {
                 video.srcObject = remoteStream;
                 video.muted = true;
-                video.hidden = false;
+                video.hidden = !hasRemoteVideo;
                 video.playsInline = true;
-                void video.play().catch(() => {});
+                if (hasRemoteVideo) void video.play().catch(() => {});
             }
         }
         setCallStatus(activeCall?.peerName || "Connected", "Connected securely through your browser. Use End call to finish.");
     };
+    callEverConnected = false;
     callPeer.onconnectionstatechange = () => {
-        if (!callPeer) return;
-        if (["failed", "disconnected"].includes(callPeer.connectionState)) {
-            setCallStatus(activeCall?.peerName || "Worth It Call", "Connection is unstable. Trying to reconnect…");
-        } else if (callPeer.connectionState === "connected") {
+        const peer = callPeer;
+        if (!peer) return;
+        const state = peer.connectionState;
+        if (state === "connected") {
+            callEverConnected = true;
+            if (connectionRecoveryTimer) window.clearTimeout(connectionRecoveryTimer);
+            connectionRecoveryTimer = null;
             setCallStatus(activeCall?.peerName || "Connected", activeCall?.type === "video" ? "Video call connected" : "Voice call connected");
+            return;
+        }
+        if (state === "connecting" || state === "new") {
+            if (connectionRecoveryTimer) window.clearTimeout(connectionRecoveryTimer);
+            connectionRecoveryTimer = null;
+            // Initial ICE gathering is not itself evidence of a dropped call.
+            return;
+        }
+        if (state === "disconnected" || state === "failed") {
+            if (connectionRecoveryTimer) window.clearTimeout(connectionRecoveryTimer);
+            const wasConnected = callEverConnected;
+            const failed = state === "failed";
+            connectionRecoveryTimer = window.setTimeout(() => {
+                connectionRecoveryTimer = null;
+                if (callPeer !== peer || peer.connectionState !== state) return;
+                if (wasConnected && state === "disconnected") {
+                    setCallStatus(activeCall?.peerName || "Worth It Call", "Connection briefly interrupted. Still trying to restore the call…");
+                } else if (failed || state === "failed") {
+                    setCallStatus(activeCall?.peerName || "Worth It Call", "The direct media connection failed. End and retry the call; some networks require a TURN relay.");
+                }
+            }, failed ? 1800 : 4200);
         }
     };
 }
@@ -551,6 +606,18 @@ async function pollCallState() {
         console.warn("Worth It call polling failed.", error);
     }
 }
+async function acquireCallMedia(type) {
+    if (type !== "video") {
+        return { stream: await navigator.mediaDevices.getUserMedia({ audio: true, video: false }), cameraAvailable: false };
+    }
+    try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
+        return { stream, cameraAvailable: stream.getVideoTracks().length > 0 };
+    } catch (cameraError) {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+        return { stream, cameraAvailable: false, cameraError };
+    }
+}
 async function startCall(type) {
     const ctx = context();
     if (!ctx?.userId || ctx.conversationType !== "direct" || !ctx.isFriend || !ctx.conversationId) {
@@ -564,13 +631,16 @@ async function startCall(type) {
     if (activeCall || incomingCall) return;
     try {
         ensureRemoteAudioProcessor();
-        localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: type === "video" });
+        const media = await acquireCallMedia(type);
+        localStream = media.stream;
+        activeCall = { id: null, role: "caller", type, conversationId: ctx.conversationId, peerName: ctx.title || "Worth It friend", cameraAvailable: media.cameraAvailable };
         bindPeerToStream(localStream);
-        activeCall = { id: null, role: "caller", type, conversationId: ctx.conversationId, peerName: ctx.title || "Worth It friend" };
         makePeerConnection();
         const offer = await callPeer.createOffer();
         await callPeer.setLocalDescription(offer);
-        openCallWindow("Calling " + (ctx.title || "your friend") + "…", type === "video" ? "Starting video call…" : "Starting voice call…", type);
+        openCallWindow("Calling " + (ctx.title || "your friend") + "…",
+            type === "video" ? (media.cameraAvailable ? "Starting video call…" : "Camera unavailable here; starting with audio. The other person can still enable their camera.") : "Starting voice call…",
+            type);
         setLiveCallControls(false);
         const result = await rpc("start_worth_it_chat_call", {
             p_conversation_id: ctx.conversationId, p_call_type: type,
@@ -605,10 +675,11 @@ async function acceptCall() {
     }
     try {
         ensureRemoteAudioProcessor();
-        localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: type === "video" });
+        const media = await acquireCallMedia(type);
+        localStream = media.stream;
         activeCall = {
             id: call.id, role: "callee", type, conversationId: call.conversation_id,
-            peerName: call.caller_name || "Worth It friend"
+            peerName: call.caller_name || "Worth It friend", cameraAvailable: media.cameraAvailable
         };
         incomingCall = null;
         bindPeerToStream(localStream);
@@ -623,7 +694,9 @@ async function acceptCall() {
         });
         if (accepted.error || !accepted.data?.success) throw accepted.error || new Error(accepted.data?.code || "Could not accept the call.");
         setLiveCallControls(true);
-        setCallStatus(activeCall.peerName, "Connecting…");
+        setCallStatus(activeCall.peerName, type === "video" && !media.cameraAvailable
+            ? "Camera unavailable here; the call will continue with audio. The other person can still enable their camera."
+            : "Connecting…");
         await flushQueuedCandidates();
         startCallPolling();
     } catch (error) {
@@ -651,28 +724,36 @@ async function endCall() {
     endLocalCall("Call ended.");
 }
 async function pollIncomingCall() {
-    // Poll while the tab is visible; visibilitychange checks again on return.
-    if (document.hidden || incomingPollBusy || activeCall || !context()?.userId) return;
+    // The call alert stays active while the signed-in user browses any section of the site.
+    if (document.hidden || incomingPollBusy || activeCall) return;
+    const client = $client();
+    if (!client?.auth?.getSession) return;
     incomingPollBusy = true;
     try {
+        const sessionResult = await client.auth.getSession();
+        const signedInUserId = sessionResult?.data?.session?.user?.id || context()?.userId || null;
+        if (!signedInUserId) return;
         const result = await rpc("get_worth_it_incoming_chat_call", {});
         if (result.error || !result.data?.success) return;
         const call = result.data.call;
         if (!call) {
             if (incomingCall && !activeCall) {
                 incomingCall = null;
+                if (callOverlayCloseTimer) window.clearTimeout(callOverlayCloseTimer);
+                callOverlayCloseTimer = null;
                 showCallOverlay(false);
             }
             return;
         }
-        if (String(call.caller_user_id) === String(context()?.userId)) return;
+        if (String(call.caller_user_id) === String(signedInUserId)) return;
         if (incomingCall?.id === call.id || activeCall?.id === call.id) return;
+        if (callOverlayCloseTimer) window.clearTimeout(callOverlayCloseTimer);
+        callOverlayCloseTimer = null;
         showIncomingCall(call);
     } catch (error) {
-        // Calls are optional when the migration is not installed; keep chat usable.
         if (!window.__worthItCallSetupWarningShown) {
             window.__worthItCallSetupWarningShown = true;
-            console.info("Worth It calls will be available after the chat-call SQL update is applied.", error);
+            console.info("Worth It calls are temporarily unavailable.", error);
         }
     } finally {
         incomingPollBusy = false;
@@ -683,14 +764,53 @@ function toggleMicrophone() {
     audioMuted = !audioMuted;
     localStream.getAudioTracks().forEach(track => { track.enabled = !audioMuted; });
     const button = $("worthItChatCallMuteBtn");
-    if (button) { button.textContent = audioMuted ? "🔇 Unmute" : "🎙 Mute"; button.setAttribute("aria-pressed", String(audioMuted)); }
+    if (button) {
+        button.classList.toggle("is-muted", audioMuted);
+        const label = $("worthItChatCallMuteLabel");
+        if (label) label.textContent = audioMuted ? "Unmute" : "Mute";
+        button.setAttribute("aria-pressed", String(audioMuted));
+        button.title = audioMuted ? "Unmute microphone" : "Mute microphone";
+    }
 }
-function toggleCamera() {
-    if (!localStream) return;
-    cameraDisabled = !cameraDisabled;
-    localStream.getVideoTracks().forEach(track => { track.enabled = !cameraDisabled; });
+async function toggleCamera() {
+    if (!activeCall || activeCall.type !== "video" || !callPeer) return;
+    let track = localStream?.getVideoTracks?.().find(item => item.readyState !== "ended") || null;
+    if (!track) {
+        try {
+            const cameraStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+            track = cameraStream.getVideoTracks()[0] || null;
+            if (!track) throw new Error("No camera track was returned.");
+            if (!localStream) localStream = new MediaStream();
+            localStream.addTrack(track);
+            const transceiver = callPeer.getTransceivers?.().find(item => item.receiver?.track?.kind === "video" && !item.sender?.track);
+            if (transceiver?.sender?.replaceTrack) {
+                await transceiver.sender.replaceTrack(track);
+                transceiver.direction = "sendrecv";
+            } else {
+                callPeer.addTrack(track, localStream);
+            }
+            cameraDisabled = false;
+            bindPeerToStream(localStream);
+        } catch (_) {
+            const unavailable = $("worthItChatCallCameraBtn");
+            if (unavailable) {
+                unavailable.textContent = "📷 Camera unavailable";
+                unavailable.setAttribute("aria-pressed", "false");
+            }
+            setCallStatus(activeCall.peerName || "Worth It Call", "Camera is unavailable or permission was denied. The call will continue with audio.");
+            return;
+        }
+    } else {
+        cameraDisabled = !cameraDisabled;
+        track.enabled = !cameraDisabled;
+    }
+    const localVideo = $("worthItChatLocalVideo");
+    if (localVideo) localVideo.hidden = cameraDisabled || !track;
     const button = $("worthItChatCallCameraBtn");
-    if (button) { button.textContent = cameraDisabled ? "📷 Camera on" : "📷 Camera off"; button.setAttribute("aria-pressed", String(cameraDisabled)); }
+    if (button) {
+        button.textContent = cameraDisabled ? "📷 Camera on" : "📷 Camera off";
+        button.setAttribute("aria-pressed", String(cameraDisabled));
+    }
 }
 function recordingExtension(mime) {
     const type = String(mime || "").split(";")[0].toLowerCase();
@@ -830,8 +950,9 @@ function setupAudioSearchAndCalls() {
     });
     updateEnhancementContext();
     setupSwipeReply();
-    if (incomingCallTimer) window.clearInterval(incomingCallTimer);
-    incomingCallTimer = window.setInterval(() => { void pollIncomingCall(); }, INCOMING_TICK_MS);
+    if (incomingPollTimer) window.clearInterval(incomingPollTimer);
+    void pollIncomingCall();
+    incomingPollTimer = window.setInterval(() => { void pollIncomingCall(); }, INCOMING_TICK_MS);
 }
 if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", setupAudioSearchAndCalls, { once: true });
 else setupAudioSearchAndCalls();
