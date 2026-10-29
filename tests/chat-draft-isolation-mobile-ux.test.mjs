@@ -12,6 +12,8 @@ const baseChatCss = readFileSync(new URL("../style.css", import.meta.url), "utf8
 
 test("emoji and upload glyph alignment changes do not resize their button frames", () => {
     assert.ok(html.includes('id="worthItChatEmojiAction" data-worth-it-chat-open-media="emoji" aria-label="Emoji" title="Emoji" aria-controls="worthItChatMediaPicker" aria-expanded="false">😀</button>'));
+    assert.match(chat, /button\.textContent = frames\[index\+\+\]/);
+    assert.match(chat, /button\.textContent = "😀"/);
     assert.ok(html.includes('id="worthItChatPlusBtn" title="Upload a file" aria-label="Upload a file" aria-controls="worthItChatFileInput"><span class="worth-it-chat-upload-glyph" aria-hidden="true">＋</span></button>'));
     assert.match(polish, /#worthItChatEmojiAction\s*\{\s*font-size: 22px !important;\s*line-height: 1 !important;/);
     assert.match(polish, /@media \(max-width: 540px\)\s*\{\s*#worthItChatEmojiAction\s*\{\s*font-size: 20px !important;/);
