@@ -1317,7 +1317,7 @@ window.WORTH_IT_SETTINGS_SECTIONS = WORTH_IT_SETTINGS_SECTIONS;
         settingsStatus(which === "privacy" ? "privacySettingsStatus" : "notificationSettingsStatus", "Saving your preferences…", "pending");
         try {
             const client = window.supabaseClient;
-            const sessionResult = await client?.auth?.getSession?.();
+            const sessionResult = await getSettingsAuthSession(client);
             const session = sessionResult?.data?.session;
             if (sessionResult?.error) throw sessionResult.error;
             if (!session?.access_token || !session?.user?.id) throw new Error("Sign in again to save your preferences.");
@@ -1374,7 +1374,7 @@ window.WORTH_IT_SETTINGS_SECTIONS = WORTH_IT_SETTINGS_SECTIONS;
             settingsStatus(which === "privacy" ? "privacySettingsStatus" : "notificationSettingsStatus", message, "error");
             let currentUserId = "";
             try {
-                const currentSessionResult = await window.supabaseClient?.auth?.getSession?.();
+                const currentSessionResult = await getSettingsAuthSession(window.supabaseClient);
                 currentUserId = currentSessionResult?.data?.session?.user?.id || "";
             } catch (_) {}
             if (currentUserId && userPreferencesCache &&
@@ -1397,7 +1397,7 @@ window.WORTH_IT_SETTINGS_SECTIONS = WORTH_IT_SETTINGS_SECTIONS;
         loading.hidden = false; signedOut.hidden = true; content.hidden = true;
         try {
             const client = window.supabaseClient;
-            const sessionResult = await client?.auth?.getSession?.();
+            const sessionResult = await getSettingsAuthSession(client);
             if (generation !== privacyLoadGeneration) return;
             if (sessionResult?.error) throw sessionResult.error;
             const requestUserId = sessionResult?.data?.session?.user?.id || "";
@@ -1438,7 +1438,7 @@ window.WORTH_IT_SETTINGS_SECTIONS = WORTH_IT_SETTINGS_SECTIONS;
         loading.hidden = false; signedOut.hidden = true; content.hidden = true;
         try {
             const client = window.supabaseClient;
-            const sessionResult = await client?.auth?.getSession?.();
+            const sessionResult = await getSettingsAuthSession(client);
             if (generation !== notificationLoadGeneration) return;
             if (sessionResult?.error) throw sessionResult.error;
             const requestUserId = sessionResult?.data?.session?.user?.id || "";
@@ -1473,7 +1473,7 @@ window.WORTH_IT_SETTINGS_SECTIONS = WORTH_IT_SETTINGS_SECTIONS;
 
     async function requestUserDataApi(action) {
         const client = window.supabaseClient;
-        const sessionResult = await client?.auth?.getSession?.();
+        const sessionResult = await getSettingsAuthSession(client);
         if (sessionResult?.error) throw sessionResult.error;
         const session = sessionResult?.data?.session;
         const requestUserId = session?.user?.id || "";
@@ -1514,7 +1514,7 @@ window.WORTH_IT_SETTINGS_SECTIONS = WORTH_IT_SETTINGS_SECTIONS;
         if ($("yourDataExportButton")) $("yourDataExportButton").disabled = true;
         try {
             const client = window.supabaseClient;
-            const sessionResult = await client?.auth?.getSession?.();
+            const sessionResult = await getSettingsAuthSession(client);
             if (generation !== yourDataLoadGeneration) return;
             if (sessionResult?.error) throw sessionResult.error;
             const session = sessionResult?.data?.session;
