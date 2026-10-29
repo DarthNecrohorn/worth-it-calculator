@@ -23321,59 +23321,333 @@ html[data-theme="light"] .worth-it-signout-confirm-no {
 }
 
 
-/* WORTH IT AI CHAT — position, blur and mobile usability refinements */
+/* WORTH IT AI CHAT — modal geometry and header-safe placement */
 .ai-chat-overlay {
-    z-index: 2147483000 !important;
+    position: fixed !important;
+    inset: 0 !important;
+    z-index: 2147483646 !important;
+    box-sizing: border-box !important;
+    align-items: flex-start !important;
+    justify-content: center !important;
+    overflow-y: auto !important;
+    padding: 114px 16px 16px !important;
     background: rgba(2, 6, 23, .42) !important;
     -webkit-backdrop-filter: blur(14px) saturate(115%) !important;
     backdrop-filter: blur(14px) saturate(115%) !important;
 }
 .ai-chat-overlay.open .ai-chat-card {
+    box-sizing: border-box !important;
+    width: min(720px, calc(100vw - 32px)) !important;
+    height: min(760px, calc(100dvh - 160px)) !important;
+    max-height: calc(100dvh - 160px) !important;
+    min-height: min(500px, calc(100dvh - 160px)) !important;
+    margin: 0 auto !important;
     transform: translateY(40px);
-    max-height: calc(100dvh - 48px);
     transition: transform 220ms cubic-bezier(.2,.8,.2,1), box-shadow 220ms ease;
+}
+.ai-chat-card,
+.ai-chat-messages,
+#aiChatAppView {
+    min-width: 0;
+    min-height: 0;
+}
+.ai-chat-messages {
+    overscroll-behavior: contain;
+}
+.ai-chat-composer {
+    flex: 0 0 auto;
 }
 @media (max-width: 760px) {
     .ai-chat-overlay {
-        align-items: center !important;
+        align-items: flex-start !important;
         justify-content: center !important;
-        padding: 10px !important;
+        padding: calc(92px + env(safe-area-inset-top, 0px)) 12px 12px !important;
     }
     .ai-chat-overlay.open .ai-chat-card {
-        width: min(100%, 620px) !important;
+        width: calc(100vw - 24px) !important;
+        max-width: 620px !important;
         min-width: 0 !important;
-        height: min(88dvh, 900px) !important;
-        max-height: 88dvh !important;
+        height: min(88dvh, calc(100dvh - 110px)) !important;
+        max-height: calc(100dvh - 104px) !important;
+        min-height: min(500px, calc(100dvh - 110px)) !important;
         border-radius: 20px !important;
-        transform: translateY(0);
+        transform: none !important;
     }
-    .ai-chat-head { padding: 17px 16px 13px !important; }
+    .ai-chat-head {
+        flex: 0 0 auto;
+        padding: 16px 14px 12px !important;
+    }
     .ai-chat-head h3 { font-size: 21px !important; }
-    .ai-chat-messages { padding: 15px !important; }
-    .ai-chat-composer { padding: 12px !important; }
+    .ai-chat-head p { line-height: 1.5; }
+    .ai-chat-messages {
+        flex: 1 1 auto !important;
+        min-height: 0 !important;
+        padding: 15px !important;
+    }
+    .ai-chat-composer {
+        gap: 8px !important;
+        padding: 10px !important;
+        padding-bottom: max(10px, env(safe-area-inset-bottom, 0px)) !important;
+    }
     .ai-chat-input { min-height: 46px !important; font-size: 16px !important; }
-    .ai-chat-send { min-height: 44px !important; }
+    .ai-chat-send { min-width: 76px !important; min-height: 46px !important; }
 }
 @media (prefers-reduced-motion: reduce) {
     .ai-chat-overlay.open .ai-chat-card { transition: none !important; }
 }
 
-/* EMAIL CONFIRMATION GATE */
-.worth-it-email-gate{position:fixed;inset:0;z-index:2147483500;display:grid;place-items:center;padding:20px;overflow-y:auto;background:rgba(3,7,18,.68);-webkit-backdrop-filter:blur(16px) saturate(115%);backdrop-filter:blur(16px) saturate(115%)}
-.worth-it-email-gate-card{width:min(520px,100%);padding:clamp(22px,5vw,34px);border:1px solid rgba(139,130,255,.36);border-radius:24px;color:var(--text,#f8fafc);background:var(--card-solid,#10172a);box-shadow:0 28px 90px rgba(0,0,0,.42);text-align:center}
-.worth-it-email-gate-icon{display:grid;place-items:center;width:64px;height:64px;margin:0 auto 18px;border-radius:20px;color:#fff;background:linear-gradient(135deg,#7c3aed,#2563eb);font-size:30px}
-.worth-it-email-gate-card h2{margin:0 0 12px;font-size:clamp(22px,4vw,28px);line-height:1.2}
-.worth-it-email-gate-card p{margin:0 0 12px;color:var(--muted,#aab4c8);line-height:1.6;overflow-wrap:anywhere}
-.worth-it-email-gate-note{font-size:13px}
-.worth-it-email-gate-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:20px}
-.worth-it-email-gate-actions a,.worth-it-email-gate-actions button,.worth-it-email-gate-signout{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:10px 14px;border-radius:12px;border:1px solid rgba(129,140,248,.42);font:inherit;font-weight:700;cursor:pointer;text-decoration:none}
-.worth-it-email-gate-primary{color:white!important;background:linear-gradient(120deg,#7c3aed,#2563eb)}
-.worth-it-email-gate-secondary{color:var(--text,#f8fafc);background:var(--surface-soft,rgba(148,163,184,.12))}
-.worth-it-email-gate-status{min-height:20px;margin-top:14px;font-size:13px;color:#86efac;overflow-wrap:anywhere}
-.worth-it-email-gate-status.is-error{color:#fca5a5}
-.worth-it-email-gate-signout{margin-top:12px;min-height:38px;color:var(--muted,#aab4c8);background:transparent;border-color:transparent}
-html[data-theme="light"] .worth-it-email-gate{background:rgba(31,41,75,.36)}
-html[data-theme="light"] .worth-it-email-gate-card{color:#172554;background:linear-gradient(145deg,#fff,#eef3ff);border-color:rgba(99,102,241,.3)}
-html[data-theme="light"] .worth-it-email-gate-card p{color:#475569}
-html[data-theme="light"] .worth-it-email-gate-secondary{color:#312e81;background:#f1f5ff}
-@media(max-width:520px){.worth-it-email-gate{padding:12px}.worth-it-email-gate-card{border-radius:20px}.worth-it-email-gate-actions{grid-template-columns:1fr}}
+/* NON-BLOCKING EMAIL CONFIRMATION REMINDER — unverified users browse as guests */
+.worth-it-email-gate {
+    position: fixed;
+    top: 124px;
+    right: 16px;
+    z-index: 2147482000;
+    display: block;
+    box-sizing: border-box;
+    width: min(430px, calc(100vw - 32px));
+    max-width: calc(100vw - 32px);
+    padding: 0;
+    pointer-events: none;
+}
+.worth-it-email-gate-card {
+    box-sizing: border-box;
+    width: 100%;
+    max-height: calc(100dvh - 144px);
+    overflow: auto;
+    padding: 18px;
+    border: 1px solid rgba(139,130,255,.36);
+    border-radius: 20px;
+    color: var(--text, #f8fafc);
+    background: var(--card-solid, #10172a);
+    box-shadow: 0 18px 55px rgba(0,0,0,.34);
+    text-align: left;
+    pointer-events: auto;
+}
+.worth-it-email-gate-heading {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 12px;
+}
+.worth-it-email-gate-icon {
+    display: grid;
+    place-items: center;
+    flex: 0 0 38px;
+    width: 38px;
+    height: 38px;
+    margin: 0;
+    border-radius: 12px;
+    color: #fff;
+    background: linear-gradient(135deg,#7c3aed,#2563eb);
+    font-size: 20px;
+}
+.worth-it-email-gate-heading h2 {
+    flex: 1 1 auto;
+    min-width: 0;
+    margin: 0;
+    font-size: 19px;
+    line-height: 1.25;
+}
+.worth-it-email-gate-dismiss {
+    flex: 0 0 32px;
+    width: 32px;
+    height: 32px;
+    border: 1px solid var(--border);
+    border-radius: 9px;
+    color: var(--text);
+    background: var(--surface-soft, rgba(148,163,184,.12));
+    font-size: 24px;
+    line-height: 1;
+    cursor: pointer;
+}
+.worth-it-email-gate-card p {
+    margin: 0 0 10px;
+    color: var(--muted, #aab4c8);
+    font-size: 13px;
+    line-height: 1.55;
+    overflow-wrap: anywhere;
+}
+.worth-it-email-gate-note {
+    font-size: 12px !important;
+}
+.worth-it-email-gate-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 14px;
+}
+.worth-it-email-gate-actions button,
+.worth-it-email-gate-actions a,
+.worth-it-email-gate-footer button {
+    box-sizing: border-box;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 42px;
+    width: 100%;
+    padding: 10px 14px;
+    border: 1px solid rgba(129,140,248,.42);
+    border-radius: 11px;
+    font: inherit;
+    font-size: 13px;
+    font-weight: 800;
+    text-align: center;
+    cursor: pointer;
+    text-decoration: none;
+}
+.worth-it-email-gate-actions a {
+    color: #c4b5fd;
+    background: rgba(124,92,255,.08);
+}
+.worth-it-email-gate-actions button {
+    color: #fff;
+    background: linear-gradient(120deg,#7c3aed,#2563eb);
+}
+.worth-it-email-gate-actions button:disabled,
+.worth-it-email-gate-footer button:disabled {
+    opacity: .65;
+    cursor: wait;
+}
+.worth-it-email-gate-status {
+    min-height: 18px;
+    margin-top: 10px;
+    font-size: 12px;
+    line-height: 1.5;
+    color: #86efac;
+    overflow-wrap: anywhere;
+}
+.worth-it-email-gate-status.is-error { color: #fca5a5; }
+.worth-it-email-gate-footer {
+    display: flex;
+    gap: 8px;
+    margin-top: 8px;
+}
+.worth-it-email-gate-footer button {
+    min-height: 36px;
+    padding: 8px 10px;
+    border-color: transparent;
+    color: var(--muted, #aab4c8);
+    background: transparent;
+    font-size: 12px;
+}
+.worth-it-email-gate-footer .worth-it-email-gate-confirm {
+    color: #c4b5fd;
+    border-color: rgba(129,140,248,.25);
+    background: rgba(124,92,255,.08);
+}
+.worth-it-email-reminder {
+    position: fixed;
+    top: 124px;
+    right: 16px;
+    z-index: 2147482000;
+    max-width: calc(100vw - 24px);
+    min-height: 38px;
+    padding: 9px 13px;
+    border: 1px solid rgba(129,140,248,.5);
+    border-radius: 999px;
+    color: #fff;
+    background: linear-gradient(120deg,#312e81,#4c1d95);
+    box-shadow: 0 8px 28px rgba(0,0,0,.26);
+    font: inherit;
+    font-size: 12px;
+    font-weight: 800;
+    cursor: pointer;
+}
+html[data-theme="light"] .worth-it-email-gate-card {
+    color: #172554;
+    background: linear-gradient(145deg,#fff,#eef3ff);
+    border-color: rgba(99,102,241,.3);
+}
+html[data-theme="light"] .worth-it-email-gate-card p { color: #475569; }
+html[data-theme="light"] .worth-it-email-gate-dismiss {
+    color: #312e81;
+    background: #f1f5ff;
+}
+html[data-theme="light"] .worth-it-email-gate-actions a {
+    color: #4338ca;
+    background: #f1f5ff;
+}
+
+/* Compact, aligned utility rows; preserve the existing small touch targets on phones. */
+@media (min-width: 901px) {
+    .nav-right-stack { gap: 8px; }
+    .nav-top-row { gap: 10px; }
+    .nav-top-row .nav-actions { gap: 8px; }
+    .nav-secondary-row { gap: 9px; align-items: center; }
+    .nav-top-row .nav-actions > *,
+    .nav-secondary-row > button {
+        box-sizing: border-box;
+        align-items: center;
+        justify-content: center;
+        margin-top: 0;
+        margin-bottom: 0;
+    }
+    .nav-secondary-row > button {
+        min-height: 36px;
+        padding-top: 8px;
+        padding-bottom: 8px;
+        border-radius: 10px;
+    }
+}
+@media (max-width: 900px) {
+    .nav-right-stack { gap: 4px; }
+    .nav-top-row, .nav-secondary-row { align-items: center; gap: 4px; }
+    .nav-secondary-row > button { margin: 0 !important; }
+}
+
+.hero-feedback-action {
+    display: flex;
+    justify-content: center;
+    margin: 0 auto 12px;
+}
+.hero-feedback-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-height: 40px;
+    padding: 9px 15px;
+    border: 1px solid rgba(139,130,255,.42);
+    border-radius: 12px;
+    color: var(--text, #f8fafc);
+    background: linear-gradient(135deg,rgba(124,92,255,.16),rgba(56,189,248,.08));
+    box-shadow: 0 5px 18px rgba(30,27,75,.16);
+    font: inherit;
+    font-size: 13px;
+    font-weight: 800;
+    cursor: pointer;
+    transition: transform .16s ease, border-color .16s ease, background .16s ease;
+}
+.hero-feedback-btn:hover {
+    transform: translateY(-2px);
+    border-color: rgba(139,130,255,.72);
+    background: linear-gradient(135deg,rgba(124,92,255,.24),rgba(56,189,248,.14));
+}
+.hero-feedback-btn:focus-visible {
+    outline: 3px solid #a5b4fc;
+    outline-offset: 3px;
+}
+@media (max-width: 520px) {
+    .hero-feedback-btn { min-height: 38px; padding: 8px 13px; }
+}
+@media (max-width: 760px) {
+    .worth-it-email-gate {
+        top: calc(96px + env(safe-area-inset-top, 0px));
+        right: 12px;
+        left: 12px;
+        width: auto;
+        max-width: none;
+    }
+    .worth-it-email-gate-card {
+        max-height: calc(100dvh - 120px);
+        padding: 15px;
+        border-radius: 17px;
+    }
+    .worth-it-email-reminder {
+        top: calc(96px + env(safe-area-inset-top, 0px));
+        right: 12px;
+    }
+}
+@media (prefers-reduced-motion: reduce) {
+    .hero-feedback-btn { transition: none; }
+}
