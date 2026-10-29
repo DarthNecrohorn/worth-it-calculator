@@ -521,7 +521,13 @@
         const auth = window.supabaseClient?.auth;
         if (!auth?.onAuthStateChange || authSubscription) return;
         const result = auth.onAuthStateChange((event, session) => {
-            setAuthState(session?.user || null, event);
+            const sessionUser = session?.user || null;
+            const effectiveUser = sessionUser &&
+                typeof window.isWorthItEmailVerified === "function" &&
+                !window.isWorthItEmailVerified(sessionUser)
+                    ? null
+                    : sessionUser;
+            setAuthState(effectiveUser, event);
         });
         authSubscription = result?.data?.subscription || result?.subscription || true;
     }
