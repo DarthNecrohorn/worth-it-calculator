@@ -35,7 +35,7 @@ test("light-theme chat text, sidebar labels and empty states have readable contr
     }
     assert.match(style, /html\[data-theme="light"\] \.worth-it-chat-category-btn\.is-active[\s\S]*?color: #312e81 !important/);
     assert.match(style, /html\[data-theme="light"\] \.worth-it-chat-media-tab\.is-active[\s\S]*?color: #312e81 !important/);
-    assert.match(html, /style\.css\?v=email-verification-ai-20261029b/);
+    assert.match(html, /style\.css\?v=user-reports-email-gate-20261029c/);
 });
 
 test("emoji and GIF picker close X glyph moves up two pixels without moving its square", () => {
@@ -61,5 +61,5 @@ test("Sign out requires an explicit Yes; No, Escape and backdrop clicks cancel",
     assert.match(handler, /if \(event\.target === overlay\)[\s\S]*?finish\(false\)/);
     assert.match(style, /\.worth-it-signout-confirm-dialog\s*\{[\s\S]*?z-index: 2147483646/);
     assert.match(style, /html\[data-theme="light"\] \.worth-it-signout-confirm-card/);
-    assert.match(html, /app\.js\?v=email-verification-20261029b/);
+    assert.match(html, /app\.js\?v=action-triggered-email-gate-20261029c/);
 });
