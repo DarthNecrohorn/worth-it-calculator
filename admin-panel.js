@@ -6,6 +6,7 @@
     let feedbackLoaded = false;
     let usageLoaded = false;
     let platformUsageLoaded = false;
+    let userReportsLoaded = false;
 
     function $(id){ return document.getElementById(id); }
 
@@ -61,6 +62,11 @@
                     '<span class="admin-panel-section-copy"><strong>API Usage</strong><small>Track external provider usage</small></span>',
                     '<span class="admin-panel-section-arrow">›</span>',
                 '</button>',
+                '<button type="button" class="admin-panel-section-button" data-admin-section="user-reports" onclick="showAdminSection(\'user-reports\')">',
+                    '<span class="admin-panel-section-icon">🚩</span>',
+                    '<span class="admin-panel-section-copy"><strong>User Reports</strong><small>Review reports submitted by users</small></span>',
+                    '<span class="admin-panel-section-arrow">›</span>',
+                '</button>',
                 '<button type="button" class="admin-panel-section-button" data-admin-section="platform-usage" onclick="showAdminSection(\'platform-usage\')">',
                     '<span class="admin-panel-section-icon">⚙️</span>',
                     '<span class="admin-panel-section-copy"><strong>Platform Usage</strong><small>Cloudflare Workers, CPU &amp; D1</small></span>',
@@ -93,7 +99,8 @@
         activeSection =
             section === 'feedback' ||
             section === 'usage' ||
-            section === 'platform-usage'
+            section === 'platform-usage' ||
+            section === 'user-reports'
                 ? section
                 : 'home';
         setStatus('');
@@ -109,6 +116,13 @@
             setActiveNav();
             feedbackLoaded = false;
             await loadFeedback();
+            return;
+        }
+        if(activeSection === 'user-reports'){
+            content.innerHTML = renderSectionHeader('User Reports','Reports submitted by Worth It users. Review each report carefully.','🚩') + '<div id="adminUserReportsArea"></div>';
+            setActiveNav();
+            userReportsLoaded = false;
+            await loadUserReports();
             return;
         }
         if(activeSection === 'platform-usage'){
@@ -151,6 +165,51 @@
             '</article>'
         ].join('');
     }
+
+    function renderUserReport(report){
+        const reasons = {
+            harassment: 'Harassment or bullying',
+            spam: 'Spam or scams',
+            hate: 'Hateful or extremist content',
+            impersonation: 'Impersonation',
+            inappropriate_profile: 'Inappropriate profile content',
+            other: 'Other'
+        };
+        return '<article class="admin-feedback-item">' +
+            '<div class="admin-feedback-item-head"><strong>' + escapeHtml(report.reported_username || ('Worth It ID ' + report.reported_worth_it_id)) + '</strong><span>' + escapeHtml(formatDateTime(report.created_at)) + '</span></div>' +
+            '<p><strong>Reason:</strong> ' + escapeHtml(reasons[report.reason] || report.reason || 'Unknown') + '</p>' +
+            '<p><strong>Reported profile ID:</strong> ' + escapeHtml(report.reported_worth_it_id) + '</p>' +
+            '<p><strong>Reporter profile ID:</strong> ' + escapeHtml(report.reporter_worth_it_id || 'Unavailable') + '</p>' +
+            (report.details ? '<p class="admin-feedback-message">' + escapeHtml(report.details) + '</p>' : '<p class="admin-feedback-message">No additional details supplied.</p>') +
+            '<p><strong>Status:</strong> ' + escapeHtml(report.status || 'open') + '</p>' +
+        '</article>';
+    }
+
+    async function loadUserReports(){
+        const area = $('adminUserReportsArea');
+        if(!area || userReportsLoaded) return;
+        area.innerHTML = '<div class="admin-panel-loading"><span class="admin-panel-spinner"></span>Loading user reports...</div>';
+        try{
+            const session = await getSession();
+            if(!session?.access_token) throw new Error('Please sign in again.');
+            const response = await fetch('/api/admin-user-reports', { method:'GET', headers:{ Authorization:'Bearer ' + session.access_token }, cache:'no-store' });
+            const result = await response.json().catch(function(){ return {}; });
+            if(response.status === 403) throw new Error('Access denied.');
+            if(!response.ok) throw new Error(result.error || 'Could not load user reports.');
+            const reports = Array.isArray(result.reports) ? result.reports : [];
+            if(!reports.length){
+                area.innerHTML = '<div class="admin-panel-empty"><span>🛡️</span><strong>No user reports yet</strong><small>Reports will appear here when a user reports a profile.</small></div>';
+                userReportsLoaded = true;
+                return;
+            }
+            area.innerHTML = '<div class="admin-panel-list-head"><span>' + reports.length + ' report' + (reports.length === 1 ? '' : 's') + '</span><button type="button" class="admin-panel-inline-button" onclick="refreshAdminUserReports()">↻ Refresh</button></div>' +
+                '<div class="admin-feedback-modern-list">' + reports.map(renderUserReport).join('') + '</div>';
+            userReportsLoaded = true;
+        }catch(error){
+            area.innerHTML = '<div class="admin-panel-error"><strong>Could not load user reports</strong><span>' + escapeHtml(error?.message || 'Please try again.') + '</span><button type="button" class="admin-panel-inline-button" onclick="refreshAdminUserReports()">Try again</button></div>';
+        }
+    }
+    async function refreshAdminUserReports(){ userReportsLoaded = false; await loadUserReports(); }
 
     async function loadFeedback(){
         const area = $('adminFeedbackArea');
@@ -682,6 +741,7 @@
     window.closeAdminPanel = closeAdminPanel;
     window.showAdminSection = showAdminSection;
     window.refreshAdminFeedback = refreshAdminFeedback;
+    window.refreshAdminUserReports = refreshAdminUserReports;
     window.refreshAdminUsage = refreshAdminUsage;
     window.refreshAdminPlatformUsage = refreshAdminPlatformUsage;
     window.openAdminFeedback = openAdminPanel;
