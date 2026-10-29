@@ -303,6 +303,7 @@ export async function onRequestPost(context) {
         if (!token) return json({ error: "Please sign in to change your profile." }, 401);
         const user = await verifyUser(config, token);
         if (!user) return json({ error: "Your login session has expired. Please sign in again." }, 401);
+        if (!(user.email_confirmed_at || user.confirmed_at)) return json({ error: "Confirm your email before changing your profile picture.", code: "EMAIL_NOT_CONFIRMED" }, 403);
 
         let action = "upload";
         let target = String(request.headers.get("X-Worth-It-Asset") || "avatar").toLowerCase();
