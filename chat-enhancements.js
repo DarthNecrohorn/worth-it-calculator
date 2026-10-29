@@ -63,27 +63,69 @@ function wallpaperRandom(seed) {
         return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
     };
 }
+const CHAT_WALLPAPER_GEOMETRIES = [
+    '<circle cx="0" cy="0" r="3.2"/>',
+    '<rect x="-3.2" y="-3.2" width="6.4" height="6.4" rx="1"/>',
+    '<path d="M0 -4L3.5 0L0 4L-3.5 0Z"/>',
+    '<path d="M0 -4L3.5 3H-3.5Z"/>',
+    '<path d="M-3.5 0H3.5M0 -3.5V3.5"/>',
+    '<rect x="-4.5" y="-2.5" width="9" height="5" rx="1"/>'
+];
 function makeConversationWallpaper(contextValue, theme) {
     const key = String(contextValue?.conversationType || "chat") + ":" + String(contextValue?.conversationId || GLOBAL_CHAT_ID);
     const random = wallpaperRandom(wallpaperSeed(key));
-    const order = CHAT_WALLPAPER_MOTIFS.map((_, index) => index);
-    for (let i = order.length - 1; i > 0; i--) { const j = Math.floor(random() * (i + 1)); [order[i], order[j]] = [order[j], order[i]]; }
     const palette = theme === "light" ? CHAT_WALLPAPER_LIGHT_PALETTE : CHAT_WALLPAPER_DARK_PALETTE;
-    const opacity = theme === "light" ? ".20" : ".18";
+    const opacity = theme === "light" ? ".22" : ".20";
+    const geometryOpacity = theme === "light" ? ".26" : ".24";
     const cells = [];
-    // 8×8 cells produce many more, smaller doodles. Each outline is scaled
-    // inside its own cell before rotation; the remaining margins prevent overlaps.
-    for (let i = 0; i < 64; i++) {
-        let motifIndex = order[i % order.length];
-        if (i > 0 && i % order.length === 0) motifIndex = order[(i + Math.floor(random() * (order.length - 1)) + 1) % order.length];
-        const row = Math.floor(i / 8), col = i % 8;
-        const angle = Math.round((random() * 34 - 17) * 10) / 10;
-        const x = col * 105 + Math.round(random() * 4 - 2);
-        const y = row * 105 + Math.round(random() * 4 - 2);
+    const motifGrid = [];
+    const columns = 10, rows = 10, cellSize = 92;
+
+    // One hundred compact cells make the wallpaper noticeably denser. Motifs
+    // are chosen independently, while adjacent and diagonal neighbours are
+    // excluded so rows do not fall into a repeated sequence.
+    for (let i = 0; i < columns * rows; i++) {
+        const row = Math.floor(i / columns), col = i % columns;
+        const nearbyMotifs = [
+            col > 0 ? motifGrid[i - 1] : -1,
+            row > 0 ? motifGrid[i - columns] : -1,
+            row > 0 && col > 0 ? motifGrid[i - columns - 1] : -1,
+            row > 0 && col < columns - 1 ? motifGrid[i - columns + 1] : -1
+        ];
+        const forbidden = new Set(nearbyMotifs);
+        const candidates = CHAT_WALLPAPER_MOTIFS
+            .map((_, index) => index)
+            .filter(index => !forbidden.has(index));
+        const motifIndex = candidates[Math.floor(random() * candidates.length)];
+        motifGrid.push(motifIndex);
+
+        const angle = Math.round((random() * 56 - 28) * 10) / 10;
+        const scaleX = random() < .28 ? -.46 : .46;
+        const x = col * cellSize + cellSize / 2;
+        const y = row * cellSize + cellSize / 2;
         const color = palette[Math.floor(random() * palette.length)];
-        cells.push('<g transform="translate(' + x + ' ' + y + ')" stroke="' + color + '" stroke-opacity="' + opacity + '"><g transform="translate(70 70) rotate(' + angle + ') scale(.62) translate(-70 -70)">' + CHAT_WALLPAPER_MOTIFS[motifIndex] + '</g></g>');
+        cells.push(
+            '<g transform="translate(' + x + ' ' + y + ')" stroke="' + color + '" stroke-opacity="' + opacity + '">' +
+            '<g transform="rotate(' + angle + ') scale(' + scaleX + ' .46) translate(-70 -70)">' +
+            CHAT_WALLPAPER_MOTIFS[motifIndex] + '</g></g>'
+        );
+
+        // Small circles, squares, triangles and diamonds sit in the corners
+        // between doodles, outside the motif's rotated drawing area.
+        const geometryOffsets = (row + col) % 2 === 0
+            ? [[-36, -36], [36, 36]]
+            : [[36, -36], [-36, 36]];
+        for (const [dx, dy] of geometryOffsets) {
+            const geometry = CHAT_WALLPAPER_GEOMETRIES[Math.floor(random() * CHAT_WALLPAPER_GEOMETRIES.length)];
+            const geometryColor = palette[Math.floor(random() * palette.length)];
+            const geometryAngle = Math.floor(random() * 46) - 23;
+            cells.push(
+                '<g transform="translate(' + (x + dx) + ' ' + (y + dy) + ') rotate(' + geometryAngle + ')" stroke="' + geometryColor +
+                '" stroke-opacity="' + geometryOpacity + '" stroke-width="1.5">' + geometry + '</g>'
+            );
+        }
     }
-    return '<svg xmlns="http://www.w3.org/2000/svg" width="840" height="840" viewBox="0 0 840 840" fill="none" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">' + cells.join("") + '</svg>';
+    return '<svg xmlns="http://www.w3.org/2000/svg" width="920" height="920" viewBox="0 0 920 920" fill="none" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">' + cells.join("") + '</svg>';
 }
 function applyChatWallpaper(contextValue) {
     const surface = $("worthItChatMessages");
