@@ -503,4 +503,6 @@ grant execute on function public.get_worth_it_chat_call_state(uuid,bigint) to au
 grant execute on function public.respond_worth_it_chat_call(uuid,text,jsonb) to authenticated;
 grant execute on function public.send_worth_it_chat_call_signal(uuid,text,jsonb) to authenticated;
 
+notify pgrst, 'reload schema';
+
 commit;
