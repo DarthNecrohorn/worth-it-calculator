@@ -358,3 +358,61 @@ html[data-theme="light"] .worth-it-chat-messages {
         background-size:auto,var(--worthit-chat-wallpaper-size,600px 900px) !important;
     }
 }
+
+/* Dismissible daily safety reminder. Keep its copy flexible and the close target
+   compact, clearly separated, and reachable on both desktop and mobile. */
+.worth-it-chat-safety-note[hidden] { display:none!important; }
+.worth-it-chat-safety-note {
+    display:flex;
+    align-items:center;
+    gap:8px;
+}
+.worth-it-chat-safety-note > .worth-it-chat-safety-copy {
+    flex:1 1 auto!important;
+    min-width:0;
+    overflow-wrap:anywhere;
+}
+.worth-it-chat-safety-note-close {
+    display:grid;
+    place-items:center;
+    flex:0 0 24px;
+    width:24px;
+    height:24px;
+    margin-left:auto;
+    padding:0;
+    border:1px solid rgba(148,163,184,.24);
+    border-radius:7px;
+    background:rgba(148,163,184,.08);
+    color:#cbd5e1;
+    font:inherit;
+    font-size:17px;
+    font-weight:700;
+    line-height:1;
+    cursor:pointer;
+    transition:background .16s ease,border-color .16s ease,color .16s ease;
+}
+.worth-it-chat-safety-note-close:hover,
+.worth-it-chat-safety-note-close:focus-visible {
+    outline:none;
+    background:rgba(129,140,248,.18);
+    border-color:rgba(167,139,250,.65);
+    color:#fff;
+}
+html[data-theme="light"] .worth-it-chat-safety-note-close {
+    background:rgba(100,116,139,.07);
+    border-color:rgba(100,116,139,.28);
+    color:#475569;
+}
+html[data-theme="light"] .worth-it-chat-safety-note-close:hover,
+html[data-theme="light"] .worth-it-chat-safety-note-close:focus-visible {
+    background:rgba(109,40,217,.09);
+    color:#4c1d95;
+    border-color:rgba(109,40,217,.45);
+}
+@media(max-width:540px) {
+    .worth-it-chat-safety-note { gap:7px; }
+    .worth-it-chat-safety-note-close { flex-basis:23px; width:23px; height:23px; }
+}
+@media(prefers-reduced-motion:reduce) {
+    .worth-it-chat-safety-note-close { transition:none; }
+}
