@@ -187,6 +187,9 @@ create table if not exists public.worth_it_chat_call_signals (
 );
 create index if not exists worth_it_chat_call_signals_call_idx
   on public.worth_it_chat_call_signals(call_id, id);
+create index if not exists worth_it_chat_calls_caller_active_idx
+  on public.worth_it_chat_calls(caller_user_id)
+  where status in ('ringing','accepted');
 
 alter table public.worth_it_chat_calls enable row level security;
 alter table public.worth_it_chat_call_signals enable row level security;
@@ -230,7 +233,12 @@ begin
 
   update public.worth_it_chat_calls
      set status = 'missed', ended_at = now(), updated_at = now()
-   where status = 'ringing' and created_at < now() - interval '45 seconds';
+   where status = 'ringing' and created_at < now() - interval '45 seconds'
+     and (caller_user_id in (actor_id,peer_id) or callee_user_id in (actor_id,peer_id));
+  update public.worth_it_chat_calls
+     set status = 'ended', ended_at = now(), updated_at = now()
+   where status = 'accepted' and updated_at < now() - interval '3 hours'
+     and (caller_user_id in (actor_id,peer_id) or callee_user_id in (actor_id,peer_id));
   if exists (select 1 from public.worth_it_chat_calls
       where status in ('ringing','accepted')
         and (conversation_id = p_conversation_id or caller_user_id in (actor_id,peer_id)
@@ -256,7 +264,12 @@ begin
   if actor_id is null then raise exception 'Authentication required'; end if;
   update public.worth_it_chat_calls
      set status = 'missed', ended_at = now(), updated_at = now()
-   where status = 'ringing' and created_at < now() - interval '45 seconds';
+   where status = 'ringing' and created_at < now() - interval '45 seconds'
+     and (caller_user_id = actor_id or callee_user_id = actor_id);
+  update public.worth_it_chat_calls
+     set status = 'ended', ended_at = now(), updated_at = now()
+   where status = 'accepted' and updated_at < now() - interval '3 hours'
+     and (caller_user_id = actor_id or callee_user_id = actor_id);
   select jsonb_build_object(
     'success', true,
     'call', jsonb_build_object(

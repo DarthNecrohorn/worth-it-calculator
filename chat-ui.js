@@ -1572,6 +1572,25 @@ function createWorthItChatMessageRow(message) {
                     if (typeof window.worthItChatPlayVoiceMessage === "function") void window.worthItChatPlayVoiceMessage(audioButton, audio, message.media_url);
                     else setStatus("Voice messages are loading. Please try again.", true);
                 });
+                // Signed voice URLs expire intentionally. Request a fresh URL on replay.
+                audio.addEventListener("ended", () => {
+                    audio.pause();
+                    audio.removeAttribute("src");
+                    audio.load();
+                    audio.hidden = true;
+                    audioButton.hidden = false;
+                    audioButton.disabled = false;
+                    audioButton.textContent = "▶ Play voice message";
+                });
+                audio.addEventListener("error", () => {
+                    if (audio.hidden) return;
+                    audio.removeAttribute("src");
+                    audio.load();
+                    audio.hidden = true;
+                    audioButton.hidden = false;
+                    audioButton.disabled = false;
+                    audioButton.textContent = "▶ Try voice message again";
+                });
                 bubble.append(audioButton, audio);
             } else if (message.media_type === "video") {
                 const video = document.createElement("video");

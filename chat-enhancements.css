@@ -97,3 +97,6 @@ html[data-theme="light"] .worth-it-chat-reply-copy strong,html[data-theme="light
 html[data-theme="light"] .worth-it-chat-reply-copy span{color:#475569}
 html[data-theme="light"] .worth-it-chat-reply-close{color:#475569}
 html[data-theme="light"] .worth-it-chat-message-reply-quote{background:rgba(124,92,255,.07)}
+
+/* Allow vertical scrolling while keeping horizontal touch gestures available for reply swipes. */
+.worth-it-chat-message{touch-action:pan-y}

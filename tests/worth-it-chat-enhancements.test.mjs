@@ -85,6 +85,9 @@ test("mobile swipe opens a rich reply preview and the reply is stored with the o
     assert.match(chat, /const replyPrefix = pendingReplyQuote \? "> "/);
     assert.match(chat, /clearWorthItChatReplyQuote\(\)/);
     assert.match(chat, /worth-it-chat-message-reply-quote/);
+    assert.match(chat, /audio\.addEventListener\("ended"/);
+    assert.match(chat, /audio\.addEventListener\("error"/);
+    assert.match(css, /touch-action:pan-y/);
     assert.match(css, /worth-it-chat-reply-accent/);
     assert.match(css, /worth-it-chat-message-reply-quote/);
 });
@@ -110,6 +113,10 @@ test("audio/video calls are backend-enforced friend-only one-to-one calls", () =
     assert.match(client, /get_worth_it_incoming_chat_call/);
     assert.match(client, /send_worth_it_chat_call_signal/);
     assert.match(client, /if \(!ctx\?\.userId \|\| ctx\.conversationType !== "direct" \|\| !ctx\.isFriend \|\| !ctx\.conversationId\)/);
+    assert.match(client, /const INCOMING_TICK_MS = 5000/);
+    assert.match(client, /if \(document\.hidden \|\| incomingPollBusy/);
+    assert.match(sql, /worth_it_chat_calls_caller_active_idx/);
+    assert.match(sql, /caller_user_id = actor_id or callee_user_id = actor_id/);
 });
 
 test("the JavaScript and SQL checks include the new chat feature modules", () => {

@@ -5,7 +5,7 @@ const $ = id => document.getElementById(id);
 const GLOBAL_CHAT_ID = "00000000-0000-4000-8000-000000000001";
 const RTC_CONFIG = { iceServers: [{ urls: "stun:stun.l.google.com:19302" }] };
 const CALL_TICK_MS = 1400;
-const INCOMING_TICK_MS = 3000;
+const INCOMING_TICK_MS = 5000;
 const $client = () => window.supabaseClient || null;
 let currentContext = null;
 let searchSequence = 0;
@@ -519,7 +519,8 @@ async function endCall() {
     endLocalCall("Call ended.");
 }
 async function pollIncomingCall() {
-    if (incomingPollBusy || activeCall || !context()?.userId) return;
+    // Poll while the tab is visible; visibilitychange checks again on return.
+    if (document.hidden || incomingPollBusy || activeCall || !context()?.userId) return;
     incomingPollBusy = true;
     try {
         const result = await rpc("get_worth_it_incoming_chat_call", {});
