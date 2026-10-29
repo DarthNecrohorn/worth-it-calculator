@@ -12,6 +12,10 @@ const audioApi = read("functions/api/chat-audio.js");
 const mediaApi = read("functions/api/chat-media.js");
 const sql = read("supabase/worth-it-chat-enhancements.sql");
 const workflow = read(".github/workflows/function-syntax-check.yml");
+const app = read("app.js");
+const usernameAvailability = read("functions/api/auth-username-availability.js");
+const accountUsernameApi = read("functions/api/account-username.js");
+const settings = read("settings.js");
 
 test("chat enhancement controls are present, accessible, and loaded separately", () => {
     for (const id of [
@@ -20,11 +24,12 @@ test("chat enhancement controls are present, accessible, and loaded separately",
         "worthItChatReplyPreview", "worthItChatReplyAuthor", "worthItChatReplyText",
         "worthItChatReplyCloseBtn", "worthItChatAudioCallBtn", "worthItChatVideoCallBtn",
         "worthItChatCallOverlay", "worthItChatCallAcceptBtn", "worthItChatCallRejectBtn",
-        "worthItChatCallEndBtn", "worthItChatCallMuteBtn", "worthItChatCallCameraBtn",
+        "worthItChatCallEndBtn", "worthItChatCallMuteBtn", "worthItChatCallMuteLabel",
+        "worthItChatCallSpeakerBtn", "worthItChatCallCameraBtn",
         "worthItChatRemoteVideo", "worthItChatLocalVideo", "worthItChatRemoteAudio"
     ]) assert.match(html, new RegExp('id="' + id + '"'), "missing chat UI element " + id);
-    assert.match(html, /chat-enhancements\.css\?v=worthit-chat-enhancements-20261029e/);
-    assert.match(html, /chat-enhancements\.js\?v=worthit-chat-enhancements-20261029d/);
+    assert.match(html, /chat-enhancements\.css\?v=worthit-chat-enhancements-20261029f/);
+    assert.match(html, /chat-enhancements\.js\?v=worthit-chat-enhancements-20261029e/);
     assert.match(css, /WORTH IT Chat additions|Worth It Chat additions/);
     assert.match(css, /worth-it-chat-reply-preview/);
     assert.match(css, /worth-it-chat-call-overlay/);
@@ -106,14 +111,24 @@ test("audio/video calls are backend-enforced friend-only one-to-one calls", () =
     assert.match(sql, /unique index if not exists worth_it_chat_calls_one_active_per_conversation_idx/);
     assert.match(sql, /worth-it-user-call:/);
     assert.match(client, /new RTCPeerConnection\(RTC_CONFIG\)/);
-    assert.match(client, /getUserMedia\(\{ audio: true, video: type === "video" \}\)/);
+    assert.match(client, /async function acquireCallMedia\(type\)/);
+    assert.match(client, /getUserMedia\(\{ audio: true, video: true \}\)/);
+    assert.match(client, /getUserMedia\(\{ audio: true, video: false \}\)/);
+    assert.match(client, /addTransceiver\("video", \{ direction: "sendrecv" \}\)/);
+    assert.match(client, /Connection briefly interrupted/);
+    assert.match(client, /direct media connection failed/);
+    assert.match(client, /incomingPollTimer = window\.setInterval/);
+    assert.match(client, /callOverlayCloseTimer = window\.setTimeout/);
+    assert.doesNotMatch(client, /incomingCallTimer/);
     assert.match(client, /p_action: "accept"/);
     assert.match(client, /p_action: "reject"/);
     assert.match(client, /async function endCall\(\)\s*\{\s*await closeCallOnServer\("end"\)/);
     assert.match(client, /get_worth_it_incoming_chat_call/);
     assert.match(client, /send_worth_it_chat_call_signal/);
     assert.match(client, /if \(!ctx\?\.userId \|\| ctx\.conversationType !== "direct" \|\| !ctx\.isFriend \|\| !ctx\.conversationId\)/);
-    assert.match(client, /const INCOMING_TICK_MS = 5000/);
+    assert.match(client, /const INCOMING_TICK_MS = 2000/);
+    assert.match(client, /await client\.auth\.getSession\(\)/);
+    assert.match(client, /const CALL_TICK_MS = 1200/);
     assert.match(client, /if \(document\.hidden \|\| incomingPollBusy/);
     assert.match(sql, /worth_it_chat_calls_caller_active_idx/);
     assert.match(sql, /caller_user_id = actor_id or callee_user_id = actor_id/);
@@ -142,30 +157,38 @@ test("chat follow-up fixes keep search prefix-only, keep wallpaper scrolling, an
 });
 
 
-test("chat wallpaper uses one spaced illustration tile and call/voice controls use consistent vector icons", () => {
-    assert.match(css, /Single-tile doodle wallpaper/);
-    assert.match(css, /background-size:auto,1040px 936px/);
-    assert.match(css, /background-size:auto,720px 648px/);
-    assert.match(css, /background-repeat:no-repeat,repeat/);
+test("chat wallpaper uses a per-conversation grid and keeps the vector call/voice icons", () => {
+    assert.match(client, /const CHAT_WALLPAPER_MOTIFS = \[/);
+    assert.match(client, /function makeConversationWallpaper\(contextValue, theme\)/);
+    assert.match(client, /function applyChatWallpaper\(contextValue\)/);
+    assert.match(client, /const row = Math\.floor\(i \/ 6\), col = i % 6/);
+    assert.match(client, /CHAT_WALLPAPER_LIGHT_PALETTE/);
+    assert.match(client, /wallpaperSeed\(type \+ ":" \+ String\(contextValue\.conversationId/);
+    assert.match(client, /wallpaperThemeObserver\.observe/);
+    assert.match(css, /var\(--worthit-chat-wallpaper-image,none\)!important/);
+    assert.match(css, /html\[data-theme="light"\] \.worth-it-chat-messages/);
+    assert.match(css, /\.worth-it-chat-messages::before,\.worth-it-chat-messages::after\{display:none!important/);
     assert.match(html, /id="worthItChatAudioCallBtn"[^>]*><svg class="worth-it-chat-header-icon"/);
     assert.match(html, /id="worthItChatVideoCallBtn"[^>]*><svg class="worth-it-chat-header-icon"/);
     assert.match(html, /id="worthItChatVoiceBtn"[^>]*><svg class="worth-it-chat-voice-icon"/);
+    assert.match(html, /id="worthItChatCallMuteLabel"/);
     assert.match(client, /button\.setAttribute\("aria-pressed", String\(recording\)\)/);
     assert.doesNotMatch(client, /button\.textContent = recording \? "■" : "🎙"/);
 });
 
-
-test("chat doodles are isolated in spaced cells and stay visible in dark and light themes", () => {
-    assert.match(css, /A single tile with 25 separated doodles/);
-    assert.match(css, /width%3D%221050%22%20height%3D%221050%22%20viewBox%3D%220%200%201050%201050%22/);
-    assert.match(css, /background-size:auto,1050px 1050px!important/);
-    assert.match(css, /html\[data-theme=\"light\"\] \.worth-it-chat-messages/);
-    assert.match(css, /\.worth-it-chat-messages::before,\.worth-it-chat-messages::after\{\s*display:none!important/);
+test("chat doodles stay separated, adapt to both themes and retain visible icon strokes", () => {
+    assert.match(client, /const CHAT_WALLPAPER_MOTIFS = \[/);
+    assert.match(client, /const CHAT_WALLPAPER_DARK_PALETTE =/);
+    assert.match(client, /const CHAT_WALLPAPER_LIGHT_PALETTE =/);
+    assert.match(client, /const angle = Math\.round\(\(random\(\) \* 4 - 2\) \* 10\) \/ 10/);
+    assert.match(client, /const x = col \* 140 \+ Math\.round\(random\(\) \* 6 - 3\)/);
+    assert.match(client, /const y = row \* 140 \+ Math\.round\(random\(\) \* 6 - 3\)/);
+    assert.match(css, /var\(--worthit-chat-wallpaper-image,none\)!important/);
+    assert.match(css, /html\[data-theme="light"\] \.worth-it-chat-messages/);
+    assert.match(css, /background-size:auto,840px 840px!important/);
+    assert.match(css, /\.worth-it-chat-messages::before,\.worth-it-chat-messages::after\{display:none!important/);
     assert.match(css, /#worthItChatAudioCallBtn>.worth-it-chat-header-icon[\s\S]*?stroke:#c4b5fd!important/);
     assert.match(css, /#worthItChatVoiceBtn>.worth-it-chat-voice-icon[\s\S]*?fill:none!important;stroke:#c4b5fd!important/);
-    assert.match(html, /id="worthItChatAudioCallBtn"[^>]*><svg class="worth-it-chat-header-icon"/);
-    assert.match(html, /id="worthItChatVideoCallBtn"[^>]*><svg class="worth-it-chat-header-icon"/);
-    assert.match(html, /id="worthItChatVoiceBtn"[^>]*><svg class="worth-it-chat-voice-icon"/);
 });
 
 test("both call types can boost incoming audio through a GainNode and reset it on hangup", () => {
@@ -180,4 +203,42 @@ test("both call types can boost incoming audio through a GainNode and reset it o
     assert.match(client, /worthItChatCallSpeakerBtn.*addEventListener\("click", toggleSpeakerBoost\)/);
     assert.match(client, /resetRemoteAudioProcessor\(\)/);
     assert.match(client, /remoteAudio\.muted = false; remoteAudio\.volume = 1/);
+});
+
+
+test("signup and username changes require a leading English letter", () => {
+    const usernameRule = /^(?=.{3,20}$)[A-Za-z][A-Za-z0-9]*(?:_[A-Za-z0-9]+)?$/;
+    for (const name of ["Alex", "Alex1", "Alex_Name", "M123"]) assert.equal(usernameRule.test(name), true, name);
+    for (const name of ["1Alex", "_Alex", "12_User", "Alex_", "Alex__Name", "A"]) assert.equal(usernameRule.test(name), false, name);
+    assert.ok(app.includes("const signupUsernamePattern = /^(?=.{3,20}$)[A-Za-z][A-Za-z0-9]*(?:_[A-Za-z0-9]+)?$/;"));
+    assert.ok(usernameAvailability.includes("const USERNAME_PATTERN = /^(?=.{3,20}$)[A-Za-z][A-Za-z0-9]*(?:_[A-Za-z0-9]+)?$/;"));
+    assert.ok(accountUsernameApi.includes("const USERNAME_PATTERN = /^[A-Za-z][A-Za-z0-9]*(?:_[A-Za-z0-9]+)?$/;"));
+    assert.ok(settings.includes("Username must start with a letter"));
+});
+
+test("incoming calls keep polling separately and work outside the open chat", () => {
+    assert.match(client, /const INCOMING_TICK_MS = 2000/);
+    assert.match(client, /const sessionResult = await client\.auth\.getSession\(\)/);
+    assert.match(client, /incomingPollTimer = window\.setInterval/);
+    assert.match(client, /callOverlayCloseTimer = window\.setTimeout/);
+    assert.doesNotMatch(client, /incomingCallTimer/);
+    assert.match(client, /const CALL_TICK_MS = 1200/);
+    assert.match(client, /Connection briefly interrupted/);
+    assert.match(client, /direct media connection failed/);
+});
+
+test("video calls fall back to audio without a camera and allow camera activation later", () => {
+    assert.match(client, /async function acquireCallMedia\(type\)/);
+    assert.match(client, /getUserMedia\(\{ audio: true, video: false \}\)/);
+    assert.match(client, /addTransceiver\("video", \{ direction: "sendrecv" \}\)/);
+    assert.match(client, /async function toggleCamera\(\)/);
+    assert.match(client, /sender\.replaceTrack\(track\)/);
+    assert.match(client, /Camera is unavailable or permission was denied/);
+});
+
+test("mute button uses a vector icon and a text label on every desktop/browser", () => {
+    assert.match(html, /id="worthItChatCallMuteBtn"[^>]*><svg class="worth-it-chat-control-icon worth-it-chat-mic-icon"/);
+    assert.match(html, /id="worthItChatCallMuteLabel">Mute/);
+    assert.match(client, /mute\.classList\.toggle\("is-muted", audioMuted\)/);
+    assert.doesNotMatch(client, /button\.textContent = audioMuted \? "🔇 Unmute" : "🎙 Mute"/);
 });
