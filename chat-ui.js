@@ -2707,7 +2707,10 @@ const WORTH_IT_CHAT_EMOJI_KEYWORDS = {
 
 function addWorthItChatEmojiGroup(category, symbols) {
     const categoryLabel = WORTH_IT_CHAT_EMOJI_CATEGORIES.find(item => item.id === category)?.label || category;
+    const seenInCategory = new Set(WORTH_IT_CHAT_EMOJI_OPTIONS.filter(item => item.category === category).map(item => item.emoji));
     for (const emoji of String(symbols || "").trim().split(/\s+/).filter(Boolean)) {
+        if (seenInCategory.has(emoji)) continue;
+        seenInCategory.add(emoji);
         WORTH_IT_CHAT_EMOJI_OPTIONS.push({
             emoji,
             category,
@@ -2719,7 +2722,7 @@ function addWorthItChatEmojiGroup(category, symbols) {
 addWorthItChatEmojiGroup("faces", "😀 😃 😄 😁 😆 😅 😂 🤣 🥲 ☺️ 😊 😇 🙂 🙃 😉 😌 😍 🥰 😘 😗 😙 😚 😋 😛 😜 😝 🤪 🤨 🧐 🤓 😎 🥸 🤩 🥳 😏 😒 😞 😔 😟 😕 🙁 ☹️ 😣 😖 😫 😩 🥺 😢 😭 😤 😠 😡 🤬 🤯 😳 🥵 🥶 😱 😨 😰 😥 😓 🤗 🤔 🫣 🤭 🫢 🫡 🤫 🫠 🫥 😶 🫤 😐 😑 😬 🙄 😯 😦 😧 😮 😲 🥱 😴 🤤 😪 😵 😵‍💫 🤐 🥴 🤢 🤮 🤧 😷 🤒 🤕 🤑 🤠 😈 👿 💀 ☠️ 👻 👽 🤖 💩 👹 👺 💋 💌");
 addWorthItChatEmojiGroup("people", "👋 🤚 🖐️ ✋ 🖖 👌 🤌 🤏 ✌️ 🤞 🫰 🤟 🤘 🤙 👈 👉 👆 👇 ☝️ ✊ 👊 🤛 🤜 👏 🙌 👐 🤲 🤝 🙏 ✍️ 💅 🤳 💪 🦾 🦿 🦵 🦶 👂 🦻 👃 🧠 🫀 🫁 🦷 🦴 👀 👁️ 👅 👄 🫦 👶 🧒 👦 👧 🧑 👨 👩 🧔 🧑‍🦰 🧑‍🦱 🧑‍🦳 🧑‍🦲 🧓 👴 👵 🙍 🙎 🙅 🙆 💁 🙋 🧏 🙇 🤦 🤷 💃 🕺 🧘 🛀 🛌 🧍 🧎 🚶 🏃 🧑‍💻 🧑‍🎨 🧑‍🍳 🧑‍🚀 🧑‍🔬 🧑‍🏫 🧑‍⚕️ 🧑‍🚒 🧑‍✈️ 🧑‍🌾");
 addWorthItChatEmojiGroup("animals", "🐶 🐱 🐭 🐹 🐰 🦊 🐻 🐼 🐻‍❄️ 🐨 🐯 🦁 🐮 🐷 🐸 🐵 🙈 🙉 🙊 🐒 🐔 🐧 🐦 🐤 🐣 🦆 🦅 🦉 🦇 🐺 🐗 🐴 🦄 🐝 🪱 🐛 🦋 🐌 🐞 🐜 🪰 🪲 🕷️ 🕸️ 🦂 🦟 🦗 🪳 🐢 🐍 🦎 🦖 🦕 🐙 🦑 🦐 🦞 🦀 🐡 🐠 🐟 🐬 🐳 🦈 🐊 🦭 🦦 🦥 🦫 🦡 🐘 🦣 🦏 🦛 🦒 🦘 🦬 🐃 🐂 🐄 🐎 🐖 🐏 🐑 🦙 🐐 🦌 🐕 🦮 🐩 🐈 🐈‍⬛ 🪶 🐓 🦃 🦤 🦚 🦜 🦢 🦩 🕊️ 🐇 🦝 🦨 🦔 🐿️");
-addWorthItChatEmojiGroup("plants", "🌱 🌿 ☘️ 🍀 🌵 🌴 🌳 🌲 🎄 🪴 🎍 🎋 🌾 🍃 🍂 🍁 🌷 🌹 🥀 🌺 🌻 🌼 🌸 🪷 🪻 💐 🪵 🪨 🪸 🪹 🪺 🌰 🍄 🍄‍🟫 🪴 🪷 🌼 🌾 🌿 🌱 🌳 🌲 🌴 🌵 🌻 🌹 🌷 🌸 🪻 💮 🏵️");
+addWorthItChatEmojiGroup("plants", "🌱 🌿 ☘️ 🍀 🌵 🌴 🌳 🌲 🎄 🪴 🎍 🎋 🌾 🍃 🍂 🍁 🌷 🌹 🥀 🌺 🌻 🌼 🌸 🪷 🪻 💐 🪵 🪨 🪸 🪹 🪺 🌰 🍄 🍄‍🟫 💮 🏵️ 🪻 🌱 🌿 🍀 🪴 🌳 🌲 🌴 🌵 🌻 🌹 🌷 🌸 🪷 🪺 🪹 🪾 🫛 🪻 🪴 🌺 🌼 🪷 🪸 🪨 🪵 🪴 🪻 🌾 🍄‍🟫");
 addWorthItChatEmojiGroup("food", "🍏 🍎 🍐 🍊 🍋 🍌 🍉 🍇 🍓 🫐 🍈 🍒 🍑 🥭 🍍 🥥 🥝 🍅 🫒 🥑 🍆 🥔 🥕 🌽 🌶️ 🫑 🥒 🥬 🥦 🧄 🧅 🍄 🥜 🫘 🌰 🍞 🥐 🥖 🫓 🥨 🥯 🥞 🧇 🧀 🍖 🍗 🥩 🥓 🍔 🍟 🍕 🌭 🥪 🌮 🌯 🫔 🥙 🧆 🥚 🍳 🥘 🍲 🥣 🥗 🍿 🧈 🧂 🥫 🍱 🍘 🍙 🍚 🍛 🍜 🍝 🍠 🍢 🍣 🍤 🍥 🥮 🍡 🥟 🥠 🥡 🦪 🍦 🍧 🍨 🍩 🍪 🎂 🍰 🧁 🥧 🍫 🍬 🍭 🍮 🍯 🍼 🥛 ☕ 🫖 🍵 🧃 🥤 🧋 🍶 🍺 🍻 🥂 🍷 🥃 🍸 🍹 🧉 🧊");
 addWorthItChatEmojiGroup("activities", "⚽ 🏀 🏈 ⚾ 🥎 🎾 🏐 🏉 🥏 🎱 🪀 🏓 🏸 🏒 🏑 🥍 🏏 🪃 🥅 ⛳ 🪁 🏹 🎣 🤿 🥊 🥋 🎽 🛹 🛼 🛷 ⛸️ 🥌 🎿 ⛷️ 🏂 🪂 🏋️ 🤼 🤸 ⛹️ 🤺 🏇 🧘 🏄 🏊 🤽 🚣 🧗 🚴 🚵 🏆 🥇 🥈 🥉 🏅 🎖️ 🏵️ 🎗️ 🎟️ 🎫 🎭 🩰 🎨 🎬 🎤 🎧 🎼 🎹 🥁 🎷 🎺 🎸 🪕 🎻 🪈 🎲 ♟️ 🎯 🎳 🎮 🎰 🧩 🎪 🎠 🎡 🎢 🎤 🎧");
 addWorthItChatEmojiGroup("travel", "🚗 🚕 🚙 🚌 🚎 🏎️ 🚓 🚑 🚒 🚐 🛻 🚚 🚛 🚜 🛵 🏍️ 🛺 🚲 🛴 🛹 🚏 🛣️ 🛤️ 🛢️ ⛽ 🛞 🚨 🚥 🚦 🛑 🚧 ⚓ 🛟 ⛵ 🛶 🚤 🛳️ ⛴️ 🛥️ 🚢 ✈️ 🛩️ 🛫 🛬 🪂 💺 🚁 🚟 🚠 🚡 🛰️ 🚀 🛸 🌍 🌎 🌏 🌐 🗺️ 🧭 🏔️ ⛰️ 🌋 🗻 🏕️ 🏖️ 🏜️ 🏝️ 🏞️ 🏟️ 🏛️ 🏗️ 🧱 🪨 🪵 🛖 🏘️ 🏚️ 🏠 🏡 🏢 🏣 🏤 🏥 🏦 🏨 🏩 🏪 🏫 🏬 🏭 🏯 🏰 💒 🗼 🗽 ⛪ 🕌 🛕 🕍 🛐 ⛩️ 🕋 ⛲ ⛺ 🌁 🌃 🌄 🌅 🌆 🌇 🌉 ♨️");
@@ -2868,12 +2871,12 @@ async function getWorthItChatGifAsset(item) {
             const response = await fetch(WORTH_IT_CHAT_GIF_BUNDLE_PATH, {
                 method: "GET",
                 credentials: "same-origin",
-                cache: "force-cache",
+                cache: "no-store",
                 headers: { "Accept": "text/plain" }
             });
-            if (!response.ok) throw new Error("The Worth It animation library could not be loaded.");
+            if (!response.ok) throw new Error("Animation library request failed (" + response.status + ").");
             const encoded = (await response.text()).replace(/\s+/g, "");
-            if (!encoded || encoded.length > 1024 * 1024) {
+            if (!encoded || encoded.length > 1024 * 1024 || !/^[A-Za-z0-9+/=]+$/.test(encoded)) {
                 throw new Error("The Worth It animation library is invalid.");
             }
             let binary;
