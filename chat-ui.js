@@ -3435,7 +3435,7 @@ const WORTH_IT_CHAT_GIF_LIBRARY = [
     { id: "hug-heart", title: "Hug heart", keywords: "hug heart love caring comfort friends", type: "sticker", offset: 316127, length: 7100 },
     { id: "party-hat", title: "Party hat", keywords: "party hat birthday celebration", type: "sticker", offset: 323227, length: 4024 },
     { id: "little-ghost", title: "Little ghost", keywords: "ghost boo spooky cute halloween", type: "sticker", offset: 327251, length: 12742 },
-    { id: "rainbow-heart", title: "Rainbow heart", keywords: "rainbow heart love colorful pride", type: "sticker", offset: 339993, length: 11632 }
+    { id: "rainbow-heart", title: "Rainbow heart", keywords: "rainbow heart love colorful pride", type: "sticker", offset: 339993, length: 11632 },
     { id: "worth-it-check-pulse", title: "Worth It check pulse", keywords: "worth it approved verified check success confirmed", type: "gif", offset: 351625, length: 3815 },
     { id: "deal-sealed", title: "Deal sealed", keywords: "deal agreement stamp approved locked in", type: "gif", offset: 355440, length: 3820 },
     { id: "budget-bounce", title: "Budget bounce", keywords: "budget money bounce savings planning", type: "gif", offset: 359260, length: 2824 },
