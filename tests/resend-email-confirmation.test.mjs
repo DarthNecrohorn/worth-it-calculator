@@ -29,6 +29,10 @@ test("unverified sessions are represented to the main app as guests while retain
     assert.match(profile, /currentUser=getVerifiedWorthItProfileUser\(data\?\.session\?\.user\|\|null\)/);
     assert.match(ai, /code: "EMAIL_NOT_CONFIRMED"/);
     assert.match(media, /code:"EMAIL_NOT_CONFIRMED"/);
+    const feedbackApi = readFileSync(new URL("../functions/api/feedback.js", import.meta.url), "utf8");
+    assert.match(feedbackApi, /code: "EMAIL_NOT_CONFIRMED"/);
+    const userDataApi = readFileSync(new URL("../functions/api/user-data.js", import.meta.url), "utf8");
+    assert.match(userDataApi, /code: "EMAIL_NOT_CONFIRMED"/);
 });
 
 test("email resend is performed only by a server endpoint guarded by an atomic 24-hour per-user database claim", () => {
