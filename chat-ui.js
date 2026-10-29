@@ -167,6 +167,23 @@ window.toggleWorthItChatFullscreen = function (event) {
 
     setWorthItChatFullscreen(!overlay.classList.contains("is-fullscreen"));
 };
+function updateWorthItChatVisualViewport() {
+    const overlay = $("worthItChatOverlay");
+    const viewport = window.visualViewport;
+    const isPhone = window.matchMedia("(max-width: 540px)").matches;
+    if (!overlay || !viewport || !isPhone || !chatOpen) {
+        if (overlay) {
+            overlay.classList.remove("is-visual-viewport-adjusted");
+            overlay.style.removeProperty("--worthit-chat-visible-height");
+            overlay.style.removeProperty("--worthit-chat-visible-top");
+        }
+        return;
+    }
+    // visualViewport.height excludes the on-screen keyboard on mobile browsers.
+    overlay.style.setProperty("--worthit-chat-visible-height", Math.max(220, Math.round(viewport.height)) + "px");
+    overlay.style.setProperty("--worthit-chat-visible-top", Math.max(0, Math.round(viewport.offsetTop || 0)) + "px");
+    overlay.classList.add("is-visual-viewport-adjusted");
+}
 function showChatOverlay(open, options) {
     const overlay = $("worthItChatOverlay");
     const button = $("worthItChatNavBtn");
@@ -188,6 +205,7 @@ function showChatOverlay(open, options) {
     overlay.hidden = !chatOpen;
     overlay.setAttribute("aria-hidden", String(!chatOpen));
     button?.setAttribute("aria-expanded", String(chatOpen));
+    updateWorthItChatVisualViewport();
     if (chatOpen) {
         document.body.classList.add("worth-it-chat-open");
         // On phones, open the conversation immediately; the list remains one tap away.
@@ -3264,6 +3282,11 @@ function openWorthItChatGifPicker() {
 }
 
 function setupChatUI() {
+    window.visualViewport?.addEventListener("resize", updateWorthItChatVisualViewport);
+    window.visualViewport?.addEventListener("scroll", updateWorthItChatVisualViewport);
+    window.addEventListener("resize", updateWorthItChatVisualViewport);
+    $("worthItChatInput")?.addEventListener("focus", updateWorthItChatVisualViewport);
+    $("worthItChatInput")?.addEventListener("blur", updateWorthItChatVisualViewport);
     $("worthItChatInput")?.addEventListener("input", function () {
         updateCharacterCount();
         this.style.height = "auto";
