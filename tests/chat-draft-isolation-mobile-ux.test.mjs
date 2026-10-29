@@ -114,7 +114,7 @@ test("chat wallpaper has more small rotated doodles with per-conversation placem
 
 test("the broken audioOnly reference is removed and asset caches point to the new builds", () => {
     assert.doesNotMatch(calls, /audioOnly/);
-    assert.match(html, /chat-ui\.js\?v=worthit-gif-plants-20261029b/);
+    assert.match(html, /chat-ui\.js\?v=worthit-gif-plants-20261029c/);
     assert.match(html, /chat-enhancements\.js\?v=worthit-chat-enhancements-20261029f/);
     assert.match(html, /chat-ux-polish\.css\?v=chat-ux-polish-20261029e/);
     assert.match(html, /ai-ui\.js\?v=worthit-ai-overlay-20261029b/);
