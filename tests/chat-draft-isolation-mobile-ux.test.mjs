@@ -209,7 +209,7 @@ test("chat wallpaper uses collision-safe random placement, varied sizes and scat
 
 test("the broken audioOnly reference is removed and asset caches point to the new builds", () => {
     assert.doesNotMatch(calls, /audioOnly/);
-    assert.match(html, /chat-ui\.js\?v=chat-daily-chat-safety-search-20261029a/);
+    assert.match(html, /chat-ui\.js\?v=chat-gif-style-refresh-20261029a/);
     assert.match(html, /chat-enhancements\.js\?v=chat-daily-safety-wallpaper-density-20261029a/);
     assert.match(html, /chat-enhancements\.css\?v=chat-safety-note-wallpaper-density-20261029a/);
     assert.match(enhancementCss, /background-repeat:no-repeat,repeat-y!important/);
