@@ -27,7 +27,13 @@
     async function isAdmin(){
         try{
             const session = await getSession();
-            return String(session?.user?.email || '').trim().toLowerCase() === ADMIN_EMAIL;
+            const user = session?.user || null;
+            return Boolean(
+                user &&
+                typeof window.isWorthItEmailVerified === "function" &&
+                window.isWorthItEmailVerified(user) &&
+                String(user.email || '').trim().toLowerCase() === ADMIN_EMAIL
+            );
         }catch(error){
             return false;
         }
