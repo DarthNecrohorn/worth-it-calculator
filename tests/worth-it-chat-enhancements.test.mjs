@@ -29,8 +29,8 @@ test("chat enhancement controls are present, accessible, and loaded separately",
         "worthItChatCallSpeakerBtn", "worthItChatCallCameraBtn",
         "worthItChatRemoteVideo", "worthItChatLocalVideo", "worthItChatRemoteAudio"
     ]) assert.match(html, new RegExp('id="' + id + '"'), "missing chat UI element " + id);
-    assert.match(html, /chat-enhancements\.css\?v=worthit-chat-enhancements-20261029k/);
-    assert.match(html, /chat-enhancements\.js\?v=worthit-chat-enhancements-20261029k/);
+    assert.match(html, /chat-enhancements\.css\?v=worthit-chat-enhancements-organic-wallpaper-20261029a/);
+    assert.match(html, /chat-enhancements\.js\?v=worthit-chat-enhancements-organic-wallpaper-20261029a/);
     assert.match(css, /WORTH IT Chat additions|Worth It Chat additions/);
     assert.match(css, /worth-it-chat-reply-preview/);
     assert.match(css, /worth-it-chat-call-overlay/);
@@ -185,24 +185,32 @@ test("chat follow-up fixes keep search prefix-only, keep wallpaper stationary wh
 });
 
 
-test("chat wallpaper uses a per-conversation grid and keeps the vector call/voice icons", () => {
+test("chat wallpaper scatters unique motifs with visibly varied sizes", () => {
     assert.match(client, /const CHAT_WALLPAPER_MOTIFS = \[/);
-    assert.match(client, /function makeConversationWallpaper\(contextValue, theme\)/);
+    assert.match(client, /function makeConversationWallpaper\(contextValue, theme, requestedWidth\)/);
     assert.match(client, /function applyChatWallpaper\(contextValue\)/);
-    assert.match(client, /const columns = 8, rows = 12, canvasWidth = 840, canvasHeight = 1260/);
-    assert.match(client, /const rowOffsets = Array\.from\(\{ length: rows \}, \(\) => \(random\(\) - \.5\) \* 10\)/);
-    assert.match(client, /const motifScale = \.36 \+ random\(\) \* \.06/);
-    assert.match(client, /const x = Math\.max\(60, Math\.min\(canvasWidth - 60, 60 \+ col \* columnGap \+ rowOffsets\[row\] \+ \(random\(\) - \.5\) \* 8\)\)/);
-    assert.match(client, /const y = 60 \+ row \* rowGap \+ \(random\(\) - \.5\) \* 6/);
-    assert.match(client, /width="840" height="1260" viewBox="0 0 840 1260"/);
-    assert.match(client, /for \(let i = 0; i < columns \* rows; i\+\+\)/);
+    assert.match(client, /const canvasWidth = Math\.max\(600, Math\.min\(2400/);
+    assert.match(client, /const canvasHeight = Math\.round\(canvasWidth \* 1\.5\)/);
+    assert.match(client, /const targetCount = Math\.max\(10/);
+    assert.match(client, /const scales = Array\.from/);
+    assert.match(client, /scales\[0\] = \.54 \+ random\(\) \* \.05/);
+    assert.match(client, /scales\[1\] = 1\.04 \+ random\(\) \* \.09/);
+    assert.match(client, /Math\.hypot\(x - existing\.x, y - existing\.y\) < radius \+ existing\.radius \+ 12/);
+    assert.match(client, /const x = margin \+ random\(\) \* Math\.max\(0, canvasWidth - margin \* 2\)/);
+    assert.match(client, /const y = margin \+ random\(\) \* Math\.max\(0, canvasHeight - margin \* 2\)/);
+    assert.match(client, /const usedMotifs = new Set\(\)/);
+    assert.match(client, /data-wallpaper-doodle="1"/);
+    assert.match(client, /data-wallpaper-accent="1"/);
     assert.match(client, /CHAT_WALLPAPER_ALL_MOTIFS = CHAT_WALLPAPER_MOTIFS\.concat\(CHAT_WALLPAPER_EXTRA_MOTIFS\)/);
     assert.match(client, /const CHAT_WALLPAPER_GEOMETRIES = \[/);
-    assert.match(client, /const geometryParity = \(row \+ col\) % 2 === 0/);
     assert.match(client, /CHAT_WALLPAPER_LIGHT_PALETTE/);
-    assert.match(client, /wallpaperSeed\(type \+ ":" \+ String\(contextValue\.conversationId/);
+    assert.match(client, /wallpaperSeed\(key\)/);
     assert.match(client, /wallpaperThemeObserver\.observe/);
+    assert.match(client, /wallpaperSurfaceObserver\.observe\(wallpaperSurface\)/);
+    assert.match(client, /surface\.style\.setProperty\("--worthit-chat-wallpaper-size"/);
     assert.match(css, /var\(--worthit-chat-wallpaper-image,none\)!important/);
+    assert.match(css, /var\(--worthit-chat-wallpaper-size,900px 1350px\)!important/);
+    assert.match(css, /background-repeat:no-repeat,repeat-y!important/);
     assert.match(css, /html\[data-theme="light"\] \.worth-it-chat-messages/);
     assert.match(css, /\.worth-it-chat-messages::before,\.worth-it-chat-messages::after\{display:none!important/);
     assert.match(html, /id="worthItChatAudioCallBtn"[^>]*><svg class="worth-it-chat-header-icon"/);
@@ -213,20 +221,25 @@ test("chat wallpaper uses a per-conversation grid and keeps the vector call/voic
     assert.doesNotMatch(client, /button\.textContent = recording \? "■" : "🎙"/);
 });
 
-test("chat doodles stay separated, adapt to both themes and retain visible icon strokes", () => {
+test("chat doodles and accents stay separated, adapt to both themes and retain visible icon strokes", () => {
     assert.match(client, /const CHAT_WALLPAPER_MOTIFS = \[/);
     assert.match(client, /const CHAT_WALLPAPER_DARK_PALETTE =/);
     assert.match(client, /const CHAT_WALLPAPER_LIGHT_PALETTE =/);
     assert.match(client, /const angle = Math\.floor\(random\(\) \* 360\)/);
-    assert.match(client, /const scaleX = random\(\) < \.5 \? -motifScale : motifScale/);
-    assert.match(client, /const scaleY = random\(\) < \.5 \? -motifScale : motifScale/);
-    assert.match(client, /const x = Math\.max\(60, Math\.min\(canvasWidth - 60, 60 \+ col \* columnGap \+ rowOffsets\[row\] \+ \(random\(\) - \.5\) \* 8\)\)/);
-    assert.match(client, /const y = 60 \+ row \* rowGap \+ \(random\(\) - \.5\) \* 6/);
-    assert.match(client, /const geometryOffsets = \[\[-edgeShift, -47\], \[47, edgeShift\], \[-edgeShift, 47\], \[-47, edgeShift\], \[-34, -34\], \[34, -34\], \[-34, 34\], \[34, 34\]\]/);
+    assert.match(client, /const scaleX = random\(\) < \.5 \? -scale : scale/);
+    assert.match(client, /const scaleY = random\(\) < \.5 \? -scale : scale/);
+    assert.match(client, /const overlaps = placements\.some/);
+    assert.match(client, /doodle\.radius \+ markerRadius \+ 8/);
+    assert.match(client, /markerRadius \+ existing\.radius \+ 6/);
+    assert.match(client, /const x = 13 \+ random\(\) \* Math\.max\(0, canvasWidth - 26\)/);
+    assert.match(client, /const y = 13 \+ random\(\) \* Math\.max\(0, canvasHeight - 26\)/);
+    assert.match(client, /const opacity = theme === "light" \? "\.44" : "\.36"/);
+    assert.match(client, /const geometryOpacity = theme === "light" \? "\.40" : "\.32"/);
     assert.match(css, /var\(--worthit-chat-wallpaper-image,none\)!important/);
     assert.match(css, /html\[data-theme="light"\] \.worth-it-chat-messages/);
-    assert.match(css, /background-size:auto,900px 1350px!important/);
-    assert.match(css, /background-size:auto,740px 1110px!important/);
+    assert.match(css, /var\(--worthit-chat-wallpaper-size,600px 900px\)!important/);
+    assert.doesNotMatch(css, /background-size:auto,740px 1110px!important/);
+    assert.match(css, /background-repeat:no-repeat,repeat-y!important/);
     assert.match(css, /\.worth-it-chat-messages::before,\.worth-it-chat-messages::after\{display:none!important/);
     assert.match(css, /#worthItChatAudioCallBtn>.worth-it-chat-header-icon[\s\S]*?stroke:#c4b5fd!important/);
     assert.match(css, /#worthItChatVoiceBtn>.worth-it-chat-voice-icon[\s\S]*?fill:none!important;stroke:#c4b5fd!important/);
