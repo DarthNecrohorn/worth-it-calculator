@@ -56,7 +56,7 @@ test("voice uploads are checked against chat membership and never stored in the 
     assert.match(upload, /authorizeRpc\(config, token, "can_access_worth_it_chat_media"/);
     assert.match(upload, /AUDIO_BUCKET/);
     assert.match(upload, /AUDIO_LIMIT/);
-    assert.match(upload, /const objectPath = user\.id \+ "\/"/);
+    assert.match(upload, /objectPath = user\.id \+ "\/" \+ Date\.now\(\) \+ "-" \+ crypto\.randomUUID\(\)/);
     assert.match(sql, /create or replace function public\.can_access_worth_it_chat_media/);
     assert.match(sql, /if kind = 'direct' then[\s\S]*?worth_it_friends[\s\S]*?user_low_id[\s\S]*?user_high_id/);
 });
@@ -80,7 +80,7 @@ test("mobile swipe opens a rich reply preview and the reply is stored with the o
     assert.match(client, /function setupSwipeReply\(\)/);
     assert.match(client, /Math\.abs\(dx\) >= 72/);
     assert.match(client, /window\.worthItChatQuoteById/);
-    assert.match(chat, /pendingReplyQuote = \{ author, text \}/);
+    assert.match(chat, /pendingReplyQuote = \{ author, text: compact\.slice\(0, 160\)/);
     assert.match(chat, /renderWorthItChatReplyPreview\(\)/);
     assert.match(chat, /const replyPrefix = pendingReplyQuote \? "> "/);
     assert.match(chat, /clearWorthItChatReplyQuote\(\)/);
@@ -106,7 +106,7 @@ test("audio/video calls are backend-enforced friend-only one-to-one calls", () =
     assert.match(client, /getUserMedia\(\{ audio: true, video: type === "video" \}\)/);
     assert.match(client, /p_action: "accept"/);
     assert.match(client, /p_action: "reject"/);
-    assert.match(client, /p_action: "end"/);
+    assert.match(client, /async function endCall\(\)\s*\{\s*await closeCallOnServer\("end"\)/);
     assert.match(client, /get_worth_it_incoming_chat_call/);
     assert.match(client, /send_worth_it_chat_call_signal/);
     assert.match(client, /if \(!ctx\?\.userId \|\| ctx\.conversationType !== "direct" \|\| !ctx\.isFriend \|\| !ctx\.conversationId\)/);
