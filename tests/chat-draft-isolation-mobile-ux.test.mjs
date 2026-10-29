@@ -106,6 +106,8 @@ test("chat wallpaper has more small rotated doodles with per-conversation placem
     assert.match(calls, /scale\(\.62\)/);
     assert.match(calls, /wallpaperSeed\(type \+ ":" \+ String\(contextValue\.conversationId/);
     assert.match(polish, /#worthItChatMessageSearchBtn\s*\{\s*font-size: 26px/);
+    assert.match(html, /id="worthItChatMessageSearchBtn"[^>]*><span class="worth-it-chat-search-glyph" aria-hidden="true">⌕<\\/span><\\/button>/);
+    assert.match(polish, /\.worth-it-chat-search-glyph\s*\{\s*position: relative !important;\s*top: -2px !important;\s*display: inline-block !important;/);
     assert.match(polish, /\.worth-it-chat-reply-close\s*\{\s*transform: translateY\(-3px\)/);
     assert.match(polish, /\.worth-it-chat-reply-close\s*\{\s*transform: translateY\(-1px\)/);
 });
@@ -114,7 +116,7 @@ test("the broken audioOnly reference is removed and asset caches point to the ne
     assert.doesNotMatch(calls, /audioOnly/);
     assert.match(html, /chat-ui\.js\?v=worthit-gif-plants-20261029f/);
     assert.match(html, /chat-enhancements\.js\?v=worthit-chat-enhancements-20261029f/);
-    assert.match(html, /chat-ux-polish\.css\?v=chat-ux-polish-20261029g/);
+    assert.match(html, /chat-ux-polish\.css\?v=chat-ux-polish-20261029h/);
     assert.match(html, /ai-ui\.js\?v=worthit-ai-overlay-20261029b/);
     assert.match(polish, /#aiChatOverlay \.ai-chat-close\s*\{\s*transform: translateY\(2px\)/);
     assert.match(polish, /#aiChatNavBtn\.ai-chat-nav-btn\s*\{[\s\S]*?width: 42px/);

@@ -30,6 +30,11 @@
     font-size: 26px !important;
     line-height: 1 !important;
 }
+.worth-it-chat-search-glyph {
+    position: relative !important;
+    top: -2px !important;
+    display: inline-block !important;
+}
 
 /* Size only received bubbles to their text; keep the surrounding message metadata layout unchanged. */
 .worth-it-chat-message:not(.is-mine) .worth-it-chat-bubble {
