@@ -18,14 +18,14 @@ function mediaFile(bytes, name, type) {
     return new File([Uint8Array.from(bytes)], name, { type });
 }
 
-function makeMockFetch({ userId = "test-user", storageStatus = 200 } = {}) {
+function makeMockFetch({ userId = "test-user", storageStatus = 200, confirmed = true } = {}) {
     const calls = [];
     const storageUploads = [];
     const fetch = async (input, init = {}) => {
         const url = String(input);
         calls.push({ url, init });
         if (url.endsWith("/auth/v1/user")) {
-            return new Response(JSON.stringify({ id: userId }), {
+            return new Response(JSON.stringify({ id: userId, email_confirmed_at: confirmed ? "2026-01-01T00:00:00.000Z" : null }), {
                 status: 200,
                 headers: { "Content-Type": "application/json" }
             });
@@ -71,7 +71,7 @@ async function withFetch(fetchImpl, callback) {
 
 test("chat video controls, accepted types, upload limits and cache key are wired together", () => {
     assert.match(html, /Images, GIFs, videos and links supported/);
-    assert.match(html, /chat-ui\.js\?v=chat-navigation-typing-ux-20261028e/);
+    assert.match(html, /chat-ui\.js\?v=chat-media-emoji-20261029a/);
     assert.match(html, /accept="image\/png,image\/jpeg,image\/webp,image\/gif,video\/mp4,video\/webm"/);
     assert.match(client, /"video\/mp4":"video","video\/webm":"video"/);
     assert.match(client, /50 \* 1024 \* 1024/);
@@ -142,6 +142,16 @@ test("legacy PNG and GIF uploads remain accepted", async () => {
         assert.equal((await response.json()).type, sample.expectedType);
         assert.equal(mock.storageUploads[0]?.contentType, sample.type);
     }
+});
+
+test("unconfirmed users cannot upload chat media before storing the file", async () => {
+    const mock = makeMockFetch({ confirmed: false });
+    const response = await withFetch(mock.fetch, () =>
+        callUpload(mediaFile([0x47, 0x49, 0x46, 0x38, 0x39, 0x61], "sample.gif", "image/gif"))
+    );
+    assert.equal(response.status, 403);
+    assert.equal((await response.json()).code, "EMAIL_NOT_CONFIRMED");
+    assert.equal(mock.storageUploads.length, 0);
 });
 
 test("unauthorized origins and missing sessions cannot upload media", async () => {

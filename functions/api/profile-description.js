@@ -56,6 +56,7 @@ async function authorizedUser(request, config) {
     if (!token) return { error: json({ success: false, error: "Please sign in to edit your profile description." }, 401) };
     const user = await verifyUser(config, token);
     if (!user) return { error: json({ success: false, error: "Your login session has expired. Please sign in again." }, 401) };
+    if (!(user.email_confirmed_at || user.confirmed_at)) return { error: json({ success: false, code: "EMAIL_NOT_CONFIRMED", error: "Confirm your email before editing your profile." }, 403) };
     return { user };
 }
 async function readProfile(config, userId) {

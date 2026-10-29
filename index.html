@@ -62,7 +62,7 @@ html[data-theme="light"].worth-it-initial-paint::before {
 })();
 </script>
 
-<link rel="stylesheet" href="style.css?v=chat-light-theme-signout-20261028a">
+<link rel="stylesheet" href="style.css?v=user-reports-email-gate-20261029c">
 <link rel="stylesheet" href="chat-actions.css?v=chat-message-actions-20261028c">
 <link rel="stylesheet" href="chat-delete-confirm.css?v=chat-delete-confirm-20261028b">
 <link rel="stylesheet" href="chat-realtime.css?v=chat-realtime-typing-20261028b">
@@ -421,10 +421,6 @@ html[data-theme="light"].worth-it-initial-paint::before {
 
     </div>
     <div class="nav-secondary-row">
-
-        <button class="feedback-nav-btn" onclick="openFeedback()" title="Bugs & Suggestions">
-            🐞 <span>Bugs &amp; Suggestions</span>
-        </button>
 
         <button class="admin-panel-nav-btn"
         id="adminPanelButton"
@@ -1115,6 +1111,12 @@ html[data-theme="light"].worth-it-initial-paint::before {
 
     <section class="hero">
         <div class="container">
+
+            <div class="hero-feedback-action">
+                <button type="button" class="hero-feedback-btn" onclick="openFeedback()" title="Bugs & Suggestions">
+                    🐞 Bugs &amp; Suggestions
+                </button>
+            </div>
 
             <div class="badge">✦ Smart decisions made simple</div>
 
@@ -2307,6 +2309,7 @@ html[data-theme="light"].worth-it-initial-paint::before {
                 <strong id="worthItProfileFollowing">—</strong><span>Following</span>
               </button>
             </div>
+            <div class="worth-it-profile-report-row"><button type="button" id="worthItProfileReportAction" class="worth-it-profile-social-button quiet" onclick="reportWorthItDisplayedProfile()" hidden>⚑ Report user</button></div>
             <div id="worthItProfileSocialActions" class="worth-it-profile-social-actions" hidden>
               <button type="button" id="worthItProfileFriendAction" class="worth-it-profile-social-button primary" onclick="performWorthItSocialAction('friend')">Add friend</button>
               <button type="button" id="worthItProfileFollowAction" class="worth-it-profile-social-button secondary" onclick="performWorthItSocialAction('follow')">Follow</button>
@@ -3150,9 +3153,9 @@ try{
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.1"></script>
 
 
-<script src="app.js?v=signout-confirmation-20261028a"></script>
+<script src="app.js?v=action-triggered-email-gate-20261029c"></script>
 <script src="section-data-cache.js?v=sectioncache20261015a"></script>
-<script src="ai-ui.js"></script>
+<script src="ai-ui.js?v=email-verification-20261028a"></script>
 <script src="calculators.js"></script>
 <script src="cars-ui.js?v=carsperf20261025b"></script>
 <script src="cars-levels-ui.js?v=cars20261007f"></script>
@@ -3160,8 +3163,8 @@ try{
 <script src="news-ui.js?v=newscache20261012a"></script>
 <script src="shop-affiliates.js?v=shopdetails20261010d"></script>
 <script src="shop.js?v=shopcache20261012a"></script>
-<script src="settings.js?v=settings-navigation-20261015a"></script>
-<script src="admin-panel.js?v=feedbackpublic20261023a"></script>
+<script src="settings.js?v=settings-email-verification-20261029a"></script>
+<script src="admin-panel.js?v=user-reports-20261029a"></script>
 <script src="markets-ui.js?v=markets-first-load-retry-20261026b"></script>
 <script src="crypto-ui.js?v=cryptoimage20261012a"></script>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -5172,10 +5175,10 @@ if($("carResults")){
 }
 
 </script>
-<script src="/profile-ui.js?v=presence-tooltip-scale-20261019a"></script>
-<script src="/chat-ui.js?v=chat-navigation-typing-ux-20261028e"></script>
+<script src="/profile-ui.js?v=profile-report-20261029a"></script>
+<script src="/chat-ui.js?v=chat-media-emoji-20261029a"></script>
 <script src="/user-search.js?v=worthitusersearch20261014a"></script>
-<script src="/guest-mode.js?v=chat-route-preserve-20261028a"></script>
+<script src="/guest-mode.js?v=guest-email-verification-20261029a"></script>
 <script src="/routing.js?v=profile-navigation-hardening-20261028b"></script>
 
 </body>

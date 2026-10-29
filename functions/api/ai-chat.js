@@ -631,6 +631,13 @@ export async function onRequestPost(context) {
             );
         }
 
+        if (!(user.email_confirmed_at || user.confirmed_at)) {
+            return responseJson({
+                error: "Please confirm your email before using Worth It AI.",
+                code: "EMAIL_NOT_CONFIRMED"
+            }, 403);
+        }
+
         let body;
 
         try {

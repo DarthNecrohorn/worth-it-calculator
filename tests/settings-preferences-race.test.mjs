@@ -25,7 +25,7 @@ test("stale preference-load responses cannot overwrite the cache after an accoun
 });
 
 test("preference saves re-check the current account before updating shared Settings state", () => {
-    assert.match(saver, /const latestSessionResult = await client\.auth\.getSession\(\)/);
+    assert.match(saver, /const latestSessionResult = await getSettingsAuthSession\(client\)/);
     assert.match(saver, /if \(latestUserId !== session\.user\.id\)/);
     assert.match(saver, /window\.worthItUserPreferencesUserId === currentUserId/);
 });

@@ -112,6 +112,10 @@ export async function onRequestPost(context) {
             );
         }
 
+        if (!(user.email_confirmed_at || user.confirmed_at)) {
+            return responseJson({ error: "Confirm your email before sending feedback.", code: "EMAIL_NOT_CONFIRMED" }, 403);
+        }
+
         let body;
 
         try {

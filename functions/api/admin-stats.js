@@ -446,6 +446,10 @@ export async function onRequestGet(
                 token
             );
 
+        if (!(user?.email_confirmed_at || user?.confirmed_at)) {
+            return responseJson({ error: "Email confirmation is required.", code: "EMAIL_NOT_CONFIRMED" }, 403);
+        }
+
         if (
             String(user?.email || "").trim().toLowerCase() !==
             ADMIN_EMAIL

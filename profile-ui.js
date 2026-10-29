@@ -159,7 +159,12 @@ async function getOwnProfileRow(user,force){
  currentOwnProfileRequest={userId:user.id,promise};
  try{return await promise;}finally{if(currentOwnProfileRequest?.promise===promise)currentOwnProfileRequest=null;}
 }
-async function getCurrentUser(){const sb=client();if(!sb?.auth)return null;const r=await sb.auth.getUser();if(r.error)throw r.error;currentUser=r.data?.user||null;return currentUser;}
+function getVerifiedWorthItProfileUser(user){
+ if(!user)return null;
+ if(typeof window.isWorthItEmailVerified==="function"&&!window.isWorthItEmailVerified(user))return null;
+ return user;
+}
+async function getCurrentUser(){const sb=client();if(!sb?.auth)return null;const r=await sb.auth.getUser();if(r.error)throw r.error;currentUser=getVerifiedWorthItProfileUser(r.data?.user||null);return currentUser;}
 function setPanelLoading(){["accountPanelFriends","accountPanelFollowers","accountPanelFollowing"].forEach(id=>setText(id,"…"));}
 function setPanelUnavailable(){["accountPanelFriends","accountPanelFollowers","accountPanelFollowing"].forEach(id=>setText(id,"—"));}
 async function refreshAccountPanelCounts(force){
@@ -193,6 +198,7 @@ function renderProfile(p,s,isOwn){
  const bannerControls=$("worthItProfileBannerControls");if(bannerControls)bannerControls.hidden=!isOwn;
  const removePhoto=$("worthItProfileAvatarRemove");if(removePhoto)removePhoto.hidden=!isOwn||!safeAvatarUrl(p.avatar_url);
  const removeBanner=$("worthItProfileBannerRemove");if(removeBanner)removeBanner.hidden=!isOwn||!safeAvatarUrl(p.banner_url);
+ const reportButton=$("worthItProfileReportAction");if(reportButton){reportButton.hidden=Boolean(isOwn);reportButton.dataset.targetWorthItId=String(id);reportButton.disabled=false;}
  setAssetControlsBusy(false);setStatus("",false);refreshProfileSocial(id,Boolean(isOwn));
 }
 
@@ -406,6 +412,42 @@ function renderSocialActionButtons(context, isOwn) {
  }
  setSocialControlsBusy(socialActionInProgress);
 }
+async function reportWorthItDisplayedProfile(){
+ const button=$("worthItProfileReportAction"),targetId=Number(button?.dataset.targetWorthItId);
+ if(!Number.isSafeInteger(targetId)||targetId<1)return;
+ const pending=window.worthItPendingEmailUser;
+ if(pending&&!(typeof window.isWorthItEmailVerified==="function"&&window.isWorthItEmailVerified(pending))){
+  if(typeof window.requestWorthItEmailVerification==="function")window.requestWorthItEmailVerification(pending);
+  return;
+ }
+ if(!currentUser){if(typeof window.showToast==="function")window.showToast("Sign in and confirm your email to report a user.");return;}
+ const reasons=[["harassment","Harassment or bullying"],["spam","Spam or scams"],["hate","Hateful or extremist content"],["impersonation","Impersonation"],["inappropriate_profile","Inappropriate profile content"],["other","Other"]];
+ const choice=window.prompt("Why are you reporting this profile?\n"+reasons.map((r,i)=>(i+1)+". "+r[1]).join("\n")+"\n\nEnter a number from 1 to 6:");
+ if(choice===null)return;
+ const reasonIndex=Number(choice)-1;
+ if(!Number.isInteger(reasonIndex)||reasonIndex<0||reasonIndex>=reasons.length){if(typeof window.showToast==="function")window.showToast("Please choose a report reason from 1 to 6.");return;}
+ const details=window.prompt("Optional details (up to 1,000 characters):","")||"";
+ if(details.length>1000){if(typeof window.showToast==="function")window.showToast("Please keep report details under 1,000 characters.");return;}
+ const sb=client();if(!sb?.auth){if(typeof window.showToast==="function")window.showToast("Reporting is temporarily unavailable.");return;}
+ const oldText=button.textContent;button.disabled=true;button.textContent="Submitting report…";
+ try{
+  const sessionResult=await sb.auth.getSession(),token=sessionResult?.data?.session?.access_token;
+  if(sessionResult?.error||!token)throw new Error("Please sign in again.");
+  const response=await fetch("/api/user-reports",{method:"POST",headers:{Authorization:"Bearer "+token,"Content-Type":"application/json"},body:JSON.stringify({target_worth_it_id:targetId,reason:reasons[reasonIndex][0],details})});
+  const result=await response.json().catch(()=>({}));
+  if(response.status===403&&result.code==="EMAIL_NOT_CONFIRMED"){
+   const user=window.worthItPendingEmailUser;
+   if(user&&typeof window.requestWorthItEmailVerification==="function")window.requestWorthItEmailVerification(user);
+   else throw new Error(result.error||"Confirm your email before reporting users.");
+   return;
+  }
+  if(!response.ok)throw new Error(result.error||"Could not submit this report.");
+  if(typeof window.showToast==="function")window.showToast("Report submitted. Thank you for helping keep Worth It safe.");
+ }catch(error){if(typeof window.showToast==="function")window.showToast(error?.message||"Could not submit this report.");}
+ finally{button.disabled=false;button.textContent=oldText||"⚑ Report user";}
+}
+window.reportWorthItDisplayedProfile=reportWorthItDisplayedProfile;
+
 async function refreshProfileSocial(targetId, isOwn) {
  const refreshId = ++activeSocialRefresh;
  const sb = client();
@@ -1114,7 +1156,7 @@ window.copyWorthItProfileLink=async function(){
 window.addEventListener("worthitnotificationpreferenceschange",()=>{if(currentUser?.id)refreshWorthItNotifications(false);});
 window.addEventListener("resize",syncProfileBannerBackdropPosition,{passive:true});
 if(client()?.auth){client().auth.onAuthStateChange((_event,session)=>{
- const nextUser=session?.user||null,previousUserId=currentUser?.id||"",nextUserId=nextUser?.id||"",profileToRefresh=currentDisplayedProfileId,connectionsPage=$("worthItProfileConnectionsPage"),connectionTab=document.querySelector("[data-connection-tab].active")?.getAttribute("data-connection-tab");
+ const nextUser=getVerifiedWorthItProfileUser(session?.user||null),previousUserId=currentUser?.id||"",nextUserId=nextUser?.id||"",profileToRefresh=currentDisplayedProfileId,connectionsPage=$("worthItProfileConnectionsPage"),connectionTab=document.querySelector("[data-connection-tab].active")?.getAttribute("data-connection-tab");
  currentUser=nextUser;currentOwnProfile=null;currentOwnProfileRequest=null;
  if(nextUser&&(previousUserId!==nextUserId||_event==="SIGNED_IN")){presenceLastHeartbeatAt=0;touchWorthItPresence(true);}else if(!nextUser)presenceLastHeartbeatAt=0;
  setWorthItNotificationAuthState(nextUser);
@@ -1126,7 +1168,7 @@ if(client()?.auth){client().auth.onAuthStateChange((_event,session)=>{
   if(profileToRefresh)setTimeout(()=>{if(currentDisplayedProfileId===profileToRefresh){if(connectionsPage&&!connectionsPage.hidden&&["friends","followers","following"].includes(connectionTab))window.openWorthItProfileConnections(profileToRefresh,connectionTab);else window.openWorthItProfile(profileToRefresh);}},0);
  }
  if(!currentUser)setPanelUnavailable();
-});client().auth.getSession().then(({data})=>{currentUser=data?.session?.user||null;if(currentUser){refreshAccountPanelCounts(false);setWorthItNotificationAuthState(currentUser);refreshWorthItNotifications(false);presenceLastHeartbeatAt=0;touchWorthItPresence(true);}else setWorthItNotificationAuthState(null);}).catch(()=>{});}
+});client().auth.getSession().then(({data})=>{currentUser=getVerifiedWorthItProfileUser(data?.session?.user||null);if(currentUser){refreshAccountPanelCounts(false);setWorthItNotificationAuthState(currentUser);refreshWorthItNotifications(false);presenceLastHeartbeatAt=0;touchWorthItPresence(true);}else setWorthItNotificationAuthState(null);}).catch(()=>{});}
 if($("worthItProfileAvatarInput"))$("worthItProfileAvatarInput").addEventListener("change",event=>handleAssetInputChange(event,"avatar"));
 if($("worthItProfileBannerInput"))$("worthItProfileBannerInput").addEventListener("change",event=>handleAssetInputChange(event,"banner"));
 })();

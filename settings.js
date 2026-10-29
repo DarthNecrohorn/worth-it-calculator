@@ -226,10 +226,25 @@ window.WORTH_IT_SETTINGS_SECTIONS = WORTH_IT_SETTINGS_SECTIONS;
             : "";
     }
 
+    async function getSettingsAuthSession(client) {
+        if (!client?.auth) return { data: { session: null }, error: null };
+        const result = await client.auth.getSession();
+        const session = result?.data?.session || null;
+        if (session?.user && (
+            typeof window.isWorthItEmailVerified !== "function" ||
+            !window.isWorthItEmailVerified(session.user)
+        )) {
+            return Object.assign({}, result, {
+                data: Object.assign({}, result?.data || {}, { session: null })
+            });
+        }
+        return result;
+    }
+
     async function getAccountSession() {
         const client = window.supabaseClient;
         if (!client?.auth) return null;
-        const result = await client.auth.getSession();
+        const result = await getSettingsAuthSession(client);
         return result?.data?.session || null;
     }
 
@@ -469,7 +484,7 @@ window.WORTH_IT_SETTINGS_SECTIONS = WORTH_IT_SETTINGS_SECTIONS;
             return;
         }
         try {
-            const { data } = await client.auth.getSession();
+            const { data } = await getSettingsAuthSession(client);
             const userId = data?.session?.user?.id;
             if (!userId) {
                 if (typeof window.handleAuthButton === "function") window.handleAuthButton();
@@ -520,7 +535,7 @@ window.WORTH_IT_SETTINGS_SECTIONS = WORTH_IT_SETTINGS_SECTIONS;
     async function currentSecuritySession() {
         const client = window.supabaseClient;
         if (!client?.auth) return null;
-        const result = await client.auth.getSession();
+        const result = await getSettingsAuthSession(client);
         if (result?.error) throw result.error;
         return result?.data?.session || null;
     }
@@ -965,7 +980,7 @@ window.WORTH_IT_SETTINGS_SECTIONS = WORTH_IT_SETTINGS_SECTIONS;
         if (button) button.disabled = true;
         securityMessage("securitySessionsStatus", "Requesting sign-out for other sessions…", false);
         try {
-            const before = await window.supabaseClient.auth.getSession();
+            const before = await getSettingsAuthSession(window.supabaseClient);
             const currentUserId = before?.data?.session?.user?.id;
             if (before?.error) throw before.error;
             if (!before?.data?.session?.access_token || !currentUserId) {
@@ -975,7 +990,7 @@ window.WORTH_IT_SETTINGS_SECTIONS = WORTH_IT_SETTINGS_SECTIONS;
             const result = await window.supabaseClient.auth.signOut({ scope: "others" });
             if (result?.error) throw result.error;
 
-            const after = await window.supabaseClient.auth.getSession();
+            const after = await getSettingsAuthSession(window.supabaseClient);
             const stillSignedIn = after?.data?.session?.access_token &&
                 after?.data?.session?.user?.id === currentUserId;
             if (!stillSignedIn) {
@@ -1059,7 +1074,7 @@ window.WORTH_IT_SETTINGS_SECTIONS = WORTH_IT_SETTINGS_SECTIONS;
 
     try{
         const { data: sessionData } =
-            await window.supabaseClient.auth.getSession();
+            await getSettingsAuthSession(window.supabaseClient);
 
         const session = sessionData?.session;
 
@@ -1188,7 +1203,7 @@ window.WORTH_IT_SETTINGS_SECTIONS = WORTH_IT_SETTINGS_SECTIONS;
     async function loadWorthItUserPreferences(force) {
         const client = window.supabaseClient;
         if (!client?.auth) throw new Error("Sign in to manage these settings.");
-        const sessionResult = await client.auth.getSession();
+        const sessionResult = await getSettingsAuthSession(client);
         if (sessionResult?.error) throw sessionResult.error;
         const session = sessionResult?.data?.session;
         if (!session?.user?.id || !session?.access_token) throw new Error("Sign in to manage these settings.");
@@ -1224,7 +1239,7 @@ window.WORTH_IT_SETTINGS_SECTIONS = WORTH_IT_SETTINGS_SECTIONS;
             const result = await client.rpc("get_worth_it_user_preferences");
             if (result?.error) throw result.error;
 
-            const latestSessionResult = await client.auth.getSession();
+            const latestSessionResult = await getSettingsAuthSession(client);
             if (latestSessionResult?.error) throw latestSessionResult.error;
             const latestUserId = latestSessionResult?.data?.session?.user?.id || "";
             if (latestUserId !== requestUserId || requestVersion !== userPreferencesRequestVersion) {
@@ -1302,7 +1317,7 @@ window.WORTH_IT_SETTINGS_SECTIONS = WORTH_IT_SETTINGS_SECTIONS;
         settingsStatus(which === "privacy" ? "privacySettingsStatus" : "notificationSettingsStatus", "Saving your preferences…", "pending");
         try {
             const client = window.supabaseClient;
-            const sessionResult = await client?.auth?.getSession?.();
+            const sessionResult = await getSettingsAuthSession(client);
             const session = sessionResult?.data?.session;
             if (sessionResult?.error) throw sessionResult.error;
             if (!session?.access_token || !session?.user?.id) throw new Error("Sign in again to save your preferences.");
@@ -1321,7 +1336,7 @@ window.WORTH_IT_SETTINGS_SECTIONS = WORTH_IT_SETTINGS_SECTIONS;
                 p_notifications: submitted.notifications
             });
             if (result?.error) throw result.error;
-            const latestSessionResult = await client.auth.getSession();
+            const latestSessionResult = await getSettingsAuthSession(client);
             if (latestSessionResult?.error) throw latestSessionResult.error;
             const latestUserId = latestSessionResult?.data?.session?.user?.id || "";
             if (latestUserId !== session.user.id) {
@@ -1359,7 +1374,7 @@ window.WORTH_IT_SETTINGS_SECTIONS = WORTH_IT_SETTINGS_SECTIONS;
             settingsStatus(which === "privacy" ? "privacySettingsStatus" : "notificationSettingsStatus", message, "error");
             let currentUserId = "";
             try {
-                const currentSessionResult = await window.supabaseClient?.auth?.getSession?.();
+                const currentSessionResult = await getSettingsAuthSession(window.supabaseClient);
                 currentUserId = currentSessionResult?.data?.session?.user?.id || "";
             } catch (_) {}
             if (currentUserId && userPreferencesCache &&
@@ -1382,7 +1397,7 @@ window.WORTH_IT_SETTINGS_SECTIONS = WORTH_IT_SETTINGS_SECTIONS;
         loading.hidden = false; signedOut.hidden = true; content.hidden = true;
         try {
             const client = window.supabaseClient;
-            const sessionResult = await client?.auth?.getSession?.();
+            const sessionResult = await getSettingsAuthSession(client);
             if (generation !== privacyLoadGeneration) return;
             if (sessionResult?.error) throw sessionResult.error;
             const requestUserId = sessionResult?.data?.session?.user?.id || "";
@@ -1392,7 +1407,7 @@ window.WORTH_IT_SETTINGS_SECTIONS = WORTH_IT_SETTINGS_SECTIONS;
             }
             const prefs = await loadWorthItUserPreferences(false);
             if (generation !== privacyLoadGeneration) return;
-            const latestSessionResult = await client.auth.getSession();
+            const latestSessionResult = await getSettingsAuthSession(client);
             if (latestSessionResult?.error) throw latestSessionResult.error;
             if (generation !== privacyLoadGeneration) return;
             const latestUserId = latestSessionResult?.data?.session?.user?.id || "";
@@ -1423,7 +1438,7 @@ window.WORTH_IT_SETTINGS_SECTIONS = WORTH_IT_SETTINGS_SECTIONS;
         loading.hidden = false; signedOut.hidden = true; content.hidden = true;
         try {
             const client = window.supabaseClient;
-            const sessionResult = await client?.auth?.getSession?.();
+            const sessionResult = await getSettingsAuthSession(client);
             if (generation !== notificationLoadGeneration) return;
             if (sessionResult?.error) throw sessionResult.error;
             const requestUserId = sessionResult?.data?.session?.user?.id || "";
@@ -1432,7 +1447,7 @@ window.WORTH_IT_SETTINGS_SECTIONS = WORTH_IT_SETTINGS_SECTIONS;
             }
             const prefs = await loadWorthItUserPreferences(false);
             if (generation !== notificationLoadGeneration) return;
-            const latestSessionResult = await client.auth.getSession();
+            const latestSessionResult = await getSettingsAuthSession(client);
             if (latestSessionResult?.error) throw latestSessionResult.error;
             if (generation !== notificationLoadGeneration) return;
             const latestUserId = latestSessionResult?.data?.session?.user?.id || "";
@@ -1458,7 +1473,7 @@ window.WORTH_IT_SETTINGS_SECTIONS = WORTH_IT_SETTINGS_SECTIONS;
 
     async function requestUserDataApi(action) {
         const client = window.supabaseClient;
-        const sessionResult = await client?.auth?.getSession?.();
+        const sessionResult = await getSettingsAuthSession(client);
         if (sessionResult?.error) throw sessionResult.error;
         const session = sessionResult?.data?.session;
         const requestUserId = session?.user?.id || "";
@@ -1478,7 +1493,7 @@ window.WORTH_IT_SETTINGS_SECTIONS = WORTH_IT_SETTINGS_SECTIONS;
         // must not download another account's export or sign the new account out.
         let currentUserId = "";
         try {
-            const latestSessionResult = await client.auth.getSession();
+            const latestSessionResult = await getSettingsAuthSession(client);
             if (!latestSessionResult?.error) {
                 currentUserId = latestSessionResult?.data?.session?.user?.id || "";
             }
@@ -1499,7 +1514,7 @@ window.WORTH_IT_SETTINGS_SECTIONS = WORTH_IT_SETTINGS_SECTIONS;
         if ($("yourDataExportButton")) $("yourDataExportButton").disabled = true;
         try {
             const client = window.supabaseClient;
-            const sessionResult = await client?.auth?.getSession?.();
+            const sessionResult = await getSettingsAuthSession(client);
             if (generation !== yourDataLoadGeneration) return;
             if (sessionResult?.error) throw sessionResult.error;
             const session = sessionResult?.data?.session;
@@ -1514,7 +1529,7 @@ window.WORTH_IT_SETTINGS_SECTIONS = WORTH_IT_SETTINGS_SECTIONS;
             const payload = await response.json().catch(() => ({}));
             if (generation !== yourDataLoadGeneration) return;
             if (!response.ok || !payload.success) throw new Error(payload.error || "Could not load your account summary.");
-            const latestSessionResult = await client.auth.getSession();
+            const latestSessionResult = await getSettingsAuthSession(client);
             if (latestSessionResult?.error) throw latestSessionResult.error;
             if (generation !== yourDataLoadGeneration) return;
             const latestUserId = latestSessionResult?.data?.session?.user?.id || "";
