@@ -10,6 +10,19 @@ const polish = readFileSync(new URL("../chat-ux-polish.css", import.meta.url), "
 const enhancementCss = readFileSync(new URL("../chat-enhancements.css", import.meta.url), "utf8");
 const baseChatCss = readFileSync(new URL("../style.css", import.meta.url), "utf8");
 
+test("emoji and upload glyph alignment changes do not resize their button frames", () => {
+    assert.ok(html.includes('id="worthItChatEmojiAction" data-worth-it-chat-open-media="emoji" aria-label="Emoji" title="Emoji" aria-controls="worthItChatMediaPicker" aria-expanded="false">😀</button>'));
+    assert.match(chat, /button\.textContent = frames\[index\+\+\]/);
+    assert.match(chat, /button\.textContent = "😀"/);
+    assert.ok(html.includes('id="worthItChatPlusBtn" title="Upload a file" aria-label="Upload a file" aria-controls="worthItChatFileInput"><span class="worth-it-chat-upload-glyph" aria-hidden="true">＋</span></button>'));
+    assert.match(polish, /#worthItChatEmojiAction\s*\{\s*font-size: 22px !important;\s*line-height: 1 !important;/);
+    assert.match(polish, /@media \(max-width: 540px\)\s*\{\s*#worthItChatEmojiAction\s*\{\s*font-size: 20px !important;/);
+    assert.match(polish, /@media \(max-width: 350px\)\s*\{\s*#worthItChatEmojiAction\s*\{\s*font-size: 18px !important;/);
+    assert.match(polish, /\.worth-it-chat-upload-glyph\s*\{\s*position: relative !important;\s*top: -1px !important;\s*display: inline-block !important;/);
+    assert.match(polish, /\.worth-it-chat-compose #worthItChatPlusBtn\.worth-it-chat-attach-btn\s*\{[\s\S]*?width: 36px !important;[\s\S]*?height: 36px !important;/);
+    assert.match(polish, /@media \(max-width: 540px\)[\s\S]*?\.worth-it-chat-compose #worthItChatPlusBtn\.worth-it-chat-attach-btn\s*\{[\s\S]*?width: 32px !important;[\s\S]*?height: 34px !important;/);
+});
+ 
 test("each conversation has independent text, reply, and attachment draft state", () => {
     assert.match(chat, /const worthItChatDrafts = new Map\(\)/);
     assert.match(chat, /function worthItChatDraftKey\(userId = chatUser\?\.id, type = activeConversationType, id = activeConversationId\)/);
@@ -164,7 +177,7 @@ test("the broken audioOnly reference is removed and asset caches point to the ne
     assert.match(calls, /width="920" height="1380" viewBox="0 0 920 1380"/);
     assert.match(enhancementCss, /background-size:auto,840px 1260px!important/);
     assert.match(enhancementCss, /background-size:auto,700px 1050px!important/);
-    assert.match(html, /chat-ux-polish\.css\?v=chat-ux-polish-20261029i/);
+    assert.match(html, /chat-ux-polish\.css\?v=chat-ux-polish-20261029j/);
     assert.match(html, /ai-ui\.js\?v=worthit-ai-overlay-20261029b/);
     assert.match(polish, /#aiChatOverlay \.ai-chat-close\s*\{\s*transform: translateY\(2px\)/);
     assert.match(polish, /#aiChatNavBtn\.ai-chat-nav-btn\s*\{[\s\S]*?width: 42px/);
