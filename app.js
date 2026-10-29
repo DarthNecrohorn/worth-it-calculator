@@ -420,105 +420,279 @@ function isWorthItEmailVerified(user) {
     return Boolean(user && (user.email_confirmed_at || user.confirmed_at));
 }
 
+const WORTH_IT_EMAIL_RESEND_COOLDOWN_MS = 24 * 60 * 60 * 1000;
+const WORTH_IT_EMAIL_RESEND_STORAGE_PREFIX = "worthItEmailResendNextAllowedAtV1:";
+let worthItEmailGateRefreshTimer = null;
+let worthItEmailGateDismissedUserId = "";
+
+function getWorthItEmailResendStorageKey(user) {
+    return WORTH_IT_EMAIL_RESEND_STORAGE_PREFIX + String(user?.id || user?.email || "unknown");
+}
+
+function readWorthItEmailResendDeadline(user) {
+    try {
+        const key = getWorthItEmailResendStorageKey(user);
+        const deadline = Number(window.localStorage.getItem(key) || 0);
+        if (deadline && deadline <= Date.now()) {
+            window.localStorage.removeItem(key);
+            return 0;
+        }
+        return deadline > Date.now() ? deadline : 0;
+    } catch (_) {
+        return 0;
+    }
+}
+
+function saveWorthItEmailResendDeadline(user, deadline) {
+    try {
+        window.localStorage.setItem(getWorthItEmailResendStorageKey(user), String(Math.max(Date.now(), Number(deadline) || 0)));
+    } catch (_) {
+        // The server-side per-user cooldown remains authoritative if storage is unavailable.
+    }
+}
+
+function formatWorthItEmailCooldown(milliseconds) {
+    const totalMinutes = Math.max(1, Math.ceil(milliseconds / 60000));
+    const hours = Math.floor(totalMinutes / 60);
+    const minutes = totalMinutes % 60;
+    return hours ? hours + "h " + minutes + "m" : totalMinutes + "m";
+}
+
+function refreshWorthItEmailResendButton() {
+    const overlay = document.getElementById("worthItEmailVerificationGate");
+    const user = window.worthItPendingEmailUser;
+    const button = overlay?.querySelector("[data-email-resend]");
+    if (!overlay || !user || !button) return;
+    const deadline = readWorthItEmailResendDeadline(user);
+    const remaining = deadline - Date.now();
+    button.disabled = remaining > 0 || button.dataset.sending === "true";
+    button.textContent = remaining > 0
+        ? "Resend available in " + formatWorthItEmailCooldown(remaining)
+        : (button.dataset.sending === "true" ? "Sending confirmation…" : "Resend confirmation");
+}
+
+function renderWorthItEmailGateReminder(user) {
+    let reminder = document.getElementById("worthItEmailVerificationReminder");
+    if (reminder) return;
+    reminder = document.createElement("button");
+    reminder.type = "button";
+    reminder.id = "worthItEmailVerificationReminder";
+    reminder.className = "worth-it-email-reminder";
+    reminder.textContent = "✉ Confirm your email";
+    reminder.setAttribute("aria-label", "Open email confirmation reminder");
+    reminder.addEventListener("click", () => {
+        worthItEmailGateDismissedUserId = "";
+        updateWorthItEmailVerificationGate(window.worthItPendingEmailUser || user);
+    });
+    document.body.appendChild(reminder);
+}
+
 function updateWorthItEmailVerificationGate(user) {
     let overlay = document.getElementById("worthItEmailVerificationGate");
+    const reminder = document.getElementById("worthItEmailVerificationReminder");
     if (!user || isWorthItEmailVerified(user)) {
         overlay?.remove();
+        reminder?.remove();
+        window.worthItPendingEmailUser = null;
+        worthItEmailGateDismissedUserId = "";
+        if (worthItEmailGateRefreshTimer !== null) {
+            window.clearInterval(worthItEmailGateRefreshTimer);
+            worthItEmailGateRefreshTimer = null;
+        }
         return;
     }
-    if (overlay) return;
+
+    window.worthItPendingEmailUser = user;
+    const userId = String(user.id || user.email || "unverified");
+    if (worthItEmailGateDismissedUserId === userId) {
+        overlay?.remove();
+        renderWorthItEmailGateReminder(user);
+        return;
+    }
+    reminder?.remove();
+    if (overlay?.dataset.userId === userId) {
+        refreshWorthItEmailResendButton();
+        return;
+    }
+    overlay?.remove();
+    if (worthItEmailGateRefreshTimer !== null) {
+        window.clearInterval(worthItEmailGateRefreshTimer);
+        worthItEmailGateRefreshTimer = null;
+    }
 
     overlay = document.createElement("div");
     overlay.id = "worthItEmailVerificationGate";
     overlay.className = "worth-it-email-gate";
-    overlay.setAttribute("role", "dialog");
-    overlay.setAttribute("aria-modal", "true");
+    overlay.dataset.userId = userId;
+    overlay.setAttribute("role", "region");
     overlay.setAttribute("aria-labelledby", "worthItEmailGateTitle");
 
     const card = document.createElement("section");
     card.className = "worth-it-email-gate-card";
+    const heading = document.createElement("div");
+    heading.className = "worth-it-email-gate-heading";
     const icon = document.createElement("div");
     icon.className = "worth-it-email-gate-icon";
     icon.textContent = "✉";
     const title = document.createElement("h2");
     title.id = "worthItEmailGateTitle";
-    title.textContent = "Confirm your email to continue";
+    title.textContent = "Confirm your email";
+    const dismiss = document.createElement("button");
+    dismiss.type = "button";
+    dismiss.className = "worth-it-email-gate-dismiss";
+    dismiss.textContent = "×";
+    dismiss.setAttribute("aria-label", "Continue using Worth It as a guest");
+    dismiss.title = "Continue as a guest";
+    dismiss.addEventListener("click", () => {
+        worthItEmailGateDismissedUserId = userId;
+        overlay.remove();
+        renderWorthItEmailGateReminder(user);
+    });
+    heading.append(icon, title, dismiss);
+
     const description = document.createElement("p");
-    description.textContent = "We sent a confirmation link to " + (user.email || "your email address") + ". Confirm it from your inbox to unlock messaging and the full Worth It experience.";
+    description.className = "worth-it-email-gate-description";
+    description.textContent = "This account has guest-level access until you confirm " + (user.email || "your email address") + ". You can keep browsing, but account features, chat and Worth It AI stay locked.";
     const note = document.createElement("p");
     note.className = "worth-it-email-gate-note";
-    note.textContent = "If the link expired or you cannot find the email, request a new one. Check Spam/Junk too.";
+    note.textContent = "You can request a new confirmation email once every 24 hours. Check Spam/Junk if it is missing.";
+
     const status = document.createElement("div");
     status.className = "worth-it-email-gate-status";
     status.setAttribute("role", "status");
     status.setAttribute("aria-live", "polite");
+
     const actions = document.createElement("div");
     actions.className = "worth-it-email-gate-actions";
-
-    const inbox = document.createElement("a");
-    inbox.className = "worth-it-email-gate-primary";
-    inbox.textContent = "Open email inbox";
-    inbox.href = "mailto:";
-    inbox.target = "_blank";
-    inbox.rel = "noopener noreferrer";
-    const domain = String(user.email || "").split("@")[1]?.toLowerCase() || "";
-    if (domain === "gmail.com" || domain === "googlemail.com") inbox.href = "https://mail.google.com/";
-    else if (["outlook.com", "hotmail.com", "live.com"].includes(domain)) inbox.href = "https://outlook.live.com/mail/";
-    else if (domain === "yahoo.com" || domain.endsWith(".yahoo.com")) inbox.href = "https://mail.yahoo.com/";
 
     const resend = document.createElement("button");
     resend.type = "button";
     resend.className = "worth-it-email-gate-secondary";
+    resend.dataset.emailResend = "true";
     resend.textContent = "Resend confirmation";
     resend.addEventListener("click", async () => {
-        if (!user.email || resend.disabled) return;
-        resend.disabled = true;
-        status.textContent = "Sending a new confirmation email…";
+        if (!user.email || resend.disabled || resend.dataset.sending === "true") return;
+        resend.dataset.sending = "true";
+        refreshWorthItEmailResendButton();
+        status.textContent = "Requesting a confirmation email…";
         status.classList.remove("is-error");
         try {
-            const { error } = await window.supabaseClient.auth.resend({
-                type: "signup",
-                email: user.email,
-                options: { emailRedirectTo: window.location.origin + "/" }
+            const { data: sessionData, error: sessionError } = await window.supabaseClient.auth.getSession();
+            const accessToken = sessionData?.session?.access_token || "";
+            if (sessionError || !accessToken) throw new Error("Your login session is unavailable. Please sign in again.");
+            const response = await fetch("/api/resend-email-confirmation", {
+                method: "POST",
+                headers: {
+                    "Authorization": "Bearer " + accessToken,
+                    "Content-Type": "application/json"
+                },
+                body: "{}"
             });
-            if (error) throw error;
-            status.textContent = "A new confirmation email has been requested. Check your inbox and Spam/Junk.";
+            const result = await response.json().catch(() => ({}));
+            if (response.status === 429 || result.code === "EMAIL_RESEND_RATE_LIMITED") {
+                const retryMs = Math.max(60000, Number(result.retry_after_seconds || 86400) * 1000);
+                saveWorthItEmailResendDeadline(user, Date.parse(result.next_allowed_at) || Date.now() + retryMs);
+                status.textContent = "A confirmation email was already requested recently. The daily limit applies to this account.";
+                status.classList.remove("is-error");
+                return;
+            }
+            if (!response.ok || result.success !== true) {
+                throw new Error(result.error || "Could not resend the confirmation email. Please try again later.");
+            }
+            saveWorthItEmailResendDeadline(user, Date.parse(result.next_allowed_at) || Date.now() + WORTH_IT_EMAIL_RESEND_COOLDOWN_MS);
+            status.textContent = "Confirmation email requested. Check your inbox and Spam/Junk.";
+            status.classList.remove("is-error");
         } catch (error) {
-            status.textContent = error?.message || "Could not resend the email. Please wait a moment and try again.";
+            status.textContent = error?.message || "Could not resend the email. Please try again later.";
             status.classList.add("is-error");
         } finally {
-            window.setTimeout(() => { if (resend.isConnected) resend.disabled = false; }, 5000);
+            delete resend.dataset.sending;
+            refreshWorthItEmailResendButton();
         }
     });
 
+    const inbox = document.createElement("a");
+    inbox.className = "worth-it-email-gate-inbox";
+    inbox.textContent = "Open your email inbox ↗";
+    inbox.href = "mailto:" + encodeURIComponent(String(user.email || ""));
+    inbox.target = "_blank";
+    inbox.rel = "noopener noreferrer";
+    const domain = String(user.email || "").split("@")[1]?.toLowerCase() || "";
+    if (domain === "gmail.com" || domain === "googlemail.com") inbox.href = "https://mail.google.com/";
+    else if (["outlook.com", "hotmail.com", "live.com", "msn.com"].includes(domain) || domain.endsWith(".outlook.com")) inbox.href = "https://outlook.live.com/mail/";
+    else if (domain === "yahoo.com" || domain.endsWith(".yahoo.com")) inbox.href = "https://mail.yahoo.com/";
+    else if (domain === "icloud.com" || domain === "me.com" || domain === "mac.com") inbox.href = "https://www.icloud.com/mail/";
+    else if (domain === "office365.com" || domain === "microsoft.com") inbox.href = "https://outlook.office.com/mail/";
+
+    actions.append(resend, inbox);
+
+    const confirm = document.createElement("button");
+    confirm.type = "button";
+    confirm.className = "worth-it-email-gate-confirm";
+    confirm.textContent = "I've confirmed my email";
+    confirm.addEventListener("click", async () => {
+        confirm.disabled = true;
+        status.textContent = "Checking your email confirmation…";
+        status.classList.remove("is-error");
+        try {
+            const auth = window.supabaseClient?.auth;
+            if (!auth) throw new Error("Authentication is currently unavailable.");
+            let result = await auth.getUser();
+            if (result.error) throw result.error;
+            let freshUser = result.data?.user || user;
+            if (!isWorthItEmailVerified(freshUser) && typeof auth.refreshSession === "function") {
+                const refreshed = await auth.refreshSession();
+                if (!refreshed.error && refreshed.data?.user) freshUser = refreshed.data.user;
+            }
+            if (isWorthItEmailVerified(freshUser)) {
+                worthItEmailGateDismissedUserId = "";
+                updateAuthUI(freshUser);
+                if (typeof updateAIChatView === "function") updateAIChatView();
+                status.textContent = "Email confirmed. Your account access is unlocked.";
+            } else {
+                status.textContent = "The address is not confirmed yet. Open the email link, then try again.";
+            }
+        } catch (error) {
+            status.textContent = error?.message || "Could not verify the email status. Please try again.";
+            status.classList.add("is-error");
+        } finally {
+            confirm.disabled = false;
+        }
+    });
+
+    const footer = document.createElement("div");
+    footer.className = "worth-it-email-gate-footer";
     const signOut = document.createElement("button");
     signOut.type = "button";
     signOut.className = "worth-it-email-gate-signout";
     signOut.textContent = "Sign out";
     signOut.addEventListener("click", () => {
-        overlay.remove();
         if (typeof window.signOutUser === "function") window.signOutUser();
     });
+    footer.append(confirm, signOut);
 
-    actions.append(inbox, resend);
-    card.append(icon, title, description, note, actions, status, signOut);
+    card.append(heading, description, note, actions, status, footer);
     overlay.appendChild(card);
     document.body.appendChild(overlay);
-    resend.focus();
+    refreshWorthItEmailResendButton();
+    if (worthItEmailGateRefreshTimer === null) {
+        worthItEmailGateRefreshTimer = window.setInterval(refreshWorthItEmailResendButton, 60000);
+    }
 }
 window.isWorthItEmailVerified = isWorthItEmailVerified;
 
 function updateAuthUI(user) {
 
-    currentAuthUser =
-        user || null;
+    const sessionUser = user || null;
+    currentAuthUser = isWorthItEmailVerified(sessionUser) ? sessionUser : null;
+    user = currentAuthUser;
+    window.worthItPendingEmailUser = sessionUser && !currentAuthUser ? sessionUser : null;
 
-    // Share the primary app's authoritative auth state with features that
-    // need to gate UI. They should not race a second initial getSession()
-    // against the main auth initialization.
+    // Share only the effective (verified) account state. An authenticated
+    // but unverified session is deliberately treated like a guest by the UI.
     window.worthItCurrentAuthUser = currentAuthUser;
     window.worthItAuthStateResolved = true;
-    updateWorthItEmailVerificationGate(currentAuthUser);
+    updateWorthItEmailVerificationGate(window.worthItPendingEmailUser);
 
     const btn =
         $("authBtn");
