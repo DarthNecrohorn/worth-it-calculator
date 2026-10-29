@@ -693,7 +693,7 @@ window.requestWorthItEmailVerification = function(user){
 };
 function worthItIsProtectedEmailAction(target){
     if (!target || !window.worthItPendingEmailUser || isWorthItEmailVerified(window.worthItPendingEmailUser)) return false;
-    const control = target.closest("button, a, [role='button']");
+    const control = target.closest("button, a, [role='button'], [onclick], [data-section]");
     if (!control) return false;
     const text = String(control.innerText || control.textContent || "").replace(/\s+/g, " ").trim().toLowerCase();
     const handler = String(control.getAttribute("onclick") || "").toLowerCase();
