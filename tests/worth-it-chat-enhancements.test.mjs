@@ -23,7 +23,7 @@ test("chat enhancement controls are present, accessible, and loaded separately",
         "worthItChatCallEndBtn", "worthItChatCallMuteBtn", "worthItChatCallCameraBtn",
         "worthItChatRemoteVideo", "worthItChatLocalVideo", "worthItChatRemoteAudio"
     ]) assert.match(html, new RegExp('id="' + id + '"'), "missing chat UI element " + id);
-    assert.match(html, /chat-enhancements\.css\?v=worthit-chat-enhancements-20261029b/);
+    assert.match(html, /chat-enhancements\.css\?v=worthit-chat-enhancements-20261029c/);
     assert.match(html, /chat-enhancements\.js\?v=worthit-chat-enhancements-20261029b/);
     assert.match(css, /WORTH IT Chat additions|Worth It Chat additions/);
     assert.match(css, /worth-it-chat-reply-preview/);
@@ -132,6 +132,10 @@ test("chat follow-up fixes keep search prefix-only, keep wallpaper scrolling, an
     assert.ok(client.includes("statusNode.hidden = !query"));
     assert.ok(client.includes("p_limit: 100"));
     assert.ok(css.includes("background-attachment:scroll,local,local"));
+    assert.match(css, /\.worth-it-chat-search-results\{[\s\S]*?overflow-y:auto/);
+    assert.match(css, /max-height:min\(260px,32vh\)/);
+    assert.match(css, /max-height:min\(145px,22dvh\)/);
+    assert.match(css, /\.worth-it-chat-search-panel\{\s*position:relative!important/);
     assert.ok(css.includes(".worth-it-chat-messages::before{content:none!important"));
     assert.ok(chat.includes("overlay.contains(document.activeElement)"));
     assert.ok(chat.includes("button.focus({ preventScroll: true })"));
