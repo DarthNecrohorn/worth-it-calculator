@@ -176,7 +176,10 @@ function makeConversationWallpaper(contextValue, theme) {
     const colorGrid = [];
     const geometryGrid = [];
     const geometryColorGrid = [];
-    const columns = 10, rows = 15, cellSize = 84;
+    const columns = 8, rows = 12, canvasWidth = 840, canvasHeight = 1260;
+    const columnGap = (canvasWidth - 120) / (columns - 1);
+    const rowGap = (canvasHeight - 120) / (rows - 1);
+    const rowOffsets = Array.from({ length: rows }, () => (random() - .5) * 10);
 
     // Use a large library and avoid reusing the same motif within a 5 × 3
     // neighbourhood. That makes repeated artwork much harder to notice even
@@ -208,22 +211,22 @@ function makeConversationWallpaper(contextValue, theme) {
         colorGrid.push(color);
 
         const angle = Math.floor(random() * 360);
-        const scaleX = random() < .5 ? -.38 : .38;
-        const scaleY = random() < .5 ? -.38 : .38;
-        const x = col * cellSize + cellSize / 2;
-        const y = row * cellSize + cellSize / 2;
+        const motifScale = .36 + random() * .06;
+        const scaleX = random() < .5 ? -motifScale : motifScale;
+        const scaleY = random() < .5 ? -motifScale : motifScale;
+        const x = Math.max(60, Math.min(canvasWidth - 60, 60 + col * columnGap + rowOffsets[row] + (random() - .5) * 8));
+        const y = 60 + row * rowGap + (random() - .5) * 6;
         cells.push(
             '<g transform="translate(' + x + ' ' + y + ')" stroke="' + color + '" stroke-opacity="' + opacity + '">' +
             '<g transform="rotate(' + angle + ') scale(' + scaleX + ' ' + scaleY + ') translate(-70 -70)">' +
             CHAT_WALLPAPER_ALL_MOTIFS[motifIndex] + '</g></g>'
         );
 
-        // Eight small geometric marks occupy the ring around each large doodle.
-        // Edge marks are staggered by cell parity, so neighbours never occupy the same
-        // point. The corner marks stay clear of the main doodle even after scaling.
+        // Eight small geometric marks sit in a reserved ring around each doodle.
+        // Larger offsets preserve a visible gap at every supported motif size.
         const geometryParity = (row + col) % 2 === 0;
         const edgeShift = geometryParity ? -12 : 12;
-        const geometryOffsets = [[-edgeShift, -43], [43, edgeShift], [-edgeShift, 43], [-43, edgeShift], [-32, -32], [32, -32], [-32, 32], [32, 32]];
+        const geometryOffsets = [[-edgeShift, -47], [47, edgeShift], [-edgeShift, 47], [-47, edgeShift], [-34, -34], [34, -34], [-34, 34], [34, 34]];
         const localGeometryIndices = [];
         const localGeometryColors = [];
         for (let marker = 0; marker < geometryOffsets.length; marker++) {
