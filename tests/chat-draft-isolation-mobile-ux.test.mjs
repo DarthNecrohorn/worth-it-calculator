@@ -7,6 +7,7 @@ const chat = readFileSync(new URL("../chat-ui.js", import.meta.url), "utf8");
 const calls = readFileSync(new URL("../chat-enhancements.js", import.meta.url), "utf8");
 const ai = readFileSync(new URL("../ai-ui.js", import.meta.url), "utf8");
 const polish = readFileSync(new URL("../chat-ux-polish.css", import.meta.url), "utf8");
+const enhancementCss = readFileSync(new URL("../chat-enhancements.css", import.meta.url), "utf8");
 const baseChatCss = readFileSync(new URL("../style.css", import.meta.url), "utf8");
 
 test("each conversation has independent text, reply, and attachment draft state", () => {
@@ -100,7 +101,7 @@ test("received message bubbles hug short text and wrap long text within the chat
 });
 
 test("chat wallpaper has more small rotated doodles with per-conversation placement", () => {
-    assert.match(calls, /const columns = 10, rows = 10, cellSize = 92/);
+    assert.match(calls, /const columns = 10, rows = 15, cellSize = 92/);
     assert.match(calls, /for \(let i = 0; i < columns \* rows; i\+\+\)/);
     assert.match(calls, /Math\.floor\(i \/ columns\), col = i % columns/);
     assert.match(calls, /const forbidden = new Set\(nearbyMotifs\)/);
@@ -121,6 +122,10 @@ test("the broken audioOnly reference is removed and asset caches point to the ne
     assert.doesNotMatch(calls, /audioOnly/);
     assert.match(html, /chat-ui\.js\?v=worthit-gif-plants-20261029f/);
     assert.match(html, /chat-enhancements\.js\?v=worthit-chat-enhancements-20261029g/);
+    assert.match(html, /chat-enhancements\.css\?v=worthit-chat-enhancements-20261029g/);
+    assert.match(calls, /width="920" height="1380" viewBox="0 0 920 1380"/);
+    assert.match(enhancementCss, /background-size:auto,840px 1260px!important/);
+    assert.match(enhancementCss, /background-size:auto,700px 1050px!important/);
     assert.match(html, /chat-ux-polish\.css\?v=chat-ux-polish-20261029h/);
     assert.match(html, /ai-ui\.js\?v=worthit-ai-overlay-20261029b/);
     assert.match(polish, /#aiChatOverlay \.ai-chat-close\s*\{\s*transform: translateY\(2px\)/);
