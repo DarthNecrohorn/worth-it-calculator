@@ -42,7 +42,7 @@ test("unverified sessions are represented to the main app as guests while retain
 test("email resend is performed only by a server endpoint guarded by an atomic 24-hour per-user database claim", () => {
     assert.match(route, /verifyUser\(config, token\)/);
     assert.match(route, /claim_worth_it_email_confirmation_resend/);
-    assert.match(route, /release_worth_it_email_confirmation_resend/);
+    assert.doesNotMatch(route, /release_worth_it_email_confirmation_resend/);
     assert.match(route, /EMAIL_RESEND_RATE_LIMITED/);
     assert.match(route, /auth\/v1\/resend/);
     assert.match(route, /DAY_SECONDS = 24 \* 60 \* 60/);
@@ -184,7 +184,7 @@ test("resend endpoint refuses already-verified users before consuming a resend s
     assert.equal(calls.length, 1);
 });
 
-test("resend endpoint releases a failed email attempt and returns a non-sensitive provider message", async () => {
+test("resend endpoint keeps the daily slot reserved after the provider refuses email delivery", async () => {
     const calls = [];
     const mockFetch = async input => {
         const url = String(input);
@@ -198,14 +198,12 @@ test("resend endpoint releases a failed email attempt and returns a non-sensitiv
         if (url.includes("/auth/v1/resend?redirect_to=")) {
             return new Response(JSON.stringify({ code: "email_address_not_authorized", msg: "email_address_not_authorized" }), { status: 403 });
         }
-        if (url.endsWith("/rest/v1/rpc/release_worth_it_email_confirmation_resend")) {
-            return new Response(null, { status: 204 });
-        }
         throw new Error("Unexpected request URL: " + url);
     };
     const response = await withFetch(mockFetch, () => onRequest({ request: resendRequest(), env: resendEnv }));
     assert.equal(response.status, 502);
     const result = await response.json();
     assert.equal(result.code, "EMAIL_PROVIDER_NOT_CONFIGURED");
-    assert.ok(calls.some(url => url.endsWith("/rest/v1/rpc/release_worth_it_email_confirmation_resend")));
+    assert.ok(Date.parse(result.next_allowed_at) > Date.now());
+    assert.ok(!calls.some(url => url.endsWith("/rest/v1/rpc/release_worth_it_email_confirmation_resend")));
 });
