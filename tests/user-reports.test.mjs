@@ -4,7 +4,7 @@ import { readFileSync } from "node:fs";
 import { onRequestPost } from "../functions/api/user-reports.js";
 import { onRequestGet } from "../functions/api/admin-user-reports.js";
 
-const migration = readFileSync(new URL("../supabase/migrations/20261029113000_add_user_reports_and_daily_limit.sql", import.meta.url), "utf8");
+const migration = readFileSync(new URL("../supabase/migrations/20261029110213_add_user_reports_and_daily_limit.sql", import.meta.url), "utf8");
 const profile = readFileSync(new URL("../profile-ui.js", import.meta.url), "utf8");
 const admin = readFileSync(new URL("../admin-panel.js", import.meta.url), "utf8");
 const html = readFileSync(new URL("../index.html", import.meta.url), "utf8");
