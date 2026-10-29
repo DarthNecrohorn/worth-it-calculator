@@ -2891,28 +2891,71 @@ const WORTH_IT_CHAT_EMOJI_CATEGORIES = [
 
 const WORTH_IT_CHAT_EMOJI_OPTIONS = [];
 let worthItChatEmojiCategory = "faces";
-let worthItChatGifCategory = "all";
+let worthItChatGifCategory = "gif";
+let worthItChatMediaTab = "gif";
 let worthItChatGifSearchSequence = 0;
 
 function closeWorthItChatPickers() {
-    const menu = $("worthItChatPlusMenu");
+    const picker = $("worthItChatMediaPicker");
     const emojiPicker = $("worthItChatEmojiPicker");
     const gifPicker = $("worthItChatGifPicker");
-    const plus = $("worthItChatPlusBtn");
-    if (menu) menu.hidden = true;
+    if (picker) picker.hidden = true;
     if (emojiPicker) emojiPicker.hidden = true;
     if (gifPicker) gifPicker.hidden = true;
-    if (plus) plus.setAttribute("aria-expanded", "false");
+    for (const id of ["worthItChatGifAction", "worthItChatStickerAction", "worthItChatEmojiAction"]) {
+        $(id)?.setAttribute("aria-expanded", "false");
+    }
 }
 
-function openWorthItChatPlusMenu() {
-    const menu = $("worthItChatPlusMenu");
-    const plus = $("worthItChatPlusBtn");
-    if (!menu || !plus) return;
-    const shouldOpen = menu.hidden;
+function openWorthItChatFilePicker() {
     closeWorthItChatPickers();
-    menu.hidden = !shouldOpen;
-    plus.setAttribute("aria-expanded", shouldOpen ? "true" : "false");
+    // Pin the native picker result to the conversation where the + button was tapped.
+    pendingFilePickerTarget = { key: worthItChatDraftKey(), userId: chatUser?.id || null };
+    $("worthItChatFileInput")?.click();
+}
+
+function showWorthItChatMediaTab(tab, resetSearch = false) {
+    if (!["gif", "sticker", "emoji"].includes(tab)) return;
+    const picker = $("worthItChatMediaPicker");
+    const gifPanel = $("worthItChatGifPicker");
+    const emojiPanel = $("worthItChatEmojiPicker");
+    if (!picker || !gifPanel || !emojiPanel) return;
+    const wasHidden = picker.hidden;
+    picker.hidden = false;
+    worthItChatMediaTab = tab;
+    gifPanel.hidden = tab === "emoji";
+    emojiPanel.hidden = tab !== "emoji";
+
+    document.querySelectorAll("[data-worth-it-chat-media-tab]").forEach(button => {
+        const active = button.dataset.worthItChatMediaTab === tab;
+        button.classList.toggle("is-active", active);
+        button.setAttribute("aria-selected", active ? "true" : "false");
+        button.tabIndex = active ? 0 : -1;
+    });
+    for (const [id, actionTab] of [
+        ["worthItChatGifAction", "gif"],
+        ["worthItChatStickerAction", "sticker"],
+        ["worthItChatEmojiAction", "emoji"]
+    ]) {
+        $(id)?.setAttribute("aria-expanded", actionTab === tab ? "true" : "false");
+    }
+
+    if (tab === "emoji") {
+        const search = $("worthItChatEmojiSearch");
+        if (search && (resetSearch || wasHidden)) search.value = "";
+        renderWorthItChatEmojiCategories();
+        renderWorthItChatEmojiGrid(search?.value || "");
+        return;
+    }
+
+    worthItChatGifCategory = tab;
+    const search = $("worthItChatGifSearch");
+    if (search) {
+        if (resetSearch || wasHidden) search.value = "";
+        search.placeholder = tab === "sticker" ? "Search stickers…" : "Search GIFs…";
+        search.setAttribute("aria-label", tab === "sticker" ? "Search stickers" : "Search GIFs");
+    }
+    loadWorthItChatGifResults(search?.value || "");
 }
 
 
@@ -3262,25 +3305,15 @@ async function selectWorthItChatGif(item) {
 }
 
 function openWorthItChatEmojiPicker() {
-    closeWorthItChatPickers();
-    const panel = $("worthItChatEmojiPicker");
-    if (!panel) return;
-    panel.hidden = false;
-    renderWorthItChatEmojiCategories();
-    renderWorthItChatEmojiGrid($("worthItChatEmojiSearch")?.value || "");
-    $("worthItChatEmojiSearch")?.focus();
+    showWorthItChatMediaTab("emoji", true);
 }
 
 function openWorthItChatGifPicker() {
-    closeWorthItChatPickers();
-    const panel = $("worthItChatGifPicker");
-    if (!panel) return;
-    panel.hidden = false;
-    worthItChatGifCategory = "all";
-    const search = $("worthItChatGifSearch");
-    if (search) search.value = "";
-    renderWorthItChatGifCategories();
-    loadWorthItChatGifResults("");
+    showWorthItChatMediaTab("gif", true);
+}
+
+function openWorthItChatStickerPicker() {
+    showWorthItChatMediaTab("sticker", true);
 }
 
 function setupChatUI() {
@@ -3315,19 +3348,18 @@ function setupChatUI() {
 
     $("worthItChatPlusBtn")?.addEventListener("click", event => {
         event.preventDefault();
-        openWorthItChatPlusMenu();
+        openWorthItChatFilePicker();
     });
-    $("worthItChatUploadAction")?.addEventListener("click", () => {
-        closeWorthItChatPickers();
-        // The native file picker is asynchronous too: pin its result to the chat
-        // from which Upload was opened, even if browser navigation changes meanwhile.
-        pendingFilePickerTarget = { key: worthItChatDraftKey(), userId: chatUser?.id || null };
-        $("worthItChatFileInput")?.click();
-    });
-    $("worthItChatEmojiAction")?.addEventListener("click", openWorthItChatEmojiPicker);
     $("worthItChatGifAction")?.addEventListener("click", openWorthItChatGifPicker);
-    $("worthItChatEmojiClose")?.addEventListener("click", closeWorthItChatPickers);
-    $("worthItChatGifClose")?.addEventListener("click", closeWorthItChatPickers);
+    $("worthItChatStickerAction")?.addEventListener("click", openWorthItChatStickerPicker);
+    $("worthItChatEmojiAction")?.addEventListener("click", openWorthItChatEmojiPicker);
+    $("worthItChatMediaClose")?.addEventListener("click", closeWorthItChatPickers);
+    document.querySelectorAll("[data-worth-it-chat-media-tab]").forEach(button => {
+        button.addEventListener("click", event => {
+            event.preventDefault();
+            showWorthItChatMediaTab(button.dataset.worthItChatMediaTab);
+        });
+    });
     $("worthItChatEmojiSearch")?.addEventListener("input", event => renderWorthItChatEmojiGrid(event.currentTarget.value));
     $("worthItChatGifSearchForm")?.addEventListener("submit", event => {
         event.preventDefault();
@@ -3335,20 +3367,6 @@ function setupChatUI() {
     });
     $("worthItChatGifSearch")?.addEventListener("input", event => {
         loadWorthItChatGifResults(event.currentTarget.value);
-    });
-    document.addEventListener("click", event => {
-        // Outside taps must not dismiss emoji or GIF/sticker panels.
-        // Only the transient attachment menu closes when the user taps elsewhere.
-        const dock = $("worthItChatPickerDock");
-        const menu = $("worthItChatPlusMenu");
-        const plus = $("worthItChatPlusBtn");
-        const path = typeof event.composedPath === "function" ? event.composedPath() : [];
-        const insideDock = Boolean(dock && (dock.contains(event.target) || path.includes(dock)));
-        const insideMenu = Boolean(menu && (menu.contains(event.target) || path.includes(menu)));
-        if (!insideDock && !insideMenu && menu && !menu.hidden) {
-            menu.hidden = true;
-            plus?.setAttribute("aria-expanded", "false");
-        }
     });
     $("worthItChatFileInput")?.addEventListener("change", function () {
         const file = this.files?.[0];
