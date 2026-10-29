@@ -55,19 +55,6 @@ async function verifyUser(config, token) {
     return user && user.id ? user : null;
 }
 
-async function releaseClaim(config, userId) {
-    try {
-        await fetch(config.supabaseUrl + "/rest/v1/rpc/release_worth_it_email_confirmation_resend", {
-            method: "POST",
-            headers: serviceHeaders(config, { "Content-Type": "application/json" }),
-            body: JSON.stringify({ p_user_id: userId })
-        });
-    } catch (_) {
-        // If the provider request failed, keep any un-released claim rather than
-        // risking a burst of duplicate email requests.
-    }
-}
-
 export async function onRequest(context) {
     const { request, env } = context;
     const origin = allowedOrigin(request);
@@ -134,6 +121,7 @@ export async function onRequest(context) {
         }, 429, origin);
     }
 
+    const nextAllowedAt = new Date(Date.now() + DAY_SECONDS * 1000).toISOString();
     const emailRedirectTo = new URL("/", origin).toString();
     const resendUrl = config.supabaseUrl + "/auth/v1/resend?redirect_to=" + encodeURIComponent(emailRedirectTo);
     let resendResponse;
@@ -149,29 +137,33 @@ export async function onRequest(context) {
             body: JSON.stringify({ type: "signup", email: user.email })
         });
     } catch (_) {
-        await releaseClaim(config, user.id);
-        return jsonResponse({ error: "Could not reach the email service. Please try again later." }, 502, origin);
+        return jsonResponse({
+            error: "Could not reach the email service. Your daily resend request has been recorded.",
+            code: "EMAIL_RESEND_FAILED",
+            next_allowed_at: nextAllowedAt
+        }, 502, origin);
     }
 
     if (!resendResponse.ok) {
-        await releaseClaim(config, user.id);
         const providerBody = await resendResponse.json().catch(() => ({}));
         const providerMessage = String(providerBody.msg || providerBody.message || providerBody.error_description || "");
         if (/email_address_not_authorized/i.test(providerMessage)) {
             return jsonResponse({
                 error: "Supabase's default email service cannot send to this address yet. The project owner must configure custom SMTP.",
-                code: "EMAIL_PROVIDER_NOT_CONFIGURED"
+                code: "EMAIL_PROVIDER_NOT_CONFIGURED",
+                next_allowed_at: nextAllowedAt
             }, 502, origin);
         }
         return jsonResponse({
             error: "The email service could not send a confirmation message. Please check your address and try again.",
-            code: "EMAIL_RESEND_FAILED"
+            code: "EMAIL_RESEND_FAILED",
+            next_allowed_at: nextAllowedAt
         }, resendResponse.status === 429 ? 503 : 502, origin);
     }
 
     return jsonResponse({
         success: true,
-        next_allowed_at: new Date(Date.now() + DAY_SECONDS * 1000).toISOString(),
+        next_allowed_at: nextAllowedAt,
         message: "Confirmation email requested. Check your inbox and Spam/Junk."
     }, 200, origin);
 }
