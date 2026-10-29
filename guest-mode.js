@@ -260,6 +260,17 @@
         closeGuestLimits(false);
     }
 
+    function verifiedGuestStateUser(user) {
+        if (!user) return null;
+        if (
+            typeof window.isWorthItEmailVerified === "function" &&
+            !window.isWorthItEmailVerified(user)
+        ) {
+            return null;
+        }
+        return user;
+    }
+
     function resolveAuthState() {
         if (authStateKnown) return Promise.resolve(isAuthenticated);
         if (window.worthItGuestAuthResolution) return window.worthItGuestAuthResolution;
@@ -283,7 +294,7 @@
                     return false;
                 }
                 const result = await auth.getSession();
-                setAuthState(result?.data?.session?.user || null, "INITIAL_SESSION");
+                setAuthState(verifiedGuestStateUser(result?.data?.session?.user || null), "INITIAL_SESSION");
             } catch (_) {
                 setAuthState(null, "AUTH_UNAVAILABLE");
             }
@@ -521,13 +532,7 @@
         const auth = window.supabaseClient?.auth;
         if (!auth?.onAuthStateChange || authSubscription) return;
         const result = auth.onAuthStateChange((event, session) => {
-            const sessionUser = session?.user || null;
-            const effectiveUser = sessionUser &&
-                typeof window.isWorthItEmailVerified === "function" &&
-                !window.isWorthItEmailVerified(sessionUser)
-                    ? null
-                    : sessionUser;
-            setAuthState(effectiveUser, event);
+            setAuthState(verifiedGuestStateUser(session?.user || null), event);
         });
         authSubscription = result?.data?.subscription || result?.subscription || true;
     }
