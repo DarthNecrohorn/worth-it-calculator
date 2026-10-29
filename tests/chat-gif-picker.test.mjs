@@ -185,7 +185,7 @@ test("the unified media tabs select GIFs, stickers or the existing categorized e
     assert.ok(tabsHandler.includes("worthItChatGifCategory = tab;"));
     assert.ok(tabsHandler.includes('gifPanel.hidden = tab === "emoji";'));
     assert.ok(tabsHandler.includes('emojiPanel.hidden = tab !== "emoji";'));
-    assert.ok(tabsHandler.includes("loadWorthItChatGifResults(search?.value || \"\"));"));
+    assert.match(tabsHandler, /loadWorthItChatGifResults\(search\?\.value \|\| ""\)/);
     assert.ok(client.includes('data-worth-it-chat-media-tab'));
     assert.doesNotMatch(client, /worthItChatPlusMenu|worthItChatUploadAction/);
     assert.match(client, /function openWorthItChatGifPicker\(\)\s*\{\s*showWorthItChatMediaTab\("gif", true\)/);
