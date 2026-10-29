@@ -71,18 +71,15 @@ test("opening chat and cancelling a reply do not summon the mobile keyboard", ()
     assert.match(polish, /\.is-visual-viewport-adjusted \.worth-it-chat-window/);
 });
 
-test("emoji selections keep the emoji panel open; outside taps do not close either picker", () => {
+test("emoji selections keep the unified media picker open unless a picker action closes it", () => {
     const insertStart = chat.indexOf("function insertWorthItChatEmoji(emoji)");
     const insertEnd = chat.indexOf("\nconst WORTH_IT_CHAT_GIF_LIBRARY", insertStart);
     const insert = chat.slice(insertStart, insertEnd);
     assert.doesNotMatch(insert, /closeWorthItChatPickers\(\)/);
     assert.match(insert, /textarea\.setRangeText\(emoji, start, end, "end"\)/);
-    const outsideStart = chat.indexOf('document.addEventListener("click", event => {', chat.indexOf("function setupChatUI()"));
-    const outsideEnd = chat.indexOf('$("worthItChatFileInput")?.addEventListener', outsideStart);
-    const outside = chat.slice(outsideStart, outsideEnd);
-    assert.match(outside, /Only the\s*transient attachment menu closes/);
-    assert.doesNotMatch(outside, /closeWorthItChatPickers\(\)/);
-    assert.match(outside, /menu\.hidden = true/);
+    assert.match(chat, /function closeWorthItChatPickers\(\)\s*\{[\s\S]*?const picker = \$\("worthItChatMediaPicker"\);[\s\S]*?if \(picker\) picker\.hidden = true;/);
+    assert.doesNotMatch(chat, /worthItChatPlusMenu|Only the transient attachment menu closes/);
+    assert.match(chat, /\$\("worthItChatMediaClose"\)\?\.addEventListener\("click", closeWorthItChatPickers\)/);
 });
 
 test("Worth It AI closes only through explicit close actions, not backdrop clicks", () => {
