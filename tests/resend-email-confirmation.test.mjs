@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import { onRequest } from "../functions/api/resend-email-confirmation.js";
 
 const app = readFileSync(new URL("../app.js", import.meta.url), "utf8");
 const html = readFileSync(new URL("../index.html", import.meta.url), "utf8");
@@ -65,4 +66,127 @@ test("Bugs & Suggestions is a clear hero action above the Smart decisions badge,
     assert.ok(heroStart >= 0 && feedbackStart > heroStart && feedbackStart < badgeStart, "hero feedback action appears before the badge");
     assert.ok(feedbackStart > navEnd, "feedback button was moved out of the navigation header");
     assert.match(css, /\.hero-feedback-btn\s*\{/);
+});
+
+
+const resendEnv = {
+    SUPABASE_URL: "https://supabase.test",
+    SUPABASE_PUBLISHABLE_KEY: "test-publishable-key",
+    SUPABASE_SERVICE_ROLE_KEY: "test-service-role-key"
+};
+
+async function withFetch(fetchImpl, callback) {
+    const original = globalThis.fetch;
+    globalThis.fetch = fetchImpl;
+    try { return await callback(); }
+    finally { globalThis.fetch = original; }
+}
+
+function resendRequest(token = "test-session", origin = "https://worth-it-calculator.pages.dev") {
+    return new Request("https://worth-it-calculator.pages.dev/api/resend-email-confirmation", {
+        method: "POST",
+        headers: {
+            Origin: origin,
+            Authorization: "Bearer " + token,
+            "Content-Type": "application/json"
+        },
+        body: "{}"
+    });
+}
+
+test("resend endpoint atomically claims one daily slot and asks Supabase Auth to resend", async () => {
+    const calls = [];
+    const mockFetch = async (input, init = {}) => {
+        const url = String(input);
+        calls.push({ url, init });
+        if (url.endsWith("/auth/v1/user")) {
+            return new Response(JSON.stringify({
+                id: "user-1",
+                email: "unverified@example.com",
+                email_confirmed_at: null
+            }), { status: 200, headers: { "Content-Type": "application/json" } });
+        }
+        if (url.endsWith("/rest/v1/rpc/claim_worth_it_email_confirmation_resend")) {
+            assert.equal(JSON.parse(init.body).p_user_id, "user-1");
+            return new Response(JSON.stringify([{ is_allowed: true, retry_after_seconds: 0 }]), {
+                status: 200, headers: { "Content-Type": "application/json" }
+            });
+        }
+        if (url.includes("/auth/v1/resend?redirect_to=")) {
+            assert.deepEqual(JSON.parse(init.body), { type: "signup", email: "unverified@example.com" });
+            assert.equal(new Headers(init.headers).get("Authorization"), "Bearer test-session");
+            return new Response(JSON.stringify({}), { status: 200, headers: { "Content-Type": "application/json" } });
+        }
+        throw new Error("Unexpected request URL: " + url);
+    };
+    const response = await withFetch(mockFetch, () => onRequest({ request: resendRequest(), env: resendEnv }));
+    assert.equal(response.status, 200);
+    const result = await response.json();
+    assert.equal(result.success, true);
+    assert.ok(Date.parse(result.next_allowed_at) > Date.now());
+    assert.ok(calls.some(call => call.url.endsWith("/rest/v1/rpc/claim_worth_it_email_confirmation_resend")));
+    assert.ok(calls.some(call => call.url.includes("/auth/v1/resend?redirect_to=")));
+});
+
+test("resend endpoint refuses a second request inside the daily window without sending another email", async () => {
+    const calls = [];
+    const mockFetch = async input => {
+        const url = String(input);
+        calls.push(url);
+        if (url.endsWith("/auth/v1/user")) {
+            return new Response(JSON.stringify({ id: "user-1", email: "unverified@example.com", email_confirmed_at: null }), { status: 200 });
+        }
+        if (url.endsWith("/rest/v1/rpc/claim_worth_it_email_confirmation_resend")) {
+            return new Response(JSON.stringify([{ is_allowed: false, retry_after_seconds: 43200 }]), { status: 200 });
+        }
+        throw new Error("The email provider must not be called while rate limited: " + url);
+    };
+    const response = await withFetch(mockFetch, () => onRequest({ request: resendRequest(), env: resendEnv }));
+    assert.equal(response.status, 429);
+    const result = await response.json();
+    assert.equal(result.code, "EMAIL_RESEND_RATE_LIMITED");
+    assert.equal(result.retry_after_seconds, 43200);
+    assert.ok(!calls.some(url => url.includes("/auth/v1/resend?")));
+});
+
+test("resend endpoint refuses already-verified users before consuming a resend slot", async () => {
+    const calls = [];
+    const mockFetch = async input => {
+        const url = String(input);
+        calls.push(url);
+        if (url.endsWith("/auth/v1/user")) {
+            return new Response(JSON.stringify({ id: "user-2", email: "verified@example.com", email_confirmed_at: "2026-10-29T00:00:00.000Z" }), { status: 200 });
+        }
+        throw new Error("Verified users must not consume a resend slot: " + url);
+    };
+    const response = await withFetch(mockFetch, () => onRequest({ request: resendRequest(), env: resendEnv }));
+    assert.equal(response.status, 409);
+    assert.equal((await response.json()).code, "EMAIL_ALREADY_CONFIRMED");
+    assert.equal(calls.length, 1);
+});
+
+test("resend endpoint releases a failed email attempt and returns a non-sensitive provider message", async () => {
+    const calls = [];
+    const mockFetch = async input => {
+        const url = String(input);
+        calls.push(url);
+        if (url.endsWith("/auth/v1/user")) {
+            return new Response(JSON.stringify({ id: "user-1", email: "unverified@example.com", email_confirmed_at: null }), { status: 200 });
+        }
+        if (url.endsWith("/rest/v1/rpc/claim_worth_it_email_confirmation_resend")) {
+            return new Response(JSON.stringify([{ is_allowed: true, retry_after_seconds: 0 }]), { status: 200 });
+        }
+        if (url.includes("/auth/v1/resend?redirect_to=")) {
+            return new Response(JSON.stringify({ code: "email_address_not_authorized", msg: "email_address_not_authorized" }), { status: 403 });
+        }
+        if (url.endsWith("/rest/v1/rpc/release_worth_it_email_confirmation_resend")) {
+            return new Response(null, { status: 204 });
+        }
+        throw new Error("Unexpected request URL: " + url);
+    };
+    const response = await withFetch(mockFetch, () => onRequest({ request: resendRequest(), env: resendEnv }));
+    assert.equal(response.status, 502);
+    const result = await response.json();
+    assert.equal(result.code, "EMAIL_PROVIDER_NOT_CONFIGURED");
+    assert.ok(calls.some(url => url.endsWith("/rest/v1/rpc/release_worth_it_email_confirmation_resend")));
 });
