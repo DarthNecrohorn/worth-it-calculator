@@ -408,7 +408,7 @@ function stopCallMedia() {
     const remoteAudio = $("worthItChatRemoteAudio");
     if (remoteVideo) { remoteVideo.srcObject = null; remoteVideo.hidden = true; }
     if (localVideo) { localVideo.srcObject = null; localVideo.hidden = true; }
-    if (remoteAudio) remoteAudio.srcObject = null;
+    if (remoteAudio) { remoteAudio.srcObject = null; remoteAudio.muted = false; remoteAudio.volume = 1; }
     const mute = $("worthItChatCallMuteBtn");
     if (mute) { mute.textContent = "🎙 Mute"; mute.setAttribute("aria-pressed", "false"); }
     const camera = $("worthItChatCallCameraBtn");
