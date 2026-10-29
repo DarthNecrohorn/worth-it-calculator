@@ -23357,3 +23357,69 @@ html[data-theme="light"] .worth-it-signout-confirm-no {
 @media (prefers-reduced-motion: reduce) {
     .ai-chat-overlay.open .ai-chat-card { transition: none !important; }
 }
+
+
+/* Home feedback action: place it immediately above the hero badge, not in the navbar. */
+.hero .hero-feedback-btn{
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    gap:7px;
+    margin:0 auto 16px;
+    padding:8px 13px;
+    border:1px solid rgba(148,163,184,.22);
+    border-radius:999px;
+    background:rgba(15,23,42,.48);
+    color:var(--text);
+    font:700 12px/1.2 inherit;
+    cursor:pointer;
+    transition:background .18s ease,border-color .18s ease,transform .18s ease;
+}
+.hero .hero-feedback-btn:hover{
+    background:rgba(124,92,255,.16);
+    border-color:rgba(124,92,255,.55);
+    transform:translateY(-1px);
+}
+.hero .badge{margin-top:0}
+
+@media(max-width:600px){
+    .ai-chat-overlay{padding:8px}
+    .ai-chat-card{
+        width:100%;
+        max-width:100%;
+        height:calc(100dvh - 16px);
+        min-width:0;
+        border-radius:16px;
+    }
+    .ai-chat-head{padding:14px 14px 12px;gap:8px}
+    .ai-chat-messages{padding:12px;min-width:0}
+    .ai-chat-message,.ai-chat-bubble{min-width:0;max-width:100%}
+    .ai-chat-bubble{overflow-wrap:anywhere}
+    .ai-chat-message.assistant .ai-chat-bubble table{
+        display:block;
+        width:100%;
+        max-width:100%;
+        table-layout:fixed;
+        border-collapse:collapse;
+        font-size:11px;
+        line-height:1.35;
+        overflow-wrap:anywhere;
+    }
+    .ai-chat-message.assistant .ai-chat-bubble table thead,
+    .ai-chat-message.assistant .ai-chat-bubble table tbody{
+        width:100%;
+        max-width:100%;
+    }
+    .ai-chat-message.assistant .ai-chat-bubble table th,
+    .ai-chat-message.assistant .ai-chat-bubble table td{
+        min-width:0;
+        max-width:0;
+        padding:6px 5px;
+        white-space:normal;
+        overflow-wrap:anywhere;
+        word-break:normal;
+    }
+    .ai-chat-composer{padding:10px;gap:7px}
+    .ai-chat-input{min-width:0;padding:10px}
+    .ai-chat-send{min-width:68px;padding:0 12px}
+}
