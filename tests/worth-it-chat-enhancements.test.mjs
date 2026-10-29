@@ -23,8 +23,8 @@ test("chat enhancement controls are present, accessible, and loaded separately",
         "worthItChatCallEndBtn", "worthItChatCallMuteBtn", "worthItChatCallCameraBtn",
         "worthItChatRemoteVideo", "worthItChatLocalVideo", "worthItChatRemoteAudio"
     ]) assert.match(html, new RegExp('id="' + id + '"'), "missing chat UI element " + id);
-    assert.match(html, /chat-enhancements\.css\?v=worthit-chat-enhancements-20261029d/);
-    assert.match(html, /chat-enhancements\.js\?v=worthit-chat-enhancements-20261029c/);
+    assert.match(html, /chat-enhancements\.css\?v=worthit-chat-enhancements-20261029e/);
+    assert.match(html, /chat-enhancements\.js\?v=worthit-chat-enhancements-20261029d/);
     assert.match(css, /WORTH IT Chat additions|Worth It Chat additions/);
     assert.match(css, /worth-it-chat-reply-preview/);
     assert.match(css, /worth-it-chat-call-overlay/);
@@ -152,4 +152,31 @@ test("chat wallpaper uses one spaced illustration tile and call/voice controls u
     assert.match(html, /id="worthItChatVoiceBtn"[^>]*><svg class="worth-it-chat-voice-icon"/);
     assert.match(client, /button\.setAttribute\("aria-pressed", String\(recording\)\)/);
     assert.doesNotMatch(client, /button\.textContent = recording \? "■" : "🎙"/);
+});
+
+
+test("chat doodles are isolated in spaced cells and stay visible in dark and light themes", () => {
+    assert.match(css, /A single tile with 25 separated doodles/);
+    assert.match(css, /width=\"1050\" height=\"1050\" viewBox=\"0 0 1050 1050\"/);
+    assert.match(css, /background-size:auto,1050px 1050px!important/);
+    assert.match(css, /html\[data-theme=\"light\"\] \.worth-it-chat-messages/);
+    assert.match(css, /\.worth-it-chat-messages::before,\.worth-it-chat-messages::after\{\s*display:none!important/);
+    assert.match(css, /#worthItChatAudioCallBtn>.worth-it-chat-header-icon[\s\S]*?stroke:#c4b5fd!important/);
+    assert.match(css, /#worthItChatVoiceBtn>.worth-it-chat-voice-icon[\s\S]*?fill:none!important;stroke:#c4b5fd!important/);
+    assert.match(html, /id="worthItChatAudioCallBtn"[^>]*><svg class="worth-it-chat-header-icon"/);
+    assert.match(html, /id="worthItChatVideoCallBtn"[^>]*><svg class="worth-it-chat-header-icon"/);
+    assert.match(html, /id="worthItChatVoiceBtn"[^>]*><svg class="worth-it-chat-voice-icon"/);
+});
+
+test("both call types can boost incoming audio through a GainNode and reset it on hangup", () => {
+    assert.match(html, /id="worthItChatCallSpeakerBtn"/);
+    assert.match(client, /function ensureRemoteAudioProcessor\(\)/);
+    assert.match(client, /remoteAudioContext\.createGain\(\)/);
+    assert.match(client, /remoteAudioGain\.gain\.setTargetAtTime\(targetGain/);
+    assert.match(client, /function routeRemoteCallAudio\(stream\)/);
+    assert.match(client, /routeRemoteCallAudio\(remoteStream\)/);
+    assert.match(client, /video\.muted = true/);
+    assert.match(client, /function resetRemoteAudioProcessor\(\)/);
+    assert.match(client, /worthItChatCallSpeakerBtn.*addEventListener\("click", toggleSpeakerBoost\)/);
+    assert.match(client, /resetRemoteAudioProcessor\(\)/);
 });
