@@ -7,6 +7,7 @@ const chat = readFileSync(new URL("../chat-ui.js", import.meta.url), "utf8");
 const calls = readFileSync(new URL("../chat-enhancements.js", import.meta.url), "utf8");
 const ai = readFileSync(new URL("../ai-ui.js", import.meta.url), "utf8");
 const polish = readFileSync(new URL("../chat-ux-polish.css", import.meta.url), "utf8");
+const baseChatCss = readFileSync(new URL("../style.css", import.meta.url), "utf8");
 
 test("each conversation has independent text, reply, and attachment draft state", () => {
     assert.match(chat, /const worthItChatDrafts = new Map\(\)/);
@@ -92,6 +93,12 @@ test("Worth It AI closes only through explicit close actions, not backdrop click
     assert.doesNotMatch(handler, /closeAIChat\(\)/);
     assert.match(ai, /function closeAIChat\(\)/);
     assert.match(html, /class="ai-chat-close" onclick="closeAIChat\(\)"/);
+});
+
+test("received message bubbles hug short text and wrap long text within the chat width", () => {
+    assert.match(polish, /\.worth-it-chat-message:not\(\.is-mine\) \.worth-it-chat-message-stack\s*\{\s*align-items: flex-start;?\s*\}/);
+    assert.match(polish, /\.worth-it-chat-message:not\(\.is-mine\) \.worth-it-chat-bubble\s*\{[\s\S]*?width: fit-content;[\s\S]*?max-width: 100%;[\s\S]*?overflow-wrap: anywhere;[\s\S]*?white-space: pre-wrap;/);
+    assert.match(baseChatCss, /\.worth-it-chat-bubble\{[^}]*overflow-wrap:anywhere;white-space:pre-wrap/);
 });
 
 test("chat wallpaper has more small rotated doodles with per-conversation placement", () => {
