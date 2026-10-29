@@ -3,11 +3,16 @@
 "use strict";
 const $ = id => document.getElementById(id);
 const GLOBAL_CHAT_ID = "00000000-0000-4000-8000-000000000001";
-const RTC_CONFIG = { iceServers: [
+const FALLBACK_ICE_SERVERS = [
+    { urls: "stun:stun.cloudflare.com:3478" },
     { urls: "stun:stun.l.google.com:19302" },
     { urls: "stun:stun1.l.google.com:19302" },
     { urls: "stun:stun2.l.google.com:19302" }
-] };
+];
+let cachedCallIceServers = null;
+let cachedCallIceServersUntil = 0;
+let callSetupInProgress = false;
+let turnUnavailableWarningShown = false;
 const CALL_TICK_MS = 1200;
 const INCOMING_TICK_MS = 2000;
 const $client = () => window.supabaseClient || null;
@@ -648,12 +653,16 @@ function stopCallMedia() {
     if (callPeer) {
         try {
             callPeer.onicecandidate = null;
+            callPeer.onicecandidateerror = null;
+            callPeer.onicegatheringstatechange = null;
             callPeer.ontrack = null;
             callPeer.onconnectionstatechange = null;
             callPeer.close();
         } catch (_) {}
     }
     callPeer = null;
+    // Stop camera/microphone capture before detaching media elements. This cleanup
+    // is synchronous and must never wait for the signaling request to finish.
     for (const stream of [localStream, remoteStream]) {
         try { stream?.getTracks?.().forEach(track => track.stop()); } catch (_) {}
     }
@@ -669,9 +678,9 @@ function stopCallMedia() {
     const remoteVideo = $("worthItChatRemoteVideo");
     const localVideo = $("worthItChatLocalVideo");
     const remoteAudio = $("worthItChatRemoteAudio");
-    if (remoteVideo) { remoteVideo.srcObject = null; remoteVideo.hidden = true; }
-    if (localVideo) { localVideo.srcObject = null; localVideo.hidden = true; }
-    if (remoteAudio) { remoteAudio.srcObject = null; remoteAudio.muted = false; remoteAudio.volume = 1; }
+    if (remoteVideo) { try { remoteVideo.pause(); } catch (_) {} remoteVideo.srcObject = null; remoteVideo.hidden = true; }
+    if (localVideo) { try { localVideo.pause(); } catch (_) {} localVideo.srcObject = null; localVideo.hidden = true; }
+    if (remoteAudio) { try { remoteAudio.pause(); } catch (_) {} remoteAudio.srcObject = null; remoteAudio.muted = false; remoteAudio.volume = 1; }
     const mute = $("worthItChatCallMuteBtn");
     if (mute) {
         mute.classList.remove("is-muted");
@@ -682,11 +691,11 @@ function stopCallMedia() {
     const camera = $("worthItChatCallCameraBtn");
     if (camera) { camera.textContent = "📷 Camera off"; camera.setAttribute("aria-pressed", "false"); }
 }
-function endLocalCall(message) {
+function endLocalCall(message, title) {
     stopCallMedia();
     activeCall = null;
     incomingCall = null;
-    setCallStatus("Call ended", message || "");
+    setCallStatus(title || "Call ended", message || "");
     setLiveCallControls(false);
     $("worthItChatCallAcceptBtn").hidden = true;
     $("worthItChatCallRejectBtn").hidden = true;
@@ -700,8 +709,8 @@ function endLocalCall(message) {
         showCallOverlay(false);
     }, 1800);
 }
-async function closeCallOnServer(action) {
-    const callId = activeCall?.id || incomingCall?.id;
+async function closeCallOnServer(action, callIdOverride) {
+    const callId = callIdOverride || activeCall?.id || incomingCall?.id;
     if (!callId) return;
     try { await rpc("respond_worth_it_chat_call", { p_call_id: callId, p_action: action, p_answer: null }); }
     catch (_) {}
@@ -718,8 +727,59 @@ function bindPeerToStream(stream) {
         if (hasVideo) void localVideo.play().catch(() => {});
     }
 }
-function makePeerConnection() {
-    callPeer = new RTCPeerConnection(RTC_CONFIG);
+async function getCallIceConfig(conversationId) {
+    if (cachedCallIceServers && Date.now() < cachedCallIceServersUntil) {
+        return { iceServers: cachedCallIceServers, relayAvailable: true };
+    }
+    let accessToken = "";
+    try {
+        const sessionResult = await $client()?.auth?.getSession?.();
+        accessToken = String(sessionResult?.data?.session?.access_token || "");
+    } catch (_) {}
+    if (!accessToken || !conversationId) return { iceServers: FALLBACK_ICE_SERVERS, relayAvailable: false };
+    try {
+        const response = await fetch("/api/chat-call-ice?conversationId=" + encodeURIComponent(conversationId), {
+            method: "GET", credentials: "same-origin", cache: "no-store",
+            headers: { "Authorization": "Bearer " + accessToken, "Accept": "application/json" }
+        });
+        const data = await response.json().catch(() => ({}));
+        if (response.ok && Array.isArray(data.iceServers)) {
+            const iceServers = data.iceServers.map(server => {
+                const urls = (Array.isArray(server?.urls) ? server.urls : [server?.urls])
+                    .filter(url => typeof url === "string" && /^(stun|turns?):/i.test(url) && !/:53(?:\?|$)/i.test(url));
+                if (!urls.length) return null;
+                const cleaned = { urls };
+                if (typeof server.username === "string") cleaned.username = server.username;
+                if (typeof server.credential === "string") cleaned.credential = server.credential;
+                return cleaned;
+            }).filter(Boolean);
+            const relayAvailable = iceServers.some(server => {
+                const urls = Array.isArray(server.urls) ? server.urls : [server.urls];
+                return Boolean(server.username && server.credential && urls.some(url => /^turns?:/i.test(url)));
+            });
+            if (relayAvailable) {
+                const ttlSeconds = Math.max(300, Math.min(48 * 60 * 60, Number(data.expiresInSeconds) || 24 * 60 * 60));
+                cachedCallIceServers = iceServers;
+                cachedCallIceServersUntil = Date.now() + ttlSeconds * 1000 - 5 * 60 * 1000;
+                return { iceServers: cachedCallIceServers, relayAvailable: true };
+            }
+        }
+        if (!turnUnavailableWarningShown) {
+            turnUnavailableWarningShown = true;
+            console.info(response.status === 503
+                ? "Worth It TURN credentials are not configured yet; direct ICE will be tried."
+                : "Worth It TURN credentials could not be issued; direct ICE will be tried.");
+        }
+    } catch (error) {
+        if (!turnUnavailableWarningShown) {
+            turnUnavailableWarningShown = true;
+            console.info("Worth It TURN credentials could not be loaded; direct ICE will be tried.", error);
+        }
+    }
+    return { iceServers: FALLBACK_ICE_SERVERS, relayAvailable: false };
+}
+function makePeerConnection(iceServers) {
+    callPeer = new RTCPeerConnection({ iceServers: Array.isArray(iceServers) && iceServers.length ? iceServers : FALLBACK_ICE_SERVERS });
     if (localStream) localStream.getTracks().forEach(track => callPeer.addTrack(track, localStream));
     if (activeCall?.type === "video" && !localStream?.getVideoTracks?.().length) {
         // Keep a video media section negotiated so a camera-enabled peer can still send video.
@@ -784,7 +844,10 @@ function makePeerConnection() {
                 if (wasConnected && state === "disconnected") {
                     setCallStatus(activeCall?.peerName || "Worth It Call", "Connection briefly interrupted. Still trying to restore the call…");
                 } else if (failed || state === "failed") {
-                    setCallStatus(activeCall?.peerName || "Worth It Call", "The direct media connection failed. End and retry the call; some networks require a TURN relay.");
+                    const relayAvailable = Boolean(activeCall?.relayAvailable);
+                    setCallStatus(activeCall?.peerName || "Worth It Call", relayAvailable
+                        ? "The media connection could not be established. Check the network and try ending and retrying the call."
+                        : "The direct media connection failed. A TURN relay could not be loaded for this call. Check the Cloudflare TURN configuration and retry.");
                 }
             }, failed ? 1800 : 4200);
         }
@@ -847,7 +910,18 @@ async function pollCallState() {
             setCallStatus(call.peerName, "Connecting…");
         }
         await applyRemoteCandidates(state.signals);
-        if (["rejected", "ended", "missed", "failed"].includes(state.status)) {
+        if (state.status === "ended") {
+            const currentUserId = String(context()?.userId || "");
+            const endedByUserId = String(state.ended_by_user_id || "");
+            if (endedByUserId && currentUserId && endedByUserId !== currentUserId) {
+                const displayName = String(state.ended_by_name || call.peerName || "The other user").trim();
+                endLocalCall("", displayName + " has ended the call.");
+            } else {
+                endLocalCall("The call has ended.");
+            }
+            return;
+        }
+        if (["rejected", "missed", "failed"].includes(state.status)) {
             endLocalCall(state.status === "rejected" ? "The call was declined." : state.status === "missed" ? "No answer." : "The call has ended.");
         }
     } catch (error) {
@@ -876,14 +950,20 @@ async function startCall(type) {
         status("This browser does not support voice/video calls. Try an up-to-date browser over HTTPS.", true);
         return;
     }
-    if (activeCall || incomingCall) return;
+    if (activeCall || incomingCall || callSetupInProgress) return;
+    callSetupInProgress = true;
     try {
         ensureRemoteAudioProcessor();
+        const iceConfig = await getCallIceConfig(ctx.conversationId);
         const media = await acquireCallMedia(type);
         localStream = media.stream;
-        activeCall = { id: null, role: "caller", type, conversationId: ctx.conversationId, peerName: ctx.title || "Worth It friend", cameraAvailable: media.cameraAvailable };
+        activeCall = {
+            id: null, role: "caller", type, conversationId: ctx.conversationId,
+            peerName: ctx.title || "Worth It friend", cameraAvailable: media.cameraAvailable,
+            relayAvailable: iceConfig.relayAvailable
+        };
         bindPeerToStream(localStream);
-        makePeerConnection();
+        makePeerConnection(iceConfig.iceServers);
         const offer = await callPeer.createOffer();
         await callPeer.setLocalDescription(offer);
         openCallWindow("Calling " + (ctx.title || "your friend") + "…",
@@ -905,33 +985,39 @@ async function startCall(type) {
         await flushQueuedCandidates();
         startCallPolling();
     } catch (error) {
-        if (activeCall?.id) await closeCallOnServer("end");
+        const callId = activeCall?.id || null;
         stopCallMedia();
         activeCall = null;
         incomingCall = null;
+        if (callId) void closeCallOnServer("end", callId);
         showCallOverlay(false);
         status(error?.message || "Could not start the call. Check microphone/camera permissions and try again.", true);
+    } finally {
+        callSetupInProgress = false;
     }
 }
 async function acceptCall() {
-    if (!incomingCall || activeCall) return;
+    if (!incomingCall || activeCall || callSetupInProgress) return;
     const call = incomingCall;
     const type = call.call_type;
     if (!navigator.mediaDevices?.getUserMedia || typeof RTCPeerConnection === "undefined") {
         setCallStatus("Calls are not supported", "Use an up-to-date browser with microphone/camera permissions over HTTPS.");
         return;
     }
+    callSetupInProgress = true;
     try {
         ensureRemoteAudioProcessor();
+        const iceConfig = await getCallIceConfig(call.conversation_id);
         const media = await acquireCallMedia(type);
         localStream = media.stream;
         activeCall = {
             id: call.id, role: "callee", type, conversationId: call.conversation_id,
-            peerName: call.caller_name || "Worth It friend", cameraAvailable: media.cameraAvailable
+            peerName: call.caller_name || "Worth It friend", cameraAvailable: media.cameraAvailable,
+            relayAvailable: iceConfig.relayAvailable
         };
         incomingCall = null;
         bindPeerToStream(localStream);
-        makePeerConnection();
+        makePeerConnection(iceConfig.iceServers);
         await callPeer.setRemoteDescription(new RTCSessionDescription(call.offer));
         await flushRemoteCandidates();
         const answer = await callPeer.createAnswer();
@@ -948,32 +1034,35 @@ async function acceptCall() {
         await flushQueuedCandidates();
         startCallPolling();
     } catch (error) {
-        await closeCallOnServer("reject");
+        const callId = activeCall?.id || call.id;
         stopCallMedia();
         activeCall = null;
         incomingCall = null;
+        void closeCallOnServer("end", callId);
         setCallStatus("Could not join the call", error?.message || "Check browser permissions and try again.");
         $("worthItChatCallAcceptBtn").hidden = true;
         $("worthItChatCallRejectBtn").hidden = true;
-        $("worthItChatCallEndBtn").hidden = false;
+        $("worthItChatCallEndBtn").hidden = true;
         $("worthItChatCallMuteBtn").hidden = true;
         $("worthItChatCallCameraBtn").hidden = true;
+    } finally {
+        callSetupInProgress = false;
     }
 }
 async function rejectCall() {
-    if (incomingCall?.id) {
-        try { await rpc("respond_worth_it_chat_call", { p_call_id: incomingCall.id, p_action: "reject", p_answer: null }); }
-        catch (_) {}
-    }
+    const callId = incomingCall?.id || activeCall?.id;
     endLocalCall("You declined the call.");
+    if (callId) void closeCallOnServer("reject", callId);
 }
 async function endCall() {
-    await closeCallOnServer("end");
-    endLocalCall("Call ended.");
+    // Release camera/microphone immediately, even if Supabase signaling is slow.
+    const callId = activeCall?.id || incomingCall?.id;
+    endLocalCall("You ended the call.");
+    if (callId) void closeCallOnServer("end", callId);
 }
 async function pollIncomingCall() {
     // The call alert stays active while the signed-in user browses any section of the site.
-    if (document.hidden || incomingPollBusy || activeCall) return;
+    if (document.hidden || incomingPollBusy || activeCall || callSetupInProgress) return;
     const client = $client();
     if (!client?.auth?.getSession) return;
     incomingPollBusy = true;
@@ -1026,6 +1115,10 @@ async function toggleCamera() {
     if (!track) {
         try {
             const cameraStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+            if (!activeCall || !callPeer) {
+                cameraStream.getTracks().forEach(item => item.stop());
+                return;
+            }
             track = cameraStream.getVideoTracks()[0] || null;
             if (!track) throw new Error("No camera track was returned.");
             if (!localStream) localStream = new MediaStream();
@@ -1037,9 +1130,14 @@ async function toggleCamera() {
             } else {
                 callPeer.addTrack(track, localStream);
             }
+            if (!activeCall || !callPeer) {
+                cameraStream.getTracks().forEach(item => item.stop());
+                return;
+            }
             cameraDisabled = false;
             bindPeerToStream(localStream);
         } catch (_) {
+            if (!activeCall || !callPeer) return;
             const unavailable = $("worthItChatCallCameraBtn");
             if (unavailable) {
                 unavailable.textContent = "📷 Camera unavailable";
@@ -1233,6 +1331,13 @@ function setupAudioSearchAndCalls() {
     });
     updateEnhancementContext();
     setupSwipeReply();
+    window.addEventListener("pagehide", () => {
+        const callId = activeCall?.id || incomingCall?.id;
+        stopCallMedia();
+        activeCall = null;
+        incomingCall = null;
+        if (callId) void closeCallOnServer("end", callId);
+    });
     if (incomingPollTimer) window.clearInterval(incomingPollTimer);
     void pollIncomingCall();
     incomingPollTimer = window.setInterval(() => { void pollIncomingCall(); }, INCOMING_TICK_MS);

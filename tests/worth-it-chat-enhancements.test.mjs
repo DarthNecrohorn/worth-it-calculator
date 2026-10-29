@@ -11,6 +11,7 @@ const style = read("style.css");
 const audioApi = read("functions/api/chat-audio.js");
 const mediaApi = read("functions/api/chat-media.js");
 const sql = read("supabase/worth-it-chat-enhancements.sql");
+const callReliabilitySql = read("supabase/worth-it-chat-call-reliability.sql");
 const workflow = read(".github/workflows/function-syntax-check.yml");
 const app = read("app.js");
 const usernameAvailability = read("functions/api/auth-username-availability.js");
@@ -28,8 +29,8 @@ test("chat enhancement controls are present, accessible, and loaded separately",
         "worthItChatCallSpeakerBtn", "worthItChatCallCameraBtn",
         "worthItChatRemoteVideo", "worthItChatLocalVideo", "worthItChatRemoteAudio"
     ]) assert.match(html, new RegExp('id="' + id + '"'), "missing chat UI element " + id);
-    assert.match(html, /chat-enhancements\.css\?v=worthit-chat-enhancements-20261029j/);
-    assert.match(html, /chat-enhancements\.js\?v=worthit-chat-enhancements-20261029j/);
+    assert.match(html, /chat-enhancements\.css\?v=worthit-chat-enhancements-20261029k/);
+    assert.match(html, /chat-enhancements\.js\?v=worthit-chat-enhancements-20261029k/);
     assert.match(css, /WORTH IT Chat additions|Worth It Chat additions/);
     assert.match(css, /worth-it-chat-reply-preview/);
     assert.match(css, /worth-it-chat-call-overlay/);
@@ -123,19 +124,31 @@ test("audio/video calls are backend-enforced friend-only one-to-one calls", () =
     assert.match(sql, /call_type text not null check \(call_type in \('audio','video'\)\)/);
     assert.match(sql, /unique index if not exists worth_it_chat_calls_one_active_per_conversation_idx/);
     assert.match(sql, /worth-it-user-call:/);
-    assert.match(client, /new RTCPeerConnection\(RTC_CONFIG\)/);
+    assert.match(client, /new RTCPeerConnection\(\{ iceServers: Array\.isArray\(iceServers\)/);
+    assert.match(client, /async function getCallIceConfig\(conversationId\)/);
+    assert.match(client, /fetch\("\/api\/chat-call-ice\?conversationId=/);
+    assert.match(client, /relayAvailable: iceConfig\.relayAvailable/);
     assert.match(client, /async function acquireCallMedia\(type\)/);
     assert.match(client, /getUserMedia\(\{ audio: true, video: true \}\)/);
     assert.match(client, /getUserMedia\(\{ audio: true, video: false \}\)/);
     assert.match(client, /addTransceiver\("video", \{ direction: "sendrecv" \}\)/);
     assert.match(client, /Connection briefly interrupted/);
     assert.match(client, /direct media connection failed/);
+    assert.match(client, /A TURN relay could not be loaded for this call/);
+    assert.match(client, /state\.ended_by_user_id/);
+    assert.match(client, /state\.ended_by_name/);
+    assert.match(client, /displayName \+ " has ended the call\."/);
+    assert.match(client, /endLocalCall\("You ended the call\."\);\s*if \(callId\) void closeCallOnServer\("end", callId\)/);
+    assert.match(client, /callPeer\.onicecandidateerror = null/);
+    assert.match(client, /try \{ localVideo\.pause\(\); \} catch \(_\) \{\} localVideo\.srcObject = null/);
+    assert.match(client, /if \(document\.hidden \|\| incomingPollBusy \|\| activeCall \|\| callSetupInProgress\) return/);
+    assert.match(client, /cameraStream\.getTracks\(\)\.forEach\(item => item\.stop\(\)\)/);
     assert.match(client, /incomingPollTimer = window\.setInterval/);
     assert.match(client, /callOverlayCloseTimer = window\.setTimeout/);
     assert.doesNotMatch(client, /incomingCallTimer/);
     assert.match(client, /p_action: "accept"/);
-    assert.match(client, /p_action: "reject"/);
-    assert.match(client, /async function endCall\(\)\s*\{\s*await closeCallOnServer\("end"\)/);
+    assert.match(client, /closeCallOnServer\("reject", callId\)/);
+    assert.match(client, /async function endCall\(\)\s*\{\s*\/\/ Release camera\/microphone immediately, even if Supabase signaling is slow\./);
     assert.match(client, /get_worth_it_incoming_chat_call/);
     assert.match(client, /send_worth_it_chat_call_signal/);
     assert.match(client, /if \(!ctx\?\.userId \|\| ctx\.conversationType !== "direct" \|\| !ctx\.isFriend \|\| !ctx\.conversationId\)/);
@@ -269,4 +282,13 @@ test("mute button uses a vector icon and a text label on every desktop/browser",
     assert.match(html, /id="worthItChatCallMuteLabel">Mute/);
     assert.match(client, /button\.classList\.toggle\("is-muted", audioMuted\)/);
     assert.doesNotMatch(client, /button\.textContent = audioMuted \? "🔇 Unmute" : "🎙 Mute"/);
+});
+
+
+test("call reliability migration returns the display name of the participant who hangs up", () => {
+    assert.match(callReliabilitySql, /add column if not exists ended_by_user_id uuid references auth\.users\(id\)/);
+    assert.match(callReliabilitySql, /ended_by_user_id=actor_id/);
+    assert.match(callReliabilitySql, /'ended_by_user_id',call_row\.ended_by_user_id/);
+    assert.match(callReliabilitySql, /'ended_by_name'/);
+    assert.match(callReliabilitySql, /get_worth_it_chat_call_state\(uuid,bigint\)/);
 });
