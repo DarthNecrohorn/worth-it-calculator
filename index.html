@@ -63,7 +63,7 @@ html[data-theme="light"].worth-it-initial-paint::before {
 </script>
 
 <link rel="stylesheet" href="style.css?v=worthit-home-ai-mobile-20261029a">
-<link rel="stylesheet" href="chat-enhancements.css?v=worthit-chat-enhancements-20261029e">
+<link rel="stylesheet" href="chat-enhancements.css?v=worthit-chat-enhancements-20261029f">
 <link rel="stylesheet" href="chat-actions.css?v=chat-message-actions-20261028c">
 <link rel="stylesheet" href="chat-delete-confirm.css?v=chat-delete-confirm-20261028b">
 <link rel="stylesheet" href="chat-realtime.css?v=chat-realtime-typing-20261028b">
@@ -2481,7 +2481,7 @@ html[data-theme="light"].worth-it-initial-paint::before {
           </div>
           <p class="account-settings-help">Your unique @username is used to identify and find your account. You can change it once every 14 days. A verified email address is required.</p>
           <div class="account-settings-input-row">
-            <input id="accountUsernameInput" type="text" minlength="3" maxlength="20" pattern="[A-Za-z0-9]+(_[A-Za-z0-9]+)?" autocomplete="username" spellcheck="false" autocapitalize="off" placeholder="New username" aria-describedby="accountUsernameStatus">
+            <input id="accountUsernameInput" type="text" minlength="3" maxlength="20" pattern="[A-Za-z][A-Za-z0-9]*(_[A-Za-z0-9]+)?" autocomplete="username" spellcheck="false" autocapitalize="off" placeholder="New username" aria-describedby="accountUsernameStatus">
             <button type="button" class="settings-option account-settings-save" id="accountUsernameSave" onclick="saveAccountUsername()" disabled>Save username</button>
           </div>
           <p id="accountUsernameStatus" class="account-settings-status" role="status" aria-live="polite"></p>
@@ -5210,7 +5210,7 @@ if($("carResults")){
             <div class="worth-it-chat-call-controls">
                 <button type="button" id="worthItChatCallAcceptBtn" class="worth-it-chat-call-accept" hidden>✓ Accept</button>
                 <button type="button" id="worthItChatCallRejectBtn" class="worth-it-chat-call-reject" hidden>✕ Decline</button>
-                <button type="button" id="worthItChatCallMuteBtn" class="worth-it-chat-call-secondary" hidden aria-pressed="false">🎙 Mute</button>
+                <button type="button" id="worthItChatCallMuteBtn" class="worth-it-chat-call-secondary" hidden aria-pressed="false" title="Mute microphone"><svg class="worth-it-chat-control-icon worth-it-chat-mic-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="9" y="2.5" width="6" height="12" rx="3"/><path d="M5.5 10.5v1.5a6.5 6.5 0 0 0 13 0v-1.5M12 18.5V22M8.5 22h7"/><path class="worth-it-chat-mute-slash" d="M4 4 20 20"/></svg><span id="worthItChatCallMuteLabel">Mute</span></button>
                 <button type="button" id="worthItChatCallSpeakerBtn" class="worth-it-chat-call-secondary" hidden aria-pressed="false" title="Boost the other person's sound"><svg class="worth-it-chat-speaker-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3 9v6h4l5 4V5L7 9H3Z"/><path d="M16 9a5 5 0 0 1 0 6M18.5 6.5a8.5 8.5 0 0 1 0 11"/></svg><span id="worthItChatCallSpeakerLabel">Boost volume</span></button>
                 <button type="button" id="worthItChatCallCameraBtn" class="worth-it-chat-call-secondary" hidden aria-pressed="false">📷 Camera off</button>
                 <button type="button" id="worthItChatCallEndBtn" class="worth-it-chat-call-end" hidden>☎ End call</button>
@@ -5219,6 +5219,6 @@ if($("carResults")){
         </div>
     </section>
     
-<script src="/chat-enhancements.js?v=worthit-chat-enhancements-20261029d"></script>
+<script src="/chat-enhancements.js?v=worthit-chat-enhancements-20261029e"></script>
 </body>
 </html>
