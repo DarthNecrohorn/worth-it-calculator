@@ -32,6 +32,15 @@ test("sending a message snapshots its destination and never submits to the newly
     assert.match(chat, /worthItChatDraftKey\(\) === sendDraftKey && chatUser\?\.id === sendUserId/);
 });
 
+test("native file picker selections remain on the conversation where Upload was opened", () => {
+    assert.match(chat, /let pendingFilePickerTarget = null/);
+    assert.match(chat, /pendingFilePickerTarget = \{ key: worthItChatDraftKey\(\), userId: chatUser\?\.id \|\| null \}/);
+    assert.match(chat, /const target = pendingFilePickerTarget;\s*pendingFilePickerTarget = null;/);
+    assert.match(chat, /const targetIsActive = target\.key === worthItChatDraftKey\(\)/);
+    assert.match(chat, /if \(!targetIsActive\) \{[\s\S]*?worthItChatDrafts\.set\(target\.key, \{ \.\.\.previous, mediaFile: file, mediaUrl: objectUrl, mediaType: type \}\)/);
+    assert.match(chat, /pendingFilePickerTarget = null;\s*for \(const url of urls\)/);
+});
+
 test("voice recording stores its originating account and conversation before microphone permission awaits", () => {
     const start = calls.indexOf("async function startVoiceRecording()");
     const end = calls.indexOf("\nfunction stopVoiceRecording()", start);
