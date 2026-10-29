@@ -239,6 +239,6 @@ test("video calls fall back to audio without a camera and allow camera activatio
 test("mute button uses a vector icon and a text label on every desktop/browser", () => {
     assert.match(html, /id="worthItChatCallMuteBtn"[^>]*><svg class="worth-it-chat-control-icon worth-it-chat-mic-icon"/);
     assert.match(html, /id="worthItChatCallMuteLabel">Mute/);
-    assert.match(client, /mute\.classList\.toggle\("is-muted", audioMuted\)/);
+    assert.match(client, /button\.classList\.toggle\("is-muted", audioMuted\)/);
     assert.doesNotMatch(client, /button\.textContent = audioMuted \? "🔇 Unmute" : "🎙 Mute"/);
 });
