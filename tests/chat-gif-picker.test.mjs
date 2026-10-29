@@ -207,14 +207,16 @@ test("chat presence badges sit on the avatar lower-right edge without clipping t
     assert.ok(css.slice(headerStart, headerEnd).includes("bottom: -3px !important;"));
 });
 
-test("opening the emoji picker renders category controls, and selecting a category renders once", () => {
+test("opening the emoji tab renders the existing emoji categories and grid", () => {
     const openHandler = client.match(/function openWorthItChatEmojiPicker\(\) \{([\s\S]*?)\n\}/)?.[1] || "";
-    assert.match(openHandler, /renderWorthItChatEmojiCategories\(\)/);
-    assert.match(openHandler, /renderWorthItChatEmojiGrid\(/);
+    assert.match(openHandler, /showWorthItChatMediaTab\("emoji", true\)/);
+    const mediaHandler = client.match(/function showWorthItChatMediaTab\(tab, resetSearch = false\) \{([\s\S]*?)\n\}/)?.[1] || "";
+    assert.match(mediaHandler, /renderWorthItChatEmojiCategories\(\)/);
+    assert.match(mediaHandler, /renderWorthItChatEmojiGrid\(search\?\.value \|\| ""\)/);
 
     const categoryHandler = client.match(/worthItChatEmojiCategory = category\.id;([\s\S]{0,180})/)?.[1] || "";
     assert.equal((categoryHandler.match(/renderWorthItChatEmojiCategories\(\)/g) || []).length, 1,
-        "changing category should rebuild the category controls exactly once");
+        "changing emoji category should rebuild the category controls exactly once");
 });
 
 test("country flags render visually in the chat composer while typing", () => {
