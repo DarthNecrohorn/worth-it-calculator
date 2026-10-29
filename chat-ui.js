@@ -3662,7 +3662,7 @@ async function getWorthItChatGifAsset(item) {
             });
             if (!response.ok) throw new Error("Animation library request failed (" + response.status + ").");
             const encoded = (await response.text()).replace(/\s+/g, "");
-            if (!encoded || encoded.length > 1024 * 1024 || !/^[A-Za-z0-9+/=]+$/.test(encoded)) {
+            if (!encoded || encoded.length > 32 * 1024 * 1024 || !/^[A-Za-z0-9+/=]+$/.test(encoded)) {
                 throw new Error("The Worth It animation library is invalid.");
             }
             let binary;
