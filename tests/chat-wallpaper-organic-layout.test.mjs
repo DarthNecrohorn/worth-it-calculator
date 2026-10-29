@@ -29,8 +29,8 @@ function parseEntries(svg, kind) {
         y: Number(match[2]),
         radius: Number(match[3]),
         scale: kind === "doodle" ? Number(match[4]) : null,
-        color: kind === "doodle" ? match[5] : match[5],
-        shape: Number(match[kind === "doodle" ? 6 : 6])
+        color: kind === "doodle" ? match[5] : match[4],
+        shape: Number(match[kind === "doodle" ? 6 : 5])
     }));
 }
 
