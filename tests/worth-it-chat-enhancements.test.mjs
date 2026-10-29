@@ -123,3 +123,15 @@ test("the JavaScript and SQL checks include the new chat feature modules", () =>
     assert.match(workflow, /chat-ui\.js chat-enhancements\.js/);
     assert.match(workflow, /supabase\/worth-it-chat-enhancements\.sql/);
 });
+
+ 
+test("chat follow-up fixes keep search prefix-only, keep wallpaper scrolling, and repair closing focus", () => {
+    assert.ok(sql.includes("left(lower(regexp_replace(ltrim(m.body)"));
+    assert.ok(sql.includes("normalized_term"));
+    assert.ok(client.includes("statusNode.hidden = !query"));
+    assert.ok(client.includes("p_limit: 100"));
+    assert.ok(css.includes("background-attachment:scroll,local,local"));
+    assert.ok(css.includes(".worth-it-chat-messages::before{content:none!important}"));
+    assert.ok(chat.includes("overlay.contains(document.activeElement)"));
+    assert.ok(chat.includes("button.focus({ preventScroll: true })"));
+});
