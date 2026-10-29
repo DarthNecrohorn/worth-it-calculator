@@ -157,7 +157,7 @@ test("chat wallpaper uses one spaced illustration tile and call/voice controls u
 
 test("chat doodles are isolated in spaced cells and stay visible in dark and light themes", () => {
     assert.match(css, /A single tile with 25 separated doodles/);
-    assert.match(css, /width=\"1050\" height=\"1050\" viewBox=\"0 0 1050 1050\"/);
+    assert.match(css, /width%3D%221050%22%20height%3D%221050%22%20viewBox%3D%220%200%201050%201050%22/);
     assert.match(css, /background-size:auto,1050px 1050px!important/);
     assert.match(css, /html\[data-theme=\"light\"\] \.worth-it-chat-messages/);
     assert.match(css, /\.worth-it-chat-messages::before,\.worth-it-chat-messages::after\{\s*display:none!important/);
