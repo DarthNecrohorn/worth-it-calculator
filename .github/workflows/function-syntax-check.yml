@@ -34,6 +34,9 @@ jobs:
         with:
           node-version: "22"
 
+      - name: Run chat enhancement regression tests
+        run: node --test tests/worth-it-chat-enhancements.test.mjs
+
       - name: Check JavaScript syntax
         shell: bash
         run: |
