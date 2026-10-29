@@ -684,6 +684,46 @@ function updateWorthItEmailVerificationGate(user) {
     }
 }
 window.isWorthItEmailVerified = isWorthItEmailVerified;
+window.requestWorthItEmailVerification = function(user){
+    const pending = user || window.worthItPendingEmailUser;
+    if (!pending || isWorthItEmailVerified(pending)) return false;
+    worthItEmailGateDismissedUserId = "";
+    updateWorthItEmailVerificationGate(pending);
+    return true;
+};
+function worthItIsProtectedEmailAction(target){
+    if (!target || !window.worthItPendingEmailUser || isWorthItEmailVerified(window.worthItPendingEmailUser)) return false;
+    const control = target.closest("button, a, [role='button']");
+    if (!control) return false;
+    const text = String(control.innerText || control.textContent || "").replace(/\s+/g, " ").trim().toLowerCase();
+    const handler = String(control.getAttribute("onclick") || "").toLowerCase();
+    const sectionWords = /weather|news|shop|compare cars|markets|currencies|cryptocurrencies|water levels|ship tracking|openweather|opennews|opencars|openmarkets|opencurrencies|opencrypto|openwater|shiptracking/;
+    const socialWords = /worthitprofilesocialactions|performworthitsocialaction|friendaction|followaction|reportworthitdisplayedprofile|worthitprofilereportaction/;
+    const chatComposer = /send|message|chat/;
+    const isSection = sectionWords.test(text) || sectionWords.test(handler);
+    const isSocial = socialWords.test(text) || socialWords.test(handler) || Boolean(control.closest("#worthItProfileSocialActions, #worthItProfileReportAction"));
+    const isChatAction = Boolean(control.closest("#communityChatPanel, #chatPanel, #worthItChatPanel, .worth-it-chat-panel, .chat-panel")) && chatComposer.test(text + " " + handler);
+    return isSection || isSocial || isChatAction;
+}
+document.addEventListener("click", function(event){
+    const target = event.target instanceof Element ? event.target : null;
+    if (!target || !worthItIsProtectedEmailAction(target)) return;
+    event.preventDefault();
+    event.stopPropagation();
+    if (typeof event.stopImmediatePropagation === "function") event.stopImmediatePropagation();
+    window.requestWorthItEmailVerification(window.worthItPendingEmailUser);
+}, true);
+document.addEventListener("focusin", function(event){
+    const target = event.target;
+    if (!(target instanceof Element) || !window.worthItPendingEmailUser || isWorthItEmailVerified(window.worthItPendingEmailUser)) return;
+    const placeholder = String(target.getAttribute("placeholder") || target.getAttribute("aria-label") || "").toLowerCase();
+    const chatInput = /message|write.*chat|type.*message/.test(placeholder) &&
+        Boolean(target.closest("#communityChatPanel, #chatPanel, #worthItChatPanel, .worth-it-chat-panel, .chat-panel"));
+    if (chatInput) {
+        target.blur();
+        window.requestWorthItEmailVerification(window.worthItPendingEmailUser);
+    }
+}, true);
 
 function updateAuthUI(user) {
 
@@ -696,7 +736,14 @@ function updateAuthUI(user) {
     // but unverified session is deliberately treated like a guest by the UI.
     window.worthItCurrentAuthUser = currentAuthUser;
     window.worthItAuthStateResolved = true;
-    updateWorthItEmailVerificationGate(window.worthItPendingEmailUser);
+    if (!window.worthItPendingEmailUser) {
+        updateWorthItEmailVerificationGate(null);
+    } else {
+        // Do not interrupt ordinary browsing. Show the confirmation prompt only
+        // when the unverified account attempts a protected action.
+        document.getElementById("worthItEmailVerificationGate")?.remove();
+        document.getElementById("worthItEmailVerificationReminder")?.remove();
+    }
 
     const btn =
         $("authBtn");
