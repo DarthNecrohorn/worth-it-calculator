@@ -36,6 +36,18 @@ test("chat enhancement controls are present, accessible, and loaded separately",
     assert.match(css, /data:image\/svg\+xml/);
 });
 
+
+test("voice recording errors preserve the recording target before cleanup clears it", () => {
+    assert.match(client, /function isCurrentVoiceRecordingContext\(recordedFor\)/);
+    const errorHandler = client.match(/audioRecorder\.onerror = \(\) => \{([\s\S]*?)\n        \};/)?.[1] || "";
+    assert.match(errorHandler, /const failedFor = audioRecordingContext \? \{ \.\.\.audioRecordingContext \} : null/);
+    assert.ok(errorHandler.indexOf("const failedFor") < errorHandler.indexOf("stopVoiceRecordingResources()"));
+    assert.match(errorHandler, /isCurrentVoiceRecordingContext\(failedFor\)/);
+    const catchHandler = client.match(/\} catch \(error\) \{([\s\S]*?)\n    \}\n\}\nfunction stopVoiceRecording/)?.[1] || "";
+    assert.match(catchHandler, /const failedFor = audioRecordingContext \? \{ \.\.\.audioRecordingContext \} : null/);
+    assert.match(catchHandler, /isCurrentVoiceRecordingContext\(failedFor\)/);
+});
+
 test("voice recordings use a private audio bucket and short-lived authenticated URLs", () => {
     assert.match(client, /navigator\.mediaDevices\.getUserMedia\(\{ audio: true \}\)/);
     assert.match(client, /new MediaRecorder\(/);

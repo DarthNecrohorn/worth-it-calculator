@@ -894,6 +894,13 @@ function setVoiceButtonRecording(recording) {
     button.setAttribute("aria-pressed", String(recording));
     button.title = recording ? "Stop recording (maximum 2 minutes)" : "Record a voice message";
 }
+function isCurrentVoiceRecordingContext(recordedFor) {
+    const current = context();
+    return Boolean(recordedFor?.userId
+        && recordedFor.userId === current?.userId
+        && String(recordedFor.conversationId || GLOBAL_CHAT_ID) === String(current?.conversationId || GLOBAL_CHAT_ID)
+        && recordedFor.conversationType === current?.conversationType);
+}
 async function startVoiceRecording() {
     const ctx = context();
     if (!ctx?.userId) { status("Sign in to send voice messages.", true); return; }
@@ -920,9 +927,11 @@ async function startVoiceRecording() {
         audioChunks = [];
         audioRecorder.ondataavailable = event => { if (event.data?.size) audioChunks.push(event.data); };
         audioRecorder.onerror = () => {
+            // Cleanup clears audioRecordingContext, so retain it before cleanup
+            // and only show the error in the conversation that started recording.
+            const failedFor = audioRecordingContext ? { ...audioRecordingContext } : null;
             stopVoiceRecordingResources();
-            if (context()?.userId === audioRecordingContext?.userId
-                && String(context()?.conversationId || GLOBAL_CHAT_ID) === String(audioRecordingContext?.conversationId || GLOBAL_CHAT_ID)) {
+            if (isCurrentVoiceRecordingContext(failedFor)) {
                 status("Voice recording stopped because the browser reported an error.", true);
             }
         };
@@ -931,15 +940,18 @@ async function startVoiceRecording() {
             const recordedFor = audioRecordingContext ? { ...audioRecordingContext } : null;
             const blob = new Blob(audioChunks, { type: recorder?.mimeType || mime || "audio/webm" });
             stopVoiceRecordingResources();
-            if (!blob.size) { status("The recording was empty. Please try again.", true); return; }
-            if (blob.size > 10 * 1024 * 1024) { status("Voice messages must be 10 MB or smaller.", true); return; }
+            if (!blob.size) {
+                if (isCurrentVoiceRecordingContext(recordedFor)) status("The recording was empty. Please try again.", true);
+                return;
+            }
+            if (blob.size > 10 * 1024 * 1024) {
+                if (isCurrentVoiceRecordingContext(recordedFor)) status("Voice messages must be 10 MB or smaller.", true);
+                return;
+            }
             const file = new File([blob], "voice-message-" + Date.now() + "." + recordingExtension(blob.type), { type: blob.type });
             if (typeof window.worthItChatAttachRecordedAudio === "function") {
                 window.worthItChatAttachRecordedAudio(file, recordedFor);
-                const current = context();
-                if (recordedFor?.userId === current?.userId
-                    && String(recordedFor?.conversationId || GLOBAL_CHAT_ID) === String(current?.conversationId || GLOBAL_CHAT_ID)
-                    && recordedFor?.conversationType === current?.conversationType) {
+                if (isCurrentVoiceRecordingContext(recordedFor)) {
                     status("Voice message ready. Preview it, then press Send to share it.", false);
                 }
             }
@@ -950,9 +962,12 @@ async function startVoiceRecording() {
         status("Recording voice message… Tap the microphone again to stop (max 2 minutes).", false);
         audioLimitTimer = window.setTimeout(() => stopVoiceRecording(), 120000);
     } catch (error) {
+        const failedFor = audioRecordingContext ? { ...audioRecordingContext } : null;
         stopVoiceRecordingResources();
-        status(error?.name === "NotAllowedError" ? "Allow microphone access in your browser to record a voice message." :
-            "Could not start recording. Check microphone permissions and try again.", true);
+        if (isCurrentVoiceRecordingContext(failedFor)) {
+            status(error?.name === "NotAllowedError" ? "Allow microphone access in your browser to record a voice message." :
+                "Could not start recording. Check microphone permissions and try again.", true);
+        }
     }
 }
 function stopVoiceRecording() {
