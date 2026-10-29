@@ -5,6 +5,7 @@ import { readFileSync } from "node:fs";
 const html = readFileSync(new URL("../index.html", import.meta.url), "utf8");
 const client = readFileSync(new URL("../chat-ui.js", import.meta.url), "utf8");
 const css = readFileSync(new URL("../style.css", import.meta.url), "utf8");
+const polish = readFileSync(new URL("../chat-ux-polish.css", import.meta.url), "utf8");
 const encodedLibrary = readFileSync(new URL("../assets/worth-it-chat-gifs/library.base64.txt", import.meta.url), "utf8").trim();
 const library = Buffer.from(encodedLibrary, "base64");
 const originalGifAssets = [...client.matchAll(
@@ -17,15 +18,19 @@ const originalGifAssets = [...client.matchAll(
     length: Number(match[6])
 }));
 
-test("the chat composer has an accessible attachment, emoji and owned-media picker", () => {
-    assert.match(html, /id="worthItChatPlusBtn"/);
-    assert.match(html, /id="worthItChatUploadAction"/);
-    assert.match(html, /id="worthItChatEmojiAction"/);
-    assert.match(html, /id="worthItChatGifAction"/);
+test("the chat composer uploads directly and exposes GIF, sticker and emoji actions", () => {
+    assert.match(html, /id="worthItChatPlusBtn"[^>]+aria-label="Upload a file"/);
+    assert.match(html, /id="worthItChatFileInput"/);
+    assert.doesNotMatch(html, /worthItChatPlusMenu|worthItChatUploadAction/);
+    assert.match(html, /id="worthItChatGifAction"[^>]+data-worth-it-chat-open-media="gif"/);
+    assert.match(html, /id="worthItChatStickerAction"[^>]+data-worth-it-chat-open-media="sticker"/);
+    assert.match(html, /id="worthItChatEmojiAction"[^>]+data-worth-it-chat-open-media="emoji"/);
+    assert.match(html, /id="worthItChatMediaPicker"[^>]+role="dialog"/);
+    assert.match(html, /id="worthItChatMediaTabs"[^>]+role="tablist"/);
+    for (const tab of ["gif", "sticker", "emoji"]) assert.match(html, new RegExp('data-worth-it-chat-media-tab="' + tab + '"'));
     assert.match(html, /id="worthItChatEmojiGrid"/);
     assert.match(html, /id="worthItChatEmojiCategories"[^>]+role="tablist"/);
-    assert.match(html, /id="worthItChatGifCategoryTabs"[^>]+role="tablist"/);
-    assert.match(html, /Worth It GIFs &amp; Stickers/);
+    assert.match(html, /Original Worth It animations\. No external GIF provider or API key required\./);
     assert.match(client, /function insertWorthItChatEmoji\(/);
     assert.match(client, /function appendWorthItChatTextWithFlags\(/);
     assert.match(client, /worth-it-chat-message-flag/);
@@ -33,7 +38,7 @@ test("the chat composer has an accessible attachment, emoji and owned-media pick
     assert.match(client, /function renderWorthItChatEmojiCategories\(/);
     assert.match(client, /function loadWorthItChatGifResults\(/);
     assert.match(client, /function selectWorthItChatGif\(/);
-    assert.match(html, /chat-ui\.js\?v=worthit-gif-plants-20261029b/);
+    assert.match(html, /chat-ui\.js\?v=worthit-gif-plants-20261029c/);
     assert.match(html, /style\.css\?v=worthit-home-ai-mobile-20261029a/);
 });
 
@@ -114,7 +119,9 @@ test("picker controls use Worth It styling and remain scrollable on mobile", () 
 
 test("composer controls are implemented and picker panels have desktop layout", () => {
     assert.match(client, /function closeWorthItChatPickers\(\)/);
-    assert.match(client, /function openWorthItChatPlusMenu\(\)/);
+    assert.match(client, /function openWorthItChatFilePicker\(\)/);
+    assert.match(client, /function showWorthItChatMediaTab\(tab/);
+    assert.match(client, /pendingFilePickerTarget = \{ key: worthItChatDraftKey\(\), userId: chatUser\?\.id \|\| null \}/);
 
     const dock = css.match(/\.worth-it-chat-picker-dock\s*\{([\s\S]*?)\}/)?.[1] || "";
     assert.match(dock, /position:\s*relative/);
@@ -135,17 +142,22 @@ test("composer controls are implemented and picker panels have desktop layout", 
     assert.match(gifGrid, /grid-template-columns:/);
 });
 
-test("desktop picker panels sit outside the narrow attachment dock and have usable width", () => {
+test("the media picker follows Send and the composer keeps every action on one responsive row", () => {
     const dock = html.indexOf('id="worthItChatPickerDock"');
     const textarea = html.indexOf('id="worthItChatInput"');
     const send = html.indexOf('id="worthItChatSendBtn"');
-    const emoji = html.indexOf('id="worthItChatEmojiPicker"');
-    const gif = html.indexOf('id="worthItChatGifPicker"');
-    assert.ok(dock >= 0 && textarea > dock && send > textarea && emoji > send && gif > emoji);
-    assert.ok(!html.slice(dock, textarea).includes('id="worthItChatEmojiPicker"'),
-        "picker panels must not be children of the 42px attachment dock");
-    assert.ok(html.slice(send, emoji).includes('</button>\n                            <section class="worth-it-chat-picker-panel'),
-        "picker panels should be positioned siblings of the composer controls");
+    const gifAction = html.indexOf('id="worthItChatGifAction"');
+    const stickerAction = html.indexOf('id="worthItChatStickerAction"');
+    const emojiAction = html.indexOf('id="worthItChatEmojiAction"');
+    const voice = html.indexOf('id="worthItChatVoiceBtn"');
+    const picker = html.indexOf('id="worthItChatMediaPicker"');
+    const gifView = html.indexOf('id="worthItChatGifPicker"');
+    const emojiView = html.indexOf('id="worthItChatEmojiPicker"');
+    assert.ok(dock >= 0 && textarea > dock && send > textarea && gifAction > send &&
+        stickerAction > gifAction && emojiAction > stickerAction && voice > emojiAction &&
+        picker > voice && gifView > picker && emojiView > gifView);
+    assert.ok(!html.slice(dock, textarea).includes('id="worthItChatMediaPicker"'),
+        "the media popup must not be nested inside the narrow upload dock");
 
     const desktopStart = css.lastIndexOf("@media (min-width: 761px) {");
     const desktopEnd = css.indexOf("\n}", desktopStart);
@@ -154,32 +166,31 @@ test("desktop picker panels sit outside the narrow attachment dock and have usab
     assert.ok(rules.includes("width: min(440px, calc(100% - 24px), calc(100vw - 32px)) !important;"));
     assert.ok(rules.includes("min-width: min(360px, calc(100% - 24px)) !important;"));
     assert.ok(rules.includes("height: min(440px, calc(70vh - 16px)) !important;"));
+    assert.match(polish, /\.worth-it-chat-compose\s*\{[\s\S]*?flex-wrap: nowrap !important/);
+    assert.match(polish, /@media \(max-width: 540px\)[\s\S]*?\.worth-it-chat-compose #worthItChatSendBtn[\s\S]*?font-size: 0 !important/);
+    assert.match(polish, /\.worth-it-chat-compose \.worth-it-chat-voice-btn[\s\S]*?flex: 0 0 36px/);
+    assert.match(polish, /\.worth-it-chat-picker-view\[hidden\]\s*\{\s*display: none !important/);
 });
 
-test("emoji and GIF category buttons stay inside their picker while their tabs rerender", () => {
+test("the unified media tabs select GIFs, stickers or the existing categorized emoji library", () => {
     const emojiStart = client.indexOf("function renderWorthItChatEmojiCategories() {");
     const emojiEnd = client.indexOf("\nfunction renderWorthItChatEmojiGrid", emojiStart);
-    const gifStart = client.indexOf("function renderWorthItChatGifCategories() {");
-    const gifEnd = client.indexOf("\nfunction renderWorthItChatGifResults", gifStart);
-    assert.ok(emojiStart >= 0 && emojiEnd > emojiStart && gifStart >= 0 && gifEnd > gifStart);
-
+    const tabsStart = client.indexOf("function showWorthItChatMediaTab(tab");
+    const tabsEnd = client.indexOf("\nconst WORTH_IT_CHAT_EMOJI_KEYWORDS", tabsStart);
+    assert.ok(emojiStart >= 0 && emojiEnd > emojiStart && tabsStart >= 0 && tabsEnd > tabsStart);
     const emojiHandler = client.slice(emojiStart, emojiEnd);
-    const gifHandler = client.slice(gifStart, gifEnd);
+    const tabsHandler = client.slice(tabsStart, tabsEnd);
     assert.ok(emojiHandler.includes('button.addEventListener("click", event => {'));
     assert.ok(emojiHandler.includes("worthItChatEmojiCategory = category.id;"));
-    assert.ok(gifHandler.includes('button.addEventListener("click", event => {'));
-    assert.ok(gifHandler.includes("worthItChatGifCategory = category.id;"));
-    assert.ok(gifHandler.includes("loadWorthItChatGifResults("));
-
-    const setupAt = client.indexOf("function setupChatUI()");
-    const pathAt = client.indexOf("const path = typeof event.composedPath ===", setupAt);
-    assert.ok(pathAt >= 0);
-    const pathCode = client.slice(pathAt, pathAt + 700);
-    assert.ok(pathCode.includes("insideDock"));
-    assert.ok(pathCode.includes("insideMenu"));
-    assert.ok(pathCode.includes('menu.hidden = true'));
-    assert.doesNotMatch(pathCode, /closeWorthItChatPickers\(\)/);
-    assert.ok(client.includes("Only the transient attachment menu closes"));
+    assert.ok(tabsHandler.includes("worthItChatGifCategory = tab;"));
+    assert.ok(tabsHandler.includes('gifPanel.hidden = tab === "emoji";'));
+    assert.ok(tabsHandler.includes('emojiPanel.hidden = tab !== "emoji";'));
+    assert.ok(tabsHandler.includes("loadWorthItChatGifResults(search?.value || \"\"));"));
+    assert.ok(client.includes('data-worth-it-chat-media-tab'));
+    assert.doesNotMatch(client, /worthItChatPlusMenu|worthItChatUploadAction/);
+    assert.match(client, /function openWorthItChatGifPicker\(\)\s*\{\s*showWorthItChatMediaTab\("gif", true\)/);
+    assert.match(client, /function openWorthItChatStickerPicker\(\)\s*\{\s*showWorthItChatMediaTab\("sticker", true\)/);
+    assert.match(client, /function openWorthItChatEmojiPicker\(\)\s*\{\s*showWorthItChatMediaTab\("emoji", true\)/);
 });
 
 test("chat presence badges sit on the avatar lower-right edge without clipping the image", () => {
