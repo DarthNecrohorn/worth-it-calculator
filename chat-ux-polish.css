@@ -472,3 +472,28 @@ html[data-theme="light"] .worth-it-chat-travel-present {
 html[data-theme="light"] .worth-it-chat-message-time {
     color: #475569 !important;
 }
+
+
+/* Enlarge only the changing emoji glyph; keep its button frame unchanged. */
+#worthItChatEmojiAction {
+    font-size: 22px !important;
+    line-height: 1 !important;
+}
+@media (max-width: 540px) {
+    #worthItChatEmojiAction {
+        font-size: 20px !important;
+    }
+}
+@media (max-width: 350px) {
+    #worthItChatEmojiAction {
+        font-size: 18px !important;
+    }
+}
+
+/* Raise only the plus sign; the upload button's frame stays in place. */
+.worth-it-chat-upload-glyph {
+    position: relative !important;
+    top: -1px !important;
+    display: inline-block !important;
+    line-height: 1 !important;
+}
