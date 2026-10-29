@@ -3332,8 +3332,8 @@ function setupChatUI() {
         loadWorthItChatGifResults(event.currentTarget.value);
     });
     document.addEventListener("click", event => {
-        // Outside taps must not dismiss emoji or GIF/sticker panels. Only the
-        // transient attachment menu closes when the user taps elsewhere.
+        // Outside taps must not dismiss emoji or GIF/sticker panels.
+        // Only the transient attachment menu closes when the user taps elsewhere.
         const dock = $("worthItChatPickerDock");
         const menu = $("worthItChatPlusMenu");
         const plus = $("worthItChatPlusBtn");
