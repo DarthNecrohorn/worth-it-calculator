@@ -84,23 +84,27 @@ jobs:
           python3 - <<'PY'
           from pathlib import Path
           import re
+          from collections import Counter
 
           for name in ("supabase/worth-it-settings-privacy-notifications.sql", "supabase/worth-it-chat-video-media.sql", "supabase/worth-it-chat-message-actions.sql", "supabase/worth-it-chat-message-delete-constraint.sql", "supabase/worth-it-chat-message-action-indexes.sql", "supabase/worth-it-chat-enhancements.sql"):
               path = Path(name)
               sql = path.read_text(encoding="utf-8")
-              openers = len(re.findall(r"(?im)^\s*(?:as|do)\s+\$\$\s*$|^\s*do\s+\$migration\$\s*$", sql))
-              closers = len(re.findall(r"(?m)^\s*\$\$;\s*$|^\s*\$migration\$;\s*$", sql))
+              # Count each dollar-quote delimiter independently. Function definitions may
+              # put "as $" on the same line as the language/options, while embedded
+              # $old$/$new$ fragments inside the migration's DO block are valid nested text.
+              counts = Counter(re.findall(r"\$\$|\$[A-Za-z_][A-Za-z_0-9]*\$", sql))
+              unpaired = {tag: count for tag, count in counts.items() if count % 2}
               malformed = re.findall(r"(?m)^\s*\$;\s*$", sql)
-              if openers != closers or malformed:
+              if unpaired or malformed:
                   raise SystemExit(
-                      f"Invalid SQL dollar-quote delimiters in {path}: {openers} openers, {closers} closers, "
+                      f"Invalid SQL dollar-quote delimiters in {path}: unpaired tags {unpaired}, "
                       f"{len(malformed)} malformed terminator(s)."
                   )
               if name.endswith("worth-it-settings-privacy-notifications.sql") and (
                   not re.search(r"(?im)^\s*begin;\s*$", sql) or not re.search(r"(?im)^\s*commit;\s*$", sql)
               ):
                   raise SystemExit("Expected the Settings migration to be wrapped in BEGIN/COMMIT.")
-              print(f"Checked SQL dollar-quote delimiters in {path}: {openers} paired blocks.")
+              print(f"Checked SQL dollar-quote delimiters in {path}: {sum(counts.values()) // 2} paired delimiters.")
           PY
 
   migration-postgres:
