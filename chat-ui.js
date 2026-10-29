@@ -1797,7 +1797,7 @@ async function activateConversation(id, type, title, person, inviteToken) {
     activeConversationTitle = title || GLOBAL_TITLE;
     activeConversationPerson = person || null;
     activeConversationInviteToken = String(inviteToken || chatConversations.find(item => item.id === activeConversationId)?.invite_token || "");
-    restoreWorthItChatDraft(getWorthItChatDraftKey());
+    restoreWorthItChatDraft(worthItChatDraftKey());
     syncChatUrlForConversation(activeConversationType, activeConversationId, activeConversationPerson, activeConversationInviteToken);
     if (window.matchMedia("(max-width: 540px)").matches) $("worthItChatWindow")?.classList.remove("is-mobile-sidebar");
     document.querySelectorAll(".worth-it-chat-side-item").forEach(node => node.classList.toggle("is-active", node.id === "worthItGlobalChatBtn" && activeConversationType === "global"));
@@ -2299,8 +2299,13 @@ function clearWorthItChatDrafts() {
     pendingMediaUrl = "";
     pendingMediaType = "";
     pendingReplyQuote = null;
-    setPendingMedia(null, "", "");
-    clearWorthItChatReplyQuote();
+    const input = $("worthItChatInput");
+    if (input) { input.value = ""; input.style.height = "auto"; }
+    const host = $("worthItChatAttachmentPreview");
+    if (host) { host.replaceChildren(); host.hidden = true; }
+    renderWorthItChatReplyPreview();
+    updateCharacterCount();
+    renderWorthItChatComposerPreview();
 }
 function setPendingMedia(file, url, type) {
     const nextUrl = url || "";
