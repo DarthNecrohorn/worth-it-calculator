@@ -14,7 +14,7 @@ test("each conversation has independent text, reply, and attachment draft state"
     assert.match(chat, /function worthItChatDraftKey\(userId = chatUser\?\.id, type = activeConversationType, id = activeConversationId\)/);
     assert.match(chat, /function saveActiveWorthItChatDraft\(\)/);
     assert.match(chat, /function restoreWorthItChatDraft\(key\)/);
-    assert.match(chat, /saveActiveWorthItChatDraft\(\);\s*closeWorthItChatPickers\(\);\s*activeConversationId = id \|\| null;\s*activeConversationType = type \|\| "global";/);
+    assert.match(chat, /const nextType = type \|\| "global";[\s\S]*?const nextId = id \|\| null;[\s\S]*?saveActiveWorthItChatDraft\(\);\s*closeWorthItChatPickers\(\);\s*activeConversationId = nextId;\s*activeConversationType = nextType;/);
     assert.match(chat, /restoreWorthItChatDraft\(worthItChatDraftKey\(\)\)/);
     assert.match(chat, /text: String\(input\?\.value \|\| ""\)/);
     assert.match(chat, /mediaFile: pendingMediaFile \|\| null/);
