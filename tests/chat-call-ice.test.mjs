@@ -9,7 +9,7 @@ const BASE_ENV = {
     CLOUDFLARE_TURN_KEY_ID: "0123456789abcdef0123456789abcdef",
     CLOUDFLARE_TURN_KEY_API_TOKEN: "turn-key-secret-token"
 };
-function request({ origin = SITE_ORIGIN, method = "GET", token = "test-session-token", url = SITE_ORIGIN + "/api/chat-call-ice" } = {}) {
+function request({ origin = SITE_ORIGIN, method = "GET", token = "test-session-token", url = SITE_ORIGIN + "/api/chat-call-ice?conversationId=00000000-0000-4000-8000-000000000100" } = {}) {
     const headers = {};
     if (origin) headers.Origin = origin;
     if (token) headers.Authorization = "Bearer " + token;
@@ -25,6 +25,14 @@ function mockFetch({ validUser = true, relayStatus = 201, payload } = {}) {
                 status: validUser ? 200 : 401,
                 headers: { "Content-Type": "application/json" }
             });
+        }
+        if (url.endsWith("/rest/v1/rpc/get_worth_it_chat_conversations")) {
+            return new Response(JSON.stringify([{ id: "00000000-0000-4000-8000-000000000100", type: "direct" }]), {
+                status: 200, headers: { "Content-Type": "application/json" }
+            });
+        }
+        if (url.endsWith("/rest/v1/rpc/can_access_worth_it_chat_media")) {
+            return new Response("true", { status: 200, headers: { "Content-Type": "application/json" } });
         }
         if (url.includes("/credentials/generate-ice-servers")) {
             return new Response(JSON.stringify(payload || {
@@ -94,4 +102,13 @@ test("call ICE endpoint rejects cross-origin requests and unsupported methods", 
         request: request({ method: "POST" }), env: BASE_ENV
     }));
     assert.equal(badMethod.status, 405);
+});
+
+test("call ICE endpoint does not issue credentials for groups or chats without current friendship", async () => {
+    const nonFriend = mockFetch({ payload: [] });
+    const blocked = await withFetch(nonFriend.fetch, () => onRequest({
+        request: request(), env: BASE_ENV
+    }));
+    assert.equal(blocked.status, 403);
+    assert.equal(nonFriend.calls.some(call => call.url.includes("/credentials/generate-ice-servers")), false);
 });

@@ -727,7 +727,7 @@ function bindPeerToStream(stream) {
         if (hasVideo) void localVideo.play().catch(() => {});
     }
 }
-async function getCallIceConfig() {
+async function getCallIceConfig(conversationId) {
     if (cachedCallIceServers && Date.now() < cachedCallIceServersUntil) {
         return { iceServers: cachedCallIceServers, relayAvailable: true };
     }
@@ -736,9 +736,9 @@ async function getCallIceConfig() {
         const sessionResult = await $client()?.auth?.getSession?.();
         accessToken = String(sessionResult?.data?.session?.access_token || "");
     } catch (_) {}
-    if (!accessToken) return { iceServers: FALLBACK_ICE_SERVERS, relayAvailable: false };
+    if (!accessToken || !conversationId) return { iceServers: FALLBACK_ICE_SERVERS, relayAvailable: false };
     try {
-        const response = await fetch("/api/chat-call-ice", {
+        const response = await fetch("/api/chat-call-ice?conversationId=" + encodeURIComponent(conversationId), {
             method: "GET", credentials: "same-origin", cache: "no-store",
             headers: { "Authorization": "Bearer " + accessToken, "Accept": "application/json" }
         });
@@ -954,7 +954,7 @@ async function startCall(type) {
     callSetupInProgress = true;
     try {
         ensureRemoteAudioProcessor();
-        const iceConfig = await getCallIceConfig();
+        const iceConfig = await getCallIceConfig(ctx.conversationId);
         const media = await acquireCallMedia(type);
         localStream = media.stream;
         activeCall = {
@@ -1007,7 +1007,7 @@ async function acceptCall() {
     callSetupInProgress = true;
     try {
         ensureRemoteAudioProcessor();
-        const iceConfig = await getCallIceConfig();
+        const iceConfig = await getCallIceConfig(call.conversation_id);
         const media = await acquireCallMedia(type);
         localStream = media.stream;
         activeCall = {

@@ -46,6 +46,27 @@ async function verifyUser(config, token) {
     const user = await response.json();
     return user && user.id ? user : null;
 }
+async function verifyFriendDirectConversation(config, token, conversationId) {
+    const headers = {
+        "apikey": config.publishableKey,
+        "Authorization": "Bearer " + token,
+        "Accept": "application/json",
+        "Content-Type": "application/json"
+    };
+    const chatsResponse = await fetch(config.supabaseUrl + "/rest/v1/rpc/get_worth_it_chat_conversations", {
+        method: "POST", headers, body: "{}"
+    });
+    if (!chatsResponse.ok) return false;
+    const chats = await chatsResponse.json();
+    if (!Array.isArray(chats) || !chats.some(chat =>
+        String(chat?.id || "") === conversationId && chat?.type === "direct"
+    )) return false;
+    const accessResponse = await fetch(config.supabaseUrl + "/rest/v1/rpc/can_access_worth_it_chat_media", {
+        method: "POST", headers, body: JSON.stringify({ p_conversation_id: conversationId })
+    });
+    if (!accessResponse.ok) return false;
+    return (await accessResponse.json()) === true;
+}
 function filterIceServers(input) {
     if (!Array.isArray(input)) return [];
     return input.map(server => {
@@ -93,6 +114,15 @@ export async function onRequest(context) {
     try { user = await verifyUser(config, token); }
     catch (_) { return json({ error: "Could not verify your session." }, 502, origin); }
     if (!user) return json({ error: "Your session has expired. Sign in again." }, 401, origin);
+
+    const conversationId = new URL(request.url).searchParams.get("conversationId") || "";
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(conversationId)) {
+        return json({ error: "A valid private friend conversation is required." }, 400, origin);
+    }
+    let isFriendConversation;
+    try { isFriendConversation = await verifyFriendDirectConversation(config, token, conversationId); }
+    catch (_) { return json({ error: "Could not verify the friend conversation." }, 502, origin); }
+    if (!isFriendConversation) return json({ error: "Calls are available only in a private chat with an accepted friend." }, 403, origin);
 
     let response;
     try {
