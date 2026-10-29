@@ -68,17 +68,19 @@ function makeConversationWallpaper(contextValue, theme) {
     const order = CHAT_WALLPAPER_MOTIFS.map((_, index) => index);
     for (let i = order.length - 1; i > 0; i--) { const j = Math.floor(random() * (i + 1)); [order[i], order[j]] = [order[j], order[i]]; }
     const palette = theme === "light" ? CHAT_WALLPAPER_LIGHT_PALETTE : CHAT_WALLPAPER_DARK_PALETTE;
-    const opacity = theme === "light" ? ".27" : ".24";
+    const opacity = theme === "light" ? ".20" : ".18";
     const cells = [];
-    for (let i = 0; i < 36; i++) {
+    // 8×8 cells produce many more, smaller doodles. Each outline is scaled
+    // inside its own cell before rotation; the remaining margins prevent overlaps.
+    for (let i = 0; i < 64; i++) {
         let motifIndex = order[i % order.length];
         if (i > 0 && i % order.length === 0) motifIndex = order[(i + Math.floor(random() * (order.length - 1)) + 1) % order.length];
-        const row = Math.floor(i / 6), col = i % 6;
-        const angle = Math.round((random() * 4 - 2) * 10) / 10;
-        const x = col * 140 + Math.round(random() * 6 - 3);
-        const y = row * 140 + Math.round(random() * 6 - 3);
+        const row = Math.floor(i / 8), col = i % 8;
+        const angle = Math.round((random() * 34 - 17) * 10) / 10;
+        const x = col * 105 + Math.round(random() * 4 - 2);
+        const y = row * 105 + Math.round(random() * 4 - 2);
         const color = palette[Math.floor(random() * palette.length)];
-        cells.push('<g transform="translate(' + x + ' ' + y + ')" stroke="' + color + '" stroke-opacity="' + opacity + '"><g transform="translate(70 70) rotate(' + angle + ') translate(-70 -70)">' + CHAT_WALLPAPER_MOTIFS[motifIndex] + '</g></g>');
+        cells.push('<g transform="translate(' + x + ' ' + y + ')" stroke="' + color + '" stroke-opacity="' + opacity + '"><g transform="translate(70 70) rotate(' + angle + ') scale(.62) translate(-70 -70)">' + CHAT_WALLPAPER_MOTIFS[motifIndex] + '</g></g>');
     }
     return '<svg xmlns="http://www.w3.org/2000/svg" width="840" height="840" viewBox="0 0 840 840" fill="none" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">' + cells.join("") + '</svg>';
 }
@@ -318,7 +320,7 @@ function setCallMode(type) {
     if (remoteVideo) remoteVideo.hidden = true;
     if (localVideo) localVideo.hidden = true;
     const toggleCamera = $("worthItChatCallCameraBtn");
-    if (toggleCamera) toggleCamera.hidden = audioOnly;
+    if (toggleCamera) toggleCamera.hidden = type !== "video";
 }
 function openCallWindow(title, detail, type) {
     // A new call must never be hidden by a stale close timer from the previous call.
