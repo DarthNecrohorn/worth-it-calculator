@@ -63,6 +63,7 @@ html[data-theme="light"].worth-it-initial-paint::before {
 </script>
 
 <link rel="stylesheet" href="style.css?v=worthit-home-ai-mobile-20261029a">
+<link rel="stylesheet" href="chat-enhancements.css?v=worthit-chat-enhancements-20261029a">
 <link rel="stylesheet" href="chat-actions.css?v=chat-message-actions-20261028c">
 <link rel="stylesheet" href="chat-delete-confirm.css?v=chat-delete-confirm-20261028b">
 <link rel="stylesheet" href="chat-realtime.css?v=chat-realtime-typing-20261028b">
@@ -270,15 +271,33 @@ html[data-theme="light"].worth-it-initial-paint::before {
                         </div>
                         <div class="worth-it-chat-header-actions">
                             <button type="button" class="worth-it-chat-notification-btn is-enabled worth-it-chat-header-notifications" id="worthItChatHeaderNotifications" title="Turn off notifications" aria-label="Turn off notifications" aria-pressed="false"><span class="worth-it-chat-notification-icon" aria-hidden="true">🔔</span><span class="worth-it-chat-notification-label">Turn off notifications</span></button>
+                            <button type="button" class="worth-it-chat-icon-btn worth-it-chat-enhancement-btn" id="worthItChatMessageSearchBtn" title="Search messages in this conversation" aria-label="Search messages" aria-expanded="false" aria-controls="worthItChatSearchPanel">⌕</button>
+                            <button type="button" class="worth-it-chat-icon-btn worth-it-chat-enhancement-btn" id="worthItChatAudioCallBtn" title="Start voice call with friend" aria-label="Start voice call" hidden>☎</button>
+                            <button type="button" class="worth-it-chat-icon-btn worth-it-chat-enhancement-btn" id="worthItChatVideoCallBtn" title="Start video call with friend" aria-label="Start video call" hidden>▣</button>
                             <button type="button" class="worth-it-chat-icon-btn" id="worthItChatShareInviteBtn" title="Copy group invite link" aria-label="Copy group invite link" hidden>🔗</button>
                             <button type="button" class="worth-it-chat-icon-btn worth-it-chat-fullscreen-btn" id="worthItChatFullscreenBtn" onclick="toggleWorthItChatFullscreen(event)" title="Expand chat" aria-label="Expand chat" aria-pressed="false">⛶</button>
                             <button type="button" class="worth-it-chat-icon-btn" onclick="toggleWorthItChat(event)" title="Close chat" aria-label="Close chat">✕</button>
                         </div>
                     </header>
+                    <section class="worth-it-chat-search-panel" id="worthItChatSearchPanel" hidden aria-label="Search messages in this conversation">
+                        <form id="worthItChatMessageSearchForm" class="worth-it-chat-search-form" role="search">
+                            <label class="worth-it-chat-search-label" for="worthItChatMessageSearchInput">Search this conversation</label>
+                            <input type="search" id="worthItChatMessageSearchInput" maxlength="100" minlength="2" placeholder="Enter a word or phrase…" autocomplete="off" spellcheck="false">
+                            <button type="submit" class="worth-it-chat-search-submit">Search</button>
+                            <button type="button" class="worth-it-chat-search-close" id="worthItChatSearchCloseBtn" aria-label="Close message search">×</button>
+                        </form>
+                        <p id="worthItChatSearchStatus" class="worth-it-chat-search-status" role="status" aria-live="polite">Enter at least 2 characters to search.</p>
+                        <div id="worthItChatSearchResults" class="worth-it-chat-search-results"></div>
+                    </section>
                     <div class="worth-it-chat-safety-note"><span>✦</span> Be respectful. Messages are filtered for abusive language, extremist symbols and glitch text.</div>
                     <div class="worth-it-chat-messages" id="worthItChatMessages" aria-live="polite"><div class="worth-it-chat-empty"><span>✦</span><strong>Welcome to Worth It Chat</strong><p>Choose a friend or start a conversation with the community.</p></div></div>
                     <div class="worth-it-chat-typing" id="worthItChatTyping" role="status" aria-live="polite" hidden></div>
                     <div class="worth-it-chat-compose-wrap">
+                        <div class="worth-it-chat-reply-preview" id="worthItChatReplyPreview" hidden>
+                            <div class="worth-it-chat-reply-accent" aria-hidden="true"></div>
+                            <div class="worth-it-chat-reply-copy"><strong id="worthItChatReplyAuthor"></strong><span id="worthItChatReplyText"></span></div>
+                            <button type="button" class="worth-it-chat-reply-close" id="worthItChatReplyCloseBtn" title="Cancel reply" aria-label="Cancel reply">×</button>
+                        </div>
                         <div class="worth-it-chat-attachment-preview" id="worthItChatAttachmentPreview" hidden></div>
                         <div class="worth-it-chat-compose">
                             <div class="worth-it-chat-picker-dock" id="worthItChatPickerDock">
@@ -291,6 +310,7 @@ html[data-theme="light"].worth-it-initial-paint::before {
                                 </div>
                                 
                             </div>
+                            <button type="button" class="worth-it-chat-voice-btn" id="worthItChatVoiceBtn" title="Record a voice message" aria-label="Record a voice message">🎙</button>
                             <div class="worth-it-chat-input-preview-wrap"><div id="worthItChatInputPreview" class="worth-it-chat-input-preview is-empty" aria-hidden="true">Write a message…</div><textarea id="worthItChatInput" maxlength="500" rows="1" placeholder="Write a message…" aria-label="Chat message" spellcheck="true"></textarea></div>
                             <button type="button" class="worth-it-chat-send-btn" id="worthItChatSendBtn" onclick="sendWorthItChatMessage()">Send <span>➤</span></button>
                             <section class="worth-it-chat-picker-panel worth-it-chat-emoji-picker" id="worthItChatEmojiPicker" role="dialog" aria-label="Choose an emoji" hidden>
@@ -5176,5 +5196,28 @@ if($("carResults")){
 <script src="/guest-mode.js?v=chat-route-preserve-20261028a"></script>
 <script src="/routing.js?v=profile-navigation-hardening-20261028b"></script>
 
+    <section class="worth-it-chat-call-overlay" id="worthItChatCallOverlay" role="dialog" aria-modal="true" aria-labelledby="worthItChatCallTitle" aria-hidden="true" hidden>
+        <div class="worth-it-chat-call-card">
+            <div class="worth-it-chat-call-brand"><span aria-hidden="true">✦</span> WORTH IT CALL</div>
+            <h2 id="worthItChatCallTitle">Worth It Call</h2>
+            <p id="worthItChatCallStatus" role="status" aria-live="polite">Preparing your call…</p>
+            <div class="worth-it-chat-call-stage">
+                <video id="worthItChatRemoteVideo" autoplay playsinline hidden aria-label="Friend's video"></video>
+                <video id="worthItChatLocalVideo" autoplay muted playsinline hidden aria-label="Your camera preview"></video>
+                <audio id="worthItChatRemoteAudio" autoplay></audio>
+                <div class="worth-it-chat-call-avatar" aria-hidden="true">✦</div>
+            </div>
+            <div class="worth-it-chat-call-controls">
+                <button type="button" id="worthItChatCallAcceptBtn" class="worth-it-chat-call-accept" hidden>✓ Accept</button>
+                <button type="button" id="worthItChatCallRejectBtn" class="worth-it-chat-call-reject" hidden>✕ Decline</button>
+                <button type="button" id="worthItChatCallMuteBtn" class="worth-it-chat-call-secondary" hidden aria-pressed="false">🎙 Mute</button>
+                <button type="button" id="worthItChatCallCameraBtn" class="worth-it-chat-call-secondary" hidden aria-pressed="false">📷 Camera off</button>
+                <button type="button" id="worthItChatCallEndBtn" class="worth-it-chat-call-end" hidden>☎ End call</button>
+            </div>
+            <p class="worth-it-chat-call-privacy">Calls are available only between accepted friends in private chats. Your browser will ask before using your microphone or camera.</p>
+        </div>
+    </section>
+    
+<script src="/chat-enhancements.js?v=worthit-chat-enhancements-20261029a"></script>
 </body>
 </html>
