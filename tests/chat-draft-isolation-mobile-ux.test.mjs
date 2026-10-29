@@ -171,17 +171,20 @@ test("private and group deep links do not render Global Chat while auth is resol
     assert.match(calls, /const canvasWidth = Math\.max\(600, Math\.min\(2400/);
     assert.match(calls, /const canvasHeight = Math\.round\(canvasWidth \* 1\.5\)/);
     assert.match(calls, /const scales = Array\.from/);
-    assert.match(calls, /scales\[0\] = \.54 \+ random\(\) \* \.05/);
-    assert.match(calls, /scales\[1\] = 1\.04 \+ random\(\) \* \.09/);
+    assert.match(calls, /scales\[0\] = \.56 \+ random\(\) \* \.07/);
+    assert.match(calls, /scales\[1\] = 1\.02 \+ random\(\) \* \.11/);
     assert.match(calls, /const overlaps = placements\.some/);
-    assert.match(calls, /radius \+ existing\.radius \+ 8/);
+    assert.match(calls, /radius \+ existing\.radius \+ 12/);
     assert.match(calls, /const usedMotifs = new Set\(\)/);
+    assert.match(calls, /const targetCount = Math\.max\(5/);
+    assert.match(calls, /const targetAccents = Math\.max\(9, Math\.min\(20/);
+    assert.match(calls, /const scale = \.18 \+ random\(\) \* \.22/);
     assert.match(calls, /data-wallpaper-doodle="1"/);
     assert.match(calls, /data-wallpaper-accent="1"/);
-    assert.match(calls, /doodle\.radius \+ markerRadius \+ 8/);
-    assert.match(calls, /markerRadius \+ existing\.radius \+ 4/);
+    assert.match(calls, /radius \+ doodle\.radius \+ 12/);
+    assert.match(calls, /radius \+ existing\.radius \+ 8/);
     assert.match(calls, /const CHAT_WALLPAPER_GEOMETRIES = \[/);
-    assert.match(calls, /const geometryOpacity = theme === "light" \? "\.40" : "\.32"/);
+    assert.match(calls, /const smallOpacity = theme === "light" \? "\.52" : "\.43"/);
     assert.match(calls, /wallpaperThemeObserver\.observe/);
     assert.match(calls, /wallpaperSurfaceObserver\.observe\(wallpaperSurface\)/);
     assert.match(calls, /surface\.style\.setProperty\("--worthit-chat-wallpaper-size"/);
@@ -199,9 +202,9 @@ test("private and group deep links do not render Global Chat while auth is resol
 
 test("the broken audioOnly reference is removed and asset caches point to the new builds", () => {
     assert.doesNotMatch(calls, /audioOnly/);
-    assert.match(html, /chat-ui\.js\?v=chat-message-profile-hit-targets-20261029a/);
-    assert.match(html, /chat-enhancements\.js\?v=chat-media-lightbox-wallpaper-20261029a/);
-    assert.match(html, /chat-enhancements\.css\?v=chat-small-doodles-20261029a/);
+    assert.match(html, /chat-ui\.js\?v=chat-gif-preview-fix-20261029a/);
+    assert.match(html, /chat-enhancements\.js\?v=chat-wallpaper-gap-generator-20261029b/);
+    assert.match(html, /chat-enhancements\.css\?v=chat-wallpaper-gap-layout-20261029b/);
     assert.match(enhancementCss, /background-repeat:no-repeat,repeat-y!important/);
     assert.match(html, /chat-ux-polish\.css\?v=chat-message-profile-hit-targets-20261029a/);
     assert.match(html, /ai-ui\.js\?v=worthit-ai-overlay-20261029b/);
