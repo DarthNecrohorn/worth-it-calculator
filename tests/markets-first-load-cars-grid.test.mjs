@@ -76,7 +76,7 @@ test("Recently Viewed and Favorites use two compact columns on mobile", () => {
 });
 
 test("the stylesheet version is refreshed for the current UI improvements", () => {
-    assert.ok(html.includes("style.css?v=email-verification-ai-20261028a"));
+    assert.ok(html.includes("style.css?v=email-verification-ai-20261029b"));
 });
 
 
