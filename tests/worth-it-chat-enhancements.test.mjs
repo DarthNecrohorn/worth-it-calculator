@@ -29,8 +29,8 @@ test("chat enhancement controls are present, accessible, and loaded separately",
         "worthItChatCallSpeakerBtn", "worthItChatCallCameraBtn",
         "worthItChatRemoteVideo", "worthItChatLocalVideo", "worthItChatRemoteAudio"
     ]) assert.match(html, new RegExp('id="' + id + '"'), "missing chat UI element " + id);
-    assert.match(html, /chat-enhancements\.css\?v=worthit-chat-enhancements-organic-wallpaper-20261029a/);
-    assert.match(html, /chat-enhancements\.js\?v=worthit-chat-enhancements-organic-wallpaper-20261029a/);
+    assert.match(html, /chat-enhancements\.css\?v=chat-media-lightbox-wallpaper-20261029a/);
+    assert.match(html, /chat-enhancements\.js\?v=chat-media-lightbox-wallpaper-20261029a/);
     assert.match(css, /WORTH IT Chat additions|Worth It Chat additions/);
     assert.match(css, /worth-it-chat-reply-preview/);
     assert.match(css, /worth-it-chat-call-overlay/);
@@ -185,7 +185,15 @@ test("chat follow-up fixes keep search prefix-only, keep wallpaper stationary wh
 });
 
 
-test("chat wallpaper scatters unique motifs with visibly varied sizes", () => {
+test("chat images open in a responsive full-screen viewer and media bubbles do not stretch", () => {
+     assert.match(chat, /function openWorthItChatImageLightbox\(src, alt\)/);
+     assert.match(chat, /img\.addEventListener\("click", \(\) => openWorthItChatImageLightbox\(message\.media_url, img\.alt\)\)/);
+     assert.match(chat, /function handleWorthItChatLightboxKeydown\(event\)/);
+     assert.match(css, /\.worth-it-chat-image-lightbox-close/);
+     assert.match(css, /\.worth-it-chat-bubble:has\(\.worth-it-chat-media\)\{width:fit-content!important/);
+   });
+ 
+ test("chat wallpaper scatters unique motifs with visibly varied sizes", () => {
     assert.match(client, /const CHAT_WALLPAPER_MOTIFS = \[/);
     assert.match(client, /function makeConversationWallpaper\(contextValue, theme, requestedWidth\)/);
     assert.match(client, /function applyChatWallpaper\(contextValue\)/);
