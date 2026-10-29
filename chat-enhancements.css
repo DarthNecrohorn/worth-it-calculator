@@ -295,3 +295,29 @@ html[data-theme="light"] #worthItChatVoiceBtn{
     html[data-theme="light"] .worth-it-chat-messages{background-size:auto,840px 840px!important}
     #worthItChatAudioCallBtn>.worth-it-chat-header-icon,#worthItChatVideoCallBtn>.worth-it-chat-header-icon{width:17px!important;height:17px!important}
 }
+
+
+/* Per-conversation doodle wallpaper: one motif per cell, shuffled and gently
+   rotated/coloured with a repeat pattern. Cell boundaries keep outlines apart. */
+.worth-it-chat-messages{
+    background-image:linear-gradient(160deg,rgba(11,18,40,.02),rgba(13,24,44,.01)),var(--worthit-chat-wallpaper-image,none)!important;
+    background-size:auto,840px 840px!important;
+    background-position:0 0,var(--worthit-chat-wallpaper-position,0 0)!important;
+    background-repeat:no-repeat,repeat!important;background-attachment:scroll,local!important;
+    background-color:rgba(8,15,31,.12)!important;
+}
+html[data-theme="light"] .worth-it-chat-messages{
+    background-image:linear-gradient(160deg,rgba(248,250,255,.06),rgba(237,244,255,.02)),var(--worthit-chat-wallpaper-image,none)!important;
+    background-size:auto,840px 840px!important;background-position:0 0,var(--worthit-chat-wallpaper-position,0 0)!important;
+    background-repeat:no-repeat,repeat!important;background-attachment:scroll,local!important;
+    background-color:rgba(248,250,255,.38)!important;
+}
+.worth-it-chat-messages::before,.worth-it-chat-messages::after{display:none!important;content:none!important;background:none!important;background-image:none!important}
+html[data-theme="light"] .worth-it-chat-messages::before,html[data-theme="light"] .worth-it-chat-messages::after{display:none!important;content:none!important}
+.worth-it-chat-control-icon{display:block;width:17px;height:17px;flex:0 0 17px;fill:none!important;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;pointer-events:none}
+.worth-it-chat-control-icon *{fill:none!important;stroke:currentColor}
+.worth-it-chat-mute-slash{display:none}
+#worthItChatCallMuteBtn.is-muted .worth-it-chat-mute-slash{display:block}
+#worthItChatCallMuteBtn{display:inline-flex;align-items:center;justify-content:center;gap:7px}
+#worthItChatCallMuteBtn[hidden]{display:none!important}
+@media(max-width:540px){.worth-it-chat-messages{background-size:auto,700px 700px!important}html[data-theme="light"] .worth-it-chat-messages{background-size:auto,700px 700px!important}}
