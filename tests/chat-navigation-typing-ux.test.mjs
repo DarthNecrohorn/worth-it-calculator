@@ -206,6 +206,6 @@ test("per-message Copy action uses the two-page SVG icon and retains its text-co
     assert.match(actionsCss, /\.worth-it-chat-copy-action/);
     assert.match(html, /chat-actions\.css\?v=chat-message-actions-20261028c/);
     assert.match(html, /chat-realtime\.css\?v=chat-realtime-typing-20261028b/);
-    assert.match(html, /chat-ui\.js\?v=chat-media-lightbox-20261029a/);
+    assert.match(html, /chat-ui\\.js\\?v=worthit-original-animation-library-200-20261029a/);
     assert.match(html, /routing\.js\?v=profile-navigation-hardening-20261028b/);
 });
