@@ -36,6 +36,10 @@
         "basic", "advanced", "scientific"
     ]);
 
+    const GUEST_BILLABLE_CALCULATORS = new Set(Array.from(BUILT_IN_CALCULATORS).filter(key => !["basic", "advanced", "scientific"].includes(key)));
+
+    let activeCalculatorKey = "";
+    let guestReturnFocus = null;
     let authStateKnown = false;
     let isAuthenticated = false;
     let autoPromptActive = false;
@@ -216,6 +220,7 @@
             return;
         }
 
+        guestReturnFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
         guestLimitsOpen = true;
         checkbox.checked = false;
         continueButton.disabled = true;
@@ -230,6 +235,7 @@
         const overlay = $(GUEST_OVERLAY_ID);
         guestLimitsOpen = false;
         if (overlay) {
+            if (overlay.contains(document.activeElement) && document.activeElement instanceof HTMLElement) document.activeElement.blur();
             overlay.hidden = true;
             overlay.setAttribute("aria-hidden", "true");
         }
@@ -239,7 +245,17 @@
             autoPromptActive = false;
             if (typeof window.openAuthModal === "function") window.openAuthModal("signup");
             installSignupGuestChoice();
-            window.setTimeout(installSignupGuestChoice, 0);
+            window.setTimeout(() => {
+                installSignupGuestChoice();
+                const target = $("authEmail") || $("authSubmitBtn");
+                if (target && !target.disabled) target.focus();
+            }, 50);
+        } else {
+            const target = guestReturnFocus;
+            guestReturnFocus = null;
+            if (target?.isConnected && !target.closest("[hidden]") && !target.closest("[aria-hidden='true']")) {
+                window.setTimeout(() => target.focus(), 0);
+            }
         }
     }
 
@@ -370,7 +386,10 @@
         if (typeof original !== "function" || original.__worthItGuestCalculatorGuard) return;
         const wrapped = function (type, ...args) {
             const key = String(type == null ? "" : type).toLowerCase();
-            if (BUILT_IN_CALCULATORS.has(key)) return original.call(this, type, ...args);
+            if (BUILT_IN_CALCULATORS.has(key)) {
+                activeCalculatorKey = key;
+                return original.call(this, type, ...args);
+            }
             return guardUnknownCalculator(this, original, type, args);
         };
         wrapped.__worthItGuestCalculatorGuard = true;
@@ -380,11 +399,15 @@
     function guardUnknownCalculator(context, original, type, args) {
         const reason = "User-created and community calculators require a Worth It account.";
         if (authStateKnown) {
-            return isAuthenticated ? original.call(context, type, ...args) : denyGuestAction(reason);
+            if (!isAuthenticated) return denyGuestAction(reason);
+            activeCalculatorKey = String(type == null ? "" : type).toLowerCase();
+            return original.call(context, type, ...args);
         }
-        return resolveAuthState().then(user => user
-            ? original.call(context, type, ...args)
-            : denyGuestAction(reason));
+        return resolveAuthState().then(user => {
+            if (!user) return denyGuestAction(reason);
+            activeCalculatorKey = String(type == null ? "" : type).toLowerCase();
+            return original.call(context, type, ...args);
+        });
     }
 
     function guardUGCButtons(event) {
@@ -558,7 +581,9 @@
             showAccountPrompt: () => showSignupModal(false),
             showGuestLimitations: showGuestLimits,
             getNextPromptAt: nextPromptAt,
-            allowedDefaultCalculators: Object.freeze(Array.from(BUILT_IN_CALCULATORS))
+            allowedDefaultCalculators: Object.freeze(Array.from(GUEST_BILLABLE_CALCULATORS)),
+            isBillableCalculator: type => GUEST_BILLABLE_CALCULATORS.has(String(type || "").toLowerCase()),
+            getActiveCalculator: () => activeCalculatorKey
         });
     }
 
