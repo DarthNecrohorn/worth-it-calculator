@@ -103,7 +103,7 @@ begin
             when 'premium' then 3000
             else 1000
         end;
-        v_added := least(v_reward, greatest(0, 30000 - v_wallet.balance_milli));
+        v_added := v_reward;
 
         update private.worth_it_calc_wallets
         set balance_milli = balance_milli + v_added,
@@ -119,7 +119,7 @@ begin
             ) values (
                 v_user_id, 'daily_reward', v_added, v_wallet.balance_milli,
                 'completed', 'Daily CALC reward',
-                jsonb_build_object('nominal_reward_milli', v_reward, 'daily_cap_milli', 30000)
+                jsonb_build_object('nominal_reward_milli', v_reward, 'stacking', true)
             );
         end if;
     end if;
@@ -133,7 +133,7 @@ begin
         'premium_plan', v_wallet.premium_plan,
         'premium_expires_at', v_wallet.premium_expires_at,
         'daily_reward', round(v_reward::numeric / 1000, 3),
-        'daily_cap', 30,
+        'daily_cap', null,
         'reward_claimed_today', v_wallet.last_daily_reward_on = v_today
     );
 end;
@@ -160,7 +160,7 @@ begin
         raise exception 'Authentication required' using errcode = '28000';
     end if;
     if p_request_id is null then raise exception 'Request ID is required'; end if;
-    if p_reason not in ('calculator','ai_chat') then raise exception 'Unsupported CALC spend reason'; end if;
+    if p_reason is null or p_reason not in ('calculator','ai_chat') then raise exception 'Unsupported CALC spend reason'; end if;
     v_kind := case p_reason when 'calculator' then 'calculator_spend' else 'ai_chat_spend' end;
 
     select * into v_existing
