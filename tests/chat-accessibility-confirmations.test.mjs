@@ -35,7 +35,7 @@ test("light-theme chat text, sidebar labels and empty states have readable contr
     }
     assert.match(style, /html\[data-theme="light"\] \.worth-it-chat-category-btn\.is-active[\s\S]*?color: #312e81 !important/);
     assert.match(style, /html\[data-theme="light"\] \.worth-it-chat-media-tab\.is-active[\s\S]*?color: #312e81 !important/);
-    assert.match(html, /style\.css\?v=chat-media-lightbox-20261029a/);
+    assert.match(html, /style\.css\?v=chat-image-lightbox-close-glyph-20261030a/);
 });
 
 test("emoji and GIF picker close X glyph moves up two pixels without moving its square", () => {
