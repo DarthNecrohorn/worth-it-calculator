@@ -9,10 +9,12 @@ grant usage on schema private to postgres, service_role;
 create table if not exists private.worth_it_calc_wallets (
     user_id uuid primary key references auth.users(id) on delete cascade,
     balance_milli integer not null default 0 check (balance_milli >= 0),
+    wip_balance_milli integer not null default 0 check (wip_balance_milli >= 0),
     premium_plan text not null default 'free'
         check (premium_plan in ('free','premium_lite','premium')),
     premium_expires_at timestamptz,
     last_daily_reward_on date,
+    last_wip_reward_on date,
     created_at timestamptz not null default now(),
     updated_at timestamptz not null default now()
 );
@@ -24,6 +26,7 @@ create table if not exists private.worth_it_calc_transactions (
         'daily_reward','calculator_spend','ai_chat_spend',
         'premium_lite_purchase','refund','manual_adjustment','calc_pack_purchase'
     )),
+    currency text not null default 'CALC',
     amount_milli integer not null,
     balance_after_milli integer not null check (balance_after_milli >= 0),
     status text not null default 'completed'
@@ -33,6 +36,29 @@ create table if not exists private.worth_it_calc_transactions (
     metadata jsonb not null default '{}'::jsonb,
     created_at timestamptz not null default now()
 );
+
+-- Keep this migration safe to re-run against a wallet schema created by an
+-- earlier draft of this economy migration.
+alter table private.worth_it_calc_wallets
+    add column if not exists wip_balance_milli integer not null default 0
+        check (wip_balance_milli >= 0);
+alter table private.worth_it_calc_wallets
+    add column if not exists last_wip_reward_on date;
+alter table private.worth_it_calc_transactions
+    add column if not exists currency text not null default 'CALC';
+do $$
+begin
+    if not exists (
+        select 1 from pg_constraint
+        where conname = 'worth_it_calc_transactions_currency_check'
+          and conrelid = 'private.worth_it_calc_transactions'::regclass
+    ) then
+        alter table private.worth_it_calc_transactions
+            add constraint worth_it_calc_transactions_currency_check
+            check (currency in ('CALC','WIP'));
+    end if;
+end;
+$$;
 
 create unique index if not exists worth_it_calc_transactions_request_uidx
     on private.worth_it_calc_transactions(user_id, request_id)
@@ -64,6 +90,8 @@ declare
     v_today date := (now() at time zone 'UTC')::date;
     v_reward integer := 0;
     v_added integer := 0;
+    v_wip_reward integer := 0;
+    v_wip_added integer := 0;
     v_stale_refund integer := 0;
 begin
     if v_user_id is null then
@@ -75,7 +103,9 @@ begin
             'ok', true, 'balance', null, 'balance_milli', null,
             'unlimited_balance', true, 'is_owner', true,
             'premium_plan', 'owner', 'premium_expires_at', null,
-            'daily_reward', 0, 'reward_claimed_today', true
+            'daily_reward', 0, 'reward_claimed_today', true,
+            'wip_balance', null, 'wip_balance_milli', null,
+            'daily_wip_reward', 0, 'wip_reward_claimed_today', true
         );
     end if;
 
@@ -156,17 +186,44 @@ begin
         end if;
     end if;
 
+    -- WIP is a separate activity currency. Every signed-in member account
+    -- receives one WIP per UTC day regardless of subscription tier.
+    if v_wallet.last_wip_reward_on is distinct from v_today then
+        v_wip_reward := 1000;
+        v_wip_added := v_wip_reward;
+
+        update private.worth_it_calc_wallets
+        set wip_balance_milli = wip_balance_milli + v_wip_added,
+            last_wip_reward_on = v_today,
+            updated_at = now()
+        where user_id = v_user_id
+        returning * into v_wallet;
+
+        insert into private.worth_it_calc_transactions(
+            user_id, kind, currency, amount_milli, balance_after_milli,
+            status, description, metadata
+        ) values (
+            v_user_id, 'daily_reward', 'WIP', v_wip_added, v_wallet.wip_balance_milli,
+            'completed', 'Daily WIP activity reward',
+            jsonb_build_object('nominal_reward_milli', v_wip_reward, 'stacking', true)
+        );
+    end if;
+
     return jsonb_build_object(
         'ok', true,
         'balance', round(v_wallet.balance_milli::numeric / 1000, 3),
         'balance_milli', v_wallet.balance_milli,
+        'wip_balance', round(v_wallet.wip_balance_milli::numeric / 1000, 3),
+        'wip_balance_milli', v_wallet.wip_balance_milli,
         'unlimited_balance', false,
         'is_owner', false,
         'premium_plan', v_wallet.premium_plan,
         'premium_expires_at', v_wallet.premium_expires_at,
         'daily_reward', round(v_reward::numeric / 1000, 3),
+        'daily_wip_reward', round(v_wip_reward::numeric / 1000, 3),
         'daily_cap', null,
-        'reward_claimed_today', v_wallet.last_daily_reward_on = v_today
+        'reward_claimed_today', v_wallet.last_daily_reward_on = v_today,
+        'wip_reward_claimed_today', v_wallet.last_wip_reward_on = v_today
     );
 end;
 $$;
@@ -373,7 +430,7 @@ declare
     v_email text := lower(coalesce(auth.jwt() ->> 'email', ''));
     v_wallet private.worth_it_calc_wallets%rowtype;
     v_existing private.worth_it_calc_transactions%rowtype;
-    v_cost integer := 75000;
+    v_cost integer := 40000;
     v_expiry timestamptz;
 begin
     if v_user_id is null then raise exception 'Authentication required' using errcode = '28000'; end if;
@@ -388,6 +445,10 @@ begin
         return jsonb_build_object('ok', v_existing.status = 'completed', 'duplicate', true, 'status', v_existing.status);
     end if;
 
+    -- Claim today's WIP before checking the subscription balance, so a
+    -- first-time visit can use the reward earned on that same UTC day.
+    perform public.calc_wallet_summary();
+
     insert into private.worth_it_calc_wallets(user_id)
     values (v_user_id)
     on conflict (user_id) do nothing;
@@ -401,11 +462,12 @@ begin
        and v_wallet.premium_expires_at > now() then
         return jsonb_build_object('ok', false, 'code', 'ALREADY_PREMIUM');
     end if;
-    if v_wallet.balance_milli < v_cost then
+    if v_wallet.wip_balance_milli < v_cost then
         return jsonb_build_object(
-            'ok', false, 'code', 'INSUFFICIENT_CALC',
-            'required', 75,
-            'balance', round(v_wallet.balance_milli::numeric / 1000, 3)
+            'ok', false, 'code', 'INSUFFICIENT_WIP',
+            'required', 40,
+            'wip_balance', round(v_wallet.wip_balance_milli::numeric / 1000, 3),
+            'wip_balance_milli', v_wallet.wip_balance_milli
         );
     end if;
 
@@ -415,7 +477,7 @@ begin
     ) + interval '15 days';
 
     update private.worth_it_calc_wallets
-    set balance_milli = balance_milli - v_cost,
+    set wip_balance_milli = wip_balance_milli - v_cost,
         premium_plan = 'premium_lite',
         premium_expires_at = v_expiry,
         updated_at = now()
@@ -423,10 +485,10 @@ begin
     returning * into v_wallet;
 
     insert into private.worth_it_calc_transactions(
-        user_id, kind, amount_milli, balance_after_milli, status,
+        user_id, kind, currency, amount_milli, balance_after_milli, status,
         request_id, description, metadata
     ) values (
-        v_user_id, 'premium_lite_purchase', -v_cost, v_wallet.balance_milli,
+        v_user_id, 'premium_lite_purchase', 'WIP', -v_cost, v_wallet.wip_balance_milli,
         'completed', p_request_id, 'Premium Lite subscription (15 days)',
         jsonb_build_object('premium_expires_at', v_expiry)
     );
@@ -435,7 +497,9 @@ begin
         'ok', true, 'premium_plan', v_wallet.premium_plan,
         'premium_expires_at', v_wallet.premium_expires_at,
         'balance', round(v_wallet.balance_milli::numeric / 1000, 3),
-        'balance_milli', v_wallet.balance_milli
+        'balance_milli', v_wallet.balance_milli,
+        'wip_balance', round(v_wallet.wip_balance_milli::numeric / 1000, 3),
+        'wip_balance_milli', v_wallet.wip_balance_milli
     );
 end;
 $$;
@@ -527,9 +591,14 @@ begin
             select coalesce(sum(balance_milli),0)::numeric / 1000
             from private.worth_it_calc_wallets
         ),
+        'wip_balance_total', (
+            select coalesce(sum(wip_balance_milli),0)::numeric / 1000
+            from private.worth_it_calc_wallets
+        ),
         'transactions', coalesce((
             select jsonb_agg(jsonb_build_object(
                 'id', t.id, 'created_at', t.created_at, 'kind', t.kind,
+                'currency', t.currency,
                 'amount', t.amount_milli::numeric / 1000,
                 'balance_after', t.balance_after_milli::numeric / 1000,
                 'status', t.status, 'description', t.description,
