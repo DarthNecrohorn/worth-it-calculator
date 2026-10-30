@@ -23530,3 +23530,206 @@ body.worth-it-chat-image-lightbox-open{overflow:hidden!important}
     font: 400 34px/1 system-ui, sans-serif;
     transform: translateY(-4px);
 }
+
+
+/* =========================================================
+   RESPONSIVE INFORMATION PANELS + MOBILE AI CHAT
+   Keep discovery detail cards readable on phones and fully
+   scrollable on shorter screens without changing desktop layout.
+   ========================================================= */
+
+/* The selected weather-day details are an inline information panel. */
+#weatherDayDetails {
+    width:100%;
+    max-width:900px;
+    min-width:0;
+    margin-left:auto;
+    margin-right:auto;
+    box-sizing:border-box;
+    overflow-wrap:anywhere;
+}
+
+#weatherDayDetails .weather-details-grid {
+    display:grid;
+    grid-template-columns:repeat(3,minmax(0,1fr));
+    min-width:0;
+}
+
+#weatherDayDetails .weather-detail-item,
+#weatherDayDetails .weather-detail-value {
+    min-width:0;
+    overflow-wrap:anywhere;
+}
+
+/* Long information dialogs scroll inside their own frame on desktop. */
+@media (min-width:761px) {
+    #cryptoDetailOverlay.open .crypto-detail-card,
+    #currencyDetailModal.is-open .currency-detail-dialog,
+    #worthItMarketDetailModal.is-open .worth-it-market-detail-dialog,
+    #waterLevelsDetailOverlay.open .water-levels-detail-card,
+    #shipTrackingDetail.open .ship-tracking-detail-card,
+    #shopPartnerModal:not([hidden]) .shop-partner-modal {
+        box-sizing:border-box;
+        max-height:calc(100dvh - 40px);
+        overflow-x:hidden;
+        overflow-y:auto;
+        overscroll-behavior:contain;
+        -webkit-overflow-scrolling:touch;
+    }
+
+    #worthItVehicleDetailsModal.is-open .worth-it-vehicle-modal-dialog {
+        box-sizing:border-box;
+        max-height:calc(100dvh - 32px);
+        overflow-x:hidden;
+        overflow-y:auto;
+        overscroll-behavior:contain;
+    }
+}
+
+/* Phone and small-tablet detail dialogs share a safe viewport frame. */
+@media (max-width:760px) {
+    #cryptoDetailOverlay.open,
+    #currencyDetailModal.is-open,
+    #worthItMarketDetailModal.is-open,
+    #waterLevelsDetailOverlay.open,
+    #shipTrackingDetail.open,
+    #shopPartnerModal:not([hidden]) {
+        box-sizing:border-box !important;
+        padding:10px !important;
+        align-items:center !important;
+        justify-content:center !important;
+        overflow:hidden !important;
+    }
+
+    #cryptoDetailOverlay.open .crypto-detail-card,
+    #currencyDetailModal.is-open .currency-detail-dialog,
+    #worthItMarketDetailModal.is-open .worth-it-market-detail-dialog,
+    #waterLevelsDetailOverlay.open .water-levels-detail-card,
+    #shipTrackingDetail.open .ship-tracking-detail-card,
+    #shopPartnerModal:not([hidden]) .shop-partner-modal {
+        width:calc(100vw - 20px) !important;
+        max-width:calc(100vw - 20px) !important;
+        min-width:0 !important;
+        max-height:calc(100dvh - 20px) !important;
+        margin:0 auto !important;
+        box-sizing:border-box !important;
+        overflow-x:hidden !important;
+        overflow-y:auto !important;
+        overscroll-behavior:contain !important;
+        -webkit-overflow-scrolling:touch;
+    }
+
+    #cryptoDetailOverlay.open .crypto-detail-card {
+        padding:14px !important;
+        border-radius:16px !important;
+    }
+
+    #currencyDetailModal.is-open .currency-detail-content {
+        padding:25px 16px 18px !important;
+        box-sizing:border-box !important;
+    }
+
+    #worthItMarketDetailModal.is-open .worth-it-market-detail-body {
+        padding:16px !important;
+    }
+
+    #waterLevelsDetailOverlay.open .water-levels-detail-card {
+        padding:14px !important;
+        border-radius:16px !important;
+        max-height:calc(100dvh - 20px) !important;
+    }
+
+    #shipTrackingDetail.open .ship-tracking-detail-card {
+        padding:14px !important;
+        border-radius:16px !important;
+    }
+
+    #shopPartnerModal:not([hidden]) .shop-partner-modal {
+        padding:16px !important;
+        border-radius:18px !important;
+    }
+
+    #weatherDayDetails {
+        padding:16px !important;
+        margin-top:16px !important;
+    }
+
+    #weatherDayDetails .weather-details-header {
+        align-items:flex-start !important;
+        flex-direction:column !important;
+        gap:10px !important;
+    }
+
+    #weatherDayDetails .weather-details-grid {
+        grid-template-columns:repeat(2,minmax(0,1fr)) !important;
+        gap:9px !important;
+    }
+
+    #worthItVehicleDetailsModal.is-open .worth-it-vehicle-modal-dialog {
+        width:calc(100vw - 16px) !important;
+        max-width:calc(100vw - 16px) !important;
+        max-height:calc(100dvh - 76px) !important;
+        box-sizing:border-box !important;
+        overflow-x:hidden !important;
+        overflow-y:auto !important;
+        overscroll-behavior:contain !important;
+    }
+}
+
+/* Very narrow phones: reduce internal weather columns, not the whole panel. */
+@media (max-width:430px) {
+    #weatherDayDetails .weather-details-grid {
+        grid-template-columns:minmax(0,1fr) !important;
+    }
+
+    #weatherDayDetails {
+        padding:13px !important;
+    }
+
+    #currencyDetailModal.is-open .currency-detail-content {
+        padding:24px 13px 16px !important;
+    }
+
+    #worthItMarketDetailModal.is-open .worth-it-market-detail-body {
+        padding:13px !important;
+    }
+}
+
+/* The phone AI chat must override the older 280px compact-dialog rule. */
+@media (max-width:760px) {
+    .ai-chat-overlay {
+        padding:6px !important;
+        align-items:stretch !important;
+        justify-content:stretch !important;
+        box-sizing:border-box !important;
+    }
+
+    .ai-chat-overlay.open .ai-chat-card {
+        width:calc(100vw - 12px) !important;
+        max-width:calc(100vw - 12px) !important;
+        min-width:0 !important;
+        height:calc(100dvh - 12px) !important;
+        min-height:0 !important;
+        max-height:calc(100dvh - 12px) !important;
+        margin:0 auto !important;
+        border-radius:16px !important;
+        box-sizing:border-box !important;
+        transform:none !important;
+    }
+
+    .ai-chat-messages {
+        min-width:0 !important;
+        overflow-x:hidden !important;
+        overflow-y:auto !important;
+    }
+
+    .ai-chat-composer {
+        min-width:0 !important;
+    }
+
+    .ai-chat-input {
+        min-width:0 !important;
+        width:100% !important;
+        box-sizing:border-box !important;
+    }
+}
