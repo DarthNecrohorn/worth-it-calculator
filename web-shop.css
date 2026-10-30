@@ -121,3 +121,9 @@ html[data-theme="light"] .calc-shop-nav,html[data-theme="light"] .calc-wallet-na
 .worth-it-profile-username-row .worth-it-profile-username{margin:0}
 .worth-it-chat-message-author-line{display:flex;align-items:center;flex-wrap:wrap;gap:6px;min-width:0}
 .worth-it-chat-premium-badge{font-size:8px;padding:2px 6px}
+
+/* Premium subscriptions suppress any Worth It ad placements that use the shared hook. */
+html[data-worth-it-premium="true"] .worth-it-ad-slot,
+html[data-worth-it-premium="true"] [data-worth-it-ad],
+html[data-worth-it-premium="true"] .worth-it-advertisement{display:none!important}
+.calc-wallet-coin svg,.web-shop-coin svg{display:block;width:100%;height:100%}
