@@ -181,7 +181,7 @@ test("chat wallpaper uses collision-safe random placement, varied sizes and scat
     assert.match(calls, /scales\[0\] = \.98 \+ random\(\) \* \.13/);
     assert.match(calls, /scales\[1\] = \.84 \+ random\(\) \* \.12/);
     assert.match(calls, /function collides\(candidate\)/);
-    assert.match(calls, /candidate.radius + existing.radius + requiredGap/);
+    assert.match(calls, /candidate\.radius \+ existing\.radius \+ requiredGap/);
     assert.match(calls, /const usedMotifs = new Set\(\)/);
     assert.match(calls, /const targetCount = Math\.max\(14, Math\.min\(34, Math\.round\(canvasWidth \/ 36\)\)\)/);
     assert.match(calls, /const targetAccents = Math\.min\(CHAT_WALLPAPER_ALL_MOTIFS.length - targetCount, Math.max\(68, Math.round\(canvasWidth \/ 7\.5\)\)\)/);
