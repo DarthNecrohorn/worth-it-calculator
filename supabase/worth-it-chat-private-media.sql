@@ -145,7 +145,7 @@ begin
      or p_conversation_id is null
      or p_object_path is null
      or p_object_path !~ '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}/[A-Za-z0-9][A-Za-z0-9._-]{0,254}$'
-     or p_object_path ~ '(^|/)\\.\\.(/|$)' then
+     or p_object_path ~ '(^|/)\.\.(/|$)' then
     return false;
   end if;
 
