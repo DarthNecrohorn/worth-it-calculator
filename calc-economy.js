@@ -367,6 +367,20 @@
         }
     }
     window.getWorthItPremiumBadge = refreshPremiumBadge;
+    async function getChatMediaLimits(){
+        try{
+            const limits = await rpc("calc_chat_media_limits",{});
+            if(!limits || limits.tier === undefined) throw new Error("Invalid chat media limits.");
+            return limits;
+        }catch(error){
+            if(isMissingEconomy(error)){
+                return {tier:"free",image_bytes:5242880,gif_bytes:8388608,video_bytes:15728640};
+            }
+            throw error;
+        }
+    }
+    window.getWorthItChatMediaLimits = getChatMediaLimits;
+
 
     function init(){
         installCalculatorBilling();
