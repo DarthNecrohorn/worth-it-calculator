@@ -78,9 +78,6 @@ begin
         );
     end if;
 
-    -- Claim today's reward before spending so a first visit can use today's free CALC.
-    perform public.calc_wallet_summary();
-
     insert into private.worth_it_calc_wallets(user_id)
     values (v_user_id)
     on conflict (user_id) do nothing;
@@ -177,6 +174,11 @@ begin
             'status', v_existing.status,
             'balance_milli', v_existing.balance_after_milli
         );
+    end if;
+
+    -- Claim today's reward exactly once before the first spend of the day.
+    if not v_owner then
+        perform public.calc_wallet_summary();
     end if;
 
     insert into private.worth_it_calc_wallets(user_id)
