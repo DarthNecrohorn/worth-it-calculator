@@ -49,8 +49,8 @@ test("message menu offers hide-for-me and owner-only delete-for-everyone actions
     assert.match(client, /if \(!message\.is_deleted && !message\.is_hidden_by_me\) stack\.appendChild\(name\)/);
     assert.match(client, /function getOwnedWorthItChatMediaObjectPath/);
     assert.match(client, /media\.origin !== configured\.origin/);
-    assert.match(client, /segments\[0\] !== String\(userId\)/);
-    assert.match(client, /\.storage\.from\("worth-it-chat-media"\)\.remove\(\[objectPath\]\)/);
+    assert.match(client, /objectPath\.startsWith\(String\(userId/);
+    assert.match(client, /fetch\("\/api\/chat-media\?" \+ query\.toString\(\)[\s\S]*?method: "DELETE"/);
     assert.match(client, /attachmentCleanupFailed/);
 });
 
@@ -63,7 +63,7 @@ test("stale polling responses cannot restore cleared or deleted messages", () =>
     assert.equal((client.match(/await loadWorthItChatMessages\(false, true\)/g) || []).length, 3);
     assert.equal((client.match(/await loadWorthItChatMessages\(true, true\)/g) || []).length, 2);
     assert.match(client, /chatMessageRequestVersion \+= 1;\s*chatLoading = false;/);
-    assert.match(client, /Invalidate any poll that began before the destructive RPC completed[\s\S]*?renderMessages\(false\);[\s\S]*?storage\.from\("worth-it-chat-media"\)/);
+    assert.match(client, /Invalidate any poll that began before the destructive RPC completed[\s\S]*?renderMessages\(false\);[\s\S]*?fetch\("\/api\/chat-media\?"/);
     assert.match(client, /already-started poll repopulate this user's cleared history[\s\S]*?chatMessageRequestVersion \+= 1;\s*chatLoading = false;[\s\S]*?await refreshWorthItChatData\(\)/);
 });
 
