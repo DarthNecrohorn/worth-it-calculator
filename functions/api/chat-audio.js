@@ -214,7 +214,9 @@ export async function onRequest(context) {
         return json({ success: true }, 200, origin);
     }
 
-    const signedUrl = await getSignedUrl(config, objectPath);
+    let signedUrl = "";
+    try { signedUrl = await getSignedUrl(config, objectPath); }
+    catch (_) { return json({ error: "Could not open this voice message. Please try again." }, 502, origin); }
     if (!signedUrl) return json({ error: "Could not open this voice message. Please try again." }, 502, origin);
     return json({ url: signedUrl, expires_in: SIGNED_URL_SECONDS }, 200, origin);
 }
