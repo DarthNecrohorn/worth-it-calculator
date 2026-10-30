@@ -40,7 +40,7 @@ test("all major dashboard sections have distinct dark and light accent identitie
         darkAccents.push(value);
     }
     assert.equal(new Set(darkAccents).size, sectionIds.length, "each section has its own accent colour");
-    assert.match(themes, /--wt-section-card:\\s*linear-gradient/);
+    assert.match(themes, /--wt-section-card:\s*linear-gradient/);
     assert.match(themes, /html\\[data-theme="light"\\][\\s\\S]*?--wt-section-card:\\s*linear-gradient/);
 });
 
