@@ -1752,7 +1752,20 @@ function createWorthItChatMessageRow(message) {
     const stack = document.createElement("div");
     stack.className = "worth-it-chat-message-stack";
     const name = makeChatProfileLink(message, "worth-it-chat-message-name", message.display_name || message.username || "Worth It member");
-    if (!message.is_deleted && !message.is_hidden_by_me) stack.appendChild(name);
+    if (!message.is_deleted && !message.is_hidden_by_me) {
+        const authorLine = document.createElement("span");
+        authorLine.className = "worth-it-chat-message-author-line";
+        authorLine.appendChild(name);
+        const premiumBadge = document.createElement("span");
+        premiumBadge.className = "worth-it-premium-badge worth-it-chat-premium-badge";
+        premiumBadge.hidden = true;
+        authorLine.appendChild(premiumBadge);
+        stack.appendChild(authorLine);
+        const badgeId = Number(message.worth_it_id);
+        if (Number.isSafeInteger(badgeId) && badgeId > 0 && typeof window.getWorthItPremiumBadge === "function") {
+            window.getWorthItPremiumBadge(badgeId,premiumBadge);
+        }
+    }
 
     if (message.is_deleted || message.is_hidden_by_me) {
         row.classList.add("is-tombstone");
