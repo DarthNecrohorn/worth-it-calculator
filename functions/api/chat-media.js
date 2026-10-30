@@ -77,8 +77,16 @@ async function authorizeRpc(config, token, functionName, payload) {
         body: JSON.stringify(payload),
         cache: "no-store"
     });
-    if (!response.ok) return false;
-    return (await response.json()) === true;
+    if (!response.ok) {
+        // A missing/unavailable RPC is a server configuration failure, not a
+        // negative permission decision. Do not misreport it as an access denial.
+        throw new Error("Chat media authorization RPC failed with HTTP " + response.status + ".");
+    }
+    const result = await response.json();
+    if (typeof result !== "boolean") {
+        throw new Error("Chat media authorization RPC returned an invalid response.");
+    }
+    return result;
 }
 function getObjectPath(raw) {
     const path = String(raw || "").trim();
