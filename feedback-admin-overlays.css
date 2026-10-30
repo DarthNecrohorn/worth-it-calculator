@@ -97,7 +97,28 @@
     opacity:.9;
 }
 
+/* Keep the feedback X control square even when the title text is long. */
+.feedback-head {
+    min-width:0;
+}
+
+.feedback-head > div {
+    min-width:0;
+}
+
 .feedback-close {
+    flex:0 0 40px !important;
+    width:40px !important;
+    min-width:40px !important;
+    height:40px !important;
+    min-height:40px !important;
+    aspect-ratio:1 / 1;
+    box-sizing:border-box;
+    display:grid;
+    place-items:center;
+    padding:0 !important;
+    line-height:1;
+    white-space:nowrap;
     border-color:rgba(148,163,184,.22);
     background:rgba(255,255,255,.055);
     transition:background .18s ease,border-color .18s ease,transform .18s ease;

@@ -1,0 +1,292 @@
+/* =========================================================
+   WEATHER — COMPACT, RESPONSIVE CARD DENSITY
+   Keep all weather values and the 14-day forecast; reduce
+   excess internal space so the section reads cleanly on
+   desktop, tablets and narrow phones.
+========================================================= */
+
+#weatherSection .weather-card {
+    padding:18px !important;
+    border-radius:20px;
+}
+
+#weatherSection .weather-location {
+    gap:7px;
+    margin-bottom:12px !important;
+    font-size:14px;
+}
+
+#weatherSection .weather-location-meta {
+    margin-top:6px !important;
+}
+
+#weatherSection .weather-location-card {
+    gap:2px;
+    padding:8px 11px;
+    border-radius:11px;
+}
+
+#weatherSection .weather-location-card-label {
+    font-size:11px;
+    line-height:1.25;
+}
+
+#weatherSection .weather-location-card-city {
+    font-size:14px;
+    line-height:1.25;
+}
+
+#weatherSection .weather-main {
+    gap:16px;
+    padding:4px 0 16px !important;
+}
+
+#weatherSection .weather-icon {
+    font-size:50px !important;
+}
+
+#weatherSection .weather-temperature {
+    font-size:44px !important;
+    line-height:1;
+}
+
+#weatherSection .weather-description {
+    margin-top:5px;
+    font-size:14px;
+    line-height:1.3;
+}
+
+#weatherSection .weather-details {
+    gap:9px;
+    padding-top:14px !important;
+}
+
+#weatherSection .weather-details > div {
+    min-width:0;
+    padding:10px 8px !important;
+    border-radius:12px;
+}
+
+#weatherSection .weather-details span {
+    margin-bottom:4px;
+    font-size:10.5px;
+    line-height:1.25;
+}
+
+#weatherSection .weather-details strong {
+    font-size:15px;
+    line-height:1.3;
+}
+
+/* Seven compact forecast cards across on wide screens. */
+#weatherSection #weatherForecast {
+    grid-template-columns:repeat(auto-fit,minmax(140px,1fr)) !important;
+    gap:10px !important;
+}
+
+#weatherSection #weatherForecast .weather-forecast-card {
+    min-width:0;
+    padding:11px 9px !important;
+    border-radius:15px;
+}
+
+#weatherSection #weatherForecast .weather-forecast-day {
+    margin-bottom:6px !important;
+    font-size:13px;
+    line-height:1.2;
+}
+
+#weatherSection #weatherForecast .weather-forecast-date {
+    margin-top:1px !important;
+    font-size:11px;
+    line-height:1.2;
+}
+
+#weatherSection #weatherForecast .weather-forecast-icon {
+    margin:6px 0 5px !important;
+    font-size:27px !important;
+    line-height:1.1;
+}
+
+#weatherSection #weatherForecast .weather-forecast-description {
+    margin-bottom:6px !important;
+    font-size:12px;
+    line-height:1.25;
+    overflow-wrap:anywhere;
+}
+
+#weatherSection #weatherForecast .weather-forecast-temp {
+    gap:5px;
+}
+
+#weatherSection #weatherForecast .weather-forecast-temp strong {
+    font-size:16px;
+    line-height:1.2;
+}
+
+#weatherSection #weatherForecast .weather-forecast-temp span {
+    font-size:12px;
+    line-height:1.2;
+}
+
+#weatherSection #weatherForecast .weather-forecast-rain {
+    margin-top:6px !important;
+    font-size:11px;
+    line-height:1.2;
+}
+
+/* Selected-day information also uses tighter spacing. */
+#weatherSection #weatherDayDetails {
+    margin-top:16px !important;
+    padding:16px !important;
+    border-radius:16px;
+}
+
+#weatherSection #weatherDayDetails .weather-details-description {
+    margin-bottom:12px !important;
+}
+
+#weatherSection #weatherDayDetails .weather-details-grid {
+    grid-template-columns:repeat(3,minmax(0,1fr));
+    gap:8px !important;
+}
+
+#weatherSection #weatherDayDetails .weather-detail-item {
+    min-width:0;
+    padding:10px !important;
+    border-radius:11px;
+}
+
+/* Tablet and phone sizing. Keep two forecast columns on phones. */
+@media (max-width:760px) {
+    #weatherSection .weather-card {
+        padding:14px !important;
+        border-radius:17px;
+    }
+
+    #weatherSection .weather-location {
+        gap:6px;
+        margin-bottom:8px !important;
+        font-size:13px;
+    }
+
+    #weatherSection .weather-location-meta {
+        margin-top:5px !important;
+    }
+
+    #weatherSection .weather-location-card {
+        padding:7px 10px;
+    }
+
+    #weatherSection .weather-main {
+        gap:12px;
+        padding:3px 0 12px !important;
+    }
+
+    #weatherSection .weather-icon {
+        font-size:42px !important;
+    }
+
+    #weatherSection .weather-temperature {
+        font-size:36px !important;
+    }
+
+    #weatherSection .weather-description {
+        margin-top:4px;
+        font-size:13px;
+    }
+
+    #weatherSection .weather-details {
+        grid-template-columns:repeat(2,minmax(0,1fr)) !important;
+        gap:8px !important;
+        padding-top:11px !important;
+    }
+
+    #weatherSection .weather-details > div {
+        padding:9px 7px !important;
+    }
+
+    #weatherSection .weather-details strong {
+        font-size:14px;
+    }
+
+    #weatherSection #weatherForecast {
+        grid-template-columns:repeat(2,minmax(0,1fr)) !important;
+        gap:8px !important;
+    }
+
+    #weatherSection #weatherForecast .weather-forecast-card {
+        padding:10px 8px !important;
+        border-radius:13px;
+    }
+
+    #weatherSection #weatherForecast .weather-forecast-day {
+        margin-bottom:5px !important;
+        font-size:12.5px;
+    }
+
+    #weatherSection #weatherForecast .weather-forecast-date {
+        font-size:10.5px;
+    }
+
+    #weatherSection #weatherForecast .weather-forecast-icon {
+        margin:5px 0 4px !important;
+        font-size:25px !important;
+    }
+
+    #weatherSection #weatherForecast .weather-forecast-description {
+        margin-bottom:5px !important;
+        font-size:11px;
+    }
+
+    #weatherSection #weatherForecast .weather-forecast-temp strong {
+        font-size:15px;
+    }
+
+    #weatherSection #weatherForecast .weather-forecast-temp span {
+        font-size:11px;
+    }
+
+    #weatherSection #weatherForecast .weather-forecast-rain {
+        margin-top:5px !important;
+        font-size:10.5px;
+    }
+
+    #weatherSection #weatherDayDetails {
+        margin-top:13px !important;
+        padding:12px !important;
+    }
+
+    #weatherSection #weatherDayDetails .weather-details-grid {
+        grid-template-columns:repeat(2,minmax(0,1fr)) !important;
+        gap:7px !important;
+    }
+
+    #weatherSection #weatherDayDetails .weather-detail-item {
+        padding:8px !important;
+    }
+}
+
+@media (max-width:420px) {
+    #weatherSection #weatherForecast {
+        grid-template-columns:repeat(2,minmax(0,1fr)) !important;
+        gap:7px !important;
+    }
+
+    #weatherSection #weatherForecast .weather-forecast-card {
+        padding:9px 6px !important;
+    }
+
+    #weatherSection #weatherForecast .weather-forecast-description {
+        font-size:10.5px;
+        line-height:1.2;
+    }
+
+    #weatherSection .weather-details > div {
+        padding:8px 6px !important;
+    }
+
+    #weatherSection #weatherDayDetails .weather-details-grid {
+        grid-template-columns:repeat(2,minmax(0,1fr)) !important;
+    }
+}
