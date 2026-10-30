@@ -144,3 +144,10 @@ test("delete-for-everyone uses an accessible branded dialog with a per-user skip
     assert.match(html, /chat-delete-confirm\.css\?v=chat-delete-confirm-20261028b/);
     assert.match(html, /chat-ui\.js\?v=chat-private-media-signed-access-20261030a/);
 });
+test("copying standalone private media messages uses an authorized signed link", () => {
+    const copy = client.match(/async function copyWorthItChatMessage\(message\) \{[\s\S]*?\n\}/)?.[0] || "";
+    assert.match(copy, /getWorthItChatMediaSignedUrl\(message\.media_url, conversationId\)/);
+    assert.match(copy, /message\.media_type === "audio"/);
+    assert.doesNotMatch(copy, /message\.body \|\| message\.media_url/);
+});
+
