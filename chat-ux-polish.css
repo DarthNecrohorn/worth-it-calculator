@@ -623,3 +623,31 @@ html[data-theme="light"] .worth-it-chat-message-time {
         font-size: 11.5px !important;
     }
 }
+
+
+/* MOBILE CHAT: prioritize the conversation viewport on phone-sized screens.
+   Keep every header/composer control at its existing touch size; reclaim space
+   from surrounding padding and the two-row header instead. */
+@media (max-width: 540px) {
+    .worth-it-chat-header {
+        min-height: 96px !important;
+        padding: 8px 10px 8px 12px !important;
+    }
+    .worth-it-chat-header > .worth-it-chat-header-actions {
+        top: 8px !important;
+    }
+    .worth-it-chat-header > .worth-it-chat-header-person {
+        transform: translateY(4px) !important;
+    }
+    .worth-it-chat-messages {
+        padding: 12px 10px !important;
+        gap: 10px !important;
+    }
+    .worth-it-chat-compose-wrap {
+        padding: 6px 8px 5px !important;
+    }
+    .worth-it-chat-compose-meta {
+        padding: 4px 4px 0 !important;
+        line-height: 1.25 !important;
+    }
+}

@@ -37,3 +37,18 @@ test("desktop fullscreen chat fills the viewport with a smooth transition", () =
     assert.match(rules, /height 460ms cubic-bezier\(\.22, \.75, \.18, 1\)/);
     assert.match(rules, /@media \(prefers-reduced-motion: reduce\)/);
 });
+
+
+test("phone chat reserves more vertical room for messages without shrinking controls", () => {
+    const polish = readFileSync(new URL("../chat-ux-polish.css", import.meta.url), "utf8");
+    const start = polish.lastIndexOf("MOBILE CHAT: prioritize the conversation viewport on phone-sized screens.");
+    assert.ok(start >= 0, "the final phone conversation-space rules exist");
+    const rules = polish.slice(start);
+    assert.match(rules, /@media \(max-width: 540px\)[\s\S]*?\.worth-it-chat-header\s*\{[\s\S]*?min-height:\s*96px\s*!important;[\s\S]*?padding:\s*8px 10px 8px 12px\s*!important;/);
+    assert.match(rules, /\.worth-it-chat-header > \.worth-it-chat-header-actions\s*\{[\s\S]*?top:\s*8px\s*!important;/);
+    assert.match(rules, /\.worth-it-chat-header > \.worth-it-chat-header-person\s*\{[\s\S]*?transform:\s*translateY\(4px\)\s*!important;/);
+    assert.match(rules, /\.worth-it-chat-messages\s*\{[\s\S]*?padding:\s*12px 10px\s*!important;[\s\S]*?gap:\s*10px\s*!important;/);
+    assert.match(rules, /\.worth-it-chat-compose-wrap\s*\{[\s\S]*?padding:\s*6px 8px 5px\s*!important;/);
+    assert.doesNotMatch(rules, /(?:#worthItChatPlusBtn|\.worth-it-chat-media-trigger|\.worth-it-chat-voice-btn)\s*\{/,
+        "the space adjustment must not shrink or hide the mobile touch controls");
+});
