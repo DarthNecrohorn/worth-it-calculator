@@ -23,6 +23,8 @@ on:
       - "calc-economy.js"
       - "functions/api/guest-calc.js"
       - "tests/guest-calc.test.mjs"
+      - "tests/guest-lite.test.mjs"
+      - "tests/calc-economy.test.mjs"
       - "web-shop.css"
       - "routing.js"
       - "guest-mode.js"
