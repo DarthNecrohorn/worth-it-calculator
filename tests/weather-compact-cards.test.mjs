@@ -23,11 +23,12 @@ test("current Weather card uses less padding and tighter condition spacing", () 
     assert.match(css, /#weatherSection \.weather-details > div\s*\{[^}]*padding:10px 8px !important;/);
 });
 
-test("forecast cards are shorter on desktop and remain in two columns on phones", () => {
+test("forecast cards are shorter on desktop and display three columns on phones", () => {
     assert.match(css, /#weatherSection #weatherForecast \.weather-forecast-card\s*\{[^}]*padding:11px 9px !important;/);
     assert.match(css, /#weatherSection #weatherForecast \.weather-forecast-icon\s*\{[^}]*font-size:27px !important;/);
-    assert.match(css, /@media \(max-width:760px\)[\s\S]*?#weatherSection #weatherForecast\s*\{[^}]*grid-template-columns:repeat\(2,minmax\(0,1fr\)\) !important;/);
-    assert.match(css, /@media \(max-width:420px\)[\s\S]*?#weatherSection #weatherForecast\s*\{[^}]*grid-template-columns:repeat\(2,minmax\(0,1fr\)\) !important;/);
+    assert.match(css, /@media \(max-width:760px\)[\s\S]*?#weatherSection #weatherForecast\s*\{[^}]*grid-template-columns:repeat\(3,minmax\(0,1fr\)\) !important;/);
+    assert.match(css, /@media \(max-width:420px\)[\s\S]*?#weatherSection #weatherForecast\s*\{[^}]*grid-template-columns:repeat\(3,minmax\(0,1fr\)\) !important;/);
+    assert.match(css, /#weatherSection #weatherForecast \.weather-forecast-temp strong\s*\{[^}]*font-size:14px;/);
 });
 
 test("selected-day details also use a compact responsive grid", () => {
