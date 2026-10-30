@@ -46,7 +46,7 @@ create table if not exists public.worth_it_profiles (
 
 insert into auth.users(id,email) values
     ('11111111-1111-4111-8111-111111111111','free@example.test'),
-    ('22222222-2222-4222-8222-222222222222','owner@example.test')
+    ('22222222-2222-4222-8222-222222222222','pedjasebez3545@gmail.com')
 on conflict(id) do update set email = excluded.email;
 
 insert into public.worth_it_profiles(user_id,worth_it_id,username) values
