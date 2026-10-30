@@ -1,8 +1,6 @@
 (function(){
     "use strict";
 
-    const GUEST_STORAGE_KEY = "worthItGuestCalcWalletV1";
-    const GUEST_DAILY_MILLI = 500;
     const CALCULATOR_COST_MILLI = 100;
 
     let walletState = null;
@@ -23,22 +21,24 @@
         });
     }
 
-    function guestWallet(){
-        let stored = null;
-        try { stored = JSON.parse(localStorage.getItem(GUEST_STORAGE_KEY) || "null"); } catch (_) {}
-        const today = utcDay();
-        if(!stored || stored.date !== today || !Number.isFinite(Number(stored.balance_milli))){
-            stored = {date:today,balance_milli:GUEST_DAILY_MILLI};
-            try { localStorage.setItem(GUEST_STORAGE_KEY,JSON.stringify(stored)); } catch (_) {}
+    async function guestRpc(action,requestId){
+        const isRead = action === "balance";
+        const response = await fetch("/api/guest-calc",{
+            method:isRead ? "GET" : "POST",
+            credentials:"same-origin",
+            cache:"no-store",
+            headers:isRead ? {"Accept":"application/json"} : {
+                "Content-Type":"application/json",
+                "Accept":"application/json"
+            },
+            body:isRead ? undefined : JSON.stringify({action,request_id:requestId})
+        });
+        const result = await response.json().catch(()=>null);
+        if(!result || typeof result !== "object") throw new Error("Guest CALC service returned an invalid response.");
+        if(!response.ok && result.code !== "INSUFFICIENT_CALC"){
+            throw new Error(result.error || "Guest CALC service is unavailable.");
         }
-        stored.balance_milli = Math.max(0,Math.min(GUEST_DAILY_MILLI,Math.floor(Number(stored.balance_milli))));
-        return stored;
-    }
-
-    function saveGuestWallet(wallet){
-        const next = {date:utcDay(),balance_milli:Math.max(0,Math.min(GUEST_DAILY_MILLI,Math.floor(Number(wallet.balance_milli)||0)))};
-        try { localStorage.setItem(GUEST_STORAGE_KEY,JSON.stringify(next)); } catch (_) {}
-        return next;
+        return result;
     }
 
     async function getSession(){
@@ -102,10 +102,12 @@
         try{
             const session = await getSession();
             if(!session){
-                const guest = guestWallet();
+                const guest = await guestRpc("balance");
+                if(guest.ok !== true) throw new Error(guest.error || "Guest CALC wallet could not be loaded.");
                 walletState = {
-                    is_guest:true,is_owner:false,premium_plan:"guest_lite",
-                    balance:guest.balance_milli/1000,balance_milli:guest.balance_milli
+                    ...guest,is_guest:true,is_owner:false,premium_plan:"guest_lite",
+                    balance:Number(guest.balance)||0,
+                    balance_milli:Number(guest.balance_milli)||0
                 };
                 setHeaderBalance(walletState);
                 setShopBalance(walletState);
@@ -265,19 +267,33 @@
         try{
             const session = await getSession();
             if(!session){
-                const guest = guestWallet();
-                if(guest.balance_milli < CALCULATOR_COST_MILLI){
-                    showStatus("Your 0.5 Guest Lite CALC for today has been used. Sign in to receive 1 CALC each day.",true);
+                const requestId = uuid();
+                const reservation = await guestRpc("reserve",requestId);
+                if(!reservation.ok){
+                    if(reservation.code === "INSUFFICIENT_CALC"){
+                        await refreshWallet();
+                        showStatus("Your 0.5 Guest Lite CALC for today has been used. Sign in to receive 1 CALC each day.",true);
+                    }else{
+                        showStatus("The guest CALC allowance could not be authorised. Please try again.",true);
+                    }
                     return;
                 }
-                original();
-                const success = kind === "generic" ? hasGenericResult(generic) : hasCarResult();
-                if(!success) return;
-                guest.balance_milli -= CALCULATOR_COST_MILLI;
-                const saved = saveGuestWallet(guest);
-                walletState = {...walletState,balance:saved.balance_milli/1000,balance_milli:saved.balance_milli};
-                setHeaderBalance(walletState);
-                setShopBalance(walletState);
+                try{
+                    original();
+                    const success = kind === "generic" ? hasGenericResult(generic) : hasCarResult();
+                    if(!success){
+                        await guestRpc("refund",requestId);
+                        await refreshWallet();
+                        return;
+                    }
+                    const settled = await guestRpc("settle",requestId);
+                    if(!settled.ok) throw new Error("Guest CALC calculation could not be confirmed.");
+                    await refreshWallet();
+                }catch(guestError){
+                    try{ await guestRpc("refund",requestId); }catch(refundError){console.error("Guest CALC refund failed:",refundError);}
+                    await refreshWallet();
+                    throw guestError;
+                }
                 return;
             }
 
