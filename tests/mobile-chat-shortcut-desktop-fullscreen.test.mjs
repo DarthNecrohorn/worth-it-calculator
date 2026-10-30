@@ -15,6 +15,8 @@ test("the header chat shortcut remains available on phones and desktop", () => {
     }
     assert.match(css, /\\.worth-it-chat-image-lightbox-close\\{[^}]*?width:46px!important;[^}]*?height:46px!important;/);
     assert.match(css, /\\.worth-it-chat-image-lightbox-close\\{[^}]*?width:44px!important;[^}]*?height:44px!important;/);
+    assert.match(css, /\\.worth-it-chat-image-lightbox-close\\{[^}]*?width:46px!important;[^}]*?height:46px!important;/);
+    assert.match(css, /\\.worth-it-chat-image-lightbox-close\\{[^}]*?width:44px!important;[^}]*?height:44px!important;/);
     assert.match(html, /style\\.css\\?v=chat-image-lightbox-close-glyph-20261030a/);
     const pickerCss = css.slice(css.lastIndexOf("WORTH IT OWNED CHAT MEDIA PICKER"));
     assert.ok(pickerCss.length > 0, "the final Worth It picker rules exist");
