@@ -101,6 +101,7 @@ html[data-theme="light"] .calc-shop-nav,html[data-theme="light"] .calc-wallet-na
 }
 
 /* Shared subscription identity badges beside user names. */
+.worth-it-premium-badge[hidden]{display:none!important}
 .worth-it-premium-badge{
     display:inline-flex;align-items:center;justify-content:center;gap:4px;
     vertical-align:middle;white-space:nowrap;padding:3px 7px;border-radius:999px;
