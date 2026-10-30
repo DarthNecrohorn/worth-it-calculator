@@ -21,6 +21,8 @@ on:
       - "crypto-ui.js"
       - "shop.js"
       - "calc-economy.js"
+      - "functions/api/guest-calc.js"
+      - "tests/guest-calc.test.mjs"
       - "web-shop.css"
       - "routing.js"
       - "guest-mode.js"
@@ -41,7 +43,7 @@ jobs:
           node-version: "22"
 
       - name: Run chat enhancement regression tests
-        run: node --test tests/worth-it-chat-enhancements.test.mjs tests/calc-economy.test.mjs
+        run: node --test tests/worth-it-chat-enhancements.test.mjs tests/calc-economy.test.mjs tests/guest-calc.test.mjs
 
       - name: Check JavaScript syntax
         shell: bash
