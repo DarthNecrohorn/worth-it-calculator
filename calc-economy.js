@@ -166,7 +166,7 @@
         [
             "homePage","cryptoSection","waterLevelsSection","marketsSection","moneySection",
             "currenciesApp","settingsPanel","settingsPage","weatherSection","newsSection",
-            "shipTrackingSection","profileSection","worthItProfileDescriptionSection",
+            "shipTrackingSection","profileSection","discountsSection","worthItProfileDescriptionSection",
             "worthItProfileConnectionsPage","accountProfilePanel","securitySettingsPanel",
             "privacySettingsPanel","notificationSettingsPanel","yourDataSettingsPanel",
             "appearanceSettingsPanel","shopSection"
