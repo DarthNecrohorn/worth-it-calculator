@@ -18,7 +18,7 @@ test("Bugs & Suggestions is visible to all visitors, not gated by the owner role
     assert.doesNotMatch(hero[0], /style\s*=\s*["'][^"']*display\s*:\s*none/i);
     assert.doesNotMatch(footer[0], /style\s*=\s*["'][^"']*display\s*:\s*none/i);
     assert.match(html, /style\.css\?v=[^"']+/);
-    assert.match(html, /admin-panel\.js\?v=feedbackpublic20261023a/);
+    assert.match(html, /admin-panel\.js\?v=admin-overlays-stay-open-20261030a/);
 
     assert.match(
         adminPanel,
