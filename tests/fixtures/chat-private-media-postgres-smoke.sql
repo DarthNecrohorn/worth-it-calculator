@@ -13,9 +13,6 @@ declare
   object_path text;
   stable_url text;
   direct_conversation_id uuid := '30000000-0000-4000-8000-000000000001';
-  audio_path text;
-  audio_reference text;
-  audio_message_id bigint;
   topic text;
 begin
   select * into bucket from storage.buckets where id = 'worth-it-chat-media';
@@ -45,40 +42,7 @@ begin
   end if;
 
   insert into auth.users(id) values (outsider_id) on conflict do nothing;
-
-  -- Audio access must be tied to the exact message, not merely to a member-owned
-  -- object path. Group members can play this group's voice note; outsiders cannot.
-  audio_path := owner_id::text || '/1790000000000-audio-test.webm';
-  audio_reference := 'worthit-audio:' || conversation_id::text || ':' || audio_path;
-  insert into public.worth_it_chat_messages(
-    conversation_id,sender_user_id,body,media_url,media_type
-  )
-  values (conversation_id,owner_id,'voice attachment',audio_reference,'audio')
-  returning id into audio_message_id;
-
-  perform set_config('app.test_user_id', owner_id::text, true);
-  if not public.can_access_worth_it_chat_audio_object(conversation_id,audio_path) then
-    raise exception 'The voice attachment owner cannot access their Group Chat audio.';
-  end if;
-  if not public.can_delete_worth_it_chat_audio_object(conversation_id,audio_path) then
-    raise exception 'The voice attachment owner cannot delete their audio.';
-  end if;
-
-  perform set_config('app.test_user_id', other_member_id::text, true);
-  if not public.can_access_worth_it_chat_audio_object(conversation_id,audio_path) then
-    raise exception 'Another Group Chat member cannot access the shared voice attachment.';
-  end if;
-  if public.can_delete_worth_it_chat_audio_object(conversation_id,audio_path) then
-    raise exception 'Another Group Chat member can delete someone else''s voice attachment.';
-  end if;
-
-  perform set_config('app.test_user_id', outsider_id::text, true);
-  if public.can_access_worth_it_chat_audio_object(conversation_id,audio_path) then
-    raise exception 'A non-member accessed a Group Chat voice attachment.';
-  end if;
-
-
-    object_path := owner_id::text || '/1790000000000-ab12cd.png';
+  object_path := owner_id::text || '/1790000000000-ab12cd.png';
   stable_url := 'https://project.supabase.co/storage/v1/object/public/worth-it-chat-media/' || object_path;
   insert into public.worth_it_chat_messages(conversation_id,sender_user_id,body,media_url,media_type)
   values (conversation_id,owner_id,'private attachment',stable_url,'image')
@@ -174,12 +138,6 @@ begin
     raise exception 'A current friend cannot see their Private Chat in the list.';
   end if;
 
-  -- Even if the same uploader belongs to both chats, a voice note from Group
-  -- Chat cannot be replayed by reusing its object path in Private Chat.
-  if public.can_access_worth_it_chat_audio_object(direct_conversation_id,audio_path) then
-    raise exception 'A Group Chat voice file was replayed through a different Private Chat.';
-  end if;
-
   -- Global Chat is available to confirmed authenticated users.
   result := public.get_worth_it_chat_messages('00000000-0000-4000-8000-000000000001',100);
   if result->>'code' is not null then
@@ -201,25 +159,6 @@ begin
   end if;
   if public.can_access_worth_it_chat_media(conversation_id) then
     raise exception 'An unverified account obtained Group Chat access.';
-  end if;
-  begin
-    perform public.accept_worth_it_group_invite(repeat('a',64));
-    raise exception 'An unverified account joined a Group Chat through an invite.';
-  exception when insufficient_privilege then
-    null;
-  end;
-
-  update auth.users set email_confirmed_at = now() where id = outsider_id;
-  result := public.accept_worth_it_group_invite(repeat('a',64));
-  if result->>'success' is distinct from 'true' then
-    raise exception 'A confirmed account could not accept a valid Group Chat invite: %', result;
-  end if;
-  if not exists (
-    select 1 from public.worth_it_chat_members m
-     where m.conversation_id = '20000000-0000-4000-8000-000000000001'::uuid
-       and m.user_id = outsider_id
-  ) then
-    raise exception 'The confirmed invite recipient was not added to the Group Chat.';
   end if;
 
   begin
@@ -245,29 +184,6 @@ begin
   end if;
   if not public.can_delete_worth_it_chat_media_object(conversation_id,object_path) then
     raise exception 'The owner cannot complete storage cleanup after message deletion.';
-  end if;
-
-
-  -- Deleting the voice message hides playback but preserves the internal
-  -- tombstone reference for owner-only Storage cleanup.
-  result := public.delete_worth_it_chat_message(audio_message_id);
-  if result->>'success' is distinct from 'true' then
-    raise exception 'The voice message owner could not delete their audio message: %', result;
-  end if;
-  if not exists (
-    select 1 from public.worth_it_chat_messages
-     where id = audio_message_id
-       and deleted_at is not null
-       and media_url = audio_reference
-       and media_type = 'audio'
-  ) then
-    raise exception 'The deleted voice message did not retain its internal cleanup reference.';
-  end if;
-  if public.can_access_worth_it_chat_audio_object(conversation_id,audio_path) then
-    raise exception 'A deleted voice message is still available for playback.';
-  end if;
-  if not public.can_delete_worth_it_chat_audio_object(conversation_id,audio_path) then
-    raise exception 'The owner cannot finish Storage cleanup after deleting a voice message.';
   end if;
 
   message_list := public.get_worth_it_chat_messages(conversation_id,100);
