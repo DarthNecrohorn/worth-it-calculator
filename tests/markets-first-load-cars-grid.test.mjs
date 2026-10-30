@@ -60,7 +60,7 @@ test("Markets safely handles non-JSON responses and retries transient server fai
 });
 
 test("Markets recovery script is cache-busted", () => {
-    assert.ok(html.includes("markets-ui.js?v=markets-focus-wiki-20261030a"));
+    assert.ok(html.includes("markets-ui.js?v=markets-detail-controls-20261030a"));
 });
 
 test("Recently Viewed and Favorites use two compact columns on mobile", () => {

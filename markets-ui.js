@@ -638,6 +638,12 @@ html[data-theme="dark"] .worth-it-market-detail-close {
     color:#fff !important;
 }
 
+.worth-it-market-detail-close-symbol {
+    display:inline-block !important;
+    transform:translateY(-2px) !important;
+    line-height:1 !important;
+}
+
 html[data-theme="dark"] .worth-it-market-detail-stat {
     background:rgba(255,255,255,.055) !important;
     border-color:rgba(255,255,255,.12) !important;
@@ -2634,7 +2640,7 @@ function ensureMarketsGoBackUpButton() {
 
 
     button.textContent =
-        "↑ Go back up";
+        "Go back up ↑";
 
 
     button.setAttribute(
@@ -4419,7 +4425,9 @@ function createMarketDetailModal() {
                 aria-label="Close commodity details"
                 title="Close"
                 data-market-detail-close
-            >×</button>
+            >
+                <span class="worth-it-market-detail-close-symbol" aria-hidden="true">×</span>
+            </button>
 
             <div
                 class="worth-it-market-detail-body"

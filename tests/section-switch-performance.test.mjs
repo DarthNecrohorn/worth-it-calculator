@@ -10,7 +10,7 @@ const shop = readFileSync(new URL("../shop.js", import.meta.url), "utf8");
 
 test("section scripts have refreshed cache keys for the performance and focus fixes", () => {
     assert.match(html, /shop\.js\?v=shopswitchrender-20261030a/);
-    assert.match(html, /markets-ui\.js\?v=markets-focus-wiki-20261030a/);
+    assert.match(html, /markets-ui\.js\?v=markets-detail-controls-20261030a/);
     assert.match(html, /crypto-ui\.js\?v=cryptoswitch-focus-20261030a/);
 });
 
@@ -103,4 +103,18 @@ test("Markets and Crypto move focus outside their dialogs before setting aria-hi
         crypto.indexOf("  function positionCryptoFloatingShowLess(", crypto.indexOf("  function closeDetail()"))
     );
     assert.match(cryptoClose, /focusTarget\?\.focus\?\.\(\{preventScroll:true\}\)[\s\S]*?setAttribute\("aria-hidden","true"\)/);
+});
+
+
+test("Markets detail close glyph moves independently and Go back up arrow follows its label", () => {
+    assert.ok(markets.includes('class="worth-it-market-detail-close-symbol" aria-hidden="true">×</span>'));
+    assert.ok(markets.includes(".worth-it-market-detail-close-symbol {"));
+    assert.ok(markets.includes("transform:translateY(-2px) !important;"));
+
+    const start = markets.indexOf("function ensureMarketsGoBackUpButton()");
+    const end = markets.indexOf("function positionMarketsBackUpButton(", start);
+    assert.ok(start >= 0 && end > start, "Markets Go back up button setup exists");
+    const buttonSetup = markets.slice(start, end);
+    assert.ok(buttonSetup.includes("button.textContent ="));
+    assert.ok(buttonSetup.includes('"Go back up ↑";'));
 });
