@@ -86,6 +86,11 @@
         const tier = $("webShopBalanceTier");
         if(!value) return;
         value.textContent = state ? (state.is_owner ? "∞" : Number(state.balance || 0).toFixed(1)) : "—";
+        const wipValue = $("webShopWipBalanceValue");
+        if(wipValue) {
+            const wipLabel = state ? (state.is_owner ? "∞" : Number(state.wip_balance || 0).toFixed(1)) : "—";
+            wipValue.textContent = wipLabel;
+        }
         if(tier) tier.textContent = state ? (state.is_owner ? "OWNER ACCESS" : state.premium_plan === "premium" ? "PREMIUM" : state.premium_plan === "premium_lite" ? "PREMIUM LITE" : state.is_guest ? "GUEST LITE" : "FREE ACCOUNT") : "BALANCE UNAVAILABLE";
     }
 
@@ -107,7 +112,9 @@
                 walletState = {
                     ...guest,is_guest:true,is_owner:false,premium_plan:"guest_lite",
                     balance:Number(guest.balance)||0,
-                    balance_milli:Number(guest.balance_milli)||0
+                    balance_milli:Number(guest.balance_milli)||0,
+                    wip_balance:0,
+                    wip_balance_milli:0
                 };
                 setHeaderBalance(walletState);
                 setShopBalance(walletState);
@@ -207,8 +214,8 @@
             }
             const result = await rpc("calc_buy_premium_lite",{p_request_id:uuid()});
             if(!result || result.ok !== true){
-                const message = result?.code === "INSUFFICIENT_CALC"
-                    ? "You need 75 CALC to activate Premium Lite."
+                const message = result?.code === "INSUFFICIENT_WIP"
+                    ? "You need 40 WIP to activate Premium Lite."
                     : result?.code === "ALREADY_PREMIUM"
                         ? "Your full Premium subscription is already active."
                         : "Premium Lite could not be activated. Please try again.";
@@ -216,7 +223,7 @@
                 return;
             }
             await refreshWallet();
-            showStatus("Premium Lite is active for 15 days. Thank you for supporting Worth It.",false);
+            showStatus("Premium Lite is active for 15 days. 40 WIP was used; your CALC balance was not changed.",false);
         }catch(error){
             showStatus(isMissingEconomy(error) ? "The CALC wallet database setup is still pending." : "Premium Lite could not be activated. Please try again.",true);
             console.error("Premium Lite purchase failed:",error);
