@@ -202,6 +202,25 @@ begin
   if public.can_access_worth_it_chat_media(conversation_id) then
     raise exception 'An unverified account obtained Group Chat access.';
   end if;
+  begin
+    perform public.accept_worth_it_group_invite(repeat('a',64));
+    raise exception 'An unverified account joined a Group Chat through an invite.';
+  exception when insufficient_privilege then
+    null;
+  end;
+
+  update auth.users set email_confirmed_at = now() where id = outsider_id;
+  result := public.accept_worth_it_group_invite(repeat('a',64));
+  if result->>'success' is distinct from 'true' then
+    raise exception 'A confirmed account could not accept a valid Group Chat invite: %', result;
+  end if;
+  if not exists (
+    select 1 from public.worth_it_chat_members m
+     where m.conversation_id = '20000000-0000-4000-8000-000000000001'::uuid
+       and m.user_id = outsider_id
+  ) then
+    raise exception 'The confirmed invite recipient was not added to the Group Chat.';
+  end if;
 
   begin
     perform public.worth_it_chat_realtime_topic_authorized('worthit-chat:00000000-0000-4000-8000-000000000001');
