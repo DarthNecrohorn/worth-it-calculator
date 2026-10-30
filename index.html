@@ -69,7 +69,7 @@ html[data-theme="light"].worth-it-initial-paint::before {
 <link rel="stylesheet" href="chat-delete-confirm.css?v=chat-delete-confirm-20261028b">
 <link rel="stylesheet" href="chat-realtime.css?v=chat-realtime-typing-20261028b">
 <link rel="stylesheet" href="section-themes.css?v=section-themes-20261030a">
-    <link rel="stylesheet" href="web-shop.css?v=calc-shop-20261030a">
+    <link rel="stylesheet" href="web-shop.css?v=calc-wip-shop-20261030b">
 <link rel="stylesheet" href="feedback-admin-overlays.css?v=feedback-admin-overlays-20261030b">
 <link rel="stylesheet" href="weather-compact.css?v=weather-compact-20261030b">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
@@ -2854,12 +2854,16 @@ html[data-theme="light"].worth-it-initial-paint::before {
             <div>
                 <p class="web-shop-eyebrow">Worth It · Digital economy</p>
                 <h1 class="web-shop-title" id="webShopTitle">Web Shop</h1>
-                <p class="web-shop-subtitle">Use CALC to unlock Worth It features, or choose a subscription for extra benefits.</p>
+                <p class="web-shop-subtitle">CALC pays for supported calculator and AI use. Earn WIP through daily activity and save it for Premium Lite.</p>
             </div>
             <div class="web-shop-tools">
                 <div class="web-shop-balance" aria-live="polite">
                     <span class="web-shop-coin" aria-hidden="true"><svg viewBox="0 0 32 32" focusable="false"><path d="M16 2.5 28.1 9.4v13.2L16 29.5 3.9 22.6V9.4z" fill="url(#shopCalcCoinGradient)"/><rect x="8" y="8.5" width="16" height="15" rx="3" fill="#17152e" stroke="#fff" stroke-width="1.4"/><path d="M11 11h10v3H11zm0 5.5h2.4v2.4H11zm4.3 0h2.4v2.4h-2.4zm4.3 0H22v2.4h-2.4z" fill="#c4b5fd"/><defs><linearGradient id="shopCalcCoinGradient" x1="4" y1="4" x2="28" y2="28"><stop stop-color="#c4b5fd"/><stop offset="1" stop-color="#57d8f1"/></linearGradient></defs></svg></span>
-                    <div><strong id="webShopBalanceValue">—</strong><small id="webShopBalanceTier">BALANCE</small></div>
+                    <div class="web-shop-balance-currencies">
+                        <div><strong id="webShopBalanceValue">—</strong><small>CALC</small></div>
+                        <div><strong id="webShopWipBalanceValue">—</strong><small>WIP</small></div>
+                    </div>
+                    <small class="web-shop-balance-tier" id="webShopBalanceTier">BALANCE</small>
                 </div>
                 <button type="button" class="web-shop-theme-btn" id="webShopThemeToggle" onclick="toggleWebShopTheme()">☀️ Light theme</button>
             </div>
@@ -2867,7 +2871,7 @@ html[data-theme="light"].worth-it-initial-paint::before {
 
         <div class="web-shop-notice">
             <span class="web-shop-notice-icon" aria-hidden="true">🎁</span>
-            <p><strong>Buying is completely optional.</strong> Free users receive 1 CALC every day, and guests receive 0.5 Guest Lite CALC daily. You can use Worth It without purchasing anything. When you buy CALC with real money, you help support the website, its continued development and the person building it.</p>
+            <p><strong>Buying is completely optional.</strong> Free users receive 1 CALC and 1 WIP every day. Premium Lite members receive 2 CALC and 1 WIP daily, while Premium members receive 3 CALC and 1 WIP daily. Guests receive 0.5 Guest Lite CALC and no WIP. CALC is used for supported calculator and AI features; WIP is earned through activity and can be saved for Premium Lite.</p>
         </div>
 
         <div class="web-shop-tabs" role="tablist" aria-label="Web Shop categories">
@@ -2877,7 +2881,7 @@ html[data-theme="light"].worth-it-initial-paint::before {
 
         <section id="webShopCurrencyPanel" role="tabpanel" aria-labelledby="webShopCurrencyTab">
             <div class="web-shop-category-heading">
-                <div><h3>CALC currency</h3><p>Digital credits for supported Worth It features.</p></div>
+                <div><h3>CALC currency</h3><p>Digital credits for supported calculator and AI features. Each paid calculation costs 0.1 CALC.</p></div>
             </div>
             <div class="web-shop-grid">
                 <article class="web-shop-card">
@@ -2906,7 +2910,11 @@ html[data-theme="light"].worth-it-initial-paint::before {
                     <button type="button" class="web-shop-action" disabled>Cash checkout not connected</button>
                 </article>
             </div>
-            <p class="web-shop-footnote">CALC is a closed-use digital credit for Worth It. It has no cash value, cannot be sent to another user and cannot be exchanged or withdrawn. Paid credit packs will appear after the payment provider approves this type of product and checkout is configured.</p>
+            <p class="web-shop-footnote">CALC is a closed-use digital credit for Worth It. It has no cash value, cannot be transferred, exchanged for WIP or withdrawn. Paid CALC packs remain disabled until the payment provider approves the product and checkout is configured.</p>
+            <article class="web-shop-wip-note">
+                <strong>Worth It Points (WIP)</strong>
+                <p>WIP is a separate activity currency. Signed-in accounts earn 1 WIP per day, regardless of Free, Premium Lite or Premium status. WIP accumulates, cannot be purchased, has no cash value, cannot be exchanged for CALC and is used only to activate Premium Lite.</p>
+            </article>
         </section>
 
         <section id="webShopSubscriptionsPanel" role="tabpanel" hidden>
@@ -2915,18 +2923,18 @@ html[data-theme="light"].worth-it-initial-paint::before {
             </div>
             <div class="web-shop-grid">
                 <article class="web-shop-card web-shop-card-featured">
-                    <span class="web-shop-ribbon">15 DAYS · CALC</span>
+                    <span class="web-shop-ribbon">15 DAYS · WIP</span>
                     <div class="web-shop-card-icon" aria-hidden="true">✦</div>
                     <h4>Premium Lite</h4>
-                    <p class="web-shop-description">A lower-cost introduction to Premium benefits, paid with your saved CALC balance.</p>
-                    <p class="web-shop-price">75 <small>CALC / 15 days</small></p>
+                    <p class="web-shop-description">A lower-cost introduction to Premium benefits, paid with your saved Worth It Points.</p>
+                    <p class="web-shop-price">40 <small>WIP / 15 days</small></p>
                     <ul class="web-shop-feature-list">
-                        <li>No ads while active</li><li>2 CALC daily reward</li>
+                        <li>No ads while active</li><li>2 CALC and 1 WIP daily reward</li>
                         <li>Premium Lite profile and chat badge</li>
                         <li>Higher image, GIF and video upload limits</li>
                         <li>Extra profile and chat customisation</li>
                     </ul>
-                    <button type="button" class="web-shop-action" id="buyPremiumLiteButton" onclick="buyPremiumLite()">Activate Premium Lite · 75 CALC</button>
+                    <button type="button" class="web-shop-action" id="buyPremiumLiteButton" onclick="buyPremiumLite()">Activate Premium Lite · 40 WIP</button>
                 </article>
                 <article class="web-shop-card">
                     <span class="web-shop-ribbon">30 DAYS · REAL MONEY</span>
@@ -2935,7 +2943,7 @@ html[data-theme="light"].worth-it-initial-paint::before {
                     <p class="web-shop-description">The full Premium tier, with the highest limits and the full set of member benefits.</p>
                     <p class="web-shop-price">€4.99 <small>/ 30 days · proposed</small></p>
                     <ul class="web-shop-feature-list">
-                        <li>No ads while active</li><li>3 CALC daily reward</li>
+                        <li>No ads while active</li><li>3 CALC and 1 WIP daily reward</li>
                         <li>Exclusive Premium profile and chat badge</li>
                         <li>Highest image, GIF and video upload limits</li>
                         <li>More personalisation and future member features</li>
@@ -2943,7 +2951,7 @@ html[data-theme="light"].worth-it-initial-paint::before {
                     <button type="button" class="web-shop-action" disabled>Payment setup not connected</button>
                 </article>
             </div>
-            <p class="web-shop-footnote">Premium Lite costs more CALC than a typical daily reward so that it cannot be repeatedly farmed. Full Premium checkout will only be enabled after the payment provider approves the offer and the payout account is configured.</p>
+            <p class="web-shop-footnote">Premium Lite costs 40 WIP for 15 days. WIP is earned at 1 per day and continues to accumulate while a subscription is active. Full Premium checkout will only be enabled after the payment provider approves the offer and the payout account is configured.</p>
         </section>
 
         <p class="web-shop-status" id="webShopStatus" role="status" aria-live="polite"></p>
@@ -3294,7 +3302,7 @@ try{
 <script src="section-data-cache.js?v=sectioncache20261015a"></script>
 <script src="ai-ui.js?v=worthit-ai-overlay-20261029b"></script>
 <script src="calculators.js"></script>
-<script src="calc-economy.js?v=guest-calc-allowlist-20261030a"></script>
+<script src="calc-economy.js?v=calc-wip-economy-20261030b"></script>
 <script src="cars-ui.js?v=carsperf20261025b"></script>
 <script src="cars-levels-ui.js?v=cars20261007f"></script>
 <script src="weather-ui.js?v=weather-details-back-to-top-20261030a"></script>
