@@ -226,7 +226,7 @@ export async function onRequest(context) {
     } catch (tierError) {
         if (/PGRST202|schema cache|calc_chat_media_limits.*does not exist/i.test(String(tierError && tierError.details || ""))) {
             // During the rollout, use the strict Free limits until the SQL migration is applied.
-            tierLimits = {tier:"free",image_bytes:IMAGE_LIMIT === 25 * 1024 * 1024 ? 5 * 1024 * 1024 : IMAGE_LIMIT,gif_bytes:8 * 1024 * 1024,video_bytes:15 * 1024 * 1024};
+            tierLimits = {tier:"free",image_bytes:5 * 1024 * 1024,gif_bytes:8 * 1024 * 1024,video_bytes:15 * 1024 * 1024};
         } else {
             return json({error:"Could not verify your chat upload limit. Please try again."}, 503, origin);
         }
