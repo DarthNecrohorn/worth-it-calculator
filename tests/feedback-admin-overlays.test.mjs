@@ -10,7 +10,7 @@ const baseCss = readFileSync(new URL("../style.css", import.meta.url), "utf8");
 
 test("feedback/admin overlay styles load after the existing section theme layer", () => {
     const sectionThemes = html.indexOf('href="section-themes.css?v=section-themes-20261030a"');
-    const overlayStyles = html.indexOf('href="feedback-admin-overlays.css?v=feedback-admin-overlays-20261030a"');
+    const overlayStyles = html.indexOf('href="feedback-admin-overlays.css?v=feedback-admin-overlays-20261030b"');
     assert.ok(sectionThemes >= 0 && overlayStyles > sectionThemes);
     assert.match(html, /settings\.js\?v=feedback-overlay-stay-open-20261030a/);
     assert.match(html, /admin-panel\.js\?v=admin-overlays-stay-open-20261030a/);
@@ -67,4 +67,10 @@ test("both overlays retain distinct dark and light surfaces", () => {
     assert.match(css, /\.admin-panel-card\s*\{[\s\S]*?linear-gradient/);
     assert.match(css, /html\[data-theme="light"\] \.feedback-modal-card/);
     assert.match(css, /html\[data-theme="light"\] \.admin-panel-card/);
+});
+
+
+test("Bugs & Suggestions close button remains a fixed square beside long titles", () => {
+    assert.match(css, /\.feedback-close\s*\{[\s\S]*?flex:0 0 40px !important;[\s\S]*?width:40px !important;[\s\S]*?height:40px !important;[\s\S]*?aspect-ratio:1 \/ 1;/);
+    assert.match(css, /\.feedback-head > div\s*\{\s*min-width:0;/);
 });
