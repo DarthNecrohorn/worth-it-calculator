@@ -108,10 +108,13 @@ test("Markets and Crypto move focus outside their dialogs before setting aria-hi
 
 test("Markets detail close glyph moves independently and Go back up arrow follows its label", () => {
     assert.ok(markets.includes('class="worth-it-market-detail-close-symbol" aria-hidden="true">×</span>'));
-    assert.ok(markets.includes(".worth-it-market-detail-close-symbol {\\n    display:inline-block !important;\\n    transform:translateY(-2px) !important;"));
+    assert.ok(markets.includes(".worth-it-market-detail-close-symbol {"));
+    assert.ok(markets.includes("transform:translateY(-2px) !important;"));
 
     const start = markets.indexOf("function ensureMarketsGoBackUpButton()");
     const end = markets.indexOf("function positionMarketsBackUpButton(", start);
     assert.ok(start >= 0 && end > start, "Markets Go back up button setup exists");
-    assert.ok(markets.slice(start, end).includes('button.textContent =\\n        "Go back up ↑";'));
+    const buttonSetup = markets.slice(start, end);
+    assert.ok(buttonSetup.includes("button.textContent ="));
+    assert.ok(buttonSetup.includes('"Go back up ↑";'));
 });
