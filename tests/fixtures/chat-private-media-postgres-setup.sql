@@ -12,6 +12,12 @@ create table public.worth_it_friends (
   check (user_low_id < user_high_id)
 );
 
+insert into public.worth_it_chat_conversations(id,conversation_type,title,created_by)
+values ('30000000-0000-4000-8000-000000000001','direct',null,null);
+insert into public.worth_it_chat_members(conversation_id,user_id) values
+ ('30000000-0000-4000-8000-000000000001','10000000-0000-4000-8000-000000000001'),
+ ('30000000-0000-4000-8000-000000000001','10000000-0000-4000-8000-000000000002');
+
 create schema storage;
 create table storage.buckets (
   id text primary key,
@@ -163,6 +169,10 @@ declare
   actor_id uuid := auth.uid();
   target_id uuid;
 begin
+  if not exists (
+    select 1 from auth.users verified_user
+    where verified_user.id = actor_id and verified_user.email_confirmed_at is not null
+  ) then raise exception 'Email confirmation required' using errcode = '42501'; end if;
   if actor_id is null or p_topic is null then return false; end if;
   if p_topic = 'worthit-chat:00000000-0000-4000-8000-000000000001' then return true; end if;
   if p_topic !~ '^worthit-chat:[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$' then
