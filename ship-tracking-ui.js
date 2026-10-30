@@ -220,7 +220,7 @@
 
         overlay.addEventListener("click", function(event){
             if(event.target === overlay){
-                closeDetailModal();
+                event.preventDefault();
                 return;
             }
 
