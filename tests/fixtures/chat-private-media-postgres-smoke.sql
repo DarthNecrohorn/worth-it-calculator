@@ -1,0 +1,89 @@
+-- Smoke-test private media permissions, deletion tombstones and URL hiding.
+do $smoke$
+declare
+  owner_id uuid := '10000000-0000-4000-8000-000000000001';
+  other_member_id uuid := '10000000-0000-4000-8000-000000000002';
+  outsider_id uuid := '10000000-0000-4000-8000-000000000003';
+  conversation_id uuid := '20000000-0000-4000-8000-000000000001';
+  message_id bigint;
+  message_row public.worth_it_chat_messages%rowtype;
+  bucket storage.buckets%rowtype;
+  result jsonb;
+  message_list jsonb;
+  object_path text;
+  stable_url text;
+begin
+  select * into bucket from storage.buckets where id = 'worth-it-chat-media';
+  if not found or bucket.public is distinct from false then
+    raise exception 'The chat media bucket is still publicly readable.';
+  end if;
+  if not ('image/jpeg' = any(bucket.allowed_mime_types))
+     or not ('video/mp4' = any(bucket.allowed_mime_types)) then
+    raise exception 'The private chat media bucket MIME allow-list is incomplete.';
+  end if;
+  if not has_function_privilege('authenticated','public.can_access_worth_it_chat_media_object(uuid,text)','EXECUTE')
+     or not has_function_privilege('authenticated','public.can_delete_worth_it_chat_media_object(uuid,text)','EXECUTE') then
+    raise exception 'Authenticated users cannot call the guarded media access RPCs.';
+  end if;
+  if has_function_privilege('anon','public.can_access_worth_it_chat_media_object(uuid,text)','EXECUTE')
+     or has_function_privilege('anon','public.can_delete_worth_it_chat_media_object(uuid,text)','EXECUTE') then
+    raise exception 'Anonymous users can call private media access RPCs.';
+  end if;
+
+  insert into auth.users(id) values (outsider_id) on conflict do nothing;
+  object_path := owner_id::text || '/1790000000000-ab12cd.png';
+  stable_url := 'https://project.supabase.co/storage/v1/object/public/worth-it-chat-media/' || object_path;
+  insert into public.worth_it_chat_messages(conversation_id,sender_user_id,body,media_url,media_type)
+  values (conversation_id,owner_id,'private attachment',stable_url,'image')
+  returning id into message_id;
+
+  perform set_config('app.test_user_id', owner_id::text, true);
+  if not public.can_access_worth_it_chat_media_object(conversation_id,object_path) then
+    raise exception 'The owning group member cannot view their attachment.';
+  end if;
+  if not public.can_delete_worth_it_chat_media_object(conversation_id,object_path) then
+    raise exception 'The attachment owner cannot delete their own attachment.';
+  end if;
+
+  perform set_config('app.test_user_id', other_member_id::text, true);
+  if not public.can_access_worth_it_chat_media_object(conversation_id,object_path) then
+    raise exception 'Another conversation member cannot view the shared attachment.';
+  end if;
+  if public.can_delete_worth_it_chat_media_object(conversation_id,object_path) then
+    raise exception 'Another member can delete someone else''s attachment.';
+  end if;
+
+  perform set_config('app.test_user_id', outsider_id::text, true);
+  if public.can_access_worth_it_chat_media_object(conversation_id,object_path) then
+    raise exception 'A non-member can view a private group attachment.';
+  end if;
+
+  perform set_config('app.test_user_id', owner_id::text, true);
+  result := public.delete_worth_it_chat_message(message_id);
+  if result->>'success' is distinct from 'true' then
+    raise exception 'The message owner could not delete their own message: %', result;
+  end if;
+  select * into message_row from public.worth_it_chat_messages where id = message_id;
+  if message_row.deleted_at is null or message_row.body <> ''
+     or message_row.media_url is distinct from stable_url
+     or message_row.media_type is distinct from 'image' then
+    raise exception 'The deleted message did not retain its private attachment tombstone reference.';
+  end if;
+  if public.can_access_worth_it_chat_media_object(conversation_id,object_path) then
+    raise exception 'Deleted media is still available for viewing.';
+  end if;
+  if not public.can_delete_worth_it_chat_media_object(conversation_id,object_path) then
+    raise exception 'The owner cannot complete storage cleanup after message deletion.';
+  end if;
+
+  message_list := public.get_worth_it_chat_messages(conversation_id,100);
+  if exists (
+    select 1
+      from jsonb_array_elements(message_list) item
+     where item->>'id' = message_id::text
+       and (item->>'media_url') is not null
+  ) then
+    raise exception 'The chat read RPC exposed the retained tombstone media URL.';
+  end if;
+end
+$smoke$;

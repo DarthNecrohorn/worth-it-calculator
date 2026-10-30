@@ -4,6 +4,7 @@ const IMAGE_LIMIT = 15 * 1024 * 1024;
 const GIF_LIMIT = 20 * 1024 * 1024;
 const VIDEO_LIMIT = 50 * 1024 * 1024;
 const MAX_REQUEST_BYTES = VIDEO_LIMIT + 256 * 1024;
+const SIGNED_URL_SECONDS = 900;
 
 function json(data, status, origin) {
     return new Response(JSON.stringify(data), {
@@ -14,7 +15,7 @@ function json(data, status, origin) {
             "Vary": "Origin",
             "Access-Control-Allow-Origin": origin || SITE_ORIGIN,
             "Access-Control-Allow-Headers": "Content-Type, Authorization",
-            "Access-Control-Allow-Methods": "POST, OPTIONS"
+            "Access-Control-Allow-Methods": "POST, GET, DELETE, OPTIONS"
         }
     });
 }
@@ -63,26 +64,124 @@ function detectMedia(bytes) {
     if (starts(0x1a,0x45,0xdf,0xa3)) return {mime:"video/webm", ext:"webm", type:"video"};
     return null;
 }
+
+async function authorizeRpc(config, token, functionName, payload) {
+    const response = await fetch(config.supabaseUrl + "/rest/v1/rpc/" + functionName, {
+        method: "POST",
+        headers: {
+            "apikey": config.publishableKey,
+            "Authorization": "Bearer " + token,
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+        },
+        body: JSON.stringify(payload),
+        cache: "no-store"
+    });
+    if (!response.ok) return false;
+    return (await response.json()) === true;
+}
+function getObjectPath(raw) {
+    const path = String(raw || "").trim();
+    if (!/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}\/[A-Za-z0-9._-]{1,255}$/.test(path) || path.includes("..")) return "";
+    return path;
+}
+function storagePath(path) {
+    return path.split("/").map(encodeURIComponent).join("/");
+}
+async function getSignedUrl(config, objectPath) {
+    const response = await fetch(config.supabaseUrl + "/storage/v1/object/sign/" + BUCKET + "/" + storagePath(objectPath), {
+        method: "POST",
+        headers: serviceHeaders(config, { "Content-Type": "application/json", "Accept": "application/json" }),
+        body: JSON.stringify({ expiresIn: SIGNED_URL_SECONDS }),
+        cache: "no-store"
+    });
+    if (!response.ok) return "";
+    const payload = await response.json();
+    const signedPath = String(payload.signedURL || payload.signedUrl || "");
+    if (!signedPath) return "";
+    try {
+        const project = new URL(config.supabaseUrl);
+        let signedUrl;
+        if (/^https?:\/\//i.test(signedPath)) signedUrl = new URL(signedPath);
+        else if (signedPath.startsWith("/storage/v1/")) signedUrl = new URL(signedPath, project);
+        else if (signedPath.startsWith("/")) signedUrl = new URL("/storage/v1" + signedPath, project);
+        else signedUrl = new URL("/storage/v1/" + signedPath, project);
+        const expectedPath = "/storage/v1/object/sign/" + BUCKET + "/" + storagePath(objectPath);
+        if (signedUrl.origin !== project.origin || signedUrl.pathname !== expectedPath) return "";
+        signedUrl.hash = "";
+        return signedUrl.toString();
+    } catch (_) {
+        return "";
+    }
+}
+
 export async function onRequest(context) {
     const { request, env } = context;
     const origin = allowedOrigin(request);
     if (!origin) return json({error:"This origin is not allowed."}, 403, SITE_ORIGIN);
     if (request.method === "OPTIONS") return new Response(null, {status:204, headers:{
-        "Access-Control-Allow-Origin":origin,"Access-Control-Allow-Headers":"Content-Type, Authorization",
-        "Access-Control-Allow-Methods":"POST, OPTIONS","Access-Control-Max-Age":"86400","Vary":"Origin"
+        "Access-Control-Allow-Origin":origin,
+        "Access-Control-Allow-Headers":"Content-Type, Authorization",
+        "Access-Control-Allow-Methods":"POST, GET, DELETE, OPTIONS",
+        "Access-Control-Max-Age":"86400",
+        "Vary":"Origin"
     }});
-    if (request.method !== "POST") return json({error:"Method not allowed."}, 405, origin);
+    if (!["POST","GET","DELETE"].includes(request.method)) return json({error:"Method not allowed."}, 405, origin);
+
+    const config = getConfig(env);
+    if (!config.supabaseUrl || !config.publishableKey || !config.serviceKey) return json({error:"Chat media is temporarily unavailable."}, 503, origin);
+    const token = getToken(request);
+    if (!token) return json({error:"Sign in again before accessing chat media."}, 401, origin);
+    let user;
+    try { user = await verifyUser(config, token); }
+    catch (_) { return json({error:"Could not verify your session. Please try again."}, 502, origin); }
+    if (!user) return json({error:"Your session has expired. Sign in again."}, 401, origin);
+
+    const url = new URL(request.url);
+    if (request.method === "GET" || request.method === "DELETE") {
+        const conversationId = String(url.searchParams.get("conversation_id") || "").trim();
+        const objectPath = getObjectPath(url.searchParams.get("path"));
+        if (!/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(conversationId) || !objectPath) {
+            return json({error:"Invalid chat media reference."}, 400, origin);
+        }
+        const permissionRpc = request.method === "DELETE"
+            ? "can_delete_worth_it_chat_media_object"
+            : "can_access_worth_it_chat_media_object";
+        let permitted = false;
+        try {
+            permitted = await authorizeRpc(config, token, permissionRpc, {
+                p_conversation_id: conversationId,
+                p_object_path: objectPath
+            });
+        } catch (_) { return json({error:"Could not verify access to this chat attachment."}, 502, origin); }
+        if (!permitted) return json({error:"You do not have access to this chat attachment."}, 403, origin);
+
+        if (request.method === "DELETE") {
+            let response;
+            try {
+                response = await fetch(config.supabaseUrl + "/storage/v1/object/" + BUCKET + "/" + storagePath(objectPath), {
+                    method:"DELETE", headers:serviceHeaders(config), cache:"no-store"
+                });
+            } catch (_) { return json({error:"Could not remove this attachment from storage."}, 502, origin); }
+            if (!response.ok) return json({error:"Could not remove this attachment from storage."}, 502, origin);
+            return json({success:true}, 200, origin);
+        }
+
+        let signedUrl = "";
+        try { signedUrl = await getSignedUrl(config, objectPath); }
+        catch (_) { return json({error:"Could not open this attachment. Please try again."}, 502, origin); }
+        if (!signedUrl) return json({error:"Could not open this attachment. Please try again."}, 502, origin);
+        return json({url:signedUrl, expires_in:SIGNED_URL_SECONDS}, 200, origin);
+    }
+
     const contentLength = Number(request.headers.get("Content-Length") || 0);
     if (contentLength && contentLength > MAX_REQUEST_BYTES) return json({error:"This file is too large. Images are limited to 15 MB, GIFs to 20 MB and videos to 50 MB."}, 413, origin);
-    const config = getConfig(env);
-    if (!config.supabaseUrl || !config.publishableKey || !config.serviceKey) return json({error:"Chat media uploads are temporarily unavailable."}, 503, origin);
-    const token = getToken(request);
-    if (!token) return json({error:"Sign in again before uploading media."}, 401, origin);
-    let user;
-    try { user = await verifyUser(config, token); } catch (_) { return json({error:"Could not verify your session. Please try again."}, 502, origin); }
-    if (!user) return json({error:"Your session has expired. Sign in again."}, 401, origin);
     let form;
     try { form = await request.formData(); } catch (_) { return json({error:"Choose a valid image, GIF or video file."}, 400, origin); }
+    const conversationId = String(form.get("conversation_id") || "").trim();
+    if (!/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(conversationId)) {
+        return json({error:"Open a conversation before uploading media."}, 400, origin);
+    }
     const file = form.get("file");
     if (!file || typeof file.arrayBuffer !== "function" || typeof file.size !== "number") return json({error:"Choose an image, GIF or video file."}, 400, origin);
     if (!file.size) return json({error:"This media file is empty."}, 400, origin);
@@ -95,10 +194,16 @@ export async function onRequest(context) {
     try { bytes = new Uint8Array(await file.slice(0,16).arrayBuffer()); } catch (_) { return json({error:"Could not read this file."}, 400, origin); }
     const detected = detectMedia(bytes);
     if (!detected || detected.mime !== claimedMime) return json({error:"The file contents do not match its selected media type."}, 415, origin);
+
+    let permitted = false;
+    try { permitted = await authorizeRpc(config, token, "can_access_worth_it_chat_media", {p_conversation_id:conversationId}); }
+    catch (_) { return json({error:"Could not verify access to this conversation."}, 502, origin); }
+    if (!permitted) return json({error:"You must be a member of this conversation to upload media."}, 403, origin);
+
     const objectPath = user.id + "/" + Date.now() + "-" + crypto.randomUUID() + "." + detected.ext;
     let uploadResponse;
     try {
-        uploadResponse = await fetch(config.supabaseUrl + "/storage/v1/object/" + BUCKET + "/" + objectPath, {
+        uploadResponse = await fetch(config.supabaseUrl + "/storage/v1/object/" + BUCKET + "/" + storagePath(objectPath), {
             method:"POST",
             headers:serviceHeaders(config, {"Content-Type":detected.mime,"x-upsert":"false","Cache-Control":"3600"}),
             body:file
@@ -112,5 +217,8 @@ export async function onRequest(context) {
         } catch (_) {}
         return json({error:message}, uploadResponse.status === 413 ? 413 : 502, origin);
     }
-    return json({url:config.supabaseUrl + "/storage/v1/object/public/" + BUCKET + "/" + objectPath, type:detected.type}, 200, origin);
+    // Keep the stable public-object URL shape in the message row for backwards
+    // compatibility; reads are routed through this API and signed on demand.
+    const stableUrl = config.supabaseUrl + "/storage/v1/object/public/" + BUCKET + "/" + storagePath(objectPath);
+    return json({url:stableUrl, type:detected.type}, 200, origin);
 }

@@ -178,18 +178,18 @@ test("chat wallpaper uses collision-safe random placement, varied sizes and scat
     assert.match(calls, /const canvasWidth = Math\.max\(600, Math\.min\(2400/);
     assert.match(calls, /const canvasHeight = Math\.round\(canvasWidth \* 1\.5\)/);
     assert.match(calls, /const scales = Array\.from/);
-    assert.match(calls, /scales\[0\] = \.56 \+ random\(\) \* \.07/);
-    assert.match(calls, /scales\[1\] = 1\.02 \+ random\(\) \* \.11/);
-    assert.match(calls, /const overlaps = placements\.some/);
-    assert.match(calls, /radius \+ existing\.radius \+ 12/);
+    assert.match(calls, /scales\[0\] = \.98 \+ random\(\) \* \.13/);
+    assert.match(calls, /scales\[1\] = \.84 \+ random\(\) \* \.12/);
+    assert.match(calls, /function collides\(candidate\)/);
+    assert.match(calls, /candidate\.radius \+ existing\.radius \+ requiredGap/);
     assert.match(calls, /const usedMotifs = new Set\(\)/);
-    assert.match(calls, /const targetCount = Math\.max\(10/);
-    assert.match(calls, /const targetAccents = Math\.max\(40, Math\.min\(84/);
-    assert.match(calls, /const scale = \.18 \+ random\(\) \* \.22/);
+    assert.match(calls, /const targetCount = Math\.max\(14, Math\.min\(34, Math\.round\(canvasWidth \/ 36\)\)\)/);
+    assert.match(calls, /const targetAccents = Math\.min\(\s*CHAT_WALLPAPER_ALL_MOTIFS\.length - targetCount,\s*Math\.max\(68, Math\.round\(canvasWidth \/ 7\.5\)\)\s*\)/);
+    assert.match(calls, /const scale = \.14 \+ random\(\) \* \.18/);
     assert.match(calls, /data-wallpaper-doodle="1"/);
     assert.match(calls, /data-wallpaper-accent="1"/);
-    assert.match(calls, /radius \+ doodle\.radius \+ 12/);
-    assert.match(calls, /radius \+ existing\.radius \+ 8/);
+    assert.match(calls, /candidate\.radius \+ existing\.radius \+ requiredGap/);
+    assert.match(calls, /candidate\.radius \+ existing\.radius \+ requiredGap/);
     assert.match(calls, /const CHAT_WALLPAPER_GEOMETRIES = \[/);
     assert.match(calls, /const smallOpacity = theme === "light" \? "\.52" : "\.43"/);
     assert.match(calls, /wallpaperThemeObserver\.observe/);
@@ -209,8 +209,8 @@ test("chat wallpaper uses collision-safe random placement, varied sizes and scat
 
 test("the broken audioOnly reference is removed and asset caches point to the new builds", () => {
     assert.doesNotMatch(calls, /audioOnly/);
-    assert.match(html, /chat-ui\.js\?v=chat-gif-style-refresh-20261029a/);
-    assert.match(html, /chat-enhancements\.js\?v=chat-wallpaper-more-dense-20261029a/);
+    assert.match(html, /chat-ui\.js\?v=chat-private-media-signed-access-20261030a/);
+    assert.match(html, /chat-enhancements\.js\?v=chat-wallpaper-collision-packed-20261030a/);
     assert.match(html, /chat-enhancements\.css\?v=chat-safety-note-wallpaper-density-20261029a/);
     assert.match(enhancementCss, /background-repeat:no-repeat,repeat-y!important/);
     assert.match(html, /chat-ux-polish\.css\?v=chat-message-profile-hit-targets-20261029a/);

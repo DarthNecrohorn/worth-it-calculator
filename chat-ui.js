@@ -1276,9 +1276,20 @@ function makeWorthItChatMessageActionButton(label, glyph, className, onClick) {
     return button;
 }
 async function copyWorthItChatMessage(message) {
-    const value = String(message.body || message.media_url || "");
+    let value = String(message.body || "");
+    if (!value && message.media_type === "audio") {
+        value = "🎙 Voice message";
+    } else if (!value && message.media_url && ["image", "gif", "video"].includes(message.media_type)) {
+        try {
+            const conversationId = activeConversationType === "global" ? WORTH_IT_GLOBAL_CHAT_REALTIME_ID : activeConversationId;
+            value = await getWorthItChatMediaSignedUrl(message.media_url, conversationId);
+        } catch (_) {
+            setStatus("Could not prepare a secure attachment link. Please try again.", true);
+            return;
+        }
+    }
     if (!value) {
-        setStatus("There is no message text or attachment link to copy.", true);
+        setStatus("There is no message text or attachment to copy.", true);
         return;
     }
     try {
@@ -1339,8 +1350,8 @@ function quoteWorthItChatMessage(message) {
     input.focus({preventScroll:true});
     setStatus("Replying to " + author + ". Write your reply below.", false);
 }
-function getOwnedWorthItChatMediaObjectPath(mediaUrl, userId, client) {
-    if (!mediaUrl || !userId || !client?.supabaseUrl) return "";
+function getWorthItChatMediaObjectPath(mediaUrl, client) {
+    if (!mediaUrl || !client?.supabaseUrl) return "";
     try {
         const media = new URL(String(mediaUrl));
         const configured = new URL(String(client.supabaseUrl));
@@ -1349,12 +1360,80 @@ function getOwnedWorthItChatMediaObjectPath(mediaUrl, userId, client) {
         if (!media.pathname.startsWith(prefix)) return "";
         const encodedPath = media.pathname.slice(prefix.length);
         const objectPath = encodedPath.split("/").map(part => decodeURIComponent(part)).join("/");
-        const segments = objectPath.split("/");
-        if (segments.length < 2 || segments[0] !== String(userId) || segments.some(part => !part || part === "." || part === "..")) return "";
+        if (!/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}\/[A-Za-z0-9._-]{1,255}$/.test(objectPath) || objectPath.includes("..")) return "";
         return objectPath;
     } catch (_) {
         return "";
     }
+}
+function getOwnedWorthItChatMediaObjectPath(mediaUrl, userId, client) {
+    const objectPath = getWorthItChatMediaObjectPath(mediaUrl, client);
+    return objectPath && objectPath.startsWith(String(userId || "") + "/") ? objectPath : "";
+}
+
+const worthItChatMediaUrlCache = new Map();
+async function getWorthItChatMediaSignedUrl(mediaUrl, conversationId, forceRefresh = false) {
+    const objectPath = getWorthItChatMediaObjectPath(mediaUrl, sb());
+    const validConversationId = String(conversationId || "");
+    if (!objectPath || !/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(validConversationId)) {
+        throw new Error("Invalid chat media reference.");
+    }
+    // Verify the current account before consulting the cache. A different user
+    // on the same browser must never inherit another account's signed URL.
+    const sessionResult = await sb().auth.getSession();
+    const token = sessionResult?.data?.session?.access_token || "";
+    const currentUserId = String(chatUser?.id || "");
+    if (sessionResult?.error || !token || !currentUserId ||
+        String(sessionResult?.data?.session?.user?.id || "") !== currentUserId) {
+        throw new Error("Sign in again to view this attachment.");
+    }
+    const cacheKey = currentUserId + ":" + validConversationId + ":" + objectPath;
+    const cached = worthItChatMediaUrlCache.get(cacheKey);
+    if (!forceRefresh && cached && cached.expiresAt > Date.now() + 30000) return cached.url;
+    const query = new URLSearchParams({conversation_id: validConversationId, path: objectPath});
+    const response = await fetch("/api/chat-media?" + query.toString(), {
+        method: "GET",
+        headers: {Authorization: "Bearer " + token},
+        credentials: "same-origin",
+        cache: "no-store"
+    });
+    let payload = {};
+    try { payload = await response.json(); } catch (_) {}
+    if (!response.ok || !payload.url) throw new Error(payload.error || "Could not open this attachment.");
+    const expiresIn = Math.max(60, Number(payload.expires_in) || 900);
+    worthItChatMediaUrlCache.set(cacheKey, {url: payload.url, expiresAt: Date.now() + (expiresIn - 30) * 1000});
+    while (worthItChatMediaUrlCache.size > 200) {
+        worthItChatMediaUrlCache.delete(worthItChatMediaUrlCache.keys().next().value);
+    }
+    return payload.url;
+}
+function attachPrivateWorthItChatMedia(element, mediaUrl, conversationId) {
+    let refreshed = false;
+    const showUnavailable = () => {
+        if (!element.isConnected) return;
+        const notice = document.createElement("span");
+        notice.className = "worth-it-chat-link";
+        notice.textContent = "Attachment unavailable. Reload the chat to try again.";
+        notice.setAttribute("role", "status");
+        element.replaceWith(notice);
+    };
+    const load = async forceRefresh => {
+        try {
+            const signedUrl = await getWorthItChatMediaSignedUrl(mediaUrl, conversationId, forceRefresh);
+            if (element.isConnected) element.src = signedUrl;
+        } catch (_) {
+            showUnavailable();
+        }
+    };
+    element.addEventListener("error", () => {
+        if (!refreshed) {
+            refreshed = true;
+            void load(true);
+        } else {
+            showUnavailable();
+        }
+    });
+    void load(false);
 }
 
 
@@ -1515,6 +1594,7 @@ async function runWorthItChatMessageAction(action, message) {
         const latest = chatMessages.find(item => String(item.id) === String(message.id));
         const deletedAttachmentUrl = message.media_url;
         const deletedAttachmentType = message.media_type;
+        const deletedAttachmentConversationId = activeConversationType === "global" ? WORTH_IT_GLOBAL_CHAT_REALTIME_ID : activeConversationId;
         if (latest) {
             latest.body = "";
             latest.media_url = null;
@@ -1553,8 +1633,15 @@ async function runWorthItChatMessageAction(action, message) {
                     attachmentCleanupFailed = true;
                 } else {
                     try {
-                        const {error: storageError} = await sb().storage.from("worth-it-chat-media").remove([objectPath]);
-                        if (storageError) attachmentCleanupFailed = true;
+                        const session = await sb().auth.getSession();
+                        const token = session?.data?.session?.access_token || "";
+                        if (!token || !deletedAttachmentConversationId) throw new Error("Could not verify chat access.");
+                        const query = new URLSearchParams({conversation_id: deletedAttachmentConversationId, path: objectPath});
+                        const response = await fetch("/api/chat-media?" + query.toString(), {
+                            method: "DELETE", headers: {Authorization: "Bearer " + token},
+                            credentials: "same-origin", cache: "no-store"
+                        });
+                        if (!response.ok) attachmentCleanupFailed = true;
                     } catch (_) { attachmentCleanupFailed = true; }
                 }
             }
@@ -1564,7 +1651,7 @@ async function runWorthItChatMessageAction(action, message) {
         if (attachmentCleanupFailed) {
             setStatus(deletedAttachmentType === "audio"
                 ? "Message deleted, but its private voice file could not be removed from storage."
-                : "Message deleted, but its uploaded attachment could not be removed from storage. The chat message is hidden; the file may still be accessible by its direct URL.", true);
+                : "Message deleted, but its uploaded attachment could not be removed from storage. The chat message is hidden; the attachment may still remain in storage.", true);
         } else {
             setStatus(action === "delete" ? "Message deleted for everyone." : "Message hidden for you. Other members can still see it.", false);
         }
@@ -1735,46 +1822,28 @@ function createWorthItChatMessageRow(message) {
             } else if (message.media_type === "video") {
                 const video = document.createElement("video");
                 video.className = "worth-it-chat-media worth-it-chat-video";
-                video.src = message.media_url;
+                attachPrivateWorthItChatMedia(video, message.media_url, activeConversationType === "global" ? WORTH_IT_GLOBAL_CHAT_REALTIME_ID : activeConversationId);
                 video.controls = true;
                 video.preload = "metadata";
                 video.playsInline = true;
                 video.setAttribute("aria-label", "Shared video");
-                video.addEventListener("error", () => {
-                    const fallback = document.createElement("a");
-                    fallback.className = "worth-it-chat-link";
-                    fallback.href = message.media_url;
-                    fallback.target = "_blank";
-                    fallback.rel = "noopener noreferrer";
-                    fallback.textContent = "Open attached video";
-                    video.replaceWith(fallback);
-                });
                 bubble.appendChild(video);
             } else {
                 const img = document.createElement("img");
                 img.className = "worth-it-chat-media";
-                img.src = message.media_url;
+                attachPrivateWorthItChatMedia(img, message.media_url, activeConversationType === "global" ? WORTH_IT_GLOBAL_CHAT_REALTIME_ID : activeConversationId);
                 img.alt = message.media_type === "gif" ? "Shared GIF" : "Shared image";
                 img.loading = "lazy";
                 img.referrerPolicy = "no-referrer";
                 img.tabIndex = 0;
                 img.setAttribute("role", "button");
                 img.setAttribute("aria-label", "Open image full screen");
-                img.addEventListener("click", () => openWorthItChatImageLightbox(message.media_url, img.alt));
+                img.addEventListener("click", () => openWorthItChatImageLightbox(img.currentSrc || img.src, img.alt));
                 img.addEventListener("keydown", event => {
                     if (event.key === "Enter" || event.key === " ") {
                         event.preventDefault();
-                        openWorthItChatImageLightbox(message.media_url, img.alt);
+                        openWorthItChatImageLightbox(img.currentSrc || img.src, img.alt);
                     }
-                });
-                img.addEventListener("error", () => {
-                    const fallback = document.createElement("a");
-                    fallback.className = "worth-it-chat-link";
-                    fallback.href = message.media_url;
-                    fallback.target = "_blank";
-                    fallback.rel = "noopener noreferrer";
-                    fallback.textContent = "Open attached media";
-                    img.replaceWith(fallback);
                 });
                 bubble.appendChild(img);
             }
@@ -2691,7 +2760,7 @@ async function uploadPendingMedia(file = pendingMediaFile, conversationId = acti
     }
     const form = new FormData();
     form.append("file", file, file.name || (type === "audio" ? "voice-message" : type === "gif" ? "image.gif" : "image"));
-    if (type === "audio") form.append("conversation_id", conversationId || WORTH_IT_GLOBAL_CHAT_REALTIME_ID);
+    form.append("conversation_id", conversationId || WORTH_IT_GLOBAL_CHAT_REALTIME_ID);
     const response = await fetch(type === "audio" ? "/api/chat-audio" : "/api/chat-media", {
         method: "POST",
         headers: { "Authorization": "Bearer " + token },

@@ -29,7 +29,7 @@ test("each live message has ChatGPT-like copy, quote and three-dot action contro
     assert.match(actionsCss, /\.worth-it-chat-message-actions/);
     assert.match(actionsCss, /\.worth-it-chat-message-menu/);
     assert.match(html, /chat-actions\.css\?v=chat-message-actions-20261028c/);
-    assert.match(html, /chat-ui\.js\?v=chat-gif-style-refresh-20261029a/);
+    assert.match(html, /chat-ui\.js\?v=chat-private-media-signed-access-20261030a/);
 });
 
 test("message menu offers hide-for-me and owner-only delete-for-everyone actions", () => {
@@ -49,8 +49,8 @@ test("message menu offers hide-for-me and owner-only delete-for-everyone actions
     assert.match(client, /if \(!message\.is_deleted && !message\.is_hidden_by_me\) stack\.appendChild\(name\)/);
     assert.match(client, /function getOwnedWorthItChatMediaObjectPath/);
     assert.match(client, /media\.origin !== configured\.origin/);
-    assert.match(client, /segments\[0\] !== String\(userId\)/);
-    assert.match(client, /\.storage\.from\("worth-it-chat-media"\)\.remove\(\[objectPath\]\)/);
+    assert.match(client, /objectPath\.startsWith\(String\(userId/);
+    assert.match(client, /fetch\("\/api\/chat-media\?" \+ query\.toString\(\)[\s\S]*?method: "DELETE"/);
     assert.match(client, /attachmentCleanupFailed/);
 });
 
@@ -63,7 +63,7 @@ test("stale polling responses cannot restore cleared or deleted messages", () =>
     assert.equal((client.match(/await loadWorthItChatMessages\(false, true\)/g) || []).length, 3);
     assert.equal((client.match(/await loadWorthItChatMessages\(true, true\)/g) || []).length, 2);
     assert.match(client, /chatMessageRequestVersion \+= 1;\s*chatLoading = false;/);
-    assert.match(client, /Invalidate any poll that began before the destructive RPC completed[\s\S]*?renderMessages\(false\);[\s\S]*?storage\.from\("worth-it-chat-media"\)/);
+    assert.match(client, /Invalidate any poll that began before the destructive RPC completed[\s\S]*?renderMessages\(false\);[\s\S]*?fetch\("\/api\/chat-media\?"/);
     assert.match(client, /already-started poll repopulate this user's cleared history[\s\S]*?chatMessageRequestVersion \+= 1;\s*chatLoading = false;[\s\S]*?await refreshWorthItChatData\(\)/);
 });
 
@@ -142,5 +142,12 @@ test("delete-for-everyone uses an accessible branded dialog with a per-user skip
     assert.match(deleteConfirmCss, /\.worth-it-chat-delete-confirm-preference/);
     assert.match(deleteConfirmCss, /html\[data-theme="light"\]/);
     assert.match(html, /chat-delete-confirm\.css\?v=chat-delete-confirm-20261028b/);
-    assert.match(html, /chat-ui\.js\?v=chat-gif-style-refresh-20261029a/);
+    assert.match(html, /chat-ui\.js\?v=chat-private-media-signed-access-20261030a/);
 });
+test("copying standalone private media messages uses an authorized signed link", () => {
+    const copy = client.match(/async function copyWorthItChatMessage\(message\) \{[\s\S]*?\n\}/)?.[0] || "";
+    assert.match(copy, /getWorthItChatMediaSignedUrl\(message\.media_url, conversationId\)/);
+    assert.match(copy, /message\.media_type === "audio"/);
+    assert.doesNotMatch(copy, /message\.body \|\| message\.media_url/);
+});
+

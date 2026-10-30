@@ -30,7 +30,7 @@ test("chat enhancement controls are present, accessible, and loaded separately",
         "worthItChatRemoteVideo", "worthItChatLocalVideo", "worthItChatRemoteAudio"
     ]) assert.match(html, new RegExp('id="' + id + '"'), "missing chat UI element " + id);
     assert.match(html, /chat-enhancements\.css\?v=chat-safety-note-wallpaper-density-20261029a/);
-    assert.match(html, /chat-enhancements\.js\?v=chat-wallpaper-more-dense-20261029a/);
+    assert.match(html, /chat-enhancements\.js\?v=chat-wallpaper-collision-packed-20261030a/);
     assert.match(css, /WORTH IT Chat additions|Worth It Chat additions/);
     assert.match(css, /worth-it-chat-reply-preview/);
     assert.match(css, /worth-it-chat-call-overlay/);
@@ -205,7 +205,7 @@ test("chat follow-up fixes keep search prefix-only, keep wallpaper stationary wh
 
 test("chat images open in a responsive full-screen viewer and media bubbles do not stretch", () => {
      assert.match(chat, /function openWorthItChatImageLightbox\(src, alt\)/);
-     assert.match(chat, /img\.addEventListener\("click", \(\) => openWorthItChatImageLightbox\(message\.media_url, img\.alt\)\)/);
+     assert.match(chat, /img\.addEventListener\("click", \(\) => openWorthItChatImageLightbox\(img\.currentSrc \|\| img\.src, img\.alt\)\)/);
      assert.match(chat, /function handleWorthItChatLightboxKeydown\(event\)/);
      assert.match(style, /\.worth-it-chat-image-lightbox-close/);
      assert.match(style, /\.worth-it-chat-bubble:has\(\.worth-it-chat-media\)\{width:fit-content!important/);
@@ -217,13 +217,13 @@ test("chat images open in a responsive full-screen viewer and media bubbles do n
     assert.match(client, /function applyChatWallpaper\(contextValue\)/);
     assert.match(client, /const canvasWidth = Math\.max\(600, Math\.min\(2400/);
     assert.match(client, /const canvasHeight = Math\.round\(canvasWidth \* 1\.5\)/);
-    assert.match(client, /const targetCount = Math\.max\(10/);
+    assert.match(client, /const targetCount = Math\.max\(14, Math\.min\(34, Math\.round\(canvasWidth \/ 36\)\)\)/);
     assert.match(client, /const scales = Array\.from/);
-    assert.match(client, /scales\[0\] = \.56 \+ random\(\) \* \.07/);
-    assert.match(client, /scales\[1\] = 1\.02 \+ random\(\) \* \.11/);
-    assert.match(client, /Math\.hypot\(x - existing\.x, y - existing\.y\) < radius \+ existing\.radius \+ 12/);
-    assert.match(client, /const x = margin \+ random\(\) \* Math\.max\(0, canvasWidth - margin \* 2\)/);
-    assert.match(client, /const y = margin \+ random\(\) \* Math\.max\(0, canvasHeight - margin \* 2\)/);
+    assert.match(client, /scales\[0\] = \.98 \+ random\(\) \* \.13/);
+    assert.match(client, /scales\[1\] = \.84 \+ random\(\) \* \.12/);
+    assert.match(client, /function collides\(candidate\)[\s\S]*?candidate\.radius \+ existing\.radius \+ requiredGap/);
+    assert.match(client, /x: margin \+ random\(\) \* Math\.max\(0, canvasWidth - margin \* 2\)/);
+    assert.match(client, /y: margin \+ random\(\) \* Math\.max\(0, canvasHeight - margin \* 2\)/);
     assert.match(client, /const usedMotifs = new Set\(\)/);
     assert.match(client, /data-wallpaper-doodle="1"/);
     assert.match(client, /data-wallpaper-accent="1"/);
@@ -254,11 +254,11 @@ test("chat doodles and accents stay separated, adapt to both themes and retain v
     assert.match(client, /const angle = Math\.floor\(random\(\) \* 360\)/);
     assert.match(client, /const scaleX = random\(\) < \.5 \? -point\.scale : point\.scale/);
     assert.match(client, /const scaleY = random\(\) < \.5 \? -point\.scale : point\.scale/);
-    assert.match(client, /const overlaps = placements\.some/);
-    assert.match(client, /radius \+ doodle\.radius \+ 12/);
-    assert.match(client, /radius \+ existing\.radius \+ 8/);
-    assert.match(client, /const targetAccents = Math\.max\(40, Math\.min\(84/);
-    assert.match(client, /const scale = \.18 \+ random\(\) \* \.22/);
+    assert.match(client, /const placementGrid = new Map\(\)/);
+    assert.match(client, /candidate\.kind === "doodle" && existing\.kind === "doodle"[\s\S]*?\? 12/);
+    assert.match(client, /candidate\.kind === "accent" && existing\.kind === "accent"[\s\S]*?\? 6 : 8/);
+    assert.match(client, /const targetAccents = Math\.min\([\s\S]*?Math\.max\(68, Math\.round\(canvasWidth \/ 7\.5\)\)/);
+    assert.match(client, /const scale = \.14 \+ random\(\) \* \.18/);
     assert.match(client, /const opacity = theme === "light" \? "\.44" : "\.36"/);
     assert.match(client, /const smallOpacity = theme === "light" \? "\.52" : "\.43"/);
     assert.match(css, /var\(--worthit-chat-wallpaper-image,none\)!important/);

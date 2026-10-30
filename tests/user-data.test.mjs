@@ -67,6 +67,11 @@ function mockFetch(options = {}) {
             return Response.json(options.chatMediaEntries || []);
         }
 
+        if (url.origin === SUPABASE_URL && url.pathname === "/storage/v1/object/list/worth-it-chat-audio" && method === "POST") {
+            if (options.chatAudioListFails) return Response.json({ message: "Simulated chat audio inventory failure" }, { status: 503 });
+            return Response.json(options.chatAudioEntries || []);
+        }
+
         if (url.origin === SUPABASE_URL && url.pathname === "/storage/v1/object/worth-it-avatars" && method === "DELETE") {
             if (options.storageDeleteFails) return Response.json({ message: "Simulated storage cleanup failure" }, { status: 500 });
             return new Response(null, { status: 200 });
@@ -74,6 +79,11 @@ function mockFetch(options = {}) {
 
         if (url.origin === SUPABASE_URL && url.pathname === "/storage/v1/object/worth-it-chat-media" && method === "DELETE") {
             if (options.chatMediaDeleteFails) return Response.json({ message: "Simulated chat media cleanup failure" }, { status: 500 });
+            return new Response(null, { status: 200 });
+        }
+
+        if (url.origin === SUPABASE_URL && url.pathname === "/storage/v1/object/worth-it-chat-audio" && method === "DELETE") {
+            if (options.chatAudioDeleteFails) return Response.json({ message: "Simulated chat audio cleanup failure" }, { status: 500 });
             return new Response(null, { status: 200 });
         }
 
@@ -230,7 +240,10 @@ test("deletes only captured feedback rows and correctly scoped profile assets af
         { id: "chat-media-object-id", name: "1790000000000-ab12cd.png", metadata: { mimetype: "image/png" } },
         { id: null, name: "nested-folder", metadata: null }
     ];
-    const calls = mockFetch({ feedbackRows, profileRows, chatMediaEntries });
+    const chatAudioEntries = [
+        { id: "chat-audio-object-id", name: "1790000000001-cd34ef.webm", metadata: { mimetype: "audio/webm" } }
+    ];
+    const calls = mockFetch({ feedbackRows, profileRows, chatMediaEntries, chatAudioEntries });
     const response = await api.onRequestPost({
         request: request("/api/user-data", {
             method: "POST",
@@ -244,6 +257,8 @@ test("deletes only captured feedback rows and correctly scoped profile assets af
     const storageDeletes = calls.filter(call => call.url.pathname === "/storage/v1/object/worth-it-avatars" && call.method === "DELETE");
     const chatMediaList = calls.find(call => call.url.pathname === "/storage/v1/object/list/worth-it-chat-media" && call.method === "POST");
     const chatMediaDelete = calls.find(call => call.url.pathname === "/storage/v1/object/worth-it-chat-media" && call.method === "DELETE");
+    const chatAudioList = calls.find(call => call.url.pathname === "/storage/v1/object/list/worth-it-chat-audio" && call.method === "POST");
+    const chatAudioDelete = calls.find(call => call.url.pathname === "/storage/v1/object/worth-it-chat-audio" && call.method === "DELETE");
 
     assert.equal(response.status, 200);
     assert.equal(payload.success, true);
@@ -262,6 +277,13 @@ test("deletes only captured feedback rows and correctly scoped profile assets af
     assert.equal(JSON.parse(chatMediaList.init.body).prefix, USER_ID + "/");
     assert.ok(chatMediaDelete, "chat media must be removed after Auth deletion");
     assert.deepEqual(JSON.parse(chatMediaDelete.init.body).prefixes, [USER_ID + "/1790000000000-ab12cd.png"]);
+    assert.ok(chatAudioList, "private voice files must be inventoried before account deletion");
+    assert.equal(JSON.parse(chatAudioList.init.body).prefix, USER_ID + "/");
+    assert.ok(chatAudioDelete, "private voice files must be removed after Auth deletion");
+    assert.deepEqual(JSON.parse(chatAudioDelete.init.body).prefixes, [USER_ID + "/1790000000001-cd34ef.webm"]);
+    assert.ok(calls.findIndex(call => call.url.pathname === "/auth/v1/admin/users/" + USER_ID && call.method === "DELETE") <
+        calls.findIndex(call => call.url.pathname === "/storage/v1/object/worth-it-chat-audio" && call.method === "DELETE"),
+        "voice cleanup must happen only after Auth deletion");
     assert.equal(calls.some(call => call.url.pathname.includes("another-user")), false);
 });
 
@@ -313,7 +335,7 @@ test("surfaces a cleanup warning if profile storage cleanup fails after Auth del
     assert.equal(payload.success, true);
     assert.equal(payload.deleted, true);
     assert.equal(payload.cleanup_warning, true);
-    assert.match(payload.warning, /some feedback, profile images, or chat attachments/i);
+    assert.match(payload.warning, /some feedback, profile images, chat attachments, or voice messages/i);
     assert.ok(calls.some(call => call.url.pathname === "/auth/v1/admin/users/" + USER_ID && call.method === "DELETE"));
 });
 
@@ -333,4 +355,23 @@ test("does not delete the Auth account if chat media cannot be inventoried", asy
     assert.equal(payload.success, false);
     assert.match(payload.error, /Chat attachments could not be inventoried/i);
     assert.equal(calls.filter(call => call.url.pathname.startsWith("/auth/v1/admin/users/") && call.method === "DELETE").length, 0);
+});
+
+test("does not delete the Auth account if private chat audio cannot be inventoried", async () => {
+    const calls = mockFetch({ chatAudioListFails: true });
+    const response = await api.onRequestPost({
+        request: request("/api/user-data", {
+            method: "POST",
+            body: { action: "delete", confirmation: "DELETE" }
+        }),
+        env: env()
+    });
+    const payload = await response.json();
+
+    assert.equal(response.status, 500);
+    assert.equal(payload.success, false);
+    assert.match(payload.error, /Voice messages could not be inventoried/i);
+    assert.equal(calls.filter(call =>
+        call.url.pathname.startsWith("/auth/v1/admin/users/") && call.method === "DELETE"
+    ).length, 0);
 });

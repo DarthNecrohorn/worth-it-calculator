@@ -32,7 +32,7 @@ test("message-only avatar, status dot and display-name hit targets scale for des
     assert.match(polish, /@media \(max-width: 760px\)[\s\S]*?\.worth-it-chat-message \.worth-it-chat-message-avatar-link \.worth-it-chat-person-avatar\s*\{[\s\S]*?display: grid !important;/);
     assert.match(polish, /\.worth-it-chat-message-name\s*\{[\s\S]*?width: fit-content !important;[\s\S]*?padding: 0 !important;[\s\S]*?font-size: 13px !important;/);
     assert.match(polish, /@media \(max-width: 760px\)[\s\S]*?\.worth-it-chat-message \.worth-it-chat-message-name\s*\{[\s\S]*?font-size: 12px !important;/);
-    assert.match(html, /chat-ui\.js\?v=chat-gif-style-refresh-20261029a/);
+    assert.match(html, /chat-ui\.js\?v=chat-private-media-signed-access-20261030a/);
     assert.match(html, /chat-ux-polish\.css\?v=chat-message-profile-hit-targets-20261029a/);
 });
 
