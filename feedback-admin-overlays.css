@@ -1,0 +1,323 @@
+/* =========================================================
+   FEEDBACK + PRIVATE ADMIN OVERLAYS
+   Keep these dialogs above the sticky navigation and menus.
+   Backdrop clicks are intentionally non-dismissing; the
+   explicit close controls and Escape remain available.
+========================================================= */
+
+.feedback-overlay,
+.admin-panel-overlay {
+    z-index:65000 !important;
+    isolation:isolate;
+    background:
+        radial-gradient(ellipse at 50% 34%, rgba(65,91,180,.22), transparent 46%),
+        linear-gradient(145deg, rgba(5,10,23,.78), rgba(7,13,27,.68)) !important;
+    -webkit-backdrop-filter:blur(16px) saturate(118%) !important;
+    backdrop-filter:blur(16px) saturate(118%) !important;
+}
+
+/* Give the two dialogs a clearer, polished surface while retaining
+   their existing width, height, padding and responsive geometry. */
+.feedback-modal-card,
+.admin-panel-card {
+    border:1px solid rgba(148,163,184,.22) !important;
+    box-shadow:
+        0 34px 110px rgba(0,0,0,.42),
+        0 0 0 1px rgba(124,92,255,.07),
+        0 12px 42px rgba(37,99,235,.10) !important;
+    -webkit-backdrop-filter:blur(20px) saturate(120%);
+    backdrop-filter:blur(20px) saturate(120%);
+}
+
+.feedback-modal-card {
+    background:
+        radial-gradient(ellipse at 0% 0%, rgba(124,92,255,.13), transparent 46%),
+        linear-gradient(145deg, #18233a, #101827 68%, #0e1727) !important;
+}
+
+.admin-panel-card {
+    background:
+        radial-gradient(ellipse at 0% 0%, rgba(124,92,255,.12), transparent 42%),
+        radial-gradient(ellipse at 100% 0%, rgba(56,189,248,.075), transparent 38%),
+        linear-gradient(145deg, #18243b, #101827 72%, #0d1625) !important;
+}
+
+.feedback-head h3,
+.admin-panel-head-copy h3 {
+    letter-spacing:-.035em;
+}
+
+.feedback-head p,
+.admin-panel-head-copy p {
+    line-height:1.55;
+}
+
+/* Feedback type selection and message field. */
+.feedback-type button {
+    min-height:44px;
+    border-color:rgba(148,163,184,.20);
+    background:rgba(255,255,255,.045);
+    transition:background .18s ease,border-color .18s ease,box-shadow .18s ease,transform .18s ease;
+}
+
+.feedback-type button:hover {
+    border-color:rgba(167,139,250,.52);
+    background:rgba(124,92,255,.10);
+    transform:translateY(-1px);
+}
+
+.feedback-type button.active {
+    border-color:rgba(167,139,250,.72);
+    background:linear-gradient(135deg,rgba(124,92,255,.22),rgba(56,189,248,.09));
+    box-shadow:0 0 0 1px rgba(167,139,250,.14) inset,0 8px 22px rgba(37,99,235,.10);
+}
+
+.feedback-field > label {
+    font-weight:800;
+    letter-spacing:.01em;
+}
+
+.feedback-field textarea {
+    border-color:rgba(148,163,184,.22);
+    border-radius:14px;
+    background:rgba(4,10,22,.42);
+    color:#f8fafc;
+    line-height:1.6;
+    transition:border-color .18s ease,background .18s ease,box-shadow .18s ease;
+}
+
+.feedback-field textarea:focus {
+    border-color:rgba(129,140,248,.78);
+    background:rgba(4,10,22,.58);
+    box-shadow:0 0 0 3px rgba(99,102,241,.16);
+}
+
+.feedback-field textarea::placeholder {
+    color:#94a3b8;
+    opacity:.9;
+}
+
+.feedback-close {
+    border-color:rgba(148,163,184,.22);
+    background:rgba(255,255,255,.055);
+    transition:background .18s ease,border-color .18s ease,transform .18s ease;
+}
+
+.feedback-close:hover,
+.admin-panel-close:hover {
+    background:rgba(124,92,255,.16);
+    border-color:rgba(167,139,250,.58);
+    transform:translateY(-1px);
+}
+
+.feedback-actions .btn-primary {
+    box-shadow:0 8px 22px rgba(79,70,229,.22);
+}
+
+/* Modern cards for the three private Admin Panel destinations. */
+.admin-panel-section-button {
+    position:relative;
+    border-color:rgba(148,163,184,.19) !important;
+    background:
+        linear-gradient(145deg,rgba(255,255,255,.065),rgba(255,255,255,.025)) !important;
+    box-shadow:0 8px 24px rgba(0,0,0,.12),inset 0 1px 0 rgba(255,255,255,.035);
+    transition:background .18s ease,border-color .18s ease,box-shadow .18s ease,transform .18s ease !important;
+}
+
+.admin-panel-section-button:hover,
+.admin-panel-section-button.active {
+    border-color:rgba(167,139,250,.55) !important;
+    background:
+        linear-gradient(120deg,rgba(124,92,255,.17),rgba(56,189,248,.075)) !important;
+    box-shadow:0 14px 34px rgba(0,0,0,.20),0 0 0 1px rgba(124,92,255,.10) inset !important;
+    transform:translateY(-2px);
+}
+
+.admin-panel-section-button:focus-visible {
+    outline:3px solid rgba(129,140,248,.78);
+    outline-offset:3px;
+}
+
+.admin-panel-section-icon {
+    border:1px solid rgba(167,139,250,.18);
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.05);
+}
+
+.admin-panel-section-button[data-admin-section="feedback"] .admin-panel-section-icon {
+    background:linear-gradient(145deg,rgba(249,115,22,.18),rgba(239,68,68,.09));
+    border-color:rgba(251,146,60,.24);
+}
+
+.admin-panel-section-button[data-admin-section="usage"] .admin-panel-section-icon {
+    background:linear-gradient(145deg,rgba(56,189,248,.18),rgba(59,130,246,.09));
+    border-color:rgba(56,189,248,.24);
+}
+
+.admin-panel-section-button[data-admin-section="platform-usage"] .admin-panel-section-icon {
+    background:linear-gradient(145deg,rgba(124,92,255,.20),rgba(99,102,241,.09));
+    border-color:rgba(167,139,250,.25);
+}
+
+.admin-panel-section-copy strong {
+    letter-spacing:-.01em;
+}
+
+.admin-panel-section-copy small {
+    line-height:1.45;
+}
+
+.admin-panel-section-arrow {
+    color:#a5b4fc;
+    opacity:.82;
+    transition:transform .18s ease,opacity .18s ease;
+}
+
+.admin-panel-section-button:hover .admin-panel-section-arrow {
+    opacity:1;
+    transform:translateX(2px);
+}
+
+/* Give the feedback, API and platform detail cards a consistent surface. */
+.admin-panel-welcome,
+.admin-feedback-modern-item,
+.admin-usage-card,
+.admin-usage-summary-card,
+.admin-usage-metrics > div,
+.admin-panel-empty,
+.admin-panel-error {
+    border-color:rgba(148,163,184,.18);
+    background:linear-gradient(145deg,rgba(255,255,255,.055),rgba(255,255,255,.022));
+    box-shadow:0 7px 22px rgba(0,0,0,.10);
+}
+
+.admin-panel-section-head {
+    padding-bottom:13px;
+    border-bottom:1px solid rgba(148,163,184,.14);
+}
+
+.admin-panel-back-button {
+    transition:background .18s ease,border-color .18s ease,transform .18s ease;
+}
+
+.admin-panel-back-button:hover {
+    transform:translateX(-2px);
+}
+
+.admin-panel-inline-button {
+    border-radius:10px;
+}
+
+/* Light theme: bright surfaces and darker, readable accents. */
+html[data-theme="light"] .feedback-overlay,
+html[data-theme="light"] .admin-panel-overlay {
+    background:
+        radial-gradient(ellipse at 50% 34%,rgba(99,102,241,.13),transparent 48%),
+        rgba(30,41,59,.36) !important;
+    -webkit-backdrop-filter:blur(16px) saturate(112%) !important;
+    backdrop-filter:blur(16px) saturate(112%) !important;
+}
+
+html[data-theme="light"] .feedback-modal-card {
+    border-color:rgba(99,102,241,.20) !important;
+    background:
+        radial-gradient(ellipse at 0% 0%,rgba(124,92,255,.075),transparent 46%),
+        linear-gradient(145deg,#ffffff,#f6f8ff 70%,#f2f6fc) !important;
+    color:#0f172a;
+    box-shadow:0 30px 90px rgba(15,23,42,.25),0 0 0 1px rgba(99,102,241,.06) !important;
+}
+
+html[data-theme="light"] .admin-panel-card {
+    border-color:rgba(99,102,241,.20) !important;
+    background:
+        radial-gradient(ellipse at 0% 0%,rgba(124,92,255,.07),transparent 44%),
+        radial-gradient(ellipse at 100% 0%,rgba(14,165,233,.045),transparent 40%),
+        linear-gradient(145deg,#ffffff,#f7f9fd 72%,#f1f5fb) !important;
+    color:#0f172a;
+    box-shadow:0 30px 90px rgba(15,23,42,.22),0 0 0 1px rgba(99,102,241,.05) !important;
+}
+
+html[data-theme="light"] .feedback-head h3,
+html[data-theme="light"] .feedback-field > label,
+html[data-theme="light"] .admin-panel-head-copy h3,
+html[data-theme="light"] .admin-panel-section-copy strong {
+    color:#0f172a;
+}
+
+html[data-theme="light"] .feedback-head p,
+html[data-theme="light"] .admin-panel-head-copy p,
+html[data-theme="light"] .admin-panel-section-copy small {
+    color:#526176;
+}
+
+html[data-theme="light"] .feedback-type button {
+    color:#334155;
+    border-color:rgba(100,116,139,.20);
+    background:linear-gradient(145deg,#fff,#f6f8fc);
+}
+
+html[data-theme="light"] .feedback-type button.active {
+    color:#312e81;
+    border-color:rgba(99,102,241,.45);
+    background:linear-gradient(135deg,rgba(124,92,255,.12),rgba(56,189,248,.08));
+    box-shadow:0 0 0 1px rgba(99,102,241,.08) inset;
+}
+
+html[data-theme="light"] .feedback-field textarea {
+    color:#0f172a;
+    border-color:#cbd5e1;
+    background:#fff;
+}
+
+html[data-theme="light"] .feedback-field textarea::placeholder {
+    color:#64748b;
+}
+
+html[data-theme="light"] .feedback-close,
+html[data-theme="light"] .admin-panel-close,
+html[data-theme="light"] .admin-panel-back-button {
+    color:#1e293b;
+    border-color:rgba(100,116,139,.24);
+    background:rgba(255,255,255,.88);
+}
+
+html[data-theme="light"] .admin-panel-section-button {
+    border-color:rgba(100,116,139,.18) !important;
+    background:linear-gradient(145deg,#fff,#f7f9fd) !important;
+    box-shadow:0 8px 22px rgba(15,23,42,.055),inset 0 1px 0 rgba(255,255,255,.95);
+}
+
+html[data-theme="light"] .admin-panel-section-button:hover,
+html[data-theme="light"] .admin-panel-section-button.active {
+    border-color:rgba(99,102,241,.34) !important;
+    background:linear-gradient(125deg,#fff,rgba(238,242,255,.92)) !important;
+    box-shadow:0 13px 28px rgba(15,23,42,.09),0 0 0 1px rgba(99,102,241,.06) inset !important;
+}
+
+html[data-theme="light"] .admin-panel-section-arrow {
+    color:#4f46e5;
+}
+
+html[data-theme="light"] .admin-panel-welcome,
+html[data-theme="light"] .admin-feedback-modern-item,
+html[data-theme="light"] .admin-usage-card,
+html[data-theme="light"] .admin-usage-summary-card,
+html[data-theme="light"] .admin-usage-metrics > div,
+html[data-theme="light"] .admin-panel-empty,
+html[data-theme="light"] .admin-panel-error {
+    border-color:rgba(100,116,139,.17);
+    background:linear-gradient(145deg,#fff,#f7f9fd);
+    box-shadow:0 7px 20px rgba(15,23,42,.045);
+}
+
+/* The overlays keep the same close behavior from their X buttons and Escape.
+   This stylesheet deliberately does not attach any backdrop-dismiss behavior. */
+@media (prefers-reduced-motion:reduce) {
+    .feedback-type button,
+    .feedback-close,
+    .admin-panel-close,
+    .admin-panel-section-button,
+    .admin-panel-section-arrow,
+    .admin-panel-back-button {
+        transition:none !important;
+    }
+}

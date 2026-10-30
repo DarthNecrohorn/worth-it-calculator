@@ -1647,9 +1647,6 @@ window.WORTH_IT_SETTINGS_SECTIONS = WORTH_IT_SETTINGS_SECTIONS;
         applyFilters();
     });
 
-    $("feedbackOverlay")?.addEventListener("click", e=>{
-        if(e.target === e.currentTarget) closeFeedback();
-    });
     document.addEventListener("keydown", e=>{
         if(e.key === "Escape"){
             closeFeedback();
