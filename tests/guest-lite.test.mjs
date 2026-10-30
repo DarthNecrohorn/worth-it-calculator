@@ -136,9 +136,9 @@ test("the guest client and D1 API share exactly the same 50 billable built-in ca
 });
 
 test("closing Guest Lite and authentication dialogs moves focus before hiding the active dialog", () => {
-    assert.match(guest, /overlay\.contains\(document\.activeElement\).*document\.activeElement\.blur\(\)/);
+    assert.match(guest, /overlay\\.contains\\(document\\.activeElement\\)[\\s\\S]*?document\\.activeElement\\.blur\\(\\)/);
     assert.match(guest, /guestReturnFocus/);
-    assert.match(app, /overlay\.contains\(document\.activeElement\).*document\.activeElement\.blur\(\)/);
+    assert.match(app, /overlay\\.contains\\(document\\.activeElement\\)[\\s\\S]*?document\\.activeElement\\.blur\\(\\)/);
     assert.match(app, /authModalReturnFocus/);
     assert.match(app, /function removeAuthTurnstile\(\)/);
     assert.match(app, /window\.turnstile\.remove\(authTurnstileWidgetId\)/);
