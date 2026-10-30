@@ -52,7 +52,9 @@ test("the ordinary Basic/Advanced/Scientific calculator stays free", () => {
     assert.match(economy, /window\.calculateGeneric/);
     assert.match(economy, /window\.calculateCars/);
     assert.doesNotMatch(economy, /window\.calculateExpression\s*=/);
-    assert.match(html, /Basic[\s\S]{0,100}Advanced[\s\S]{0,100}Scientific/);
+    assert.match(html, /setCalculatorMode\('basic'\)/);
+    assert.match(html, /setCalculatorMode\('advanced'\)/);
+    assert.match(html, /setCalculatorMode\('scientific'\)/);
 });
 
 test("the wallet uses private RLS-protected tables and authenticated, owner-checked RPCs", () => {
@@ -69,11 +71,13 @@ test("AI reservations settle only after successful Gemini or Groq replies and fa
     const reserve = ai.indexOf('"calc_wallet_reserve"');
     const settle = ai.indexOf('"calc_wallet_settle"');
     const refund = ai.indexOf('"calc_wallet_refund"');
-    const geminiDone = ai.indexOf('provider: "gemini"');
-    const groqDone = ai.indexOf('provider: "groq"');
+    const geminiSettleCall = ai.indexOf("if (!(await settleReservation()))", ai.indexOf("if (env.GEMINI_API_KEY)"));
+    const groqSettleCall = ai.indexOf("if (!(await settleReservation()))", ai.indexOf("if (!env.GROQ_API_KEY)"));
+    const geminiDone = ai.indexOf('type: "done", provider: "gemini"');
+    const groqDone = ai.indexOf('type: "done", provider: "groq"');
     assert.ok(reserve >= 0 && settle > reserve && refund > reserve);
-    assert.ok(geminiDone > settle);
-    assert.ok(groqDone > settle);
+    assert.ok(geminiSettleCall > reserve && geminiDone > geminiSettleCall);
+    assert.ok(groqSettleCall > reserve && groqDone > groqSettleCall);
     assert.match(ai, /INSUFFICIENT_CALC/);
     assert.match(ai, /No CALC was charged/);
 });
