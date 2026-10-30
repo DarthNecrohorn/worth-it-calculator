@@ -107,57 +107,6 @@ begin
 end;
 $function$;
 
-create or replace function public.accept_worth_it_group_invite(p_invite_token text)
-returns jsonb
-language plpgsql
-security definer
-set search_path = public
-as $function$
-declare
-  actor_id uuid := auth.uid();
-  target_id uuid;
-  target_title text;
-  member_count integer;
-begin
-    if actor_id is null then
-        raise exception 'Authentication required';
-    end if;
-
-    if p_invite_token is null or lower(p_invite_token) !~ '^[0-9a-f]{64}$' then
-        return jsonb_build_object('success', false, 'code', 'INVITE_NOT_FOUND');
-    end if;
-
-    select c.id, c.title into target_id, target_title
-      from public.worth_it_chat_conversations c
-     where c.conversation_type = 'group'
-       and c.invite_token = lower(p_invite_token)
-     for update;
-
-    if target_id is null then
-        return jsonb_build_object('success', false, 'code', 'INVITE_NOT_FOUND');
-    end if;
-
-    select count(*)::integer into member_count
-      from public.worth_it_chat_members
-     where conversation_id = target_id;
-    if member_count >= 30 then
-        return jsonb_build_object('success', false, 'code', 'GROUP_FULL', 'max_members', 30);
-    end if;
-
-    insert into public.worth_it_chat_members(conversation_id, user_id)
-    values (target_id, actor_id)
-    on conflict do nothing;
-
-    return jsonb_build_object(
-      'success', true,
-      'already_member', false,
-      'conversation_id', target_id,
-      'title', target_title,
-      'invite_token', lower(p_invite_token)
-    );
-end;
-$function$;
-
 create or replace function public.search_worth_it_chat_messages(
   p_conversation_id uuid, p_query text, p_limit integer default 100
 ) returns jsonb language plpgsql stable security definer set search_path = public
