@@ -21,12 +21,12 @@ test("Web Shop and CALC balance sit beside the logo without replacing the affili
     const nav = html.indexOf('id="navLinks"');
     assert.ok(logo >= 0 && logo < webShop && webShop < balance && balance < nav);
     assert.match(html, /id="webShopSection"/);
-    assert.match(html, /id="shopSection"/);
+    assert.match(routes, /"\/shop": "openDiscounts"/);
     assert.match(html, /data-webshop-category="currency"/);
     assert.match(html, /data-webshop-category="subscriptions"/);
     assert.match(routes, /"\/web-shop": "openWebShop"/);
     assert.match(html, /Buying is completely optional/);
-    assert.match(html, /free daily allowance/i);
+    assert.match(html, /Free users receive 1 CALC every day/);
 });
 
 test("the Web Shop has its own persistent dark and light themes", () => {
