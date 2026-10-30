@@ -12,6 +12,8 @@ declare
   message_list jsonb;
   object_path text;
   stable_url text;
+  direct_conversation_id uuid := '30000000-0000-4000-8000-000000000001';
+  topic text;
 begin
   select * into bucket from storage.buckets where id = 'worth-it-chat-media';
   if not found or bucket.public is distinct from false then
@@ -65,6 +67,88 @@ begin
   perform set_config('app.test_user_id', outsider_id::text, true);
   if public.can_access_worth_it_chat_media_object(conversation_id,object_path) then
     raise exception 'A non-member can view a private group attachment.';
+  end if;
+
+
+  -- Group Chat: only members may read, send or subscribe.
+  perform set_config('app.test_user_id', outsider_id::text, true);
+  result := public.get_worth_it_chat_messages(conversation_id,100);
+  if result->>'code' is distinct from 'NOT_A_CHAT_MEMBER' then
+    raise exception 'A non-member read the Group Chat: %', result;
+  end if;
+  result := public.send_worth_it_chat_message('outsider attempt',conversation_id,null,null);
+  if result->>'code' is distinct from 'NOT_A_CHAT_MEMBER' then
+    raise exception 'A non-member sent to the Group Chat: %', result;
+  end if;
+  topic := 'worthit-chat:' || conversation_id::text;
+  if public.worth_it_chat_realtime_topic_authorized(topic) then
+    raise exception 'A non-member subscribed to Group Chat Realtime.';
+  end if;
+  result := public.get_worth_it_chat_conversations();
+  if result::text like '%' || conversation_id::text || '%' then
+    raise exception 'A non-member saw the Group Chat in their conversation list.';
+  end if;
+
+  -- Direct chat membership alone is insufficient: current friendship is required.
+  perform set_config('app.test_user_id', owner_id::text, true);
+  result := public.get_worth_it_chat_messages(direct_conversation_id,100);
+  if result->>'code' is distinct from 'FRIENDS_ONLY' then
+    raise exception 'A former friend read the Private Chat: %', result;
+  end if;
+  result := public.send_worth_it_chat_message('former friend attempt',direct_conversation_id,null,null);
+  if result->>'code' is distinct from 'FRIENDS_ONLY' then
+    raise exception 'A former friend sent to the Private Chat: %', result;
+  end if;
+  topic := 'worthit-chat:' || direct_conversation_id::text;
+  if public.worth_it_chat_realtime_topic_authorized(topic) then
+    raise exception 'A former friend subscribed to Private Chat Realtime.';
+  end if;
+  result := public.get_worth_it_chat_conversations();
+  if result::text like '%' || direct_conversation_id::text || '%' then
+    raise exception 'A former friend still sees the Private Chat in their list.';
+  end if;
+
+  -- Re-establishing friendship restores direct-chat access for both participants.
+  insert into public.worth_it_friends(user_low_id,user_high_id)
+  values (least(owner_id,other_member_id), greatest(owner_id,other_member_id))
+  on conflict do nothing;
+  result := public.get_worth_it_chat_messages(direct_conversation_id,100);
+  if jsonb_typeof(result) is distinct from 'array' then
+    raise exception 'A current friend cannot read the Private Chat: %', result;
+  end if;
+  result := public.send_worth_it_chat_message('friend access restored',direct_conversation_id,null,null);
+  if result->>'success' is distinct from 'true' then
+    raise exception 'A current friend cannot send to the Private Chat: %', result;
+  end if;
+  if not public.worth_it_chat_realtime_topic_authorized(topic) then
+    raise exception 'A current friend cannot subscribe to Private Chat Realtime.';
+  end if;
+  result := public.get_worth_it_chat_conversations();
+  if result::text not like '%' || direct_conversation_id::text || '%' then
+    raise exception 'A current friend cannot see their Private Chat in the list.';
+  end if;
+
+  -- Global Chat is available to confirmed authenticated users.
+  result := public.get_worth_it_chat_messages('00000000-0000-4000-8000-000000000001',100);
+  if result->>'code' is not null then
+    raise exception 'A confirmed account cannot read Global Chat: %', result;
+  end if;
+  result := public.send_worth_it_chat_message('global access check','00000000-0000-4000-8000-000000000001',null,null);
+  if result->>'success' is distinct from 'true' then
+    raise exception 'A confirmed account cannot send to Global Chat: %', result;
+  end if;
+  if not public.worth_it_chat_realtime_topic_authorized('worthit-chat:00000000-0000-4000-8000-000000000001') then
+    raise exception 'A confirmed account cannot subscribe to Global Chat Realtime.';
+  end if;
+
+  -- Unverified users cannot obtain any chat access, including Global Chat media.
+  perform set_config('app.test_user_id', outsider_id::text, true);
+  update auth.users set email_confirmed_at = null where id = outsider_id;
+  if public.can_access_worth_it_chat_media('00000000-0000-4000-8000-000000000001') then
+    raise exception 'An unverified account obtained Global Chat access.';
+  end if;
+  if public.can_access_worth_it_chat_media(conversation_id) then
+    raise exception 'An unverified account obtained Group Chat access.';
   end if;
 
   perform set_config('app.test_user_id', owner_id::text, true);
