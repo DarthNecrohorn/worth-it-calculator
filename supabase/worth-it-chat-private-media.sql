@@ -135,7 +135,7 @@ language plpgsql
 stable
 security definer
 set search_path = ''
-as $
+as $function$
 declare
   actor_id uuid := auth.uid();
   owner_id uuid;
@@ -144,7 +144,79 @@ begin
   if actor_id is null
      or p_conversation_id is null
      or p_object_path is null
-     or p_object_path !~ '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}/[A-Za-z0-9][A-Za-z0-9._-]{0,254}
+     or p_object_path !~ '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}/[A-Za-z0-9][A-Za-z0-9._-]{0,254}$'
+     or p_object_path ~ '(^|/)\\.\\.(/|$)' then
+    return false;
+  end if;
+
+  owner_id := split_part(p_object_path, '/', 1)::uuid;
+  expected_reference := 'worthit-audio:' || p_conversation_id::text || ':' || p_object_path;
+
+  if not public.can_access_worth_it_chat_media(p_conversation_id) then
+    return false;
+  end if;
+
+  return exists (
+    select 1
+      from public.worth_it_chat_messages m
+     where m.conversation_id = p_conversation_id
+       and m.sender_user_id = owner_id
+       and m.media_type = 'audio'
+       and m.media_url = expected_reference
+       and m.deleted_at is null
+  );
+end;
+$function$;
+
+create or replace function public.can_delete_worth_it_chat_audio_object(
+  p_conversation_id uuid,
+  p_object_path text
+)
+returns boolean
+language plpgsql
+stable
+security definer
+set search_path = ''
+as $function$
+declare
+  actor_id uuid := auth.uid();
+  owner_id uuid;
+  expected_reference text;
+begin
+  if actor_id is null
+     or p_conversation_id is null
+     or p_object_path is null
+     or p_object_path !~ '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}/[A-Za-z0-9][A-Za-z0-9._-]{0,254}$'
+     or p_object_path ~ '(^|/)\\.\\.(/|$)' then
+    return false;
+  end if;
+
+  owner_id := split_part(p_object_path, '/', 1)::uuid;
+  if actor_id <> owner_id then
+    return false;
+  end if;
+
+  expected_reference := 'worthit-audio:' || p_conversation_id::text || ':' || p_object_path;
+  if not public.can_access_worth_it_chat_media(p_conversation_id) then
+    return false;
+  end if;
+
+  -- Preserve access to the tombstoned reference for owner-only Storage cleanup.
+  return exists (
+    select 1
+      from public.worth_it_chat_messages m
+     where m.conversation_id = p_conversation_id
+       and m.sender_user_id = owner_id
+       and m.media_type = 'audio'
+       and m.media_url = expected_reference
+  );
+end;
+$function$;
+
+revoke all on function public.can_access_worth_it_chat_audio_object(uuid,text) from public, anon;
+revoke all on function public.can_delete_worth_it_chat_audio_object(uuid,text) from public, anon;
+grant execute on function public.can_access_worth_it_chat_audio_object(uuid,text) to authenticated;
+grant execute on function public.can_delete_worth_it_chat_audio_object(uuid,text) to authenticated;
 
 -- Enforce one consistent access contract for every chat entry point:
 -- confirmed email + global access, group membership, or a current friendship
