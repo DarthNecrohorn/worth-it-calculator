@@ -13,6 +13,11 @@ begin
 end
 $bucket$;
 
+-- A private bucket still uses storage.objects RLS for reads. Remove the old
+-- public SELECT policy before changing the bucket visibility; otherwise that
+-- policy could continue granting anonymous downloads from this bucket.
+drop policy if exists "Worth It chat media read" on storage.objects;
+
 update storage.buckets
 set public = false,
     file_size_limit = 52428800,
