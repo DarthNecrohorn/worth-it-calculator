@@ -6,7 +6,10 @@ end $$;
 create schema auth;
 create function auth.uid() returns uuid language sql stable
 as $$ select nullif(current_setting('app.test_user_id', true), '')::uuid $$;
-create table auth.users (id uuid primary key);
+create table auth.users (
+  id uuid primary key,
+  email_confirmed_at timestamptz default now()
+);
 create table public.worth_it_profiles (
   user_id uuid primary key references auth.users(id) on delete cascade,
   worth_it_id bigint not null unique,

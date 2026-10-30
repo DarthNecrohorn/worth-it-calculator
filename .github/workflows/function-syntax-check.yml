@@ -217,5 +217,6 @@ jobs:
           psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -f tests/fixtures/chat-private-media-postgres-setup.sql
           psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/worth-it-chat-message-actions.sql
           psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/worth-it-chat-message-delete-constraint.sql
+          psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -f tests/fixtures/chat-private-media-post-actions.sql
           psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/worth-it-chat-private-media.sql
           psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -f tests/fixtures/chat-private-media-postgres-smoke.sql
