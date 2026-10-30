@@ -927,6 +927,20 @@ export async function onRequestPost(context) {
                         console.error("Could not close stream:", closeError);
                     }
                 }
+            },
+            async cancel() {
+                if (!calcBillingEnabled || !calcRequestId) return;
+                try {
+                    const refund = await calcWalletRpc(
+                        env,
+                        calcToken,
+                        "calc_wallet_refund",
+                        { p_request_id: calcRequestId }
+                    );
+                    if (refund && refund.ok) calcRequestId = null;
+                } catch (cancelRefundError) {
+                    console.error("Could not refund CALC after the AI client disconnected:", cancelRefundError);
+                }
             }
         });
 
