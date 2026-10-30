@@ -3,6 +3,8 @@ const COOKIE_NAME = "__Host-worthit_guest_calc";
 const DAILY_MILLI = 500;
 const SPEND_MILLI = 100;
 const COOKIE_MAX_AGE = 400 * 24 * 60 * 60;
+let schemaReady = false;
+let schemaPromise = null;
 
 function json(data,status,origin,cookie){
     const headers = new Headers({
@@ -53,24 +55,34 @@ function sessionCookie(token){
 }
 
 async function ensureSchema(db){
-    await db.prepare(
-        "CREATE TABLE IF NOT EXISTS worth_it_guest_calc_wallets ("+
-        "session_hash TEXT PRIMARY KEY, reward_date TEXT NOT NULL, "+
-        "balance_milli INTEGER NOT NULL DEFAULT 500 CHECK(balance_milli BETWEEN 0 AND 500), "+
-        "created_at TEXT NOT NULL, updated_at TEXT NOT NULL)"
-    ).run();
-    await db.prepare(
-        "CREATE TABLE IF NOT EXISTS worth_it_guest_calc_transactions ("+
-        "session_hash TEXT NOT NULL, request_id TEXT NOT NULL, "+
-        "status TEXT NOT NULL CHECK(status IN ('reserved','completed','refunded')), "+
-        "amount_milli INTEGER NOT NULL DEFAULT 100, claim_token TEXT NOT NULL, "+
-        "created_at TEXT NOT NULL, updated_at TEXT NOT NULL, "+
-        "PRIMARY KEY(session_hash,request_id))"
-    ).run();
-    await db.prepare(
-        "CREATE INDEX IF NOT EXISTS worth_it_guest_calc_transactions_created_idx "+
-        "ON worth_it_guest_calc_transactions(created_at)"
-    ).run();
+    if(schemaReady) return;
+    if(!schemaPromise){
+        schemaPromise = (async()=>{
+            await db.prepare(
+                "CREATE TABLE IF NOT EXISTS worth_it_guest_calc_wallets ("+
+                "session_hash TEXT PRIMARY KEY, reward_date TEXT NOT NULL, "+
+                "balance_milli INTEGER NOT NULL DEFAULT 500 CHECK(balance_milli BETWEEN 0 AND 500), "+
+                "created_at TEXT NOT NULL, updated_at TEXT NOT NULL)"
+            ).run();
+            await db.prepare(
+                "CREATE TABLE IF NOT EXISTS worth_it_guest_calc_transactions ("+
+                "session_hash TEXT NOT NULL, request_id TEXT NOT NULL, "+
+                "status TEXT NOT NULL CHECK(status IN ('reserved','completed','refunded')), "+
+                "amount_milli INTEGER NOT NULL DEFAULT 100, claim_token TEXT NOT NULL, "+
+                "created_at TEXT NOT NULL, updated_at TEXT NOT NULL, "+
+                "PRIMARY KEY(session_hash,request_id))"
+            ).run();
+            await db.prepare(
+                "CREATE INDEX IF NOT EXISTS worth_it_guest_calc_transactions_created_idx "+
+                "ON worth_it_guest_calc_transactions(created_at)"
+            ).run();
+            schemaReady = true;
+        })().catch(error=>{
+            schemaPromise = null;
+            throw error;
+        });
+    }
+    await schemaPromise;
 }
 
 function utcDay(){
@@ -223,11 +235,11 @@ export async function onRequest(context){
 
     try{
         await ensureSchema(db);
-        await loadWallet(db,sessionHash);
         if(request.method === "GET"){
             const wallet = await loadWallet(db,sessionHash);
             return json({ok:true,...wallet},200,origin,cookie);
         }
+        await loadWallet(db,sessionHash);
 
         let payload;
         try{
