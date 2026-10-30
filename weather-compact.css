@@ -211,8 +211,32 @@
     }
 
     #weatherSection #weatherForecast {
-        grid-template-columns:repeat(2,minmax(0,1fr)) !important;
+        grid-template-columns:repeat(3,minmax(0,1fr)) !important;
         gap:8px !important;
+    }
+
+    #weatherSection #weatherForecast .weather-forecast-card {
+        padding:9px 6px !important;
+    }
+
+    #weatherSection #weatherForecast .weather-forecast-day {
+        font-size:12px;
+    }
+
+    #weatherSection #weatherForecast .weather-forecast-icon {
+        font-size:23px !important;
+    }
+
+    #weatherSection #weatherForecast .weather-forecast-temp {
+        gap:3px;
+    }
+
+    #weatherSection #weatherForecast .weather-forecast-temp strong {
+        font-size:14px;
+    }
+
+    #weatherSection #weatherForecast .weather-forecast-temp span {
+        font-size:10.5px;
     }
 
     #weatherSection #weatherForecast .weather-forecast-card {
@@ -269,8 +293,29 @@
 
 @media (max-width:420px) {
     #weatherSection #weatherForecast {
-        grid-template-columns:repeat(2,minmax(0,1fr)) !important;
+        grid-template-columns:repeat(3,minmax(0,1fr)) !important;
         gap:7px !important;
+    }
+
+    #weatherSection #weatherForecast .weather-forecast-card {
+        padding:8px 4px !important;
+    }
+
+    #weatherSection #weatherForecast .weather-forecast-description {
+        font-size:10px;
+        line-height:1.2;
+    }
+
+    #weatherSection #weatherForecast .weather-forecast-temp {
+        gap:2px;
+    }
+
+    #weatherSection #weatherForecast .weather-forecast-temp strong {
+        font-size:13px;
+    }
+
+    #weatherSection #weatherForecast .weather-forecast-temp span {
+        font-size:10px;
     }
 
     #weatherSection #weatherForecast .weather-forecast-card {
