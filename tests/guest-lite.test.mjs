@@ -32,7 +32,7 @@ test("a dedicated Guest Lite explanation contains the required consent checkbox"
 });
 
 test("Guest Lite explicitly lists the default calculator catalogue as the only available feature", () => {
-    assert.match(html, /Use the built-in Worth It calculators configured by the site owner/);
+    assert.match(html, /first 50 built-in Worth It calculators/);
     assert.match(html, /first 50 built-in Worth It calculators/);
     assert.match(html, /Each calculation costs 0\.1 CALC/);
     assert.match(html, /resets to exactly <strong>0\.5 CALC each day/);
