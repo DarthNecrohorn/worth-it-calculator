@@ -2310,7 +2310,7 @@ html[data-theme="light"].worth-it-initial-paint::before {
               <h1 id="worthItProfileName">Profile</h1>
               <button type="button" id="worthItProfileDisplayNameEdit" class="worth-it-profile-display-name-edit" onclick="openWorthItDisplayNameEditor()" aria-label="Change display name" title="Change display name" hidden>✎</button>
             </div>
-            <p id="worthItProfileUsername" class="worth-it-profile-username"></p>
+            <p id="worthItProfileUsername" class="worth-it-profile-username"></p><span id="worthItProfilePremiumBadge" class="worth-it-premium-badge" hidden></span>
             <p id="worthItProfileEmail" class="worth-it-profile-email" hidden></p>
             <div id="worthItProfileAvatarControls" class="worth-it-profile-avatar-controls" hidden>
               <div class="worth-it-profile-avatar-actions">
@@ -2871,8 +2871,8 @@ html[data-theme="light"].worth-it-initial-paint::before {
         </div>
 
         <div class="web-shop-tabs" role="tablist" aria-label="Web Shop categories">
-            <button type="button" class="web-shop-tab active" data-webshop-category="currency" role="tab" aria-selected="true" aria-controls="webShopCurrencyPanel">◈ CALC currency</button>
-            <button type="button" class="web-shop-tab" data-webshop-category="subscriptions" role="tab" aria-selected="false" aria-controls="webShopSubscriptionsPanel">✦ Subscriptions</button>
+            <button type="button" class="web-shop-tab active" data-webshop-category="currency" id="webShopCurrencyTab" role="tab" aria-selected="true" aria-controls="webShopCurrencyPanel">◈ CALC currency</button>
+            <button type="button" class="web-shop-tab" data-webshop-category="subscriptions" id="webShopSubscriptionsTab" role="tab" aria-selected="false" aria-controls="webShopSubscriptionsPanel">✦ Subscriptions</button>
         </div>
 
         <section id="webShopCurrencyPanel" role="tabpanel" aria-labelledby="webShopCurrencyTab">
