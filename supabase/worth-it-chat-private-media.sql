@@ -325,6 +325,47 @@ end
 $chat_access$;
 
 
+-- Group invite links remain previewable by their unguessable token, but joining
+-- a group requires the same confirmed-email state as all other chat actions.
+do $chat_group_invite_access$
+declare
+  current_definition text;
+  updated_definition text;
+  old_guard text := $old$
+    if actor_id is null then
+        raise exception 'Authentication required';
+    end if;
+$old$;
+  new_guard text := $new$
+    if actor_id is null then
+        raise exception 'Authentication required';
+    end if;
+    if not exists (
+        select 1
+          from auth.users verified_user
+         where verified_user.id = actor_id
+           and verified_user.email_confirmed_at is not null
+    ) then
+        raise exception 'Email confirmation required'
+            using errcode = '42501';
+    end if;
+$new$;
+begin
+  current_definition := replace(
+    pg_get_functiondef('public.accept_worth_it_group_invite(text)'::regprocedure),
+    E'\r', ''
+  );
+  if position('email_confirmed_at is not null' in current_definition) = 0 then
+    if position(old_guard in current_definition) = 0 then
+      raise exception 'Could not safely add the confirmed-email guard to accept_worth_it_group_invite.';
+    end if;
+    updated_definition := replace(current_definition, old_guard, new_guard);
+    execute updated_definition;
+  end if;
+end
+$chat_group_invite_access$;
+
+
 -- The existing message-deletion RPC clears media_url immediately. Keep the stored
 -- URL and media_type on the internal tombstone row so the owner's API DELETE can
 -- still prove which object belongs to that message. Chat read RPCs already return
