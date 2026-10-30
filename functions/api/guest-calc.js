@@ -2,6 +2,13 @@ const SITE_ORIGIN = "https://worth-it-calculator.pages.dev";
 const COOKIE_NAME = "__Host-worthit_guest_calc";
 const DAILY_MILLI = 500;
 const SPEND_MILLI = 100;
+const GUEST_CALCULATORS = new Set([
+    "cars","savings","investment","loan","purchase","salary","pc","phone","rent","energy",
+    "solar","heating","ownership","usednew","carrepair","taxi","publictransport","creditcard","debtpayoff","emergency",
+    "buysubscribe","repairreplace","fuelcost","depreciation","carloan","evcharging","parkingcost","inflation","budget","networth",
+    "discount","opportunity","laptopdesktop","phonerepair","cloudstorage","internetplan","appliance","watercost","heatingcompare","rentafford",
+    "evhybrid","carinsurance","compound","savingsgoal","priceincrease","monitorupgrade","storageupgrade","electricitybill","renovation","mortgageafford"
+]);
 const COOKIE_MAX_AGE = 400 * 24 * 60 * 60;
 let schemaReady = false;
 let schemaPromise = null;
@@ -250,12 +257,16 @@ export async function onRequest(context){
             return json({ok:false,error:"A valid JSON action is required."},400,origin,cookie);
         }
         const action = String(payload?.action||"");
+        const calculatorType = String(payload?.calculator_type||"").toLowerCase();
         const requestId = String(payload?.request_id||"").toLowerCase();
         if(!/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(requestId)){
             return json({ok:false,error:"A valid request ID is required."},400,origin,cookie);
         }
 
         let result;
+        if(action === "reserve" && !GUEST_CALCULATORS.has(calculatorType)){
+            return json({ok:false,code:"GUEST_CALCULATOR_NOT_ALLOWED",error:"Guest Lite can reserve CALC only for the first 50 built-in calculators."},403,origin,cookie);
+        }
         if(action === "reserve") result = await reserve(db,sessionHash,requestId);
         else if(action === "settle") result = await settle(db,sessionHash,requestId);
         else if(action === "refund") result = await refund(db,sessionHash,requestId);
