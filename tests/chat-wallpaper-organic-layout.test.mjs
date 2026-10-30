@@ -96,6 +96,6 @@ test("wallpaper avoids horizontal tiling and sizes its generated tile to the mes
     const finalWallpaperCss = css.slice(css.lastIndexOf("/* Final chat wallpaper:"));
     assert.match(finalWallpaperCss, /background-image:[\s\S]*var\(--worthit-chat-wallpaper-image,none\)/);
     assert.doesNotMatch(finalWallpaperCss, /data:image\/svg\+xml|310px 370px|260px 320px/);
-    assert.match(html, /chat-enhancements\.js\?v=chat-wallpaper-more-dense-20261029a/);
+    assert.match(html, /chat-enhancements\.js\?v=chat-wallpaper-collision-packed-20261030a/);
     assert.match(html, /chat-enhancements\.css\?v=chat-safety-note-wallpaper-density-20261029a/);
 });
