@@ -1831,22 +1831,37 @@ window.openShop = function(){
         }
 
 
-        renderShop(container);
+        const firstOpen =
+            container.dataset.shopInitialized !== "true";
 
-        container.style.display =
-            "block";
+        if(firstOpen){
+            renderShop(container);
+            container.dataset.shopInitialized = "true";
+        }
 
-        loadAutomaticShopProducts()
-            .then(loaded => {
+        container.style.display = "block";
 
-                if(
-                    loaded &&
-                    container.style.display !== "none"
-                ){
-                    renderShop(container);
-                }
+        // The Shop DOM is kept in place while other sections are shown.
+        // Fetch the feed once per page session and only rebuild after the
+        // first successful load, never on every return to the section.
+        if(
+            !automaticShopFeedLoaded &&
+            container.dataset.shopFeedLoadPending !== "true"
+        ){
+            container.dataset.shopFeedLoadPending = "true";
 
-            });
+            loadAutomaticShopProducts()
+                .then(loaded => {
+                    if(loaded && container.isConnected){
+                        renderShop(container);
+                    }
+                })
+                .finally(() => {
+                    if(container.isConnected){
+                        container.dataset.shopFeedLoadPending = "false";
+                    }
+                });
+        }
 
 
         const navLinks =
