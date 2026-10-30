@@ -99,6 +99,11 @@ begin
   if result->>'code' is distinct from 'FRIENDS_ONLY' then
     raise exception 'A former friend sent to the Private Chat: %', result;
   end if;
+
+  result := public.search_worth_it_chat_messages(direct_conversation_id,'hello',20);
+  if result->>'code' is distinct from 'FRIENDS_ONLY' then
+    raise exception 'A former friend searched the Private Chat: %', result;
+  end if;
   topic := 'worthit-chat:' || direct_conversation_id::text;
   if public.worth_it_chat_realtime_topic_authorized(topic) then
     raise exception 'A former friend subscribed to Private Chat Realtime.';
@@ -119,6 +124,11 @@ begin
   result := public.send_worth_it_chat_message('friend access restored',direct_conversation_id,null,null);
   if result->>'success' is distinct from 'true' then
     raise exception 'A current friend cannot send to the Private Chat: %', result;
+  end if;
+
+  result := public.search_worth_it_chat_messages(direct_conversation_id,'hello',20);
+  if jsonb_typeof(result) is distinct from 'array' then
+    raise exception 'A current friend cannot search the Private Chat: %', result;
   end if;
   if not public.worth_it_chat_realtime_topic_authorized(topic) then
     raise exception 'A current friend cannot subscribe to Private Chat Realtime.';
@@ -150,6 +160,13 @@ begin
   if public.can_access_worth_it_chat_media(conversation_id) then
     raise exception 'An unverified account obtained Group Chat access.';
   end if;
+
+  begin
+    perform public.worth_it_chat_realtime_topic_authorized('worthit-chat:00000000-0000-4000-8000-000000000001');
+    raise exception 'An unverified account subscribed to Global Chat Realtime.';
+  exception when insufficient_privilege then
+    null;
+  end;
 
   perform set_config('app.test_user_id', owner_id::text, true);
   result := public.delete_worth_it_chat_message(message_id);
