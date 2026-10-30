@@ -38,9 +38,14 @@ test("the Web Shop has its own persistent dark and light themes", () => {
 });
 
 test("daily rewards, guest non-stacking and calculator costs use exact milli-CALC units", () => {
-    assert.match(economy, /GUEST_DAILY_MILLI = 500/);
+    const guestApi = read("functions/api/guest-calc.js");
+    assert.match(guestApi, /DAILY_MILLI = 500/);
     assert.match(economy, /CALCULATOR_COST_MILLI = 100/);
-    assert.match(economy, /stored\.date !== today/);
+    assert.match(economy, /guestRpc\("balance"\)/);
+    assert.match(economy, /guestRpc\("reserve",requestId\)/);
+    assert.doesNotMatch(economy, /worthItGuestCalcWalletV1|function guestWallet\(/);
+    assert.match(guestApi, /balance_milli=500/);
+    assert.match(guestApi, /status='reserved'/);
     assert.match(sql, /when 'premium_lite' then 2000/);
     assert.match(sql, /when 'premium' then 3000/);
     assert.match(sql, /else 1000/);
