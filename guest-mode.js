@@ -396,6 +396,29 @@
         window.openCalculator = wrapped;
     }
 
+    function guardGenericCalculatorSetup() {
+        const original = window.setupGeneric;
+        if (typeof original !== "function" || original.__worthItGuestSetupGuard) return;
+        const wrapped = function (type, ...args) {
+            const key = String(type == null ? "" : type).toLowerCase();
+            const run = user => {
+                if (user) {
+                    activeCalculatorKey = key;
+                    return original.apply(this, [type, ...args]);
+                }
+                if (GUEST_BILLABLE_CALCULATORS.has(key)) {
+                    activeCalculatorKey = key;
+                    return original.apply(this, [type, ...args]);
+                }
+                return denyGuestAction("Only the first 50 built-in Worth It calculators are available to guests.");
+            };
+            return authStateKnown ? run(isAuthenticated) : resolveAuthState().then(run);
+        };
+        wrapped.__worthItGuestSetupGuard = true;
+        wrapped.__worthItGuestSetupOriginal = original;
+        window.setupGeneric = wrapped;
+    }
+
     function guardUnknownCalculator(context, original, type, args) {
         const reason = "User-created and community calculators require a Worth It account.";
         if (authStateKnown) {
@@ -473,6 +496,7 @@
     function installGuards() {
         blockedFeatures.forEach(([name, reason]) => guardFunction(name, reason));
         guardBuiltInCalculatorOpener();
+        guardGenericCalculatorSetup();
 
         [
             "openUGCCalculator", "openUserGeneratedCalculator", "openUserCalculator",
