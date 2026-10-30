@@ -1367,15 +1367,18 @@ async function getWorthItChatMediaSignedUrl(mediaUrl, conversationId, forceRefre
     if (!objectPath || !/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(validConversationId)) {
         throw new Error("Invalid chat media reference.");
     }
-    const cacheKey = validConversationId + ":" + objectPath;
-    const cached = worthItChatMediaUrlCache.get(cacheKey);
-    if (!forceRefresh && cached && cached.expiresAt > Date.now() + 30000) return cached.url;
-
+    // Verify the current account before consulting the cache. A different user
+    // on the same browser must never inherit another account's signed URL.
     const sessionResult = await sb().auth.getSession();
     const token = sessionResult?.data?.session?.access_token || "";
-    if (sessionResult?.error || !token || sessionResult?.data?.session?.user?.id !== chatUser?.id) {
+    const currentUserId = String(chatUser?.id || "");
+    if (sessionResult?.error || !token || !currentUserId ||
+        String(sessionResult?.data?.session?.user?.id || "") !== currentUserId) {
         throw new Error("Sign in again to view this attachment.");
     }
+    const cacheKey = currentUserId + ":" + validConversationId + ":" + objectPath;
+    const cached = worthItChatMediaUrlCache.get(cacheKey);
+    if (!forceRefresh && cached && cached.expiresAt > Date.now() + 30000) return cached.url;
     const query = new URLSearchParams({conversation_id: validConversationId, path: objectPath});
     const response = await fetch("/api/chat-media?" + query.toString(), {
         method: "GET",
@@ -1388,6 +1391,9 @@ async function getWorthItChatMediaSignedUrl(mediaUrl, conversationId, forceRefre
     if (!response.ok || !payload.url) throw new Error(payload.error || "Could not open this attachment.");
     const expiresIn = Math.max(60, Number(payload.expires_in) || 900);
     worthItChatMediaUrlCache.set(cacheKey, {url: payload.url, expiresAt: Date.now() + (expiresIn - 30) * 1000});
+    while (worthItChatMediaUrlCache.size > 200) {
+        worthItChatMediaUrlCache.delete(worthItChatMediaUrlCache.keys().next().value);
+    }
     return payload.url;
 }
 function attachPrivateWorthItChatMedia(element, mediaUrl, conversationId) {
@@ -1827,15 +1833,6 @@ function createWorthItChatMessageRow(message) {
                         event.preventDefault();
                         openWorthItChatImageLightbox(img.currentSrc || img.src, img.alt);
                     }
-                });
-                img.addEventListener("error", () => {
-                    const fallback = document.createElement("a");
-                    fallback.className = "worth-it-chat-link";
-                    fallback.href = message.media_url;
-                    fallback.target = "_blank";
-                    fallback.rel = "noopener noreferrer";
-                    fallback.textContent = "Open attached media";
-                    img.replaceWith(fallback);
                 });
                 bubble.appendChild(img);
             }
