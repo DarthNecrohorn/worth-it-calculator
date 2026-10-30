@@ -5,6 +5,8 @@ import { readFileSync } from "node:fs";
 const html = readFileSync(new URL("../index.html", import.meta.url), "utf8");
 const css = readFileSync(new URL("../style.css", import.meta.url), "utf8");
 const guest = readFileSync(new URL("../guest-mode.js", import.meta.url), "utf8");
+const guestApi = readFileSync(new URL("../functions/api/guest-calc.js", import.meta.url), "utf8");
+const app = readFileSync(new URL("../app.js", import.meta.url), "utf8");
 const workflow = readFileSync(new URL("../.github/workflows/function-syntax-check.yml", import.meta.url), "utf8");
 
 const restrictedSections = [
@@ -120,4 +122,24 @@ test("unauthenticated chat refresh keeps /chat in the address bar while sign-in 
     const chatGuardReturn = guard.indexOf("return;", chatGuardIndex);
     assert.ok(chatGuardReturn > chatGuardIndex, "chat guard returns before home-reset logic");
     assert.ok(chatGuardReturn < guard.indexOf("window.history.replaceState"), "chat guard preserves the requested URL");
+});
+
+
+test("the guest client and D1 API share exactly the same 50 billable built-in calculator keys", () => {
+    const clientBlock = guest.match(/const BUILT_IN_CALCULATORS = new Set\(\[([\s\S]*?)\]\);/);
+    const serverBlock = guestApi.match(/const GUEST_CALCULATORS = new Set\(\[([\s\S]*?)\]\);/);
+    assert.ok(clientBlock && serverBlock, "both allowlists must exist");
+    const clientKeys = [...clientBlock[1].matchAll(/"([^"]+)"/g)].map(match => match[1]).filter(key => !["basic","advanced","scientific"].includes(key)).sort();
+    const serverKeys = [...serverBlock[1].matchAll(/"([^"]+)"/g)].map(match => match[1]).sort();
+    assert.equal(clientKeys.length, 50);
+    assert.deepEqual(serverKeys, clientKeys);
+});
+
+test("closing Guest Lite and authentication dialogs moves focus before hiding the active dialog", () => {
+    assert.match(guest, /overlay\.contains\(document\.activeElement\).*document\.activeElement\.blur\(\)/);
+    assert.match(guest, /guestReturnFocus/);
+    assert.match(app, /overlay\.contains\(document\.activeElement\).*document\.activeElement\.blur\(\)/);
+    assert.match(app, /authModalReturnFocus/);
+    assert.match(app, /function removeAuthTurnstile\(\)/);
+    assert.match(app, /window\.turnstile\.remove\(authTurnstileWidgetId\)/);
 });
