@@ -99,10 +99,20 @@ async function getSignedUrl(config, objectPath) {
     const payload = await response.json();
     const signedPath = String(payload.signedURL || payload.signedUrl || "");
     if (!signedPath) return "";
-    return signedPath.startsWith(config.supabaseUrl) ? signedPath
-        : signedPath.startsWith("/storage/v1/") ? config.supabaseUrl + signedPath
-        : signedPath.startsWith("/") ? config.supabaseUrl + "/storage/v1" + signedPath
-        : config.supabaseUrl + "/storage/v1/" + signedPath;
+    try {
+        const project = new URL(config.supabaseUrl);
+        let signedUrl;
+        if (/^https?:\/\//i.test(signedPath)) signedUrl = new URL(signedPath);
+        else if (signedPath.startsWith("/storage/v1/")) signedUrl = new URL(signedPath, project);
+        else if (signedPath.startsWith("/")) signedUrl = new URL("/storage/v1" + signedPath, project);
+        else signedUrl = new URL("/storage/v1/" + signedPath, project);
+        const expectedPath = "/storage/v1/object/sign/" + BUCKET + "/" + storagePath(objectPath);
+        if (signedUrl.origin !== project.origin || signedUrl.pathname !== expectedPath) return "";
+        signedUrl.hash = "";
+        return signedUrl.toString();
+    } catch (_) {
+        return "";
+    }
 }
 
 export async function onRequest(context) {
