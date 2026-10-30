@@ -95,13 +95,27 @@ begin
     end if;
 
     update private.worth_it_calc_wallets
-       set last_daily_reward_on = ((now() at time zone 'UTC')::date - 1)
+       set last_daily_reward_on = ((now() at time zone 'UTC')::date - 1),
+           last_wip_reward_on = ((now() at time zone 'UTC')::date - 1)
      where user_id = auth.uid();
     v := public.calc_wallet_summary();
     if (v->>'daily_reward')::numeric <> 2
-       or (v->>'daily_wip_reward')::numeric <> 0
-       or (v->>'wip_balance')::numeric <> 10 then
-        raise exception 'Premium Lite should receive 2 CALC daily and retain its WIP balance: %', v;
+       or (v->>'daily_wip_reward')::numeric <> 1
+       or (v->>'wip_balance')::numeric <> 11 then
+        raise exception 'Premium Lite should receive 2 CALC and 1 WIP daily: %', v;
+    end if;
+
+    update private.worth_it_calc_wallets
+       set premium_plan = 'free',
+           premium_expires_at = null,
+           wip_balance_milli = 0,
+           last_daily_reward_on = (now() at time zone 'UTC')::date,
+           last_wip_reward_on = (now() at time zone 'UTC')::date
+     where user_id = auth.uid();
+    v := public.calc_buy_premium_lite('99999999-9999-4999-8999-999999999999');
+    if v->>'ok' <> 'false' or v->>'code' <> 'INSUFFICIENT_WIP'
+       or (select balance_milli from private.worth_it_calc_wallets where user_id = auth.uid()) <> 102000 then
+        raise exception 'Premium Lite must reject insufficient WIP without charging CALC: %', v;
     end if;
 
     begin
