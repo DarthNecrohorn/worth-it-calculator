@@ -1,14 +1,11 @@
 (function(){
     "use strict";
 
-    const OWNER_EMAIL = "pedjasebez3545@gmail.com";
     const GUEST_STORAGE_KEY = "worthItGuestCalcWalletV1";
     const GUEST_DAILY_MILLI = 500;
     const CALCULATOR_COST_MILLI = 100;
-    const PREMIUM_LITE_COST = 75000;
 
     let walletState = null;
-    let economyReady = false;
     let calculationBusy = false;
 
     const $ = id => document.getElementById(id);
@@ -112,19 +109,16 @@
                 };
                 setHeaderBalance(walletState);
                 setShopBalance(walletState);
-                economyReady = true;
                 return walletState;
             }
             const state = await rpc("calc_wallet_summary",{});
             if(!state || state.ok !== true) throw new Error("CALC wallet could not be loaded.");
             walletState = {...state,is_guest:false};
-            economyReady = true;
             setHeaderBalance(walletState);
             setShopBalance(walletState);
             return walletState;
         }catch(error){
             walletState = null;
-            economyReady = false;
             setHeaderBalance(null);
             setShopBalance(null);
             if(!isMissingEconomy(error)) console.warn("CALC wallet refresh failed:",error);
