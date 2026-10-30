@@ -1,7 +1,7 @@
 /* WORTH IT — CRYPTOCURRENCIES UI */
 (() => {
   "use strict";
-  const state={loaded:false,loading:false,coins:[],global:null,filter:"popular",search:"",sort:"rank",queue:[],active:0,max:5,showAll:false,chartPeriod:"MAX",detailCoin:null,history:null,detailIndex:-1,detailList:[]};
+  const state={loaded:false,loading:false,coins:[],global:null,filter:"popular",search:"",sort:"rank",queue:[],active:0,max:5,showAll:false,chartPeriod:"MAX",detailCoin:null,history:null,detailIndex:-1,detailList:[],detailReturnFocus:null};
   const CACHE_KEY="worthit.crypto.market.v1";
   const BROWSER_FRESH_MS=5*60*1000;
   const BROWSER_STALE_MS=30*60*1000;
@@ -261,13 +261,21 @@
     overlay.setAttribute("aria-hidden","false");
   }
 
-  async function openDetail(coin){
+  async function openDetail(coin,trigger=null){
     const detailList=filtered();
     state.detailList=detailList;
     state.detailIndex=detailList.findIndex(x=>String(x.id)===String(coin.id));
     updateDetailNavigation();
     const overlay=$("cryptoDetailOverlay");
     if(!overlay)return;
+    const opening=!overlay.classList.contains("open");
+    if(opening){
+      state.detailReturnFocus=trigger&&trigger.isConnected?trigger:document.activeElement;
+      if(state.detailReturnFocus&&overlay.contains(state.detailReturnFocus))state.detailReturnFocus=null;
+      overlay.classList.add("open");
+      overlay.setAttribute("aria-hidden","false");
+      $("cryptoDetailClose")?.focus({preventScroll:true});
+    }
     const backUpButton=$("cryptoFloatingShowLess");
     if(backUpButton)backUpButton.classList.remove("visible");
 
@@ -331,9 +339,18 @@
 
   function closeDetail(){
     const overlay=$("cryptoDetailOverlay");
-    if(!overlay)return;
+    if(!overlay||!overlay.classList.contains("open"))return;
+
+    // Restore focus before hiding the dialog from assistive technology.
+    let focusTarget=state.detailReturnFocus;
+    if(!focusTarget||!focusTarget.isConnected||overlay.contains(focusTarget)||typeof focusTarget.focus!=="function"){
+      focusTarget=document.querySelector(".menu-btn");
+    }
+    focusTarget?.focus?.({preventScroll:true});
+
     overlay.classList.remove("open");
     overlay.setAttribute("aria-hidden","true");
+    state.detailReturnFocus=null;
     state.detailIndex=-1;
     state.detailList=[];
     updateDetailNavigation();
@@ -433,8 +450,8 @@
     g.querySelectorAll(".crypto-card").forEach(card=>{
       const coin=state.coins.find(x=>String(x.id)===String(card.dataset.cryptoId));
       if(!coin)return;
-      card.addEventListener("click",()=>openDetail(coin));
-      card.addEventListener("keydown",e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();openDetail(coin);}});
+      card.addEventListener("click",()=>openDetail(coin,card));
+      card.addEventListener("keydown",e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();openDetail(coin,card);}});
     });
 
     if(a.length>20){
@@ -577,6 +594,10 @@
   }
 
   function bind(){
+    const section=$("cryptoSection");
+    if(!section||section.dataset.cryptoBound==="1")return;
+    section.dataset.cryptoBound="1";
+
     if(!window.__worthitCryptoScrollBound){
       window.__worthitCryptoScrollBound=true;
       window.addEventListener("scroll",syncFloatingShowLess,{passive:true});
@@ -609,6 +630,18 @@
       if(e.key==="ArrowLeft")navigateDetail(-1);
       if(e.key==="ArrowRight")navigateDetail(1);
     });
-const s=$("cryptoSection");if(!s||s.dataset.cryptoBound==="1")return;s.dataset.cryptoBound="1";$("cryptoFilters")?.addEventListener("click",e=>{const b=e.target.closest("button[data-crypto-filter]");if(!b)return;state.filter=b.dataset.cryptoFilter;state.sort=state.filter==="gainers"?"gainers":state.filter==="losers"?"losers":state.filter==="volume"?"volume":state.filter==="marketCap"?"marketCap":"rank";renderFilters();render();});$("cryptoSearch")?.addEventListener("input",e=>{state.search=e.target.value.trim();render();});}
-  window.initCryptoUI=()=>{bind();if(!state.loaded)load();else{renderGlobal();renderFilters();render();}};
+    $("cryptoFilters")?.addEventListener("click",e=>{
+      const b=e.target.closest("button[data-crypto-filter]");
+      if(!b)return;
+      state.filter=b.dataset.cryptoFilter;
+      state.sort=state.filter==="gainers"?"gainers":state.filter==="losers"?"losers":state.filter==="volume"?"volume":state.filter==="marketCap"?"marketCap":"rank";
+      renderFilters();
+      render();
+    });
+    $("cryptoSearch")?.addEventListener("input",e=>{
+      state.search=e.target.value.trim();
+      render();
+    });
+  }
+  window.initCryptoUI=()=>{bind();if(!state.loaded&&!state.loading)load();};
 })();
