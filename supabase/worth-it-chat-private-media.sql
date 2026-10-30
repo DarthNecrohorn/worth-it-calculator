@@ -201,19 +201,13 @@ $old$;
     end if;
 $new$;
 
+  -- Replace only the membership guard. Keep the explicit friendship guard below
+  -- as a second check; the central predicate additionally enforces the exact
+  -- two-member direct-chat shape and confirmed-email requirement.
   old_send_guard text := $old$
     if target_type <> 'global' and not exists (
         select 1 from public.worth_it_chat_members where conversation_id=target_id and user_id=actor_id
     ) then return jsonb_build_object('success',false,'code','NOT_A_CHAT_MEMBER'); end if;
-
-    if target_type='direct' and not exists (
-        select 1 from public.worth_it_chat_members a
-        join public.worth_it_chat_members b on b.conversation_id=a.conversation_id and b.user_id<>a.user_id
-        join public.worth_it_friends f on
-            (f.user_low_id=a.user_id and f.user_high_id=b.user_id) or
-            (f.user_low_id=b.user_id and f.user_high_id=a.user_id)
-        where a.conversation_id=target_id and a.user_id=actor_id
-    ) then return jsonb_build_object('success',false,'code','FRIENDS_ONLY'); end if;
 $old$;
   new_send_guard text := $new$
     if not public.can_access_worth_it_chat_media(target_id) then
