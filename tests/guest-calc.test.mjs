@@ -137,7 +137,7 @@ test("guest calculation reservations debit once, settle, and refund unsuccessful
     const cookie=(start.headers.get("set-cookie")||"").split(";")[0];
     const id="aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 
-    let response=await call(db,"POST",{action:"reserve",request_id:id},cookie);
+    let response=await call(db,"POST",{action:"reserve",request_id:id,calculator_type:"cars"},cookie);
     assert.equal(response.status,200);
     let result=await response.json();
     assert.equal(result.ok,true);
@@ -155,7 +155,7 @@ test("guest calculation reservations debit once, settle, and refund unsuccessful
     assert.equal(result.status,"completed");
 
     const refundId="bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
-    response=await call(db,"POST",{action:"reserve",request_id:refundId},cookie);
+    response=await call(db,"POST",{action:"reserve",request_id:refundId,calculator_type:"savings"},cookie);
     assert.equal(response.status,200);
     response=await call(db,"POST",{action:"refund",request_id:refundId},cookie);
     result=await response.json();
@@ -174,14 +174,14 @@ test("guest daily allowance is enforced by D1, not client localStorage",async()=
     const cookie=(start.headers.get("set-cookie")||"").split(";")[0];
     for(let index=0;index<5;index++){
         const id="cccccccc-cccc-4ccc-8ccc-"+String(index).padStart(12,"0");
-        const response=await call(db,"POST",{action:"reserve",request_id:id},cookie);
+        const response=await call(db,"POST",{action:"reserve",request_id:id,calculator_type:"cars"},cookie);
         assert.equal(response.status,200);
         const result=await response.json();
         assert.equal(result.ok,true);
         await call(db,"POST",{action:"settle",request_id:id},cookie);
     }
     const exhaustedId="dddddddd-dddd-4ddd-8ddd-dddddddddddd";
-    const exhausted=await call(db,"POST",{action:"reserve",request_id:exhaustedId},cookie);
+    const exhausted=await call(db,"POST",{action:"reserve",request_id:exhaustedId,calculator_type:"cars"},cookie);
     assert.equal(exhausted.status,402);
     const result=await exhausted.json();
     assert.equal(result.ok,false);
@@ -218,4 +218,19 @@ test("guest wallet identity is opaque and never stores IP address or user-agent 
     assert.doesNotMatch(source,/CF-Connecting-IP|X-Forwarded-For|navigator\.userAgent/i);
     assert.match(source,/balance_milli=500/);
     assert.match(source,/status='reserved'/);
+});
+
+
+test("the D1 API rejects UGC and unknown calculator reservations even with a valid guest session",async()=>{
+    const db=new MockD1();
+    const start=await call(db,"GET");
+    const cookie=(start.headers.get("set-cookie")||"").split(";")[0];
+    const blocked=["community","user-created","ugc","basic","scientific","not-a-calculator"];
+    for(let index=0;index<blocked.length;index++){
+        const id="eeeeeeee-eeee-4eee-8eee-"+String(index).padStart(12,"0");
+        const response=await call(db,"POST",{action:"reserve",request_id:id,calculator_type:blocked[index]},cookie);
+        assert.equal(response.status,403,blocked[index]+" must be rejected");
+        const result=await response.json();
+        assert.equal(result.code,"GUEST_CALCULATOR_NOT_ALLOWED");
+    }
 });
