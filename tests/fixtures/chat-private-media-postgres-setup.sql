@@ -16,6 +16,10 @@ insert into public.worth_it_chat_members(conversation_id,user_id) values
  ('30000000-0000-4000-8000-000000000001','10000000-0000-4000-8000-000000000001'),
  ('30000000-0000-4000-8000-000000000001','10000000-0000-4000-8000-000000000002');
 
+update public.worth_it_chat_conversations
+   set invite_token = repeat('a',64)
+ where id = '20000000-0000-4000-8000-000000000001';
+
 create schema storage;
 create table storage.buckets (
   id text primary key,
