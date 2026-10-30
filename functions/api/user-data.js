@@ -1,6 +1,7 @@
 const SITE_ORIGIN = "https://worth-it-calculator.pages.dev";
 const STORAGE_BUCKET = "worth-it-avatars";
 const CHAT_MEDIA_BUCKET = "worth-it-chat-media";
+const CHAT_AUDIO_BUCKET = "worth-it-chat-audio";
 const PAGE_SIZE = 1000;
 const MAX_EXPORT_ROWS = 20000;
 
@@ -325,6 +326,56 @@ async function listChatMediaPaths(config, userId) {
     return Array.from(new Set(paths));
 }
 
+async function listChatAudioPaths(config, userId) {
+    const paths = [];
+    let offset = 0;
+
+    // Chat uploads are stored as "<auth-user-id>/<filename>" in their own bucket.
+    // Enumerate that user's direct files before deleting Auth so a listing failure
+    // cannot silently leave the account half-deleted. Folder entries are ignored.
+    while (offset <= MAX_EXPORT_ROWS) {
+        const response = await fetch(config.supabaseUrl + "/storage/v1/object/list/" + CHAT_AUDIO_BUCKET, {
+            method: "POST",
+            headers: serviceHeaders(config, { "Content-Type": "application/json" }),
+            body: JSON.stringify({
+                prefix: userId + "/",
+                limit: PAGE_SIZE,
+                offset,
+                sortBy: { column: "name", order: "asc" }
+            })
+        });
+        const body = await response.text().catch(() => "");
+        if (!response.ok) {
+            console.error("Worth It chat audio inventory failed:", response.status);
+            throw new Error("Voice messages could not be inventoried, so the account was not deleted. Please try again later.");
+        }
+
+        let batch;
+        try { batch = JSON.parse(body); } catch (_) {
+            throw new Error("The chat attachment inventory response could not be read. The account was not deleted.");
+        }
+        if (!Array.isArray(batch)) {
+            throw new Error("The chat attachment inventory response was unexpected. The account was not deleted.");
+        }
+
+        for (const item of batch) {
+            if (!item || typeof item.name !== "string" ||
+                !/^[A-Za-z0-9][A-Za-z0-9._-]{0,255}$/.test(item.name) ||
+                item.name === "." || item.name === "..") continue;
+            // Storage list responses include folder entries with no object ID or metadata.
+            if (item.id == null && item.metadata == null) continue;
+            paths.push(userId + "/" + item.name);
+        }
+
+        if (offset >= MAX_EXPORT_ROWS && batch.length) {
+            throw new Error("There are too many voice messages to safely process. The account was not deleted.");
+        }
+        if (batch.length < PAGE_SIZE) break;
+        offset += batch.length;
+    }
+    return Array.from(new Set(paths));
+}
+
 async function deleteChatMediaPaths(config, objectPaths) {
     const paths = Array.from(new Set((Array.isArray(objectPaths) ? objectPaths : [])
         .filter(path => typeof path === "string" && path.startsWith("/") === false)));
@@ -337,6 +388,22 @@ async function deleteChatMediaPaths(config, objectPaths) {
         if (!response.ok) {
             console.error("Worth It chat media cleanup failed:", response.status);
             throw new Error("Some chat attachments could not be removed.");
+        }
+    }
+}
+
+async function deleteChatAudioPaths(config, objectPaths) {
+    const paths = Array.from(new Set((Array.isArray(objectPaths) ? objectPaths : [])
+        .filter(path => typeof path === "string" && path.startsWith("/") === false)));
+    for (let i = 0; i < paths.length; i += 1000) {
+        const response = await fetch(config.supabaseUrl + "/storage/v1/object/" + CHAT_AUDIO_BUCKET, {
+            method: "DELETE",
+            headers: serviceHeaders(config, { "Content-Type": "application/json" }),
+            body: JSON.stringify({ prefixes: paths.slice(i, i + 1000) })
+        });
+        if (!response.ok) {
+            console.error("Worth It chat audio cleanup failed:", response.status);
+            throw new Error("Some voice messages could not be removed.");
         }
     }
 }
@@ -442,10 +509,11 @@ export async function onRequestPost(context) {
             return json({ success: false, error: "Type DELETE exactly to confirm permanent account deletion." }, 400, request);
         }
 
-        const [profileRows, feedbackRows, chatMediaPaths] = await Promise.all([
+        const [profileRows, feedbackRows, chatMediaPaths, chatAudioPaths] = await Promise.all([
             readRows(auth.config, "worth_it_profiles", { user_id: "eq." + auth.user.id }),
             readRows(auth.config, "feedback", { user_id: "eq." + auth.user.id }),
-            listChatMediaPaths(auth.config, auth.user.id)
+            listChatMediaPaths(auth.config, auth.user.id),
+            listChatAudioPaths(auth.config, auth.user.id)
         ]);
         const profile = profileRows[0] || null;
         const avatarPath = getStoredAssetPath(auth.config, profile?.avatar_url, auth.user.id, "avatar");
@@ -483,11 +551,17 @@ export async function onRequestPost(context) {
             cleanupWarning = true;
             console.error("Worth It account was deleted but chat media cleanup was incomplete:", cleanupError?.message || "Unknown storage cleanup error");
         }
+        try {
+            await deleteChatAudioPaths(auth.config, chatAudioPaths);
+        } catch (cleanupError) {
+            cleanupWarning = true;
+            console.error("Worth It account was deleted but chat audio cleanup was incomplete:", cleanupError?.message || "Unknown storage cleanup error");
+        }
         return json({
             success: true,
             deleted: true,
             cleanup_warning: cleanupWarning,
-            warning: cleanupWarning ? "Your account was deleted, but some feedback, profile images, or chat attachments could not be fully removed. Contact Worth It support." : null
+            warning: cleanupWarning ? "Your account was deleted, but some feedback, profile images, chat attachments, or voice messages could not be fully removed. Contact Worth It support." : null
         }, 200, request);
     } catch (error) {
         console.error("Worth It account deletion/data action failed:", error?.message || "Unknown error");
