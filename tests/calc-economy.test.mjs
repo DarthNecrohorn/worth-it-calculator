@@ -22,6 +22,7 @@ test("Web Shop and CALC balance sit beside the logo without replacing the affili
     assert.ok(logo >= 0 && logo < webShop && webShop < balance && balance < nav);
     assert.match(html, /id="webShopSection"/);
     assert.match(routes, /"\/shop": "openDiscounts"/);
+    assert.match(economy, /"shipTrackingSection","profileSection","discountsSection","worthItProfileDescriptionSection"/);
     assert.match(html, /data-webshop-category="currency"/);
     assert.match(html, /data-webshop-category="subscriptions"/);
     assert.match(routes, /"\/web-shop": "openWebShop"/);
