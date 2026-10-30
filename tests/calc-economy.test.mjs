@@ -46,6 +46,7 @@ test("daily rewards, guest non-stacking and calculator costs use exact milli-CAL
     assert.match(sql, /v_added := v_reward/);
     assert.match(sql, /interval '15 days'/);
     assert.match(sql, /v_cost integer := 75000/);
+    assert.match(sql, /Automatic refund for an abandoned operation/);
 });
 
 test("the ordinary Basic/Advanced/Scientific calculator stays free", () => {
@@ -80,6 +81,7 @@ test("AI reservations settle only after successful Gemini or Groq replies and fa
     assert.ok(groqSettleCall > reserve && groqDone > groqSettleCall);
     assert.match(ai, /INSUFFICIENT_CALC/);
     assert.match(ai, /No CALC was charged/);
+    assert.match(ai, /async cancel\(\)/);
 });
 
 test("chat media limits are enforced server-side and dynamically validated in the composer", () => {
