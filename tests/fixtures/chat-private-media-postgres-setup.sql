@@ -20,6 +20,18 @@ values (
   array['image/jpeg','image/png','image/webp','image/gif','video/mp4','video/webm']
 );
 
+-- Reproduce the production public-read policy so the migration test proves it
+-- is removed when the bucket becomes private.
+create table storage.objects (
+  id bigint generated always as identity primary key,
+  bucket_id text not null,
+  name text not null
+);
+alter table storage.objects enable row level security;
+create policy "Worth It chat media read" on storage.objects
+for select to public
+using (bucket_id = 'worth-it-chat-media');
+
 -- Mirrors the membership check already deployed by chat enhancements; this
 -- fixture deliberately covers group-membership decisions for the media RPC.
 create or replace function public.can_access_worth_it_chat_media(p_conversation_id uuid)
