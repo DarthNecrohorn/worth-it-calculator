@@ -18,7 +18,7 @@ function mediaFile(bytes, name, type) {
     return new File([Uint8Array.from(bytes)], name, { type });
 }
 
-function makeMockFetch({ userId = "test-user", storageStatus = 200 } = {}) {
+function makeMockFetch({ userId = "test-user", storageStatus = 200, permitted = true } = {}) {
     const calls = [];
     const storageUploads = [];
     const fetch = async (input, init = {}) => {
@@ -26,6 +26,12 @@ function makeMockFetch({ userId = "test-user", storageStatus = 200 } = {}) {
         calls.push({ url, init });
         if (url.endsWith("/auth/v1/user")) {
             return new Response(JSON.stringify({ id: userId }), {
+                status: 200,
+                headers: { "Content-Type": "application/json" }
+            });
+        }
+        if (url.endsWith("/rest/v1/rpc/can_access_worth_it_chat_media")) {
+            return new Response(JSON.stringify(permitted), {
                 status: 200,
                 headers: { "Content-Type": "application/json" }
             });
@@ -46,9 +52,10 @@ function makeMockFetch({ userId = "test-user", storageStatus = 200 } = {}) {
     return { fetch, calls, storageUploads };
 }
 
-async function callUpload(file, { origin = SITE_ORIGIN, token = "test-session-token" } = {}) {
+async function callUpload(file, { origin = SITE_ORIGIN, token = "test-session-token", conversationId = "11111111-2222-4333-8444-555555555555" } = {}) {
     const form = new FormData();
     form.append("file", file, file.name);
+    if (conversationId) form.append("conversation_id", conversationId);
     const headers = { Origin: origin };
     if (token) headers.Authorization = "Bearer " + token;
     const request = new Request(SITE_ORIGIN + "/api/chat-media", {
@@ -170,4 +177,25 @@ test("the local owned GIF picker remains installed alongside video controls", ()
     assert.match(html, /id="worthItChatGifGrid"/);
     assert.match(client, /const WORTH_IT_CHAT_GIF_LIBRARY = \[/);
     assert.doesNotMatch(html + "\n" + client, /GIPHY|giphy\.com/i);
+});
+
+test("private media upload requires conversation membership before storage writes", async () => {
+    const mock = makeMockFetch({ permitted: false });
+    const response = await withFetch(mock.fetch, () =>
+        callUpload(mediaFile([0x89,0x50,0x4e,0x47,0x0d,0x0a,0x1a,0x0a], "sample.png", "image/png"))
+    );
+    assert.equal(response.status, 403);
+    assert.equal(mock.storageUploads.length, 0);
+    assert.ok(mock.calls.some(call => call.url.endsWith("/rest/v1/rpc/can_access_worth_it_chat_media")));
+});
+
+test("private media upload rejects missing or invalid conversation IDs", async () => {
+    const mock = makeMockFetch();
+    const response = await withFetch(mock.fetch, () =>
+        callUpload(mediaFile([0x89,0x50,0x4e,0x47,0x0d,0x0a,0x1a,0x0a], "sample.png", "image/png"), {
+            conversationId: "not-a-conversation"
+        })
+    );
+    assert.equal(response.status, 400);
+    assert.equal(mock.storageUploads.length, 0);
 });
