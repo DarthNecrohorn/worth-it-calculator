@@ -45,6 +45,17 @@
     --wt-section-hover-shadow:0 16px 38px rgba(0,0,0,.25),0 0 0 1px color-mix(in srgb,var(--wt-section-accent) 15%,transparent);
 }
 
+/* Darker accent values preserve contrast on white surfaces. */
+html[data-theme="light"] #marketsSection { --wt-section-accent:#a66b00; --wt-section-accent-strong:#805000; }
+html[data-theme="light"] #cryptoSection { --wt-section-accent:#047857; --wt-section-accent-strong:#065f46; }
+html[data-theme="light"] #waterLevelsSection { --wt-section-accent:#0e7490; --wt-section-accent-strong:#155e75; }
+html[data-theme="light"] #moneySection { --wt-section-accent:#1d4ed8; --wt-section-accent-strong:#1e40af; }
+html[data-theme="light"] #carsSection { --wt-section-accent:#6d28d9; --wt-section-accent-strong:#5b21b6; }
+html[data-theme="light"] #weatherSection { --wt-section-accent:#0369a1; --wt-section-accent-strong:#075985; }
+html[data-theme="light"] #newsSection { --wt-section-accent:#c2410c; --wt-section-accent-strong:#9a3412; }
+html[data-theme="light"] #shipTrackingSection { --wt-section-accent:#0e7490; --wt-section-accent-strong:#155e75; }
+html[data-theme="light"] #shopSection { --wt-section-accent:#047857; --wt-section-accent-strong:#065f46; }
+
 /* Light surfaces: clean white cards with quiet accent undertones. */
 html[data-theme="light"] #marketsSection,
 html[data-theme="light"] #cryptoSection,
