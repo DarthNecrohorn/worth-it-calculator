@@ -115,5 +115,34 @@ revoke all on function public.can_delete_worth_it_chat_media_object(uuid,text) f
 grant execute on function public.can_access_worth_it_chat_media_object(uuid,text) to authenticated;
 grant execute on function public.can_delete_worth_it_chat_media_object(uuid,text) to authenticated;
 
+-- The existing message-deletion RPC clears media_url immediately. Keep the stored
+-- URL and media_type on the internal tombstone row so the owner's API DELETE can
+-- still prove which object belongs to that message. Chat read RPCs already return
+-- null media fields for deleted messages, so the URL is never shown in the UI.
+do $migration$
+declare
+  current_definition text;
+  updated_definition text;
+  old_assignment text := E'         media_url = null,\n         media_type = null,\n';
+begin
+  current_definition := replace(
+    pg_get_functiondef('public.delete_worth_it_chat_message(bigint)'::regprocedure),
+    E'\r', ''
+  );
+
+  if position(old_assignment in current_definition) > 0 then
+    updated_definition := replace(current_definition, old_assignment, '');
+  elsif position('media_url = null' in current_definition) = 0
+        and position('media_type = null' in current_definition) = 0 then
+    -- Already migrated: leave the current function untouched.
+    updated_definition := current_definition;
+  else
+    raise exception 'Could not safely preserve deleted chat media references. Review delete_worth_it_chat_message before applying this migration.';
+  end if;
+
+  execute updated_definition;
+end
+$migration$;
+
 notify pgrst, 'reload schema';
 commit;
