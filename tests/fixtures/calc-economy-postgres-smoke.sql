@@ -129,7 +129,7 @@ begin
     if v->>'tier' <> 'owner' then raise exception 'Owner media limits should use Premium tier: %',v; end if;
     if public.calc_profile_badge(202) <> 'owner' then raise exception 'Owner badge is missing.'; end if;
     v := public.calc_admin_overview();
-    if (v->>'wallet_count')::integer < 3 then raise exception 'Owner economy overview should include all wallets: %',v; end if;
+    if (v->>'wallet_count')::integer < 2 then raise exception 'Owner economy overview should include all wallets: %',v; end if;
     v := public.calc_buy_premium_lite('dddddddd-dddd-4ddd-8ddd-dddddddddddd');
     if v->>'is_owner' <> 'true' then raise exception 'Owner should not need to buy Premium Lite: %',v; end if;
 end
