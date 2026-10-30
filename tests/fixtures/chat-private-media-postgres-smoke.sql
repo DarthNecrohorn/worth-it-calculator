@@ -18,6 +18,7 @@ declare
   direct_conversation_id uuid := '30000000-0000-4000-8000-000000000001';
   topic text;
   send_definition text;
+  realtime_definition text;
 begin
   select * into bucket from storage.buckets where id = 'worth-it-chat-media';
   if not found or bucket.public is distinct from false then
@@ -55,6 +56,13 @@ begin
   end if;
   if position('if target_type=''direct'' and not exists (' in send_definition) = 0 then
     raise exception 'The existing direct-friendship guard was not preserved in the send RPC.';
+  end if;
+  realtime_definition := pg_get_functiondef('public.worth_it_chat_realtime_topic_authorized(text)'::regprocedure);
+  if position('return public.can_access_worth_it_chat_media(target_id);' in realtime_definition) = 0 then
+    raise exception 'The Realtime subscription RPC does not use the shared chat access predicate.';
+  end if;
+  if position('email_confirmed_at' in realtime_definition) = 0 then
+    raise exception 'The Realtime email-verification guard was not preserved.';
   end if;
   if has_function_privilege('anon','public.can_access_worth_it_chat_media_object(uuid,text)','EXECUTE')
      or has_function_privilege('anon','public.can_delete_worth_it_chat_media_object(uuid,text)','EXECUTE') then
