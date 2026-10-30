@@ -17,6 +17,7 @@ declare
   audio_reference text;
   direct_conversation_id uuid := '30000000-0000-4000-8000-000000000001';
   topic text;
+  send_definition text;
 begin
   select * into bucket from storage.buckets where id = 'worth-it-chat-media';
   if not found or bucket.public is distinct from false then
@@ -38,6 +39,22 @@ begin
   if not has_function_privilege('authenticated','public.can_access_worth_it_chat_media_object(uuid,text)','EXECUTE')
      or not has_function_privilege('authenticated','public.can_delete_worth_it_chat_media_object(uuid,text)','EXECUTE') then
     raise exception 'Authenticated users cannot call the guarded media access RPCs.';
+  end if;
+  if not has_function_privilege('authenticated','public.can_access_worth_it_chat_audio_object(uuid,text)','EXECUTE')
+     or not has_function_privilege('authenticated','public.can_delete_worth_it_chat_audio_object(uuid,text)','EXECUTE') then
+    raise exception 'Authenticated users cannot call the guarded audio access RPCs.';
+  end if;
+  if has_function_privilege('anon','public.can_access_worth_it_chat_audio_object(uuid,text)','EXECUTE')
+     or has_function_privilege('anon','public.can_delete_worth_it_chat_audio_object(uuid,text)','EXECUTE') then
+    raise exception 'Anonymous users can call private audio access RPCs.';
+  end if;
+
+  send_definition := pg_get_functiondef('public.send_worth_it_chat_message(text,uuid,text,text)'::regprocedure);
+  if position('if not public.can_access_worth_it_chat_media(target_id) then' in send_definition) = 0 then
+    raise exception 'The shared chat access predicate was not installed in the send RPC.';
+  end if;
+  if position('if target_type=''direct'' and not exists (' in send_definition) = 0 then
+    raise exception 'The existing direct-friendship guard was not preserved in the send RPC.';
   end if;
   if has_function_privilege('anon','public.can_access_worth_it_chat_media_object(uuid,text)','EXECUTE')
      or has_function_privilege('anon','public.can_delete_worth_it_chat_media_object(uuid,text)','EXECUTE') then
