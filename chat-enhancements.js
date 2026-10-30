@@ -180,30 +180,64 @@ function makeConversationWallpaper(contextValue, theme, requestedWidth) {
     const canvasWidth = Math.max(600, Math.min(2400, Math.ceil((Number(requestedWidth) || 600) / 120) * 120));
     const canvasHeight = Math.round(canvasWidth * 1.5);
 
-    // Use more of the available tile area while keeping a generous clear
-    // zone around every large illustration.
-    const targetCount = Math.max(10, Math.min(24, Math.round(canvasWidth / 50)));
+    // Increase the number of large illustrations while keeping their sizes varied.
+    // The deterministic seed keeps the layout stable between refreshes.
+    const targetCount = Math.max(14, Math.min(34, Math.round(canvasWidth / 36)));
     const usedMotifs = new Set();
     const placements = [];
-    const scales = Array.from({ length: targetCount }, () => .54 + random() * .59);
-    if (scales.length > 0) scales[0] = .56 + random() * .07;
-    if (scales.length > 1) scales[1] = 1.02 + random() * .11;
+    const accents = [];
+    const placementGrid = new Map();
+    const gridCellSize = 96;
+    const scales = Array.from({ length: targetCount }, () => .45 + random() * .43);
+    if (scales.length > 0) scales[0] = .98 + random() * .13;
+    if (scales.length > 1) scales[1] = .84 + random() * .12;
+    if (scales.length > 2) scales[2] = .72 + random() * .10;
     scales.sort((a, b) => b - a);
 
-    // Use conservative circular bounds so a rotated or mirrored outline never
-    // collides with another drawing. Rejection sampling avoids row/column layouts.
+    // A spatial hash keeps collision checks fast even with a much denser tile.
+    // Bounding circles include the full rotated/mirrored SVG outline plus a gap.
+    function placementBucket(x, y) {
+        return Math.floor(x / gridCellSize) + ":" + Math.floor(y / gridCellSize);
+    }
+    function collides(candidate) {
+        const reach = candidate.radius + 100 + 12;
+        const minX = Math.floor((candidate.x - reach) / gridCellSize);
+        const maxX = Math.floor((candidate.x + reach) / gridCellSize);
+        const minY = Math.floor((candidate.y - reach) / gridCellSize);
+        const maxY = Math.floor((candidate.y + reach) / gridCellSize);
+        for (let cellY = minY; cellY <= maxY; cellY++) {
+            for (let cellX = minX; cellX <= maxX; cellX++) {
+                const entries = placementGrid.get(cellX + ":" + cellY) || [];
+                for (const existing of entries) {
+                    const requiredGap = candidate.kind === "doodle" && existing.kind === "doodle"
+                        ? 12
+                        : candidate.kind === "accent" && existing.kind === "accent" ? 6 : 8;
+                    if (Math.hypot(candidate.x - existing.x, candidate.y - existing.y) <
+                        candidate.radius + existing.radius + requiredGap) return true;
+                }
+            }
+        }
+        return false;
+    }
+    function registerPlacement(point) {
+        const key = placementBucket(point.x, point.y);
+        if (!placementGrid.has(key)) placementGrid.set(key, []);
+        placementGrid.get(key).push(point);
+    }
+
+    // Rejection sampling creates an irregular, scattered layout rather than rows.
     for (const scale of scales) {
         const radius = 86 * scale;
         const margin = radius + 8;
         let point = null;
         for (let attempt = 0; attempt < 5200; attempt++) {
-            const x = margin + random() * Math.max(0, canvasWidth - margin * 2);
-            const y = margin + random() * Math.max(0, canvasHeight - margin * 2);
-            const overlaps = placements.some(existing =>
-                Math.hypot(x - existing.x, y - existing.y) < radius + existing.radius + 12
-            );
-            if (!overlaps) {
-                point = { x, y, radius, scale };
+            const candidate = {
+                x: margin + random() * Math.max(0, canvasWidth - margin * 2),
+                y: margin + random() * Math.max(0, canvasHeight - margin * 2),
+                radius, scale, kind: "doodle"
+            };
+            if (!collides(candidate)) {
+                point = candidate;
                 break;
             }
         }
@@ -224,6 +258,7 @@ function makeConversationWallpaper(contextValue, theme, requestedWidth) {
         point.motifIndex = motifIndex;
         point.angle = angle;
         placements.push(point);
+        registerPlacement(point);
 
         const x = point.x.toFixed(2);
         const y = point.y.toFixed(2);
@@ -240,24 +275,25 @@ function makeConversationWallpaper(contextValue, theme, requestedWidth) {
 
     // Add a more visible layer of small, complete drawings in unused gaps.
     // Keep the same collision checks and unique motifs so density never means overlap.
-    const targetAccents = Math.max(40, Math.min(84, Math.round(canvasWidth / 12)));
-    const accents = [];
+    // Keep all motifs unique inside the tile. The library currently contains 107
+    // distinct illustrations, so the accent count scales without exhausting it.
+    const targetAccents = Math.min(
+        CHAT_WALLPAPER_ALL_MOTIFS.length - targetCount,
+        Math.max(68, Math.round(canvasWidth / 7.5))
+    );
     for (let i = 0; i < targetAccents; i++) {
         let point = null;
-        for (let attempt = 0; attempt < 6000; attempt++) {
-            const scale = .18 + random() * .22;
+        for (let attempt = 0; attempt < 5500; attempt++) {
+            const scale = .14 + random() * .18;
             const radius = 86 * scale;
             const margin = radius + 7;
-            const x = margin + random() * Math.max(0, canvasWidth - margin * 2);
-            const y = margin + random() * Math.max(0, canvasHeight - margin * 2);
-            const touchesDoodle = placements.some(doodle =>
-                Math.hypot(x - doodle.x, y - doodle.y) < radius + doodle.radius + 12
-            );
-            const touchesAccent = accents.some(existing =>
-                Math.hypot(x - existing.x, y - existing.y) < radius + existing.radius + 8
-            );
-            if (!touchesDoodle && !touchesAccent) {
-                point = { x, y, radius, scale };
+            const candidate = {
+                x: margin + random() * Math.max(0, canvasWidth - margin * 2),
+                y: margin + random() * Math.max(0, canvasHeight - margin * 2),
+                radius, scale, kind: "accent"
+            };
+            if (!collides(candidate)) {
+                point = candidate;
                 break;
             }
         }
@@ -284,6 +320,7 @@ function makeConversationWallpaper(contextValue, theme, requestedWidth) {
         point.color = color;
         point.angle = angle;
         accents.push(point);
+        registerPlacement(point);
 
         const x = point.x.toFixed(2);
         const y = point.y.toFixed(2);
