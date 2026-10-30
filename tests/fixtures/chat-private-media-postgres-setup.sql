@@ -3,8 +3,6 @@
 \set ON_ERROR_STOP on
 \ir chat-message-actions-postgres-setup.sql
 
-alter table auth.users add column email_confirmed_at timestamptz;
-update auth.users set email_confirmed_at = now();
 create table public.worth_it_friends (
   user_low_id uuid not null references auth.users(id),
   user_high_id uuid not null references auth.users(id),
