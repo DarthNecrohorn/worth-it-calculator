@@ -8,6 +8,7 @@ on:
       - "style.css"
       - "chat-ux-polish.css"
       - "tests/mobile-chat-shortcut-desktop-fullscreen.test.mjs"
+      - "tests/responsive-information-panels.test.mjs"
       - ".github/workflows/mobile-chat-regression.yml"
   push:
     branches:
@@ -28,4 +29,4 @@ jobs:
         with:
           node-version: 22
       - name: Run focused layout regression tests
-        run: node --test tests/mobile-chat-shortcut-desktop-fullscreen.test.mjs
+        run: node --test tests/mobile-chat-shortcut-desktop-fullscreen.test.mjs tests/responsive-information-panels.test.mjs
