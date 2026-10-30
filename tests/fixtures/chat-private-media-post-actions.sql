@@ -123,28 +123,7 @@ begin
         raise exception 'Authentication required';
     end if;
 
-    if p_invite_token is null or lower(p_invite_token) !~ '^[0-9a-f]{64}
-  p_conversation_id uuid, p_query text, p_limit integer default 100
-) returns jsonb language plpgsql stable security definer set search_path = public
-as $function$
-declare
-  actor_id uuid := auth.uid();
-  target_id uuid := p_conversation_id;
-  kind text;
-begin
-  if actor_id is null then raise exception 'Authentication required'; end if;
-  select conversation_type into kind from public.worth_it_chat_conversations where id=target_id;
-  if kind is null then return jsonb_build_object('success',false,'code','CHAT_NOT_FOUND'); end if;
-  if kind <> 'global' and not exists (
-    select 1 from public.worth_it_chat_members where conversation_id=target_id and user_id=actor_id
-  ) then return jsonb_build_object('success',false,'code','NOT_A_CHAT_MEMBER'); end if;
-  if kind = 'direct' and not public.can_access_worth_it_chat_media(target_id) then
-    return jsonb_build_object('success',false,'code','FRIENDS_ONLY');
-  end if;
-  return '[]'::jsonb;
-end;
-$function$;
- then
+    if p_invite_token is null or lower(p_invite_token) !~ '^[0-9a-f]{64}$' then
         return jsonb_build_object('success', false, 'code', 'INVITE_NOT_FOUND');
     end if;
 
