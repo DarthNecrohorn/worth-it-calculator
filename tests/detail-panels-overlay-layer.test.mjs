@@ -33,12 +33,21 @@ test("detail panel backdrop has the blue ambient glow outside the dialog", () =>
     assert.match(finalRules, /#currencyDetailModal\.is-open \.currency-detail-backdrop\s*\{[\s\S]*?radial-gradient/);
 });
 
-test("Shop partner panel is not dismissed by clicking outside its dialog", () => {
-    assert.match(shop, /overlay\.addEventListener\("click", function\(event\)\{\s*\/\*[\s\S]*?overlay\.addEventListener/);
-    assert.doesNotMatch(shop, /if\(event\.target === overlay\)\{\s*closeModal\(\);/);
-    assert.match(shop, /closeButton\.addEventListener\("click", closeModal\)/);
-});
+test("Shop partner panel ignores backdrop clicks and closes with its X button", () => {
+    const setupStart = shop.indexOf("function setupShopPartnerDetails(container, allItems)");
+    const closeBinding = shop.indexOf('closeButton.addEventListener("click", closeModal)', setupStart);
+    const backdropBinding = shop.indexOf('overlay.addEventListener("click", function(event){', closeBinding);
+    const dialogKeydown = shop.indexOf('dialog.addEventListener("keydown"', backdropBinding);
 
+    assert.ok(setupStart >= 0, "Shop partner modal setup exists");
+    assert.ok(closeBinding > setupStart, "the explicit X button closes the panel");
+    assert.ok(backdropBinding > closeBinding, "the backdrop listener is registered after the close button");
+    assert.ok(dialogKeydown > backdropBinding, "the backdrop listener has a bounded handler");
+
+    const backdropHandler = shop.slice(backdropBinding, dialogKeydown);
+    assert.match(backdropHandler, /if\s*\(\s*event\.target\s*===\s*overlay\s*\)\s*\{\s*event\.preventDefault\(\);/);
+    assert.doesNotMatch(backdropHandler, /closeModal\s*\(/);
+});
 test("Ship Tracking detail panel is not dismissed by clicking outside its dialog", () => {
     assert.match(ships, /overlay\.addEventListener\("click", function\(event\)\{\s*if\(event\.target === overlay\)\{\s*event\.preventDefault\(\);\s*return;/);
     assert.doesNotMatch(ships, /if\(event\.target === overlay\)\{\s*closeDetailModal\(\);/);
