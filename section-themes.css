@@ -159,6 +159,7 @@ html[data-theme="light"] #shopSection {
 /* Search fields and filter strips are intentionally scoped to their
    own dashboard so the site-wide calculator controls are unaffected. */
 #marketsSection input[type="search"],
+#marketsSection .worth-it-markets-search-wrap,
 #cryptoSection .crypto-search-wrap,
 #waterLevelsSection .water-levels-search-wrap,
 #moneySection .calculator-search,
