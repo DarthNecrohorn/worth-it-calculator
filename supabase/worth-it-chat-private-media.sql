@@ -234,18 +234,15 @@ $old$;
     );
 $new$;
 
-  old_realtime_guard text := $old$
-  return exists (
+  -- Match the return expression independent of function-body indentation.
+  old_realtime_guard text := $old$return exists (
         select 1
           from public.worth_it_chat_members as member
          where member.conversation_id = target_id
            and member.user_id = actor_id
     );
 $old$;
-  new_realtime_guard text := $new$
-  return public.can_access_worth_it_chat_media(target_id);
-$new$;
-
+  new_realtime_guard text := $new$return public.can_access_worth_it_chat_media(target_id);$new$;
   old_search_guard text := $old$
   if kind <> 'global' and not exists (
     select 1 from public.worth_it_chat_members where conversation_id=target_id and user_id=actor_id
