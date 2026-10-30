@@ -94,7 +94,7 @@ async function loadWallet(db,sessionHash){
             "UPDATE worth_it_guest_calc_wallets SET "+
             "balance_milli=MIN(500,balance_milli+COALESCE(("+
             "SELECT SUM(amount_milli) FROM worth_it_guest_calc_transactions "+
-            "WHERE session_hash=? AND status='reserved' AND created_at < ?),0),"+
+            "WHERE session_hash=? AND status='reserved' AND created_at < ?),0)),"+
             "updated_at=? WHERE session_hash=? AND EXISTS ("+
             "SELECT 1 FROM worth_it_guest_calc_transactions "+
             "WHERE session_hash=? AND status='reserved' AND created_at < ?)"
