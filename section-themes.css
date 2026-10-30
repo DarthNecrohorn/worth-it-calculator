@@ -1,0 +1,270 @@
+/* =========================================================
+   WORTH IT — SECTION-SPECIFIC DARK / LIGHT PALETTES
+   Presentation-only layer. The existing global theme switch
+   remains the single source of truth; section layouts,
+   dimensions, data and interactions are intentionally untouched.
+========================================================= */
+
+/* Each dashboard has its own restrained accent identity. */
+#marketsSection { --wt-section-accent:#e6b85c; --wt-section-accent-strong:#f4d38f; }
+#cryptoSection { --wt-section-accent:#42d6a0; --wt-section-accent-strong:#8cebc5; }
+#waterLevelsSection { --wt-section-accent:#45c7d7; --wt-section-accent-strong:#91e4ec; }
+#moneySection { --wt-section-accent:#69a9ff; --wt-section-accent-strong:#a4ccff; }
+#carsSection { --wt-section-accent:#aa91ff; --wt-section-accent-strong:#d0c2ff; }
+#weatherSection { --wt-section-accent:#69bdf1; --wt-section-accent-strong:#a9dcfb; }
+#newsSection { --wt-section-accent:#f59b58; --wt-section-accent-strong:#ffc18f; }
+#shipTrackingSection { --wt-section-accent:#42cbd8; --wt-section-accent-strong:#91e6ed; }
+#shopSection { --wt-section-accent:#4acb94; --wt-section-accent-strong:#9be8c5; }
+
+/* Dark surfaces: solid enough to separate cards from the page,
+   with a very subtle tint drawn from each section's accent. */
+#marketsSection,
+#cryptoSection,
+#waterLevelsSection,
+#moneySection,
+#carsSection,
+#weatherSection,
+#newsSection,
+#shipTrackingSection,
+#shopSection {
+    color:var(--text);
+    --wt-section-card:linear-gradient(
+        145deg,
+        color-mix(in srgb,#172238 93%,var(--wt-section-accent) 7%),
+        #111a2b
+    );
+    --wt-section-card-hover:linear-gradient(
+        145deg,
+        color-mix(in srgb,#1d2b43 90%,var(--wt-section-accent) 10%),
+        #142039
+    );
+    --wt-section-soft:color-mix(in srgb,#101a2b 90%,var(--wt-section-accent) 10%);
+    --wt-section-control:rgba(10,17,30,.82);
+    --wt-section-border:color-mix(in srgb,#52627a 70%,var(--wt-section-accent) 30%);
+    --wt-section-shadow:0 11px 30px rgba(0,0,0,.20),inset 0 1px 0 rgba(255,255,255,.035);
+    --wt-section-hover-shadow:0 16px 38px rgba(0,0,0,.25),0 0 0 1px color-mix(in srgb,var(--wt-section-accent) 15%,transparent);
+}
+
+/* Light surfaces: clean white cards with quiet accent undertones. */
+html[data-theme="light"] #marketsSection,
+html[data-theme="light"] #cryptoSection,
+html[data-theme="light"] #waterLevelsSection,
+html[data-theme="light"] #moneySection,
+html[data-theme="light"] #carsSection,
+html[data-theme="light"] #weatherSection,
+html[data-theme="light"] #newsSection,
+html[data-theme="light"] #shipTrackingSection,
+html[data-theme="light"] #shopSection {
+    --wt-section-card:linear-gradient(
+        145deg,
+        #ffffff,
+        color-mix(in srgb,#f7f9fc 92%,var(--wt-section-accent) 8%)
+    );
+    --wt-section-card-hover:linear-gradient(
+        145deg,
+        #ffffff,
+        color-mix(in srgb,#f2f6fb 88%,var(--wt-section-accent) 12%)
+    );
+    --wt-section-soft:color-mix(in srgb,#f8fafc 91%,var(--wt-section-accent) 9%);
+    --wt-section-control:color-mix(in srgb,#ffffff 94%,var(--wt-section-accent) 6%);
+    --wt-section-border:color-mix(in srgb,#d8e1ec 78%,var(--wt-section-accent) 22%);
+    --wt-section-shadow:0 9px 24px rgba(15,23,42,.065),inset 0 1px 0 rgba(255,255,255,.92);
+    --wt-section-hover-shadow:0 14px 32px rgba(15,23,42,.10),0 0 0 1px color-mix(in srgb,var(--wt-section-accent) 18%,transparent);
+}
+
+/* Remove the large tinted panel behind Markets. The cards themselves
+   now provide the visual structure in both themes. */
+#marketsSection {
+    background:transparent;
+}
+
+/* Core information cards across the individual dashboards. */
+#marketsSection .market-card,
+#cryptoSection .crypto-stat-card,
+#cryptoSection .crypto-card,
+#waterLevelsSection .water-levels-dataset-card,
+#waterLevelsSection .water-level-card,
+#waterLevelsSection .water-level-metric,
+#moneySection .money-card,
+#carsSection .cars-section-block,
+#carsSection .car-card,
+#carsSection .cars-category-card,
+#carsSection .cars-compare-placeholder,
+#weatherSection .weather-card,
+#weatherSection .weather-forecast-card,
+#weatherSection .weather-details > div,
+#weatherSection .weather-location-card,
+#newsSection .news-card,
+#shopSection .shop-card,
+#shopSection .shop-partner-card,
+#shipTrackingSection .ship-tracking-dataset-card,
+#shipTrackingSection .ship-tracking-map-card,
+#shipTrackingSection .ship-tracking-vessel-card {
+    background:var(--wt-section-card);
+    border-color:var(--wt-section-border);
+    box-shadow:var(--wt-section-shadow);
+}
+
+/* Keep existing hover movement; only the surface treatment changes. */
+#marketsSection .market-card:hover,
+#cryptoSection .crypto-stat-card:hover,
+#cryptoSection .crypto-card:hover,
+#waterLevelsSection .water-level-card:hover,
+#moneySection .money-card:hover,
+#carsSection .car-card:hover,
+#carsSection .cars-category-card:hover,
+#weatherSection .weather-card:hover,
+#weatherSection .weather-forecast-card:hover,
+#newsSection .news-card:hover,
+#shopSection .shop-card:hover,
+#shopSection .shop-partner-card:hover,
+#shipTrackingSection .ship-tracking-vessel-card:hover {
+    background:var(--wt-section-card-hover);
+    border-color:var(--wt-section-accent);
+    box-shadow:var(--wt-section-hover-shadow);
+}
+
+/* Small inner panels and controls inherit the palette of their section. */
+#marketsSection .market-icon,
+#cryptoSection .crypto-metrics > div,
+#waterLevelsSection .water-level-card-icon,
+#waterLevelsSection .water-level-card-status,
+#waterLevelsSection .water-levels-source-row > span,
+#moneySection .money-icon,
+#carsSection .car-card-image-placeholder,
+#carsSection .cars-compare-placeholder,
+#weatherSection .weather-details > div,
+#newsSection .news-category-nav,
+#shopSection .shop-controls,
+#shopSection .shop-partners,
+#shopSection .shop-value-analysis,
+#shopSection .shop-other-stores,
+#shipTrackingSection .ship-tracking-map-placeholder,
+#shipTrackingSection .ship-tracking-attribution {
+    background:var(--wt-section-soft);
+    border-color:var(--wt-section-border);
+}
+
+/* Search fields and filter strips are intentionally scoped to their
+   own dashboard so the site-wide calculator controls are unaffected. */
+#marketsSection input[type="search"],
+#cryptoSection .crypto-search-wrap,
+#waterLevelsSection .water-levels-search-wrap,
+#moneySection .calculator-search,
+#carsSection .cars-search,
+#shopSection .shop-search-box,
+#shopSection .shop-select-box,
+#shipTrackingSection .ship-tracking-search-wrap {
+    background:var(--wt-section-control);
+    border-color:var(--wt-section-border);
+    color:var(--text);
+}
+
+#marketsSection input[type="search"],
+#cryptoSection .crypto-search-wrap input,
+#waterLevelsSection .water-levels-search-wrap input,
+#moneySection .calculator-search input,
+#carsSection .cars-search input,
+#shopSection .shop-search-box input,
+#shopSection .shop-select-box select,
+#shipTrackingSection .ship-tracking-search-wrap input {
+    color:var(--text);
+}
+
+#marketsSection input[type="search"]::placeholder,
+#cryptoSection .crypto-search-wrap input::placeholder,
+#waterLevelsSection .water-levels-search-wrap input::placeholder,
+#moneySection .calculator-search input::placeholder,
+#carsSection .cars-search input::placeholder,
+#shopSection .shop-search-box input::placeholder,
+#shipTrackingSection .ship-tracking-search-wrap input::placeholder {
+    color:var(--muted);
+    opacity:.86;
+}
+
+/* Filter buttons keep their existing size and active-state behavior. */
+#marketsSection .worth-it-market-category-button,
+#cryptoSection .crypto-filters button,
+#waterLevelsSection .water-levels-filters button,
+#newsSection .news-category-btn,
+#shopSection .shop-filter,
+#shipTrackingSection .ship-tracking-filters button,
+#carsSection .cars-personal-tab {
+    border-color:var(--wt-section-border);
+    background:var(--wt-section-soft);
+    color:var(--muted);
+}
+
+#marketsSection .worth-it-market-category-button:hover,
+#marketsSection .worth-it-market-category-button.active,
+#cryptoSection .crypto-filters button:hover,
+#cryptoSection .crypto-filters button.active,
+#waterLevelsSection .water-levels-filters button:hover,
+#waterLevelsSection .water-levels-filters button.active,
+#newsSection .news-category-btn:hover,
+#newsSection .news-category-btn.active,
+#shopSection .shop-filter:hover,
+#shopSection .shop-filter.active,
+#shipTrackingSection .ship-tracking-filters button:hover,
+#shipTrackingSection .ship-tracking-filters button.active,
+#carsSection .cars-personal-tab:hover,
+#carsSection .cars-personal-tab.active {
+    border-color:var(--wt-section-accent);
+    background:var(--wt-section-soft);
+    color:var(--text);
+}
+
+/* Section badges use their own accent without recoloring global headings. */
+#cryptoSection .crypto-badge,
+#waterLevelsSection .water-levels-badge,
+#shipTrackingSection .ship-tracking-badge {
+    border-color:var(--wt-section-border);
+    background:var(--wt-section-soft);
+    color:var(--wt-section-accent-strong);
+}
+
+#moneySection .section-kicker,
+#shopSection .shop-eyebrow {
+    color:var(--wt-section-accent-strong);
+}
+
+/* Detail summaries and supporting surfaces follow their parent module. */
+#cryptoSection .crypto-metrics > div,
+#waterLevelsSection .water-levels-attribution,
+#waterLevelsSection .water-level-empty,
+#moneySection .calculator-toolbar,
+#carsSection .cars-search,
+#carsSection .cars-compare-placeholder,
+#weatherSection .weather-status-notice,
+#newsSection .news-category-nav,
+#shopSection .shop-hero-copy,
+#shopSection .shop-footer-note,
+#shipTrackingSection .ship-tracking-empty {
+    background:var(--wt-section-soft);
+    border-color:var(--wt-section-border);
+}
+
+/* Recolor only the decorative FX-card accent line. */
+#moneySection .money-card::after {
+    background:linear-gradient(
+        90deg,
+        transparent 4%,
+        color-mix(in srgb,var(--wt-section-accent) 72%,transparent),
+        transparent 96%
+    );
+}
+
+/* Ensure nested status and supporting copy retain readable site text tokens. */
+#marketsSection .market-card-main small,
+#cryptoSection .crypto-card-name span,
+#waterLevelsSection .water-level-card-location,
+#moneySection .money-card small,
+#weatherSection .weather-details span,
+#newsSection .news-card-description,
+#shopSection .shop-section-heading p,
+#shipTrackingSection .ship-tracking-dataset-card small {
+    color:var(--muted);
+}
+
+/* The interactive map keeps its own tile/canvas rendering; only its frame
+   is themed above. No map, chart, image or media rendering is overridden. */
