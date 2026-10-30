@@ -51,7 +51,7 @@ function mockFetch(options = {}) {
         }
         if (url.pathname.includes("/storage/v1/object/sign/worth-it-chat-media/")) {
             return Response.json(
-                {signedURL: "/object/sign/worth-it-chat-media/" + OBJECT_PATH + "?token=signed-test"},
+                {signedURL: options.signedURL || ("/object/sign/worth-it-chat-media/" + OBJECT_PATH + "?token=signed-test")},
                 {status: options.signFails ? 500 : 200}
             );
         }
@@ -152,3 +152,16 @@ test("chat media API rejects untrusted origins before verifying the session", as
     assert.equal(response.status, 403);
     assert.deepEqual(calls, []);
 });
+test("GET refuses signed URLs that point outside the configured private bucket", async () => {
+    const calls = mockFetch({signedURL: "https://attacker.example/storage/v1/object/sign/worth-it-chat-media/" + OBJECT_PATH + "?token=bad"});
+    const response = await onRequest({
+        request: makeRequest("GET", "/api/chat-media?conversation_id=" + CONVERSATION_ID + "&path=" + encodeURIComponent(OBJECT_PATH)),
+        env: ENV
+    });
+    const payload = await response.json();
+
+    assert.equal(response.status, 502);
+    assert.match(payload.error, /Could not open this attachment/i);
+    assert.equal(calls.some(call => call.url.pathname.includes("/storage/v1/object/sign/")), true);
+});
+
