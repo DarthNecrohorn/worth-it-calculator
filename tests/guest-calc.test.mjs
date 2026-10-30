@@ -143,7 +143,7 @@ test("guest calculation reservations debit once, settle, and refund unsuccessful
     assert.equal(result.ok,true);
     assert.equal(result.balance,0.4);
 
-    response=await call(db,"POST",{action:"reserve",request_id:id},cookie);
+    response=await call(db,"POST",{action:"reserve",request_id:id,calculator_type:"cars"},cookie);
     result=await response.json();
     assert.equal(result.ok,true);
     assert.equal(result.duplicate,true);
