@@ -211,6 +211,19 @@ begin
     -- Claim today's reward exactly once before the first spend of the day.
     if not v_owner then
         perform public.calc_wallet_summary();
+
+        -- Recheck the idempotency key after the wallet lock is held.
+        select * into v_existing
+        from private.worth_it_calc_transactions
+        where user_id = v_user_id and request_id = p_request_id;
+        if found then
+            return jsonb_build_object(
+                'ok', v_existing.status in ('reserved','completed'),
+                'duplicate', true,
+                'status', v_existing.status,
+                'balance_milli', v_existing.balance_after_milli
+            );
+        end if;
     end if;
 
     insert into private.worth_it_calc_wallets(user_id)
@@ -306,6 +319,14 @@ declare
     v_refund integer;
 begin
     if v_user_id is null then raise exception 'Authentication required' using errcode = '28000'; end if;
+
+    -- Use the same wallet -> transaction lock order as daily reward recovery.
+    select * into v_wallet
+    from private.worth_it_calc_wallets
+    where user_id = v_user_id
+    for update;
+
+    if not found then return jsonb_build_object('ok', false, 'code', 'WALLET_NOT_FOUND'); end if;
 
     select * into v_tx
     from private.worth_it_calc_transactions
