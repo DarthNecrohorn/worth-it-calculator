@@ -172,7 +172,7 @@ test("guest daily allowance is enforced by D1, not client localStorage",async()=
     const db=new MockD1();
     const start=await call(db,"GET");
     const cookie=(start.headers.get("set-cookie")||"").split(";")[0];
-    for(let index=0;index<4;index++){
+    for(let index=0;index<5;index++){
         const id="cccccccc-cccc-4ccc-8ccc-"+String(index).padStart(12,"0");
         const response=await call(db,"POST",{action:"reserve",request_id:id},cookie);
         assert.equal(response.status,200);
