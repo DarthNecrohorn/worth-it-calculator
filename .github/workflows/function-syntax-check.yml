@@ -42,8 +42,14 @@ jobs:
         with:
           node-version: "22"
 
+      - name: Run CALC economy contract tests
+        run: node --test tests/calc-economy.test.mjs
+
+      - name: Run Guest Lite D1 session tests
+        run: node --test tests/guest-calc.test.mjs
+
       - name: Run chat enhancement regression tests
-        run: node --test tests/worth-it-chat-enhancements.test.mjs tests/calc-economy.test.mjs tests/guest-calc.test.mjs
+        run: node --test tests/worth-it-chat-enhancements.test.mjs
 
       - name: Check JavaScript syntax
         shell: bash
