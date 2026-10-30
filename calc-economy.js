@@ -21,7 +21,7 @@
         });
     }
 
-    async function guestRpc(action,requestId){
+    async function guestRpc(action,requestId,calculatorType){
         const isRead = action === "balance";
         const response = await fetch("/api/guest-calc",{
             method:isRead ? "GET" : "POST",
@@ -31,7 +31,7 @@
                 "Content-Type":"application/json",
                 "Accept":"application/json"
             },
-            body:isRead ? undefined : JSON.stringify({action,request_id:requestId})
+            body:isRead ? undefined : JSON.stringify({action,request_id:requestId,...(action === "reserve" ? {calculator_type:calculatorType} : {})})
         });
         const result = await response.json().catch(()=>null);
         if(!result || typeof result !== "object") throw new Error("Guest CALC service returned an invalid response.");
@@ -267,12 +267,18 @@
         try{
             const session = await getSession();
             if(!session){
+                const calculatorType = window.WorthItGuestLite?.getActiveCalculator?.() || (kind === "cars" ? "cars" : "");
+                if(!window.WorthItGuestLite?.isBillableCalculator?.(calculatorType)){
+                    showStatus("Guest Lite can use only the first 50 built-in Worth It calculators. Create an account to use community calculators.",true);
+                    if(typeof window.WorthItGuestLite?.showAccountPrompt === "function") window.WorthItGuestLite.showAccountPrompt();
+                    return;
+                }
                 const requestId = uuid();
-                const reservation = await guestRpc("reserve",requestId);
+                const reservation = await guestRpc("reserve",requestId,calculatorType);
                 if(!reservation.ok){
                     if(reservation.code === "INSUFFICIENT_CALC"){
                         await refreshWallet();
-                        showStatus("Your 0.5 Guest Lite CALC for today has been used. Sign in to receive 1 CALC each day.",true);
+                        showStatus("Your 0.5 Guest Lite CALC has been used. Your balance resets to 0.5 when you visit again on the next day.",true);
                     }else{
                         showStatus("The guest CALC allowance could not be authorised. Please try again.",true);
                     }
