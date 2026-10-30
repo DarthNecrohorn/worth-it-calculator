@@ -682,9 +682,6 @@
     window.closeAdminFeedback = closeAdminPanel;
     window.loadAdminFeedback = refreshAdminFeedback;
 
-    $('adminPanelOverlay')?.addEventListener('click',function(event){
-        if(event.target === $('adminPanelOverlay')) closeAdminPanel();
-    });
 
     document.addEventListener('keydown',function(event){
         if(event.key === 'Escape' && $('adminPanelOverlay')?.classList.contains('open')) closeAdminPanel();
