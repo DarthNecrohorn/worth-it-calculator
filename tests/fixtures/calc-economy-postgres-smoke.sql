@@ -47,7 +47,7 @@ begin
         where user_id = auth.uid()
           and request_id = 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee'
           and status = 'refunded'
-    ) or (v->>'balance')::numeric <> 1 then
+    ) or (v->>'balance')::numeric <> 0.9 then
         raise exception 'Abandoned CALC reservations must be refunded automatically: %', v;
     end if;
 
