@@ -10,7 +10,7 @@ test("compact Weather styles load after the shared and overlay styles", () => {
     const shared = html.indexOf('href="style.css?v=');
     const sectionThemes = html.indexOf('href="section-themes.css?v=section-themes-20261030a"');
     const overlay = html.indexOf('href="feedback-admin-overlays.css?v=feedback-admin-overlays-20261030b"');
-    const compact = html.indexOf('href="weather-compact.css?v=weather-compact-20261030a"');
+    const compact = html.indexOf('href="weather-compact.css?v=weather-compact-20261030b"');
 
     assert.ok(shared >= 0 && sectionThemes > shared);
     assert.ok(overlay > sectionThemes && compact > overlay);
