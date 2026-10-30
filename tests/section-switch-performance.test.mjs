@@ -23,6 +23,8 @@ test("Shop keeps its rendered section between visits and does not refetch/rebuil
     assert.match(openShop, /const firstOpen\s*=\s*container\.dataset\.shopInitialized !== "true"/);
     assert.match(openShop, /if\(firstOpen\)\s*\{\s*renderShop\(container\);\s*container\.dataset\.shopInitialized = "true";\s*\}/);
     assert.match(openShop, /!automaticShopFeedLoaded[\s\S]*?container\.dataset\.shopFeedLoadPending/);
+    assert.match(openShop, /container\.style\.display !== "none"[\s\S]*?shopFeedNeedsRender = "true"/);
+    assert.match(openShop, /automaticShopFeedLoaded[\s\S]*?shopFeedNeedsRender === "true"[\s\S]*?renderShop\(container\)/);
     assert.doesNotMatch(openShop, /\n\s*renderShop\(container\);\s*\n\s*container\.style\.display/);
 });
 
