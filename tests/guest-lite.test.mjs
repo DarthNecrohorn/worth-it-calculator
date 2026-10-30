@@ -41,6 +41,8 @@ test("Guest Lite explicitly lists the default calculator catalogue as the only a
     assert.match(guest, /GUEST_BILLABLE_CALCULATORS/);
     assert.match(guest, /isBillableCalculator/);
     assert.match(guest, /BUILT_IN_CALCULATORS\.has\(key\)/);
+    assert.match(guest, /function guardGenericCalculatorSetup\(\)/);
+    assert.match(guest, /window\.setupGeneric = wrapped/);
     assert.match(guest, /guestReturnFocus/);
     assert.match(guest, /User-created and community calculators require a Worth It account/);
 });
