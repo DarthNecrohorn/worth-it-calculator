@@ -1276,9 +1276,20 @@ function makeWorthItChatMessageActionButton(label, glyph, className, onClick) {
     return button;
 }
 async function copyWorthItChatMessage(message) {
-    const value = String(message.body || message.media_url || "");
+    let value = String(message.body || "");
+    if (!value && message.media_type === "audio") {
+        value = "🎙 Voice message";
+    } else if (!value && message.media_url && ["image", "gif", "video"].includes(message.media_type)) {
+        try {
+            const conversationId = activeConversationType === "global" ? WORTH_IT_GLOBAL_CHAT_REALTIME_ID : activeConversationId;
+            value = await getWorthItChatMediaSignedUrl(message.media_url, conversationId);
+        } catch (_) {
+            setStatus("Could not prepare a secure attachment link. Please try again.", true);
+            return;
+        }
+    }
     if (!value) {
-        setStatus("There is no message text or attachment link to copy.", true);
+        setStatus("There is no message text or attachment to copy.", true);
         return;
     }
     try {
