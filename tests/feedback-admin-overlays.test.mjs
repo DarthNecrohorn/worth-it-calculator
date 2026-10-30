@@ -43,7 +43,7 @@ test("clicking outside Admin Panel no longer closes it; X and Escape remain", ()
 
 test("Admin Panel destinations and their existing section loading remain intact", () => {
     for (const section of ["feedback", "usage", "platform-usage"]) {
-        assert.ok(admin.includes(`data-admin-section=${section}`) || admin.includes(`data-admin-section=\\'${section}\\'`), `missing Admin Panel destination: ${section}`);
+        assert.ok(admin.includes(`data-admin-section="${section}"`), `missing Admin Panel destination: ${section}`);
     }
     assert.match(admin, /async function showAdminSection\(section\)/);
     assert.match(admin, /await loadFeedback\(\)/);
