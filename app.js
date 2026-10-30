@@ -654,6 +654,20 @@ function resetAuthTurnstile() {
     }
 }
 
+function removeAuthTurnstile() {
+    authTurnstileToken = "";
+    if (window.turnstile && authTurnstileWidgetId !== null) {
+        try {
+            window.turnstile.remove(authTurnstileWidgetId);
+        } catch (error) {
+            console.warn("Worth It Turnstile cleanup failed:", error);
+        }
+    }
+    authTurnstileWidgetId = null;
+    const holder = $("authTurnstile");
+    if (holder) holder.replaceChildren();
+}
+
 function loadAuthTurnstileScript() {
     if (window.turnstile) {
         return Promise.resolve(window.turnstile);
@@ -1112,7 +1126,7 @@ function closeAuthModal(force) {
     }
 
 
-    resetAuthTurnstile();
+    removeAuthTurnstile();
 
     const legalCheck =
         $("authLegalCheck");
