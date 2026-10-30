@@ -64,6 +64,7 @@ declare
     v_today date := (now() at time zone 'UTC')::date;
     v_reward integer := 0;
     v_added integer := 0;
+    v_stale_refund integer := 0;
 begin
     if v_user_id is null then
         raise exception 'Authentication required' using errcode = '28000';
@@ -86,6 +87,37 @@ begin
     from private.worth_it_calc_wallets
     where user_id = v_user_id
     for update;
+
+    -- Recover abandoned reservations after 30 minutes if a request was terminated
+    -- before its explicit settle/refund callback could run.
+    with stale as (
+        update private.worth_it_calc_transactions
+        set status = 'refunded'
+        where user_id = v_user_id
+          and status = 'reserved'
+          and created_at < now() - interval '30 minutes'
+        returning amount_milli
+    )
+    select coalesce(sum(greatest(0, -amount_milli)), 0)::integer
+    into v_stale_refund
+    from stale;
+
+    if v_stale_refund > 0 then
+        update private.worth_it_calc_wallets
+        set balance_milli = balance_milli + v_stale_refund,
+            updated_at = now()
+        where user_id = v_user_id
+        returning * into v_wallet;
+
+        insert into private.worth_it_calc_transactions(
+            user_id, kind, amount_milli, balance_after_milli,
+            status, description, metadata
+        ) values (
+            v_user_id, 'refund', v_stale_refund, v_wallet.balance_milli,
+            'completed', 'Automatic refund for an abandoned operation',
+            jsonb_build_object('stale_after_minutes', 30)
+        );
+    end if;
 
     if v_wallet.premium_plan <> 'free'
        and (v_wallet.premium_expires_at is null or v_wallet.premium_expires_at <= now()) then
