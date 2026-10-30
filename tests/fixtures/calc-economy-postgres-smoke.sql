@@ -35,6 +35,22 @@ begin
     v := public.calc_wallet_refund(v_refund);
     if v->>'status' <> 'refunded' then raise exception 'Failed AI attempt was not refunded: %', v; end if;
 
+    v := public.calc_wallet_reserve('eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee','calculator');
+    if v->>'ok' <> 'true' then raise exception 'Could not reserve CALC for stale-refund test: %', v; end if;
+    update private.worth_it_calc_transactions
+       set created_at = now() - interval '31 minutes'
+     where user_id = auth.uid()
+       and request_id = 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee';
+    v := public.calc_wallet_summary();
+    if not exists (
+        select 1 from private.worth_it_calc_transactions
+        where user_id = auth.uid()
+          and request_id = 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee'
+          and status = 'refunded'
+    ) or (v->>'balance')::numeric <> 1 then
+        raise exception 'Abandoned CALC reservations must be refunded automatically: %', v;
+    end if;
+
     update private.worth_it_calc_wallets
        set balance_milli = 100000,
            last_daily_reward_on = (now() at time zone 'UTC')::date,
