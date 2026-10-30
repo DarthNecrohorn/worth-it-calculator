@@ -58,8 +58,14 @@ async function authorizeRpc(config, token, functionName, payload) {
         body: JSON.stringify(payload),
         cache: "no-store"
     });
-    if (!response.ok) return false;
-    return (await response.json()) === true;
+    if (!response.ok) {
+        throw new Error("Chat audio authorization RPC failed with HTTP " + response.status + ".");
+    }
+    const result = await response.json();
+    if (typeof result !== "boolean") {
+        throw new Error("Chat audio authorization RPC returned an invalid response.");
+    }
+    return result;
 }
 function canonicalMime(value) {
     return String(value || "").toLowerCase().split(";")[0].trim();
@@ -97,11 +103,21 @@ async function getSignedUrl(config, path) {
     const payload = await response.json();
     const signedPath = String(payload.signedURL || payload.signedUrl || "");
     if (!signedPath) return "";
-    const fullPath = signedPath.startsWith(config.supabaseUrl) ? signedPath
-        : signedPath.startsWith("/storage/v1/") ? config.supabaseUrl + signedPath
-        : signedPath.startsWith("/") ? config.supabaseUrl + "/storage/v1" + signedPath
-        : config.supabaseUrl + "/storage/v1/" + signedPath;
-    return fullPath;
+    try {
+        const project = new URL(config.supabaseUrl);
+        let signedUrl;
+        if (/^https?:\/\//i.test(signedPath)) signedUrl = new URL(signedPath);
+        else if (signedPath.startsWith("/storage/v1/")) signedUrl = new URL(signedPath, project);
+        else if (signedPath.startsWith("/")) signedUrl = new URL("/storage/v1" + signedPath, project);
+        else signedUrl = new URL("/storage/v1/" + signedPath, project);
+
+        const expectedPath = "/storage/v1/object/sign/" + AUDIO_BUCKET + "/" + storagePath(path);
+        if (signedUrl.origin !== project.origin || signedUrl.pathname !== expectedPath) return "";
+        signedUrl.hash = "";
+        return signedUrl.toString();
+    } catch (_) {
+        return "";
+    }
 }
 export async function onRequest(context) {
     const { request, env } = context;
