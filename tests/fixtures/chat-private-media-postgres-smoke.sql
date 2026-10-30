@@ -51,50 +51,6 @@ begin
   values (conversation_id,owner_id,'private attachment',stable_url,'image')
   returning id into message_id;
 
-
-  -- Voice objects must match the exact message and conversation reference.
-  audio_object_path := owner_id::text || '/1790000000001-voice-test.webm';
-  audio_reference := 'worthit-audio:' || conversation_id::text || ':' || audio_object_path;
-  insert into public.worth_it_chat_messages(conversation_id,sender_user_id,body,media_url,media_type)
-  values (conversation_id,owner_id,'voice test',audio_reference,'audio')
-  returning id into audio_message_id;
-
-  perform set_config('app.test_user_id',owner_id::text,true);
-  if not public.can_access_worth_it_chat_audio_object(conversation_id,audio_object_path) then
-    raise exception 'The audio message owner cannot access their own voice message.';
-  end if;
-  if not public.can_delete_worth_it_chat_audio_object(conversation_id,audio_object_path) then
-    raise exception 'The audio message owner cannot delete their own voice message.';
-  end if;
-  if public.can_access_worth_it_chat_audio_object(direct_conversation_id,audio_object_path) then
-    raise exception 'An audio object was replayed against a different conversation.';
-  end if;
-
-  perform set_config('app.test_user_id',other_member_id::text,true);
-  if not public.can_access_worth_it_chat_audio_object(conversation_id,audio_object_path) then
-    raise exception 'Another member cannot access the shared voice message.';
-  end if;
-  if public.can_delete_worth_it_chat_audio_object(conversation_id,audio_object_path) then
-    raise exception 'Another member can delete someone else''s voice message.';
-  end if;
-
-  perform set_config('app.test_user_id',outsider_id::text,true);
-  if public.can_access_worth_it_chat_audio_object(conversation_id,audio_object_path) then
-    raise exception 'A non-member can access a private voice message.';
-  end if;
-
-  perform set_config('app.test_user_id',owner_id::text,true);
-  result := public.delete_worth_it_chat_message(audio_message_id);
-  if result->>'success' is distinct from 'true' then
-    raise exception 'The owner could not delete their voice message: %', result;
-  end if;
-  if public.can_access_worth_it_chat_audio_object(conversation_id,audio_object_path) then
-    raise exception 'A deleted voice message remains readable.';
-  end if;
-  if not public.can_delete_worth_it_chat_audio_object(conversation_id,audio_object_path) then
-    raise exception 'The owner cannot clean up the deleted voice message object.';
-  end if;
-
   perform set_config('app.test_user_id', owner_id::text, true);
   if not public.can_access_worth_it_chat_media_object(conversation_id,object_path) then
     raise exception 'The owning group member cannot view their attachment.';
@@ -116,6 +72,42 @@ begin
     raise exception 'A non-member can view a private group attachment.';
   end if;
 
+
+  -- Voice objects require an exact message reference in the exact conversation.
+  audio_object_path := owner_id::text || '/1790000000001-voice-test.webm';
+  audio_reference := 'worthit-audio:' || conversation_id::text || ':' || audio_object_path;
+  insert into public.worth_it_chat_messages(conversation_id,sender_user_id,body,media_url,media_type)
+  values (conversation_id,owner_id,'voice test',audio_reference,'audio') returning id into audio_message_id;
+  perform set_config('app.test_user_id',owner_id::text,true);
+  if not public.can_access_worth_it_chat_audio_object(conversation_id,audio_object_path)
+     or not public.can_delete_worth_it_chat_audio_object(conversation_id,audio_object_path) then
+    raise exception 'The audio owner cannot access or delete their own voice message.';
+  end if;
+  if public.can_access_worth_it_chat_audio_object(direct_conversation_id,audio_object_path) then
+    raise exception 'An audio object was replayed against a different conversation.';
+  end if;
+  perform set_config('app.test_user_id',other_member_id::text,true);
+  if not public.can_access_worth_it_chat_audio_object(conversation_id,audio_object_path) then
+    raise exception 'Another member cannot access the shared voice message.';
+  end if;
+  if public.can_delete_worth_it_chat_audio_object(conversation_id,audio_object_path) then
+    raise exception 'Another member can delete someone else''s voice message.';
+  end if;
+  perform set_config('app.test_user_id',outsider_id::text,true);
+  if public.can_access_worth_it_chat_audio_object(conversation_id,audio_object_path) then
+    raise exception 'A non-member can access a private voice message.';
+  end if;
+  perform set_config('app.test_user_id',owner_id::text,true);
+  result := public.delete_worth_it_chat_message(audio_message_id);
+  if result->>'success' is distinct from 'true' then
+    raise exception 'The owner could not delete their voice message: %',result;
+  end if;
+  if public.can_access_worth_it_chat_audio_object(conversation_id,audio_object_path) then
+    raise exception 'A deleted voice message remains readable.';
+  end if;
+  if not public.can_delete_worth_it_chat_audio_object(conversation_id,audio_object_path) then
+    raise exception 'The owner cannot clean up the deleted voice message object.';
+  end if;
 
   -- Group Chat: only members may read, send or subscribe.
   perform set_config('app.test_user_id', outsider_id::text, true);
