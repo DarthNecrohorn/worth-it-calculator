@@ -9,9 +9,13 @@ function extractFunction(source, functionName) {
     const marker = "create or replace function public." + functionName;
     const start = source.toLowerCase().indexOf(marker.toLowerCase());
     assert.notEqual(start, -1, "Expected function " + functionName + " to exist.");
-    const end = source.indexOf("\n$$;", start);
-    assert.notEqual(end, -1, "Expected function " + functionName + " to have a complete dollar-quoted body.");
-    return source.slice(start, end + 4);
+    const remainder = source.slice(start);
+    const opening = remainder.match(/\\bas\\s+(\\$\\$|\\$[A-Za-z_][A-Za-z0-9_]*\\$)/i);
+    assert.ok(opening, "Expected function " + functionName + " to declare a dollar-quoted body.");
+    const bodyStart = start + opening.index + opening[0].length;
+    const finish = source.indexOf(opening[1], bodyStart);
+    assert.notEqual(finish, -1, "Expected function " + functionName + " to have a complete dollar-quoted body.");
+    return source.slice(start, finish + opening[1].length);
 }
 
 for (const [label, source] of [["baseline invite setup", baseline], ["incremental hardening migration", hardening]]) {
