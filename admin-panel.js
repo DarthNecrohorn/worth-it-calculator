@@ -106,10 +106,14 @@
                 ['Wallets',number(overview.wallet_count)],
                 ['Premium Lite active',number(overview.active_premium_lite)],
                 ['Premium active',number(overview.active_premium)],
-                ['Outstanding CALC',number(overview.calc_balance_total)]
+                ['Outstanding CALC',number(overview.calc_balance_total)],
+                ['Outstanding WIP',number(overview.wip_balance_total)]
             ];
             const table = rows.length ? '<div class="admin-platform-table-wrap"><table class="admin-platform-table"><thead><tr><th>Date</th><th>User</th><th>Type</th><th>Amount</th><th>Balance</th><th>Status</th></tr></thead><tbody>' +
-                rows.map(item => '<tr><td>'+escapeHtml(date(item.created_at))+'</td><td>'+escapeHtml(item.username || item.email || 'Member')+'</td><td>'+escapeHtml(item.kind || '')+'</td><td>'+escapeHtml(number(item.amount))+' CALC</td><td>'+escapeHtml(number(item.balance_after))+'</td><td>'+escapeHtml(item.status || '')+'</td></tr>').join('')+
+                rows.map(item => {
+                    const currency = item.currency === 'WIP' ? 'WIP' : 'CALC';
+                    return '<tr><td>'+escapeHtml(date(item.created_at))+'</td><td>'+escapeHtml(item.username || item.email || 'Member')+'</td><td>'+escapeHtml(item.kind || '')+'</td><td>'+escapeHtml(number(item.amount))+' '+currency+'</td><td>'+escapeHtml(number(item.balance_after))+' '+currency+'</td><td>'+escapeHtml(item.status || '')+'</td></tr>';
+                }).join('')+
                 '</tbody></table></div>' : '<div class="admin-panel-empty"><span>◈</span><strong>No CALC transactions yet</strong><small>Daily rewards, calculator usage and subscription activity will appear here.</small></div>';
             area.innerHTML = '<div class="admin-usage-summary-grid">'+cards.map(card=>'<article class="admin-usage-summary-card"><span>'+escapeHtml(card[0])+'</span><strong>'+escapeHtml(card[1])+'</strong></article>').join('')+'</div>'+
                 '<div class="admin-panel-list-head"><span>Latest '+rows.length+' transactions</span><button type="button" class="admin-panel-inline-button" onclick="refreshAdminEconomy()">↻ Refresh</button></div>'+table+
