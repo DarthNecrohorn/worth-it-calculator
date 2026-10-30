@@ -101,7 +101,11 @@ async function readRpc(config, token, functionName, payload) {
         cache: "no-store"
     });
     if (!response.ok) {
-        throw new Error("Chat media tier RPC failed with HTTP " + response.status + ".");
+        const detail = await response.text().catch(function () { return ""; });
+        const error = new Error("Chat media tier RPC failed with HTTP " + response.status + ".");
+        error.status = response.status;
+        error.details = detail;
+        throw error;
     }
     return response.json();
 }
@@ -219,8 +223,13 @@ export async function onRequest(context) {
     let tierLimits;
     try {
         tierLimits = await readRpc(config, token, "calc_chat_media_limits", {});
-    } catch (_) {
-        return json({error:"Could not verify your chat upload limit. Please try again."}, 503, origin);
+    } catch (tierError) {
+        if (/PGRST202|schema cache|calc_chat_media_limits.*does not exist/i.test(String(tierError && tierError.details || ""))) {
+            // During the rollout, use the strict Free limits until the SQL migration is applied.
+            tierLimits = {tier:"free",image_bytes:IMAGE_LIMIT === 25 * 1024 * 1024 ? 5 * 1024 * 1024 : IMAGE_LIMIT,gif_bytes:8 * 1024 * 1024,video_bytes:15 * 1024 * 1024};
+        } else {
+            return json({error:"Could not verify your chat upload limit. Please try again."}, 503, origin);
+        }
     }
     const maxBytes = gif
         ? Number(tierLimits && tierLimits.gif_bytes)
