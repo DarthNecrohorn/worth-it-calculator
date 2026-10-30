@@ -99,6 +99,19 @@ test("GET refuses a user without access and never creates a signed URL", async (
     assert.equal(calls.some(call => call.url.pathname.includes("/storage/v1/object/sign/")), false);
 });
 
+test("GET reports an unavailable authorization RPC as a server error, not a permission denial", async () => {
+    const calls = mockFetch({rpcFails: true});
+    const response = await onRequest({
+        request: makeRequest("GET", "/api/chat-media?conversation_id=" + CONVERSATION_ID + "&path=" + encodeURIComponent(OBJECT_PATH)),
+        env: ENV
+    });
+    const payload = await response.json();
+
+    assert.equal(response.status, 502);
+    assert.match(payload.error, /Could not verify access to this chat attachment/i);
+    assert.equal(calls.some(call => call.url.pathname.includes("/storage/v1/object/sign/")), false);
+});
+
 test("DELETE checks sender ownership through the object RPC before removing a file", async () => {
     const calls = mockFetch({expectedRpc: "can_delete_worth_it_chat_media_object"});
     const response = await onRequest({
