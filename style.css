@@ -23517,3 +23517,16 @@ body.worth-it-chat-image-lightbox-open{overflow:hidden!important}
  .worth-it-chat-image-lightbox-image{max-width:100%!important;max-height:calc(100dvh - 88px)!important}
  .worth-it-chat-image-lightbox-close{width:44px!important;height:44px!important;top:max(10px,env(safe-area-inset-top))!important;right:max(10px,env(safe-area-inset-right))!important}
 }
+
+
+/* Chat image lightbox: move only the X glyph up 2px inside its existing
+   circular hit target. Keep the close button's size and position unchanged. */
+.worth-it-chat-image-lightbox-close {
+    font-size: 0 !important;
+}
+.worth-it-chat-image-lightbox-close::before {
+    content: "×";
+    display: block;
+    font: 400 34px/1 system-ui, sans-serif;
+    transform: translateY(-2px);
+}
