@@ -66,6 +66,11 @@
     }
 
     function setHeaderBalance(state){
+        const isPremium = Boolean(state && (state.is_owner || state.premium_plan === "premium" || state.premium_plan === "premium_lite"));
+        if(document.documentElement){
+            document.documentElement.dataset.worthItPremium = isPremium ? "true" : "false";
+            document.documentElement.dataset.worthItSubscription = state?.premium_plan || "free";
+        }
         const value = $("worthItCalcWalletValue");
         const button = $("worthItCalcWalletButton");
         if(!value || !button) return;
