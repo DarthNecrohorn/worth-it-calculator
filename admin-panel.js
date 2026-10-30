@@ -60,6 +60,11 @@
                     '<span class="admin-panel-section-copy"><strong>Platform Usage</strong><small>Cloudflare Workers, CPU &amp; D1</small></span>',
                     '<span class="admin-panel-section-arrow">›</span>',
                 '</button>',
+                '<button type="button" class="admin-panel-section-button" data-admin-section="economy" onclick="showAdminSection(\'economy\')">',
+                    '<span class="admin-panel-section-icon">◈</span>',
+                    '<span class="admin-panel-section-copy"><strong>Economy &amp; Transactions</strong><small>CALC balances, subscriptions and purchase history</small></span>',
+                    '<span class="admin-panel-section-arrow">›</span>',
+                '</button>',
             '</div>'
         ].join('');
     }
@@ -82,12 +87,50 @@
         });
     }
 
+
+    async function loadEconomyOverview(){
+        const area = $('adminEconomyArea');
+        if(!area) return;
+        area.innerHTML = '<div class="admin-panel-loading"><span class="admin-panel-spinner"></span>Loading CALC transactions…</div>';
+        try{
+            const session = await getSession();
+            if(!session?.access_token) throw new Error('Please sign in again.');
+            const result = await window.supabaseClient.rpc('calc_admin_overview');
+            if(result.error) throw result.error;
+            const overview = Array.isArray(result.data) ? result.data[0] : result.data;
+            if(!overview || typeof overview !== 'object') throw new Error('No economy overview was returned.');
+            const rows = Array.isArray(overview.transactions) ? overview.transactions : [];
+            const number = value => Number(value || 0).toLocaleString(undefined,{maximumFractionDigits:3});
+            const date = value => value ? new Date(value).toLocaleString() : '—';
+            const cards = [
+                ['Wallets',number(overview.wallet_count)],
+                ['Premium Lite active',number(overview.active_premium_lite)],
+                ['Premium active',number(overview.active_premium)],
+                ['Outstanding CALC',number(overview.calc_balance_total)]
+            ];
+            const table = rows.length ? '<div class="admin-platform-table-wrap"><table class="admin-platform-table"><thead><tr><th>Date</th><th>User</th><th>Type</th><th>Amount</th><th>Balance</th><th>Status</th></tr></thead><tbody>' +
+                rows.map(item => '<tr><td>'+escapeHtml(date(item.created_at))+'</td><td>'+escapeHtml(item.username || item.email || 'Member')+'</td><td>'+escapeHtml(item.kind || '')+'</td><td>'+escapeHtml(number(item.amount))+' CALC</td><td>'+escapeHtml(number(item.balance_after))+'</td><td>'+escapeHtml(item.status || '')+'</td></tr>').join('')+
+                '</tbody></table></div>' : '<div class="admin-panel-empty"><span>◈</span><strong>No CALC transactions yet</strong><small>Daily rewards, calculator usage and subscription activity will appear here.</small></div>';
+            area.innerHTML = '<div class="admin-usage-summary-grid">'+cards.map(card=>'<article class="admin-usage-summary-card"><span>'+escapeHtml(card[0])+'</span><strong>'+escapeHtml(card[1])+'</strong></article>').join('')+'</div>'+
+                '<div class="admin-panel-list-head"><span>Latest '+rows.length+' transactions</span><button type="button" class="admin-panel-inline-button" onclick="refreshAdminEconomy()">↻ Refresh</button></div>'+table+
+                '<div class="admin-panel-card" style="margin-top:16px"><strong>Bank payouts and payment provider</strong><p style="color:var(--muted);line-height:1.6;margin:8px 0 0">Bank account details are not stored in Worth It. Connect and verify a payout account directly in the approved payment provider dashboard. Paid CALC packs and real-money Premium remain disabled until the provider approves the product and webhook integration is configured.</p></div>';
+        }catch(error){
+            const message = String(error?.message || 'Could not load the economy overview.');
+            area.innerHTML = '<div class="admin-panel-error"><strong>Could not load CALC transactions</strong><span>'+escapeHtml(/PGRST202|calc_admin_overview|schema cache/i.test(message)?'Apply the CALC economy SQL migration in Supabase first.':message)+'</span><button type="button" class="admin-panel-inline-button" onclick="refreshAdminEconomy()">Try again</button></div>';
+        }
+    }
+    async function refreshAdminEconomy(){
+        if(!(await isAdmin())){ closeAdminPanel(); return; }
+        await loadEconomyOverview();
+    }
+
     async function showAdminSection(section){
         if(!(await isAdmin())){ closeAdminPanel(); return; }
         activeSection =
             section === 'feedback' ||
             section === 'usage' ||
-            section === 'platform-usage'
+            section === 'platform-usage' ||
+            section === 'economy'
                 ? section
                 : 'home';
         setStatus('');
@@ -103,6 +146,12 @@
             setActiveNav();
             feedbackLoaded = false;
             await loadFeedback();
+            return;
+        }
+        if(activeSection === 'economy'){
+            content.innerHTML = renderSectionHeader('Economy & Transactions','Private CALC balances, subscription activity and purchase history.','◈') + '<div id="adminEconomyArea"></div>';
+            setActiveNav();
+            await loadEconomyOverview();
             return;
         }
         if(activeSection === 'platform-usage'){
@@ -678,6 +727,7 @@
     window.refreshAdminFeedback = refreshAdminFeedback;
     window.refreshAdminUsage = refreshAdminUsage;
     window.refreshAdminPlatformUsage = refreshAdminPlatformUsage;
+    window.refreshAdminEconomy = refreshAdminEconomy;
     window.openAdminFeedback = openAdminPanel;
     window.closeAdminFeedback = closeAdminPanel;
     window.loadAdminFeedback = refreshAdminFeedback;
