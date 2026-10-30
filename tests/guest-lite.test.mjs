@@ -23,7 +23,7 @@ test("a dedicated Guest Lite explanation contains the required consent checkbox"
     assert.match(html, /id="worthItGuestLimitsOverlay"[^>]*hidden/);
     assert.match(html, /id="worthItGuestLimitsTitle">Continue with limited guest access/);
     assert.match(html, /id="worthItGuestConsentCheck"/);
-    assert.match(html, /I agree with these limitations and wish to continue, remind me again in 24 hours\./);
+    assert.match(html, /I agree to these Guest Lite limits and want to continue/);
     assert.match(html, /id="worthItGuestContinueButton" disabled>Continue as a guest/);
     assert.match(guest, /if \(!checkbox\?\.checked\)/);
     assert.match(guest, /setNextPromptAt\(Date\.now\(\) \+ DAY_MS\)/);
@@ -31,9 +31,15 @@ test("a dedicated Guest Lite explanation contains the required consent checkbox"
 
 test("Guest Lite explicitly lists the default calculator catalogue as the only available feature", () => {
     assert.match(html, /Use the built-in Worth It calculators configured by the site owner/);
-    assert.match(html, /Explore the default calculator catalogue, search and filter calculators/);
+    assert.match(html, /first 50 built-in Worth It calculators/);
+    assert.match(html, /Each calculation costs 0\.1 CALC/);
+    assert.match(html, /resets to exactly <strong>0\.5 CALC each day/);
+    assert.match(html, /Unused CALC does not roll over or accumulate/);
     assert.match(guest, /const BUILT_IN_CALCULATORS = new Set/);
+    assert.match(guest, /GUEST_BILLABLE_CALCULATORS/);
+    assert.match(guest, /isBillableCalculator/);
     assert.match(guest, /BUILT_IN_CALCULATORS\.has\(key\)/);
+    assert.match(guest, /guestReturnFocus/);
     assert.match(guest, /User-created and community calculators require a Worth It account/);
 });
 
@@ -79,6 +85,7 @@ test("the signup modal offers Guest Lite only in signup mode", () => {
 test("Guest Lite dialog is responsive, theme-aware and the CI checks the new script", () => {
     assert.match(css, /\.worth-it-guest-overlay\[hidden\]\{display:none!important\}/);
     assert.match(css, /@media\(max-width:650px\)/);
+    assert.match(css, /\.worth-it-guest-list ul\{font-size:12px/);
     assert.match(css, /html\[data-theme="light"\] \.worth-it-guest-card/);
     assert.match(html, /guest-mode\.js\?v=chat-route-preserve-20261028a/);
     assert.match(workflow, /guest-mode\.js/);
