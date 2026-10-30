@@ -1833,10 +1833,14 @@ window.openShop = function(){
 
         const firstOpen =
             container.dataset.shopInitialized !== "true";
+        const feedReadyToRender =
+            automaticShopFeedLoaded &&
+            container.dataset.shopFeedNeedsRender === "true";
 
-        if(firstOpen){
+        if(firstOpen || feedReadyToRender){
             renderShop(container);
             container.dataset.shopInitialized = "true";
+            container.dataset.shopFeedNeedsRender = "false";
         }
 
         container.style.display = "block";
@@ -1852,8 +1856,13 @@ window.openShop = function(){
 
             loadAutomaticShopProducts()
                 .then(loaded => {
-                    if(loaded && container.isConnected){
+                    if(!loaded || !container.isConnected) return;
+
+                    if(container.style.display !== "none"){
                         renderShop(container);
+                        container.dataset.shopFeedNeedsRender = "false";
+                    }else{
+                        container.dataset.shopFeedNeedsRender = "true";
                     }
                 })
                 .finally(() => {
