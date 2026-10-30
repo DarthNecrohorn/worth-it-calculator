@@ -14,10 +14,16 @@ begin
     if (v->>'balance')::numeric <> 1 then
         raise exception 'Free daily reward should be 1 CALC, got %', v->>'balance';
     end if;
+    if (v->>'daily_wip_reward')::numeric <> 1
+       or (v->>'wip_balance')::numeric <> 1 then
+        raise exception 'Free accounts should receive 1 WIP daily, got %', v;
+    end if;
 
     v := public.calc_wallet_summary();
-    if (v->>'balance')::numeric <> 1 then
-        raise exception 'Daily reward was not idempotent, got %', v->>'balance';
+    if (v->>'balance')::numeric <> 1
+       or (v->>'wip_balance')::numeric <> 1
+       or (v->>'daily_wip_reward')::numeric <> 0 then
+        raise exception 'Daily CALC/WIP rewards were not idempotent, got %', v;
     end if;
 
     v := public.calc_wallet_reserve(v_request,'calculator');
@@ -53,15 +59,27 @@ begin
 
     update private.worth_it_calc_wallets
        set balance_milli = 100000,
+           wip_balance_milli = 50000,
            last_daily_reward_on = (now() at time zone 'UTC')::date,
+           last_wip_reward_on = (now() at time zone 'UTC')::date,
            premium_plan = 'free',
            premium_expires_at = null
      where user_id = auth.uid();
 
     v := public.calc_buy_premium_lite('cccccccc-cccc-4ccc-8ccc-cccccccccccc');
     if v->>'ok' <> 'true' or v->>'premium_plan' <> 'premium_lite'
-       or (v->>'balance')::numeric <> 25 then
-        raise exception 'Premium Lite should cost 75 CALC and activate 15 days: %', v;
+       or (v->>'balance')::numeric <> 100
+       or (v->>'wip_balance')::numeric <> 10 then
+        raise exception 'Premium Lite should cost 40 WIP, preserve CALC and activate 15 days: %', v;
+    end if;
+    if not exists (
+        select 1 from private.worth_it_calc_transactions
+        where user_id = auth.uid()
+          and kind = 'premium_lite_purchase'
+          and currency = 'WIP'
+          and amount_milli = -40000
+    ) then
+        raise exception 'Premium Lite WIP transaction was not recorded correctly.';
     end if;
 
     v := public.calc_chat_media_limits();
@@ -80,8 +98,10 @@ begin
        set last_daily_reward_on = ((now() at time zone 'UTC')::date - 1)
      where user_id = auth.uid();
     v := public.calc_wallet_summary();
-    if (v->>'daily_reward')::numeric <> 2 then
-        raise exception 'Premium Lite daily reward should be 2 CALC: %', v;
+    if (v->>'daily_reward')::numeric <> 2
+       or (v->>'daily_wip_reward')::numeric <> 0
+       or (v->>'wip_balance')::numeric <> 10 then
+        raise exception 'Premium Lite should receive 2 CALC daily and retain its WIP balance: %', v;
     end if;
 
     begin
@@ -114,7 +134,7 @@ insert into public.worth_it_profiles(user_id,worth_it_id,username) values
 on conflict(user_id) do update set worth_it_id = excluded.worth_it_id, username = excluded.username;
 insert into private.worth_it_calc_wallets(user_id,balance_milli,premium_plan,premium_expires_at,last_daily_reward_on)
 values ('33333333-3333-4333-8333-333333333333',1000,'premium',now()+interval '30 days',(now() at time zone 'UTC')::date - 1)
-on conflict(user_id) do update set balance_milli=excluded.balance_milli,premium_plan='premium',premium_expires_at=excluded.premium_expires_at,last_daily_reward_on=excluded.last_daily_reward_on;
+on conflict(user_id) do update set balance_milli=excluded.balance_milli,premium_plan='premium',premium_expires_at=excluded.premium_expires_at,last_daily_reward_on=excluded.last_daily_reward_on,last_wip_reward_on=null,wip_balance_milli=0;
 
 select set_config('request.jwt.claim.sub','33333333-3333-4333-8333-333333333333',false);
 select set_config('request.jwt.claims','{"sub":"33333333-3333-4333-8333-333333333333","email":"premium@example.test"}',false);
@@ -122,7 +142,11 @@ do $$
 declare v jsonb;
 begin
     v := public.calc_wallet_summary();
-    if (v->>'daily_reward')::numeric <> 3 then raise exception 'Premium daily reward should be 3 CALC: %',v; end if;
+    if (v->>'daily_reward')::numeric <> 3
+       or (v->>'daily_wip_reward')::numeric <> 1
+       or (v->>'wip_balance')::numeric <> 1 then
+        raise exception 'Premium accounts should receive 3 CALC and 1 WIP daily: %',v;
+    end if;
     v := public.calc_chat_media_limits();
     if v->>'tier' <> 'premium' or (v->>'image_bytes')::integer <> 26214400
        or (v->>'gif_bytes')::integer <> 36700160 or (v->>'video_bytes')::integer <> 52428800 then
