@@ -10,7 +10,6 @@
     let walletState = null;
     let economyReady = false;
     let calculationBusy = false;
-    let badgeRequestSequence = 0;
 
     const $ = id => document.getElementById(id);
     const client = () => window.supabaseClient || null;
@@ -346,10 +345,14 @@
     async function refreshPremiumBadge(worthItId,target){
         const badgeTarget = target || null;
         if(!worthItId || !client()) return null;
-        const sequence = ++badgeRequestSequence;
+        const userId = String(worthItId);
+        if(badgeTarget){
+            badgeTarget.dataset.worthItId = userId;
+            badgeTarget.hidden = true;
+        }
         try{
             const badge = await rpc("calc_profile_badge",{p_worth_it_id:Number(worthItId)});
-            if(badgeTarget && sequence === badgeRequestSequence){
+            if(badgeTarget && badgeTarget.dataset.worthItId === userId){
                 badgeTarget.textContent = badge === "premium" ? "✧ PREMIUM" :
                     badge === "premium_lite" ? "✦ LITE" :
                     badge === "owner" ? "◆ OWNER" : "";
@@ -359,7 +362,7 @@
             return badge || null;
         }catch(error){
             if(!isMissingEconomy(error)) console.warn("Premium badge lookup failed:",error);
-            if(badgeTarget) badgeTarget.hidden = true;
+            if(badgeTarget && badgeTarget.dataset.worthItId === userId) badgeTarget.hidden = true;
             return null;
         }
     }
