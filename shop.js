@@ -576,9 +576,11 @@
 
         closeButton.addEventListener("click", closeModal);
 
+        /* Clicking the backdrop must not dismiss the dialog.
+         * The explicit X button is the close control. */
         overlay.addEventListener("click", function(event){
             if(event.target === overlay){
-                closeModal();
+                event.preventDefault();
             }
         });
 

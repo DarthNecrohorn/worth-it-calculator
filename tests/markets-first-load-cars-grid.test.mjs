@@ -76,7 +76,7 @@ test("Recently Viewed and Favorites use two compact columns on mobile", () => {
 });
 
 test("the stylesheet version is refreshed for the current UI improvements", () => {
-    assert.ok(html.includes("style.css?v=responsive-info-panels-ai-chat-20261030a"));
+    assert.ok(html.includes("style.css?v=detail-panels-overlay-blue-backdrop-20261030a"));
 });
 
 

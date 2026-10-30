@@ -13,7 +13,7 @@ test("the header chat shortcut remains available on phones and desktop", () => {
     for (const rules of mobileRules) {
         assert.doesNotMatch(rules, /\.worth-it-chat-nav-wrap\s*\{\s*display:\s*none\s*!important;/);
     }
-    assert.match(html, /style\.css\?v=responsive-info-panels-ai-chat-20261030a/);
+    assert.match(html, /style\.css\?v=detail-panels-overlay-blue-backdrop-20261030a/);
     const pickerCss = css.slice(css.lastIndexOf("WORTH IT OWNED CHAT MEDIA PICKER"));
     assert.ok(pickerCss.length > 0, "the final Worth It picker rules exist");
     assert.doesNotMatch(pickerCss, /(?:zoom\s*:\s*0\.82|--ui-scale\s*:\s*0\.82|data-ui-scale\s*=\s*"small")/i, "the picker must not force a legacy fixed zoom factor");
@@ -62,5 +62,5 @@ test("image viewer close glyph moves up 4px without moving or resizing its hit t
     assert.match(rules, /\.worth-it-chat-image-lightbox-close::before\s*\{[\s\S]*?content:\s*"×";[\s\S]*?transform:\s*translateY\(-4px\);/);
     assert.match(css, /\.worth-it-chat-image-lightbox-close\{[^}]*width:46px!important;[^}]*height:46px!important;/);
     assert.match(css, /\.worth-it-chat-image-lightbox-close\{[^}]*width:44px!important;[^}]*height:44px!important;/);
-    assert.match(html, /style\.css\?v=responsive-info-panels-ai-chat-20261030a/);
+    assert.match(html, /style\.css\?v=detail-panels-overlay-blue-backdrop-20261030a/);
 });
