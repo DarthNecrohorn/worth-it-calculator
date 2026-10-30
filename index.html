@@ -69,6 +69,7 @@ html[data-theme="light"].worth-it-initial-paint::before {
 <link rel="stylesheet" href="chat-delete-confirm.css?v=chat-delete-confirm-20261028b">
 <link rel="stylesheet" href="chat-realtime.css?v=chat-realtime-typing-20261028b">
 <link rel="stylesheet" href="section-themes.css?v=section-themes-20261030a">
+    <link rel="stylesheet" href="web-shop.css?v=calc-shop-20261030a">
 <link rel="stylesheet" href="feedback-admin-overlays.css?v=feedback-admin-overlays-20261030b">
 <link rel="stylesheet" href="weather-compact.css?v=weather-compact-20261030b">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
@@ -92,6 +93,18 @@ html[data-theme="light"].worth-it-initial-paint::before {
             <span class="logo-mark">✓</span>
             <span>Worth It</span>
         </a>
+
+        <div class="calc-economy-nav" aria-label="CALC currency and Web Shop">
+            <button type="button" class="calc-shop-nav" id="worthItWebShopButton" onclick="openWebShop('currency')" aria-label="Open Web Shop" title="Web Shop">
+                <span class="calc-shop-nav-icon" aria-hidden="true">🛍️</span>
+                <span class="calc-shop-nav-label">Web Shop</span>
+            </button>
+            <button type="button" class="calc-wallet-nav" id="worthItCalcWalletButton" onclick="openWebShop('currency')" aria-label="CALC balance" title="View CALC balance">
+                <span class="calc-wallet-coin" aria-hidden="true">C</span>
+                <strong class="calc-wallet-value" id="worthItCalcWalletValue">—</strong>
+                <span class="calc-wallet-unit">CALC</span>
+            </button>
+        </div>
 
 <div class="nav-links" id="navLinks">
     <div class="nav-scroll-content" id="navScrollContent">
@@ -2834,6 +2847,110 @@ html[data-theme="light"].worth-it-initial-paint::before {
   </div>
 </div>
 
+
+<section class="app web-shop-section" id="webShopSection" data-ws-theme="dark" style="display:none" aria-labelledby="webShopTitle">
+    <div class="web-shop-shell">
+        <header class="web-shop-topline">
+            <div>
+                <p class="web-shop-eyebrow">Worth It · Digital economy</p>
+                <h1 class="web-shop-title" id="webShopTitle">Web Shop</h1>
+                <p class="web-shop-subtitle">Use CALC to unlock Worth It features, or choose a subscription for extra benefits.</p>
+            </div>
+            <div class="web-shop-tools">
+                <div class="web-shop-balance" aria-live="polite">
+                    <span class="web-shop-coin" aria-hidden="true">C</span>
+                    <div><strong id="webShopBalanceValue">—</strong><small id="webShopBalanceTier">BALANCE</small></div>
+                </div>
+                <button type="button" class="web-shop-theme-btn" id="webShopThemeToggle" onclick="toggleWebShopTheme()">☀️ Light theme</button>
+            </div>
+        </header>
+
+        <div class="web-shop-notice">
+            <span class="web-shop-notice-icon" aria-hidden="true">🎁</span>
+            <p><strong>Buying is completely optional.</strong> Free users receive 1 CALC every day, and guests receive 0.5 Guest Lite CALC daily. You can use Worth It without purchasing anything. When you buy CALC with real money, you help support the website, its continued development and the person building it.</p>
+        </div>
+
+        <div class="web-shop-tabs" role="tablist" aria-label="Web Shop categories">
+            <button type="button" class="web-shop-tab active" data-webshop-category="currency" role="tab" aria-selected="true" aria-controls="webShopCurrencyPanel">◈ CALC currency</button>
+            <button type="button" class="web-shop-tab" data-webshop-category="subscriptions" role="tab" aria-selected="false" aria-controls="webShopSubscriptionsPanel">✦ Subscriptions</button>
+        </div>
+
+        <section id="webShopCurrencyPanel" role="tabpanel" aria-labelledby="webShopCurrencyTab">
+            <div class="web-shop-category-heading">
+                <div><h3>CALC currency</h3><p>Digital credits for supported Worth It features.</p></div>
+            </div>
+            <div class="web-shop-grid">
+                <article class="web-shop-card">
+                    <div class="web-shop-card-icon" aria-hidden="true">◈</div>
+                    <h4>Starter Pack</h4>
+                    <p class="web-shop-description">A small balance top-up for occasional calculator and AI use.</p>
+                    <p class="web-shop-price">10 <small>CALC</small></p>
+                    <ul class="web-shop-feature-list"><li>One-time credit pack</li><li>Credits stay in your account</li><li>Cannot be transferred or withdrawn</li></ul>
+                    <button type="button" class="web-shop-action" disabled>Cash checkout not connected</button>
+                </article>
+                <article class="web-shop-card web-shop-card-featured">
+                    <span class="web-shop-ribbon">POPULAR SIZE</span>
+                    <div class="web-shop-card-icon" aria-hidden="true">✧</div>
+                    <h4>Plus Pack</h4>
+                    <p class="web-shop-description">More CALC for regular use of Worth It tools.</p>
+                    <p class="web-shop-price">30 <small>CALC</small></p>
+                    <ul class="web-shop-feature-list"><li>One-time credit pack</li><li>Credits stay in your account</li><li>Supports continued development</li></ul>
+                    <button type="button" class="web-shop-action" disabled>Cash checkout not connected</button>
+                </article>
+                <article class="web-shop-card">
+                    <div class="web-shop-card-icon" aria-hidden="true">✦</div>
+                    <h4>Supporter Pack</h4>
+                    <p class="web-shop-description">A larger balance for people who want to support the project.</p>
+                    <p class="web-shop-price">75 <small>CALC</small></p>
+                    <ul class="web-shop-feature-list"><li>One-time credit pack</li><li>Credits stay in your account</li><li>Supports the website and its owner</li></ul>
+                    <button type="button" class="web-shop-action" disabled>Cash checkout not connected</button>
+                </article>
+            </div>
+            <p class="web-shop-footnote">CALC is a closed-use digital credit for Worth It. It has no cash value, cannot be sent to another user and cannot be exchanged or withdrawn. Paid credit packs will appear after the payment provider approves this type of product and checkout is configured.</p>
+        </section>
+
+        <section id="webShopSubscriptionsPanel" role="tabpanel" hidden>
+            <div class="web-shop-category-heading">
+                <div><h3>Subscriptions</h3><p>Choose a short trial-style tier or the full Premium experience.</p></div>
+            </div>
+            <div class="web-shop-grid">
+                <article class="web-shop-card web-shop-card-featured">
+                    <span class="web-shop-ribbon">15 DAYS · CALC</span>
+                    <div class="web-shop-card-icon" aria-hidden="true">✦</div>
+                    <h4>Premium Lite</h4>
+                    <p class="web-shop-description">A lower-cost introduction to Premium benefits, paid with your saved CALC balance.</p>
+                    <p class="web-shop-price">75 <small>CALC / 15 days</small></p>
+                    <ul class="web-shop-feature-list">
+                        <li>No ads while active</li><li>2 CALC daily reward</li>
+                        <li>Premium Lite profile and chat badge</li>
+                        <li>Higher image, GIF and video upload limits</li>
+                        <li>Extra profile and chat customisation</li>
+                    </ul>
+                    <button type="button" class="web-shop-action" id="buyPremiumLiteButton" onclick="buyPremiumLite()">Activate Premium Lite · 75 CALC</button>
+                </article>
+                <article class="web-shop-card">
+                    <span class="web-shop-ribbon">30 DAYS · REAL MONEY</span>
+                    <div class="web-shop-card-icon" aria-hidden="true">✧</div>
+                    <h4>Premium</h4>
+                    <p class="web-shop-description">The full Premium tier, with the highest limits and the full set of member benefits.</p>
+                    <p class="web-shop-price">€4.99 <small>/ 30 days · proposed</small></p>
+                    <ul class="web-shop-feature-list">
+                        <li>No ads while active</li><li>3 CALC daily reward</li>
+                        <li>Exclusive Premium profile and chat badge</li>
+                        <li>Highest image, GIF and video upload limits</li>
+                        <li>More personalisation and future member features</li>
+                    </ul>
+                    <button type="button" class="web-shop-action" disabled>Payment setup not connected</button>
+                </article>
+            </div>
+            <p class="web-shop-footnote">Premium Lite costs more CALC than a typical daily reward so that it cannot be repeatedly farmed. Full Premium checkout will only be enabled after the payment provider approves the offer and the payout account is configured.</p>
+        </section>
+
+        <p class="web-shop-status" id="webShopStatus" role="status" aria-live="polite"></p>
+        <button type="button" class="web-shop-back" onclick="showHome()">← Back to Worth It</button>
+    </div>
+</section>
+
 </main>
 
 <footer>
@@ -3177,6 +3294,7 @@ try{
 <script src="section-data-cache.js?v=sectioncache20261015a"></script>
 <script src="ai-ui.js?v=worthit-ai-overlay-20261029b"></script>
 <script src="calculators.js"></script>
+<script src="calc-economy.js?v=calc-economy-20261030a"></script>
 <script src="cars-ui.js?v=carsperf20261025b"></script>
 <script src="cars-levels-ui.js?v=cars20261007f"></script>
 <script src="weather-ui.js?v=weather-details-back-to-top-20261030a"></script>
