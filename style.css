@@ -23733,3 +23733,104 @@ body.worth-it-chat-image-lightbox-open{overflow:hidden!important}
         box-sizing:border-box !important;
     }
 }
+
+
+/* =========================================================
+   DETAIL PANELS ABOVE THE GLOBAL HEADER
+   The detail dialog owns the full overlay layer while open.
+   Keep the navigation/header behind it and add a blue ambient
+   backdrop around the dialog. Only the dialog's X closes it.
+   ========================================================= */
+
+html:has(
+    #cryptoDetailOverlay.open,
+    #currencyDetailModal.is-open,
+    #worthItMarketDetailModal.is-open,
+    #waterLevelsDetailOverlay.open,
+    #shipTrackingDetail.open,
+    #shopPartnerModal:not([hidden]),
+    #worthItVehicleDetailsModal.is-open
+) .nav {
+    z-index:12000 !important;
+}
+
+html:has(
+    #cryptoDetailOverlay.open,
+    #currencyDetailModal.is-open,
+    #worthItMarketDetailModal.is-open,
+    #waterLevelsDetailOverlay.open,
+    #shipTrackingDetail.open,
+    #shopPartnerModal:not([hidden]),
+    #worthItVehicleDetailsModal.is-open
+) .more-menu,
+html:has(
+    #cryptoDetailOverlay.open,
+    #currencyDetailModal.is-open,
+    #worthItMarketDetailModal.is-open,
+    #waterLevelsDetailOverlay.open,
+    #shipTrackingDetail.open,
+    #shopPartnerModal:not([hidden]),
+    #worthItVehicleDetailsModal.is-open
+) .settings-panel,
+html:has(
+    #cryptoDetailOverlay.open,
+    #currencyDetailModal.is-open,
+    #worthItMarketDetailModal.is-open,
+    #waterLevelsDetailOverlay.open,
+    #shipTrackingDetail.open,
+    #shopPartnerModal:not([hidden]),
+    #worthItVehicleDetailsModal.is-open
+) .ai-chat-overlay,
+html:has(
+    #cryptoDetailOverlay.open,
+    #currencyDetailModal.is-open,
+    #worthItMarketDetailModal.is-open,
+    #waterLevelsDetailOverlay.open,
+    #shipTrackingDetail.open,
+    #shopPartnerModal:not([hidden]),
+    #worthItVehicleDetailsModal.is-open
+) .feedback-overlay,
+html:has(
+    #cryptoDetailOverlay.open,
+    #currencyDetailModal.is-open,
+    #worthItMarketDetailModal.is-open,
+    #waterLevelsDetailOverlay.open,
+    #shipTrackingDetail.open,
+    #shopPartnerModal:not([hidden]),
+    #worthItVehicleDetailsModal.is-open
+) .admin-panel-overlay {
+    z-index:12020 !important;
+}
+
+#cryptoDetailOverlay.open,
+#currencyDetailModal.is-open,
+#worthItMarketDetailModal.is-open,
+#waterLevelsDetailOverlay.open,
+#shipTrackingDetail.open,
+#shopPartnerModal:not([hidden]),
+#worthItVehicleDetailsModal.is-open {
+    z-index:15000 !important;
+    background:
+        radial-gradient(ellipse at 50% 38%, rgba(37,99,235,.28) 0%, rgba(29,78,216,.16) 30%, rgba(5,12,32,.82) 76%),
+        rgba(5,12,32,.70) !important;
+    backdrop-filter:blur(9px);
+    -webkit-backdrop-filter:blur(9px);
+}
+
+#currencyDetailModal.is-open .currency-detail-backdrop {
+    background:
+        radial-gradient(ellipse at 50% 38%, rgba(37,99,235,.34), rgba(29,78,216,.14) 48%, rgba(5,12,32,.84) 100%) !important;
+    backdrop-filter:blur(9px);
+    -webkit-backdrop-filter:blur(9px);
+}
+
+/* These dialogs must remain above the global header on both phone and desktop. */
+#cryptoDetailOverlay.open,
+#currencyDetailModal.is-open,
+#worthItMarketDetailModal.is-open,
+#waterLevelsDetailOverlay.open,
+#shipTrackingDetail.open,
+#shopPartnerModal:not([hidden]),
+#worthItVehicleDetailsModal.is-open {
+    isolation:isolate;
+}
