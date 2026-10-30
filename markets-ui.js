@@ -78,33 +78,61 @@ const marketsImageLoading =
     new Set();
 
 const marketsWikipediaCache = new Map();
+const marketsWikipediaPending = new Map();
+
 async function fetchWikipediaSummary(title) {
     const cleanTitle = String(title || "").trim();
     if (!cleanTitle) return null;
+
     const key = cleanTitle.toLowerCase();
     if (marketsWikipediaCache.has(key)) return marketsWikipediaCache.get(key);
+    if (marketsWikipediaPending.has(key)) return marketsWikipediaPending.get(key);
+
+    // Commodity labels often contain benchmark terms ("cfr spot") rather
+    // than exact Wikipedia page titles. Search first so a predictable 404
+    // is not requested from the REST summary endpoint.
+    const request = (async () => {
+        try {
+            const searchUrl =
+                "https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=" +
+                encodeURIComponent(cleanTitle) +
+                "&srlimit=1&utf8=1&format=json&origin=*";
+
+            const search = await fetch(searchUrl);
+            if (!search.ok) return null;
+
+            const searchData = await search.json();
+            const hit = searchData?.query?.search?.[0];
+            if (!hit?.title) return null;
+
+            const summaryUrl =
+                "https://en.wikipedia.org/api/rest_v1/page/summary/" +
+                encodeURIComponent(hit.title.replace(/\s+/g, "_"));
+
+            const response = await fetch(summaryUrl);
+            if (!response.ok) return null;
+
+            const info = await response.json();
+            if (!info?.extract || !info?.content_urls?.desktop?.page) return null;
+
+            return {
+                extract: info.extract,
+                url: info.content_urls.desktop.page
+            };
+        } catch {
+            return null;
+        }
+    })();
+
+    marketsWikipediaPending.set(key, request);
+
     try {
-        let result = null;
-        const response = await fetch("https://en.wikipedia.org/api/rest_v1/page/summary/" + encodeURIComponent(cleanTitle.replace(/\s+/g, "_")));
-        if (response.ok) {
-            const data = await response.json();
-            if (data?.extract && data?.content_urls?.desktop?.page) result = {extract:data.extract,url:data.content_urls.desktop.page};
-        }
-        if (!result) {
-            const search = await fetch("https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=" + encodeURIComponent(cleanTitle) + "&utf8=1&format=json&origin=*");
-            const data = search.ok ? await search.json() : null;
-            const hit = data?.query?.search?.[0];
-            if (hit?.title) {
-                const fallback = await fetch("https://en.wikipedia.org/api/rest_v1/page/summary/" + encodeURIComponent(hit.title.replace(/\s+/g, "_")));
-                if (fallback.ok) {
-                    const info = await fallback.json();
-                    if (info?.extract && info?.content_urls?.desktop?.page) result = {extract:info.extract,url:info.content_urls.desktop.page};
-                }
-            }
-        }
-        marketsWikipediaCache.set(key,result);
+        const result = await request;
+        marketsWikipediaCache.set(key, result);
         return result;
-    } catch { marketsWikipediaCache.set(key,null); return null; }
+    } finally {
+        marketsWikipediaPending.delete(key);
+    }
 }
 /*
  * Share the same in-flight request when the same commodity is
@@ -196,6 +224,7 @@ let marketsRenderRequestId =
  */
 let marketsDetailNavigationItems = [];
 let marketsDetailNavigationIndex = -1;
+let marketsDetailReturnFocus = null;
 let marketsLatestPeriod = "";
 
 
@@ -4613,8 +4642,17 @@ function renderMarketDetail(item, image = null) {
     refreshMarketDetailNavigationControls();
 }
 
-function openMarketDetailModal(item, image = null) {
+function openMarketDetailModal(item, image = null, trigger = null) {
     const modal = createMarketDetailModal();
+    const opening = !modal.classList.contains("is-open");
+
+    if (opening) {
+        marketsDetailReturnFocus =
+            trigger && trigger.isConnected
+                ? trigger
+                : document.activeElement;
+    }
+
     marketsDetailNavigationItems = getMarketDetailNavigationItems();
 
     const key = marketsDetailNavigationItems.findIndex(
@@ -4629,16 +4667,46 @@ function openMarketDetailModal(item, image = null) {
     modal.classList.add("is-open");
     modal.setAttribute("aria-hidden", "false");
     document.body.classList.add("worth-it-market-detail-modal-open");
+
+    if (opening) {
+        modal.querySelector("[data-market-detail-close]")?.focus({preventScroll:true});
+    }
+
     refreshMarketDetailNavigationControls();
 }
 
 function closeMarketDetailModal() {
     const modal = document.getElementById("worthItMarketDetailModal");
-    if (!modal) return;
+    if (!modal || !modal.classList.contains("is-open")) return;
+
+    // Move focus out before aria-hidden is applied to the modal.
+    let focusTarget = marketsDetailReturnFocus;
+    if (
+        !focusTarget ||
+        !focusTarget.isConnected ||
+        modal.contains(focusTarget) ||
+        typeof focusTarget.focus !== "function"
+    ) {
+        focusTarget = document.querySelector(".menu-btn");
+    }
+
+    if (focusTarget && typeof focusTarget.focus === "function") {
+        // Market cards are non-interactive divs used as click targets. A
+        // programmatic-only tabindex lets focus return without adding them
+        // to the normal Tab sequence.
+        if (
+            focusTarget !== document.querySelector(".menu-btn") &&
+            !focusTarget.hasAttribute("tabindex")
+        ) {
+            focusTarget.setAttribute("tabindex", "-1");
+        }
+        focusTarget.focus({preventScroll:true});
+    }
 
     modal.classList.remove("is-open");
     modal.setAttribute("aria-hidden", "true");
     document.body.classList.remove("worth-it-market-detail-modal-open");
+    marketsDetailReturnFocus = null;
 }
 
 function navigateMarketDetail(direction) {
@@ -5636,7 +5704,8 @@ document.addEventListener(
 
                 openMarketDetailModal(
                     item,
-                    card._worthItMarketImage || null
+                    card._worthItMarketImage || null,
+                    card
                 );
             });
         }
