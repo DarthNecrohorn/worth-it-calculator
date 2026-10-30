@@ -55,8 +55,13 @@ html[data-theme="light"] .calc-shop-nav,html[data-theme="light"] .calc-wallet-na
 #webShopSection .web-shop-tools{display:flex;align-items:center;gap:8px;flex:0 0 auto}
 #webShopSection .web-shop-theme-btn{border:1px solid var(--ws-border);border-radius:12px;background:var(--ws-panel);color:var(--ws-text);padding:10px 12px;font-weight:800}
 #webShopSection .web-shop-balance{display:flex;align-items:center;gap:8px;border:1px solid var(--ws-border);border-radius:14px;padding:9px 13px;background:var(--ws-panel);box-shadow:var(--ws-shadow)}
+#webShopSection .web-shop-balance-currencies{display:flex;align-items:center;gap:12px}
+#webShopSection .web-shop-balance-currencies>div{display:grid;gap:1px}
 #webShopSection .web-shop-balance strong{font-size:16px;font-variant-numeric:tabular-nums}
 #webShopSection .web-shop-balance small{display:block;color:var(--ws-muted);font-size:10px;font-weight:800;letter-spacing:.08em}
+#webShopSection .web-shop-balance-tier{margin-left:3px;color:var(--ws-muted);font-size:9px;font-weight:850;letter-spacing:.07em;white-space:nowrap}
+#webShopSection .web-shop-wip-note{margin-top:16px;padding:16px 18px;border:1px solid color-mix(in srgb,var(--ws-accent2) 35%,var(--ws-border));border-radius:16px;background:var(--ws-panel);color:var(--ws-text)}
+#webShopSection .web-shop-wip-note p{margin:6px 0 0;color:var(--ws-muted);font-size:13px;line-height:1.6}
 #webShopSection .web-shop-coin{width:29px;height:29px;display:grid;place-items:center;border-radius:10px;color:#15152b;background:linear-gradient(135deg,#c4b5fd,#57d8f1);font-weight:1000}
 #webShopSection .web-shop-notice{display:flex;align-items:flex-start;gap:12px;border:1px solid color-mix(in srgb,var(--ws-accent) 32%,var(--ws-border));border-radius:17px;background:color-mix(in srgb,var(--ws-panel) 88%,var(--ws-accent) 12%);padding:15px 17px;margin:0 0 24px;color:var(--ws-text)}
 #webShopSection .web-shop-notice-icon{font-size:20px;flex:0 0 auto}
