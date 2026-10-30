@@ -1,6 +1,8 @@
 -- Worth It Community Chat: make image/GIF/video objects private without changing
 -- the stable media URLs already stored in worth_it_chat_messages.
--- Apply AFTER worth-it-chat-media-limits.sql and worth-it-chat-video-media.sql.
+-- Apply after worth-it-chat-media-limits.sql, worth-it-chat-video-media.sql,
+-- worth-it-chat-enhancements.sql, worth-it-chat-message-actions.sql and
+-- worth-it-chat-message-delete-constraint.sql.
 begin;
 
 do $bucket$
@@ -132,6 +134,11 @@ begin
 
   if position(old_assignment in current_definition) > 0 then
     updated_definition := replace(current_definition, old_assignment, '');
+    updated_definition := replace(
+      updated_definition,
+      '-- Purge the original text and public media URL, while retaining the small',
+      '-- Purge the original text while retaining the private media reference in the small'
+    );
   elsif position('media_url = null' in current_definition) = 0
         and position('media_type = null' in current_definition) = 0 then
     -- Already migrated: leave the current function untouched.
