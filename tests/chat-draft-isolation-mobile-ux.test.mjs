@@ -188,8 +188,8 @@ test("chat wallpaper uses collision-safe random placement, varied sizes and scat
     assert.match(calls, /const scale = \.14 \+ random\(\) \* \.18/);
     assert.match(calls, /data-wallpaper-doodle="1"/);
     assert.match(calls, /data-wallpaper-accent="1"/);
-    assert.match(calls, /candidate.radius + existing.radius + requiredGap/);
-    assert.match(calls, /candidate.radius + existing.radius + requiredGap/);
+    assert.match(calls, /candidate\.radius \+ existing\.radius \+ requiredGap/);
+    assert.match(calls, /candidate\.radius \+ existing\.radius \+ requiredGap/);
     assert.match(calls, /const CHAT_WALLPAPER_GEOMETRIES = \[/);
     assert.match(calls, /const smallOpacity = theme === "light" \? "\.52" : "\.43"/);
     assert.match(calls, /wallpaperThemeObserver\.observe/);
