@@ -6,18 +6,21 @@ const html = readFileSync(new URL("../index.html", import.meta.url), "utf8");
 const css = readFileSync(new URL("../style.css", import.meta.url), "utf8");
 const app = readFileSync(new URL("../app.js", import.meta.url), "utf8");
 
-test("user search remains independent beside the brand and outside account controls", () => {
-    const logoStart = html.indexOf('<a href="#" class="logo"');
-    const logoEnd = html.indexOf("</a>", logoStart);
-    const searchStart = html.indexOf('id="worthItUserSearchBtn"');
-    const navActionsStart = html.indexOf('<div class="nav-actions">');
-    const authStart = html.indexOf('<div class="auth-wrap" id="authWrap">');
-    assert.ok(logoStart >= 0 && logoEnd > logoStart, "Expected the brand anchor");
-    assert.ok(searchStart > logoEnd && searchStart < navActionsStart, "User search is by the brand, outside both utility rows");
-    assert.ok(authStart > navActionsStart, "Account controls remain in the primary utility row");
-    assert.doesNotMatch(html.slice(navActionsStart, authStart), /worth-it-user-search-btn/);
-});
+test("user search sits directly before Notifications in the upper-right utility row", () => {
+    const navStart = html.indexOf('<nav class="nav">');
+    const navEnd = html.indexOf("</nav>", navStart);
+    const nav = html.slice(navStart, navEnd);
+    const navActionsStart = nav.indexOf('<div class="nav-actions">');
+    const searchStart = nav.indexOf('id="worthItUserSearchBtn"');
+    const notificationStart = nav.indexOf('id="worthItNotificationBell"');
+    const authStart = nav.indexOf('<div class="auth-wrap" id="authWrap">');
 
+    assert.ok(navActionsStart >= 0, "header utility controls exist");
+    assert.ok(searchStart > navActionsStart, "Search is inside the upper-right utility group");
+    assert.ok(notificationStart > searchStart, "Search appears to the left of Notifications");
+    assert.ok(authStart > notificationStart, "account controls remain after Notifications");
+    assert.equal(nav.split('id="worthItUserSearchBtn"').length - 1, 1, "only one Search button exists");
+});
 test("logged-out Sign in gets its own width and no longer overlaps Search", () => {
     assert.match(app, /btn\.style\.display\s*=\s*"inline-flex"/);
     assert.match(app, /btn\.style\.display\s*=\s*"none"/);
@@ -33,7 +36,7 @@ test("the signed-in profile/avatar layout remains on its existing CSS path", () 
 });
 
 
-test("header utility controls are arranged in two right-aligned rows", () => {
+test("header utility controls keep Search to the immediate left of Notifications", () => {
     const navStart = html.indexOf('<nav class="nav">');
     const navEnd = html.indexOf("</nav>", navStart);
     const nav = html.slice(navStart, navEnd);
@@ -42,10 +45,11 @@ test("header utility controls are arranged in two right-aligned rows", () => {
     assert.ok(topStart >= 0 && secondStart > topStart, "both header rows exist in order");
 
     const topRow = nav.slice(topStart, secondStart);
-    assert.ok(!topRow.includes('id="worthItUserSearchBtn"'), "user search stays beside the brand, not in the top-right row");
-    assert.ok(nav.indexOf('id="worthItUserSearchBtn"') < topStart, "user search appears before the top-right stack");
+    const searchPosition = topRow.indexOf('id="worthItUserSearchBtn"');
+    const notificationPosition = topRow.indexOf('id="worthItNotificationBell"');
+    assert.ok(searchPosition >= 0 && notificationPosition > searchPosition, "Search is directly before the Notifications control");
+
     for (const id of [
-        "worthItNotificationBell",
         "worthItChatNavBtn",
         "profileNavBtn",
         "aiChatNavBtn"
@@ -55,12 +59,14 @@ test("header utility controls are arranged in two right-aligned rows", () => {
     const aiPosition = topRow.indexOf('id="aiChatNavBtn"');
     const profilePosition = topRow.indexOf('id="profileNavBtn"');
     assert.ok(aiPosition >= 0 && profilePosition > aiPosition, "AI Chat appears before the profile on the top row");
+    assert.match(css, /\.nav-top-row \.nav-actions > \.worth-it-user-search-btn\s*\{\s*order:\s*-1 !important;/);
+    assert.match(css, /\.nav-top-row \.nav-actions > \.worth-it-notification-wrap\s*\{\s*order:\s*0 !important;/);
     assert.match(css, /\.nav-top-row \.nav-actions > \.ai-chat-nav-btn\s*\{\s*order:\s*2 !important;/);
     assert.match(css, /\.nav-top-row \.nav-actions > \.auth-wrap\s*\{\s*order:\s*3 !important;/);
 
     const secondaryRow = nav.slice(secondStart);
     for (const id of ["adminPanelButton", "signOutNavBtn"]) {
-        assert.ok(secondaryRow.includes('id="' + id + '"'), id + " moves to the lower row");
+        assert.ok(secondaryRow.includes('id="' + id + '"'), id + " stays in the lower row");
     }
     assert.ok(!secondaryRow.includes('class="feedback-nav-btn"'), "Bugs & Suggestions is no longer in the header");
     assert.ok(html.includes('class="hero-feedback-btn"'), "Bugs & Suggestions appears above the Home hero badge");
@@ -68,8 +74,6 @@ test("header utility controls are arranged in two right-aligned rows", () => {
     assert.match(css, /\.nav-right-stack\s*\{[^}]*flex-direction:\s*column/);
     assert.match(css, /\.nav-secondary-row\s*\{[^}]*justify-content:\s*flex-end/);
 });
-
-
 test("profile dropdown opens below the secondary header row and stays in the viewport", () => {
     assert.match(app, /function positionAccountPanelForMobile\(\)[\s\S]*?const secondaryRow = document\.querySelector\("\.nav-secondary-row"\)/);
     assert.match(app, /panel\.style\.setProperty\("--account-panel-top", top \+ "px"\)/);
