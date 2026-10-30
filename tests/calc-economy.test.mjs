@@ -27,7 +27,9 @@ test("Web Shop and CALC balance sit beside the logo without replacing the affili
     assert.match(html, /data-webshop-category="subscriptions"/);
     assert.match(routes, /"\/web-shop": "openWebShop"/);
     assert.match(html, /Buying is completely optional/);
-    assert.match(html, /Free users receive 1 CALC every day/);
+    assert.match(html, /Free users receive 1 CALC and 1 WIP every day/);
+    assert.match(html, /40 <small>WIP \/ 15 days<\/small>/);
+    assert.match(html, /WIP is earned through activity/);
 });
 
 test("the Web Shop has its own persistent dark and light themes", () => {
@@ -49,10 +51,16 @@ test("daily rewards, guest non-stacking and calculator costs use exact milli-CAL
     assert.match(guestApi, /status='reserved'/);
     assert.match(sql, /when 'premium_lite' then 2000/);
     assert.match(sql, /when 'premium' then 3000/);
+    assert.match(sql, /v_wip_reward := 1000/);
+    assert.match(sql, /wip_balance_milli = wip_balance_milli \+ v_wip_added/);
+    assert.match(sql, /currency text not null default 'CALC'/);
     assert.match(sql, /else 1000/);
     assert.match(sql, /v_added := v_reward/);
     assert.match(sql, /interval '15 days'/);
-    assert.match(sql, /v_cost integer := 75000/);
+    assert.match(sql, /v_cost integer := 40000/);
+    assert.match(sql, /'INSUFFICIENT_WIP'/);
+    assert.match(sql, /'WIP', -v_cost, v_wallet\.wip_balance_milli/);
+    assert.match(economy, /40 WIP to activate Premium Lite/);
     assert.match(sql, /Automatic refund for an abandoned operation/);
 });
 
@@ -73,6 +81,9 @@ test("the wallet uses private RLS-protected tables and authenticated, owner-chec
     assert.match(sql, /create or replace function public\.calc_admin_overview\(\)/);
     assert.match(sql, /Administrator authorization required/);
     assert.match(sql, /create unique index if not exists worth_it_calc_transactions_request_uidx/);
+    assert.match(sql, /'wip_balance_total'/);
+    assert.match(admin, /Outstanding WIP/);
+    assert.match(admin, /item\.currency === 'WIP'/);
 });
 
 test("AI reservations settle only after successful Gemini or Groq replies and failure paths refund", () => {
