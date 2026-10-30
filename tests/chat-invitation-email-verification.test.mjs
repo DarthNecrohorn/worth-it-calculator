@@ -10,12 +10,16 @@ function extractFunction(source, functionName) {
     const start = source.toLowerCase().indexOf(marker.toLowerCase());
     assert.notEqual(start, -1, "Expected function " + functionName + " to exist.");
     const remainder = source.slice(start);
-    const opening = remainder.match(/\\bas\\s+(\\$\\$|\\$[A-Za-z_][A-Za-z0-9_]*\\$)/i);
-    assert.ok(opening, "Expected function " + functionName + " to declare a dollar-quoted body.");
-    const bodyStart = start + opening.index + opening[0].length;
-    const finish = source.indexOf(opening[1], bodyStart);
+    const tagStart = remainder.toLowerCase().indexOf("as $");
+    assert.ok(tagStart >= 0, "Expected function " + functionName + " to declare a dollar-quoted body.");
+    const delimiterStart = tagStart + 3;
+    const delimiterEnd = remainder.indexOf("$", delimiterStart + 1);
+    assert.ok(delimiterEnd >= 0, "Expected function " + functionName + " to have a valid dollar-quote tag.");
+    const delimiter = remainder.slice(delimiterStart, delimiterEnd + 1);
+    const bodyStart = start + delimiterEnd + 1;
+    const finish = source.indexOf(delimiter, bodyStart);
     assert.notEqual(finish, -1, "Expected function " + functionName + " to have a complete dollar-quoted body.");
-    return source.slice(start, finish + opening[1].length);
+    return source.slice(start, finish + delimiter.length);
 }
 
 for (const [label, source] of [["baseline invite setup", baseline], ["incremental hardening migration", hardening]]) {
