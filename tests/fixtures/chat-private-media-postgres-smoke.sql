@@ -21,6 +21,15 @@ begin
      or not ('video/mp4' = any(bucket.allowed_mime_types)) then
     raise exception 'The private chat media bucket MIME allow-list is incomplete.';
   end if;
+  if exists (
+    select 1
+      from pg_policies
+     where schemaname = 'storage'
+       and tablename = 'objects'
+       and policyname = 'Worth It chat media read'
+  ) then
+    raise exception 'The old public chat-media read policy still exists.';
+  end if;
   if not has_function_privilege('authenticated','public.can_access_worth_it_chat_media_object(uuid,text)','EXECUTE')
      or not has_function_privilege('authenticated','public.can_delete_worth_it_chat_media_object(uuid,text)','EXECUTE') then
     raise exception 'Authenticated users cannot call the guarded media access RPCs.';
