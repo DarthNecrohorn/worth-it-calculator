@@ -23519,7 +23519,7 @@ body.worth-it-chat-image-lightbox-open{overflow:hidden!important}
 }
 
 
-/* Chat image lightbox: move only the X glyph up 2px inside its existing
+/* Chat image lightbox: move only the X glyph up 4px inside its existing
    circular hit target. Keep the close button's size and position unchanged. */
 .worth-it-chat-image-lightbox-close {
     font-size: 0 !important;
@@ -23528,5 +23528,5 @@ body.worth-it-chat-image-lightbox-open{overflow:hidden!important}
     content: "×";
     display: block;
     font: 400 34px/1 system-ui, sans-serif;
-    transform: translateY(-2px);
+    transform: translateY(-4px);
 }
