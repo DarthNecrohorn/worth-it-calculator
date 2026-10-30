@@ -21468,15 +21468,15 @@ body:has(.auth-modal-overlay.open):not(.worth-it-guest-dialog-open) .nav {
 }
 
 
-/* User search stays available beside the brand, leaving only the four intended
-   controls in the upper-right row (notifications, messages, profile, AI Chat). */
-.nav-inner > .worth-it-user-search-btn {
-    flex: 0 0 40px;
-    margin: 0 2px 0 0;
+/* User search sits immediately before Notifications in the upper-right controls. */
+.nav-top-row .nav-actions > .worth-it-user-search-btn {
+    order:-1 !important;
+    flex:0 0 40px;
+    margin:0 !important;
 }
 
 @media (max-width: 900px) {
-    .nav-inner > .worth-it-user-search-btn {
+    .nav-top-row .nav-actions > .worth-it-user-search-btn {
         flex: 0 0 32px !important;
         width: 32px !important;
         min-width: 32px !important;
@@ -21487,7 +21487,7 @@ body:has(.auth-modal-overlay.open):not(.worth-it-guest-dialog-open) .nav {
 }
 
 @media (max-width: 380px) {
-    .nav-inner > .worth-it-user-search-btn {
+    .nav-top-row .nav-actions > .worth-it-user-search-btn {
         flex-basis: 27px !important;
         width: 27px !important;
         min-width: 27px !important;
@@ -21496,8 +21496,8 @@ body:has(.auth-modal-overlay.open):not(.worth-it-guest-dialog-open) .nav {
     }
 }
 
-/* Upper-right utility order: notifications, messages, AI Chat, profile.
-   The signed-in profile icon is the rightmost control in the top row. */
+/* Upper-right utility order: Search, notifications, messages, AI Chat, profile.
+   Search is fixed before the notification bell; profile remains rightmost. */
 .nav-top-row .nav-actions > .worth-it-notification-wrap {
     order: 0 !important;
 }
@@ -21787,7 +21787,7 @@ body:has(.auth-modal-overlay.open):not(.worth-it-guest-dialog-open) .nav {
    ========================================================= */
 
 .nav-inner > .menu-btn,
-.nav-inner > .worth-it-user-search-btn,
+.nav-top-row .nav-actions > .worth-it-user-search-btn,
 .nav-top-row .nav-actions > .worth-it-notification-wrap > .worth-it-notification-bell,
 .nav-top-row .nav-actions > .worth-it-chat-nav-wrap > .worth-it-chat-nav-btn,
 .nav-top-row .nav-actions > .ai-chat-nav-btn,
@@ -22063,8 +22063,8 @@ html[data-ui-scale] .profile-nav-btn .worth-it-presence-indicator {
 @media (max-width: 700px) {
     html[data-ui-scale="large"] .nav-inner > .menu-btn,
     html[data-ui-scale="xl"] .nav-inner > .menu-btn,
-    html[data-ui-scale="large"] .nav-inner > .worth-it-user-search-btn,
-    html[data-ui-scale="xl"] .nav-inner > .worth-it-user-search-btn,
+    html[data-ui-scale="large"] .nav-top-row .nav-actions > .worth-it-user-search-btn,
+    html[data-ui-scale="xl"] .nav-top-row .nav-actions > .worth-it-user-search-btn,
     html[data-ui-scale="large"] .nav-top-row .nav-actions > .worth-it-notification-wrap > .worth-it-notification-bell,
     html[data-ui-scale="xl"] .nav-top-row .nav-actions > .worth-it-notification-wrap > .worth-it-notification-bell,
     html[data-ui-scale="large"] .nav-top-row .nav-actions > .worth-it-chat-nav-wrap > .worth-it-chat-nav-btn,
