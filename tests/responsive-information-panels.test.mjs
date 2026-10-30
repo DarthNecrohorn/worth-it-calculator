@@ -51,5 +51,5 @@ test("News story cards continue to open the publisher article safely in a new ta
 });
 
 test("the responsive stylesheet cache key is refreshed", () => {
-    assert.match(html, /style\.css\?v=detail-panels-overlay-blue-backdrop-20261030a/);
+    assert.match(html, /style\.css\?v=guest-lite-mobile-dialog-20261030a/);
 });
