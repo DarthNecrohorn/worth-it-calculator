@@ -1212,6 +1212,15 @@ function renderSelectedDayDetails(forecast, index){
 
             </div>
 
+            <button
+                type="button"
+                class="weather-details-back-to-top"
+                aria-label="Go back to the top of the Weather section"
+            >
+                <span class="weather-details-back-to-top-icon" aria-hidden="true">↑</span>
+                <span>Go back to the top</span>
+            </button>
+
             <div class="weather-details-header-weather">
 
                 <span class="weather-details-header-icon">
@@ -1327,7 +1336,46 @@ function renderSelectedDayDetails(forecast, index){
 
     `;
 
+    panel.querySelector(".weather-details-back-to-top")?.addEventListener(
+        "click",
+        scrollWeatherSectionToTop
+    );
+
     panel.style.display = "block";
+
+}
+
+
+/* =========================================================
+   RETURN TO THE TOP OF THE WEATHER SECTION
+========================================================= */
+
+function scrollWeatherSectionToTop(){
+
+    const section = $("weatherSection");
+
+    if(!section){
+        return;
+    }
+
+    const navigation = document.querySelector(".nav");
+    const headerOffset = navigation
+        ? Math.ceil(navigation.getBoundingClientRect().height) + 12
+        : 16;
+
+    const top = Math.max(
+        0,
+        window.scrollY + section.getBoundingClientRect().top - headerOffset
+    );
+
+    const reduceMotion = window.matchMedia?.(
+        "(prefers-reduced-motion: reduce)"
+    )?.matches;
+
+    window.scrollTo({
+        top,
+        behavior: reduceMotion ? "auto" : "smooth"
+    });
 
 }
 
