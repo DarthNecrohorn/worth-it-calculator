@@ -52,10 +52,12 @@ test("wallpaper has a few varied large drawings and smaller unique drawings in t
 
     const doodles = parseEntries(svg, "doodle");
     const accents = parseEntries(svg, "accent");
-    assert.ok(doodles.length >= 7 && doodles.length <= 24,
-        "a conversation tile should contain only a handful of large illustrations");
-    assert.ok(accents.length >= 15 && accents.length <= 84,
-        "smaller illustrations should be sparse and placed in the open gaps");
+    assert.ok(doodles.length >= 12 && doodles.length <= 34,
+        "a conversation tile should contain a dense mix of larger illustrations");
+    assert.ok(accents.length >= 45 && accents.length <= 107,
+        "smaller illustrations should fill more open gaps without exhausting unique motifs");
+    assert.ok(doodles.length + accents.length >= 80,
+        "a 600px wallpaper tile should feel noticeably denser than the previous layout");
 
     const scales = doodles.map(item => item.scale);
     assert.ok(Math.max(...scales) - Math.min(...scales) >= 0.35,
