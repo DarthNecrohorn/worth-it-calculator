@@ -42,7 +42,8 @@ test("daily rewards, guest non-stacking and calculator costs use exact milli-CAL
     assert.match(guestApi, /DAILY_MILLI = 500/);
     assert.match(economy, /CALCULATOR_COST_MILLI = 100/);
     assert.match(economy, /guestRpc\("balance"\)/);
-    assert.match(economy, /guestRpc\("reserve",requestId\)/);
+    assert.match(economy, /guestRpc\("reserve",requestId,calculatorType\)/);
+    assert.match(economy, /isBillableCalculator/);
     assert.doesNotMatch(economy, /worthItGuestCalcWalletV1|function guestWallet\(/);
     assert.match(guestApi, /balance_milli=500/);
     assert.match(guestApi, /status='reserved'/);
