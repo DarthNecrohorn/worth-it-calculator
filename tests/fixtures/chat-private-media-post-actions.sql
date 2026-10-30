@@ -107,6 +107,54 @@ begin
 end;
 $function$;
 
+
+-- Test doubles for the already-deployed voice object RPCs; the private-media
+-- migration replaces these with exact message/conversation ownership checks.
+create or replace function public.can_access_worth_it_chat_audio_object(
+  p_conversation_id uuid, p_object_path text
+) returns boolean language plpgsql stable security definer set search_path = public
+as $
+declare
+  owner_id uuid := split_part(p_object_path,'/',1)::uuid;
+begin
+  return auth.uid() is not null
+    and public.can_access_worth_it_chat_media(p_conversation_id)
+    and exists (
+      select 1 from public.worth_it_chat_members
+       where conversation_id=p_conversation_id and user_id=owner_id
+    );
+end;
+$;
+
+create or replace function public.can_delete_worth_it_chat_audio_object(
+  p_conversation_id uuid, p_object_path text
+) returns boolean language sql stable security definer set search_path = public
+as $ select auth.uid() is not null
+  and p_object_path ~ ('^' || auth.uid()::text || '/[A-Za-z0-9._-]+
+  p_conversation_id uuid, p_query text, p_limit integer default 100
+) returns jsonb language plpgsql stable security definer set search_path = public
+as $function$
+declare
+  actor_id uuid := auth.uid();
+  target_id uuid := p_conversation_id;
+  kind text;
+begin
+  if actor_id is null then raise exception 'Authentication required'; end if;
+  select conversation_type into kind from public.worth_it_chat_conversations where id=target_id;
+  if kind is null then return jsonb_build_object('success',false,'code','CHAT_NOT_FOUND'); end if;
+  if kind <> 'global' and not exists (
+    select 1 from public.worth_it_chat_members where conversation_id=target_id and user_id=actor_id
+  ) then return jsonb_build_object('success',false,'code','NOT_A_CHAT_MEMBER'); end if;
+  if kind = 'direct' and not public.can_access_worth_it_chat_media(target_id) then
+    return jsonb_build_object('success',false,'code','FRIENDS_ONLY');
+  end if;
+  return '[]'::jsonb;
+end;
+$function$;
+)
+  and public.can_access_worth_it_chat_audio_object(p_conversation_id,p_object_path);
+$;
+
 create or replace function public.search_worth_it_chat_messages(
   p_conversation_id uuid, p_query text, p_limit integer default 100
 ) returns jsonb language plpgsql stable security definer set search_path = public
