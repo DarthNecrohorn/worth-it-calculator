@@ -61,6 +61,8 @@ function renderCatalog(rows){
   card.dataset.calculatorOrigin="ugc";
   card.dataset.ugcId=String(item.id||"");
   const head=document.createElement("div");head.className="ugc-card-head";
+  const publicNumber=Number(item.calculator_number);
+  if(Number.isSafeInteger(publicNumber)&&publicNumber>=51)head.appendChild(text("span","ugc-number","#"+publicNumber));
   head.appendChild(text("span","ugc-category",String(item.category||"other").replace(/^\w/,c=>c.toUpperCase())));
   if(state.sort==="mine")head.appendChild(text("span","ugc-state",item.status==="published"?"Published":"Draft"));
   card.appendChild(head);
@@ -178,6 +180,24 @@ function formatResult(item,value){
  if(item.format==="percent")return prefix+new Intl.NumberFormat(undefined,{maximumFractionDigits:2}).format(value)+"%"+suffix;
  return prefix+new Intl.NumberFormat(undefined,{maximumFractionDigits:4}).format(value)+suffix;
 }
+async function refreshCreationQuota(){
+ const host=$("ugcMakerQuotaStatus");
+ if(!host||!state.userId)return;
+ host.textContent="Checking today's calculator creation allowance…";
+ try{
+  const result=await sb().rpc("get_worth_it_ugc_creation_quota");
+  if(result.error)throw result.error;
+  const quota=normalizeObject(result.data);
+  const limit=Number(quota?.daily_limit),used=Number(quota?.creations_used),remaining=Number(quota?.remaining);
+  if(!Number.isInteger(limit)||!Number.isInteger(used)||!Number.isInteger(remaining)||limit<1||used<0||remaining<0){
+   throw new Error("The account creation allowance response was incomplete.");
+  }
+  host.textContent="Daily new calculators: "+used+"/"+limit+" used · "+remaining+" remaining. Resets at 00:00 UTC.";
+ }catch(error){
+  host.textContent="Today's allowance could not be loaded. The server still checks your account limit securely when you save.";
+  console.warn("UGC creation quota could not be loaded:",error);
+ }
+}
 function renderCalculatorForm(calculator){
  const host=$("ugcDetailCalculatorForm");if(!host)return;
  host.replaceChildren();
@@ -252,6 +272,8 @@ async function refreshCalcWallet(){
 function detailShow(calculator,fromUrl){
  state.activeCalculator=calculator;state.activeId=String(calculator.id);
  const title=$("ugcDetailTitle"),description=$("ugcDetailDescription"),owner=$("ugcDetailOwner"),stats=$("ugcDetailStats");
+ const kicker=$("ugcDetailKicker"),publicNumber=Number(calculator.calculator_number);
+ if(kicker)kicker.textContent=Number.isSafeInteger(publicNumber)&&publicNumber>=51?"WORTH IT COMMUNITY · CALCULATOR #"+publicNumber:"WORTH IT COMMUNITY";
  if(title)title.textContent=calculator.title||"Community calculator";
  if(description)description.textContent=calculator.description||"No description provided.";
  if(owner){
@@ -370,6 +392,7 @@ function openMaker(){
  const modal=$("ugcMakerModal");if(!modal)return;
  modal.hidden=false;modal.setAttribute("aria-hidden","false");
  document.body.classList.add("ugc-maker-open");
+ void refreshCreationQuota();
  $("ugcMakerPrompt")?.focus();
 }
 function closeMaker(){
@@ -481,7 +504,9 @@ async function saveMakerDraft(publish){
    if(result.error)throw result.error;
   }
   state.editingId=null;closeMaker();setActiveSort("mine");await loadCatalog();
-  toast(publish?"Your calculator has been published.":"Your calculator draft has been saved.");
+  const publicNumber=Number(payload?.calculator_number);
+  const numberLabel=Number.isSafeInteger(publicNumber)&&publicNumber>=51?" #"+publicNumber:"";
+  toast(publish?"Your calculator"+numberLabel+" has been published.":"Your calculator"+numberLabel+" draft has been saved.");
  }catch(error){$("ugcMakerStatus").textContent=error?.message||"Could not save the calculator."; }
  finally{if(save)save.disabled=false;if(publishButton)publishButton.disabled=false;}
 }
