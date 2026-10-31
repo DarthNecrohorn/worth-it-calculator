@@ -2,6 +2,9 @@
 \set ON_ERROR_STOP on
 begin;
 
+-- Keep the public ID contract deterministic across repeated disposable smoke runs.
+select setval('private.worth_it_user_calculator_number_seq'::regclass,51,false);
+
 insert into auth.users(id,email,email_confirmed_at) values
  ('11111111-1111-4111-8111-111111111111','creator@example.test',now()),
  ('22222222-2222-4222-8222-222222222222','viewer@example.test',now()),
@@ -53,6 +56,14 @@ select set_config('request.jwt.claim.sub','11111111-1111-4111-8111-111111111111'
 do $free_quota$
 declare q jsonb; blocked boolean:=false;
 begin
+    -- Editing an existing calculator must not consume another daily creation.
+    perform public.save_worth_it_ugc_calculator(
+        current_setting('test.ugc_id')::uuid,
+        'Monthly savings growth edited',
+        'Updated description.',
+        'money',
+        '{"inputs":[{"key":"starting_amount","label":"Starting savings","min":0,"max":1000000,"default":1000,"step":1,"unit":"EUR"},{"key":"monthly_deposit","label":"Monthly deposit","min":0,"max":100000,"default":300,"step":1,"unit":"EUR"},{"key":"years","label":"Years","min":1,"max":80,"default":5,"step":1,"unit":"years"}],"results":[{"label":"Total deposits","expression":"starting_amount + monthly_deposit * 12 * years","format":"currency","currency":"EUR"}]}'::jsonb
+    );
     q:=public.get_worth_it_ugc_creation_quota();
     if (q->>'daily_limit')::integer<>1 or (q->>'creations_used')::integer<>1 or (q->>'remaining')::integer<>0 then
         raise exception 'Free daily creation allowance is incorrect: %',q;
