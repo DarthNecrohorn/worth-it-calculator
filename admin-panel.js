@@ -60,6 +60,11 @@
                     '<span class="admin-panel-section-copy"><strong>Platform Usage</strong><small>Cloudflare Workers, CPU &amp; D1</small></span>',
                     '<span class="admin-panel-section-arrow">›</span>',
                 '</button>',
+                '<button type="button" class="admin-panel-section-button" data-admin-section="reports" onclick="showAdminSection(&quot;reports&quot;)">',
+                    '<span class="admin-panel-section-icon">⚑</span>',
+                    '<span class="admin-panel-section-copy"><strong>User Reports</strong><small>Review and moderate profile reports</small></span>',
+                    '<span class="admin-panel-section-arrow">›</span>',
+                '</button>',
                 '<button type="button" class="admin-panel-section-button" data-admin-section="economy" onclick="showAdminSection(\'economy\')">',
                     '<span class="admin-panel-section-icon">◈</span>',
                     '<span class="admin-panel-section-copy"><strong>Economy &amp; Transactions</strong><small>CALC balances, subscriptions and purchase history</small></span>',
@@ -128,12 +133,77 @@
         await loadEconomyOverview();
     }
 
+
+    async function loadUserReports(){
+        const area = $('adminUserReportsArea');
+        if(!area) return;
+        area.innerHTML = '<div class="admin-panel-loading"><span class="admin-panel-spinner"></span>Loading user reports…</div>';
+        try{
+            const session = await getSession();
+            if(!session?.access_token || !(await isAdmin())) throw new Error('Admin access required.');
+            const result = await window.supabaseClient.from('worth_it_user_reports')
+                .select('id,created_at,reporter_worth_it_id,reported_worth_it_id,reported_username,reason,details,status,admin_note,reviewed_at')
+                .order('created_at',{ascending:false}).limit(100);
+            if(result.error) throw result.error;
+            const rows = Array.isArray(result.data) ? result.data : [];
+            if(!rows.length){
+                area.innerHTML = '<div class="admin-panel-empty"><span>✓</span><strong>No user reports</strong><small>New profile reports will appear here after a member submits one.</small></div>';
+                return;
+            }
+            area.innerHTML = '<div class="admin-panel-list-head"><span>'+rows.length+' latest reports</span><button type="button" class="admin-panel-inline-button" onclick="refreshAdminUserReports()">↻ Refresh</button></div>' +
+                '<div class="admin-user-reports-list">'+rows.map(item=>{
+                    const date = item.created_at ? new Date(item.created_at).toLocaleString() : '—';
+                    const reporter = item.reporter_worth_it_id ? 'Worth It ID '+item.reporter_worth_it_id : 'Member';
+                    const reported = item.reported_worth_it_id ? 'Worth It ID '+item.reported_worth_it_id : 'Unknown profile';
+                    const options = ['open','reviewing','resolved','dismissed'].map(status=>'<option value="'+status+'"'+(item.status===status?' selected':'')+'>'+status.charAt(0).toUpperCase()+status.slice(1)+'</option>').join('');
+                    return '<article class="admin-user-report-card" data-report-id="'+Number(item.id)+'">'+
+                        '<div class="admin-user-report-top"><div><strong>#'+Number(item.id)+' · '+escapeHtml(item.reason||'Other')+'</strong><small>'+escapeHtml(date)+'</small></div><span>'+escapeHtml(item.status||'open')+'</span></div>'+
+                        '<p><strong>Reported:</strong> '+escapeHtml(item.reported_username||'Worth It member')+' · '+escapeHtml(reported)+'</p>'+
+                        '<p><strong>Submitted by:</strong> '+escapeHtml(reporter)+'</p>'+
+                        '<p class="admin-user-report-details">'+escapeHtml(item.details||'No extra details provided.')+'</p>'+
+                        '<label>Status<select class="admin-user-report-status">'+options+'</select></label>'+
+                        '<label>Private admin note<textarea class="admin-user-report-note" maxlength="1000" rows="2">'+escapeHtml(item.admin_note||'')+'</textarea></label>'+
+                        '<button type="button" class="admin-panel-inline-button" onclick="moderateWorthItUserReport('+Number(item.id)+',this)">Save moderation update</button>'+
+                        (item.reviewed_at?'<small>Last reviewed '+escapeHtml(new Date(item.reviewed_at).toLocaleString())+'</small>':'')+
+                    '</article>';
+                }).join('')+'</div>';
+        }catch(error){
+            area.innerHTML = '<div class="admin-panel-error"><strong>Could not load user reports</strong><span>'+escapeHtml(error?.message||'Please apply the community features SQL migration and try again.')+'</span><button type="button" class="admin-panel-inline-button" onclick="refreshAdminUserReports()">Try again</button></div>';
+        }
+    }
+    async function refreshAdminUserReports(){
+        if(!(await isAdmin())){ closeAdminPanel(); return; }
+        await loadUserReports();
+    }
+    async function moderateWorthItUserReport(reportId,button){
+        if(!(await isAdmin())){ closeAdminPanel(); return; }
+        const card = button?.closest('.admin-user-report-card');
+        const status = card?.querySelector('.admin-user-report-status')?.value || '';
+        const note = card?.querySelector('.admin-user-report-note')?.value || '';
+        if(!Number.isSafeInteger(Number(reportId)) || Number(reportId)<1 || !card || button.disabled) return;
+        button.disabled = true;
+        try{
+            const result = await window.supabaseClient.rpc('admin_update_worth_it_user_report',{
+                p_report_id:Number(reportId),p_status:status,p_admin_note:note
+            });
+            if(result.error) throw result.error;
+            const payload = Array.isArray(result.data)?result.data[0]:result.data;
+            if(!payload?.success) throw new Error(payload?.code==='REPORT_NOT_FOUND'?'This report no longer exists.':'The moderation update was not saved.');
+            setStatus('Report #'+reportId+' updated.', 'success');
+            await loadUserReports();
+        }catch(error){
+            setStatus(error?.message||'Could not update the report. Apply the community features SQL migration first.','error');
+            button.disabled = false;
+        }
+    }
+
     async function showAdminSection(section){
         if(!(await isAdmin())){ closeAdminPanel(); return; }
         activeSection =
             section === 'feedback' ||
             section === 'usage' ||
             section === 'platform-usage' ||
+            section === 'reports' ||
             section === 'economy'
                 ? section
                 : 'home';
@@ -150,6 +220,12 @@
             setActiveNav();
             feedbackLoaded = false;
             await loadFeedback();
+            return;
+        }
+        if(activeSection === 'reports'){
+            content.innerHTML = renderSectionHeader('User Reports','Private reports submitted by Worth It members.','⚑') + '<div id="adminUserReportsArea"></div>';
+            setActiveNav();
+            await loadUserReports();
             return;
         }
         if(activeSection === 'economy'){
@@ -732,6 +808,8 @@
     window.refreshAdminUsage = refreshAdminUsage;
     window.refreshAdminPlatformUsage = refreshAdminPlatformUsage;
     window.refreshAdminEconomy = refreshAdminEconomy;
+    window.refreshAdminUserReports = refreshAdminUserReports;
+    window.moderateWorthItUserReport = moderateWorthItUserReport;
     window.openAdminFeedback = openAdminPanel;
     window.closeAdminFeedback = closeAdminPanel;
     window.loadAdminFeedback = refreshAdminFeedback;

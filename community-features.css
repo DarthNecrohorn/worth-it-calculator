@@ -1,0 +1,54 @@
+.calculator-toolbar .calculator-favourites-toggle{min-height:44px;padding:10px 14px;border:1px solid var(--border);border-radius:12px;color:var(--text);background:var(--card2);font-weight:700;white-space:nowrap}
+.calculator-toolbar .calculator-favourites-toggle.active{border-color:var(--primary);background:color-mix(in srgb,var(--primary) 17%,var(--card2))}
+.calc-card{position:relative}
+.calc-favorite-toggle{position:absolute;top:12px;right:12px;z-index:2;width:38px;height:38px;display:grid;place-items:center;border:1px solid var(--border);border-radius:12px;color:var(--muted);background:color-mix(in srgb,var(--card-solid) 88%,transparent);font-size:22px;line-height:1;transition:transform .18s ease,border-color .18s ease,color .18s ease}
+.calc-favorite-toggle:hover{transform:translateY(-2px);border-color:var(--primary);color:var(--primary)}
+.calc-favorite-toggle.is-favourite{color:#fbbf24;border-color:rgba(251,191,36,.48);background:rgba(251,191,36,.10)}
+.calc-favorite-toggle:disabled{opacity:.55;cursor:wait}
+.worth-it-theme-editor{display:grid;gap:14px;padding:16px;border:1px solid var(--border);border-radius:16px;background:var(--surface-soft)}
+.worth-it-theme-editor-head{display:flex;align-items:center;justify-content:space-between;gap:14px}
+.worth-it-theme-preview{width:100%;height:12px;border-radius:99px;background:linear-gradient(110deg,#7C5CFF,#38BDF8)}
+.worth-it-theme-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.worth-it-theme-field{display:flex;flex-direction:column;gap:7px;min-width:0;color:var(--muted);font-size:13px;font-weight:700}
+.worth-it-theme-field input[type=color]{width:100%;height:46px;padding:4px;border:1px solid var(--border);border-radius:11px;background:var(--card-solid);cursor:pointer}
+.worth-it-theme-name{width:100%;min-height:42px;padding:9px 11px;border:1px solid var(--border);border-radius:10px;background:var(--card-solid);color:var(--text)}
+.worth-it-theme-actions{display:flex;flex-wrap:wrap;gap:9px}
+.worth-it-theme-actions .settings-option{min-height:42px}
+.worth-it-theme-status{min-height:20px;color:var(--muted);font-size:13px}
+.worth-it-theme-status.is-error{color:var(--danger)}
+.worth-it-profile-report-wrap{display:flex;justify-content:flex-end;margin-top:10px}
+.worth-it-profile-report-button{min-height:38px;padding:8px 12px;border:1px solid var(--border);border-radius:11px;background:var(--surface-soft);color:var(--muted);font-size:13px;font-weight:700;transition:border-color .18s ease,color .18s ease,transform .18s ease}
+.worth-it-profile-report-button:hover{border-color:var(--danger);color:var(--danger);transform:translateY(-1px)}
+.worth-it-report-overlay{position:fixed;inset:0;z-index:12000;display:grid;place-items:center;padding:18px;background:rgba(3,7,18,.74);backdrop-filter:blur(12px)}
+.worth-it-report-overlay[hidden]{display:none}
+.worth-it-report-card{width:min(100%,480px);max-height:min(90vh,720px);overflow:auto;padding:22px;border:1px solid var(--border);border-radius:20px;background:var(--card-solid);box-shadow:0 25px 90px rgba(0,0,0,.48);color:var(--text)}
+.worth-it-report-head{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;margin-bottom:20px}
+.worth-it-report-head span{font-size:10px;letter-spacing:.14em;font-weight:800;color:var(--primary)}
+.worth-it-report-head h2{margin:5px 0;font-size:21px}
+.worth-it-report-head p{color:var(--muted);font-size:13px}
+.worth-it-report-close{width:36px;height:36px;border:1px solid var(--border);border-radius:10px;background:var(--surface-soft);color:var(--text);font-size:24px}
+.worth-it-report-card>label{display:block;margin:14px 0 7px;font-size:13px;font-weight:700}
+.worth-it-report-card>label span{color:var(--muted);font-weight:400}
+.worth-it-report-card select,.worth-it-report-card textarea{width:100%;padding:11px;border:1px solid var(--border);border-radius:11px;background:var(--bg2);color:var(--text);font:inherit}
+.worth-it-report-card textarea{resize:vertical;min-height:100px}
+.worth-it-report-status{min-height:20px;margin:12px 0;color:var(--muted);font-size:13px}
+.worth-it-report-status.is-error{color:var(--danger)}
+.worth-it-report-actions{display:flex;justify-content:flex-end;gap:9px}
+.worth-it-report-actions button{min-height:42px;padding:9px 14px;border:1px solid var(--border);border-radius:11px;font-weight:700}
+.worth-it-report-cancel{background:var(--surface-soft);color:var(--text)}
+.worth-it-report-submit{background:linear-gradient(110deg,var(--primary),var(--primary2));border-color:transparent!important;color:white}
+.worth-it-report-submit:disabled{opacity:.6;cursor:wait}
+@media(max-width:600px){.calculator-toolbar .calculator-favourites-toggle{width:100%}.worth-it-theme-fields{grid-template-columns:1fr}.worth-it-report-card{padding:18px}}
+.admin-user-reports-list{display:grid;gap:14px}
+.admin-user-report-card{display:grid;gap:11px;padding:16px;border:1px solid var(--border);border-radius:15px;background:var(--surface-soft)}
+.admin-user-report-top{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.admin-user-report-top>div{display:grid;gap:3px}
+.admin-user-report-top small,.admin-user-report-card>small{color:var(--muted);font-size:12px}
+.admin-user-report-top>span{padding:4px 8px;border:1px solid var(--border);border-radius:999px;color:var(--primary);font-size:11px;text-transform:capitalize}
+.admin-user-report-card>p{color:var(--muted);font-size:13px;overflow-wrap:anywhere}
+.admin-user-report-card>p strong{color:var(--text)}
+.admin-user-report-details{padding:11px;border-radius:10px;background:var(--card2);white-space:pre-wrap}
+.admin-user-report-card>label{display:grid;gap:6px;font-size:12px;font-weight:700;color:var(--muted)}
+.admin-user-report-card select,.admin-user-report-card textarea{width:100%;min-height:40px;padding:9px 11px;border:1px solid var(--border);border-radius:9px;background:var(--bg2);color:var(--text);font:inherit}
+.admin-user-report-card textarea{resize:vertical}
+@media(max-width:560px){.admin-user-report-card{padding:12px}.admin-user-report-top{flex-direction:column}}

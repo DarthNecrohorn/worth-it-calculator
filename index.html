@@ -71,6 +71,7 @@ html[data-theme="light"].worth-it-initial-paint::before {
 <link rel="stylesheet" href="section-themes.css?v=section-themes-20261030a">
     <link rel="stylesheet" href="web-shop.css?v=calc-wip-shop-20261030b">
 <link rel="stylesheet" href="feedback-admin-overlays.css?v=feedback-admin-overlays-20261030b">
+<link rel="stylesheet" href="community-features.css?v=community-features-20261031a">
 <link rel="stylesheet" href="weather-compact.css?v=weather-compact-20261030b">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 </head>
@@ -1234,6 +1235,7 @@ html[data-theme="light"].worth-it-initial-paint::before {
                     <option value="technology">Technology</option>
                     <option value="home">Home Costs</option>
                 </select>
+                <button type="button" class="calculator-favourites-toggle" id="favoriteCalculatorsToggle" aria-pressed="false">☆ Favourites</button>
                 <button type="button" class="btn btn-secondary filter-clear" id="clearCalculatorFilters">Clear</button>
             </div>
 
@@ -2349,6 +2351,7 @@ html[data-theme="light"].worth-it-initial-paint::before {
               <button type="button" id="worthItProfileFriendSecondary" class="worth-it-profile-social-button quiet" onclick="performWorthItSocialAction('secondary')" hidden>Cancel request</button>
               <p id="worthItProfileSocialHint" class="worth-it-profile-social-hint" hidden></p>
             </div>
+            <div class="worth-it-profile-report-wrap"><button type="button" id="worthItProfileReportButton" class="worth-it-profile-report-button" hidden>⚑ Report profile</button></div>
           </div>
         </div>
       </div>
@@ -2797,6 +2800,21 @@ html[data-theme="light"].worth-it-initial-paint::before {
         <div class="settings-options worth-it-settings-page-options">
           <button type="button" class="settings-option" id="settingsPageThemeDarkBtn" onclick="setTheme('dark')">🌙 Dark</button>
           <button type="button" class="settings-option" id="settingsPageThemeLightBtn" onclick="setTheme('light')">☀️ Light</button>
+        </div>
+      </div>
+      <div class="worth-it-settings-control-group">
+        <h3>Custom theme colours</h3>
+        <p>Choose your own accent gradient. The selected colours affect Worth It buttons and highlights without changing your light or dark appearance setting.</p>
+        <div class="worth-it-theme-editor">
+          <div class="worth-it-theme-editor-head"><strong>My Worth It theme</strong><span class="settings-note">Live preview</span></div>
+          <div id="worthItThemePreview" class="worth-it-theme-preview" role="img" aria-label="Theme preview"></div>
+          <label class="worth-it-theme-field" for="worthItThemeName">Theme name<input id="worthItThemeName" class="worth-it-theme-name" type="text" maxlength="24" value="Worth It" autocomplete="off"></label>
+          <div class="worth-it-theme-fields">
+            <label class="worth-it-theme-field" for="worthItThemePrimary">Primary colour<input id="worthItThemePrimary" type="color" value="#7c5cff"></label>
+            <label class="worth-it-theme-field" for="worthItThemeSecondary">Secondary colour<input id="worthItThemeSecondary" type="color" value="#38bdf8"></label>
+          </div>
+          <div class="worth-it-theme-actions"><button type="button" class="settings-option" id="worthItThemeSaveButton">Save my theme</button><button type="button" class="settings-option" id="worthItThemeResetButton">Restore default colours</button></div>
+          <p id="worthItThemeStatus" class="worth-it-theme-status" role="status" aria-live="polite"></p>
         </div>
       </div>
       <div class="worth-it-settings-control-group worth-it-settings-zoom-help">
@@ -5351,5 +5369,6 @@ if($("carResults")){
     </section>
     
 <script src="/chat-enhancements.js?v=chat-wallpaper-collision-packed-20261030a"></script>
+<script src="/community-features.js?v=community-features-20261031a"></script>
 </body>
 </html>
