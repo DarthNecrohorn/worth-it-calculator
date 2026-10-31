@@ -35,6 +35,11 @@ test("Web Shop and CALC balance sit beside the logo without replacing the affili
     assert.match(html, /40 <small>WIP \/ 15 days<\/small>/);
     assert.match(html, /Every signed-in account earns 1 WIP per UTC day/);
     assert.match(economy, /state\.is_guest \? "CALC Lite" : "CALC"/);
+    assert.match(economy, /const guestView = state \? state\.is_guest === true : !signedInAccount/);
+    assert.match(economy, /shopButton\.hidden = guestView/);
+    assert.match(economy, /shopButton\.style\.display = guestView \? "none" : ""/);
+    assert.match(economy, /signedInAccount \? "CALC" : "CALC Lite"/);
+    assert.match(economy, /Your Guest Lite CALC Lite balance is temporarily unavailable/);
     assert.match(economy, /wipButton\.hidden = !showWip/);
     assert.match(economy, /WIP rewards and balances are waiting for the CALC economy SQL migration/);
     assert.match(economy, /Wallet unavailable · calculation disabled/);
