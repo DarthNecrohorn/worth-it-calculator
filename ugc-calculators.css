@@ -21,6 +21,7 @@
 .ugc-calculator-card:hover{transform:translateY(-2px);border-color:rgba(124,92,255,.55)!important;box-shadow:0 16px 34px rgba(0,0,0,.15)}
 .ugc-card-head{display:flex;justify-content:space-between;align-items:center;gap:8px}
 .ugc-category,.ugc-state{display:inline-flex;align-items:center;border:1px solid var(--border);border-radius:999px;padding:3px 8px;color:var(--muted);font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.05em}
+.ugc-number{display:inline-flex;align-items:center;border:1px solid rgba(124,92,255,.35);border-radius:999px;padding:3px 8px;background:rgba(124,92,255,.09);color:var(--primary2);font-size:10px;font-weight:900;font-variant-numeric:tabular-nums;letter-spacing:.04em;white-space:nowrap}
 .ugc-card-title{font-size:17px!important;line-height:1.25!important;overflow-wrap:anywhere}
 .ugc-card-description{color:var(--muted);font-size:12px;line-height:1.5;overflow-wrap:anywhere;flex:1}
 .ugc-card-owner{color:var(--primary2);font-size:11px;font-weight:750;text-decoration:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
