@@ -104,7 +104,7 @@ begin
         raise exception 'The calculator owner cannot open their own published calculator.';
     end if;
     v_mine:=public.get_worth_it_my_ugc_calculators('');
-    if jsonb_array_length(v_mine)<>1 then
+    if jsonb_array_length(v_mine)<>2 then
         raise exception 'The owner cannot list their saved calculator.';
     end if;
 end
