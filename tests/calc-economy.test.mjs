@@ -38,6 +38,7 @@ test("Web Shop and CALC balance sit beside the logo without replacing the affili
     assert.match(economy, /wipButton\.hidden = !showWip/);
     assert.match(economy, /WIP rewards and balances are waiting for the CALC economy SQL migration/);
     assert.match(economy, /Wallet unavailable · calculation disabled/);
+    assert.match(economy, /button\.disabled = !state/);
     assert.match(economy, /CALC account billing is not available in this Preview database yet/);
     assert.match(economy, /No calculation was run and no currency was charged/);
     assert.match(economy, /Pay 0\.1 " \+ currency \+ " to calculate/);

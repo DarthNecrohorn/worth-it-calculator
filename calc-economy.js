@@ -425,6 +425,7 @@
             button.classList.add("calc-billing-action");
             const nextLabel = calculatorType === "cars" ? carsLabel : genericLabel;
             if(button.textContent.trim() !== nextLabel) button.textContent = nextLabel;
+            button.disabled = !state;
             button.setAttribute("aria-label",nextLabel);
             button.title = !state
                 ? "This calculator is temporarily disabled because its server-side currency wallet is unavailable. No calculation can run without an authorised wallet."
