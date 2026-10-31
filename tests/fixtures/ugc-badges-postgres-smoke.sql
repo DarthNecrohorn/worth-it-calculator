@@ -36,14 +36,48 @@ select (public.save_worth_it_ugc_calculator(
 )->>'id') as calculator_id \gset
 
 select (public.publish_worth_it_ugc_calculator(:'calculator_id'::uuid)->>'status') as publish_status \gset
-select case when (public.get_worth_it_ugc_calculator(:'calculator_id'::uuid)->>'is_owner')::boolean then 1 else 1/0 end;
-select case when jsonb_array_length(public.get_worth_it_my_ugc_calculators(''))=1 then 1 else 1/0 end;
+do $owner_check$
+declare
+    v_detail jsonb;
+    v_mine jsonb;
+begin
+    v_detail:=public.get_worth_it_ugc_calculator(:'calculator_id'::uuid);
+    if (v_detail->>'is_owner')::boolean is distinct from true then
+        raise exception 'The calculator owner cannot open their own published calculator.';
+    end if;
+    v_mine:=public.get_worth_it_my_ugc_calculators('');
+    if jsonb_array_length(v_mine)<>1 then
+        raise exception 'The owner cannot list their saved calculator.';
+    end if;
+end
+$owner_check$;
 
 select set_config('request.jwt.claim.sub','22222222-2222-4222-8222-222222222222',false);
-select case when (public.get_worth_it_ugc_calculator(:'calculator_id'::uuid)->>'is_owner')::boolean is false then 1 else 1/0 end;
-select case when jsonb_array_length(public.get_worth_it_ugc_catalog('latest','12y','',20,0))>=1 then 1 else 1/0 end;
-select case when (public.set_worth_it_ugc_reaction(:'calculator_id'::uuid,'like')->>'reaction')='like' then 1 else 1/0 end;
-select case when (public.record_worth_it_ugc_view(:'calculator_id'::uuid)->>'success')::boolean then 1 else 1/0 end;
+do $viewer_check$
+declare
+    v_detail jsonb;
+    v_catalog jsonb;
+    v_reaction jsonb;
+    v_view jsonb;
+begin
+    v_detail:=public.get_worth_it_ugc_calculator(:'calculator_id'::uuid);
+    if (v_detail->>'is_owner')::boolean is distinct from false then
+        raise exception 'A different member was incorrectly treated as the calculator owner.';
+    end if;
+    v_catalog:=public.get_worth_it_ugc_catalog('latest','12y','',20,0);
+    if jsonb_array_length(v_catalog)<1 then
+        raise exception 'Published UGC calculator is missing from the latest catalogue.';
+    end if;
+    v_reaction:=public.set_worth_it_ugc_reaction(:'calculator_id'::uuid,'like');
+    if v_reaction->>'reaction' is distinct from 'like' then
+        raise exception 'The like reaction was not stored.';
+    end if;
+    v_view:=public.record_worth_it_ugc_view(:'calculator_id'::uuid);
+    if (v_view->>'success')::boolean is distinct from true then
+        raise exception 'The calculator view could not be recorded.';
+    end if;
+end
+$viewer_check$;
 
 -- Favourites are insertable only for the authenticated user's own row.
 select set_config('test.ugc_id', :'calculator_id', false);
