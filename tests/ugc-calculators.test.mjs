@@ -174,6 +174,8 @@ test("UGC writes are owner-bound, capped and not directly accessible through pub
     assert.match(sql, /char_length\(v_title\) not between 3 and 70/);
     assert.match(sql, /v_count>=10/);
     assert.match(sql, /where id=p_id and owner_user_id=v_user_id/);
+    assert.match(sql, /Verify ownership before removing any social data/);
+    assert.match(sql, /delete from public\.worth_it_calculator_favorites[\s\S]*?calculator_key='ugc:'\|\|p_id::text/);
     assert.match(sql, /where id=p_id and owner_user_id=v_user_id for update/);
     assert.match(sql, /status='published'/);
     assert.match(sql, /revoke all on private\.worth_it_user_calculators from public, anon, authenticated/i);
@@ -182,6 +184,7 @@ test("UGC writes are owner-bound, capped and not directly accessible through pub
     assert.match(sql, /grant execute on function public\.save_worth_it_ugc_calculator.*to authenticated/i);
     assert.match(sql, /email_confirmed_at is not null/);
     assert.match(sql, /'is_owner',\(c\.owner_user_id=v_user_id\)/);
+    assert.match(read("tests/fixtures/ugc-badges-postgres-smoke.sql"), /Deleting a calculator left orphan favourite rows/);
     assert.doesNotMatch(sql, /'owner_user_id',c\.owner_user_id/);
 });
 

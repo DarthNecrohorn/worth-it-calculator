@@ -264,12 +264,21 @@ as $$
 declare v_user_id uuid := auth.uid(); v_deleted integer;
 begin
     if v_user_id is null then raise exception 'Sign in required.' using errcode='28000'; end if;
+    -- Verify ownership before removing any social data for this calculator.
+    if not exists(
+        select 1 from private.worth_it_user_calculators
+         where id=p_id and owner_user_id=v_user_id
+    ) then
+        raise exception 'Calculator not found or not owned by you.' using errcode='42501';
+    end if;
+    delete from public.worth_it_calculator_favorites
+     where calculator_key='ugc:'||p_id::text;
     delete from private.worth_it_user_calculators where id=p_id and owner_user_id=v_user_id;
     get diagnostics v_deleted=row_count;
     if v_deleted=0 then raise exception 'Calculator not found or not owned by you.' using errcode='42501'; end if;
     return jsonb_build_object('success',true,'id',p_id);
 end;
-$$;
+$;
 
 create or replace function public.get_worth_it_ugc_catalog(
     p_sort text default 'latest',

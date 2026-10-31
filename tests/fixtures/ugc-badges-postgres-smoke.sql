@@ -238,6 +238,26 @@ begin
 end
 $test$;
 
+-- Deleting an owned calculator also removes its unlinked text-keyed favourites.
+select set_config('request.jwt.claim.sub','11111111-1111-4111-8111-111111111111',false);
+do $test$
+declare
+    v_id uuid:=current_setting('test.ugc_calculator_id')::uuid;
+    v_result jsonb;
+begin
+    if not exists(select 1 from public.worth_it_calculator_favorites where calculator_key='ugc:'||v_id::text) then
+        raise exception 'Expected viewer favourite does not exist before creator deletion.';
+    end if;
+    v_result:=public.delete_worth_it_ugc_calculator(v_id);
+    if (v_result->>'success')::boolean is distinct from true then
+        raise exception 'Creator could not delete their own calculator.';
+    end if;
+    if exists(select 1 from public.worth_it_calculator_favorites where calculator_key='ugc:'||v_id::text) then
+        raise exception 'Deleting a calculator left orphan favourite rows.';
+    end if;
+end
+$test$;
+
 -- Private data tables and privileged RPCs are not available to anon/authenticated directly.
 do $test$
 begin
