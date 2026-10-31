@@ -62,7 +62,11 @@ test("the UGC gallery, detail route, maker modal and profile sections are wired"
     }
     for (const period of ["today", "7d", "14d", "1m", "3m", "6m", "12m", "3y", "6y", "12y"]) {
         assert.ok(html.includes('value="' + period + '"'), period + " time filter exists");
-        assert.ok(sql.includes("when '" + period + "'"), period + " time filter is enforced by SQL");
+        if (period === "12y") {
+            assert.ok(sql.includes("else now()-interval '12 years'"), "12y is the default SQL time window");
+        } else {
+            assert.ok(sql.includes("when '" + period + "'"), period + " time filter is enforced by SQL");
+        }
     }
     assert.ok(routing.includes("/calculator/ugc/"));
     assert.ok(routing.includes("ugc-calculator"));
@@ -88,6 +92,7 @@ test("AI Maker requires a confirmed account and emits restricted declarative cal
         assert.equal(calls, 1);
     });
 
+    calls = 0;
     await withFetch(async (url, options) => {
         if (String(url).endsWith("/auth/v1/user")) {
             return new Response(JSON.stringify({ id: "user-id", email_confirmed_at: "2026-01-01T00:00:00Z" }), { status: 200 });

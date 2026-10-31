@@ -432,7 +432,7 @@ language plpgsql
 stable
 security definer
 set search_path = pg_catalog, public, private, auth
-as $
+as $$
 declare v_user_id uuid:=auth.uid(); v_search text:=left(btrim(coalesce(p_search,'')),80); v_result jsonb;
 begin
     if v_user_id is null then raise exception 'Sign in required.' using errcode='28000'; end if;
@@ -451,7 +451,7 @@ begin
        and (v_search='' or c.title ilike '%'||v_search||'%' or c.description ilike '%'||v_search||'%');
     return coalesce(v_result,'[]'::jsonb);
 end;
-$;
+$$;
 
 create or replace function public.get_worth_it_profile_favorite_calculators(p_worth_it_id bigint)
 returns jsonb
