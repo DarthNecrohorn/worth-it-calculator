@@ -255,7 +255,8 @@ function submitPreviewReport(targetId,reason,details,session){
  if(!savePreviewReports(reports))throw new Error("The preview report could not be saved in this browser.");
  return item;
 }
-\nfunction profileTargetId(){
+
+function profileTargetId(){
  const href=$("worthItProfileLink")?.getAttribute("href")||"";
  const match=href.match(/\/profile\/([1-9][0-9]*)/);return match?Number(match[1]):0;
 }
