@@ -50,7 +50,7 @@ test("Preview uses account-scoped local fallbacks when community tables are not 
 });
 test("Admin report list stays read-only when new moderation columns are absent",()=>{
  assert.ok(admin.includes("isCommunityReportMigrationMissing"));
- assert.ok(admin.includes("Preview is read-only for moderation"));
+ assert.ok(admin.includes("Database reports are read-only in this Preview."));
  assert.ok(admin.includes("reviewed_at"));
  assert.ok(css.includes(".admin-user-report-readonly-note"));
 });
