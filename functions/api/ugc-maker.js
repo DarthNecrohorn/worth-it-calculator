@@ -1,5 +1,6 @@
 const SITE_ORIGIN = "https://worth-it-calculator.pages.dev";
 const GROQ_MODEL = "openai/gpt-oss-120b";
+const GEMINI_MODEL = "gemini-3.7-flash";
 const MAX_PROMPT_CHARS = 900;
 const ALLOWED_CATEGORIES = new Set(["cars","money","technology","home","other"]);
 const FUNCTIONS = new Set(["min","max","abs","round","floor","ceil","sqrt","pow"]);
@@ -29,6 +30,63 @@ function allowedOrigin(request){
 function tokenFrom(request){
     const header=request.headers.get("Authorization")||"";
     return header.startsWith("Bearer ")?header.slice(7).trim():"";
+}
+async function reserveMakerGeneration(env,token){
+    const base=String(env.SUPABASE_URL||"").trim().replace(/\/$/,"");
+    const key=String(env.SUPABASE_PUBLISHABLE_KEY||"").trim();
+    if(!base||!key)throw new Error("The account service is not configured.");
+    const response=await fetch(base+"/rest/v1/rpc/reserve_worth_it_ugc_maker_generation",{
+        method:"POST",
+        headers:{apikey:key,Authorization:"Bearer "+token,"Content-Type":"application/json",Accept:"application/json"},
+        body:"{}",
+        cache:"no-store"
+    });
+    const data=await response.json().catch(()=>null);
+    if(!response.ok||!data||typeof data!=="object")throw new Error("The AI calculator usage limit could not be checked.");
+    return data;
+}
+async function generateWithGemini(apiKey,system,prompt){
+    const response=await fetch(
+        "https://generativelanguage.googleapis.com/v1beta/models/"+encodeURIComponent(GEMINI_MODEL)+":generateContent",
+        {
+            method:"POST",
+            headers:{"Content-Type":"application/json","x-goog-api-key":apiKey},
+            body:JSON.stringify({
+                systemInstruction:{parts:[{text:system}]},
+                contents:[{role:"user",parts:[{text:prompt}]}],
+                generationConfig:{temperature:0.15,maxOutputTokens:1300,responseMimeType:"application/json"}
+            })
+        }
+    );
+    if(!response.ok){
+        const details=await response.text().catch(()=>"");
+        throw new Error("Gemini calculator generation failed ("+response.status+"): "+details.slice(0,240));
+    }
+    const data=await response.json();
+    const content=data?.candidates?.[0]?.content?.parts?.map(part=>typeof part?.text==="string"?part.text:"").join("").trim();
+    if(!content)throw new Error("Gemini returned an empty calculator definition.");
+    return content;
+}
+async function generateWithGroq(apiKey,system,prompt){
+    const response=await fetch("https://api.groq.com/openai/v1/chat/completions",{
+        method:"POST",
+        headers:{"Authorization":"Bearer "+apiKey,"Content-Type":"application/json"},
+        body:JSON.stringify({
+            model:GROQ_MODEL,
+            temperature:0.15,
+            max_tokens:1300,
+            response_format:{type:"json_object"},
+            messages:[{role:"system",content:system},{role:"user",content:prompt}]
+        })
+    });
+    if(!response.ok){
+        const details=await response.text().catch(()=>"");
+        throw new Error("Groq calculator generation failed ("+response.status+"): "+details.slice(0,240));
+    }
+    const data=await response.json();
+    const content=data?.choices?.[0]?.message?.content;
+    if(typeof content!=="string"||!content.trim())throw new Error("Groq returned an empty calculator definition.");
+    return content.trim();
 }
 async function verifyUser(env,token){
     const base=String(env.SUPABASE_URL||"").trim().replace(/\/$/,"");
@@ -187,8 +245,19 @@ export async function onRequestPost(context){
         try{body=await request.json();}catch(_){return json({success:false,error:"A valid JSON request is required."},400,origin);}
         const prompt=typeof body?.prompt==="string"?body.prompt.trim():"";
         if(!prompt||prompt.length>MAX_PROMPT_CHARS)return json({success:false,error:"Describe the calculator in 1 to 900 characters."},400,origin);
-        const apiKey=String(env.GROQ_API_KEY||"").trim();
-        if(!apiKey)return json({success:false,code:"AI_PROVIDER_UNAVAILABLE",error:"The AI calculator maker is temporarily unavailable."},503,origin);
+        const geminiKey=String(env.GEMINI_API_KEY||"").trim();
+        const groqKey=String(env.GROQ_API_KEY||"").trim();
+        if(!geminiKey&&!groqKey)return json({success:false,code:"AI_PROVIDER_UNAVAILABLE",error:"The AI calculator maker is temporarily unavailable."},503,origin);
+        let usage;
+        try{usage=await reserveMakerGeneration(env,token);}
+        catch(error){
+            console.error("UGC maker usage reservation failed:",error);
+            return json({success:false,code:"USAGE_LIMIT_UNAVAILABLE",error:"The AI calculator usage limit is temporarily unavailable. Please try again later."},503,origin);
+        }
+        if(usage?.ok!==true){
+            if(usage?.code==="DAILY_LIMIT")return json({success:false,code:"DAILY_AI_LIMIT",error:"You have reached the daily AI calculator limit of 10 generations. Try again after the UTC daily reset.",daily_limit:10,requests_used:10},429,origin);
+            return json({success:false,code:"USAGE_LIMIT_UNAVAILABLE",error:"The AI calculator usage limit is temporarily unavailable. Please try again later."},503,origin);
+        }
         const system=[
             "You design calculator definitions for the Worth It website.",
             "Return only one valid JSON object with keys title, description, category, inputs, results.",
@@ -205,24 +274,18 @@ export async function onRequestPost(context){
             "For currency outputs, set format to currency and choose a sensible ISO 4217 currency code. If the user does not name one, use EUR.",
             "Keep title within 70 characters and description within 500 characters."
         ].join(" ");
-        const response=await fetch("https://api.groq.com/openai/v1/chat/completions",{
-            method:"POST",
-            headers:{"Authorization":"Bearer "+apiKey,"Content-Type":"application/json"},
-            body:JSON.stringify({
-                model:GROQ_MODEL,
-                temperature:0.15,
-                max_tokens:1300,
-                response_format:{type:"json_object"},
-                messages:[{role:"system",content:system},{role:"user",content:prompt}]
-            })
-        });
-        if(!response.ok){
-            const details=await response.text().catch(()=> "");
-            console.error("UGC maker provider failed:",response.status,details.slice(0,300));
+        let content="";
+        if(geminiKey){
+            try{content=await generateWithGemini(geminiKey,system,prompt);}
+            catch(error){console.warn("Gemini UGC calculator generation failed:",error);}
+        }
+        if(!content&&groqKey){
+            try{content=await generateWithGroq(groqKey,system,prompt);}
+            catch(error){console.error("Groq UGC calculator generation failed:",error);}
+        }
+        if(!content){
             return json({success:false,code:"AI_PROVIDER_UNAVAILABLE",error:"The AI could not generate this calculator right now. Please try again."},503,origin);
         }
-        const data=await response.json();
-        const content=data?.choices?.[0]?.message?.content;
         let parsed;
         try{parsed=JSON.parse(content);}catch(_){return json({success:false,error:"The AI returned an invalid calculator definition. Please adjust your description and try again."},502,origin);}
         let definition;

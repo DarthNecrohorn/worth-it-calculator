@@ -147,6 +147,28 @@ begin
 end
 $test$;
 
+-- AI Maker quota is enforced atomically per confirmed user and UTC day.
+select set_config('request.jwt.claim.sub','22222222-2222-4222-8222-222222222222',false);
+do $quota_test$
+declare
+    i integer;
+    result jsonb;
+begin
+    for i in 1..10 loop
+        result:=public.reserve_worth_it_ugc_maker_generation();
+        if (result->>'ok')::boolean is distinct from true then
+            raise exception 'AI Maker quota rejected a request before the daily limit.';
+        end if;
+    end loop;
+    result:=public.reserve_worth_it_ugc_maker_generation();
+    if (result->>'ok')::boolean is distinct from false
+       or result->>'code' is distinct from 'DAILY_LIMIT'
+       or (result->>'requests_used')::integer<>10 then
+        raise exception 'AI Maker daily limit did not stop the eleventh generation.';
+    end if;
+end
+$quota_test$;
+
 -- Unconfirmed accounts cannot create or publish.
 select set_config('request.jwt.claim.sub','66666666-6666-4666-8666-666666666666',false);
 do $test$
@@ -161,6 +183,13 @@ begin
         failed:=true;
     end;
     if not failed then raise exception 'Unconfirmed account unexpectedly created a calculator.'; end if;
+    failed:=false;
+    begin
+        perform public.reserve_worth_it_ugc_maker_generation();
+    exception when insufficient_privilege then
+        failed:=true;
+    end;
+    if not failed then raise exception 'Unconfirmed account unexpectedly used the AI Maker.'; end if;
 end
 $test$;
 
@@ -263,6 +292,15 @@ do $test$
 begin
     if has_table_privilege('authenticated','private.worth_it_user_calculators','select') then
         raise exception 'Authenticated users can query private UGC rows directly.';
+    end if;
+    if has_table_privilege('authenticated','private.worth_it_ugc_maker_daily_usage','select') then
+        raise exception 'Authenticated users can query private AI Maker usage rows directly.';
+    end if;
+    if has_function_privilege('anon','public.reserve_worth_it_ugc_maker_generation()','execute') then
+        raise exception 'Anonymous users can reserve AI Maker generations.';
+    end if;
+    if not has_function_privilege('authenticated','public.reserve_worth_it_ugc_maker_generation()','execute') then
+        raise exception 'Authenticated users cannot reserve a secured AI Maker generation.';
     end if;
     if has_function_privilege('anon','public.save_worth_it_ugc_calculator(uuid,text,text,text,jsonb)','execute') then
         raise exception 'Anonymous users can execute UGC creation.';

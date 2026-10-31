@@ -64,6 +64,17 @@ create table if not exists private.worth_it_profile_badge_equips (
 alter table private.worth_it_profile_badge_equips enable row level security;
 revoke all on private.worth_it_profile_badge_equips from public, anon, authenticated;
 
+create table if not exists private.worth_it_ugc_maker_daily_usage (
+    user_id uuid not null references auth.users(id) on delete cascade,
+    usage_date date not null,
+    requests_used smallint not null check (requests_used between 1 and 10),
+    created_at timestamptz not null default now(),
+    updated_at timestamptz not null default now(),
+    primary key (user_id,usage_date)
+);
+alter table private.worth_it_ugc_maker_daily_usage enable row level security;
+revoke all on private.worth_it_ugc_maker_daily_usage from public, anon, authenticated;
+
 create or replace function private.worth_it_validate_ugc_spec(p_spec jsonb)
 returns void
 language plpgsql
@@ -178,6 +189,47 @@ begin
         when 'member_5y' then v_created_at <= now()-interval '5 years'
         else false
     end;
+end;
+$$;
+
+create or replace function public.reserve_worth_it_ugc_maker_generation()
+returns jsonb
+language plpgsql
+security definer
+set search_path = pg_catalog, public, private, auth
+as $
+declare
+    v_user_id uuid := auth.uid();
+    v_used smallint;
+    v_today date := (now() at time zone 'UTC')::date;
+begin
+    if v_user_id is null then
+        raise exception 'Sign in required.' using errcode='28000';
+    end if;
+    if not exists(
+        select 1 from auth.users
+         where id=v_user_id and email_confirmed_at is not null
+    ) then
+        raise exception 'Verify your email before using the AI calculator maker.' using errcode='42501';
+    end if;
+
+    insert into private.worth_it_ugc_maker_daily_usage(user_id,usage_date,requests_used)
+    values(v_user_id,v_today,1)
+    on conflict(user_id,usage_date) do update
+       set requests_used=private.worth_it_ugc_maker_daily_usage.requests_used+1,
+           updated_at=now()
+     where private.worth_it_ugc_maker_daily_usage.requests_used<10
+    returning requests_used into v_used;
+
+    if v_used is null then
+        return jsonb_build_object(
+            'ok',false,'code','DAILY_LIMIT','daily_limit',10,'requests_used',10,
+            'usage_date',v_today
+        );
+    end if;
+    return jsonb_build_object(
+        'ok',true,'requests_used',v_used,'daily_limit',10,'usage_date',v_today
+    );
 end;
 $$;
 
@@ -593,6 +645,7 @@ create policy "Users can remove their own calculator favourites"
     on public.worth_it_calculator_favorites for delete to authenticated
     using ((select auth.uid())=user_id);
 
+revoke all on function public.reserve_worth_it_ugc_maker_generation() from public,anon;
 revoke all on function public.save_worth_it_ugc_calculator(uuid,text,text,text,jsonb) from public,anon;
 revoke all on function public.publish_worth_it_ugc_calculator(uuid) from public,anon;
 revoke all on function public.delete_worth_it_ugc_calculator(uuid) from public,anon;
@@ -605,6 +658,7 @@ revoke all on function public.get_worth_it_profile_favorite_calculators(bigint) 
 revoke all on function public.get_worth_it_profile_badges(bigint) from public,anon;
 revoke all on function public.set_worth_it_profile_badge_equipped(text,boolean) from public,anon;
 
+grant execute on function public.reserve_worth_it_ugc_maker_generation() to authenticated;
 grant execute on function public.save_worth_it_ugc_calculator(uuid,text,text,text,jsonb) to authenticated;
 grant execute on function public.publish_worth_it_ugc_calculator(uuid) to authenticated;
 grant execute on function public.delete_worth_it_ugc_calculator(uuid) to authenticated;

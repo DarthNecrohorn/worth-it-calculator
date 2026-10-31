@@ -98,6 +98,9 @@ test("AI Maker requires a confirmed account and emits restricted declarative cal
         if (String(url).endsWith("/auth/v1/user")) {
             return new Response(JSON.stringify({ id: "user-id", email_confirmed_at: "2026-01-01T00:00:00Z" }), { status: 200 });
         }
+        if (String(url).endsWith("/rest/v1/rpc/reserve_worth_it_ugc_maker_generation")) {
+            return new Response(JSON.stringify({ ok: true, requests_used: 1, daily_limit: 10 }), { status: 200 });
+        }
         calls++;
         const body = JSON.parse(options.body);
         assert.equal(body.response_format.type, "json_object");
@@ -139,6 +142,9 @@ test("AI Maker rejects unauthenticated, cross-origin and executable formula requ
         if (String(url).endsWith("/auth/v1/user")) {
             return new Response(JSON.stringify({ id: "user-id", email_confirmed_at: "2026-01-01T00:00:00Z" }), { status: 200 });
         }
+        if (String(url).endsWith("/rest/v1/rpc/reserve_worth_it_ugc_maker_generation")) {
+            return new Response(JSON.stringify({ ok: true, requests_used: 1, daily_limit: 10 }), { status: 200 });
+        }
         return new Response(JSON.stringify({
             choices: [{ message: { content: JSON.stringify(malicious) } }]
         }), { status: 200 });
@@ -158,6 +164,54 @@ test("AI Maker rejects unauthenticated, cross-origin and executable formula requ
     assert.equal(options.status, 204);
 });
 
+test("AI Maker uses Gemini first and Groq as a fallback, with a server-side daily generation quota", async () => {
+    const requests = [];
+    await withFetch(async (url, options) => {
+        requests.push(String(url));
+        if (String(url).endsWith("/auth/v1/user")) {
+            return new Response(JSON.stringify({ id: "user-id", email_confirmed_at: "2026-01-01T00:00:00Z" }), { status: 200 });
+        }
+        if (String(url).endsWith("/rest/v1/rpc/reserve_worth_it_ugc_maker_generation")) {
+            return new Response(JSON.stringify({ ok: true, requests_used: 2, daily_limit: 10 }), { status: 200 });
+        }
+        assert.match(String(url), /generativelanguage\.googleapis\.com/);
+        const body = JSON.parse(options.body);
+        assert.equal(body.generationConfig.responseMimeType, "application/json");
+        return new Response(JSON.stringify({
+            candidates: [{ content: { parts: [{ text: JSON.stringify(validDefinition) }] } }]
+        }), { status: 200 });
+    }, async () => {
+        const response = await onRequestPost({
+            request: request({ prompt: "Create a calculator for monthly savings growth." }, { token: "valid-token" }),
+            env: { SUPABASE_URL: "https://supabase.example", SUPABASE_PUBLISHABLE_KEY: "publishable", GEMINI_API_KEY: "gemini-test" }
+        });
+        assert.equal(response.status, 200);
+        assert.equal((await response.json()).success, true);
+        assert.ok(requests.some(url => url.endsWith("/rest/v1/rpc/reserve_worth_it_ugc_maker_generation")));
+        assert.ok(requests.some(url => url.includes("generativelanguage.googleapis.com")));
+    });
+
+    const limitedCalls = [];
+    await withFetch(async url => {
+        limitedCalls.push(String(url));
+        if (String(url).endsWith("/auth/v1/user")) {
+            return new Response(JSON.stringify({ id: "user-id", email_confirmed_at: "2026-01-01T00:00:00Z" }), { status: 200 });
+        }
+        if (String(url).endsWith("/rest/v1/rpc/reserve_worth_it_ugc_maker_generation")) {
+            return new Response(JSON.stringify({ ok: false, code: "DAILY_LIMIT", daily_limit: 10, requests_used: 10 }), { status: 200 });
+        }
+        throw new Error("AI provider must not be called after the daily quota is exhausted.");
+    }, async () => {
+        const response = await onRequestPost({
+            request: request({ prompt: "Create a calculator for monthly savings growth." }, { token: "valid-token" }),
+            env: { SUPABASE_URL: "https://supabase.example", SUPABASE_PUBLISHABLE_KEY: "publishable", GEMINI_API_KEY: "gemini-test" }
+        });
+        assert.equal(response.status, 429);
+        assert.equal((await response.json()).code, "DAILY_AI_LIMIT");
+        assert.equal(limitedCalls.length, 2);
+    });
+});
+
 test("calculator formulas are declarative and never executed as arbitrary JavaScript", () => {
     assert.match(maker, /function compileExpression/);
     assert.match(maker, /function evaluate/);
@@ -168,6 +222,12 @@ test("calculator formulas are declarative and never executed as arbitrary JavaSc
     assert.doesNotMatch(maker, /new\s+Function\s*\(/);
     assert.match(sql, /private\.worth_it_validate_ugc_spec/);
     assert.match(sql, /formula contains an unsupported variable or function/i);
+    assert.match(sql, /private\.worth_it_ugc_maker_daily_usage/);
+    assert.match(sql, /requests_used<10/);
+    assert.match(sql, /reserve_worth_it_ugc_maker_generation/);
+    assert.match(makerApi, /DAILY_AI_LIMIT/);
+    assert.match(makerApi, /GEMINI_API_KEY/);
+    assert.match(makerApi, /GROQ_API_KEY/);
 });
 
 test("UGC writes are owner-bound, capped and not directly accessible through public tables", () => {
