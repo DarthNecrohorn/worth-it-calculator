@@ -13,6 +13,7 @@ const restrictedSections = [
     ["Weather", "openWeather"],
     ["News", "openNews"],
     ["Shop", "openDiscounts"],
+    ["Web Shop", "openWebShop"],
     ["Compare cars", "openCars"],
     ["Markets", "openMarkets"],
     ["Currencies", "openMoney"],
@@ -51,7 +52,8 @@ test("all requested website sections are account-gated", () => {
     for (const [label, opener] of restrictedSections) {
         assert.ok(guest.includes('["' + opener + '"'), label + " must be gated");
     }
-    assert.match(html, /Weather, News, Shop, Compare Cars, Markets, Currencies, Cryptocurrencies, Water Levels and Ship Tracking/);
+    assert.match(html, /Weather, News, Shop, Web Shop, Compare Cars, Markets, Currencies, Cryptocurrencies, Water Levels and Ship Tracking/);
+    assert.ok(guest.includes('/^\\/web-shop\\/?$/'));
     assert.match(guest, /RESTRICTED_PATHS/);
     assert.match(guest, /restoreHomeIfOnRestrictedPath/);
 });
@@ -91,10 +93,20 @@ test("Guest Lite dialog is responsive, theme-aware and the CI checks the new scr
     assert.match(css, /@media\(max-width:650px\)/);
     assert.match(css, /\.worth-it-guest-list ul\{font-size:12px/);
     assert.match(css, /html\[data-theme="light"\] \.worth-it-guest-card/);
-    assert.match(html, /guest-mode\.js\?v=guest-lite-first-50-20261030a/);
+    assert.match(html, /guest-mode\.js\?v=guest-webshop-ugc-guards-20261031a/);
     assert.match(workflow, /guest-mode\.js/);
 });
 
+
+test("mobile calculator catalogue keeps three cards per row and Guest Lite consent never overlays the list", () => {
+    const communityCss = readFileSync(new URL("../community-features.css", import.meta.url), "utf8");
+    assert.match(communityCss, /#calculatorGrid\.calculator-grid\s*\{[\s\S]*?grid-template-columns:repeat\(3,minmax\(0,1fr\)) !important/);
+    assert.match(communityCss, /\.calc-favorite-icon\s*\{[^}]*translateY\(-2px\)/);
+    assert.match(communityCss, /\.worth-it-guest-body\s*\{[\s\S]*?flex:1 1 0 !important[\s\S]*?overflow-y:auto !important/);
+    assert.match(communityCss, /\.worth-it-guest-consent\s*\{[\s\S]*?flex:0 0 auto !important/);
+    assert.match(html, /community-features\.css\?v=community-ugc-mobile-20261031a/);
+    assert.match(html, /guest-mode\.js\?v=guest-webshop-ugc-guards-20261031a/);
+});
 
 test("Guest Lite modal stacks above the sticky header while open", () => {
     assert.match(guest, /document\.body\.classList\.add\("worth-it-guest-dialog-open"\)/);

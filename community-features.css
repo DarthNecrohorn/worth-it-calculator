@@ -57,3 +57,133 @@
 .admin-user-report-readonly-note span,.admin-user-report-readonly-hint{color:var(--muted);font-size:12px}
 .admin-user-report-readonly-hint{padding:10px;border-radius:9px;background:var(--card2)}
 .admin-user-report-readonly-hint strong{color:var(--text);text-transform:capitalize}
+
+
+/* UGC-only social controls. Keep the star glyph slightly above the button centre. */
+.calc-favorite-toggle{top:12px}
+.calc-favorite-icon{display:inline-block;line-height:1;transform:translateY(-2px)}
+
+/* Keep the site-owner calculator catalogue in three columns on phones. */
+@media(max-width:700px){
+ #calculatorGrid.calculator-grid{
+  grid-template-columns:repeat(3,minmax(0,1fr)) !important;
+  gap:8px !important;
+  align-items:stretch;
+ }
+ #calculatorGrid>.calc-card{
+  width:auto !important;
+  min-width:0;
+  min-height:0;
+  padding:12px 8px 11px;
+  display:flex;
+  flex-direction:column;
+  align-items:stretch;
+ }
+ #calculatorGrid>.calc-card .calc-icon{font-size:24px;margin-bottom:8px}
+ #calculatorGrid>.calc-card h3{
+  min-width:0;
+  min-height:2.45em;
+  margin-bottom:6px;
+  font-size:13px;
+  line-height:1.22;
+  overflow-wrap:anywhere;
+  word-break:normal;
+ }
+ #calculatorGrid>.calc-card p{
+  min-width:0;
+  margin:0;
+  font-size:10.5px;
+  line-height:1.38;
+  display:-webkit-box;
+  -webkit-box-orient:vertical;
+  -webkit-line-clamp:3;
+  overflow:hidden;
+  overflow-wrap:anywhere;
+ }
+ #calculatorGrid>.calc-card .open-calc{
+  width:100%;
+  min-height:38px;
+  margin-top:auto;
+  padding:8px 3px 0;
+  font-size:10px;
+  line-height:1.2;
+  white-space:normal;
+  overflow-wrap:anywhere;
+ }
+}
+
+/* Mobile Guest Lite: reserve separate scroll space for the limits list.
+   Consent and action buttons stay below the list instead of covering it. */
+@media(max-width:650px){
+ .worth-it-guest-overlay{
+  align-items:center !important;
+  justify-content:center !important;
+  padding:8px !important;
+  overflow-y:auto !important;
+ }
+ .worth-it-guest-card{
+  width:min(100%,540px) !important;
+  height:min(94dvh,760px) !important;
+  max-height:calc(100dvh - 16px) !important;
+  min-height:0 !important;
+  padding:14px !important;
+  display:flex !important;
+  flex-direction:column !important;
+  overflow:hidden !important;
+ }
+ .worth-it-guest-head{
+  flex:0 0 auto !important;
+  gap:9px !important;
+  padding-bottom:11px !important;
+ }
+ .worth-it-guest-head h2{font-size:20px !important;line-height:1.2}
+ .worth-it-guest-head p{font-size:11.5px !important;line-height:1.45 !important}
+ .worth-it-guest-body{
+  display:flex !important;
+  flex:1 1 0 !important;
+  flex-direction:column !important;
+  gap:9px !important;
+  min-height:0 !important;
+  padding:11px 1px !important;
+  overflow-x:hidden !important;
+  overflow-y:auto !important;
+  overscroll-behavior:contain !important;
+ }
+ .worth-it-guest-list{flex:0 0 auto !important;padding:12px !important}
+ .worth-it-guest-list h3{font-size:12.5px !important;margin-bottom:7px !important}
+ .worth-it-guest-list ul{font-size:11.5px !important;line-height:1.45 !important;gap:7px !important}
+ .worth-it-guest-consent{
+  position:relative !important;
+  z-index:1 !important;
+  flex:0 0 auto !important;
+  padding:10px 11px !important;
+  gap:9px !important;
+ }
+ .worth-it-guest-consent strong{font-size:11.5px !important;line-height:1.4 !important}
+ .worth-it-guest-consent small{font-size:10.5px !important;line-height:1.4 !important}
+ .worth-it-guest-consent-status{
+  flex:0 0 auto !important;
+  min-height:0 !important;
+  margin:6px 1px 8px !important;
+  font-size:10.5px !important;
+  line-height:1.4 !important;
+ }
+ .worth-it-guest-actions{
+  flex:0 0 auto !important;
+  display:flex !important;
+  flex-direction:column-reverse !important;
+  align-items:stretch !important;
+  gap:8px !important;
+  padding-top:10px !important;
+ }
+ .worth-it-guest-actions button{width:100% !important;min-height:42px !important}
+}
+@media(max-width:650px) and (max-height:560px){
+ .worth-it-guest-card{height:calc(100dvh - 16px) !important}
+ .worth-it-guest-head{padding-bottom:8px !important}
+ .worth-it-guest-head h2{font-size:18px !important}
+ .worth-it-guest-head p{margin-top:6px !important}
+ .worth-it-guest-body{padding:8px 1px !important}
+ .worth-it-guest-consent{padding:8px 10px !important}
+ .worth-it-guest-actions button{min-height:38px !important}
+}

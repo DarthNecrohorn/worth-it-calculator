@@ -5,12 +5,19 @@ select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000002'
 select set_config('request.jwt.claim.email','member@example.test',true);
 
 insert into public.worth_it_calculator_favorites(user_id,calculator_key)
-values ('00000000-0000-4000-8000-000000000002','cars');
+values ('00000000-0000-4000-8000-000000000002','ugc:demo-calc');
 do $test$
 begin
   if (select count(*) from public.worth_it_calculator_favorites) <> 1 then
     raise exception 'A user could not read their own favourite.';
   end if;
+  begin
+    insert into public.worth_it_calculator_favorites(user_id,calculator_key)
+    values ('00000000-0000-4000-8000-000000000002','cars');
+    raise exception 'An ordinary built-in calculator was allowed into the favourites table.';
+  exception when check_violation then
+    null;
+  end;
   begin
     perform public.admin_update_worth_it_user_report(1,'resolved','unauthorised attempt');
     raise exception 'A non-admin was allowed to moderate a report.';

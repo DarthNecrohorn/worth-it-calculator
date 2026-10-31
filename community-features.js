@@ -108,25 +108,48 @@ async function resetCustomTheme(){
  }catch(error){if(isMissingCommunitySchema(error)){themeRemoteAvailable=false;removeLocal(scopedKey(THEME_KEY,themeUserId));setThemeStatus("Preview-only: default colours restored for this account on this device.",false);}else{setThemeStatus("Default colours are active here, but the saved account theme could not be reset.",true);console.error("Could not reset Worth It custom theme:",error);}}
 }
 
-function calculatorKey(card){
- if(!card)return "";
- if(card.dataset.calculatorKey)return card.dataset.calculatorKey;
- const raw=card.querySelector(".open-calc")?.getAttribute("onclick")||"";
- const match=raw.match(/openCalculator\(['"]([a-z0-9_-]+)['"]\)/i);
- if(!match)return "";
- card.dataset.calculatorKey=match[1].toLowerCase();return card.dataset.calculatorKey;
+// UGC cards must opt in explicitly. Built-in calculators do not get social actions.
+function ugcCalculatorId(card){
+ if(!(card instanceof Element) || card.dataset.calculatorOrigin!=="ugc")return "";
+ const id=String(card.dataset.ugcId||"").trim().toLowerCase();
+ return /^[a-z0-9][a-z0-9_-]{0,62}$/.test(id)?id:"";
 }
-function saveLocalFavourites(){writeLocal(scopedKey(FAVOURITES_KEY,favouritesUserId),JSON.stringify(Array.from(favourites)));}
+function isUGCCalculatorCard(card){return Boolean(ugcCalculatorId(card));}
+window.isWorthItUGCCalculatorCard=isUGCCalculatorCard;
+window.canInteractWithWorthItUGCCalculator=function(card,action){
+ const allowed=["favorite","like","dislike","report"];
+ if(!allowed.includes(String(action||"").toLowerCase()))return false;
+ if(!isUGCCalculatorCard(card)){toast("This action is available only for user-created calculators.");return false;}
+ if(!favouritesUserId){toast("Sign in to interact with user-created calculators.");return false;}
+ return true;
+};
+function calculatorKey(card){
+ const id=ugcCalculatorId(card);
+ return id?"ugc:"+id:"";
+}
+function saveLocalFavourites(){
+ const onlyUGC=Array.from(favourites).filter(key=>/^ugc:[a-z0-9][a-z0-9_-]{0,62}$/i.test(String(key)));
+ favourites=new Set(onlyUGC);
+ writeLocal(scopedKey(FAVOURITES_KEY,favouritesUserId),JSON.stringify(onlyUGC));
+}
 function updateFavouriteButton(button,key){
  const active=favourites.has(key);
  button.classList.toggle("is-favourite",active);
- button.textContent=active?"★":"☆";
+ let icon=button.querySelector(".calc-favorite-icon");
+ if(!icon){icon=document.createElement("span");icon.className="calc-favorite-icon";button.replaceChildren(icon);}
+ icon.textContent=active?"★":"☆";
  button.setAttribute("aria-pressed",active?"true":"false");
  button.setAttribute("aria-label",active?"Remove from favourites":"Add to favourites");
  button.title=active?"Remove from favourites":"Add to favourites";
 }
 function decorateCard(card){
- const key=calculatorKey(card);if(!key||card.querySelector(".calc-favorite-toggle"))return;
+ const existing=card.querySelector(".calc-favorite-toggle");
+ if(!favouritesUserId||!isUGCCalculatorCard(card)){
+  existing?.remove();
+  return;
+ }
+ const key=calculatorKey(card);
+ if(!key||existing)return;
  const button=document.createElement("button");
  button.type="button";button.className="calc-favorite-toggle";
  button.addEventListener("click",event=>{event.preventDefault();event.stopPropagation();void toggleFavourite(key,button);});
@@ -134,6 +157,13 @@ function decorateCard(card){
 }
 function updateFavouritesToggle(){
  const button=$("favoriteCalculatorsToggle");if(!button)return;
+ const hasUGC=Array.from(document.querySelectorAll("#calculatorGrid .calc-card")).some(isUGCCalculatorCard);
+ button.hidden=!favouritesUserId||!hasUGC;
+ if(button.hidden&&favouritesOnly){
+  favouritesOnly=false;
+  const baseFilter=window.applyCalculatorFilters?.__worthItFavouriteOriginal;
+  if(typeof baseFilter==="function")baseFilter();
+ }
  button.classList.toggle("active",favouritesOnly);
  button.setAttribute("aria-pressed",favouritesOnly?"true":"false");
  button.textContent=favouritesOnly?"★ Showing favourites":"☆ Favourites";
@@ -143,7 +173,7 @@ function refreshFavouriteFilter(){
  grid.querySelectorAll(".calc-card").forEach(card=>{
   const key=calculatorKey(card),button=card.querySelector(".calc-favorite-toggle");
   if(button&&key)updateFavouriteButton(button,key);
-  if(favouritesOnly&&key&&!favourites.has(key))card.style.display="none";
+  if(favouritesOnly&&(!key||!favourites.has(key)))card.style.display="none";
  });
  if(favouritesOnly){
   const visible=Array.from(grid.querySelectorAll(".calc-card")).some(card=>card.style.display!=="none");
@@ -159,7 +189,9 @@ function installFavouriteFilter(){
  const original=window.applyCalculatorFilters;
  if(typeof original==="function"&&!original.__worthItFavouriteFilter){
   const wrapped=function(){original.apply(this,arguments);refreshFavouriteFilter();};
-  wrapped.__worthItFavouriteFilter=true;window.applyCalculatorFilters=wrapped;
+  wrapped.__worthItFavouriteFilter=true;
+  wrapped.__worthItFavouriteOriginal=original;
+  window.applyCalculatorFilters=wrapped;
  }
  $("favoriteCalculatorsToggle")?.addEventListener("click",()=>{
   favouritesOnly=!favouritesOnly;
@@ -170,25 +202,33 @@ async function loadFavouritesForSession(){
  const request=++favouritesRequest;let session=null;
  try{const result=await sb()?.auth?.getSession?.();if(result?.error)throw result.error;session=result?.data?.session||null;}catch(_){}
  const userId=session?.user?.id||"";if(userId!==favouritesUserId)favouritesLocalNoticeShown=false;favouritesUserId=userId;favouritesRemoteAvailable=userId?null:false;
- try{
-  const raw=readLocal(scopedKey(FAVOURITES_KEY,userId));
-  const saved=raw?JSON.parse(raw):[];
-  favourites=new Set(Array.isArray(saved)?saved.filter(key=>/^[a-z][a-z0-9_-]{0,63}$/i.test(String(key))):[]);
- }catch(_){favourites=new Set();}
  if(userId){
   try{
-   const result=await sb().from("worth_it_calculator_favorites").select("calculator_key").eq("user_id",userId);
+   const raw=readLocal(scopedKey(FAVOURITES_KEY,userId));
+   const saved=raw?JSON.parse(raw):[];
+   favourites=new Set(Array.isArray(saved)?saved.filter(key=>/^ugc:[a-z0-9][a-z0-9_-]{0,62}$/i.test(String(key))):[]);
+  }catch(_){favourites=new Set();}
+ }else{
+  favourites=new Set();
+ }
+ if(userId){
+  try{
+   const result=await sb().from("worth_it_calculator_favorites").select("calculator_key").eq("user_id",userId).like("calculator_key","ugc:%");
    if(result.error)throw result.error;
    if(request!==favouritesRequest||userId!==favouritesUserId)return;
-   favouritesRemoteAvailable=true;favourites=new Set((result.data||[]).map(row=>String(row.calculator_key)));saveLocalFavourites();
+   favouritesRemoteAvailable=true;favourites=new Set((result.data||[]).map(row=>String(row.calculator_key)).filter(key=>/^ugc:[a-z0-9][a-z0-9_-]{0,62}$/i.test(key)));saveLocalFavourites();
   }catch(error){if(isMissingCommunitySchema(error)){favouritesRemoteAvailable=false;saveLocalFavourites();}else{console.warn("Worth It favourite calculators could not be synchronised:",error);}}
  }
  decorateCards();
 }
 async function toggleFavourite(key,button){
+ const card=button?.closest(".calc-card");
+ if(!favouritesUserId){toast("Sign in to save a user-created calculator.");return;}
+ if(!isUGCCalculatorCard(card)||calculatorKey(card)!==key||!/^ugc:[a-z0-9][a-z0-9_-]{0,62}$/i.test(key)){
+  toast("Only user-created calculators can be added to favourites.");return;
+ }
  const had=favourites.has(key);if(had)favourites.delete(key);else favourites.add(key);
  updateFavouriteButton(button,key);saveLocalFavourites();refreshFavouriteFilter();
- if(!favouritesUserId)return;
  if(favouritesRemoteAvailable===false){if(!favouritesLocalNoticeShown){toast("Preview-only: favourites are saved locally for this account until the community database migration is installed.");favouritesLocalNoticeShown=true;}return;}
  button.disabled=true;
  try{

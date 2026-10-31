@@ -55,10 +55,21 @@ grant execute on function public.admin_update_worth_it_user_report(bigint,text,t
 create table if not exists public.worth_it_calculator_favorites (
   user_id uuid not null references auth.users(id) on delete cascade,
   calculator_key text not null
-    check (calculator_key ~ '^[a-z][a-z0-9_-]{0,63}$'),
+    check (calculator_key ~ '^ugc:[a-z0-9][a-z0-9_-]{0,62}$'),
   created_at timestamptz not null default now(),
   primary key (user_id,calculator_key)
 );
+-- Remove legacy built-in calculator favourites; only explicit UGC IDs are social content.
+alter table public.worth_it_calculator_favorites
+  drop constraint if exists worth_it_calculator_favorites_calculator_key_check;
+alter table public.worth_it_calculator_favorites
+  drop constraint if exists worth_it_calculator_favorites_ugc_key_check;
+delete from public.worth_it_calculator_favorites
+ where calculator_key !~ '^ugc:[a-z0-9][a-z0-9_-]{0,62}$';
+alter table public.worth_it_calculator_favorites
+  add constraint worth_it_calculator_favorites_ugc_key_check
+  check (calculator_key ~ '^ugc:[a-z0-9][a-z0-9_-]{0,62}$');
+
 create index if not exists worth_it_calculator_favorites_created_idx
   on public.worth_it_calculator_favorites(user_id,created_at desc);
 

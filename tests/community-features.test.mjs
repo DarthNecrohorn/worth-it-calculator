@@ -22,11 +22,25 @@ test("owner-only report moderation has a database-side identity check",()=>{
  assert.ok(sql.includes("grant execute on function public.admin_update_worth_it_user_report"));
 });
 test("calculator favourites are stored per account with row-level ownership policies",()=>{
+ assert.ok(js.includes("function ugcCalculatorId"));
+ assert.ok(js.includes("function isUGCCalculatorCard"));
+ assert.ok(js.includes('if(!favouritesUserId||!isUGCCalculatorCard(card))'));
+ assert.ok(js.includes('return id?"ugc:"+id:""'));
+ assert.ok(js.includes('if(!favouritesUserId){toast("Sign in to save a user-created calculator.")'));
+
  assert.ok(html.includes('id="favoriteCalculatorsToggle"'));
  assert.ok(js.includes("worth_it_calculator_favorites"));
  assert.ok(sql.includes("Users can view their own calculator favourites"));
  assert.ok(sql.includes("Users can save their own calculator favourites"));
  assert.ok(sql.includes("Users can remove their own calculator favourites"));
+ assert.ok(js.includes('card.dataset.calculatorOrigin!=="ugc"'));
+ assert.ok(js.includes('window.canInteractWithWorthItUGCCalculator'));
+ assert.ok(js.includes('const allowed=["favorite","like","dislike","report"]'));
+ assert.ok(js.includes('if(!favouritesUserId||!isUGCCalculatorCard(card))'));
+ assert.ok(js.includes("window.applyCalculatorFilters?.__worthItFavouriteOriginal"));
+ assert.ok(js.includes('.like("calculator_key","ugc:%")'));
+ assert.ok(sql.includes("^ugc:[a-z0-9][a-z0-9_-]{0,62}$"));
+ assert.ok(sql.includes("worth_it_calculator_favorites_ugc_key_check"));
 });
 test("custom accent themes only accept hex colours and can sync to the user account",()=>{
  assert.ok(html.includes('id="worthItThemePrimary"'));
@@ -68,4 +82,6 @@ test("community migration is designed for repeat execution and has postgres smok
  assert.ok(setup.includes("create table if not exists public.worth_it_user_reports"));
  assert.ok(smoke.includes("unauthorised attempt"));
  assert.ok(smoke.includes("admin_update_worth_it_user_report"));
+ assert.ok(smoke.includes("ordinary built-in calculator was allowed"));
+ assert.ok(sql.includes("drop constraint if exists worth_it_calculator_favorites_ugc_key_check"));
 });
